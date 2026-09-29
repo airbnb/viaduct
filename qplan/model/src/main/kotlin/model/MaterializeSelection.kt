@@ -93,13 +93,9 @@ sealed interface MaterializeSelectionForest {
 
     fun all(predicate: (MaterializeSelection) -> Boolean): Boolean
 
-    fun filter(
-        predicate: (MaterializeSelection) -> Boolean,
-    ): MaterializeSelectionForest
+    fun filter(predicate: (MaterializeSelection) -> Boolean): MaterializeSelectionForest
 
-    fun flatMap(
-        transform: (MaterializeSelection) -> MaterializeSelectionForest,
-    ): MaterializeSelectionForest
+    fun flatMap(transform: (MaterializeSelection) -> MaterializeSelectionForest): MaterializeSelectionForest
 
     fun forEach(action: (MaterializeSelection) -> Unit)
 
@@ -162,20 +158,13 @@ sealed interface ObjectMaterializeSelectionForest {
 }
 
 /** Constructs a materialize forest containing the supplied source occurrences. */
-fun materializeSelectionForestOf(
-    vararg selections: MaterializeSelection,
-): MaterializeSelectionForest =
-    MaterializeSelectionForestImpl(selections.asList())
+fun materializeSelectionForestOf(vararg selections: MaterializeSelection): MaterializeSelectionForest = MaterializeSelectionForestImpl(selections.asList())
 
 /** Constructs a materialize forest from these source occurrences. */
-fun Iterable<MaterializeSelection>.toMaterializeSelectionForest():
-    MaterializeSelectionForest =
-    MaterializeSelectionForestImpl(toList())
+fun Iterable<MaterializeSelection>.toMaterializeSelectionForest(): MaterializeSelectionForest = MaterializeSelectionForestImpl(toList())
 
 /** Maps each input to a materialize forest and concatenates the source occurrences. */
-fun <T : Any> Iterable<T>.flatMapToMaterializeSelectionForest(
-    transform: (T) -> MaterializeSelectionForest,
-): MaterializeSelectionForest =
+fun <T : Any> Iterable<T>.flatMapToMaterializeSelectionForest(transform: (T) -> MaterializeSelectionForest): MaterializeSelectionForest =
     MaterializeSelectionForestImpl(
         buildList {
             this@flatMapToMaterializeSelectionForest.forEach { element ->
@@ -202,9 +191,7 @@ fun SelectionForest.toCanonicalMaterializeSelectionForest(): MaterializeSelectio
 }
 
 /** Conjunctively guards each source occurrence, distributing disjunction into occurrences. */
-fun MaterializeSelectionForest.guardedBy(
-    condition: InclusionCondition,
-): MaterializeSelectionForest =
+fun MaterializeSelectionForest.guardedBy(condition: InclusionCondition): MaterializeSelectionForest =
     condition.alternatives().flatMapToMaterializeSelectionForest { alternative ->
         flatMap { selection ->
             materializeSelectionForestOf(
@@ -244,18 +231,11 @@ private class MaterializeSelectionForestImpl(
 
     override fun isEmpty(): Boolean = selections.isEmpty()
 
-    override fun all(predicate: (MaterializeSelection) -> Boolean): Boolean =
-        selections.all(predicate)
+    override fun all(predicate: (MaterializeSelection) -> Boolean): Boolean = selections.all(predicate)
 
-    override fun filter(
-        predicate: (MaterializeSelection) -> Boolean,
-    ): MaterializeSelectionForest =
-        MaterializeSelectionForestImpl(selections.filter(predicate))
+    override fun filter(predicate: (MaterializeSelection) -> Boolean): MaterializeSelectionForest = MaterializeSelectionForestImpl(selections.filter(predicate))
 
-    override fun flatMap(
-        transform: (MaterializeSelection) -> MaterializeSelectionForest,
-    ): MaterializeSelectionForest =
-        selections.flatMapToMaterializeSelectionForest(transform)
+    override fun flatMap(transform: (MaterializeSelection) -> MaterializeSelectionForest): MaterializeSelectionForest = selections.flatMapToMaterializeSelectionForest(transform)
 
     override fun forEach(action: (MaterializeSelection) -> Unit) {
         selections.forEach(action)
@@ -263,8 +243,7 @@ private class MaterializeSelectionForestImpl(
 
     override fun single(): MaterializeSelection = selections.single()
 
-    override fun plus(other: MaterializeSelectionForest): MaterializeSelectionForest =
-        MaterializeSelectionForestImpl(selections + other.occurrences())
+    override fun plus(other: MaterializeSelectionForest): MaterializeSelectionForest = MaterializeSelectionForestImpl(selections + other.occurrences())
 
     override fun constructionSelections(): SelectionForest =
         selections
@@ -335,23 +314,18 @@ private class ObjectMaterializeSelectionForestImpl(
 
     override fun responseKeys(): Set<String> = selectionsByResponseKey.keys
 
-    override fun byResponseKey(): Map<String, ObjectMaterializeSelection> =
-        selectionsByResponseKey
+    override fun byResponseKey(): Map<String, ObjectMaterializeSelection> = selectionsByResponseKey
 
-    override fun get(responseKey: String): ObjectMaterializeSelection =
-        selectionsByResponseKey.getValue(responseKey)
+    override fun get(responseKey: String): ObjectMaterializeSelection = selectionsByResponseKey.getValue(responseKey)
 }
 
-private fun MaterializeSelectionForest.occurrences(): List<MaterializeSelection> =
-    (this as MaterializeSelectionForestImpl).occurrences()
+private fun MaterializeSelectionForest.occurrences(): List<MaterializeSelection> = (this as MaterializeSelectionForestImpl).occurrences()
 
 /**
  * Conservatively exposes a directive only when every collected source occurrence exposes it.
  * A missing directive context makes the collected context unavailable.
  */
-private fun mergeFieldDirectives(
-    directives: List<FieldDirectives?>,
-): FieldDirectives? {
+private fun mergeFieldDirectives(directives: List<FieldDirectives?>): FieldDirectives? {
     if (directives.any { it == null }) return null
     val available = directives.filterNotNull()
     if (available.size == 1) return available.single()

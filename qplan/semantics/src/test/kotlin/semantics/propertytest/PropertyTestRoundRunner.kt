@@ -2,16 +2,16 @@
 
 package semantics.propertytest
 
+import java.io.File
+import kotlin.coroutines.CoroutineContext
 import kotlinx.coroutines.runBlocking
 import semantics.arbitrary.Config
 import semantics.arbitrary.ResolverTestCaseCoordinate
 import semantics.arbitrary.ResolverTestExecution
-import semantics.resolver26.Resolver26StructuralSignature
-import semantics.resolver26.runResolver26BroadStress
-import java.io.File
-import kotlin.coroutines.CoroutineContext
 import semantics.resolver26.ResolutionDispatcherFactory
+import semantics.resolver26.Resolver26StructuralSignature
 import semantics.resolver26.configuredResolutionThreadCount
+import semantics.resolver26.runResolver26BroadStress
 
 const val GENERATOR_CONFIG_INDEX_RESOURCE =
     "/semantics/property-tests/generator-configs/index.json"
@@ -193,8 +193,7 @@ private object Resolver26BroadCorrectnessSubject : PropertyTestSubject {
         )
 }
 
-internal fun Resolver26StructuralSignature.wireId(): String =
-    name.lowercase().replace('_', '-')
+internal fun Resolver26StructuralSignature.wireId(): String = name.lowercase().replace('_', '-')
 
 private fun structuralSignature(id: String): Resolver26StructuralSignature =
     Resolver26StructuralSignature.entries.singleOrNull { signature ->

@@ -16,16 +16,14 @@ import model.Arguments
 import model.EngineErrorData
 import model.EngineOutputData
 import model.Fragment
-import model.SelectionForest
-import model.SourceSchemaAdapter
 import model.RootFieldReferenceData
+import model.SourceSchemaAdapter
 import model.emptyFragmentOf
 import model.engineObjectDataOf
-import model.fragmentFrom
 import model.fragmentFromDocument
+import model.registry.SelectiveFieldResolverFunction
 import model.requireQueryTypeDef
 import model.requireType
-import model.registry.SelectiveFieldResolverFunction
 import model.testing.FieldResolverDefinition
 import model.testing.NodeResolverFunction
 import model.testing.TestWorld
@@ -157,7 +155,6 @@ fun MockTenantModuleBootstrapper.runQPlanFeatureTest(
     )
 }
 
-
 private fun EngineTestModule.validateSupportedExecutors() {
     if (checkerExecutors.isNotEmpty() || typeCheckerExecutors.isNotEmpty()) {
         TODO("Qplan feature tests do not support checker executors yet")
@@ -214,6 +211,7 @@ private fun EngineTestModule.qplanRegistryInputs(
                         "Duplicate variable provider \$${variable.variableName} for ${coordinate.render()}"
                     }
                 }
+
             suspend fun invokeExecutor(
                 input: EngineObjectData.Sync,
                 queryValue: EngineObjectData.Sync,
@@ -246,7 +244,7 @@ private fun EngineTestModule.qplanRegistryInputs(
                 { input, queryValue, arguments, selections, resolutionContext ->
                     val selectionSet =
                         (field.type.baseTypeDef as? QPlanSchema.CompositeTypeDef)?.let {
-                            type ->
+                                type ->
                             type.takeIf { fullSchema.schema.getType(it.name) != null }
                                 ?.let { selections.toEngineSelectionSet(it, fullSchema, sourceSchema) }
                         }
@@ -408,6 +406,7 @@ private fun EngineTestModule.qplanNodeResolvers(
                     .mapNotNullTo(linkedSetOf()) { (coordinate, _) ->
                         coordinate.second.takeIf { coordinate.first == typeName }
                     }
+
             suspend fun invokeExecutor(
                 id: String,
                 selections: EngineSelectionSet,
@@ -552,44 +551,46 @@ private fun normalizeSourceOutput(
             sourceTypeName = value.type.name,
             arguments = value.args,
         )
-    } else when (expectedType) {
-        is GraphQLNonNull ->
-            normalizeSourceOutput(expectedType.wrappedType as GraphQLOutputType, value, sourceSchema)
-        is GraphQLList -> {
-            if (value !is List<*>) {
-                value
-            } else {
-                value.map {
-                    normalizeSourceOutput(
-                        expectedType.wrappedType as GraphQLOutputType,
-                        it,
-                        sourceSchema,
-                    )
+    } else {
+        when (expectedType) {
+            is GraphQLNonNull ->
+                normalizeSourceOutput(expectedType.wrappedType as GraphQLOutputType, value, sourceSchema)
+            is GraphQLList -> {
+                if (value !is List<*>) {
+                    value
+                } else {
+                    value.map {
+                        normalizeSourceOutput(
+                            expectedType.wrappedType as GraphQLOutputType,
+                            it,
+                            sourceSchema,
+                        )
+                    }
                 }
             }
+            is GraphQLObjectType ->
+                when (value) {
+                    is NodeReference -> normalizeNodeReference(value)
+                    is EngineObjectData.Sync -> normalizeSourceObject(expectedType, value, sourceSchema)
+                    is Map<*, *> -> normalizeSourceObjectMap(expectedType, value, sourceSchema)
+                    else -> value
+                }
+            is GraphQLCompositeType ->
+                when (value) {
+                    is NodeReference -> normalizeNodeReference(value)
+                    is EngineObjectData.Sync -> normalizeSourceObject(value, sourceSchema)
+                    else -> value
+                }
+            is GraphQLScalarType ->
+                value?.let {
+                    expectedType.coercing.serialize(
+                        it,
+                        GraphQLContext.getDefault(),
+                        Locale.getDefault(),
+                    )
+                }
+            else -> value
         }
-        is GraphQLObjectType ->
-            when (value) {
-                is NodeReference -> normalizeNodeReference(value)
-                is EngineObjectData.Sync -> normalizeSourceObject(expectedType, value, sourceSchema)
-                is Map<*, *> -> normalizeSourceObjectMap(expectedType, value, sourceSchema)
-                else -> value
-            }
-        is GraphQLCompositeType ->
-            when (value) {
-                is NodeReference -> normalizeNodeReference(value)
-                is EngineObjectData.Sync -> normalizeSourceObject(value, sourceSchema)
-                else -> value
-            }
-        is GraphQLScalarType ->
-            value?.let {
-                expectedType.coercing.serialize(
-                    it,
-                    GraphQLContext.getDefault(),
-                    Locale.getDefault(),
-                )
-            }
-        else -> value
     }
 
 private fun normalizeSourceObjectMap(

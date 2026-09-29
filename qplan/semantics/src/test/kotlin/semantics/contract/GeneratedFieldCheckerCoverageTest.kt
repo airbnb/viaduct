@@ -1,10 +1,10 @@
 package semantics.contract
 
+import kotlin.test.assertEquals
 import model.fragmentFrom
 import model.testing.TestWorld
 import org.junit.jupiter.api.Test
 import semantics.arbitrary.FieldCoordinate
-import kotlin.test.assertEquals
 
 class GeneratedFieldCheckerCoverageTest {
     private val world = TestWorld.fromSDL(

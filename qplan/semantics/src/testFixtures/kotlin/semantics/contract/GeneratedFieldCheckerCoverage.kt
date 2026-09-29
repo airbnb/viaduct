@@ -347,6 +347,7 @@ private fun ArbitraryRegistry.fieldCheckerCoverage(
 internal fun SelectionForest.repeatedSelectedFieldCoordinates(): Set<FieldCoordinate> {
     val seen = mutableSetOf<FieldCoordinate>()
     val repeated = mutableSetOf<FieldCoordinate>()
+
     fun visit(selections: SelectionForest) {
         selections.forEach { selection ->
             selection.possibleTypes.forEach { type ->
@@ -360,12 +361,9 @@ internal fun SelectionForest.repeatedSelectedFieldCoordinates(): Set<FieldCoordi
     return repeated
 }
 
-private fun <T> List<T>.startsWith(prefix: List<T>): Boolean =
-    size >= prefix.size && take(prefix.size) == prefix
+private fun <T> List<T>.startsWith(prefix: List<T>): Boolean = size >= prefix.size && take(prefix.size) == prefix
 
-private fun ArbitraryRegistry.generatedCheckerSignatures(
-    sourceField: FieldCoordinate,
-): Set<GeneratedFieldCheckerCoverageSignature> =
+private fun ArbitraryRegistry.generatedCheckerSignatures(sourceField: FieldCoordinate): Set<GeneratedFieldCheckerCoverageSignature> =
     buildSet {
         add(GeneratedFieldCheckerCoverageSignature.FIELD_CHECKER)
         if (objectFragmentSources.getValue(sourceField).isNotEmpty()) {

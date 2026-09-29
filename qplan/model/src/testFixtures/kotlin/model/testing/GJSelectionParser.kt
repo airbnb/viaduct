@@ -1,11 +1,10 @@
 package model.testing
 
-import viaduct.graphql.schema.ViaductSchema
-
 import graphql.GraphQLContext
 import graphql.execution.CoercedVariables
 import graphql.execution.ValuesResolver
 import graphql.execution.conditional.ConditionalNodes
+import graphql.introspection.Introspection
 import graphql.language.BooleanValue
 import graphql.language.DirectivesContainer
 import graphql.language.Document
@@ -16,7 +15,6 @@ import graphql.language.InlineFragment
 import graphql.language.OperationDefinition
 import graphql.language.SelectionSet
 import graphql.language.VariableReference
-import graphql.introspection.Introspection
 import graphql.parser.Parser
 import graphql.schema.GraphQLCompositeType
 import graphql.schema.GraphQLFieldDefinition
@@ -28,16 +26,16 @@ import model.Arguments
 import model.EngineInputData
 import model.InclusionCondition
 import model.MaterializeSelectionForest
-import model.SourceSchemaAdapter
 import model.SelectionForest
-import model.requireField
+import model.SourceSchemaAdapter
+import model.registry.ResolverTarget
 import model.requireQueryTypeDef
 import model.requireType
-import model.registry.ResolverTarget
 import model.spec.SpecSelection
 import model.spec.flatten
 import model.spec.flattenForMaterialization
 import viaduct.engine.api.FieldDirectives
+import viaduct.graphql.schema.ViaductSchema
 
 /**
  * Parses and validates external GraphQL fragment text against the unaugmented source schema.
@@ -89,9 +87,7 @@ internal class GJSelectionParser(
         return flatten(schema, schema.requireQueryTypeDef(), selections)
     }
 
-    fun materializeSelectionsFrom(
-        fragment: String,
-    ): Pair<ViaductSchema.CompositeTypeDef, MaterializeSelectionForest> {
+    fun materializeSelectionsFrom(fragment: String): Pair<ViaductSchema.CompositeTypeDef, MaterializeSelectionForest> {
         val parsed = specSelectionsFrom(fragment)
         val selections =
             flattenForMaterialization(schema, parsed.nominalType, parsed.selections)
@@ -301,7 +297,6 @@ internal class GJSelectionParser(
         ): Map<String, Any?>
 
         fun decodeCondition(container: DirectivesContainer<*>): InclusionCondition
-
     }
 
     private enum class TranslationMode {

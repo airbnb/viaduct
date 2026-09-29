@@ -3,11 +3,11 @@
 package semantics.correctresolution
 
 import java.util.concurrent.atomic.AtomicInteger
-import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import kotlinx.coroutines.runBlocking
 import model.Arguments
 import model.ObjectEngineResult
 import model.ResolverOccurrenceId
@@ -30,10 +30,10 @@ import semantics.contract.registeredResolverOccurrenceApplicationIdentityCounts
 import semantics.resolvers.resolver01.DepthFirstResolve
 import semantics.resolvers.resolver02.resolve
 import semantics.shared.OEROccurrence
-import semantics.shared.fieldResolverCycleTask
 import semantics.shared.ResolverInvocationObservation
 import semantics.shared.SharedOERContext
 import semantics.shared.SharedOperationContext
+import semantics.shared.fieldResolverCycleTask
 import semantics.shared.materializeResult
 
 /** The final ownership gate must distinguish ordinary owners from justified reference targets. */
@@ -81,11 +81,14 @@ class IndependentRoleAdversarialReviewTest {
         // final runtime retains for references. The helper itself emits all of its real events;
         // this test neither relabels captured events nor fabricates source invocations.
         val unusedAssociatedRoot = ObjectEngineResult.of(queryType)
-        observer.onQueryOERPrepared(SharedOERContext(
-            OEROccurrence(unusedAssociatedRoot, emptyList(), unusedAssociatedRoot),
-            engineObjectDataOf(queryType),
-            selectionForestOf().merge(queryType),
-        ), 1)
+        observer.onQueryOERPrepared(
+            SharedOERContext(
+                OEROccurrence(unusedAssociatedRoot, emptyList(), unusedAssociatedRoot),
+                engineObjectDataOf(queryType),
+                selectionForestOf().merge(queryType),
+            ),
+            1
+        )
         listOf("left", "right").forEach { name ->
             val field = world.schema.requireObjectField("Query", name)
             val key = ObjectEngineResult.GroundKey.of(field, emptyMap())
@@ -105,18 +108,20 @@ class IndependentRoleAdversarialReviewTest {
                 )
                 val input = engineObjectDataOf(queryType)
                 val arguments = key.arguments as Arguments.Resolved
-                observer.onResolverInvocation(ResolverInvocationObservation(
-                    occurrencePath = path,
-                    field = field,
-                    input = input,
-                    inputSelections = materializeSelectionForestOf(),
-                    queryValue = queryValue,
-                    queryInputSelections =
-                        resolver.instantiateQueryMaterializationSelections(owner),
-                    arguments = arguments,
-                    suppliedDemand = null,
-                    resolverOccurrenceId = owner,
-                ))
+                observer.onResolverInvocation(
+                    ResolverInvocationObservation(
+                        occurrencePath = path,
+                        field = field,
+                        input = input,
+                        inputSelections = materializeSelectionForestOf(),
+                        queryValue = queryValue,
+                        queryInputSelections =
+                            resolver.instantiateQueryMaterializationSelections(owner),
+                        arguments = arguments,
+                        suppliedDemand = null,
+                        resolverOccurrenceId = owner,
+                    )
+                )
                 resolver(
                     input = input,
                     queryValue = queryValue,
@@ -146,26 +151,39 @@ class IndependentRoleAdversarialReviewTest {
         assertFalse(accepted, "Independent-role owners require source-justified reference hops; ordinary owners cannot use the old four-application policy")
     }
 
-    private fun world(calls: AtomicInteger, references: Boolean): TestWorld = TestWorld.fromSDL(
-        selectiveResolvers = false,
-        schemaSDL = "type Query { left: Int! right: Int! target: Int! source: Int! }",
-        fieldResolvers = { schema ->
-            val empty = schema.emptyFragmentOf("Query")
-            val query = schema.fragmentFrom("fragment Input on Query { source }")
-            val target = schema.requireObjectField("Query", "target")
-            buildMap {
-                listOf("left", "right").forEach { name ->
-                    put(schema.requireObjectField("Query", name), if (references) {
-                        fieldResolverOf(empty) { _, _ -> RootFieldReferenceData.of(listOf(target), emptyMap()) }
-                    } else {
-                        fieldResolverOf(empty, query) { _, value, _ -> value.outputValue("source") }
-                    })
+    private fun world(
+        calls: AtomicInteger,
+        references: Boolean
+    ): TestWorld =
+        TestWorld.fromSDL(
+            selectiveResolvers = false,
+            schemaSDL = "type Query { left: Int! right: Int! target: Int! source: Int! }",
+            fieldResolvers = { schema ->
+                val empty = schema.emptyFragmentOf("Query")
+                val query = schema.fragmentFrom("fragment Input on Query { source }")
+                val target = schema.requireObjectField("Query", "target")
+                buildMap {
+                    listOf("left", "right").forEach { name ->
+                        put(
+                            schema.requireObjectField("Query", name),
+                            if (references) {
+                                fieldResolverOf(empty) { _, _ -> RootFieldReferenceData.of(listOf(target), emptyMap()) }
+                            } else {
+                                fieldResolverOf(empty, query) { _, value, _ -> value.outputValue("source") }
+                            }
+                        )
+                    }
+                    put(target, fieldResolverOf(empty, query) { _, value, _ -> value.outputValue("source") })
+                    put(
+                        schema.requireObjectField("Query", "source"),
+                        fieldResolverOf(empty) { _, _ ->
+                            calls.incrementAndGet()
+                            7
+                        }
+                    )
                 }
-                put(target, fieldResolverOf(empty, query) { _, value, _ -> value.outputValue("source") })
-                put(schema.requireObjectField("Query", "source"), fieldResolverOf(empty) { _, _ -> calls.incrementAndGet(); 7 })
-            }
-        },
-    )
+            },
+        )
 
     private class RecordingObserver : CorrectnessResolverObserver() {
         val log = ResolutionOccurrenceApplicationLog()

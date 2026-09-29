@@ -2,9 +2,14 @@
 
 package semantics.resolver26
 
-import semantics.shared.ResolverInvocationObservation
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertIs
+import kotlin.test.assertNotEquals
+import kotlin.test.assertTrue
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
@@ -24,8 +29,9 @@ import model.emptyFragmentOf
 import model.fragmentFrom
 import model.merge
 import model.objectOf
-import model.requireQueryTypeDef
+import model.registry.FieldCheckerResolver
 import model.requireObjectField
+import model.requireQueryTypeDef
 import model.testing.TestWorld
 import model.testing.fieldResolverOf
 import model.testing.fromArgument
@@ -33,19 +39,13 @@ import model.testing.fromObjectField
 import model.testing.fromQueryField
 import semantics.contract.contractKey
 import semantics.contract.registeredResolverOccurrenceApplicationIdentityCounts
+import semantics.correctresolution.CorrectnessResolverObserver
 import semantics.correctresolution.correctResolution
 import semantics.shared.OEROccurrence
+import semantics.shared.ResolverInvocationObservation
 import semantics.shared.SharedOperationContext
-import semantics.correctresolution.CorrectnessResolverObserver
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertIs
-import kotlin.test.assertNotEquals
-import kotlin.test.assertTrue
-import viaduct.engine.api.EngineObjectData
-import model.registry.FieldCheckerResolver
 import viaduct.engine.api.CheckerResult
+import viaduct.engine.api.EngineObjectData
 
 class RootFieldReferenceResolutionTest : Resolver26DispatcherResource {
     @Test
@@ -459,7 +459,7 @@ class RootFieldReferenceResolutionTest : Resolver26DispatcherResource {
                                         RootFieldReferenceData.of(
                                             path = listOf(catalog, product),
                                             arguments = mapOf("id" to "42"),
-                                    )
+                                        )
                                 }
                             },
                         catalog to
@@ -1444,12 +1444,16 @@ class RootFieldReferenceResolutionTest : Resolver26DispatcherResource {
                     )
                 },
                 fieldCheckers = { schema ->
-                    if (!withChecker) emptyMap() else {
+                    if (!withChecker) {
+                        emptyMap()
+                    } else {
                         val products = schema.requireObjectField("Container", "products")
-                        mapOf(products to FieldCheckerResolver.of(products, schema.requireQueryTypeDef()) { _, _, _ ->
-                            checkerApplications.incrementAndGet()
-                            CheckerResult.Success
-                        })
+                        mapOf(
+                            products to FieldCheckerResolver.of(products, schema.requireQueryTypeDef()) { _, _, _ ->
+                                checkerApplications.incrementAndGet()
+                                CheckerResult.Success
+                            }
+                        )
                     }
                 },
                 variableProviders = { schema ->
@@ -1538,9 +1542,7 @@ class RootFieldReferenceResolutionTest : Resolver26DispatcherResource {
             },
         )
 
-    private suspend fun ObjectEngineResult.awaitReferenceNumbers(
-        world: model.Assumptions,
-    ): ListEngineResult {
+    private suspend fun ObjectEngineResult.awaitReferenceNumbers(world: model.Assumptions): ListEngineResult {
         val container =
             assertIs<ObjectEngineResult>(
                 withTimeout(5_000) {

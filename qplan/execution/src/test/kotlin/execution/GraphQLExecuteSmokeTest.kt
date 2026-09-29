@@ -3,9 +3,9 @@ package execution
 import execution.testing.ExecutionTestFixtureResource
 import execution.testing.assertResult
 import java.util.concurrent.ConcurrentLinkedQueue
-import model.testing.TestWorld
 import kotlin.test.Test
 import kotlin.test.assertTrue
+import model.testing.TestWorld
 
 /**
  * GraphQL-boundary smoke coverage for deterministic Resolver26 scenarios.

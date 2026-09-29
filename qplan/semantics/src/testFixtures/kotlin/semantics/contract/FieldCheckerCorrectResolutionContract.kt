@@ -16,8 +16,8 @@ import model.fragmentFrom
 import model.objectOf
 import model.outputValue
 import model.registry.FieldCheckerResolver
-import model.registry.ResolverTarget
 import model.registry.ResolverFragmentTemplates
+import model.registry.ResolverTarget
 import model.registry.VariableDefinition
 import model.requireObjectField
 import model.requireQueryTypeDef

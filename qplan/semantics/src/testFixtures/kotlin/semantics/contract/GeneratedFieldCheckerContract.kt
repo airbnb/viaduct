@@ -2,6 +2,7 @@
 
 package semantics.contract
 
+import kotlin.test.assertTrue
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Test
 import semantics.arbitrary.Config
@@ -11,22 +12,21 @@ import semantics.arbitrary.GeneratedFieldCheckerMode
 import semantics.arbitrary.NodeResolversEnabled
 import semantics.arbitrary.ParentFieldsEnabled
 import semantics.arbitrary.ResolverArgumentErrorWeight
-import semantics.arbitrary.ResolverFragmentsEnabled
+import semantics.arbitrary.ResolverFragmentDepth
 import semantics.arbitrary.ResolverFragmentWeight
+import semantics.arbitrary.ResolverFragmentsEnabled
 import semantics.arbitrary.ResolverFromArgumentNestedPathWeight
 import semantics.arbitrary.ResolverFromArgumentVariablesEnabled
-import semantics.arbitrary.ResolverQueryFragmentsEnabled
-import semantics.arbitrary.ResolverQueryFragmentWeight
-import semantics.arbitrary.ResolverVariableWeight
-import semantics.arbitrary.ResolverVariablesEnabled
-import semantics.arbitrary.RootFieldReferencesEnabled
-import semantics.arbitrary.RootFieldReferenceWeight
-import semantics.arbitrary.SometimesPassiveFieldWeight
-import kotlin.test.assertTrue
-import semantics.arbitrary.ResolverFragmentDepth
 import semantics.arbitrary.ResolverFromObjectFieldVariablesEnabled
 import semantics.arbitrary.ResolverFromProviderVariablesEnabled
 import semantics.arbitrary.ResolverFromQueryFieldVariablesEnabled
+import semantics.arbitrary.ResolverQueryFragmentWeight
+import semantics.arbitrary.ResolverQueryFragmentsEnabled
+import semantics.arbitrary.ResolverVariableWeight
+import semantics.arbitrary.ResolverVariablesEnabled
+import semantics.arbitrary.RootFieldReferenceWeight
+import semantics.arbitrary.RootFieldReferencesEnabled
+import semantics.arbitrary.SometimesPassiveFieldWeight
 
 /** Grounded and symbolic field-checker coverage with independent exact application accounting. */
 interface GeneratedFieldCheckerContract : GeneratedCaseAssertionPolicy {

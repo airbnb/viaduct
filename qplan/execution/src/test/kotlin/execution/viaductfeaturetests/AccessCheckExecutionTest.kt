@@ -4,7 +4,6 @@ package execution.viaductfeaturetests
 // Copied 31 out of 31 tests as of 2026-09-01
 
 import execution.testing.runQPlanFeatureTest
-
 import io.kotest.matchers.string.shouldContain
 import java.util.concurrent.atomic.AtomicReference
 import kotlinx.coroutines.ExperimentalCoroutinesApi

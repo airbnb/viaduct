@@ -1,12 +1,12 @@
 package semantics.resolver26
 
+import kotlin.test.Test
+import kotlin.test.assertTrue
 import model.Assumptions
 import model.fragmentFrom
 import model.registry.ResolverRegistry
 import model.testing.TestWorld
 import viaduct.graphql.schema.ViaductSchema
-import kotlin.test.Test
-import kotlin.test.assertTrue
 
 class ParentConstructionDemandComplexityRegressionTest {
     @Test
@@ -33,8 +33,7 @@ class ParentConstructionDemandComplexityRegressionTest {
         ).assumptions
         var lookups = 0
         val registry = object : ResolverRegistry by original.resolverRegistry {
-            override fun resolver(field: ViaductSchema.ObjectField) =
-                original.resolverRegistry.resolver(field).also { lookups++ }
+            override fun resolver(field: ViaductSchema.ObjectField) = original.resolverRegistry.resolver(field).also { lookups++ }
         }
         val world = Assumptions.of(original.schema, registry, original.selectiveResolvers)
         val input = world.schema.fragmentFrom("fragment F on Query { field0 }").subselections

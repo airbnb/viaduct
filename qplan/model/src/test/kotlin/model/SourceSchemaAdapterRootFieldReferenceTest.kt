@@ -1,9 +1,9 @@
 package model
 
-import model.testing.TestWorld
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import model.testing.TestWorld
 
 class SourceSchemaAdapterRootFieldReferenceTest {
     @Test

@@ -1,13 +1,12 @@
 package semantics.arbitrary
 
-import semantics.contract.RegisteredResolverOccurrence
-import semantics.contract.forEachRegisteredResolverOccurrence
-import semantics.contract.registeredResolverOccurrenceCounts
-import semantics.contract.registeredResolverOccurrences
-import semantics.shared.SharedOperationContext
-
-import viaduct.graphql.schema.ViaductSchema
-
+import java.util.concurrent.Executors
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+import kotlin.test.assertNotEquals
+import kotlin.test.assertSame
+import kotlin.test.assertTrue
 import model.Arguments
 import model.EngineErrorData
 import model.ListEngineResult
@@ -22,13 +21,12 @@ import model.requireObjectField
 import model.requireQueryTypeDef
 import model.testing.TestWorld
 import model.testing.fieldResolverOf
-import java.util.concurrent.Executors
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
-import kotlin.test.assertNotEquals
-import kotlin.test.assertSame
-import kotlin.test.assertTrue
+import semantics.contract.RegisteredResolverOccurrence
+import semantics.contract.forEachRegisteredResolverOccurrence
+import semantics.contract.registeredResolverOccurrenceCounts
+import semantics.contract.registeredResolverOccurrences
+import semantics.shared.SharedOperationContext
+import viaduct.graphql.schema.ViaductSchema
 
 class ResolutionWitnessTest {
     @Test
@@ -309,11 +307,13 @@ class ResolutionWitnessTest {
         val cells =
             SharedOperationContext.create(world.assumptions).let { resolutionOperation -> result.registeredResolverOccurrences(resolutionOperation, world.resolverRegistry) }
         val streamedCells = mutableListOf<RegisteredResolverOccurrence>()
-        SharedOperationContext.create(world.assumptions).let { resolutionOperation -> result.forEachRegisteredResolverOccurrence(
-            operation = resolutionOperation,
-            registry = world.resolverRegistry,
-            visitOccurrence = streamedCells::add,
-        ) }
+        SharedOperationContext.create(world.assumptions).let { resolutionOperation ->
+            result.forEachRegisteredResolverOccurrence(
+                operation = resolutionOperation,
+                registry = world.resolverRegistry,
+                visitOccurrence = streamedCells::add,
+            )
+        }
         assertEquals(
             cells.groupingBy { cell -> cell }.eachCount(),
             streamedCells.groupingBy { cell -> cell }.eachCount(),
@@ -389,28 +389,34 @@ class ResolutionWitnessTest {
             ResolutionWitnessBounds(maxFingerprintCharacters = 1)
 
         assertFailsWith<ResolutionWitnessBoundExceededException> {
-            SharedOperationContext.create(world.assumptions).let { resolutionOperation -> result.registeredResolverOccurrences(
+            SharedOperationContext.create(world.assumptions).let { resolutionOperation ->
+                result.registeredResolverOccurrences(
+                    operation = resolutionOperation,
+                    registry = world.resolverRegistry,
+                    bounds = fingerprintBounds,
+                )
+            }
+        }
+        val streamedCells = mutableListOf<RegisteredResolverOccurrence>()
+        SharedOperationContext.create(world.assumptions).let { resolutionOperation ->
+            result.forEachRegisteredResolverOccurrence(
                 operation = resolutionOperation,
                 registry = world.resolverRegistry,
                 bounds = fingerprintBounds,
-            ) }
+                visitOccurrence = streamedCells::add,
+            )
         }
-        val streamedCells = mutableListOf<RegisteredResolverOccurrence>()
-        SharedOperationContext.create(world.assumptions).let { resolutionOperation -> result.forEachRegisteredResolverOccurrence(
-            operation = resolutionOperation,
-            registry = world.resolverRegistry,
-            bounds = fingerprintBounds,
-            visitOccurrence = streamedCells::add,
-        ) }
         assertEquals(2, streamedCells.size)
 
         assertFailsWith<ResolutionWitnessBoundExceededException> {
-            SharedOperationContext.create(world.assumptions).let { resolutionOperation -> result.forEachRegisteredResolverOccurrence(
-                operation = resolutionOperation,
-                registry = world.resolverRegistry,
-                bounds = ResolutionWitnessBounds(maxResultNodes = 1),
-                visitOccurrence = {},
-            ) }
+            SharedOperationContext.create(world.assumptions).let { resolutionOperation ->
+                result.forEachRegisteredResolverOccurrence(
+                    operation = resolutionOperation,
+                    registry = world.resolverRegistry,
+                    bounds = ResolutionWitnessBounds(maxResultNodes = 1),
+                    visitOccurrence = {},
+                )
+            }
         }
     }
 
@@ -668,6 +674,5 @@ class ResolutionWitnessTest {
             },
         )
 
-    private fun coordinate(field: ViaductSchema.ObjectField): FieldCoordinate =
-        FieldCoordinate(field.containingDef.name, field.name)
+    private fun coordinate(field: ViaductSchema.ObjectField): FieldCoordinate = FieldCoordinate(field.containingDef.name, field.name)
 }

@@ -91,9 +91,7 @@ internal fun ResolverOccurrenceId.rootRelativeHashCode(): Int =
     }
 
 /** Returns whether these occurrences have equal paths after omitting their root identities. */
-internal fun ResolverOccurrenceId.hasSameRootRelativeAddressAs(
-    other: ResolverOccurrenceId,
-): Boolean {
+internal fun ResolverOccurrenceId.hasSameRootRelativeAddressAs(other: ResolverOccurrenceId): Boolean {
     val leftPath = (this as ResolverOccurrenceIdImpl).path
     val rightPath = (other as ResolverOccurrenceIdImpl).path
     return leftPath.size == rightPath.size &&

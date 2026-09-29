@@ -18,9 +18,7 @@ internal class OrchestrationConstructionDemand<out S : SelectionForest>(
 }
 
 /** Adds demand independently across both root locations and both checking provenances. */
-internal operator fun OrchestrationConstructionDemand<SelectionForest>.plus(
-    other: OrchestrationConstructionDemand<SelectionForest>,
-): OrchestrationConstructionDemand<SelectionForest> =
+internal operator fun OrchestrationConstructionDemand<SelectionForest>.plus(other: OrchestrationConstructionDemand<SelectionForest>): OrchestrationConstructionDemand<SelectionForest> =
     OrchestrationConstructionDemand(
         objectRooted = objectRooted + other.objectRooted,
         queryRooted = queryRooted + other.queryRooted,

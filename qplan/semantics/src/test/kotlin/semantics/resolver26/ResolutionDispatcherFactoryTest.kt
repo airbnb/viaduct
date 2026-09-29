@@ -3,13 +3,13 @@
 package semantics.resolver26
 
 import java.util.concurrent.ExecutorService
-import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.withContext
 import kotlin.test.Test
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNotEquals
 import kotlin.test.assertNotSame
 import kotlin.test.assertTrue
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 
 class ResolutionDispatcherFactoryTest {
     @Test

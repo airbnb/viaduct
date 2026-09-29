@@ -21,9 +21,7 @@ interface Resolver26DispatcherResource {
     val resolverDispatcher: ExecutorCoroutineDispatcher
         get() = Resolver26DispatcherExtension.dispatcherFor(javaClass)
 
-    fun SharedOperationContext<*>.resolveWithTestDispatcher(
-        selections: SelectionForest,
-    ): ObjectEngineResult =
+    fun SharedOperationContext<*>.resolveWithTestDispatcher(selections: SelectionForest): ObjectEngineResult =
         resolve(
             selections = selections,
             coroutineContext = resolverDispatcher,

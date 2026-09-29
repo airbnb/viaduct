@@ -1,22 +1,21 @@
 package semantics.resolvers
 
-import viaduct.graphql.schema.ViaductSchema
-
-import model.requireQueryTypeDef
-import model.requireObjectField
-import model.requireField
-import model.requireType
-import model.ObjectEngineResult
+import kotlin.test.Test
+import kotlin.test.assertEquals
 import model.EngineErrorData
+import model.ObjectEngineResult
 import model.emptyFragmentOf
 import model.fragmentFrom
 import model.merge
+import model.requireField
+import model.requireObjectField
+import model.requireQueryTypeDef
+import model.requireType
 import model.testing.TestWorld
 import model.testing.fieldResolverOf
-import semantics.shared.instantiateBindings
 import semantics.shared.SharedOperationContext
-import kotlin.test.Test
-import kotlin.test.assertEquals
+import semantics.shared.instantiateBindings
+import viaduct.graphql.schema.ViaductSchema
 
 class SuccessorDemandTest {
     @Test
@@ -118,10 +117,16 @@ class SuccessorDemandTest {
             ).subselections
 
         val full =
-            SharedOperationContext.create(world).let { resolutionOperation -> selections.successorDemand(resolutionOperation).merge(schema.requireQueryTypeDef()).instantiateBindings(resolutionOperation) }[schema.key(schema.requireQueryTypeDef(), "root")]
+            SharedOperationContext.create(world).let {
+                    resolutionOperation ->
+                selections.successorDemand(resolutionOperation).merge(schema.requireQueryTypeDef()).instantiateBindings(resolutionOperation)
+            }[schema.key(schema.requireQueryTypeDef(), "root")]
                 .subselections
         val boundaries =
-            SharedOperationContext.create(world).let { resolutionOperation -> selections.successorBoundaryDemand(resolutionOperation).merge(schema.requireQueryTypeDef()).instantiateBindings(resolutionOperation) }[schema.key(schema.requireQueryTypeDef(), "root")]
+            SharedOperationContext.create(world).let {
+                    resolutionOperation ->
+                selections.successorBoundaryDemand(resolutionOperation).merge(schema.requireQueryTypeDef()).instantiateBindings(resolutionOperation)
+            }[schema.key(schema.requireQueryTypeDef(), "root")]
                 .subselections
         val rootType = schema.requireType("Root") as ViaductSchema.Object
         val fullRoot = SharedOperationContext.create(world).let { resolutionOperation -> full.merge(rootType).instantiateBindings(resolutionOperation) }
@@ -141,27 +146,29 @@ class SuccessorDemandTest {
         val boundaryBox = boundaryRoot[schema.key(rootType, "box")]
         assertEquals(
             setOf("passive", "computed", "V_A_typename"),
-            SharedOperationContext.create(world).let { resolutionOperation -> fullBox.subselections
-                .merge(boxType)
-                .instantiateBindings(resolutionOperation)
-                .groundKeys()
-                .fieldNames() },
+            SharedOperationContext.create(world).let { resolutionOperation ->
+                fullBox.subselections
+                    .merge(boxType)
+                    .instantiateBindings(resolutionOperation)
+                    .groundKeys()
+                    .fieldNames()
+            },
         )
         assertEquals(
             setOf("computed", "V_A_typename"),
-            SharedOperationContext.create(world).let { resolutionOperation -> boundaryBox.subselections
-                .merge(boxType)
-                .instantiateBindings(resolutionOperation)
-                .groundKeys()
-                .fieldNames() },
+            SharedOperationContext.create(world).let { resolutionOperation ->
+                boundaryBox.subselections
+                    .merge(boxType)
+                    .instantiateBindings(resolutionOperation)
+                    .groundKeys()
+                    .fieldNames()
+            },
         )
     }
 
-    private fun Set<ObjectEngineResult.GroundKey>.fieldNames(): Set<String> =
-        mapTo(mutableSetOf()) { key -> key.field.name }
+    private fun Set<ObjectEngineResult.GroundKey>.fieldNames(): Set<String> = mapTo(mutableSetOf()) { key -> key.field.name }
 
-    private fun Set<ObjectEngineResult.ObjectKey>.objectKeyFieldNames(): Set<String> =
-        mapTo(mutableSetOf()) { key -> key.field.name }
+    private fun Set<ObjectEngineResult.ObjectKey>.objectKeyFieldNames(): Set<String> = mapTo(mutableSetOf()) { key -> key.field.name }
 
     private fun ViaductSchema.key(
         type: ViaductSchema.Object,

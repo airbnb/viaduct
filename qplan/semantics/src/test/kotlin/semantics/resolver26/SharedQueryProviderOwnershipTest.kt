@@ -27,6 +27,7 @@ class SharedQueryProviderOwnershipTest : Resolver26DispatcherResource {
     @Test
     fun `object and Query providers retain roots and owner identities inside one shared scope`() {
         val applications = ConcurrentHashMap<String, AtomicInteger>()
+
         fun count(name: String) {
             applications.computeIfAbsent(name) { AtomicInteger() }.incrementAndGet()
         }

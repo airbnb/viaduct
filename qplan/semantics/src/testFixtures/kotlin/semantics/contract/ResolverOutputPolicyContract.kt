@@ -1,17 +1,17 @@
 package semantics.contract
 
-import semantics.shared.ResolverInvocationObservation
-import semantics.correctresolution.CorrectnessResolverObserver
+import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+import kotlin.test.assertIs
+import kotlin.test.assertTrue
 import model.EngineResult
 import model.ObjectEngineResult
 import model.objectOf
 import model.operationSelectionsFrom
 import model.testing.TestWorld
 import org.junit.jupiter.api.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
-import kotlin.test.assertIs
-import kotlin.test.assertTrue
+import semantics.correctresolution.CorrectnessResolverObserver
+import semantics.shared.ResolverInvocationObservation
 
 /**
  * Output-boundary test policy for resolution strategies that consume complete resolver outputs.
@@ -92,7 +92,7 @@ private fun ResolverContract.assertRejectsWorldMode(selectiveResolvers: Boolean)
         TestWorld.fromSDL(
             schemaSDL = "type Query { value: Int }",
             selectiveResolvers = selectiveResolvers,
-    )
+        )
     val world = testWorld.assumptions
     val selections = world.operationSelectionsFrom("query { __typename }")
 
@@ -141,19 +141,19 @@ private data class RecursiveOutputFixtureResult(
 
 private fun ResolverContract.resolveRecursiveOutputFixture(): RecursiveOutputFixtureResult {
     val invocationObserver = object : CorrectnessResolverObserver() {
-            override fun onResolverInvocation(observation: ResolverInvocationObservation) {
-                super.onResolverInvocation(observation)
-                val field = observation.field
-                val input = observation.input
+        override fun onResolverInvocation(observation: ResolverInvocationObservation) {
+            super.onResolverInvocation(observation)
+            val field = observation.field
+            val input = observation.input
 
-                if (
-                    field.containingDef.name == "Query" &&
-                    field.name == "chain"
-                ) {
-                    require(input.hasExactlyFields())
-                }
+            if (
+                field.containingDef.name == "Query" &&
+                field.name == "chain"
+            ) {
+                require(input.hasExactlyFields())
             }
         }
+    }
     val testWorld =
         TestWorld.fromDSL(
             selectiveResolvers = selectiveResolvers,

@@ -1,14 +1,14 @@
 package model
 
-import model.testing.GJSchema
-import model.testing.TestWorld
-import model.invariants.conformsToSchema
 import kotlin.test.Test
-import kotlin.test.assertFalse
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
+import model.invariants.conformsToSchema
+import model.testing.GJSchema
+import model.testing.TestWorld
 import viaduct.engine.api.CheckerResult
 
 class ParentFieldsTest {
@@ -187,9 +187,7 @@ class ParentFieldsTest {
         assertFalse(parent.conformsToSchema(assumptions.parentFieldRelations))
     }
 
-    private fun Assumptions.parentResult(
-        parentOverride: ObjectEngineResult? = null,
-    ): ObjectEngineResult {
+    private fun Assumptions.parentResult(parentOverride: ObjectEngineResult? = null): ObjectEngineResult {
         val parentType = schema.requireType("Parent") as viaduct.graphql.schema.ViaductSchema.Object
         val childType = schema.requireType("Child") as viaduct.graphql.schema.ViaductSchema.Object
         val childKey = ObjectEngineResult.GroundKey.of(schema.requireObjectField("Parent", "child"), emptyMap())

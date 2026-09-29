@@ -2,9 +2,9 @@ package model.lowering
 
 import graphql.schema.GraphQLSchema
 import viaduct.graphql.schema.ViaductSchema
+import viaduct.graphql.schema.builder.ArgumentBuilder
 import viaduct.graphql.schema.builder.ObjectTypeExtensionBuilder
 import viaduct.graphql.schema.builder.OutputFieldBuilder
-import viaduct.graphql.schema.builder.ArgumentBuilder
 import viaduct.graphql.schema.builder.TypeExprBuilder
 import viaduct.graphql.schema.builder.ViaductSchemaBuilder
 import viaduct.graphql.schema.builder.ViaductSchemaBuilderFilter
@@ -16,8 +16,7 @@ import viaduct.graphql.schema.validation.ValidationContext
 /**
  * Creates qplan's field-resolution schema without modifying [source].
  */
-internal fun lowerSchema(source: GraphQLSchema): ViaductSchema =
-    lowerSchema(source.viaductSchema())
+internal fun lowerSchema(source: GraphQLSchema): ViaductSchema = lowerSchema(source.viaductSchema())
 
 /**
  * Creates qplan's field-resolution schema without modifying [source].

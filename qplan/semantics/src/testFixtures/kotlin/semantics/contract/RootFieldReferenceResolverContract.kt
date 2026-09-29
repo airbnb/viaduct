@@ -1,9 +1,10 @@
 package semantics.contract
 
-import semantics.shared.ResolverInvocationObservation
-import semantics.correctresolution.CorrectnessResolverObserver
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.test.assertEquals
+import kotlin.test.assertIs
+import kotlin.test.assertNotSame
 import model.Arguments
 import model.ListEngineResult
 import model.ObjectEngineResult
@@ -19,11 +20,10 @@ import model.testing.TestWorld
 import model.testing.fieldResolverOf
 import model.testing.fromArgument
 import model.testing.selectiveFieldResolverOf
-import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Assumptions.assumeTrue
-import kotlin.test.assertEquals
-import kotlin.test.assertIs
-import kotlin.test.assertNotSame
+import org.junit.jupiter.api.Test
+import semantics.correctresolution.CorrectnessResolverObserver
+import semantics.shared.ResolverInvocationObservation
 import viaduct.graphql.schema.ViaductSchema
 
 /** Root-field-reference behavior common to every maintained resolver capability tier. */

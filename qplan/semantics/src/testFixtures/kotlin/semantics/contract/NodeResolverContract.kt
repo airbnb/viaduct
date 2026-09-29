@@ -1,36 +1,33 @@
 package semantics.contract
 
 import java.util.concurrent.ConcurrentLinkedQueue
-
-import semantics.shared.ResolverInvocationObservation
-import semantics.correctresolution.CorrectnessResolverObserver
-import model.requireField
-import model.requireObjectField
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
+import kotlin.test.assertEquals
+import kotlin.test.assertIs
+import kotlin.test.assertTrue
 import model.EngineErrorData
-import model.EngineResult
 import model.EngineIDResult
 import model.EngineOutputListData
 import model.ErrorEngineResult
 import model.ListEngineResult
 import model.ObjectEngineResult
 import model.RootFieldReferenceData
-import viaduct.graphql.schema.ViaductSchema
 import model.emptyFragmentOf
 import model.fragmentFrom
 import model.objectOf
 import model.outputValue
+import model.requireField
+import model.requireObjectField
 import model.requireType
-import model.testing.FieldResolverDefinition
 import model.testing.TestWorld
 import model.testing.fieldResolverOf
 import model.testing.nodeResolverOf
 import org.junit.jupiter.api.Test
+import semantics.correctresolution.CorrectnessResolverObserver
+import semantics.shared.ResolverInvocationObservation
 import viaduct.engine.api.EngineObjectData
-import java.util.concurrent.atomic.AtomicBoolean
-import java.util.concurrent.atomic.AtomicInteger
-import kotlin.test.assertEquals
-import kotlin.test.assertIs
-import kotlin.test.assertTrue
+import viaduct.graphql.schema.ViaductSchema
 
 /**
  * Contract for source fields whose node outputs resolve through root references to `Query.node`.
@@ -301,9 +298,9 @@ interface NodeResolverContract : ResolverContract {
                     greeting(prefix: 5)
                   }
                 }
-                """.trimIndent(),
-                resolverObserver = invocationObserver,
-            )
+            """.trimIndent(),
+            resolverObserver = invocationObserver,
+        )
         invocationObserver.assertArguments(
             world.schema.requireObjectField("Query", "viewer"),
             mapOf("id" to "1"),
@@ -431,13 +428,13 @@ interface NodeResolverContract : ResolverContract {
                                 val group =
                                     arguments.fieldValues.getValue("group") as String
                                 listOf(
-                                        schema.objectOf("User") {
-                                            "id" setTo "$group-user"
-                                        },
-                                        schema.objectOf("Admin") {
-                                            "id" setTo "$group-admin"
-                                        },
-                                    )
+                                    schema.objectOf("User") {
+                                        "id" setTo "$group-user"
+                                    },
+                                    schema.objectOf("Admin") {
+                                        "id" setTo "$group-admin"
+                                    },
+                                )
                             },
                     )
                 },
@@ -457,7 +454,7 @@ interface NodeResolverContract : ResolverContract {
                   second: nodes(group: "second") { id }
                 }
                 """.trimIndent(),
-        )
+            )
         val nodesField = schema.requireObjectField("Query", "nodes")
         val firstKey = ObjectEngineResult.GroundKey.of(nodesField, mapOf("group" to "first"))
         val secondKey = ObjectEngineResult.GroundKey.of(nodesField, mapOf("group" to "second"))
@@ -508,6 +505,7 @@ interface NodeResolverContract : ResolverContract {
                 },
                 fieldResolvers = { schema ->
                     val matrix = schema.requireField("Query", "matrix")
+
                     fun row(vararg ids: String): EngineOutputListData =
                         ids.map { id ->
                             schema.objectOf("User") {

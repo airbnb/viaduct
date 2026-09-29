@@ -1,19 +1,17 @@
 package model.registry
 
-import viaduct.graphql.schema.ViaductSchema
-
 import model.Arguments
-
 import model.EngineErrorData
 import model.ResolverOutputData
-import model.SelectionForest
 import model.RootFieldReferenceData
+import model.SelectionForest
 import model.engineObjectDataOf
 import model.merge
 import model.objectKey
 import model.outputValue
 import model.schemaType
 import viaduct.engine.api.EngineObjectData
+import viaduct.graphql.schema.ViaductSchema
 
 /**
  * Supplies the selection input of a field resolver by projecting this selection-independent result
@@ -65,9 +63,7 @@ internal fun ResolverOutputData?.snipToDemand(demand: SelectionForest): Resolver
         else -> throw ClassCastException("Unsupported engine output data: $this")
     }
 
-private fun EngineObjectData.Sync.snipObjectToDemand(
-    demand: SelectionForest,
-): EngineObjectData.Sync {
+private fun EngineObjectData.Sync.snipObjectToDemand(demand: SelectionForest): EngineObjectData.Sync {
     val schemaType = this.schemaType
     val selectedFields =
         demand

@@ -1,16 +1,14 @@
 package model.spec
 
-import viaduct.graphql.schema.ViaductSchema
-
-import model.ObjectEngineResult
+import model.InclusionCondition
 import model.MaterializeSelection
 import model.MaterializeSelectionForest
-import model.InclusionCondition
+import model.ObjectEngineResult
 import model.Selection
 import model.SelectionForest
 import model.flatMapToMaterializeSelectionForest
 import model.materializeSelectionForestOf
-import model.requireField
+import viaduct.graphql.schema.ViaductSchema
 
 /**
  * Flattens a spec selection set interpreted with [typeInScope].

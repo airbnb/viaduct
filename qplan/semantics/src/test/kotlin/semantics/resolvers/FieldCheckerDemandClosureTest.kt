@@ -1,33 +1,33 @@
 package semantics.resolvers
 
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 import model.Arguments
 import model.Assumptions
 import model.ListEngineResult
 import model.ObjectEngineResult
 import model.ObjectSelectionForest
 import model.ResolverOccurrenceId
-import model.SelectionForest
 import model.Selection
+import model.SelectionForest
 import model.VariableBinding
 import model.fragmentFrom
+import model.materializeSelectionForestOf
 import model.merge
 import model.objectOf
-import model.materializeSelectionForestOf
 import model.registry.FieldCheckerResolver
 import model.registry.ResolverFragmentTemplates
 import model.requireObjectField
 import model.requireQueryTypeDef
 import model.selectionForestOf
 import model.testing.TestWorld
-import semantics.shared.OrchestrationConstructionDemand
 import semantics.shared.Demand
 import semantics.shared.OEROccurrence
+import semantics.shared.OrchestrationConstructionDemand
 import semantics.shared.SharedOperationContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.graphql.schema.ViaductSchema
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 
 /** Closure witnesses only: no checker executors, result slots, or Query producers run here. */
 class FieldCheckerDemandClosureTest {
@@ -40,10 +40,14 @@ class FieldCheckerDemandClosureTest {
     @Test
     fun `source supplied raw input does not expand its standard resolver or checker`() {
         val world = chainWorld()
-        val closed = close(world, checked = "a", source = world.schema.objectOf("Box") {
-            "a" setTo 1
-            "b" setTo 2
-        })
+        val closed = close(
+            world,
+            checked = "a",
+            source = world.schema.objectOf("Box") {
+                "a" setTo 1
+                "b" setTo 2
+            }
+        )
         assertDemand(closed, checked = setOf("a"), unchecked = setOf("b"))
     }
 
@@ -193,7 +197,7 @@ class FieldCheckerDemandClosureTest {
                                     objectFragmentTemplate = materializeSelectionForestOf(),
                                     queryFragmentTemplate = materializeSelectionForestOf(),
                                 ),
-                            ),
+                        ),
                     ) { _, _, _ -> error("Closure must not execute checkers") },
                     checker(schema, "Query", "viewer", "forbidden"),
                 )
@@ -342,8 +346,9 @@ class FieldCheckerDemandClosureTest {
         }
     }
 
-    private fun chainWorld(): Assumptions = TestWorld.fromDSL(
-        """
+    private fun chainWorld(): Assumptions =
+        TestWorld.fromDSL(
+            """
         extend type Query { boxes: [Box] @resolver(result: []) }
         type Box {
           a: Int
@@ -354,18 +359,22 @@ class FieldCheckerDemandClosureTest {
           late: Int @resolver(of: "middle", result: 1)
           middle: Int @resolver(of: "b", result: 1)
         }
-        """.trimIndent(),
-        fieldCheckers = { schema ->
-            mapOf(
-                checker(schema, "Box", "a", "b", "b"),
-                checker(schema, "Box", "b", "forbidden"),
-                checker(schema, "Box", "c", "audit"),
-            )
-        },
-    ).assumptions
+            """.trimIndent(),
+            fieldCheckers = { schema ->
+                mapOf(
+                    checker(schema, "Box", "a", "b", "b"),
+                    checker(schema, "Box", "b", "forbidden"),
+                    checker(schema, "Box", "c", "audit"),
+                )
+            },
+        ).assumptions
 
-    private fun parentWorld(aInput: String, bInput: String = "checkedAncestor"): Assumptions = TestWorld.fromDSL(
-        """
+    private fun parentWorld(
+        aInput: String,
+        bInput: String = "checkedAncestor"
+    ): Assumptions =
+        TestWorld.fromDSL(
+            """
         extend type Query { boxes: [Box] @resolver(result: []) }
         type Box {
           a: Int
@@ -389,19 +398,19 @@ class FieldCheckerDemandClosureTest {
           derived: Int @resolver(of: "parent { parent { checkedAncestor } }", result: 1)
           localDerived: Int @resolver(of: "parent { checkedLocal }", result: 1)
         }
-        """.trimIndent(),
-        fieldCheckers = { schema ->
-            mapOf(
-                checker(schema, "Box", "a", aInput),
-                checker(schema, "Box", "children", "forbidden"),
-                checker(schema, "Box", "rawAncestor", "forbidden"),
-                checker(schema, "Box", "checkedAncestor", "audit"),
-                checker(schema, "Child", "derived", "parent { forbidden }"),
-                checker(schema, "Child", "protected", "parent { rawAncestor }"),
-                checker(schema, "Child", "checkedLocal", "localAudit"),
-            )
-        },
-    ).assumptions
+            """.trimIndent(),
+            fieldCheckers = { schema ->
+                mapOf(
+                    checker(schema, "Box", "a", aInput),
+                    checker(schema, "Box", "children", "forbidden"),
+                    checker(schema, "Box", "rawAncestor", "forbidden"),
+                    checker(schema, "Box", "checkedAncestor", "audit"),
+                    checker(schema, "Child", "derived", "parent { forbidden }"),
+                    checker(schema, "Child", "protected", "parent { rawAncestor }"),
+                    checker(schema, "Child", "checkedLocal", "localAudit"),
+                )
+            },
+        ).assumptions
 
     private fun checker(
         schema: ViaductSchema,
@@ -464,18 +473,24 @@ class FieldCheckerDemandClosureTest {
         ).objectRooted
     }
 
-    private fun selections(world: Assumptions, type: String, fields: String): SelectionForest =
-        world.schema.fragmentFrom("fragment F on $type { $fields }").subselections
+    private fun selections(
+        world: Assumptions,
+        type: String,
+        fields: String
+    ): SelectionForest = world.schema.fragmentFrom("fragment F on $type { $fields }").subselections
 
     private fun key(
         world: Assumptions,
         type: String,
         name: String,
         arguments: Map<String, Any?> = emptyMap(),
-    ): ObjectEngineResult.GroundKey =
-        ObjectEngineResult.GroundKey.of(world.schema.requireObjectField(type, name), arguments)
+    ): ObjectEngineResult.GroundKey = ObjectEngineResult.GroundKey.of(world.schema.requireObjectField(type, name), arguments)
 
-    private fun assertDemand(closed: Demand<ObjectSelectionForest>, checked: Set<String>, unchecked: Set<String>) {
+    private fun assertDemand(
+        closed: Demand<ObjectSelectionForest>,
+        checked: Set<String>,
+        unchecked: Set<String>
+    ) {
         assertEquals(checked, closed.checked.groundKeys().map { it.field.name }.toSet(), "checked demand")
         assertEquals(unchecked, closed.unchecked.groundKeys().map { it.field.name }.toSet(), "unchecked demand")
         assertEquals(

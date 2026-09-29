@@ -1,32 +1,32 @@
 package semantics.resolver26
 
-import model.requireType
-import model.requireObjectField
-import model.Arguments
-import model.ListEngineResult
-import model.ObjectEngineResult
-import model.ResolverOccurrenceId
-import viaduct.graphql.schema.ViaductSchema
-import model.emptyFragmentOf
-import model.fragmentFrom
-import semantics.shared.isContextuallyGrounded
-import model.merge
-import model.objectOf
-import semantics.shared.groundedArguments
-import model.usedVariables
-import model.testing.TestWorld
-import model.testing.fieldResolverOf
-import model.testing.fromArgument
-import semantics.correctresolution.correctResolution
-import semantics.contract.selectionValues
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
-import viaduct.engine.api.EngineObjectData
-import semantics.shared.SharedOperationContext
+import model.Arguments
+import model.ListEngineResult
+import model.ObjectEngineResult
+import model.ResolverOccurrenceId
+import model.emptyFragmentOf
+import model.fragmentFrom
+import model.merge
+import model.objectOf
+import model.requireObjectField
+import model.requireType
+import model.testing.TestWorld
+import model.testing.fieldResolverOf
+import model.testing.fromArgument
+import model.usedVariables
+import semantics.contract.selectionValues
 import semantics.correctresolution.CorrectnessResolverObserver
+import semantics.correctresolution.correctResolution
+import semantics.shared.SharedOperationContext
+import semantics.shared.groundedArguments
+import semantics.shared.isContextuallyGrounded
+import viaduct.engine.api.EngineObjectData
+import viaduct.graphql.schema.ViaductSchema
 
 class SymbolicKeyIdentityTest : Resolver26DispatcherResource {
     @Test
@@ -65,20 +65,20 @@ class SymbolicKeyIdentityTest : Resolver26DispatcherResource {
                                 val itemValues =
                                     input.selectionValues().getValue(itemsKey.field.name) as List<*>
                                 itemValues.sumOf { value ->
-                                        val item = value as EngineObjectData.Sync
-                                        val childValue =
-                                            item.selectionValues().getValue(
-                                                visibleChildKey.field.name,
-                                            ) as Int
-                                        childValue
-                                    }
+                                    val item = value as EngineObjectData.Sync
+                                    val childValue =
+                                        item.selectionValues().getValue(
+                                            visibleChildKey.field.name,
+                                        ) as Int
+                                    childValue
+                                }
                             },
                         items to
                             fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
                                 listOf(
-                                            schema.objectOf("Item"),
-                                            schema.objectOf("Item"),
-                                        )
+                                    schema.objectOf("Item"),
+                                    schema.objectOf("Item"),
+                                )
                             },
                         child to
                             fieldResolverOf(schema.emptyFragmentOf("Item")) { _, arguments ->
@@ -212,24 +212,27 @@ class SymbolicKeyIdentityTest : Resolver26DispatcherResource {
                 },
             )
         val world = testWorld.assumptions
-        val operation = SharedOperationContext.create(world, resolverObserver = object : CorrectnessResolverObserver() {
-            override fun onResolverInvocation(observation: semantics.shared.ResolverInvocationObservation) {
-                super.onResolverInvocation(observation)
-                if (observation.field.name != "frank") return
-                val demand = observation.suppliedDemand
-                if (demand != null) {
-                    frankApplications += 1
-                    frankDemandFields +=
-                        demand
-                            .merge(
-                                world.schema.requireType("Payload") as ViaductSchema.Object,
-                            ).groundKeys()
-                            .mapTo(linkedSetOf()) { groundKey ->
-                                groundKey.field.name
-                            }
+        val operation = SharedOperationContext.create(
+            world,
+            resolverObserver = object : CorrectnessResolverObserver() {
+                override fun onResolverInvocation(observation: semantics.shared.ResolverInvocationObservation) {
+                    super.onResolverInvocation(observation)
+                    if (observation.field.name != "frank") return
+                    val demand = observation.suppliedDemand
+                    if (demand != null) {
+                        frankApplications += 1
+                        frankDemandFields +=
+                            demand
+                                .merge(
+                                    world.schema.requireType("Payload") as ViaductSchema.Object,
+                                ).groundKeys()
+                                .mapTo(linkedSetOf()) { groundKey ->
+                                    groundKey.field.name
+                                }
+                    }
                 }
             }
-        })
+        )
         val resultKey =
             ObjectEngineResult.GroundKey.of(
                 world.schema.requireObjectField("Query", "result"),
@@ -355,24 +358,27 @@ class SymbolicKeyIdentityTest : Resolver26DispatcherResource {
                 },
             )
         val world = testWorld.assumptions
-        val operation = SharedOperationContext.create(world, resolverObserver = object : CorrectnessResolverObserver() {
-            override fun onResolverInvocation(observation: semantics.shared.ResolverInvocationObservation) {
-                super.onResolverInvocation(observation)
-                if (observation.field.name != "frank") return
-                val arguments = observation.arguments
-                val demand = observation.suppliedDemand
-                if (demand != null) {
-                    frankArguments += arguments
-                    frankDemandFields +=
-                        demand
-                            .merge(world.schema.requireType("Payload") as ViaductSchema.Object)
-                            .groundKeys()
-                            .mapTo(linkedSetOf()) { groundKey ->
-                                groundKey.field.name
-                            }
+        val operation = SharedOperationContext.create(
+            world,
+            resolverObserver = object : CorrectnessResolverObserver() {
+                override fun onResolverInvocation(observation: semantics.shared.ResolverInvocationObservation) {
+                    super.onResolverInvocation(observation)
+                    if (observation.field.name != "frank") return
+                    val arguments = observation.arguments
+                    val demand = observation.suppliedDemand
+                    if (demand != null) {
+                        frankArguments += arguments
+                        frankDemandFields +=
+                            demand
+                                .merge(world.schema.requireType("Payload") as ViaductSchema.Object)
+                                .groundKeys()
+                                .mapTo(linkedSetOf()) { groundKey ->
+                                    groundKey.field.name
+                                }
+                    }
                 }
             }
-        })
+        )
         val leftKey =
             ObjectEngineResult.GroundKey.of(
                 world.schema.requireObjectField("Query", "left"),

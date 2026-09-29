@@ -2,34 +2,30 @@
 
 package model.testing
 
-import kotlinx.coroutines.runBlocking
-
-import viaduct.graphql.schema.ViaductSchema
-
-import model.requireObjectField
-import model.ArgumentResolutionError
-import model.EngineErrorData
-import model.EngineOutputData
-import model.ObjectEngineResult
-import model.RootFieldReferenceData
-import model.SelectionForest
-import model.Arguments
-import model.SourceSchemaAdapter
-import model.fieldExpressions
-import model.fragmentFrom
-import model.objectOf
-import model.outputValue
-import model.selectionForestOf
-import model.registry.ProviderFragment
-import model.registry.ResolutionExecutionContext
-import model.registry.VariableDefinition
-import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlinx.coroutines.runBlocking
+import model.ArgumentResolutionError
+import model.Arguments
+import model.EngineErrorData
+import model.EngineOutputData
+import model.RootFieldReferenceData
+import model.SelectionForest
+import model.SourceSchemaAdapter
+import model.fragmentFrom
+import model.objectOf
+import model.outputValue
+import model.registry.ProviderFragment
+import model.registry.ResolutionExecutionContext
+import model.registry.VariableDefinition
+import model.requireObjectField
+import model.selectionForestOf
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import viaduct.engine.api.EngineObjectData
+import viaduct.graphql.schema.ViaductSchema
 
 class ResolverTestDslTest {
     @Test

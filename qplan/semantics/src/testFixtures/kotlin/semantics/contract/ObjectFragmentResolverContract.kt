@@ -1,31 +1,31 @@
 package semantics.contract
 
-import semantics.shared.ResolverInvocationObservation
-import semantics.correctresolution.CorrectnessResolverObserver
-import model.requireField
-import model.requireObjectField
-import viaduct.engine.api.EngineObjectData
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.test.assertEquals
+import kotlin.test.assertIs
+import kotlin.test.assertTrue
 import model.Arguments
 import model.Assumptions
 import model.ErrorEngineResult
 import model.ListEngineResult
 import model.ObjectEngineResult
-import viaduct.graphql.schema.ViaductSchema
 import model.emptyFragmentOf
 import model.fragmentFrom
 import model.objectOf
 import model.operationSelectionsFrom
+import model.requireField
+import model.requireObjectField
 import model.sameCompletedResultAs
 import model.testing.TestWorld
 import model.testing.fieldResolverOf
 import org.junit.jupiter.api.Test
+import semantics.correctresolution.CorrectnessResolverObserver
 import semantics.resolvers.resolver01.resolve as resolveWithResolver01
-import kotlin.test.assertEquals
-import kotlin.test.assertIs
-import kotlin.test.assertTrue
+import semantics.shared.ResolverInvocationObservation
+import viaduct.engine.api.EngineObjectData
+import viaduct.graphql.schema.ViaductSchema
 
 /**
  * Contract for resolvers with nonempty object fragments and no variables.
@@ -606,8 +606,7 @@ interface ObjectFragmentResolverContract : ResolverContract {
         )
     }
 
-    private fun ObjectEngineResult.ObjectKey.visibleIdentity():
-        Pair<ViaductSchema.ObjectField, Arguments.Ground> {
+    private fun ObjectEngineResult.ObjectKey.visibleIdentity(): Pair<ViaductSchema.ObjectField, Arguments.Ground> {
         require(this is ObjectEngineResult.GroundKey) {
             "This variable-free contract expects grounded result keys"
         }
@@ -662,13 +661,13 @@ interface ObjectFragmentResolverContract : ResolverContract {
                                 schema.emptyFragmentOf("Query"),
                             ) { _, _ ->
                                 listOf(
-                                        schema.objectOf("Group") {
-                                            "seed" setTo 1
-                                        },
-                                        schema.objectOf("Group") {
-                                            "seed" setTo 2
-                                        },
-                                    )
+                                    schema.objectOf("Group") {
+                                        "seed" setTo 1
+                                    },
+                                    schema.objectOf("Group") {
+                                        "seed" setTo 2
+                                    },
+                                )
                             },
                         schema.requireField("Group", "product") to
                             fieldResolverOf(
@@ -786,13 +785,13 @@ interface ObjectFragmentResolverContract : ResolverContract {
                                 schema.emptyFragmentOf("Query"),
                             ) { _, _ ->
                                 listOf(
-                                        schema.objectOf("Group") {
-                                            "seed" setTo 10
-                                        },
-                                        schema.objectOf("Group") {
-                                            "seed" setTo 20
-                                        },
-                                    )
+                                    schema.objectOf("Group") {
+                                        "seed" setTo 10
+                                    },
+                                    schema.objectOf("Group") {
+                                        "seed" setTo 20
+                                    },
+                                )
                             },
                         entries to
                             fieldResolverOf(
@@ -806,10 +805,10 @@ interface ObjectFragmentResolverContract : ResolverContract {
                                     arguments.fieldValues.getValue("count") as Int
                                 applications.add(seed to count)
                                 (0 until count).map { offset ->
-                                        schema.objectOf("Entry") {
-                                            "raw" setTo seed + offset
-                                        }
+                                    schema.objectOf("Entry") {
+                                        "raw" setTo seed + offset
                                     }
+                                }
                             },
                         schema.requireField("Entry", "rendered") to
                             fieldResolverOf(

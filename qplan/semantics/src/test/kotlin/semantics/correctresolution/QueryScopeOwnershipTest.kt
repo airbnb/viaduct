@@ -18,10 +18,10 @@ import model.testing.fieldResolverOf
 import semantics.arbitrary.FieldCoordinate
 import semantics.arbitrary.ResolutionOccurrenceApplicationLog
 import semantics.contract.registeredResolverOccurrenceApplicationIdentityCounts
+import semantics.contract.selectionValues
 import semantics.resolvers.resolver03.resolve
 import semantics.shared.OEROccurrence
 import semantics.shared.ResolverInvocationObservation
-import semantics.contract.selectionValues
 import semantics.shared.SharedOperationContext
 
 /** A malformed scope association must not bless cross-occurrence sharing and omitted work. */

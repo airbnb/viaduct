@@ -1,7 +1,5 @@
 package semantics.resolver26
 
-import semantics.shared.ResolverInvocationObservation
-import model.Arguments
 import model.Assumptions
 import model.EngineOutputData
 import model.MaterializeSelectionForest
@@ -10,11 +8,12 @@ import model.SelectionForest
 import model.objectKey
 import model.outputValue
 import model.registry.FieldValueResolver
-import model.registry.ResolverTarget
 import model.registry.ProviderFragment
+import model.registry.ResolverTarget
 import model.registry.VariableDefinition
 import model.schemaType
 import model.usedVariables
+import semantics.shared.ResolverInvocationObservation
 import viaduct.engine.api.EngineObjectData
 import viaduct.graphql.schema.ViaductSchema
 
@@ -70,9 +69,7 @@ internal class ParentCoverageAnalyzer(
     private val diagonalDepthByResolverField =
         mutableMapOf<ViaductSchema.ObjectField, Int>()
 
-    fun analyze(
-        application: ResolverInvocationObservation,
-    ): List<ParentSelectionSetCoverage> {
+    fun analyze(application: ResolverInvocationObservation): List<ParentSelectionSetCoverage> {
         val resolver = world.resolverRegistry.resolver(application.field)
         val variableSources = resolver.variableSourcesByName()
         val parentSelections = mutableListOf<MutableParentSelectionSetCoverage>()
@@ -191,9 +188,7 @@ internal class ParentCoverageAnalyzer(
         )
     }
 
-    private fun FieldValueResolver.variableArgumentSelections(
-        variableOwner: ViaductSchema.ObjectField,
-    ): List<ParentResolverVariableArgumentCoverage> {
+    private fun FieldValueResolver.variableArgumentSelections(variableOwner: ViaductSchema.ObjectField): List<ParentResolverVariableArgumentCoverage> {
         val sources = variableSourcesByName()
         return objectFragment.variableArgumentSelections(
             fragment = ParentResolverInputFragment.OBJECT,
@@ -250,10 +245,12 @@ internal class ParentCoverageAnalyzer(
                 0
             } else {
                 1 +
-                    (parentSelections
-                        .flatMap { selection ->
-                            selection.subselections.directResolverFields()
-                        }.maxOfOrNull(::diagonalParentDepth) ?: 0)
+                    (
+                        parentSelections
+                            .flatMap { selection ->
+                                selection.subselections.directResolverFields()
+                            }.maxOfOrNull(::diagonalParentDepth) ?: 0
+                    )
             }
         }
 

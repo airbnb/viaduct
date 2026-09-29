@@ -6,8 +6,8 @@ import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Test
 import semantics.arbitrary.RESOLVER_TEST_CASE_PROPERTY
 import semantics.arbitrary.parseResolverTestCase
-import semantics.propertytest.PropertyTestJson
 import semantics.propertytest.PropertyTestCampaignConfigFile
+import semantics.propertytest.PropertyTestJson
 import semantics.propertytest.PropertyTestRoundExecution
 import semantics.propertytest.PropertyTestRoundRunner
 import semantics.propertytest.roundConfig

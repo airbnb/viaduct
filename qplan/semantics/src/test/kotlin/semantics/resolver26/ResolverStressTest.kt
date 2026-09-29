@@ -1,20 +1,17 @@
 package semantics.resolver26
 
-import semantics.resolver26.resolve
-
-import viaduct.engine.api.EngineObjectData
-
-import semantics.shared.SharedOperationContext
 import model.ObjectEngineResult
 import model.SelectionForest
 import semantics.arbitrary.Config
 import semantics.arbitrary.MaxSelectionDepth
 import semantics.arbitrary.ParentFieldsEnabled
 import semantics.arbitrary.ResolverVariableSingletonCoercionEnabled
-import semantics.arbitrary.RootFieldReferencesEnabled
 import semantics.arbitrary.RootFieldReferenceWeight
+import semantics.arbitrary.RootFieldReferencesEnabled
 import semantics.arbitrary.SometimesPassiveFieldWeight
 import semantics.contract.DeepResolverStressContract
+import semantics.shared.SharedOperationContext
+import viaduct.engine.api.EngineObjectData
 
 class ResolverStressTest : DeepResolverStressContract, Resolver26DispatcherResource {
     override val resolverName: String = "resolver26"
@@ -40,6 +37,5 @@ class ResolverStressTest : DeepResolverStressContract, Resolver26DispatcherResou
         operation: SharedOperationContext<*>,
         root: EngineObjectData.Sync,
         selections: SelectionForest,
-    ): ObjectEngineResult =
-        operation.resolveWithTestDispatcher(selections)
+    ): ObjectEngineResult = operation.resolveWithTestDispatcher(selections)
 }

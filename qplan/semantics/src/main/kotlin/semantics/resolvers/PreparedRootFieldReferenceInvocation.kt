@@ -1,6 +1,5 @@
 package semantics.resolvers
 
-import model.Arguments
 import model.ObjectEngineResult
 import model.PathComponent
 import model.ResolverOccurrenceId
@@ -61,5 +60,4 @@ internal fun RootFieldReferenceData.prepareRootFieldReferenceInvocation(operatio
 }
 
 /** Empty resolver object input required by every root-field-reference target. */
-internal fun PreparedRootFieldReferenceInvocation.emptyObjectInput() =
-    engineObjectDataOf(invocationKey.field.containingDef)
+internal fun PreparedRootFieldReferenceInvocation.emptyObjectInput() = engineObjectDataOf(invocationKey.field.containingDef)

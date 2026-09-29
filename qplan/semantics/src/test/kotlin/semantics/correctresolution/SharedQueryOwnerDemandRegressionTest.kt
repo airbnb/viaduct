@@ -108,7 +108,10 @@ class SharedQueryOwnerDemandRegressionTest {
         val sourceDemand = world.fragmentFrom("fragment Demand on Query { source }").subselections.merge(queryType)
         val emptyDemand = selectionForestOf().merge(queryType)
 
-        fun operation(query: ObjectEngineResult, observedDemand: model.ObjectSelectionForest?): SharedOperationContext<*> {
+        fun operation(
+            query: ObjectEngineResult,
+            observedDemand: model.ObjectSelectionForest?
+        ): SharedOperationContext<*> {
             val observer = CorrectnessResolverObserver()
             observer.onQueryFragmentPrepared(owner, query)
             observedDemand?.let { demand ->

@@ -1,5 +1,9 @@
 package semantics.resolver26
 
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertSame
+import kotlin.test.assertTrue
 import model.InclusionCondition
 import model.ObjectSelectionForest
 import model.fragmentFrom
@@ -7,10 +11,6 @@ import model.merge
 import model.requireObjectField
 import model.requireQueryTypeDef
 import model.testing.TestWorld
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertSame
-import kotlin.test.assertTrue
 
 class ParentConstructionDemandTest {
     @Test
@@ -418,9 +418,7 @@ class ParentConstructionDemandTest {
         }
     }
 
-    private fun ObjectSelectionForest.field(name: String) =
-        byKey().values.single { selection -> selection.key.field.name == name }
+    private fun ObjectSelectionForest.field(name: String) = byKey().values.single { selection -> selection.key.field.name == name }
 
-    private fun ObjectSelectionForest.fieldNames(): Set<String> =
-        keys().mapTo(linkedSetOf()) { key -> key.field.name }
+    private fun ObjectSelectionForest.fieldNames(): Set<String> = keys().mapTo(linkedSetOf()) { key -> key.field.name }
 }

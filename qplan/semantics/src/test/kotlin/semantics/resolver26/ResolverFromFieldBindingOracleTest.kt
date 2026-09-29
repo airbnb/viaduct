@@ -1,5 +1,7 @@
 package semantics.resolver26
 
+import kotlin.test.Test
+import kotlin.test.assertFailsWith
 import model.Assumptions
 import model.ObjectEngineResult
 import model.ResolverOccurrenceId
@@ -8,10 +10,8 @@ import model.registry.InstantiatedFieldPathDefinition
 import model.requireObjectField
 import model.testing.TestWorld
 import semantics.contract.validateFromFieldBindings
-import kotlin.test.Test
-import kotlin.test.assertFailsWith
-import semantics.shared.SharedOperationContext
 import semantics.correctresolution.CorrectnessResolverObserver
+import semantics.shared.SharedOperationContext
 
 class ResolverFromFieldBindingOracleTest {
     @Test
@@ -73,7 +73,6 @@ class ResolverFromFieldBindingOracleTest {
             primaryResult.validateFromFieldBindings(operation, setOf(queryFixture.occurrenceId))
         }
     }
-
 }
 
 private data class BindingFixture(

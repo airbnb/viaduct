@@ -2,21 +2,21 @@
 
 package semantics.resolvers
 
-import model.requireField
-import model.requireObjectField
+import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+import kotlinx.coroutines.runBlocking
 import model.Arguments
 import model.ObjectEngineResult
 import model.ResolverOccurrenceId
-import model.requireQueryTypeDef
-import kotlinx.coroutines.runBlocking
 import model.VariableBinding
 import model.emptyFragmentOf
+import model.requireField
+import model.requireObjectField
+import model.requireQueryTypeDef
 import model.testing.TestWorld
 import model.testing.fieldResolverOf
 import model.testing.fromArgument
 import org.junit.jupiter.api.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
 import semantics.shared.SharedOperationContext
 
 class FromArgumentBindingTest {

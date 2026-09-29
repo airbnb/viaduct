@@ -134,27 +134,27 @@ private fun Selection.toField(
     }
     requireNotNull(sourceField)
     field.arguments(
-                arguments.fieldValues
-                    .toSortedMap()
-                    .map { (name, value) ->
-                        val sourceArgument =
-                            sourceField.getArgument(name)
-                                ?: throw IllegalArgumentException(
-                                    "Qplan argument ${concreteType.name}.$fieldName($name:) " +
-                                        "is absent from the Engine schema",
-                                )
-                        Argument.newArgument()
-                            .name(name)
-                            .value(
-                                ValuesResolver.valueToLiteral(
-                                    InputValueWithState.newInternalValue(value),
-                                    sourceArgument.type,
-                                    GraphQLContext.getDefault(),
-                                    Locale.getDefault(),
-                                ),
-                            ).build()
-                    },
-            )
+        arguments.fieldValues
+            .toSortedMap()
+            .map { (name, value) ->
+                val sourceArgument =
+                    sourceField.getArgument(name)
+                        ?: throw IllegalArgumentException(
+                            "Qplan argument ${concreteType.name}.$fieldName($name:) " +
+                                "is absent from the Engine schema",
+                        )
+                Argument.newArgument()
+                    .name(name)
+                    .value(
+                        ValuesResolver.valueToLiteral(
+                            InputValueWithState.newInternalValue(value),
+                            sourceArgument.type,
+                            GraphQLContext.getDefault(),
+                            Locale.getDefault(),
+                        ),
+                    ).build()
+            },
+    )
     val children = subselections.toConcreteSelectionSet(schema, sourceSchema)
     if (children.selections.isNotEmpty()) {
         field.selectionSet(children)

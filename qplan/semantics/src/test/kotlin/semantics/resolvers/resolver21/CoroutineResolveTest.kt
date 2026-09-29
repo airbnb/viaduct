@@ -3,9 +3,9 @@ package semantics.resolvers.resolver21
 import kotlinx.coroutines.CoroutineScope
 import model.ObjectEngineResult
 import model.SelectionForest
-import semantics.contract.FragmentFreeFieldCheckerPublicationContract
 import semantics.contract.CoroutineResolverContract
 import semantics.contract.CoroutineResolverTestSubject
+import semantics.contract.FragmentFreeFieldCheckerPublicationContract
 import semantics.shared.CycleCheckState
 import semantics.shared.Demand
 import semantics.shared.SharedOperationContext

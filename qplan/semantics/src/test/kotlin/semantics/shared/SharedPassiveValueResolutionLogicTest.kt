@@ -110,12 +110,14 @@ class SharedPassiveValueResolutionLogicTest {
 
         val resolved =
             runBlocking {
-                SharedOperationContext.create(world).let { resolutionOperation -> value.recordPassiveResolution(
-                    operation = resolutionOperation,
-                    expectedType = world.schema.requireObjectField("Query", "user").outputType,
-                    path = emptyList(),
-                    constructionDemand = selections,
-                ) }
+                SharedOperationContext.create(world).let { resolutionOperation ->
+                    value.recordPassiveResolution(
+                        operation = resolutionOperation,
+                        expectedType = world.schema.requireObjectField("Query", "user").outputType,
+                        path = emptyList(),
+                        constructionDemand = selections,
+                    )
+                }
             }
 
         val result = assertIs<ObjectEngineResult>(resolved.engineResult)
@@ -194,12 +196,14 @@ class SharedPassiveValueResolutionLogicTest {
 
         val resolved =
             runBlocking {
-                SharedOperationContext.create(world).let { resolutionOperation -> value.recordPassiveResolution(
-                    operation = resolutionOperation,
-                    expectedType = world.schema.requireObjectField("Query", "user").outputType,
-                    path = emptyList(),
-                    constructionDemand = constructionDemand,
-                ) }
+                SharedOperationContext.create(world).let { resolutionOperation ->
+                    value.recordPassiveResolution(
+                        operation = resolutionOperation,
+                        expectedType = world.schema.requireObjectField("Query", "user").outputType,
+                        path = emptyList(),
+                        constructionDemand = constructionDemand,
+                    )
+                }
             }
 
         val result = assertIs<ObjectEngineResult>(resolved.engineResult)
@@ -241,12 +245,14 @@ class SharedPassiveValueResolutionLogicTest {
 
         assertFailsWith<IllegalArgumentException> {
             runBlocking {
-                SharedOperationContext.create(world).let { resolutionOperation -> value.recordPassiveResolution(
-                    operation = resolutionOperation,
-                    expectedType = world.schema.requireObjectField("Query", "user").outputType,
-                    path = emptyList(),
-                    constructionDemand = selections,
-                ) }
+                SharedOperationContext.create(world).let { resolutionOperation ->
+                    value.recordPassiveResolution(
+                        operation = resolutionOperation,
+                        expectedType = world.schema.requireObjectField("Query", "user").outputType,
+                        path = emptyList(),
+                        constructionDemand = selections,
+                    )
+                }
             }
         }
     }
@@ -289,13 +295,15 @@ class SharedPassiveValueResolutionLogicTest {
 
         val resolved =
             runBlocking {
-                SharedOperationContext.create(world).let { resolutionOperation -> value.recordPassiveResolution(
-                    operation = resolutionOperation,
-                    expectedType = world.schema.requireObjectField("Query", "item").outputType,
-                    path = emptyList(),
-                    constructionDemand = constructionDemand,
-                    invocationDemand = invocationDemand,
-                ) }
+                SharedOperationContext.create(world).let { resolutionOperation ->
+                    value.recordPassiveResolution(
+                        operation = resolutionOperation,
+                        expectedType = world.schema.requireObjectField("Query", "item").outputType,
+                        path = emptyList(),
+                        constructionDemand = constructionDemand,
+                        invocationDemand = invocationDemand,
+                    )
+                }
             }
 
         val result = assertIs<ObjectEngineResult>(resolved.engineResult)
@@ -329,13 +337,15 @@ class SharedPassiveValueResolutionLogicTest {
 
         val resolved =
             runBlocking {
-                SharedOperationContext.create(world).let { resolutionOperation -> value.recordPassiveResolution(
-                    operation = resolutionOperation,
-                    expectedType = world.schema.requireObjectField("Query", "item").outputType,
-                    path = emptyList(),
-                    constructionDemand = constructionDemand,
-                    invocationDemand = invocationDemand,
-                ) }
+                SharedOperationContext.create(world).let { resolutionOperation ->
+                    value.recordPassiveResolution(
+                        operation = resolutionOperation,
+                        expectedType = world.schema.requireObjectField("Query", "item").outputType,
+                        path = emptyList(),
+                        constructionDemand = constructionDemand,
+                        invocationDemand = invocationDemand,
+                    )
+                }
             }
 
         assertEquals(emptyList(), resolved.pendingObjects)
@@ -373,12 +383,14 @@ class SharedPassiveValueResolutionLogicTest {
 
         val resolved =
             runBlocking {
-                SharedOperationContext.create(world).let { resolutionOperation -> value.recordPassiveResolution(
-                    operation = resolutionOperation,
-                    expectedType = world.schema.requireObjectField("Query", "user").outputType,
-                    path = emptyList(),
-                    constructionDemand = selections,
-                ) }
+                SharedOperationContext.create(world).let { resolutionOperation ->
+                    value.recordPassiveResolution(
+                        operation = resolutionOperation,
+                        expectedType = world.schema.requireObjectField("Query", "user").outputType,
+                        path = emptyList(),
+                        constructionDemand = selections,
+                    )
+                }
             }
 
         val result = assertIs<ObjectEngineResult>(resolved.engineResult)
@@ -421,12 +433,14 @@ class SharedPassiveValueResolutionLogicTest {
 
         assertFailsWith<IllegalArgumentException> {
             runBlocking {
-                SharedOperationContext.create(world).let { resolutionOperation -> value.recordPassiveResolution(
-                    operation = resolutionOperation,
-                    expectedType = world.schema.requireObjectField("Query", "item").outputType,
-                    path = emptyList(),
-                    constructionDemand = selections,
-                ) }
+                SharedOperationContext.create(world).let { resolutionOperation ->
+                    value.recordPassiveResolution(
+                        operation = resolutionOperation,
+                        expectedType = world.schema.requireObjectField("Query", "item").outputType,
+                        path = emptyList(),
+                        constructionDemand = selections,
+                    )
+                }
             }
         }
     }
@@ -475,13 +489,13 @@ class SharedPassiveValueResolutionLogicTest {
         val itemsField = schema.requireObjectField("Query", "items")
         val output =
             listOf(
-                        schema.objectOf("Item") {
-                            "nested" setTo schema.objectOf("Nested")
-                        },
-                        schema.objectOf("Item") {
-                            "nested" setTo schema.objectOf("Nested")
-                        },
-                    )
+                schema.objectOf("Item") {
+                    "nested" setTo schema.objectOf("Nested")
+                },
+                schema.objectOf("Item") {
+                    "nested" setTo schema.objectOf("Nested")
+                },
+            )
         val selections =
             world.fragmentFrom(
                 """
@@ -505,12 +519,14 @@ class SharedPassiveValueResolutionLogicTest {
             )
         val passiveValuesResult =
             runBlocking {
-                SharedOperationContext.create(world).let { resolutionOperation -> output.recordPassiveResolution(
-                    operation = resolutionOperation,
-                    expectedType = itemsField.outputType,
-                    path = rootPath,
-                    constructionDemand = selections,
-                ) }
+                SharedOperationContext.create(world).let { resolutionOperation ->
+                    output.recordPassiveResolution(
+                        operation = resolutionOperation,
+                        expectedType = itemsField.outputType,
+                        path = rootPath,
+                        constructionDemand = selections,
+                    )
+                }
             }
         val resolutionsByPath = passiveValuesResult.pendingObjects.associateBy { it.path }
         val expectedPaths = expectedRootPaths + expectedRootPaths.map { it + nestedKey }
@@ -563,8 +579,7 @@ private fun ResolverOutputData?.recordPassiveResolution(
                 }
             }
 
-            override fun dispatchFieldResolver(publication: SharedFieldPublicationOccurrence<*, *>) =
-                error("Executable references are covered by the resolver contracts")
+            override fun dispatchFieldResolver(publication: SharedFieldPublicationOccurrence<*, *>) = error("Executable references are covered by the resolver contracts")
         },
     )
     val constructionDemandByTask = mutableMapOf<SharedOrchestrationTask<*>, Demand<ObjectSelectionForest>>()
@@ -572,8 +587,10 @@ private fun ResolverOutputData?.recordPassiveResolution(
         SharedOrchestrationTask<*>,
         SharedOperationContext<SharedTaskDispatcher<SharedOrchestrationTask<*>, *>>,
     >(taskOperation) {
-        override fun collect(selections: SelectionForest, type: ViaductSchema.Object): ObjectSelectionForest =
-            selections.applicableGroundSelections(operation, type)
+        override fun collect(
+            selections: SelectionForest,
+            type: ViaductSchema.Object
+        ): ObjectSelectionForest = selections.applicableGroundSelections(operation, type)
 
         override fun createOrchestrationTask(
             occurrence: OEROccurrence,
@@ -600,9 +617,7 @@ private fun ResolverOutputData?.recordPassiveResolution(
             return task
         }
 
-        override fun closedConstructionDemand(
-            orchestration: SharedOrchestrationTask<*>,
-        ): Demand<ObjectSelectionForest> = constructionDemandByTask.getValue(orchestration)
+        override fun closedConstructionDemand(orchestration: SharedOrchestrationTask<*>): Demand<ObjectSelectionForest> = constructionDemandByTask.getValue(orchestration)
 
         override fun resolveListReference(
             reference: RootFieldReferenceData,

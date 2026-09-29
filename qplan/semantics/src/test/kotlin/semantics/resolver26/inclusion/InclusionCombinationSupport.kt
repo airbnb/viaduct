@@ -1,9 +1,9 @@
 package semantics.resolver26.inclusion
 
-import viaduct.graphql.schema.ViaductSchema
 import model.objectOf
 import model.outputValue
 import viaduct.engine.api.EngineObjectData
+import viaduct.graphql.schema.ViaductSchema
 
 internal const val CHAIN_DEPTH = 4
 internal const val SEED_VALUE = 7

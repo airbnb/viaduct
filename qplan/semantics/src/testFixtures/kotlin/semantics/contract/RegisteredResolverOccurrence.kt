@@ -15,9 +15,9 @@ import semantics.arbitrary.ResolutionWitnessBoundExceededException
 import semantics.arbitrary.ResolutionWitnessBounds
 import semantics.arbitrary.ResolverApplicationKey
 import semantics.arbitrary.resolutionFingerprint
+import semantics.shared.SharedOperationContext
 import semantics.shared.groundedArguments
 import semantics.shared.isContextuallyGrounded
-import semantics.shared.SharedOperationContext
 
 /** One registered resolver occurrence discovered independently in a completed result tree. */
 data class RegisteredResolverOccurrence(
@@ -166,9 +166,7 @@ fun EngineResult?.registeredResolverOccurrenceCounts(
     return counts
 }
 
-private fun ObjectEngineResult.ObjectKey.canonicalFingerprint(
-    bounds: ResolutionWitnessBounds,
-): String =
+private fun ObjectEngineResult.ObjectKey.canonicalFingerprint(bounds: ResolutionWitnessBounds): String =
     "${field.containingDef.name.length}:${field.containingDef.name}/" +
         "${field.name.length}:${field.name};" +
         arguments.resolutionFingerprint(field, bounds).value

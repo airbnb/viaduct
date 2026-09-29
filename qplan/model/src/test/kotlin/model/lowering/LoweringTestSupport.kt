@@ -10,8 +10,7 @@ internal fun graphQLSchema(sdl: String): GraphQLSchema =
         SchemaParser().parse(sdl.trimIndent()),
     )
 
-internal fun ViaductSchema.requireType(name: String): ViaductSchema.TypeDef =
-    requireNotNull(types[name]) { "Missing type $name" }
+internal fun ViaductSchema.requireType(name: String): ViaductSchema.TypeDef = requireNotNull(types[name]) { "Missing type $name" }
 
 internal fun ViaductSchema.requireRecord(name: String): ViaductSchema.Record =
     requireType(name) as? ViaductSchema.Record
@@ -25,9 +24,6 @@ internal fun ViaductSchema.requireField(
         "Missing field $typeName.$fieldName"
     }
 
-internal fun ViaductSchema.TypeExpr<*>.nullabilityShape(): List<Boolean> =
-    (0..listDepth).map(::nullableAtDepth)
+internal fun ViaductSchema.TypeExpr<*>.nullabilityShape(): List<Boolean> = (0..listDepth).map(::nullableAtDepth)
 
-internal fun Collection<ViaductSchema.AppliedDirective<*>>.semanticValues():
-    List<Pair<String, Map<String, ViaductSchema.Literal>>> =
-    map { directive -> directive.name to directive.arguments }
+internal fun Collection<ViaductSchema.AppliedDirective<*>>.semanticValues(): List<Pair<String, Map<String, ViaductSchema.Literal>>> = map { directive -> directive.name to directive.arguments }

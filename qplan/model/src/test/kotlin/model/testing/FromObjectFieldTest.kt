@@ -1,18 +1,17 @@
 package model.testing
 
-import viaduct.graphql.schema.ViaductSchema
-
-import model.requireQueryTypeDef
-import model.requireField
-import model.Arguments
-import model.ObjectEngineResult
-import model.EngineErrorData
-import model.emptyFragmentOf
-import model.fragmentFrom
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
+import model.Arguments
+import model.EngineErrorData
+import model.ObjectEngineResult
+import model.emptyFragmentOf
+import model.fragmentFrom
+import model.requireField
+import model.requireQueryTypeDef
+import viaduct.graphql.schema.ViaductSchema
 
 class FromObjectFieldTest {
     @Test

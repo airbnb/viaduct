@@ -3,8 +3,8 @@ package model
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
-import model.testing.TestWorld
 import model.registry.ResolverTarget
+import model.testing.TestWorld
 
 class OccurrenceIdsTest {
     @Test

@@ -1,11 +1,11 @@
 package model
 
-import model.testing.TestWorld
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNotSame
 import kotlin.test.assertSame
+import model.testing.TestWorld
 
 class RootFieldReferenceDataTest {
     private val schema = TestWorld.fromSDL(SCHEMA_SDL).schema

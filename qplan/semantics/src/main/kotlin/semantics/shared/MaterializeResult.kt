@@ -1,27 +1,26 @@
 package semantics.shared
 
-import viaduct.graphql.schema.ViaductSchema
-
+import model.EngineObjectDataEntry
 import model.EngineOutputData
 import model.EngineOutputListData
-import model.EngineObjectDataEntry
 import model.EngineResult
 import model.EngineResultCell
+import model.EngineResultIsPending
 import model.ErrorEngineResult
 import model.ListEngineResult
 import model.MaterializeSelectionForest
-import model.materializeSelectionForestOf
 import model.ObjectEngineResult
-import model.outputType
 import model.ObjectMaterializeSelection
 import model.PathComponent
-import model.materializedEngineObjectDataOf
 import model.materializeCheckedValue
-import model.EngineResultIsPending
+import model.materializeSelectionForestOf
+import model.materializedEngineObjectDataOf
+import model.outputType
 import model.toEngineOutputData
 import viaduct.engine.api.CheckerResultContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.FieldDirectives
+import viaduct.graphql.schema.ViaductSchema
 
 /**
  * Projects the OER values selected by [selections] into response-keyed [EngineObjectData], preserving
@@ -55,8 +54,7 @@ internal suspend fun ObjectEngineResult.materializeResult(
     reader: CycleTask,
     cycleChecker: CycleCheckState = CycleCheckState.createNOP(),
     checked: Boolean = true,
-): EngineObjectData.Sync =
-    MaterializationLogic(operation, cycleChecker, checked).materialize(this, selections, reader)
+): EngineObjectData.Sync = MaterializationLogic(operation, cycleChecker, checked).materialize(this, selections, reader)
 
 /** Materializes existing result cells for one call using its operation and independently selected cycle checker. */
 private class MaterializationLogic(
@@ -128,8 +126,7 @@ private class MaterializationLogic(
         return included
     }
 
-    private suspend fun ObjectMaterializeSelection.materializedSymbolicKey(
-    ): ObjectEngineResult.ObjectKey {
+    private suspend fun ObjectMaterializeSelection.materializedSymbolicKey(): ObjectEngineResult.ObjectKey {
         key.fetchGroundedArguments(operation)
         return key
     }

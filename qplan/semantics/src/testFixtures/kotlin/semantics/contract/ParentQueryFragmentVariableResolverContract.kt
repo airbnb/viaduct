@@ -1,5 +1,7 @@
 package semantics.contract
 
+import kotlin.test.assertEquals
+import kotlin.test.assertIs
 import model.Arguments
 import model.emptyFragmentOf
 import model.fragmentFrom
@@ -14,8 +16,6 @@ import model.testing.fromQueryField
 import org.junit.jupiter.api.DynamicTest.dynamicTest
 import org.junit.jupiter.api.TestFactory
 import viaduct.engine.api.EngineObjectData
-import kotlin.test.assertEquals
-import kotlin.test.assertIs
 
 /** Contract for Query-fragment variables on a resolver reached through diagonal parent demand. */
 interface ParentQueryFragmentVariableResolverContract : ResolverContract {

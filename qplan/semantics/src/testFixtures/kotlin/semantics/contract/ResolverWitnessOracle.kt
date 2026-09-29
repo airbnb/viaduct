@@ -7,27 +7,27 @@ import java.util.IdentityHashMap
 import kotlinx.coroutines.runBlocking
 import model.Arguments
 import model.EngineResult
-import model.engineObjectDataOf
 import model.ObjectEngineResult
 import model.PathComponent
 import model.ResolverOccurrenceId
+import model.engineObjectDataOf
 import model.registry.FieldValueResolver
 import model.registry.ResolverFragment
 import model.usedVariables
+import semantics.arbitrary.FieldCoordinate
 import semantics.arbitrary.ResolverApplicationIdentity
 import semantics.arbitrary.ResolverApplicationKey
-import semantics.arbitrary.FieldCoordinate
-import semantics.arbitrary.ResolverOccurrenceApplicationKey
 import semantics.arbitrary.ResolverOccurrenceApplicationIdentity
+import semantics.arbitrary.ResolverOccurrenceApplicationKey
 import semantics.arbitrary.resolutionFingerprint
+import semantics.correctresolution.CorrectnessResolverObserver
 import semantics.correctresolution.conformsToSelectionsAt
 import semantics.correctresolution.ownedRootFieldReferenceInvocations
-import semantics.shared.materializeResult
-import semantics.shared.groundedArguments
+import semantics.shared.RootFieldReferenceInvocationObservation
 import semantics.shared.SharedOperationContext
 import semantics.shared.fieldResolverCycleTask
-import semantics.correctresolution.CorrectnessResolverObserver
-import semantics.shared.RootFieldReferenceInvocationObservation
+import semantics.shared.groundedArguments
+import semantics.shared.materializeResult
 
 /**
  * Expected deterministic resolver applications reconstructed from every request-local Query root.
@@ -37,10 +37,10 @@ import semantics.shared.RootFieldReferenceInvocationObservation
  * occurrences necessarily use invocation observations for their fresh roots and paths, but only
  * after source-ownership replay justifies each observed hop from the completed results under test.
  */
-fun EngineResult?.registeredResolverApplicationIdentityCounts(operation: SharedOperationContext<*>):
-    Map<ResolverApplicationIdentity, Int> {
+fun EngineResult?.registeredResolverApplicationIdentityCounts(operation: SharedOperationContext<*>): Map<ResolverApplicationIdentity, Int> {
     val counts = linkedMapOf<ResolverApplicationIdentity, Int>()
     val referenceOccurrences = rootFieldReferenceOccurrences(operation)
+
     fun record(
         root: ObjectEngineResult,
         cell: RegisteredResolverOccurrence,
@@ -103,8 +103,7 @@ fun EngineResult?.registeredResolverOccurrenceApplicationIdentityCounts(operatio
 fun EngineResult?.registeredResolverOccurrenceApplicationIdentityCountsFor(
     operation: SharedOperationContext<*>,
     includedOccurrences: Set<ResolverOccurrenceId>,
-): Map<ResolverOccurrenceApplicationIdentity, Int> =
-    reconstructResolverOccurrenceApplicationIdentityCounts(operation, includedOccurrences)
+): Map<ResolverOccurrenceApplicationIdentity, Int> = reconstructResolverOccurrenceApplicationIdentityCounts(operation, includedOccurrences)
 
 private fun EngineResult?.reconstructResolverOccurrenceApplicationIdentityCounts(
     operation: SharedOperationContext<*>,
@@ -112,6 +111,7 @@ private fun EngineResult?.reconstructResolverOccurrenceApplicationIdentityCounts
 ): Map<ResolverOccurrenceApplicationIdentity, Int> {
     val counts = linkedMapOf<ResolverOccurrenceApplicationIdentity, Int>()
     val referenceOccurrences = rootFieldReferenceOccurrences(operation)
+
     fun record(
         root: ObjectEngineResult,
         cell: RegisteredResolverOccurrence,
@@ -175,8 +175,7 @@ private fun EngineResult?.reconstructResolverOccurrenceApplicationIdentityCounts
 }
 
 /** Expected registered resolver occurrences without requiring their inputs to be materializable. */
-fun EngineResult?.registeredResolverOccurrenceApplicationKeyCounts(operation: SharedOperationContext<*>):
-    Map<ResolverOccurrenceApplicationKey, Int> {
+fun EngineResult?.registeredResolverOccurrenceApplicationKeyCounts(operation: SharedOperationContext<*>): Map<ResolverOccurrenceApplicationKey, Int> {
     val counts = linkedMapOf<ResolverOccurrenceApplicationKey, Int>()
     val referenceOccurrences = rootFieldReferenceOccurrences(operation)
     requestQueryRoots(operation, referenceOccurrences).forEach { root ->
@@ -249,6 +248,7 @@ private fun RootFieldReferenceInvocationObservation.applicationKey(operation: Sh
 fun EngineResult?.unclosedRegisteredResolverOccurrences(operation: SharedOperationContext<*>): List<RegisteredResolverOccurrence> =
     buildList {
         val referenceOccurrences = rootFieldReferenceOccurrences(operation)
+
         fun recordIfUnclosed(
             root: ObjectEngineResult,
             cell: RegisteredResolverOccurrence,
@@ -273,9 +273,7 @@ fun EngineResult?.unclosedRegisteredResolverOccurrences(operation: SharedOperati
         // Reference targets have no object fragment, so their input is closed by construction.
     }
 
-private fun List<RootFieldReferenceInvocationObservation>.independentQueryFragmentOwners(
-    operation: SharedOperationContext<*>,
-): Set<ResolverOccurrenceId> =
+private fun List<RootFieldReferenceInvocationObservation>.independentQueryFragmentOwners(operation: SharedOperationContext<*>): Set<ResolverOccurrenceId> =
     mapNotNullTo(linkedSetOf()) { observation ->
         val owner = ResolverOccurrenceId.at(observation.invocationRoot, observation.invocationPath)
         val queryFragment =

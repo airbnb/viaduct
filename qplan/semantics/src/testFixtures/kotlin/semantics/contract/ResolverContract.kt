@@ -1,16 +1,16 @@
 package semantics.contract
 
-import viaduct.engine.api.EngineObjectData
 import model.Assumptions
 import model.ObjectEngineResult
 import model.ResolverOccurrenceId
-import viaduct.graphql.schema.ViaductSchema
 import model.SelectionForest
-import semantics.shared.SharedOperationContext
-import semantics.correctresolution.CorrectnessResolverObserver
 import semantics.correctresolution.CorrectnessCheckerObserver
+import semantics.correctresolution.CorrectnessResolverObserver
 import semantics.shared.CheckerObserver
 import semantics.shared.ResolverObserver
+import semantics.shared.SharedOperationContext
+import viaduct.engine.api.EngineObjectData
+import viaduct.graphql.schema.ViaductSchema
 
 /** Subject-specific evidence retained alongside one resolution result. */
 interface ResolverResolutionObservation {
@@ -67,8 +67,7 @@ interface ResolverContract {
         }
     }
 
-    fun expectedPassiveResultFieldNames(vararg fieldNames: String): Set<String> =
-        fieldNames.toSet()
+    fun expectedPassiveResultFieldNames(vararg fieldNames: String): Set<String> = fieldNames.toSet()
 
     fun expectedPassiveResultKeys(
         @Suppress("UNUSED_PARAMETER")
@@ -77,12 +76,8 @@ interface ResolverContract {
     ): Set<ObjectEngineResult.GroundKey> = keys
 }
 
-internal fun EngineObjectData.Sync.hasExactlyFields(
-    vararg expectedFields: ObjectEngineResult.GroundKey,
-): Boolean = hasExactlyFields(expectedFields.toSet())
+internal fun EngineObjectData.Sync.hasExactlyFields(vararg expectedFields: ObjectEngineResult.GroundKey): Boolean = hasExactlyFields(expectedFields.toSet())
 
-internal fun EngineObjectData.Sync.hasExactlyFields(
-    expectedFields: Set<ObjectEngineResult.GroundKey>,
-): Boolean =
+internal fun EngineObjectData.Sync.hasExactlyFields(expectedFields: Set<ObjectEngineResult.GroundKey>): Boolean =
     getSelections().toSet() ==
         expectedFields.mapTo(linkedSetOf()) { key -> key.field.name }

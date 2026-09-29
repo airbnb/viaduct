@@ -30,8 +30,7 @@ class ParentVariableValidationAdversarialTest {
                     type Child { parent: Root @parent }
                     """.trimIndent(),
                 fieldResolvers = { schema ->
-                    fun resolver(fragment: model.Fragment) =
-                        fieldResolverOf(fragment) { _, _ -> error("not invoked") }
+                    fun resolver(fragment: model.Fragment) = fieldResolverOf(fragment) { _, _ -> error("not invoked") }
                     val result = schema.requireObjectField("Root", "result")
                     mapOf(
                         schema.requireObjectField("Query", "root") to
@@ -122,8 +121,7 @@ class ParentVariableValidationAdversarialTest {
                     }
                     """.trimIndent(),
                 fieldResolvers = { schema ->
-                    fun resolver(fragment: model.Fragment) =
-                        fieldResolverOf(fragment) { _, _ -> error("not invoked") }
+                    fun resolver(fragment: model.Fragment) = fieldResolverOf(fragment) { _, _ -> error("not invoked") }
                     mapOf(
                         schema.requireObjectField("Query", "user") to
                             resolver(schema.emptyFragmentOf("Query")),
@@ -179,8 +177,7 @@ class ParentVariableValidationAdversarialTest {
                     }
                     """.trimIndent(),
                 fieldResolvers = { schema ->
-                    fun resolver(fragment: model.Fragment) =
-                        fieldResolverOf(fragment) { _, _ -> error("not invoked") }
+                    fun resolver(fragment: model.Fragment) = fieldResolverOf(fragment) { _, _ -> error("not invoked") }
                     mapOf(
                         schema.requireObjectField("Query", "user") to
                             resolver(schema.emptyFragmentOf("Query")),

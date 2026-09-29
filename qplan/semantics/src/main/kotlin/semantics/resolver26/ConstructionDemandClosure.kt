@@ -129,10 +129,16 @@ internal fun EngineObjectData.Sync.closeOrchestrationConstructionDemand(
             requiresStandardResolution = { true },
         )
         val newObjectCheckerKeyInclusions = accumulatedDemand.objectRooted.newCheckerKeyInclusions(
-            world, objectOccurrence, objectCheckerContexts, expansionState,
+            world,
+            objectOccurrence,
+            objectCheckerContexts,
+            expansionState,
         )
         val newQueryCheckerKeyInclusions = accumulatedDemand.queryRooted.newCheckerKeyInclusions(
-            world, queryOccurrence, queryCheckerContexts, expansionState,
+            world,
+            queryOccurrence,
+            queryCheckerContexts,
+            expansionState,
         )
         if (
             newObjectResolverKeyInclusions.isNotEmpty() ||
@@ -195,9 +201,7 @@ internal fun EngineObjectData.Sync.closeOrchestrationConstructionDemand(
 }
 
 /** Corresponds to grounded groundWithLiftedParentDemand, applied only to new symbolic contributions. */
-private fun OrchestrationConstructionDemand<SelectionForest>.withLiftedParentDemand(
-    world: Assumptions,
-): OrchestrationConstructionDemand<SelectionForest> =
+private fun OrchestrationConstructionDemand<SelectionForest>.withLiftedParentDemand(world: Assumptions): OrchestrationConstructionDemand<SelectionForest> =
     OrchestrationConstructionDemand(
         objectRooted = objectRooted + objectRooted.liftParentConstructionDemand(world),
         queryRooted = queryRooted + queryRooted.liftParentConstructionDemand(world),
@@ -242,7 +246,9 @@ private fun Demand<SelectionForest>.newCheckerKeyInclusions(
         val checkerContext = checkerContexts.getOrPut(key) {
             CheckerContext(checker, checker.instantiateFragmentsAt(occurrence.root, occurrence.coordinate(key))).also { context ->
                 expansionState.register(
-                    occurrence.root, key, checker = true,
+                    occurrence.root,
+                    key,
+                    checker = true,
                     context.fragments.objectFragment.variableDefinitions + context.fragments.queryFragment.variableDefinitions,
                 )
             }
@@ -253,9 +259,7 @@ private fun Demand<SelectionForest>.newCheckerKeyInclusions(
             .map { inclusion -> key to inclusion }
     }
 
-private fun List<Pair<ObjectEngineResult.ObjectKey, InclusionCondition>>.resolverInputDemand(
-    resolverContexts: Map<ObjectEngineResult.ObjectKey, ResolverContext>,
-): ResolverInputConstructionDemand {
+private fun List<Pair<ObjectEngineResult.ObjectKey, InclusionCondition>>.resolverInputDemand(resolverContexts: Map<ObjectEngineResult.ObjectKey, ResolverContext>): ResolverInputConstructionDemand {
     var objectFragment: SelectionForest = selectionForestOf()
     var queryFragment: SelectionForest = selectionForestOf()
     forEach { (key, inclusion) ->
@@ -266,9 +270,7 @@ private fun List<Pair<ObjectEngineResult.ObjectKey, InclusionCondition>>.resolve
     return ResolverInputConstructionDemand(objectFragment, queryFragment)
 }
 
-private fun List<Pair<ObjectEngineResult.ObjectKey, InclusionCondition>>.checkerInputDemand(
-    checkerContexts: Map<ObjectEngineResult.ObjectKey, CheckerContext>,
-): ResolverInputConstructionDemand {
+private fun List<Pair<ObjectEngineResult.ObjectKey, InclusionCondition>>.checkerInputDemand(checkerContexts: Map<ObjectEngineResult.ObjectKey, CheckerContext>): ResolverInputConstructionDemand {
     var objectFragment: SelectionForest = selectionForestOf()
     var queryFragment: SelectionForest = selectionForestOf()
     forEach { (key, inclusion) ->
@@ -338,8 +340,10 @@ private fun finalizeClosedOERConstructionDemand(
                     emptyList()
                 } else {
                     fieldResolverOccurrence.fragments.variableProviderReads(
-                        objectProviderResult, queryProviderResult,
-                        occurrence.fieldResolverCycleTask(key), selection.inclusionCondition,
+                        objectProviderResult,
+                        queryProviderResult,
+                        occurrence.fieldResolverCycleTask(key),
+                        selection.inclusionCondition,
                     )
                 }
             fieldResolverOccurrence.resolverOccurrenceId to providerReads
@@ -485,7 +489,9 @@ private class CheckerContext(
         reader: CycleTask,
     ): FieldCheckerOccurrence =
         FieldCheckerOccurrence(
-            selection, checker, fragments,
+            selection,
+            checker,
+            fragments,
             fragments.variableProviderReads(objectProviderResult, queryProviderResult, reader, selection.inclusionCondition),
         )
 }

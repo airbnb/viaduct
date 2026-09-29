@@ -1,34 +1,33 @@
 package semantics.resolvers.resolver01
 
-import viaduct.graphql.schema.ViaductSchema
-
-import model.Assumptions
-import model.requireQueryTypeDef
-import model.requireObjectField
-import model.requireField
-import model.requireType
-import model.ObjectEngineResult
-import model.Fragment
-import model.Selection
-import model.emptyFragmentOf
-import model.fragmentFrom
-import model.objectOf
-import model.selectionForestOf
-import model.toCanonicalMaterializeSelectionForest
-import model.registry.FieldValueResolver
-import model.registry.ResolverFragmentTemplates
-import model.registry.ResolverRegistry
-import model.testing.TestWorld
-import model.testing.fieldResolverOf
-import model.testing.testRoot
-import semantics.shared.OEROccurrence
-import semantics.shared.SharedOperationContext
 import kotlin.test.Test
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import model.Assumptions
+import model.Fragment
+import model.ObjectEngineResult
+import model.Selection
+import model.emptyFragmentOf
+import model.fragmentFrom
+import model.objectOf
+import model.registry.FieldValueResolver
+import model.registry.ResolverFragmentTemplates
+import model.registry.ResolverRegistry
+import model.requireField
+import model.requireObjectField
+import model.requireQueryTypeDef
+import model.requireType
+import model.selectionForestOf
+import model.testing.TestWorld
+import model.testing.fieldResolverOf
+import model.testing.testRoot
+import model.toCanonicalMaterializeSelectionForest
+import semantics.shared.OEROccurrence
+import semantics.shared.SharedOperationContext
+import viaduct.graphql.schema.ViaductSchema
 
 class SiblingDependencyLogicTest {
     @Test
@@ -281,8 +280,7 @@ class SiblingDependencyLogicTest {
             )
         val overriddenRegistry =
             object : ResolverRegistry by resolverRegistry {
-                override fun resolver(field: ViaductSchema.ObjectField): FieldValueResolver =
-                    if (field == target) replacement else resolverRegistry.resolver(field)
+                override fun resolver(field: ViaductSchema.ObjectField): FieldValueResolver = if (field == target) replacement else resolverRegistry.resolver(field)
             }
         return Assumptions.of(
             schema = schema,

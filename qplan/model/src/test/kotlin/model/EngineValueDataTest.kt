@@ -1,14 +1,13 @@
 package model
 
-import viaduct.graphql.schema.ViaductSchema
-
-import model.testing.TestWorld
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
 import kotlin.test.assertNotSame
 import kotlin.test.assertSame
+import model.testing.TestWorld
+import viaduct.graphql.schema.ViaductSchema
 
 class EngineValueDataTest {
     @Test

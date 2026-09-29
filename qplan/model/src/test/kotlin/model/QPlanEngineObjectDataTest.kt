@@ -2,14 +2,7 @@
 
 package model
 
-import viaduct.graphql.schema.ViaductSchema
-
 import graphql.schema.GraphQLObjectType
-import kotlinx.coroutines.runBlocking
-import model.testing.GJSchema
-import viaduct.engine.api.EngineObjectData
-import viaduct.errors.UnsetFieldException
-import viaduct.graphql.schema.graphqljava.gjDef
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -18,6 +11,11 @@ import kotlin.test.assertNotEquals
 import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
+import kotlinx.coroutines.runBlocking
+import model.testing.GJSchema
+import viaduct.engine.api.EngineObjectData
+import viaduct.errors.UnsetFieldException
+import viaduct.graphql.schema.ViaductSchema
 
 class QPlanEngineObjectDataTest {
     private val fixture = GJSchema.fromSDL(SCHEMA_SDL)

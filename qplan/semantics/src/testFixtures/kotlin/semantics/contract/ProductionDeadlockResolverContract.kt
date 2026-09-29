@@ -1,8 +1,8 @@
 package semantics.contract
 
-import model.testing.TestWorld
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
+import model.testing.TestWorld
 
 /**
  * Contract translation of the production required-selection deadlock.
@@ -38,7 +38,7 @@ interface ProductionDeadlockResolverContract : ResolverContract {
                       y(value: Int!): Int!
                         @resolver(result: "value(${'$'}value)")
                     }
-                    """.trimIndent(),
+                        """.trimIndent(),
                 )
             }
 

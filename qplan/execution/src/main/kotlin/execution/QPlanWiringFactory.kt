@@ -14,8 +14,8 @@ import graphql.schema.idl.UnionWiringEnvironment
 import graphql.schema.idl.WiringFactory
 import java.util.concurrent.CancellationException
 import java.util.concurrent.CompletableFuture
-import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -30,11 +30,11 @@ import model.EngineResultCell
 import model.EngineResultIsPending
 import model.ErrorEngineResult
 import model.ListEngineResult
-import model.awaitCheckedValue
-import model.materializeCheckedValue
 import model.ObjectEngineResult
 import model.Promise
 import model.SourceSchemaAdapter
+import model.awaitCheckedValue
+import model.materializeCheckedValue
 import viaduct.graphql.schema.ViaductSchema
 
 /**
@@ -48,19 +48,15 @@ class QPlanWiringFactory(
 ) : WiringFactory {
     private val dataFetcher = ObjectEngineResultDataFetcher(sourceSchema)
 
-    override fun getDefaultDataFetcher(
-        environment: FieldWiringEnvironment,
-    ): DataFetcher<*> = dataFetcher
+    override fun getDefaultDataFetcher(environment: FieldWiringEnvironment): DataFetcher<*> = dataFetcher
 
     override fun providesTypeResolver(environment: InterfaceWiringEnvironment): Boolean = true
 
-    override fun getTypeResolver(environment: InterfaceWiringEnvironment): TypeResolver =
-        TypeResolver(::resolveType)
+    override fun getTypeResolver(environment: InterfaceWiringEnvironment): TypeResolver = TypeResolver(::resolveType)
 
     override fun providesTypeResolver(environment: UnionWiringEnvironment): Boolean = true
 
-    override fun getTypeResolver(environment: UnionWiringEnvironment): TypeResolver =
-        TypeResolver(::resolveType)
+    override fun getTypeResolver(environment: UnionWiringEnvironment): TypeResolver = TypeResolver(::resolveType)
 }
 
 /** One qplan object occurrence and the request scope that owns its pending promise bridges. */

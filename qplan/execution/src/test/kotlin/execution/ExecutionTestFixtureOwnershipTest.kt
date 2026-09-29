@@ -2,12 +2,12 @@ package execution
 
 import execution.testing.ExecutionTestFixture
 import java.util.concurrent.ExecutorService
-import model.testing.TestWorld
-import semantics.resolver26.ResolutionDispatcherFactory
 import kotlin.test.Test
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import model.testing.TestWorld
+import semantics.resolver26.ResolutionDispatcherFactory
 
 class ExecutionTestFixtureOwnershipTest {
     @Test

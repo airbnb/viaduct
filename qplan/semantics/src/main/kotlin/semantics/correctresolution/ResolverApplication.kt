@@ -2,10 +2,10 @@
 
 package semantics.correctresolution
 
+import java.util.IdentityHashMap
 import kotlinx.coroutines.runBlocking
 import model.Arguments
 import model.EngineErrorData
-import model.ResolverOutputData
 import model.EngineResult
 import model.ListEngineResult
 import model.NodeReferenceIdentity
@@ -13,6 +13,8 @@ import model.ObjectEngineResult
 import model.ObjectSelectionForest
 import model.PathComponent
 import model.ResolverOccurrenceId
+import model.ResolverOutputData
+import model.RootFieldReferenceData
 import model.Selection
 import model.SelectionForest
 import model.VariableBinding
@@ -21,19 +23,17 @@ import model.engineObjectDataOf
 import model.merge
 import model.nodeReferenceIdentityOrNull
 import model.outputValue
-import model.requireQueryTypeDef
-import model.RootFieldReferenceData
 import model.registry.ResolutionExecutionContext
+import model.requireQueryTypeDef
 import model.schemaType
-import semantics.shared.groundedArguments
-import semantics.shared.isContextuallyGrounded
 import model.selectionForestOf
-import semantics.shared.materializeResult
+import semantics.shared.RootFieldReferenceInvocationObservation
 import semantics.shared.SharedOperationContext
 import semantics.shared.fieldResolverCycleTask
-import semantics.shared.RootFieldReferenceInvocationObservation
+import semantics.shared.groundedArguments
+import semantics.shared.isContextuallyGrounded
+import semantics.shared.materializeResult
 import viaduct.engine.api.EngineObjectData
-import java.util.IdentityHashMap
 
 internal class ReappliedResolver(
     val output: ResolverOutputData?,
@@ -94,10 +94,7 @@ internal class ResolverApplicationCache(
         }.application
     }
 
-    fun rootFieldReferenceCandidates(
-        publicationPath: List<PathComponent>,
-    ): List<IndexedRootFieldReferenceObservation>? =
-        rootFieldReferenceWitness.claim(root, publicationPath)
+    fun rootFieldReferenceCandidates(publicationPath: List<PathComponent>): List<IndexedRootFieldReferenceObservation>? = rootFieldReferenceWitness.claim(root, publicationPath)
 
     fun acceptRootFieldReference(candidate: IndexedRootFieldReferenceObservation) {
         rootFieldReferenceWitness.accept(candidate)
@@ -114,13 +111,15 @@ internal class ResolverApplicationCache(
         if (result === root) {
             queryOERValidation.isValidOrValidating(result) &&
                 result.conformsToSelections(operation, ownerSelections) &&
-                (!selectionsAreChecked ||
-                    result.conformsToCheckedSelectionsAt(
-                        operation = operation,
-                        selections = ownerSelections,
-                        path = emptyList(),
-                        resolverApplicationCache = this,
-                    ))
+                (
+                    !selectionsAreChecked ||
+                        result.conformsToCheckedSelectionsAt(
+                            operation = operation,
+                            selections = ownerSelections,
+                            path = emptyList(),
+                            resolverApplicationCache = this,
+                        )
+                )
         } else {
             queryOERValidation.validate(
                 operation = operation,
@@ -265,9 +264,7 @@ private fun List<RootFieldReferenceInvocationObservation>.haveDistinctInvocation
     return all { observation -> roots.put(observation.invocationRoot, Unit) == null }
 }
 
-internal fun SharedOperationContext<*>.rootFieldReferenceWitness(
-    primaryRoot: ObjectEngineResult,
-): RootFieldReferenceWitness {
+internal fun SharedOperationContext<*>.rootFieldReferenceWitness(primaryRoot: ObjectEngineResult): RootFieldReferenceWitness {
     val observations = resolverObserver as? CorrectnessResolverObserver
     return RootFieldReferenceWitness(
         observations = observations?.rootFieldReferenceInvocations().orEmpty(),
@@ -295,9 +292,7 @@ internal fun resolverApplicationCache(
 internal fun SharedOperationContext<*>.resolverApplicationCache(root: ObjectEngineResult): ResolverApplicationCache = resolverApplicationCache(root, rootFieldReferenceWitness(root))
 
 /** Reference invocations published beneath this root and justified by deterministic replay. */
-internal fun ObjectEngineResult.ownedRootFieldReferenceInvocations(
-    operation: SharedOperationContext<*>
-): List<
+internal fun ObjectEngineResult.ownedRootFieldReferenceInvocations(operation: SharedOperationContext<*>): List<
     RootFieldReferenceInvocationObservation,
 > {
     val witness = operation.rootFieldReferenceWitness(this)
@@ -320,8 +315,7 @@ internal fun ObjectEngineResult.reapplyResolver(
     resolverApplicationCache: ResolverApplicationCache,
     key: ObjectEngineResult.ObjectKey,
     path: List<PathComponent>,
-): ReappliedResolver? =
-    ResolverReplayLogic(operation, resolverApplicationCache).reapply(this, key, path)
+): ReappliedResolver? = ResolverReplayLogic(operation, resolverApplicationCache).reapply(this, key, path)
 
 /** Reapplies every independently rooted resolver hop that justified one consumer value. */
 internal fun SharedOperationContext<*>.reapplyRootFieldReference(
@@ -531,9 +525,7 @@ private class ResolverReplayLogic(
             invocationKey == expectedInvocationPath.last()
     }
 
-    private fun RootFieldReferenceInvocationObservation.reapplyReferencedResolver(
-        validationDemand: SelectionForest,
-    ): ReappliedResolver? {
+    private fun RootFieldReferenceInvocationObservation.reapplyReferencedResolver(validationDemand: SelectionForest): ReappliedResolver? {
         if (!invocationKey.isContextuallyGrounded(operation)) return null
         val arguments = invocationKey.groundedArguments(operation) as? Arguments.Resolved ?: return null
         val resolver = operation.world.resolverRegistry.resolver(invocationKey.field)
@@ -554,9 +546,11 @@ private class ResolverReplayLogic(
                 val instanceId = requireNotNull(definition.variable.instanceId)
                 val source = definition.definition
                 !operation.variableBindings.isBound(instanceId) ||
-                    (source is model.registry.VariableDefinition.FromArgument &&
-                        operation.variableBindings.getBinding(instanceId) !=
-                        VariableBinding.of(source.read(arguments)))
+                    (
+                        source is model.registry.VariableDefinition.FromArgument &&
+                            operation.variableBindings.getBinding(instanceId) !=
+                            VariableBinding.of(source.read(arguments))
+                    )
             }
         ) {
             return null
@@ -637,9 +631,7 @@ private fun SharedOperationContext<*>.observedResolverInputsConform(
         }
 }
 
-private fun EngineObjectData.Sync.sameMaterializedValueAs(
-    other: EngineObjectData.Sync,
-): Boolean {
+private fun EngineObjectData.Sync.sameMaterializedValueAs(other: EngineObjectData.Sync): Boolean {
     if (schemaType != other.schemaType) return false
     val selections = getSelections().toSet()
     if (selections != other.getSelections().toSet()) return false
@@ -698,9 +690,7 @@ internal fun EngineResult?.completedOutputDemand(): SelectionForest =
         else -> selectionForestOf()
     }
 
-internal fun EngineObjectData.Sync?.requireArgumentlessField(
-    key: ObjectEngineResult.ObjectKey,
-) {
+internal fun EngineObjectData.Sync?.requireArgumentlessField(key: ObjectEngineResult.ObjectKey) {
     if (this?.isPresent(key.field.name) == true) {
         require(key.field.args.isEmpty()) {
             "Resolver output must not supply argument-bearing field " +

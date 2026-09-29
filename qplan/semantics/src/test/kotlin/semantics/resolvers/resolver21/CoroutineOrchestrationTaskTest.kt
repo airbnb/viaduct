@@ -2,6 +2,10 @@
 
 package semantics.resolvers.resolver21
 
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
 import kotlinx.coroutines.runBlocking
 import model.ObjectEngineResult
 import model.requireObjectField
@@ -12,10 +16,6 @@ import semantics.shared.CycleCheckState
 import semantics.shared.Demand
 import semantics.shared.OEROccurrence
 import semantics.shared.SharedOperationContext
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
-import kotlin.test.assertFalse
 
 class CoroutineOrchestrationTaskTest {
     @Test

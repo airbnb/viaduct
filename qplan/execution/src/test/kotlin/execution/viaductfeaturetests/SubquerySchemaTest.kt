@@ -4,7 +4,6 @@ package execution.viaductfeaturetests
 // Copied 3 out of 3 tests as of 2026-09-18
 
 import execution.testing.runQPlanFeatureTest
-
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test

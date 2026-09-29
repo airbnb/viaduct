@@ -1,9 +1,9 @@
 package semantics.shared
 
+import java.util.concurrent.ConcurrentHashMap
 import model.EngineResultCell
 import model.ObjectEngineResult
 import model.PathComponent
-import java.util.concurrent.ConcurrentHashMap
 
 /** The kind of task that owns one cycle-graph node. */
 enum class CycleTaskKind {
@@ -31,8 +31,7 @@ class CycleTask(
             root === other.root &&
             path == other.path
 
-    override fun hashCode(): Int =
-        31 * (31 * kind.hashCode() + System.identityHashCode(root)) + path.hashCode()
+    override fun hashCode(): Int = 31 * (31 * kind.hashCode() + System.identityHashCode(root)) + path.hashCode()
 
     override fun toString(): String = "$kind@${System.identityHashCode(root)}:$path"
 
@@ -49,21 +48,13 @@ class CycleTask(
     }
 }
 
-internal fun ObjectEngineResult.fieldResolverCycleTask(
-    path: List<PathComponent>,
-): CycleTask = CycleTask.fieldResolver(this, path)
+internal fun ObjectEngineResult.fieldResolverCycleTask(path: List<PathComponent>): CycleTask = CycleTask.fieldResolver(this, path)
 
-internal fun ObjectEngineResult.fieldCheckerCycleTask(
-    path: List<PathComponent>,
-): CycleTask = CycleTask.fieldChecker(this, path)
+internal fun ObjectEngineResult.fieldCheckerCycleTask(path: List<PathComponent>): CycleTask = CycleTask.fieldChecker(this, path)
 
-internal fun OEROccurrence.fieldResolverCycleTask(
-    key: ObjectEngineResult.ObjectKey,
-): CycleTask = root.fieldResolverCycleTask(coordinate(key))
+internal fun OEROccurrence.fieldResolverCycleTask(key: ObjectEngineResult.ObjectKey): CycleTask = root.fieldResolverCycleTask(coordinate(key))
 
-internal fun OEROccurrence.fieldCheckerCycleTask(
-    key: ObjectEngineResult.ObjectKey,
-): CycleTask = root.fieldCheckerCycleTask(coordinate(key))
+internal fun OEROccurrence.fieldCheckerCycleTask(key: ObjectEngineResult.ObjectKey): CycleTask = root.fieldCheckerCycleTask(coordinate(key))
 
 /** The independent result slot read or written by a task. */
 enum class CycleSlotKind {
@@ -89,22 +80,18 @@ class CycleSlot private constructor(
         }
     }
 
-    override fun equals(other: Any?): Boolean =
-        other is CycleSlot && kind == other.kind && owner === other.owner
+    override fun equals(other: Any?): Boolean = other is CycleSlot && kind == other.kind && owner === other.owner
 
     override fun hashCode(): Int = 31 * kind.hashCode() + System.identityHashCode(owner)
 
     override fun toString(): String = "$kind@${System.identityHashCode(owner)}"
 
     companion object {
-        fun value(cell: EngineResultCell): CycleSlot =
-            CycleSlot(CycleSlotKind.VALUE, cell)
+        fun value(cell: EngineResultCell): CycleSlot = CycleSlot(CycleSlotKind.VALUE, cell)
 
-        fun fieldChecker(cell: EngineResultCell): CycleSlot =
-            CycleSlot(CycleSlotKind.FIELD_CHECKER, cell)
+        fun fieldChecker(cell: EngineResultCell): CycleSlot = CycleSlot(CycleSlotKind.FIELD_CHECKER, cell)
 
-        fun typeChecker(result: ObjectEngineResult): CycleSlot =
-            CycleSlot(CycleSlotKind.TYPE_CHECKER, result)
+        fun typeChecker(result: ObjectEngineResult): CycleSlot = CycleSlot(CycleSlotKind.TYPE_CHECKER, result)
     }
 }
 

@@ -2,10 +2,14 @@
 
 package semantics.contract
 
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 import kotlinx.coroutines.runBlocking
 import model.fragmentFrom
 import model.objectOf
 import model.sameCompletedResultAs
+import org.junit.jupiter.api.Disabled
 import semantics.arbitrary.Config
 import semantics.arbitrary.DuplicateSelectionWeight
 import semantics.arbitrary.ExplicitFieldResolverWeight
@@ -25,10 +29,6 @@ import semantics.correctresolution.conformsToSelections
 import semantics.correctresolution.correctResolution
 import semantics.correctresolution.isClosedUnderResolverDemand
 import semantics.correctresolution.rootedAndWellTyped
-import org.junit.jupiter.api.Disabled
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 
 /**
  * Generated execution witnesses for exact resolver application counts and minimal construction.
@@ -64,118 +64,118 @@ interface ResolverWitnessContract : ResolverContract {
                     config,
                     profile = "resolver03-construction-witness",
                 ) { testWorld, testCase ->
-                generatedFromArgumentVariables +=
-                    testCase.registry.features.fromArgumentVariableCount
-                val world = testWorld.newAssumptions()
-                val registry = testCase.registry
-                val fragment = world.fragmentFrom(testCase.query.source)
-                registry.clearResolutionWitness()
-                val resolution =
-                    observeResolution(
-                        world,
-                        world.objectOf("Query"),
-                        fragment.subselections,
-                        resolverObserver = registry.resolverObserver(captureSuppliedDemand = true),
+                    generatedFromArgumentVariables +=
+                        testCase.registry.features.fromArgumentVariableCount
+                    val world = testWorld.newAssumptions()
+                    val registry = testCase.registry
+                    val fragment = world.fragmentFrom(testCase.query.source)
+                    registry.clearResolutionWitness()
+                    val resolution =
+                        observeResolution(
+                            world,
+                            world.objectOf("Query"),
+                            fragment.subselections,
+                            resolverObserver = registry.resolverObserver(captureSuppliedDemand = true),
+                        )
+                    val result = resolution.result
+                    val witness = registry.resolutionWitness()
+                    val expectedApplications =
+                        result.registeredResolverApplicationIdentityCounts(resolution.operation)
+                    assertEquals(expectedApplications, witness.applicationIdentityCounts())
+                    assertTrue(
+                        witness.applications.all { application ->
+                            application.suppliedDemandFingerprint != null
+                        },
+                        "Every Resolver03 application must capture its supplied demand",
                     )
-                val result = resolution.result
-                val witness = registry.resolutionWitness()
-                val expectedApplications =
-                    result.registeredResolverApplicationIdentityCounts(resolution.operation)
-                assertEquals(expectedApplications, witness.applicationIdentityCounts())
-                assertTrue(
-                    witness.applications.all { application ->
-                        application.suppliedDemandFingerprint != null
-                    },
-                    "Every Resolver03 application must capture its supplied demand",
-                )
-                val unrelatedApplications =
-                    witness.unrelatedApplications(
-                        fragment.subselections.allowedResolverClosure(world.resolverRegistry),
+                    val unrelatedApplications =
+                        witness.unrelatedApplications(
+                            fragment.subselections.allowedResolverClosure(world.resolverRegistry),
+                        )
+                    assertTrue(
+                        unrelatedApplications.isEmpty(),
+                        "Resolver applied outside operation/registry demand closure: " +
+                            unrelatedApplications.map { application -> application.key.field },
                     )
-                assertTrue(
-                    unrelatedApplications.isEmpty(),
-                    "Resolver applied outside operation/registry demand closure: " +
-                        unrelatedApplications.map { application -> application.key.field },
-                )
-                assertTrue(
-                    result.correctResolution(resolution.operation, fragment),
-                    "rooted=${result.rootedAndWellTyped(world)}, " +
-                        "selections=" +
-                        "${result.conformsToSelections(resolution.operation, fragment.subselections)}, " +
-                        "closed=${result.isClosedUnderResolverDemand(resolution.operation)}, " +
-                        "resolvers=${result.conformsToResolvers(resolution.operation)}, " +
-                        "unclosed=${result.unclosedRegisteredResolverOccurrences(resolution.operation).map { cell ->
-                            cell.applicationKey to cell.occurrencePath
-                        }}",
-                )
+                    assertTrue(
+                        result.correctResolution(resolution.operation, fragment),
+                        "rooted=${result.rootedAndWellTyped(world)}, " +
+                            "selections=" +
+                            "${result.conformsToSelections(resolution.operation, fragment.subselections)}, " +
+                            "closed=${result.isClosedUnderResolverDemand(resolution.operation)}, " +
+                            "resolvers=${result.conformsToResolvers(resolution.operation)}, " +
+                            "unclosed=${result.unclosedRegisteredResolverOccurrences(resolution.operation).map { cell ->
+                                cell.applicationKey to cell.occurrencePath
+                            }}",
+                    )
 
-                witness.applications.forEach { application ->
-                    when (registry.resolverProgram(application.key.field)) {
-                        ResolverProgramKind.INPUT_SENSITIVE ->
-                            inputSensitiveApplications += 1
-                        ResolverProgramKind.ARGUMENT_SENSITIVE ->
-                            argumentSensitiveApplications += 1
-                        ResolverProgramKind.INPUT_AND_ARGUMENT_SENSITIVE -> {
-                            inputSensitiveApplications += 1
-                            argumentSensitiveApplications += 1
+                    witness.applications.forEach { application ->
+                        when (registry.resolverProgram(application.key.field)) {
+                            ResolverProgramKind.INPUT_SENSITIVE ->
+                                inputSensitiveApplications += 1
+                            ResolverProgramKind.ARGUMENT_SENSITIVE ->
+                                argumentSensitiveApplications += 1
+                            ResolverProgramKind.INPUT_AND_ARGUMENT_SENSITIVE -> {
+                                inputSensitiveApplications += 1
+                                argumentSensitiveApplications += 1
+                            }
+                            ResolverProgramKind.CONSTANT -> Unit
                         }
-                        ResolverProgramKind.CONSTANT -> Unit
                     }
-                }
-                if (testCase.query.features.hasExactKeyAliasConvergence) {
-                    exactAliasCases += 1
-                }
-                if (
-                    witness.applications.any { application ->
-                        application.key.field in
-                            testCase.query.features.exactKeyAliasSourceFields
+                    if (testCase.query.features.hasExactKeyAliasConvergence) {
+                        exactAliasCases += 1
                     }
-                ) {
-                    activatedExactAliasCases += 1
-                }
-                if (
-                    witness.applications
-                        .filter { application ->
+                    if (
+                        witness.applications.any { application ->
                             application.key.field in
-                                testCase.query.features.distinctArgumentSourceFields
-                        }.groupBy { application -> application.key.field }
-                        .any { (_, applications) ->
-                            applications.map { application -> application.key.arguments }
-                                .distinct()
-                                .size > 1
+                                testCase.query.features.exactKeyAliasSourceFields
                         }
-                ) {
-                    activatedDistinctArgumentCases += 1
-                }
+                    ) {
+                        activatedExactAliasCases += 1
+                    }
+                    if (
+                        witness.applications
+                            .filter { application ->
+                                application.key.field in
+                                    testCase.query.features.distinctArgumentSourceFields
+                            }.groupBy { application -> application.key.field }
+                            .any { (_, applications) ->
+                                applications.map { application -> application.key.arguments }
+                                    .distinct()
+                                    .size > 1
+                            }
+                    ) {
+                        activatedDistinctArgumentCases += 1
+                    }
 
-                val permutedWorld = testWorld.newAssumptions()
-                val permuted =
-                    permutedWorld.fragmentFrom(testCase.query.permutationEquivalentSource)
-                registry.clearResolutionWitness()
-                val permutedResult =
-                    observeResolution(
-                        permutedWorld,
-                        permutedWorld.objectOf("Query"),
-                        permuted.subselections,
-                        resolverObserver = registry.resolverObserver(captureSuppliedDemand = true),
-                    ).result
-                val permutedWitness = registry.resolutionWitness()
-                assertTrue(result.sameCompletedResultAs(permutedResult))
-                assertEquals(
-                    witness.applicationObservationCounts(),
-                    permutedWitness.applicationObservationCounts(),
-                )
-                assertEquals(
-                    witness.applications
-                        .map { it.key to it.inputFingerprint }
-                        .groupingBy { it }
-                        .eachCount(),
-                    permutedWitness.applications
-                        .map { it.key to it.inputFingerprint }
-                        .groupingBy { it }
-                        .eachCount(),
-                )
-            }
+                    val permutedWorld = testWorld.newAssumptions()
+                    val permuted =
+                        permutedWorld.fragmentFrom(testCase.query.permutationEquivalentSource)
+                    registry.clearResolutionWitness()
+                    val permutedResult =
+                        observeResolution(
+                            permutedWorld,
+                            permutedWorld.objectOf("Query"),
+                            permuted.subselections,
+                            resolverObserver = registry.resolverObserver(captureSuppliedDemand = true),
+                        ).result
+                    val permutedWitness = registry.resolutionWitness()
+                    assertTrue(result.sameCompletedResultAs(permutedResult))
+                    assertEquals(
+                        witness.applicationObservationCounts(),
+                        permutedWitness.applicationObservationCounts(),
+                    )
+                    assertEquals(
+                        witness.applications
+                            .map { it.key to it.inputFingerprint }
+                            .groupingBy { it }
+                            .eachCount(),
+                        permutedWitness.applications
+                            .map { it.key to it.inputFingerprint }
+                            .groupingBy { it }
+                            .eachCount(),
+                    )
+                }
 
             run.assertAggregate(
                 inputSensitiveApplications >= 10,

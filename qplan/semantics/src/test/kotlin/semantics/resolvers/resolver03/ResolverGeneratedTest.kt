@@ -1,21 +1,18 @@
 package semantics.resolvers.resolver03
 
-import semantics.resolvers.resolver03.resolve
-
-import viaduct.engine.api.EngineObjectData
-
-import semantics.shared.SharedOperationContext
 import model.ObjectEngineResult
 import model.SelectionForest
 import semantics.contract.EmptyObjectFragmentGeneratedResolverContract
-import semantics.contract.NodeGeneratedResolverContract
 import semantics.contract.FeatureInteractionGeneratedResolverContract
 import semantics.contract.ListPassiveDeepeningGeneratedResolverContract
+import semantics.contract.NodeGeneratedResolverContract
 import semantics.contract.ObjectFragmentFromArgumentGeneratedResolverContract
 import semantics.contract.ObjectFragmentGeneratedResolverContract
 import semantics.contract.QueryFragmentGeneratedResolverContract
 import semantics.contract.RootFieldReferenceGeneratedResolverContract
 import semantics.contract.SometimesPassiveGeneratedResolverContract
+import semantics.shared.SharedOperationContext
+import viaduct.engine.api.EngineObjectData
 
 /**
  * Ordinary generated-world acceptance. Extended trace, mutation, depth, witness, and stress
@@ -38,6 +35,5 @@ class ResolverGeneratedTest :
         operation: SharedOperationContext<*>,
         root: EngineObjectData.Sync,
         selections: SelectionForest,
-    ): ObjectEngineResult =
-        operation.resolve(selections)
+    ): ObjectEngineResult = operation.resolve(selections)
 }

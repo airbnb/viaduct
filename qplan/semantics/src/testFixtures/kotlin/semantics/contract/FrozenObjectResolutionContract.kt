@@ -46,7 +46,8 @@ interface FrozenObjectResolutionContract : ResolverContract {
         assertEquals(2, active.getCell(world.schema.contractKey("Active", "value")).get())
         listOf(query, root, passive, active).forEach { result ->
             val extra = ObjectEngineResult.GroundKey.of(
-                world.schema.requireObjectField(result.type.name, "unused"), emptyMap(),
+                world.schema.requireObjectField(result.type.name, "unused"),
+                emptyMap(),
             )
             assertFailsWith<NoSuchElementException> { result.reserveCell(extra) }
         }

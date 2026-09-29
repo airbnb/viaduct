@@ -1,23 +1,23 @@
 package semantics.contract
 
-import model.requireQueryTypeDef
-import viaduct.engine.api.EngineObjectData
+import kotlin.test.assertTrue
 import model.Assumptions
 import model.ObjectEngineResult
 import model.SelectionForest
 import model.merge
 import model.objectOf
 import model.operationSelectionsFrom
+import model.requireQueryTypeDef
 import org.junit.jupiter.api.AfterEach
+import semantics.correctresolution.CorrectnessResolverObserver
 import semantics.correctresolution.conformsToResolvers
 import semantics.correctresolution.conformsToSelections
 import semantics.correctresolution.correctResolution
 import semantics.correctresolution.isClosedUnderResolverDemand
 import semantics.correctresolution.rootedAndWellTyped
-import kotlin.test.assertTrue
 import semantics.shared.ResolverObserver
-import semantics.correctresolution.CorrectnessResolverObserver
 import semantics.shared.SharedOperationContext
+import viaduct.engine.api.EngineObjectData
 
 /**
  * Post-test policy requiring every contract result to satisfy the complete correctness judgment.

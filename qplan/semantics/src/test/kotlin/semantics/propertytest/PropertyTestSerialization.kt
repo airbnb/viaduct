@@ -7,9 +7,9 @@ import com.fasterxml.jackson.databind.SerializationFeature
 import com.fasterxml.jackson.databind.json.JsonMapper
 import com.fasterxml.jackson.module.kotlin.kotlinModule
 import com.fasterxml.jackson.module.kotlin.readValue
+import java.io.InputStream
 import semantics.arbitrary.GeneratorConfigData
 import semantics.arbitrary.TestCaseCount
-import java.io.InputStream
 
 const val PROPERTY_TEST_ROUND_FORMAT_VERSION = 1
 const val PROPERTY_TEST_CAMPAIGN_FORMAT_VERSION = 1
@@ -218,11 +218,9 @@ class GeneratorConfigRegistry private constructor(
 }
 
 object PropertyTestJson {
-    inline fun <reified T> read(json: String): T =
-        mapper.readValue(json)
+    inline fun <reified T> read(json: String): T = mapper.readValue(json)
 
-    inline fun <reified T> read(stream: InputStream): T =
-        mapper.readValue(stream)
+    inline fun <reified T> read(stream: InputStream): T = mapper.readValue(stream)
 
     inline fun <reified T> readResource(
         resource: String,
@@ -232,8 +230,7 @@ object PropertyTestJson {
             "Missing property-test resource $resource"
         }.use(::read)
 
-    fun write(value: Any): String =
-        mapper.writeValueAsString(value) + "\n"
+    fun write(value: Any): String = mapper.writeValueAsString(value) + "\n"
 
     @PublishedApi
     internal val mapper =
@@ -248,5 +245,4 @@ object PropertyTestJson {
 }
 
 @PublishedApi
-internal fun defaultClassLoader(): ClassLoader =
-    Thread.currentThread().contextClassLoader ?: GeneratorConfigRegistry::class.java.classLoader
+internal fun defaultClassLoader(): ClassLoader = Thread.currentThread().contextClassLoader ?: GeneratorConfigRegistry::class.java.classLoader

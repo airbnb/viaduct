@@ -1,32 +1,31 @@
 package semantics.correctresolution
 
-import viaduct.graphql.schema.ViaductSchema
-
 import model.Arguments
 import model.EngineErrorData
-import model.ResolverOutputData
 import model.EngineResult
 import model.ErrorEngineResult
 import model.ListEngineResult
 import model.ObjectEngineResult
-import model.outputType
-import model.outputValue
 import model.PathComponent
 import model.ResolverOccurrenceId
+import model.ResolverOutputData
 import model.RootFieldReferenceData
 import model.VariableBinding
-import semantics.shared.groundedArguments
-import semantics.shared.isContextuallyGrounded
-import model.schemaType
-import viaduct.engine.api.EngineObjectData
-import model.toEngineOutputData
-import model.usedVariables
+import model.merge
+import model.outputType
+import model.outputValue
 import model.registry.FieldValueResolver
 import model.registry.ResolverFragments
 import model.registry.VariableDefinition
-import model.merge
 import model.requireQueryTypeDef
+import model.schemaType
+import model.toEngineOutputData
+import model.usedVariables
 import semantics.shared.SharedOperationContext
+import semantics.shared.groundedArguments
+import semantics.shared.isContextuallyGrounded
+import viaduct.engine.api.EngineObjectData
+import viaduct.graphql.schema.ViaductSchema
 
 /**
  * Whether every value agrees with the resolver output that owns its exact occurrence.
@@ -49,8 +48,7 @@ fun ObjectEngineResult.conformsToResolvers(operation: SharedOperationContext<*>)
 internal fun ObjectEngineResult.conformsToResolvers(
     operation: SharedOperationContext<*>,
     resolverApplicationCache: ResolverApplicationCache,
-): Boolean =
-    ResolverConformanceLogic(operation, resolverApplicationCache).conforms(this)
+): Boolean = ResolverConformanceLogic(operation, resolverApplicationCache).conforms(this)
 
 /** Checks resolver conformance for one result using its operation and existing replay cache. */
 private class ResolverConformanceLogic(

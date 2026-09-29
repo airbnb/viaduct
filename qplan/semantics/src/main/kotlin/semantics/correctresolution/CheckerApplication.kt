@@ -4,11 +4,13 @@ package semantics.correctresolution
 
 import kotlinx.coroutines.runBlocking
 import model.Arguments
+import model.EngineErrorData
 import model.ObjectEngineResult
 import model.PathComponent
 import model.VariableBinding
 import model.engineObjectDataOf
 import model.merge
+import model.outputValue
 import model.registry.CheckerInput
 import model.registry.FieldCheckerResolver
 import model.registry.ResolutionExecutionContext
@@ -22,8 +24,6 @@ import semantics.shared.groundedArguments
 import semantics.shared.materializeResult
 import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.EngineObjectData
-import model.EngineErrorData
-import model.outputValue
 
 /** One deterministic checker relation reconstructed from a completed result. */
 internal class ReappliedChecker(
@@ -192,10 +192,12 @@ private fun EngineObjectData.Sync.bindingAtResponsePath(path: List<String>): Var
         if (!objectValue.isPresent(responseKey)) return VariableBinding.of(null)
         value = objectValue.outputValue(responseKey)
     }
-    fun hasError(value: Any?): Boolean = when (value) {
-        is EngineErrorData -> true
-        is List<*> -> value.any(::hasError)
-        else -> false
-    }
+
+    fun hasError(value: Any?): Boolean =
+        when (value) {
+            is EngineErrorData -> true
+            is List<*> -> value.any(::hasError)
+            else -> false
+        }
     return if (hasError(value)) VariableBinding.Error else VariableBinding.of(value)
 }

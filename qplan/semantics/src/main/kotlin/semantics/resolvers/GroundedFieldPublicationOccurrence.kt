@@ -6,12 +6,12 @@ import model.PathComponent
 import model.RootFieldReferenceData
 import model.SelectionForest
 import model.outputType
-import semantics.shared.OEROccurrence
-import semantics.shared.SharedOERContext
 import semantics.shared.Demand
+import semantics.shared.OEROccurrence
 import semantics.shared.SharedFieldPublicationOccurrence
-import semantics.shared.SharedTaskDispatcher
+import semantics.shared.SharedOERContext
 import semantics.shared.SharedOperationContext
+import semantics.shared.SharedTaskDispatcher
 import viaduct.graphql.schema.ViaductSchema
 
 /**

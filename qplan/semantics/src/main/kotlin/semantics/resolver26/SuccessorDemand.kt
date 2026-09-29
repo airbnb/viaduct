@@ -17,8 +17,7 @@ import semantics.shared.plus
 import viaduct.graphql.schema.ViaductSchema
 
 /** Producer-facing values for ordinary checked selections. */
-internal fun SelectionForest.successorDemand(world: Assumptions): SelectionForest =
-    Demand.checked(this).successorDemandFromConstructionDemand(world)
+internal fun SelectionForest.successorDemand(world: Assumptions): SelectionForest = Demand.checked(this).successorDemandFromConstructionDemand(world)
 
 /**
  * Retains checked/unchecked provenance while expanding fixed inputs, as in grounded successor demand.
@@ -59,7 +58,11 @@ private class SuccessorExpansionState {
         expandingBoundaries.remove(boundary)
     }
 
-    fun cacheInputDemand(boundary: SuccessorBoundary, cutsBefore: Int, demand: SelectionForest) {
+    fun cacheInputDemand(
+        boundary: SuccessorBoundary,
+        cutsBefore: Int,
+        demand: SelectionForest
+    ) {
         if (cycleCuts == cutsBefore) fixedInputDemand[boundary] = demand
     }
 }
@@ -123,11 +126,9 @@ private fun Selection.fixedSuccessorInputDemand(
     return (resolverInputs + checkerInputs).guardedBy(inclusionCondition)
 }
 
-private fun ViaductSchema.ObjectField.fixedResolverInputDemand(context: SuccessorDemandContext): SelectionForest =
-    SuccessorBoundary(this, SuccessorBoundaryKind.RESOLVER).fixedInputDemand(context)
+private fun ViaductSchema.ObjectField.fixedResolverInputDemand(context: SuccessorDemandContext): SelectionForest = SuccessorBoundary(this, SuccessorBoundaryKind.RESOLVER).fixedInputDemand(context)
 
-private fun ViaductSchema.ObjectField.fixedCheckerInputDemand(context: SuccessorDemandContext): SelectionForest =
-    SuccessorBoundary(this, SuccessorBoundaryKind.CHECKER).fixedInputDemand(context)
+private fun ViaductSchema.ObjectField.fixedCheckerInputDemand(context: SuccessorDemandContext): SelectionForest = SuccessorBoundary(this, SuccessorBoundaryKind.CHECKER).fixedInputDemand(context)
 
 private fun SuccessorBoundary.fixedInputDemand(context: SuccessorDemandContext): SelectionForest {
     context.expansionState.cachedInputDemand(this)?.let { return it }

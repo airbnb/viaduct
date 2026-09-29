@@ -1,51 +1,47 @@
 package model.testing
 
-import viaduct.graphql.schema.ViaductSchema
-
-import model.ObjectEngineResult
-import model.CoercedDefaultValue
-import model.Fragment
+import model.Arguments
 import model.EngineErrorData
-import model.EngineOutputData
+import model.Fragment
+import model.InclusionCondition
+import model.NODE_REFERENCE_ID_PREFIX
+import model.NodeReferenceIdentity
+import model.ObjectEngineResult
 import model.ResolverOutputData
 import model.RootFieldReferenceData
-import model.NodeReferenceIdentity
-import model.NODE_REFERENCE_ID_PREFIX
-import model.decodeNodeReferenceId
-import model.InclusionCondition
-import model.Arguments
 import model.Selection
 import model.SelectionForest
 import model.SourceSchemaAdapter
-import model.inputType
-import model.merge
-import model.lowering.ALL_SOURCE_OBJECTS_TYPE
-import model.lowering.LOWERED_TYPENAME_FIELD
+import model.decodeNodeReferenceId
 import model.emptyFragmentOf
 import model.engineObjectDataOf
 import model.fieldExpressions
+import model.inputType
+import model.lowering.ALL_SOURCE_OBJECTS_TYPE
+import model.lowering.LOWERED_TYPENAME_FIELD
 import model.matchingVariableTypes
+import model.merge
+import model.registry.FieldCheckerResolver
+import model.registry.FieldValueResolver
+import model.registry.MissingResolverException
+import model.registry.ProviderFragment
+import model.registry.ResolutionExecutionContext
+import model.registry.ResolverRegistry
+import model.registry.ResolverTarget
+import model.registry.TypeCheckerResolver
+import model.registry.VariableDefinition
+import model.registry.snipToDemand
 import model.requireArg
 import model.requireField
 import model.requireObjectField
 import model.requireQueryTypeDef
 import model.requireType
 import model.schemaType
-import model.registry.FieldCheckerResolver
-import model.registry.FieldValueResolver
-import model.registry.ResolutionExecutionContext
-import model.registry.MissingResolverException
-import model.registry.ProviderFragment
-import model.registry.ResolverRegistry
-import model.registry.ResolverTarget
-import model.registry.TypeCheckerResolver
-import model.registry.VariableDefinition
-import model.registry.snipToDemand
 import model.selectionForestOf
-import model.toSelectionForest
 import model.usedVariables
 import model.variableTemplates
 import viaduct.engine.api.EngineObjectData
+import viaduct.graphql.schema.ViaductSchema
 import viaduct.graphql.utils.GraphQLTypeRelation
 
 internal fun resolverRegistryOf(
@@ -216,9 +212,7 @@ private class NodeResolverLowering(
             }
     }
 
-    private fun validateRawFieldResolvers(
-        fieldResolvers: Map<ViaductSchema.Field, FieldResolverDefinition>,
-    ) {
+    private fun validateRawFieldResolvers(fieldResolvers: Map<ViaductSchema.Field, FieldResolverDefinition>) {
         val nodeIdFields = nodeResolvers.keys.mapTo(linkedSetOf(), ::validateNodeIdField)
         fieldResolvers.forEach { (field, resolver) ->
             validateCanonicalField(field, "field-resolver field")
@@ -365,7 +359,6 @@ private class NodeResolverLowering(
             "$typeName/${field.name} is not the canonical $role in this registry's schema"
         }
     }
-
 }
 
 private sealed interface DependencyVertex {
@@ -473,8 +466,10 @@ private class TestResolverRegistry(
                         fragments = listOfNotNull(resolver.objectFragment, resolver.queryFragment),
                         sourceDescription =
                             "argument path " +
-                                (listOf(declaration.argument.name) +
-                                    declaration.inputPath.map(ViaductSchema.Field::name))
+                                (
+                                    listOf(declaration.argument.name) +
+                                        declaration.inputPath.map(ViaductSchema.Field::name)
+                                )
                                     .joinToString("."),
                         isCompatible = declaration::isCompatibleWith,
                         isCompatibleWithInclusionCondition =
@@ -726,9 +721,7 @@ private class TestResolverRegistry(
         data object InclusionCondition : VariableUse
     }
 
-    private fun SelectionForest.variableUses(
-        variable: Arguments.Variable,
-    ): List<VariableUse> =
+    private fun SelectionForest.variableUses(variable: Arguments.Variable): List<VariableUse> =
         buildList {
             this@variableUses.forEach { selection ->
                 if (selection.key.arguments != Arguments.Error) {
@@ -844,7 +837,6 @@ private class TestResolverRegistry(
             ordered = ordered + ready,
         )
     }
-
 }
 
 private val Arguments.Variable.fieldValueResolverField: ViaductSchema.ObjectField

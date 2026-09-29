@@ -1,5 +1,8 @@
 package semantics.shared
 
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import model.Arguments
 import model.ListEngineResult
 import model.ObjectEngineResult
@@ -9,18 +12,15 @@ import model.Selection
 import model.SelectionForest
 import model.merge
 import model.objectKey
+import model.registry.ResolverTarget
 import model.requireField
 import model.requireObjectField
 import model.requireQueryTypeDef
 import model.requireType
 import model.selectionForestOf
-import model.registry.ResolverTarget
 import model.testing.TestWorld
 import model.testing.testRoot
 import viaduct.graphql.schema.ViaductSchema
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
 
 class GroundSelectionsTest {
     @Test

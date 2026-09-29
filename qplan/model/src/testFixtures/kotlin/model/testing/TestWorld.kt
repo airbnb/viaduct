@@ -1,26 +1,25 @@
 package model.testing
 
-import viaduct.graphql.schema.ViaductSchema
-
-import model.Arguments
 import com.google.inject.AbstractModule
 import com.google.inject.Guice
 import com.google.inject.Injector
 import com.google.inject.Provides
 import com.google.inject.ProvisionException
 import jakarta.inject.Singleton
+import java.util.IdentityHashMap
+import model.Arguments
 import model.Assumptions
 import model.EngineErrorData
 import model.ObjectEngineResult
 import model.SelectionForest
 import model.emptyFragmentOf
 import model.lowering.LOWERED_TYPENAME_FIELD
-import model.requireQueryTypeDef
 import model.registry.FieldCheckerResolver
 import model.registry.ResolverRegistry
 import model.registry.TypeCheckerResolver
+import model.requireQueryTypeDef
 import model.selectionsFrom
-import java.util.IdentityHashMap
+import viaduct.graphql.schema.ViaductSchema
 
 private val testRoots = IdentityHashMap<ViaductSchema, ObjectEngineResult>()
 private val fieldTestRoots =
@@ -62,9 +61,7 @@ class TestWorld private constructor(
         injector.getInstance(Assumptions::class.java)
 
     /** Creates another immutable world configuration over this world's schema and registry. */
-    fun newAssumptions(
-        selectiveResolvers: Boolean = assumptions.selectiveResolvers,
-    ): Assumptions =
+    fun newAssumptions(selectiveResolvers: Boolean = assumptions.selectiveResolvers): Assumptions =
         Assumptions.of(
             schema = schema,
             resolverRegistry = resolverRegistry,
@@ -73,8 +70,7 @@ class TestWorld private constructor(
 
     fun <T : Any> instance(type: Class<T>): T = injector.getInstance(type)
 
-    fun selectionsFrom(fragment: String): Pair<ViaductSchema.CompositeTypeDef, SelectionForest> =
-        assumptions.selectionsFrom(fragment)
+    fun selectionsFrom(fragment: String): Pair<ViaductSchema.CompositeTypeDef, SelectionForest> = assumptions.selectionsFrom(fragment)
 
     companion object {
         /**
@@ -88,16 +84,11 @@ class TestWorld private constructor(
          */
         fun fromSDL(
             schemaSDL: String,
-            nodeResolvers:
-                (ViaductSchema) -> Map<ViaductSchema.Object, NodeResolverFunction> = { emptyMap() },
-            fieldResolvers:
-                ((ViaductSchema) -> Map<ViaductSchema.Field, FieldResolverDefinition>)? = null,
-            fieldCheckers:
-                (ViaductSchema) -> Map<ViaductSchema.ObjectField, FieldCheckerResolver> = { emptyMap() },
-            typeCheckers:
-                (ViaductSchema) -> Map<ViaductSchema.Object, TypeCheckerResolver> = { emptyMap() },
-            variableProviders:
-                (ViaductSchema) -> Map<Arguments.Variable, VariableDeclaration> = { emptyMap() },
+            nodeResolvers: (ViaductSchema) -> Map<ViaductSchema.Object, NodeResolverFunction> = { emptyMap() },
+            fieldResolvers: ((ViaductSchema) -> Map<ViaductSchema.Field, FieldResolverDefinition>)? = null,
+            fieldCheckers: (ViaductSchema) -> Map<ViaductSchema.ObjectField, FieldCheckerResolver> = { emptyMap() },
+            typeCheckers: (ViaductSchema) -> Map<ViaductSchema.Object, TypeCheckerResolver> = { emptyMap() },
+            variableProviders: (ViaductSchema) -> Map<Arguments.Variable, VariableDeclaration> = { emptyMap() },
             selectiveResolvers: Boolean = true,
         ): TestWorld =
             create(
@@ -151,10 +142,8 @@ class TestWorld private constructor(
         fun fromDSL(
             schemaSDL: String,
             selectiveResolvers: Boolean = true,
-            fieldCheckers:
-                (ViaductSchema) -> Map<ViaductSchema.ObjectField, FieldCheckerResolver> = { emptyMap() },
-            typeCheckers:
-                (ViaductSchema) -> Map<ViaductSchema.Object, TypeCheckerResolver> = { emptyMap() },
+            fieldCheckers: (ViaductSchema) -> Map<ViaductSchema.ObjectField, FieldCheckerResolver> = { emptyMap() },
+            typeCheckers: (ViaductSchema) -> Map<ViaductSchema.Object, TypeCheckerResolver> = { emptyMap() },
         ): TestWorld {
             val dsl = ResolverTestDsl.parse(schemaSDL)
             return create(
@@ -194,28 +183,23 @@ private class TestWorldModule(
 
     @Provides
     @NodeResolvers
-    fun nodeResolvers(schema: GJSchema): Map<ViaductSchema.Object, NodeResolverFunction> =
-        nodeResolvers.invoke(schema)
+    fun nodeResolvers(schema: GJSchema): Map<ViaductSchema.Object, NodeResolverFunction> = nodeResolvers.invoke(schema)
 
     @Provides
     @FieldResolvers
-    fun fieldResolvers(schema: GJSchema): Map<ViaductSchema.Field, FieldResolverDefinition> =
-        fallbackQueryResolvers(schema) + fieldResolvers?.invoke(schema).orEmpty()
+    fun fieldResolvers(schema: GJSchema): Map<ViaductSchema.Field, FieldResolverDefinition> = fallbackQueryResolvers(schema) + fieldResolvers?.invoke(schema).orEmpty()
 
     @Provides
     @VariableProviders
-    fun variableProviders(schema: GJSchema): Map<Arguments.Variable, VariableDeclaration> =
-        variableProviders.invoke(schema)
+    fun variableProviders(schema: GJSchema): Map<Arguments.Variable, VariableDeclaration> = variableProviders.invoke(schema)
 
     @Provides
     @FieldCheckers
-    fun fieldCheckers(schema: GJSchema): Map<ViaductSchema.ObjectField, FieldCheckerResolver> =
-        fieldCheckers.invoke(schema)
+    fun fieldCheckers(schema: GJSchema): Map<ViaductSchema.ObjectField, FieldCheckerResolver> = fieldCheckers.invoke(schema)
 
     @Provides
     @TypeCheckers
-    fun typeCheckers(schema: GJSchema): Map<ViaductSchema.Object, TypeCheckerResolver> =
-        typeCheckers.invoke(schema)
+    fun typeCheckers(schema: GJSchema): Map<ViaductSchema.Object, TypeCheckerResolver> = typeCheckers.invoke(schema)
 
     @Provides
     @Singleton
@@ -249,9 +233,7 @@ private class TestWorldModule(
             selectiveResolvers = selectiveResolvers,
         )
 
-    private fun fallbackQueryResolvers(
-        schema: GJSchema,
-    ): Map<ViaductSchema.Field, FieldResolverDefinition> {
+    private fun fallbackQueryResolvers(schema: GJSchema): Map<ViaductSchema.Field, FieldResolverDefinition> {
         val queryFragment = schema.emptyFragmentOf("Query")
         return schema.requireQueryTypeDef().fields
             .filter {

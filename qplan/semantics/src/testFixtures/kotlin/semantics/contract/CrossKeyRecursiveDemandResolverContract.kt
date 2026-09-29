@@ -1,10 +1,10 @@
 package semantics.contract
 
-import semantics.shared.ResolverInvocationObservation
-import semantics.correctresolution.CorrectnessResolverObserver
-import model.testing.TestWorld
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import model.testing.TestWorld
+import semantics.correctresolution.CorrectnessResolverObserver
+import semantics.shared.ResolverInvocationObservation
 
 interface CrossKeyRecursiveDemandResolverContract : ResolverContract {
     @Test

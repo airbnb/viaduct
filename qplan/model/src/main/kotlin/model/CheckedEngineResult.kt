@@ -26,9 +26,7 @@ data object EngineResultIsPending
  * failures are represented as [ErrorEngineResult] so downstream materializers handle raw and
  * access-check failures uniformly.
  */
-fun EngineResultCell.materializeCheckedValue(
-    isErrorForConsumer: (CheckerResult.Error) -> Boolean,
-): EngineResultMaterializationAttempt {
+fun EngineResultCell.materializeCheckedValue(isErrorForConsumer: (CheckerResult.Error) -> Boolean): EngineResultMaterializationAttempt {
     val fieldPromise = fieldCheckerResult
     if (!fieldPromise.isCompleted) return EngineResultIsPending
 
@@ -68,9 +66,7 @@ fun EngineResultCell.materializeCheckedValue(
  * return without waiting for an unfinished raw value. Once a raw object is available, its
  * type-checker promise is also awaited before the value is returned.
  */
-suspend fun EngineResultCell.awaitCheckedValue(
-    isErrorForConsumer: (CheckerResult.Error) -> Boolean,
-): EngineResult? {
+suspend fun EngineResultCell.awaitCheckedValue(isErrorForConsumer: (CheckerResult.Error) -> Boolean): EngineResult? {
     fieldCheckerResult.awaitPreservingTerminalFailure()
 
     val attempt = materializeCheckedValue(isErrorForConsumer)

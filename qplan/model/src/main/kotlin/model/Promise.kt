@@ -1,8 +1,8 @@
 package model
 
-import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.CancellationException
 import java.util.concurrent.atomic.AtomicReference
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 
 class UncompletedPromiseException : IllegalStateException("Promise has not been completed")
 
@@ -162,8 +162,7 @@ internal fun <T> completedReservablePromise(
     value: T,
     mutable: Boolean,
     validate: (T) -> Unit = {},
-): ReservablePromise<T> =
-    ReservablePromiseImpl.completed(value, mutable, validate)
+): ReservablePromise<T> = ReservablePromiseImpl.completed(value, mutable, validate)
 
 private class ReservablePromiseImpl<T>(
     private val mutable: Boolean,

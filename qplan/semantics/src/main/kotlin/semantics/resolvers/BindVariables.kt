@@ -1,13 +1,11 @@
 package semantics.resolvers
 
 import model.Arguments
-
 import model.ObjectEngineResult
-
 import model.PathComponent
 import model.ResolverOccurrenceId
-import model.registry.VariableDefinition
 import model.registry.ResolverFragments
+import model.registry.VariableDefinition
 import semantics.shared.SharedOperationContext
 
 /**

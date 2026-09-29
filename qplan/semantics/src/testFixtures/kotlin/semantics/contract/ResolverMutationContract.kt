@@ -3,6 +3,8 @@ package semantics.contract
 import io.kotest.property.Arb
 import io.kotest.property.RandomSource
 import io.kotest.property.arbitrary.next
+import kotlin.test.Test
+import kotlin.test.assertTrue
 import model.fragmentFrom
 import model.objectOf
 import model.sameCompletedResultAs
@@ -21,8 +23,6 @@ import semantics.arbitrary.SchemaObjectCount
 import semantics.arbitrary.TestCaseCount
 import semantics.arbitrary.resolverTestBatch
 import semantics.correctresolution.correctResolution
-import kotlin.test.Test
-import kotlin.test.assertTrue
 
 /** Mutation sensitivity of generated resolver properties. */
 interface ResolverMutationContract : ResolverContract {

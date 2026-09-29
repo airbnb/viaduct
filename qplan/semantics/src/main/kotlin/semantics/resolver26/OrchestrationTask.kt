@@ -126,8 +126,8 @@ internal class OrchestrationTask private constructor(
                 val cell = oer.occurrence.target.getCell(key)
                 if (
                     cell !in checkedCells &&
-                        cell.value.isCompleted &&
-                        !cell.fieldCheckerResult.isCompleted
+                    cell.value.isCompleted &&
+                    !cell.fieldCheckerResult.isCompleted
                 ) {
                     check(cell.fieldCheckerResult.complete(null)) {
                         "Field-checker result was completed twice"
@@ -141,7 +141,7 @@ internal class OrchestrationTask private constructor(
     override fun validateDispatch() {
         listOf(objectOER to closedConstructionDemand.objectRooted, queryOER to closedConstructionDemand.queryRooted)
             .forEach { (oer, closedOER) ->
-                closedOER.closedValueSelections.byKey().forEach entry@ { (key, selection) ->
+                closedOER.closedValueSelections.byKey().forEach entry@{ (key, selection) ->
                     if (selection.inclusionCondition === InclusionCondition.Never) {
                         return@entry
                     }

@@ -1,19 +1,19 @@
 package semantics.contract
 
-import semantics.shared.ResolverInvocationObservation
-import semantics.correctresolution.CorrectnessResolverObserver
-import model.requireObjectField
-import model.ObjectEngineResult
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertIs
 import model.EngineErrorData
 import model.EngineOutputData
 import model.EngineResult
 import model.ErrorEngineResult
+import model.ObjectEngineResult
 import model.VariableBinding
 import model.registry.ProviderFragment
+import model.requireObjectField
 import model.testing.TestWorld
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertIs
+import semantics.correctresolution.CorrectnessResolverObserver
+import semantics.shared.ResolverInvocationObservation
 
 /**
  * Contract for resolver variables read from exact paths in the defining object fragment.
@@ -274,23 +274,23 @@ interface ObjectFragmentFromObjectPathResolverContract :
             var consumedKey: String? = null
             var consumedValue: EngineOutputData? = null
             val invocationObserver = object : CorrectnessResolverObserver() {
-            override fun onResolverInvocation(observation: ResolverInvocationObservation) {
-                super.onResolverInvocation(observation)
-                val field = observation.field
-                val input = observation.input
-                if (
-                    field.containingDef.name == "Query" &&
-                    field.name == "result"
-                ) {
-                    val consumed =
-                        input.selectionValues().entries
-                            .single { (key, _) -> key == "consume" }
-                    consumedKey = consumed.key
-                    consumedValue = consumed.value
-                    observedResultInput = true
+                override fun onResolverInvocation(observation: ResolverInvocationObservation) {
+                    super.onResolverInvocation(observation)
+                    val field = observation.field
+                    val input = observation.input
+                    if (
+                        field.containingDef.name == "Query" &&
+                        field.name == "result"
+                    ) {
+                        val consumed =
+                            input.selectionValues().entries
+                                .single { (key, _) -> key == "consume" }
+                        consumedKey = consumed.key
+                        consumedValue = consumed.value
+                        observedResultInput = true
+                    }
                 }
             }
-        }
             val testWorld =
                 TestWorld.fromDSL(
                     selectiveResolvers = selectiveResolvers,

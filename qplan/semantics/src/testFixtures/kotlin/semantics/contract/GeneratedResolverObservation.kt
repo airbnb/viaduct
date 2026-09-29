@@ -1,8 +1,10 @@
 package semantics.contract
 
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 import model.Assumptions
-import model.ObjectEngineResult
 import model.Fragment
+import model.ObjectEngineResult
 import model.fragmentFrom
 import model.objectOf
 import model.sameCompletedResultAs
@@ -11,15 +13,13 @@ import semantics.arbitrary.Config
 import semantics.arbitrary.ResolverApplicationRecord
 import semantics.arbitrary.ResolverTestCase
 import semantics.arbitrary.SelectiveNodeResolverApplicationRecord
-import semantics.correctresolution.correctResolution
 import semantics.correctresolution.conformsToResolvers
 import semantics.correctresolution.conformsToSelections
+import semantics.correctresolution.correctResolution
 import semantics.correctresolution.isClosedUnderResolverDemand
 import semantics.correctresolution.rootedAndWellTyped
 import semantics.shared.CheckerInvocationObservation
 import semantics.shared.SharedOperationContext
-import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 
 /** One generated resolver execution and the request-local state needed to validate it. */
 data class GeneratedResolutionObservation(
@@ -165,9 +165,7 @@ interface GeneratedCaseAssertionPolicy : ResolverContract {
         get() = GeneratedCaseAssertions.defaultGeneratedContract
 }
 
-fun GeneratedCaseObservation.assertAll(
-    assertions: Iterable<GeneratedCaseAssertion>,
-): GeneratedCaseObservation =
+fun GeneratedCaseObservation.assertAll(assertions: Iterable<GeneratedCaseAssertion>): GeneratedCaseObservation =
     apply {
         assertions.forEach { assertion -> assertion.assertThat(this) }
     }

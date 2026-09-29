@@ -2,10 +2,13 @@
 
 package semantics.contract
 
+import kotlin.test.assertEquals
+import kotlin.test.assertNotEquals
+import kotlin.test.assertTrue
 import kotlinx.coroutines.runBlocking
-import model.testing.TestWorld
 import model.requireObjectField
 import model.selectionForestOf
+import model.testing.TestWorld
 import org.junit.jupiter.api.Test
 import semantics.arbitrary.ArbitraryRegistry
 import semantics.arbitrary.Config
@@ -23,33 +26,30 @@ import semantics.arbitrary.NullableTypeWeight
 import semantics.arbitrary.ObjectFieldCount
 import semantics.arbitrary.QueryFieldCount
 import semantics.arbitrary.ResolverApplicationRecord
-import semantics.arbitrary.ResolverFragmentWeight
 import semantics.arbitrary.ResolverFragmentArgumentFieldWeight
+import semantics.arbitrary.ResolverFragmentWeight
 import semantics.arbitrary.ResolverFragmentsEnabled
 import semantics.arbitrary.ResolverFromArgumentNestedPathWeight
 import semantics.arbitrary.ResolverFromArgumentVariablesEnabled
-import semantics.arbitrary.ResolverFromProviderVariablesEnabled
 import semantics.arbitrary.ResolverFromFieldProviderArgumentVariableWeight
+import semantics.arbitrary.ResolverFromProviderVariablesEnabled
 import semantics.arbitrary.ResolverFromQueryFieldVariablesEnabled
 import semantics.arbitrary.ResolverNestedProviderPathWeight
 import semantics.arbitrary.ResolverQueryFragmentsEnabled
-import semantics.arbitrary.RootFieldReferencesEnabled
-import semantics.arbitrary.RootFieldReferenceWeight
 import semantics.arbitrary.ResolverTestCase
 import semantics.arbitrary.ResolverTestRun
 import semantics.arbitrary.ResolverVariableCount
 import semantics.arbitrary.ResolverVariableWeight
 import semantics.arbitrary.ResolverVariablesEnabled
-import semantics.arbitrary.SelectiveNodeResolversEnabled
+import semantics.arbitrary.RootFieldReferenceWeight
+import semantics.arbitrary.RootFieldReferencesEnabled
 import semantics.arbitrary.RootQueryFieldCount
 import semantics.arbitrary.SchemaObjectCount
+import semantics.arbitrary.SelectiveNodeResolversEnabled
 import semantics.arbitrary.SometimesPassiveFieldWeight
 import semantics.arbitrary.TestCaseCount
 import semantics.arbitrary.checkResolverTestCases
 import semantics.arbitrary.resolutionDigest
-import kotlin.test.assertEquals
-import kotlin.test.assertNotEquals
-import kotlin.test.assertTrue
 import semantics.correctresolution.CorrectnessResolverObserver
 
 /**
@@ -143,9 +143,7 @@ interface SometimesPassiveGeneratedResolverContract : GeneratedCaseAssertionPoli
                     (ResolverVariablesEnabled to false) +
                     (SometimesPassiveFieldWeight to 1.0)
 
-            fun property(
-                coverage: SometimesPassiveCoverage,
-            ): suspend (TestWorld, ResolverTestCase) -> Unit =
+            fun property(coverage: SometimesPassiveCoverage): suspend (TestWorld, ResolverTestCase) -> Unit =
                 { testWorld, testCase ->
                     coverage.generatedFields +=
                         testCase.registry.features.sometimesPassiveFieldCount
@@ -228,9 +226,7 @@ interface NodeGeneratedResolverContract : GeneratedCaseAssertionPolicy {
                     (ResolverFromArgumentVariablesEnabled to false) +
                     (ResolverVariablesEnabled to false)
 
-            fun property(
-                coverage: NodeCoverage,
-            ): suspend (TestWorld, ResolverTestCase) -> Unit =
+            fun property(coverage: NodeCoverage): suspend (TestWorld, ResolverTestCase) -> Unit =
                 { testWorld, testCase ->
                     assertTrue(testCase.registry.objectFragmentSources.values.all(String::isEmpty))
                     assertEquals(0, testCase.registry.features.variableCount)
@@ -323,9 +319,7 @@ interface SelectiveNodeGeneratedResolverContract : GeneratedCaseAssertionPolicy 
                     (ResolverVariablesEnabled to false)
             val emptyDemand = selectionForestOf().resolutionDigest()
 
-            fun property(
-                coverage: SelectiveNodeCoverage,
-            ): suspend (TestWorld, ResolverTestCase) -> Unit =
+            fun property(coverage: SelectiveNodeCoverage): suspend (TestWorld, ResolverTestCase) -> Unit =
                 { testWorld, testCase ->
                     coverage.generatedNodeResolvers += testCase.registry.nodeResolverTypes.size
                     val observation =
@@ -470,11 +464,17 @@ interface QueryFragmentGeneratedResolverContract : GeneratedCaseAssertionPolicy 
                     (ResolverFromArgumentVariablesEnabled to true) +
                     (ResolverQueryFragmentsEnabled to true) +
                     (ResolverVariableWeight to 1.0) +
-                    (ResolverVariablesEnabled to
-                        (queryFragmentObjectPathVariablesEnabled ||
-                            queryFragmentQueryPathVariablesEnabled)) +
-                    (ResolverFromQueryFieldVariablesEnabled to
-                        queryFragmentQueryPathVariablesEnabled) +
+                    (
+                        ResolverVariablesEnabled to
+                            (
+                                queryFragmentObjectPathVariablesEnabled ||
+                                    queryFragmentQueryPathVariablesEnabled
+                            )
+                    ) +
+                    (
+                        ResolverFromQueryFieldVariablesEnabled to
+                            queryFragmentQueryPathVariablesEnabled
+                    ) +
                     generatedResolverConfigOverrides
 
             val run =
@@ -575,9 +575,7 @@ interface ObjectFragmentFromArgumentGeneratedResolverContract : GeneratedCaseAss
                     (ResolverVariablesEnabled to false) +
                     generatedResolverConfigOverrides
 
-            fun property(
-                coverage: FromArgumentCoverage,
-            ): suspend (TestWorld, ResolverTestCase) -> Unit =
+            fun property(coverage: FromArgumentCoverage): suspend (TestWorld, ResolverTestCase) -> Unit =
                 { testWorld, testCase ->
                     assertTrue(testCase.registry.nodeResolverTypes.isEmpty())
                     assertEquals(
@@ -896,9 +894,7 @@ interface MixedVariableGeneratedResolverContract : GeneratedCaseAssertionPolicy 
                     (ResolverVariablesEnabled to true) +
                     generatedResolverConfigOverrides
 
-            fun property(
-                coverage: MixedVariableCoverage,
-            ): suspend (TestWorld, ResolverTestCase) -> Unit =
+            fun property(coverage: MixedVariableCoverage): suspend (TestWorld, ResolverTestCase) -> Unit =
                 { testWorld, testCase ->
                     coverage.generatedFromArgument +=
                         testCase.registry.features.fromArgumentVariableCount
@@ -1181,12 +1177,6 @@ internal fun GeneratedCaseAssertionPolicy.observeGeneratedCaseWithCurrentAsserti
     observeGeneratedCase(testWorld, testCase, captureSuppliedDemand)
         .assertAll(assertions)
 
-private fun ArbitraryRegistry.hasNonemptyObjectFragment(
-    application: ResolverApplicationRecord,
-): Boolean =
-    objectFragmentSources[application.key.field]?.isNotEmpty() == true
+private fun ArbitraryRegistry.hasNonemptyObjectFragment(application: ResolverApplicationRecord): Boolean = objectFragmentSources[application.key.field]?.isNotEmpty() == true
 
-private fun ArbitraryRegistry.hasNonemptyQueryFragment(
-    application: ResolverApplicationRecord,
-): Boolean =
-    queryFragmentSources[application.key.field]?.isNotEmpty() == true
+private fun ArbitraryRegistry.hasNonemptyQueryFragment(application: ResolverApplicationRecord): Boolean = queryFragmentSources[application.key.field]?.isNotEmpty() == true

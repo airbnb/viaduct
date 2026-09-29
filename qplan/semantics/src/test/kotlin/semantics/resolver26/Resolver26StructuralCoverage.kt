@@ -3,15 +3,14 @@
 package semantics.resolver26
 
 import model.Arguments
-
 import model.ListEngineResult
 import model.ObjectEngineResult
 import model.PathComponent
 import semantics.arbitrary.ArbitraryRegistry
 import semantics.arbitrary.FieldCoordinate
-import semantics.contract.RegisteredResolverOccurrence
 import semantics.arbitrary.ResolutionWitness
 import semantics.arbitrary.ResolverApplicationRecord
+import semantics.contract.RegisteredResolverOccurrence
 
 // Names result-visible structures that distinguish Resolver26's symbolic execution cases.
 internal enum class Resolver26StructuralSignature {
@@ -66,7 +65,7 @@ internal fun resolver26StructuralSignatures(
     if (
         symbolicOccurrences
             .groupBy { occurrence ->
-    VisibleResolverOccurrence(
+                VisibleResolverOccurrence(
                     containingObjectPath = occurrence.occurrencePath.dropLast(1),
                     field = occurrence.applicationKey.field,
                     arguments = occurrence.applicationKey.arguments,
@@ -156,17 +155,11 @@ private data class VisibleResolverOccurrence(
 )
 
 // Returns the exact stored key at this registered resolver occurrence.
-private fun RegisteredResolverOccurrence.objectKey(): ObjectEngineResult.ObjectKey =
-    occurrencePath.last() as ObjectEngineResult.ObjectKey
+private fun RegisteredResolverOccurrence.objectKey(): ObjectEngineResult.ObjectKey = occurrencePath.last() as ObjectEngineResult.ObjectKey
 
 // Reports whether this recorded application belongs to a FromArgument variable owner.
-private fun ArbitraryRegistry.applicationUsesFromArgumentVariable(
-    application: ResolverApplicationRecord,
-): Boolean =
-    sourceResolverCoordinate(application.key.field) in fromArgumentVariableOwnerFields
+private fun ArbitraryRegistry.applicationUsesFromArgumentVariable(application: ResolverApplicationRecord): Boolean = sourceResolverCoordinate(application.key.field) in fromArgumentVariableOwnerFields
 
 // Reports whether this recorded application belongs to a FromObjectField variable owner.
-private fun ArbitraryRegistry.applicationUsesFromObjectFieldVariable(
-    application: ResolverApplicationRecord,
-): Boolean =
+private fun ArbitraryRegistry.applicationUsesFromObjectFieldVariable(application: ResolverApplicationRecord): Boolean =
     sourceResolverCoordinate(application.key.field) in fromObjectFieldVariableOwnerFields

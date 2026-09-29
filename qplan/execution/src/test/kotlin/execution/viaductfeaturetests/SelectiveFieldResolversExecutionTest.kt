@@ -7,7 +7,6 @@ package execution.viaductfeaturetests
 
 import execution.testing.QPlanFeatureTest
 import execution.testing.runQPlanFeatureTest as runWithQPlan
-
 import graphql.execution.DataFetcherResult
 import graphql.execution.instrumentation.parameters.InstrumentationFieldFetchParameters
 import io.kotest.property.Arb
@@ -19,8 +18,8 @@ import kotlinx.coroutines.CompletableDeferred
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
-import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Disabled
+import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import viaduct.arbitrary.common.CheckedArb
 import viaduct.arbitrary.common.Config
@@ -50,7 +49,6 @@ import viaduct.engine.EngineConfiguration
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineSelection
 import viaduct.engine.api.EngineSelectionSet
-import viaduct.engine.api.spi.VariableFromFieldDefinitions
 import viaduct.engine.api.FromObjectFieldVariable
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.VariablesResolver
@@ -62,8 +60,9 @@ import viaduct.engine.api.mocks.createRSS
 import viaduct.engine.api.mocks.featureTestDefault
 import viaduct.engine.api.mocks.fetchAs
 import viaduct.engine.api.mocks.getAs
-import viaduct.engine.api.spi.FieldSelectivityProvider
 import viaduct.engine.api.select.SelectionsParser
+import viaduct.engine.api.spi.FieldSelectivityProvider
+import viaduct.engine.api.spi.VariableFromFieldDefinitions
 import viaduct.graphql.test.assertMatches
 import viaduct.service.api.ExecutionInput
 import viaduct.service.api.Viaduct
@@ -412,7 +411,9 @@ class SelectiveFieldResolversExecutionTest {
 
     @Nested
     inner class RssTests {
-        @Disabled("ALT: Production excludes resolver-owned Foo.x from selective parent output; qplan permits argumentless registered descendants to be source-owned, so its one-shot alternative omits x from the parent result")
+        @Disabled(
+            "ALT: Production excludes resolver-owned Foo.x from selective parent output; qplan permits argumentless registered descendants to be source-owned, so its one-shot alternative omits x from the parent result"
+        )
         @Test
         fun `selective field skipped in query is selected in RSS`() {
             // This creates two planned executions of Foo.x:

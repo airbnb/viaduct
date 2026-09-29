@@ -2,15 +2,18 @@
 
 package semantics.resolver26
 
-import semantics.shared.ResolverInvocationObservation
-import kotlinx.coroutines.runBlocking
 import java.util.Collections
 import java.util.concurrent.atomic.AtomicInteger
-import viaduct.graphql.schema.ViaductSchema
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertIs
+import kotlin.test.assertTrue
+import kotlinx.coroutines.runBlocking
 import model.Arguments
 import model.ErrorEngineResult
-import model.emptyFragmentOf
 import model.ObjectEngineResult
+import model.emptyFragmentOf
 import model.fragmentFrom
 import model.merge
 import model.objectOf
@@ -19,18 +22,15 @@ import model.requireObjectField
 import model.requireQueryTypeDef
 import model.testing.TestWorld
 import model.testing.fieldResolverOf
+import model.testing.fromArgument
 import model.testing.fromObjectField
 import model.testing.fromQueryField
-import model.testing.fromArgument
-import semantics.correctresolution.correctResolution
-import semantics.shared.SharedOperationContext
 import semantics.correctresolution.CorrectnessResolverObserver
+import semantics.correctresolution.correctResolution
+import semantics.shared.ResolverInvocationObservation
 import semantics.shared.ResolverObserver
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertIs
-import kotlin.test.assertTrue
+import semantics.shared.SharedOperationContext
+import viaduct.graphql.schema.ViaductSchema
 
 class InclusionConditionTest : Resolver26DispatcherResource {
     @Test

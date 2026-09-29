@@ -51,9 +51,7 @@ internal abstract class SharedPassiveValueResolutionLogic<
     ): T
 
     /** Returns the checked/unchecked demand closed by [orchestration]. */
-    protected open fun closedConstructionDemand(
-        orchestration: T,
-    ): Demand<ObjectSelectionForest> =
+    protected open fun closedConstructionDemand(orchestration: T): Demand<ObjectSelectionForest> =
         Demand.checked(orchestration.objectOER.closedValueSelections)
             .merge(orchestration.objectOER.source.schemaType)
 
@@ -270,7 +268,9 @@ internal abstract class SharedPassiveValueResolutionLogic<
                         invocationDemand = childInvocation,
                         constructionDemand = childConstruction,
                     )
-                ) continue
+                ) {
+                    continue
+                }
                 occurrence.target.setCellValue(
                     key,
                     resolvePassiveValues(
@@ -292,5 +292,4 @@ internal abstract class SharedPassiveValueResolutionLogic<
  * Whether this value is a list containing a root-field reference, directly or through nested lists.
  * References inside objects are handled by those objects' own resolution lifecycles.
  */
-private fun Any?.containsListElementRootFieldReference(): Boolean =
-    this is List<*> && any { it is RootFieldReferenceData || it.containsListElementRootFieldReference() }
+private fun Any?.containsListElementRootFieldReference(): Boolean = this is List<*> && any { it is RootFieldReferenceData || it.containsListElementRootFieldReference() }

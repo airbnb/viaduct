@@ -1,13 +1,13 @@
 package semantics.shared
 
 import model.Arguments
+import model.InclusionCondition
 import model.ObjectEngineResult
 import model.ObjectSelection
 import model.ObjectSelectionForest
 import model.SelectionForest
 import model.concatenateSelectionForests
 import model.guardedBy
-import model.InclusionCondition
 import model.merge
 import viaduct.graphql.schema.ViaductSchema
 
@@ -33,9 +33,7 @@ internal fun Demand<SelectionForest>.applicableGroundSelections(
         unchecked = unchecked.applicableGroundSelections(operation, type),
     )
 
-private inline fun ObjectSelectionForest.groundSelections(
-    groundArguments: (ObjectSelection) -> Arguments.Ground,
-): ObjectSelectionForest {
+private inline fun ObjectSelectionForest.groundSelections(groundArguments: (ObjectSelection) -> Arguments.Ground): ObjectSelectionForest {
     val selectionsByKey =
         buildMap<ObjectEngineResult.GroundKey, MutableList<ObjectSelection>> {
             byKey().values.forEach { selection ->

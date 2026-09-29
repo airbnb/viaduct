@@ -1,15 +1,12 @@
 package semantics.resolvers.resolver23
 
-import semantics.resolvers.resolver23.resolve
-
-import viaduct.engine.api.EngineObjectData
-
-import semantics.shared.SharedOperationContext
 import model.ObjectEngineResult
 import model.SelectionForest
 import semantics.arbitrary.Config
 import semantics.arbitrary.ParentFieldsEnabled
 import semantics.contract.DeepResolverStressContract
+import semantics.shared.SharedOperationContext
+import viaduct.engine.api.EngineObjectData
 
 class ResolverStressTest : DeepResolverStressContract {
     override val resolverName: String = "resolver23"
@@ -24,6 +21,5 @@ class ResolverStressTest : DeepResolverStressContract {
         operation: SharedOperationContext<*>,
         root: EngineObjectData.Sync,
         selections: SelectionForest,
-    ): ObjectEngineResult =
-        operation.resolve(selections)
+    ): ObjectEngineResult = operation.resolve(selections)
 }

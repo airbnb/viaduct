@@ -1,9 +1,9 @@
 package semantics.resolver26
 
+import java.io.InputStream
 import semantics.arbitrary.Config
 import semantics.arbitrary.DuplicateSelectionWeight
 import semantics.arbitrary.TestCaseCount
-import java.io.InputStream
 
 // Describes one fresh-JVM campaign round and derives its five profile runs.
 internal data class Resolver26BroadStressCampaignRound(
@@ -105,9 +105,7 @@ internal enum class Resolver26BroadStressCampaignPhase(
 }
 
 // Returns sampling dimensions that retain registry diversity for registry-shape profiles.
-private fun Resolver26BroadStressCampaignPhase.countsFor(
-    profile: Resolver26BroadStressProfile,
-): TestCaseCount =
+private fun Resolver26BroadStressCampaignPhase.countsFor(profile: Resolver26BroadStressProfile): TestCaseCount =
     when {
         profile == Resolver26BroadStressProfile.MULTIPLE_OWNERS -> multipleOwnerCounts
         this == Resolver26BroadStressCampaignPhase.QUERY_INTERACTIONS &&

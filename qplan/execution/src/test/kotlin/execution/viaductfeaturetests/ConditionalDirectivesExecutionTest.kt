@@ -4,7 +4,6 @@ package execution.viaductfeaturetests
 // Copied 1 out of 1 tests as of 2026-09-01
 
 import execution.testing.runQPlanFeatureTest
-
 import java.util.concurrent.atomic.AtomicInteger
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test

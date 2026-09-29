@@ -25,8 +25,7 @@ class TypeCheckerResolver private constructor(
     private val function: TypeCheckerFunction,
 ) : CheckerResolverBase<ResolverTarget.TypeCheckerTarget>(target, fragmentTemplates, queryType) {
     /** Runs each named provider with the type checker's empty argument tuple. */
-    suspend fun provideVariables(): Map<String, model.EngineInputData?> =
-        super.provideVariables(argumentsOfGround(emptyMap()))
+    suspend fun provideVariables(): Map<String, model.EngineInputData?> = super.provideVariables(argumentsOfGround(emptyMap()))
 
     suspend operator fun invoke(
         inputs: Map<String, CheckerInput>,

@@ -1,12 +1,11 @@
 package model
 
-import viaduct.graphql.schema.ViaductSchema
-
 import graphql.schema.GraphQLObjectType
 import model.invariants.conformsToResolverOutputSchemaType
 import viaduct.apiannotations.InternalApi
 import viaduct.engine.api.EngineObjectData
 import viaduct.errors.UnsetFieldException
+import viaduct.graphql.schema.ViaductSchema
 import viaduct.graphql.schema.graphqljava.gjDef
 import viaduct.utils.collections.HMap
 
@@ -189,8 +188,7 @@ private class QPlanEngineObjectDataImpl(
         return values[selection]
     }
 
-    override fun getOrNull(selection: String): Any? =
-        if (isPresent(selection)) get(selection) else null
+    override fun getOrNull(selection: String): Any? = if (isPresent(selection)) get(selection) else null
 
     override fun isPresent(selection: String): Boolean = selection in values
 

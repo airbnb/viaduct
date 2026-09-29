@@ -2,6 +2,11 @@
 
 package semantics.shared
 
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
@@ -10,14 +15,9 @@ import model.ListEngineResult
 import model.ResolverOccurrenceId
 import model.UncompletedPromiseException
 import model.VariableBinding
+import model.requireObjectField
 import model.testing.TestWorld
 import model.testing.testRoot
-import model.requireObjectField
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
-import kotlin.test.assertFalse
-import kotlin.test.assertTrue
 
 class VariableBindingsStateTest {
     @Test

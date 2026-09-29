@@ -4,7 +4,6 @@ package execution.viaductfeaturetests
 // Copied 61 out of 61 tests as of 2026-09-01
 
 import execution.testing.runQPlanFeatureTest
-
 import io.kotest.property.Arb
 import io.kotest.property.arbitrary.arbitrary
 import java.util.concurrent.atomic.AtomicInteger
@@ -17,8 +16,8 @@ import model.EngineErrorData
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
-import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Disabled
+import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import viaduct.arbitrary.common.CheckedArb
 import viaduct.arbitrary.common.Config
@@ -47,7 +46,6 @@ import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineSelection
 import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.ExecutionAttribution
-import viaduct.engine.api.spi.VariableFromFieldDefinitions
 import viaduct.engine.api.FromObjectFieldVariable
 import viaduct.engine.api.NodeEngineObjectData
 import viaduct.engine.api.RequiredSelectionSet
@@ -63,6 +61,7 @@ import viaduct.engine.api.mocks.featureTestDefault
 import viaduct.engine.api.mocks.fetchAs
 import viaduct.engine.api.mocks.getAs
 import viaduct.engine.api.select.SelectionsParser
+import viaduct.engine.api.spi.VariableFromFieldDefinitions
 import viaduct.engine.runtime.execution.query
 import viaduct.graphql.test.assertMatches
 import viaduct.service.api.ExecutionInput
@@ -2403,7 +2402,9 @@ class SelectiveNodeResolversExecutionTest {
             }
         }
 
-        @Disabled("ALT: Uses a callback-owned RSS and asks a selective node owner to supply an argument-bearing field; qplan uses a declarative provider, an active argument-bearing field, and one non-selective node application")
+        @Disabled(
+            "ALT: Uses a callback-owned RSS and asks a selective node owner to supply an argument-bearing field; qplan uses a declarative provider, an active argument-bearing field, and one non-selective node application"
+        )
         @Test
         fun `node owned sibling supplies required rss variable`() {
             MockTenantModuleBootstrapper(
@@ -2651,7 +2652,9 @@ class SelectiveNodeResolversExecutionTest {
             }
         }
 
-        @Disabled("ALT: Uses a callback-owned RSS and selective node execution for a conditional dependency chain; qplan uses a declarative provider and resolves the node once through its supported non-selective executor")
+        @Disabled(
+            "ALT: Uses a callback-owned RSS and selective node execution for a conditional dependency chain; qplan uses a declarative provider and resolves the node once through its supported non-selective executor"
+        )
         @Test
         fun `variable rss does not use skipped child object plan`() {
             MockTenantModuleBootstrapper(

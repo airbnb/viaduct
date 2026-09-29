@@ -22,14 +22,15 @@ interface SharedOperationContext<out D : SharedTaskDispatcher<Nothing, Nothing>>
             variableBindings: VariableBindingsState = VariableBindingsState(),
             resolverObserver: ResolverObserver = ResolverObserver.NOP,
             checkerObserver: CheckerObserver = CheckerObserver.NOP,
-        ): SharedOperationContext<Nothing> = object : SharedOperationContext<Nothing> {
-            override val world = world
-            override val variableBindings = variableBindings
-            override val resolverObserver = resolverObserver
-            override val checkerObserver = checkerObserver
-            override val dispatcher: Nothing
-                get() = error("This operation does not dispatch resolver tasks")
-        }
+        ): SharedOperationContext<Nothing> =
+            object : SharedOperationContext<Nothing> {
+                override val world = world
+                override val variableBindings = variableBindings
+                override val resolverObserver = resolverObserver
+                override val checkerObserver = checkerObserver
+                override val dispatcher: Nothing
+                    get() = error("This operation does not dispatch resolver tasks")
+            }
 
         /** Creates an operation with a concretely typed dispatcher and stable shared state references. */
         @JvmStatic
@@ -39,12 +40,13 @@ interface SharedOperationContext<out D : SharedTaskDispatcher<Nothing, Nothing>>
             variableBindings: VariableBindingsState = VariableBindingsState(),
             resolverObserver: ResolverObserver = ResolverObserver.NOP,
             checkerObserver: CheckerObserver = CheckerObserver.NOP,
-        ): SharedOperationContext<D> = object : SharedOperationContext<D> {
-            override val world = world
-            override val variableBindings = variableBindings
-            override val resolverObserver = resolverObserver
-            override val checkerObserver = checkerObserver
-            override val dispatcher = dispatcher
-        }
+        ): SharedOperationContext<D> =
+            object : SharedOperationContext<D> {
+                override val world = world
+                override val variableBindings = variableBindings
+                override val resolverObserver = resolverObserver
+                override val checkerObserver = checkerObserver
+                override val dispatcher = dispatcher
+            }
     }
 }

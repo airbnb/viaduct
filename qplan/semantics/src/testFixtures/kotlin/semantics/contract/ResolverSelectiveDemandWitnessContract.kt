@@ -1,20 +1,20 @@
 package semantics.contract
 
-import model.requireField
-import viaduct.graphql.schema.ViaductSchema
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 import model.SelectionForest
 import model.emptyFragmentOf
 import model.fragmentFrom
-import semantics.shared.instantiateBindings
 import model.merge
 import model.objectOf
+import model.requireField
 import model.requireType
 import model.testing.TestWorld
 import model.testing.fieldResolverOf
 import semantics.correctresolution.correctResolution
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertTrue
+import semantics.shared.instantiateBindings
+import viaduct.graphql.schema.ViaductSchema
 
 interface ResolverSelectiveDemandWitnessContract : ResolverContract {
     @Test

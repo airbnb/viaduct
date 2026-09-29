@@ -1,28 +1,25 @@
 package semantics.resolver26
 
-import semantics.resolver26.resolve
-
-import viaduct.engine.api.EngineObjectData
-
-import semantics.shared.SharedOperationContext
 import model.ObjectEngineResult
 import model.SelectionForest
 import semantics.contract.CorrectResolutionPostTestPolicy
 import semantics.contract.EmptyObjectFragmentResolverContract
+import semantics.contract.FieldCheckerCorrectResolutionContract
 import semantics.contract.FromQueryFieldResolverContract
+import semantics.contract.FrozenObjectResolutionContract
 import semantics.contract.LateObjectPathDemandResolverContract
 import semantics.contract.NodeResolverContract
 import semantics.contract.ObjectFragmentFromArgumentResolverContract
 import semantics.contract.ObjectFragmentFromObjectPathResolverContract
 import semantics.contract.ObjectFragmentResolverContract
+import semantics.contract.ObjectFragmentRootFieldReferenceResolverContract
 import semantics.contract.ParentFieldResolverContract
 import semantics.contract.ParentQueryFragmentVariableResolverContract
 import semantics.contract.ProductionDeadlockResolverContract
+import semantics.contract.QueryFragmentFromObjectPathResolverContract
 import semantics.contract.QueryFragmentResolverContract
 import semantics.contract.QueryFragmentRootFieldReferenceResolverContract
 import semantics.contract.RootFieldReferenceResolverContract
-import semantics.contract.ObjectFragmentRootFieldReferenceResolverContract
-import semantics.contract.QueryFragmentFromObjectPathResolverContract
 import semantics.contract.SelectiveObjectFragmentOutputPolicyContract
 import semantics.contract.SelectiveResolverOutputPolicyContract
 import semantics.contract.SelectiveRootFieldReferenceResolverContract
@@ -32,8 +29,8 @@ import semantics.contract.SometimesPassiveResolverContract
 import semantics.contract.SometimesPassiveSelectiveResolverContract
 import semantics.contract.VariableSelectionIdentityResolverContract
 import semantics.contract.VariablesProviderResolverContract
-import semantics.contract.FrozenObjectResolutionContract
-import semantics.contract.FieldCheckerCorrectResolutionContract
+import semantics.shared.SharedOperationContext
+import viaduct.engine.api.EngineObjectData
 
 class ResolverContractTest :
     FrozenObjectResolutionContract,
@@ -72,6 +69,5 @@ class ResolverContractTest :
         operation: SharedOperationContext<*>,
         root: EngineObjectData.Sync,
         selections: SelectionForest,
-    ): ObjectEngineResult =
-        operation.resolveWithTestDispatcher(selections)
+    ): ObjectEngineResult = operation.resolveWithTestDispatcher(selections)
 }

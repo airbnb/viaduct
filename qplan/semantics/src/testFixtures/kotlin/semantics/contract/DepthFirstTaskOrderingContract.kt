@@ -1,17 +1,17 @@
 package semantics.contract
 
-import model.requireField
-import viaduct.engine.api.EngineObjectData
+import kotlin.test.assertEquals
 import model.ObjectEngineResult
 import model.SelectionForest
 import model.emptyFragmentOf
 import model.fragmentFrom
 import model.objectOf
+import model.requireField
 import model.testing.TestWorld
 import model.testing.fieldResolverOf
 import org.junit.jupiter.api.Test
-import kotlin.test.assertEquals
 import semantics.shared.SharedOperationContext
+import viaduct.engine.api.EngineObjectData
 
 sealed interface ResolverTaskObservation {
     val path: List<String>

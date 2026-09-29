@@ -8,8 +8,8 @@ import model.Selection
 import model.SelectionForest
 import model.guardedBy
 import model.objectKey
-import model.selectionForestOf
 import model.registry.FieldCheckerResolver
+import model.selectionForestOf
 import semantics.shared.Demand
 import semantics.shared.guardedBy
 import semantics.shared.plus
@@ -35,9 +35,7 @@ internal fun SelectionForest.liftParentConstructionDemand(world: Assumptions): S
     }
 
 /** Preserves checked and unchecked provenance while lifting additional parent demand. */
-internal fun Demand<SelectionForest>.liftParentConstructionDemand(
-    world: Assumptions,
-): Demand<SelectionForest> =
+internal fun Demand<SelectionForest>.liftParentConstructionDemand(world: Assumptions): Demand<SelectionForest> =
     if (world.parentFieldRelations.isEmpty()) {
         Demand.EMPTY
     } else {
@@ -142,6 +140,7 @@ private fun ObjectSelection.findParentDemandInObjectSelection(
             context,
             checked,
         )
+
     fun carryNestedDemand(demand: SelectionForest): SelectionForest =
         if (demand.isEmpty()) {
             selectionForestOf()
@@ -234,9 +233,7 @@ private fun ViaductSchema.ObjectField.findParentDemandInObjectFragment(
     return result
 }
 
-private fun ParentDemandAnalysis.guardedBy(
-    condition: InclusionCondition,
-): ParentDemandAnalysis =
+private fun ParentDemandAnalysis.guardedBy(condition: InclusionCondition): ParentDemandAnalysis =
     ParentDemandAnalysis(
         localDemand = localDemand.guardedBy(condition),
         parentRequests =

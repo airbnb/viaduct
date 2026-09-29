@@ -4,7 +4,6 @@ package execution.viaductfeaturetests
 // Copied 2 out of 2 tests as of 2026-09-01
 
 import execution.testing.runQPlanFeatureTest
-
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import org.junit.jupiter.api.Test
 import viaduct.engine.api.mocks.EngineTestModule

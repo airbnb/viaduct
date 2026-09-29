@@ -210,6 +210,7 @@ interface GroundedFieldCheckerCapabilityContract {
                     val a = schema.requireObjectField("Item", "a")
                     val b = schema.requireObjectField("Item", "b")
                     val c = schema.requireObjectField("Item", "c")
+
                     fun bInput(alias: String): ResolverFragmentTemplates =
                         ResolverFragmentTemplates(
                             objectFragmentTemplate =
@@ -280,8 +281,7 @@ private open class ChainDenial(message: String) : CheckerResult.Error {
 }
 
 private class DirectiveAwareChainDenial : ChainDenial("directive-aware denial") {
-    override fun isErrorForResolver(ctx: CheckerResultContext): Boolean =
-        !checkNotNull(ctx.fieldDirectives).hasDirective("bypassPolicyCheck") { it.isEmpty() }
+    override fun isErrorForResolver(ctx: CheckerResultContext): Boolean = !checkNotNull(ctx.fieldDirectives).hasDirective("bypassPolicyCheck") { it.isEmpty() }
 }
 
 private fun ObjectEngineResult.chainCell(
@@ -302,5 +302,4 @@ private fun ObjectEngineResult.chainObjectValue(
     fieldName: String,
 ): ObjectEngineResult = assertIs(chainCell(world, typeName, fieldName).value.get())
 
-private fun Throwable.chainCauses(): Set<Throwable> =
-    generateSequence(this) { it.cause }.toSet()
+private fun Throwable.chainCauses(): Set<Throwable> = generateSequence(this) { it.cause }.toSet()

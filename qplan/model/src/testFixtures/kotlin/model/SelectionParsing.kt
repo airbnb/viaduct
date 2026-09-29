@@ -1,23 +1,21 @@
 package model
 
-import viaduct.graphql.schema.ViaductSchema
-
 import graphql.GraphQLContext
 import graphql.execution.CoercedVariables
 import graphql.execution.RawVariables
 import graphql.execution.ValuesResolver
-import graphql.language.OperationDefinition
 import graphql.language.FragmentDefinition
+import graphql.language.OperationDefinition
 import graphql.parser.Parser
 import graphql.validation.Validator
 import java.util.Locale
 import model.registry.ResolverTarget
-import model.testing.GJSelectionParser
 import model.testing.GJSchema
+import model.testing.GJSelectionParser
+import viaduct.graphql.schema.ViaductSchema
 
 /** Parses one post-validation fragment as test-fixture preparation outside semantic model logic. */
-fun Assumptions.selectionsFrom(fragment: String): Pair<ViaductSchema.CompositeTypeDef, SelectionForest> =
-    schema.selectionParser().selectionsFrom(fragment)
+fun Assumptions.selectionsFrom(fragment: String): Pair<ViaductSchema.CompositeTypeDef, SelectionForest> = schema.selectionParser().selectionsFrom(fragment)
 
 /**
  * Decodes one post-validation query operation with already-coerced operation variables.
@@ -105,8 +103,7 @@ fun ViaductSchema.fragmentFrom(
     ).fragmentFrom(source)
 
 /** Parses one post-validation GraphQL fragment without operation-variable bindings. */
-fun Assumptions.fragmentFrom(source: String): Fragment =
-    schema.fragmentFrom(source)
+fun Assumptions.fragmentFrom(source: String): Fragment = schema.fragmentFrom(source)
 
 /** Constructs the model-only empty fragment that GraphQL text cannot express. */
 fun ViaductSchema.emptyFragmentOf(typeName: String): Fragment =
@@ -116,8 +113,7 @@ fun ViaductSchema.emptyFragmentOf(typeName: String): Fragment =
     )
 
 /** Constructs the model-only empty fragment that GraphQL text cannot express. */
-fun Assumptions.emptyFragmentOf(typeName: String): Fragment =
-    schema.emptyFragmentOf(typeName)
+fun Assumptions.emptyFragmentOf(typeName: String): Fragment = schema.emptyFragmentOf(typeName)
 
 private fun ViaductSchema.selectionParser(): GJSelectionParser =
     GJSelectionParser(

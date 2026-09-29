@@ -4,17 +4,17 @@ import graphql.ExecutionResult
 import graphql.execution.AsyncExecutionStrategy
 import graphql.execution.DataFetcherExceptionHandler
 import graphql.execution.ExecutionContext
+import graphql.execution.ExecutionId
 import graphql.execution.ExecutionStrategyParameters
 import graphql.execution.SimpleDataFetcherExceptionHandler
-import graphql.execution.ExecutionId
 import graphql.incremental.DelayedIncrementalPartialResult
 import graphql.incremental.IncrementalExecutionResult
 import graphql.incremental.IncrementalExecutionResultImpl
-import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CancellationException
+import java.util.concurrent.CompletableFuture
 import kotlin.coroutines.CoroutineContext
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineExceptionHandler
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import model.Assumptions
 import model.selectionsFrom
@@ -45,7 +45,6 @@ class QPlanExecutionStrategy(
         executionContext: ExecutionContext,
         parameters: ExecutionStrategyParameters,
     ): CompletableFuture<ExecutionResult> {
-
         // Query Planniing: Convert operation to be executed into a [SelectionForest]
         val selections =
             world.selectionsFrom(
@@ -135,9 +134,7 @@ class QPlanExecutionStrategy(
     }
 }
 
-internal fun IncrementalExecutionResult.withRequestLifetime(
-    requestJob: Job,
-): IncrementalExecutionResult {
+internal fun IncrementalExecutionResult.withRequestLifetime(requestJob: Job): IncrementalExecutionResult {
     val original = incrementalItemPublisher
     val wrapped =
         Publisher<DelayedIncrementalPartialResult> { downstream ->
@@ -164,8 +161,7 @@ internal fun IncrementalExecutionResult.withRequestLifetime(
                             )
                         }
 
-                        override fun onNext(item: DelayedIncrementalPartialResult) =
-                            downstream.onNext(item)
+                        override fun onNext(item: DelayedIncrementalPartialResult) = downstream.onNext(item)
 
                         override fun onError(throwable: Throwable) {
                             try {

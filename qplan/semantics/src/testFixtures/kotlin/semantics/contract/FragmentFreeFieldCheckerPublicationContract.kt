@@ -10,7 +10,6 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertSame
-import kotlin.test.assertTrue
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
@@ -21,7 +20,6 @@ import kotlinx.coroutines.withTimeout
 import model.Assumptions
 import model.EngineResultCell
 import model.ObjectEngineResult
-import model.PathComponent
 import model.SelectionForest
 import model.emptyFragmentOf
 import model.operationSelectionsFrom
@@ -46,6 +44,7 @@ interface FragmentFreeFieldCheckerPublicationContract {
     @Test
     fun `reserves every value and checker slot before any local producer starts`() {
         val cells = linkedMapOf<String, EngineResultCell>()
+
         fun assertBarrier() {
             assertEquals(setOf("first", "second"), cells.keys)
             cells.values.forEach { cell ->
@@ -211,7 +210,10 @@ interface FragmentFreeFieldCheckerPublicationContract {
                     """.trimIndent(),
                 selectiveResolvers = coroutineResolverSubject.selectiveResolvers,
                 fieldCheckers = { schema ->
-                    fun checker(name: String, function: suspend () -> CheckerResult): Pair<viaduct.graphql.schema.ViaductSchema.ObjectField, FieldCheckerResolver> {
+                    fun checker(
+                        name: String,
+                        function: suspend () -> CheckerResult
+                    ): Pair<viaduct.graphql.schema.ViaductSchema.ObjectField, FieldCheckerResolver> {
                         val field = schema.requireObjectField("Query", name)
                         return field to FieldCheckerResolver.of(field, schema.requireQueryTypeDef()) { _, _, _ -> function() }
                     }
@@ -238,39 +240,40 @@ interface FragmentFreeFieldCheckerPublicationContract {
     }
 
     @Test
-    fun `request cancellation terminates checker promises before entry and during execution`() = runBlocking {
-        for (cancelBeforeEntry in listOf(true, false)) {
-            val checkerEntered = CompletableDeferred<Unit>()
-            val world = cancellationWorld(checkerEntered).assumptions
-            val requestJob = Job()
-            val requestScope = CoroutineScope(coroutineContext + requestJob)
-            val cancellation = CancellationException("request cancelled")
-            try {
-                val result =
-                    coroutineResolverSubject.startResolution(
-                        SharedOperationContext.create(world),
-                        requestScope,
-                        world.operationSelectionsFrom("{ checked }"),
-                        CycleCheckState.create(),
-                    )
-                if (cancelBeforeEntry) {
-                    requestJob.cancel(cancellation)
-                } else {
-                    withTimeout(5_000) { checkerEntered.await() }
-                    requestJob.cancel(cancellation)
-                }
-                withTimeout(5_000) { requestJob.join() }
-                val checkerFailure =
-                    assertFailsWith<CancellationException> {
-                        result.cell(world, "Query", "checked").fieldCheckerResult.await()
+    fun `request cancellation terminates checker promises before entry and during execution`() =
+        runBlocking {
+            for (cancelBeforeEntry in listOf(true, false)) {
+                val checkerEntered = CompletableDeferred<Unit>()
+                val world = cancellationWorld(checkerEntered).assumptions
+                val requestJob = Job()
+                val requestScope = CoroutineScope(coroutineContext + requestJob)
+                val cancellation = CancellationException("request cancelled")
+                try {
+                    val result =
+                        coroutineResolverSubject.startResolution(
+                            SharedOperationContext.create(world),
+                            requestScope,
+                            world.operationSelectionsFrom("{ checked }"),
+                            CycleCheckState.create(),
+                        )
+                    if (cancelBeforeEntry) {
+                        requestJob.cancel(cancellation)
+                    } else {
+                        withTimeout(5_000) { checkerEntered.await() }
+                        requestJob.cancel(cancellation)
                     }
-                assertEquals(cancellation.message, checkerFailure.message)
-                assertEquals(!cancelBeforeEntry, checkerEntered.isCompleted)
-            } finally {
-                requestJob.cancelAndJoin()
+                    withTimeout(5_000) { requestJob.join() }
+                    val checkerFailure =
+                        assertFailsWith<CancellationException> {
+                            result.cell(world, "Query", "checked").fieldCheckerResult.await()
+                        }
+                    assertEquals(cancellation.message, checkerFailure.message)
+                    assertEquals(!cancelBeforeEntry, checkerEntered.isCompleted)
+                } finally {
+                    requestJob.cancelAndJoin()
+                }
             }
         }
-    }
 
     private fun cancellationWorld(checkerEntered: CompletableDeferred<Unit>): TestWorld =
         TestWorld.fromDSL(
@@ -311,8 +314,7 @@ private fun ObjectEngineResult.cell(
     typeName: String,
     fieldName: String,
     arguments: Map<String, Any?> = emptyMap(),
-): EngineResultCell =
-    getCell(ObjectEngineResult.GroundKey.of(world.schema.requireObjectField(typeName, fieldName), arguments))
+): EngineResultCell = getCell(ObjectEngineResult.GroundKey.of(world.schema.requireObjectField(typeName, fieldName), arguments))
 
 private fun ObjectEngineResult.objectValue(
     world: Assumptions,

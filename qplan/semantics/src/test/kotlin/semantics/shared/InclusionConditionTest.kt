@@ -2,6 +2,9 @@
 
 package semantics.shared
 
+import kotlin.test.Test
+import kotlin.test.assertFailsWith
+import kotlin.test.assertTrue
 import kotlinx.coroutines.runBlocking
 import model.Arguments
 import model.InclusionCondition
@@ -10,30 +13,28 @@ import model.VariableBinding
 import model.requireObjectField
 import model.testing.TestWorld
 import model.testing.testRoot
-import kotlin.test.Test
-import kotlin.test.assertFailsWith
-import kotlin.test.assertTrue
 
 class InclusionConditionTest {
     private val world = TestWorld.fromSDL("type Query { value: Boolean! }").assumptions
     private val field = world.schema.requireObjectField("Query", "value")
 
     @Test
-    fun `condition evaluation short circuits without awaiting later alternatives`() = runBlocking {
-        val operation = SharedOperationContext.create(world)
-        val first = variable("first")
-        val second = variable("second")
-        operation.variableBindings.bindVariable(requireNotNull(first.instanceId), true)
-        val condition =
-            InclusionCondition.anyOf(
-                listOf(
-                    InclusionCondition.requires(mapOf(first to true)),
-                    InclusionCondition.requires(mapOf(second to true)),
-                ),
-            )
+    fun `condition evaluation short circuits without awaiting later alternatives`() =
+        runBlocking {
+            val operation = SharedOperationContext.create(world)
+            val first = variable("first")
+            val second = variable("second")
+            operation.variableBindings.bindVariable(requireNotNull(first.instanceId), true)
+            val condition =
+                InclusionCondition.anyOf(
+                    listOf(
+                        InclusionCondition.requires(mapOf(first to true)),
+                        InclusionCondition.requires(mapOf(second to true)),
+                    ),
+                )
 
-        assertTrue(condition.fetchIncluded(operation))
-    }
+            assertTrue(condition.fetchIncluded(operation))
+        }
 
     @Test
     fun `failed condition binding is rejected`() {

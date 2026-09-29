@@ -8,10 +8,8 @@ import kotlinx.coroutines.ensureActive
 import model.EngineErrorData
 import model.EngineObjectOrErrorData
 import model.ObjectEngineResult
-import model.PathComponent
 import model.RootFieldReferenceData
 import model.engineObjectDataOf
-import model.merge
 import model.outputValue
 import model.registry.FieldValueResolver
 import model.registry.ResolverFragment
@@ -20,8 +18,8 @@ import semantics.resolver26.CoroutineFieldResolverTaskBase
 import semantics.resolvers.GroundedFieldPublicationOccurrence
 import semantics.resolvers.materializeResolverInput
 import semantics.shared.CycleTask
-import semantics.shared.descendants
 import semantics.shared.Demand
+import semantics.shared.descendants
 import semantics.shared.fieldResolverCycleTask
 import semantics.shared.valueCycleSlot
 
@@ -34,9 +32,7 @@ internal class CoroutineFieldResolverTask private constructor(
 
     companion object {
         /** Installs all local promises before dispatching any producer, including source references. */
-        fun prepareAll(
-            orchestrationTask: CoroutineOrchestrationTask,
-        ): List<GroundedFieldPublicationOccurrence<CoroutineOperationContext>> {
+        fun prepareAll(orchestrationTask: CoroutineOrchestrationTask): List<GroundedFieldPublicationOccurrence<CoroutineOperationContext>> {
             val operation = orchestrationTask.operation
             return listOf(
                 orchestrationTask.objectOER to orchestrationTask.closedConstructionDemand.objectRooted,
@@ -48,7 +44,9 @@ internal class CoroutineFieldResolverTask private constructor(
                     .map { (key, selection) ->
                         val reference = if (oer.source.isPresent(key.field.name)) {
                             oer.source.outputValue(key.field.name) as RootFieldReferenceData
-                        } else null
+                        } else {
+                            null
+                        }
                         prepare(
                             GroundedFieldPublicationOccurrence(
                                 operation = operation,
@@ -69,19 +67,23 @@ internal class CoroutineFieldResolverTask private constructor(
             publication.operation.dispatcher.dispatchFieldResolver(prepare(publication))
         }
 
-        private fun prepare(publication: GroundedFieldPublicationOccurrence<CoroutineOperationContext>): GroundedFieldPublicationOccurrence<CoroutineOperationContext> = publication.apply {
-            publicationCell.value.claim()
-            // List cells are activated when the shared traversal allocates their list.
-            if (publicationPath.last() is ObjectEngineResult.ObjectKey) {
-                check(publicationCell.setActivated(true)) { "Cell activation was decided twice" }
+        private fun prepare(publication: GroundedFieldPublicationOccurrence<CoroutineOperationContext>): GroundedFieldPublicationOccurrence<CoroutineOperationContext> =
+            publication.apply {
+                publicationCell.value.claim()
+                // List cells are activated when the shared traversal allocates their list.
+                if (publicationPath.last() is ObjectEngineResult.ObjectKey) {
+                    check(publicationCell.setActivated(true)) { "Cell activation was decided twice" }
+                }
+                operation.cycleChecker.registerWriter(
+                    slot = publicationCell.valueCycleSlot,
+                    writer = oerOccurrence.root.fieldResolverCycleTask(publicationPath),
+                )
             }
-            operation.cycleChecker.registerWriter(
-                slot = publicationCell.valueCycleSlot,
-                writer = oerOccurrence.root.fieldResolverCycleTask(publicationPath),
-            )
-        }
 
-        internal suspend fun execute(publication: GroundedFieldPublicationOccurrence<CoroutineOperationContext>, scope: CoroutineScope) {
+        internal suspend fun execute(
+            publication: GroundedFieldPublicationOccurrence<CoroutineOperationContext>,
+            scope: CoroutineScope
+        ) {
             CoroutineFieldResolverTask(publication, scope).run()
         }
     }
@@ -104,30 +106,31 @@ internal class CoroutineFieldResolverTask private constructor(
         resolver: FieldValueResolver,
         queryFragment: ResolverFragment,
         reader: CycleTask,
-    ): Deferred<EngineObjectOrErrorData> = fieldTaskScope.async {
-        try {
-            val queryValue = if (queryFragment.constructionSelections.isEmpty()) {
-                engineObjectDataOf(publication.operation.world.schema.requireQueryTypeDef())
-            } else {
-                val queryResult = publication.operation.startResolve(
-                    source = publication.operation.world.resolverRegistry.createRootQueryInput(),
-                    demand = Demand.checked(queryFragment.constructionSelections),
-                    queryFragmentOwner = queryFragment.resolverOccurrenceId,
-                )
-                queryResult.materializeResolverInput(
-                    operation = publication.operation,
-                    cycleChecker = publication.operation.cycleChecker,
-                    selections =
-                        resolver.instantiateQueryMaterializationSelections(
-                            queryFragment.resolverOccurrenceId,
-                        ),
-                    reader = reader,
-                )
+    ): Deferred<EngineObjectOrErrorData> =
+        fieldTaskScope.async {
+            try {
+                val queryValue = if (queryFragment.constructionSelections.isEmpty()) {
+                    engineObjectDataOf(publication.operation.world.schema.requireQueryTypeDef())
+                } else {
+                    val queryResult = publication.operation.startResolve(
+                        source = publication.operation.world.resolverRegistry.createRootQueryInput(),
+                        demand = Demand.checked(queryFragment.constructionSelections),
+                        queryFragmentOwner = queryFragment.resolverOccurrenceId,
+                    )
+                    queryResult.materializeResolverInput(
+                        operation = publication.operation,
+                        cycleChecker = publication.operation.cycleChecker,
+                        selections =
+                            resolver.instantiateQueryMaterializationSelections(
+                                queryFragment.resolverOccurrenceId,
+                            ),
+                        reader = reader,
+                    )
+                }
+                EngineObjectOrErrorData.of(queryValue)
+            } catch (cause: Exception) {
+                currentCoroutineContext().ensureActive()
+                EngineObjectOrErrorData.of(EngineErrorData.of(cause))
             }
-            EngineObjectOrErrorData.of(queryValue)
-        } catch (cause: Exception) {
-            currentCoroutineContext().ensureActive()
-            EngineObjectOrErrorData.of(EngineErrorData.of(cause))
         }
-    }
 }

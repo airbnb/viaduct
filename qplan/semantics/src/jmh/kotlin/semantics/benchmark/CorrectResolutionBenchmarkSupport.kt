@@ -3,16 +3,16 @@ package semantics.benchmark
 import model.ObjectEngineResult
 import model.ObjectSelectionForest
 import model.fragmentFrom
-import semantics.shared.instantiateBindings
 import model.merge
 import model.objectOf
 import model.requireQueryTypeDef
 import org.openjdk.jmh.infra.Blackhole
 import semantics.arbitrary.ResolverBenchmarkCorpus
 import semantics.arbitrary.resolverBenchmarkOverheadQueryConfig
+import semantics.correctresolution.CorrectnessResolverObserver
 import semantics.correctresolution.correctResolution
 import semantics.shared.SharedOperationContext
-import semantics.correctresolution.CorrectnessResolverObserver
+import semantics.shared.instantiateBindings
 
 internal const val DEFAULT_CORRECT_RESOLUTION_INPUT_COUNT = 50
 internal const val DEFAULT_CORRECT_RESOLUTION_LOOP_COUNT = 1

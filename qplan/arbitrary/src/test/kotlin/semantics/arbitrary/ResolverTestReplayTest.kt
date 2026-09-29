@@ -2,13 +2,13 @@
 
 package semantics.arbitrary
 
-import kotlinx.coroutines.runBlocking
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
+import kotlinx.coroutines.runBlocking
 
 class ResolverTestReplayTest {
     @Test
@@ -335,8 +335,7 @@ class ResolverTestReplayTest {
             queryIndex = queryIndex,
         )
 
-    private fun TestCaseCount.summary(): String =
-        "$schemas:$registriesPerSchema:$queriesPerSchema"
+    private fun TestCaseCount.summary(): String = "$schemas:$registriesPerSchema:$queriesPerSchema"
 
     private companion object {
         val REPLAY_CONFIG =

@@ -1,13 +1,8 @@
 package semantics.resolvers.resolver06
 
-import semantics.shared.SharedOperationContext
-import semantics.shared.OEROccurrence
-import semantics.shared.SharedOERContext
-import semantics.resolvers.GroundedFieldPublicationOccurrence
-import semantics.resolvers.resolver01.DepthFirstFieldResolverTask
-import semantics.resolvers.resolver01.DepthFirstOperationContext
-import semantics.resolvers.resolver01.DepthFirstOrchestrationTask
-import semantics.resolvers.resolver01.DepthFirstTaskDispatcher
+import java.util.PriorityQueue
+import kotlin.test.assertFailsWith
+import kotlin.test.assertSame
 import model.ObjectEngineResult
 import model.fragmentFrom
 import model.merge
@@ -15,9 +10,14 @@ import model.requireQueryTypeDef
 import model.schemaType
 import model.testing.TestWorld
 import org.junit.jupiter.api.Test
-import java.util.PriorityQueue
-import kotlin.test.assertFailsWith
-import kotlin.test.assertSame
+import semantics.resolvers.GroundedFieldPublicationOccurrence
+import semantics.resolvers.resolver01.DepthFirstFieldResolverTask
+import semantics.resolvers.resolver01.DepthFirstOperationContext
+import semantics.resolvers.resolver01.DepthFirstOrchestrationTask
+import semantics.resolvers.resolver01.DepthFirstTaskDispatcher
+import semantics.shared.OEROccurrence
+import semantics.shared.SharedOERContext
+import semantics.shared.SharedOperationContext
 
 class DepthFirstReactorTest {
     @Test
@@ -40,7 +40,10 @@ class DepthFirstReactorTest {
         val firstResolver =
             DepthFirstFieldResolverTask.prepare(
                 GroundedFieldPublicationOccurrence(
-                    operation, occurrence, selection, target.reserveCell(selection.key),
+                    operation,
+                    occurrence,
+                    selection,
+                    target.reserveCell(selection.key),
                     queryOER = SharedOERContext.undemandedQuery(world.schema.requireQueryTypeDef()),
                 ),
                 queryOERDepth = 0,
@@ -48,7 +51,9 @@ class DepthFirstReactorTest {
         val secondResolver =
             DepthFirstFieldResolverTask.prepare(
                 GroundedFieldPublicationOccurrence(
-                    operation, occurrence, selection,
+                    operation,
+                    occurrence,
+                    selection,
                     ObjectEngineResult.of(sourceType, mutable = true).reserveCell(selection.key),
                     queryOER = SharedOERContext.undemandedQuery(world.schema.requireQueryTypeDef()),
                 ),
@@ -57,7 +62,9 @@ class DepthFirstReactorTest {
         val queryResolver =
             DepthFirstFieldResolverTask.prepare(
                 GroundedFieldPublicationOccurrence(
-                    operation, occurrence, selection,
+                    operation,
+                    occurrence,
+                    selection,
                     ObjectEngineResult.of(sourceType, mutable = true).reserveCell(selection.key),
                     queryOER = SharedOERContext.undemandedQuery(world.schema.requireQueryTypeDef()),
                 ),
@@ -65,7 +72,10 @@ class DepthFirstReactorTest {
             )
         val orchestration =
             DepthFirstOrchestrationTask.create(
-                operation, occurrence, source, selections,
+                operation,
+                occurrence,
+                source,
+                selections,
                 queryOERDepth = 0,
             )
         assertSame(operation, orchestration.operation)

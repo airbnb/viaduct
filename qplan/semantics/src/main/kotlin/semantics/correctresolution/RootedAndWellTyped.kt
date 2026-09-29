@@ -9,5 +9,4 @@ import model.requireQueryTypeDef
  *
  * The [ObjectEngineResult] receiver already establishes that the result is object-valued.
  */
-fun ObjectEngineResult.rootedAndWellTyped(world: Assumptions): Boolean =
-    type == world.schema.requireQueryTypeDef()
+fun ObjectEngineResult.rootedAndWellTyped(world: Assumptions): Boolean = type == world.schema.requireQueryTypeDef()

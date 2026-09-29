@@ -1,5 +1,11 @@
 package semantics.resolver26
 
+import java.nio.file.Files
+import java.nio.file.Path
+import java.util.concurrent.TimeUnit
+import jdk.jfr.Configuration
+import jdk.jfr.Recording
+import kotlinx.coroutines.ExecutorCoroutineDispatcher
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.BenchmarkMode
 import org.openjdk.jmh.annotations.Fork
@@ -20,12 +26,6 @@ import org.openjdk.jmh.runner.IterationType
 import semantics.benchmark.DEFAULT_PROPERTY_TEST_LOOP_COUNT
 import semantics.benchmark.PropertyTestBenchmarkSupport
 import semantics.benchmark.ResolverBenchmarkSubject
-import java.nio.file.Files
-import java.nio.file.Path
-import java.util.concurrent.TimeUnit
-import jdk.jfr.Configuration
-import jdk.jfr.Recording
-import kotlinx.coroutines.ExecutorCoroutineDispatcher
 
 private const val PROFILE_OUTPUT_PROPERTY = "propertyTestProfileOutput"
 private const val PROFILE_RECORDING_NAME = "property-test-measurement"

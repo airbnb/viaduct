@@ -1,21 +1,20 @@
 package model.invariants
 
-import viaduct.graphql.schema.ViaductSchema
-
-import model.engineResultOf
-import model.engineObjectDataOf
-import model.objectOf
-import model.outputType
-import model.RootFieldReferenceData
-import model.nodeRootFieldReferenceOf
-import model.requireField
-import model.requireObjectField
-import model.requireType
-import model.testing.TestWorld
 import kotlin.test.Test
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import model.RootFieldReferenceData
+import model.engineObjectDataOf
+import model.engineResultOf
+import model.nodeRootFieldReferenceOf
+import model.objectOf
+import model.outputType
+import model.requireField
+import model.requireObjectField
+import model.requireType
+import model.testing.TestWorld
+import viaduct.graphql.schema.ViaductSchema
 
 class SchemaConformanceTest {
     @Test

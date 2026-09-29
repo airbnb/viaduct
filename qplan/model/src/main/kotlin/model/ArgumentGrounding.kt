@@ -130,9 +130,7 @@ private suspend fun ArgumentExpression?.fetchGroundWithBindings(
     }
 }
 
-private fun VariableBinding.coerceTo(
-    expectedType: ViaductSchema.TypeExpr<ViaductSchema.InputTypeDef>,
-): VariableBinding =
+private fun VariableBinding.coerceTo(expectedType: ViaductSchema.TypeExpr<ViaductSchema.InputTypeDef>): VariableBinding =
     when (this) {
         VariableBinding.Error -> this
         is VariableBinding.Input ->

@@ -4,7 +4,6 @@ package execution.viaductfeaturetests
 // Copied 11 out of 11 tests as of 2026-09-01
 
 import execution.testing.runQPlanFeatureTest
-
 import graphql.ExecutionResult
 import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.ExperimentalCoroutinesApi

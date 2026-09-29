@@ -543,5 +543,4 @@ class NodeResolverTest {
             assertEquals(1, execCount.get())
         }
     }
-
 }

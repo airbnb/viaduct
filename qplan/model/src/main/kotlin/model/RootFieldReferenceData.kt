@@ -48,8 +48,10 @@ sealed interface RootFieldReferenceData {
             val targetTypeDef = targetType.baseTypeDef
             require(
                 !targetType.isList &&
-                    (targetTypeDef is ViaductSchema.CompositeTypeDef ||
-                        targetTypeDef is ViaductSchema.SimpleTypeDef),
+                    (
+                        targetTypeDef is ViaductSchema.CompositeTypeDef ||
+                            targetTypeDef is ViaductSchema.SimpleTypeDef
+                    ),
             ) {
                 "Root-field-reference target " +
                     "${targetField.containingDef.name}/${targetField.name} must return a " +

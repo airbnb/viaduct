@@ -1,5 +1,6 @@
 package semantics.correctresolution
 
+import kotlin.test.assertEquals
 import model.Arguments
 import model.ObjectEngineResult
 import model.ResolverOccurrenceId
@@ -11,7 +12,6 @@ import model.testing.TestWorld
 import model.toCanonicalMaterializeSelectionForest
 import org.junit.jupiter.api.Test
 import semantics.shared.ResolverInvocationObservation
-import kotlin.test.assertEquals
 
 class CorrectnessResolverObserverTest {
     @Test
@@ -40,9 +40,11 @@ class CorrectnessResolverObserverTest {
         assertEquals(expectedIds, observer.invokedResolverOccurrences())
 
         // A new event and ID instance for the same occurrence must still deduplicate.
-        observer.onResolverInvocation(observations.last().copy(
-            resolverOccurrenceId = ResolverOccurrenceId.at(root, observations.last().occurrencePath),
-        ))
+        observer.onResolverInvocation(
+            observations.last().copy(
+                resolverOccurrenceId = ResolverOccurrenceId.at(root, observations.last().occurrencePath),
+            )
+        )
         assertEquals(expectedIds, observer.invokedResolverOccurrences())
     }
 }

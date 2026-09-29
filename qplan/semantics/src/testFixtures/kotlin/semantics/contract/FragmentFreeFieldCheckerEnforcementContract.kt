@@ -12,17 +12,15 @@ import model.ErrorEngineResult
 import model.ObjectEngineResult
 import model.emptyFragmentOf
 import model.fragmentFrom
-import model.materializeSelectionForestOf
 import model.operationSelectionsFrom
 import model.registry.FieldCheckerResolver
-import model.registry.ResolverFragmentTemplates
 import model.requireObjectField
 import model.requireQueryTypeDef
 import model.testing.TestWorld
 import model.testing.fieldResolverOf
 import model.testing.fromArgument
-import semantics.shared.SharedOperationContext
 import semantics.shared.ResolverObserver
+import semantics.shared.SharedOperationContext
 import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.CheckerResultContext
 
@@ -490,8 +488,7 @@ interface FragmentFreeFieldCheckerEnforcementContract {
         )
 }
 
-private fun ObjectEngineResult.item(world: Assumptions): ObjectEngineResult =
-    assertIs(value(world, "item", "Query"))
+private fun ObjectEngineResult.item(world: Assumptions): ObjectEngineResult = assertIs(value(world, "item", "Query"))
 
 private fun ObjectEngineResult.value(
     world: Assumptions,

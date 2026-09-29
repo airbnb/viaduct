@@ -32,8 +32,8 @@ import model.operationSelectionsFrom
 import model.outputValue
 import model.registry.CheckerInput
 import model.registry.FieldCheckerResolver
-import model.registry.ResolverTarget
 import model.registry.ResolverFragmentTemplates
+import model.registry.ResolverTarget
 import model.registry.VariableDefinition
 import model.requireObjectField
 import model.requireQueryTypeDef
@@ -161,6 +161,7 @@ interface GroundedFieldCheckerQueryFragmentContract {
                     val query = schema.requireQueryTypeDef()
                     val checked = schema.requireObjectField("Item", "checked")
                     val seed = Arguments.Variable.of(ResolverTarget.FieldCheckerTarget(checked), "seed")
+
                     fun queryInput(alias: String): ResolverFragmentTemplates =
                         ResolverFragmentTemplates(
                             objectFragmentTemplate =
@@ -429,38 +430,39 @@ interface GroundedFieldCheckerQueryFragmentContract {
     }
 
     @Test
-    fun `request cancellation terminates shared Query work and the checker slot`() = runBlocking {
-        val producerEntered = CompletableDeferred<Unit>()
-        val producerCancelled = CompletableDeferred<Unit>()
-        val checkerInvoked = AtomicBoolean()
-        val world =
-            cancellationWorld(producerEntered, producerCancelled, checkerInvoked).assumptions
-        val requestJob = Job()
-        val requestScope = CoroutineScope(coroutineContext + requestJob)
-        val cancellation = CancellationException("request cancelled")
-        try {
-            val result =
-                coroutineResolverSubject.startResolution(
-                    SharedOperationContext.create(world),
-                    requestScope,
-                    world.operationSelectionsFrom("{ checked }"),
-                    CycleCheckState.create(),
-                )
-            withTimeout(5_000) { producerEntered.await() }
-            requestJob.cancel(cancellation)
-            withTimeout(5_000) { requestJob.join() }
-            withTimeout(5_000) { producerCancelled.await() }
+    fun `request cancellation terminates shared Query work and the checker slot`() =
+        runBlocking {
+            val producerEntered = CompletableDeferred<Unit>()
+            val producerCancelled = CompletableDeferred<Unit>()
+            val checkerInvoked = AtomicBoolean()
+            val world =
+                cancellationWorld(producerEntered, producerCancelled, checkerInvoked).assumptions
+            val requestJob = Job()
+            val requestScope = CoroutineScope(coroutineContext + requestJob)
+            val cancellation = CancellationException("request cancelled")
+            try {
+                val result =
+                    coroutineResolverSubject.startResolution(
+                        SharedOperationContext.create(world),
+                        requestScope,
+                        world.operationSelectionsFrom("{ checked }"),
+                        CycleCheckState.create(),
+                    )
+                withTimeout(5_000) { producerEntered.await() }
+                requestJob.cancel(cancellation)
+                withTimeout(5_000) { requestJob.join() }
+                withTimeout(5_000) { producerCancelled.await() }
 
-            val checkerFailure =
-                assertFailsWith<CancellationException> {
-                    result.cell(world, "Query", "checked").fieldCheckerResult.await()
-                }
-            assertEquals(cancellation.message, checkerFailure.message)
-            assertFalse(checkerInvoked.get())
-        } finally {
-            requestJob.cancelAndJoin()
+                val checkerFailure =
+                    assertFailsWith<CancellationException> {
+                        result.cell(world, "Query", "checked").fieldCheckerResult.await()
+                    }
+                assertEquals(cancellation.message, checkerFailure.message)
+                assertFalse(checkerInvoked.get())
+            } finally {
+                requestJob.cancelAndJoin()
+            }
         }
-    }
 
     private fun pairedInputWorld(): TestWorld =
         TestWorld.fromDSL(
@@ -561,8 +563,7 @@ interface GroundedFieldCheckerQueryFragmentContract {
         )
 }
 
-private fun CycleTask.lastFieldName(): String =
-    (path.last() as ObjectEngineResult.ObjectKey).field.name
+private fun CycleTask.lastFieldName(): String = (path.last() as ObjectEngineResult.ObjectKey).field.name
 
 private fun ObjectEngineResult.cell(
     world: model.Assumptions,

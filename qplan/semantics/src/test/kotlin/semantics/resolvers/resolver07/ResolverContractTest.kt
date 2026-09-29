@@ -1,33 +1,30 @@
 package semantics.resolvers.resolver07
 
-import semantics.resolvers.resolver07.resolve
-
-import viaduct.engine.api.EngineObjectData
-
-import semantics.shared.SharedOperationContext
 import model.ObjectEngineResult
 import model.SelectionForest
 import semantics.contract.CompleteObjectFragmentOutputPolicyContract
-import semantics.contract.CompleteResolverOutputPolicyContract
 import semantics.contract.CompleteOutputRootFieldReferenceResolverContract
-import semantics.contract.FrozenObjectResolutionContract
+import semantics.contract.CompleteResolverOutputPolicyContract
 import semantics.contract.CorrectResolutionPostTestPolicy
-import semantics.contract.DepthFirstRootFieldReferenceOrderingContract
 import semantics.contract.DepthFirstQueryFringeOrderingContract
+import semantics.contract.DepthFirstRootFieldReferenceOrderingContract
 import semantics.contract.DepthFirstTaskOrderingContract
 import semantics.contract.EmptyObjectFragmentResolverContract
+import semantics.contract.FrozenObjectResolutionContract
 import semantics.contract.NodeResolverContract
 import semantics.contract.ObjectFragmentFromArgumentResolverContract
 import semantics.contract.ObjectFragmentResolverContract
-import semantics.contract.QueryFragmentResolverContract
-import semantics.contract.ResolverInputInclusionContract
-import semantics.contract.QueryFragmentRootFieldReferenceResolverContract
-import semantics.contract.RootFieldReferenceResolverContract
 import semantics.contract.ObjectFragmentRootFieldReferenceResolverContract
+import semantics.contract.QueryFragmentResolverContract
+import semantics.contract.QueryFragmentRootFieldReferenceResolverContract
+import semantics.contract.ResolverInputInclusionContract
 import semantics.contract.ResolverTaskObservation
+import semantics.contract.RootFieldReferenceResolverContract
 import semantics.contract.SometimesPassiveObjectFragmentResolverContract
 import semantics.contract.SometimesPassiveResolverContract
 import semantics.resolvers.resolver06.toContractObservation
+import semantics.shared.SharedOperationContext
+import viaduct.engine.api.EngineObjectData
 
 class ResolverContractTest :
     EmptyObjectFragmentResolverContract,
@@ -55,8 +52,7 @@ class ResolverContractTest :
         operation: SharedOperationContext<*>,
         root: EngineObjectData.Sync,
         selections: SelectionForest,
-    ): ObjectEngineResult =
-        operation.resolve(selections)
+    ): ObjectEngineResult = operation.resolve(selections)
 
     override fun resolveAndObserveTasks(
         operation: SharedOperationContext<*>,

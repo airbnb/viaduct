@@ -5,9 +5,9 @@ import model.ObjectEngineResult
 import model.PathComponent
 import model.groundKey
 import semantics.contract.ResolverTaskObservation
-import semantics.resolvers.resolver01.DepthFirstTask
-import semantics.resolvers.resolver01.DepthFirstOrchestrationTask
 import semantics.resolvers.resolver01.DepthFirstFieldResolverTask
+import semantics.resolvers.resolver01.DepthFirstOrchestrationTask
+import semantics.resolvers.resolver01.DepthFirstTask
 
 internal fun DepthFirstTask.toContractObservation(): ResolverTaskObservation =
     when (this) {

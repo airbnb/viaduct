@@ -1,11 +1,11 @@
 package semantics.propertytest
 
-import semantics.arbitrary.Config
-import semantics.arbitrary.GeneratorConfigData
-import semantics.arbitrary.TestCaseCount
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import semantics.arbitrary.Config
+import semantics.arbitrary.GeneratorConfigData
+import semantics.arbitrary.TestCaseCount
 
 class PropertyTestSerializationTest {
     @Test

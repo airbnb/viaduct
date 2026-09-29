@@ -1,16 +1,16 @@
 package semantics.contract
 
-import model.requireQueryTypeDef
 import io.kotest.property.Arb
 import io.kotest.property.RandomSource
 import io.kotest.property.arbitrary.next
-import viaduct.graphql.schema.ViaductSchema
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 import model.SelectionForest
 import model.fragmentFrom
-import semantics.shared.instantiateBindings
-import semantics.shared.SharedOperationContext
 import model.merge
 import model.objectOf
+import model.requireQueryTypeDef
 import semantics.arbitrary.Config
 import semantics.arbitrary.DuplicateSelectionWeight
 import semantics.arbitrary.ErrorValueWeight
@@ -28,9 +28,9 @@ import semantics.arbitrary.SchemaObjectCount
 import semantics.arbitrary.TestCaseCount
 import semantics.arbitrary.resolverTestBatch
 import semantics.correctresolution.correctResolution
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertTrue
+import semantics.shared.SharedOperationContext
+import semantics.shared.instantiateBindings
+import viaduct.graphql.schema.ViaductSchema
 
 /** Generated coverage for demand deepening through passive list-valued fields. */
 interface ListPassiveDeepeningGeneratedResolverContract : ResolverContract {
@@ -116,7 +116,7 @@ private fun countListPassiveDeepening(
             .merge(type)
             .instantiateBindings(operation)
             .byGroundKey()
-            .forEach requiredField@ { (requiredKey, requiredPassive) ->
+            .forEach requiredField@{ (requiredKey, requiredPassive) ->
                 val passiveField = requiredKey.field
                 val passiveType = passiveField.type.baseTypeDef as? ViaductSchema.CompositeTypeDef
                     ?: return@requiredField

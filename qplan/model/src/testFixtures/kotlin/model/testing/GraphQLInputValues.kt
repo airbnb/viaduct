@@ -23,12 +23,11 @@ import graphql.schema.InputValueWithState
 import model.ArgumentResolutionError
 import model.Arguments
 import model.EngineInputData
-import model.EngineInputListData
 import model.EngineInputObjectData
 import model.EngineSimpleData
 import model.coerceArgumentExpression
-import model.requireType
 import model.registry.ResolverTarget
+import model.requireType
 import viaduct.graphql.schema.ViaductSchema
 import viaduct.utils.collections.BitVector
 

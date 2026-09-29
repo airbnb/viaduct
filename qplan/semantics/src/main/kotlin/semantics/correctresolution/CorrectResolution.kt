@@ -60,13 +60,15 @@ internal fun ObjectEngineResult.correctResolution(
     val structurallyValid =
         rootedAndWellTyped(operation.world) &&
             conformsToSelections(operation, selections) &&
-            (!selectionsAreChecked ||
-                conformsToCheckedSelectionsAt(
-                    operation = operation,
-                    selections = selections,
-                    path = emptyList(),
-                    resolverApplicationCache = resolverApplicationCache,
-                ))
+            (
+                !selectionsAreChecked ||
+                    conformsToCheckedSelectionsAt(
+                        operation = operation,
+                        selections = selections,
+                        path = emptyList(),
+                        resolverApplicationCache = resolverApplicationCache,
+                    )
+            )
     return structurallyValid &&
         isClosedUnderResolverDemand(operation, resolverApplicationCache) &&
         conformsToResolvers(operation, resolverApplicationCache)

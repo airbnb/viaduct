@@ -45,12 +45,12 @@ internal fun seedAndT3World(vector: T3Vector): SeedAndT3Fixture {
                             if (input.isPresent("left")) {
                                 inputFingerprint =
                                     inputFingerprint or
-                                        ((input.get("left") as Int) shl LEFT_SHIFT)
+                                    ((input.get("left") as Int) shl LEFT_SHIFT)
                             }
                             if (input.isPresent("right")) {
                                 inputFingerprint =
                                     inputFingerprint or
-                                        ((input.get("right") as Int) shl RIGHT_SHIFT)
+                                    ((input.get("right") as Int) shl RIGHT_SHIFT)
                             }
                             schema.outputChain(
                                 valueAt = { depth -> t3DepthTag(depth) or inputFingerprint },
@@ -123,12 +123,12 @@ internal fun inclusionCombinationWorld(): InclusionCombinationFixture {
                             if (input.isPresent("left")) {
                                 inputFingerprint =
                                     inputFingerprint or
-                                        ((input.get("left") as Int) shl LEFT_SHIFT)
+                                    ((input.get("left") as Int) shl LEFT_SHIFT)
                             }
                             if (input.isPresent("right")) {
                                 inputFingerprint =
                                     inputFingerprint or
-                                        ((input.get("right") as Int) shl RIGHT_SHIFT)
+                                    ((input.get("right") as Int) shl RIGHT_SHIFT)
                             }
                             schema.outputChain(
                                 valueAt = { depth -> t3DepthTag(depth) or inputFingerprint },

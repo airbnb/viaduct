@@ -1,14 +1,17 @@
 package semantics.resolver26
 
-import semantics.shared.ResolverInvocationObservation
-import model.requireObjectField
-import semantics.contract.selectionValues
+import kotlin.coroutines.EmptyCoroutineContext
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertNotEquals
+import kotlin.test.assertSame
 import model.ListEngineResult
 import model.ObjectEngineResult
 import model.ResolverOccurrenceId
 import model.emptyFragmentOf
 import model.fragmentFrom
 import model.objectOf
+import model.requireObjectField
 import model.testing.TestWorld
 import model.testing.fieldResolverOf
 import semantics.arbitrary.FieldCoordinate
@@ -16,13 +19,10 @@ import semantics.arbitrary.ResolutionOccurrenceApplicationLog
 import semantics.arbitrary.ResolutionOccurrenceWitness
 import semantics.contract.registeredResolverApplicationIdentityCounts
 import semantics.contract.registeredResolverOccurrenceApplicationIdentityCounts
-import kotlin.coroutines.EmptyCoroutineContext
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertNotEquals
-import kotlin.test.assertSame
-import semantics.shared.SharedOperationContext
+import semantics.contract.selectionValues
 import semantics.correctresolution.CorrectnessResolverObserver
+import semantics.shared.ResolverInvocationObservation
+import semantics.shared.SharedOperationContext
 
 class ResolverOccurrenceWitnessTest {
     @Test

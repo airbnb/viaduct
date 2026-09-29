@@ -3,13 +3,13 @@ package semantics.resolvers.resolver22
 import kotlinx.coroutines.CoroutineScope
 import model.ObjectEngineResult
 import model.SelectionForest
-import semantics.contract.FragmentFreeFieldCheckerPublicationContract
+import semantics.contract.CoroutineResolverContract
+import semantics.contract.CoroutineResolverTestSubject
 import semantics.contract.FragmentFreeFieldCheckerEnforcementContract
+import semantics.contract.FragmentFreeFieldCheckerPublicationContract
 import semantics.contract.GroundedFieldCheckerCapabilityContract
 import semantics.contract.GroundedFieldCheckerObjectFragmentContract
 import semantics.contract.GroundedFieldCheckerQueryFragmentContract
-import semantics.contract.CoroutineResolverContract
-import semantics.contract.CoroutineResolverTestSubject
 import semantics.resolvers.resolver21.startCoroutineResolution
 import semantics.resolvers.successorBoundaryDemand
 import semantics.shared.CycleCheckState
@@ -31,9 +31,13 @@ class CoroutineResolveTest :
         requestScope: CoroutineScope,
         selections: SelectionForest,
         cycleChecker: CycleCheckState,
-    ): ObjectEngineResult = startCoroutineResolution(
-        operation, requestScope, selections, cycleChecker,
-        complete = { demand -> demand.values.successorBoundaryDemand(operation) },
-        supportsCheckerFragments = true,
-    )
+    ): ObjectEngineResult =
+        startCoroutineResolution(
+            operation,
+            requestScope,
+            selections,
+            cycleChecker,
+            complete = { demand -> demand.values.successorBoundaryDemand(operation) },
+            supportsCheckerFragments = true,
+        )
 }

@@ -2,11 +2,11 @@ package semantics.contract
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import model.RootFieldReferenceData
 import model.emptyFragmentOf
 import model.fragmentFrom
 import model.objectOf
 import model.requireObjectField
-import model.RootFieldReferenceData
 import model.testing.TestWorld
 import model.testing.fieldResolverOf
 import semantics.correctresolution.CorrectnessResolverObserver

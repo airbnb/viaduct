@@ -1,6 +1,10 @@
 package execution
 
 import execution.testing.ExecutionTestFixture
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 import model.ListEngineResult
 import model.ObjectEngineResult
 import model.Promise
@@ -10,10 +14,6 @@ import model.requireObjectField
 import model.requireQueryTypeDef
 import model.requireType
 import model.testing.TestWorld
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertTrue
 import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.CheckerResultContext
 import viaduct.graphql.schema.ViaductSchema
@@ -101,6 +101,7 @@ class QPlanWiringFactoryTest {
                 world.schema.requireObjectField("Protected", "text"),
                 emptyMap(),
             )
+
         fun protected(
             text: String,
             typeCheckerResult: CheckerResult?,

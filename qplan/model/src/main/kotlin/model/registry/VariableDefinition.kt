@@ -1,7 +1,5 @@
 package model.registry
 
-import viaduct.graphql.schema.ViaductSchema
-
 import model.Arguments
 import model.EngineInputData
 import model.InclusionCondition
@@ -9,6 +7,7 @@ import model.MaterializeSelectionForest
 import model.ObjectEngineResult
 import model.guardedBy
 import model.inputType
+import viaduct.graphql.schema.ViaductSchema
 
 /** The object- or Query-rooted input fragment that supplies a from-field variable. */
 enum class ProviderFragment {

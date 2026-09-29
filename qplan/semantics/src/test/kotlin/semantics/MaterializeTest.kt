@@ -3,10 +3,14 @@
 package semantics
 
 import graphql.schema.GraphQLTypeUtil
-import model.requireQueryTypeDef
-import model.requireType
-import model.requireObjectField
-import semantics.contract.selectionValues
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
+import kotlin.test.assertIs
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
+import kotlin.test.assertSame
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
@@ -19,34 +23,30 @@ import model.InclusionCondition
 import model.ListEngineResult
 import model.MaterializeSelection
 import model.ObjectEngineResult
-import model.ResolverOccurrenceId
-import model.outputType
-import model.outputValue
 import model.PathComponent
 import model.Promise
-import viaduct.graphql.schema.ViaductSchema
+import model.ResolverOccurrenceId
 import model.fragmentFrom
-import viaduct.graphql.schema.graphqljava.gjDef
 import model.materializeSelectionForestOf
+import model.outputType
+import model.outputValue
+import model.requireObjectField
+import model.requireQueryTypeDef
+import model.requireType
 import model.testing.TestWorld
+import semantics.contract.selectionValues
 import semantics.shared.CycleCheckState
+import semantics.shared.ResolverReadCycleException
+import semantics.shared.SharedOperationContext
 import semantics.shared.fieldCheckerCycleTask
 import semantics.shared.fieldResolverCycleTask
-import semantics.shared.valueCycleSlot
-import semantics.shared.ResolverReadCycleException
 import semantics.shared.materializeResult
-import semantics.shared.SharedOperationContext
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
-import kotlin.test.assertFalse
-import kotlin.test.assertIs
-import kotlin.test.assertNotNull
-import kotlin.test.assertNull
-import kotlin.test.assertSame
-import viaduct.engine.api.EngineObjectData
+import semantics.shared.valueCycleSlot
 import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.CheckerResultContext
+import viaduct.engine.api.EngineObjectData
+import viaduct.graphql.schema.ViaductSchema
+import viaduct.graphql.schema.graphqljava.gjDef
 
 class MaterializeTest {
     @Test
@@ -678,7 +678,6 @@ class MaterializeTest {
             val nested = assertIs<EngineObjectData.Sync>(listedValues.single())
             assertEquals("raw nested", nested.get("text"))
         }
-
 }
 
 private class MaterializationDenial : CheckerResult.Error {

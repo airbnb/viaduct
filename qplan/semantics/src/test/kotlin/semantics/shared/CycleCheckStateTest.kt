@@ -1,11 +1,5 @@
 package semantics.shared
 
-import model.requireQueryTypeDef
-import model.requireObjectField
-import model.EngineResultCell
-import model.ObjectEngineResult
-import model.PathComponent
-import model.testing.TestWorld
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.CountDownLatch
 import kotlin.concurrent.thread
@@ -14,6 +8,12 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
+import model.EngineResultCell
+import model.ObjectEngineResult
+import model.PathComponent
+import model.requireObjectField
+import model.requireQueryTypeDef
+import model.testing.TestWorld
 
 class CycleCheckStateTest {
     @Test

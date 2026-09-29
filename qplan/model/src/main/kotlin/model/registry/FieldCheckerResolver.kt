@@ -26,9 +26,7 @@ class FieldCheckerResolver private constructor(
     private val function: FieldCheckerFunction,
 ) : CheckerResolverBase<ResolverTarget.FieldCheckerTarget>(target, fragmentTemplates, queryType) {
     /** Runs each named provider with this field occurrence's arguments. */
-    public override suspend fun provideVariables(
-        arguments: Arguments.Resolved,
-    ): Map<String, model.EngineInputData?> = super.provideVariables(arguments)
+    public override suspend fun provideVariables(arguments: Arguments.Resolved): Map<String, model.EngineInputData?> = super.provideVariables(arguments)
 
     suspend operator fun invoke(
         arguments: Arguments.Resolved,

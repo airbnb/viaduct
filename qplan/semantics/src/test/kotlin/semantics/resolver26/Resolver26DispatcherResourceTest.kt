@@ -1,10 +1,10 @@
 package semantics.resolver26
 
 import java.util.concurrent.ConcurrentHashMap
-import org.junit.jupiter.api.AfterAll
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertSame
+import org.junit.jupiter.api.AfterAll
 
 class Resolver26DispatcherResourceTest : Resolver26DispatcherResource {
     @Test

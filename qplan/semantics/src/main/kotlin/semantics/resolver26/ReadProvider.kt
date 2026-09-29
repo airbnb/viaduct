@@ -10,19 +10,18 @@ import model.EngineResult
 import model.ErrorEngineResult
 import model.ListEngineResult
 import model.ObjectEngineResult
-import model.PathComponent
 import model.Selection
 import model.VariableBinding
-import semantics.shared.fetchGroundedArguments
-import semantics.shared.fetchIncluded
-import semantics.shared.CycleTask
-import semantics.shared.valueCycleSlot
 import model.objectKey
 import model.outputType
 import model.registry.InstantiatedFieldPathDefinition
 import model.registry.InstantiatedFieldPathElement
 import model.selectionForestOf
 import model.toEngineSimpleData
+import semantics.shared.CycleTask
+import semantics.shared.fetchGroundedArguments
+import semantics.shared.fetchIncluded
+import semantics.shared.valueCycleSlot
 import viaduct.graphql.schema.ViaductSchema
 
 // Traverses a provider path through OER promises and returns its terminal input-compatible value.
@@ -93,9 +92,7 @@ private suspend fun ObjectEngineResult.readProvider(
 }
 
 // Converts a provider result to an input value and rejects object-valued terminals.
-private suspend fun EngineResult?.toProviderBinding(
-    expectedType: ViaductSchema.TypeExpr<ViaductSchema.OutputTypeDef>,
-): VariableBinding =
+private suspend fun EngineResult?.toProviderBinding(expectedType: ViaductSchema.TypeExpr<ViaductSchema.OutputTypeDef>): VariableBinding =
     when (this) {
         null -> VariableBinding.of(null)
         is ErrorEngineResult -> VariableBinding.Error

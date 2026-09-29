@@ -10,9 +10,9 @@ import kotlinx.coroutines.withTimeout
 import model.ObjectEngineResult
 import model.SelectionForest
 import model.schemaType
+import semantics.shared.Demand
 import semantics.shared.OEROccurrence
 import semantics.shared.SharedOperationContext
-import semantics.shared.Demand
 
 /**
  * Resolves selective demand once per object-local symbolic key on [coroutineContext].
@@ -61,9 +61,7 @@ fun SharedOperationContext<*>.startResolve(
 /** Starts another independently rooted Query execution in an existing logical operation. */
 internal fun OperationContext.startResolve(selections: SelectionForest): ObjectEngineResult = startResolve(Demand.checked(selections))
 
-internal fun OperationContext.startResolve(
-    selections: Demand<SelectionForest>,
-): ObjectEngineResult {
+internal fun OperationContext.startResolve(selections: Demand<SelectionForest>): ObjectEngineResult {
     val source = world.resolverRegistry.createRootQueryInput()
     val result: ObjectEngineResult =
         ObjectEngineResult.of(

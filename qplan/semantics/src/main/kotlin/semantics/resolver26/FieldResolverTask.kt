@@ -19,19 +19,19 @@ import model.engineObjectDataOf
 import model.guardedBy
 import model.outputValue
 import model.registry.FieldValueResolver
-import model.registry.ResolverFragment
 import model.registry.ResolutionExecutionContext
+import model.registry.ResolverFragment
 import model.registry.VariableDefinition
 import model.requireQueryTypeDef
 import model.schemaType
-import semantics.shared.argumentsContainErrorValue
-import semantics.shared.SharedFieldPublicationOccurrence
-import semantics.shared.OEROccurrence
-import semantics.shared.SharedOERContext
 import semantics.shared.CycleTask
+import semantics.shared.OEROccurrence
+import semantics.shared.SharedFieldPublicationOccurrence
+import semantics.shared.SharedOERContext
+import semantics.shared.argumentsContainErrorValue
 import semantics.shared.fieldResolverCycleTask
-import semantics.shared.valueCycleSlot
 import semantics.shared.materializeResult
+import semantics.shared.valueCycleSlot
 import viaduct.engine.api.EngineObjectData
 
 /**
@@ -61,9 +61,7 @@ internal class FieldResolverTask private constructor(
 
     companion object {
         /** Installs all local value promises and writers before orchestration dispatches any producer. */
-        fun prepareAll(
-            orchestrationTask: OrchestrationTask,
-        ): List<SymbolicFieldPublicationOccurrence> {
+        fun prepareAll(orchestrationTask: OrchestrationTask): List<SymbolicFieldPublicationOccurrence> {
             val operation = orchestrationTask.operation
             return listOf(
                 orchestrationTask.objectOER to orchestrationTask.closedConstructionDemand.objectRooted,
@@ -128,7 +126,10 @@ internal class FieldResolverTask private constructor(
             )
             operation.dispatcher.dispatchFieldResolver(
                 SymbolicFieldPublicationOccurrence(
-                    operation, oerOccurrence, sourceOccurrence, publicationCell,
+                    operation,
+                    oerOccurrence,
+                    sourceOccurrence,
+                    publicationCell,
                     SharedOERContext.undemandedQuery(operation.world.schema.requireQueryTypeDef()),
                     emptyList(),
                 ),
@@ -226,7 +227,7 @@ internal class FieldResolverTask private constructor(
                 }
             }
             fieldResolverOccurrence.fragments.queryFragment.pathVariableDefinitions.forEach {
-                definition ->
+                    definition ->
                 operation.variableBindings.cancelBinding(
                     requireNotNull(definition.variable.instanceId),
                     cause,
@@ -263,9 +264,7 @@ internal class FieldResolverTask private constructor(
      * This is distinct from the resolver's declared Query fragment. Startup installs the selected
      * result cells; [materializeResult] projects their values for the caller and can await them.
      */
-    override suspend fun resolveSelectionSet(
-        selections: MaterializeSelectionForest,
-    ): EngineObjectData.Sync {
+    override suspend fun resolveSelectionSet(selections: MaterializeSelectionForest): EngineObjectData.Sync {
         val childOperation = publication.operation.forChildScope(fieldTaskScope)
         val result = childOperation.startResolve(selections.constructionSelections())
         return result.materializeResult(
@@ -292,9 +291,7 @@ internal class FieldResolverTask private constructor(
     }
 
     /** Produces the independent Query input for one root-field-reference invocation. */
-    fun launchIndependentQueryFragmentProducer(
-        fieldResolverOccurrence: FieldResolverOccurrence,
-    ): Deferred<EngineObjectOrErrorData> {
+    fun launchIndependentQueryFragmentProducer(fieldResolverOccurrence: FieldResolverOccurrence): Deferred<EngineObjectOrErrorData> {
         // Register each invocation with the field-task root, including later reference hops.
         // cancel(publication, cause) also covers the original bindings before field-task entry.
         fieldTaskScope.coroutineContext.job.invokeOnCompletion { cause ->
@@ -332,9 +329,7 @@ internal class FieldResolverTask private constructor(
             }
     }
 
-    private fun completeQueryPathBindingsWithError(
-        fieldResolverOccurrence: FieldResolverOccurrence,
-    ) {
+    private fun completeQueryPathBindingsWithError(fieldResolverOccurrence: FieldResolverOccurrence) {
         fieldResolverOccurrence.fragments.queryFragment.pathVariableDefinitions.forEach { definition ->
             publication.operation.variableBindings.completeBinding(
                 requireNotNull(definition.variable.instanceId),

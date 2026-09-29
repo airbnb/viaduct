@@ -40,7 +40,7 @@ internal fun ObjectEngineResult.conformsToCheckedSelectionsAt(
             val storedResult = cell.fieldCheckerResult.get()
             if (
                 key is ObjectEngineResult.ParentKey ||
-                    key.groundedArguments(operation) !is Arguments.Resolved
+                key.groundedArguments(operation) !is Arguments.Resolved
             ) {
                 if (storedResult != null) return@all false
             } else {

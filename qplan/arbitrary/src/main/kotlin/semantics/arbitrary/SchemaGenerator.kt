@@ -1,8 +1,8 @@
 package semantics.arbitrary
 
 import graphql.language.AstPrinter
-import graphql.language.Document
 import graphql.language.Directive
+import graphql.language.Document
 import graphql.language.EnumTypeDefinition
 import graphql.language.EnumValueDefinition
 import graphql.language.FieldDefinition
@@ -113,8 +113,7 @@ class ArbitrarySchema internal constructor(
     internal val allObjects: List<ObjectDefinition>
         get() = listOf(query) + objects + hashType
 
-    internal fun objectNamed(name: String): ObjectDefinition =
-        allObjects.single { it.name == name }
+    internal fun objectNamed(name: String): ObjectDefinition = allObjects.single { it.name == name }
 
     internal fun possibleObjects(typeName: String): List<ObjectDefinition> =
         allObjects.singleOrNull { it.name == typeName }?.let(::listOf)
@@ -134,8 +133,7 @@ class ArbitrarySchema internal constructor(
             interfaces.any { it.name == typeName } ||
             unions.any { it.name == typeName }
 
-    internal fun enumNamed(typeName: String): EnumDefinitionSpec? =
-        enums.singleOrNull { it.name == typeName }
+    internal fun enumNamed(typeName: String): EnumDefinitionSpec? = enums.singleOrNull { it.name == typeName }
 
     override fun toString(): String = sdl
 }
@@ -232,8 +230,7 @@ internal data class ArgumentDefinitionSpec(
     val defaultValue: graphql.language.Value<*>? = null,
 )
 
-internal fun FieldDefinitionSpec.isGeneratedHashField(): Boolean =
-    name == GENERATED_HASH_FIELD && type.namedType == GENERATED_HASH_TYPE
+internal fun FieldDefinitionSpec.isGeneratedHashField(): Boolean = name == GENERATED_HASH_FIELD && type.namedType == GENERATED_HASH_TYPE
 
 internal data class InputObjectDefinitionSpec(
     val name: String,
@@ -546,11 +543,11 @@ private class SchemaGenerator(
                         rootFieldReferenceGraph.queryFields +
                         parentRootField() +
                         if (minimumDepth > 0) {
-                        listOf(deepField("Query", objectNames.first(), "query0")) +
-                            generatedQueryFields.drop(1)
-                    } else {
-                        generatedQueryFields
-                    },
+                            listOf(deepField("Query", objectNames.first(), "query0")) +
+                                generatedQueryFields.drop(1)
+                        } else {
+                            generatedQueryFields
+                        },
             )
         val definitions =
             buildList {
@@ -632,8 +629,10 @@ private class SchemaGenerator(
                 arguments = arguments,
             )
 
-        fun scalarArgument(name: String, scalar: ScalarKind): ArgumentDefinitionSpec =
-            ArgumentDefinitionSpec(name, ScalarInputTypeSpec(scalar, nullable = false))
+        fun scalarArgument(
+            name: String,
+            scalar: ScalarKind
+        ): ArgumentDefinitionSpec = ArgumentDefinitionSpec(name, ScalarInputTypeSpec(scalar, nullable = false))
 
         val nestedInput =
             InputObjectDefinitionSpec(
@@ -670,6 +669,7 @@ private class SchemaGenerator(
             )
 
         val extensionCoordinates = linkedSetOf<FieldCoordinate>()
+
         fun resultObject(
             name: String,
             interfaces: Set<String> = emptySet(),
@@ -1132,7 +1132,10 @@ private class SchemaGenerator(
         }
 
     private fun parentObjects(): List<ObjectDefinition> {
-        fun parentField(ownerName: String, parentType: String): FieldDefinitionSpec =
+        fun parentField(
+            ownerName: String,
+            parentType: String
+        ): FieldDefinitionSpec =
             FieldDefinitionSpec(
                 ownerName = ownerName,
                 name = GENERATED_PARENT_FIELD,
@@ -1141,7 +1144,10 @@ private class SchemaGenerator(
                 isParentField = true,
             )
 
-        fun childField(ownerName: String, childType: String): FieldDefinitionSpec =
+        fun childField(
+            ownerName: String,
+            childType: String
+        ): FieldDefinitionSpec =
             FieldDefinitionSpec(
                 ownerName = ownerName,
                 name = GENERATED_PARENT_CHILD_FIELD,
@@ -1149,7 +1155,10 @@ private class SchemaGenerator(
                 arguments = emptyList(),
             )
 
-        fun scalarField(ownerName: String, name: String): FieldDefinitionSpec =
+        fun scalarField(
+            ownerName: String,
+            name: String
+        ): FieldDefinitionSpec =
             FieldDefinitionSpec(
                 ownerName = ownerName,
                 name = name,
@@ -1292,7 +1301,7 @@ private class SchemaGenerator(
                         unionName
                     } else {
                         parentOwner
-                }
+                    }
 
                 val scalarFieldCount = Arb.int(2..4).next(random)
                 val sharedArgumentType = inputType(inputObjectNames)
@@ -1585,7 +1594,7 @@ private class SchemaGenerator(
                     inputObjectNames.drop(ownerInputObjectIndex + 1)
                 } else {
                     inputObjectNames
-            }
+                }
             if (candidates.isNotEmpty()) {
                 val target = Arb.element(candidates).next(random)
                 val targetIndex = inputObjectNames.indexOf(target)
@@ -1657,9 +1666,7 @@ private class SchemaGenerator(
                 },
             ).build()
 
-    private fun inputObjectType(
-        definition: InputObjectDefinitionSpec,
-    ): InputObjectTypeDefinition =
+    private fun inputObjectType(definition: InputObjectDefinitionSpec): InputObjectTypeDefinition =
         InputObjectTypeDefinition
             .newInputObjectDefinition()
             .name(definition.name)
@@ -1702,9 +1709,9 @@ private class SchemaGenerator(
                 field.arguments.map { argument ->
                     val builder =
                         InputValueDefinition
-                        .newInputValueDefinition()
-                        .name(argument.name)
-                        .type(inputType(argument.type))
+                            .newInputValueDefinition()
+                            .name(argument.name)
+                            .type(inputType(argument.type))
                     argument.defaultValue?.let(builder::defaultValue)
                     builder.build()
                 },
@@ -1817,17 +1824,14 @@ private class SchemaGenerator(
             is ListInputTypeSpec -> element.referencedInputObjects()
         }
 
-    private fun InputTypeSpec.hasInputObjectInsideList(
-        insideList: Boolean = false,
-    ): Boolean =
+    private fun InputTypeSpec.hasInputObjectInsideList(insideList: Boolean = false): Boolean =
         when (this) {
             is ScalarInputTypeSpec -> false
             is InputObjectInputTypeSpec -> insideList
             is ListInputTypeSpec -> element.hasInputObjectInsideList(insideList = true)
         }
 
-    private fun nonNull(type: Type<*>): NonNullType =
-        NonNullType(type)
+    private fun nonNull(type: Type<*>): NonNullType = NonNullType(type)
 
     private fun List<ObjectDefinition>.withAbstractOutputTargets(
         interfaces: List<InterfaceDefinitionSpec>,
@@ -1849,7 +1853,7 @@ private class SchemaGenerator(
             val ownerIndex = objectIndices.getValue(objectType.name)
             objectType.copy(
                 fields =
-                    objectType.fields.map transformField@ { field ->
+                    objectType.fields.map transformField@{ field ->
                         val targetIndex = objectIndices[field.type.namedType] ?: return@transformField field
                         if (targetIndex <= ownerIndex) return@transformField field
                         if (!chance(config[PassiveAbstractOutputTypeWeight])) return@transformField field
@@ -1875,8 +1879,7 @@ private class SchemaGenerator(
         }
     }
 
-    private fun chance(weight: Double): Boolean =
-        Arb.double(0.0, 1.0).next(random) < weight
+    private fun chance(weight: Double): Boolean = Arb.double(0.0, 1.0).next(random) < weight
 
     private fun nonEmptySubset(values: List<String>): Set<String> =
         values

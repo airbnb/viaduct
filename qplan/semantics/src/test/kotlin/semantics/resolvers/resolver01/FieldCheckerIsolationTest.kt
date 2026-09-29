@@ -1,6 +1,9 @@
 package semantics.resolvers.resolver01
 
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import model.ObjectEngineResult
 import model.operationSelectionsFrom
 import model.registry.FieldCheckerResolver
@@ -9,10 +12,6 @@ import model.requireQueryTypeDef
 import model.testing.TestWorld
 import semantics.shared.SharedOperationContext
 import viaduct.engine.api.CheckerResult
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertNull
 
 class FieldCheckerIsolationTest {
     @Test

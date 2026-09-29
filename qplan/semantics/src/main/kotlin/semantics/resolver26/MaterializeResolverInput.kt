@@ -1,30 +1,29 @@
 package semantics.resolver26
 
-import viaduct.graphql.schema.ViaductSchema
-
+import model.EngineObjectDataEntry
 import model.EngineOutputData
 import model.EngineOutputListData
-import model.EngineObjectDataEntry
 import model.EngineResult
 import model.ErrorEngineResult
 import model.ListEngineResult
 import model.MaterializeSelectionForest
-import model.materializeSelectionForestOf
 import model.ObjectEngineResult
 import model.ObjectMaterializeSelection
-import semantics.shared.fetchGroundedArguments
-import semantics.shared.fetchIncluded
-import model.outputType
 import model.PathComponent
+import model.materializeSelectionForestOf
 import model.materializedEngineObjectDataOf
+import model.outputType
 import model.toEngineOutputData
 import semantics.shared.CycleCheckState
 import semantics.shared.CycleTask
-import semantics.shared.materializeCheckedValueForResolver
 import semantics.shared.SharedOperationContext
+import semantics.shared.fetchGroundedArguments
+import semantics.shared.fetchIncluded
+import semantics.shared.materializeCheckedValueForResolver
+import semantics.shared.valueCycleSlot
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.FieldDirectives
-import semantics.shared.valueCycleSlot
+import viaduct.graphql.schema.ViaductSchema
 
 /**
  * Materializes a Resolver26 runtime object or declared Query-fragment input by response key,
@@ -121,8 +120,7 @@ private class ResolverInputMaterializationLogic(
     }
 
     // Awaits every argument binding but preserves the selection's symbolic OER-cell identity.
-    private suspend fun ObjectMaterializeSelection.materializedObjectKey(
-    ): ObjectEngineResult.ObjectKey {
+    private suspend fun ObjectMaterializeSelection.materializedObjectKey(): ObjectEngineResult.ObjectKey {
         key.fetchGroundedArguments(operation)
         return key
     }
@@ -181,5 +179,5 @@ private class ResolverInputMaterializationLogic(
         } else {
             cycleChecker.cycleCheck(reader, valueCycleSlot)
             value.await()
-    }
+        }
 }

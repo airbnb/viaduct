@@ -1,9 +1,5 @@
 package model.testing
 
-import viaduct.graphql.schema.ViaductSchema
-
-import model.ObjectEngineResult
-import model.RootFieldReferenceData
 import graphql.language.NamedNode
 import graphql.language.Node
 import graphql.parser.Parser
@@ -18,19 +14,20 @@ import graphql.schema.idl.UnExecutableSchemaGenerator
 import model.EngineErrorData
 import model.EngineObjectDataEntry
 import model.ResolverOutputData
+import model.RootFieldReferenceData
 import model.engineObjectDataOf
-import model.nodeRootFieldReferenceOf
 import model.lowering.LOWERING_SYNTHETIC_NAME_TOKEN
 import model.lowering.VIADUCT_IGNORE_SYMBOL
 import model.lowering.lowerSchema
 import model.lowering.loweredFieldFromSourceCoordinate
 import model.lowering.sourceTypeExpr
+import model.nodeRootFieldReferenceOf
 import model.outputType
 import model.qplanSchemaTypeOrNull
-import model.requireField
 import model.requireObjectField
 import model.requireType
 import viaduct.engine.api.EngineObjectData
+import viaduct.graphql.schema.ViaductSchema
 import viaduct.graphql.schema.graphqljava.toGraphQLSchema
 import viaduct.graphql.schema.graphqljava.viaductSchema
 import viaduct.graphql.schema.isNode
@@ -67,16 +64,11 @@ internal class GJSchema private constructor(
     internal fun fieldFromSource(
         typeName: String,
         fieldName: String,
-    ): ViaductSchema.Field =
-        loweredSchema.loweredFieldFromSourceCoordinate(typeName, fieldName)
+    ): ViaductSchema.Field = loweredSchema.loweredFieldFromSourceCoordinate(typeName, fieldName)
 
-    internal fun sourceTypeExpr(
-        field: ViaductSchema.Field,
-    ): ViaductSchema.TypeExpr<ViaductSchema.OutputTypeDef> =
-        loweredSchema.sourceTypeExpr(field)
+    internal fun sourceTypeExpr(field: ViaductSchema.Field): ViaductSchema.TypeExpr<ViaductSchema.OutputTypeDef> = loweredSchema.sourceTypeExpr(field)
 
-    internal fun isLoweredNodeField(field: ViaductSchema.Field): Boolean =
-        sourceTypeExpr(field).baseTypeDef.isNode
+    internal fun isLoweredNodeField(field: ViaductSchema.Field): Boolean = sourceTypeExpr(field).baseTypeDef.isNode
 
     internal fun lowerSourceOutput(
         field: ViaductSchema.Field,

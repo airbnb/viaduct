@@ -4,8 +4,8 @@ import model.Arguments
 import model.ObjectEngineResult
 import model.ObjectSelectionForest
 import model.PathComponent
-import model.RootFieldReferenceData
 import model.ResolverOccurrenceId
+import model.RootFieldReferenceData
 import model.SelectionForest
 import model.engineObjectDataOf
 import model.merge
@@ -13,13 +13,13 @@ import model.outputValue
 import model.requireQueryTypeDef
 import model.schemaType
 import semantics.resolvers.GroundedFieldPublicationOccurrence
-import semantics.shared.OrchestrationConstructionDemand
 import semantics.resolvers.closeOrchestrationConstructionDemand
-import semantics.shared.OEROccurrence
-import semantics.shared.descendants
 import semantics.shared.Demand
+import semantics.shared.OEROccurrence
+import semantics.shared.OrchestrationConstructionDemand
 import semantics.shared.SharedOERContext
 import semantics.shared.SharedOrchestrationTask
+import semantics.shared.descendants
 import viaduct.engine.api.EngineObjectData
 
 /** The two executable task kinds accepted by either depth-first dispatcher. */
@@ -102,10 +102,14 @@ internal class DepthFirstOrchestrationTask private constructor(
                     oerSource.outputValue(key.field.name) as? RootFieldReferenceData
                 } else {
                     null
-            }
+                }
             reference?.let { key to it }
         }.toMap()
-        fun dispatch(key: ObjectEngineResult.GroundKey, reference: RootFieldReferenceData? = null) {
+
+        fun dispatch(
+            key: ObjectEngineResult.GroundKey,
+            reference: RootFieldReferenceData? = null
+        ) {
             operation.dispatcher.dispatchFieldResolver(
                 publication =
                     GroundedFieldPublicationOccurrence(
@@ -128,9 +132,7 @@ internal class DepthFirstOrchestrationTask private constructor(
         target.freeze()
     }
 
-    private fun queryFragmentOwners(
-        oer: SharedOERContext,
-    ): List<Pair<ObjectEngineResult.GroundKey, ResolverOccurrenceId>> =
+    private fun queryFragmentOwners(oer: SharedOERContext): List<Pair<ObjectEngineResult.GroundKey, ResolverOccurrenceId>> =
         oer.closedValueSelections
             .byGroundKey()
             .keys

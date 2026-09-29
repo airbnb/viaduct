@@ -4,8 +4,8 @@ import graphql.language.AstPrinter
 import model.Arguments
 import model.Fragment
 import model.engineObjectDataOf
-import model.registry.VariablesProviderFunction
 import model.registry.ResolverTarget
+import model.registry.VariablesProviderFunction
 import model.testing.VariableDeclaration
 import model.testing.fromArgument
 import model.testing.fromObjectField
@@ -35,11 +35,13 @@ internal fun FieldResolverExecutor.compileVariableDeclarations(
     val templates = listOfNotNull(objectFragment, queryFragment)
         .flatMap { it.subselections.usedVariables() }.toSet()
         .groupBy { it.variableName }
-    require(templates.values.all { variables ->
-        variables.size == 1 &&
-            variables.single().isTemplate &&
-            variables.single().target == ResolverTarget.FieldValueResolverTarget(field)
-    }) { "Required selections for $coordinate contain ambiguous or foreign variable templates" }
+    require(
+        templates.values.all { variables ->
+            variables.size == 1 &&
+                variables.single().isTemplate &&
+                variables.single().target == ResolverTarget.FieldValueResolverTarget(field)
+        }
+    ) { "Required selections for $coordinate contain ambiguous or foreign variable templates" }
 
     val functionProvider = variablesFromFunctionProvider
     val names = listOf(
@@ -54,7 +56,11 @@ internal fun FieldResolverExecutor.compileVariableDeclarations(
         "Missing explicit variable declarations for $coordinate: ${templates.keys - names.toSet()}"
     }
     val declarations = linkedMapOf<Arguments.Variable, VariableDeclaration>()
-    fun declare(name: String, compile: () -> VariableDeclaration) {
+
+    fun declare(
+        name: String,
+        compile: () -> VariableDeclaration
+    ) {
         declarations[templates.getValue(name).single()] = try {
             compile()
         } catch (failure: IllegalArgumentException) {
@@ -94,7 +100,9 @@ internal fun FieldResolverExecutor.compileVariableDeclarations(
     val provider: VariablesProviderFunction? = functionProvider?.let { declaredProvider ->
         { arguments ->
             val values = declaredProvider.provideVariables(
-                engineObjectDataOf(field.containingDef), arguments.fieldValues, context,
+                engineObjectDataOf(field.containingDef),
+                arguments.fieldValues,
+                context,
             )
             check(values.keys == providerNames) {
                 "Variables provider for $coordinate must return exactly its declared names"
@@ -105,5 +113,4 @@ internal fun FieldResolverExecutor.compileVariableDeclarations(
     return ExecutorVariableDeclarations(declarations, providerNames, provider)
 }
 
-private fun RequiredSelectionSet.fragmentSource(): String =
-    "fragment _ on ${selections.typeName} ${AstPrinter.printAst(selections.selections)}"
+private fun RequiredSelectionSet.fragmentSource(): String = "fragment _ on ${selections.typeName} ${AstPrinter.printAst(selections.selections)}"

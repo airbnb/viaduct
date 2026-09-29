@@ -1,12 +1,12 @@
 package semantics.propertytest
 
+import java.nio.file.Files
+import java.nio.file.Path
 import semantics.arbitrary.Config
 import semantics.arbitrary.DuplicateSelectionWeight
 import semantics.arbitrary.GeneratorConfigData
 import semantics.resolver26.Resolver26BroadStressProfile
 import semantics.resolver26.withLargeDeepResolver26Worlds
-import java.nio.file.Files
-import java.nio.file.Path
 
 object GeneratorConfigMaterializer {
     @JvmStatic

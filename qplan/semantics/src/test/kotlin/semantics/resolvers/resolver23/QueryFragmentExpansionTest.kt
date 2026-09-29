@@ -1,6 +1,8 @@
 package semantics.resolvers.resolver23
 
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlinx.coroutines.CoroutineScope
 import model.ObjectEngineResult
 import model.SelectionForest
@@ -20,8 +22,6 @@ import semantics.resolvers.successorDemandFromConstructionDemand
 import semantics.shared.CycleCheckState
 import semantics.shared.SharedOperationContext
 import viaduct.engine.api.CheckerResult
-import kotlin.test.Test
-import kotlin.test.assertEquals
 
 class QueryFragmentExpansionTest : CoroutineResolverTestSubject() {
     override fun startResolution(
@@ -29,11 +29,15 @@ class QueryFragmentExpansionTest : CoroutineResolverTestSubject() {
         requestScope: CoroutineScope,
         selections: SelectionForest,
         cycleChecker: CycleCheckState,
-    ): ObjectEngineResult = startCoroutineResolution(
-        operation, requestScope, selections, cycleChecker,
-        complete = { demand -> demand.successorDemandFromConstructionDemand(operation) },
-        supportsCheckerFragments = true,
-    )
+    ): ObjectEngineResult =
+        startCoroutineResolution(
+            operation,
+            requestScope,
+            selections,
+            cycleChecker,
+            complete = { demand -> demand.successorDemandFromConstructionDemand(operation) },
+            supportsCheckerFragments = true,
+        )
 
     @Test
     fun `resolver and checker Query fragments coalesce in one associated Query scope`() {

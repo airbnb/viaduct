@@ -8,17 +8,17 @@ import model.EngineResultCell
 import model.ObjectEngineResult
 import model.ObjectSelection
 import model.PathComponent
-import model.registry.FieldCheckerResolver
 import model.registry.CheckerInput
+import model.registry.FieldCheckerResolver
 import model.registry.ResolutionExecutionContext
 import model.registry.ResolverFragments
 import semantics.resolver26.CoroutineFieldCheckerPublicationOccurrence
-import semantics.shared.fieldCheckerCycleSlot
-import semantics.shared.fieldCheckerCycleTask
 import semantics.shared.CheckerInvocationObservation
 import semantics.shared.CheckerKind
 import semantics.shared.OEROccurrence
 import semantics.shared.SharedOERContext
+import semantics.shared.fieldCheckerCycleSlot
+import semantics.shared.fieldCheckerCycleTask
 import semantics.shared.materializeResult
 
 /** Immutable inputs to one grounded field-checker-result publication in Resolver21-23. */
@@ -44,9 +44,7 @@ internal class CoroutineFieldCheckerTask private constructor(
 ) {
     companion object {
         /** Claims every selected checker slot without dispatching a producer. */
-        fun prepareAll(
-            orchestrationTask: CoroutineOrchestrationTask,
-        ): List<GroundedFieldCheckerPublicationOccurrence> =
+        fun prepareAll(orchestrationTask: CoroutineOrchestrationTask): List<GroundedFieldCheckerPublicationOccurrence> =
             listOf(
                 orchestrationTask.objectOER to orchestrationTask.closedConstructionDemand.objectRooted.checked,
                 orchestrationTask.queryOER to orchestrationTask.closedConstructionDemand.queryRooted.checked,
@@ -207,5 +205,4 @@ internal class CoroutineFieldCheckerTask private constructor(
             "Field-checker failure was published twice"
         }
     }
-
 }

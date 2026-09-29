@@ -1,29 +1,23 @@
 package model.testing
 
 import model.Arguments
-
-import model.ObjectEngineResult
-
 import model.Fragment
 import model.MaterializeSelection
 import model.MaterializeSelectionForest
+import model.ObjectEngineResult
 import model.Selection
 import model.SelectionForest
-import model.materializeSelectionForestOf
 import model.mapVariableTemplates
+import model.materializeSelectionForestOf
 import model.selectionForestOf
 
-internal fun Fragment.mapVariables(
-    transform: (Arguments.Variable) -> Arguments.Variable,
-): Fragment =
+internal fun Fragment.mapVariables(transform: (Arguments.Variable) -> Arguments.Variable): Fragment =
     Fragment.of(
         nominalType = nominalType,
         materializeSelections = materializeSelections.mapVariables(transform),
     )
 
-internal fun List<ObjectEngineResult.Key>.mapVariables(
-    transform: (Arguments.Variable) -> Arguments.Variable,
-): List<ObjectEngineResult.Key> =
+internal fun List<ObjectEngineResult.Key>.mapVariables(transform: (Arguments.Variable) -> Arguments.Variable): List<ObjectEngineResult.Key> =
     map { key ->
         ObjectEngineResult.Key.of(
             field = key.field,
@@ -31,9 +25,7 @@ internal fun List<ObjectEngineResult.Key>.mapVariables(
         )
     }
 
-private fun SelectionForest.mapVariables(
-    transform: (Arguments.Variable) -> Arguments.Variable,
-): SelectionForest =
+private fun SelectionForest.mapVariables(transform: (Arguments.Variable) -> Arguments.Variable): SelectionForest =
     flatMap { selection ->
         selectionForestOf(
             Selection.of(
@@ -53,9 +45,7 @@ private fun SelectionForest.mapVariables(
         )
     }
 
-private fun MaterializeSelectionForest.mapVariables(
-    transform: (Arguments.Variable) -> Arguments.Variable,
-): MaterializeSelectionForest =
+private fun MaterializeSelectionForest.mapVariables(transform: (Arguments.Variable) -> Arguments.Variable): MaterializeSelectionForest =
     flatMap { selection ->
         materializeSelectionForestOf(
             MaterializeSelection.of(

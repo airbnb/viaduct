@@ -38,20 +38,15 @@ class NodeResolverFunction internal constructor(
 }
 
 /** Marks a raw external node lookup for fixture composition. */
-fun nodeResolverOf(function: suspend (String) -> ResolverOutputData?): NodeResolverFunction =
-    NodeResolverFunction(NodeResolverFunction.Mode.NONSELECTIVE) { id, _, _ -> function(id) }
+fun nodeResolverOf(function: suspend (String) -> ResolverOutputData?): NodeResolverFunction = NodeResolverFunction(NodeResolverFunction.Mode.NONSELECTIVE) { id, _, _ -> function(id) }
 
-fun nodeResolverOf(
-    function: suspend (String, ResolutionExecutionContext) -> ResolverOutputData?,
-): NodeResolverFunction =
+fun nodeResolverOf(function: suspend (String, ResolutionExecutionContext) -> ResolverOutputData?): NodeResolverFunction =
     NodeResolverFunction(NodeResolverFunction.Mode.NONSELECTIVE) { id, _, executionContext ->
         function(id, executionContext)
     }
 
 /** Marks a stable raw node lookup that receives demand before model-owned output projection. */
-fun selectionAwareNodeResolverOf(
-    function: suspend (String, SelectionForest) -> ResolverOutputData?,
-): NodeResolverFunction =
+fun selectionAwareNodeResolverOf(function: suspend (String, SelectionForest) -> ResolverOutputData?): NodeResolverFunction =
     NodeResolverFunction(NodeResolverFunction.Mode.SELECTION_AWARE_NONSELECTIVE) { id, selections, _ ->
         function(id, selections)
     }
@@ -62,13 +57,10 @@ fun selectionAwareNodeResolverOf(
         SelectionForest,
         ResolutionExecutionContext,
     ) -> ResolverOutputData?,
-): NodeResolverFunction =
-    NodeResolverFunction(NodeResolverFunction.Mode.SELECTION_AWARE_NONSELECTIVE, function)
+): NodeResolverFunction = NodeResolverFunction(NodeResolverFunction.Mode.SELECTION_AWARE_NONSELECTIVE, function)
 
 /** Marks a selection-sensitive raw external node lookup for fixture composition. */
-fun selectiveNodeResolverOf(
-    function: suspend (String, SelectionForest) -> ResolverOutputData?,
-): NodeResolverFunction =
+fun selectiveNodeResolverOf(function: suspend (String, SelectionForest) -> ResolverOutputData?): NodeResolverFunction =
     NodeResolverFunction(NodeResolverFunction.Mode.SELECTIVE) { id, selections, _ ->
         function(id, selections)
     }

@@ -19,19 +19,19 @@ import model.invariants.conformsToResolverOutputSchemaType
 import model.materializeSelectionForestOf
 import model.nodeReferenceIdentityOrNull
 import model.registry.FieldValueResolver
-import model.registry.ResolverFragment
 import model.registry.ResolutionExecutionContext
+import model.registry.ResolverFragment
 import model.requireQueryTypeDef
 import semantics.resolvers.GroundedFieldPublicationOccurrence
 import semantics.resolvers.emptyObjectInput
+import semantics.resolvers.materializeResolverInput
 import semantics.resolvers.prepareRootFieldReferenceInvocation
-import semantics.shared.ResolverInvocationObservation
 import semantics.shared.CycleCheckState
 import semantics.shared.CycleTask
-import semantics.shared.fieldResolverCycleTask
-import semantics.shared.SharedFieldResolverTask
+import semantics.shared.ResolverInvocationObservation
 import semantics.shared.RootFieldReferenceInvocationObservation
-import semantics.resolvers.materializeResolverInput
+import semantics.shared.SharedFieldResolverTask
+import semantics.shared.fieldResolverCycleTask
 import semantics.shared.withAuthoritativeNodeId
 import viaduct.engine.api.EngineObjectData
 
@@ -69,93 +69,97 @@ internal class DepthFirstFieldResolverTask private constructor(
     }
 
     /** Invokes one field, follows reference tails, and publishes its passively resolved output. */
-    fun run(): Unit = with(publication) {
-        val key = selection.groundKey()
-        val invocationDemand = this.invocationDemand ?: operation.complete(selection.subselections)
-        var fieldValue: ResolverOutputData? = reference ?: when (val arguments = key.arguments) {
-            Arguments.Error -> {
-                check(publicationCell.value.complete(ErrorEngineResult.of(EngineErrorData.of()))) {
-                    "Cell value was completed twice"
+    fun run(): Unit =
+        with(publication) {
+            val key = selection.groundKey()
+            val invocationDemand = this.invocationDemand ?: operation.complete(selection.subselections)
+            var fieldValue: ResolverOutputData? = reference ?: when (val arguments = key.arguments) {
+                Arguments.Error -> {
+                    check(publicationCell.value.complete(ErrorEngineResult.of(EngineErrorData.of()))) {
+                        "Cell value was completed twice"
+                    }
+                    return@with
                 }
-                return@with
-            }
-            is Arguments.Resolved -> {
-                val resolver = operation.world.resolverRegistry.resolver(key.field)
-                val fragments = resolver.instantiateFragmentsAt(oerOccurrence.root, publicationPath)
+                is Arguments.Resolved -> {
+                    val resolver = operation.world.resolverRegistry.resolver(key.field)
+                    val fragments = resolver.instantiateFragmentsAt(oerOccurrence.root, publicationPath)
 
-                val queryMaterializationSelections =
-                    resolver.instantiateQueryMaterializationSelections(
-                        fragments.queryFragment.resolverOccurrenceId,
-                    )
-                check(
-                    fragments.queryFragment.constructionSelections.isEmpty() ||
-                        queryOER.isDemanded(),
-                ) {
-                    "Nonempty resolver Query fragment has no demanded shared Query OER"
-                }
-                val queryValue =
-                    queryOER.occurrence.target.materializeInput(
-                        queryMaterializationSelections,
-                        oerOccurrence.root.fieldResolverCycleTask(publicationPath),
-                    )
+                    val queryMaterializationSelections =
+                        resolver.instantiateQueryMaterializationSelections(
+                            fragments.queryFragment.resolverOccurrenceId,
+                        )
+                    check(
+                        fragments.queryFragment.constructionSelections.isEmpty() ||
+                            queryOER.isDemanded(),
+                    ) {
+                        "Nonempty resolver Query fragment has no demanded shared Query OER"
+                    }
+                    val queryValue =
+                        queryOER.occurrence.target.materializeInput(
+                            queryMaterializationSelections,
+                            oerOccurrence.root.fieldResolverCycleTask(publicationPath),
+                        )
 
-                val objectMaterializationSelections =
-                    resolver.instantiateObjectMaterializationSelections(
-                        fragments.objectFragment.resolverOccurrenceId,
-                    )
-                val input = // Sibling dependency order and depth-first dispatch make this input ready.
-                    oerOccurrence.target.materializeInput(
-                        objectMaterializationSelections,
-                        oerOccurrence.root.fieldResolverCycleTask(publicationPath),
-                    )
-                runBlocking {
-                    // Coroutine entry is interruptible; record only after crossing that boundary.
-                    operation.resolverObserver.onResolverInvocation(
-                        ResolverInvocationObservation(
-                            occurrencePath = publicationPath,
-                            field = key.field,
+                    val objectMaterializationSelections =
+                        resolver.instantiateObjectMaterializationSelections(
+                            fragments.objectFragment.resolverOccurrenceId,
+                        )
+                    val input = // Sibling dependency order and depth-first dispatch make this input ready.
+                        oerOccurrence.target.materializeInput(
+                            objectMaterializationSelections,
+                            oerOccurrence.root.fieldResolverCycleTask(publicationPath),
+                        )
+                    runBlocking {
+                        // Coroutine entry is interruptible; record only after crossing that boundary.
+                        operation.resolverObserver.onResolverInvocation(
+                            ResolverInvocationObservation(
+                                occurrencePath = publicationPath,
+                                field = key.field,
+                                input = input,
+                                inputSelections = objectMaterializationSelections,
+                                queryValue = queryValue,
+                                queryInputSelections = queryMaterializationSelections,
+                                arguments = arguments,
+                                suppliedDemand = invocationDemand.takeIf { operation.world.selectiveResolvers },
+                                resolverOccurrenceId = fragments.objectFragment.resolverOccurrenceId,
+                            ),
+                        )
+                        resolver(
                             input = input,
-                            inputSelections = objectMaterializationSelections,
                             queryValue = queryValue,
-                            queryInputSelections = queryMaterializationSelections,
                             arguments = arguments,
-                            suppliedDemand = invocationDemand.takeIf { operation.world.selectiveResolvers },
-                            resolverOccurrenceId = fragments.objectFragment.resolverOccurrenceId,
-                        ),
-                    )
-                    resolver(
-                        input = input,
-                        queryValue = queryValue,
-                        arguments = arguments,
-                        selections = invocationDemand,
-                        selectiveResolvers = operation.world.selectiveResolvers,
-                        executionContext = ResolutionExecutionContext.Unsupported,
-                    )
+                            selections = invocationDemand,
+                            selectiveResolvers = operation.world.selectiveResolvers,
+                            executionContext = ResolutionExecutionContext.Unsupported,
+                        )
+                    }
                 }
             }
-        }
-        var authoritativeNodeIdentity: NodeReferenceIdentity? = null
-        while (fieldValue is RootFieldReferenceData) {
-            val reference = fieldValue
-            require(reference.conformsToResolverOutputSchemaType(publicationExpectedType)) {
-                "Root-field reference does not conform to ${publicationExpectedType}"
+            var authoritativeNodeIdentity: NodeReferenceIdentity? = null
+            while (fieldValue is RootFieldReferenceData) {
+                val reference = fieldValue
+                require(reference.conformsToResolverOutputSchemaType(publicationExpectedType)) {
+                    "Root-field reference does not conform to $publicationExpectedType"
+                }
+                authoritativeNodeIdentity = authoritativeNodeIdentity ?: reference.nodeReferenceIdentityOrNull()
+                fieldValue = invokeRootFieldResolver(
+                    reference,
+                    oerOccurrence.root,
+                    publicationPath,
+                    invocationDemand,
+                )
             }
-            authoritativeNodeIdentity = authoritativeNodeIdentity ?: reference.nodeReferenceIdentityOrNull()
-            fieldValue = invokeRootFieldResolver(
-                reference, oerOccurrence.root, publicationPath, invocationDemand,
+            val passiveValue = operation.passiveValues(queryOERDepth).resolvePassiveValues(
+                value = fieldValue.withAuthoritativeNodeId(authoritativeNodeIdentity, invocationDemand),
+                root = oerOccurrence.root,
+                expectedType = publicationExpectedType,
+                path = publicationPath,
+                constructionDemand = constructionDemand,
+                invocationDemand = invocationDemand,
+                parent = oerOccurrence,
             )
+            check(publicationCell.value.complete(passiveValue)) { "Cell value was completed twice" }
         }
-        val passiveValue = operation.passiveValues(queryOERDepth).resolvePassiveValues(
-            value = fieldValue.withAuthoritativeNodeId(authoritativeNodeIdentity, invocationDemand),
-            root = oerOccurrence.root,
-            expectedType = publicationExpectedType,
-            path = publicationPath,
-            constructionDemand = constructionDemand,
-            invocationDemand = invocationDemand,
-            parent = oerOccurrence,
-        )
-        check(publicationCell.value.complete(passiveValue)) { "Cell value was completed twice" }
-    }
 
     /** Invokes one independently rooted reference target using this resolver's Query-fragment policy. */
     private fun invokeRootFieldResolver(
@@ -241,12 +245,13 @@ internal class DepthFirstFieldResolverTask private constructor(
     private fun ObjectEngineResult.materializeInput(
         selections: MaterializeSelectionForest,
         reader: CycleTask,
-    ): EngineObjectData.Sync = runBlocking {
-        materializeResolverInput(
-            operation = publication.operation,
-            cycleChecker = CycleCheckState.createNOP(),
-            selections = selections,
-            reader = reader,
-        )
-    }
+    ): EngineObjectData.Sync =
+        runBlocking {
+            materializeResolverInput(
+                operation = publication.operation,
+                cycleChecker = CycleCheckState.createNOP(),
+                selections = selections,
+                reader = reader,
+            )
+        }
 }

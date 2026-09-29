@@ -1,9 +1,8 @@
 package model
 
 import java.math.BigDecimal
-import viaduct.graphql.schema.ViaductSchema
-
 import viaduct.engine.api.EngineObjectData
+import viaduct.graphql.schema.ViaductSchema
 
 /**
  * Int, finite Double, Boolean, or String. String represents GraphQL String, ID, and enum values;
@@ -305,9 +304,7 @@ internal fun ViaductSchema.HasDefaultValue.coercedDefaultValue(): CoercedDefault
         CoercedDefaultValue.Absent
     }
 
-private fun ViaductSchema.Literal.toEngineInputData(
-    expectedType: ViaductSchema.TypeExpr<ViaductSchema.InputTypeDef>,
-): EngineInputData? {
+private fun ViaductSchema.Literal.toEngineInputData(expectedType: ViaductSchema.TypeExpr<ViaductSchema.InputTypeDef>): EngineInputData? {
     if (this is ViaductSchema.NullLiteral) {
         require(expectedType.isNullable)
         return null
@@ -366,8 +363,7 @@ private fun ViaductSchema.Literal.toEngineInputData(
     }
 }
 
-private fun BigDecimal.toFiniteDouble(): Double =
-    toDouble().also { require(it.isFinite()) }
+private fun BigDecimal.toFiniteDouble(): Double = toDouble().also { require(it.isFinite()) }
 
 private fun Map<*, *>.toStringKeyedMap(): EngineInputObjectData =
     entries.associate { (key, value) ->

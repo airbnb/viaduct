@@ -18,7 +18,10 @@ internal class CoroutineResolve(
     private val cycleChecker: CycleCheckState = CycleCheckState.create(),
     private val supportsCheckerFragments: Boolean = false,
 ) {
-    suspend fun resolve(source: EngineObjectData.Sync, selections: SelectionForest): ObjectEngineResult =
+    suspend fun resolve(
+        source: EngineObjectData.Sync,
+        selections: SelectionForest
+    ): ObjectEngineResult =
         coroutineScope {
             CoroutineOperationContext(
                 operation,

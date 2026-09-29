@@ -75,9 +75,7 @@ internal fun Map<Arguments.Variable, VariableDefinition>.fieldPathInclusionCondi
             ?.let { variable to it.inclusionConditions(materializeSelections) }
     }.toMap()
 
-internal fun MaterializeSelectionForest.requireNoVariablesBeneathParent(
-    inputOwner: String,
-) {
+internal fun MaterializeSelectionForest.requireNoVariablesBeneathParent(inputOwner: String) {
     forEach { selection ->
         if (selection.inclusionCondition === InclusionCondition.Never) return@forEach
         require(
@@ -99,9 +97,7 @@ internal fun MaterializeSelectionForest.requireNoVariablesBeneathParent(
     }
 }
 
-private fun MaterializeSelectionForest.usedVariablesApplicableTo(
-    type: ViaductSchema.Object,
-): Set<Arguments.Variable> {
+private fun MaterializeSelectionForest.usedVariablesApplicableTo(type: ViaductSchema.Object): Set<Arguments.Variable> {
     val variables = linkedSetOf<Arguments.Variable>()
     forEach { selection ->
         if (selection.inclusionCondition === InclusionCondition.Never) return@forEach
@@ -117,9 +113,7 @@ private fun MaterializeSelectionForest.usedVariablesApplicableTo(
     return variables
 }
 
-private fun SelectionForest.instantiateVariables(
-    resolverOccurrenceId: ResolverOccurrenceId,
-): SelectionForest =
+private fun SelectionForest.instantiateVariables(resolverOccurrenceId: ResolverOccurrenceId): SelectionForest =
     flatMap { selection ->
         selectionForestOf(
             Selection.of(
@@ -145,9 +139,7 @@ private fun SelectionForest.instantiateVariables(
         )
     }
 
-internal fun MaterializeSelectionForest.instantiateVariables(
-    resolverOccurrenceId: ResolverOccurrenceId,
-): MaterializeSelectionForest =
+internal fun MaterializeSelectionForest.instantiateVariables(resolverOccurrenceId: ResolverOccurrenceId): MaterializeSelectionForest =
     flatMap { selection ->
         materializeSelectionForestOf(
             MaterializeSelection.of(

@@ -14,8 +14,8 @@ import model.fragmentFrom
 import model.materializeSelectionForestOf
 import model.operationSelectionsFrom
 import model.registry.FieldCheckerResolver
-import model.registry.ResolverTarget
 import model.registry.ResolverFragmentTemplates
+import model.registry.ResolverTarget
 import model.registry.VariableDefinition
 import model.requireObjectField
 import model.requireQueryTypeDef
@@ -50,7 +50,12 @@ class FieldCheckerClosureTest : Resolver26DispatcherResource {
             )
             val operation = OperationContext.create(SharedOperationContext.create(world.assumptions), this)
             val root = ObjectEngineResult.of(world.schema.requireQueryTypeDef(), mutable = true)
-            val task = OrchestrationTask.create(operation, OEROccurrence(root, emptyList(), root), world.assumptions.resolverRegistry.createRootQueryInput(), world.assumptions.operationSelectionsFrom("{ checked }"))
+            val task = OrchestrationTask.create(
+                operation,
+                OEROccurrence(root, emptyList(), root),
+                world.assumptions.resolverRegistry.createRootQueryInput(),
+                world.assumptions.operationSelectionsFrom("{ checked }")
+            )
             assertEquals(
                 setOf("checked", "protected"),
                 task.closedConstructionDemand.objectRooted.constructionDemand.checked

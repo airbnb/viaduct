@@ -1,8 +1,7 @@
 package model
 
-import viaduct.graphql.schema.ViaductSchema
-
 import viaduct.engine.api.EngineObjectData
+import viaduct.graphql.schema.ViaductSchema
 
 /**
  * A free commutative collection of opaque [Selection] members.
@@ -108,17 +107,13 @@ sealed interface ObjectSelectionForest : SelectionForest {
 }
 
 /** Constructs a [SelectionForest] containing the supplied occurrences. */
-fun selectionForestOf(vararg selections: Selection): SelectionForest =
-    SelectionForestImpl(selections.asList())
+fun selectionForestOf(vararg selections: Selection): SelectionForest = SelectionForestImpl(selections.asList())
 
 /** Constructs a [SelectionForest] from these occurrences. */
-fun Iterable<Selection>.toSelectionForest(): SelectionForest =
-    SelectionForestImpl(toList())
+fun Iterable<Selection>.toSelectionForest(): SelectionForest = SelectionForestImpl(toList())
 
 /** Maps each input to a forest and concatenates the results without comparing selections. */
-fun <T : Any> Iterable<T>.flatMapToSelectionForest(
-    transform: (T) -> SelectionForest,
-): SelectionForest =
+fun <T : Any> Iterable<T>.flatMapToSelectionForest(transform: (T) -> SelectionForest): SelectionForest =
     SelectionForestImpl(
         buildList {
             this@flatMapToSelectionForest.forEach { element ->
@@ -128,8 +123,7 @@ fun <T : Any> Iterable<T>.flatMapToSelectionForest(
     )
 
 /** Concatenates these forests without comparing their selection occurrences. */
-fun Iterable<SelectionForest>.concatenateSelectionForests(): SelectionForest =
-    flatMapToSelectionForest { forest -> forest }
+fun Iterable<SelectionForest>.concatenateSelectionForests(): SelectionForest = flatMapToSelectionForest { forest -> forest }
 
 /**
  * Returns the demand applicable to concrete parent [type], normalized by structural object key.
@@ -193,8 +187,7 @@ fun ObjectSelection.groundKey(): ObjectEngineResult.GroundKey =
         ?: error("Object selection key contains open arguments: $key")
 
 /** Returns the variable instances used by this key's arguments. */
-internal fun ObjectEngineResult.Key.instantiatedVariables(): Set<Arguments.Variable> =
-    arguments.instantiatedVariables()
+internal fun ObjectEngineResult.Key.instantiatedVariables(): Set<Arguments.Variable> = arguments.instantiatedVariables()
 
 /** Returns the variable instances used recursively by this selection. */
 private fun Selection.instantiatedVariables(): Set<Arguments.Variable> =
@@ -210,8 +203,7 @@ fun SelectionForest.instantiatedVariables(): Set<Arguments.Variable> {
 }
 
 /** Returns every variable expression used recursively by this selection. */
-private fun Selection.usedVariables(): Set<Arguments.Variable> =
-    key.arguments.usedVariables() + inclusionCondition.usedVariables() + subselections.usedVariables()
+private fun Selection.usedVariables(): Set<Arguments.Variable> = key.arguments.usedVariables() + inclusionCondition.usedVariables() + subselections.usedVariables()
 
 /** Returns every variable expression used recursively by this forest. */
 fun SelectionForest.usedVariables(): Set<Arguments.Variable> {
@@ -230,9 +222,7 @@ fun Selection.objectKey(type: ViaductSchema.Object): ObjectEngineResult.ObjectKe
     return key.objectKey(type)
 }
 
-internal fun ObjectEngineResult.Key.objectKey(
-    type: ViaductSchema.Object,
-): ObjectEngineResult.ObjectKey {
+internal fun ObjectEngineResult.Key.objectKey(type: ViaductSchema.Object): ObjectEngineResult.ObjectKey {
     // Concrete keys already carry this canonical field's coerced arguments and defaults.
     // Repeated closure/merge passes need not rebuild and revalidate the same argument tree.
     if (this is ObjectEngineResult.ObjectKey && field.containingDef == type) return this
@@ -382,8 +372,7 @@ sealed interface Selection {
             possibleTypes: Set<ViaductSchema.Object>,
             subselections: SelectionForest,
             inclusionCondition: InclusionCondition = InclusionCondition.Always,
-        ): ObjectSelection =
-            ObjectSelection.of(key, possibleTypes, subselections, inclusionCondition)
+        ): ObjectSelection = ObjectSelection.of(key, possibleTypes, subselections, inclusionCondition)
     }
 }
 
@@ -459,11 +448,9 @@ private abstract class AbstractSelectionForest(
 
     override fun all(predicate: (Selection) -> Boolean): Boolean = occurrences.all(predicate)
 
-    override fun filter(predicate: (Selection) -> Boolean): SelectionForest =
-        SelectionForestImpl(occurrences.filter(predicate))
+    override fun filter(predicate: (Selection) -> Boolean): SelectionForest = SelectionForestImpl(occurrences.filter(predicate))
 
-    override fun flatMap(transform: (Selection) -> SelectionForest): SelectionForest =
-        occurrences.flatMapToSelectionForest(transform)
+    override fun flatMap(transform: (Selection) -> SelectionForest): SelectionForest = occurrences.flatMapToSelectionForest(transform)
 
     override fun forEach(action: (Selection) -> Unit) {
         occurrences.forEach(action)
@@ -471,8 +458,7 @@ private abstract class AbstractSelectionForest(
 
     override fun single(): Selection = occurrences.single()
 
-    override fun plus(other: SelectionForest): SelectionForest =
-        SelectionForestImpl(occurrences + other.occurrences())
+    override fun plus(other: SelectionForest): SelectionForest = SelectionForestImpl(occurrences + other.occurrences())
 }
 
 private class SelectionForestImpl(
@@ -506,5 +492,4 @@ private class ObjectSelectionForestImpl(
     override fun get(key: ObjectEngineResult.ObjectKey): ObjectSelection = selectionsByKey.getValue(key)
 }
 
-private fun SelectionForest.occurrences(): List<Selection> =
-    (this as AbstractSelectionForest).occurrences
+private fun SelectionForest.occurrences(): List<Selection> = (this as AbstractSelectionForest).occurrences

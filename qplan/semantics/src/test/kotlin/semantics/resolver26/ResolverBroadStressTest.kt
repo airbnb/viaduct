@@ -2,45 +2,44 @@
 
 package semantics.resolver26
 
-import semantics.shared.ResolverInvocationObservation
+import kotlin.coroutines.CoroutineContext
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 import kotlinx.coroutines.runBlocking
 import model.Assumptions
 import model.EngineOutputData
+import model.Fragment
 import model.MaterializeSelectionForest
 import model.ObjectEngineResult
 import model.ResolverOccurrenceId
-import model.Fragment
 import model.fragmentFrom
-import model.outputValue
 import model.nodeReferenceIdentityOrNull
+import model.outputValue
 import model.schemaType
 import org.junit.jupiter.api.Test
 import semantics.arbitrary.Config
 import semantics.arbitrary.ErrorValueWeight
 import semantics.arbitrary.FieldArgumentWeight
+import semantics.arbitrary.FieldCoordinate
 import semantics.arbitrary.ListValueSize
-import semantics.arbitrary.MaxSelectionDepth
 import semantics.arbitrary.MaxOutputListDepth
+import semantics.arbitrary.MaxSelectionDepth
 import semantics.arbitrary.MinimumSelectionDepth
 import semantics.arbitrary.NodeResolversEnabled
 import semantics.arbitrary.NullValueWeight
 import semantics.arbitrary.ParentFieldsEnabled
 import semantics.arbitrary.RandomParentFieldsEnabled
-import semantics.arbitrary.RootFieldReferencesEnabled
-import semantics.arbitrary.RootFieldReferenceWeight
-import semantics.arbitrary.FieldCoordinate
-import semantics.contract.RegisteredResolverOccurrence
 import semantics.arbitrary.ResolutionOccurrenceApplicationLog
 import semantics.arbitrary.ResolutionWitness
-import semantics.arbitrary.ResolverFromQueryFieldVariablesEnabled
+import semantics.arbitrary.ResolverFragmentArgumentFieldWeight
+import semantics.arbitrary.ResolverFragmentDepth
+import semantics.arbitrary.ResolverFragmentWeight
+import semantics.arbitrary.ResolverFragmentsEnabled
 import semantics.arbitrary.ResolverFromArgumentVariablesEnabled
 import semantics.arbitrary.ResolverFromFieldProviderPathLength
 import semantics.arbitrary.ResolverFromFieldVariableUseDepth
 import semantics.arbitrary.ResolverFromObjectFieldVariablesEnabled
-import semantics.arbitrary.ResolverFragmentsEnabled
-import semantics.arbitrary.ResolverFragmentArgumentFieldWeight
-import semantics.arbitrary.ResolverFragmentDepth
-import semantics.arbitrary.ResolverFragmentWeight
+import semantics.arbitrary.ResolverFromQueryFieldVariablesEnabled
 import semantics.arbitrary.ResolverQueryFragmentWeight
 import semantics.arbitrary.ResolverQueryFragmentsEnabled
 import semantics.arbitrary.ResolverTestExecution
@@ -49,24 +48,25 @@ import semantics.arbitrary.ResolverVariableCount
 import semantics.arbitrary.ResolverVariableSingletonCoercionEnabled
 import semantics.arbitrary.ResolverVariableWeight
 import semantics.arbitrary.ResolverVariablesEnabled
+import semantics.arbitrary.RootFieldReferenceWeight
+import semantics.arbitrary.RootFieldReferencesEnabled
 import semantics.arbitrary.SometimesPassiveFieldWeight
 import semantics.arbitrary.TestCaseCount
 import semantics.arbitrary.configuredResolverTestExecution
 import semantics.arbitrary.executeResolverTestCases
 import semantics.arbitrary.isGeneratedRandomParentField
-import semantics.contract.registeredResolverOccurrences
+import semantics.contract.RegisteredResolverOccurrence
 import semantics.contract.registeredResolverOccurrenceApplicationIdentityCounts
 import semantics.contract.registeredResolverOccurrenceApplicationIdentityCountsFor
 import semantics.contract.registeredResolverOccurrenceApplicationKeyCounts
+import semantics.contract.registeredResolverOccurrences
 import semantics.contract.validateFromFieldBindings
-import semantics.correctresolution.correctResolution
-import kotlin.test.assertEquals
-import kotlin.test.assertTrue
-import semantics.shared.SharedOperationContext
 import semantics.correctresolution.CorrectnessResolverObserver
+import semantics.correctresolution.correctResolution
+import semantics.shared.ResolverInvocationObservation
+import semantics.shared.SharedOperationContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.graphql.schema.ViaductSchema
-import kotlin.coroutines.CoroutineContext
 
 /**
  * Unfiltered Resolver26 stress: every generated registry/query product is resolved and validated.
@@ -188,9 +188,7 @@ class ResolverBroadStressTest : Resolver26DispatcherResource {
     }
 
     // Returns the configured S:R:Q product dimensions.
-    private fun configuredCounts(
-        broadProfile: Resolver26BroadStressProfile,
-    ): TestCaseCount {
+    private fun configuredCounts(broadProfile: Resolver26BroadStressProfile): TestCaseCount {
         val configured: String =
             System.getProperty(SIZE_PROPERTY)
                 ?: System.getenv(SIZE_ENVIRONMENT)
@@ -398,7 +396,7 @@ internal suspend fun runResolver26BroadStress(
                                     materializedParentFieldDepths.getOrDefault(
                                         activation.depth,
                                         0,
-                                ) + 1
+                                    ) + 1
                             }
                             materializedParentSelectionSets += parentCoverage.size
                             parentCoverage.forEach { parent ->
@@ -534,8 +532,10 @@ internal suspend fun runResolver26BroadStress(
                             else -> "other"
                         }
                     val publicationField =
-                        (observation.publicationPath.lastOrNull()
-                            as? ObjectEngineResult.ObjectKey)?.field
+                        (
+                            observation.publicationPath.lastOrNull()
+                                as? ObjectEngineResult.ObjectKey
+                        )?.field
                     if (observation.reference.nodeReferenceIdentityOrNull() != null) {
                         activatedNodeRootFieldReferences += 1
                     }
@@ -961,8 +961,7 @@ internal suspend fun runResolver26BroadStress(
 }
 
 // Returns compact S:R:Q dimensions for diagnostics.
-private fun TestCaseCount.summary(): String =
-    "$schemas:$registriesPerSchema:$queriesPerSchema"
+private fun TestCaseCount.summary(): String = "$schemas:$registriesPerSchema:$queriesPerSchema"
 
 private fun <K> MutableMap<K, Int>.increment(key: K) {
     this[key] = getOrDefault(key, 0) + 1

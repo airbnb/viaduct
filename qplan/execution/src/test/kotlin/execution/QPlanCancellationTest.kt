@@ -10,6 +10,12 @@ import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.CoroutineContext
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
+import kotlin.test.assertIs
+import kotlin.test.assertTrue
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
@@ -22,16 +28,10 @@ import model.fragmentFrom
 import model.requireObjectField
 import model.testing.TestWorld
 import model.testing.fieldResolverOf
-import semantics.resolver26.ResolutionDispatcherFactory
 import org.reactivestreams.Publisher
 import org.reactivestreams.Subscriber
 import org.reactivestreams.Subscription
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertFailsWith
-import kotlin.test.assertIs
-import kotlin.test.assertTrue
+import semantics.resolver26.ResolutionDispatcherFactory
 
 class QPlanCancellationTest {
     @Test
@@ -149,9 +149,7 @@ class QPlanCancellationTest {
             }
         }
 
-    private suspend fun forEachThreadCount(
-        test: suspend (threadCount: Int, coroutineContext: CoroutineContext) -> Unit,
-    ) {
+    private suspend fun forEachThreadCount(test: suspend (threadCount: Int, coroutineContext: CoroutineContext) -> Unit) {
         listOf(1, 4).forEach { threadCount ->
             ResolutionDispatcherFactory
                 .create(threadCount)
@@ -159,9 +157,7 @@ class QPlanCancellationTest {
         }
     }
 
-    private fun cancellationFixture(
-        coroutineContext: CoroutineContext,
-    ): ExecutionTestFixture {
+    private fun cancellationFixture(coroutineContext: CoroutineContext): ExecutionTestFixture {
         val world =
             TestWorld.fromSDL(
                 schemaSDL = CANCELLATION_SCHEMA,
@@ -304,8 +300,7 @@ class QPlanCancellationTest {
     }
 }
 
-private fun Publisher<DelayedIncrementalPartialResult>.nextCancellationResult():
-    CompletableFuture<DelayedIncrementalPartialResult> =
+private fun Publisher<DelayedIncrementalPartialResult>.nextCancellationResult(): CompletableFuture<DelayedIncrementalPartialResult> =
     CompletableFuture<DelayedIncrementalPartialResult>().also { result ->
         subscribe(
             object : Subscriber<DelayedIncrementalPartialResult> {

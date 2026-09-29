@@ -2,7 +2,9 @@
 
 package semantics.resolver26
 
-import semantics.shared.ResolverInvocationObservation
+import java.nio.file.Files
+import java.nio.file.Path
+import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.runBlocking
 import model.Assumptions
 import model.Fragment
@@ -15,12 +17,10 @@ import semantics.arbitrary.checkResolverTestCases
 import semantics.arbitrary.encodeResolverBenchmarkCorpus
 import semantics.contract.registeredResolverApplicationIdentityCounts
 import semantics.contract.validateFromFieldBindings
-import semantics.correctresolution.correctResolution
-import java.nio.file.Files
-import java.nio.file.Path
-import java.util.concurrent.ConcurrentHashMap
-import semantics.shared.SharedOperationContext
 import semantics.correctresolution.CorrectnessResolverObserver
+import semantics.correctresolution.correctResolution
+import semantics.shared.ResolverInvocationObservation
+import semantics.shared.SharedOperationContext
 
 object PropertyTestBenchmarkCorpusWriter {
     private const val CAMPAIGN_ROUND = 46
@@ -154,6 +154,5 @@ object PropertyTestBenchmarkCorpusWriter {
         println("Wrote frozen property-test benchmark corpus to $outputDirectory")
     }
 
-    private fun semantics.arbitrary.TestCaseCount.summary(): String =
-        "$schemas:$registriesPerSchema:$queriesPerSchema"
+    private fun semantics.arbitrary.TestCaseCount.summary(): String = "$schemas:$registriesPerSchema:$queriesPerSchema"
 }

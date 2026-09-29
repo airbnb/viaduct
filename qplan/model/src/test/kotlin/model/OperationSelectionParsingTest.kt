@@ -1,17 +1,16 @@
 package model
 
-import viaduct.graphql.schema.ViaductSchema
-
 import graphql.GraphQLContext
 import graphql.execution.CoercedVariables
 import graphql.language.OperationDefinition
 import graphql.parser.Parser
 import java.util.Locale
-import model.testing.TestWorld
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertSame
+import model.testing.TestWorld
+import viaduct.graphql.schema.ViaductSchema
 
 class OperationSelectionParsingTest {
     @Test

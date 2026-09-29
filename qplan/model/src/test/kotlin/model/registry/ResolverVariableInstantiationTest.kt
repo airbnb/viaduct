@@ -1,23 +1,23 @@
 package model.registry
 
-import model.requireQueryTypeDef
-import model.requireObjectField
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertNotEquals
+import kotlin.test.assertTrue
 import model.Arguments
 import model.ObjectEngineResult
 import model.ResolverOccurrenceId
 import model.emptyFragmentOf
 import model.fragmentFrom
-import model.merge
 import model.instantiatedVariables
+import model.merge
+import model.requireObjectField
+import model.requireQueryTypeDef
 import model.testing.TestWorld
 import model.testing.fieldResolverOf
 import model.testing.fromArgument
 import model.testing.fromObjectField
 import model.testing.testRoot
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertNotEquals
-import kotlin.test.assertTrue
 
 class ResolverVariableInstantiationTest {
     @Test

@@ -1,20 +1,19 @@
 package semantics.contract
 
-import semantics.shared.ResolverInvocationObservation
-import semantics.correctresolution.CorrectnessResolverObserver
 import io.kotest.matchers.collections.shouldContainExactlyInAnyOrder
-import model.EngineResult
-import model.ListEngineResult
-import model.ObjectEngineResult
-import viaduct.graphql.schema.ViaductSchema
-import model.requireObjectField
-import model.requireType
-import model.testing.TestWorld
-import org.junit.jupiter.api.Test
 import java.util.concurrent.ConcurrentLinkedQueue
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
+import model.ListEngineResult
+import model.ObjectEngineResult
+import model.requireObjectField
+import model.requireType
+import model.testing.TestWorld
+import org.junit.jupiter.api.Test
+import semantics.correctresolution.CorrectnessResolverObserver
+import semantics.shared.ResolverInvocationObservation
+import viaduct.graphql.schema.ViaductSchema
 
 /**
  * Contract for resolvers whose user-declared object fragments are empty.
@@ -180,12 +179,10 @@ interface EmptyObjectFragmentResolverContract :
     }
 }
 
-internal fun ViaductSchema.contractObjectType(typeName: String): ViaductSchema.Object =
-    requireType(typeName) as ViaductSchema.Object
+internal fun ViaductSchema.contractObjectType(typeName: String): ViaductSchema.Object = requireType(typeName) as ViaductSchema.Object
 
 internal fun ViaductSchema.contractKey(
     typeName: String,
     fieldName: String,
     arguments: Map<String, Any?> = emptyMap(),
-): ObjectEngineResult.GroundKey =
-    ObjectEngineResult.GroundKey.of(requireObjectField(typeName, fieldName), arguments)
+): ObjectEngineResult.GroundKey = ObjectEngineResult.GroundKey.of(requireObjectField(typeName, fieldName), arguments)

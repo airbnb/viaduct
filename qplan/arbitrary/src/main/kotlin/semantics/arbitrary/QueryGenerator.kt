@@ -504,7 +504,7 @@ private class QueryGenerator(
                 .orEmpty()
                 .any { argument ->
                     argument.name !in abstractArguments && argument.defaultValue != null
-            }
+                }
         }
     }
 
@@ -590,11 +590,11 @@ private class QueryGenerator(
     private fun scalarValue(scalar: ScalarKind): Value<*> {
         val salt = Arb.int(config[InputScalarValueRange]).next(random)
         return when (scalar) {
-                ScalarKind.BOOLEAN -> BooleanValue.newBooleanValue(salt % 2 == 0).build()
-                ScalarKind.FLOAT -> FloatValue.newFloatValue(BigDecimal("$salt.5")).build()
-                ScalarKind.ID -> StringValue.newStringValue("id-$salt").build()
-                ScalarKind.INT -> IntValue.newIntValue(BigInteger.valueOf(salt.toLong())).build()
-                ScalarKind.STRING -> StringValue.newStringValue("value-$salt").build()
+            ScalarKind.BOOLEAN -> BooleanValue.newBooleanValue(salt % 2 == 0).build()
+            ScalarKind.FLOAT -> FloatValue.newFloatValue(BigDecimal("$salt.5")).build()
+            ScalarKind.ID -> StringValue.newStringValue("id-$salt").build()
+            ScalarKind.INT -> IntValue.newIntValue(BigInteger.valueOf(salt.toLong())).build()
+            ScalarKind.STRING -> StringValue.newStringValue("value-$salt").build()
         }
     }
 
@@ -644,8 +644,7 @@ private class QueryGenerator(
         return result
     }
 
-    private fun chance(weight: Double): Boolean =
-        Arb.double(0.0, 1.0).next(random) < weight
+    private fun chance(weight: Double): Boolean = Arb.double(0.0, 1.0).next(random) < weight
 
     private fun SelectionSet.permuted(): SelectionSet =
         SelectionSet
@@ -739,9 +738,9 @@ private class QueryGenerator(
                 hasExactKeyAliasConvergence = hasExactKeyAliasConvergence,
                 hasAbstractInlineFragmentBranches = hasAbstractInlineFragmentBranches,
                 hasMultipleAbstractInlineFragmentBranches =
-                    hasMultipleAbstractInlineFragmentBranches,
+                hasMultipleAbstractInlineFragmentBranches,
                 hasAbstractImplementationDefaultSelection =
-                    hasAbstractImplementationDefaultSelection,
+                hasAbstractImplementationDefaultSelection,
                 exactKeyAliasSourceFields = exactKeyAliasSourceFields.toSet(),
                 distinctArgumentSourceFields = distinctArgumentSourceFields.toSet(),
             )

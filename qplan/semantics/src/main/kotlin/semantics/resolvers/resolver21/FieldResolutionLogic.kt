@@ -14,15 +14,15 @@ import model.invariants.conformsToResolverOutputSchemaType
 import model.materializeSelectionForestOf
 import model.nodeReferenceIdentityOrNull
 import model.registry.FieldValueResolver
-import model.registry.ResolverFragment
 import model.registry.ResolutionExecutionContext
+import model.registry.ResolverFragment
 import semantics.resolvers.emptyObjectInput
+import semantics.resolvers.materializeResolverInput
 import semantics.resolvers.prepareRootFieldReferenceInvocation
+import semantics.shared.CycleTask
 import semantics.shared.ResolverInvocationObservation
 import semantics.shared.RootFieldReferenceInvocationObservation
-import semantics.shared.CycleTask
 import semantics.shared.fieldResolverCycleTask
-import semantics.resolvers.materializeResolverInput
 import semantics.shared.withAuthoritativeNodeId
 import viaduct.engine.api.EngineObjectData
 

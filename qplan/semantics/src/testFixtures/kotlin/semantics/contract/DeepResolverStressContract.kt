@@ -2,28 +2,29 @@
 
 package semantics.contract
 
-import model.requireField
 import io.kotest.property.PropertyTesting
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 import kotlinx.coroutines.runBlocking
 import model.Assumptions
-import model.ObjectEngineResult
 import model.SourceSchemaAdapter
-import viaduct.graphql.schema.ViaductSchema
 import model.fragmentFrom
-import model.objectOf
 import model.nodeReferenceIdentityOrNull
+import model.objectOf
+import model.requireField
 import semantics.arbitrary.ArbitraryRegistry
 import semantics.arbitrary.Config
 import semantics.arbitrary.ErrorValueWeight
 import semantics.arbitrary.ExplicitFieldResolverWeight
-import semantics.arbitrary.FieldCoordinate
 import semantics.arbitrary.FieldArgumentWeight
+import semantics.arbitrary.FieldCoordinate
 import semantics.arbitrary.MaxSelectionDepth
 import semantics.arbitrary.MinimumSelectionDepth
-import semantics.arbitrary.NullValueWeight
 import semantics.arbitrary.NodeObjectWeight
-import semantics.arbitrary.NullableTypeWeight
 import semantics.arbitrary.NodeResolversEnabled
+import semantics.arbitrary.NullValueWeight
+import semantics.arbitrary.NullableTypeWeight
 import semantics.arbitrary.ObjectFieldCount
 import semantics.arbitrary.QueryFieldCount
 import semantics.arbitrary.ResolverFragmentDepth
@@ -37,11 +38,9 @@ import semantics.arbitrary.ResolverVariablesEnabled
 import semantics.arbitrary.SchemaObjectCount
 import semantics.arbitrary.TestCaseCount
 import semantics.arbitrary.checkResolverTestCases
-import semantics.correctresolution.correctResolution
 import semantics.correctresolution.CorrectnessResolverObserver
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertTrue
+import semantics.correctresolution.correctResolution
+import viaduct.graphql.schema.ViaductSchema
 
 /** Opt-in high-volume coverage for deep dependency-heavy generated worlds. */
 interface DeepResolverStressContract : ResolverContract {
@@ -113,8 +112,10 @@ interface DeepResolverStressContract : ResolverContract {
                     // Static tests exhaustively cover dispatch; stress samples interactions cheaply.
                     (NodeObjectWeight to 0.05) +
                     (ResolverFromArgumentVariablesEnabled to true) +
-                    (ResolverVariablesEnabled to
-                        (objectPathVariablesEnabled || queryPathVariablesEnabled)) +
+                    (
+                        ResolverVariablesEnabled to
+                            (objectPathVariablesEnabled || queryPathVariablesEnabled)
+                    ) +
                     (ResolverFromQueryFieldVariablesEnabled to queryPathVariablesEnabled) +
                     stressConfigOverrides
             var attemptedCases = 0
@@ -313,7 +314,7 @@ interface DeepResolverStressContract : ResolverContract {
                             testCase.registry.nodeLoaderPossibleTypes(
                                 testCase.schema,
                                 application.key.field,
-                        )
+                            )
                         if (possibleTypes.isNotEmpty()) {
                             nodeLoaderApplications += 1
                             if (possibleTypes.size > 1) {
@@ -457,8 +458,8 @@ interface DeepResolverStressContract : ResolverContract {
         roots: Set<FieldCoordinate>,
     ): Int {
         val sourceSchema = SourceSchemaAdapter(world.schema)
-        fun canonicalField(coordinate: FieldCoordinate): ViaductSchema.ObjectField? =
-            sourceSchema.field(coordinate.typeName, coordinate.fieldName) as? ViaductSchema.ObjectField
+
+        fun canonicalField(coordinate: FieldCoordinate): ViaductSchema.ObjectField? = sourceSchema.field(coordinate.typeName, coordinate.fieldName) as? ViaductSchema.ObjectField
 
         fun depth(
             field: ViaductSchema.ObjectField,

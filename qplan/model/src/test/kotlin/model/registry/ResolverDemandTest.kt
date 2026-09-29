@@ -1,21 +1,23 @@
 package model.registry
 
-import viaduct.graphql.schema.ViaductSchema
-
-import model.requireQueryTypeDef
-import model.requireObjectField
-import model.requireField
-import model.requireType
-import model.Arguments
-import model.ObjectEngineResult
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+import kotlin.test.assertIs
+import kotlin.test.assertTrue
 import model.ArgumentResolutionError
+import model.Arguments
 import model.Fragment
+import model.ObjectEngineResult
 import model.Selection
-import model.SelectionForest
 import model.emptyFragmentOf
 import model.fieldExpressions
 import model.fragmentFrom
 import model.requireArg
+import model.requireField
+import model.requireObjectField
+import model.requireQueryTypeDef
+import model.requireType
 import model.selectionForestOf
 import model.testing.FieldResolverDefinition
 import model.testing.TestWorld
@@ -24,11 +26,7 @@ import model.testing.fromArgument
 import model.testing.fromObjectField
 import model.testing.fromQueryField
 import model.testing.nodeResolverOf
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
-import kotlin.test.assertIs
-import kotlin.test.assertTrue
+import viaduct.graphql.schema.ViaductSchema
 
 class ResolverDemandTest {
     @Test
@@ -420,8 +418,7 @@ class ResolverDemandTest {
     fun `rejects variable cycles`() = assertRejectedVariableCycle(mixedFragments = false)
 
     @Test
-    fun `rejects mixed object and Query field variable cycles`() =
-        assertRejectedVariableCycle(mixedFragments = true)
+    fun `rejects mixed object and Query field variable cycles`() = assertRejectedVariableCycle(mixedFragments = true)
 
     private fun assertRejectedVariableCycle(mixedFragments: Boolean) {
         val objectFragment =
@@ -903,7 +900,6 @@ class ResolverDemandTest {
         assertTrue(registry.mayDemandFrom(queryNode).isEmpty())
         assertTrue(registry.mayDemandFrom(userResolved).isEmpty())
         assertTrue(registry.mayDemandFrom(adminResolved).isEmpty())
-
     }
 
     @Test
@@ -1182,6 +1178,5 @@ class ResolverDemandTest {
                     )
                 },
             )
-
     }
 }

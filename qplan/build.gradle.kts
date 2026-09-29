@@ -147,11 +147,6 @@ tasks.named("check") {
 }
 
 subprojects {
-    // Temporarily disabled until qplan's existing formatting violations are addressed.
-    tasks.matching { it.name.contains("ktlint", ignoreCase = true) }.configureEach {
-        enabled = false
-    }
-
     plugins.withId("java-test-fixtures") {
         dependencies.add("testFixturesImplementation", libs.junit)
     }

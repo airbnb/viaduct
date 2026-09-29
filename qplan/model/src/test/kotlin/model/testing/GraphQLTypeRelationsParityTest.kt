@@ -1,12 +1,11 @@
 package model.testing
 
-import viaduct.graphql.schema.ViaductSchema
-
-import model.requireType
-import viaduct.graphql.utils.GraphQLTypeRelation
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import model.requireType
+import viaduct.graphql.schema.ViaductSchema
+import viaduct.graphql.utils.GraphQLTypeRelation
 
 class GraphQLTypeRelationsParityTest {
     private val schema = TestWorld.fromSDL(SCHEMA_SDL).schema as GJSchema
@@ -63,11 +62,9 @@ class GraphQLTypeRelationsParityTest {
             sourceType(second),
         )
 
-    private fun sourceType(typeName: String) =
-        schema.sourceCompositeType(compositeType(typeName))
+    private fun sourceType(typeName: String) = schema.sourceCompositeType(compositeType(typeName))
 
-    private fun compositeType(typeName: String): ViaductSchema.CompositeTypeDef =
-        schema.requireType(typeName) as ViaductSchema.CompositeTypeDef
+    private fun compositeType(typeName: String): ViaductSchema.CompositeTypeDef = schema.requireType(typeName) as ViaductSchema.CompositeTypeDef
 
     private companion object {
         val SCHEMA_SDL =

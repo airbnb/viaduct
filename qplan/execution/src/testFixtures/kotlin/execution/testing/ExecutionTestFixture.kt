@@ -251,11 +251,9 @@ private fun stripResolverDirectives(definition: Definition<*>): Definition<*> =
         else -> definition
     }
 
-private fun FieldDefinition.withoutResolverDirectives(): FieldDefinition =
-    transform { builder -> builder.directives(directives.withoutResolverDirectives()) }
+private fun FieldDefinition.withoutResolverDirectives(): FieldDefinition = transform { builder -> builder.directives(directives.withoutResolverDirectives()) }
 
-private fun List<Directive>.withoutResolverDirectives(): List<Directive> =
-    filterNot { directive -> directive.name in RESOLVER_DIRECTIVES }
+private fun List<Directive>.withoutResolverDirectives(): List<Directive> = filterNot { directive -> directive.name in RESOLVER_DIRECTIVES }
 
 private val RESOLVER_DIRECTIVES = setOf("resolver", "nodeResolver")
 

@@ -11,13 +11,13 @@ import model.merge
 import model.outputValue
 import model.requireQueryTypeDef
 import model.schemaType
-import semantics.shared.OrchestrationConstructionDemand
 import semantics.resolver26.CoroutineOrchestrationTaskBase
-import semantics.resolvers.closeOrchestrationConstructionDemand
-import semantics.shared.OEROccurrence
-import semantics.shared.Demand
-import semantics.shared.SharedOERContext
 import semantics.resolver26.installParentBackedgeFields
+import semantics.resolvers.closeOrchestrationConstructionDemand
+import semantics.shared.Demand
+import semantics.shared.OEROccurrence
+import semantics.shared.OrchestrationConstructionDemand
+import semantics.shared.SharedOERContext
 import viaduct.engine.api.EngineObjectData
 
 /** Closes one object's demand before passive descent, then prepares and dispatches its field work. */
@@ -34,8 +34,7 @@ internal class CoroutineOrchestrationTask private constructor(
             occurrence: OEROccurrence,
             source: EngineObjectData.Sync,
             constructionDemand: SelectionForest,
-        ): CoroutineOrchestrationTask =
-            create(operation, occurrence, source, Demand.checked(constructionDemand))
+        ): CoroutineOrchestrationTask = create(operation, occurrence, source, Demand.checked(constructionDemand))
 
         /** Retains checked and unchecked descendant demand through passive object boundaries. */
         fun create(
@@ -94,20 +93,19 @@ internal class CoroutineOrchestrationTask private constructor(
             ).any { (oer, constructionDemand) ->
                 val checkedKeys = constructionDemand.checked.byGroundKey().keys
                 oer.closedValueSelections.groundKeys().any { key ->
-                key !is ObjectEngineResult.ParentKey &&
-                    (
-                        !oer.source.isPresent(key.field.name) ||
-                            oer.source.outputValue(key.field.name) is RootFieldReferenceData ||
-                            (
-                                key in checkedKeys &&
-                                    operation.world.resolverRegistry.fieldChecker(key.field) != null
-                            )
-                    )
+                    key !is ObjectEngineResult.ParentKey &&
+                        (
+                            !oer.source.isPresent(key.field.name) ||
+                                oer.source.outputValue(key.field.name) is RootFieldReferenceData ||
+                                (
+                                    key in checkedKeys &&
+                                        operation.world.resolverRegistry.fieldChecker(key.field) != null
+                                )
+                        )
+                }
             }
-        }
 
-    override fun duplicateDispatchException(): RuntimeException =
-        IllegalStateException("Object orchestrated twice: ${objectOER.occurrence.path}")
+    override fun duplicateDispatchException(): RuntimeException = IllegalStateException("Object orchestrated twice: ${objectOER.occurrence.path}")
 
     override fun prepareAndDispatchFieldWork() {
         val fieldPublications = CoroutineFieldResolverTask.prepareAll(this)
@@ -150,9 +148,7 @@ internal class CoroutineOrchestrationTask private constructor(
         }
     }
 
-    private fun queryFragmentOwners(
-        oer: SharedOERContext,
-    ): List<Pair<ObjectEngineResult.GroundKey, ResolverOccurrenceId>> =
+    private fun queryFragmentOwners(oer: SharedOERContext): List<Pair<ObjectEngineResult.GroundKey, ResolverOccurrenceId>> =
         oer.closedValueSelections
             .byGroundKey()
             .keys

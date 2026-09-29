@@ -9,7 +9,6 @@ import kotlin.test.assertTrue
 import viaduct.engine.api.mocks.EngineTestModule
 import viaduct.engine.api.mocks.MockFieldBatchResolverExecutor
 import viaduct.engine.api.mocks.MockFieldUnbatchedResolverExecutor
-import viaduct.engine.api.mocks.createRSS
 import viaduct.engine.api.mocks.createEngineObjectData
 import viaduct.engine.api.mocks.fetchAs
 import viaduct.engine.runtime.execution.query

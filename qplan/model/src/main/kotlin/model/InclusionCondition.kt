@@ -14,9 +14,7 @@ sealed interface InclusionCondition {
 
     fun usedVariables(): Set<Arguments.Variable>
 
-    fun mapVariables(
-        transform: (Arguments.Variable) -> Arguments.Variable,
-    ): InclusionCondition
+    fun mapVariables(transform: (Arguments.Variable) -> Arguments.Variable): InclusionCondition
 
     data object Always : InclusionCondition {
         override suspend fun include(binding: suspend (Arguments.Variable) -> Boolean) = true
@@ -27,9 +25,7 @@ sealed interface InclusionCondition {
 
         override fun usedVariables(): Set<Arguments.Variable> = emptySet()
 
-        override fun mapVariables(
-            transform: (Arguments.Variable) -> Arguments.Variable,
-        ): InclusionCondition = this
+        override fun mapVariables(transform: (Arguments.Variable) -> Arguments.Variable): InclusionCondition = this
     }
 
     data object Never : InclusionCondition {
@@ -41,73 +37,55 @@ sealed interface InclusionCondition {
 
         override fun usedVariables(): Set<Arguments.Variable> = emptySet()
 
-        override fun mapVariables(
-            transform: (Arguments.Variable) -> Arguments.Variable,
-        ): InclusionCondition = this
+        override fun mapVariables(transform: (Arguments.Variable) -> Arguments.Variable): InclusionCondition = this
     }
 
     data class Requires(
         val values: Map<Arguments.Variable, Boolean>,
     ) : InclusionCondition {
-        override suspend fun include(
-            binding: suspend (Arguments.Variable) -> Boolean,
-        ): Boolean {
+        override suspend fun include(binding: suspend (Arguments.Variable) -> Boolean): Boolean {
             values.forEach { (variable, required) ->
                 if (binding(variable) != required) return false
             }
             return true
         }
 
-        override fun include(bindings: Map<Arguments.Variable, Boolean>): Boolean =
-            values.all { (variable, required) -> bindings.getValue(variable) == required }
+        override fun include(bindings: Map<Arguments.Variable, Boolean>): Boolean = values.all { (variable, required) -> bindings.getValue(variable) == required }
 
-        override fun includeWith(binding: (Arguments.Variable) -> Boolean): Boolean =
-            values.all { (variable, required) -> binding(variable) == required }
+        override fun includeWith(binding: (Arguments.Variable) -> Boolean): Boolean = values.all { (variable, required) -> binding(variable) == required }
 
         override fun usedVariables(): Set<Arguments.Variable> = values.keys
 
-        override fun mapVariables(
-            transform: (Arguments.Variable) -> Arguments.Variable,
-        ): InclusionCondition =
+        override fun mapVariables(transform: (Arguments.Variable) -> Arguments.Variable): InclusionCondition =
             values.entries.fold(Always as InclusionCondition) { condition, (variable, required) ->
                 condition.and(requires(mapOf(transform(variable) to required)))
             }
     }
 
     companion object {
-        fun requires(values: Map<Arguments.Variable, Boolean>): InclusionCondition =
-            if (values.isEmpty()) Always else Requires(values.toMap())
+        fun requires(values: Map<Arguments.Variable, Boolean>): InclusionCondition = if (values.isEmpty()) Always else Requires(values.toMap())
 
-        fun anyOf(conditions: Iterable<InclusionCondition>): InclusionCondition =
-            disjunction(conditions.toList())
+        fun anyOf(conditions: Iterable<InclusionCondition>): InclusionCondition = disjunction(conditions.toList())
     }
 }
 
 private class AnyOf(
     val alternatives: List<InclusionCondition>,
 ) : InclusionCondition {
-    override suspend fun include(
-        binding: suspend (Arguments.Variable) -> Boolean,
-    ): Boolean {
+    override suspend fun include(binding: suspend (Arguments.Variable) -> Boolean): Boolean {
         alternatives.forEach { alternative ->
             if (alternative.include(binding)) return true
         }
         return false
     }
 
-    override fun include(bindings: Map<Arguments.Variable, Boolean>): Boolean =
-        alternatives.any { alternative -> alternative.include(bindings) }
+    override fun include(bindings: Map<Arguments.Variable, Boolean>): Boolean = alternatives.any { alternative -> alternative.include(bindings) }
 
-    override fun includeWith(binding: (Arguments.Variable) -> Boolean): Boolean =
-        alternatives.any { alternative -> alternative.includeWith(binding) }
+    override fun includeWith(binding: (Arguments.Variable) -> Boolean): Boolean = alternatives.any { alternative -> alternative.includeWith(binding) }
 
-    override fun usedVariables(): Set<Arguments.Variable> =
-        alternatives.flatMapTo(linkedSetOf()) { it.usedVariables() }
+    override fun usedVariables(): Set<Arguments.Variable> = alternatives.flatMapTo(linkedSetOf()) { it.usedVariables() }
 
-    override fun mapVariables(
-        transform: (Arguments.Variable) -> Arguments.Variable,
-    ): InclusionCondition =
-        disjunction(alternatives.map { it.mapVariables(transform) })
+    override fun mapVariables(transform: (Arguments.Variable) -> Arguments.Variable): InclusionCondition = disjunction(alternatives.map { it.mapVariables(transform) })
 }
 
 private fun conjunction(
@@ -152,8 +130,7 @@ private fun disjunction(conditions: List<InclusionCondition>): InclusionConditio
     }
 }
 
-internal fun InclusionCondition.alternatives(): List<InclusionCondition> =
-    if (this is AnyOf) alternatives else listOf(this)
+internal fun InclusionCondition.alternatives(): List<InclusionCondition> = if (this is AnyOf) alternatives else listOf(this)
 
 /** Returns the normalized, satisfiable conjunctions whose disjunction is this condition. */
 fun InclusionCondition.satisfiableAlternatives(): List<InclusionCondition> =

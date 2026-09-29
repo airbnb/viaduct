@@ -2,6 +2,12 @@
 
 package semantics.shared
 
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
@@ -13,12 +19,6 @@ import model.ResolverOccurrenceId
 import model.requireObjectField
 import model.requireQueryTypeDef
 import model.testing.TestWorld
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
-import kotlin.test.assertFalse
-import kotlin.test.assertNull
-import kotlin.test.assertTrue
 
 class OperationStateIsolationTest {
     private val world =

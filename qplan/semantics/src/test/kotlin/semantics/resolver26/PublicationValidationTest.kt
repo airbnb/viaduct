@@ -107,7 +107,10 @@ class PublicationValidationTest : Resolver26DispatcherResource {
                     val providerReads = AtomicInteger()
                     val cycleState = CycleCheckState.create()
                     val cycleChecker = object : CycleCheckState by cycleState {
-                        override fun cycleCheck(reader: CycleTask, slot: CycleSlot) {
+                        override fun cycleCheck(
+                            reader: CycleTask,
+                            slot: CycleSlot
+                        ) {
                             if ((reader.path.lastOrNull() as? ObjectEngineResult.ObjectKey)?.field?.name == "invalid") {
                                 providerReads.incrementAndGet()
                             }
@@ -161,10 +164,10 @@ class PublicationValidationTest : Resolver26DispatcherResource {
             }
         }
 
-    private fun recording(invoked: ConcurrentLinkedQueue<String>) = object : ResolverObserver {
-        override fun onResolverInvocation(observation: ResolverInvocationObservation) {
-            invoked += observation.field.name
+    private fun recording(invoked: ConcurrentLinkedQueue<String>) =
+        object : ResolverObserver {
+            override fun onResolverInvocation(observation: ResolverInvocationObservation) {
+                invoked += observation.field.name
+            }
         }
-    }
-
 }

@@ -1,15 +1,15 @@
 package semantics.resolver26
 
-import semantics.shared.ResolverInvocationObservation
-import model.operationSelectionsFrom
-import model.testing.TestWorld
-import semantics.shared.SharedOperationContext
-import semantics.shared.ResolverObserver
 import kotlin.test.Test
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
+import model.operationSelectionsFrom
+import model.testing.TestWorld
+import semantics.shared.ResolverInvocationObservation
+import semantics.shared.ResolverObserver
+import semantics.shared.SharedOperationContext
 
 class ParentCoverageMetricsTest : Resolver26DispatcherResource {
     @Test

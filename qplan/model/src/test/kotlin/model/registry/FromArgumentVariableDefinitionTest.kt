@@ -1,5 +1,7 @@
 package model.registry
 
+import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import model.Arguments
 import model.inputType
 import model.requireArg
@@ -9,8 +11,6 @@ import model.requireType
 import model.testing.TestWorld
 import org.junit.jupiter.api.Test
 import viaduct.graphql.schema.ViaductSchema
-import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
 
 class FromArgumentVariableDefinitionTest {
     private val world =

@@ -9,8 +9,8 @@ import model.ResolverOutputData
 import model.RootFieldReferenceData
 import model.SelectionForest
 import model.merge
-import semantics.shared.OEROccurrence
 import semantics.shared.Demand
+import semantics.shared.OEROccurrence
 import semantics.shared.SharedPassiveValueResolutionLogic
 import viaduct.engine.api.EngineObjectData
 import viaduct.graphql.schema.ViaductSchema

@@ -1,22 +1,17 @@
 package model.testing
 
-import viaduct.graphql.schema.ViaductSchema
-
-import model.Arguments
-import model.ObjectEngineResult
 import graphql.language.ArrayValue
 import graphql.language.AstPrinter
 import graphql.language.BooleanValue
 import graphql.language.Definition
 import graphql.language.Directive
-import graphql.language.Document
 import graphql.language.EnumValue
 import graphql.language.Field
 import graphql.language.FieldDefinition
 import graphql.language.FloatValue
 import graphql.language.IntValue
-import graphql.language.NullValue
 import graphql.language.Node
+import graphql.language.NullValue
 import graphql.language.ObjectField
 import graphql.language.ObjectTypeDefinition
 import graphql.language.ObjectTypeExtensionDefinition
@@ -27,8 +22,9 @@ import graphql.language.VariableReference
 import graphql.parser.Parser
 import java.lang.Math.addExact
 import java.math.BigInteger
-import model.EngineInputData
+import model.Arguments
 import model.EngineErrorData
+import model.EngineInputData
 import model.EngineOutputData
 import model.Fragment
 import model.SourceSchemaAdapter
@@ -36,10 +32,9 @@ import model.arg
 import model.emptyFragmentOf
 import model.fragmentFrom
 import model.objectOf
-import model.requireObjectField
 import model.requireType
-import model.schemaType
 import viaduct.engine.api.EngineObjectData
+import viaduct.graphql.schema.ViaductSchema
 
 /**
  * Compiles schema-embedded resolver fixtures into the existing test-world composition API.
@@ -49,14 +44,11 @@ internal class ResolverTestDsl private constructor(
     private val fieldDefinitions: List<DslFieldResolver>,
     private val nodeDefinitions: List<DslNodeResolver>,
 ) {
-    fun nodeResolvers(schema: ViaductSchema): Map<ViaductSchema.Object, NodeResolverFunction> =
-        Compiler(schema, fieldDefinitions, nodeDefinitions).nodeResolvers()
+    fun nodeResolvers(schema: ViaductSchema): Map<ViaductSchema.Object, NodeResolverFunction> = Compiler(schema, fieldDefinitions, nodeDefinitions).nodeResolvers()
 
-    fun fieldResolvers(schema: ViaductSchema): Map<ViaductSchema.Field, FieldResolverDefinition> =
-        Compiler(schema, fieldDefinitions, nodeDefinitions).fieldResolvers()
+    fun fieldResolvers(schema: ViaductSchema): Map<ViaductSchema.Field, FieldResolverDefinition> = Compiler(schema, fieldDefinitions, nodeDefinitions).fieldResolvers()
 
-    fun variableProviders(schema: ViaductSchema): Map<Arguments.Variable, VariableDeclaration> =
-        Compiler(schema, fieldDefinitions, nodeDefinitions).variableProviders()
+    fun variableProviders(schema: ViaductSchema): Map<Arguments.Variable, VariableDeclaration> = Compiler(schema, fieldDefinitions, nodeDefinitions).variableProviders()
 
     companion object {
         fun parse(source: String): ResolverTestDsl {
@@ -232,9 +224,7 @@ internal class ResolverTestDsl private constructor(
             }
         }
 
-        private fun parseProviderVariables(
-            value: GraphQLValue<*>,
-        ): Map<String, GraphQLValue<*>> {
+        private fun parseProviderVariables(value: GraphQLValue<*>): Map<String, GraphQLValue<*>> {
             require(value is ObjectValue) {
                 "@$RESOLVER_DIRECTIVE.$PROVIDER_VARS_ARGUMENT must be an object"
             }
@@ -266,11 +256,9 @@ internal class ResolverTestDsl private constructor(
                 else -> definition
             }
 
-        private fun FieldDefinition.withoutDslDirectives(): FieldDefinition =
-            transform { builder -> builder.directives(directives.withoutDslDirectives()) }
+        private fun FieldDefinition.withoutDslDirectives(): FieldDefinition = transform { builder -> builder.directives(directives.withoutDslDirectives()) }
 
-        private fun List<Directive>.withoutDslDirectives(): List<Directive> =
-            filterNot { it.name == RESOLVER_DIRECTIVE || it.name == NODE_RESOLVER_DIRECTIVE }
+        private fun List<Directive>.withoutDslDirectives(): List<Directive> = filterNot { it.name == RESOLVER_DIRECTIVE || it.name == NODE_RESOLVER_DIRECTIVE }
 
         private fun requireOnlyArguments(
             directive: Directive,
@@ -290,8 +278,7 @@ internal class ResolverTestDsl private constructor(
                     "@${this.name} requires $name, including when null",
                 )
 
-        private fun Directive.argument(name: String): GraphQLValue<*>? =
-            arguments.singleOrNull { it.name == name }?.value
+        private fun Directive.argument(name: String): GraphQLValue<*>? = arguments.singleOrNull { it.name == name }?.value
 
         private fun parseId(value: GraphQLValue<*>): String =
             when (value) {
@@ -348,34 +335,34 @@ private class Compiler(
     fun fieldResolvers(): Map<ViaductSchema.Field, FieldResolverDefinition> {
         val compiled = mutableMapOf<ViaductSchema.Field, FieldResolverDefinition>()
         fieldDefinitions.forEach { definition ->
-                val field = sourceSchema.field(definition.typeName, definition.fieldName)
-                require(field is ViaductSchema.ObjectField) {
-                    "@$RESOLVER_DIRECTIVE requires a concrete object field: " +
-                        "${definition.typeName}.${definition.fieldName}"
+            val field = sourceSchema.field(definition.typeName, definition.fieldName)
+            require(field is ViaductSchema.ObjectField) {
+                "@$RESOLVER_DIRECTIVE requires a concrete object field: " +
+                    "${definition.typeName}.${definition.fieldName}"
+            }
+            val fragment = objectFragment(field, definition.of)
+            val resolver =
+                fieldResolverOf(fragment) { input, arguments ->
+                    evaluator.evaluateFieldResult(
+                        field = field,
+                        result = definition.result,
+                        input = input,
+                        arguments = arguments,
+                    )
                 }
-                val fragment = objectFragment(field, definition.of)
-                val resolver =
-                    fieldResolverOf(fragment) { input, arguments ->
-                        evaluator.evaluateFieldResult(
+            compiled[field] =
+                if (definition.providerVariables.isEmpty()) {
+                    resolver
+                } else {
+                    resolver.withVariablesProvider(definition.providerVariables.keys) { arguments ->
+                        evaluator.evaluateProviderVariables(
                             field = field,
-                            result = definition.result,
-                            input = input,
+                            variables = definition.providerVariables,
                             arguments = arguments,
                         )
                     }
-                compiled[field] =
-                    if (definition.providerVariables.isEmpty()) {
-                        resolver
-                    } else {
-                        resolver.withVariablesProvider(definition.providerVariables.keys) { arguments ->
-                            evaluator.evaluateProviderVariables(
-                                field = field,
-                                variables = definition.providerVariables,
-                                arguments = arguments,
-                            )
-                        }
-                    }
-            }
+                }
+        }
 
         val queryNode = sourceSchema.field("Query", "node")
         require(queryNode is ViaductSchema.ObjectField)
@@ -485,8 +472,7 @@ private class Compiler(
     private fun objectFragmentSource(
         field: ViaductSchema.ObjectField,
         source: String,
-    ): String =
-        "fragment ResolverTestDsl on ${field.containingDef.name} { $source }"
+    ): String = "fragment ResolverTestDsl on ${field.containingDef.name} { $source }"
 
     private fun preparedObjectFragment(
         field: ViaductSchema.ObjectField,
@@ -900,7 +886,6 @@ private class ResultEvaluator(
             is IntValue -> value.value.toString()
             else -> throw IllegalArgumentException("Node id must be an ID literal")
         }
-
 }
 
 private data class EvaluationContext(
@@ -951,8 +936,7 @@ private fun BigInteger.toIntExact(context: String): Int =
         throw IllegalArgumentException("$context is outside the 32-bit range: $this")
     }
 
-private fun StringValue.requiredValue(): String =
-    requireNotNull(value) { "GraphQL string literal has no value" }
+private fun StringValue.requiredValue(): String = requireNotNull(value) { "GraphQL string literal has no value" }
 
 private fun ObjectValue.uniqueFields(context: String): Map<String, GraphQLValue<*>> {
     require(objectFields.map(ObjectField::getName).distinct().size == objectFields.size) {

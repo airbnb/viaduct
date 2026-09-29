@@ -2,132 +2,132 @@
 
 package semantics.arbitrary
 
-import semantics.resolvers.resolver01.resolve as resolveObservedFields
-import kotlinx.coroutines.runBlocking
-
-import model.fragmentFrom
-import model.Arguments
-import model.Assumptions
-import viaduct.engine.api.EngineObjectData
 import io.kotest.property.Arb
 import io.kotest.property.RandomSource
 import io.kotest.property.arbitrary.next
-import model.engineObjectDataOf
-import model.objectOf
-import model.requireObjectField
-import model.requireQueryTypeDef
-import model.registry.ResolutionExecutionContext
-import model.schemaType
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
+import kotlinx.coroutines.runBlocking
+import model.Arguments
+import model.Assumptions
+import model.engineObjectDataOf
+import model.fragmentFrom
+import model.objectOf
+import model.registry.ResolutionExecutionContext
+import model.requireObjectField
+import model.requireQueryTypeDef
+import semantics.resolvers.resolver01.resolve as resolveObservedFields
+import viaduct.engine.api.EngineObjectData
 
 class ResolverCoverageAdversarialTest {
     @Test
-    fun `generated schemas include nested output lists`() = runBlocking {
-        val config =
-            Config.default +
-                (ArgumentsEnabled to false) +
-                (InterfacesEnabled to false) +
-                (UnionsEnabled to false) +
-                (ListsEnabled to true) +
-                (ListTypeWeight to 1.0) +
-                (MaxOutputListDepth to 2) +
-                (ListValueSize to 1..1) +
-                (NullValueWeight to 0.0) +
-                (ErrorValueWeight to 0.0) +
-                (NodeResolversEnabled to false) +
-                (RecursiveOutputEdgesEnabled to false) +
-                (SchemaObjectCount to 1..1) +
-                (ObjectFieldCount to 1..1) +
-                (QueryFieldCount to 1..1)
-        val random = RandomSource.seeded(817_207L)
-        val schema = Arb.schema(config).next(random)
-        val field = schema.query.fields.single()
-
-        assertEquals(2, field.type.listDepth)
-        assertTrue(schema.sdl.contains("[[${field.type.namedType}"))
-
-        val registry = schema.registry(config).next(random)
-        val world = registry.world(schema).assumptions
-        val canonicalField = world.schema.requireObjectField("Query", field.name)
-        val value =
-            world.resolverRegistry.resolver(canonicalField)(
-                input = world.schema.objectOf("Query"),
-                queryValue = engineObjectDataOf(world.schema.requireQueryTypeDef()),
-                arguments = Arguments.Resolved.of(canonicalField, emptyMap()),
-                selectiveResolvers = false,
-                executionContext = ResolutionExecutionContext.Unsupported,
-            )
-        val outer = assertIs<List<*>>(value)
-        val inner = assertIs<List<*>>(outer.single())
-        assertIs<EngineObjectData.Sync>(inner.single())
-    }
-
-    @Test
-    fun `generated field and node resolvers retain distinct singular and list witness fields`() = runBlocking {
-        listOf(false, true).forEachIndexed { index, listOutput ->
+    fun `generated schemas include nested output lists`() =
+        runBlocking {
             val config =
                 Config.default +
                     (ArgumentsEnabled to false) +
-                    (InterfacesEnabled to true) +
-                    (ListsEnabled to listOutput) +
-                    (ListTypeWeight to if (listOutput) 1.0 else 0.0) +
-                    (MaxOutputListDepth to 1) +
+                    (InterfacesEnabled to false) +
+                    (UnionsEnabled to false) +
+                    (ListsEnabled to true) +
+                    (ListTypeWeight to 1.0) +
+                    (MaxOutputListDepth to 2) +
+                    (ListValueSize to 1..1) +
                     (NullValueWeight to 0.0) +
                     (ErrorValueWeight to 0.0) +
-                    (NodeResolversEnabled to true) +
-                    (ResolverFragmentsEnabled to false) +
-                    (SchemaObjectCount to 5..7) +
-                    (QueryFieldCount to 4..6)
-            val random = RandomSource.seeded(817_208L + index)
-            val generated =
-                List(200) {
-                    val schema = Arb.schema(config).next(random)
-                    val registry = schema.registry(config).next(random)
-                    val sourceField =
-                        registry.fieldResolverCoordinates.firstOrNull { coordinate ->
-                            val field =
-                                schema
-                                    .objectNamed(coordinate.typeName)
-                                    .fields
-                                    .single { candidate -> candidate.name == coordinate.fieldName }
-                            coordinate.typeName == "Query" &&
-                                field.type.listDepth == (if (listOutput) 1 else 0) &&
-                                schema.isComposite(field.type.namedType) &&
-                                schema.possibleObjects(field.type.namedType)
-                                    .all { possible ->
-                                        possible.name in registry.nodeResolverTypes
-                                    }
-                        }
-                    sourceField?.let { Triple(schema, registry, it) }
-                }.firstNotNullOfOrNull { it }
-                    ?: error("Could not generate a Node-valued resolver with list=$listOutput")
-            val (schema, registry, sourceField) = generated
-            val world = registry.world(schema).assumptions
-            val producerField =
-                world.schema.requireObjectField(sourceField.typeName, sourceField.fieldName)
-            registry.clearResolutionWitness()
-            val operation = semantics.shared.SharedOperationContext.create(
-                world = Assumptions.of(world.schema, world.resolverRegistry, false),
-                resolverObserver = registry.resolverObserver(),
-            )
-            operation.resolveObservedFields(
-                world.fragmentFrom("fragment Test on Query { ${producerField.name} { id } }").subselections,
-            )
+                    (NodeResolversEnabled to false) +
+                    (RecursiveOutputEdgesEnabled to false) +
+                    (SchemaObjectCount to 1..1) +
+                    (ObjectFieldCount to 1..1) +
+                    (QueryFieldCount to 1..1)
+            val random = RandomSource.seeded(817_207L)
+            val schema = Arb.schema(config).next(random)
+            val field = schema.query.fields.single()
 
-            assertEquals(
-                listOf(
-                    sourceField,
-                    FieldCoordinate("Query", "node"),
-                ),
-                registry.resolutionWitness().applications.map { application ->
-                    application.key.field
-                },
-            )
+            assertEquals(2, field.type.listDepth)
+            assertTrue(schema.sdl.contains("[[${field.type.namedType}"))
+
+            val registry = schema.registry(config).next(random)
+            val world = registry.world(schema).assumptions
+            val canonicalField = world.schema.requireObjectField("Query", field.name)
+            val value =
+                world.resolverRegistry.resolver(canonicalField)(
+                    input = world.schema.objectOf("Query"),
+                    queryValue = engineObjectDataOf(world.schema.requireQueryTypeDef()),
+                    arguments = Arguments.Resolved.of(canonicalField, emptyMap()),
+                    selectiveResolvers = false,
+                    executionContext = ResolutionExecutionContext.Unsupported,
+                )
+            val outer = assertIs<List<*>>(value)
+            val inner = assertIs<List<*>>(outer.single())
+            assertIs<EngineObjectData.Sync>(inner.single())
         }
-    }
+
+    @Test
+    fun `generated field and node resolvers retain distinct singular and list witness fields`() =
+        runBlocking {
+            listOf(false, true).forEachIndexed { index, listOutput ->
+                val config =
+                    Config.default +
+                        (ArgumentsEnabled to false) +
+                        (InterfacesEnabled to true) +
+                        (ListsEnabled to listOutput) +
+                        (ListTypeWeight to if (listOutput) 1.0 else 0.0) +
+                        (MaxOutputListDepth to 1) +
+                        (NullValueWeight to 0.0) +
+                        (ErrorValueWeight to 0.0) +
+                        (NodeResolversEnabled to true) +
+                        (ResolverFragmentsEnabled to false) +
+                        (SchemaObjectCount to 5..7) +
+                        (QueryFieldCount to 4..6)
+                val random = RandomSource.seeded(817_208L + index)
+                val generated =
+                    List(200) {
+                        val schema = Arb.schema(config).next(random)
+                        val registry = schema.registry(config).next(random)
+                        val sourceField =
+                            registry.fieldResolverCoordinates.firstOrNull { coordinate ->
+                                val field =
+                                    schema
+                                        .objectNamed(coordinate.typeName)
+                                        .fields
+                                        .single { candidate -> candidate.name == coordinate.fieldName }
+                                coordinate.typeName == "Query" &&
+                                    field.type.listDepth == (if (listOutput) 1 else 0) &&
+                                    schema.isComposite(field.type.namedType) &&
+                                    schema.possibleObjects(field.type.namedType)
+                                        .all { possible ->
+                                            possible.name in registry.nodeResolverTypes
+                                        }
+                            }
+                        sourceField?.let { Triple(schema, registry, it) }
+                    }.firstNotNullOfOrNull { it }
+                        ?: error("Could not generate a Node-valued resolver with list=$listOutput")
+                val (schema, registry, sourceField) = generated
+                val world = registry.world(schema).assumptions
+                val producerField =
+                    world.schema.requireObjectField(sourceField.typeName, sourceField.fieldName)
+                registry.clearResolutionWitness()
+                val operation = semantics.shared.SharedOperationContext.create(
+                    world = Assumptions.of(world.schema, world.resolverRegistry, false),
+                    resolverObserver = registry.resolverObserver(),
+                )
+                operation.resolveObservedFields(
+                    world.fragmentFrom("fragment Test on Query { ${producerField.name} { id } }").subselections,
+                )
+
+                assertEquals(
+                    listOf(
+                        sourceField,
+                        FieldCoordinate("Query", "node"),
+                    ),
+                    registry.resolutionWitness().applications.map { application ->
+                        application.key.field
+                    },
+                )
+            }
+        }
 
     @Test
     fun `Resolver03 witness profile activates polymorphic passive deepening`() {

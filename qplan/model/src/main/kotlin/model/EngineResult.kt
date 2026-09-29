@@ -1,12 +1,10 @@
 package model
 
+import java.util.IdentityHashMap
 import kotlinx.coroutines.CancellationException
+import model.invariants.conformsToResultSchemaType
 import viaduct.engine.api.CheckerResult
 import viaduct.graphql.schema.ViaductSchema
-
-import java.util.IdentityHashMap
-
-import model.invariants.conformsToResultSchemaType
 
 /**
  * A finite field-resolution result whose only reference edges are distinguished parent fields.
@@ -48,9 +46,7 @@ sealed interface PathComponent
  * A null path or any path containing a [ListEngineResult.Index] has no corresponding selection
  * path and yields null.
  */
-internal fun List<PathComponent>?.toSelectionPath():
-    List<ObjectEngineResult.ObjectKey>? =
-    this?.map { component -> component as? ObjectEngineResult.ObjectKey ?: return null }
+internal fun List<PathComponent>?.toSelectionPath(): List<ObjectEngineResult.ObjectKey>? = this?.map { component -> component as? ObjectEngineResult.ObjectKey ?: return null }
 
 /**
  * One result occurrence with one write-once activation decision and independent write-once value
@@ -271,8 +267,7 @@ sealed interface ObjectEngineResult {
         override val arguments: Arguments.Resolved
 
         companion object {
-            fun of(field: ViaductSchema.ObjectField): ParentKey =
-                of(field, argumentsOfGround(emptyMap()))
+            fun of(field: ViaductSchema.ObjectField): ParentKey = of(field, argumentsOfGround(emptyMap()))
 
             fun of(
                 field: ViaductSchema.ObjectField,
@@ -557,9 +552,7 @@ private class CompletedResultComparison {
     }
 }
 
-private fun CheckerResult?.hasSameCompletedCheckerResultAs(
-    other: CheckerResult?,
-): Boolean =
+private fun CheckerResult?.hasSameCompletedCheckerResultAs(other: CheckerResult?): Boolean =
     when {
         this is CheckerResult.Error -> other is CheckerResult.Error
         this === CheckerResult.Success -> other === CheckerResult.Success
@@ -626,7 +619,7 @@ private fun EngineResult.containsParentBackedge(): Boolean =
                 keys.any { key ->
                     val cell = getCell(key)
                     cell.implementation.isActivated &&
-                    cell.value.get()?.containsParentBackedge() == true
+                        cell.value.get()?.containsParentBackedge() == true
                 }
         is ListEngineResult ->
             any { cell -> cell.value.get()?.containsParentBackedge() == true }
@@ -884,7 +877,6 @@ private class ObjectResultImpl(
             }
         }
     }
-
 }
 
 private class ObjectCellStore(
@@ -905,8 +897,7 @@ private class ObjectCellStore(
 
     fun isSet(field: ObjectEngineResult.ObjectKey): Boolean = synchronized(lock) { field in cells }
 
-    fun readOrNull(field: ObjectEngineResult.ObjectKey): EngineResultCell? =
-        synchronized(lock) { cells[field] }
+    fun readOrNull(field: ObjectEngineResult.ObjectKey): EngineResultCell? = synchronized(lock) { cells[field] }
 
     fun reserve(field: ObjectEngineResult.ObjectKey): EngineResultCell =
         synchronized(lock) {
@@ -1224,8 +1215,7 @@ private class ActivationAwareReservablePromise<T>(
         return delegate.cancel(cause)
     }
 
-    override fun freeze(cause: () -> Exception): Exception? =
-        delegate.freeze(cause)?.also(cell::failActivation)
+    override fun freeze(cause: () -> Exception): Exception? = delegate.freeze(cause)?.also(cell::failActivation)
 }
 
 private fun <T> activationAwareReservablePromise(

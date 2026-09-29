@@ -1,7 +1,5 @@
 package model.testing
 
-import viaduct.graphql.schema.ViaductSchema
-
 import model.Arguments
 import model.InclusionCondition
 import model.Selection
@@ -10,8 +8,9 @@ import model.registry.FieldValueResolver
 import model.registry.ProviderFragment
 import model.registry.ResolverTarget
 import model.registry.VariableDefinition
-import model.variables
 import model.requireField
+import model.variables
+import viaduct.graphql.schema.ViaductSchema
 
 /**
  * Validates the argument-insensitive structural branch order before semantic reasoning begins.
@@ -30,8 +29,7 @@ internal class BranchOrderValidator(
         data class ResolverInput(
             val resolver: ViaductSchema.ObjectField,
         ) : EdgeReason {
-            override fun describe(): String =
-                "resolver ${resolver.coordinate()} requires the branch"
+            override fun describe(): String = "resolver ${resolver.coordinate()} requires the branch"
         }
 
         data class VariableProduction(
@@ -84,7 +82,9 @@ internal class BranchOrderValidator(
                     if (
                         definition !is VariableDefinition.FromField ||
                         definition.providerFragment != ProviderFragment.OBJECT
-                    ) return@variables
+                    ) {
+                        return@variables
+                    }
                     val providerPath = definition.path
                     val type = variable.fieldValueResolverField.containingDef
                     val graph = graphs.getValue(type)
@@ -101,13 +101,13 @@ internal class BranchOrderValidator(
                             usePaths.forEach { usePath ->
                                 additions +=
                                     Edge(production, useBranch) to
-                                        EdgeReason.VariableProduction(
-                                            variable = variable,
-                                            providerPath = renderedProviderPath,
-                                            productionPath =
-                                                productionPath.joinToString(" -> ") { it.name },
-                                            usePath = usePath,
-                                        )
+                                    EdgeReason.VariableProduction(
+                                        variable = variable,
+                                        providerPath = renderedProviderPath,
+                                        productionPath =
+                                            productionPath.joinToString(" -> ") { it.name },
+                                        usePath = usePath,
+                                    )
                             }
                         }
                     }
@@ -139,9 +139,7 @@ internal class BranchOrderValidator(
             return isNew
         }
 
-        fun prerequisitePathsTo(
-            branch: ViaductSchema.ObjectField,
-        ): Map<ViaductSchema.ObjectField, List<ViaductSchema.ObjectField>> {
+        fun prerequisitePathsTo(branch: ViaductSchema.ObjectField): Map<ViaductSchema.ObjectField, List<ViaductSchema.ObjectField>> {
             val result = linkedMapOf(branch to listOf(branch))
             val pending = ArrayDeque<ViaductSchema.ObjectField>()
             pending += branch
@@ -252,5 +250,4 @@ private fun Selection.pathsContaining(
     return result
 }
 
-private fun ViaductSchema.ObjectField.coordinate(): String =
-    "${containingDef.name}/$name"
+private fun ViaductSchema.ObjectField.coordinate(): String = "${containingDef.name}/$name"

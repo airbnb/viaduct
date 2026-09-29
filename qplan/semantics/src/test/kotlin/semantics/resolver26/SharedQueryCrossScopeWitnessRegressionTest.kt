@@ -8,13 +8,13 @@ import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
 import model.ObjectEngineResult
 import model.ResolverOccurrenceId
-import model.merge
-import model.requireQueryTypeDef
 import model.emptyFragmentOf
 import model.fragmentFrom
+import model.merge
 import model.objectOf
 import model.outputValue
 import model.requireObjectField
+import model.requireQueryTypeDef
 import model.testing.TestWorld
 import model.testing.fieldResolverOf
 import semantics.arbitrary.FieldCoordinate
@@ -138,8 +138,11 @@ class SharedQueryCrossScopeWitnessRegressionTest : Resolver26DispatcherResource 
         }
         val operation = SharedOperationContext.create(world.assumptions, resolverObserver = observer)
         val selections = world.assumptions.fragmentFrom(
-            if (sameScope) "fragment Test on Query { items { computed sibling } }"
-            else "fragment Test on Query { items { computed } }",
+            if (sameScope) {
+                "fragment Test on Query { items { computed sibling } }"
+            } else {
+                "fragment Test on Query { items { computed } }"
+            },
         ).subselections.merge(world.assumptions.schema.requireQueryTypeDef())
         val result = operation.resolveWithTestDispatcher(selections)
         return Run(operation, observer, result, selections, log.snapshot(), events.toList())

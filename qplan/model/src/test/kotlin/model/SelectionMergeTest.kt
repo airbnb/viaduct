@@ -1,11 +1,5 @@
 package model
 
-import model.registry.ResolverTarget
-
-import viaduct.graphql.schema.ViaductSchema
-
-import model.testing.TestWorld
-import model.testing.testRoot
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -14,6 +8,10 @@ import kotlin.test.assertIs
 import kotlin.test.assertNotEquals
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
+import model.registry.ResolverTarget
+import model.testing.TestWorld
+import model.testing.testRoot
+import viaduct.graphql.schema.ViaductSchema
 
 class SelectionMergeTest {
     @Test
@@ -406,9 +404,7 @@ class SelectionMergeTest {
     }
 }
 
-private fun Arguments.Variable.instanceAt(
-    path: List<PathComponent>,
-): Arguments.Variable =
+private fun Arguments.Variable.instanceAt(path: List<PathComponent>): Arguments.Variable =
     instantiate(
         ResolverOccurrenceId.at((target as ResolverTarget.FieldTarget).field.testRoot(), path),
     )

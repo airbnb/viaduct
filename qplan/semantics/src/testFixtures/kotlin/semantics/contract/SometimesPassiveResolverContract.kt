@@ -1,7 +1,7 @@
 package semantics.contract
 
-import semantics.shared.ResolverInvocationObservation
-import semantics.correctresolution.CorrectnessResolverObserver
+import kotlin.test.assertEquals
+import kotlin.test.assertIs
 import model.ObjectEngineResult
 import model.emptyFragmentOf
 import model.fragmentFrom
@@ -10,8 +10,8 @@ import model.requireField
 import model.testing.TestWorld
 import model.testing.fieldResolverOf
 import org.junit.jupiter.api.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertIs
+import semantics.correctresolution.CorrectnessResolverObserver
+import semantics.shared.ResolverInvocationObservation
 
 /** Contract for active fields exceptionally supplied by an ancestor resolver output. */
 interface SometimesPassiveResolverContract : ResolverContract {

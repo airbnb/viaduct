@@ -2,14 +2,14 @@
 
 package semantics
 
-import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.withTimeout
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertSame
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import model.EngineErrorData
 import model.ErrorEngineResult
 import model.ListEngineResult
@@ -92,11 +92,13 @@ private suspend fun assertSlotDrivenMaterialization(
             world.schema.requireObjectField("Value", "text"),
             emptyMap(),
         )
+
     fun valueResult(text: String): ObjectEngineResult =
         ObjectEngineResult.of(
             type = valueType,
             values = mapOf(textKey to text),
         )
+
     fun valueResult(
         text: String,
         typeCheckerResult: CheckerResult,
@@ -282,8 +284,7 @@ private class CombiningTypeDenial(
 ) : CheckerResult.Error {
     override val error: Exception = IllegalStateException("uncombined type denial")
 
-    override fun isErrorForResolver(ctx: CheckerResultContext): Boolean =
-        error("The combined result must determine resolver applicability")
+    override fun isErrorForResolver(ctx: CheckerResultContext): Boolean = error("The combined result must determine resolver applicability")
 
     override fun combine(fieldResult: CheckerResult.Error): CheckerResult.Error {
         assertSame(expectedFieldResult, fieldResult)

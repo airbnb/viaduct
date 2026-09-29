@@ -27,8 +27,8 @@ import model.VariableBinding
 import model.fragmentFrom
 import model.operationSelectionsFrom
 import model.registry.FieldCheckerResolver
-import model.registry.ResolverTarget
 import model.registry.ResolverFragmentTemplates
+import model.registry.ResolverTarget
 import model.registry.VariableDefinition
 import model.registry.VariablesProviderFunction
 import model.requireObjectField
@@ -151,7 +151,10 @@ class FieldCheckerLifecycleTest : Resolver26DispatcherResource {
                         schema.requireQueryTypeDef(),
                         mapOf(
                             "input" to ResolverFragmentTemplates(
-                                objectFragmentTemplate = schema.fragmentFrom("fragment Input on Query { dependency(value: ${'$'}v) }", variableTarget = ResolverTarget.FieldCheckerTarget(field)).materializeSelections,
+                                objectFragmentTemplate = schema.fragmentFrom(
+                                    "fragment Input on Query { dependency(value: ${'$'}v) }",
+                                    variableTarget = ResolverTarget.FieldCheckerTarget(field)
+                                ).materializeSelections,
                                 queryFragmentTemplate = model.materializeSelectionForestOf(),
                                 variables = mapOf(Arguments.Variable.of(ResolverTarget.FieldCheckerTarget(field), "v") to VariableDefinition.FromProvider),
                                 variablesProvider = provider,

@@ -12,8 +12,10 @@ import model.EngineResultCell
 interface SharedOrchestrationTask<out O : SharedOperationContext<*>> {
     /** The owning operation, retaining its resolver-specific type. */
     val operation: O
+
     /** The containing OER, including its source and closed construction demand. */
     val objectOER: SharedOERContext
+
     /** The Query OER paired with this orchestration; its closed demand may be empty. */
     val queryOER: SharedOERContext
 }

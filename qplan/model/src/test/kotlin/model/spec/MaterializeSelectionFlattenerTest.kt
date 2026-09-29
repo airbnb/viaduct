@@ -1,28 +1,25 @@
 package model.spec
 
-import viaduct.engine.api.FieldDirectives
-import viaduct.graphql.schema.ViaductSchema
-
-import model.requireQueryTypeDef
-import model.requireObjectField
-import model.requireField
-import model.requireType
-import model.Arguments
-import model.MaterializeSelection
-import model.MaterializeSelectionForest
-import model.InclusionCondition
-import model.ObjectEngineResult
-import model.merge
-import model.testing.GJSchema
-import model.testing.GJSelectionParser
-import model.testing.TestWorld
-import model.testing.testRoot
-import model.usedVariables
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import model.Arguments
+import model.InclusionCondition
+import model.MaterializeSelectionForest
+import model.ObjectEngineResult
+import model.merge
+import model.requireField
+import model.requireObjectField
+import model.requireQueryTypeDef
+import model.requireType
+import model.testing.GJSchema
+import model.testing.GJSelectionParser
+import model.testing.TestWorld
+import model.usedVariables
+import viaduct.engine.api.FieldDirectives
+import viaduct.graphql.schema.ViaductSchema
 
 class MaterializeSelectionFlattenerTest {
     @Test
@@ -417,14 +414,12 @@ class MaterializeSelectionFlattenerTest {
         fun inlineFragment(
             typeCondition: ViaductSchema.CompositeTypeDef?,
             selections: List<SpecSelection>,
-        ): SpecSelection.InlineFragment =
-            SpecSelection.InlineFragment.of(typeCondition, selections)
+        ): SpecSelection.InlineFragment = SpecSelection.InlineFragment.of(typeCondition, selections)
 
         fun flatten(
             typeInScope: ViaductSchema.CompositeTypeDef,
             selectionSet: List<SpecSelection>,
-        ): MaterializeSelectionForest =
-            flattenForMaterialization(schema, typeInScope, selectionSet)
+        ): MaterializeSelectionForest = flattenForMaterialization(schema, typeInScope, selectionSet)
     }
 
     private companion object {

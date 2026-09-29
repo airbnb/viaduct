@@ -1,22 +1,21 @@
 package model.registry
 
-import viaduct.graphql.schema.ViaductSchema
-
-import model.requireField
-import model.requireType
+import kotlin.test.Test
+import kotlin.test.assertFailsWith
+import kotlin.test.assertTrue
 import model.Arguments
 import model.Fragment
 import model.emptyFragmentOf
 import model.fragmentFrom
+import model.requireField
+import model.requireType
 import model.testing.FieldResolverDefinition
 import model.testing.FromField
 import model.testing.TestWorld
 import model.testing.fieldResolverOf
 import model.testing.fromObjectField
 import model.testing.nodeResolverOf
-import kotlin.test.Test
-import kotlin.test.assertFailsWith
-import kotlin.test.assertTrue
+import viaduct.graphql.schema.ViaductSchema
 
 class BranchOrderInvariantTest {
     @Test
@@ -502,7 +501,6 @@ class BranchOrderInvariantTest {
             )
         }
 
-        fun resolver(fragment: Fragment): FieldResolverDefinition =
-            fieldResolverOf(fragment) { _, _ -> error("Not invoked") }
+        fun resolver(fragment: Fragment): FieldResolverDefinition = fieldResolverOf(fragment) { _, _ -> error("Not invoked") }
     }
 }

@@ -2,8 +2,11 @@
 
 package semantics.benchmark
 
-import viaduct.engine.api.EngineObjectData
-
+import java.nio.file.Files
+import java.nio.file.Path
+import java.util.Collections
+import java.util.Locale
+import kotlin.math.ceil
 import kotlinx.coroutines.runBlocking
 import model.Assumptions
 import model.EngineResult
@@ -14,7 +17,6 @@ import model.PathComponent
 import model.ResolverOccurrenceId
 import model.SelectionForest
 import model.fragmentFrom
-import semantics.shared.instantiateBindings
 import model.merge
 import model.objectOf
 import model.requireQueryTypeDef
@@ -27,13 +29,10 @@ import semantics.arbitrary.resolverBenchmarkFullConfig
 import semantics.contract.registeredResolverApplicationIdentityCounts
 import semantics.contract.validateFromFieldBindings
 import semantics.correctresolution.correctResolution
-import java.nio.file.Files
-import java.nio.file.Path
-import java.util.Collections
-import java.util.Locale
-import kotlin.math.ceil
-import semantics.shared.SharedOperationContext
 import semantics.shared.ResolverObserver
+import semantics.shared.SharedOperationContext
+import semantics.shared.instantiateBindings
+import viaduct.engine.api.EngineObjectData
 
 internal const val DEFAULT_OVERHEAD_LOOP_COUNT = 1
 
@@ -73,9 +72,7 @@ internal class CurrentProfileBenchmarkSupport(
 
     private var overheadCases: Array<PreparedResolution> = emptyArray()
 
-    fun prepareOverheadInvocation(
-        loopCount: Int,
-    ) {
+    fun prepareOverheadInvocation(loopCount: Int) {
         require(loopCount > 0) { "Resolver benchmark loop count must be positive" }
         val testWorld = corpus.world()
         val parsedQueries =
@@ -297,7 +294,10 @@ internal class CurrentProfileBenchmarkSupport(
         val depth: Long,
     )
 
-        private fun EngineResult?.shape(world: Assumptions, depth: Int = 0): ResultShape =
+    private fun EngineResult?.shape(
+        world: Assumptions,
+        depth: Int = 0
+    ): ResultShape =
         when (this) {
             null, is ErrorEngineResult ->
                 ResultShape(
@@ -451,6 +451,7 @@ internal class CurrentProfileBenchmarkSupport(
             }
         val depthByOccurrence = mutableMapOf<ResolverOccurrenceId, Long>()
         val visiting = mutableSetOf<ResolverOccurrenceId>()
+
         fun depth(identity: ResolverOccurrenceId): Long {
             depthByOccurrence[identity]?.let { return it }
             check(visiting.add(identity)) {

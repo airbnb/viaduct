@@ -2,41 +2,41 @@
 
 package semantics.benchmark
 
-import kotlinx.coroutines.runBlocking
+import java.nio.file.Files
+import java.nio.file.Path
+import java.util.Collections
+import kotlin.coroutines.CoroutineContext
+import kotlin.io.path.createDirectories
+import kotlin.math.abs
+import kotlin.math.ceil
 import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.runBlocking
 import model.Assumptions
 import model.EngineResult
 import model.ErrorEngineResult
+import model.Fragment
 import model.ListEngineResult
 import model.ObjectEngineResult
-import model.Fragment
 import model.ResolverOccurrenceId
 import model.fragmentFrom
 import semantics.arbitrary.ArbitraryQuery
 import semantics.arbitrary.ArbitraryRegistry
 import semantics.arbitrary.ArbitrarySchema
 import semantics.arbitrary.FieldCoordinate
+import semantics.arbitrary.ResolutionWitnessBoundExceededException
 import semantics.arbitrary.ResolverBenchmarkCorpus
 import semantics.arbitrary.ResolverBenchmarkQueryCorpus
 import semantics.arbitrary.ResolverTestCase
-import semantics.arbitrary.ResolutionWitnessBoundExceededException
 import semantics.arbitrary.TestCaseCount
 import semantics.arbitrary.checkResolverTestCases
 import semantics.arbitrary.encodeResolverBenchmarkCorpus
 import semantics.arbitrary.resolverBenchmarkCorpusSearchConfig
 import semantics.arbitrary.resolverBenchmarkOverheadQueryConfig
-import semantics.shared.ResolverInvocationObservation
-import semantics.resolver26.resolve
-import semantics.shared.SharedOperationContext
-import java.nio.file.Files
-import java.nio.file.Path
-import java.util.Collections
-import kotlin.io.path.createDirectories
-import kotlin.math.abs
-import kotlin.math.ceil
-import kotlin.coroutines.CoroutineContext
 import semantics.resolver26.ResolutionDispatcherFactory
 import semantics.resolver26.configuredResolutionThreadCount
+import semantics.resolver26.resolve
+import semantics.shared.ResolverInvocationObservation
+import semantics.shared.SharedOperationContext
 
 object ResolverBenchmarkCorpusSearch {
     @JvmStatic
@@ -295,6 +295,7 @@ object ResolverBenchmarkCorpusSearch {
             }
         val depthByOccurrence = mutableMapOf<ResolverOccurrenceId, Long>()
         val visiting = mutableSetOf<ResolverOccurrenceId>()
+
         fun depth(identity: ResolverOccurrenceId): Long {
             depthByOccurrence[identity]?.let { return it }
             check(visiting.add(identity)) {

@@ -18,7 +18,6 @@ import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.Test
 import semantics.correctresolution.CorrectnessResolverObserver
 import semantics.shared.ResolverInvocationObservation
-import semantics.shared.SharedOperationContext
 import viaduct.engine.api.EngineObjectData
 
 /** Contract for engine-provided parent backedges and transitive ancestor demand. */

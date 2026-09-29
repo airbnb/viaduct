@@ -11,8 +11,8 @@ import model.outputType
 import model.registry.FieldValueResolver
 import model.registry.ResolverFragments
 import model.registry.VariableInstanceDefinition
-import viaduct.graphql.schema.ViaductSchema
 import semantics.shared.Demand
+import viaduct.graphql.schema.ViaductSchema
 
 /**
  * One source of a value: a resolver invocation, reference, or conditioned passive value.

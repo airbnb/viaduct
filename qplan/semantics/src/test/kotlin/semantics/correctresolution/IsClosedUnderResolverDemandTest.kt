@@ -1,17 +1,17 @@
 package semantics.correctresolution
 
-import model.requireObjectField
+import kotlin.test.Test
+import kotlin.test.assertTrue
 import model.Arguments
 import model.ObjectEngineResult
 import model.ResolverOccurrenceId
 import model.emptyFragmentOf
 import model.engineResultOf
 import model.fragmentFrom
+import model.requireObjectField
 import model.testing.TestWorld
 import model.testing.fieldResolverOf
 import model.testing.fromArgument
-import kotlin.test.Test
-import kotlin.test.assertTrue
 import semantics.shared.SharedOperationContext
 
 class IsClosedUnderResolverDemandTest {

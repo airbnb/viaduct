@@ -9,11 +9,17 @@ import graphql.incremental.DelayedIncrementalPartialResult
 import graphql.incremental.IncrementalExecutionResult
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.TimeUnit
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertIs
+import kotlin.test.assertTrue
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import model.EngineErrorData
+import model.SelectionForest
 import model.emptyFragmentOf
 import model.engineObjectDataOf
 import model.fragmentFrom
@@ -21,18 +27,12 @@ import model.merge
 import model.outputValue
 import model.requireObjectField
 import model.requireType
-import model.SelectionForest
 import model.testing.TestWorld
 import model.testing.fieldResolverOf
 import model.testing.selectiveFieldResolverOf
 import org.reactivestreams.Publisher
 import org.reactivestreams.Subscriber
 import org.reactivestreams.Subscription
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertIs
-import kotlin.test.assertTrue
 
 class QPlanDeferTest : ExecutionTestFixtureResource {
     @Test
@@ -513,8 +513,7 @@ class QPlanDeferTest : ExecutionTestFixtureResource {
     }
 }
 
-private fun Publisher<DelayedIncrementalPartialResult>.nextIncrementalResult():
-    CompletableFuture<DelayedIncrementalPartialResult> =
+private fun Publisher<DelayedIncrementalPartialResult>.nextIncrementalResult(): CompletableFuture<DelayedIncrementalPartialResult> =
     CompletableFuture<DelayedIncrementalPartialResult>().also { result ->
         subscribe(
             object : Subscriber<DelayedIncrementalPartialResult> {

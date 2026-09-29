@@ -14,9 +14,9 @@ import model.fragmentFrom
 import model.merge
 import model.operationSelectionsFrom
 import model.registry.FieldCheckerResolver
-import model.registry.ResolverTarget
 import model.registry.ProviderFragment
 import model.registry.ResolverFragmentTemplates
+import model.registry.ResolverTarget
 import model.registry.VariableDefinition
 import model.requireObjectField
 import model.requireQueryTypeDef
@@ -53,14 +53,16 @@ class SymbolicFieldCheckerTest : Resolver26DispatcherResource {
                         val pair = ResolverFragmentTemplates(
                             if (providerRoot == ProviderFragment.OBJECT) input else empty,
                             if (providerRoot == ProviderFragment.QUERY) input else empty,
-                            mapOf(Arguments.Variable.of(ResolverTarget.FieldCheckerTarget(field), "v") to VariableDefinition.FromField.of(
-                                providerRoot,
-                                listOf(
-                                    ObjectEngineResult.Key.of(schema.requireObjectField("Query", "source"), emptyMap()),
-                                    ObjectEngineResult.Key.of(schema.requireObjectField("Source", "token"), emptyMap()),
-                                ),
-                                listOf("source", "token"),
-                            )),
+                            mapOf(
+                                Arguments.Variable.of(ResolverTarget.FieldCheckerTarget(field), "v") to VariableDefinition.FromField.of(
+                                    providerRoot,
+                                    listOf(
+                                        ObjectEngineResult.Key.of(schema.requireObjectField("Query", "source"), emptyMap()),
+                                        ObjectEngineResult.Key.of(schema.requireObjectField("Source", "token"), emptyMap()),
+                                    ),
+                                    listOf("source", "token"),
+                                )
+                            ),
                         )
                         mapOf(field to FieldCheckerResolver.of(field, schema.requireQueryTypeDef(), mapOf("input" to pair)) { _, _, _ -> CheckerResult.Success })
                     },
@@ -103,8 +105,14 @@ class SymbolicFieldCheckerTest : Resolver26DispatcherResource {
                         objectFragmentTemplate = schema.fragmentFrom(objectSource, variableTarget = ResolverTarget.FieldCheckerTarget(field)).materializeSelections,
                         queryFragmentTemplate = schema.fragmentFrom(querySource, variableTarget = ResolverTarget.FieldCheckerTarget(field)).materializeSelections,
                         variables = mapOf(
-                            Arguments.Variable.of(ResolverTarget.FieldCheckerTarget(field), "remote") to VariableDefinition.FromField.of(ProviderFragment.QUERY, listOf(ObjectEngineResult.Key.of(schema.requireObjectField("Query", "viewer"), emptyMap())), listOf("viewer")),
-                            Arguments.Variable.of(ResolverTarget.FieldCheckerTarget(field), "local") to VariableDefinition.FromField.of(ProviderFragment.OBJECT, listOf(ObjectEngineResult.Key.of(schema.requireObjectField("Item", "token"), emptyMap())), listOf("token")),
+                            Arguments.Variable.of(
+                                ResolverTarget.FieldCheckerTarget(field),
+                                "remote"
+                            ) to VariableDefinition.FromField.of(ProviderFragment.QUERY, listOf(ObjectEngineResult.Key.of(schema.requireObjectField("Query", "viewer"), emptyMap())), listOf("viewer")),
+                            Arguments.Variable.of(
+                                ResolverTarget.FieldCheckerTarget(field),
+                                "local"
+                            ) to VariableDefinition.FromField.of(ProviderFragment.OBJECT, listOf(ObjectEngineResult.Key.of(schema.requireObjectField("Item", "token"), emptyMap())), listOf("token")),
                             Arguments.Variable.of(ResolverTarget.FieldCheckerTarget(field), "arg") to VariableDefinition.FromArgument.of(checkNotNull(field.arg("seed"))),
                             Arguments.Variable.of(ResolverTarget.FieldCheckerTarget(field), "provided") to VariableDefinition.FromProvider,
                         ),
@@ -163,8 +171,22 @@ class SymbolicFieldCheckerTest : Resolver26DispatcherResource {
                         schema.fragmentFrom(querySource, variableTarget = ResolverTarget.FieldCheckerTarget(field)).materializeSelections,
                         mapOf(
                             Arguments.Variable.of(ResolverTarget.FieldCheckerTarget(field), "enabled") to VariableDefinition.FromProvider,
-                            Arguments.Variable.of(ResolverTarget.FieldCheckerTarget(field), "excluded") to VariableDefinition.FromField.of(ProviderFragment.OBJECT, listOf(ObjectEngineResult.Key.of(schema.requireObjectField("Item", "token"), emptyMap())), listOf("excluded")),
-                            Arguments.Variable.of(ResolverTarget.FieldCheckerTarget(field), "included") to VariableDefinition.FromField.of(ProviderFragment.OBJECT, listOf(ObjectEngineResult.Key.of(schema.requireObjectField("Item", "token"), emptyMap())), listOf("included")),
+                            Arguments.Variable.of(
+                                ResolverTarget.FieldCheckerTarget(field),
+                                "excluded"
+                            ) to VariableDefinition.FromField.of(
+                                ProviderFragment.OBJECT,
+                                listOf(ObjectEngineResult.Key.of(schema.requireObjectField("Item", "token"), emptyMap())),
+                                listOf("excluded")
+                            ),
+                            Arguments.Variable.of(
+                                ResolverTarget.FieldCheckerTarget(field),
+                                "included"
+                            ) to VariableDefinition.FromField.of(
+                                ProviderFragment.OBJECT,
+                                listOf(ObjectEngineResult.Key.of(schema.requireObjectField("Item", "token"), emptyMap())),
+                                listOf("included")
+                            ),
                         ),
                         variablesProvider = { mapOf("enabled" to enabled) },
                     )
@@ -220,12 +242,17 @@ class SymbolicFieldCheckerTest : Resolver26DispatcherResource {
                     dependency to FieldCheckerResolver.of(
                         dependency,
                         schema.requireQueryTypeDef(),
-                        mapOf("excluded" to ResolverFragmentTemplates(
-                            schema.fragmentFrom("fragment Input on Query { checked @include(if: ${'$'}enabled) }", variableTarget = ResolverTarget.FieldCheckerTarget(dependency)).materializeSelections,
-                            model.materializeSelectionForestOf(),
-                            mapOf(Arguments.Variable.of(ResolverTarget.FieldCheckerTarget(dependency), "enabled") to VariableDefinition.FromProvider),
-                            variablesProvider = { error("Excluded checker provider must not run") },
-                        )),
+                        mapOf(
+                            "excluded" to ResolverFragmentTemplates(
+                                schema.fragmentFrom(
+                                    "fragment Input on Query { checked @include(if: ${'$'}enabled) }",
+                                    variableTarget = ResolverTarget.FieldCheckerTarget(dependency)
+                                ).materializeSelections,
+                                model.materializeSelectionForestOf(),
+                                mapOf(Arguments.Variable.of(ResolverTarget.FieldCheckerTarget(dependency), "enabled") to VariableDefinition.FromProvider),
+                                variablesProvider = { error("Excluded checker provider must not run") },
+                            )
+                        ),
                     ) { _, _, _ ->
                         forbidden.incrementAndGet()
                         CheckerResult.Success

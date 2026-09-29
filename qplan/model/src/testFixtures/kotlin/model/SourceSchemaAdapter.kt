@@ -1,8 +1,7 @@
 package model
 
-import viaduct.graphql.schema.ViaductSchema
-
 import model.testing.GJSchema
+import viaduct.graphql.schema.ViaductSchema
 
 /**
  * Explicit source-to-canonical adapter for fixture composition boundaries.
@@ -26,8 +25,7 @@ class SourceSchemaAdapter(
     ): ViaductSchema.Field = schema.fieldFromSource(typeName, fieldName)
 
     /** Returns the source GraphQL output type represented by a canonical fixture field. */
-    fun typeExpr(field: ViaductSchema.Field): ViaductSchema.TypeExpr<ViaductSchema.OutputTypeDef> =
-        schema.sourceTypeExpr(field)
+    fun typeExpr(field: ViaductSchema.Field): ViaductSchema.TypeExpr<ViaductSchema.OutputTypeDef> = schema.sourceTypeExpr(field)
 
     /** Lowers a source-shaped output for storage at a canonical fixture field. */
     fun lowerOutput(
@@ -46,6 +44,5 @@ class SourceSchemaAdapter(
         rootFieldPath: List<String>,
         sourceTypeName: String,
         arguments: Map<String, Any?>,
-    ): RootFieldReferenceData =
-        schema.lowerRootFieldReference(rootFieldPath, sourceTypeName, arguments)
+    ): RootFieldReferenceData = schema.lowerRootFieldReference(rootFieldPath, sourceTypeName, arguments)
 }

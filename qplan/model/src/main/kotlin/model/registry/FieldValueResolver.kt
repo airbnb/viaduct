@@ -1,16 +1,13 @@
 package model.registry
 
-import viaduct.graphql.schema.ViaductSchema
-
-import model.ObjectEngineResult
-
+import model.Arguments
 import model.EngineErrorDataReadException
 import model.EngineInputData
-import model.ResolverOutputData
 import model.MaterializeSelectionForest
-import model.Arguments
+import model.ObjectEngineResult
 import model.PathComponent
 import model.ResolverOccurrenceId
+import model.ResolverOutputData
 import model.SelectionForest
 import model.arg
 import model.engineObjectDataOf
@@ -19,6 +16,7 @@ import model.outputValue
 import model.schemaType
 import model.selectionForestOf
 import viaduct.engine.api.EngineObjectData
+import viaduct.graphql.schema.ViaductSchema
 
 /** A deterministic partial map from resolved object and Query fragments plus arguments to an output value. */
 typealias NonselectiveFieldResolverFunction =
@@ -154,15 +152,11 @@ class FieldValueResolver private constructor(
         )
 
     /** Instantiates the object-fragment template when its input is ready to be materialized. */
-    fun instantiateObjectMaterializationSelections(
-        resolverOccurrenceId: ResolverOccurrenceId,
-    ): MaterializeSelectionForest =
+    fun instantiateObjectMaterializationSelections(resolverOccurrenceId: ResolverOccurrenceId): MaterializeSelectionForest =
         fragmentTemplates.objectFragmentTemplate.instantiateVariables(resolverOccurrenceId)
 
     /** Instantiates the Query-fragment template when its input is ready to be materialized. */
-    fun instantiateQueryMaterializationSelections(
-        resolverOccurrenceId: ResolverOccurrenceId,
-    ): MaterializeSelectionForest =
+    fun instantiateQueryMaterializationSelections(resolverOccurrenceId: ResolverOccurrenceId): MaterializeSelectionForest =
         fragmentTemplates.queryFragmentTemplate.instantiateVariables(resolverOccurrenceId)
 
     /** Instantiates both resolver input fragments at one exact resolver path. */
@@ -172,9 +166,7 @@ class FieldValueResolver private constructor(
     ): ResolverFragments = instantiateFragments(ResolverOccurrenceId.at(root, path))
 
     /** Instantiates both resolver input fragments from one shared occurrence-variable set. */
-    fun instantiateFragments(
-        resolverOccurrenceId: ResolverOccurrenceId,
-    ): ResolverFragments =
+    fun instantiateFragments(resolverOccurrenceId: ResolverOccurrenceId): ResolverFragments =
         ResolverFragments(
             objectFragment =
                 instantiateResolverFragment(
@@ -193,9 +185,7 @@ class FieldValueResolver private constructor(
         )
 
     /** Returns each resolver variable definition instantiated once for this application. */
-    fun instantiatedVariableDefinitions(
-        resolverOccurrenceId: ResolverOccurrenceId,
-    ): List<VariableInstanceDefinition> =
+    fun instantiatedVariableDefinitions(resolverOccurrenceId: ResolverOccurrenceId): List<VariableInstanceDefinition> =
         variables.map { (variable, definition) ->
             VariableInstanceDefinition.of(
                 variable = variable.instantiate(resolverOccurrenceId),
@@ -204,9 +194,7 @@ class FieldValueResolver private constructor(
         }
 
     /** Returns this resolver's from-field path definitions for one application. */
-    fun instantiatedFieldPathVariableDefinitions(
-        resolverOccurrenceId: ResolverOccurrenceId,
-    ): List<InstantiatedFieldPathDefinition> =
+    fun instantiatedFieldPathVariableDefinitions(resolverOccurrenceId: ResolverOccurrenceId): List<InstantiatedFieldPathDefinition> =
         variables.mapNotNull { (variable, definition) ->
             (definition as? VariableDefinition.FromField)?.let {
                 val fragment = when (it.providerFragment) {

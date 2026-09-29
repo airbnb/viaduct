@@ -26,5 +26,4 @@ internal suspend fun ObjectEngineResult.materializeResolverInput(
     cycleChecker: CycleCheckState,
     selections: MaterializeSelectionForest,
     reader: CycleTask,
-): EngineObjectData.Sync =
-    materializeResult(operation, selections, reader, cycleChecker)
+): EngineObjectData.Sync = materializeResult(operation, selections, reader, cycleChecker)

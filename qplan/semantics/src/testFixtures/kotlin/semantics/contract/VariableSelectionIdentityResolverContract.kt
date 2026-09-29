@@ -1,22 +1,22 @@
 package semantics.contract
 
-import semantics.shared.ResolverInvocationObservation
-import semantics.correctresolution.CorrectnessResolverObserver
-import model.requireQueryTypeDef
-import model.requireObjectField
-import model.ObjectEngineResult
-import viaduct.graphql.schema.ViaductSchema
-import semantics.shared.instantiateBindings
-import model.merge
-import model.objectOf
-import model.operationSelectionsFrom
-import model.testing.TestWorld
-import semantics.correctresolution.correctResolution
 import java.util.concurrent.ConcurrentLinkedQueue
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
+import model.ObjectEngineResult
+import model.merge
+import model.objectOf
+import model.operationSelectionsFrom
+import model.requireObjectField
+import model.requireQueryTypeDef
+import model.testing.TestWorld
+import semantics.correctresolution.CorrectnessResolverObserver
+import semantics.correctresolution.correctResolution
+import semantics.shared.ResolverInvocationObservation
+import semantics.shared.instantiateBindings
+import viaduct.graphql.schema.ViaductSchema
 
 /**
  * Contract for coalescing selections with equal symbolic or grounded arguments.

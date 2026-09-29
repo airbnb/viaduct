@@ -5,7 +5,6 @@ import java.util.concurrent.atomic.AtomicReference
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
-import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
@@ -20,8 +19,8 @@ import model.materializeSelectionForestOf
 import model.operationSelectionsFrom
 import model.registry.CheckerInput
 import model.registry.FieldCheckerResolver
-import model.registry.ResolverTarget
 import model.registry.ResolverFragmentTemplates
+import model.registry.ResolverTarget
 import model.registry.VariableDefinition
 import model.requireObjectField
 import model.requireQueryTypeDef

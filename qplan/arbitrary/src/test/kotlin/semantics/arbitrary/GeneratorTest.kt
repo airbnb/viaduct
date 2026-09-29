@@ -2,31 +2,30 @@
 
 package semantics.arbitrary
 
-import semantics.resolvers.resolver01.resolve as resolveObservedField
-import kotlinx.coroutines.runBlocking
-
-import model.fragmentFrom
-import model.Arguments
-import model.Assumptions
 import io.kotest.property.Arb
 import io.kotest.property.RandomSource
 import io.kotest.property.arbitrary.next
-import model.registry.ProviderFragment
-import model.registry.ResolutionExecutionContext
-import model.engineObjectDataOf
-import model.invariants.conformsToResolverOutputSchemaType
-import model.objectOf
-import model.outputType
-import model.requireObjectField
-import model.requireQueryTypeDef
-import model.requireField
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
+import kotlinx.coroutines.runBlocking
+import model.Arguments
+import model.Assumptions
+import model.engineObjectDataOf
+import model.fragmentFrom
+import model.invariants.conformsToResolverOutputSchemaType
+import model.objectOf
+import model.outputType
+import model.registry.ProviderFragment
+import model.registry.ResolutionExecutionContext
 import model.registry.VariableDefinition
+import model.requireField
+import model.requireObjectField
+import model.requireQueryTypeDef
+import semantics.resolvers.resolver01.resolve as resolveObservedField
 
 class GeneratorTest {
     @Test
@@ -199,8 +198,7 @@ class GeneratorTest {
         decoded.world()
     }
 
-    private fun ArbitrarySchema.field(coordinate: FieldCoordinate): FieldDefinitionSpec =
-        field(coordinate.typeName, coordinate.fieldName)
+    private fun ArbitrarySchema.field(coordinate: FieldCoordinate): FieldDefinitionSpec = field(coordinate.typeName, coordinate.fieldName)
 
     private fun ArbitrarySchema.field(
         typeName: String,
@@ -618,43 +616,44 @@ class GeneratorTest {
     }
 
     @Test
-    fun `count-only application capture does not retain resolution witnesses`() = runBlocking {
-        val config =
-            TEST_CONFIG +
-                (ArgumentsEnabled to false) +
-                (NodeResolversEnabled to false)
-        val random = RandomSource.seeded(8642L)
-        val schema = Arb.schema(config).next(random)
-        val registry = schema.registry(config).next(random)
-        val coordinate =
-            registry.fieldResolverCoordinates.first { field ->
-                field.typeName == "Query"
-            }
-        val countWorld =
-            registry.world(
-                schema = schema,
-            ).assumptions
-        val field =
-            countWorld.schema.requireObjectField(
-                coordinate.typeName,
-                coordinate.fieldName,
+    fun `count-only application capture does not retain resolution witnesses`() =
+        runBlocking {
+            val config =
+                TEST_CONFIG +
+                    (ArgumentsEnabled to false) +
+                    (NodeResolversEnabled to false)
+            val random = RandomSource.seeded(8642L)
+            val schema = Arb.schema(config).next(random)
+            val registry = schema.registry(config).next(random)
+            val coordinate =
+                registry.fieldResolverCoordinates.first { field ->
+                    field.typeName == "Query"
+                }
+            val countWorld =
+                registry.world(
+                    schema = schema,
+                ).assumptions
+            val field =
+                countWorld.schema.requireObjectField(
+                    coordinate.typeName,
+                    coordinate.fieldName,
+                )
+
+            registry.clearResolutionApplicationCounts()
+            val operation = semantics.shared.SharedOperationContext.create(
+                world = Assumptions.of(countWorld.schema, countWorld.resolverRegistry, false),
+                resolverObserver = registry.resolverObserver(captureResolutionWitness = false),
             )
+            val generatedField = schema.query.fields.single { it.name == coordinate.fieldName }
+            val subselection = if (schema.isComposite(generatedField.type.namedType)) " { __typename }" else ""
+            operation.resolveObservedField(countWorld.fragmentFrom("fragment Test on Query { ${field.name}$subselection }").subselections)
 
-        registry.clearResolutionApplicationCounts()
-        val operation = semantics.shared.SharedOperationContext.create(
-            world = Assumptions.of(countWorld.schema, countWorld.resolverRegistry, false),
-            resolverObserver = registry.resolverObserver(captureResolutionWitness = false),
-        )
-        val generatedField = schema.query.fields.single { it.name == coordinate.fieldName }
-        val subselection = if (schema.isComposite(generatedField.type.namedType)) " { __typename }" else ""
-        operation.resolveObservedField(countWorld.fragmentFrom("fragment Test on Query { ${field.name}$subselection }").subselections)
-
-        val counts = registry.resolutionApplicationCounts()
-        assertEquals(1L, counts.getValue(coordinate))
-        assertTrue(counts.filterKeys { it != coordinate }.keys.all { it.fieldName == "V_A_typename" })
-        assertTrue(counts.values.all { it == 1L })
-        assertTrue(registry.resolutionWitness().applications.isEmpty())
-    }
+            val counts = registry.resolutionApplicationCounts()
+            assertEquals(1L, counts.getValue(coordinate))
+            assertTrue(counts.filterKeys { it != coordinate }.keys.all { it.fieldName == "V_A_typename" })
+            assertTrue(counts.values.all { it == 1L })
+            assertTrue(registry.resolutionWitness().applications.isEmpty())
+        }
 
     @Test
     fun `feature switches remove their schema and query features`() {
@@ -760,9 +759,9 @@ class GeneratorTest {
             registry.world(schema)
             sawArgumentDemand =
                 sawArgumentDemand ||
-                    registry.objectFragmentSources.values.any { source ->
-                        "(arg:" in source
-                    }
+                registry.objectFragmentSources.values.any { source ->
+                    "(arg:" in source
+                }
         }
 
         assertTrue(sawArgumentDemand)
@@ -883,64 +882,65 @@ class GeneratorTest {
     }
 
     @Test
-    fun `complex resolver functions are deterministic for equal inputs and arguments`() = runBlocking {
-        val config =
-            Config.default +
-                (ArgumentsEnabled to false) +
-                (SchemaObjectCount to 3..3) +
-                (MinimumSelectionDepth to 1) +
-                (MaxSelectionDepth to 3) +
-                (ExplicitFieldResolverWeight to 1.0) +
-                (ResolverFragmentsEnabled to true) +
-                (ResolverFragmentWeight to 1.0) +
-                (NodeResolversEnabled to false)
-        val random = RandomSource.seeded(4815162343L)
-        var checkedResolvers = 0
+    fun `complex resolver functions are deterministic for equal inputs and arguments`() =
+        runBlocking {
+            val config =
+                Config.default +
+                    (ArgumentsEnabled to false) +
+                    (SchemaObjectCount to 3..3) +
+                    (MinimumSelectionDepth to 1) +
+                    (MaxSelectionDepth to 3) +
+                    (ExplicitFieldResolverWeight to 1.0) +
+                    (ResolverFragmentsEnabled to true) +
+                    (ResolverFragmentWeight to 1.0) +
+                    (NodeResolversEnabled to false)
+            val random = RandomSource.seeded(4815162343L)
+            var checkedResolvers = 0
 
-        repeat(100) {
-            val schema = Arb.schema(config).next(random)
-            val registry = schema.registry(config).next(random)
-            val world = registry.world(schema).assumptions
-            registry.fieldResolverCoordinates.forEach { coordinate ->
-                val fieldSpec =
-                    schema
-                        .objectNamed(coordinate.typeName)
-                        .fields
-                        .single { field -> field.name == coordinate.fieldName }
-                if (
-                    !schema.isComposite(fieldSpec.type.namedType) ||
-                    registry.resolverProgram(coordinate) == ResolverProgramKind.CONSTANT
-                ) {
-                    return@forEach
+            repeat(100) {
+                val schema = Arb.schema(config).next(random)
+                val registry = schema.registry(config).next(random)
+                val world = registry.world(schema).assumptions
+                registry.fieldResolverCoordinates.forEach { coordinate ->
+                    val fieldSpec =
+                        schema
+                            .objectNamed(coordinate.typeName)
+                            .fields
+                            .single { field -> field.name == coordinate.fieldName }
+                    if (
+                        !schema.isComposite(fieldSpec.type.namedType) ||
+                        registry.resolverProgram(coordinate) == ResolverProgramKind.CONSTANT
+                    ) {
+                        return@forEach
+                    }
+
+                    val field = world.schema.requireObjectField(coordinate.typeName, coordinate.fieldName)
+                    val input = world.schema.objectOf(coordinate.typeName)
+                    val arguments = Arguments.Resolved.of(field, emptyMap())
+                    val resolver = world.resolverRegistry.resolver(field)
+
+                    assertEquals(
+                        resolver(
+                            input = input,
+                            queryValue = engineObjectDataOf(world.schema.requireQueryTypeDef()),
+                            arguments = arguments,
+                            selectiveResolvers = false,
+                            executionContext = ResolutionExecutionContext.Unsupported,
+                        ).outputResolutionFingerprint(),
+                        resolver(
+                            input = input,
+                            queryValue = engineObjectDataOf(world.schema.requireQueryTypeDef()),
+                            arguments = arguments,
+                            selectiveResolvers = false,
+                            executionContext = ResolutionExecutionContext.Unsupported,
+                        ).outputResolutionFingerprint(),
+                    )
+                    checkedResolvers += 1
                 }
-
-                val field = world.schema.requireObjectField(coordinate.typeName, coordinate.fieldName)
-                val input = world.schema.objectOf(coordinate.typeName)
-                val arguments = Arguments.Resolved.of(field, emptyMap())
-                val resolver = world.resolverRegistry.resolver(field)
-
-                assertEquals(
-                    resolver(
-                        input = input,
-                        queryValue = engineObjectDataOf(world.schema.requireQueryTypeDef()),
-                        arguments = arguments,
-                        selectiveResolvers = false,
-                        executionContext = ResolutionExecutionContext.Unsupported,
-                    ).outputResolutionFingerprint(),
-                    resolver(
-                        input = input,
-                        queryValue = engineObjectDataOf(world.schema.requireQueryTypeDef()),
-                        arguments = arguments,
-                        selectiveResolvers = false,
-                        executionContext = ResolutionExecutionContext.Unsupported,
-                    ).outputResolutionFingerprint(),
-                )
-                checkedResolvers += 1
             }
-        }
 
-        assertTrue(checkedResolvers > 0)
-    }
+            assertTrue(checkedResolvers > 0)
+        }
 
     @Test
     fun `generated hash values are deterministic and seed and salt sensitive`() {
@@ -1758,9 +1758,7 @@ class GeneratorTest {
     }
 }
 
-private fun ValuePlan.registeredFields(
-    registered: Set<FieldCoordinate>,
-): Set<FieldCoordinate> =
+private fun ValuePlan.registeredFields(registered: Set<FieldCoordinate>): Set<FieldCoordinate> =
     when (this) {
         is ListPlan -> elements.flatMapTo(linkedSetOf()) { it.registeredFields(registered) }
         is ObjectPlan ->
@@ -1775,5 +1773,4 @@ private data class ArgumentInvocation(
     val argument: String,
 )
 
-private fun Arguments.Resolved.containsErrorValue(): Boolean =
-    false
+private fun Arguments.Resolved.containsErrorValue(): Boolean = false

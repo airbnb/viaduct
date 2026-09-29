@@ -1,6 +1,10 @@
 package semantics.resolver26
 
 import java.util.Collections
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertIs
+import kotlin.test.assertTrue
 import model.Arguments
 import model.EngineErrorData
 import model.ErrorEngineResult
@@ -23,10 +27,6 @@ import semantics.correctresolution.CorrectnessResolverObserver
 import semantics.correctresolution.correctResolution
 import semantics.shared.ResolverInvocationObservation
 import semantics.shared.SharedOperationContext
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertIs
-import kotlin.test.assertTrue
 
 class FromFieldExclusionTest : Resolver26DispatcherResource {
     @Test
@@ -172,10 +172,12 @@ class FromFieldExclusionTest : Resolver26DispatcherResource {
             },
             variableProviders = { schema ->
                 val outer = schema.requireObjectField("Query", "outer")
-                fun fromPath(path: List<String>) = when (provider) {
-                    ProviderFragment.OBJECT -> schema.fromObjectField(fragmentSource, path, outer)
-                    ProviderFragment.QUERY -> schema.fromQueryField(fragmentSource, path, outer)
-                }
+
+                fun fromPath(path: List<String>) =
+                    when (provider) {
+                        ProviderFragment.OBJECT -> schema.fromObjectField(fragmentSource, path, outer)
+                        ProviderFragment.QUERY -> schema.fromQueryField(fragmentSource, path, outer)
+                    }
                 buildMap {
                     put(Arguments.Variable.of(outer, "value"), fromPath(responsePath))
                     if ("${'$'}enabled" in source) {
@@ -187,9 +189,15 @@ class FromFieldExclusionTest : Resolver26DispatcherResource {
         )
     }
 
-    private fun resolve(world: TestWorld, enabled: Boolean, other: Boolean = false, extra: String = ""): Resolution {
+    private fun resolve(
+        world: TestWorld,
+        enabled: Boolean,
+        other: Boolean = false,
+        extra: String = ""
+    ): Resolution {
         val observer = object : CorrectnessResolverObserver() {
             val applications = Collections.synchronizedList(mutableListOf<String>())
+
             override fun onResolverInvocation(observation: ResolverInvocationObservation) {
                 super.onResolverInvocation(observation)
                 applications += "${observation.field.containingDef.name}/${observation.field.name}"

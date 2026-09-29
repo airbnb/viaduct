@@ -1,9 +1,9 @@
 package semantics.contract
 
-import model.requireObjectField
-import model.testing.TestWorld
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import model.requireObjectField
+import model.testing.TestWorld
 
 interface DeferredNestedObjectPathDemandResolverContract : ResolverContract {
     @Test

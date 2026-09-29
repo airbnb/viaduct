@@ -13,8 +13,7 @@ class VariableBindingsState {
         ConcurrentHashMap<VariableInstanceId, Promise<VariableBinding>>()
 
     /** Whether [variableId] has a completed binding, including one whose value is null. */
-    fun isBound(variableId: VariableInstanceId): Boolean =
-        bindings[variableId]?.isCompleted == true
+    fun isBound(variableId: VariableInstanceId): Boolean = bindings[variableId]?.isCompleted == true
 
     /** Declares one incomplete binding. */
     fun declareBinding(variableId: VariableInstanceId) {
@@ -52,12 +51,10 @@ class VariableBindingsState {
     ): Boolean = bindingPromise(variableId).cancel(cause)
 
     /** Reads one completed binding without suspending. */
-    fun getBinding(variableId: VariableInstanceId): VariableBinding =
-        bindingPromise(variableId).get()
+    fun getBinding(variableId: VariableInstanceId): VariableBinding = bindingPromise(variableId).get()
 
     /** Awaits one declared binding. */
-    suspend fun fetchBinding(variableId: VariableInstanceId): VariableBinding =
-        bindingPromise(variableId).await()
+    suspend fun fetchBinding(variableId: VariableInstanceId): VariableBinding = bindingPromise(variableId).await()
 
     private fun write(
         variableId: VariableInstanceId,
@@ -68,8 +65,5 @@ class VariableBindingsState {
         }
     }
 
-    private fun bindingPromise(
-        variableId: VariableInstanceId,
-    ): Promise<VariableBinding> =
-        checkNotNull(bindings[variableId]) { "$variableId not found" }
+    private fun bindingPromise(variableId: VariableInstanceId): Promise<VariableBinding> = checkNotNull(bindings[variableId]) { "$variableId not found" }
 }

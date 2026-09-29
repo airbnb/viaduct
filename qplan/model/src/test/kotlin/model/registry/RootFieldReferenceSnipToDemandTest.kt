@@ -1,5 +1,8 @@
 package model.registry
 
+import kotlin.test.Test
+import kotlin.test.assertIs
+import kotlin.test.assertSame
 import model.Arguments
 import model.RootFieldReferenceData
 import model.engineObjectDataOf
@@ -10,9 +13,6 @@ import model.requireType
 import model.testing.TestWorld
 import viaduct.engine.api.EngineObjectData
 import viaduct.graphql.schema.ViaductSchema
-import kotlin.test.Test
-import kotlin.test.assertIs
-import kotlin.test.assertSame
 
 class RootFieldReferenceSnipToDemandTest {
     @Test

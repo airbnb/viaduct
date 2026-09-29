@@ -1,9 +1,6 @@
 package model.testing
 
-import viaduct.graphql.schema.ViaductSchema
-
 import model.Arguments
-
 import model.Fragment
 import model.MaterializeSelection
 import model.MaterializeSelectionForest
@@ -13,15 +10,14 @@ import model.materializeSelectionForestOf
 import model.objectKey
 import model.registry.FieldValueResolver
 import model.registry.NonselectiveFieldResolverFunction
-import model.registry.ResolverFragmentTemplates
 import model.registry.ResolutionExecutionContext
+import model.registry.ResolverFragmentTemplates
 import model.registry.SelectiveFieldResolverFunction
 import model.registry.VariableDefinition
 import model.registry.VariablesProviderFunction
-import model.merge
 import model.selectionForestOf
-import model.variableTemplates
 import viaduct.engine.api.EngineObjectData
+import viaduct.graphql.schema.ViaductSchema
 
 /**
  * A raw field-resolver definition accepted only by test-fixture composition.
@@ -39,9 +35,7 @@ class FieldResolverDefinition private constructor(
     internal val variablesProviderNames: Set<String>,
     internal val variablesProvider: VariablesProviderFunction?,
 ) {
-    fun mapOutput(
-        transform: (ResolverOutputData?) -> ResolverOutputData?,
-    ): FieldResolverDefinition =
+    fun mapOutput(transform: (ResolverOutputData?) -> ResolverOutputData?): FieldResolverDefinition =
         FieldResolverDefinition(
             objectFragment = objectFragment,
             queryFragment = queryFragment,
@@ -55,9 +49,7 @@ class FieldResolverDefinition private constructor(
             variablesProvider = variablesProvider,
         )
 
-    fun mapDemand(
-        transform: (SelectionForest) -> SelectionForest,
-    ): FieldResolverDefinition =
+    fun mapDemand(transform: (SelectionForest) -> SelectionForest): FieldResolverDefinition =
         FieldResolverDefinition(
             objectFragment = objectFragment,
             queryFragment = queryFragment,
@@ -282,6 +274,7 @@ class FieldResolverDefinition private constructor(
                 queryFragment = null,
                 function = { input, _, arguments, _ -> function(input, arguments) },
             )
+
         fun ofSelectionAwareNonselective(
             objectFragment: Fragment,
             queryFragment: Fragment?,
@@ -297,7 +290,7 @@ class FieldResolverDefinition private constructor(
                 variablesProviderNames = emptySet(),
                 variablesProvider = null,
             )
-        }
+    }
 }
 
 fun fieldResolverOf(
@@ -317,8 +310,7 @@ fun fieldResolverOf(
     objectFragment: Fragment,
     queryFragment: Fragment,
     function: NonselectiveFieldResolverFunction,
-): FieldResolverDefinition =
-    FieldResolverDefinition.of(objectFragment, queryFragment, function)
+): FieldResolverDefinition = FieldResolverDefinition.of(objectFragment, queryFragment, function)
 
 fun fieldResolverOf(
     objectFragment: Fragment,
@@ -361,8 +353,7 @@ fun selectiveFieldResolverOf(
     objectFragment: Fragment,
     queryFragment: Fragment,
     function: SelectiveFieldResolverFunction,
-): FieldResolverDefinition =
-    FieldResolverDefinition.ofSelective(objectFragment, queryFragment, function)
+): FieldResolverDefinition = FieldResolverDefinition.ofSelective(objectFragment, queryFragment, function)
 
 fun selectionAwareFieldResolverOf(
     objectFragment: Fragment,
@@ -385,8 +376,7 @@ fun selectionAwareFieldResolverOf(
     objectFragment: Fragment,
     queryFragment: Fragment,
     function: SelectiveFieldResolverFunction,
-): FieldResolverDefinition =
-    FieldResolverDefinition.ofSelectionAwareNonselective(objectFragment, queryFragment, function)
+): FieldResolverDefinition = FieldResolverDefinition.ofSelectionAwareNonselective(objectFragment, queryFragment, function)
 
 fun selectiveFieldResolverOf(
     objectFragment: Fragment,

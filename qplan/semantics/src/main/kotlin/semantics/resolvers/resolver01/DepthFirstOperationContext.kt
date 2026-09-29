@@ -18,8 +18,7 @@ internal class DepthFirstOperationContext(
         dispatcher = dispatcher,
     ) {
     /** Passive traversal inherits the Query-OER depth of the task whose value it is traversing. */
-    fun passiveValues(queryOERDepth: Int) =
-        DepthFirstPassiveValueResolutionLogic(this, queryOERDepth)
+    fun passiveValues(queryOERDepth: Int) = DepthFirstPassiveValueResolutionLogic(this, queryOERDepth)
 }
 
 /** Dispatcher contract shared by recursive and queued depth-first execution. */
@@ -35,7 +34,5 @@ internal interface DepthFirstDispatcher :
     )
 
     /** The shared dispatcher entry point starts at an independently rooted execution's depth. */
-    override fun dispatchFieldResolver(
-        publication: GroundedFieldPublicationOccurrence<DepthFirstOperationContext>,
-    ) = dispatchFieldResolver(publication, queryOERDepth = 0)
+    override fun dispatchFieldResolver(publication: GroundedFieldPublicationOccurrence<DepthFirstOperationContext>) = dispatchFieldResolver(publication, queryOERDepth = 0)
 }

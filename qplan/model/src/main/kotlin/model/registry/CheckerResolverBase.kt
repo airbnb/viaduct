@@ -92,9 +92,7 @@ abstract class CheckerResolverBase<out T : ResolverTarget> internal constructor(
     ): ResolverFragments = instantiateFragments(ResolverOccurrenceId.at(root, path))
 
     /** Instantiates the checker's combined resolution fragments for one checker occurrence. */
-    fun instantiateFragments(
-        resolverOccurrenceId: ResolverOccurrenceId,
-    ): ResolverFragments =
+    fun instantiateFragments(resolverOccurrenceId: ResolverOccurrenceId): ResolverFragments =
         ResolverFragments(
             objectFragment =
                 instantiateResolverFragment(
@@ -115,9 +113,7 @@ abstract class CheckerResolverBase<out T : ResolverTarget> internal constructor(
         )
 
     /** Instantiates each named object template without combining its response-key namespace. */
-    fun instantiateObjectMaterializationSelections(
-        resolverOccurrenceId: ResolverOccurrenceId,
-    ): Map<String, MaterializeSelectionForest> =
+    fun instantiateObjectMaterializationSelections(resolverOccurrenceId: ResolverOccurrenceId): Map<String, MaterializeSelectionForest> =
         fragmentTemplates.mapValues { (name, templates) ->
             templates
                 .lowerForResolution(name)
@@ -126,9 +122,7 @@ abstract class CheckerResolverBase<out T : ResolverTarget> internal constructor(
         }
 
     /** Instantiates each named Query template without combining its response-key namespace. */
-    fun instantiateQueryMaterializationSelections(
-        resolverOccurrenceId: ResolverOccurrenceId,
-    ): Map<String, MaterializeSelectionForest> =
+    fun instantiateQueryMaterializationSelections(resolverOccurrenceId: ResolverOccurrenceId): Map<String, MaterializeSelectionForest> =
         fragmentTemplates.mapValues { (name, templates) ->
             templates
                 .lowerForResolution(name)
@@ -137,9 +131,7 @@ abstract class CheckerResolverBase<out T : ResolverTarget> internal constructor(
         }
 
     /** Runs each named provider once and returns its pair-qualified variable names. */
-    protected open suspend fun provideVariables(
-        arguments: Arguments.Resolved,
-    ): Map<String, model.EngineInputData?> =
+    protected open suspend fun provideVariables(arguments: Arguments.Resolved): Map<String, model.EngineInputData?> =
         buildMap {
             fragmentTemplates.forEach { (name, templates) ->
                 val provider = templates.variablesProvider ?: return@forEach
@@ -166,9 +158,7 @@ private class LoweredCheckerFragment(
     val fieldPathInclusionConditions: Map<Arguments.Variable, List<InclusionCondition>>,
 )
 
-private fun Map<String, ResolverFragmentTemplates>.lowerForResolution(
-    fragmentRoot: ProviderFragment,
-): LoweredCheckerFragment {
+private fun Map<String, ResolverFragmentTemplates>.lowerForResolution(fragmentRoot: ProviderFragment): LoweredCheckerFragment {
     var constructionSelections = selectionForestOf()
     val variables = linkedMapOf<Arguments.Variable, VariableDefinition>()
     val fieldPathInclusionConditions =
@@ -200,9 +190,7 @@ private fun Map<String, ResolverFragmentTemplates>.lowerForResolution(
     )
 }
 
-private fun ResolverFragmentTemplates.lowerForResolution(
-    fragmentName: String,
-): ResolverFragmentTemplates {
+private fun ResolverFragmentTemplates.lowerForResolution(fragmentName: String): ResolverFragmentTemplates {
     fun lower(variable: Arguments.Variable): Arguments.Variable {
         require(variable.isTemplate) {
             "Checker fragment templates may contain only variable templates"
@@ -229,9 +217,7 @@ private fun loweredCheckerVariableName(
     variableName: String,
 ): String = "$fragmentName:$variableName"
 
-private fun MaterializeSelectionForest.mapVariableTemplates(
-    transform: (Arguments.Variable) -> Arguments.Variable,
-): MaterializeSelectionForest =
+private fun MaterializeSelectionForest.mapVariableTemplates(transform: (Arguments.Variable) -> Arguments.Variable): MaterializeSelectionForest =
     flatMap { selection ->
         materializeSelectionForestOf(
             MaterializeSelection.of(
@@ -252,9 +238,7 @@ private fun MaterializeSelectionForest.mapVariableTemplates(
         )
     }
 
-private fun VariableDefinition.mapVariableTemplates(
-    transform: (Arguments.Variable) -> Arguments.Variable,
-): VariableDefinition =
+private fun VariableDefinition.mapVariableTemplates(transform: (Arguments.Variable) -> Arguments.Variable): VariableDefinition =
     when (this) {
         VariableDefinition.FromProvider -> this
         is VariableDefinition.FromArgument -> this
@@ -291,9 +275,7 @@ private val ResolverTarget.checkerInputOwner: String
                 error("A field-value resolver target cannot own a checker")
         }
 
-private fun ResolverFragmentTemplates.requireVariablesBelongTo(
-    target: ResolverTarget,
-) {
+private fun ResolverFragmentTemplates.requireVariablesBelongTo(target: ResolverTarget) {
     variables.forEach { (variable, definition) ->
         require(variable.isTemplate) {
             "Checker registry variables must be templates"

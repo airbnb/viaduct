@@ -5,23 +5,22 @@ import model.InclusionCondition
 import model.ObjectEngineResult
 import model.ObjectSelectionForest
 import model.SelectionForest
-import model.flatMapToSelectionForest
 import model.guardedBy
 import model.merge
 import model.requireQueryTypeDef
-import model.schemaType
 import model.satisfiableAlternatives
+import model.schemaType
 import model.selectionForestOf
 import semantics.resolver26.liftParentConstructionDemand
-import semantics.shared.OrchestrationConstructionDemand
 import semantics.shared.Demand
 import semantics.shared.OEROccurrence
+import semantics.shared.OrchestrationConstructionDemand
 import semantics.shared.ResolverInputConstructionDemand
 import semantics.shared.SharedOperationContext
 import semantics.shared.applicableGroundSelections
-import semantics.shared.requiresStandardResolution
 import semantics.shared.argumentsContainErrorValue
 import semantics.shared.plus
+import semantics.shared.requiresStandardResolution
 import viaduct.engine.api.EngineObjectData
 import viaduct.graphql.schema.ViaductSchema
 
@@ -147,21 +146,21 @@ internal fun EngineObjectData.Sync.closeOrchestrationConstructionDemand(
                 )
             accumulatedDemand =
                 groundedDemand +
-                    OrchestrationConstructionDemand(
-                        objectRooted =
-                            Demand(
-                                checked = objectResolverInputs.objectFragment,
-                                unchecked = objectCheckerInputs.objectFragment,
-                            ),
-                        queryRooted =
-                            Demand(
-                                checked = queryInputSelections,
-                                unchecked =
-                                    objectCheckerInputs.queryFragment +
-                                        queryCheckerInputs.objectFragment +
-                                        queryCheckerInputs.queryFragment,
-                            ),
-                    )
+                OrchestrationConstructionDemand(
+                    objectRooted =
+                        Demand(
+                            checked = objectResolverInputs.objectFragment,
+                            unchecked = objectCheckerInputs.objectFragment,
+                        ),
+                    queryRooted =
+                        Demand(
+                            checked = queryInputSelections,
+                            unchecked =
+                                objectCheckerInputs.queryFragment +
+                                    queryCheckerInputs.objectFragment +
+                                    queryCheckerInputs.queryFragment,
+                        ),
+                )
             expandedObjectResolverKeys += newObjectResolverKeys
             expandedQueryResolverKeys += newQueryResolverKeys
         }

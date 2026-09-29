@@ -2,9 +2,9 @@ package semantics.resolvers.resolver08
 
 import model.ObjectEngineResult
 import model.SelectionForest
+import semantics.resolvers.resolver01.DepthFirstTask
 import semantics.resolvers.resolver06.DepthFirstReactor
 import semantics.resolvers.successorDemand
-import semantics.resolvers.resolver01.DepthFirstTask
 import semantics.shared.SharedOperationContext
 
 /**
@@ -13,8 +13,7 @@ import semantics.shared.SharedOperationContext
  *
  * Precondition: `world.schema` has no `@parent` fields.
  */
-fun SharedOperationContext<*>.resolve(selections: SelectionForest): ObjectEngineResult =
-    resolve(selections, onTaskStarted = {})
+fun SharedOperationContext<*>.resolve(selections: SelectionForest): ObjectEngineResult = resolve(selections, onTaskStarted = {})
 
 internal fun SharedOperationContext<*>.resolve(
     selections: SelectionForest,

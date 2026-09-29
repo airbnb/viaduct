@@ -6,9 +6,9 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlinx.coroutines.runBlocking
-import model.arg
 import model.Arguments
 import model.ObjectEngineResult
+import model.arg
 import model.fragmentFrom
 import model.materializeSelectionForestOf
 import model.requireObjectField
@@ -36,7 +36,10 @@ class FieldCheckerRuntimeVariablesTest {
         ).schema
         val checked = mixed.requireObjectField("Query", "checked")
         for (root in ProviderFragment.entries) {
-            fun checker(type: String, directive: String = ""): FieldCheckerResolver {
+            fun checker(
+                type: String,
+                directive: String = ""
+            ): FieldCheckerResolver {
                 val input = mixed.fragmentFrom(
                     "fragment Input on Query { nodes { edge { ... on $type { localized(locale: ${'$'}locale) $directive } } } }",
                     variableTarget = ResolverTarget.FieldCheckerTarget(checked),

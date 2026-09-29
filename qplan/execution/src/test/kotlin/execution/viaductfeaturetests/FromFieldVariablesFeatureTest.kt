@@ -10,8 +10,6 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import viaduct.engine.api.spi.VariableFromArgumentDefinitions
-import viaduct.engine.api.spi.VariableFromFieldDefinitions
 import viaduct.engine.api.FromArgumentVariable
 import viaduct.engine.api.FromObjectFieldVariable
 import viaduct.engine.api.FromQueryFieldVariable
@@ -27,6 +25,8 @@ import viaduct.engine.api.mocks.createEngineObjectData
 import viaduct.engine.api.mocks.fetchAs
 import viaduct.engine.api.mocks.getAs
 import viaduct.engine.api.select.SelectionsParser
+import viaduct.engine.api.spi.VariableFromArgumentDefinitions
+import viaduct.engine.api.spi.VariableFromFieldDefinitions
 import viaduct.engine.runtime.tenantloading.InvalidVariableException
 
 class FromFieldVariablesFeatureTest {

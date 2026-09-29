@@ -26,9 +26,7 @@ internal fun ViaductSchema.loweredFieldFromSourceCoordinate(
 }
 
 /** Resolves the ordinary lowered field representing source `__typename` demand. */
-internal fun ViaductSchema.loweredTypenameField(
-    sourceTypeName: String,
-): ViaductSchema.Field {
+internal fun ViaductSchema.loweredTypenameField(sourceTypeName: String): ViaductSchema.Field {
     requireSourceName(sourceTypeName, "__typename")
     val sourceType =
         types[sourceTypeName] as? ViaductSchema.CompositeTypeDef
@@ -49,9 +47,7 @@ internal fun ViaductSchema.loweredTypenameField(
 /**
  * Returns the source output type represented by this canonical lowered field.
  */
-internal fun ViaductSchema.sourceTypeExpr(
-    field: ViaductSchema.Field,
-): ViaductSchema.TypeExpr<ViaductSchema.OutputTypeDef> = field.type.requireOutputType()
+internal fun ViaductSchema.sourceTypeExpr(field: ViaductSchema.Field): ViaductSchema.TypeExpr<ViaductSchema.OutputTypeDef> = field.type.requireOutputType()
 
 private fun requireSourceName(
     sourceTypeName: String,

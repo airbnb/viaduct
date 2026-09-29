@@ -2,14 +2,14 @@
 
 package semantics.resolver26
 
+import kotlin.test.Test
+import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
 import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
 import model.ObjectEngineResult
 import model.requireQueryTypeDef
 import model.testing.TestWorld
-import kotlin.test.Test
-import kotlin.test.assertFailsWith
-import kotlin.test.assertFalse
 
 class BindingDeclarationsStateTest {
     @Test

@@ -4,7 +4,6 @@ package execution.viaductfeaturetests
 // Copied 23 out of 23 tests as of 2026-09-08
 
 import execution.testing.runQPlanFeatureTest
-
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.ExperimentalCoroutinesApi

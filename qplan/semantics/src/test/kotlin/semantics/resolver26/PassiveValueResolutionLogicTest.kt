@@ -2,6 +2,10 @@
 
 package semantics.resolver26
 
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+import kotlin.test.assertIs
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.runBlocking
 import model.Arguments
@@ -25,10 +29,6 @@ import model.testing.TestWorld
 import model.testing.fieldResolverOf
 import semantics.shared.SharedOperationContext
 import viaduct.graphql.schema.ViaductSchema
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
-import kotlin.test.assertIs
 
 class PassiveValueResolutionLogicTest : Resolver26DispatcherResource {
     @Test
@@ -106,13 +106,16 @@ class PassiveValueResolutionLogicTest : Resolver26DispatcherResource {
             assertIs<ListEngineResult>(
                 result.getCell(itemsKey).value.get(),
             )
-        assertEquals(listOf("one", "two"), items.map { cell ->
-            val item = assertIs<ObjectEngineResult>(cell.value.get())
-            assertFailsWith<NoSuchElementException> {
-                item.reserveCell(itemOmittedKey)
+        assertEquals(
+            listOf("one", "two"),
+            items.map { cell ->
+                val item = assertIs<ObjectEngineResult>(cell.value.get())
+                assertFailsWith<NoSuchElementException> {
+                    item.reserveCell(itemOmittedKey)
+                }
+                item.getCell(valueKey).value.get()
             }
-            item.getCell(valueKey).value.get()
-        })
+        )
     }
 
     @Test
@@ -255,8 +258,7 @@ class PassiveValueResolutionLogicTest : Resolver26DispatcherResource {
         }
     }
 
-    private fun ViaductSchema.ObjectField.key(): ObjectEngineResult.GroundKey =
-        ObjectEngineResult.GroundKey.of(this, emptyMap())
+    private fun ViaductSchema.ObjectField.key(): ObjectEngineResult.GroundKey = ObjectEngineResult.GroundKey.of(this, emptyMap())
 
     private fun resolvePassiveValues(
         world: Assumptions,

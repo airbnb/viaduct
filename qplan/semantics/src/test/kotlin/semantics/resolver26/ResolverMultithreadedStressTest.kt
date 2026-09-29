@@ -2,27 +2,27 @@
 
 package semantics.resolver26
 
-import semantics.shared.ResolverInvocationObservation
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicInteger
+import kotlin.coroutines.CoroutineContext
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.runBlocking
 import model.Assumptions
+import model.Fragment
 import model.ObjectEngineResult
 import model.ResolverOccurrenceId
-import model.Fragment
 import model.fragmentFrom
 import org.junit.jupiter.api.Test
 import semantics.arbitrary.ResolverTestRun
 import semantics.arbitrary.TestCaseCount
 import semantics.arbitrary.checkResolverTestCases
 import semantics.contract.validateFromFieldBindings
-import semantics.correctresolution.correctResolution
-import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.atomic.AtomicInteger
-import kotlin.coroutines.CoroutineContext
-import kotlin.test.assertEquals
-import kotlin.test.assertTrue
-import semantics.shared.SharedOperationContext
 import semantics.correctresolution.CorrectnessResolverObserver
+import semantics.correctresolution.correctResolution
+import semantics.shared.ResolverInvocationObservation
+import semantics.shared.SharedOperationContext
 
 class ResolverMultithreadedStressTest {
     @Test
@@ -82,8 +82,7 @@ class ResolverMultithreadedStressTest {
         }
 
     // Returns the fixed dispatcher size selected for this run.
-    private fun configuredThreadCount(): Int =
-        configuredResolutionThreadCount()
+    private fun configuredThreadCount(): Int = configuredResolutionThreadCount()
 
     // Returns fixed S:R:Q dimensions, or null to retain each campaign profile's dimensions.
     private fun configuredCounts(): TestCaseCount? {
@@ -214,5 +213,4 @@ private suspend fun runResolver26MultithreadedStress(
 }
 
 // Returns compact S:R:Q dimensions for diagnostics.
-private fun TestCaseCount.summary(): String =
-    "$schemas:$registriesPerSchema:$queriesPerSchema"
+private fun TestCaseCount.summary(): String = "$schemas:$registriesPerSchema:$queriesPerSchema"

@@ -8,8 +8,8 @@ import io.kotest.property.arbitrary.bind
 import io.kotest.property.arbitrary.flatMap
 import io.kotest.property.arbitrary.list
 import io.kotest.property.checkAll
-import model.testing.TestWorld
 import kotlin.random.Random
+import model.testing.TestWorld
 
 const val RESOLVER_TEST_SEED_PROPERTY = "resolver.property.seed"
 const val RESOLVER_TEST_PROFILE_PROPERTY = "resolver.property.profile"
@@ -45,8 +45,7 @@ data class ResolverTestCoordinates(
         require(queryIndex > 0)
     }
 
-    fun summary(): String =
-        "profile=$profile seed=$seed S=$schemaIndex R=$registryIndex Q=$queryIndex"
+    fun summary(): String = "profile=$profile seed=$seed S=$schemaIndex R=$registryIndex Q=$queryIndex"
 
     fun replaySeedArgument(): String = "-PresolverPropertySeed=$seed"
 }
@@ -230,7 +229,7 @@ suspend fun executeResolverTestCases(
                     selectiveNodeResolvers = config[SelectiveNodeResolversEnabled],
                     fieldCheckerMode = fieldCheckerMode,
                 )
-            batch.queries.forEachIndexed query@ { queryOffset, query ->
+            batch.queries.forEachIndexed query@{ queryOffset, query ->
                 val queryIndex = queryOffset + 1
                 if (
                     execution.selectedCase != null &&
@@ -368,5 +367,4 @@ private fun configuredResolverTestSeed(): Long =
         ?: PropertyTesting.defaultSeed
         ?: Random.nextLong()
 
-private fun TestCaseCount.summary(): String =
-    "$schemas:$registriesPerSchema:$queriesPerSchema"
+private fun TestCaseCount.summary(): String = "$schemas:$registriesPerSchema:$queriesPerSchema"

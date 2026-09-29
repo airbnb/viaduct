@@ -3,6 +3,9 @@
 package semantics.resolver26
 
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.test.assertEquals
+import kotlin.test.assertIs
+import kotlin.test.assertTrue
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -26,9 +29,6 @@ import org.junit.jupiter.api.DynamicTest
 import org.junit.jupiter.api.TestFactory
 import semantics.correctresolution.CorrectnessResolverObserver
 import semantics.shared.SharedOperationContext
-import kotlin.test.assertEquals
-import kotlin.test.assertIs
-import kotlin.test.assertTrue
 
 /** Regression coverage: the independently included shared producer has transitive inputs. */
 class SingularQueryGuardIsolationTest : Resolver26DispatcherResource {
@@ -78,7 +78,9 @@ class SingularQueryGuardIsolationTest : Resolver26DispatcherResource {
                         if (name == "bad") {
                             slowStarted.complete(Unit)
                             releaseSlow.await()
-                        } else fastStarted.complete(Unit)
+                        } else {
+                            fastStarted.complete(Unit)
+                        }
                     }
                     val observer = CorrectnessResolverObserver()
                     val operation = SharedOperationContext.create(world.assumptions, resolverObserver = observer)
@@ -88,7 +90,10 @@ class SingularQueryGuardIsolationTest : Resolver26DispatcherResource {
                             world.assumptions.operationSelectionsFrom("{ bad good }"),
                             CoroutineScope(resolverDispatcher + request),
                         )
-                        withTimeout(5_000) { slowStarted.await(); fastStarted.await() }
+                        withTimeout(5_000) {
+                            slowStarted.await()
+                            fastStarted.await()
+                        }
                         val good = result.getCell(key(world, "good"))
                         val beforeRelease = withTimeoutOrNull(1_000) { good.value.await() }
                         val shared = observer.allQueryOERs().values.single { it.isDemanded() }.occurrence.target
@@ -108,7 +113,11 @@ class SingularQueryGuardIsolationTest : Resolver26DispatcherResource {
             }
         }
 
-    private fun world(mode: String, leafCalls: AtomicInteger, beforeBinding: suspend (String) -> Unit): TestWorld =
+    private fun world(
+        mode: String,
+        leafCalls: AtomicInteger,
+        beforeBinding: suspend (String) -> Unit
+    ): TestWorld =
         TestWorld.fromSDL(
             selectiveResolvers = true,
             schemaSDL = "type Query { bad: Int!, good: Int!, source: Int!, leaf: Int!, echo(value: Int!): Int! }",
@@ -133,7 +142,9 @@ class SingularQueryGuardIsolationTest : Resolver26DispatcherResource {
                     source to fieldResolverOf(
                         objectFragment = if (mode == "objectProvider") {
                             schema.fragmentFrom("fragment Local on Query { leaf echo(value: ${'$'}value) }", variableField = source)
-                        } else empty,
+                        } else {
+                            empty
+                        },
                         queryFragment = when (mode) {
                             "query" -> schema.fragmentFrom("fragment Input on Query { leaf }")
                             "queryProvider" -> schema.fragmentFrom("fragment Input on Query { leaf echo(value: ${'$'}value) }", variableField = source)
@@ -146,24 +157,37 @@ class SingularQueryGuardIsolationTest : Resolver26DispatcherResource {
                             else -> query.outputValue("leaf")
                         }
                     },
-                    schema.requireObjectField("Query", "leaf") to fieldResolverOf(empty) { _, _ -> leafCalls.incrementAndGet(); 7 },
+                    schema.requireObjectField("Query", "leaf") to fieldResolverOf(empty) { _, _ ->
+                        leafCalls.incrementAndGet()
+                        7
+                    },
                     schema.requireObjectField("Query", "echo") to fieldResolverOf(empty) { _, arguments -> arguments.fieldValues.getValue("value") },
                 )
             },
             variableProviders = { schema ->
                 val source = schema.requireObjectField("Query", "source")
                 when (mode) {
-                    "objectProvider" -> mapOf(Arguments.Variable.of(source, "value") to schema.fromObjectField(
-                        objectFragmentSource = "fragment Provider on Query { leaf }", responsePath = listOf("leaf"), variableField = source,
-                    ))
-                    "queryProvider" -> mapOf(Arguments.Variable.of(source, "value") to schema.fromQueryField(
-                        queryFragmentSource = "fragment Provider on Query { leaf }", responsePath = listOf("leaf"), variableField = source,
-                    ))
+                    "objectProvider" -> mapOf(
+                        Arguments.Variable.of(source, "value") to schema.fromObjectField(
+                            objectFragmentSource = "fragment Provider on Query { leaf }",
+                            responsePath = listOf("leaf"),
+                            variableField = source,
+                        )
+                    )
+                    "queryProvider" -> mapOf(
+                        Arguments.Variable.of(source, "value") to schema.fromQueryField(
+                            queryFragmentSource = "fragment Provider on Query { leaf }",
+                            responsePath = listOf("leaf"),
+                            variableField = source,
+                        )
+                    )
                     else -> emptyMap()
                 }
             },
         )
 
-    private fun key(world: TestWorld, name: String) =
-        ObjectEngineResult.GroundKey.of(world.schema.requireObjectField("Query", name), emptyMap())
+    private fun key(
+        world: TestWorld,
+        name: String
+    ) = ObjectEngineResult.GroundKey.of(world.schema.requireObjectField("Query", name), emptyMap())
 }

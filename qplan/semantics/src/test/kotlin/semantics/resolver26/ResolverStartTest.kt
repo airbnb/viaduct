@@ -2,34 +2,6 @@
 
 package semantics.resolver26
 
-import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.awaitCancellation
-import kotlinx.coroutines.cancelAndJoin
-import kotlinx.coroutines.currentCoroutineContext
-import kotlinx.coroutines.job
-import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.withTimeout
-import model.ObjectEngineResult
-import model.ErrorEngineResult
-import model.ResolverOccurrenceId
-import model.emptyFragmentOf
-import model.fragmentFrom
-import model.operationSelectionsFrom
-import model.requireField
-import model.requireObjectField
-import model.testing.TestWorld
-import model.testing.fieldResolverOf
-import semantics.contract.get
-import semantics.shared.CycleCheckState
-import semantics.shared.fieldResolverCycleTask
-import semantics.shared.valueCycleSlot
-import semantics.shared.ResolverObserver
-import semantics.shared.ResolverInvocationObservation
-import semantics.shared.ResolverReadCycleException
-import semantics.shared.SharedOperationContext
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.CopyOnWriteArrayList
@@ -46,6 +18,34 @@ import kotlin.test.assertNotEquals
 import kotlin.test.assertNotSame
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.job
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
+import model.ErrorEngineResult
+import model.ObjectEngineResult
+import model.ResolverOccurrenceId
+import model.emptyFragmentOf
+import model.fragmentFrom
+import model.operationSelectionsFrom
+import model.requireField
+import model.requireObjectField
+import model.testing.TestWorld
+import model.testing.fieldResolverOf
+import semantics.contract.get
+import semantics.shared.CycleCheckState
+import semantics.shared.ResolverInvocationObservation
+import semantics.shared.ResolverObserver
+import semantics.shared.ResolverReadCycleException
+import semantics.shared.SharedOperationContext
+import semantics.shared.fieldResolverCycleTask
+import semantics.shared.valueCycleSlot
 
 class ResolverStartTest : Resolver26DispatcherResource {
     @Test
@@ -61,7 +61,8 @@ class ResolverStartTest : Resolver26DispatcherResource {
                         executionContext.resolveSelectionSet(nested.materializeSelections).get("inner")
                     },
                     schema.requireObjectField("Query", "inner") to fieldResolverOf(
-                        empty, schema.fragmentFrom("fragment Input on Query { dependency }"),
+                        empty,
+                        schema.fragmentFrom("fragment Input on Query { dependency }"),
                     ) { _, query, _ -> query.get("dependency") },
                     schema.requireObjectField("Query", "dependency") to fieldResolverOf(empty) { _, _ -> 7 },
                 )
@@ -188,44 +189,45 @@ class ResolverStartTest : Resolver26DispatcherResource {
         }
 
     @Test
-    fun `request cancellation records entered producer but not waiting consumer`() = runBlocking {
-        val entered = CompletableDeferred<Unit>()
-        val stopped = CompletableDeferred<Unit>()
-        val observer = InvocationRecordingObserver()
-        val testWorld = TestWorld.fromSDL(
-            schemaSDL = "type Query { consumer: Int slow: Int }",
-            fieldResolvers = { schema ->
-                mapOf(
-                    schema.requireObjectField("Query", "consumer") to fieldResolverOf(
-                        schema.fragmentFrom("fragment Input on Query { slow }"),
-                    ) { _, _ -> error("consumer must not enter") },
-                    schema.requireObjectField("Query", "slow") to fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
-                        entered.complete(Unit)
-                        try {
-                            awaitCancellation()
-                        } finally {
-                            stopped.complete(Unit)
-                        }
-                    },
-                )
-            },
-        )
-        val job = Job()
-        try {
-            val operation = SharedOperationContext.create(testWorld.assumptions, resolverObserver = observer)
-            operation.startResolve(
-                operation.world.operationSelectionsFrom("{ consumer }"),
-                CoroutineScope(resolverDispatcher + job),
+    fun `request cancellation records entered producer but not waiting consumer`() =
+        runBlocking {
+            val entered = CompletableDeferred<Unit>()
+            val stopped = CompletableDeferred<Unit>()
+            val observer = InvocationRecordingObserver()
+            val testWorld = TestWorld.fromSDL(
+                schemaSDL = "type Query { consumer: Int slow: Int }",
+                fieldResolvers = { schema ->
+                    mapOf(
+                        schema.requireObjectField("Query", "consumer") to fieldResolverOf(
+                            schema.fragmentFrom("fragment Input on Query { slow }"),
+                        ) { _, _ -> error("consumer must not enter") },
+                        schema.requireObjectField("Query", "slow") to fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
+                            entered.complete(Unit)
+                            try {
+                                awaitCancellation()
+                            } finally {
+                                stopped.complete(Unit)
+                            }
+                        },
+                    )
+                },
             )
-            withTimeout(5000) { entered.await() }
-            job.cancelAndJoin()
-            withTimeout(5000) { stopped.await() }
-            assertEquals(listOf("slow"), observer.events.map { it.field.name })
-            assertEquals(observer.events.map { it.resolverOccurrenceId }.toSet(), observer.invokedResolverOccurrences())
-        } finally {
-            job.cancelAndJoin()
+            val job = Job()
+            try {
+                val operation = SharedOperationContext.create(testWorld.assumptions, resolverObserver = observer)
+                operation.startResolve(
+                    operation.world.operationSelectionsFrom("{ consumer }"),
+                    CoroutineScope(resolverDispatcher + job),
+                )
+                withTimeout(5000) { entered.await() }
+                job.cancelAndJoin()
+                withTimeout(5000) { stopped.await() }
+                assertEquals(listOf("slow"), observer.events.map { it.field.name })
+                assertEquals(observer.events.map { it.resolverOccurrenceId }.toSet(), observer.invokedResolverOccurrences())
+            } finally {
+                job.cancelAndJoin()
+            }
         }
-    }
 
     @Test
     fun `nested selection execution is owned by the calling field task`() =
@@ -679,17 +681,18 @@ class ResolverStartTest : Resolver26DispatcherResource {
             events += observation
         }
 
-        override fun onQueryFragmentPrepared(resolverOccurrenceId: ResolverOccurrenceId, result: ObjectEngineResult) {
+        override fun onQueryFragmentPrepared(
+            resolverOccurrenceId: ResolverOccurrenceId,
+            result: ObjectEngineResult
+        ) {
             queryResults.computeIfAbsent(resolverOccurrenceId) { ConcurrentLinkedQueue() }.add(result)
         }
 
         fun invokedResolverOccurrences(): Set<ResolverOccurrenceId> = invokedOccurrences.toSet()
 
-        fun queryFragmentResults(resolverOccurrenceId: ResolverOccurrenceId): List<ObjectEngineResult> =
-            queryResults[resolverOccurrenceId]?.toList().orEmpty()
+        fun queryFragmentResults(resolverOccurrenceId: ResolverOccurrenceId): List<ObjectEngineResult> = queryResults[resolverOccurrenceId]?.toList().orEmpty()
 
-        fun allQueryFragmentResults(): Map<ResolverOccurrenceId, List<ObjectEngineResult>> =
-            queryResults.mapValues { (_, results) -> results.toList() }
+        fun allQueryFragmentResults(): Map<ResolverOccurrenceId, List<ObjectEngineResult>> = queryResults.mapValues { (_, results) -> results.toList() }
     }
 
     private companion object {

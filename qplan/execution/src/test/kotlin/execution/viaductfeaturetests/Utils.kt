@@ -9,12 +9,10 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import viaduct.arbitrary.graphql.dump
 import viaduct.engine.api.EngineObjectData
-import viaduct.engine.api.mocks.EngineTestModule
 import viaduct.engine.api.mocks.FeatureTest
 import viaduct.engine.api.mocks.MockTenantModuleDSL
 import viaduct.engine.api.mocks.createEngineObjectData
 import viaduct.engine.runtime.execution.DefaultCoroutineInterop
-import execution.testing.runQPlanFeatureTest
 import viaduct.service.api.ExecutionInput
 import viaduct.service.api.ExecutionResult
 import viaduct.service.api.Viaduct

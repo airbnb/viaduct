@@ -1,9 +1,9 @@
 package model.testing
 
-import model.fragmentFrom
-import model.requireObjectField
 import kotlin.test.Test
 import kotlin.test.assertSame
+import model.fragmentFrom
+import model.requireObjectField
 
 class ArgumentsTestingTest {
     @Test

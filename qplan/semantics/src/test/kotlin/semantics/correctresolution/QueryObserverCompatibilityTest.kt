@@ -12,15 +12,15 @@ import model.testing.TestWorld
 import model.testing.fieldResolverOf
 import org.junit.jupiter.api.DynamicTest.dynamicTest
 import org.junit.jupiter.api.TestFactory
+import semantics.contract.selectionValues
+import semantics.resolver26.Resolver26DispatcherResource
 import semantics.resolvers.resolver02.resolve as resolve02
 import semantics.resolvers.resolver03.resolve as resolve03
 import semantics.resolvers.resolver07.resolve as resolve07
 import semantics.resolvers.resolver08.resolve as resolve08
 import semantics.resolvers.resolver22.resolve as resolve22
 import semantics.resolvers.resolver23.resolve as resolve23
-import semantics.resolver26.Resolver26DispatcherResource
 import semantics.shared.ResolverInvocationObservation
-import semantics.contract.selectionValues
 import semantics.shared.SharedOperationContext
 
 /** Existing recorder subclasses must continue receiving the documented compatibility callback. */

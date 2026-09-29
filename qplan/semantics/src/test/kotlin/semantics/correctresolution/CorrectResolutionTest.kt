@@ -3,74 +3,74 @@
 package semantics.correctresolution
 
 import java.util.concurrent.CopyOnWriteArrayList
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 import kotlinx.coroutines.runBlocking
 import model.Arguments
 import model.EngineErrorData
 import model.EngineObjectDataEntry
 import model.ObjectEngineResult
+import model.ObjectSelectionForest
 import model.ResolverOccurrenceId
 import model.emptyFragmentOf
 import model.engineObjectDataOf
-import model.materializedEngineObjectDataOf
 import model.engineResultOf
 import model.fragmentFrom
 import model.materializeSelectionForestOf
+import model.materializedEngineObjectDataOf
 import model.merge
 import model.objectOf
-import model.registry.ResolutionExecutionContext
 import model.registry.FieldCheckerResolver
+import model.registry.ResolutionExecutionContext
 import model.registry.ResolverFragmentTemplates
 import model.requireObjectField
 import model.requireQueryTypeDef
 import model.requireType
 import model.selectionForestOf
-import model.ObjectSelectionForest
+import model.testing.TestWorld
 import model.testing.fieldResolverOf
 import model.testing.selectiveFieldResolverOf
-import viaduct.graphql.schema.ViaductSchema
-import model.testing.TestWorld
-import semantics.resolver26.resolve
 import semantics.resolver26.Resolver26DispatcherResource
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertFailsWith
-import kotlin.test.assertTrue
-import semantics.shared.SharedOperationContext
-import semantics.shared.ResolverInvocationObservation
 import semantics.shared.OEROccurrence
+import semantics.shared.ResolverInvocationObservation
 import semantics.shared.SharedOERContext
+import semantics.shared.SharedOperationContext
 import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.CheckerResultContext
+import viaduct.graphql.schema.ViaductSchema
 
 class CorrectResolutionTest : Resolver26DispatcherResource {
     @Test
-    fun `direct resolve invocation and invocation through correctness replay do not cause invocation observations`() = runBlocking {
-        val testWorld = TestWorld.fromDSL("extend type Query { value: Int @resolver(result: 7) }")
-        val events = CopyOnWriteArrayList<ResolverInvocationObservation>()
-        val observer = object : CorrectnessResolverObserver() {
-            override fun onResolverInvocation(observation: ResolverInvocationObservation) {
-                super.onResolverInvocation(observation)
-                events += observation
+    fun `direct resolve invocation and invocation through correctness replay do not cause invocation observations`() =
+        runBlocking {
+            val testWorld = TestWorld.fromDSL("extend type Query { value: Int @resolver(result: 7) }")
+            val events = CopyOnWriteArrayList<ResolverInvocationObservation>()
+            val observer = object : CorrectnessResolverObserver() {
+                override fun onResolverInvocation(observation: ResolverInvocationObservation) {
+                    super.onResolverInvocation(observation)
+                    events += observation
+                }
             }
+            val world = testWorld.assumptions
+            val operation = SharedOperationContext.create(world, resolverObserver = observer)
+            val fragment = world.fragmentFrom("fragment Main on Query { value }")
+            val root = operation.resolveWithTestDispatcher(fragment.subselections)
+            assertEquals(1, events.size)
+            repeat(2) { assertTrue(root.correctResolution(operation, fragment)) }
+            val field = world.schema.requireObjectField("Query", "value")
+            world.resolverRegistry.resolver(field)(
+                input = engineObjectDataOf(world.schema.requireQueryTypeDef()),
+                queryValue = engineObjectDataOf(world.schema.requireQueryTypeDef()),
+                arguments = Arguments.Resolved.of(field, emptyMap()),
+                selections = selectionForestOf(),
+                selectiveResolvers = world.selectiveResolvers,
+                executionContext = ResolutionExecutionContext.Unsupported,
+            )
+            assertEquals(1, events.size)
         }
-        val world = testWorld.assumptions
-        val operation = SharedOperationContext.create(world, resolverObserver = observer)
-        val fragment = world.fragmentFrom("fragment Main on Query { value }")
-        val root = operation.resolveWithTestDispatcher(fragment.subselections)
-        assertEquals(1, events.size)
-        repeat(2) { assertTrue(root.correctResolution(operation, fragment)) }
-        val field = world.schema.requireObjectField("Query", "value")
-        world.resolverRegistry.resolver(field)(
-            input = engineObjectDataOf(world.schema.requireQueryTypeDef()),
-            queryValue = engineObjectDataOf(world.schema.requireQueryTypeDef()),
-            arguments = Arguments.Resolved.of(field, emptyMap()),
-            selections = selectionForestOf(),
-            selectiveResolvers = world.selectiveResolvers,
-            executionContext = ResolutionExecutionContext.Unsupported,
-        )
-        assertEquals(1, events.size)
-    }
 
     @Test
     fun `correctness reapplies a selective resolver with completed output demand`() {

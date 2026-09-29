@@ -45,5 +45,4 @@ class GeneratorConfigDataTest {
     }
 }
 
-private fun GeneratorConfigData.keyNames(): Set<String> =
-    booleans.keys + integers.keys + doubles.keys + ranges.keys
+private fun GeneratorConfigData.keyNames(): Set<String> = booleans.keys + integers.keys + doubles.keys + ranges.keys

@@ -2,10 +2,10 @@ package semantics.resolvers.resolver01
 
 import model.ObjectEngineResult
 import model.requireField
-import semantics.shared.argumentsContainErrorValue
-import semantics.shared.applicableGroundSelections
 import semantics.shared.OEROccurrence
 import semantics.shared.SharedOperationContext
+import semantics.shared.applicableGroundSelections
+import semantics.shared.argumentsContainErrorValue
 import semantics.shared.objectFragmentAt
 
 /** Computes sibling dependencies and demand-first ordering for one object occurrence. */
@@ -15,8 +15,7 @@ internal class SiblingDependencyLogic(
     private val includeQueryFragments: Boolean = false,
 ) {
     /** Returns a topological ordering using Kahn's algorithm, with accumulation local to this call. */
-    fun order(keys: Set<ObjectEngineResult.GroundKey>): List<ObjectEngineResult.GroundKey> =
-        order(keys, emptyList())
+    fun order(keys: Set<ObjectEngineResult.GroundKey>): List<ObjectEngineResult.GroundKey> = order(keys, emptyList())
 
     private fun order(
         keys: Set<ObjectEngineResult.GroundKey>,
@@ -67,8 +66,10 @@ internal class SiblingDependencyLogic(
                         oerOccurrence.root,
                         oerOccurrence.coordinate(consumer),
                     )
-                (fragments.objectFragment.constructionSelections +
-                    fragments.queryFragment.constructionSelections)
+                (
+                    fragments.objectFragment.constructionSelections +
+                        fragments.queryFragment.constructionSelections
+                )
                     .applicableGroundSelections(operation, objectType)
             } else {
                 resolver.objectFragmentAt(

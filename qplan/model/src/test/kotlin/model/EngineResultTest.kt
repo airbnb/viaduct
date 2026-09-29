@@ -2,14 +2,6 @@
 
 package model
 
-import viaduct.graphql.schema.ViaductSchema
-
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.async
-import kotlinx.coroutines.runBlocking
-import model.testing.TestWorld
-import viaduct.engine.api.CheckerResult
-import viaduct.engine.api.CheckerResultContext
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.atomic.AtomicInteger
@@ -24,6 +16,13 @@ import kotlin.test.assertNotSame
 import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.async
+import kotlinx.coroutines.runBlocking
+import model.testing.TestWorld
+import viaduct.engine.api.CheckerResult
+import viaduct.engine.api.CheckerResultContext
+import viaduct.graphql.schema.ViaductSchema
 
 class EngineResultTest {
     @Test
@@ -1298,8 +1297,7 @@ class EngineResultTest {
         typeName: String,
         fieldName: String,
         vararg arguments: Pair<String, Any?>,
-    ): ObjectEngineResult.GroundKey =
-        ObjectEngineResult.GroundKey.of(requireObjectField(typeName, fieldName), arguments.toMap())
+    ): ObjectEngineResult.GroundKey = ObjectEngineResult.GroundKey.of(requireObjectField(typeName, fieldName), arguments.toMap())
 
     private companion object {
         const val SCHEMA_SDL =

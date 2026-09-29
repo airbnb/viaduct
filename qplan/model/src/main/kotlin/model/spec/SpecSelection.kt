@@ -1,11 +1,10 @@
 package model.spec
 
+import model.Arguments
+import model.Assumptions
+import model.InclusionCondition
 import viaduct.engine.api.FieldDirectives
 import viaduct.graphql.schema.ViaductSchema
-
-import model.Assumptions
-import model.Arguments
-import model.InclusionCondition
 
 /**
  * A post-validation selection in a GraphQL-spec selection set.

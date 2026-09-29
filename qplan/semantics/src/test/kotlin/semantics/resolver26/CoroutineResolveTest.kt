@@ -6,15 +6,15 @@ import model.SelectionForest
 import model.schemaType
 import semantics.contract.CoroutineResolverContract
 import semantics.contract.CoroutineResolverTestSubject
-import semantics.shared.CycleCheckState
-import semantics.shared.OEROccurrence
-import semantics.shared.SharedOperationContext
 import semantics.contract.FragmentFreeFieldCheckerEnforcementContract
 import semantics.contract.FragmentFreeFieldCheckerPublicationContract
 import semantics.contract.GroundedFieldCheckerCapabilityContract
 import semantics.contract.GroundedFieldCheckerObjectFragmentContract
 import semantics.contract.GroundedFieldCheckerQueryFragmentContract
 import semantics.contract.SelectiveFieldCheckerExactnessContract
+import semantics.shared.CycleCheckState
+import semantics.shared.OEROccurrence
+import semantics.shared.SharedOperationContext
 
 class CoroutineResolveTest :
     CoroutineResolverTestSubject(),
@@ -35,7 +35,9 @@ class CoroutineResolveTest :
         cycleChecker: CycleCheckState,
     ): ObjectEngineResult {
         val resolverOperation = OperationContext.create(
-            operation, requestScope, cycleChecker,
+            operation,
+            requestScope,
+            cycleChecker,
         )
         val source = operation.world.resolverRegistry.createRootQueryInput()
         val root = ObjectEngineResult.of(source.schemaType, mutable = true)

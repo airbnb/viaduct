@@ -2,13 +2,13 @@
 
 package model
 
-import kotlinx.coroutines.runBlocking
-import model.testing.TestWorld
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
+import kotlinx.coroutines.runBlocking
+import model.testing.TestWorld
 
 class InclusionConditionTest {
     private val schema =
@@ -104,7 +104,6 @@ class InclusionConditionTest {
         assertSame(InclusionCondition.Never, condition)
     }
 
-
     @Test
     fun `mapping variables traverses every disjunction alternative`() {
         val condition =
@@ -122,31 +121,32 @@ class InclusionConditionTest {
     }
 
     @Test
-    fun `suspending evaluation short circuits conditions`() = runBlocking {
-        val visited = mutableListOf<Arguments.Variable>()
-        val condition =
-            InclusionCondition.anyOf(
-                listOf(
-                    InclusionCondition.requires(mapOf(x to true)),
-                    InclusionCondition.requires(mapOf(y to true)),
-                ),
+    fun `suspending evaluation short circuits conditions`() =
+        runBlocking {
+            val visited = mutableListOf<Arguments.Variable>()
+            val condition =
+                InclusionCondition.anyOf(
+                    listOf(
+                        InclusionCondition.requires(mapOf(x to true)),
+                        InclusionCondition.requires(mapOf(y to true)),
+                    ),
+                )
+
+            assertTrue(
+                condition.include { variable ->
+                    visited += variable
+                    variable == x
+                },
             )
+            assertEquals(listOf(x), visited)
 
-        assertTrue(
-            condition.include { variable ->
-                visited += variable
-                variable == x
-            },
-        )
-        assertEquals(listOf(x), visited)
-
-        visited.clear()
-        assertFalse(
-            InclusionCondition.Never.include { variable ->
-                visited += variable
-                true
-            },
-        )
-        assertTrue(visited.isEmpty())
-    }
+            visited.clear()
+            assertFalse(
+                InclusionCondition.Never.include { variable ->
+                    visited += variable
+                    true
+                },
+            )
+            assertTrue(visited.isEmpty())
+        }
 }

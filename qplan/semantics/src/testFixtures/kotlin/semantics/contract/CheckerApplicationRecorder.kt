@@ -15,9 +15,7 @@ class CheckerApplicationRecorder : CheckerObserver {
     fun checkerApplications(): List<CheckerInvocationObservation> = observations.toList()
 
     /** Compares multisets so both missing and duplicate applications fail the judgment. */
-    fun hasExactlyCheckerApplications(
-        expected: Collection<CheckerInvocationObservation>,
-    ): Boolean =
+    fun hasExactlyCheckerApplications(expected: Collection<CheckerInvocationObservation>): Boolean =
         observations.groupingBy { it }.eachCount() ==
             expected.groupingBy { it }.eachCount()
 }

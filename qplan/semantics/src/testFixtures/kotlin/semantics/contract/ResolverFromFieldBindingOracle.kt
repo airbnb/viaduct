@@ -1,27 +1,27 @@
 package semantics.contract
 
+import kotlin.test.assertEquals
 import model.EngineInputData
 import model.EngineResult
 import model.ErrorEngineResult
 import model.ListEngineResult
+import model.MaterializeSelectionForest
 import model.ObjectEngineResult
 import model.PathComponent
 import model.ResolverOccurrenceId
-import model.MaterializeSelectionForest
 import model.VariableBinding
 import model.outputType
 import model.registry.FieldValueResolver
 import model.registry.InstantiatedFieldPathDefinition
-import model.registry.VariableDefinition
 import model.registry.ProviderFragment
+import model.registry.VariableDefinition
 import model.toEngineInputListData
 import model.toEngineSimpleData
+import semantics.correctresolution.CorrectnessResolverObserver
+import semantics.shared.SharedOperationContext
 import semantics.shared.findStoredKey
 import viaduct.graphql.schema.ViaductSchema
 import viaduct.utils.collections.BitVector
-import kotlin.test.assertEquals
-import semantics.shared.SharedOperationContext
-import semantics.correctresolution.CorrectnessResolverObserver
 
 /**
  * Independently validates from-field bindings across every request-local Query root.
@@ -73,8 +73,9 @@ fun ObjectEngineResult.validateFromFieldBindings(
         definitions.forEach { definition ->
             val providerRoot =
                 when (definition.providerFragment) {
-                    ProviderFragment.OBJECT -> containingObject
-                        ?: error("Root-field-reference target unexpectedly has an object-field provider")
+                    ProviderFragment.OBJECT ->
+                        containingObject
+                            ?: error("Root-field-reference target unexpectedly has an object-field provider")
                     ProviderFragment.QUERY ->
                         operation.resolverObservations()
                             .queryFragmentResults(occurrenceId)
@@ -121,8 +122,7 @@ fun ObjectEngineResult.validateFromFieldBindings(
 internal fun FieldValueResolver.fieldPathDefinitions(
     root: ObjectEngineResult,
     path: List<PathComponent>,
-): List<InstantiatedFieldPathDefinition> =
-    instantiatedFieldPathVariableDefinitions(ResolverOccurrenceId.at(root, path))
+): List<InstantiatedFieldPathDefinition> = instantiatedFieldPathVariableDefinitions(ResolverOccurrenceId.at(root, path))
 
 private fun ObjectEngineResult.requestQueryRoots(operation: SharedOperationContext<*>): List<ObjectEngineResult> =
     buildList {
@@ -183,9 +183,7 @@ private fun SharedOperationContext<*>.resolverObservations(): CorrectnessResolve
     resolverObserver as? CorrectnessResolverObserver
         ?: error("Resolver observations were not recorded for this operation")
 
-private fun EngineResult.toVariableBinding(
-    expectedType: ViaductSchema.TypeExpr<ViaductSchema.OutputTypeDef>,
-): VariableBinding =
+private fun EngineResult.toVariableBinding(expectedType: ViaductSchema.TypeExpr<ViaductSchema.OutputTypeDef>): VariableBinding =
     when (this) {
         is ErrorEngineResult -> VariableBinding.Error
         is ListEngineResult -> toInputListBinding()
@@ -222,9 +220,7 @@ private fun ListEngineResult.toInputListBinding(): VariableBinding {
     )
 }
 
-private fun ViaductSchema.TypeExpr<*>.withNonNullListWrapper(
-    baseType: ViaductSchema.InputTypeDef,
-): ViaductSchema.TypeExpr<ViaductSchema.InputTypeDef> {
+private fun ViaductSchema.TypeExpr<*>.withNonNullListWrapper(baseType: ViaductSchema.InputTypeDef): ViaductSchema.TypeExpr<ViaductSchema.InputTypeDef> {
     val wrappers = BitVector(listDepth + 1)
     for (depth in 0 until listDepth) {
         if (nullableAtDepth(depth)) wrappers.set(depth + 1)

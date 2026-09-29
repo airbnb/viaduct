@@ -2,29 +2,29 @@
 
 package semantics.correctresolution
 
-import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
-import model.ObjectEngineResult
+import kotlinx.coroutines.runBlocking
 import model.Arguments
 import model.Assumptions
+import model.ObjectEngineResult
 import model.ResolverOccurrenceId
 import model.emptyFragmentOf
 import model.engineObjectDataOf
 import model.engineResultOf
 import model.fragmentFrom
-import model.merge
 import model.materializeSelectionForestOf
+import model.merge
 import model.requireObjectField
 import model.requireQueryTypeDef
 import model.testing.TestWorld
 import model.testing.fieldResolverOf
-import semantics.contract.registeredResolverOccurrenceApplicationIdentityCounts
-import semantics.contract.selectionValues
 import semantics.arbitrary.FieldCoordinate
 import semantics.arbitrary.ResolutionOccurrenceApplicationLog
+import semantics.contract.registeredResolverOccurrenceApplicationIdentityCounts
+import semantics.contract.selectionValues
 import semantics.shared.OEROccurrence
 import semantics.shared.ResolverInvocationObservation
 import semantics.shared.SharedOERContext
@@ -106,10 +106,13 @@ class ScopeTokenIdentityAdversarialReviewTest {
             fieldResolvers = { schema ->
                 buildMap {
                     listOf("answer" to "middle", "middle" to "source").forEach { (name, dependency) ->
-                        put(schema.requireObjectField("Query", name), fieldResolverOf(
-                            schema.emptyFragmentOf("Query"),
-                            schema.fragmentFrom("fragment Input on Query { $dependency }"),
-                        ) { _, query, _ -> query.selectionValues().getValue(dependency) })
+                        put(
+                            schema.requireObjectField("Query", name),
+                            fieldResolverOf(
+                                schema.emptyFragmentOf("Query"),
+                                schema.fragmentFrom("fragment Input on Query { $dependency }"),
+                            ) { _, query, _ -> query.selectionValues().getValue(dependency) }
+                        )
                     }
                     put(schema.requireObjectField("Query", "source"), fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> 7 })
                 }
@@ -120,11 +123,18 @@ class ScopeTokenIdentityAdversarialReviewTest {
         val firstQuery = world.engineResultOf("Query") { "middle" resolvesTo 7 }
         val secondQuery = world.engineResultOf("Query") { "source" resolvesTo 7 }
         val resultDemand = world.fragmentFrom("fragment Result on Query { answer }").subselections.merge(queryType)
-        val sharedQuery = world.engineResultOf("Query") { "middle" resolvesTo 7; "source" resolvesTo 7 }
+        val sharedQuery = world.engineResultOf("Query") {
+            "middle" resolvesTo 7
+            "source" resolvesTo 7
+        }
         val control = CorrectnessResolverObserver()
         val controlScope = OEROccurrence(result, emptyList(), result)
         control.onQueryOERPrepared(
-            SharedOERContext(OEROccurrence(sharedQuery, emptyList(), sharedQuery), engineObjectDataOf(queryType), world.fragmentFrom("fragment Input on Query { middle source }").subselections.merge(queryType)),
+            SharedOERContext(
+                OEROccurrence(sharedQuery, emptyList(), sharedQuery),
+                engineObjectDataOf(queryType),
+                world.fragmentFrom("fragment Input on Query { middle source }").subselections.merge(queryType)
+            ),
             queryOERDepth = 1,
         )
         listOf(result to "answer", sharedQuery to "middle").forEach { (root, name) ->

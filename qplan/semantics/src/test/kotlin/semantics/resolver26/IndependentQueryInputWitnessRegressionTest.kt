@@ -5,8 +5,8 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
-import model.RootFieldReferenceData
 import model.ResolverOccurrenceId
+import model.RootFieldReferenceData
 import model.emptyFragmentOf
 import model.fragmentFrom
 import model.merge
@@ -101,8 +101,11 @@ class IndependentQueryInputWitnessRegressionTest : Resolver26DispatcherResource 
         val scopes = observer.allQueryFragmentScopes()
         associations.forEach { (owner, _) ->
             val scope = scopes[owner]?.singleOrNull()
-            if (scope == null) mutantObserver.onIndependentQueryFragmentPrepared(owner, roots[0])
-            else mutantObserver.onQueryFragmentPrepared(owner, roots[0], scope)
+            if (scope == null) {
+                mutantObserver.onIndependentQueryFragmentPrepared(owner, roots[0])
+            } else {
+                mutantObserver.onQueryFragmentPrepared(owner, roots[0], scope)
+            }
         }
         observer.allQueryOERs().forEach { (root, context) ->
             if (root !== roots[1]) mutantObserver.onQueryOERPrepared(context)

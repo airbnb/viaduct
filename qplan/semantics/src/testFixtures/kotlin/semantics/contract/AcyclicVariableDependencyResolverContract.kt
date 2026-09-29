@@ -1,16 +1,15 @@
 package semantics.contract
 
-import semantics.shared.ResolverInvocationObservation
-import semantics.correctresolution.CorrectnessResolverObserver
-import model.requireObjectField
-import model.Arguments
 import io.kotest.matchers.collections.shouldContainExactly
-import model.EngineResult
-import model.ObjectEngineResult
-import model.testing.TestWorld
 import java.util.concurrent.ConcurrentLinkedQueue
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import model.Arguments
+import model.ObjectEngineResult
+import model.requireObjectField
+import model.testing.TestWorld
+import semantics.correctresolution.CorrectnessResolverObserver
+import semantics.shared.ResolverInvocationObservation
 
 interface AcyclicVariableDependencyResolverContract : ResolverContract {
     @Test

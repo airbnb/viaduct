@@ -8,9 +8,9 @@ import model.RootFieldReferenceData
 import model.SelectionForest
 import model.requireQueryTypeDef
 import semantics.resolvers.GroundedFieldPublicationOccurrence
+import semantics.shared.Demand
 import semantics.shared.OEROccurrence
 import semantics.shared.SharedOERContext
-import semantics.shared.Demand
 import semantics.shared.SharedPassiveValueResolutionLogic
 import semantics.shared.applicableGroundSelections
 import viaduct.engine.api.EngineObjectData
@@ -23,15 +23,14 @@ internal class CoroutinePassiveValueResolutionLogic(operation: CoroutineOperatio
         occurrence: OEROccurrence,
         source: EngineObjectData.Sync,
         constructionDemand: Demand<SelectionForest>,
-    ): CoroutineOrchestrationTask =
-        CoroutineOrchestrationTask.create(operation, occurrence, source, constructionDemand)
+    ): CoroutineOrchestrationTask = CoroutineOrchestrationTask.create(operation, occurrence, source, constructionDemand)
 
-    override fun closedConstructionDemand(
-        orchestration: CoroutineOrchestrationTask,
-    ): Demand<ObjectSelectionForest> = orchestration.closedConstructionDemand.objectRooted
+    override fun closedConstructionDemand(orchestration: CoroutineOrchestrationTask): Demand<ObjectSelectionForest> = orchestration.closedConstructionDemand.objectRooted
 
-    override fun collect(selections: SelectionForest, type: ViaductSchema.Object): ObjectSelectionForest =
-        selections.applicableGroundSelections(operation, type)
+    override fun collect(
+        selections: SelectionForest,
+        type: ViaductSchema.Object
+    ): ObjectSelectionForest = selections.applicableGroundSelections(operation, type)
 
     override fun resolveListReference(
         reference: RootFieldReferenceData,

@@ -1,30 +1,27 @@
 package model.invariants
 
-import viaduct.graphql.schema.ViaductSchema
-
 import model.Arguments
-
 import model.EngineErrorData
-import model.EngineOutputData
-import model.EngineResult
-import model.EngineResultCell
+import model.EngineIDResult
 import model.EngineInputData
 import model.EngineInputListData
 import model.EngineInputObjectData
-import model.EngineIDResult
+import model.EngineOutputData
+import model.EngineResult
+import model.EngineResultCell
 import model.ErrorEngineResult
-import model.CoercedDefaultValue
 import model.ListEngineResult
 import model.ObjectEngineResult
-import model.RootFieldReferenceData
-import model.nodeReferenceIdentityOrNull
 import model.ResolverOutputData
+import model.RootFieldReferenceData
 import model.canContainPure
 import model.conformsToArgumentDefinition
 import model.inputType
+import model.nodeReferenceIdentityOrNull
 import model.outputType
 import model.qplanSchemaTypeOrNull
 import viaduct.engine.api.EngineObjectData
+import viaduct.graphql.schema.ViaductSchema
 
 /**
  * Whether this EOD recursively contains only engine output data.
@@ -40,9 +37,7 @@ internal fun EngineObjectData.Sync.conformsToSchema(): Boolean = this.conformsTo
  *
  * Null conforms exactly at a nullable outer layer.
  */
-internal fun EngineInputData?.conformsToSchema(
-    typeExpr: ViaductSchema.TypeExpr<ViaductSchema.InputTypeDef>,
-): Boolean = conformsToInputSchemaType(typeExpr)
+internal fun EngineInputData?.conformsToSchema(typeExpr: ViaductSchema.TypeExpr<ViaductSchema.InputTypeDef>): Boolean = conformsToInputSchemaType(typeExpr)
 
 /**
  * Whether this output value recursively conforms to [typeExpr].
@@ -50,16 +45,12 @@ internal fun EngineInputData?.conformsToSchema(
  * Null conforms exactly at a nullable outer layer and [EngineErrorData] conforms to every output
  * type expression.
  */
-internal fun EngineOutputData?.conformsToOutputSchema(
-    typeExpr: ViaductSchema.TypeExpr<ViaductSchema.OutputTypeDef>,
-): Boolean =
+internal fun EngineOutputData?.conformsToOutputSchema(typeExpr: ViaductSchema.TypeExpr<ViaductSchema.OutputTypeDef>): Boolean =
     conformsToOutputSchemaType(typeExpr) &&
         (this !is EngineObjectData.Sync || conformsToOutputData())
 
 /** Whether this argument tuple recursively conforms to [expectedType]. */
-internal fun Arguments.Resolved.conformsToSchema(
-    expectedField: ViaductSchema.Field,
-): Boolean = conformsToArgumentDefinition(expectedField)
+internal fun Arguments.Resolved.conformsToSchema(expectedField: ViaductSchema.Field): Boolean = conformsToArgumentDefinition(expectedField)
 
 /** Whether this key's arguments recursively conform to its output field. */
 internal fun ObjectEngineResult.Key.conformsToSchema(): Boolean {
@@ -75,9 +66,7 @@ internal fun ObjectEngineResult.Key.conformsToSchema(): Boolean {
  *
  * This relation is universally true of engine results constructed by their model factories.
  */
-internal fun EngineResult.conformsToSchema(
-    parentFieldRelations: Map<ViaductSchema.ObjectField, ViaductSchema.ObjectField>,
-): Boolean =
+internal fun EngineResult.conformsToSchema(parentFieldRelations: Map<ViaductSchema.ObjectField, ViaductSchema.ObjectField>): Boolean =
     this.conformsToSchema(
         parentFieldRelations = parentFieldRelations,
         ancestors = emptyList(),
@@ -141,9 +130,7 @@ private fun EngineResult.conformsToSchema(
     }
 }
 
-private fun EngineInputData.conformsToInputObjectType(
-    expectedType: ViaductSchema.Input,
-): Boolean {
+private fun EngineInputData.conformsToInputObjectType(expectedType: ViaductSchema.Input): Boolean {
     val fieldValues = asEngineInputObjectDataOrNull() ?: return false
     if (
         expectedType.fields.any { field ->
@@ -160,9 +147,7 @@ private fun EngineInputData.conformsToInputObjectType(
     }
 }
 
-internal fun EngineInputData?.conformsToInputSchemaType(
-    typeExpr: ViaductSchema.TypeExpr<ViaductSchema.InputTypeDef>,
-): Boolean {
+internal fun EngineInputData?.conformsToInputSchemaType(typeExpr: ViaductSchema.TypeExpr<ViaductSchema.InputTypeDef>): Boolean {
     if (this == null) return typeExpr.isNullable
 
     val elementType = typeExpr.unwrapList()
@@ -204,14 +189,11 @@ private fun EngineInputData.asEngineInputObjectDataOrNull(): EngineInputObjectDa
 }
 
 /** Whether ordinary engine output recursively conforms to [typeExpr]. */
-fun EngineOutputData?.conformsToOutputSchemaType(
-    typeExpr: ViaductSchema.TypeExpr<ViaductSchema.OutputTypeDef>,
-): Boolean = conformsToOutputSchemaType(typeExpr, rootFieldReferencesAllowed = false)
+fun EngineOutputData?.conformsToOutputSchemaType(typeExpr: ViaductSchema.TypeExpr<ViaductSchema.OutputTypeDef>): Boolean = conformsToOutputSchemaType(typeExpr, rootFieldReferencesAllowed = false)
 
 /** Whether resolver output, including symbolic root-field references, conforms to [typeExpr]. */
-fun ResolverOutputData?.conformsToResolverOutputSchemaType(
-    typeExpr: ViaductSchema.TypeExpr<ViaductSchema.OutputTypeDef>,
-): Boolean = conformsToOutputSchemaType(typeExpr, rootFieldReferencesAllowed = true)
+fun ResolverOutputData?.conformsToResolverOutputSchemaType(typeExpr: ViaductSchema.TypeExpr<ViaductSchema.OutputTypeDef>): Boolean =
+    conformsToOutputSchemaType(typeExpr, rootFieldReferencesAllowed = true)
 
 private fun Any?.conformsToOutputSchemaType(
     typeExpr: ViaductSchema.TypeExpr<ViaductSchema.OutputTypeDef>,
@@ -242,7 +224,7 @@ private fun Any?.conformsToOutputSchemaType(
                                 type.possibleObjectTypes.all(
                                     expectedType.possibleObjectTypes::contains,
                                 )
-                            )
+                        )
                     is ViaductSchema.SimpleTypeDef -> type == expectedType
                     else -> false
                 }
@@ -295,9 +277,7 @@ private fun EngineOutputData?.conformsToOutputData(): Boolean =
         else -> false
     }
 
-internal fun EngineResult?.conformsToResultSchemaType(
-    typeExpr: ViaductSchema.TypeExpr<ViaductSchema.OutputTypeDef>,
-): Boolean =
+internal fun EngineResult?.conformsToResultSchemaType(typeExpr: ViaductSchema.TypeExpr<ViaductSchema.OutputTypeDef>): Boolean =
     when (this) {
         null -> typeExpr.isNullable
         is ErrorEngineResult -> true

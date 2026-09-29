@@ -1,10 +1,5 @@
 package semantics.arbitrary
 
-import semantics.correctresolution.CorrectnessResolverObserver
-import semantics.shared.ResolverInvocationObservation
-import viaduct.graphql.schema.ViaductSchema
-
-import model.Arguments
 import io.kotest.property.Arb
 import io.kotest.property.RandomSource
 import io.kotest.property.arbitrary.arbitrary
@@ -12,32 +7,31 @@ import io.kotest.property.arbitrary.double
 import io.kotest.property.arbitrary.element
 import io.kotest.property.arbitrary.int
 import io.kotest.property.arbitrary.next
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicInteger
+import model.Arguments
 import model.EngineErrorData
 import model.EngineInputData
 import model.EngineOutputData
-import model.ResolverOutputData
-import model.RootFieldReferenceData
 import model.Fragment
 import model.MaterializeSelection
 import model.MaterializeSelectionForest
+import model.ResolverOutputData
+import model.RootFieldReferenceData
 import model.Selection
 import model.SelectionForest
 import model.SourceSchemaAdapter
-import viaduct.engine.api.EngineObjectData
-import viaduct.engine.api.CheckerResult
-import viaduct.engine.api.CheckerResultContext
 import model.arg
 import model.fragmentFrom
 import model.inputType
 import model.objectOf
-import model.requireType
 import model.registry.FieldCheckerResolver
 import model.registry.ProviderFragment
 import model.registry.ResolverFragmentTemplates
 import model.registry.ResolverTarget
 import model.registry.VariableDefinition
+import model.requireType
 import model.selectionForestOf
-import model.toMaterializeSelectionForest
 import model.testing.TestWorld
 import model.testing.fieldResolverOf
 import model.testing.fromArgument
@@ -46,9 +40,14 @@ import model.testing.fromQueryField
 import model.testing.nodeResolverOf
 import model.testing.selectionAwareNodeResolverOf
 import model.testing.withErrorArguments
+import model.toMaterializeSelectionForest
 import model.usedVariables
-import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.atomic.AtomicInteger
+import semantics.correctresolution.CorrectnessResolverObserver
+import semantics.shared.ResolverInvocationObservation
+import viaduct.engine.api.CheckerResult
+import viaduct.engine.api.CheckerResultContext
+import viaduct.engine.api.EngineObjectData
+import viaduct.graphql.schema.ViaductSchema
 
 enum class ResolverProgramKind {
     CONSTANT,
@@ -312,47 +311,24 @@ class ArbitraryRegistry internal constructor(
                     ?.let { useField -> provider.owner to useField }
             }
 
-    fun sourceResolverHasFromArgumentVariables(
-        canonicalField: FieldCoordinate,
-    ): Boolean =
-        sourceField(canonicalField) in fromArgumentVariableOwnerFields
+    fun sourceResolverHasFromArgumentVariables(canonicalField: FieldCoordinate): Boolean = sourceField(canonicalField) in fromArgumentVariableOwnerFields
 
-    fun sourceResolverIsRootFieldReferenceFallback(
-        canonicalField: FieldCoordinate,
-    ): Boolean =
-        schemaRootFieldReferenceFamily?.fallbackCoordinate == sourceField(canonicalField)
+    fun sourceResolverIsRootFieldReferenceFallback(canonicalField: FieldCoordinate): Boolean = schemaRootFieldReferenceFamily?.fallbackCoordinate == sourceField(canonicalField)
 
-    fun sourceResolverIsRootFieldReferenceExtension(
-        canonicalField: FieldCoordinate,
-    ): Boolean =
-        sourceField(canonicalField) in schemaRootFieldReferenceFamily?.extensionCoordinates.orEmpty()
+    fun sourceResolverIsRootFieldReferenceExtension(canonicalField: FieldCoordinate): Boolean = sourceField(canonicalField) in schemaRootFieldReferenceFamily?.extensionCoordinates.orEmpty()
 
-    fun sourceFieldIsRootFieldReferenceOverride(field: FieldCoordinate): Boolean =
-        field in schemaRootFieldReferenceFamily?.consumerValueCoordinates.orEmpty()
+    fun sourceFieldIsRootFieldReferenceOverride(field: FieldCoordinate): Boolean = field in schemaRootFieldReferenceFamily?.consumerValueCoordinates.orEmpty()
 
-    fun sourceResolverHasFromObjectFieldVariables(
-        canonicalField: FieldCoordinate,
-    ): Boolean =
-        sourceField(canonicalField) in fromObjectFieldVariableOwnerFields
+    fun sourceResolverHasFromObjectFieldVariables(canonicalField: FieldCoordinate): Boolean = sourceField(canonicalField) in fromObjectFieldVariableOwnerFields
 
-    fun sourceResolverHasFromProviderVariables(
-        canonicalField: FieldCoordinate,
-    ): Boolean =
-        sourceField(canonicalField) in fromProviderVariableOwnerFields
+    fun sourceResolverHasFromProviderVariables(canonicalField: FieldCoordinate): Boolean = sourceField(canonicalField) in fromProviderVariableOwnerFields
 
-    fun sourceResolverHasFromQueryFieldVariables(
-        canonicalField: FieldCoordinate,
-    ): Boolean =
-        sourceField(canonicalField) in fromQueryFieldVariableOwnerFields
+    fun sourceResolverHasFromQueryFieldVariables(canonicalField: FieldCoordinate): Boolean = sourceField(canonicalField) in fromQueryFieldVariableOwnerFields
 
-    fun sourceResolverHasNestedFromObjectFieldVariable(
-        canonicalField: FieldCoordinate,
-    ): Boolean =
-        sourceField(canonicalField) in nestedFromObjectFieldVariableOwnerFields
+    fun sourceResolverHasNestedFromObjectFieldVariable(canonicalField: FieldCoordinate): Boolean = sourceField(canonicalField) in nestedFromObjectFieldVariableOwnerFields
 
     /** Maps a fixture-lowered application coordinate back to its generated source resolver. */
-    fun sourceResolverCoordinate(canonicalField: FieldCoordinate): FieldCoordinate =
-        sourceField(canonicalField)
+    fun sourceResolverCoordinate(canonicalField: FieldCoordinate): FieldCoordinate = sourceField(canonicalField)
 
     fun clearResolutionWitness() {
         applicationLog.clear()
@@ -361,8 +337,7 @@ class ArbitraryRegistry internal constructor(
 
     fun resolutionWitness(): ResolutionWitness = applicationLog.snapshot()
 
-    fun selectiveNodeResolverApplications(): List<SelectiveNodeResolverApplicationRecord> =
-        selectiveNodeApplicationLog.snapshot()
+    fun selectiveNodeResolverApplications(): List<SelectiveNodeResolverApplicationRecord> = selectiveNodeApplicationLog.snapshot()
 
     fun <T> withoutResolutionWitnessCapture(block: () -> T): T =
         applicationLog.withoutRecording {
@@ -373,8 +348,7 @@ class ArbitraryRegistry internal constructor(
         applicationCounts.clear()
     }
 
-    fun resolutionApplicationCounts(): Map<FieldCoordinate, Long> =
-        applicationCounts.toMap()
+    fun resolutionApplicationCounts(): Map<FieldCoordinate, Long> = applicationCounts.toMap()
 
     fun resolverProgram(sourceField: FieldCoordinate): ResolverProgramKind =
         if (sourceField.fieldName == "V_A_typename") {
@@ -408,12 +382,10 @@ class ArbitraryRegistry internal constructor(
         }
 
     /** Recursive selection counts for every generated field-resolver object fragment. */
-    fun objectFragmentSelectionCounts(): List<Int> =
-        objectFragments.values.map(FragmentPlan::selectionCount)
+    fun objectFragmentSelectionCounts(): List<Int> = objectFragments.values.map(FragmentPlan::selectionCount)
 
     /** Longest selection-path depths for every generated field-resolver object fragment. */
-    fun objectFragmentDepths(): List<Int> =
-        objectFragments.values.map(FragmentPlan::selectionDepth)
+    fun objectFragmentDepths(): List<Int> = objectFragments.values.map(FragmentPlan::selectionDepth)
 
     fun nodeLoaderPossibleTypes(
         @Suppress("UNUSED_PARAMETER")
@@ -437,6 +409,7 @@ class ArbitraryRegistry internal constructor(
     ): CorrectnessResolverObserver {
         require(captureResolutionWitness || !captureSuppliedDemand)
         require(!(captureResolutionWitness && captureResolutionApplicationCounts))
+
         fun recordApplication(
             coordinate: FieldCoordinate,
             arguments: Arguments.Resolved,
@@ -492,213 +465,215 @@ class ArbitraryRegistry internal constructor(
         val applicationOrdinals = ConcurrentHashMap<FieldCoordinate, AtomicInteger>()
         val world =
             TestWorld.fromSDL(
-            schemaSDL = schemaSDL,
-            nodeResolvers = { canonicalSchema ->
-                nodeValues.map { (typeName, plan) ->
-                    val type = canonicalSchema.requireType(typeName) as ViaductSchema.Object
-                    val materialize: (String) -> ResolverOutputData? = { id ->
-                        when (plan) {
-                            is ObjectPlan ->
-                                plan.materializeObject(
-                                    schema = canonicalSchema,
-                                    inputId = id,
-                                    generatedHashSeed = stableGeneratedHash(typeName, id),
-                                )
-                            is RootFieldReferencePlan -> plan.materializeReference(canonicalSchema)
-                            else -> error("Node resolver $typeName has unsupported value plan $plan")
-                        }
-                    }
-                    type to
-                        if (selectiveNodeResolvers) {
-                            selectionAwareNodeResolverOf { id, demand ->
-                                selectiveNodeApplicationLog.record(typeName, id, demand)
-                                materialize(id)
-                            }
-                        } else {
-                            nodeResolverOf(materialize)
-                        }
-                }.toMap()
-            },
-            fieldResolvers = { canonicalSchema ->
-                val sourceSchema = SourceSchemaAdapter(canonicalSchema)
-                fieldValues.map { (coordinate, plan) ->
-                    val field =
-                        sourceSchema.field(
-                            coordinate.typeName,
-                            coordinate.fieldName,
-                        )
-                    val constant =
-                        plan.materialize(
-                            canonicalSchema,
-                            sourceSchema.typeExpr(field),
-                        )
-                    val program = resolverPrograms.getValue(coordinate)
-                    val objectFragment =
-                        objectFragments
-                            .getValue(coordinate)
-                            .materialize(
-                                canonicalSchema,
-                                field as ViaductSchema.ObjectField,
-                            )
-                    val queryFragment =
-                        queryFragments
-                            .getValue(coordinate)
-                            .materialize(
-                                canonicalSchema,
-                                field,
-                            )
-                    val definition =
-                        fieldResolverOf(
-                            objectFragment = objectFragment,
-                            queryFragment = queryFragment,
-                            function = { input, queryValue, arguments ->
-                                field.args
-                                    .filter { argument -> argument.hasDefault }
-                                    .forEach { argument ->
-                                        require(argument.name in arguments.fieldValues) {
-                                            "Concrete default ${coordinate.typeName}/" +
-                                                "${coordinate.fieldName}(${argument.name}) " +
-                                                "was not applied"
-                                        }
-                                    }
-                                val effectiveInput =
-                                    if (
-                                        resolverProgramMutation ==
-                                        ResolverProgramMutation.CACHE_FIRST_INPUT
-                                    ) {
-                                        firstInputs.computeIfAbsent(coordinate) { input }
-                                    } else {
-                                        input
-                                    }
-                                val effectiveArguments =
-                                    if (
-                                        resolverProgramMutation ==
-                                        ResolverProgramMutation.CACHE_FIRST_ARGUMENTS
-                                    ) {
-                                        firstArguments.computeIfAbsent(coordinate) { arguments }
-                                    } else {
-                                        arguments
-                                    }
-                                val ordinal: Int? =
-                                    if (
-                                        resolverProgramMutation ==
-                                        ResolverProgramMutation.APPLICATION_ORDINAL_CONTAMINATION
-                                    ) {
-                                        applicationOrdinals
-                                            .computeIfAbsent(coordinate) { AtomicInteger() }
-                                            .getAndIncrement()
-                                    } else {
-                                        null
-                                    }
-                                val generatedHashSeed =
-                                    stableGeneratedHash(
-                                        effectiveInput.resolutionFingerprint().value,
-                                        queryValue.resolutionFingerprint().value,
-                                        effectiveArguments
-                                            .resolutionFingerprint(field)
-                                            .value,
+                schemaSDL = schemaSDL,
+                nodeResolvers = { canonicalSchema ->
+                    nodeValues.map { (typeName, plan) ->
+                        val type = canonicalSchema.requireType(typeName) as ViaductSchema.Object
+                        val materialize: (String) -> ResolverOutputData? = { id ->
+                            when (plan) {
+                                is ObjectPlan ->
+                                    plan.materializeObject(
+                                        schema = canonicalSchema,
+                                        inputId = id,
+                                        generatedHashSeed = stableGeneratedHash(typeName, id),
                                     )
-                                when (program) {
-                                    ResolverProgramKind.CONSTANT -> constant
-                                    else ->
-                                        if (
-                                            !field.type.isList &&
-                                            field.type.baseTypeDef is ViaductSchema.SimpleTypeDef
-                                        ) {
-                                            sensitiveScalar(
-                                                scalar =
-                                                    ScalarKind.entries.single {
-                                                        it.graphQLName ==
-                                                            field.type.baseTypeDef.name
-                                                    },
-                                                input = effectiveInput,
-                                                arguments = effectiveArguments,
-                                                argumentField = field,
-                                                applicationOrdinal = ordinal,
-                                            )
-                                        } else {
-                                            plan.materialize(
-                                                schema = canonicalSchema,
-                                                typeExpr = sourceSchema.typeExpr(field),
-                                                generatedHashSeed = generatedHashSeed,
-                                            )
-                                    }
-                                }
-                            },
-                        )
-                    val providerPlans =
-                        variableProviders
-                            .filterIsInstance<FromProviderVariableProviderPlan>()
-                            .filter { provider -> provider.owner == coordinate }
-                    val parsedProviderNames =
-                        (objectFragment.subselections.usedVariables() +
-                            queryFragment.subselections.usedVariables())
-                            .mapTo(linkedSetOf(), Arguments.Variable::variableName)
-                    require(providerPlans.all { provider -> provider.variableName in parsedProviderNames }) {
-                        "Parsed fragments lost provider variables for $coordinate: " +
-                            "planned=${providerPlans.map { it.variableName }} parsed=$parsedProviderNames"
-                    }
-                    field to
-                        if (providerPlans.isEmpty()) {
-                            definition
-                        } else {
-                            definition.withVariablesProvider(
-                                providerPlans.mapTo(linkedSetOf()) { provider ->
-                                    provider.variableName
-                                },
-                            ) { arguments ->
-                                providerPlans.associate { provider ->
-                                    provider.variableName to provider.value(arguments, field)
-                                }
+                                is RootFieldReferencePlan -> plan.materializeReference(canonicalSchema)
+                                else -> error("Node resolver $typeName has unsupported value plan $plan")
                             }
                         }
-                }.toMap()
-            },
-            variableProviders = { canonicalSchema ->
-                val sourceSchema = SourceSchemaAdapter(canonicalSchema)
-                variableProviders.mapNotNull { provider ->
-                    if (provider is FromProviderVariableProviderPlan) return@mapNotNull null
-                    val field =
-                        sourceSchema.field(
-                            provider.owner.typeName,
-                            provider.owner.fieldName,
-                        ) as ViaductSchema.ObjectField
-                    Arguments.Variable.of(
-                        field,
-                        provider.variableName,
-                    ) to
-                        when (provider) {
-                            is FromArgumentVariableProviderPlan ->
-                                canonicalSchema.fromArgument(
-                                    field = field,
-                                    path = provider.argumentPath,
-                                )
-                            is FromFieldVariableProviderPlan ->
-                                when (provider.providerFragment) {
-                                    ProviderFragment.OBJECT ->
-                                        canonicalSchema.fromObjectField(
-                                            objectFragmentSource =
-                                                objectFragmentSources.getValue(provider.owner),
-                                            responsePath = provider.responsePath(),
-                                            variableField = field,
-                                        )
-                                    ProviderFragment.QUERY ->
-                                        canonicalSchema.fromQueryField(
-                                            queryFragmentSource =
-                                                queryFragmentSources.getValue(provider.owner),
-                                            responsePath = provider.responsePath(),
-                                            variableField = field,
-                                        )
+                        type to
+                            if (selectiveNodeResolvers) {
+                                selectionAwareNodeResolverOf { id, demand ->
+                                    selectiveNodeApplicationLog.record(typeName, id, demand)
+                                    materialize(id)
                                 }
-                            is FromProviderVariableProviderPlan ->
-                                error("FromProvider plan was not filtered")
+                            } else {
+                                nodeResolverOf(materialize)
+                            }
+                    }.toMap()
+                },
+                fieldResolvers = { canonicalSchema ->
+                    val sourceSchema = SourceSchemaAdapter(canonicalSchema)
+                    fieldValues.map { (coordinate, plan) ->
+                        val field =
+                            sourceSchema.field(
+                                coordinate.typeName,
+                                coordinate.fieldName,
+                            )
+                        val constant =
+                            plan.materialize(
+                                canonicalSchema,
+                                sourceSchema.typeExpr(field),
+                            )
+                        val program = resolverPrograms.getValue(coordinate)
+                        val objectFragment =
+                            objectFragments
+                                .getValue(coordinate)
+                                .materialize(
+                                    canonicalSchema,
+                                    field as ViaductSchema.ObjectField,
+                                )
+                        val queryFragment =
+                            queryFragments
+                                .getValue(coordinate)
+                                .materialize(
+                                    canonicalSchema,
+                                    field,
+                                )
+                        val definition =
+                            fieldResolverOf(
+                                objectFragment = objectFragment,
+                                queryFragment = queryFragment,
+                                function = { input, queryValue, arguments ->
+                                    field.args
+                                        .filter { argument -> argument.hasDefault }
+                                        .forEach { argument ->
+                                            require(argument.name in arguments.fieldValues) {
+                                                "Concrete default ${coordinate.typeName}/" +
+                                                    "${coordinate.fieldName}(${argument.name}) " +
+                                                    "was not applied"
+                                            }
+                                        }
+                                    val effectiveInput =
+                                        if (
+                                            resolverProgramMutation ==
+                                            ResolverProgramMutation.CACHE_FIRST_INPUT
+                                        ) {
+                                            firstInputs.computeIfAbsent(coordinate) { input }
+                                        } else {
+                                            input
+                                        }
+                                    val effectiveArguments =
+                                        if (
+                                            resolverProgramMutation ==
+                                            ResolverProgramMutation.CACHE_FIRST_ARGUMENTS
+                                        ) {
+                                            firstArguments.computeIfAbsent(coordinate) { arguments }
+                                        } else {
+                                            arguments
+                                        }
+                                    val ordinal: Int? =
+                                        if (
+                                            resolverProgramMutation ==
+                                            ResolverProgramMutation.APPLICATION_ORDINAL_CONTAMINATION
+                                        ) {
+                                            applicationOrdinals
+                                                .computeIfAbsent(coordinate) { AtomicInteger() }
+                                                .getAndIncrement()
+                                        } else {
+                                            null
+                                        }
+                                    val generatedHashSeed =
+                                        stableGeneratedHash(
+                                            effectiveInput.resolutionFingerprint().value,
+                                            queryValue.resolutionFingerprint().value,
+                                            effectiveArguments
+                                                .resolutionFingerprint(field)
+                                                .value,
+                                        )
+                                    when (program) {
+                                        ResolverProgramKind.CONSTANT -> constant
+                                        else ->
+                                            if (
+                                                !field.type.isList &&
+                                                field.type.baseTypeDef is ViaductSchema.SimpleTypeDef
+                                            ) {
+                                                sensitiveScalar(
+                                                    scalar =
+                                                        ScalarKind.entries.single {
+                                                            it.graphQLName ==
+                                                                field.type.baseTypeDef.name
+                                                        },
+                                                    input = effectiveInput,
+                                                    arguments = effectiveArguments,
+                                                    argumentField = field,
+                                                    applicationOrdinal = ordinal,
+                                                )
+                                            } else {
+                                                plan.materialize(
+                                                    schema = canonicalSchema,
+                                                    typeExpr = sourceSchema.typeExpr(field),
+                                                    generatedHashSeed = generatedHashSeed,
+                                                )
+                                            }
+                                    }
+                                },
+                            )
+                        val providerPlans =
+                            variableProviders
+                                .filterIsInstance<FromProviderVariableProviderPlan>()
+                                .filter { provider -> provider.owner == coordinate }
+                        val parsedProviderNames =
+                            (
+                                objectFragment.subselections.usedVariables() +
+                                    queryFragment.subselections.usedVariables()
+                            )
+                                .mapTo(linkedSetOf(), Arguments.Variable::variableName)
+                        require(providerPlans.all { provider -> provider.variableName in parsedProviderNames }) {
+                            "Parsed fragments lost provider variables for $coordinate: " +
+                                "planned=${providerPlans.map { it.variableName }} parsed=$parsedProviderNames"
                         }
-                }.toMap()
-            },
-            fieldCheckers = { canonicalSchema ->
-                generatedFieldCheckers(canonicalSchema, fieldCheckerMode)
-            },
-        )
+                        field to
+                            if (providerPlans.isEmpty()) {
+                                definition
+                            } else {
+                                definition.withVariablesProvider(
+                                    providerPlans.mapTo(linkedSetOf()) { provider ->
+                                        provider.variableName
+                                    },
+                                ) { arguments ->
+                                    providerPlans.associate { provider ->
+                                        provider.variableName to provider.value(arguments, field)
+                                    }
+                                }
+                            }
+                    }.toMap()
+                },
+                variableProviders = { canonicalSchema ->
+                    val sourceSchema = SourceSchemaAdapter(canonicalSchema)
+                    variableProviders.mapNotNull { provider ->
+                        if (provider is FromProviderVariableProviderPlan) return@mapNotNull null
+                        val field =
+                            sourceSchema.field(
+                                provider.owner.typeName,
+                                provider.owner.fieldName,
+                            ) as ViaductSchema.ObjectField
+                        Arguments.Variable.of(
+                            field,
+                            provider.variableName,
+                        ) to
+                            when (provider) {
+                                is FromArgumentVariableProviderPlan ->
+                                    canonicalSchema.fromArgument(
+                                        field = field,
+                                        path = provider.argumentPath,
+                                    )
+                                is FromFieldVariableProviderPlan ->
+                                    when (provider.providerFragment) {
+                                        ProviderFragment.OBJECT ->
+                                            canonicalSchema.fromObjectField(
+                                                objectFragmentSource =
+                                                    objectFragmentSources.getValue(provider.owner),
+                                                responsePath = provider.responsePath(),
+                                                variableField = field,
+                                            )
+                                        ProviderFragment.QUERY ->
+                                            canonicalSchema.fromQueryField(
+                                                queryFragmentSource =
+                                                    queryFragmentSources.getValue(provider.owner),
+                                                responsePath = provider.responsePath(),
+                                                variableField = field,
+                                            )
+                                    }
+                                is FromProviderVariableProviderPlan ->
+                                    error("FromProvider plan was not filtered")
+                            }
+                    }.toMap()
+                },
+                fieldCheckers = { canonicalSchema ->
+                    generatedFieldCheckers(canonicalSchema, fieldCheckerMode)
+                },
+            )
         objectFragmentSources.values
             .filter(String::isNotEmpty)
             .forEach(world::selectionsFrom)
@@ -1086,13 +1061,13 @@ private class RegistryGenerator(
                 queryFragments.mapValues { (_, fragment) -> fragment.source() },
             variableProviderSources =
                 variableProviders
-                        .mapNotNull { provider ->
-                            when (provider) {
-                                is FromFieldVariableProviderPlan ->
-                                    provider.variableName to provider.source()
-                                is FromArgumentVariableProviderPlan,
-                                is FromProviderVariableProviderPlan,
-                                -> null
+                    .mapNotNull { provider ->
+                        when (provider) {
+                            is FromFieldVariableProviderPlan ->
+                                provider.variableName to provider.source()
+                            is FromArgumentVariableProviderPlan,
+                            is FromProviderVariableProviderPlan,
+                            -> null
                         }
                     }.toMap(),
             fieldValues = fieldValues,
@@ -1280,9 +1255,7 @@ private class RegistryGenerator(
         }
     }
 
-    private fun fixedRootFieldReferenceConsumer(
-        family: RootFieldReferenceFamily,
-    ): ObjectPlan {
+    private fun fixedRootFieldReferenceConsumer(family: RootFieldReferenceFamily): ObjectPlan {
         fun consumerField(name: String): FieldCoordinate =
             family.consumerValueCoordinates.single { coordinate ->
                 coordinate.fieldName == name
@@ -1826,42 +1799,42 @@ private class RegistryGenerator(
                         field.type.namedType
                             .takeIf(schema::isComposite)
                             ?.let { outputType ->
-                            if (
-                                field.ownerName != "Query" &&
-                                schema.allObjects.none { objectType ->
-                                    objectType.name == outputType
-                                } &&
-                                schema.possibleObjects(outputType).size > 1
-                            ) {
-                                schema
-                                    .possibleObjects(outputType)
-                                    .shuffled(random)
-                                    .take(2)
-                                    .map { concrete ->
-                                        FragmentSelectionPlan(
-                                            fieldName = GENERATED_HASH_FIELD,
-                                            arguments = emptyMap(),
-                                            subselections =
-                                                listOf(
-                                                    FragmentSelectionPlan(
-                                                        fieldName = GENERATED_HASH_FIELD,
-                                                        arguments = emptyMap(),
-                                                        subselections = emptyList(),
+                                if (
+                                    field.ownerName != "Query" &&
+                                    schema.allObjects.none { objectType ->
+                                        objectType.name == outputType
+                                    } &&
+                                    schema.possibleObjects(outputType).size > 1
+                                ) {
+                                    schema
+                                        .possibleObjects(outputType)
+                                        .shuffled(random)
+                                        .take(2)
+                                        .map { concrete ->
+                                            FragmentSelectionPlan(
+                                                fieldName = GENERATED_HASH_FIELD,
+                                                arguments = emptyMap(),
+                                                subselections =
+                                                    listOf(
+                                                        FragmentSelectionPlan(
+                                                            fieldName = GENERATED_HASH_FIELD,
+                                                            arguments = emptyMap(),
+                                                            subselections = emptyList(),
+                                                        ),
                                                     ),
-                                                ),
-                                            typeCondition = concrete.name,
-                                        )
-                                    }
-                            } else {
-                                fragmentSelections(
-                                    ownerName = outputType,
-                                    consumerRank = consumerRank,
-                                    ranks = ranks,
-                                    depth = depth + 1,
-                                    targetSelectionCount = childSelectionCounts[field],
-                                )
-                            }
-                        }.orEmpty(),
+                                                typeCondition = concrete.name,
+                                            )
+                                        }
+                                } else {
+                                    fragmentSelections(
+                                        ownerName = outputType,
+                                        consumerRank = consumerRank,
+                                        ranks = ranks,
+                                        depth = depth + 1,
+                                        targetSelectionCount = childSelectionCounts[field],
+                                    )
+                                }
+                            }.orEmpty(),
                 )
             }
     }
@@ -2175,9 +2148,7 @@ private class RegistryGenerator(
         }
     }
 
-    private fun fromArgumentSources(
-        argument: ArgumentDefinitionSpec,
-    ): List<FromArgumentSource> =
+    private fun fromArgumentSources(argument: ArgumentDefinitionSpec): List<FromArgumentSource> =
         listOf(
             FromArgumentSource(
                 argument = argument,
@@ -2304,7 +2275,7 @@ private class RegistryGenerator(
             ) {
                 orderedOccurrences =
                     passiveUseOccurrences +
-                        orderedOccurrences.filterNot(passiveUseOccurrences::contains)
+                    orderedOccurrences.filterNot(passiveUseOccurrences::contains)
             }
             if (
                 ownerUseOccurrences.isNotEmpty() &&
@@ -2320,7 +2291,7 @@ private class RegistryGenerator(
             ) {
                 orderedOccurrences =
                     providerArgumentOccurrences +
-                        orderedOccurrences.filterNot(providerArgumentOccurrences::contains)
+                    orderedOccurrences.filterNot(providerArgumentOccurrences::contains)
             }
             if (directedParentCoverage) {
                 val preferredLocation =
@@ -2478,11 +2449,11 @@ private class RegistryGenerator(
                 fragments
                     .appendSelection(providerLocation, providerSelection)
                     .replaceArgument(
-                    location = candidate.location,
-                    occurrence = candidate.occurrence,
-                    variableName = variableName,
-                    literalConvergence = literalConvergence,
-                )
+                        location = candidate.location,
+                        occurrence = candidate.occurrence,
+                        variableName = variableName,
+                        literalConvergence = literalConvergence,
+                    )
             if (sharedOccurrence != null) {
                 updated =
                     updated.replaceArgument(
@@ -2533,9 +2504,7 @@ private class RegistryGenerator(
         )
     }
 
-    private fun FragmentPlan.selectionAt(
-        occurrence: ArgumentOccurrence,
-    ): FragmentSelectionPlan {
+    private fun FragmentPlan.selectionAt(occurrence: ArgumentOccurrence): FragmentSelectionPlan {
         var selections = selections
         lateinit var selected: FragmentSelectionPlan
         occurrence.selectionPath.forEach { index ->
@@ -2545,9 +2514,7 @@ private class RegistryGenerator(
         return selected
     }
 
-    private fun FragmentPlan.argumentOccursAcrossNodeBoundary(
-        occurrence: ArgumentOccurrence,
-    ): Boolean {
+    private fun FragmentPlan.argumentOccursAcrossNodeBoundary(occurrence: ArgumentOccurrence): Boolean {
         var currentOwner = ownerName
         var currentSelections = selections
         occurrence.selectionPath.forEach { index ->
@@ -2692,53 +2659,51 @@ private class RegistryGenerator(
         if (ownerName in visitedTypes || maximumPathLength <= 0) {
             emptyList()
         } else {
-        schema
-            .fieldsOn(ownerName)
-            .filter { field ->
-                !field.isGeneratedHashField() &&
-                    field.hasOnlyLowerRankedResolverDependencies(consumerRank, ranks)
-            }.flatMap { field ->
-                when {
-                    target.matches(
-                        field.type,
-                        config[ResolverVariableSingletonCoercionEnabled],
-                    ) &&
-                        (!field.type.nullable || target.nullable) ->
-                        listOf(
-                            FragmentSelectionPlan(
-                                fieldName = field.name,
-                                arguments = providerArguments(field),
-                                subselections = emptyList(),
-                            ),
-                        )
-
-                    !field.type.list &&
-                        maximumPathLength > 1 &&
-                        schema.isComposite(field.type.namedType) &&
-                        (!field.type.nullable || target.acceptsNullableTraversal) ->
-                        variableProviderPaths(
-                            ownerName = field.type.namedType,
-                            target = target,
-                            consumerRank = consumerRank,
-                            ranks = ranks,
-                            visitedTypes = visitedTypes + ownerName,
-                            maximumPathLength = maximumPathLength - 1,
-                        ).map { nested ->
-                            FragmentSelectionPlan(
-                                fieldName = field.name,
-                                arguments = providerArguments(field),
-                                subselections = listOf(nested),
+            schema
+                .fieldsOn(ownerName)
+                .filter { field ->
+                    !field.isGeneratedHashField() &&
+                        field.hasOnlyLowerRankedResolverDependencies(consumerRank, ranks)
+                }.flatMap { field ->
+                    when {
+                        target.matches(
+                            field.type,
+                            config[ResolverVariableSingletonCoercionEnabled],
+                        ) &&
+                            (!field.type.nullable || target.nullable) ->
+                            listOf(
+                                FragmentSelectionPlan(
+                                    fieldName = field.name,
+                                    arguments = providerArguments(field),
+                                    subselections = emptyList(),
+                                ),
                             )
-                        }
 
-                    else -> emptyList()
+                        !field.type.list &&
+                            maximumPathLength > 1 &&
+                            schema.isComposite(field.type.namedType) &&
+                            (!field.type.nullable || target.acceptsNullableTraversal) ->
+                            variableProviderPaths(
+                                ownerName = field.type.namedType,
+                                target = target,
+                                consumerRank = consumerRank,
+                                ranks = ranks,
+                                visitedTypes = visitedTypes + ownerName,
+                                maximumPathLength = maximumPathLength - 1,
+                            ).map { nested ->
+                                FragmentSelectionPlan(
+                                    fieldName = field.name,
+                                    arguments = providerArguments(field),
+                                    subselections = listOf(nested),
+                                )
+                            }
+
+                        else -> emptyList()
+                    }
                 }
-            }
         }
 
-    private fun providerArguments(
-        field: FieldDefinitionSpec,
-    ): Map<String, InputValuePlan> =
+    private fun providerArguments(field: FieldDefinitionSpec): Map<String, InputValuePlan> =
         field.arguments.associate { argument ->
             argument.name to inputLiteral(argument.type)
         }
@@ -3077,7 +3042,7 @@ private class RegistryGenerator(
                                                     listOf(
                                                         FragmentSelectionPlan(
                                                             fieldName =
-                                                                GENERATED_PARENT_VALUE_FIELD,
+                                                            GENERATED_PARENT_VALUE_FIELD,
                                                             arguments = emptyMap(),
                                                             subselections = emptyList(),
                                                         ),
@@ -3115,8 +3080,7 @@ private class RegistryGenerator(
         return maxOf(nextParentDepth, nestedMaximum)
     }
 
-    private fun chance(weight: Double): Boolean =
-        Arb.double(0.0, 1.0).next(random) < weight
+    private fun chance(weight: Double): Boolean = Arb.double(0.0, 1.0).next(random) < weight
 
     private fun <T> List<T>.shuffled(random: RandomSource): List<T> {
         val remaining = toMutableList()
@@ -3185,14 +3149,11 @@ internal data class FragmentPlan(
             )
         }
 
-    fun errorArgumentCount(): Int =
-        selections.sumOf(FragmentSelectionPlan::errorArgumentCount)
+    fun errorArgumentCount(): Int = selections.sumOf(FragmentSelectionPlan::errorArgumentCount)
 
-    fun selectionCount(): Int =
-        selections.sumOf(FragmentSelectionPlan::selectionCount)
+    fun selectionCount(): Int = selections.sumOf(FragmentSelectionPlan::selectionCount)
 
-    fun selectionDepth(): Int =
-        selections.maxOfOrNull(FragmentSelectionPlan::selectionDepth) ?: 0
+    fun selectionDepth(): Int = selections.maxOfOrNull(FragmentSelectionPlan::selectionDepth) ?: 0
 
     fun source(): String =
         if (selections.isEmpty()) {
@@ -3263,11 +3224,9 @@ internal data class FragmentSelectionPlan(
         arguments.values.count { value -> value is ErrorInputPlan } +
             subselections.sumOf(FragmentSelectionPlan::errorArgumentCount)
 
-    fun selectionCount(): Int =
-        1 + subselections.sumOf(FragmentSelectionPlan::selectionCount)
+    fun selectionCount(): Int = 1 + subselections.sumOf(FragmentSelectionPlan::selectionCount)
 
-    fun selectionDepth(): Int =
-        1 + (subselections.maxOfOrNull(FragmentSelectionPlan::selectionDepth) ?: 0)
+    fun selectionDepth(): Int = 1 + (subselections.maxOfOrNull(FragmentSelectionPlan::selectionDepth) ?: 0)
 }
 
 private fun List<FragmentSelectionPlan>.materialize(
@@ -3317,16 +3276,14 @@ internal data class InputLiteralPlan(
                 "\"" + (value as String).replace("\\", "\\\\").replace("\"", "\\\"") + "\""
         }
 
-    override fun variableTarget(): VariableTarget =
-        ScalarVariableTarget(type.scalar, type.nullable)
+    override fun variableTarget(): VariableTarget = ScalarVariableTarget(type.scalar, type.nullable)
 }
 
 internal data class ListInputPlan(
     val type: ListInputTypeSpec,
     val elements: List<InputValuePlan>,
 ) : InputValuePlan {
-    override fun source(): String =
-        elements.joinToString(prefix = "[", postfix = "]") { it.source() }
+    override fun source(): String = elements.joinToString(prefix = "[", postfix = "]") { it.source() }
 
     override fun variableTarget(): VariableTarget? {
         if (elements.any(InputValuePlan::containsVariable)) return null
@@ -3402,8 +3359,7 @@ internal data class ScalarVariableTarget(
     override fun matches(
         type: OutputTypeSpec,
         allowSingletonCoercion: Boolean,
-    ): Boolean =
-        !type.list && type.namedType == scalar.graphQLName
+    ): Boolean = !type.list && type.namedType == scalar.graphQLName
 
     override fun accepts(
         type: InputTypeSpec,
@@ -3512,9 +3468,7 @@ internal sealed interface VariableProviderPlan {
     val literalConvergence: Boolean
 }
 
-private fun Iterable<VariableProviderPlan>.fromField(
-    providerFragment: ProviderFragment,
-): List<FromFieldVariableProviderPlan> =
+private fun Iterable<VariableProviderPlan>.fromField(providerFragment: ProviderFragment): List<FromFieldVariableProviderPlan> =
     filterIsInstance<FromFieldVariableProviderPlan>()
         .filter { provider -> provider.providerFragment == providerFragment }
 
@@ -3533,9 +3487,7 @@ internal data class FromArgumentVariableProviderPlan(
         get() = listOf(argumentName) + inputPath
 }
 
-private fun FromArgumentVariableProviderPlan.variableDefinition(
-    field: ViaductSchema.ObjectField,
-): VariableDefinition.FromArgument {
+private fun FromArgumentVariableProviderPlan.variableDefinition(field: ViaductSchema.ObjectField): VariableDefinition.FromArgument {
     val argument =
         field.arg(argumentName)
             ?: error("${field.containingDef.name}/${field.name} has no argument $argumentName")
@@ -3601,8 +3553,7 @@ internal data class FromFieldVariableProviderPlan(
     val topLevelUseField: FieldCoordinate,
     override val literalConvergence: Boolean,
 ) : VariableProviderPlan {
-    fun source(): String =
-        FragmentPlan(providerOwnerName(), listOf(selection)).source()
+    fun source(): String = FragmentPlan(providerOwnerName(), listOf(selection)).source()
 
     fun providerOwnerName(): String =
         when (providerFragment) {
@@ -3618,7 +3569,7 @@ internal data class FromFieldVariableProviderPlan(
                 if (current.subselections.isEmpty()) break
                 current = current.subselections.single()
             }
-    }
+        }
 }
 
 private data class GeneratedFromFieldFeatures(
@@ -3631,9 +3582,7 @@ private data class GeneratedFromFieldFeatures(
     val hasAbstractProviderPath: Boolean,
 )
 
-private fun List<FromFieldVariableProviderPlan>.features(
-    fieldSites: Set<FieldCoordinate>,
-): GeneratedFromFieldFeatures =
+private fun List<FromFieldVariableProviderPlan>.features(fieldSites: Set<FieldCoordinate>): GeneratedFromFieldFeatures =
     GeneratedFromFieldFeatures(
         variableCount = size,
         literalVariableConvergenceCount = count(VariableProviderPlan::literalConvergence),
@@ -3670,9 +3619,7 @@ private enum class ProviderIntermediateOutcome {
     ERROR,
 }
 
-private fun FromFieldVariableProviderPlan.intermediateOutcome(
-    fieldValues: Map<FieldCoordinate, ValuePlan>,
-): ProviderIntermediateOutcome {
+private fun FromFieldVariableProviderPlan.intermediateOutcome(fieldValues: Map<FieldCoordinate, ValuePlan>): ProviderIntermediateOutcome {
     var ownerName = providerOwnerName()
     var containingObjectPlan: ObjectPlan? = null
     var current = selection
@@ -3713,8 +3660,7 @@ private fun FragmentSelectionPlan.withResponseAliases(
             },
     )
 
-private fun FragmentSelectionPlan.pathLength(): Int =
-    1 + (subselections.singleOrNull()?.pathLength() ?: 0)
+private fun FragmentSelectionPlan.pathLength(): Int = 1 + (subselections.singleOrNull()?.pathLength() ?: 0)
 
 private fun FragmentSelectionPlan.hasPathArguments(): Boolean =
     arguments.isNotEmpty() ||
@@ -3851,9 +3797,7 @@ private data class InputValueOccurrence(
     val existingVariableName: String?,
 )
 
-private fun InputValuePlan.variableOccurrences(
-    path: List<InputValueStep> = emptyList(),
-): List<InputValueOccurrence> =
+private fun InputValuePlan.variableOccurrences(path: List<InputValueStep> = emptyList()): List<InputValueOccurrence> =
     listOfNotNull(
         variableTarget()?.let { target ->
             InputValueOccurrence(
@@ -3890,8 +3834,7 @@ private fun InputValuePlan.containsVariable(): Boolean =
         -> false
     }
 
-private fun FragmentSelectionPlan.argumentVariableNames(): Set<String> =
-    arguments.values.flatMapTo(linkedSetOf(), InputValuePlan::variableNames)
+private fun FragmentSelectionPlan.argumentVariableNames(): Set<String> = arguments.values.flatMapTo(linkedSetOf(), InputValuePlan::variableNames)
 
 private fun InputValuePlan.variableNames(): Set<String> =
     when (this) {
@@ -3904,8 +3847,7 @@ private fun InputValuePlan.variableNames(): Set<String> =
         -> emptySet()
     }
 
-private fun FragmentPlan.variableUseCount(variableName: String): Int =
-    selections.sumOf { selection -> selection.variableUseCount(variableName) }
+private fun FragmentPlan.variableUseCount(variableName: String): Int = selections.sumOf { selection -> selection.variableUseCount(variableName) }
 
 private fun FragmentSelectionPlan.variableUseCount(variableName: String): Int =
     arguments.values.sumOf { value -> value.variableUseCount(variableName) } +
@@ -3923,8 +3865,7 @@ private fun InputValuePlan.variableUseCount(variableName: String): Int =
         -> 0
     }
 
-private fun FragmentPlan.variableTargets(variableName: String): List<VariableTarget> =
-    selections.flatMap { selection -> selection.variableTargets(variableName) }
+private fun FragmentPlan.variableTargets(variableName: String): List<VariableTarget> = selections.flatMap { selection -> selection.variableTargets(variableName) }
 
 private fun FragmentSelectionPlan.variableTargets(variableName: String): List<VariableTarget> =
     arguments.values.flatMap { value -> value.variableTargets(variableName) } +
@@ -3943,8 +3884,7 @@ private fun InputValuePlan.variableTargets(variableName: String): List<VariableT
         -> emptyList()
     }
 
-private fun FromFieldVariableProviderPlan.providerArgumentVariableNames(): Set<String> =
-    selection.pathArgumentVariableNames()
+private fun FromFieldVariableProviderPlan.providerArgumentVariableNames(): Set<String> = selection.pathArgumentVariableNames()
 
 private fun FragmentSelectionPlan.pathArgumentVariableNames(): Set<String> =
     buildSet {
@@ -4124,8 +4064,7 @@ internal data class ListPlan(
             element.selectedPaths("$prefix[$index]")
         }.toSet()
 
-    override fun containsGeneratedHash(): Boolean =
-        elements.any(ValuePlan::containsGeneratedHash)
+    override fun containsGeneratedHash(): Boolean = elements.any(ValuePlan::containsGeneratedHash)
 }
 
 internal data class ObjectPlan(
@@ -4137,8 +4076,7 @@ internal data class ObjectPlan(
         typeExpr: ViaductSchema.TypeExpr<ViaductSchema.OutputTypeDef>,
         inputId: String?,
         generatedHashSeed: Int,
-    ): EngineObjectData.Sync =
-        materializeObject(schema, inputId, generatedHashSeed)
+    ): EngineObjectData.Sync = materializeObject(schema, inputId, generatedHashSeed)
 
     fun materializeObject(
         schema: ViaductSchema,
@@ -4169,8 +4107,7 @@ internal data class ObjectPlan(
             setOf(path) + plan.selectedPaths(path)
         }.toSet()
 
-    override fun containsGeneratedHash(): Boolean =
-        fields.values.any(ValuePlan::containsGeneratedHash)
+    override fun containsGeneratedHash(): Boolean = fields.values.any(ValuePlan::containsGeneratedHash)
 }
 
 /**
@@ -4221,9 +4158,7 @@ private const val RANDOM_PARENT_DIAGONAL_RESOLVER_WEIGHT = 1.0
 private const val MAX_GENERATED_HASH_DEPTH = 4
 private const val GENERATED_HASH_NESTED_SALT = -1640531527
 
-private fun List<FieldCoordinate>.withGeneratedRandomParentResolverOrder(
-    randomParentFieldsEnabled: Boolean,
-): List<FieldCoordinate> {
+private fun List<FieldCoordinate>.withGeneratedRandomParentResolverOrder(randomParentFieldsEnabled: Boolean): List<FieldCoordinate> {
     if (!randomParentFieldsEnabled) return this
     val directedResolvers =
         filter { coordinate ->
@@ -4236,9 +4171,7 @@ private fun List<FieldCoordinate>.withGeneratedRandomParentResolverOrder(
     }
 }
 
-internal fun List<FieldCoordinate>.withGeneratedParentResultAfterAncestor(
-    parentFieldsEnabled: Boolean,
-): List<FieldCoordinate> {
+internal fun List<FieldCoordinate>.withGeneratedParentResultAfterAncestor(parentFieldsEnabled: Boolean): List<FieldCoordinate> {
     if (!parentFieldsEnabled) return this
     val ancestor = FieldCoordinate(GENERATED_PARENT_ROOT_TYPE, GENERATED_PARENT_VALUE_FIELD)
     val result =

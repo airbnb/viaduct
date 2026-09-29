@@ -1,26 +1,25 @@
 package semantics.arbitrary
 
-import viaduct.graphql.schema.ViaductSchema
-
+import java.security.MessageDigest
+import model.Arguments
 import model.EngineErrorData
-import model.EngineOutputData
 import model.EngineInputData
 import model.EngineInputListData
 import model.EngineInputObjectData
+import model.EngineOutputData
 import model.ObjectEngineResult
-import model.Arguments
 import model.PathComponent
 import model.ResolverOccurrenceId
 import model.Selection
 import model.SelectionForest
 import model.inputType
 import model.outputValue
+import model.registry.ResolverRegistry
 import model.requireArg
 import model.requireField
 import model.rootRelativeHashCode
 import viaduct.engine.api.EngineObjectData
-import model.registry.ResolverRegistry
-import java.security.MessageDigest
+import viaduct.graphql.schema.ViaductSchema
 
 /**
  * Resource limits for diagnostic resolution witnesses.
@@ -94,8 +93,7 @@ internal class SelectiveNodeResolverApplicationLog(
         }
     }
 
-    fun snapshot(): List<SelectiveNodeResolverApplicationRecord> =
-        synchronized(lock) { records.toList() }
+    fun snapshot(): List<SelectiveNodeResolverApplicationRecord> = synchronized(lock) { records.toList() }
 
     fun clear() {
         synchronized(lock) { records.clear() }
@@ -331,19 +329,15 @@ data class ResolutionWitness(
     val applications: List<ResolverApplicationRecord>,
 ) {
     /** Coarse counts that deliberately combine applications with different inputs. */
-    fun applicationCounts(): Map<ResolverApplicationKey, Int> =
-        applications.groupingBy(ResolverApplicationRecord::key).eachCount()
+    fun applicationCounts(): Map<ResolverApplicationKey, Int> = applications.groupingBy(ResolverApplicationRecord::key).eachCount()
 
     /** Exact observable counts for deterministic field-resolver applications. */
-    fun applicationIdentityCounts(): Map<ResolverApplicationIdentity, Int> =
-        applications.groupingBy(ResolverApplicationRecord::identity).eachCount()
+    fun applicationIdentityCounts(): Map<ResolverApplicationIdentity, Int> = applications.groupingBy(ResolverApplicationRecord::identity).eachCount()
 
     /** Exact application counts including the demand supplied at each application boundary. */
-    fun applicationObservationCounts(): Map<ResolverApplicationObservation, Int> =
-        applications.groupingBy(ResolverApplicationRecord::observation).eachCount()
+    fun applicationObservationCounts(): Map<ResolverApplicationObservation, Int> = applications.groupingBy(ResolverApplicationRecord::observation).eachCount()
 
-    fun duplicateApplications(): Map<ResolverApplicationKey, Int> =
-        applicationCounts().filterValues { count -> count > 1 }
+    fun duplicateApplications(): Map<ResolverApplicationKey, Int> = applicationCounts().filterValues { count -> count > 1 }
 
     fun unrelatedApplications(allowed: AllowedResolverClosure): List<ResolverApplicationRecord> =
         applications.filter { application ->
@@ -354,14 +348,11 @@ data class ResolutionWitness(
 data class ResolutionOccurrenceWitness(
     val applications: List<ResolverOccurrenceApplicationRecord>,
 ) {
-    fun applicationKeyCounts(): Map<ResolverOccurrenceApplicationKey, Int> =
-        applications.groupingBy(ResolverOccurrenceApplicationRecord::occurrenceKey).eachCount()
+    fun applicationKeyCounts(): Map<ResolverOccurrenceApplicationKey, Int> = applications.groupingBy(ResolverOccurrenceApplicationRecord::occurrenceKey).eachCount()
 
-    fun applicationIdentityCounts(): Map<ResolverOccurrenceApplicationIdentity, Int> =
-        applications.groupingBy(ResolverOccurrenceApplicationRecord::identity).eachCount()
+    fun applicationIdentityCounts(): Map<ResolverOccurrenceApplicationIdentity, Int> = applications.groupingBy(ResolverOccurrenceApplicationRecord::identity).eachCount()
 
-    fun applicationObservationCounts(): Map<ResolverOccurrenceApplicationObservation, Int> =
-        applications.groupingBy(ResolverOccurrenceApplicationRecord::observation).eachCount()
+    fun applicationObservationCounts(): Map<ResolverOccurrenceApplicationObservation, Int> = applications.groupingBy(ResolverOccurrenceApplicationRecord::observation).eachCount()
 }
 
 /** Resolver fields conservatively reachable from fields directly selected by an operation. */
@@ -438,24 +429,18 @@ fun Arguments.resolutionFingerprint(
         FingerprintBudget(bounds).arguments(this, expectedField),
     )
 
-fun EngineObjectData.Sync.resolutionFingerprint(
-    bounds: ResolutionWitnessBounds = ResolutionWitnessBounds(),
-): ResolutionFingerprint =
+fun EngineObjectData.Sync.resolutionFingerprint(bounds: ResolutionWitnessBounds = ResolutionWitnessBounds()): ResolutionFingerprint =
     ResolutionFingerprint(
         FingerprintBudget(bounds).output(this),
     )
 
 /** A deterministic structural comparison key for the heterogeneous output-data union. */
-internal fun EngineOutputData?.outputResolutionFingerprint(
-    bounds: ResolutionWitnessBounds = ResolutionWitnessBounds(),
-): ResolutionFingerprint =
+internal fun EngineOutputData?.outputResolutionFingerprint(bounds: ResolutionWitnessBounds = ResolutionWitnessBounds()): ResolutionFingerprint =
     ResolutionFingerprint(
         FingerprintBudget(bounds).output(this),
     )
 
-fun SelectionForest.resolutionFingerprint(
-    bounds: ResolutionWitnessBounds = ResolutionWitnessBounds(),
-): ResolutionFingerprint =
+fun SelectionForest.resolutionFingerprint(bounds: ResolutionWitnessBounds = ResolutionWitnessBounds()): ResolutionFingerprint =
     ResolutionFingerprint(
         FingerprintBudget(bounds).forest(this),
     )
@@ -463,9 +448,7 @@ fun SelectionForest.resolutionFingerprint(
 /**
  * A compact deterministic structural digest for potentially large occurrence-preserving demand.
  */
-fun SelectionForest.resolutionDigest(
-    bounds: ResolutionWitnessBounds = ResolutionWitnessBounds(),
-): ResolutionFingerprint {
+fun SelectionForest.resolutionDigest(bounds: ResolutionWitnessBounds = ResolutionWitnessBounds()): ResolutionFingerprint {
     val canonical = resolutionFingerprint(bounds).value.toByteArray(Charsets.UTF_8)
     val digest = MessageDigest.getInstance("SHA-256").digest(canonical)
     return ResolutionFingerprint(
@@ -645,5 +628,4 @@ private class FingerprintBudget(
     private fun atom(value: String): String = "${value.length}:$value"
 }
 
-private fun ViaductSchema.Field.fieldCoordinate(): FieldCoordinate =
-    FieldCoordinate(containingDef.name, name)
+private fun ViaductSchema.Field.fieldCoordinate(): FieldCoordinate = FieldCoordinate(containingDef.name, name)

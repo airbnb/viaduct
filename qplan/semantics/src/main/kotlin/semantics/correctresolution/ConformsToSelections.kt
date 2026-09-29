@@ -8,9 +8,9 @@ import model.ObjectSelectionForest
 import model.PathComponent
 import model.SelectionForest
 import model.merge
+import semantics.shared.SharedOperationContext
 import semantics.shared.findStoredKey
 import semantics.shared.isIncluded
-import semantics.shared.SharedOperationContext
 
 /**
  * Whether this result contains every value required by [selections].

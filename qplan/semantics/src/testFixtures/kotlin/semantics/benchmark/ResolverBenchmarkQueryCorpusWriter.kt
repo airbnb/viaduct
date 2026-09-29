@@ -1,10 +1,10 @@
 package semantics.benchmark
 
+import java.nio.file.Files
+import java.nio.file.Path
 import semantics.arbitrary.ResolverBenchmarkCorpus
 import semantics.arbitrary.ResolverBenchmarkQueryCorpus
 import semantics.arbitrary.resolverBenchmarkOverheadQueryConfig
-import java.nio.file.Files
-import java.nio.file.Path
 
 object ResolverBenchmarkQueryCorpusWriter {
     @JvmStatic

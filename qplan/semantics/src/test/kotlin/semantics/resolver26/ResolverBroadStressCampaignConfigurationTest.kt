@@ -2,6 +2,8 @@
 
 package semantics.resolver26
 
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Test
 import semantics.arbitrary.DuplicateSelectionWeight
@@ -17,8 +19,8 @@ import semantics.arbitrary.ResolverFromFieldVariableOwnerUseWeight
 import semantics.arbitrary.ResolverFromProviderVariablesEnabled
 import semantics.arbitrary.ResolverFromQueryFieldVariablesEnabled
 import semantics.arbitrary.ResolverLiteralVariableConvergenceWeight
-import semantics.arbitrary.ResolverQueryFragmentsEnabled
 import semantics.arbitrary.ResolverQueryFragmentWeight
+import semantics.arbitrary.ResolverQueryFragmentsEnabled
 import semantics.arbitrary.ResolverTestCaseCoordinate
 import semantics.arbitrary.SchemaObjectCount
 import semantics.arbitrary.SometimesPassiveFieldWeight
@@ -27,8 +29,6 @@ import semantics.propertytest.PropertyTestJson
 import semantics.propertytest.PropertyTestRoundExecution
 import semantics.propertytest.PropertyTestRoundRunner
 import semantics.propertytest.roundConfig
-import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 
 class ResolverBroadStressCampaignConfigurationTest {
     @Test
@@ -220,5 +220,4 @@ class ResolverBroadStressCampaignConfigurationTest {
 
             assertEquals(1, result.completedCases)
         }
-
 }

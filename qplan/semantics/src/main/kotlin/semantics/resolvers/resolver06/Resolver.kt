@@ -12,8 +12,7 @@ import semantics.shared.SharedOperationContext
  *
  * Precondition: `world.schema` has no `@parent` fields.
  */
-fun SharedOperationContext<*>.resolve(selections: SelectionForest): ObjectEngineResult =
-    resolve(selections, onTaskStarted = {})
+fun SharedOperationContext<*>.resolve(selections: SelectionForest): ObjectEngineResult = resolve(selections, onTaskStarted = {})
 
 internal fun SharedOperationContext<*>.resolve(
     selections: SelectionForest,

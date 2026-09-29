@@ -2,8 +2,8 @@ package semantics.resolvers.resolver21
 
 import kotlinx.coroutines.CoroutineScope
 import model.SelectionForest
-import semantics.resolvers.GroundedFieldPublicationOccurrence
 import semantics.resolver26.CoroutineTaskDispatcher
+import semantics.resolvers.GroundedFieldPublicationOccurrence
 import semantics.shared.CycleCheckState
 import semantics.shared.Demand
 import semantics.shared.SharedOperationContext
@@ -16,12 +16,12 @@ internal class CoroutineOperationContext(
     val cycleChecker: CycleCheckState,
     val supportsCheckerFragments: Boolean = false,
 ) : SharedOperationContext<
-    CoroutineTaskDispatcher<
-        CoroutineOrchestrationTask,
-        GroundedFieldPublicationOccurrence<CoroutineOperationContext>,
-        GroundedFieldCheckerPublicationOccurrence,
-    >,
-> by
+        CoroutineTaskDispatcher<
+            CoroutineOrchestrationTask,
+            GroundedFieldPublicationOccurrence<CoroutineOperationContext>,
+            GroundedFieldCheckerPublicationOccurrence,
+        >,
+    > by
     SharedOperationContext.create(
         world = base.world,
         variableBindings = base.variableBindings,

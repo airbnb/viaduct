@@ -10,8 +10,8 @@ import semantics.resolvers.resolver01.DepthFirstFieldResolverTask
 import semantics.resolvers.resolver01.DepthFirstOperationContext
 import semantics.resolvers.resolver01.DepthFirstOrchestrationTask
 import semantics.resolvers.resolver01.DepthFirstTask
-import semantics.shared.OEROccurrence
 import semantics.shared.Demand
+import semantics.shared.OEROccurrence
 import semantics.shared.SharedOperationContext
 import viaduct.engine.api.EngineObjectData
 

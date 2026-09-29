@@ -1,10 +1,9 @@
 package model
 
-import viaduct.graphql.schema.ViaductSchema
-
 import model.registry.ResolverTarget
 import model.registry.ResolverTarget.FieldValueResolverTarget
 import model.registry.render
+import viaduct.graphql.schema.ViaductSchema
 
 /**
  * One schema-checked output-field argument tuple.
@@ -197,9 +196,7 @@ private data class InstanceVariableImpl(
             ")"
 }
 
-internal fun argumentsOfGround(
-    fields: EngineInputObjectData,
-): Arguments.Resolved =
+internal fun argumentsOfGround(fields: EngineInputObjectData): Arguments.Resolved =
     if (fields.isEmpty()) {
         emptyResolvedArguments
     } else {

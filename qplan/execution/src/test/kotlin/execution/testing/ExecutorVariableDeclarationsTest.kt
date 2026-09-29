@@ -54,7 +54,11 @@ class ExecutorVariableDeclarationsTest {
                 val objectFragment = schema.fragmentFrom("fragment _ on Query { $objectSource }", variableField = field)
                 val queryFragment = schema.fragmentFrom("fragment _ on Query { $querySource }", variableField = field)
                 compiled = executor.compileVariableDeclarations(
-                    schema, field, objectFragment, queryFragment, ContextMocks().engineExecutionContext,
+                    schema,
+                    field,
+                    objectFragment,
+                    queryFragment,
+                    ContextMocks().engineExecutionContext,
                 )
                 mapOf(field to fieldResolverOf(objectFragment, queryFragment) { _, _, _ -> null })
             },
@@ -143,6 +147,7 @@ class ExecutorVariableDeclarationsTest {
         val calls = AtomicInteger()
         val provider = object : VariableFromFunctionDefinitions, VariablesResolver {
             override val variableNames = setOf("left", "right")
+
             override suspend fun provideVariables(
                 objectData: EngineObjectData.Sync,
                 arguments: Map<String, Any?>,
@@ -152,8 +157,11 @@ class ExecutorVariableDeclarationsTest {
                 val x = arguments.getValue("x") as Int
                 return mapOf("left" to x * 2, "right" to x + 1)
             }
-            override suspend fun resolve(ctx: VariablesResolver.ResolveCtx, context: EngineExecutionContext): Map<String, Any?> =
-                error("Legacy entry point must not be called")
+
+            override suspend fun resolve(
+                ctx: VariablesResolver.ResolveCtx,
+                context: EngineExecutionContext
+            ): Map<String, Any?> = error("Legacy entry point must not be called")
         }
         EngineTestModule("extend type Query { use(x: Int!): Int! result(x: Int!): Int! }") {
             field("Query" to "use") { resolver { fn { args, _, _, _, _ -> args.getValue("x") } } }
@@ -176,28 +184,34 @@ class ExecutorVariableDeclarationsTest {
     }
 
     @Test
-    fun `direct callback rejects missing and extra names`(): Unit = runBlocking {
-        val schema = TestWorld.fromSDL("type Query { result: Int use(x: Int!): Int! }").schema
-        val field = schema.requireObjectField("Query", "result")
-        val fragment = schema.fragmentFrom("fragment _ on Query { use(x: \$value) }", variableField = field)
-        for (output in listOf(emptyMap(), mapOf("value" to 1, "extra" to 2))) {
-            val executor = object : MockFieldUnbatchedResolverExecutor(resolverId = "Query.result") {
-                override val variablesFromFunctionProvider = object : VariableFromFunctionDefinitions {
-                    override val variableNames = setOf("value")
-                    override suspend fun provideVariables(
-                        objectData: EngineObjectData.Sync,
-                        arguments: Map<String, Any?>,
-                        context: EngineExecutionContext,
-                    ) = output
+    fun `direct callback rejects missing and extra names`(): Unit =
+        runBlocking {
+            val schema = TestWorld.fromSDL("type Query { result: Int use(x: Int!): Int! }").schema
+            val field = schema.requireObjectField("Query", "result")
+            val fragment = schema.fragmentFrom("fragment _ on Query { use(x: \$value) }", variableField = field)
+            for (output in listOf(emptyMap(), mapOf("value" to 1, "extra" to 2))) {
+                val executor = object : MockFieldUnbatchedResolverExecutor(resolverId = "Query.result") {
+                    override val variablesFromFunctionProvider = object : VariableFromFunctionDefinitions {
+                        override val variableNames = setOf("value")
+
+                        override suspend fun provideVariables(
+                            objectData: EngineObjectData.Sync,
+                            arguments: Map<String, Any?>,
+                            context: EngineExecutionContext,
+                        ) = output
+                    }
                 }
+                val compiled = executor.compileVariableDeclarations(
+                    schema,
+                    field,
+                    fragment,
+                    null,
+                    ContextMocks().engineExecutionContext,
+                )
+                val failure = assertThrows<IllegalStateException> { compiled.provider!!(Arguments.Resolved.of(field, emptyMap())) }
+                assertTrue(failure.message.orEmpty().contains("exactly its declared names"))
             }
-            val compiled = executor.compileVariableDeclarations(
-                schema, field, fragment, null, ContextMocks().engineExecutionContext,
-            )
-            val failure = assertThrows<IllegalStateException> { compiled.provider!!(Arguments.Resolved.of(field, emptyMap())) }
-            assertTrue(failure.message.orEmpty().contains("exactly its declared names"))
         }
-    }
 
     @Test
     fun `rejects missing explicit declarations even when legacy recipes exist`() {
@@ -218,9 +232,13 @@ class ExecutorVariableDeclarationsTest {
         }
     }
 
-    private fun rss(selections: String, vararg names: String): RequiredSelectionSet =
+    private fun rss(
+        selections: String,
+        vararg names: String
+    ): RequiredSelectionSet =
         createRSS(
-            "Query", selections,
+            "Query",
+            selections,
             names.map { name -> MockVariablesResolver(name) { _, _ -> error("Legacy recipe must not run") } },
         )
 }

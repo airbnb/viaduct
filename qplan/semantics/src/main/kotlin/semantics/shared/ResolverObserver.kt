@@ -96,9 +96,7 @@ interface ResolverObserver {
      * Associates a publication with a reference hop after its helper returns. This does not
      * record a return value or guarantee resolver entry: input errors can short-circuit the helper.
      */
-    fun onRootFieldReferenceInvocation(
-        observation: RootFieldReferenceInvocationObservation,
-    ) = Unit
+    fun onRootFieldReferenceInvocation(observation: RootFieldReferenceInvocationObservation) = Unit
 
     /** Observer that discards every event. */
     object NOP : ResolverObserver

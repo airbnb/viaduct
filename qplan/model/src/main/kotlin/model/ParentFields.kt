@@ -6,8 +6,7 @@ import viaduct.graphql.schema.ViaductSchema
 const val PARENT_DIRECTIVE_NAME: String = "parent"
 
 /** Whether this canonical field is provided by traversing to the containing object's parent. */
-fun ViaductSchema.Field.isParentField(): Boolean =
-    hasAppliedDirective(PARENT_DIRECTIVE_NAME)
+fun ViaductSchema.Field.isParentField(): Boolean = hasAppliedDirective(PARENT_DIRECTIVE_NAME)
 
 /**
  * Derives and validates the parent-field-to-producer-field relation for [schema].
@@ -15,9 +14,7 @@ fun ViaductSchema.Field.isParentField(): Boolean =
  * Qplan deliberately restricts a child-producing field paired with `@parent` to have no arguments.
  * Singular, list, and nested-list child outputs are all admitted.
  */
-internal fun parentFieldRelations(
-    schema: ViaductSchema,
-): Map<ViaductSchema.ObjectField, ViaductSchema.ObjectField> {
+internal fun parentFieldRelations(schema: ViaductSchema): Map<ViaductSchema.ObjectField, ViaductSchema.ObjectField> {
     val objectFields =
         schema.types.values
             .filterIsInstance<ViaductSchema.Object>()

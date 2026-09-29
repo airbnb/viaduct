@@ -87,8 +87,7 @@ class GraphQLJavaDeferTest {
     }
 }
 
-private fun org.reactivestreams.Publisher<DelayedIncrementalPartialResult>.nextResult():
-    CompletableFuture<DelayedIncrementalPartialResult> =
+private fun org.reactivestreams.Publisher<DelayedIncrementalPartialResult>.nextResult(): CompletableFuture<DelayedIncrementalPartialResult> =
     CompletableFuture<DelayedIncrementalPartialResult>().also { result ->
         subscribe(
             object : Subscriber<DelayedIncrementalPartialResult> {

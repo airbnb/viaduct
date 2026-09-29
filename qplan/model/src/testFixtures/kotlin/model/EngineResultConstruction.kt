@@ -1,9 +1,8 @@
 package model
 
+import model.invariants.conformsToResultSchemaType
 import viaduct.engine.api.CheckerResult
 import viaduct.graphql.schema.ViaductSchema
-
-import model.invariants.conformsToResultSchemaType
 
 /** Constructs an object engine result by resolving type and field names in this reasoning world. */
 fun Assumptions.engineResultOf(

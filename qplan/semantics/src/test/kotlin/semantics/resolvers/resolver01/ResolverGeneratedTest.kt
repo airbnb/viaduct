@@ -1,16 +1,13 @@
 package semantics.resolvers.resolver01
 
-import semantics.resolvers.resolver01.resolve
-
-import viaduct.engine.api.EngineObjectData
-
-import semantics.shared.SharedOperationContext
 import model.ObjectEngineResult
 import model.SelectionForest
 import semantics.contract.EmptyObjectFragmentGeneratedResolverContract
 import semantics.contract.NodeGeneratedResolverContract
 import semantics.contract.RootFieldReferenceGeneratedResolverContract
 import semantics.contract.SometimesPassiveGeneratedResolverContract
+import semantics.shared.SharedOperationContext
+import viaduct.engine.api.EngineObjectData
 
 class ResolverGeneratedTest :
     EmptyObjectFragmentGeneratedResolverContract,
@@ -24,6 +21,5 @@ class ResolverGeneratedTest :
         operation: SharedOperationContext<*>,
         root: EngineObjectData.Sync,
         selections: SelectionForest,
-    ): ObjectEngineResult =
-        operation.resolve(selections)
+    ): ObjectEngineResult = operation.resolve(selections)
 }

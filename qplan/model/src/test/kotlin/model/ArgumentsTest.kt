@@ -2,21 +2,21 @@
 
 package model
 
-import kotlinx.coroutines.async
-import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.runBlocking
-import model.testing.TestWorld
-import model.testing.testRoot
-import model.registry.ResolverTarget
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNotEquals
 import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.async
+import kotlinx.coroutines.runBlocking
+import model.registry.ResolverTarget
+import model.testing.TestWorld
+import model.testing.testRoot
 
 class ArgumentsTest {
     @Test
@@ -512,6 +512,7 @@ class ArgumentsTest {
         val firstOccurrence = ResolverOccurrenceId.at(world.schema.testRoot(), firstPath)
         val secondOccurrence = ResolverOccurrenceId.at(world.schema.testRoot(), secondPath)
         val firstVariable = template.instantiate(firstOccurrence)
+
         fun symbolicKey(resolverOccurrenceId: ResolverOccurrenceId): ObjectEngineResult.ObjectKey =
             ObjectEngineResult.Key.of(
                 field = consume,

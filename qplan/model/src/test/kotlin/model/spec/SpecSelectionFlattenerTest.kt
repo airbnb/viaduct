@@ -1,19 +1,17 @@
 package model.spec
 
-import viaduct.graphql.schema.ViaductSchema
-
-import model.requireQueryTypeDef
-import model.requireField
-import model.requireType
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 import model.EngineInputObjectData
 import model.SelectionForest
 import model.fieldExpressions
-import model.testing.TestWorld
+import model.requireField
+import model.requireQueryTypeDef
+import model.requireType
 import model.spec.flatten as flattenSpecSelections
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertIs
-import kotlin.test.assertTrue
+import model.testing.TestWorld
+import viaduct.graphql.schema.ViaductSchema
 
 class SpecSelectionFlattenerTest {
     @Test
@@ -218,14 +216,12 @@ class SpecSelectionFlattenerTest {
         fun inlineFragment(
             typeCondition: ViaductSchema.CompositeTypeDef?,
             selections: List<SpecSelection>,
-        ): SpecSelection.InlineFragment =
-            SpecSelection.InlineFragment.of(typeCondition, selections)
+        ): SpecSelection.InlineFragment = SpecSelection.InlineFragment.of(typeCondition, selections)
 
         fun flatten(
             typeInScope: ViaductSchema.CompositeTypeDef,
             selectionSet: List<SpecSelection>,
-        ): SelectionForest =
-            flattenSpecSelections(schema, typeInScope, selectionSet)
+        ): SelectionForest = flattenSpecSelections(schema, typeInScope, selectionSet)
     }
 
     private companion object {

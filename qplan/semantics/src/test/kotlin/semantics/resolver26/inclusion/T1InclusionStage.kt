@@ -82,8 +82,7 @@ internal data class T1CombinationVector(
                 )
             }
 
-        fun from(vector: T2CombinationVector): T1CombinationVector =
-            T1CombinationVector(vector.t3, vector.t2, T1Vector.none)
+        fun from(vector: T2CombinationVector): T1CombinationVector = T1CombinationVector(vector.t3, vector.t2, T1Vector.none)
     }
 }
 

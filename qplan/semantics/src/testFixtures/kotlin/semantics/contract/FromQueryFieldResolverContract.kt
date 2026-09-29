@@ -1,5 +1,6 @@
 package semantics.contract
 
+import kotlin.test.assertEquals
 import model.Arguments
 import model.emptyFragmentOf
 import model.fragmentFrom
@@ -9,7 +10,6 @@ import model.testing.fieldResolverOf
 import model.testing.fromQueryField
 import org.junit.jupiter.api.DynamicTest.dynamicTest
 import org.junit.jupiter.api.TestFactory
-import kotlin.test.assertEquals
 
 /** Contract for variables produced by exact paths in the defining Query fragment. */
 interface FromQueryFieldResolverContract : ResolverContract {

@@ -1,9 +1,5 @@
 package model
 
-import viaduct.graphql.schema.ViaductSchema
-
-import model.testing.TestWorld
-import model.testing.testRoot
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -12,6 +8,9 @@ import kotlin.test.assertIs
 import kotlin.test.assertNotEquals
 import kotlin.test.assertNull
 import kotlin.test.assertSame
+import model.testing.TestWorld
+import model.testing.testRoot
+import viaduct.graphql.schema.ViaductSchema
 
 class ObjectEngineResultKeyTest {
     @Test
@@ -80,6 +79,7 @@ class ObjectEngineResultKeyTest {
         val first = variable.instantiate(firstOccurrence)
         val equalFirst = variable.instantiate(firstOccurrence)
         val second = variable.instantiate(secondOccurrence)
+
         fun key(variable: Arguments.Variable) =
             ObjectEngineResult.Key.of(
                 consume,

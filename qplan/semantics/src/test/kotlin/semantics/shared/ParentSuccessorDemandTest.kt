@@ -1,14 +1,14 @@
 package semantics.shared
 
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 import model.ObjectSelectionForest
 import model.fragmentFrom
 import model.merge
 import model.requireObjectField
 import model.requireQueryTypeDef
 import model.testing.TestWorld
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 
 class ParentSuccessorDemandTest {
     @Test
@@ -84,11 +84,9 @@ class ParentSuccessorDemandTest {
         }
     }
 
-    private fun ObjectSelectionForest.field(name: String) =
-        byKey().values.single { it.key.field.name == name }
+    private fun ObjectSelectionForest.field(name: String) = byKey().values.single { it.key.field.name == name }
 
-    private fun ObjectSelectionForest.fieldNames(): Set<String> =
-        keys().mapTo(mutableSetOf()) { it.field.name }
+    private fun ObjectSelectionForest.fieldNames(): Set<String> = keys().mapTo(mutableSetOf()) { it.field.name }
 
     private val world = TestWorld.fromSDL(
         schemaSDL =

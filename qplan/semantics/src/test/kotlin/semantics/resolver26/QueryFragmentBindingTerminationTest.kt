@@ -4,6 +4,12 @@ package semantics.resolver26
 
 import java.util.ArrayDeque
 import kotlin.coroutines.CoroutineContext
+import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
+import kotlin.test.assertIs
+import kotlin.test.assertSame
+import kotlin.test.assertTrue
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineDispatcher
@@ -23,22 +29,16 @@ import model.VariableInstanceId
 import model.emptyFragmentOf
 import model.fragmentFrom
 import model.operationSelectionsFrom
-import model.requireObjectField
 import model.registry.ResolverTarget
+import model.requireObjectField
 import model.testing.TestWorld
 import model.testing.fieldResolverOf
 import model.testing.fromArgument
 import model.testing.fromQueryField
 import org.junit.jupiter.api.DynamicTest
 import org.junit.jupiter.api.TestFactory
-import semantics.shared.SharedOperationContext
 import semantics.shared.ResolverObserver
-import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
-import kotlin.test.assertFalse
-import kotlin.test.assertIs
-import kotlin.test.assertSame
-import kotlin.test.assertTrue
+import semantics.shared.SharedOperationContext
 
 /** Query tasks must finish after their consumer exits, without cancelling the request. */
 class QueryFragmentBindingTerminationTest {
@@ -53,7 +53,10 @@ class QueryFragmentBindingTerminationTest {
             }
         }
 
-    private suspend fun verifyTermination(exit: Exit, reference: Boolean) {
+    private suspend fun verifyTermination(
+        exit: Exit,
+        reference: Boolean
+    ) {
         val dispatcher = QueuedDispatcher()
         val requestJob = Job()
         val fixture = Fixture(exit, reference)
@@ -245,13 +248,19 @@ class QueryFragmentBindingTerminationTest {
             },
         ).assumptions
 
-        val operation = SharedOperationContext.create(world, resolverObserver = object : ResolverObserver {
-            override fun onQueryFragmentPrepared(resolverOccurrenceId: ResolverOccurrenceId, result: ObjectEngineResult) {
-                check(queryResult == null) { "Only the consumer has a Query fragment" }
-                queryResult = result
-                consumerOccurrence = resolverOccurrenceId
+        val operation = SharedOperationContext.create(
+            world,
+            resolverObserver = object : ResolverObserver {
+                override fun onQueryFragmentPrepared(
+                    resolverOccurrenceId: ResolverOccurrenceId,
+                    result: ObjectEngineResult
+                ) {
+                    check(queryResult == null) { "Only the consumer has a Query fragment" }
+                    queryResult = result
+                    consumerOccurrence = resolverOccurrenceId
+                }
             }
-        })
+        )
         val selections = world.operationSelectionsFrom(
             when {
                 exit == Exit.ARGUMENT_ERROR -> "query { driver(enabled: true) healthy }"
@@ -261,18 +270,26 @@ class QueryFragmentBindingTerminationTest {
             },
         )
 
-        fun variableId(name: String): VariableInstanceId = VariableInstanceId.of(
-            requireNotNull(consumerOccurrence),
-            ResolverTarget.FieldValueResolverTarget(
-                world.schema.requireObjectField("Query", "consumer"),
-            ),
-            name,
-        )
+        fun variableId(name: String): VariableInstanceId =
+            VariableInstanceId.of(
+                requireNotNull(consumerOccurrence),
+                ResolverTarget.FieldValueResolverTarget(
+                    world.schema.requireObjectField("Query", "consumer"),
+                ),
+                name,
+            )
     }
 
     private class QueuedDispatcher : CoroutineDispatcher() {
         private val tasks = ArrayDeque<Runnable>()
-        override fun dispatch(context: CoroutineContext, block: Runnable) { tasks.addLast(block) }
+
+        override fun dispatch(
+            context: CoroutineContext,
+            block: Runnable
+        ) {
+            tasks.addLast(block)
+        }
+
         fun runUntilIdle() {
             while (tasks.isNotEmpty()) tasks.removeFirst().run()
         }

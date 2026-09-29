@@ -99,7 +99,11 @@ internal class FieldCheckerTask private constructor(
                 oer.occurrence.fieldCheckerCycleTask(key),
             )
             val publication = SymbolicFieldCheckerPublicationOccurrence(
-                orchestrationTask.operation, oer.occurrence, checkerOccurrence, cell, orchestrationTask.queryOER,
+                orchestrationTask.operation,
+                oer.occurrence,
+                checkerOccurrence,
+                cell,
+                orchestrationTask.queryOER,
             )
             return PreparedFieldCheckerSlot(cell, publication)
         }

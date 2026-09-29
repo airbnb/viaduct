@@ -31,13 +31,13 @@ import model.nodeReferenceIdentityOrNull
 import model.registry.ProviderFragment
 import model.registry.VariableDefinition
 import model.requireQueryTypeDef
-import model.selectionForestOf
 import model.satisfiableAlternatives
-import semantics.shared.argumentsContainErrorValue
+import model.selectionForestOf
 import semantics.shared.ResolverInvocationObservation
-import semantics.shared.fieldResolverCycleTask
 import semantics.shared.RootFieldReferenceInvocationObservation
+import semantics.shared.argumentsContainErrorValue
 import semantics.shared.fetchGroundedArguments
+import semantics.shared.fieldResolverCycleTask
 import semantics.shared.withAuthoritativeNodeId
 import viaduct.engine.api.EngineObjectData
 
@@ -233,7 +233,7 @@ internal class FieldResolutionLogic(
                     VariableBinding.Error -> error("Inclusion-condition variable failed")
                     is VariableBinding.Input ->
                         binding.value as? Boolean
-                        ?: error("Inclusion-condition variable must contain a Boolean")
+                            ?: error("Inclusion-condition variable must contain a Boolean")
                 }
             }
         check(publication.publicationCell.setActivated(activated)) {
@@ -241,8 +241,8 @@ internal class FieldResolutionLogic(
         }
         if (
             activated &&
-                !publication.checkerScheduled &&
-                !publication.publicationCell.fieldCheckerResult.isCompleted
+            !publication.checkerScheduled &&
+            !publication.publicationCell.fieldCheckerResult.isCompleted
         ) {
             check(publication.publicationCell.fieldCheckerResult.complete(null))
         }
@@ -315,9 +315,7 @@ internal class FieldResolutionLogic(
         )
     }
 
-    private suspend fun materializeQueryFragment(
-        fieldResolverOccurrence: FieldResolverOccurrence,
-    ): EngineObjectData.Sync {
+    private suspend fun materializeQueryFragment(fieldResolverOccurrence: FieldResolverOccurrence): EngineObjectData.Sync {
         val publication = fieldResolverTask.publication
         val queryFragment = fieldResolverOccurrence.fragments.queryFragment
         check(queryFragment.constructionSelections.isEmpty() || publication.queryOER.isDemanded()) {
@@ -504,9 +502,7 @@ internal class FieldResolutionLogic(
         return null
     }
 
-    private fun completeVariablesProviderBindingsWithError(
-        fieldResolverOccurrence: FieldResolverOccurrence,
-    ) {
+    private fun completeVariablesProviderBindingsWithError(fieldResolverOccurrence: FieldResolverOccurrence) {
         val publication = fieldResolverTask.publication
         fieldResolverOccurrence.variableDefinitions.forEach { definition ->
             if (definition.definition != VariableDefinition.FromProvider) return@forEach
@@ -541,9 +537,7 @@ internal class FieldResolutionLogic(
 }
 
 /** Shared cells activate from any independently ready true demand alternative. */
-internal suspend fun model.InclusionCondition.includeAnyReadyAlternative(
-    binding: suspend (Arguments.Variable) -> Boolean,
-): Boolean =
+internal suspend fun model.InclusionCondition.includeAnyReadyAlternative(binding: suspend (Arguments.Variable) -> Boolean): Boolean =
     supervisorScope {
         val alternatives = satisfiableAlternatives()
         if (alternatives.size <= 1) {

@@ -38,14 +38,12 @@ internal class OnceStore<K : Any, V> {
     }
 
     /** Returns a stable copy of the values written before or during this observation. */
-    fun snapshot(): Map<K, V> =
-        values.mapValues { (_, storedValue) -> value(storedValue) }
+    fun snapshot(): Map<K, V> = values.mapValues { (_, storedValue) -> value(storedValue) }
 
     private fun storedValue(value: V): Any = value ?: NULL_PROXY
 
     @Suppress("UNCHECKED_CAST")
-    private fun value(storedValue: Any): V =
-        if (storedValue === NULL_PROXY) null as V else storedValue as V
+    private fun value(storedValue: Any): V = if (storedValue === NULL_PROXY) null as V else storedValue as V
 
     private data object NULL_PROXY
 }

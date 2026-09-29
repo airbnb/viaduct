@@ -35,16 +35,21 @@ class SharedQuerySymbolicDomainRegressionTest {
         assertTrue(validate(extraSymbolicCell = true, declareExtra = true))
     }
 
-    private fun validate(extraSymbolicCell: Boolean, declareExtra: Boolean = false): Boolean {
+    private fun validate(
+        extraSymbolicCell: Boolean,
+        declareExtra: Boolean = false
+    ): Boolean {
         val world = TestWorld.fromSDL(
             schemaSDL = "type Query { consumer: Int!, source(value: Int!): Int! }",
-            fieldResolvers = { schema -> mapOf(
-                schema.requireObjectField("Query", "consumer") to fieldResolverOf(
-                    objectFragment = schema.emptyFragmentOf("Query"),
-                    queryFragment = schema.fragmentFrom("fragment Input on Query { source(value: 7) }"),
-                ) { _, _, _ -> 7 },
-                schema.requireObjectField("Query", "source") to fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> 7 },
-            ) },
+            fieldResolvers = { schema ->
+                mapOf(
+                    schema.requireObjectField("Query", "consumer") to fieldResolverOf(
+                        objectFragment = schema.emptyFragmentOf("Query"),
+                        queryFragment = schema.fragmentFrom("fragment Input on Query { source(value: 7) }"),
+                    ) { _, _, _ -> 7 },
+                    schema.requireObjectField("Query", "source") to fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> 7 },
+                )
+            },
         ).assumptions
         val queryType = world.schema.requireQueryTypeDef()
         val source = world.schema.requireObjectField("Query", "source")
@@ -69,9 +74,15 @@ class SharedQuerySymbolicDomainRegressionTest {
                 fieldCheckerResult.complete(null)
             }
             if (declareExtra) {
-                observedDemand = (closedValueSelections + selectionForestOf(Selection.of(
-                    key = key, possibleTypes = setOf(queryType), subselections = selectionForestOf(),
-                ))).merge(queryType)
+                observedDemand = (
+                    closedValueSelections + selectionForestOf(
+                        Selection.of(
+                            key = key,
+                            possibleTypes = setOf(queryType),
+                            subselections = selectionForestOf(),
+                        )
+                    )
+                ).merge(queryType)
             }
         }
         query.freeze()

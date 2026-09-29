@@ -22,9 +22,7 @@ import semantics.shared.groundedArguments
  * Reconstructs expected field-checker invocations from completed checker slots instead of the
  * invocation observer, so a missing or duplicate checker task fails an independent judgment.
  */
-internal fun EngineResult?.registeredFieldCheckerApplications(
-    operation: SharedOperationContext<*>,
-): List<CheckerInvocationObservation> {
+internal fun EngineResult?.registeredFieldCheckerApplications(operation: SharedOperationContext<*>): List<CheckerInvocationObservation> {
     val primaryRoot = this as? ObjectEngineResult ?: return emptyList()
     val roots =
         buildList {

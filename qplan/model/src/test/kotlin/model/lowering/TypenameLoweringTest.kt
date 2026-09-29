@@ -3,7 +3,6 @@ package model.lowering
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
-import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 import viaduct.graphql.schema.ViaductSchema

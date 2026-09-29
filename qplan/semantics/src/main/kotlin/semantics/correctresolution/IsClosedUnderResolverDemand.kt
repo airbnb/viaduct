@@ -1,22 +1,22 @@
 package semantics.correctresolution
 
-import model.ResolverOutputData
+import model.Arguments
 import model.EngineResult
 import model.ErrorEngineResult
 import model.ListEngineResult
 import model.ObjectEngineResult
-import model.Arguments
 import model.PathComponent
+import model.ResolverOutputData
 import model.RootFieldReferenceData
+import model.outputValue
+import model.schemaType
+import model.usedVariables
+import semantics.shared.SharedOperationContext
 import semantics.shared.argumentsContainErrorValue
 import semantics.shared.groundedArguments
 import semantics.shared.isContextuallyGrounded
 import semantics.shared.objectFragmentAt
-import model.outputValue
-import model.schemaType
-import model.usedVariables
 import viaduct.engine.api.EngineObjectData
-import semantics.shared.SharedOperationContext
 import viaduct.graphql.schema.ViaductSchema
 
 /**
@@ -32,14 +32,12 @@ import viaduct.graphql.schema.ViaductSchema
  * ordinary checked input closure. This predicate does not interpret the checker-result value or
  * count checker applications.
  */
-fun ObjectEngineResult.isClosedUnderResolverDemand(operation: SharedOperationContext<*>): Boolean =
-    isClosedUnderResolverDemand(operation, operation.resolverApplicationCache(this))
+fun ObjectEngineResult.isClosedUnderResolverDemand(operation: SharedOperationContext<*>): Boolean = isClosedUnderResolverDemand(operation, operation.resolverApplicationCache(this))
 
 internal fun ObjectEngineResult.isClosedUnderResolverDemand(
     operation: SharedOperationContext<*>,
     resolverApplicationCache: ResolverApplicationCache,
-): Boolean =
-    ResolverDemandValidationLogic(operation, resolverApplicationCache).isClosed(this)
+): Boolean = ResolverDemandValidationLogic(operation, resolverApplicationCache).isClosed(this)
 
 /** Checks resolver demand for one result using its operation and existing replay cache. */
 private class ResolverDemandValidationLogic(

@@ -1,5 +1,8 @@
 package semantics.resolvers
 
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 import model.ObjectEngineResult
 import model.ObjectSelectionForest
 import model.SelectionForest
@@ -9,13 +12,10 @@ import model.objectOf
 import model.requireObjectField
 import model.requireQueryTypeDef
 import model.testing.TestWorld
-import semantics.shared.OrchestrationConstructionDemand
 import semantics.shared.Demand
 import semantics.shared.OEROccurrence
+import semantics.shared.OrchestrationConstructionDemand
 import semantics.shared.SharedOperationContext
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 
 /** Parent lifting must preserve checking provenance. */
 class ParentDemandProvenanceTest {
@@ -76,6 +76,5 @@ class ParentDemandProvenanceTest {
         assertTrue(other.values.isEmpty(), "Parent lifting escaped its object/Query root component")
     }
 
-    private fun ObjectSelectionForest.fieldNames(): Set<String> =
-        groundKeys().mapTo(linkedSetOf()) { it.field.name }
+    private fun ObjectSelectionForest.fieldNames(): Set<String> = groundKeys().mapTo(linkedSetOf()) { it.field.name }
 }

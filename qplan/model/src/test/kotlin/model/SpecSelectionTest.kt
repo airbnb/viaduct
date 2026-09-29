@@ -1,12 +1,11 @@
 package model
 
-import viaduct.graphql.schema.ViaductSchema
-
-import model.spec.SpecSelection
-import model.testing.TestWorld
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import model.spec.SpecSelection
+import model.testing.TestWorld
+import viaduct.graphql.schema.ViaductSchema
 
 class SpecSelectionTest {
     @Test

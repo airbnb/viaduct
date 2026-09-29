@@ -4,7 +4,6 @@ package execution.viaductfeaturetests
 // Copied 13 out of 13 tests as of 2026-09-01
 
 import execution.testing.runQPlanFeatureTest
-
 import graphql.execution.instrumentation.parameters.InstrumentationFieldFetchParameters
 import graphql.execution.instrumentation.parameters.InstrumentationFieldParameters
 import java.util.concurrent.atomic.AtomicInteger

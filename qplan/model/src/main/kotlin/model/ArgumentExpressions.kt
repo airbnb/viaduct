@@ -1,8 +1,7 @@
 package model
 
-import viaduct.graphql.schema.ViaductSchema
-
 import model.invariants.conformsToInputSchemaType
+import viaduct.graphql.schema.ViaductSchema
 
 /**
  * A schema-checked argument expression.
@@ -140,9 +139,7 @@ private fun coerceArgumentFields(
     return values
 }
 
-private fun argumentsOfExpressions(
-    fields: Map<String, ArgumentExpression?>,
-): Arguments =
+private fun argumentsOfExpressions(fields: Map<String, ArgumentExpression?>): Arguments =
     when {
         fields.values.any(ArgumentExpression?::containsArgumentError) -> Arguments.Error
         fields.values.none(ArgumentExpression?::containsVariable) ->
@@ -160,18 +157,14 @@ internal fun Arguments.fieldExpressions(): Map<String, ArgumentExpression?> =
         is ArgumentsTemplateImpl -> fieldValues
     }
 
-private fun <T : Arguments> T.validatedAgainst(
-    expectedField: ViaductSchema.Field,
-): T {
+private fun <T : Arguments> T.validatedAgainst(expectedField: ViaductSchema.Field): T {
     require(conformsToArgumentDefinition(expectedField)) {
         "Argument expressions do not conform to the expected field"
     }
     return this
 }
 
-internal fun Arguments.conformsToArgumentDefinition(
-    expectedField: ViaductSchema.Field,
-): Boolean =
+internal fun Arguments.conformsToArgumentDefinition(expectedField: ViaductSchema.Field): Boolean =
     when (this) {
         Arguments.Error -> true
         else ->
@@ -184,9 +177,7 @@ internal fun Arguments.conformsToArgumentDefinition(
             }
     }
 
-private fun ArgumentExpression?.conformsToArgumentType(
-    typeExpr: ViaductSchema.TypeExpr<ViaductSchema.InputTypeDef>,
-): Boolean {
+private fun ArgumentExpression?.conformsToArgumentType(typeExpr: ViaductSchema.TypeExpr<ViaductSchema.InputTypeDef>): Boolean {
     if (this == null) return typeExpr.isNullable
     if (this == ArgumentResolutionError || this is Arguments.Variable) return true
 
@@ -223,9 +214,7 @@ internal fun Arguments.instantiateVariables(
     ).validatedAgainst(expectedField)
 }
 
-private fun ArgumentExpression?.instantiateVariables(
-    resolverOccurrenceId: ResolverOccurrenceId,
-): ArgumentExpression? =
+private fun ArgumentExpression?.instantiateVariables(resolverOccurrenceId: ResolverOccurrenceId): ArgumentExpression? =
     when (this) {
         is Arguments.Variable ->
             if (isTemplate) {
@@ -303,9 +292,7 @@ internal fun Arguments.mapVariableTemplates(
     return argumentsOfExpressions(mapped).validatedAgainst(expectedField)
 }
 
-private fun ArgumentExpression?.mapVariableTemplates(
-    transform: (Arguments.Variable) -> Arguments.Variable,
-): ArgumentExpression? =
+private fun ArgumentExpression?.mapVariableTemplates(transform: (Arguments.Variable) -> Arguments.Variable): ArgumentExpression? =
     when (this) {
         is Arguments.Variable ->
             if (isTemplate) {
@@ -334,8 +321,7 @@ internal fun Arguments.variables(): Set<Arguments.Variable> =
     }
 
 /** Returns the variable instances used anywhere in this argument tuple. */
-internal fun Arguments.instantiatedVariables(): Set<Arguments.Variable> =
-    variables().filterTo(linkedSetOf(), Arguments.Variable::isInstantiated)
+internal fun Arguments.instantiatedVariables(): Set<Arguments.Variable> = variables().filterTo(linkedSetOf(), Arguments.Variable::isInstantiated)
 
 /** Returns every variable expression used anywhere in this argument tuple. */
 fun Arguments.usedVariables(): Set<Arguments.Variable> = variables()
@@ -385,10 +371,10 @@ private fun ArgumentExpression?.rootRelativeHashCode(): Int =
             hash = 31 * hash + variableName.hashCode()
             hash =
                 31 * hash +
-                    when (val id = instanceId) {
-                        null -> 0
-                        else -> id.resolverOccurrenceId.rootRelativeHashCode()
-                    }
+                when (val id = instanceId) {
+                    null -> 0
+                    else -> id.resolverOccurrenceId.rootRelativeHashCode()
+                }
             hash
         }
         is List<*> -> fold(1) { hash, value ->
@@ -440,8 +426,7 @@ private fun ArgumentExpression?.containsVariable(): Boolean =
         else -> false
     }
 
-internal fun Arguments.variableTemplates(): Set<Arguments.Variable> =
-    variables().filterTo(linkedSetOf(), Arguments.Variable::isTemplate)
+internal fun Arguments.variableTemplates(): Set<Arguments.Variable> = variables().filterTo(linkedSetOf(), Arguments.Variable::isTemplate)
 
 internal fun Arguments.retarget(field: ViaductSchema.Field): Arguments {
     if (this == Arguments.Error) return this

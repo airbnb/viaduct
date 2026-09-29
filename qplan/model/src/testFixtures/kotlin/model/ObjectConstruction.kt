@@ -1,8 +1,7 @@
 package model
 
-import viaduct.graphql.schema.ViaductSchema
-
 import viaduct.engine.api.EngineObjectData
+import viaduct.graphql.schema.ViaductSchema
 
 /** Constructs an object value by resolving type and field names in this reasoning world. */
 fun Assumptions.objectOf(

@@ -1,9 +1,8 @@
 package model.registry
 
-import viaduct.graphql.schema.ViaductSchema
-
 import model.ObjectEngineResult
 import viaduct.engine.api.EngineObjectData
+import viaduct.graphql.schema.ViaductSchema
 
 /**
  * The externally supplied resolver slots and resolver-relative variable definitions fixed for one
@@ -62,7 +61,6 @@ interface ResolverRegistry {
      * runtime type assignment.
      */
     fun mayDemandFrom(field: ViaductSchema.ObjectField): Set<ViaductSchema.ObjectField>
-
 }
 
 /** Indicates that no field resolver is defined at a valid schema coordinate. */

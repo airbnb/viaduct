@@ -2,8 +2,10 @@
 
 package semantics.resolver26.inclusion
 
-import semantics.resolver26.Resolver26DispatcherResource
-
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertIs
+import kotlin.test.assertTrue
 import kotlinx.coroutines.runBlocking
 import model.Fragment
 import model.ObjectEngineResult
@@ -12,14 +14,10 @@ import model.merge
 import model.requireObjectField
 import model.requireQueryTypeDef
 import model.testing.TestWorld
-import semantics.correctresolution.correctResolution
-import semantics.resolver26.resolve
-import semantics.shared.SharedOperationContext
 import semantics.correctresolution.CorrectnessResolverObserver
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertIs
-import kotlin.test.assertTrue
+import semantics.correctresolution.correctResolution
+import semantics.resolver26.Resolver26DispatcherResource
+import semantics.shared.SharedOperationContext
 
 class InclusionCombinationTest : Resolver26DispatcherResource {
     @Test
@@ -157,20 +155,24 @@ class InclusionCombinationTest : Resolver26DispatcherResource {
             val message = vector.toString()
             witnessedDirectOnlyWithExcludedT2T3Aliases =
                 witnessedDirectOnlyWithExcludedT2T3Aliases ||
-                    (oracle.directT3Active &&
+                (
+                    oracle.directT3Active &&
                         oracle.t2Active &&
                         !oracle.indirectT3Active &&
-                        oracle.t2Input.topLevelAliases().isEmpty())
+                        oracle.t2Input.topLevelAliases().isEmpty()
+                )
             witnessedIndirectActivationWithExcludedDirectAliases =
                 witnessedIndirectActivationWithExcludedDirectAliases ||
-                    (oracle.indirectT3Active &&
+                (
+                    oracle.indirectT3Active &&
                         !oracle.directT3Active &&
                         setOf("directFirst", "directSecond")
                             .intersect(oracle.t1Input.topLevelAliases())
-                            .isEmpty())
+                            .isEmpty()
+                )
             witnessedDirectAndIndirectActivation =
                 witnessedDirectAndIndirectActivation ||
-                    (oracle.directT3Active && oracle.indirectT3Active)
+                (oracle.directT3Active && oracle.indirectT3Active)
 
             assertEquals(1, fixture.t1Applications.get(), message)
             assertEquals(1, fixture.t1ProviderApplications.get(), message)

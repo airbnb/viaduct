@@ -1,5 +1,8 @@
 package model.registry
 
+import kotlin.test.Test
+import kotlin.test.assertFailsWith
+import kotlin.test.assertTrue
 import model.Arguments
 import model.emptyFragmentOf
 import model.fragmentFrom
@@ -8,9 +11,6 @@ import model.testing.TestWorld
 import model.testing.fieldResolverOf
 import model.testing.fromObjectField
 import model.testing.fromQueryField
-import kotlin.test.Test
-import kotlin.test.assertFailsWith
-import kotlin.test.assertTrue
 
 class FromFieldConditionValidationTest {
     @Test
@@ -43,7 +43,11 @@ class FromFieldConditionValidationTest {
         }
     }
 
-    private fun world(provider: ProviderFragment, source: String, indirect: Boolean): TestWorld {
+    private fun world(
+        provider: ProviderFragment,
+        source: String,
+        indirect: Boolean
+    ): TestWorld {
         val fragmentSource = "fragment Input on Query { $source consume(value: ${'$'}value) }"
         return TestWorld.fromSDL(
             schemaSDL = """
@@ -69,10 +73,12 @@ class FromFieldConditionValidationTest {
             },
             variableProviders = { schema ->
                 val outer = schema.requireObjectField("Query", "outer")
-                fun fromPath(name: String) = when (provider) {
-                    ProviderFragment.OBJECT -> schema.fromObjectField(fragmentSource, listOf(name), outer)
-                    ProviderFragment.QUERY -> schema.fromQueryField(fragmentSource, listOf(name), outer)
-                }
+
+                fun fromPath(name: String) =
+                    when (provider) {
+                        ProviderFragment.OBJECT -> schema.fromObjectField(fragmentSource, listOf(name), outer)
+                        ProviderFragment.QUERY -> schema.fromQueryField(fragmentSource, listOf(name), outer)
+                    }
                 buildMap {
                     put(Arguments.Variable.of(outer, "value"), fromPath("a"))
                     if (indirect) put(Arguments.Variable.of(outer, "other"), fromPath("b"))

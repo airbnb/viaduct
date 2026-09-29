@@ -8,9 +8,9 @@ import com.fasterxml.jackson.module.kotlin.readValue
 import graphql.language.StringValue
 import io.kotest.property.RandomSource
 import io.kotest.property.arbitrary.next
+import kotlin.random.Random
 import model.registry.ProviderFragment
 import model.testing.TestWorld
-import kotlin.random.Random
 
 /** A fixed schema and executable registry recipe for resolver microbenchmarks. */
 class ResolverBenchmarkCorpus private constructor(
@@ -21,8 +21,7 @@ class ResolverBenchmarkCorpus private constructor(
     val schemaSDL: String
         get() = schema.sdl
 
-    fun world(
-    ): TestWorld =
+    fun world(): TestWorld =
         registry.world(
             schemaSDL = schemaSDL,
         )
@@ -105,8 +104,7 @@ class ResolverBenchmarkQueryCorpus private constructor(
         fun create(
             generationSeed: Long,
             querySources: List<String>,
-        ): ResolverBenchmarkQueryCorpus =
-            ResolverBenchmarkQueryCorpus(generationSeed, querySources)
+        ): ResolverBenchmarkQueryCorpus = ResolverBenchmarkQueryCorpus(generationSeed, querySources)
 
         fun decode(json: String): ResolverBenchmarkQueryCorpus {
             val document: QueryCorpusDocument = corpusMapper.readValue(json)
@@ -392,11 +390,9 @@ private fun InterfaceDefinitionDocument.toInterfaceDefinition(): InterfaceDefini
         fields = fields.map(FieldDefinitionDocument::toFieldDefinition),
     )
 
-private fun UnionDefinitionSpec.toDocument(): UnionDefinitionDocument =
-    UnionDefinitionDocument(name, members)
+private fun UnionDefinitionSpec.toDocument(): UnionDefinitionDocument = UnionDefinitionDocument(name, members)
 
-private fun UnionDefinitionDocument.toUnionDefinition(): UnionDefinitionSpec =
-    UnionDefinitionSpec(name, members)
+private fun UnionDefinitionDocument.toUnionDefinition(): UnionDefinitionSpec = UnionDefinitionSpec(name, members)
 
 private fun FieldDefinitionSpec.toDocument(): FieldDefinitionDocument =
     FieldDefinitionDocument(
@@ -559,11 +555,9 @@ private fun RegistryDocument.toRegistry(): ArbitraryRegistry {
     )
 }
 
-private fun FieldCoordinate.toDocument(): CoordinateDocument =
-    CoordinateDocument(typeName, fieldName)
+private fun FieldCoordinate.toDocument(): CoordinateDocument = CoordinateDocument(typeName, fieldName)
 
-private fun CoordinateDocument.toCoordinate(): FieldCoordinate =
-    FieldCoordinate(typeName, fieldName)
+private fun CoordinateDocument.toCoordinate(): FieldCoordinate = FieldCoordinate(typeName, fieldName)
 
 private fun FragmentPlan.toDocument(): FragmentPlanDocument =
     FragmentPlanDocument(

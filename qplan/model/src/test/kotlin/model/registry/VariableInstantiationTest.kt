@@ -5,7 +5,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNotEquals
 import kotlin.test.assertNotNull
-import kotlin.test.assertTrue
 import model.Arguments
 import model.ListEngineResult
 import model.ObjectEngineResult
@@ -15,9 +14,9 @@ import model.fragmentFrom
 import model.requireArg
 import model.requireObjectField
 import model.testing.TestWorld
-import model.testing.testRoot
 import model.testing.fieldResolverOf
 import model.testing.fromArgument
+import model.testing.testRoot
 import model.usedVariables
 
 class VariableInstantiationTest {
@@ -119,10 +118,12 @@ class VariableInstantiationTest {
                 ResolverOccurrenceId.at(world.schema.testRoot(), emptyList()),
             )
         val providerPath =
-            listOf(InstantiatedFieldPathElement.of(
-                ObjectEngineResult.Key.of(consume, mapOf("value" to 1)),
-                model.InclusionCondition.Always,
-            ))
+            listOf(
+                InstantiatedFieldPathElement.of(
+                    ObjectEngineResult.Key.of(consume, mapOf("value" to 1)),
+                    model.InclusionCondition.Always,
+                )
+            )
         val argumentDefinition =
             VariableDefinition.FromArgument.of(result.requireArg("seed"))
 

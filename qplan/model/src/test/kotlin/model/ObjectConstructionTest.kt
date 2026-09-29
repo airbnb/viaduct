@@ -1,14 +1,12 @@
 package model
 
-import viaduct.graphql.schema.ViaductSchema
-
-import viaduct.engine.api.EngineObjectData
-
-import model.testing.TestWorld
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
+import model.testing.TestWorld
+import viaduct.engine.api.EngineObjectData
+import viaduct.graphql.schema.ViaductSchema
 
 class ObjectConstructionTest {
     @Test

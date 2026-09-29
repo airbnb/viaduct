@@ -9,8 +9,7 @@ data class IntRangeConfig(
     fun toRange(): IntRange = minimum..maximum
 
     companion object {
-        fun from(range: IntRange): IntRangeConfig =
-            IntRangeConfig(range.first, range.last)
+        fun from(range: IntRange): IntRangeConfig = IntRangeConfig(range.first, range.last)
     }
 }
 

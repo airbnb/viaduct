@@ -1,5 +1,6 @@
 package semantics.resolvers.resolver01
 
+import kotlin.test.assertFailsWith
 import model.ObjectEngineResult
 import model.fragmentFrom
 import model.requireType
@@ -8,7 +9,6 @@ import org.junit.jupiter.api.Test
 import semantics.shared.OEROccurrence
 import semantics.shared.SharedOperationContext
 import viaduct.graphql.schema.ViaductSchema
-import kotlin.test.assertFailsWith
 
 class DepthFirstOrchestrationTaskTest {
     @Test

@@ -1,10 +1,9 @@
 package semantics.contract
 
-import model.Arguments
-
 import io.kotest.matchers.collections.shouldContainExactlyInAnyOrder
-import viaduct.graphql.schema.ViaductSchema
 import kotlin.test.assertEquals
+import model.Arguments
+import viaduct.graphql.schema.ViaductSchema
 
 /** Records invocation arguments without retaining materialized input graphs. */
 open class ResolverApplicationArguments : semantics.correctresolution.CorrectnessResolverObserver() {
@@ -17,11 +16,9 @@ open class ResolverApplicationArguments : semantics.correctresolution.Correctnes
         }
     }
 
-    fun arguments(field: ViaductSchema.Field): List<Arguments.Resolved> =
-        synchronized(argumentsByField) { argumentsByField[field].orEmpty().toList() }
+    fun arguments(field: ViaductSchema.Field): List<Arguments.Resolved> = synchronized(argumentsByField) { argumentsByField[field].orEmpty().toList() }
 
-    fun all(): Map<ViaductSchema.Field, List<Arguments.Resolved>> =
-        synchronized(argumentsByField) { argumentsByField.mapValues { (_, values) -> values.toList() } }
+    fun all(): Map<ViaductSchema.Field, List<Arguments.Resolved>> = synchronized(argumentsByField) { argumentsByField.mapValues { (_, values) -> values.toList() } }
 }
 
 internal fun ResolverApplicationArguments.assertApplicationCount(
@@ -32,9 +29,7 @@ internal fun ResolverApplicationArguments.assertApplicationCount(
 }
 
 /** Asserts the complete field-to-arguments application ledger. */
-internal fun ResolverApplicationArguments.assertApplications(
-    expected: Map<ViaductSchema.Field, List<Map<String, Any?>>>,
-) {
+internal fun ResolverApplicationArguments.assertApplications(expected: Map<ViaductSchema.Field, List<Map<String, Any?>>>) {
     assertEquals(
         expected.mapValues { (field, applications) ->
             applications.map { arguments -> Arguments.Resolved.of(field, arguments) }

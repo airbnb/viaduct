@@ -1,11 +1,10 @@
 package semantics.contract
 
-import model.requireObjectField
-import model.EngineResult
-import model.ObjectEngineResult
-import model.testing.TestWorld
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import model.ObjectEngineResult
+import model.requireObjectField
+import model.testing.TestWorld
 
 interface PassiveObjectPathProviderResolverContract : ResolverContract {
     @Test

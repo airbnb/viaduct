@@ -1,5 +1,6 @@
 package semantics.contract
 
+import kotlin.test.assertEquals
 import model.Arguments
 import model.emptyFragmentOf
 import model.fragmentFrom
@@ -8,7 +9,6 @@ import model.testing.TestWorld
 import model.testing.fieldResolverOf
 import model.testing.fromObjectField
 import org.junit.jupiter.api.Test
-import kotlin.test.assertEquals
 
 /** Contract for consuming an object-fragment provider binding from a Query fragment. */
 interface QueryFragmentFromObjectPathResolverContract : ResolverContract {

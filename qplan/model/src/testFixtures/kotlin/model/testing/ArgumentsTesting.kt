@@ -29,9 +29,7 @@ fun Selection.withErrorArguments(argumentNames: Set<String>): Selection =
     )
 
 /** Replaces selected argument expressions with an error during fixture composition. */
-fun MaterializeSelection.withErrorArguments(
-    argumentNames: Set<String>,
-): MaterializeSelection =
+fun MaterializeSelection.withErrorArguments(argumentNames: Set<String>): MaterializeSelection =
     MaterializeSelection.of(
         responseKey = responseKey,
         key =

@@ -1,20 +1,18 @@
 package model.testing
 
-import viaduct.graphql.schema.ViaductSchema
-
 import model.Arguments
-import model.ObjectEngineResult
-import model.Fragment
 import model.EngineInputData
+import model.Fragment
+import model.ObjectEngineResult
 import model.SourceSchemaAdapter
-import model.spec.SpecSelection
 import model.isParentField
-import model.requireField
-import model.requireQueryTypeDef
 import model.registry.ProviderFragment
 import model.registry.ResolverTarget
-import model.spec.flatten
+import model.requireField
+import model.requireQueryTypeDef
+import model.spec.SpecSelection
 import model.spec.flattenForMaterialization
+import viaduct.graphql.schema.ViaductSchema
 import viaduct.graphql.utils.GraphQLTypeRelation
 
 /** One external from-field declaration compiled for canonical registry construction. */
@@ -26,9 +24,7 @@ class FromField private constructor(
     internal val terminalType: ViaductSchema.TypeExpr<ViaductSchema.OutputTypeDef>,
     internal val nullableTraversal: Boolean,
 ) : VariableDeclaration {
-    internal fun mapVariables(
-        transform: (Arguments.Variable) -> Arguments.Variable,
-    ): FromField =
+    internal fun mapVariables(transform: (Arguments.Variable) -> Arguments.Variable): FromField =
         FromField(
             responsePath = responsePath,
             providerFragment = providerFragment,
@@ -49,8 +45,7 @@ class FromField private constructor(
             locationHasDefault = locationHasDefault,
         )
 
-    internal fun isCompatibleWithInclusionCondition(): Boolean =
-        terminalType.isCompatibleWithInclusionCondition(nullableTraversal)
+    internal fun isCompatibleWithInclusionCondition(): Boolean = terminalType.isCompatibleWithInclusionCondition(nullableTraversal)
 
     companion object {
         internal fun compile(

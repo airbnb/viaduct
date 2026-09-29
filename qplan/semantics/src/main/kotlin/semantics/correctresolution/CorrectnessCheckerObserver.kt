@@ -28,10 +28,7 @@ class CorrectnessCheckerObserver(
         delegate.onCheckerQueryFragmentPrepared(checkerOccurrenceId, result)
     }
 
-    fun queryFragmentResults(
-        checkerOccurrenceId: ResolverOccurrenceId,
-    ): List<ObjectEngineResult> = queryResults[checkerOccurrenceId]?.toList().orEmpty()
+    fun queryFragmentResults(checkerOccurrenceId: ResolverOccurrenceId): List<ObjectEngineResult> = queryResults[checkerOccurrenceId]?.toList().orEmpty()
 
-    fun allQueryFragmentResults(): Map<ResolverOccurrenceId, List<ObjectEngineResult>> =
-        queryResults.mapValues { (_, results) -> results.toList() }
+    fun allQueryFragmentResults(): Map<ResolverOccurrenceId, List<ObjectEngineResult>> = queryResults.mapValues { (_, results) -> results.toList() }
 }

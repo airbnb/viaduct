@@ -2,15 +2,15 @@
 
 package model
 
-import kotlinx.coroutines.CoroutineStart
-import kotlinx.coroutines.async
-import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.withTimeout
 import kotlin.test.Test
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.async
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import model.testing.TestWorld
 import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.CheckerResultContext
@@ -125,9 +125,7 @@ class CheckedEngineResultTest {
         assertSame(value, cell.materializeCheckedValue { false })
     }
 
-    private fun newObjectCell(
-        typeCheckerResult: Promise<CheckerResult?> = Promise.of(null),
-    ): Pair<EngineResultCell, ObjectEngineResult> {
+    private fun newObjectCell(typeCheckerResult: Promise<CheckerResult?> = Promise.of(null)): Pair<EngineResultCell, ObjectEngineResult> {
         val schema =
             TestWorld
                 .fromSDL(

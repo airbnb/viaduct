@@ -7,16 +7,16 @@ import model.Selection
 import model.SelectionForest
 import model.flatMapToSelectionForest
 import model.objectKey
+import model.registry.FieldCheckerResolver
+import model.registry.FieldValueResolver
+import model.registry.VariableDefinition
 import model.requireField
 import model.selectionForestOf
 import model.substituteTemplates
-import model.registry.FieldValueResolver
-import model.registry.FieldCheckerResolver
-import model.registry.VariableDefinition
 import semantics.shared.Demand
-import semantics.shared.liftParentSuccessorDemand
-import semantics.shared.instantiateBindings
 import semantics.shared.SharedOperationContext
+import semantics.shared.instantiateBindings
+import semantics.shared.liftParentSuccessorDemand
 
 /** Extends this demand with every encountered successor resolver's transitive input demand. */
 fun SelectionForest.successorDemand(operation: SharedOperationContext<*>): SelectionForest {
@@ -29,9 +29,7 @@ fun SelectionForest.successorDemand(operation: SharedOperationContext<*>): Selec
  * expand the right fixed inputs. Resolver inputs are checked regardless of how their output field
  * was reached. Checker inputs are unchecked and are introduced only by checked field demand.
  */
-internal fun Demand<SelectionForest>.successorDemandFromConstructionDemand(
-    operation: SharedOperationContext<*>,
-): SelectionForest {
+internal fun Demand<SelectionForest>.successorDemandFromConstructionDemand(operation: SharedOperationContext<*>): SelectionForest {
     val context = SuccessorDemandContext(operation)
     val checkedDemand = checked.successorDemandWithChecks(context, checked = true)
     val uncheckedDemand = unchecked.successorDemandWithChecks(context, checked = false)
@@ -254,9 +252,7 @@ private fun SelectionForest.boundarySkeleton(operation: SharedOperationContext<*
         }
     }
 
-private fun FieldValueResolver.objectFragmentWithFromArguments(
-    arguments: Arguments.Resolved,
-): SelectionForest {
+private fun FieldValueResolver.objectFragmentWithFromArguments(arguments: Arguments.Resolved): SelectionForest {
     val bindings =
         variables.mapNotNull { (variable, definition) ->
             (definition as? VariableDefinition.FromArgument)?.let {
@@ -266,9 +262,7 @@ private fun FieldValueResolver.objectFragmentWithFromArguments(
     return objectFragment.substitute(bindings)
 }
 
-private fun FieldCheckerResolver.objectFragmentWithFromArguments(
-    arguments: Arguments.Resolved,
-): SelectionForest {
+private fun FieldCheckerResolver.objectFragmentWithFromArguments(arguments: Arguments.Resolved): SelectionForest {
     val bindings =
         variables.mapNotNull { (variable, definition) ->
             (definition as? VariableDefinition.FromArgument)?.let {
@@ -278,9 +272,7 @@ private fun FieldCheckerResolver.objectFragmentWithFromArguments(
     return objectFragment.substitute(bindings)
 }
 
-private fun SelectionForest.substitute(
-    bindings: Map<Arguments.Variable, EngineInputData?>,
-): SelectionForest =
+private fun SelectionForest.substitute(bindings: Map<Arguments.Variable, EngineInputData?>): SelectionForest =
     flatMap { selection ->
         selectionForestOf(
             Selection.of(

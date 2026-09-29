@@ -6,9 +6,7 @@ import viaduct.graphql.schema.ViaductSchema
 sealed interface VariableDeclaration
 
 /** Whether this source type always produces the non-null Boolean required by a condition. */
-internal fun ViaductSchema.TypeExpr<*>.isCompatibleWithInclusionCondition(
-    nullableTraversal: Boolean,
-): Boolean =
+internal fun ViaductSchema.TypeExpr<*>.isCompatibleWithInclusionCondition(nullableTraversal: Boolean): Boolean =
     !nullableTraversal &&
         !isNullable &&
         !isList &&

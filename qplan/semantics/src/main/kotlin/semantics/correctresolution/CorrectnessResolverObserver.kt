@@ -42,15 +42,11 @@ open class CorrectnessResolverObserver(
     /** Exact attempted invocations; count-sensitive consumers must retain their own event log. */
     fun invokedResolverOccurrences(): Set<ResolverOccurrenceId> = invokedOccurrences.toSet()
 
-    fun resolverInvocations(
-        resolverOccurrenceId: ResolverOccurrenceId,
-    ): List<ResolverInvocationObservation> =
-        invocations[resolverOccurrenceId]?.toList().orEmpty()
+    fun resolverInvocations(resolverOccurrenceId: ResolverOccurrenceId): List<ResolverInvocationObservation> = invocations[resolverOccurrenceId]?.toList().orEmpty()
 
     fun hasResolverInvocations(): Boolean = invocations.isNotEmpty()
 
-    fun allResolverInvocations(): List<ResolverInvocationObservation> =
-        invocations.values.flatMap { observations -> observations.toList() }
+    fun allResolverInvocations(): List<ResolverInvocationObservation> = invocations.values.flatMap { observations -> observations.toList() }
 
     private val queryResults =
         ConcurrentHashMap<ResolverOccurrenceId, ConcurrentLinkedQueue<ObjectEngineResult>>()
@@ -136,21 +132,15 @@ open class CorrectnessResolverObserver(
         }
     }
 
-    fun queryOER(result: ObjectEngineResult): SharedOERContext? =
-        queryOERs[result]
+    fun queryOER(result: ObjectEngineResult): SharedOERContext? = queryOERs[result]
 
-    fun allQueryOERs(): Map<ObjectEngineResult, SharedOERContext> =
-        queryOERs.toMap()
+    fun allQueryOERs(): Map<ObjectEngineResult, SharedOERContext> = queryOERs.toMap()
 
-    fun allQueryOERDepths(): Map<ObjectEngineResult, Int> =
-        queryOERDepths.toMap()
+    fun allQueryOERDepths(): Map<ObjectEngineResult, Int> = queryOERDepths.toMap()
 
-    fun queryFragmentResults(
-        resolverOccurrenceId: ResolverOccurrenceId,
-    ): List<ObjectEngineResult> = queryResults[resolverOccurrenceId]?.toList().orEmpty()
+    fun queryFragmentResults(resolverOccurrenceId: ResolverOccurrenceId): List<ObjectEngineResult> = queryResults[resolverOccurrenceId]?.toList().orEmpty()
 
-    fun allQueryFragmentResults(): Map<ResolverOccurrenceId, List<ObjectEngineResult>> =
-        queryResults.mapValues { (_, results) -> results.toList() }
+    fun allQueryFragmentResults(): Map<ResolverOccurrenceId, List<ObjectEngineResult>> = queryResults.mapValues { (_, results) -> results.toList() }
 
     internal fun allQueryFragmentScopes(): Map<ResolverOccurrenceId, List<OEROccurrence>> =
         queryScopeObservations
@@ -158,9 +148,7 @@ open class CorrectnessResolverObserver(
             .mapValues { (_, observations) -> observations.map(QueryScopeObservation::owningOccurrence) }
 
     /** [independentQueryOwners] must come from source-replayed root-field-reference invocations. */
-    internal fun queryFragmentOwnershipIsConsistent(
-        independentQueryOwners: Set<ResolverOccurrenceId>,
-    ): Boolean {
+    internal fun queryFragmentOwnershipIsConsistent(independentQueryOwners: Set<ResolverOccurrenceId>): Boolean {
         val genericObservations = queryFragmentObservations.toList()
         val independentObservations = independentQueryObservations.toList()
         val scopeObservations = queryScopeObservations.toList()
@@ -178,19 +166,20 @@ open class CorrectnessResolverObserver(
         val scopeByResult = java.util.IdentityHashMap<ObjectEngineResult, OEROccurrenceAddress>()
         val resultByScope = mutableMapOf<OEROccurrenceAddress, ObjectEngineResult>()
         if (!scopeObservations.all { observation ->
-            val address = observation.owningOccurrence.address()
-            val existingScope = scopeByResult[observation.result]
-            val existingResult = resultByScope[address]
-            val resultIsConsistent = existingScope == null || existingScope == address
-            val scopeIsConsistent = existingResult == null || existingResult === observation.result
-            if (resultIsConsistent && scopeIsConsistent) {
-                scopeByResult[observation.result] = address
-                resultByScope[address] = observation.result
-                true
-            } else {
-                false
+                val address = observation.owningOccurrence.address()
+                val existingScope = scopeByResult[observation.result]
+                val existingResult = resultByScope[address]
+                val resultIsConsistent = existingScope == null || existingScope == address
+                val scopeIsConsistent = existingResult == null || existingResult === observation.result
+                if (resultIsConsistent && scopeIsConsistent) {
+                    scopeByResult[observation.result] = address
+                    resultByScope[address] = observation.result
+                    true
+                } else {
+                    false
+                }
             }
-        }) {
+        ) {
             return false
         }
         val ownerByIndependentResult =
@@ -198,21 +187,22 @@ open class CorrectnessResolverObserver(
         val independentResultByOwner =
             mutableMapOf<ResolverOccurrenceId, ObjectEngineResult>()
         if (!independentObservations.all { observation ->
-            val existingOwner = ownerByIndependentResult[observation.result]
-            val existingResult = independentResultByOwner[observation.resolverOccurrenceId]
-            val hasSharedRole = scopeByResult.containsKey(observation.result)
-            val isJustifiedByReference = observation.resolverOccurrenceId in independentQueryOwners
-            val resultIsConsistent =
-                existingOwner == null || existingOwner == observation.resolverOccurrenceId
-            val ownerIsConsistent = existingResult == null || existingResult === observation.result
-            if (isJustifiedByReference && !hasSharedRole && resultIsConsistent && ownerIsConsistent) {
-                ownerByIndependentResult[observation.result] = observation.resolverOccurrenceId
-                independentResultByOwner[observation.resolverOccurrenceId] = observation.result
-                true
-            } else {
-                false
+                val existingOwner = ownerByIndependentResult[observation.result]
+                val existingResult = independentResultByOwner[observation.resolverOccurrenceId]
+                val hasSharedRole = scopeByResult.containsKey(observation.result)
+                val isJustifiedByReference = observation.resolverOccurrenceId in independentQueryOwners
+                val resultIsConsistent =
+                    existingOwner == null || existingOwner == observation.resolverOccurrenceId
+                val ownerIsConsistent = existingResult == null || existingResult === observation.result
+                if (isJustifiedByReference && !hasSharedRole && resultIsConsistent && ownerIsConsistent) {
+                    ownerByIndependentResult[observation.result] = observation.resolverOccurrenceId
+                    independentResultByOwner[observation.resolverOccurrenceId] = observation.result
+                    true
+                } else {
+                    false
+                }
             }
-        }) {
+        ) {
             return false
         }
 
@@ -238,15 +228,12 @@ open class CorrectnessResolverObserver(
         }
     }
 
-    override fun onRootFieldReferenceInvocation(
-        observation: RootFieldReferenceInvocationObservation,
-    ) {
+    override fun onRootFieldReferenceInvocation(observation: RootFieldReferenceInvocationObservation) {
         rootFieldReferenceInvocations.add(observation)
         delegate.onRootFieldReferenceInvocation(observation)
     }
 
-    fun rootFieldReferenceInvocations(): List<RootFieldReferenceInvocationObservation> =
-        rootFieldReferenceInvocations.toList()
+    fun rootFieldReferenceInvocations(): List<RootFieldReferenceInvocationObservation> = rootFieldReferenceInvocations.toList()
 }
 
 private data class OEROccurrenceAddress(
@@ -254,12 +241,10 @@ private data class OEROccurrenceAddress(
     val path: List<PathComponent>,
     val target: ObjectEngineResult,
 ) {
-    fun isRootOfAssociatedQuery(associatedQueryResults: Set<ObjectEngineResult>): Boolean =
-        root === target && path.isEmpty() && associatedQueryResults.contains(target)
+    fun isRootOfAssociatedQuery(associatedQueryResults: Set<ObjectEngineResult>): Boolean = root === target && path.isEmpty() && associatedQueryResults.contains(target)
 }
 
-private fun OEROccurrence.address(): OEROccurrenceAddress =
-    OEROccurrenceAddress(root = root, path = path, target = target)
+private fun OEROccurrence.address(): OEROccurrenceAddress = OEROccurrenceAddress(root = root, path = path, target = target)
 
 private data class QueryFragmentObservation(
     val resolverOccurrenceId: ResolverOccurrenceId,
@@ -270,8 +255,7 @@ private data class IndependentQueryObservation(
     val resolverOccurrenceId: ResolverOccurrenceId,
     val result: ObjectEngineResult,
 ) {
-    fun matches(observation: QueryFragmentObservation): Boolean =
-        resolverOccurrenceId == observation.resolverOccurrenceId && result === observation.result
+    fun matches(observation: QueryFragmentObservation): Boolean = resolverOccurrenceId == observation.resolverOccurrenceId && result === observation.result
 }
 
 private data class QueryScopeObservation(
@@ -279,8 +263,7 @@ private data class QueryScopeObservation(
     val result: ObjectEngineResult,
     val owningOccurrence: OEROccurrence,
 ) {
-    fun matches(observation: QueryFragmentObservation): Boolean =
-        resolverOccurrenceId == observation.resolverOccurrenceId && result === observation.result
+    fun matches(observation: QueryFragmentObservation): Boolean = resolverOccurrenceId == observation.resolverOccurrenceId && result === observation.result
 }
 
 private data class QueryOwnerAddressObservation(

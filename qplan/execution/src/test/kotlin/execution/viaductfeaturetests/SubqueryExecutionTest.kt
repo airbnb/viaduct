@@ -5,7 +5,6 @@ package execution.viaductfeaturetests
 
 import execution.testing.QPlanFeatureTest
 import execution.testing.runQPlanFeatureTest as runFeatureTestOnce
-
 import graphql.language.Argument as GJArgument
 import graphql.language.StringValue as GJStringValue
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry

@@ -1,10 +1,9 @@
 package model.testing
 
-import viaduct.graphql.schema.ViaductSchema
-
 import model.arg
 import model.inputType
 import model.requireObjectField
+import viaduct.graphql.schema.ViaductSchema
 
 /** One external `fromArgument` declaration accepted by test-fixture composition. */
 class FromArgument private constructor(
@@ -43,8 +42,7 @@ class FromArgument private constructor(
         internal fun of(
             argument: ViaductSchema.FieldArg,
             inputPath: List<ViaductSchema.Field>,
-        ): FromArgument =
-            FromArgument(argument, inputPath)
+        ): FromArgument = FromArgument(argument, inputPath)
     }
 }
 
@@ -52,8 +50,7 @@ class FromArgument private constructor(
 fun ViaductSchema.fromArgument(
     field: ViaductSchema.ObjectField,
     argumentName: String,
-): FromArgument =
-    fromArgument(field, listOf(argumentName))
+): FromArgument = fromArgument(field, listOf(argumentName))
 
 /** Defines a variable from a nonempty input-object [path] rooted at an argument of [field]. */
 fun ViaductSchema.fromArgument(

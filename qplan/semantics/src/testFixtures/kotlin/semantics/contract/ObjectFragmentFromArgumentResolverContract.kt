@@ -1,18 +1,18 @@
 package semantics.contract
 
-import model.requireField
-import model.requireObjectField
+import kotlin.test.assertEquals
 import model.Arguments
 import model.ObjectEngineResult
 import model.ResolverOccurrenceId
 import model.VariableBinding
 import model.emptyFragmentOf
 import model.fragmentFrom
+import model.requireField
+import model.requireObjectField
 import model.testing.TestWorld
 import model.testing.fieldResolverOf
 import model.testing.fromArgument
 import org.junit.jupiter.api.Test
-import kotlin.test.assertEquals
 
 /**
  * Contract for nonempty object fragments with variables bound from resolver arguments.

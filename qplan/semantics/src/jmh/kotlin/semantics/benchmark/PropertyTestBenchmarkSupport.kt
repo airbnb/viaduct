@@ -2,26 +2,26 @@
 
 package semantics.benchmark
 
+import jdk.jfr.Category
+import jdk.jfr.Event
+import jdk.jfr.Label
+import jdk.jfr.Name
 import kotlinx.coroutines.runBlocking
 import model.Assumptions
 import model.Fragment
 import model.ObjectEngineResult
 import model.fragmentFrom
-import semantics.shared.instantiateBindings
 import model.merge
 import model.objectOf
 import model.requireQueryTypeDef
 import org.openjdk.jmh.infra.Blackhole
-import semantics.arbitrary.ResolverBenchmarkCorpus
 import semantics.arbitrary.ResolutionWitness
+import semantics.arbitrary.ResolverBenchmarkCorpus
 import semantics.contract.registeredResolverApplicationIdentityCounts
 import semantics.contract.validateFromFieldBindings
 import semantics.correctresolution.correctResolution
-import jdk.jfr.Category
-import jdk.jfr.Event
-import jdk.jfr.Label
-import jdk.jfr.Name
 import semantics.shared.SharedOperationContext
+import semantics.shared.instantiateBindings
 
 internal const val DEFAULT_PROPERTY_TEST_LOOP_COUNT = 1
 

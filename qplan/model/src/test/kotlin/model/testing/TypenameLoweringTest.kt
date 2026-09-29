@@ -2,26 +2,24 @@
 
 package model.testing
 
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+import kotlin.test.assertIs
+import kotlin.test.assertTrue
 import kotlinx.coroutines.runBlocking
-
-import viaduct.graphql.schema.ViaductSchema
-
 import model.Arguments
 import model.fragmentFrom
 import model.merge
 import model.objectKey
 import model.objectOf
 import model.operationSelectionsFrom
+import model.registry.ResolutionExecutionContext
 import model.requireField
 import model.requireObjectField
 import model.requireQueryTypeDef
 import model.requireType
-import model.registry.ResolutionExecutionContext
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
-import kotlin.test.assertIs
-import kotlin.test.assertTrue
+import viaduct.graphql.schema.ViaductSchema
 
 class TypenameLoweringTest {
     @Test
@@ -142,32 +140,33 @@ class TypenameLoweringTest {
     }
 
     @Test
-    fun `generated typename resolvers are argumentless dependency-free constants`() = runBlocking {
-        val world = TestWorld.fromSDL(SCHEMA)
-        val schema = world.schema
-        val registry = world.resolverRegistry
-        val allSourceObjects =
-            schema.requireType("V_A_AllSourceObjects") as ViaductSchema.Interface
+    fun `generated typename resolvers are argumentless dependency-free constants`() =
+        runBlocking {
+            val world = TestWorld.fromSDL(SCHEMA)
+            val schema = world.schema
+            val registry = world.resolverRegistry
+            val allSourceObjects =
+                schema.requireType("V_A_AllSourceObjects") as ViaductSchema.Interface
 
-        allSourceObjects.possibleObjectTypes.forEach { type ->
-            val field = schema.requireObjectField(type.name, "V_A_typename")
-            val resolver = registry.resolver(field)
-            assertTrue(field in registry)
-            assertTrue(field.args.isEmpty())
-            assertTrue(resolver.objectFragment.isEmpty())
-            assertTrue(resolver.variables.isEmpty())
-            assertTrue(registry.mayDemandFrom(field).isEmpty())
-            assertEquals(
-                type.name,
-                resolver(
-                    input = schema.objectOf(type.name),
-                    arguments = Arguments.Resolved.of(field, emptyMap()),
-                    selectiveResolvers = world.assumptions.selectiveResolvers,
-                    executionContext = ResolutionExecutionContext.Unsupported,
-                ),
-            )
+            allSourceObjects.possibleObjectTypes.forEach { type ->
+                val field = schema.requireObjectField(type.name, "V_A_typename")
+                val resolver = registry.resolver(field)
+                assertTrue(field in registry)
+                assertTrue(field.args.isEmpty())
+                assertTrue(resolver.objectFragment.isEmpty())
+                assertTrue(resolver.variables.isEmpty())
+                assertTrue(registry.mayDemandFrom(field).isEmpty())
+                assertEquals(
+                    type.name,
+                    resolver(
+                        input = schema.objectOf(type.name),
+                        arguments = Arguments.Resolved.of(field, emptyMap()),
+                        selectiveResolvers = world.assumptions.selectiveResolvers,
+                        executionContext = ResolutionExecutionContext.Unsupported,
+                    ),
+                )
+            }
         }
-    }
 
     @Test
     fun `rejects source names in the typename lowering namespace`() {

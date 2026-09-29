@@ -1,10 +1,10 @@
 package semantics.contract
 
-import semantics.shared.ResolverInvocationObservation
-import model.requireObjectField
-import model.testing.TestWorld
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import model.requireObjectField
+import model.testing.TestWorld
+import semantics.shared.ResolverInvocationObservation
 
 interface ObjectPathNodeInteractionResolverContract : ResolverContract {
     @Test

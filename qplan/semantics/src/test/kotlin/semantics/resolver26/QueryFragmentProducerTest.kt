@@ -5,6 +5,11 @@ package semantics.resolver26
 import java.util.ArrayDeque
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.coroutines.CoroutineContext
+import kotlin.test.Test
+import kotlin.test.assertFalse
+import kotlin.test.assertIs
+import kotlin.test.assertSame
+import kotlin.test.assertTrue
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -24,21 +29,16 @@ import model.emptyFragmentOf
 import model.fragmentFrom
 import model.merge
 import model.operationSelectionsFrom
-import model.requireObjectField
 import model.registry.ResolverTarget
+import model.requireObjectField
 import model.schemaType
 import model.testing.TestWorld
 import model.testing.fieldResolverOf
 import model.testing.fromQueryField
 import semantics.contract.selectionValues
-import semantics.shared.SharedOperationContext
-import semantics.shared.ResolverObserver
-import kotlin.test.Test
-import kotlin.test.assertFalse
-import kotlin.test.assertIs
-import kotlin.test.assertSame
-import kotlin.test.assertTrue
 import semantics.shared.OEROccurrence
+import semantics.shared.ResolverObserver
+import semantics.shared.SharedOperationContext
 
 class QueryFragmentProducerTest : Resolver26DispatcherResource {
     @Test
@@ -119,38 +119,45 @@ class QueryFragmentProducerTest : Resolver26DispatcherResource {
         }
 
     @Test
-    fun `field task cancellation terminates bindings created by a reference hop`() = runBlocking {
-        val dispatcher = QueuedDispatcher()
-        val requestJob = Job()
-        val requestScope = CoroutineScope(dispatcher + requestJob)
-        val queryOccurrences = mutableListOf<ResolverOccurrenceId>()
-        val observer = object : ResolverObserver {
-            override fun onQueryFragmentPrepared(resolverOccurrenceId: ResolverOccurrenceId, result: ObjectEngineResult) {
-                queryOccurrences += resolverOccurrenceId
-                requestJob.cancel(CancellationException("cancelled during reference Query production"))
-            }
-        }
-        try {
-            val resolution = startQueryFragmentResolution(
-                requestScope, observer, useReference = true, suspendVariablesProvider = true,
-            ) {
-                error("Cancelled reference resolver must not be invoked")
-            }
-            dispatcher.runUntilIdle()
-            requestJob.join()
-
-            for (name in listOf("provided", "local")) {
-                val variableId = resolution.variableId(queryOccurrences.single(), name)
-                kotlin.test.assertFailsWith<CancellationException> {
-                    resolution.operation.variableBindings.getBinding(variableId)
+    fun `field task cancellation terminates bindings created by a reference hop`() =
+        runBlocking {
+            val dispatcher = QueuedDispatcher()
+            val requestJob = Job()
+            val requestScope = CoroutineScope(dispatcher + requestJob)
+            val queryOccurrences = mutableListOf<ResolverOccurrenceId>()
+            val observer = object : ResolverObserver {
+                override fun onQueryFragmentPrepared(
+                    resolverOccurrenceId: ResolverOccurrenceId,
+                    result: ObjectEngineResult
+                ) {
+                    queryOccurrences += resolverOccurrenceId
+                    requestJob.cancel(CancellationException("cancelled during reference Query production"))
                 }
             }
-        } finally {
-            requestJob.cancel()
-            dispatcher.runUntilIdle()
-            requestJob.join()
+            try {
+                val resolution = startQueryFragmentResolution(
+                    requestScope,
+                    observer,
+                    useReference = true,
+                    suspendVariablesProvider = true,
+                ) {
+                    error("Cancelled reference resolver must not be invoked")
+                }
+                dispatcher.runUntilIdle()
+                requestJob.join()
+
+                for (name in listOf("provided", "local")) {
+                    val variableId = resolution.variableId(queryOccurrences.single(), name)
+                    kotlin.test.assertFailsWith<CancellationException> {
+                        resolution.operation.variableBindings.getBinding(variableId)
+                    }
+                }
+            } finally {
+                requestJob.cancel()
+                dispatcher.runUntilIdle()
+                requestJob.join()
+            }
         }
-    }
 
     private fun startQueryFragmentResolution(
         requestScope: CoroutineScope,
@@ -197,7 +204,9 @@ class QueryFragmentProducerTest : Resolver26DispatcherResource {
                             }.let { resolver ->
                                 if (suspendVariablesProvider) {
                                     resolver.withVariablesProvider(setOf("local")) { awaitCancellation() }
-                                } else resolver
+                                } else {
+                                    resolver
+                                }
                             },
                     )
                 },
@@ -252,13 +261,14 @@ class QueryFragmentProducerTest : Resolver26DispatcherResource {
         fun variableId(
             occurrence: ResolverOccurrenceId = ResolverOccurrenceId.at(root, listOf(key)),
             name: String = "provided",
-        ): VariableInstanceId = VariableInstanceId.of(
-            occurrence,
-            ResolverTarget.FieldValueResolverTarget(
-                operation.world.schema.requireObjectField("Query", "consumer"),
-            ),
-            name,
-        )
+        ): VariableInstanceId =
+            VariableInstanceId.of(
+                occurrence,
+                ResolverTarget.FieldValueResolverTarget(
+                    operation.world.schema.requireObjectField("Query", "consumer"),
+                ),
+                name,
+            )
     }
 
     private class QueuedDispatcher : CoroutineDispatcher() {
