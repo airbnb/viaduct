@@ -35,8 +35,9 @@ class QueryFragmentExpansionTest : CoroutineResolverTestSubject() {
             requestScope,
             selections,
             cycleChecker,
-            complete = { demand -> demand.successorDemandFromConstructionDemand(operation) },
-            supportsCheckerFragments = true,
+            complete = { demand, possibleRootTypes ->
+                demand.successorDemandFromConstructionDemand(operation, possibleRootTypes)
+            },
         )
 
     @Test

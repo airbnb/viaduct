@@ -31,13 +31,15 @@ import viaduct.graphql.schema.ViaductSchema
  * [OrchestrationConstructionDemand.objectRooted] and Query fragments to
  * [OrchestrationConstructionDemand.queryRooted]. Query-side resolvers contribute both fragments
  * back to the Query-rooted component. Every resolver input contribution is checked even when
- * unchecked demand activated its owner.
+ * unchecked demand activated its owner. Applicable type-checker fragments likewise contribute
+ * unchecked demand on their object and associated Query roots.
  *
  * Each step grounds selections under existing bindings, binds variables for newly discovered
  * standard resolvers, and adds their direct input-fragment demand as checked. Active checker
- * object fragments add unchecked demand on the same root side. Fields supplied by the object
- * source remain passive. The associated Query OER has no passive source; every demanded Query
- * field uses its registered resolver. Only demand and expansion bookkeeping change between steps.
+ * object fragments add unchecked demand on the same root side. Type-checker fragments are added
+ * once for each checked root occurrence. Fields supplied by the object source remain passive. The
+ * associated Query OER has no passive source; every demanded Query field uses its registered
+ * resolver. Only demand and expansion bookkeeping change between steps.
  */
 internal fun EngineObjectData.Sync.closeOrchestrationConstructionDemand(
     operation: SharedOperationContext<*>,
@@ -72,6 +74,8 @@ internal fun EngineObjectData.Sync.closeOrchestrationConstructionDemand(
         linkedSetOf<Pair<ObjectEngineResult.GroundKey, InclusionCondition>>()
     val boundObjectCheckerKeys = linkedSetOf<ObjectEngineResult.GroundKey>()
     val boundQueryCheckerKeys = linkedSetOf<ObjectEngineResult.GroundKey>()
+    var expandedObjectTypeChecker = false
+    var expandedQueryTypeChecker = false
 
     var demandNotClosed: Boolean
     do {
@@ -105,12 +109,26 @@ internal fun EngineObjectData.Sync.closeOrchestrationConstructionDemand(
                 operation,
                 expandedQueryCheckerKeyInclusions,
             )
+        val objectTypeCheckerInputs =
+            groundedDemand.objectRooted.typeCheckerInputDemand(
+                operation = operation,
+                occurrence = objectOccurrence,
+                alreadyExpanded = expandedObjectTypeChecker,
+            )
+        val queryTypeCheckerInputs =
+            groundedDemand.queryRooted.typeCheckerInputDemand(
+                operation = operation,
+                occurrence = queryOccurrence,
+                alreadyExpanded = expandedQueryTypeChecker,
+            )
 
         if (
             newObjectResolverKeys.isNotEmpty() ||
             newQueryResolverKeys.isNotEmpty() ||
             newObjectCheckerKeyInclusions.isNotEmpty() ||
-            newQueryCheckerKeyInclusions.isNotEmpty()
+            newQueryCheckerKeyInclusions.isNotEmpty() ||
+            objectTypeCheckerInputs != null ||
+            queryTypeCheckerInputs != null
         ) {
             demandNotClosed = true
             newObjectResolverKeys.bindFromArguments(
@@ -150,7 +168,9 @@ internal fun EngineObjectData.Sync.closeOrchestrationConstructionDemand(
                     objectRooted =
                         Demand(
                             checked = objectResolverInputs.objectFragment,
-                            unchecked = objectCheckerInputs.objectFragment,
+                            unchecked =
+                                objectCheckerInputs.objectFragment +
+                                    (objectTypeCheckerInputs?.objectFragment ?: selectionForestOf()),
                             typeCheckDemanded = false,
                         ),
                     queryRooted =
@@ -159,18 +179,42 @@ internal fun EngineObjectData.Sync.closeOrchestrationConstructionDemand(
                             unchecked =
                                 objectCheckerInputs.queryFragment +
                                     queryCheckerInputs.objectFragment +
-                                    queryCheckerInputs.queryFragment,
+                                    queryCheckerInputs.queryFragment +
+                                    (objectTypeCheckerInputs?.queryFragment ?: selectionForestOf()) +
+                                    (queryTypeCheckerInputs?.objectFragment ?: selectionForestOf()) +
+                                    (queryTypeCheckerInputs?.queryFragment ?: selectionForestOf()),
                             typeCheckDemanded = false,
                         ),
                 )
             expandedObjectResolverKeys += newObjectResolverKeys
             expandedQueryResolverKeys += newQueryResolverKeys
+            if (objectTypeCheckerInputs != null) expandedObjectTypeChecker = true
+            if (queryTypeCheckerInputs != null) expandedQueryTypeChecker = true
         }
     } while (demandNotClosed)
 
     return accumulatedDemand.groundWithLiftedParentDemand(
         operation = operation,
         objectType = objectOccurrence.target.type,
+    )
+}
+
+private fun Demand<ObjectSelectionForest>.typeCheckerInputDemand(
+    operation: SharedOperationContext<*>,
+    occurrence: OEROccurrence,
+    alreadyExpanded: Boolean,
+): ResolverInputConstructionDemand? {
+    if (alreadyExpanded || !typeCheckDemanded) return null
+    val checker =
+        operation.world.resolverRegistry.typeChecker(occurrence.target.type)
+            ?: return null
+    require(checker.variables.isEmpty()) {
+        "Grounded type checker ${checker.target.type.name} cannot declare variables"
+    }
+    val fragments = checker.instantiateFragmentsAt(occurrence.root, occurrence.path)
+    return ResolverInputConstructionDemand(
+        objectFragment = fragments.objectFragment.constructionSelections,
+        queryFragment = fragments.queryFragment.constructionSelections,
     )
 }
 

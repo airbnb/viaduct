@@ -25,6 +25,7 @@ import semantics.shared.RootFieldReferenceInvocationObservation
 import semantics.shared.fieldResolverCycleTask
 import semantics.shared.withAuthoritativeNodeId
 import viaduct.engine.api.EngineObjectData
+import viaduct.graphql.schema.ViaductSchema
 
 /** Invokes and publishes one already-installed field resolver or root-field reference. */
 internal class FieldResolutionLogic(
@@ -59,7 +60,13 @@ internal class FieldResolutionLogic(
         val publication = fieldResolverTask.publication
         val key = publication.selection.groundKey()
         val constructionDemand = publication.constructionDemand
-        val invocationDemand = publication.invocationDemand ?: publication.operation.complete(constructionDemand)
+        val possibleRootTypes =
+            (publication.publicationExpectedType.baseTypeDef as? ViaductSchema.CompositeTypeDef)
+                ?.possibleObjectTypes
+                .orEmpty()
+        val invocationDemand =
+            publication.invocationDemand
+                ?: publication.operation.complete(constructionDemand, possibleRootTypes)
         var fieldValue: ResolverOutputData? = publication.reference ?: when (val arguments = key.arguments) {
             Arguments.Error -> {
                 check(publication.publicationCell.value.complete(ErrorEngineResult.of(EngineErrorData.of()))) {

@@ -51,7 +51,7 @@ class PublicationValidationTest : Resolver26DispatcherResource {
                     val operation = CoroutineOperationContext(
                         SharedOperationContext.create(world, resolverObserver = recording(invoked)),
                         this,
-                        complete = { it.values },
+                        complete = { demand, _ -> demand.values },
                         cycleChecker = CycleCheckState.create(),
                     )
                     val root = ObjectEngineResult.of(world.schema.requireQueryTypeDef(), mutable = true)

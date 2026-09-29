@@ -17,6 +17,7 @@ import semantics.shared.Demand
 import semantics.shared.SharedOperationContext
 import semantics.shared.instantiateBindings
 import semantics.shared.liftParentSuccessorDemand
+import viaduct.graphql.schema.ViaductSchema
 
 /** Extends this demand with every encountered successor resolver's transitive input demand. */
 fun SelectionForest.successorDemand(operation: SharedOperationContext<*>): SelectionForest {
@@ -27,12 +28,24 @@ fun SelectionForest.successorDemand(operation: SharedOperationContext<*>): Selec
 /**
  * Computes producer-facing value demand while retaining checked/unchecked provenance long enough to
  * expand the right fixed inputs. Resolver inputs are checked regardless of how their output field
- * was reached. Checker inputs are unchecked and are introduced only by checked field demand.
+ * was reached. Field-checker inputs are unchecked and are introduced only by checked field demand;
+ * type-checker object inputs are unchecked and are introduced when a checked object occurrence is
+ * reached.
  */
-internal fun Demand<SelectionForest>.successorDemandFromConstructionDemand(operation: SharedOperationContext<*>): SelectionForest {
+internal fun Demand<SelectionForest>.successorDemandFromConstructionDemand(
+    operation: SharedOperationContext<*>,
+    possibleRootTypes: Set<ViaductSchema.Object> = emptySet(),
+): SelectionForest {
     val context = SuccessorDemandContext(operation)
     val checkedDemand = checked.successorDemandWithChecks(context, checked = true)
-    val uncheckedDemand = unchecked.successorDemandWithChecks(context, checked = false)
+    val rootTypeCheckerDemand =
+        if (typeCheckDemanded) {
+            possibleRootTypes.fixedTypeCheckerInputDemand(context)
+        } else {
+            selectionForestOf()
+        }
+    val uncheckedDemand =
+        (unchecked + rootTypeCheckerDemand).successorDemandWithChecks(context, checked = false)
     val demand = checkedDemand + uncheckedDemand
     return demand + demand.liftParentSuccessorDemand(operation.world)
 }
@@ -55,13 +68,21 @@ private class SuccessorExpansionState {
 }
 
 private data class SuccessorBoundary(
-    val key: ObjectEngineResult.GroundKey,
+    val key: ObjectEngineResult.GroundKey? = null,
     val kind: SuccessorBoundaryKind,
-)
+    val type: ViaductSchema.Object? = null,
+) {
+    init {
+        require((key == null) != (type == null)) {
+            "A successor boundary must identify exactly one field key or object type"
+        }
+    }
+}
 
 private enum class SuccessorBoundaryKind {
     RESOLVER,
     CHECKER,
+    TYPE_CHECKER,
 }
 
 private fun SelectionForest.successorDemandWithChecks(
@@ -76,15 +97,43 @@ private fun SelectionForest.successorDemandWithChecks(
 private fun Selection.requestedSuccessorDemand(
     context: SuccessorDemandContext,
     checked: Boolean,
-): SelectionForest =
-    selectionForestOf(
+): SelectionForest {
+    val nestedDemand =
+        subselections.successorDemandWithChecks(context, checked) +
+            if (checked) fixedTypeCheckerInputDemand(context) else selectionForestOf()
+    return selectionForestOf(
         Selection.of(
             key = key,
             possibleTypes = possibleTypes,
-            subselections = subselections.successorDemandWithChecks(context, checked),
+            subselections = nestedDemand,
             inclusionCondition = inclusionCondition,
         ),
     )
+}
+
+private fun Selection.fixedTypeCheckerInputDemand(context: SuccessorDemandContext): SelectionForest {
+    val outputType = key.field.type.baseTypeDef as? ViaductSchema.CompositeTypeDef
+        ?: return selectionForestOf()
+    return outputType.possibleObjectTypes.fixedTypeCheckerInputDemand(context)
+}
+
+private fun Set<ViaductSchema.Object>.fixedTypeCheckerInputDemand(context: SuccessorDemandContext): SelectionForest =
+    flatMapToSelectionForest { type ->
+        val checker = context.operation.world.resolverRegistry.typeChecker(type)
+            ?: return@flatMapToSelectionForest selectionForestOf()
+        require(checker.variables.isEmpty()) {
+            "Grounded type checker ${checker.target.type.name} cannot declare variables"
+        }
+        val boundary = SuccessorBoundary(type = type, kind = SuccessorBoundaryKind.TYPE_CHECKER)
+        if (!context.expansionState.beginExpansion(boundary)) {
+            return@flatMapToSelectionForest selectionForestOf()
+        }
+        try {
+            checker.objectFragment.successorDemandWithChecks(context, checked = false)
+        } finally {
+            context.expansionState.endExpansion(boundary)
+        }
+    }
 
 private fun Selection.fixedSuccessorInputDemand(
     context: SuccessorDemandContext,

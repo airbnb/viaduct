@@ -79,9 +79,6 @@ internal class CoroutineFieldCheckerTask private constructor(
                 } else {
                     orchestrationTask.operation.world.resolverRegistry
                         .fieldChecker(key.field)
-                        ?.also { checker ->
-                            requireSupportedRequiredSelections(orchestrationTask.operation, checker)
-                        }
                 }
             val publicationPath = oer.occurrence.coordinate(key)
             val publication = GroundedFieldCheckerPublicationOccurrence(
@@ -120,20 +117,6 @@ internal class CoroutineFieldCheckerTask private constructor(
             cause: CancellationException,
         ) {
             publication.publicationCell.fieldCheckerResult.cancel(cause)
-        }
-
-        private fun requireSupportedRequiredSelections(
-            operation: CoroutineOperationContext,
-            checker: FieldCheckerResolver,
-        ) {
-            require(operation.supportsCheckerFragments || checker.objectFragment.isEmpty()) {
-                "Resolver21 field checker ${checker.target.field.containingDef.name}/${checker.target.field.name} " +
-                    "cannot declare object required selections"
-            }
-            require(operation.supportsCheckerFragments || checker.queryFragment.isEmpty()) {
-                "Resolver21 field checker ${checker.target.field.containingDef.name}/${checker.target.field.name} " +
-                    "cannot declare Query required selections"
-            }
         }
     }
 

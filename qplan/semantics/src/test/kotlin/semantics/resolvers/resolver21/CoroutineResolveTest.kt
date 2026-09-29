@@ -32,15 +32,14 @@ internal fun startCoroutineResolution(
     requestScope: CoroutineScope,
     selections: SelectionForest,
     cycleChecker: CycleCheckState,
-    complete: (Demand<SelectionForest>) -> SelectionForest = { it.values },
-    supportsCheckerFragments: Boolean = false,
+    complete: (Demand<SelectionForest>, Set<viaduct.graphql.schema.ViaductSchema.Object>) -> SelectionForest =
+        { demand, _ -> demand.values },
 ): ObjectEngineResult =
     CoroutineOperationContext(
         operation,
         requestScope,
         complete,
         cycleChecker,
-        supportsCheckerFragments,
     ).startResolve(
         source = operation.world.resolverRegistry.createRootQueryInput(),
         demand = semantics.shared.Demand.checked(selections),

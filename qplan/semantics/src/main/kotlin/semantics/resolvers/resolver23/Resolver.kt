@@ -22,10 +22,12 @@ fun SharedOperationContext<*>.resolve(selections: SelectionForest): ObjectEngine
     val resolver =
         CoroutineResolve(
             operation = this@resolve,
-            complete = { constructionDemand ->
-                constructionDemand.successorDemandFromConstructionDemand(this@resolve)
+            complete = { constructionDemand, possibleRootTypes ->
+                constructionDemand.successorDemandFromConstructionDemand(
+                    this@resolve,
+                    possibleRootTypes,
+                )
             },
-            supportsCheckerFragments = true,
         )
     return runBlocking {
         withTimeout(90_000) {

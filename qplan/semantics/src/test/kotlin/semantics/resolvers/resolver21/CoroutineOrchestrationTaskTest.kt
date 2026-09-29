@@ -31,7 +31,7 @@ class CoroutineOrchestrationTaskTest {
                 CoroutineOperationContext(
                     base = SharedOperationContext.create(world),
                     requestScope = this,
-                    complete = { it.values },
+                    complete = { demand, _ -> demand.values },
                     cycleChecker = CycleCheckState.create(),
                 )
             val root = ObjectEngineResult.of(world.schema.requireQueryTypeDef(), mutable = true)
@@ -70,9 +70,8 @@ class CoroutineOrchestrationTaskTest {
                 CoroutineOperationContext(
                     base = SharedOperationContext.create(world),
                     requestScope = this,
-                    complete = { it.values },
+                    complete = { demand, _ -> demand.values },
                     cycleChecker = CycleCheckState.create(),
-                    supportsCheckerFragments = false,
                 )
             val root =
                 ObjectEngineResult.of(

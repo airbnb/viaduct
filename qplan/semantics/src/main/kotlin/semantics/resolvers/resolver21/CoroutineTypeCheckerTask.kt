@@ -53,11 +53,8 @@ internal class CoroutineTypeCheckerTask private constructor(
                 val checker =
                     orchestrationTask.operation.world.resolverRegistry.typeChecker(oer.occurrence.target.type)
                         ?: return@mapNotNull null
-                require(checker.objectFragment.isEmpty()) {
-                    "Resolver21 type checker ${checker.target.type.name} cannot declare object required selections"
-                }
-                require(checker.queryFragment.isEmpty()) {
-                    "Resolver21 type checker ${checker.target.type.name} cannot declare Query required selections"
+                require(checker.variables.isEmpty()) {
+                    "Grounded type checker ${checker.target.type.name} cannot declare variables"
                 }
                 check(!oer.occurrence.target.typeCheckerResult.isCompleted) {
                     "Applicable type-checker result was completed before orchestration preparation"

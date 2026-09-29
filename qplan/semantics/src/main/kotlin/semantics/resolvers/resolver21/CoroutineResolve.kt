@@ -10,13 +10,13 @@ import semantics.shared.Demand
 import semantics.shared.OEROccurrence
 import semantics.shared.SharedOperationContext
 import viaduct.engine.api.EngineObjectData
+import viaduct.graphql.schema.ViaductSchema
 
 /** Resolves one operation through request-root tasks and exact value promises. */
 internal class CoroutineResolve(
     private val operation: SharedOperationContext<*>,
-    private val complete: (Demand<SelectionForest>) -> SelectionForest,
+    private val complete: (Demand<SelectionForest>, Set<ViaductSchema.Object>) -> SelectionForest,
     private val cycleChecker: CycleCheckState = CycleCheckState.create(),
-    private val supportsCheckerFragments: Boolean = false,
 ) {
     suspend fun resolve(
         source: EngineObjectData.Sync,
@@ -28,7 +28,6 @@ internal class CoroutineResolve(
                 this,
                 complete,
                 cycleChecker,
-                supportsCheckerFragments,
             ).startResolve(
                 source = source,
                 demand = Demand.checked(selections),

@@ -11,6 +11,7 @@ import semantics.contract.FragmentFreeTypeCheckerEnforcementContract
 import semantics.contract.GroundedFieldCheckerCapabilityContract
 import semantics.contract.GroundedFieldCheckerObjectFragmentContract
 import semantics.contract.GroundedFieldCheckerQueryFragmentContract
+import semantics.contract.GroundedTypeCheckerFragmentContract
 import semantics.resolvers.resolver21.startCoroutineResolution
 import semantics.resolvers.successorBoundaryDemand
 import semantics.shared.CycleCheckState
@@ -24,7 +25,8 @@ class CoroutineResolveTest :
     FragmentFreeTypeCheckerEnforcementContract,
     GroundedFieldCheckerCapabilityContract,
     GroundedFieldCheckerObjectFragmentContract,
-    GroundedFieldCheckerQueryFragmentContract {
+    GroundedFieldCheckerQueryFragmentContract,
+    GroundedTypeCheckerFragmentContract {
     override val selectiveResolvers = false
     override val usesSingularQueryOER = true
 
@@ -39,7 +41,6 @@ class CoroutineResolveTest :
             requestScope,
             selections,
             cycleChecker,
-            complete = { demand -> demand.values.successorBoundaryDemand(operation) },
-            supportsCheckerFragments = true,
+            complete = { demand, _ -> demand.values.successorBoundaryDemand(operation) },
         )
 }

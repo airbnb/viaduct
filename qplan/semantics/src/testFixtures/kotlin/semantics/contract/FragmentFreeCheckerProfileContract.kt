@@ -5,7 +5,6 @@ package semantics.contract
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
 import kotlin.test.assertNotSame
 import kotlin.test.assertNull
@@ -13,14 +12,8 @@ import kotlin.test.assertSame
 import kotlin.test.assertTrue
 import model.ListEngineResult
 import model.ObjectEngineResult
-import model.fragmentFrom
-import model.materializeSelectionForestOf
 import model.operationSelectionsFrom
-import model.registry.CheckerInput
-import model.registry.FieldCheckerResolver
-import model.registry.ResolverFragmentTemplates
 import model.registry.TypeCheckerResolver
-import model.requireObjectField
 import model.requireQueryTypeDef
 import model.requireType
 import model.testing.TestWorld
@@ -103,113 +96,6 @@ interface FragmentFreeCheckerProfileContract {
         assertTrue(observations.all { it.checkerKind == CheckerKind.TYPE })
         assertTrue(observations.all { it.arguments == null && it.checkedType.name == "Item" })
         assertEquals(5, observations.map { it.occurrencePath }.distinct().size)
-    }
-
-    @Test
-    fun `field checker rejects object and Query required selections`() {
-        for (queryRooted in listOf(false, true)) {
-            val world =
-                TestWorld.fromDSL(
-                    schemaSDL =
-                        """
-                        extend type Query {
-                          checked: Int! @resolver(result: 1)
-                        }
-                        """.trimIndent(),
-                    selectiveResolvers = coroutineResolverSubject.selectiveResolvers,
-                    fieldCheckers = { schema ->
-                        val query = schema.requireQueryTypeDef()
-                        val checked = schema.requireObjectField("Query", "checked")
-                        val fragment =
-                            schema.fragmentFrom("fragment Input on Query { checked }").materializeSelections
-                        val fragmentTemplates =
-                            ResolverFragmentTemplates(
-                                objectFragmentTemplate =
-                                    if (queryRooted) materializeSelectionForestOf() else fragment,
-                                queryFragmentTemplate =
-                                    if (queryRooted) fragment else materializeSelectionForestOf(),
-                            )
-                        mapOf(
-                            checked to
-                                FieldCheckerResolver.of(
-                                    checked,
-                                    query,
-                                    fragmentTemplates = mapOf("input" to fragmentTemplates),
-                                ) { _, _, _ -> CheckerResult.Success },
-                        )
-                    },
-                ).assumptions
-
-            val failure =
-                assertFailsWith<IllegalArgumentException> {
-                    coroutineResolverSubject.resolve(
-                        SharedOperationContext.create(world),
-                        world.operationSelectionsFrom("{ checked }"),
-                    )
-                }
-            assertTrue(failure.message.orEmpty().contains("cannot declare"))
-        }
-    }
-
-    @Test
-    fun `type checker rejects object and Query required selections`() {
-        for (queryRooted in listOf(false, true)) {
-            val world =
-                TestWorld.fromDSL(
-                    schemaSDL =
-                        """
-                        extend type Query {
-                          item: Item! @resolver(result: {id: 1})
-                        }
-
-                        type Item { id: Int! }
-                        """.trimIndent(),
-                    selectiveResolvers = coroutineResolverSubject.selectiveResolvers,
-                    typeCheckers = { schema ->
-                        val item = schema.requireType("Item") as ViaductSchema.Object
-                        val itemFragment =
-                            schema.fragmentFrom("fragment ItemInput on Item { id }").materializeSelections
-                        val queryFragment =
-                            schema
-                                .fragmentFrom("fragment QueryInput on Query { item { id } }")
-                                .materializeSelections
-                        mapOf(
-                            item to
-                                TypeCheckerResolver.of(
-                                    item,
-                                    schema.requireQueryTypeDef(),
-                                    fragmentTemplates =
-                                        mapOf(
-                                            "input" to
-                                                ResolverFragmentTemplates(
-                                                    objectFragmentTemplate =
-                                                        if (queryRooted) {
-                                                            materializeSelectionForestOf()
-                                                        } else {
-                                                            itemFragment
-                                                        },
-                                                    queryFragmentTemplate =
-                                                        if (queryRooted) {
-                                                            queryFragment
-                                                        } else {
-                                                            materializeSelectionForestOf()
-                                                        },
-                                                ),
-                                        ),
-                                ) { _: Map<String, CheckerInput>, _ -> CheckerResult.Success },
-                        )
-                    },
-                ).assumptions
-
-            val failure =
-                assertFailsWith<IllegalArgumentException> {
-                    coroutineResolverSubject.resolve(
-                        SharedOperationContext.create(world),
-                        world.operationSelectionsFrom("{ item { id } }"),
-                    )
-                }
-            assertTrue(failure.message.orEmpty().contains("cannot declare"))
-        }
     }
 }
 
