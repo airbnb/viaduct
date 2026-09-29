@@ -12,6 +12,7 @@ import semantics.contract.GroundedFieldCheckerCapabilityContract
 import semantics.contract.GroundedFieldCheckerObjectFragmentContract
 import semantics.contract.GroundedFieldCheckerQueryFragmentContract
 import semantics.contract.GroundedTypeCheckerFragmentContract
+import semantics.contract.GroundedTypeCheckerLifecycleContract
 import semantics.resolvers.resolver21.startCoroutineResolution
 import semantics.resolvers.successorBoundaryDemand
 import semantics.shared.CycleCheckState
@@ -26,6 +27,7 @@ class CoroutineResolveTest :
     GroundedFieldCheckerCapabilityContract,
     GroundedFieldCheckerObjectFragmentContract,
     GroundedFieldCheckerQueryFragmentContract,
+    GroundedTypeCheckerLifecycleContract,
     GroundedTypeCheckerFragmentContract {
     override val selectiveResolvers = false
     override val usesSingularQueryOER = true

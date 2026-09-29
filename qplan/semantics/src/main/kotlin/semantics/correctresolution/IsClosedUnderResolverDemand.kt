@@ -27,8 +27,8 @@ import viaduct.graphql.schema.ViaductSchema
  * arguments contain an error. Resolver outputs are deterministically reapplied to classify
  * descendant occurrences.
  *
- * A claimed field-checker slot additionally requires the checker's raw object fragment in the
- * containing OER. Active value resolvers reached through those raw selections retain their
+ * A claimed field- or type-checker slot additionally requires the checker's raw object fragment
+ * in its owning OER. Active value resolvers reached through those raw selections retain their
  * ordinary checked input closure. This predicate does not interpret the checker-result value or
  * count checker applications.
  */
@@ -59,6 +59,12 @@ private class ResolverDemandValidationLogic(
         producerField: ViaductSchema.ObjectField?,
     ): Boolean {
         val registry = operation.world.resolverRegistry
+
+        val typeChecker = registry.typeChecker(type)
+        if (typeCheckerResult.get() != null && typeChecker != null) {
+            val fragments = typeChecker.instantiateFragmentsAt(resolverApplicationCache.root, path)
+            if (!conformsToSelectionsAt(operation, fragments.objectFragment.constructionSelections, path)) return false
+        }
 
         return keys.all { key ->
             if (!getCell(key).value.isCompleted) return@all true

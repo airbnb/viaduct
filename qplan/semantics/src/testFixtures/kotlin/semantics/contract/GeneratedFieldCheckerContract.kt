@@ -93,7 +93,7 @@ interface GeneratedFieldCheckerContract : GeneratedCaseAssertionPolicy {
                     (SometimesPassiveFieldWeight to 1.0) +
                     generatedResolverConfigOverrides
             val assertions =
-                generatedCaseAssertions + GeneratedCaseAssertions.exactFieldCheckerApplications
+                generatedCaseAssertions + GeneratedCaseAssertions.exactCheckerApplications
             val run =
                 checkGeneratedProfile(
                     profile = checkerProfile(PASSIVE_PROFILE),
@@ -136,7 +136,7 @@ interface GeneratedFieldCheckerContract : GeneratedCaseAssertionPolicy {
                     (RootFieldReferenceWeight to 0.25) +
                     generatedResolverConfigOverrides
             val assertions =
-                generatedCaseAssertions + GeneratedCaseAssertions.exactFieldCheckerApplications
+                generatedCaseAssertions + GeneratedCaseAssertions.exactCheckerApplications
             val run =
                 checkGeneratedProfile(
                     profile = checkerProfile(ROOT_REFERENCE_PROFILE),
@@ -199,7 +199,7 @@ interface GeneratedFieldCheckerContract : GeneratedCaseAssertionPolicy {
                     (SometimesPassiveFieldWeight to 0.25) +
                     generatedResolverConfigOverrides
             val assertions =
-                generatedCaseAssertions + GeneratedCaseAssertions.exactFieldCheckerApplications
+                generatedCaseAssertions + GeneratedCaseAssertions.exactCheckerApplications
             val required =
                 REQUIRED_COVERAGE_SIGNATURES + additionalRequired +
                     if (runtimeFieldCheckerVariables) {

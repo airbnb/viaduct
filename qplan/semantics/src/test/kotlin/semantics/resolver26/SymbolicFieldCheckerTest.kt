@@ -22,7 +22,7 @@ import model.requireObjectField
 import model.requireQueryTypeDef
 import model.testing.TestWorld
 import semantics.contract.CheckerApplicationRecorder
-import semantics.contract.registeredFieldCheckerApplications
+import semantics.contract.registeredCheckerApplications
 import semantics.correctresolution.CorrectnessCheckerObserver
 import semantics.correctresolution.CorrectnessResolverObserver
 import semantics.correctresolution.correctResolution
@@ -316,7 +316,7 @@ class SymbolicFieldCheckerTest : Resolver26DispatcherResource {
         val selections = world.assumptions.operationSelectionsFrom(query)
         val result = operation.resolveWithTestDispatcher(selections)
         assertTrue(result.correctResolution(operation, selections.merge(result.type)), "checker-aware correctness")
-        assertTrue(recorder.hasExactlyCheckerApplications(result.registeredFieldCheckerApplications(operation)))
+        assertTrue(recorder.hasExactlyCheckerApplications(result.registeredCheckerApplications(operation)))
         return Resolution(result, recorder, checkers, resolvers, operation)
     }
 

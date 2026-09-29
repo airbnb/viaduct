@@ -5,7 +5,6 @@ package semantics.correctresolution
 import java.util.IdentityHashMap
 import kotlinx.coroutines.runBlocking
 import model.Arguments
-import model.EngineErrorData
 import model.EngineResult
 import model.ListEngineResult
 import model.NodeReferenceIdentity
@@ -54,6 +53,7 @@ internal class ResolverApplicationCache(
             ObjectEngineResult,
             MutableMap<ObjectEngineResult.ObjectKey, CachedCheckerApplication>,
         >()
+    private val typeCheckerApplications = IdentityHashMap<ObjectEngineResult, CachedCheckerApplication>()
     private val rootFieldReferenceApplications =
         mutableMapOf<List<PathComponent>, CachedRootFieldReferenceApplication>()
 
@@ -93,6 +93,38 @@ internal class ResolverApplicationCache(
             CachedCheckerApplication(compute())
         }.application
     }
+
+    fun getOrPutTypeChecker(
+        result: ObjectEngineResult,
+        compute: () -> ReappliedChecker?,
+    ): ReappliedChecker? = typeCheckerApplications.getOrPut(result) { CachedCheckerApplication(compute()) }.application
+
+    /** Structural paths exclude parent backedges and retain every intervening list index. */
+    private val objectPaths by lazy {
+        val paths = IdentityHashMap<ObjectEngineResult, List<PathComponent>>()
+
+        fun visit(
+            value: EngineResult?,
+            path: List<PathComponent>
+        ) {
+            when (value) {
+                is ObjectEngineResult -> {
+                    paths[value] = path
+                    value.keys.filterNot { it is ObjectEngineResult.ParentKey }.forEach { key ->
+                        val cell = value.getCell(key)
+                        if (cell.value.isCompleted) visit(cell.value.get(), path + key)
+                    }
+                }
+                is ListEngineResult -> value.forEachIndexed { index, cell ->
+                    if (cell.value.isCompleted) visit(cell.value.get(), path + ListEngineResult.Index.of(index))
+                }
+            }
+        }
+        visit(root, emptyList())
+        paths
+    }
+
+    fun objectPath(result: ObjectEngineResult): List<PathComponent>? = objectPaths[result]
 
     fun rootFieldReferenceCandidates(publicationPath: List<PathComponent>): List<IndexedRootFieldReferenceObservation>? = rootFieldReferenceWitness.claim(root, publicationPath)
 
@@ -423,20 +455,19 @@ private class ResolverReplayLogic(
                         )
                     }
                 }
-            if (
-                !operation.observedResolverInputsConform(
-                    resolverOccurrenceId = resolverOccurrenceId,
-                    expectedObjectValue = input,
-                    expectedQueryValue = queryValue,
-                )
-            ) {
-                return@getOrPut null
-            }
+            val replayInputs = operation.resolverInputsForReplay(
+                occurrenceId = resolverOccurrenceId,
+                objectResult = this,
+                objectSelections = resolver.instantiateObjectMaterializationSelections(resolverOccurrenceId),
+                querySelections = resolver.instantiateQueryMaterializationSelections(resolverOccurrenceId),
+                expectedObjectValue = input,
+                expectedQueryValue = queryValue,
+            ) ?: return@getOrPut null
             ReappliedResolver(
                 runBlocking {
                     resolver.evaluateRelation(
-                        input = input,
-                        queryValue = queryValue,
+                        input = replayInputs.objectValue,
+                        queryValue = replayInputs.queryValue,
                         arguments = resolverArguments,
                         selections = getCell(key).value.get().completedOutputDemand(),
                         selectiveResolvers = operation.world.selectiveResolvers,
@@ -587,20 +618,19 @@ private class ResolverReplayLogic(
                     )
                 }
             }
-        if (
-            !operation.observedResolverInputsConform(
-                resolverOccurrenceId = resolverOccurrenceId,
-                expectedObjectValue = input,
-                expectedQueryValue = queryValue,
-            )
-        ) {
-            return null
-        }
+        val replayInputs = operation.resolverInputsForReplay(
+            occurrenceId = resolverOccurrenceId,
+            objectResult = null,
+            objectSelections = resolver.instantiateObjectMaterializationSelections(resolverOccurrenceId),
+            querySelections = resolver.instantiateQueryMaterializationSelections(resolverOccurrenceId),
+            expectedObjectValue = input,
+            expectedQueryValue = queryValue,
+        ) ?: return null
         return ReappliedResolver(
             runBlocking {
                 resolver.evaluateRelation(
-                    input = input,
-                    queryValue = queryValue,
+                    input = replayInputs.objectValue,
+                    queryValue = replayInputs.queryValue,
                     arguments = resolverArguments,
                     selections = validationDemand,
                     selectiveResolvers = operation.world.selectiveResolvers,
@@ -610,49 +640,6 @@ private class ResolverReplayLogic(
         )
     }
 }
-
-/**
- * Validates the access-filtered values actually supplied at runtime against correctness replay.
- * Hand-constructed extensional judgments without invocation evidence retain their historical
- * value-only behavior.
- */
-private fun SharedOperationContext<*>.observedResolverInputsConform(
-    resolverOccurrenceId: ResolverOccurrenceId,
-    expectedObjectValue: EngineObjectData.Sync,
-    expectedQueryValue: EngineObjectData.Sync,
-): Boolean {
-    val observations = resolverObserver as? CorrectnessResolverObserver ?: return true
-    if (!observations.hasResolverInvocations()) return true
-    val invocations = observations.resolverInvocations(resolverOccurrenceId)
-    return invocations.isNotEmpty() &&
-        invocations.all { invocation ->
-            invocation.input.sameMaterializedValueAs(expectedObjectValue) &&
-                invocation.queryValue.sameMaterializedValueAs(expectedQueryValue)
-        }
-}
-
-private fun EngineObjectData.Sync.sameMaterializedValueAs(other: EngineObjectData.Sync): Boolean {
-    if (schemaType != other.schemaType) return false
-    val selections = getSelections().toSet()
-    if (selections != other.getSelections().toSet()) return false
-    return selections.all { selection ->
-        outputValue(selection).sameMaterializedValueAs(other.outputValue(selection))
-    }
-}
-
-private fun ResolverOutputData?.sameMaterializedValueAs(other: ResolverOutputData?): Boolean =
-    when {
-        this is EngineErrorData && other is EngineErrorData ->
-            cause === other.cause || cause == null && other.cause == null
-        this is EngineObjectData.Sync && other is EngineObjectData.Sync ->
-            sameMaterializedValueAs(other)
-        this is List<*> && other is List<*> ->
-            size == other.size &&
-                indices.all { index ->
-                    this[index].sameMaterializedValueAs(other[index])
-                }
-        else -> this == other
-    }
 
 /**
  * Reconstructs one canonical demand from the completed output occurrence under judgment.

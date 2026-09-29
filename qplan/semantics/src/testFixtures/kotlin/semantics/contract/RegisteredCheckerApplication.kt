@@ -20,10 +20,12 @@ import semantics.shared.SharedOperationContext
 import semantics.shared.groundedArguments
 
 /**
- * Reconstructs expected field-checker invocations from completed checker slots instead of the
- * invocation observer, so a missing or duplicate checker task fails an independent judgment.
+ * Reconstructs expected field- and type-checker invocations from completed checker slots instead of the
+ * invocation observer, so missing or duplicate invocation observations fail independently of value
+ * replay. Pair this with correctResolution to reject missing required slots; deterministic demand
+ * witnesses additionally reject unnecessary published checks.
  */
-internal fun EngineResult?.registeredFieldCheckerApplications(operation: SharedOperationContext<*>): List<CheckerInvocationObservation> {
+internal fun EngineResult?.registeredCheckerApplications(operation: SharedOperationContext<*>): List<CheckerInvocationObservation> {
     val primaryRoot = this as? ObjectEngineResult ?: return emptyList()
     val roots =
         buildList {
@@ -46,12 +48,12 @@ internal fun EngineResult?.registeredFieldCheckerApplications(operation: SharedO
     return buildList {
         roots.forEach { root ->
             if (!visitedRoots.add(root)) return@forEach
-            root.forEachPublishedFieldCheckerApplication(operation, ::add)
+            root.forEachPublishedCheckerApplication(operation, ::add)
         }
     }
 }
 
-private fun ObjectEngineResult.forEachPublishedFieldCheckerApplication(
+private fun ObjectEngineResult.forEachPublishedCheckerApplication(
     operation: SharedOperationContext<*>,
     record: (CheckerInvocationObservation) -> Unit,
 ) {
@@ -63,7 +65,19 @@ private fun ObjectEngineResult.forEachPublishedFieldCheckerApplication(
     ) {
         if (result == null || result is ErrorEngineResult) return
         when (result) {
-            is ObjectEngineResult ->
+            is ObjectEngineResult -> {
+                if (result.typeCheckerResult.get() != null) {
+                    checkNotNull(operation.world.resolverRegistry.typeChecker(result.type))
+                    record(
+                        CheckerInvocationObservation(
+                            checkerKind = CheckerKind.TYPE,
+                            logicalQueryRoot = logicalQueryRoot,
+                            occurrencePath = path,
+                            arguments = null,
+                            checkedTarget = ResolverTarget.TypeCheckerTarget(result.type),
+                        ),
+                    )
+                }
                 result.keys.forEach { key ->
                     val cell = result.getCell(key)
                     if (!runBlocking { cell.fetchActivated() }) return@forEach
@@ -89,6 +103,7 @@ private fun ObjectEngineResult.forEachPublishedFieldCheckerApplication(
                         visit(cell.value.get(), occurrencePath)
                     }
                 }
+            }
 
             is ListEngineResult ->
                 result.forEachIndexed { index, cell ->

@@ -26,6 +26,7 @@ import model.objectOf
 import model.registry.FieldCheckerResolver
 import model.registry.ResolutionExecutionContext
 import model.registry.ResolverFragmentTemplates
+import model.registry.ResolverTarget
 import model.requireObjectField
 import model.requireQueryTypeDef
 import model.requireType
@@ -470,6 +471,7 @@ class CorrectResolutionTest : Resolver26DispatcherResource {
             val observer = CorrectnessCheckerObserver()
             queryValues.forEach { value ->
                 observer.onCheckerQueryFragmentPrepared(
+                    ResolverTarget.FieldCheckerTarget(checked),
                     occurrenceId,
                     world.engineResultOf("Query") {
                         "source" resolvesTo value

@@ -446,12 +446,14 @@ class ArbitraryRegistry internal constructor(
         resolverProgramMutation: ResolverProgramMutation = ResolverProgramMutation.NONE,
         selectiveNodeResolvers: Boolean = false,
         fieldCheckerMode: GeneratedFieldCheckerMode = GeneratedFieldCheckerMode.NONE,
+        typeCheckerMode: GeneratedTypeCheckerMode = GeneratedTypeCheckerMode.NONE,
     ): TestWorld =
         world(
             schemaSDL = schema.sdl,
             resolverProgramMutation = resolverProgramMutation,
             selectiveNodeResolvers = selectiveNodeResolvers,
             fieldCheckerMode = fieldCheckerMode,
+            typeCheckerMode = typeCheckerMode,
         )
 
     fun world(
@@ -459,6 +461,7 @@ class ArbitraryRegistry internal constructor(
         resolverProgramMutation: ResolverProgramMutation = ResolverProgramMutation.NONE,
         selectiveNodeResolvers: Boolean = false,
         fieldCheckerMode: GeneratedFieldCheckerMode = GeneratedFieldCheckerMode.NONE,
+        typeCheckerMode: GeneratedTypeCheckerMode = GeneratedTypeCheckerMode.NONE,
     ): TestWorld {
         val firstInputs = ConcurrentHashMap<FieldCoordinate, EngineObjectData.Sync>()
         val firstArguments = ConcurrentHashMap<FieldCoordinate, Arguments.Resolved>()
@@ -670,6 +673,7 @@ class ArbitraryRegistry internal constructor(
                             }
                     }.toMap()
                 },
+                typeCheckers = { canonicalSchema -> generatedTypeCheckers(canonicalSchema, typeCheckerMode) },
                 fieldCheckers = { canonicalSchema ->
                     generatedFieldCheckers(canonicalSchema, fieldCheckerMode)
                 },

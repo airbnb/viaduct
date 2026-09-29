@@ -12,7 +12,7 @@ import model.engineObjectDataOf
 import model.merge
 import model.outputValue
 import model.registry.CheckerInput
-import model.registry.FieldCheckerResolver
+import model.registry.CheckerResolverBase
 import model.registry.ResolutionExecutionContext
 import model.registry.ResolverFragments
 import model.registry.VariableDefinition
@@ -22,6 +22,7 @@ import semantics.shared.SharedOperationContext
 import semantics.shared.fieldCheckerCycleTask
 import semantics.shared.groundedArguments
 import semantics.shared.materializeResult
+import semantics.shared.typeCheckerCycleTask
 import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.EngineObjectData
 
@@ -47,76 +48,88 @@ internal fun ObjectEngineResult.reapplyChecker(
                 coordinate,
             )
         if (!fragments.bindingsAgreeWith(arguments, operation)) return@getOrPutChecker null
-        if (
-            !conformsToSelectionsAt(
-                operation = operation,
-                selections = fragments.objectFragment.constructionSelections,
-                path = path,
-            )
-        ) {
-            return@getOrPutChecker null
-        }
-
-        val occurrenceId = fragments.objectFragment.resolverOccurrenceId
-        val reader = resolverApplicationCache.root.fieldCheckerCycleTask(coordinate)
-        val objectInputs =
-            checker
-                .instantiateObjectMaterializationSelections(occurrenceId)
-                .mapValues { (_, selections) ->
-                    runBlocking {
-                        materializeResult(
-                            operation = operation,
-                            selections = selections,
-                            reader = reader,
-                            checked = false,
-                        )
-                    }
-                }
-        val queryInputs =
-            checker.checkerQueryInputs(
-                operation = operation,
-                resolverApplicationCache = resolverApplicationCache,
-                fragments = fragments,
-                reader = reader,
-            ) ?: return@getOrPutChecker null
-        val inputs =
-            checker.fragmentTemplates.keys.associateWith { name ->
-                CheckerInput(
-                    objectValue = objectInputs.getValue(name),
-                    queryValue = queryInputs.getValue(name),
-                )
-            }
-        // Read the original named response path, independently of the compiled provider guards.
-        // Another owner's physical demand cannot make an excluded defining alias a provider.
-        val definitions = (fragments.objectFragment.variableDefinitions + fragments.queryFragment.variableDefinitions)
-            .distinctBy { it.variable }
-            .associateBy { it.variable.variableName }
-        val bindingsAgree = checker.fragmentTemplates.all { (name, templates) ->
-            templates.variables.all { (variable, definition) ->
-                if (definition !is VariableDefinition.FromField) {
-                    true
-                } else {
-                    val input = inputs.getValue(name)
-                    val source = if (definition.providerFragment == model.registry.ProviderFragment.OBJECT) input.objectValue else input.queryValue
-                    val expected = source.bindingAtResponsePath(definition.responsePath)
-                    val instance = definitions.getValue("$name:${variable.variableName}").variable.instanceId!!
-                    operation.variableBindings.getBinding(instance) == expected
-                }
-            }
-        }
-        if (!bindingsAgree) return@getOrPutChecker null
+        val inputs = checker.rawInputs(
+            operation,
+            resolverApplicationCache,
+            this,
+            path,
+            fragments,
+            resolverApplicationCache.root.fieldCheckerCycleTask(coordinate),
+        ) ?: return@getOrPutChecker null
         ReappliedChecker(
             runBlocking {
-                checker.evaluateRelation(
-                    arguments = arguments,
-                    inputs = inputs,
-                    executionContext = ResolutionExecutionContext.Unsupported,
-                )
+                checker.evaluateRelation(arguments, inputs, ResolutionExecutionContext.Unsupported)
             },
         )
     }
 
-private fun FieldCheckerResolver.checkerQueryInputs(
+/** Reapplies a type checker once per concrete OER, including occurrences reached via parents. */
+internal fun ObjectEngineResult.reapplyTypeChecker(
+    operation: SharedOperationContext<*>,
+    resolverApplicationCache: ResolverApplicationCache,
+    path: List<PathComponent>,
+): ReappliedChecker? =
+    resolverApplicationCache.getOrPutTypeChecker(this) {
+        val checker = operation.world.resolverRegistry.typeChecker(type) ?: return@getOrPutTypeChecker null
+        val fragments = checker.instantiateFragmentsAt(resolverApplicationCache.root, path)
+        if (!fragments.bindingsAgreeWith(null, operation)) return@getOrPutTypeChecker null
+        val inputs = checker.rawInputs(
+            operation,
+            resolverApplicationCache,
+            this,
+            path,
+            fragments,
+            resolverApplicationCache.root.typeCheckerCycleTask(path),
+        ) ?: return@getOrPutTypeChecker null
+        ReappliedChecker(
+            runBlocking {
+                checker.evaluateRelation(inputs, ResolutionExecutionContext.Unsupported)
+            },
+        )
+    }
+
+/** Reconstructs named raw projections without deriving them from runtime invocation inputs. */
+private fun CheckerResolverBase<*>.rawInputs(
+    operation: SharedOperationContext<*>,
+    resolverApplicationCache: ResolverApplicationCache,
+    result: ObjectEngineResult,
+    path: List<PathComponent>,
+    fragments: ResolverFragments,
+    reader: CycleTask,
+): Map<String, CheckerInput>? {
+    if (!result.conformsToSelectionsAt(operation, fragments.objectFragment.constructionSelections, path)) {
+        return null
+    }
+    val occurrenceId = fragments.objectFragment.resolverOccurrenceId
+    val objectInputs = instantiateObjectMaterializationSelections(occurrenceId).mapValues { (_, selections) ->
+        runBlocking { result.materializeResult(operation, selections, reader = reader, checked = false) }
+    }
+    val queryInputs = checkerQueryInputs(operation, resolverApplicationCache, fragments, reader) ?: return null
+    val inputs = fragmentTemplates.keys.associateWith { name ->
+        CheckerInput(objectInputs.getValue(name), queryInputs.getValue(name))
+    }
+    // Read the original named response path, independently of the compiled provider guards.
+    // Another owner's physical demand cannot make an excluded defining alias a provider.
+    val definitions = (fragments.objectFragment.variableDefinitions + fragments.queryFragment.variableDefinitions)
+        .distinctBy { it.variable }
+        .associateBy { it.variable.variableName }
+    val bindingsAgree = fragmentTemplates.all { (name, templates) ->
+        templates.variables.all { (variable, definition) ->
+            if (definition !is VariableDefinition.FromField) {
+                true
+            } else {
+                val input = inputs.getValue(name)
+                val source = if (definition.providerFragment == model.registry.ProviderFragment.OBJECT) input.objectValue else input.queryValue
+                val expected = source.bindingAtResponsePath(definition.responsePath)
+                val instance = definitions.getValue("$name:${variable.variableName}").variable.instanceId!!
+                operation.variableBindings.getBinding(instance) == expected
+            }
+        }
+    }
+    return inputs.takeIf { bindingsAgree }
+}
+
+private fun CheckerResolverBase<*>.checkerQueryInputs(
     operation: SharedOperationContext<*>,
     resolverApplicationCache: ResolverApplicationCache,
     fragments: ResolverFragments,
@@ -131,7 +144,7 @@ private fun FieldCheckerResolver.checkerQueryInputs(
 
     val queryResult =
         (operation.checkerObserver as? CorrectnessCheckerObserver)
-            ?.queryFragmentResults(occurrenceId)
+            ?.queryFragmentResults(target, occurrenceId)
             ?.singleOrNull()
             ?: return null
     val querySelections =
@@ -160,7 +173,7 @@ private fun FieldCheckerResolver.checkerQueryInputs(
 }
 
 private fun ResolverFragments.bindingsAgreeWith(
-    arguments: Arguments.Resolved,
+    arguments: Arguments.Resolved?,
     operation: SharedOperationContext<*>,
 ): Boolean =
     (objectFragment.variableDefinitions + queryFragment.variableDefinitions)
@@ -171,7 +184,7 @@ private fun ResolverFragments.bindingsAgreeWith(
             val definition = variableDefinition.definition
             definition !is VariableDefinition.FromArgument ||
                 operation.variableBindings.getBinding(instanceId) ==
-                VariableBinding.of(definition.read(arguments))
+                VariableBinding.of(definition.read(arguments ?: return@all false))
         }
 
 /** Checker results have semantic variants but no tenant-independent error equality. */

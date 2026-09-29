@@ -209,7 +209,7 @@ internal class FieldCheckerTask private constructor(
             )
         }
         if (!occurrence.fragments.queryFragment.constructionSelections.isEmpty()) {
-            operation.checkerObserver.onCheckerQueryFragmentPrepared(id, publication.queryOER.occurrence.target)
+            operation.checkerObserver.onCheckerQueryFragmentPrepared(occurrence.checker.target, id, publication.queryOER.occurrence.target)
         }
         operation.checkerObserver.onCheckerInvocation(
             CheckerInvocationObservation(

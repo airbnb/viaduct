@@ -109,7 +109,7 @@ interface FieldCheckerCorrectResolutionContract : ResolverContract {
         assertEquals(
             1,
             (observation.operation.checkerObserver as CorrectnessCheckerObserver)
-                .queryFragmentResults(checkerOccurrenceId)
+                .queryFragmentResults(ResolverTarget.FieldCheckerTarget(checkedKey.field), checkerOccurrenceId)
                 .size,
         )
         assertEquals(1, checkerCalls.get())

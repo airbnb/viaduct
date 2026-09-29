@@ -5,6 +5,7 @@ import model.SelectionForest
 import semantics.contract.EmptyObjectFragmentGeneratedResolverContract
 import semantics.contract.FeatureInteractionGeneratedResolverContract
 import semantics.contract.GeneratedFieldCheckerContract
+import semantics.contract.GeneratedTypeCheckerContract
 import semantics.contract.ListPassiveDeepeningGeneratedResolverContract
 import semantics.contract.NodeGeneratedResolverContract
 import semantics.contract.ObjectFragmentFromArgumentGeneratedResolverContract
@@ -25,6 +26,7 @@ class ResolverGeneratedTest :
     QueryFragmentGeneratedResolverContract,
     SometimesPassiveGeneratedResolverContract,
     GeneratedFieldCheckerContract,
+    GeneratedTypeCheckerContract,
     FeatureInteractionGeneratedResolverContract {
     override val selectiveResolvers: Boolean
         get() = true

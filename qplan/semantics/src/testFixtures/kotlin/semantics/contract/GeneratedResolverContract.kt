@@ -15,6 +15,7 @@ import semantics.arbitrary.Config
 import semantics.arbitrary.ExplicitFieldResolverWeight
 import semantics.arbitrary.FieldArgumentWeight
 import semantics.arbitrary.GeneratedFieldCheckerMode
+import semantics.arbitrary.GeneratedTypeCheckerMode
 import semantics.arbitrary.ImplementationArgumentDefaultWeight
 import semantics.arbitrary.InputListTypeWeight
 import semantics.arbitrary.InputObjectCount
@@ -1114,6 +1115,7 @@ internal suspend fun checkGeneratedProfile(
     config: Config,
     seed: Long? = null,
     fieldCheckerMode: GeneratedFieldCheckerMode = GeneratedFieldCheckerMode.NONE,
+    typeCheckerMode: GeneratedTypeCheckerMode = GeneratedTypeCheckerMode.NONE,
     property: suspend (TestWorld, ResolverTestCase) -> Unit,
 ): ResolverTestRun =
     checkGeneratedCases(
@@ -1123,6 +1125,7 @@ internal suspend fun checkGeneratedProfile(
         config = config,
         seed = seed,
         fieldCheckerMode = fieldCheckerMode,
+        typeCheckerMode = typeCheckerMode,
         property = property,
     )
 
@@ -1145,6 +1148,7 @@ private suspend fun checkGeneratedCases(
     config: Config,
     seed: Long? = null,
     fieldCheckerMode: GeneratedFieldCheckerMode = GeneratedFieldCheckerMode.NONE,
+    typeCheckerMode: GeneratedTypeCheckerMode = GeneratedTypeCheckerMode.NONE,
     property: suspend (TestWorld, ResolverTestCase) -> Unit,
 ): ResolverTestRun =
     checkResolverTestCases(
@@ -1153,6 +1157,7 @@ private suspend fun checkGeneratedCases(
         profile = profile,
         seed = seed,
         fieldCheckerMode = fieldCheckerMode,
+        typeCheckerMode = typeCheckerMode,
         property = property,
     ).also { run ->
         val effectiveExpectedCases =

@@ -167,6 +167,7 @@ suspend fun checkResolverTestCases(
     profile: String = "resolver-generated",
     seed: Long? = null,
     fieldCheckerMode: GeneratedFieldCheckerMode = GeneratedFieldCheckerMode.NONE,
+    typeCheckerMode: GeneratedTypeCheckerMode = GeneratedTypeCheckerMode.NONE,
     property: suspend (TestWorld, ResolverTestCase) -> Unit,
 ): ResolverTestRun {
     require(profile.isNotBlank())
@@ -178,6 +179,7 @@ suspend fun checkResolverTestCases(
         profile = profile,
         seed = runSeed,
         fieldCheckerMode = fieldCheckerMode,
+        typeCheckerMode = typeCheckerMode,
         property = property,
     )
 }
@@ -196,6 +198,7 @@ suspend fun executeResolverTestCases(
     profile: String = "resolver-generated",
     seed: Long,
     fieldCheckerMode: GeneratedFieldCheckerMode = GeneratedFieldCheckerMode.NONE,
+    typeCheckerMode: GeneratedTypeCheckerMode = GeneratedTypeCheckerMode.NONE,
     property: suspend (TestWorld, ResolverTestCase) -> Unit,
 ): ResolverTestRun {
     require(profile.isNotBlank())
@@ -228,6 +231,7 @@ suspend fun executeResolverTestCases(
                     schema = batch.schema,
                     selectiveNodeResolvers = config[SelectiveNodeResolversEnabled],
                     fieldCheckerMode = fieldCheckerMode,
+                    typeCheckerMode = typeCheckerMode,
                 )
             batch.queries.forEachIndexed query@{ queryOffset, query ->
                 val queryIndex = queryOffset + 1

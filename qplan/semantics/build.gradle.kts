@@ -526,6 +526,12 @@ val resolverPropertyProfiles =
         "resolver26-field-checker-mixed" to "generated mixed field checker worlds resolve correctly",
         "resolver26-field-checker-passive" to "generated passive field checker worlds resolve correctly",
         "resolver26-field-checker-root-reference" to "generated root-reference field checker worlds resolve correctly",
+        "resolver23-type-checker-success" to
+            "generated successful type checker worlds resolve correctly",
+        "resolver23-type-checker-denial" to
+            "generated denying type checker worlds resolve correctly",
+        "resolver23-type-checker-mixed" to
+            "generated mixed type checker worlds resolve correctly",
         "resolver23-field-checker-success" to
             "generated successful field checker worlds resolve correctly",
         "resolver23-field-checker-denial" to
@@ -661,70 +667,72 @@ fun registerResolverStressTask(resolverName: String) {
 
 stressResolverNames.forEach(::registerResolverStressTask)
 
-val resolver23FieldCheckerStressSeed =
-    providers
-        .gradleProperty("resolver23FieldCheckerStressSeed")
-        .orElse(providers.systemProperty("resolver23.field.checker.stress.seed"))
-        .orElse(providers.environmentVariable("RESOLVER23_FIELD_CHECKER_STRESS_SEED"))
-val resolver23FieldCheckerStressProfile =
-    providers
-        .gradleProperty("resolver23FieldCheckerStressProfile")
-        .orElse(providers.systemProperty("resolver23.field.checker.stress.profile"))
-        .orElse(providers.environmentVariable("RESOLVER23_FIELD_CHECKER_STRESS_PROFILE"))
-        .orElse("success")
-val resolver23FieldCheckerStressProfiles =
+// Keep the field-only entry point and add a default campaign spanning both checker kinds.
+val resolver23CheckerStressProfiles =
     mapOf(
-        "success" to
-            Pair(
-                "resolver23-field-checker-success",
-                "generated successful field checker worlds resolve correctly",
-            ),
-        "denial" to
-            Pair(
-                "resolver23-field-checker-denial",
-                "generated denying field checker worlds resolve correctly",
-            ),
+        "success" to ("resolver23-field-checker-success" to "generated successful field checker worlds resolve correctly"),
+        "denial" to ("resolver23-field-checker-denial" to "generated denying field checker worlds resolve correctly"),
+        "mixed" to ("resolver23-field-checker-mixed" to "generated mixed field checker worlds resolve correctly"),
+        "type-success" to ("resolver23-type-checker-success" to "generated successful type checker worlds resolve correctly"),
+        "type-denial" to ("resolver23-type-checker-denial" to "generated denying type checker worlds resolve correctly"),
+        "type-mixed" to ("resolver23-type-checker-mixed" to "generated mixed type checker worlds resolve correctly"),
     )
 
-tasks.register<org.gradle.api.tasks.testing.Test>("resolver23FieldCheckerStress") {
-    group = "verification"
-    description = "Runs 2,500 generated Resolver23 field-checker cases for one replayable profile."
-    maxHeapSize = "2g"
-    testClassesDirs = sourceSets["test"].output.classesDirs
-    classpath = sourceSets["test"].runtimeClasspath
-    useJUnitPlatform()
-    outputs.upToDateWhen { false }
-    testLogging {
-        showStandardStreams = true
-    }
+fun registerResolver23CheckerStressTask(
+    taskName: String,
+    propertyStem: String,
+    defaultProfile: String
+) {
+    val systemStem = if (propertyStem == "resolver23FieldCheckerStress") "resolver23.field.checker.stress" else "resolver23.access.checker.stress"
+    val environmentStem = if (propertyStem == "resolver23FieldCheckerStress") "RESOLVER23_FIELD_CHECKER_STRESS" else "RESOLVER23_ACCESS_CHECKER_STRESS"
 
-    doFirst {
-        val seed =
-            resolver23FieldCheckerStressSeed.orNull
-                ?: throw GradleException(
-                    "Set -Presolver23FieldCheckerStressSeed=<long>, " +
-                        "-Dresolver23.field.checker.stress.seed=<long>, or " +
-                        "RESOLVER23_FIELD_CHECKER_STRESS_SEED=<long>",
+    fun setting(name: String) =
+        providers.gradleProperty("$propertyStem$name")
+            .orElse(providers.systemProperty("$systemStem.${name.lowercase()}"))
+            .orElse(providers.environmentVariable("${environmentStem}_${name.uppercase()}"))
+    val seedSetting = setting("Seed")
+    val profileSetting = setting("Profile").orElse(defaultProfile)
+    val sizeSetting = setting("Size").orElse("50:5:10")
+    tasks.register<org.gradle.api.tasks.testing.Test>(taskName) {
+        group = "verification"
+        description = "Runs replayable Resolver23 access-check profiles (2,500 cases per profile by default)."
+        maxHeapSize = "2g"
+        testClassesDirs = sourceSets["test"].output.classesDirs
+        classpath = sourceSets["test"].runtimeClasspath
+        useJUnitPlatform()
+        outputs.upToDateWhen { false }
+        testLogging { showStandardStreams = true }
+        doFirst {
+            val seed = seedSetting.orNull ?: throw GradleException("Set -P${propertyStem}Seed=<long>")
+            seed.toLongOrNull() ?: throw GradleException("${propertyStem}Seed must be a Long: $seed")
+            val selected = profileSetting.get()
+            val profiles = if (selected == "all") {
+                resolver23CheckerStressProfiles.values
+            } else {
+                listOf(
+                    resolver23CheckerStressProfiles[selected] ?: throw GradleException(
+                        "Unknown ${propertyStem}Profile $selected; profiles=all," + resolver23CheckerStressProfiles.keys.joinToString(),
+                    )
                 )
-        seed.toLongOrNull()
-            ?: throw GradleException("resolver23FieldCheckerStressSeed must be a Long: $seed")
-        val selectedProfile = resolver23FieldCheckerStressProfile.get()
-        val (profile, method) =
-            resolver23FieldCheckerStressProfiles[selectedProfile]
-                ?: throw GradleException(
-                    "Unknown resolver23FieldCheckerStressProfile $selectedProfile; profiles=" +
-                        resolver23FieldCheckerStressProfiles.keys.sorted().joinToString(),
-                )
-        filter.includeTestsMatching(
-            "semantics.resolvers.resolver23.ResolverGeneratedTest.$method",
-        )
-        systemProperty("resolver.property.seed", seed)
-        systemProperty("kotest.proptest.default.seed", seed)
-        systemProperty("resolver.property.profile", profile)
-        systemProperty("resolver.property.case", "all")
-        systemProperty("resolver.property.size", "50:5:10")
+            }
+            profiles.forEach { (_, method) ->
+                filter.includeTestsMatching("semantics.resolvers.resolver23.ResolverGeneratedTest.$method")
+            }
+            systemProperty("resolver.property.seed", seed)
+            systemProperty("kotest.proptest.default.seed", seed)
+            if (selected == "all") {
+                systemProperties.remove("resolver.property.profile")
+            } else {
+                systemProperty("resolver.property.profile", profiles.single().first)
+            }
+            systemProperty("resolver.property.case", "all")
+            systemProperty("resolver.property.size", sizeSetting.get())
+        }
     }
 }
+
+registerResolver23CheckerStressTask("resolver23FieldCheckerStress", "resolver23FieldCheckerStress", "success")
+registerResolver23CheckerStressTask("resolver23AccessCheckerStress", "resolver23AccessCheckerStress", "all")
 
 val resolver26BroadStressSize =
     providers

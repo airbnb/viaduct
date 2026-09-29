@@ -132,11 +132,11 @@ object GeneratedCaseAssertions {
             }
         }
 
-    val exactFieldCheckerApplications =
+    val exactCheckerApplications =
         GeneratedCaseAssertion { observation ->
             observation.executions.forEach { execution ->
                 val expected =
-                    execution.result.registeredFieldCheckerApplications(execution.operation)
+                    execution.result.registeredCheckerApplications(execution.operation)
                 assertEquals(
                     expected.groupingBy { application -> application }.eachCount(),
                     execution.checkerApplications

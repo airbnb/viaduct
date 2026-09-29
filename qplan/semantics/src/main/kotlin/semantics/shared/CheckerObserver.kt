@@ -45,6 +45,7 @@ fun interface CheckerObserver {
 
     /** Associates one checker occurrence with its orchestration's shared Query OER. */
     fun onCheckerQueryFragmentPrepared(
+        checkerTarget: ResolverTarget,
         checkerOccurrenceId: ResolverOccurrenceId,
         result: ObjectEngineResult,
     ) = Unit

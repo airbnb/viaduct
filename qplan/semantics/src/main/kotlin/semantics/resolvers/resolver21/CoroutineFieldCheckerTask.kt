@@ -169,6 +169,7 @@ internal class CoroutineFieldCheckerTask private constructor(
                 }
         if (!fragments.queryFragment.constructionSelections.isEmpty()) {
             publication.operation.checkerObserver.onCheckerQueryFragmentPrepared(
+                checker.target,
                 fragments.queryFragment.resolverOccurrenceId,
                 publication.queryOER.occurrence.target,
             )

@@ -131,6 +131,13 @@ internal class CoroutineTypeCheckerTask private constructor(
                         ),
                 )
             }
+        if (!publication.checkerFragments.queryFragment.constructionSelections.isEmpty()) {
+            publication.operation.checkerObserver.onCheckerQueryFragmentPrepared(
+                publication.checker.target,
+                fragmentId,
+                publication.queryOER.occurrence.target,
+            )
+        }
         publication.operation.checkerObserver.onCheckerInvocation(
             CheckerInvocationObservation(
                 checkerKind = CheckerKind.TYPE,

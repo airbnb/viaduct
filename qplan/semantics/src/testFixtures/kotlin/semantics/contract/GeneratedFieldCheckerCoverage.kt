@@ -215,7 +215,8 @@ private fun ArbitraryRegistry.fieldCheckerCoverage(
                 ownersByAssociatedRoot.computeIfAbsent(root) { linkedSetOf() }.add(owner)
             }
         }
-        checkerObserver.allQueryFragmentResults().forEach { (owner, roots) ->
+        checkerObserver.allQueryFragmentResults().forEach { (checkerOwner, roots) ->
+            val owner = checkerOwner.second
             roots.forEach { root ->
                 ownersByAssociatedRoot.computeIfAbsent(root) { linkedSetOf() }.add(owner)
             }
