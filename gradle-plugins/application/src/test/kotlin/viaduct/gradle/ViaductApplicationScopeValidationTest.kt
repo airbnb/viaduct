@@ -59,8 +59,11 @@ class ViaductApplicationScopeValidationTest {
      * them. Scope-consistency validation requires every extension adding a non-tenant-local field to
      * declare `@scope`, so the scoped and unscoped variants differ.
      */
-    private fun writeSchema(scoped: Boolean) {
-        val scope = if (scoped) """ @scope(to: ["public"])""" else ""
+    private fun writeSchema(
+        scoped: Boolean,
+        scopeName: String = "public",
+    ) {
+        val scope = if (scoped) """ @scope(to: ["$scopeName"])""" else ""
         File(projectDir, "src/viaduct/schema").mkdirs()
         File(projectDir, "src/viaduct/schema/schema.graphqls").writeText(
             """
@@ -209,6 +212,37 @@ class ViaductApplicationScopeValidationTest {
         val result = buildAndFail()
 
         result.output shouldContain "OBJECT_OR_INTERFACE_EXTENSION_SCOPE_DIRECTIVE_MISSING"
+    }
+
+    @Test
+    fun `a scope used in the schema but absent from the scopes file fails the build`() {
+        writeSchema(scoped = true, scopeName = "publik")
+        writeScopes(validScopes)
+
+        val result = buildAndFail()
+
+        result.output shouldContain "scoped-schema validation failure(s)"
+        result.output shouldContain "'publik' is not a valid scope name"
+    }
+
+    @Test
+    fun `a declared scope set that cannot be built fails naming the scoped schema`() {
+        writeScopes(
+            """
+            version: 1
+            schemaScopes:
+              - public
+              - private
+            scopedSchemas:
+              - id: PRIVATE_API
+                scopes: [private]
+            """.trimIndent()
+        )
+
+        val result = buildAndFail()
+
+        result.output shouldContain "scoped-schema validation failure(s)"
+        result.output shouldContain "Could not build scoped schema 'PRIVATE_API'"
     }
 
     @Test

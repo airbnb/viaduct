@@ -1,0 +1,11 @@
+version: 1
+
+schemaScopes:
+  - default
+  - extras
+
+scopedSchemas:
+  - id: publicSchema
+    scopes: [default]
+  - id: publicSchemaWithExtras
+    scopes: [default, extras]

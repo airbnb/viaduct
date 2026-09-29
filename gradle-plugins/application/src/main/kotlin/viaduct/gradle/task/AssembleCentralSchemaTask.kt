@@ -1,6 +1,11 @@
 package viaduct.gradle.task
 
+import graphql.parser.MultiSourceReader
+import graphql.schema.GraphQLSchema
+import graphql.schema.idl.SchemaParser
+import graphql.schema.idl.UnExecutableSchemaGenerator
 import java.io.File
+import java.io.StringReader
 import javax.inject.Inject
 import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
@@ -16,6 +21,7 @@ import org.gradle.api.tasks.TaskAction
 import org.slf4j.LoggerFactory
 import viaduct.apiannotations.ExperimentalApi
 import viaduct.gradle.SchemaContributionReconciler
+import viaduct.gradle.ScopedSchemaValidator
 import viaduct.gradle.ViaductApplicationPlugin
 import viaduct.gradle.ViaductApplicationPlugin.Companion.BUILTIN_SCHEMA_FILE
 import viaduct.gradle.ViaductSchemaValidator
@@ -138,11 +144,46 @@ abstract class AssembleCentralSchemaTask
             val sdlFile = outputDirectory.get().asFile.resolve(BUILTIN_SCHEMA_FILE)
             sdlFile.writeText(sdl)
 
+            val completeSchemaFiles = allSchemaFiles + sdlFile
             validateCompleteSchema(
-                schemaFiles = allSchemaFiles + sdlFile,
+                schemaFiles = completeSchemaFiles,
                 excludeFromViaductValidation = listOf(sdlFile),
                 scoping = scoping,
             )
+            validateDeclaredScopedSchemas(completeSchemaFiles, scoping)
+        }
+
+        /**
+         * Runs only after [validateCompleteSchema]: a schema that is not valid unscoped cannot produce a
+         * meaningful scoped projection.
+         */
+        private fun validateDeclaredScopedSchemas(
+            schemaFiles: Collection<File>,
+            scoping: SchemaScoping,
+        ) {
+            if (!scoping.isScoped) return
+            val logger = LoggerFactory.getLogger(ViaductApplicationPlugin::class.java)
+            val failures = ScopedSchemaValidator.validate(parseSchema(schemaFiles), scoping)
+            if (failures.isEmpty()) {
+                logger.info("Declared scoped schemas validated successfully.")
+                return
+            }
+            failures.forEach { logger.error(it) }
+            throw GradleException(
+                "${failures.size} scoped-schema validation failure(s). See errors above.",
+            )
+        }
+
+        private fun parseSchema(schemaFiles: Collection<File>): GraphQLSchema {
+            val reader = MultiSourceReader.newMultiSourceReader()
+                .apply {
+                    schemaFiles.forEach { file ->
+                        reader(StringReader(file.readText(Charsets.UTF_8)), file.path)
+                    }
+                }
+                .trackData(true)
+                .build()
+            return UnExecutableSchemaGenerator.makeUnExecutableSchema(SchemaParser().parse(reader))
         }
 
         private fun validateCompleteSchema(
