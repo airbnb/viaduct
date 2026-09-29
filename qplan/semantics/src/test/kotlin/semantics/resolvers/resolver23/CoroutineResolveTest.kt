@@ -7,6 +7,7 @@ import semantics.contract.CoroutineResolverContract
 import semantics.contract.CoroutineResolverTestSubject
 import semantics.contract.FragmentFreeFieldCheckerEnforcementContract
 import semantics.contract.FragmentFreeFieldCheckerPublicationContract
+import semantics.contract.FragmentFreeTypeCheckerEnforcementContract
 import semantics.contract.GroundedFieldCheckerCapabilityContract
 import semantics.contract.GroundedFieldCheckerObjectFragmentContract
 import semantics.contract.GroundedFieldCheckerQueryFragmentContract
@@ -21,6 +22,7 @@ class CoroutineResolveTest :
     CoroutineResolverContract,
     FragmentFreeFieldCheckerPublicationContract,
     FragmentFreeFieldCheckerEnforcementContract,
+    FragmentFreeTypeCheckerEnforcementContract,
     GroundedFieldCheckerCapabilityContract,
     GroundedFieldCheckerObjectFragmentContract,
     GroundedFieldCheckerQueryFragmentContract,
