@@ -26,19 +26,19 @@ Resolver10 is a source of warnings, not a debugging baseline: readiness rescanni
 Run commands from `qplan/`.
 
 ```shell
-./gradlew check
+../gradlew -p . check
 ```
 
-`check` covers ordinary model, arbitrary, semantics, and documentation checks. It excludes deep stress, broad campaigns, and multithreaded stress.
+`check` covers ordinary model, arbitrary, semantics, execution, and documentation checks. It excludes deep stress, broad campaigns, and multithreaded stress.
 
 Use the narrowest relevant module or test class before broadening:
 
 ```shell
-./gradlew :model:test
-./gradlew :arbitrary:test
-./gradlew :semantics:test
-./gradlew :semantics:test --tests 'semantics.resolver26.SymbolicKeyIdentityTest'
-./gradlew :semantics:test --tests 'semantics.resolver26.*'
+../gradlew -p . :model:test
+../gradlew -p . :arbitrary:test
+../gradlew -p . :semantics:test
+../gradlew -p . :semantics:test --tests 'semantics.resolver26.SymbolicKeyIdentityTest'
+../gradlew -p . :semantics:test --tests 'semantics.resolver26.*'
 ```
 
 Resolver26 concurrency, stress, and CPU-probe commands live in [`testing-resolver26.md`](./semantics/src/main/kotlin/semantics/resolver26/testing-resolver26.md). Benchmark commands and reporting requirements live in [`resolver-benchmarks.md`](./semantics/resolver-benchmarks.md).
@@ -48,7 +48,7 @@ Resolver26 concurrency, stress, and CPU-probe commands live in [`testing-resolve
 Generated failures report a profile, seed, one-based `S:R:Q` coordinate, schema, registry, and query. Replay that exact coordinate before rerunning a class or campaign:
 
 ```shell
-./gradlew :semantics:resolverPropertyReplay \
+../gradlew -p . :semantics:resolverPropertyReplay \
   -PresolverPropertyClass=semantics.resolver26.ResolverGeneratedTest \
   -PresolverPropertyProfile=feature-interaction \
   -PresolverPropertySeed=424242 \

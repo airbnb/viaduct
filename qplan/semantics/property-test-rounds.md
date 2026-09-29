@@ -21,7 +21,7 @@ The campaign JUnit tests deserialize and expand the same campaign resources befo
 Install the launcher once:
 
 ```shell
-./gradlew :semantics:installPropertyTestRoundLauncher
+../gradlew -p . :semantics:installPropertyTestRoundLauncher
 ```
 
 Run one round from a checked-in or external campaign:
@@ -57,7 +57,7 @@ The driver asks the Kotlin launcher for the configured round numbers, performs t
 Campaign JSON is authored directly. Generator profiles originate as typed Kotlin `Config` values in the Resolver26 broad-stress profile definitions. After adding, removing, or renaming a `ConfigKey`, or after changing a typed generator profile, regenerate the complete resources with:
 
 ```shell
-./gradlew :semantics:materializeGeneratorConfigs
+../gradlew -p . :semantics:materializeGeneratorConfigs
 ```
 
 Review and check in the resulting generator JSON changes with the schema or profile change, then run the affected campaign and inspect its exercised coverage. Adjust the typed profile and repeat as needed. Format versions must be incremented deliberately when wire semantics change.

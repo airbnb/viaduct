@@ -10,6 +10,14 @@ Qplan models resolver object fragments and independently resolved Query-rooted f
 
 The longer-term [runtime2 integration plan](https://slate.airbnb.tools/hSFpbNvtAN) centers Resolver26 as the production algorithm and retains earlier families in unpublished development support outside `main`. [`resolver-versions.md`](./resolver-versions.md#production-direction-and-package-ownership) explains how that direction guides today's package ownership. The plan owns the integration milestones and supported subset; implementing runtime2 remains separate from an ordinary qplan refactor.
 
+## Build and IDE Setup
+
+Open the repository root in IntelliJ and import its Gradle build. Qplan is an included build, and its four modules participate in the root compilation, test, and static-analysis tasks. This build integration does not publish qplan or change its runtime2 integration status.
+
+Use the repository's Gradle wrapper. From the repository root, run `./gradlew :qplan:build` for qplan's ordinary build and checks, or `./gradlew -p qplan check` for a focused build. Commands elsewhere in the qplan documentation run from `qplan/` and use `../gradlew -p .`; qplan has no separate wrapper.
+
+Configuration caching remains disabled for qplan. Its tasks opt out when invoked through the root build, whose configuration-cache setting otherwise takes precedence; invocations that include qplan tasks discard the configuration cache. Qplan retains its settings, Gradle properties, and daemon JVM pin so focused builds use the same modules, conventions, dependencies, and JDK as the composite build. The vendored GraphQL specification, stress campaigns, and benchmark execution remain opt-in.
+
 ## Documentation Map
 
 - [`handoff.md`](./handoff.md) records the current implementation state, carrier boundaries, validation evidence, and longer-term context.

@@ -27,8 +27,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "qplanning"
-
 includeBuild("../build-logic")
 includeBuild("../core")
 includeBuild("spec") {

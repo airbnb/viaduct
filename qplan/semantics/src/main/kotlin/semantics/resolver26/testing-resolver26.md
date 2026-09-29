@@ -25,31 +25,31 @@ Keep this division strict when adding instrumentation: capture concurrent events
 Run all non-stress Resolver26 tests on the default single thread:
 
 ```shell
-./gradlew :semantics:test --tests 'semantics.resolver26.*'
+../gradlew -p . :semantics:test --tests 'semantics.resolver26.*'
 ```
 
 Run the same static, generated, witness, and mutation suite with five resolution threads:
 
 ```shell
-./gradlew :semantics:test --tests 'semantics.resolver26.*' -Pviaduct.resolution.threadcount=5
+../gradlew -p . :semantics:test --tests 'semantics.resolver26.*' -Pviaduct.resolution.threadcount=5
 ```
 
 Run one class or test method by using the normal Gradle test filter and the same thread-count property:
 
 ```shell
-./gradlew :semantics:test --tests 'semantics.resolver26.SymbolicKeyIdentityTest' -Pviaduct.resolution.threadcount=2
+../gradlew -p . :semantics:test --tests 'semantics.resolver26.SymbolicKeyIdentityTest' -Pviaduct.resolution.threadcount=2
 ```
 
 Run the generated Resolver26 contracts under a fixed property seed:
 
 ```shell
-./gradlew :semantics:test --tests 'semantics.resolver26.ResolverGeneratedTest' -PresolverPropertySeed=424242 -Pviaduct.resolution.threadcount=5
+../gradlew -p . :semantics:test --tests 'semantics.resolver26.ResolverGeneratedTest' -PresolverPropertySeed=424242 -Pviaduct.resolution.threadcount=5
 ```
 
 Replay one exact generated coordinate with the same concurrency:
 
 ```shell
-./gradlew :semantics:resolverPropertyReplay -PresolverPropertyClass=semantics.resolver26.ResolverGeneratedTest -PresolverPropertyProfile=feature-interaction -PresolverPropertySeed=424242 -PresolverPropertyCase=2:2:1 -Pviaduct.resolution.threadcount=5
+../gradlew -p . :semantics:resolverPropertyReplay -PresolverPropertyClass=semantics.resolver26.ResolverGeneratedTest -PresolverPropertyProfile=feature-interaction -PresolverPropertySeed=424242 -PresolverPropertyCase=2:2:1 -Pviaduct.resolution.threadcount=5
 ```
 
 ## Stress Runs
@@ -57,16 +57,16 @@ Replay one exact generated coordinate with the same concurrency:
 Run the recursive deep stress property with a fixed seed and optional case count:
 
 ```shell
-RESOLVER26_STRESS_CASES=100000 ./gradlew :semantics:resolver26Stress -Presolver26StressSeed=424242 -Pviaduct.resolution.threadcount=5
+RESOLVER26_STRESS_CASES=100000 ../gradlew -p . :semantics:resolver26Stress -Presolver26StressSeed=424242 -Pviaduct.resolution.threadcount=5
 ```
 
 Resolver26 deep stress enables root-field references and fails unless it both generates and invokes at least one, so the usual `resolver26Stress` command cannot pass after exercising only the older feature set. Run the focused 250-case product when the root-reference interactions themselves are the subject:
 
 ```shell
-./gradlew :semantics:resolver26RootFieldReferenceFocused
+../gradlew -p . :semantics:resolver26RootFieldReferenceFocused
 
 # Optional seed override
-./gradlew :semantics:resolver26RootFieldReferenceFocused -Presolver26RootFieldReferenceFocusedSeed=2026091001
+../gradlew -p . :semantics:resolver26RootFieldReferenceFocused -Presolver26RootFieldReferenceFocusedSeed=2026091001
 ```
 
 The focused task hard-requires observed namespace depths two, three, and four; zero-, one-, and four-argument targets; scalar, enum, concrete-object, interface, and union targets; list-element references; a three-hop reference tail; active fallback; registered-resolver override; extension resolver applications below published referenced results; and target Query-fragment applications using `FromArgument` and `FromQueryField`. Every ordinary Resolver26 broad profile also enables the fixed family and requires generated and activated references, so persisted broad campaigns retain a second mandatory coverage path.
@@ -74,16 +74,16 @@ The focused task hard-requires observed namespace depths two, three, and four; z
 Run one unfiltered broad product by choosing a directed profile, seed, and `S:R:Q` dimensions:
 
 ```shell
-./gradlew :semantics:resolver26BroadStress -Presolver26BroadStressProfile=multiple-owners -Presolver26BroadStressSeed=424242 -Presolver26BroadStressSize=20:10:50 -Pviaduct.resolution.threadcount=5
+../gradlew -p . :semantics:resolver26BroadStress -Presolver26BroadStressProfile=multiple-owners -Presolver26BroadStressSeed=424242 -Presolver26BroadStressSize=20:10:50 -Pviaduct.resolution.threadcount=5
 ```
 
 Every Resolver26 broad profile includes a forced great-grandparent path: its deepest resolver input selects `parent.parent.parent`, queries activate that resolver, and generated variables are never inserted directly beneath a parent selection. Generated resolver value plans also retain `@parent` fields, and the parent-enabled harness requires evidence that at least one resolver output supplies one. The dedicated parent-focused stress generates a `40:5:5` product and reports it as four consecutive 250-case, 10-schema slices. It supplements the fixed spine with independently shaped parent chains and records parent fields actually present in materialized resolver inputs, separating fixed-spine and random activations and reporting a consecutive parent-depth histogram. Its coverage analyzer attributes selected resolvers to every enclosing materialized parent selection set; reports exact variable-bearing argument selections in those resolvers' object and Query inputs by depth, fragment, and `FromArgument`/`FromObjectField`/`FromQueryField` source combination; and measures diagonal demand when a resolver selected beneath one parent independently starts another top-level parent chain. Exact registered-occurrence accounting also identifies source-supplied active fields whose skipped standard resolver has parent input demand, records their maximum parent depths, and hard-requires at least one such speculative-demand occurrence. Each slice prints an unambiguous `HIT` or `MISS` for nine criteria, and the combined report summarizes both how many slices completely hit each criterion and how many generated cases contributed any evidence, including per-slice instance counts: parent topology, resolver placement, variable sources, mixed source pairs, input locations, argument-selection depths, diagonal depths, variable-source/input-fragment combinations on diagonals, and sometimes-passive parent demand. Individual-slice misses remain diagnostic, but a miss in the combined four-slice coverage fails the test; resolution, binding, occurrence-accounting, the combined sometimes-passive-parent activation requirement, and forbidden direct-variable invariants remain independent assertions. `ParentQueryFragmentVariableResolverContract` deterministically covers Query-fragment variable use on diagonal parent demand for all three binding sources, independent of whether a random run reports a hit. Run the randomized profile with:
 
 ```shell
-./gradlew :semantics:resolver26ParentFocused
+../gradlew -p . :semantics:resolver26ParentFocused
 
 # Optional seed override
-./gradlew :semantics:resolver26ParentFocused -Presolver26ParentFocusedSeed=2026090403
+../gradlew -p . :semantics:resolver26ParentFocused -Presolver26ParentFocusedSeed=2026090403
 ```
 
 Run one persisted five-profile campaign round:
@@ -97,13 +97,13 @@ env 'viaduct.resolution.threadcount=5' ./run-property-test-campaign.sh \
 Run the dispatcher-instrumented campaign with selected rounds and either each round's recorded dimensions or one overriding size:
 
 ```shell
-./gradlew :semantics:resolver26MultithreadedStress -Presolver26MultithreadedStressRounds=1,46,81,95 -Presolver26MultithreadedStressSize=campaign -Pviaduct.resolution.threadcount=10
+../gradlew -p . :semantics:resolver26MultithreadedStress -Presolver26MultithreadedStressRounds=1,46,81,95 -Presolver26MultithreadedStressSize=campaign -Pviaduct.resolution.threadcount=10
 ```
 
 With no overrides, the dedicated task runs round 1 at its recorded campaign dimensions: five profiles of 2,000 cases, for 10,000 cases total, on 100 threads:
 
 ```shell
-./gradlew :semantics:resolver26MultithreadedStress
+../gradlew -p . :semantics:resolver26MultithreadedStress
 ```
 
 The dedicated multithreaded task records continuation overlap and thread names. Its assertions are useful scheduling evidence, but external OS observation is the stronger check that those threads actually execute on multiple CPUs.
@@ -117,8 +117,8 @@ The runtime checker distributions use `ResolverFragmentDepth=1`: two independent
 Run the 2,500-case checker workload with a recorded seed; select 100 resolution threads for concurrent accounting:
 
 ```shell
-./gradlew :semantics:resolver26FieldCheckerStress -Presolver26FieldCheckerStressSeed=424242
-./gradlew :semantics:resolver26FieldCheckerStress -Presolver26FieldCheckerStressSeed=424242 -Presolver26FieldCheckerStressProfile=denial -Pviaduct.resolution.threadcount=100
+../gradlew -p . :semantics:resolver26FieldCheckerStress -Presolver26FieldCheckerStressSeed=424242
+../gradlew -p . :semantics:resolver26FieldCheckerStress -Presolver26FieldCheckerStressSeed=424242 -Presolver26FieldCheckerStressProfile=denial -Pviaduct.resolution.threadcount=100
 ```
 
 Profiles accept `success`, `denial`, `mixed`, `passive`, or `root-reference`; `resolver26FieldCheckerStressSize` overrides the default `50:5:10` product. Replay failures through `resolverPropertyReplay` with class `semantics.resolver26.FieldCheckerGeneratedTest`, the reported profile and seed, the original `resolverPropertySize`, and the selected `resolverPropertyCase=S:R:Q`. The original size is essential because changing registry/query counts changes random-number consumption before the selected coordinate.
@@ -129,7 +129,7 @@ Use a sufficiently deep run and at least two Resolver26 threads; very small case
 
 ```shell
 mkdir -p build/reports/resolver26-cpu-probe
-./gradlew :semantics:resolver26MultithreadedStress -Presolver26MultithreadedStressRounds=81 -Presolver26MultithreadedStressSize=20:10:10 -Pviaduct.resolution.threadcount=10 --rerun-tasks --console=plain >build/reports/resolver26-cpu-probe/run.log 2>&1 &
+../gradlew -p . :semantics:resolver26MultithreadedStress -Presolver26MultithreadedStressRounds=81 -Presolver26MultithreadedStressSize=20:10:10 -Pviaduct.resolution.threadcount=10 --rerun-tasks --console=plain >build/reports/resolver26-cpu-probe/run.log 2>&1 &
 gradle_pid=$!
 while ! worker_pid=$(jps -lv | awk '/GradleWorkerMain/ { print $1; exit }') || [[ -z $worker_pid ]]; do sleep 1; done
 pidstat -t -p "$worker_pid" 1 8 | tee build/reports/resolver26-cpu-probe/pidstat.log

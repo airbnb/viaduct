@@ -9,7 +9,7 @@ pids=()
 
 for resolver in "${resolvers[@]}"; do
   log="resolver${resolver}-stress.log"
-  ./gradlew \
+  ../gradlew -p . \
     ":semantics:resolver${resolver}Stress" \
     "-Presolver${resolver}StressSeed=$seed" \
     --console=plain \

@@ -2,6 +2,12 @@ plugins {
     id("buildroot.orchestration")
 }
 
+allprojects {
+    tasks.configureEach {
+        notCompatibleWithConfigurationCache("Qplan keeps configuration caching off, including in root builds.")
+    }
+}
+
 data class DocumentationLabel(
     val kind: String,
     val label: String,

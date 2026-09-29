@@ -67,10 +67,10 @@ Classify failures as resolver, generator, oracle, campaign, or resource-envelope
 Run generator tests with:
 
 ```shell
-./gradlew :arbitrary:test
+../gradlew -p . :arbitrary:test
 ```
 
-Resolver properties live in `semantics` and are included in `./gradlew check`. Deep stress and broad campaigns are opt-in and require explicit seeds.
+Resolver properties live in `semantics` and are included in `../gradlew -p . check`. Deep stress and broad campaigns are opt-in and require explicit seeds.
 
 ## Resolution Witnesses
 

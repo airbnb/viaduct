@@ -148,13 +148,13 @@ Update both metadata lines whenever source location or test counts change. Count
 Run the adapter, declaration tests, and every ported production feature-test file with:
 
 ```shell
-./gradlew :execution:test \
+../gradlew -p . :execution:test \
   --tests execution.EngineTestModuleQPlanFeatureTest \
   --tests 'execution.viaductfeaturetests.*' \
   --tests execution.testing.ExecutorVariableDeclarationsTest
 ```
 
-Run the complete execution suite with `./gradlew :execution:test`, and run every qplan validation gate with `./gradlew check`.
+Run the complete execution suite with `../gradlew -p . :execution:test`, and run every qplan validation gate with `../gradlew -p . check`.
 
 ## Next Steps
 

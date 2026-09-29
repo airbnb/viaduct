@@ -18,7 +18,7 @@ launcher="$PWD/semantics/build/install/property-test-round/bin/property-test-rou
 mkdir -p -- "$report_dir"
 
 printf 'Building the direct property-test round launcher\n'
-./gradlew :semantics:installPropertyTestRoundLauncher --console=plain
+../gradlew -p . :semantics:installPropertyTestRoundLauncher --console=plain
 
 if (( $# > 0 )); then
   rounds=("$@")

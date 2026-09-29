@@ -132,7 +132,7 @@ Ordinary generated profiles check whole-result value correctness and completed-r
 Run the opt-in Resolver23 checker stress profile with an explicit seed and outcome:
 
 ```shell
-./gradlew :semantics:resolver23FieldCheckerStress \
+../gradlew -p . :semantics:resolver23FieldCheckerStress \
   -Presolver23FieldCheckerStressSeed=424242 \
   -Presolver23FieldCheckerStressProfile=success
 ```
@@ -152,7 +152,7 @@ Profile IDs are part of the replay interface and must remain stable.
 For a failure reporting concrete `S`, `R`, and `Q`, replay that coordinate:
 
 ```shell
-./gradlew :semantics:resolverPropertyReplay \
+../gradlew -p . :semantics:resolverPropertyReplay \
   -PresolverPropertyClass=semantics.resolvers.resolver02.ResolverGeneratedTest \
   -PresolverPropertyProfile=node \
   -PresolverPropertySeed=424242 \
@@ -164,7 +164,7 @@ Coordinate replay regenerates through schema iteration `S` to preserve the rando
 For an aggregate `S=all R=all Q=all` failure, replay the full profile:
 
 ```shell
-./gradlew :semantics:resolverPropertyReplay \
+../gradlew -p . :semantics:resolverPropertyReplay \
   -PresolverPropertyClass=semantics.resolvers.resolver02.ResolverGeneratedTest \
   -PresolverPropertyProfile=node \
   -PresolverPropertySeed=424242 \
@@ -178,7 +178,7 @@ Every failure reports its profile, seed, coordinates, schema, registry, and quer
 For cross-profile debugging, run the concrete class with only the seed:
 
 ```shell
-./gradlew :semantics:test \
+../gradlew -p . :semantics:test \
   --tests 'semantics.resolvers.resolver02.ResolverGeneratedTest' \
   -PresolverPropertySeed=424242
 ```
@@ -206,7 +206,7 @@ The campaign script builds the standalone property-test launcher once and invoke
 Replay one profile or exact coordinate from that round with:
 
 ```shell
-./gradlew :semantics:resolver26BroadStressCampaign \
+../gradlew -p . :semantics:resolver26BroadStressCampaign \
   -Presolver26BroadStressCampaignRound=21 \
   -Presolver26BroadStressCampaignProfile=multiple-owners \
   -PresolverPropertyCase=18:4:1
@@ -234,4 +234,4 @@ Configure `SharedOperationContext.resolverObserver` when observing resolver exec
 
 The runtime checker distributions use `ResolverFragmentDepth=1`: two independently bound named pairs can multiply symbolic dependency trees, so copying depth-two fragments at every registered coordinate produced a case with over 129,000 resolver invocations before the 15-second request bound. This limit bounds random workload construction without changing request timeouts, per-case oracles, or required activation signatures. Fixed parent spines still exercise multilevel parent demand, and deterministic contracts retain nested fragment and named-provider combinations. The grounded Resolver23 distributions retain depth two.
 
-Run the replayable stress task from `qplan/`: `./gradlew :semantics:resolver26FieldCheckerStress -Presolver26FieldCheckerStressSeed=424242`. Its default size is `50:5:10` (2,500 cases), its profile defaults to `success`, and `-Presolver26FieldCheckerStressProfile=denial` selects denial. It also accepts `mixed`, `passive`, and `root-reference`, and a `-Presolver26FieldCheckerStressSize=<schemas>:<registries>:<queries>` override. Set `-Pviaduct.resolution.threadcount=100` for concurrent execution with the same oracle and exactness assertions. Failures use the ordinary `resolverPropertyReplay` task with the reported `resolver26-field-checker-*` profile, seed, size, and coordinates.
+Run the replayable stress task from `qplan/`: `../gradlew -p . :semantics:resolver26FieldCheckerStress -Presolver26FieldCheckerStressSeed=424242`. Its default size is `50:5:10` (2,500 cases), its profile defaults to `success`, and `-Presolver26FieldCheckerStressProfile=denial` selects denial. It also accepts `mixed`, `passive`, and `root-reference`, and a `-Presolver26FieldCheckerStressSize=<schemas>:<registries>:<queries>` override. Set `-Pviaduct.resolution.threadcount=100` for concurrent execution with the same oracle and exactness assertions. Failures use the ordinary `resolverPropertyReplay` task with the reported `resolver26-field-checker-*` profile, seed, size, and coordinates.

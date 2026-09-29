@@ -19,7 +19,7 @@ The full Resolver26 benchmark intentionally has no dedicated profiling task. It 
 Run:
 
 ```shell
-./gradlew :semantics:resolver26OverheadProfile --console=plain
+../gradlew -p . :semantics:resolver26OverheadProfile --console=plain
 ```
 
 The task prepares the fixed query corpus before each invocation, runs one unrecorded warmup iteration, and records one measured iteration. Recording begins after invocation setup and ends immediately after the measured Resolver26 body. The default recording is `semantics/build/reports/resolver-benchmarks/resolver26-overhead.jfr`.
@@ -27,7 +27,7 @@ The task prepares the fixed query corpus before each invocation, runs one unreco
 The profile uses the same controls as the overhead benchmark:
 
 ```shell
-./gradlew :semantics:resolver26OverheadProfile \
+../gradlew -p . :semantics:resolver26OverheadProfile \
   -PresolverBenchmarkLoopCount=3 \
   --console=plain
 ```
@@ -39,7 +39,7 @@ Increasing `resolverBenchmarkLoopCount` repeats the already prepared corpus insi
 Run:
 
 ```shell
-./gradlew :semantics:correctResolutionProfile --console=plain
+../gradlew -p . :semantics:correctResolutionProfile --console=plain
 ```
 
 Trial setup creates the prepared corpus and verifies every judgment. The task then runs one unrecorded warmup iteration and records one measured iteration containing only calls to `correctResolution`. The default recording is `semantics/build/reports/resolver-benchmarks/correct-resolution.jfr`.
@@ -47,7 +47,7 @@ Trial setup creates the prepared corpus and verifies every judgment. The task th
 The profile uses the same controls as the benchmark:
 
 ```shell
-./gradlew :semantics:correctResolutionProfile \
+../gradlew -p . :semantics:correctResolutionProfile \
   -PcorrectResolutionBenchmarkInputCount=50 \
   -PcorrectResolutionBenchmarkQuerySeed=1 \
   -PcorrectResolutionBenchmarkLoopCount=3 \
@@ -61,7 +61,7 @@ Resolver and object-materialization frames are legitimate in this recording beca
 Run:
 
 ```shell
-./gradlew :semantics:propertyTestProfile --console=plain
+../gradlew -p . :semantics:propertyTestProfile --console=plain
 ```
 
 The task loads the frozen Resolver26 broad-campaign case, runs one unrecorded warmup case, and records one measured case. The recording includes request preparation, Resolver26, witness snapshotting, application-identity reconstruction and comparison, `correctResolution`, and from-field binding validation. Resource decoding and `TestWorld` assembly occur during trial setup and are excluded. The default recording is `semantics/build/reports/resolver-benchmarks/property-test.jfr`.
@@ -69,7 +69,7 @@ The task loads the frozen Resolver26 broad-campaign case, runs one unrecorded wa
 Repeat the frozen case inside the recording with:
 
 ```shell
-./gradlew :semantics:propertyTestProfile \
+../gradlew -p . :semantics:propertyTestProfile \
   -PpropertyTestBenchmarkLoopCount=3 \
   --console=plain
 ```
