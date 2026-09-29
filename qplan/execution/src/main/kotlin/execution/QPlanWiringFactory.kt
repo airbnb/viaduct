@@ -246,8 +246,8 @@ private fun EngineResultCell.preferredTerminalFailureOrNull(): Exception? {
     var allCheckersCompleted = true
     val checkerPromises =
         buildList {
-            if (isFieldCheckerResultSet()) add(getFieldCheckerResult())
-            val valuePromise = getValue()
+            add(fieldCheckerResult)
+            val valuePromise = value
             if (valuePromise.isCompleted) {
                 val value =
                     try {
@@ -255,8 +255,8 @@ private fun EngineResultCell.preferredTerminalFailureOrNull(): Exception? {
                     } catch (failure: Exception) {
                         return failure
                     }
-                if (value is ObjectEngineResult && value.isTypeCheckerResultSet()) {
-                    add(value.getTypeCheckerResult())
+                if (value is ObjectEngineResult) {
+                    add(value.typeCheckerResult)
                 }
             }
         }

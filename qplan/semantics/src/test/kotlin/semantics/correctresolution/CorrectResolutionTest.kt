@@ -317,17 +317,21 @@ class CorrectResolutionTest : Resolver26DispatcherResource {
         ): ObjectEngineResult =
             ObjectEngineResult.of(world.schema.requireQueryTypeDef(), mutable = true).apply {
                 reserveCell(checkedKey).apply {
-                    setValue(11)
-                    if (includeCheckerSlot) setFieldCheckerResult(CheckerResult.Success)
+                    value.set(11)
+                    fieldCheckerResult.complete(
+                        if (includeCheckerSlot) CheckerResult.Success else null,
+                    )
                 }
                 if (includeObjectSource) {
-                    setCellValue(
+                    reserveCell(
                         ObjectEngineResult.GroundKey.of(
                             world.schema.requireObjectField("Query", "objectSource"),
                             emptyMap(),
                         ),
-                        7,
-                    )
+                    ).apply {
+                        value.set(7)
+                        fieldCheckerResult.complete(null)
+                    }
                 }
                 freeze()
             }
@@ -517,10 +521,13 @@ class CorrectResolutionTest : Resolver26DispatcherResource {
         val result =
             ObjectEngineResult.of(world.schema.requireQueryTypeDef(), mutable = true).apply {
                 reserveCell(deniedKey).apply {
-                    setValue(1)
-                    setFieldCheckerResult(denial)
+                    value.set(1)
+                    fieldCheckerResult.complete(denial)
                 }
-                setCellValue(consumerKey, 3)
+                reserveCell(consumerKey).apply {
+                    value.set(3)
+                    fieldCheckerResult.complete(null)
+                }
                 freeze()
             }
         val fragment = world.fragmentFrom("fragment Query on Query { consumer }")
@@ -615,10 +622,12 @@ class CorrectResolutionTest : Resolver26DispatcherResource {
                 arguments = Arguments.of(source, mapOf("value" to variable)),
             )
         result.reserveCell(symbolicSourceKey).apply {
-            setValue(99)
+            value.set(99)
+            fieldCheckerResult.complete(null)
         }
         result.reserveCell(consumerKey).apply {
-            setValue(99)
+            value.set(99)
+            fieldCheckerResult.complete(null)
         }
         result.freeze()
         val selections =
@@ -760,20 +769,22 @@ class CorrectResolutionTest : Resolver26DispatcherResource {
                     world.schema.requireType("Child") as ViaductSchema.Object,
                     mutable = true,
                 )
-            child.setCellValue(
+            val parentKey =
                 ObjectEngineResult.ParentKey.of(
                     world.schema.requireObjectField("Child", "parent"),
-                ),
-                if (correctParent) root else world.engineResultOf("Query"),
-            )
+                )
+            child.reserveCell(parentKey).apply {
+                value.set(if (correctParent) root else world.engineResultOf("Query"))
+                fieldCheckerResult.complete(null)
+            }
             child.freeze()
-            root.setCellValue(
+            val childKey =
                 ObjectEngineResult.GroundKey.of(
                     world.schema.requireObjectField("Query", "child"),
                     emptyMap(),
-                ),
-                child,
-            )
+                )
+            root.setCellValue(childKey, child)
+            root.getCell(childKey).fieldCheckerResult.complete(null)
             root.freeze()
             return root
         }

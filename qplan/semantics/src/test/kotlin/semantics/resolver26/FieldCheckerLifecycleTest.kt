@@ -47,15 +47,15 @@ class FieldCheckerLifecycleTest : Resolver26DispatcherResource {
         val operation = SharedOperationContext.create(world.assumptions, checkerObserver = recorder)
         val result = operation.resolveWithTestDispatcher(world.assumptions.operationSelectionsFrom("{ checked }"))
         val key = ObjectEngineResult.GroundKey.of(world.schema.requireObjectField("Query", "checked"), emptyMap())
-        assertEquals(1, result.getCell(key).getValue().get())
-        assertSame(failure, assertFailsWith<IllegalStateException> { result.getCell(key).getFieldCheckerResult().get() })
+        assertEquals(1, result.getCell(key).value.get())
+        assertSame(failure, assertFailsWith<IllegalStateException> { result.getCell(key).fieldCheckerResult.get() })
         val fragments = checkNotNull(world.assumptions.resolverRegistry.fieldChecker(key.field))
             .instantiateFragmentsAt(result, listOf(key))
         fragments.objectFragment.variableDefinitions.forEach { definition ->
             assertSame(VariableBinding.Error, operation.variableBindings.getBinding(requireNotNull(definition.variable.instanceId)))
         }
         val dependency = result.keys.single { it.field.name == "dependency" }
-        assertIs<ErrorEngineResult>(result.getCell(dependency).getValue().get())
+        assertIs<ErrorEngineResult>(result.getCell(dependency).value.get())
         assertTrue(recorder.checkerApplications().isEmpty())
     }
 
@@ -168,7 +168,7 @@ class FieldCheckerLifecycleTest : Resolver26DispatcherResource {
         result: ObjectEngineResult
     ) {
         val key = ObjectEngineResult.GroundKey.of(world.schema.requireObjectField("Query", "checked"), emptyMap())
-        assertFailsWith<CancellationException> { result.getCell(key).getFieldCheckerResult().get() }
+        assertFailsWith<CancellationException> { result.getCell(key).fieldCheckerResult.get() }
         val fragments = checkNotNull(world.assumptions.resolverRegistry.fieldChecker(key.field)).instantiateFragmentsAt(result, listOf(key))
         fragments.objectFragment.variableDefinitions.forEach { definition ->
             val id = requireNotNull(definition.variable.instanceId)

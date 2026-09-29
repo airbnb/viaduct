@@ -504,7 +504,7 @@ private fun ObjectEngineResult.value(
             world.schema.requireObjectField(typeName, fieldName),
             arguments,
         ),
-    ).getValue().get()
+    ).value.get()
 
 private class EnforcementCheckerError(message: String) : CheckerResult.Error {
     override val error: Exception = IllegalStateException(message)

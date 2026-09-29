@@ -422,10 +422,10 @@ interface GroundedFieldCheckerQueryFragmentContract {
         assertSame(
             failure,
             assertFailsWith<IllegalStateException> {
-                checkedCell.getFieldCheckerResult().get()
+                checkedCell.fieldCheckerResult.get()
             },
         )
-        assertEquals(1, checkedCell.getValue().get())
+        assertEquals(1, checkedCell.value.get())
     }
 
     @Test
@@ -453,7 +453,7 @@ interface GroundedFieldCheckerQueryFragmentContract {
 
             val checkerFailure =
                 assertFailsWith<CancellationException> {
-                    result.cell(world, "Query", "checked").getFieldCheckerResult().await()
+                    result.cell(world, "Query", "checked").fieldCheckerResult.await()
                 }
             assertEquals(cancellation.message, checkerFailure.message)
             assertFalse(checkerInvoked.get())
@@ -580,4 +580,4 @@ private fun ObjectEngineResult.objectValue(
     world: model.Assumptions,
     typeName: String,
     fieldName: String,
-): ObjectEngineResult = assertIs(cell(world, typeName, fieldName).getValue().get())
+): ObjectEngineResult = assertIs(cell(world, typeName, fieldName).value.get())

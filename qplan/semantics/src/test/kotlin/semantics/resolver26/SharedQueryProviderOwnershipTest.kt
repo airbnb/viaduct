@@ -144,7 +144,7 @@ class SharedQueryProviderOwnershipTest : Resolver26DispatcherResource {
                         world.schema.requireObjectField("Query", "payload"),
                         emptyMap(),
                     ),
-                ).getValue()
+                ).value
                 .get() as ObjectEngineResult
 
         for (name in listOf("first", "second")) {
@@ -153,7 +153,7 @@ class SharedQueryProviderOwnershipTest : Resolver26DispatcherResource {
                     world.schema.requireObjectField("Payload", name),
                     emptyMap(),
                 )
-            assertEquals(18, payload.getCell(key).getValue().get())
+            assertEquals(18, payload.getCell(key).value.get())
             assertEquals(1, applications[name]?.get())
         }
         assertEquals(1, applications["querySeed"]?.get())

@@ -109,9 +109,9 @@ class CycleCheckStateTest {
         val fixture = Fixture()
         val key = fixture.key("first")
         fixture.target.reserveCell(key).also { cell ->
-            cell.createValuePromise()
+            cell.value.claim()
             cell.setActivated(true)
-            cell.getValue().complete("complete")
+            cell.value.complete("complete")
         }
         fixture.register("first")
 

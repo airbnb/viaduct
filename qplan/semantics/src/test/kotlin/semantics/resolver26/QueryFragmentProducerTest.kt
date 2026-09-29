@@ -70,7 +70,7 @@ class QueryFragmentProducerTest : Resolver26DispatcherResource {
                         withTimeout(5_000) {
                             resolution.root
                                 .getCell(resolution.key)
-                                .getValue()
+                                .value
                                 .await()
                         },
                     )

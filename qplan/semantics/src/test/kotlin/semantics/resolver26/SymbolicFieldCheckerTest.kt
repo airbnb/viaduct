@@ -241,13 +241,13 @@ class SymbolicFieldCheckerTest : Resolver26DispatcherResource {
             7,
             resolution.result
                 .getCell(key)
-                .getValue()
+                .value
                 .get()
         )
         assertNull(
             resolution.result
                 .getCell(key)
-                .getFieldCheckerResult()
+                .fieldCheckerResult
                 .get()
         )
         val fragments = checkNotNull(world.assumptions.resolverRegistry.fieldChecker(key.field))

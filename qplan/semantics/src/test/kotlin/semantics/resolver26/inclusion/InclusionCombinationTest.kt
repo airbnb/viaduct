@@ -277,7 +277,7 @@ class InclusionCombinationTest : Resolver26DispatcherResource {
             assertIs<ObjectEngineResult>(
                 result
                     .getCell(ObjectEngineResult.GroundKey.of(field, emptyMap()))
-                    .getValue()
+                    .value
                     .get(),
                 message,
             )
@@ -285,7 +285,7 @@ class InclusionCombinationTest : Resolver26DispatcherResource {
             val i = world.schema.requireObjectField("InclusionTester", "i")
             assertEquals(
                 expectedAt(depth),
-                level.getCell(ObjectEngineResult.GroundKey.of(i, emptyMap())).getValue().get(),
+                level.getCell(ObjectEngineResult.GroundKey.of(i, emptyMap())).value.get(),
                 "$message depth=$depth",
             )
             if (depth < CHAIN_DEPTH - 1) {
@@ -294,7 +294,7 @@ class InclusionCombinationTest : Resolver26DispatcherResource {
                     assertIs(
                         level
                             .getCell(ObjectEngineResult.GroundKey.of(n, emptyMap()))
-                            .getValue()
+                            .value
                             .get(),
                         "$message depth=$depth",
                     )

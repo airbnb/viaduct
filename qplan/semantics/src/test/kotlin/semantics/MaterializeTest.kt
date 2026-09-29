@@ -23,6 +23,7 @@ import model.ResolverOccurrenceId
 import model.outputType
 import model.outputValue
 import model.PathComponent
+import model.Promise
 import viaduct.graphql.schema.ViaductSchema
 import model.fragmentFrom
 import viaduct.graphql.schema.graphqljava.gjDef
@@ -73,8 +74,8 @@ class MaterializeTest {
                         ),
                     )
                 val cell = result.reserveCell(key)
-                val value = cell.createValuePromise()
-                val checker = cell.createFieldCheckerResultPromise()
+                val value = cell.value.claim()
+                val checker = cell.fieldCheckerResult
                 cell.setActivated(true)
                 val operation = SharedOperationContext.create(world)
                 operation.variableBindings.bindVariable(
@@ -170,7 +171,9 @@ class MaterializeTest {
                     mutable = true,
                 )
             val cell = result.reserveCell(field)
-            val promise = cell.createValuePromise()
+            val promise = cell.value.claim()
+            cell.setActivated(true)
+            cell.fieldCheckerResult.complete(null)
             val materialized =
                 async(start = CoroutineStart.UNDISPATCHED) {
                     result.materializeResult(
@@ -181,7 +184,6 @@ class MaterializeTest {
                 }
 
             assertFalse(materialized.isCompleted)
-            cell.setActivated(true)
             promise.complete("ready")
 
             assertEquals(
@@ -240,7 +242,9 @@ class MaterializeTest {
         val reader: List<PathComponent> = listOf(childKey, valueKey)
         val childResult = ObjectEngineResult.of(childType, mutable = true)
         val valueCell = childResult.reserveCell(valueKey)
-        valueCell.createValuePromise()
+        valueCell.value.claim()
+        valueCell.setActivated(true)
+        valueCell.fieldCheckerResult.complete(null)
         val result =
             ObjectEngineResult.of(
                 type = world.schema.requireQueryTypeDef(),
@@ -448,7 +452,7 @@ class MaterializeTest {
                     reader = result.fieldResolverCycleTask(emptyList()),
                 )
 
-            assertFalse(result.getCell(key).isFieldCheckerResultSet())
+            assertNull(result.getCell(key).fieldCheckerResult.get())
             assertEquals("open", materialized.get("value"))
         }
 
@@ -502,8 +506,8 @@ class MaterializeTest {
             val denial = MaterializationDenial()
             val result = ObjectEngineResult.of(world.schema.requireQueryTypeDef(), mutable = true)
             val cell = result.reserveCell(key)
-            cell.reserveValue()
-            val checkerPromise = cell.createFieldCheckerResultPromise()
+            cell.value
+            val checkerPromise = cell.fieldCheckerResult
             cell.setActivated(true)
             val selections =
                 world
@@ -527,7 +531,7 @@ class MaterializeTest {
                 denial.error,
                 assertIs<EngineErrorData>(completed.outputValue("value")).cause,
             )
-            assertFalse(cell.getValue().isCompleted)
+            assertFalse(cell.value.isCompleted)
         }
 
     @Test
@@ -551,17 +555,18 @@ class MaterializeTest {
                     world.schema.requireObjectField("Value", "text"),
                     emptyMap(),
                 )
+            val typeChecker = Promise.ofDeferred<CheckerResult?>()
             val value =
                 ObjectEngineResult.of(
                     type = world.schema.requireType("Value") as ViaductSchema.Object,
                     values = mapOf(textKey to "raw"),
+                    typeCheckerResult = typeChecker,
                     mutable = true,
                 )
             val result = ObjectEngineResult.of(world.schema.requireQueryTypeDef(), mutable = true)
             val cell = result.reserveCell(key)
-            cell.setValue(value)
-            val fieldChecker = cell.createFieldCheckerResultPromise()
-            val typeChecker = value.createTypeCheckerResultPromise()
+            cell.value.set(value)
+            val fieldChecker = cell.fieldCheckerResult
             val selections =
                 world
                     .fragmentFrom("fragment ignored on Query { value { text } }")
@@ -593,8 +598,8 @@ class MaterializeTest {
             )
         val result = ObjectEngineResult.of(world.schema.requireQueryTypeDef(), mutable = true)
         val cell = result.reserveCell(key)
-        cell.reserveValue()
-        val checker = cell.createFieldCheckerResultPromise()
+        cell.value
+        val checker = cell.fieldCheckerResult
         val reader = result.fieldCheckerCycleTask(listOf(key))
         val cycleChecker = CycleCheckState.create()
         cycleChecker.registerWriter(cell.valueCycleSlot, reader)
@@ -637,7 +642,7 @@ class MaterializeTest {
             val deniedText =
                 ObjectEngineResult.of(
                     type = valueType,
-                    typeCheckerResult = MaterializationDenial(),
+                    typeCheckerResult = Promise.of(MaterializationDenial()),
                     values = mapOf(textKey to "raw nested"),
                     fieldCheckerResults = mapOf(textKey to MaterializationDenial()),
                 )

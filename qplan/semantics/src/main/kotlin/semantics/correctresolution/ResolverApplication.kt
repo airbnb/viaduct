@@ -444,7 +444,7 @@ private class ResolverReplayLogic(
                         input = input,
                         queryValue = queryValue,
                         arguments = resolverArguments,
-                        selections = getCell(key).getValue().get().completedOutputDemand(),
+                        selections = getCell(key).value.get().completedOutputDemand(),
                         selectiveResolvers = operation.world.selectiveResolvers,
                         executionContext = ResolutionExecutionContext.Unsupported,
                     )
@@ -676,7 +676,7 @@ internal fun EngineResult?.completedOutputDemand(): SelectionForest =
             keys
                 .filter { key ->
                     key !is ObjectEngineResult.ParentKey &&
-                        getCell(key).getValue().isCompleted
+                        getCell(key).value.isCompleted
                 }
                 .map { key ->
                     selectionForestOf(
@@ -685,7 +685,7 @@ internal fun EngineResult?.completedOutputDemand(): SelectionForest =
                             possibleTypes = setOf(type),
                             subselections =
                                 getCell(key)
-                                    .getValue()
+                                    .value
                                     .get()
                                     .completedOutputDemand(),
                         ),
@@ -693,7 +693,7 @@ internal fun EngineResult?.completedOutputDemand(): SelectionForest =
                 }.concatenateSelectionForests()
         is ListEngineResult ->
             indices
-                .map { index -> get(index).getValue().get().completedOutputDemand() }
+                .map { index -> get(index).value.get().completedOutputDemand() }
                 .concatenateSelectionForests()
         else -> selectionForestOf()
     }

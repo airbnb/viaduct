@@ -54,17 +54,17 @@ internal fun List<PathComponent>?.toSelectionPath():
 
 /**
  * One result occurrence with one write-once activation decision and independent write-once value
- * and field- and type-checker-result slots.
+ * and field-checker-result promises.
  *
- * Pending cells permit any slot's promise to be reserved, but those promises cannot be read or
- * completed until the cell is activated. A negative activation decision permanently prohibits all
- * slots. Direct slot setters activate a pending cell before completing it. The value slot contains
+ * Pending cells permit their value promise to be claimed, but neither promise can be read or
+ * completed until the cell is activated. A negative activation decision permanently prohibits both
+ * promises. Direct value setting activates a pending cell before completing it. The value contains
  * [EngineResult] or GraphQL null. Each checker-result slot contains [CheckerResult] or null, where
  * null means that no checker applies to that slot. Cells use reference equality and stable identity
  * hashing because their activation or any slot may be completed after publication.
  */
 sealed interface EngineResultCell {
-    /** Whether activation, the value slot, and every claimed checker-result slot have completed. */
+    /** Whether activation and both the value and field-checker-result promises have completed. */
     val isCompleted: Boolean
 
     /** Atomically completes this cell's activation decision and reports whether this call won. */
@@ -79,38 +79,11 @@ sealed interface EngineResultCell {
     /** Throws unless this cell has already been activated. */
     fun checkActivated()
 
-    /** @throws IllegalStateException when this cell has no value promise */
-    fun getValue(): Promise<EngineResult?>
+    /** The reservable raw-value promise owned by this cell. */
+    val value: ReservablePromise<EngineResult?>
 
-    /**
-     * Returns the value promise, explicitly creating an unclaimed reader placeholder when this
-     * mutable cell has no promise.
-     */
-    fun reserveValue(): Promise<EngineResult?>
-
-    /** Claims and atomically completes the value slot, reporting whether completion succeeded. */
-    fun setValue(value: EngineResult?): Boolean
-
-    fun createValuePromise(): Promise<EngineResult?>
-
-    /** Positively activates and atomically cancels the claimed value, reporting whether this call won. */
-    fun cancelValue(cause: CancellationException): Boolean
-
-    /** @throws IllegalStateException when this cell has no field-checker-result promise */
-    fun getFieldCheckerResult(): Promise<CheckerResult?>
-
-    /** Returns whether this cell has a field-checker-result promise. */
-    fun isFieldCheckerResultSet(): Boolean
-
-    fun setFieldCheckerResult(result: CheckerResult?)
-
-    fun createFieldCheckerResultPromise(): Promise<CheckerResult?>
-
-    /** Atomically completes the claimed field-checker result exceptionally. */
-    fun failFieldCheckerResult(cause: Exception): Boolean
-
-    /** Positively activates and atomically cancels the field-checker result. */
-    fun cancelFieldCheckerResult(cause: CancellationException): Boolean
+    /** The field-checker-result promise owned by this cell. */
+    val fieldCheckerResult: Promise<CheckerResult?>
 }
 
 /**
@@ -140,34 +113,19 @@ private class ErrorEngineResultImpl(
  * Every present key belongs to [type], may contain instantiated variables, and its cell value
  * completes only with a result conforming to the field's type expression. [getCell] is a strict read.
  * [reserveCell] explicitly installs an unclaimed reader placeholder on a mutable object. A writer
- * claims the value placeholder through [EngineResultCell.createValuePromise] or
- * [EngineResultCell.setValue]. [freeze] seals the key set and freezes every present cell's value
+ * claims the value placeholder through [ReservablePromise.claim] or [ReservablePromise.set].
+ * [freeze] seals the key set and freezes every present cell's value
  * slot. A claimed value promise may complete after freezing.
  *
  * Objects use reference equality and stable identity hashing, so they may be used as map keys while
  * cells are installed or their slots are completed.
  */
 sealed interface ObjectEngineResult {
-    /** Whether every present cell and the claimed type-checker-result slot have completed. */
+    /** Whether every present cell and the type-checker-result promise have completed. */
     val isCompleted: Boolean
 
-    /** @throws IllegalStateException when this object has no type-checker-result promise */
-    fun getTypeCheckerResult(): Promise<CheckerResult?>
-
-    /** Returns whether this object has a type-checker-result promise. */
-    fun isTypeCheckerResultSet(): Boolean
-
-    /** Claims and completes this object's type-checker result immediately. */
-    fun setTypeCheckerResult(result: CheckerResult?)
-
-    /** Claims this object's type-checker result for deferred completion. */
-    fun createTypeCheckerResultPromise(): Promise<CheckerResult?>
-
-    /** Atomically completes the claimed type-checker result exceptionally. */
-    fun failTypeCheckerResult(cause: Exception): Boolean
-
-    /** Atomically cancels the claimed type-checker result. */
-    fun cancelTypeCheckerResult(cause: CancellationException): Boolean
+    /** The type-checker-result promise owned by this object occurrence. */
+    val typeCheckerResult: Promise<CheckerResult?>
 
     /**
      * One alias-free output-field coordinate consisting of a canonical field and its arguments.
@@ -374,31 +332,14 @@ sealed interface ObjectEngineResult {
             values: Map<ObjectKey, EngineResult?> = emptyMap(),
             fieldCheckerResults: Map<ObjectKey, CheckerResult?> =
                 values.keys.associateWith { null },
+            typeCheckerResult: Promise<CheckerResult?> = Promise.of(null),
             mutable: Boolean = false,
         ): ObjectEngineResult =
             objectEngineResultOf(
                 type = type,
                 values = values,
                 fieldCheckerResults = fieldCheckerResults,
-                completedTypeCheckerResult = CompletedCheckerSlot(isSet = false, value = null),
-                mutable = mutable,
-            )
-
-        /** Constructs an object with an initially completed OER-owned type-checker result. */
-        fun of(
-            type: ViaductSchema.Object,
-            typeCheckerResult: CheckerResult?,
-            values: Map<ObjectKey, EngineResult?> = emptyMap(),
-            fieldCheckerResults: Map<ObjectKey, CheckerResult?> =
-                values.keys.associateWith { null },
-            mutable: Boolean = false,
-        ): ObjectEngineResult =
-            objectEngineResultOf(
-                type = type,
-                values = values,
-                fieldCheckerResults = fieldCheckerResults,
-                completedTypeCheckerResult =
-                    CompletedCheckerSlot(isSet = true, value = typeCheckerResult),
+                typeCheckerResult = typeCheckerResult,
                 mutable = mutable,
             )
     }
@@ -408,7 +349,7 @@ private fun objectEngineResultOf(
     type: ViaductSchema.Object,
     values: Map<ObjectEngineResult.ObjectKey, EngineResult?>,
     fieldCheckerResults: Map<ObjectEngineResult.ObjectKey, CheckerResult?>,
-    completedTypeCheckerResult: CompletedCheckerSlot,
+    typeCheckerResult: Promise<CheckerResult?>,
     mutable: Boolean,
 ): ObjectEngineResult {
     val fields = values.keys + fieldCheckerResults.keys
@@ -422,12 +363,12 @@ private fun objectEngineResultOf(
                     initialValue = values[field],
                     initiallyValueSet = field in values,
                     fieldCheckerResult = fieldCheckerResults[field],
-                    initiallyFieldCheckerResultSet = field in fieldCheckerResults,
+                    initiallyFieldCheckerResultSet = true,
                     mutable = mutable,
                     validateValue = { value -> validateObjectValue(field, value) },
                 )
             },
-        completedTypeCheckerResult = completedTypeCheckerResult,
+        typeCheckerResult = typeCheckerResult,
         mutable = mutable,
     )
 }
@@ -461,8 +402,8 @@ sealed interface ListEngineResult : List<EngineResultCell> {
     companion object {
         /**
          * Constructs a fixed-size list whose activated element cells each expose one uncompleted,
-         * writable value promise. Their checker-result slots remain unclaimed for future checker
-         * resolution.
+         * writable value promise. Their field-checker results are completed null because field
+         * checkers belong to the containing field rather than to list-element cells.
          *
          * Every eventual element value must satisfy
          * `value.conformsToResultSchemaType(typeExpr)`. The list positions and their cell identities
@@ -477,9 +418,10 @@ sealed interface ListEngineResult : List<EngineResultCell> {
                 List(size) {
                     CellImpl(
                         initiallyActivated = true,
+                        initiallyFieldCheckerResultSet = true,
                         mutable = true,
                         validateValue = { value -> validateListValue(typeExpr, value) },
-                    ).also { cell -> cell.reserveValue() }
+                    )
                 }
             return ListResultImpl(typeExpr, cells)
         }
@@ -539,8 +481,8 @@ private fun validateListValue(
  * root-qualified. Both trees must be finite and every present promise they contain must be
  * completed. Its result is meaningful only after both trees are quiescent; the comparison does not
  * take an atomic snapshot while promises or cells are being mutated concurrently.
- * Unpublished checker slots differ from completed null slots. Two completed checker errors compare
- * extensionally as errors without invoking their externally supplied equality.
+ * Two completed checker errors compare extensionally as errors without invoking their externally
+ * supplied equality.
  *
  * @throws UncompletedPromiseException when either tree contains an uncompleted promise
  */
@@ -580,7 +522,7 @@ private class CompletedResultComparison {
         right: EngineResultCell,
     ): Boolean =
         same(left.completedValue, right.completedValue) &&
-            left.completedFieldCheckerResult.hasSameCompletedCheckerSlotAs(
+            left.completedFieldCheckerResult.hasSameCompletedCheckerResultAs(
                 right.completedFieldCheckerResult,
             )
 
@@ -598,7 +540,7 @@ private class CompletedResultComparison {
                 else -> false
             }
         return sameValue &&
-            left.completedFieldCheckerResult.hasSameCompletedCheckerSlotAs(
+            left.completedFieldCheckerResult.hasSameCompletedCheckerResultAs(
                 right.completedFieldCheckerResult,
             )
     }
@@ -615,14 +557,13 @@ private class CompletedResultComparison {
     }
 }
 
-private fun CompletedCheckerSlot.hasSameCompletedCheckerSlotAs(
-    other: CompletedCheckerSlot,
+private fun CheckerResult?.hasSameCompletedCheckerResultAs(
+    other: CheckerResult?,
 ): Boolean =
     when {
-        !isSet || !other.isSet -> isSet == other.isSet
-        value is CheckerResult.Error -> other.value is CheckerResult.Error
-        value === CheckerResult.Success -> other.value === CheckerResult.Success
-        else -> other.value == null
+        this is CheckerResult.Error -> other is CheckerResult.Error
+        this === CheckerResult.Success -> other === CheckerResult.Success
+        else -> other == null
     }
 
 /**
@@ -685,10 +626,10 @@ private fun EngineResult.containsParentBackedge(): Boolean =
                 keys.any { key ->
                     val cell = getCell(key)
                     cell.implementation.isActivated &&
-                        cell.getValue().get()?.containsParentBackedge() == true
+                    cell.value.get()?.containsParentBackedge() == true
                 }
         is ListEngineResult ->
-            any { cell -> cell.getValue().get()?.containsParentBackedge() == true }
+            any { cell -> cell.value.get()?.containsParentBackedge() == true }
         else -> false
     }
 
@@ -721,17 +662,14 @@ internal fun ObjectEngineResult.union(other: ObjectEngineResult): ObjectEngineRe
     val cells = unionMaps(leftCells, rightCells, CompletedCell::union)
     val oerTypeCheckerResult =
         unionCheckerResult(
-            implementation.completedTypeCheckerResult,
-            other.implementation.completedTypeCheckerResult,
+            typeCheckerResult.get(),
+            other.typeCheckerResult.get(),
         )
     return objectEngineResultOf(
         type = type,
         values = cells.mapValues { (_, cell) -> cell.value },
-        fieldCheckerResults =
-            cells
-                .filterValues { cell -> cell.fieldCheckerResult.isSet }
-                .mapValues { (_, cell) -> cell.fieldCheckerResult.value },
-        completedTypeCheckerResult = oerTypeCheckerResult,
+        fieldCheckerResults = cells.mapValues { (_, cell) -> cell.fieldCheckerResult },
+        typeCheckerResult = Promise.of(oerTypeCheckerResult),
         mutable = false,
     )
 }
@@ -762,8 +700,8 @@ internal fun ListEngineResult.union(other: ListEngineResult): ListEngineResult {
                 CellImpl(
                     initialValue = cell.value,
                     initiallyValueSet = true,
-                    fieldCheckerResult = cell.fieldCheckerResult.value,
-                    initiallyFieldCheckerResultSet = cell.fieldCheckerResult.isSet,
+                    fieldCheckerResult = cell.fieldCheckerResult,
+                    initiallyFieldCheckerResultSet = true,
                     mutable = false,
                     validateValue = { value -> validateListValue(typeExpr, value) },
                 )
@@ -790,29 +728,29 @@ private class CellImpl(
         } else {
             Promise.ofDeferred()
         }
-    private val valueStore =
-        CellValueStore(
-            cell = this,
-            initialValue = initialValue,
-            initiallySet = initiallyValueSet,
-            mutable = mutable,
-            validateValue = validateValue,
+    private val unguardedValue: ReservablePromise<EngineResult?> =
+        if (initiallyValueSet) {
+            completedReservablePromise(initialValue, mutable, validateValue)
+        } else {
+            reservablePromise(mutable, validateValue)
+        }
+    override val value: ReservablePromise<EngineResult?> =
+        activationAwareReservablePromise(this, unguardedValue)
+    override val fieldCheckerResult: Promise<CheckerResult?> =
+        activationAwarePromise(
+            this,
+            if (initiallyFieldCheckerResultSet) {
+                Promise.of(fieldCheckerResult)
+            } else {
+                Promise.ofDeferred()
+            },
         )
-    private val fieldCheckerResultStore =
-        promiseStore(
-            values =
-                if (initiallyFieldCheckerResultSet) {
-                    mapOf(Unit to fieldCheckerResult)
-                } else {
-                    emptyMap()
-                },
-            cell = this,
-        )
+
     override val isCompleted: Boolean
         get() =
             activation.isCompleted &&
-                valueStore.readOrNull()?.isCompleted == true &&
-                fieldCheckerResultStore.snapshot().values.all(Promise<CheckerResult?>::isCompleted)
+                value.isCompleted &&
+                fieldCheckerResult.isCompleted
 
     override fun setActivated(activated: Boolean): Boolean {
         checkMutable()
@@ -833,113 +771,52 @@ private class CellImpl(
         }
     }
 
-    override fun getValue(): Promise<EngineResult?> =
-        checkNotNull(valueStore.readOrNull()) {
-            "Cell has no value"
+    fun activateForCancellation(): Boolean {
+        checkMutable()
+        return synchronized(activationLock) {
+            activation.complete(true)
+            activation.get()
         }
-
-    override fun reserveValue(): Promise<EngineResult?> = valueStore.reserve()
-
-    override fun setValue(value: EngineResult?): Boolean {
-        checkMayWrite()
-        validateValue(value)
-        activateForWrite()
-        return valueStore.claimAndComplete(value)
     }
 
-    override fun createValuePromise(): Promise<EngineResult?> = valueStore.claim()
-
-    override fun cancelValue(cause: CancellationException): Boolean {
-        checkMutable()
-        val mayCancel =
-            synchronized(activationLock) {
-                activation.complete(true)
-                activation.get()
-            }
-        if (!mayCancel) return false
-        return valueStore.cancelClaimed(cause)
-    }
-
-    override fun getFieldCheckerResult(): Promise<CheckerResult?> =
-        checkNotNull(fieldCheckerResultStore.readOrNull(Unit)) {
-            "Cell has no field-checker result"
-        }
-
-    override fun isFieldCheckerResultSet(): Boolean = fieldCheckerResultStore.isSet(Unit)
-
-    override fun setFieldCheckerResult(result: CheckerResult?) {
-        checkMayWrite()
-        activateForWrite()
-        fieldCheckerResultStore.set(Unit, result, this)
-    }
-
-    override fun createFieldCheckerResultPromise(): Promise<CheckerResult?> {
-        checkMutable()
-        return fieldCheckerResultStore.create(Unit, this)
-    }
-
-    override fun failFieldCheckerResult(cause: Exception): Boolean {
-        checkMutable()
-        return checkNotNull(fieldCheckerResultStore.readOrNull(Unit)) {
-            "Cell has no field-checker-result writer"
-        }.completeExceptionally(cause)
-    }
-
-    override fun cancelFieldCheckerResult(cause: CancellationException): Boolean =
-        cancelCheckerResult(fieldCheckerResultStore, cause)
-
-    private fun cancelCheckerResult(
-        store: OnceStore<Unit, Promise<CheckerResult?>>,
-        cause: CancellationException,
-    ): Boolean {
-        checkMutable()
-        val mayCancel =
-            synchronized(activationLock) {
-                activation.complete(true)
-                activation.get()
-            }
-        if (!mayCancel) return false
-        return checkNotNull(store.readOrNull(Unit)) {
-            "Cell has no checker-result writer"
-        }.cancel(cause)
-    }
-
-    inline fun freezeValue(cause: () -> Exception) {
+    fun freezeValue(cause: () -> Exception) {
         if (mutable) {
-            valueStore.freeze(cause)?.let { failure ->
-                synchronized(activationLock) {
-                    activation.completeExceptionally(failure)
-                }
-            }
+            value.freeze(cause)
+        }
+    }
+
+    fun failActivation(cause: Exception) {
+        synchronized(activationLock) {
+            activation.fail(cause)
         }
     }
 
     fun requireCompleted() {
         val activated = activation.get()
         if (!activated) return
-        valueStore.readOrNull()?.get()
-        fieldCheckerResultStore.snapshot().values.forEach { promise -> promise.get() }
+        value.get()
+        fieldCheckerResult.get()
     }
 
     val isActivated: Boolean
         get() = activation.get()
 
     val completedValue: EngineResult?
-        get() = checkNotNull(valueStore.readOrNull()) { "Cell has no value" }.get()
+        get() = value.get()
 
-    val completedFieldCheckerResult: CompletedCheckerSlot
-        get() = fieldCheckerResultStore.completedCheckerSlot()
+    val completedFieldCheckerResult: CheckerResult?
+        get() = fieldCheckerResult.get()
 
     private fun checkMutable() = check(mutable) { "Cell is immutable" }
 
-    private fun checkMayWrite() {
+    fun checkMayWrite() {
         checkMutable()
         synchronized(activationLock) {
             check(!activation.isCompleted || activation.get()) { "Cell was not activated" }
         }
     }
 
-    private fun activateForWrite() {
+    fun activateForWrite() {
         checkMutable()
         synchronized(activationLock) {
             activation.complete(true)
@@ -948,87 +825,10 @@ private class CellImpl(
     }
 }
 
-private class CellValueStore(
-    private val cell: EngineResultCell,
-    initialValue: EngineResult?,
-    initiallySet: Boolean,
-    private val mutable: Boolean,
-    private val validateValue: (EngineResult?) -> Unit,
-) {
-    private val lock = Any()
-    private var promise: ActivationAwarePromise<EngineResult?>? =
-        if (initiallySet) activationAwarePromise(cell, Promise.of(initialValue)) else null
-    private var claimed = initiallySet
-    private var frozen = !mutable
-
-    val isSet: Boolean
-        get() = synchronized(lock) { promise != null }
-
-    fun readOrNull(): Promise<EngineResult?>? = synchronized(lock) { promise }
-
-    fun reserve(): Promise<EngineResult?> =
-        synchronized(lock) {
-            promise
-                ?: if (frozen) {
-                    error("Cell is immutable")
-                } else {
-                    Promise
-                        .ofDeferred(validateValue)
-                        .let { promise -> activationAwarePromise(cell, promise) }
-                        .also { created -> promise = created }
-                }
-        }
-
-    fun claim(): Promise<EngineResult?> =
-        synchronized(lock) {
-            check(!frozen) { "Cell value is frozen" }
-            val existing = promise
-            if (existing != null) {
-                check(!claimed) { "Cell value already has a writer" }
-                claimed = true
-                existing
-            } else {
-                Promise
-                    .ofDeferred(validateValue)
-                    .let { promise -> activationAwarePromise(cell, promise) }
-                    .also { created ->
-                        promise = created
-                        claimed = true
-                    }
-            }
-        }
-
-    fun claimAndComplete(value: EngineResult?): Boolean = claim().complete(value)
-
-    fun cancelClaimed(cause: CancellationException): Boolean {
-        val claimedPromise =
-            synchronized(lock) {
-                check(claimed) { "Cell value has no writer" }
-                checkNotNull(promise) { "Cell has no value promise" }
-            }
-        return claimedPromise.cancel(cause)
-    }
-
-    inline fun freeze(cause: () -> Exception): Exception? {
-        val unclaimed =
-            synchronized(lock) {
-                check(mutable) { "Cell is immutable" }
-                check(!frozen) { "Cell value is already frozen" }
-                frozen = true
-                promise?.takeUnless { claimed }
-            }
-        return unclaimed?.let { promise ->
-            cause().also { failure ->
-                check(promise.completeExceptionallyWithoutActivation(failure))
-            }
-        }
-    }
-}
-
 private class ObjectResultImpl(
     override val type: ViaductSchema.Object,
     cells: Map<ObjectEngineResult.ObjectKey, EngineResultCell>,
-    completedTypeCheckerResult: CompletedCheckerSlot,
+    override val typeCheckerResult: Promise<CheckerResult?>,
     private val mutable: Boolean,
 ) : ObjectEngineResult {
     private val cellStore =
@@ -1037,51 +837,10 @@ private class ObjectResultImpl(
             cells = cells,
             mutable = mutable,
         )
-    private val typeCheckerResultStore =
-        OnceStore<Unit, Promise<CheckerResult?>>(
-            if (completedTypeCheckerResult.isSet) {
-                mapOf(Unit to Promise.of(completedTypeCheckerResult.value))
-            } else {
-                emptyMap()
-            },
-        )
-
     override val isCompleted: Boolean
         get() =
             cellStore.cellEntries.all { (_, cell) -> cell.isCompleted } &&
-                typeCheckerResultStore
-                    .snapshot()
-                    .values
-                    .all(Promise<CheckerResult?>::isCompleted)
-
-    override fun getTypeCheckerResult(): Promise<CheckerResult?> =
-        checkNotNull(typeCheckerResultStore.readOrNull(Unit)) {
-            "Object has no type-checker result"
-        }
-
-    override fun isTypeCheckerResultSet(): Boolean = typeCheckerResultStore.isSet(Unit)
-
-    override fun setTypeCheckerResult(result: CheckerResult?) {
-        checkMutable()
-        typeCheckerResultStore.write(Unit, Promise.of(result))
-    }
-
-    override fun createTypeCheckerResultPromise(): Promise<CheckerResult?> {
-        checkMutable()
-        return Promise.ofDeferred<CheckerResult?>().also { promise ->
-            typeCheckerResultStore.write(Unit, promise)
-        }
-    }
-
-    override fun failTypeCheckerResult(cause: Exception): Boolean {
-        checkMutable()
-        return getTypeCheckerResult().completeExceptionally(cause)
-    }
-
-    override fun cancelTypeCheckerResult(cause: CancellationException): Boolean {
-        checkMutable()
-        return getTypeCheckerResult().cancel(cause)
-    }
+                typeCheckerResult.isCompleted
 
     override val keys: Set<ObjectEngineResult.ObjectKey>
         get() = cellStore.keys
@@ -1116,7 +875,7 @@ private class ObjectResultImpl(
         get() = cellStore.completedCells()
 
     fun requireCompleted() {
-        typeCheckerResultStore.snapshot().values.forEach { promise -> promise.get() }
+        typeCheckerResult.get()
         cellStore.cellEntries.forEach { (key, cell) ->
             val implementation = cell.implementation
             implementation.requireCompleted()
@@ -1126,10 +885,6 @@ private class ObjectResultImpl(
         }
     }
 
-    val completedTypeCheckerResult: CompletedCheckerSlot
-        get() = typeCheckerResultStore.completedCheckerSlot()
-
-    private fun checkMutable() = check(mutable) { "${type.name} result is immutable" }
 }
 
 private class ObjectCellStore(
@@ -1184,7 +939,7 @@ private class ObjectCellStore(
                         }
                     }
             }
-        if (!installed) check(cell.setValue(value))
+        if (!installed) check(cell.value.set(value))
         return cell
     }
 
@@ -1282,12 +1037,7 @@ private data class ParentKeyImpl(
 
 private data class CompletedCell(
     val value: EngineResult?,
-    val fieldCheckerResult: CompletedCheckerSlot,
-)
-
-private data class CompletedCheckerSlot(
-    val isSet: Boolean,
-    val value: CheckerResult?,
+    val fieldCheckerResult: CheckerResult?,
 )
 
 private fun EngineResultCell.completed(): CompletedCell =
@@ -1302,7 +1052,7 @@ private val EngineResultCell.implementation: CellImpl
 private val EngineResultCell.completedValue: EngineResult?
     get() = implementation.completedValue
 
-private val EngineResultCell.completedFieldCheckerResult: CompletedCheckerSlot
+private val EngineResultCell.completedFieldCheckerResult: CheckerResult?
     get() = implementation.completedFieldCheckerResult
 
 private val ObjectEngineResult.implementation: ObjectResultImpl
@@ -1321,8 +1071,8 @@ private fun ObjectEngineResult.sameCompletedObjectResultAs(
     if (
         type != other.type ||
         leftCells.size != rightCells.size ||
-        !implementation.completedTypeCheckerResult.hasSameCompletedCheckerSlotAs(
-            other.implementation.completedTypeCheckerResult,
+        !typeCheckerResult.get().hasSameCompletedCheckerResultAs(
+            other.typeCheckerResult.get(),
         )
     ) {
         return false
@@ -1378,24 +1128,19 @@ private fun <K, V> unionMaps(
     }
 
 private fun unionCheckerResult(
-    first: CompletedCheckerSlot,
-    second: CompletedCheckerSlot,
-): CompletedCheckerSlot =
-    when {
-        !first.isSet -> second
-        !second.isSet -> first
-        else ->
-            first.also {
-                require(first.value === second.value) {
-                    "Cannot union cells with unequal checker results"
-                }
-            }
+    first: CheckerResult?,
+    second: CheckerResult?,
+): CheckerResult? =
+    first.also {
+        require(first === second) {
+            "Cannot union cells with unequal checker results"
+        }
     }
 
 private class ActivationAwarePromise<T>(
     private val cell: EngineResultCell,
     private val delegate: Promise<T>,
-) : Promise<T>, ExceptionallyCompletablePromise {
+) : Promise<T> {
     override val isCompleted: Boolean
         get() = delegate.isCompleted
 
@@ -1415,17 +1160,16 @@ private class ActivationAwarePromise<T>(
     }
 
     override fun cancel(cause: CancellationException): Boolean {
-        cell.checkActivated()
+        if (!cell.implementation.activateForCancellation()) return false
         return delegate.cancel(cause)
     }
 
-    override fun completeExceptionally(cause: Exception): Boolean {
+    override fun fail(cause: Exception): Boolean {
         cell.checkActivated()
-        return delegate.completeExceptionally(cause)
+        return delegate.fail(cause)
     }
 
-    fun completeExceptionallyWithoutActivation(cause: Exception): Boolean =
-        delegate.completeExceptionally(cause)
+    fun failWithoutActivation(cause: Exception): Boolean = delegate.fail(cause)
 }
 
 private fun <T> activationAwarePromise(
@@ -1433,40 +1177,61 @@ private fun <T> activationAwarePromise(
     promise: Promise<T>,
 ): ActivationAwarePromise<T> = ActivationAwarePromise(cell, promise)
 
-private fun <K : Any, V> promiseStore(
-    values: Map<K, V>,
-    cell: EngineResultCell,
-): OnceStore<K, Promise<V>> =
-    OnceStore(
-        values.mapValues { (_, value) ->
-            activationAwarePromise(cell, Promise.of(value))
-        },
-    )
+private class ActivationAwareReservablePromise<T>(
+    private val cell: CellImpl,
+    private val delegate: ReservablePromise<T>,
+) : ReservablePromise<T> {
+    override val isClaimed: Boolean
+        get() = delegate.isClaimed
 
-private fun <K : Any, V> OnceStore<K, Promise<V>>.readOrNull(key: K): Promise<V>? =
-    if (isSet(key)) read(key) else null
+    override val isCompleted: Boolean
+        get() = delegate.isCompleted
 
-private fun OnceStore<Unit, Promise<CheckerResult?>>.completedCheckerSlot():
-    CompletedCheckerSlot =
-    readOrNull(Unit)?.let { promise ->
-        CompletedCheckerSlot(isSet = true, value = promise.get())
-    } ?: CompletedCheckerSlot(isSet = false, value = null)
+    override suspend fun await(): T {
+        cell.awaitActivated()
+        return delegate.await()
+    }
 
-private fun <K : Any, V> OnceStore<K, Promise<V>>.set(
-    key: K,
-    value: V,
-    cell: EngineResultCell,
-) = write(key, activationAwarePromise(cell, Promise.of(value)))
+    override fun get(): T {
+        cell.checkActivated()
+        return delegate.get()
+    }
 
-private fun <K : Any, V> OnceStore<K, Promise<V>>.create(
-    key: K,
-    cell: EngineResultCell,
-    validate: (V) -> Unit = {},
-): Promise<V> =
-    Promise
-        .ofDeferred(validate)
-        .let { promise -> activationAwarePromise(cell, promise) }
-        .also { write(key, it) }
+    override fun claim(): ReservablePromise<T> {
+        cell.checkMayWrite()
+        delegate.claim()
+        return this
+    }
+
+    override fun set(value: T): Boolean {
+        cell.checkMayWrite()
+        cell.activateForWrite()
+        return delegate.set(value)
+    }
+
+    override fun complete(value: T): Boolean {
+        cell.checkActivated()
+        return delegate.complete(value)
+    }
+
+    override fun fail(cause: Exception): Boolean {
+        cell.checkActivated()
+        return delegate.fail(cause)
+    }
+
+    override fun cancel(cause: CancellationException): Boolean {
+        if (!cell.activateForCancellation()) return false
+        return delegate.cancel(cause)
+    }
+
+    override fun freeze(cause: () -> Exception): Exception? =
+        delegate.freeze(cause)?.also(cell::failActivation)
+}
+
+private fun <T> activationAwareReservablePromise(
+    cell: CellImpl,
+    promise: ReservablePromise<T>,
+): ReservablePromise<T> = ActivationAwareReservablePromise(cell, promise)
 
 private fun validateObjectField(
     type: ViaductSchema.Object,

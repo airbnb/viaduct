@@ -67,13 +67,13 @@ class OrchestrationTaskTest : Resolver26DispatcherResource {
                     .toSet()
             )
             assertEquals(setOf("first", "second"), root.keys.map { it.field.name }.toSet())
-            assertTrue(root.keys.all { root.getCell(it).isFieldCheckerResultSet() })
+            assertTrue(root.keys.all { !root.getCell(it).fieldCheckerResult.isCompleted })
         assertFalse(coroutineContext[kotlinx.coroutines.Job]!!.children.any())
 
         assertSame(operation, task.operation)
         task.operation.dispatcher.dispatchOrchestration(task)
         val key = ObjectEngineResult.GroundKey.of(world.schema.requireObjectField("Query", "second"), emptyMap())
-        assertEquals(7, root.getCell(key).getValue().await())
+        assertEquals(7, root.getCell(key).value.await())
         assertFailsWith<IllegalArgumentException> { operation.dispatcher.dispatchOrchestration(task) }
     }
 
@@ -107,7 +107,7 @@ class OrchestrationTaskTest : Resolver26DispatcherResource {
                 assertEquals(setOf(root, task.queryOER.occurrence.target), publications.map { it.oerOccurrence.target }.toSet())
                 assertFalse(coroutineContext[Job]!!.children.any(), "Preparation dispatched coroutine work")
                 publications.forEach { publication ->
-                    assertFalse(publication.publicationCell.getValue().isCompleted)
+                    assertFalse(publication.publicationCell.value.isCompleted)
                     assertFailsWith<IllegalStateException> { publication.publicationCell.checkActivated() }
                 }
             } finally {
@@ -149,15 +149,15 @@ class OrchestrationTaskTest : Resolver26DispatcherResource {
                     val valuesKey = root.keys.single { it.field.name == "values" }
                     val cell = root.getCell(valuesKey)
                     assertFalse(coroutineContext[Job]!!.children.any(), "Passive descent dispatched field work")
-                    assertFalse(cell.getValue().isCompleted)
+                    assertFalse(cell.value.isCompleted)
                     assertFailsWith<IllegalStateException> { cell.checkActivated() }
-                    assertFalse(cell.getFieldCheckerResult().isCompleted)
+                    assertFalse(cell.fieldCheckerResult.isCompleted)
                     operation.dispatcher.dispatchOrchestration(task)
                     assertEquals(enabled, cell.fetchActivated())
                     if (enabled) {
-                        val values = assertIs<ListEngineResult>(cell.getValue().await())
-                        assertEquals(7, values[0].getValue().await())
-                        assertEquals(if (withChecker) CheckerResult.Success else null, cell.getFieldCheckerResult().await())
+                        val values = assertIs<ListEngineResult>(cell.value.await())
+                        assertEquals(7, values[0].value.await())
+                        assertEquals(if (withChecker) CheckerResult.Success else null, cell.fieldCheckerResult.await())
                     }
                     coroutineContext[Job]!!.children.toList().forEach { it.join() }
                 }
@@ -191,18 +191,18 @@ class OrchestrationTaskTest : Resolver26DispatcherResource {
             assertEquals(3, preparation.claimedSlots.size)
             assertEquals(1, preparation.executablePublications.size)
             assertEquals(2, preparation.delayedAbsenceSlots.size)
-            assertTrue(preparation.claimedSlots.all { !it.cell.getFieldCheckerResult().isCompleted })
+            assertTrue(preparation.claimedSlots.all { !it.cell.fieldCheckerResult.isCompleted })
             PassiveValueResolutionLogic(operation).materializePassiveFields(
                 task, task.closedConstructionDemand.objectRooted.constructionDemand, task.objectOER.closedValueSelections,
             )
             operation.dispatcher.dispatchOrchestration(task)
             val passive = root.getCell(root.keys.single { it.field.name == "passive" })
             val pending = root.getCell(root.keys.single { it.field.name == "pending" })
-            assertNull(passive.getFieldCheckerResult().get())
-            assertFalse(pending.getFieldCheckerResult().isCompleted)
-            assertFalse(pending.getValue().isCompleted)
-            assertEquals(2, pending.getValue().await())
-            assertNull(pending.getFieldCheckerResult().await())
+            assertNull(passive.fieldCheckerResult.get())
+            assertFalse(pending.fieldCheckerResult.isCompleted)
+            assertFalse(pending.value.isCompleted)
+            assertEquals(2, pending.value.await())
+            assertNull(pending.fieldCheckerResult.await())
         }
 
     @Test

@@ -112,8 +112,19 @@ internal class CoroutineOrchestrationTask private constructor(
     override fun prepareAndDispatchFieldWork() {
         val fieldPublications = CoroutineFieldResolverTask.prepareAll(this)
         val checkerPublications = CoroutineFieldCheckerTask.prepareAll(this)
+        val checkedCells = checkerPublications.mapTo(linkedSetOf()) { it.publicationCell }
+        listOf(objectOER, queryOER).forEach { oer ->
+            oer.occurrence.target.keys.forEach { key ->
+                val cell = oer.occurrence.target.getCell(key)
+                if (cell !in checkedCells && !cell.fieldCheckerResult.isCompleted) {
+                    check(cell.fieldCheckerResult.complete(null)) {
+                        "Field-checker result was completed twice"
+                    }
+                }
+            }
+        }
         checkerPublications.filter { it.checker == null }.forEach { publication ->
-            check(publication.publicationCell.getFieldCheckerResult().complete(null)) {
+            check(publication.publicationCell.fieldCheckerResult.complete(null)) {
                 "Field-checker result was completed twice"
             }
         }

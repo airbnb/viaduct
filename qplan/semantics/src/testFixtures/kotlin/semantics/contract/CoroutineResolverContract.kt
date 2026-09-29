@@ -192,7 +192,7 @@ interface CoroutineResolverContract {
                         rootCell = requireNotNull(slot.cellOwner)
                     } else {
                         assertFailsWith<UncompletedPromiseException> {
-                            assertNotNull(rootCell).getValue().get()
+                            assertNotNull(rootCell).value.get()
                         }
                         childRegistrations += writer.path.last() as ObjectEngineResult.GroundKey
                     }
@@ -211,7 +211,7 @@ interface CoroutineResolverContract {
         val result = resolve(SharedOperationContext.create(world), selections, cycleChecker)
 
         assertEquals(expectedChildKeys, childRegistrations)
-        val child = assertIs<ObjectEngineResult>(result.getCell(childKey).getValue().get())
+        val child = assertIs<ObjectEngineResult>(result.getCell(childKey).value.get())
         assertEquals(expectedChildResultKeys, child.keys)
     }
 
@@ -530,7 +530,7 @@ interface CoroutineResolverContract {
                 withTimeout(5_000) { requestJob.join() }
                 val failure = assertFailsWith<CancellationException> {
                     withTimeout(5_000) {
-                        result.getCell(world.schema.groundKey("Query", "consumer")).getValue().await()
+                        result.getCell(world.schema.groundKey("Query", "consumer")).value.await()
                     }
                 }
                 assertEquals(cancellation.message, failure.message)
@@ -607,7 +607,7 @@ interface CoroutineResolverContract {
                         withTimeout(5_000) {
                             result
                                 .getCell(world.schema.groundKey("Query", name))
-                                .getValue()
+                                .value
                                 .await()
                         }
                     }
@@ -669,11 +669,11 @@ private fun assertCompletedAndWriteOnce(result: EngineResult?) {
         -> Unit
         is ListEngineResult ->
             result.indices.forEach { index ->
-                assertCompletedAndWriteOnce(result[index].getValue().get())
+                assertCompletedAndWriteOnce(result[index].value.get())
             }
         is ObjectEngineResult ->
             result.keys.forEach { key ->
-                val promise = result.getCell(key).getValue()
+                val promise = result.getCell(key).value
                 val value = promise.get()
                 assertFalse(promise.complete(value))
                 if (key !is ObjectEngineResult.ParentKey) {

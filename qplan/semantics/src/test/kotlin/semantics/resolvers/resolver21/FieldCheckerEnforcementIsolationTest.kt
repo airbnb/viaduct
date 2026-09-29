@@ -43,8 +43,8 @@ class FieldCheckerEnforcementIsolationTest {
                 ),
             )
 
-        assertEquals(7, cell.getValue().get())
-        assertSame(denial, cell.getFieldCheckerResult().get())
+        assertEquals(7, cell.value.get())
+        assertSame(denial, cell.fieldCheckerResult.get())
     }
 }
 

@@ -3,6 +3,7 @@ package execution
 import execution.testing.ExecutionTestFixture
 import model.ListEngineResult
 import model.ObjectEngineResult
+import model.Promise
 import model.engineResultOf
 import model.outputType
 import model.requireObjectField
@@ -106,7 +107,7 @@ class QPlanWiringFactoryTest {
         ): ObjectEngineResult =
             ObjectEngineResult.of(
                 type = protectedType,
-                typeCheckerResult = typeCheckerResult,
+                typeCheckerResult = Promise.of(typeCheckerResult),
                 values = mapOf(textKey to text),
             )
         val listField = world.schema.requireObjectField("Query", "listTypeDenied")
@@ -159,8 +160,9 @@ class QPlanWiringFactoryTest {
         val denial = TestCheckerError("completion denied")
         val root = ObjectEngineResult.of(world.schema.requireQueryTypeDef(), mutable = true)
         val cell = root.reserveCell(key)
-        cell.reserveValue()
-        cell.setFieldCheckerResult(denial)
+        cell.value
+        cell.setActivated(true)
+        cell.fieldCheckerResult.complete(denial)
         val fixture =
             ExecutionTestFixture.fromResolvedRoot(
                 schemaSDL = "type Query { value: String }",
@@ -173,7 +175,7 @@ class QPlanWiringFactoryTest {
         assertEquals(mapOf("value" to null), result.getData())
         assertEquals(listOf("value"), result.errors.single().path)
         assertTrue(result.errors.single().message.contains("completion denied"))
-        assertFalse(cell.getValue().isCompleted)
+        assertFalse(cell.value.isCompleted)
     }
 
     @Test

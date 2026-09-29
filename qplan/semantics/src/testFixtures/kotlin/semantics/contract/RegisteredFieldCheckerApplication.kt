@@ -70,12 +70,7 @@ private fun ObjectEngineResult.forEachPublishedFieldCheckerApplication(
                     if (!runBlocking { cell.fetchActivated() }) return@forEach
                     val occurrencePath = path + key
                     val checker = operation.world.resolverRegistry.fieldChecker(key.field)
-                    val checkerResult =
-                        if (cell.isFieldCheckerResultSet()) {
-                            cell.getFieldCheckerResult().get()
-                        } else {
-                            null
-                        }
+                    val checkerResult = cell.fieldCheckerResult.get()
                     if (checker != null && checkerResult != null) {
                         val arguments = key.groundedArguments(operation) as? Arguments.Resolved
                         checkNotNull(arguments) {
@@ -92,7 +87,7 @@ private fun ObjectEngineResult.forEachPublishedFieldCheckerApplication(
                         )
                     }
                     if (key !is ObjectEngineResult.ParentKey) {
-                        visit(cell.getValue().get(), occurrencePath)
+                        visit(cell.value.get(), occurrencePath)
                     }
                 }
 
@@ -100,7 +95,7 @@ private fun ObjectEngineResult.forEachPublishedFieldCheckerApplication(
                 result.forEachIndexed { index, cell ->
                     if (runBlocking { cell.fetchActivated() }) {
                         visit(
-                            cell.getValue().get(),
+                            cell.value.get(),
                             path + ListEngineResult.Index.of(index),
                         )
                     }

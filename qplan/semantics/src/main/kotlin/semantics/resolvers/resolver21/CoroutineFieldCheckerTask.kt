@@ -63,7 +63,7 @@ internal class CoroutineFieldCheckerTask private constructor(
             selection: ObjectSelection,
         ): GroundedFieldCheckerPublicationOccurrence {
             val cell = oer.occurrence.target.getCell(key)
-            cell.createFieldCheckerResultPromise()
+            cell.fieldCheckerResult
             val checker =
                 if (key is ObjectEngineResult.ParentKey || key.arguments !is Arguments.Resolved) {
                     null
@@ -197,13 +197,13 @@ internal class CoroutineFieldCheckerTask private constructor(
                 inputs,
                 ResolutionExecutionContext.Unsupported,
             )
-        check(publication.publicationCell.getFieldCheckerResult().complete(result)) {
+        check(publication.publicationCell.fieldCheckerResult.complete(result)) {
             "Field-checker result was completed twice"
         }
     }
 
     private fun publishFailure(cause: Exception) {
-        check(publication.publicationCell.failFieldCheckerResult(cause)) {
+        check(publication.publicationCell.fieldCheckerResult.fail(cause)) {
             "Field-checker failure was published twice"
         }
     }

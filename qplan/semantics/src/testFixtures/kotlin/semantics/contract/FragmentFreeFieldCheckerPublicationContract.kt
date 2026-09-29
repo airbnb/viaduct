@@ -49,8 +49,8 @@ interface FragmentFreeFieldCheckerPublicationContract {
         fun assertBarrier() {
             assertEquals(setOf("first", "second"), cells.keys)
             cells.values.forEach { cell ->
-                cell.getValue()
-                assertTrue(cell.isFieldCheckerResultSet())
+                cell.value
+                cell.fieldCheckerResult
             }
         }
         val resolverObserver =
@@ -103,8 +103,8 @@ interface FragmentFreeFieldCheckerPublicationContract {
             resolverObserver,
         )
 
-        assertSame(CheckerResult.Success, cells.getValue("first").getFieldCheckerResult().get())
-        assertNull(cells.getValue("second").getFieldCheckerResult().get())
+        assertSame(CheckerResult.Success, cells.getValue("first").fieldCheckerResult.get())
+        assertNull(cells.getValue("second").fieldCheckerResult.get())
     }
 
     @Test
@@ -149,8 +149,8 @@ interface FragmentFreeFieldCheckerPublicationContract {
         assertEquals(1, activeChecks.get())
         assertEquals(1, passiveChecks.get())
         assertEquals(0, extraChecks.get())
-        assertSame(CheckerResult.Success, item.cell(world, "Item", "active").getFieldCheckerResult().get())
-        assertSame(CheckerResult.Success, item.cell(world, "Item", "passive").getFieldCheckerResult().get())
+        assertSame(CheckerResult.Success, item.cell(world, "Item", "active").fieldCheckerResult.get())
+        assertSame(CheckerResult.Success, item.cell(world, "Item", "passive").fieldCheckerResult.get())
     }
 
     @Test
@@ -190,8 +190,8 @@ interface FragmentFreeFieldCheckerPublicationContract {
         assertEquals(setOf(1, 2), argumentsSeen.toSet())
         for (value in listOf(1, 2)) {
             val cell = result.cell(world, "Query", "checked", mapOf("value" to value))
-            assertEquals(value, cell.getValue().get())
-            assertSame(CheckerResult.Success, cell.getFieldCheckerResult().get())
+            assertEquals(value, cell.value.get())
+            assertSame(CheckerResult.Success, cell.fieldCheckerResult.get())
         }
     }
 
@@ -224,15 +224,15 @@ interface FragmentFreeFieldCheckerPublicationContract {
 
         val result = resolve(world, world.operationSelectionsFrom("{ denied absent failed }"))
 
-        assertEquals(1, result.cell(world, "Query", "denied").getValue().get())
-        assertEquals(2, result.cell(world, "Query", "absent").getValue().get())
-        assertEquals(3, result.cell(world, "Query", "failed").getValue().get())
-        assertSame(denial, result.cell(world, "Query", "denied").getFieldCheckerResult().get())
-        assertNull(result.cell(world, "Query", "absent").getFieldCheckerResult().get())
+        assertEquals(1, result.cell(world, "Query", "denied").value.get())
+        assertEquals(2, result.cell(world, "Query", "absent").value.get())
+        assertEquals(3, result.cell(world, "Query", "failed").value.get())
+        assertSame(denial, result.cell(world, "Query", "denied").fieldCheckerResult.get())
+        assertNull(result.cell(world, "Query", "absent").fieldCheckerResult.get())
         assertSame(
             failure,
             assertFailsWith<IllegalStateException> {
-                result.cell(world, "Query", "failed").getFieldCheckerResult().get()
+                result.cell(world, "Query", "failed").fieldCheckerResult.get()
             },
         )
     }
@@ -262,7 +262,7 @@ interface FragmentFreeFieldCheckerPublicationContract {
                 withTimeout(5_000) { requestJob.join() }
                 val checkerFailure =
                     assertFailsWith<CancellationException> {
-                        result.cell(world, "Query", "checked").getFieldCheckerResult().await()
+                        result.cell(world, "Query", "checked").fieldCheckerResult.await()
                     }
                 assertEquals(cancellation.message, checkerFailure.message)
                 assertEquals(!cancelBeforeEntry, checkerEntered.isCompleted)
@@ -318,7 +318,7 @@ private fun ObjectEngineResult.objectValue(
     world: Assumptions,
     typeName: String,
     fieldName: String,
-): ObjectEngineResult = assertIs(cell(world, typeName, fieldName).getValue().get())
+): ObjectEngineResult = assertIs(cell(world, typeName, fieldName).value.get())
 
 private class ContractCheckerError : CheckerResult.Error {
     override val error: Exception = IllegalStateException("denied")
