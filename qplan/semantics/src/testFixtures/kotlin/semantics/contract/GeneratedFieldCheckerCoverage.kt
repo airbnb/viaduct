@@ -98,6 +98,11 @@ internal class GeneratedFieldCheckerCoverage(
         )
     }
 
+    fun covers(required: Set<GeneratedFieldCheckerCoverageSignature>): Boolean =
+        required.all { signature ->
+            generatedCases.getValue(signature) > 0 && activatedCases.getValue(signature) > 0
+        }
+
     fun summary(): String =
         "generatedCases=$generatedCases, " +
             "activatedCases=$activatedCases, " +

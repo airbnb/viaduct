@@ -4,6 +4,7 @@ package semantics.contract
 
 import kotlin.test.assertTrue
 import kotlinx.coroutines.runBlocking
+import model.testing.TestWorld
 import org.junit.jupiter.api.Test
 import semantics.arbitrary.Config
 import semantics.arbitrary.ExplicitFieldResolverWeight
@@ -22,6 +23,7 @@ import semantics.arbitrary.ResolverFromProviderVariablesEnabled
 import semantics.arbitrary.ResolverFromQueryFieldVariablesEnabled
 import semantics.arbitrary.ResolverQueryFragmentWeight
 import semantics.arbitrary.ResolverQueryFragmentsEnabled
+import semantics.arbitrary.ResolverTestCase
 import semantics.arbitrary.ResolverVariableWeight
 import semantics.arbitrary.ResolverVariablesEnabled
 import semantics.arbitrary.RootFieldReferenceWeight
@@ -171,7 +173,7 @@ interface GeneratedFieldCheckerContract : GeneratedCaseAssertionPolicy {
         additionalRequired: Set<GeneratedFieldCheckerCoverageSignature>,
     ): Unit =
         runBlocking {
-            val coverage = GeneratedFieldCheckerCoverage(checkerMode(mode))
+            val effectiveMode = checkerMode(mode)
             val config =
                 Config.default +
                     (FieldArgumentWeight to 1.0) +
@@ -198,13 +200,20 @@ interface GeneratedFieldCheckerContract : GeneratedCaseAssertionPolicy {
                     generatedResolverConfigOverrides
             val assertions =
                 generatedCaseAssertions + GeneratedCaseAssertions.exactFieldCheckerApplications
-
-            val run =
-                checkGeneratedProfile(
-                    profile = checkerProfile(profile),
-                    config = config,
-                    fieldCheckerMode = checkerMode(mode),
-                ) { testWorld, testCase ->
+            val required =
+                REQUIRED_COVERAGE_SIGNATURES + additionalRequired +
+                    if (runtimeFieldCheckerVariables) {
+                        setOf(
+                            GeneratedFieldCheckerCoverageSignature.FROM_OBJECT_FIELD_VARIABLE,
+                            GeneratedFieldCheckerCoverageSignature.FROM_QUERY_FIELD_VARIABLE,
+                            GeneratedFieldCheckerCoverageSignature.FROM_PROVIDER_VARIABLE,
+                            GeneratedFieldCheckerCoverageSignature.SYMBOLIC_CHECKER_KEY,
+                        )
+                    } else {
+                        emptySet()
+                    }
+            val property: suspend (GeneratedFieldCheckerCoverage, TestWorld, ResolverTestCase) -> Unit =
+                { coverage, testWorld, testCase ->
                     val registry = testCase.registry
                     assertTrue(registry.nodeResolverTypes.isEmpty())
                     assertTrue(registry.generatedFieldCheckerCoordinates.isNotEmpty())
@@ -216,22 +225,50 @@ interface GeneratedFieldCheckerContract : GeneratedCaseAssertionPolicy {
                         )
                     coverage.record(registry, observation)
                 }
+            val sampledCoverage = GeneratedFieldCheckerCoverage(effectiveMode)
+            val run =
+                checkGeneratedProfile(
+                    profile = checkerProfile(profile),
+                    config = config,
+                    fieldCheckerMode = effectiveMode,
+                ) { testWorld, testCase ->
+                    property(sampledCoverage, testWorld, testCase)
+                }
+            val (coverageRun, requiredCoverage) =
+                if (
+                    run.selectedCase == null &&
+                    run.seed != REQUIRED_COVERAGE_ACTIVATION_SEED &&
+                    !sampledCoverage.covers(required)
+                ) {
+                    val activationCoverage = GeneratedFieldCheckerCoverage(effectiveMode)
+                    val activationRun =
+                        checkGeneratedProfile(
+                            profile = checkerProfile(profile),
+                            config = config,
+                            seed = REQUIRED_COVERAGE_ACTIVATION_SEED,
+                            fieldCheckerMode = effectiveMode,
+                        ) { testWorld, testCase ->
+                            property(activationCoverage, testWorld, testCase)
+                        }
+                    activationRun to activationCoverage
+                } else {
+                    run to sampledCoverage
+                }
 
-            coverage.assertRequired(
-                run = run,
-                required = REQUIRED_COVERAGE_SIGNATURES + additionalRequired +
-                    if (runtimeFieldCheckerVariables) {
-                        setOf(
-                            GeneratedFieldCheckerCoverageSignature.FROM_OBJECT_FIELD_VARIABLE,
-                            GeneratedFieldCheckerCoverageSignature.FROM_QUERY_FIELD_VARIABLE,
-                            GeneratedFieldCheckerCoverageSignature.FROM_PROVIDER_VARIABLE,
-                            GeneratedFieldCheckerCoverageSignature.SYMBOLIC_CHECKER_KEY,
-                        )
-                    } else {
-                        emptySet()
-                    },
+            requiredCoverage.assertRequired(
+                run = coverageRun,
+                required = required,
             )
-            println("Field-checker coverage profile=${checkerProfile(profile)} ${coverage.summary()}")
+            println(
+                "Field-checker coverage profile=${checkerProfile(profile)} " +
+                    "seed=${run.seed} ${sampledCoverage.summary()}",
+            )
+            if (requiredCoverage !== sampledCoverage) {
+                println(
+                    "Field-checker activation coverage profile=${checkerProfile(profile)} " +
+                        "seed=${coverageRun.seed} ${requiredCoverage.summary()}",
+                )
+            }
         }
 
     companion object {
@@ -242,6 +279,7 @@ interface GeneratedFieldCheckerContract : GeneratedCaseAssertionPolicy {
         const val ROOT_REFERENCE_PROFILE = "resolver23-field-checker-root-reference"
         private const val PASSIVE_ACTIVATION_SEED = 1L
         private const val ROOT_REFERENCE_ACTIVATION_SEED = 424242L
+        private const val REQUIRED_COVERAGE_ACTIVATION_SEED = 424242L
 
         private val REQUIRED_COVERAGE_SIGNATURES =
             setOf(
