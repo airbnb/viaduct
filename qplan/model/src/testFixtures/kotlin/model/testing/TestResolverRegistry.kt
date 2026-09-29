@@ -38,6 +38,7 @@ import model.registry.MissingResolverException
 import model.registry.ProviderFragment
 import model.registry.ResolverRegistry
 import model.registry.ResolverTarget
+import model.registry.TypeCheckerResolver
 import model.registry.VariableDefinition
 import model.registry.snipToDemand
 import model.selectionForestOf
@@ -128,6 +129,7 @@ internal fun resolverRegistryOf(
     nodeResolvers: Map<ViaductSchema.Object, NodeResolverFunction>,
     fieldResolvers: Map<ViaductSchema.Field, FieldResolverDefinition>,
     fieldCheckers: Map<ViaductSchema.ObjectField, FieldCheckerResolver> = emptyMap(),
+    typeCheckers: Map<ViaductSchema.Object, TypeCheckerResolver> = emptyMap(),
     variableProviders: Map<Arguments.Variable, VariableDeclaration>,
 ): ResolverRegistry {
     val lowering = NodeResolverLowering(schema, nodeResolvers, fieldResolvers)
@@ -178,6 +180,7 @@ internal fun resolverRegistryOf(
         schema = schema,
         fieldResolverDefinitions = registryResolvers,
         fieldCheckers = fieldCheckers,
+        typeCheckers = typeCheckers,
         variableDeclarations = registryVariableProviders,
     )
 }
@@ -455,6 +458,7 @@ private class TestResolverRegistry(
     private val schema: ViaductSchema,
     fieldResolverDefinitions: Map<ViaductSchema.Field, FieldResolverDefinition>,
     private val fieldCheckers: Map<ViaductSchema.ObjectField, FieldCheckerResolver>,
+    private val typeCheckers: Map<ViaductSchema.Object, TypeCheckerResolver>,
     variableDeclarations: Map<Arguments.Variable, VariableDeclaration>,
 ) : ResolverRegistry {
     private val sourceFieldResolvers = fieldResolverDefinitions
@@ -489,6 +493,14 @@ private class TestResolverRegistry(
             require(checker.target.field == field) {
                 "Field checker ${checker.target.field.containingDef.name}/${checker.target.field.name} does not belong to " +
                     "${field.containingDef.name}/${field.name}"
+            }
+        }
+        typeCheckers.forEach { (type, checker) ->
+            require(schema.requireType(type.name) == type) {
+                "${type.name} is not the canonical type-checker type in this registry's schema"
+            }
+            require(checker.target.type == type) {
+                "Type checker ${checker.target.type.name} does not belong to ${type.name}"
             }
         }
         fieldResolverDefinitions.forEach { (field, resolver) ->
@@ -691,6 +703,13 @@ private class TestResolverRegistry(
     override fun fieldChecker(field: ViaductSchema.ObjectField): FieldCheckerResolver? {
         validateCanonicalField(field)
         return fieldCheckers[field]
+    }
+
+    override fun typeChecker(type: ViaductSchema.Object): TypeCheckerResolver? {
+        require(schema.requireType(type.name) == type) {
+            "${type.name} is not canonical in this registry's schema"
+        }
+        return typeCheckers[type]
     }
 
     override fun mayDemandFrom(field: ViaductSchema.ObjectField): Set<ViaductSchema.ObjectField> {

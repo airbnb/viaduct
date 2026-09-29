@@ -44,9 +44,59 @@ import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
+import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.EngineObjectData
 
 class ResolverRegistryTest {
+    @Test
+    fun `stores type checkers by their canonical concrete object target`() {
+        lateinit var suppliedChecker: TypeCheckerResolver
+        val world =
+            TestWorld.fromSDL(
+                schemaSDL =
+                    """
+                    type Query { item: Item }
+                    type Item { value: Int }
+                    """.trimIndent(),
+                typeCheckers = { schema ->
+                    val item = schema.requireType("Item") as ViaductSchema.Object
+                    suppliedChecker =
+                        TypeCheckerResolver.of(item, schema.requireQueryTypeDef()) { _, _ ->
+                            CheckerResult.Success
+                        }
+                    mapOf(item to suppliedChecker)
+                },
+            )
+
+        val item = world.schema.requireType("Item") as ViaductSchema.Object
+        assertSame(suppliedChecker, world.resolverRegistry.typeChecker(item))
+        assertEquals(null, world.resolverRegistry.typeChecker(world.schema.requireQueryTypeDef()))
+    }
+
+    @Test
+    fun `rejects a type checker registered under a different object target`() {
+        assertFailsWith<IllegalArgumentException> {
+            TestWorld.fromSDL(
+                schemaSDL =
+                    """
+                    type Query { item: Item }
+                    type Item { value: Int }
+                    type Other { value: Int }
+                    """.trimIndent(),
+                typeCheckers = { schema ->
+                    val item = schema.requireType("Item") as ViaductSchema.Object
+                    val other = schema.requireType("Other") as ViaductSchema.Object
+                    mapOf(
+                        item to
+                            TypeCheckerResolver.of(other, schema.requireQueryTypeDef()) { _, _ ->
+                                CheckerResult.Success
+                            },
+                    )
+                },
+            )
+        }
+    }
+
     @Test
     fun `selective field resolver receives demand without output projection`() = runBlocking {
         val world =
