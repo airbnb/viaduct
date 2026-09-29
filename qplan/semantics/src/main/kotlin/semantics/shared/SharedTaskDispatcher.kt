@@ -39,7 +39,7 @@ interface SharedFieldPublicationOccurrence<
  * recursive execution; task contexts retain the inputs needed by the corresponding task bodies.
  * [O] preserves the concrete orchestration-task type and [F] the field-publication occurrence type.
  */
-interface SharedTaskDispatcher<in O : SharedOrchestrationTask<*>, in F : SharedFieldPublicationOccurrence<*, *>> {
+interface SharedTaskDispatcher<in O : SharedOrchestrationTask<*>, in F> {
     /** Dispatches prepared object work after its passive fields have been resolved. */
     fun dispatchOrchestration(task: O)
 

@@ -110,6 +110,7 @@ class FieldCheckerDemandClosureTest {
             initialDemand = Demand(
                 checked = closed.checked[nestedKey].subselections,
                 unchecked = closed.unchecked[nestedKey].subselections,
+                typeCheckDemanded = true,
             ),
         )
         assertDemand(child, checked = setOf("ordinary", "dependency"), unchecked = setOf("raw"))

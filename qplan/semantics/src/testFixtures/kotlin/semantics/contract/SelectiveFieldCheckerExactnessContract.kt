@@ -16,6 +16,7 @@ import model.objectOf
 import model.operationSelectionsFrom
 import model.registry.FieldCheckerResolver
 import model.registry.ResolverFragmentTemplates
+import model.registry.ResolverTarget
 import model.requireObjectField
 import model.requireQueryTypeDef
 import model.requireType
@@ -89,7 +90,7 @@ interface SelectiveFieldCheckerExactnessContract {
                             logicalQueryRoot = result,
                             occurrencePath = listOf(itemKey, groundKey(checkedField, mapOf("seed" to 5))),
                             arguments = Arguments.Resolved.of(checkedField, mapOf("seed" to 5)),
-                            checkedCoordinate = checkedField,
+                            checkedTarget = ResolverTarget.FieldCheckerTarget(checkedField),
                         ),
                     )
                     add(
@@ -98,7 +99,7 @@ interface SelectiveFieldCheckerExactnessContract {
                             logicalQueryRoot = result,
                             occurrencePath = listOf(itemKey, groundKey(dependencyField)),
                             arguments = Arguments.Resolved.of(dependencyField, emptyMap()),
-                            checkedCoordinate = dependencyField,
+                            checkedTarget = ResolverTarget.FieldCheckerTarget(dependencyField),
                         ),
                     )
                     if (rawSelected) {
@@ -108,7 +109,7 @@ interface SelectiveFieldCheckerExactnessContract {
                                 logicalQueryRoot = result,
                                 occurrencePath = listOf(itemKey, groundKey(rawField)),
                                 arguments = Arguments.Resolved.of(rawField, emptyMap()),
-                                checkedCoordinate = rawField,
+                                checkedTarget = ResolverTarget.FieldCheckerTarget(rawField),
                             ),
                         )
                     }
@@ -141,7 +142,10 @@ interface SelectiveFieldCheckerExactnessContract {
         val checked = observations.filter { it.checkedCoordinate == checkedField }
         val policies = observations.filter { it.checkedCoordinate == policyField }
 
-        assertEquals(setOf(1, 2), checked.map { it.arguments.fieldValues.getValue("seed") }.toSet())
+        assertEquals(
+            setOf(1, 2),
+            checked.map { checkNotNull(it.arguments).fieldValues.getValue("seed") }.toSet(),
+        )
         assertTrue(checked.all { it.logicalQueryRoot === result })
         assertEquals(1, policies.size)
         assertTrue(policies.none { it.logicalQueryRoot === result })

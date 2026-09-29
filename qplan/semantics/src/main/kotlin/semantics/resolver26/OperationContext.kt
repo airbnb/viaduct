@@ -8,7 +8,7 @@ import semantics.shared.SharedOperationContext
  * One Resolver26 execution scope: scheduling, observation, cycle checking, and binding readiness.
  * Child execution scopes share the logical operation's configuration and mutable state references.
  */
-internal interface OperationContext : SharedOperationContext<CoroutineTaskDispatcher<OrchestrationTask, SymbolicFieldPublicationOccurrence, SymbolicFieldCheckerPublicationOccurrence>> {
+internal interface OperationContext : SharedOperationContext<CoroutineTaskDispatcher> {
     val cycleChecker: CycleCheckState
     val bindingsState: BindingDeclarationsState
     val passiveValues: PassiveValueResolutionLogic
@@ -28,17 +28,13 @@ internal interface OperationContext : SharedOperationContext<CoroutineTaskDispat
                 variableBindings = base.variableBindings,
                 resolverObserver = base.resolverObserver,
                 checkerObserver = base.checkerObserver,
-                dispatcher = CoroutineTaskDispatcher<OrchestrationTask, SymbolicFieldPublicationOccurrence, SymbolicFieldCheckerPublicationOccurrence>(
+                dispatcher = CoroutineTaskDispatcher(
                     requestScope = requestScope,
-                    runFieldResolver = FieldResolverTask::execute,
-                    cancelFieldResolver = FieldResolverTask::cancel,
-                    runFieldChecker = FieldCheckerTask::execute,
-                    cancelFieldChecker = FieldCheckerTask::cancel,
                 ),
             )
             return object :
                 OperationContext,
-                SharedOperationContext<CoroutineTaskDispatcher<OrchestrationTask, SymbolicFieldPublicationOccurrence, SymbolicFieldCheckerPublicationOccurrence>> by operationDelegate {
+                SharedOperationContext<CoroutineTaskDispatcher> by operationDelegate {
                 override val cycleChecker = cycleChecker
                 override val bindingsState = bindingsState
                 override val passiveValues = PassiveValueResolutionLogic(this)

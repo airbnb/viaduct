@@ -3,6 +3,7 @@ package semantics.resolvers.resolver21
 import model.Arguments
 import model.ObjectEngineResult
 import model.ObjectSelectionForest
+import model.Promise
 import model.ResolverOccurrenceId
 import model.RootFieldReferenceData
 import model.SelectionForest
@@ -18,7 +19,9 @@ import semantics.shared.Demand
 import semantics.shared.OEROccurrence
 import semantics.shared.OrchestrationConstructionDemand
 import semantics.shared.SharedOERContext
+import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.EngineObjectData
+import viaduct.graphql.schema.ViaductSchema
 
 /** Closes one object's demand before passive descent, then prepares and dispatches its field work. */
 internal class CoroutineOrchestrationTask private constructor(
@@ -28,13 +31,41 @@ internal class CoroutineOrchestrationTask private constructor(
     val closedConstructionDemand: OrchestrationConstructionDemand<ObjectSelectionForest>,
 ) : CoroutineOrchestrationTaskBase<CoroutineOperationContext>(operation, objectOER, queryOER) {
     companion object {
+        /** Allocates the OER-owned result slot from checked provenance and concrete registry lookup. */
+        fun createObjectResult(
+            operation: CoroutineOperationContext,
+            type: ViaductSchema.Object,
+            constructionDemand: Demand<SelectionForest>,
+        ): ObjectEngineResult {
+            val typeCheckerResult =
+                if (
+                    constructionDemand.typeCheckDemanded &&
+                    operation.world.resolverRegistry.typeChecker(type) != null
+                ) {
+                    Promise.ofDeferred<CheckerResult?>()
+                } else {
+                    Promise.of<CheckerResult?>(null)
+                }
+            return ObjectEngineResult.of(
+                type = type,
+                typeCheckerResult = typeCheckerResult,
+                mutable = true,
+            )
+        }
+
         /** Prepares grounded bindings and parent backedges without dispatching active work. */
         fun create(
             operation: CoroutineOperationContext,
             occurrence: OEROccurrence,
             source: EngineObjectData.Sync,
             constructionDemand: SelectionForest,
-        ): CoroutineOrchestrationTask = create(operation, occurrence, source, Demand.checked(constructionDemand))
+        ): CoroutineOrchestrationTask =
+            create(
+                operation,
+                occurrence,
+                source,
+                Demand.checked(constructionDemand),
+            )
 
         /** Retains checked and unchecked descendant demand through passive object boundaries. */
         fun create(
@@ -47,7 +78,7 @@ internal class CoroutineOrchestrationTask private constructor(
                 "Source type ${source.schemaType.name} does not match result type ${occurrence.target.type.name}"
             }
             val queryType = operation.world.schema.requireQueryTypeDef()
-            val queryResult = ObjectEngineResult.of(queryType, mutable = true)
+            val queryResult = createObjectResult(operation, queryType, Demand.EMPTY)
             val queryOccurrence = OEROccurrence(queryResult, emptyList(), queryResult)
             val closedConstructionDemand =
                 source.closeOrchestrationConstructionDemand(
@@ -87,7 +118,7 @@ internal class CoroutineOrchestrationTask private constructor(
 
     override val hasActiveWork: Boolean
         get() =
-            listOf(
+            hasApplicableTypeChecker() || listOf(
                 objectOER to closedConstructionDemand.objectRooted,
                 queryOER to closedConstructionDemand.queryRooted,
             ).any { (oer, constructionDemand) ->
@@ -105,11 +136,20 @@ internal class CoroutineOrchestrationTask private constructor(
                 }
             }
 
+    private fun hasApplicableTypeChecker(): Boolean =
+        listOf(
+            objectOER to closedConstructionDemand.objectRooted,
+            queryOER to closedConstructionDemand.queryRooted,
+        ).any { (oer, demand) ->
+            demand.typeCheckDemanded && operation.world.resolverRegistry.typeChecker(oer.occurrence.target.type) != null
+        }
+
     override fun duplicateDispatchException(): RuntimeException = IllegalStateException("Object orchestrated twice: ${objectOER.occurrence.path}")
 
     override fun prepareAndDispatchFieldWork() {
         val fieldPublications = CoroutineFieldResolverTask.prepareAll(this)
         val checkerPublications = CoroutineFieldCheckerTask.prepareAll(this)
+        val typeCheckerPublications = CoroutineTypeCheckerTask.prepareAll(this)
         val checkedCells = checkerPublications.mapTo(linkedSetOf()) { it.publicationCell }
         listOf(objectOER, queryOER).forEach { oer ->
             oer.occurrence.target.keys.forEach { key ->
@@ -127,7 +167,12 @@ internal class CoroutineOrchestrationTask private constructor(
             }
         }
         fieldPublications.forEach(operation.dispatcher::dispatchFieldResolver)
-        checkerPublications.filter { it.checker != null }.forEach(operation.dispatcher::dispatchFieldChecker)
+        checkerPublications.filter { it.checker != null }.forEach { publication ->
+            operation.dispatcher.dispatchFieldChecker(publication)
+        }
+        typeCheckerPublications.forEach { publication ->
+            operation.dispatcher.dispatchTypeChecker(publication)
+        }
     }
 
     private fun observeQueryOER() {

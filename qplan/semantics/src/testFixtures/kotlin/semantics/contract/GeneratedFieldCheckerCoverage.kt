@@ -306,7 +306,7 @@ private fun ArbitraryRegistry.fieldCheckerCoverage(
                 )
                 val distinctArguments =
                     applications
-                        .map { application -> application.arguments.fieldValues }
+                        .map { application -> checkNotNull(application.arguments).fieldValues }
                         .distinct()
                 if (distinctArguments.size > 1) {
                     check(distinctArguments.any(Map<*, *>::isNotEmpty)) {

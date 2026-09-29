@@ -50,6 +50,24 @@ internal abstract class SharedPassiveValueResolutionLogic<
         constructionDemand: Demand<SelectionForest>,
     ): T
 
+    /**
+     * Creates the concrete OER before its orchestration closes and prepares local work.
+     *
+     * The default is an empty mutable OER whose type-check result is immediate null, which is
+     * sufficient for resolver families that do not schedule access checks. Checker-capable
+     * families override this hook to inspect [constructionDemand] and install a deferred
+     * type-check result when the occurrence demands one and its concrete type has a registered
+     * checker.
+     *
+     * The promise choice belongs at creation because the new OER may become observable as soon as
+     * passive resolution publishes it. A completed null result cannot subsequently be replaced by
+     * a deferred checker result.
+     */
+    protected open fun createObjectResult(
+        type: ViaductSchema.Object,
+        constructionDemand: Demand<SelectionForest>,
+    ): ObjectEngineResult = ObjectEngineResult.of(type = type, mutable = true)
+
     /** Returns the checked/unchecked demand closed by [orchestration]. */
     protected open fun closedConstructionDemand(orchestration: T): Demand<ObjectSelectionForest> =
         Demand.checked(orchestration.objectOER.closedValueSelections)
@@ -124,7 +142,7 @@ internal abstract class SharedPassiveValueResolutionLogic<
             is RootFieldReferenceData ->
                 error("A direct root-field reference must be resolved before passive resolution")
             is EngineObjectData.Sync -> {
-                val target = ObjectEngineResult.of(type = value.schemaType, mutable = true)
+                val target = createObjectResult(value.schemaType, constructionDemand)
                 resolvePassiveObjectValues(
                     source = value,
                     occurrence = OEROccurrence(root, path, target, parent),
@@ -258,6 +276,7 @@ internal abstract class SharedPassiveValueResolutionLogic<
                     Demand(
                         checked = checkedByKey[key]?.subselections ?: selectionForestOf(),
                         unchecked = uncheckedByKey[key]?.subselections ?: selectionForestOf(),
+                        typeCheckDemanded = key in checkedByKey,
                     )
                 if (
                     containsReference &&

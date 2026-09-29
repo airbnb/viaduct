@@ -159,6 +159,7 @@ private fun ObjectSelection.findParentDemandInObjectSelection(
             Demand(
                 checked = carryNestedDemand(nested.localDemand.checked),
                 unchecked = carryNestedDemand(nested.localDemand.unchecked),
+                typeCheckDemanded = false,
             )
         } else {
             // An unchecked ancestor is only transport. Checked work below it recovers checked

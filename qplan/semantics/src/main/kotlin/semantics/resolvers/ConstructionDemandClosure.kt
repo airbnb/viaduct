@@ -151,6 +151,7 @@ internal fun EngineObjectData.Sync.closeOrchestrationConstructionDemand(
                         Demand(
                             checked = objectResolverInputs.objectFragment,
                             unchecked = objectCheckerInputs.objectFragment,
+                            typeCheckDemanded = false,
                         ),
                     queryRooted =
                         Demand(
@@ -159,6 +160,7 @@ internal fun EngineObjectData.Sync.closeOrchestrationConstructionDemand(
                                 objectCheckerInputs.queryFragment +
                                     queryCheckerInputs.objectFragment +
                                     queryCheckerInputs.queryFragment,
+                            typeCheckDemanded = false,
                         ),
                 )
             expandedObjectResolverKeys += newObjectResolverKeys

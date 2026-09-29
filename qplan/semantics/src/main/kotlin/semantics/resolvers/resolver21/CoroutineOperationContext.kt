@@ -3,7 +3,6 @@ package semantics.resolvers.resolver21
 import kotlinx.coroutines.CoroutineScope
 import model.SelectionForest
 import semantics.resolver26.CoroutineTaskDispatcher
-import semantics.resolvers.GroundedFieldPublicationOccurrence
 import semantics.shared.CycleCheckState
 import semantics.shared.Demand
 import semantics.shared.SharedOperationContext
@@ -15,26 +14,14 @@ internal class CoroutineOperationContext(
     val complete: (Demand<SelectionForest>) -> SelectionForest,
     val cycleChecker: CycleCheckState,
     val supportsCheckerFragments: Boolean = false,
-) : SharedOperationContext<
-        CoroutineTaskDispatcher<
-            CoroutineOrchestrationTask,
-            GroundedFieldPublicationOccurrence<CoroutineOperationContext>,
-            GroundedFieldCheckerPublicationOccurrence,
-        >,
-    > by
+) : SharedOperationContext<CoroutineTaskDispatcher> by
     SharedOperationContext.create(
         world = base.world,
         variableBindings = base.variableBindings,
         resolverObserver = base.resolverObserver,
         checkerObserver = base.checkerObserver,
-        dispatcher = CoroutineTaskDispatcher<
-            CoroutineOrchestrationTask,
-            GroundedFieldPublicationOccurrence<CoroutineOperationContext>,
-            GroundedFieldCheckerPublicationOccurrence,
-        >(
+        dispatcher = CoroutineTaskDispatcher(
             requestScope = requestScope,
-            runFieldResolver = CoroutineFieldResolverTask::execute,
-            runFieldChecker = CoroutineFieldCheckerTask::execute,
         ),
     ) {
     val passiveValues = CoroutinePassiveValueResolutionLogic(this)

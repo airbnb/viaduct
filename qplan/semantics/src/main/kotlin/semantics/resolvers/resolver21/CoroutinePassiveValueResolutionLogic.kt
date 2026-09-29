@@ -7,7 +7,6 @@ import model.PathComponent
 import model.RootFieldReferenceData
 import model.SelectionForest
 import model.requireQueryTypeDef
-import semantics.resolvers.GroundedFieldPublicationOccurrence
 import semantics.shared.Demand
 import semantics.shared.OEROccurrence
 import semantics.shared.SharedOERContext
@@ -24,6 +23,11 @@ internal class CoroutinePassiveValueResolutionLogic(operation: CoroutineOperatio
         source: EngineObjectData.Sync,
         constructionDemand: Demand<SelectionForest>,
     ): CoroutineOrchestrationTask = CoroutineOrchestrationTask.create(operation, occurrence, source, constructionDemand)
+
+    override fun createObjectResult(
+        type: ViaductSchema.Object,
+        constructionDemand: Demand<SelectionForest>,
+    ): model.ObjectEngineResult = CoroutineOrchestrationTask.createObjectResult(operation, type, constructionDemand)
 
     override fun closedConstructionDemand(orchestration: CoroutineOrchestrationTask): Demand<ObjectSelectionForest> = orchestration.closedConstructionDemand.objectRooted
 
@@ -43,7 +47,7 @@ internal class CoroutinePassiveValueResolutionLogic(operation: CoroutineOperatio
         parent: OEROccurrence,
     ) {
         CoroutineFieldResolverTask.prepareAndDispatchListElement(
-            GroundedFieldPublicationOccurrence(
+            CoroutineFieldPublicationOccurrence(
                 operation = operation,
                 oerOccurrence = parent,
                 selection = selection,

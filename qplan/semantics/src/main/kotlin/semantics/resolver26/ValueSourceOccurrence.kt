@@ -39,7 +39,8 @@ internal data class FieldResolverOccurrence(
     val resolver: FieldValueResolver,
     val variableDefinitions: List<VariableInstanceDefinition>,
     val fragments: ResolverFragments,
-    override val publicationConstructionDemand: Demand<SelectionForest> = Demand.checked(selection.subselections),
+    override val publicationConstructionDemand: Demand<SelectionForest> =
+        Demand.checked(selection.subselections),
 ) : ValueSourceOccurrence {
     override val publicationPath: List<PathComponent>
         get() = invocationPath
@@ -49,7 +50,8 @@ internal data class FieldResolverOccurrence(
 internal data class RootFieldReferenceOccurrence(
     override val selection: ObjectSelection,
     val reference: RootFieldReferenceData,
-    override val publicationConstructionDemand: Demand<SelectionForest> = Demand.checked(selection.subselections),
+    override val publicationConstructionDemand: Demand<SelectionForest> =
+        Demand.checked(selection.subselections),
     override val publicationPath: List<PathComponent>,
     override val publicationExpectedType: ViaductSchema.TypeExpr<ViaductSchema.OutputTypeDef> =
         selection.key.field.outputType,

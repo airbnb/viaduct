@@ -19,7 +19,7 @@ import viaduct.graphql.schema.ViaductSchema
  * Delegates the shared operation contract while retaining the concrete [operation] type;
  * family-specific dispatch remains available through `operation.dispatcher`.
  */
-internal class GroundedFieldPublicationOccurrence<out O : SharedOperationContext<*>>(
+internal open class GroundedFieldPublicationOccurrence<out O : SharedOperationContext<*>>(
     override val operation: O,
     override val oerOccurrence: OEROccurrence,
     val selection: ObjectSelection,

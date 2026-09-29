@@ -42,7 +42,7 @@ internal fun CoroutineOperationContext.startResolve(
     demand: Demand<SelectionForest>,
     queryFragmentOwner: ResolverOccurrenceId? = null,
 ): ObjectEngineResult {
-    val result = ObjectEngineResult.of(source.schemaType, mutable = true)
+    val result = CoroutineOrchestrationTask.createObjectResult(this, source.schemaType, demand)
     val orchestration =
         CoroutineOrchestrationTask.create(
             this@startResolve,

@@ -101,8 +101,8 @@ class ConstructionDemandClosureTest {
         val closed =
             fixture.closeOrchestrationDemand(
                 OrchestrationConstructionDemand(
-                    objectRooted = Demand(ownerSelections, rawOwnerSelections),
-                    queryRooted = Demand(rawOwnerSelections, rawOwnerSelections),
+                    objectRooted = Demand(ownerSelections, rawOwnerSelections, typeCheckDemanded = false),
+                    queryRooted = Demand(rawOwnerSelections, rawOwnerSelections, typeCheckDemanded = false),
                 ),
             )
 

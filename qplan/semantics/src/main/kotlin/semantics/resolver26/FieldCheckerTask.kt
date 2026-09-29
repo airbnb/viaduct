@@ -14,6 +14,7 @@ import model.ObjectSelection
 import model.VariableBinding
 import model.registry.CheckerInput
 import model.registry.ResolutionExecutionContext
+import model.registry.ResolverTarget
 import model.registry.VariableDefinition
 import semantics.shared.CheckerInvocationObservation
 import semantics.shared.CheckerKind
@@ -31,9 +32,17 @@ internal class SymbolicFieldCheckerPublicationOccurrence(
     val operation: OperationContext,
     val oerOccurrence: OEROccurrence,
     val checkerOccurrence: FieldCheckerOccurrence,
-    override val publicationCell: EngineResultCell,
+    val publicationCell: EngineResultCell,
     val queryOER: SharedOERContext,
-) : CoroutineFieldCheckerPublicationOccurrence
+) : CoroutinePublicationOccurrence {
+    override fun dispatch(requestScope: CoroutineScope) {
+        requestScope.launch {
+            FieldCheckerTask.execute(this@SymbolicFieldCheckerPublicationOccurrence, this)
+        }.invokeOnCompletion { cause ->
+            if (cause is CancellationException) FieldCheckerTask.cancel(this@SymbolicFieldCheckerPublicationOccurrence, cause)
+        }
+    }
+}
 
 /** One claimed slot either has an executable checker or defers absence until value activation. */
 internal class PreparedFieldCheckerSlot(
@@ -208,7 +217,7 @@ internal class FieldCheckerTask private constructor(
                 logicalQueryRoot = publication.oerOccurrence.root,
                 occurrencePath = publication.oerOccurrence.coordinate(key),
                 arguments = arguments,
-                checkedCoordinate = key.field,
+                checkedTarget = ResolverTarget.FieldCheckerTarget(key.field),
             ),
         )
         val result = occurrence.checker(arguments, inputs, this)

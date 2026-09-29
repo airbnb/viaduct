@@ -4,6 +4,7 @@ import model.Arguments
 import model.ObjectEngineResult
 import model.PathComponent
 import model.ResolverOccurrenceId
+import model.registry.ResolverTarget
 import viaduct.graphql.schema.ViaductSchema
 
 /** The access-check result slot produced by one checker invocation. */
@@ -17,9 +18,17 @@ data class CheckerInvocationObservation(
     val checkerKind: CheckerKind,
     val logicalQueryRoot: ObjectEngineResult,
     val occurrencePath: List<PathComponent>,
-    val arguments: Arguments.Resolved,
-    val checkedCoordinate: ViaductSchema.ObjectField,
-)
+    val arguments: Arguments.Resolved?,
+    val checkedTarget: ResolverTarget,
+) {
+    /** The checked field for a field-checker observation. */
+    val checkedCoordinate: ViaductSchema.ObjectField
+        get() = (checkedTarget as ResolverTarget.FieldCheckerTarget).field
+
+    /** The checked concrete type for a type-checker observation. */
+    val checkedType: ViaductSchema.Object
+        get() = (checkedTarget as ResolverTarget.TypeCheckerTarget).type
+}
 
 /**
  * Receives semantically passive checker observations from one operation.

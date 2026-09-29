@@ -48,8 +48,17 @@ internal class SymbolicFieldPublicationOccurrence(
     /** Variable-provider reads rooted in the publication's object or associated Query OER. */
     val variableProviderReads: List<VariableProviderReadOccurrence>,
     val checkerScheduled: Boolean = false,
-) : SharedFieldPublicationOccurrence<OperationContext, CoroutineTaskDispatcher<OrchestrationTask, SymbolicFieldPublicationOccurrence, SymbolicFieldCheckerPublicationOccurrence>>,
-    OperationContext by operation
+) : SharedFieldPublicationOccurrence<OperationContext, CoroutineTaskDispatcher>,
+    CoroutinePublicationOccurrence,
+    OperationContext by operation {
+    override fun dispatch(requestScope: CoroutineScope) {
+        requestScope.launch {
+            FieldResolverTask.execute(this@SymbolicFieldPublicationOccurrence, this)
+        }.invokeOnCompletion { cause ->
+            if (cause is CancellationException) FieldResolverTask.cancel(this@SymbolicFieldPublicationOccurrence, cause)
+        }
+    }
+}
 
 /** Owns setup and resolution for one field publication. */
 internal class FieldResolverTask private constructor(

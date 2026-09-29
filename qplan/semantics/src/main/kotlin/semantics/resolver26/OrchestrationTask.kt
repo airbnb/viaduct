@@ -53,7 +53,13 @@ internal class OrchestrationTask private constructor(
             occurrence: OEROccurrence,
             source: EngineObjectData.Sync,
             constructionDemand: SelectionForest,
-        ): OrchestrationTask = create(operation, occurrence, source, Demand.checked(constructionDemand))
+        ): OrchestrationTask =
+            create(
+                operation,
+                occurrence,
+                source,
+                Demand.checked(constructionDemand),
+            )
 
         fun create(
             operation: OperationContext,
@@ -118,7 +124,9 @@ internal class OrchestrationTask private constructor(
     override fun prepareAndDispatchFieldWork() {
         val fieldPublications = FieldResolverTask.prepareAll(this)
         (fieldPublications + conditionedPassivePublications).forEach(operation.dispatcher::dispatchFieldResolver)
-        checkerPreparation.executablePublications.forEach(operation.dispatcher::dispatchFieldChecker)
+        checkerPreparation.executablePublications.forEach { publication ->
+            operation.dispatcher.dispatchFieldChecker(publication)
+        }
         checkerPreparation.publishReadyAbsences()
         val checkedCells = checkerPreparation.claimedSlots.mapTo(linkedSetOf()) { it.cell }
         listOf(objectOER, queryOER).forEach { oer ->

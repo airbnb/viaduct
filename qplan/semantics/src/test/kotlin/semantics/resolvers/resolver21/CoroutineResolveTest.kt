@@ -5,6 +5,7 @@ import model.ObjectEngineResult
 import model.SelectionForest
 import semantics.contract.CoroutineResolverContract
 import semantics.contract.CoroutineResolverTestSubject
+import semantics.contract.FragmentFreeCheckerProfileContract
 import semantics.contract.FragmentFreeFieldCheckerPublicationContract
 import semantics.shared.CycleCheckState
 import semantics.shared.Demand
@@ -13,6 +14,7 @@ import semantics.shared.SharedOperationContext
 class CoroutineResolveTest :
     CoroutineResolverTestSubject(),
     CoroutineResolverContract,
+    FragmentFreeCheckerProfileContract,
     FragmentFreeFieldCheckerPublicationContract {
     override val selectiveResolvers = false
     override val usesSingularQueryOER = true

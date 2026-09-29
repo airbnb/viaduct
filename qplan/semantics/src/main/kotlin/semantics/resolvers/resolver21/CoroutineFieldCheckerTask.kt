@@ -1,8 +1,10 @@
 package semantics.resolvers.resolver21
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.launch
 import model.Arguments
 import model.EngineResultCell
 import model.ObjectEngineResult
@@ -12,7 +14,8 @@ import model.registry.CheckerInput
 import model.registry.FieldCheckerResolver
 import model.registry.ResolutionExecutionContext
 import model.registry.ResolverFragments
-import semantics.resolver26.CoroutineFieldCheckerPublicationOccurrence
+import model.registry.ResolverTarget
+import semantics.resolver26.CoroutinePublicationOccurrence
 import semantics.shared.CheckerInvocationObservation
 import semantics.shared.CheckerKind
 import semantics.shared.OEROccurrence
@@ -26,13 +29,21 @@ internal class GroundedFieldCheckerPublicationOccurrence(
     val operation: CoroutineOperationContext,
     val oerOccurrence: OEROccurrence,
     val selection: ObjectSelection,
-    override val publicationCell: EngineResultCell,
+    val publicationCell: EngineResultCell,
     val checker: FieldCheckerResolver?,
     val checkerFragments: ResolverFragments?,
     val arguments: Arguments.Resolved?,
     val publicationPath: List<PathComponent>,
     val queryOER: SharedOERContext,
-) : CoroutineFieldCheckerPublicationOccurrence
+) : CoroutinePublicationOccurrence {
+    override fun dispatch(requestScope: CoroutineScope) {
+        requestScope.launch {
+            CoroutineFieldCheckerTask.execute(this@GroundedFieldCheckerPublicationOccurrence, this)
+        }.invokeOnCompletion { cause ->
+            if (cause is CancellationException) CoroutineFieldCheckerTask.cancel(this@GroundedFieldCheckerPublicationOccurrence, cause)
+        }
+    }
+}
 
 /**
  * Materializes one checker's paired inputs, invokes it, and publishes independently from the
@@ -102,6 +113,13 @@ internal class CoroutineFieldCheckerTask private constructor(
             @Suppress("UNUSED_PARAMETER") scope: CoroutineScope,
         ) {
             CoroutineFieldCheckerTask(publication).run()
+        }
+
+        internal fun cancel(
+            publication: GroundedFieldCheckerPublicationOccurrence,
+            cause: CancellationException,
+        ) {
+            publication.publicationCell.fieldCheckerResult.cancel(cause)
         }
 
         private fun requireSupportedRequiredSelections(
@@ -186,7 +204,7 @@ internal class CoroutineFieldCheckerTask private constructor(
                 logicalQueryRoot = publication.oerOccurrence.root,
                 occurrencePath = publication.publicationPath,
                 arguments = arguments,
-                checkedCoordinate = publication.selection.key.field,
+                checkedTarget = ResolverTarget.FieldCheckerTarget(publication.selection.key.field),
             ),
         )
         val result =

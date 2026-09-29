@@ -21,7 +21,7 @@ import model.VariableBinding
 import model.operationSelectionsFrom
 import model.requireQueryTypeDef
 import model.testing.TestWorld
-import semantics.resolvers.GroundedFieldPublicationOccurrence
+import semantics.resolvers.resolver21.CoroutineFieldPublicationOccurrence
 import semantics.resolvers.resolver21.CoroutineFieldResolverTask
 import semantics.resolvers.resolver21.CoroutineOperationContext
 import semantics.resolvers.resolver21.CoroutineOrchestrationTask
@@ -66,7 +66,7 @@ class PublicationValidationTest : Resolver26DispatcherResource {
                     // The destination stays owned by invalid; only its claimed containing occurrence is corrupt.
                     val unrelated = ObjectEngineResult.of(root.type, mutable = true)
                     unrelated.reserveCell(invalid.selection.key)
-                    val malformed = GroundedFieldPublicationOccurrence(
+                    val malformed = CoroutineFieldPublicationOccurrence(
                         operation = operation,
                         oerOccurrence = OEROccurrence(unrelated, emptyList(), unrelated),
                         selection = invalid.selection,

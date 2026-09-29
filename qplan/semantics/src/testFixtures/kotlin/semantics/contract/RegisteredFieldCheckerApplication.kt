@@ -11,6 +11,7 @@ import model.ErrorEngineResult
 import model.ListEngineResult
 import model.ObjectEngineResult
 import model.PathComponent
+import model.registry.ResolverTarget
 import semantics.correctresolution.CorrectnessCheckerObserver
 import semantics.correctresolution.CorrectnessResolverObserver
 import semantics.shared.CheckerInvocationObservation
@@ -80,7 +81,7 @@ private fun ObjectEngineResult.forEachPublishedFieldCheckerApplication(
                                 logicalQueryRoot = logicalQueryRoot,
                                 occurrencePath = occurrencePath,
                                 arguments = arguments,
-                                checkedCoordinate = key.field,
+                                checkedTarget = ResolverTarget.FieldCheckerTarget(key.field),
                             ),
                         )
                     }

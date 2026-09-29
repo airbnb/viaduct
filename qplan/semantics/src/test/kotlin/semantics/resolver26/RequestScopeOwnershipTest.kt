@@ -10,7 +10,7 @@ import org.junit.jupiter.api.Test
 
 class RequestScopeOwnershipTest {
     @Test
-    fun `only orchestration field value and field checker task roots can launch on the request scope`() {
+    fun `only orchestration field value and checker task roots can launch on the request scope`() {
         val sourceDirectory = Path.of("src/main/kotlin/semantics/resolver26")
         assertTrue(Files.isDirectory(sourceDirectory), "Resolver26 source directory is missing")
         val sources =
@@ -24,7 +24,14 @@ class RequestScopeOwnershipTest {
         }
         val rawRequestScopeLaunch = Regex("""requestScope\s*\.\s*(?:launch|async)\s*(?:\(|\{)""")
         assertEquals(
-            listOf("resolver26/CoroutineTaskDispatcher.kt"),
+            listOf(
+                "resolver26/CoroutineTaskDispatcher.kt",
+                "resolver26/FieldCheckerTask.kt",
+                "resolver26/FieldResolverTask.kt",
+                "resolvers/resolver21/CoroutineFieldCheckerTask.kt",
+                "resolvers/resolver21/CoroutineFieldResolverTask.kt",
+                "resolvers/resolver21/CoroutineTypeCheckerTask.kt",
+            ),
             allSources.filter { source -> rawRequestScopeLaunch.containsMatchIn(source.readText()) }
                 .map { semanticsDirectory.relativize(it).toString() }
                 .sorted(),
@@ -55,10 +62,18 @@ class RequestScopeOwnershipTest {
         assertTrue(!fieldDispatch.containsMatchIn(beforeListHelper + afterListHelper))
         assertEquals(1, fieldDispatch.findAll(fieldResolverSource).count())
 
-        val fieldCheckerDispatch = Regex("""(?:\.\s*|::)dispatchFieldChecker(?:\s*\(|\b)""")
+        val fieldCheckerDispatch = Regex("""\.\s*dispatchFieldChecker\s*\(""")
         assertEquals(
             listOf("resolver26/OrchestrationTask.kt", "resolvers/resolver21/CoroutineOrchestrationTask.kt"),
             allSources.filter { source -> fieldCheckerDispatch.containsMatchIn(source.readText()) }
+                .map { semanticsDirectory.relativize(it).toString() }
+                .sorted(),
+        )
+
+        val typeCheckerDispatch = Regex("""\.\s*dispatchTypeChecker\s*\(""")
+        assertEquals(
+            listOf("resolvers/resolver21/CoroutineOrchestrationTask.kt"),
+            allSources.filter { source -> typeCheckerDispatch.containsMatchIn(source.readText()) }
                 .map { semanticsDirectory.relativize(it).toString() }
                 .sorted(),
         )

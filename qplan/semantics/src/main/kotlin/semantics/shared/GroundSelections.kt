@@ -31,6 +31,7 @@ internal fun Demand<SelectionForest>.applicableGroundSelections(
     Demand(
         checked = checked.applicableGroundSelections(operation, type),
         unchecked = unchecked.applicableGroundSelections(operation, type),
+        typeCheckDemanded = typeCheckDemanded,
     )
 
 private inline fun ObjectSelectionForest.groundSelections(groundArguments: (ObjectSelection) -> Arguments.Ground): ObjectSelectionForest {

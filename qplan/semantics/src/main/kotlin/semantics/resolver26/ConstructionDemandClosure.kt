@@ -158,11 +158,13 @@ internal fun EngineObjectData.Sync.closeOrchestrationConstructionDemand(
             val objectInputs = Demand(
                 checked = objectResolverInputs.objectFragment,
                 unchecked = objectCheckerInputs.objectFragment,
+                typeCheckDemanded = false,
             )
             val queryInputs = Demand(
                 checked = queryInputSelections,
                 unchecked = objectCheckerInputs.queryFragment +
                     queryCheckerInputs.objectFragment + queryCheckerInputs.queryFragment,
+                typeCheckDemanded = false,
             )
             // Preserve incremental lifting: only initial demand and new contributions need analysis.
             accumulatedDemand += OrchestrationConstructionDemand(

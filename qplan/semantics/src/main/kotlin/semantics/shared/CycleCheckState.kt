@@ -45,6 +45,11 @@ class CycleTask(
             root: ObjectEngineResult,
             path: List<PathComponent>,
         ): CycleTask = CycleTask(CycleTaskKind.FIELD_CHECKER, root, path)
+
+        fun typeChecker(
+            root: ObjectEngineResult,
+            path: List<PathComponent>,
+        ): CycleTask = CycleTask(CycleTaskKind.TYPE_CHECKER, root, path)
     }
 }
 
@@ -52,9 +57,13 @@ internal fun ObjectEngineResult.fieldResolverCycleTask(path: List<PathComponent>
 
 internal fun ObjectEngineResult.fieldCheckerCycleTask(path: List<PathComponent>): CycleTask = CycleTask.fieldChecker(this, path)
 
+internal fun ObjectEngineResult.typeCheckerCycleTask(path: List<PathComponent>): CycleTask = CycleTask.typeChecker(this, path)
+
 internal fun OEROccurrence.fieldResolverCycleTask(key: ObjectEngineResult.ObjectKey): CycleTask = root.fieldResolverCycleTask(coordinate(key))
 
 internal fun OEROccurrence.fieldCheckerCycleTask(key: ObjectEngineResult.ObjectKey): CycleTask = root.fieldCheckerCycleTask(coordinate(key))
+
+internal fun OEROccurrence.typeCheckerCycleTask(): CycleTask = root.typeCheckerCycleTask(path)
 
 /** The independent result slot read or written by a task. */
 enum class CycleSlotKind {

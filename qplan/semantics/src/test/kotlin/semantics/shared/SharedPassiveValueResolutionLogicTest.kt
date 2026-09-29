@@ -601,6 +601,7 @@ private fun ResolverOutputData?.recordPassiveResolution(
                 Demand(
                     checked = collect(constructionDemand.checked, occurrence.target.type),
                     unchecked = collect(constructionDemand.unchecked, occurrence.target.type),
+                    typeCheckDemanded = constructionDemand.typeCheckDemanded,
                 )
             val task = object : SharedOrchestrationTask<SharedOperationContext<*>> {
                 override val operation = taskOperation
