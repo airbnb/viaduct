@@ -7,18 +7,18 @@ plugins {
 
 dependencies {
     implementation(project(":model"))
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")
+    implementation(libs.kotlinx.coroutines.core)
 
     testFixturesImplementation(project(":arbitrary"))
     testFixturesImplementation(testFixtures(project(":model")))
-    testFixturesImplementation("io.kotest:kotest-assertions-core-jvm:5.9.1")
-    testFixturesImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")
+    testFixturesImplementation(libs.kotest.assertions.core.jvm)
+    testFixturesImplementation(libs.kotlinx.coroutines.core)
     testFixturesImplementation(kotlin("test-junit5"))
 
     testImplementation(project(":arbitrary"))
     testImplementation(testFixtures(project(":model")))
-    testImplementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.17.3")
-    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")
+    testImplementation(libs.jackson.module)
+    testImplementation(libs.kotlinx.coroutines.core)
     testImplementation(kotlin("test-junit5"))
 
     add("jmhImplementation", sourceSets["testFixtures"].output)
@@ -190,8 +190,8 @@ fun registerResolverBenchmarkTask(
         }
         doLast {
             if (benchmark == "overhead") {
-                println()
-                print(statisticsFile.get().asFile.readText())
+                logger.lifecycle("")
+                logger.lifecycle(statisticsFile.get().asFile.readText())
             }
         }
     }
@@ -234,8 +234,8 @@ tasks.register<JavaExec>("resolver26OverheadProfile") {
     }
 
     doLast {
-        println()
-        println("Resolver26 overhead JFR: ${resolver26OverheadProfileOutput.get().absolutePath}")
+        logger.lifecycle("")
+        logger.lifecycle("Resolver26 overhead JFR: ${resolver26OverheadProfileOutput.get().absolutePath}")
     }
 }
 
@@ -302,8 +302,8 @@ tasks.register<JavaExec>("correctResolutionProfile") {
     }
 
     doLast {
-        println()
-        println("CorrectResolution JFR: ${correctResolutionProfileOutput.get().absolutePath}")
+        logger.lifecycle("")
+        logger.lifecycle("CorrectResolution JFR: ${correctResolutionProfileOutput.get().absolutePath}")
     }
 }
 
@@ -359,8 +359,8 @@ tasks.register<JavaExec>("propertyTestProfile") {
     }
 
     doLast {
-        println()
-        println("Property-test JFR: ${propertyTestProfileOutput.get().absolutePath}")
+        logger.lifecycle("")
+        logger.lifecycle("Property-test JFR: ${propertyTestProfileOutput.get().absolutePath}")
     }
 }
 

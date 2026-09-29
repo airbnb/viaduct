@@ -22,6 +22,7 @@ dependencyResolutionManagement {
     versionCatalogs {
         create("libs") {
             from(files("../gradle/libs.versions.toml"))
+            library("jakarta-inject", "jakarta.inject", "jakarta.inject-api").version("2.0.1")
         }
     }
 }

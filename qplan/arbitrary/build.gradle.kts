@@ -8,12 +8,12 @@ dependencies {
     api(project(":model"))
     api(project(":semantics"))
     api(testFixtures(project(":model")))
-    api("io.kotest:kotest-property-jvm:5.9.1")
+    api(libs.kotest.property.jvm)
 
-    implementation("com.graphql-java:graphql-java:26.0")
-    implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.17.3")
+    implementation(libs.graphql.java)
+    implementation(libs.jackson.module)
 
-    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")
+    testImplementation(libs.kotlinx.coroutines.core)
     testImplementation(testFixtures(project(":semantics")))
     testImplementation(kotlin("test-junit5"))
 }
