@@ -21,10 +21,13 @@ TASK_FAILED = re.compile(r"> Task (\S+) FAILED")
 ANSI = re.compile(r"\x1b\[[0-9;]*[a-zA-Z]")
 
 
+def plain_text(log: str) -> str:
+    return ANSI.sub("", log).replace("\r", "")
+
+
 def extract_failed_tasks(log: str) -> list:
-    plain = ANSI.sub("", log).replace("\r", "")
     tasks = []
-    for match in TASK_FAILED.finditer(plain):
+    for match in TASK_FAILED.finditer(plain_text(log)):
         task = match.group(1)
         if task not in tasks:
             tasks.append(task)
