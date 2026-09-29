@@ -6,7 +6,7 @@ import model.ObjectEngineResult
 import viaduct.engine.api.EngineObjectData
 
 /**
- * The externally supplied field resolvers and field-relative variable definitions fixed for one
+ * The externally supplied resolver slots and resolver-relative variable definitions fixed for one
  * reasoning world.
  *
  * A canonical object field is an actual resolver coordinate exactly when [contains] returns true.
@@ -51,6 +51,9 @@ interface ResolverRegistry {
 
     /** Returns the checker for [field], or null when no field checker applies. */
     fun fieldChecker(field: ViaductSchema.ObjectField): FieldCheckerResolver? = null
+
+    /** Returns the checker for [type], or null when no type checker applies. */
+    fun typeChecker(type: ViaductSchema.Object): TypeCheckerResolver? = null
 
     /**
      * The registered fields that may be directly demanded by [field].

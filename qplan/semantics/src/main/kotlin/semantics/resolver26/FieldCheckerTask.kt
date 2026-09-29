@@ -51,8 +51,8 @@ internal class FieldCheckerPreparation(val claimedSlots: List<PreparedFieldCheck
 
     fun publishReadyAbsences() {
         delayedAbsenceSlots.forEach { cell ->
-            if (cell.getValue().isCompleted && !cell.getFieldCheckerResult().isCompleted) {
-                cell.getFieldCheckerResult().complete(null)
+            if (cell.value.isCompleted && !cell.fieldCheckerResult.isCompleted) {
+                cell.fieldCheckerResult.complete(null)
             }
         }
     }
@@ -91,7 +91,7 @@ internal class FieldCheckerTask private constructor(
             if (selection.inclusionCondition === InclusionCondition.Never) return null
             val key = selection.key
             val cell = oer.occurrence.target.reserveCell(key)
-            cell.createFieldCheckerResultPromise()
+            cell.fieldCheckerResult
             // Absence is published at the existing activation boundary, without a checker task.
             if (checkerOccurrence == null) return PreparedFieldCheckerSlot(cell, null)
             orchestrationTask.operation.cycleChecker.registerWriter(
@@ -115,7 +115,7 @@ internal class FieldCheckerTask private constructor(
             publication: SymbolicFieldCheckerPublicationOccurrence,
             cause: CancellationException
         ) {
-            publication.publicationCell.cancelFieldCheckerResult(cause)
+            publication.publicationCell.fieldCheckerResult.cancel(cause)
             publication.checkerOccurrence.variableDefinitions.forEach { definition ->
                 publication.operation.variableBindings.cancelBinding(requireNotNull(definition.variable.instanceId), cause)
             }
@@ -128,7 +128,7 @@ internal class FieldCheckerTask private constructor(
         } catch (cause: Exception) {
             currentCoroutineContext().ensureActive()
             completePendingBindings(VariableBinding.Error)
-            check(publication.publicationCell.failFieldCheckerResult(cause)) { "Field-checker failure was published twice" }
+            check(publication.publicationCell.fieldCheckerResult.fail(cause)) { "Field-checker failure was published twice" }
         }
     }
 
@@ -145,7 +145,7 @@ internal class FieldCheckerTask private constructor(
         }
         if (!included) {
             completePendingBindings(VariableBinding.of(null))
-            check(publication.publicationCell.getFieldCheckerResult().complete(null))
+            check(publication.publicationCell.fieldCheckerResult.complete(null))
             return
         }
         val arguments = key.fetchGroundedArguments(operation)
@@ -157,7 +157,7 @@ internal class FieldCheckerTask private constructor(
         }
         if (arguments !is Arguments.Resolved) {
             completePendingBindings(VariableBinding.Error)
-            check(publication.publicationCell.getFieldCheckerResult().complete(null))
+            check(publication.publicationCell.fieldCheckerResult.complete(null))
             return
         }
         if (occurrence.providerReads.isNotEmpty()) {
@@ -208,7 +208,7 @@ internal class FieldCheckerTask private constructor(
             ),
         )
         val result = occurrence.checker(arguments, inputs, this)
-        check(publication.publicationCell.getFieldCheckerResult().complete(result)) { "Field-checker result was completed twice" }
+        check(publication.publicationCell.fieldCheckerResult.complete(result)) { "Field-checker result was completed twice" }
     }
 
     private fun completePendingBindings(binding: VariableBinding) {

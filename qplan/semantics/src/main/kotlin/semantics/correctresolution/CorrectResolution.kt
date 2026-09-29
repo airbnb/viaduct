@@ -8,9 +8,9 @@ import semantics.shared.SharedOperationContext
 /**
  * Whether this primary Query-rooted result is a correct field-resolution result for [selections].
  *
- * The judgment is plan-independent. Checked client and resolver-input selections must claim their
- * registered field-checker slots. Claimed checker object fragments participate in value-demand
- * closure; checker relations are replayed from raw object and Query inputs; and recorded resolver
+ * The judgment is plan-independent. Checked client and resolver-input selections must contain the
+ * result of every registered field checker. Applicable checker object fragments participate in
+ * value-demand closure; checker relations are replayed from raw object and Query inputs; and recorded resolver
  * invocations must receive the same access-filtered values reconstructed from the OERs. Checker
  * application counts remain a separate judgment.
  *

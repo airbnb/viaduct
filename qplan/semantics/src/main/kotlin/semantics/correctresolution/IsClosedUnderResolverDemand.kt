@@ -63,10 +63,10 @@ private class ResolverDemandValidationLogic(
         val registry = operation.world.resolverRegistry
 
         return keys.all { key ->
-            if (!getCell(key).getValue().isCompleted) return@all true
+            if (!getCell(key).value.isCompleted) return@all true
             if (!key.isContextuallyGrounded(operation)) return@all false
             val arguments = key.groundedArguments(operation)
-            val value = getCell(key).getValue().get()
+            val value = getCell(key).value.get()
             val fieldName = key.field.name
             val argumentsContainError = arguments.argumentsContainErrorValue()
             val sourceSuppliesField = source?.isPresent(fieldName) == true
@@ -122,9 +122,8 @@ private class ResolverDemandValidationLogic(
             val fieldCheckerDemandIsClosed =
                 when {
                     key is ObjectEngineResult.ParentKey -> true
-                    !getCell(key).isFieldCheckerResultSet() -> true
                     argumentsContainError -> true
-                    getCell(key).getFieldCheckerResult().get() == null -> true
+                    getCell(key).fieldCheckerResult.get() == null -> true
                     else ->
                         registry.fieldChecker(key.field)?.let { checker ->
                             val coordinate = path + key
@@ -212,7 +211,7 @@ private class ResolverDemandValidationLogic(
                 source is List<*> &&
                     size == source.size &&
                     indices.all { index ->
-                        get(index).getValue().get().engineResultIsClosedUnderResolverDemand(
+                        get(index).value.get().engineResultIsClosedUnderResolverDemand(
                             path = path + ListEngineResult.Index.of(index),
                             source = source[index],
                             structuralParent = structuralParent,
@@ -242,7 +241,7 @@ private class ResolverDemandValidationLogic(
                 )
             is ListEngineResult ->
                 indices.all { index ->
-                    get(index).getValue().get().engineResultIsClosedUnderResolverDemand(
+                    get(index).value.get().engineResultIsClosedUnderResolverDemand(
                         path = path + ListEngineResult.Index.of(index),
                         structuralParent = structuralParent,
                         producerField = producerField,

@@ -8,6 +8,7 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 import model.Arguments
@@ -95,7 +96,7 @@ interface GroundedFieldCheckerObjectFragmentContract {
                             world.schema.requireObjectField("Query", "checked"),
                             emptyMap(),
                         ),
-                    ).getFieldCheckerResult()
+                    ).fieldCheckerResult
                     .get()
             }
 
@@ -212,7 +213,7 @@ interface GroundedFieldCheckerObjectFragmentContract {
                 world.schema.requireObjectField("Query", "item"),
                 emptyMap(),
             )
-        val item = assertIs<ObjectEngineResult>(result.getCell(itemKey).getValue().get())
+        val item = assertIs<ObjectEngineResult>(result.getCell(itemKey).value.get())
         val inputs = assertNotNull(inputsSeen.get())
 
         assertEquals(7, inputs.getValue("active").objectValue.get("active"))
@@ -230,7 +231,7 @@ interface GroundedFieldCheckerObjectFragmentContract {
         assertEquals(0, rawActiveChecks.get())
         assertEquals(0, rawNestedChecks.get())
         val activeKey = item.keys.single { it.field.name == "active" }
-        assertFalse(item.getCell(activeKey).isFieldCheckerResultSet())
+        assertNull(item.getCell(activeKey).fieldCheckerResult.get())
     }
 }
 

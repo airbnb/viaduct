@@ -83,6 +83,14 @@ internal class DepthFirstOrchestrationTask private constructor(
         val oerOccurrence = oer.occurrence
         val oerSource = oer.source
         val target = oerOccurrence.target
+        target.keys.forEach { key ->
+            val cell = target.getCell(key)
+            if (!cell.fieldCheckerResult.isCompleted) {
+                check(cell.fieldCheckerResult.complete(null)) {
+                    "Field-checker result was completed twice"
+                }
+            }
+        }
         val unresolved = oer.closedValueSelections.byGroundKey().filterKeys { !target.isCellSet(it) }
         val constructionDemand =
             if (querySide) closedConstructionDemand.queryRooted else closedConstructionDemand.objectRooted

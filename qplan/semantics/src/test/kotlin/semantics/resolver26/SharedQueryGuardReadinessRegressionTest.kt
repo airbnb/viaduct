@@ -66,9 +66,9 @@ class SharedQueryGuardReadinessRegressionTest : Resolver26DispatcherResource {
             val fastCell = result.getCell(
                 ObjectEngineResult.GroundKey.of(world.schema.requireObjectField("Query", "fast"), emptyMap()),
             )
-            val fastBeforeSlowRelease = withTimeoutOrNull(1_000) { fastCell.getValue().await() }
+            val fastBeforeSlowRelease = withTimeoutOrNull(1_000) { fastCell.value.await() }
             releaseSlow.complete(Unit)
-            assertEquals(7, withTimeout(5_000) { fastCell.getValue().await() })
+            assertEquals(7, withTimeout(5_000) { fastCell.value.await() })
             assertEquals(7, fastBeforeSlowRelease, "An independent true guard must make the shared dependency ready")
         } finally {
             releaseSlow.complete(Unit)

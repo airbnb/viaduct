@@ -62,25 +62,113 @@ class EngineResultTest {
             "one",
             result
                 .getCell(schema.key("User", "lookup", "limit" to 1))
-                .getValue()
+                .value
                 .get(),
         )
         val aliases =
             assertIs<ListEngineResult>(
-                result.getCell(schema.key("User", "aliases")).getValue().get(),
+                result.getCell(schema.key("User", "aliases")).value.get(),
             )
         assertEquals(
             listOf("A", null),
-            aliases.map { cell -> cell.getValue().get() },
+            aliases.map { cell -> cell.value.get() },
         )
         val friend =
             assertIs<ObjectEngineResult>(
-                result.getCell(schema.key("User", "friend")).getValue().get(),
+                result.getCell(schema.key("User", "friend")).value.get(),
             )
         assertEquals(
             "Grace",
-            friend.getCell(schema.key("User", "first")).getValue().get(),
+            friend.getCell(schema.key("User", "first")).value.get(),
         )
+    }
+
+    @Test
+    fun `object type checker result is independently monotonic`() {
+        val schema = TestWorld.fromSDL(SCHEMA_SDL).schema
+        val promise = Promise.ofDeferred<CheckerResult?>()
+        val result =
+            ObjectEngineResult.of(
+                type = schema.requireQueryTypeDef(),
+                typeCheckerResult = promise,
+                mutable = true,
+            )
+
+        assertFalse(result.typeCheckerResult.isCompleted)
+        assertTrue(result.typeCheckerResult.complete(null))
+        assertNull(result.typeCheckerResult.get())
+        assertTrue(result.isCompleted)
+        assertFalse(result.typeCheckerResult.complete(CheckerResult.Success))
+    }
+
+    @Test
+    fun `object type checker promise supports deferred completion failure and cancellation`() {
+        val schema = TestWorld.fromSDL(SCHEMA_SDL).schema
+        val successPromise = Promise.ofDeferred<CheckerResult?>()
+        val successful =
+            ObjectEngineResult.of(
+                type = schema.requireQueryTypeDef(),
+                typeCheckerResult = successPromise,
+                mutable = true,
+            )
+
+        assertFalse(successful.isCompleted)
+        assertTrue(successPromise.complete(CheckerResult.Success))
+        assertSame(CheckerResult.Success, successful.typeCheckerResult.get())
+        assertTrue(successful.isCompleted)
+
+        val failedPromise = Promise.ofDeferred<CheckerResult?>()
+        val failed =
+            ObjectEngineResult.of(
+                type = schema.requireQueryTypeDef(),
+                typeCheckerResult = failedPromise,
+                mutable = true,
+            )
+        val failure = IllegalStateException("checker failed")
+        assertTrue(failed.typeCheckerResult.fail(failure))
+        assertSame(
+            failure,
+            assertFailsWith<IllegalStateException> { failed.typeCheckerResult.get() },
+        )
+        assertFalse(failed.typeCheckerResult.fail(IllegalStateException("late")))
+
+        val cancelledPromise = Promise.ofDeferred<CheckerResult?>()
+        val cancelled =
+            ObjectEngineResult.of(
+                type = schema.requireQueryTypeDef(),
+                typeCheckerResult = cancelledPromise,
+                mutable = true,
+            )
+        val cancellation = CancellationException("checker cancelled")
+        assertTrue(cancelled.typeCheckerResult.cancel(cancellation))
+        assertSame(
+            cancellation,
+            assertFailsWith<CancellationException> { cancelled.typeCheckerResult.get() },
+        )
+        assertFalse(cancelled.typeCheckerResult.cancel(cancellation))
+    }
+
+    @Test
+    fun `completed object comparison and union include the object type checker result`() {
+        val schema = TestWorld.fromSDL(SCHEMA_SDL).schema
+        val query = schema.requireQueryTypeDef()
+        val noChecker = ObjectEngineResult.of(type = query)
+        val denial = TestCheckerError()
+        val denied = ObjectEngineResult.of(type = query, typeCheckerResult = Promise.of(denial))
+
+        assertFalse(noChecker.sameCompletedResultAs(denied))
+
+        assertFailsWith<IllegalArgumentException> {
+            noChecker.union(denied)
+        }
+        assertFailsWith<IllegalArgumentException> {
+            denied.union(
+                ObjectEngineResult.of(
+                    type = query,
+                    typeCheckerResult = Promise.of(TestCheckerError()),
+                ),
+            )
+        }
     }
 
     @Test
@@ -92,11 +180,10 @@ class EngineResultTest {
 
         assertEquals(
             listOf("one", null),
-            result.map { cell -> cell.getValue().get() },
+            result.map { cell -> cell.value.get() },
         )
         result.forEach { cell ->
-            assertNull(cell.getFieldCheckerResult().get())
-            assertNull(cell.getTypeCheckerResult().get())
+            assertNull(cell.fieldCheckerResult.get())
         }
         assertEquals(elementType, result.typeExpr)
     }
@@ -123,20 +210,20 @@ class EngineResultTest {
         assertEquals(2, result.size)
         result.forEach { cell ->
             cell.checkActivated()
-            assertFailsWith<IllegalStateException> { cell.getFieldCheckerResult() }
-            assertFailsWith<IllegalStateException> { cell.getTypeCheckerResult() }
-            assertFalse(cell.getValue().isCompleted)
+            assertTrue(cell.fieldCheckerResult.isCompleted)
+            assertNull(cell.fieldCheckerResult.get())
+            assertFalse(cell.value.isCompleted)
         }
 
-        val firstPlaceholder = result[0].getValue()
-        val firstWriter = result[0].createValuePromise()
+        val firstPlaceholder = result[0].value
+        val firstWriter = result[0].value.claim()
         assertSame(firstPlaceholder, firstWriter)
         assertTrue(firstWriter.complete("first"))
-        assertTrue(result[1].setValue("second"))
+        assertTrue(result[1].value.set("second"))
 
-        assertEquals(listOf("first", "second"), result.map { cell -> cell.getValue().get() })
-        assertFailsWith<IllegalStateException> { result[0].createValuePromise() }
-        assertFailsWith<IllegalStateException> { result[1].setValue("again") }
+        assertEquals(listOf("first", "second"), result.map { cell -> cell.value.get() })
+        assertFailsWith<IllegalStateException> { result[0].value.claim() }
+        assertFailsWith<IllegalStateException> { result[1].value.set("again") }
     }
 
     @Test
@@ -149,7 +236,7 @@ class EngineResultTest {
         }
 
         val result = ListEngineResult.ofPendingValues(elementType, size = 1)
-        val writer = result.single().createValuePromise()
+        val writer = result.single().value.claim()
 
         assertFailsWith<IllegalArgumentException> { writer.complete(null) }
         assertFalse(writer.isCompleted)
@@ -189,23 +276,23 @@ class EngineResultTest {
 
         assertFalse(result.isCellSet(key))
         val cell = result.reserveCell(key)
-        val readerPlaceholder = cell.reserveValue()
+        val readerPlaceholder = cell.value
         assertFalse(readerPlaceholder.isCompleted)
 
-        val writerPromise = cell.createValuePromise()
+        val writerPromise = cell.value.claim()
         assertSame(readerPlaceholder, writerPromise)
         cell.setActivated(true)
         writerPromise.complete(firstValue)
 
         assertTrue(result.isCellSet(key))
-        assertSame(firstValue, result.getCell(key).getValue().get())
-        assertFalse(cell.cancelValue(CancellationException("late")))
+        assertSame(firstValue, result.getCell(key).value.get())
+        assertFalse(cell.value.cancel(CancellationException("late")))
         assertEquals(setOf(key), result.keys)
 
         assertFailsWith<IllegalStateException> {
-            cell.setValue("second")
+            cell.value.set("second")
         }
-        assertSame(firstValue, result.getCell(key).getValue().get())
+        assertSame(firstValue, result.getCell(key).value.get())
     }
 
     @Test
@@ -214,37 +301,33 @@ class EngineResultTest {
         val key = schema.key("Query", "first")
         val result = ObjectEngineResult.of(schema.requireQueryTypeDef(), mutable = true)
         val cell = result.reserveCell(key)
-        val promise = cell.createValuePromise()
+        val promise = cell.value.claim()
         val cancellation = CancellationException("writer cancelled")
 
-        assertTrue(cell.cancelValue(cancellation))
+        assertTrue(cell.value.cancel(cancellation))
 
         cell.checkActivated()
         assertTrue(promise.isCompleted)
         assertSame(cancellation, assertFailsWith<CancellationException> { promise.get() })
-        assertFalse(cell.cancelValue(cancellation))
+        assertFalse(cell.value.cancel(cancellation))
         assertFalse(promise.complete("late"))
     }
 
     @Test
-    fun `cancelling claimed checker results activates and terminates their promises`() {
+    fun `cancelling a claimed field checker result activates and terminates its promise`() {
         val schema = TestWorld.fromSDL(SCHEMA_SDL).schema
         val cell =
             ObjectEngineResult
                 .of(schema.requireQueryTypeDef(), mutable = true)
                 .reserveCell(schema.key("Query", "first"))
-        val fieldPromise = cell.createFieldCheckerResultPromise()
-        val typePromise = cell.createTypeCheckerResultPromise()
+        val fieldPromise = cell.fieldCheckerResult
         val cancellation = CancellationException("checker writer cancelled")
 
-        assertTrue(cell.cancelFieldCheckerResult(cancellation))
-        assertTrue(cell.cancelTypeCheckerResult(cancellation))
+        assertTrue(cell.fieldCheckerResult.cancel(cancellation))
 
         cell.checkActivated()
         assertSame(cancellation, assertFailsWith<CancellationException> { fieldPromise.get() })
-        assertSame(cancellation, assertFailsWith<CancellationException> { typePromise.get() })
-        assertFalse(cell.cancelFieldCheckerResult(cancellation))
-        assertFalse(cell.cancelTypeCheckerResult(cancellation))
+        assertFalse(cell.fieldCheckerResult.cancel(cancellation))
     }
 
     @Test
@@ -254,7 +337,7 @@ class EngineResultTest {
             val key = schema.key("Query", "first")
             val result = ObjectEngineResult.of(schema.requireQueryTypeDef(), mutable = true)
             val cell = result.reserveCell(key)
-            val promise = cell.createValuePromise()
+            val promise = cell.value.claim()
             val awaiting = async { promise.await() }
 
             assertFalse(awaiting.isCompleted)
@@ -272,7 +355,7 @@ class EngineResultTest {
             val key = schema.key("Query", "first")
             val result = ObjectEngineResult.of(schema.requireQueryTypeDef(), mutable = true)
             val cell = result.reserveCell(key)
-            val promise = cell.createValuePromise()
+            val promise = cell.value.claim()
             val activation = async { cell.fetchActivated() }
 
             assertFalse(activation.isCompleted)
@@ -284,7 +367,7 @@ class EngineResultTest {
             assertFailsWith<IllegalStateException> { promise.get() }
             assertFailsWith<IllegalStateException> { promise.complete("excluded") }
             assertFailsWith<IllegalStateException> { promise.await() }
-            assertFailsWith<IllegalStateException> { cell.setValue("excluded") }
+            assertFailsWith<IllegalStateException> { cell.value.set("excluded") }
             assertFalse(cell.setActivated(true))
         }
 
@@ -297,8 +380,8 @@ class EngineResultTest {
         val cell = result.setCellValue(key, "ready")
 
         cell.checkActivated()
-        assertEquals("ready", cell.getValue().get())
-        assertFailsWith<IllegalStateException> { cell.setValue("again") }
+        assertEquals("ready", cell.value.get())
+        assertFailsWith<IllegalStateException> { cell.value.set("again") }
     }
 
     @Test
@@ -308,7 +391,7 @@ class EngineResultTest {
         val withInactiveCell =
             ObjectEngineResult.of(schema.requireQueryTypeDef(), mutable = true)
         withInactiveCell.reserveCell(key).also { cell ->
-            cell.createValuePromise()
+            cell.value.claim()
             cell.setActivated(false)
         }
         withInactiveCell.freeze()
@@ -323,7 +406,7 @@ class EngineResultTest {
         val key = schema.key("Query", "first")
         val result = ObjectEngineResult.of(schema.requireQueryTypeDef(), mutable = true)
         val reservedCell = result.reserveCell(key)
-        val readerPlaceholder = reservedCell.reserveValue()
+        val readerPlaceholder = reservedCell.value
 
         val installedCell = result.setCellValue(key, "ready")
 
@@ -360,7 +443,7 @@ class EngineResultTest {
             val secondKey = schema.key("Query", "second")
             val result = ObjectEngineResult.of(schema.requireQueryTypeDef(), mutable = true)
             val firstCell = result.reserveCell(firstKey)
-            val missing = firstCell.reserveValue()
+            val missing = firstCell.value
             val awaitingMissing = async { missing.await() }
 
             result.freeze()
@@ -368,12 +451,32 @@ class EngineResultTest {
             assertFailsWith<NoSuchElementException> { awaitingMissing.await() }
             assertFailsWith<NoSuchElementException> { result.reserveCell(secondKey) }
             assertFailsWith<IllegalStateException> {
-                firstCell.createValuePromise()
+                firstCell.value.claim()
             }
             assertFailsWith<IllegalStateException> {
-                firstCell.setValue("late")
+                firstCell.value.set("late")
             }
             assertFailsWith<IllegalStateException> { result.freeze() }
+        }
+
+    @Test
+    fun `directly freezing an unclaimed value fails activation reads`() =
+        runBlocking {
+            val schema = TestWorld.fromSDL(SCHEMA_SDL).schema
+            val cell =
+                ObjectEngineResult
+                    .of(schema.requireQueryTypeDef(), mutable = true)
+                    .reserveCell(schema.key("Query", "first"))
+            val failure = requireNotNull(cell.value.freeze { NoSuchElementException("missing value") })
+
+            assertEquals(
+                failure.message,
+                assertFailsWith<NoSuchElementException> { cell.fetchActivated() }.message,
+            )
+            assertEquals(
+                failure.message,
+                assertFailsWith<NoSuchElementException> { cell.value.await() }.message,
+            )
         }
 
     @Test
@@ -382,15 +485,15 @@ class EngineResultTest {
         val key = schema.key("Query", "first")
         val result = ObjectEngineResult.of(schema.requireQueryTypeDef(), mutable = true)
         val cell = result.reserveCell(key)
-        val readerPlaceholder = cell.reserveValue()
-        val writerPromise = cell.createValuePromise()
+        val readerPlaceholder = cell.value
+        val writerPromise = cell.value.claim()
 
         result.freeze()
         cell.setActivated(true)
         writerPromise.complete("ready")
 
         assertSame(readerPlaceholder, writerPromise)
-        assertEquals("ready", cell.getValue().get())
+        assertEquals("ready", cell.value.get())
     }
 
     @Test
@@ -403,12 +506,12 @@ class EngineResultTest {
         val reader =
             thread {
                 start.await()
-                promises += result.reserveCell(key).reserveValue()
+                promises += result.reserveCell(key).value
             }
         val writer =
             thread {
                 start.await()
-                promises += result.reserveCell(key).createValuePromise()
+                promises += result.reserveCell(key).value.claim()
             }
 
         start.countDown()
@@ -420,7 +523,7 @@ class EngineResultTest {
     }
 
     @Test
-    fun `cell value and checker results are independently monotonic`() {
+    fun `cell value and field checker result are independently monotonic`() {
         val schema = TestWorld.fromSDL(SCHEMA_SDL).schema
         val key = schema.key("Query", "first")
         val result =
@@ -428,40 +531,27 @@ class EngineResultTest {
 
         assertFalse(result.isCellSet(key))
         val cell = result.reserveCell(key)
-        assertFailsWith<IllegalStateException> { cell.getValue() }
-        assertFailsWith<IllegalStateException> { cell.getFieldCheckerResult() }
-        assertFailsWith<IllegalStateException> { cell.getTypeCheckerResult() }
-        assertFalse(cell.isFieldCheckerResultSet())
-        assertFalse(cell.isTypeCheckerResultSet())
+        assertFailsWith<IllegalStateException> { cell.value.get() }
+        assertFailsWith<IllegalStateException> { cell.fieldCheckerResult.get() }
+        assertFalse(cell.fieldCheckerResult.isCompleted)
 
-        val value = cell.createValuePromise()
-        val fieldCheckerResult = cell.createFieldCheckerResultPromise()
-        val typeCheckerResult = cell.createTypeCheckerResultPromise()
+        val value = cell.value.claim()
+        val fieldCheckerResult = cell.fieldCheckerResult
         cell.setActivated(true)
-        assertTrue(cell.isFieldCheckerResultSet())
-        assertTrue(cell.isTypeCheckerResultSet())
 
         assertFailsWith<UncompletedPromiseException> { value.get() }
         assertFailsWith<UncompletedPromiseException> { fieldCheckerResult.get() }
-        assertFailsWith<UncompletedPromiseException> { typeCheckerResult.get() }
 
         value.complete("ready")
         fieldCheckerResult.complete(CheckerResult.Success)
-        typeCheckerResult.complete(null)
 
-        assertEquals("ready", cell.getValue().get())
-        assertSame(CheckerResult.Success, cell.getFieldCheckerResult().get())
-        assertNull(cell.getTypeCheckerResult().get())
-        assertFailsWith<IllegalStateException> {
-            cell.setFieldCheckerResult(null)
-        }
-        assertFailsWith<IllegalStateException> {
-            cell.setTypeCheckerResult(CheckerResult.Success)
-        }
+        assertEquals("ready", cell.value.get())
+        assertSame(CheckerResult.Success, cell.fieldCheckerResult.get())
+        assertFalse(cell.fieldCheckerResult.complete(null))
     }
 
     @Test
-    fun `checker result slots use the production result type and nullable absence`() {
+    fun `checker result promises use the production result type and nullable no-checker result`() {
         val schema = TestWorld.fromSDL(SCHEMA_SDL).schema
         val firstKey = schema.key("Query", "first")
         val secondKey = schema.key("Query", "second")
@@ -473,17 +563,15 @@ class EngineResultTest {
                 fieldCheckerResults = mapOf(firstKey to completedError),
             )
 
-        assertSame(completedError, completed.getCell(firstKey).getFieldCheckerResult().get())
-        assertNull(completed.getCell(firstKey).getTypeCheckerResult().get())
+        assertSame(completedError, completed.getCell(firstKey).fieldCheckerResult.get())
 
         val mutable = ObjectEngineResult.of(schema.requireQueryTypeDef(), mutable = true)
         val direct = mutable.reserveCell(firstKey)
-        direct.setFieldCheckerResult(completedError)
-        direct.setTypeCheckerResult(null)
-        assertSame(completedError, direct.getFieldCheckerResult().get())
-        assertNull(direct.getTypeCheckerResult().get())
+        direct.setActivated(true)
+        direct.fieldCheckerResult.complete(completedError)
+        assertSame(completedError, direct.fieldCheckerResult.get())
 
-        val deferred = mutable.reserveCell(secondKey).createFieldCheckerResultPromise()
+        val deferred = mutable.reserveCell(secondKey).fieldCheckerResult
         mutable.getCell(secondKey).setActivated(true)
         deferred.complete(CheckerResult.Success)
         assertSame(CheckerResult.Success, deferred.get())
@@ -496,21 +584,22 @@ class EngineResultTest {
             ObjectEngineResult
                 .of(schema.requireQueryTypeDef(), mutable = true)
                 .reserveCell(schema.key("Query", "first"))
-        cell.createFieldCheckerResultPromise()
+        cell.fieldCheckerResult
         cell.setActivated(true)
         val failure = IllegalStateException("checker failed")
 
-        assertTrue(cell.failFieldCheckerResult(failure))
-        assertSame(failure, assertFailsWith<IllegalStateException> { cell.getFieldCheckerResult().get() })
-        assertFalse(cell.failFieldCheckerResult(IllegalStateException("second failure")))
+        assertTrue(cell.fieldCheckerResult.fail(failure))
+        assertSame(failure, assertFailsWith<IllegalStateException> { cell.fieldCheckerResult.get() })
+        assertFalse(cell.fieldCheckerResult.fail(IllegalStateException("second failure")))
     }
 
     @Test
-    fun `unpublished checker slots differ from completed no-checker results`() {
+    fun `dynamic checker promises can publish a completed no-checker result`() {
         val schema = TestWorld.fromSDL(SCHEMA_SDL).schema
         val key = schema.key("Query", "first")
         val unpublished = ObjectEngineResult.of(schema.requireQueryTypeDef(), mutable = true)
         unpublished.setCellValue(key, "ready")
+        unpublished.getCell(key).fieldCheckerResult.complete(null)
         unpublished.freeze()
         val noChecker =
             ObjectEngineResult.of(
@@ -518,33 +607,10 @@ class EngineResultTest {
                 values = mapOf(key to "ready"),
             )
 
-        assertFalse(unpublished.sameCompletedResultAs(noChecker))
+        assertTrue(unpublished.sameCompletedResultAs(noChecker))
 
         val union = unpublished.union(noChecker)
-        assertNull(union.getCell(key).getFieldCheckerResult().get())
-        assertNull(union.getCell(key).getTypeCheckerResult().get())
-    }
-
-    @Test
-    fun `list allocates stable cells whose checker promises complete independently`() {
-        val schema = TestWorld.fromSDL(SCHEMA_SDL).schema
-        val elementType = schema.requireField("Query", "value").outputType
-        val result = ListEngineResult.ofPendingValues(elementType, size = 2)
-
-        val first = result[0]
-        val second = result[1]
-        val firstCheck = first.createTypeCheckerResultPromise()
-        val secondCheck = second.createTypeCheckerResultPromise()
-
-        firstCheck.complete(TestCheckerError())
-        assertIs<CheckerResult.Error>(first.getTypeCheckerResult().get())
-        assertFailsWith<UncompletedPromiseException> { second.getTypeCheckerResult().get() }
-
-        secondCheck.complete(null)
-        assertNull(second.getTypeCheckerResult().get())
-        assertSame(first, result[0])
-        assertSame(second, result[1])
-        assertNotEquals(first, second)
+        assertNull(union.getCell(key).fieldCheckerResult.get())
     }
 
     @Test
@@ -560,14 +626,14 @@ class EngineResultTest {
             )
 
         assertFailsWith<IllegalStateException> {
-            immutable.getCell(firstKey).setValue("first")
+            immutable.getCell(firstKey).value.set("first")
         }
         val fixture =
             schema.engineResultOf("Query") {
                 "first" resolvesTo "existing"
             }
         assertFailsWith<IllegalStateException> {
-            fixture.getCell(firstKey).setValue("first")
+            fixture.getCell(firstKey).value.set("first")
         }
 
         val left =
@@ -607,23 +673,23 @@ class EngineResultTest {
             )
 
         assertFailsWith<IllegalArgumentException> {
-            result.reserveCell(foreignKey).setValue("wrong owner")
+            result.reserveCell(foreignKey).value.set("wrong owner")
         }
         assertFalse(result.isCellSet(foreignKey))
 
         assertFailsWith<IllegalArgumentException> {
-            result.reserveCell(requiredKey).setValue(null)
+            result.reserveCell(requiredKey).value.set(null)
         }
         assertTrue(result.isCellSet(requiredKey))
 
         assertFailsWith<IllegalArgumentException> {
-            user.reserveCell(lookupWithError).setValue("not an error")
+            user.reserveCell(lookupWithError).value.set("not an error")
         }
         assertTrue(user.isCellSet(lookupWithError))
 
         val errorResult = ErrorEngineResult.of(EngineErrorData.of())
-        user.getCell(lookupWithError).setValue(errorResult)
-        assertSame(errorResult, user.getCell(lookupWithError).getValue().get())
+        user.getCell(lookupWithError).value.set(errorResult)
+        assertSame(errorResult, user.getCell(lookupWithError).value.get())
     }
 
     @Test
@@ -641,7 +707,7 @@ class EngineResultTest {
                     ready.countDown()
                     start.await()
                     try {
-                        result.reserveCell(key).setValue(value)
+                        result.reserveCell(key).value.set(value)
                         successes.incrementAndGet()
                     } catch (throwable: Throwable) {
                         failures.add(throwable)
@@ -655,7 +721,7 @@ class EngineResultTest {
 
         assertEquals(1, successes.get())
         assertIs<IllegalStateException>(failures.single())
-        val value = assertIs<String>(result.getCell(key).getValue().get())
+        val value = assertIs<String>(result.getCell(key).value.get())
         assertTrue(value in setOf("first", "second"))
     }
 
@@ -675,7 +741,7 @@ class EngineResultTest {
                 thread {
                     ready.countDown()
                     start.await()
-                    result.reserveCell(key).setValue(value)
+                    result.reserveCell(key).value.set(value)
                 }
             }
 
@@ -686,7 +752,7 @@ class EngineResultTest {
         writes.forEach { (key, value) ->
             assertEquals(
                 value,
-                result.getCell(key).getValue().get(),
+                result.getCell(key).value.get(),
             )
         }
     }
@@ -704,14 +770,14 @@ class EngineResultTest {
             )
         val parent = ObjectEngineResult.of(schema.requireQueryTypeDef(), emptyMap(), mutable = true)
 
-        parent.reserveCell(userKey).setValue(child)
-        child.reserveCell(firstKey).setValue("later")
+        parent.reserveCell(userKey).value.set(child)
+        child.reserveCell(firstKey).value.set("later")
 
         val retainedChild =
-            assertIs<ObjectEngineResult>(parent.getCell(userKey).getValue().get())
+            assertIs<ObjectEngineResult>(parent.getCell(userKey).value.get())
         assertEquals(
             "later",
-            retainedChild.getCell(firstKey).getValue().get(),
+            retainedChild.getCell(firstKey).value.get(),
         )
     }
 
@@ -729,9 +795,8 @@ class EngineResultTest {
             )
 
         mutable.reserveCell(firstKey).also { cell ->
-            cell.setValue(firstValue)
-            cell.setFieldCheckerResult(null)
-            cell.setTypeCheckerResult(null)
+            cell.value.set(firstValue)
+            cell.fieldCheckerResult.complete(null)
         }
 
         assertNotEquals(equivalent, mutable)
@@ -740,9 +805,8 @@ class EngineResultTest {
         val keyed = hashMapOf(mutable to "retained")
 
         mutable.reserveCell(secondKey).also { cell ->
-            cell.setValue("second")
-            cell.setFieldCheckerResult(null)
-            cell.setTypeCheckerResult(null)
+            cell.value.set("second")
+            cell.fieldCheckerResult.complete(null)
         }
 
         assertEquals(hashCode, mutable.hashCode())
@@ -800,17 +864,6 @@ class EngineResultTest {
                         "first".resolvesTo("same", TestCheckerError())
                     }
             }
-        val differentTypeCheck =
-            schema.engineResultOf("Query") {
-                "user" resolvesTo
-                    engineResultOf("User") {
-                        "first".resolvesTo(
-                            "same",
-                            CheckerResult.Success,
-                            TestCheckerError(),
-                        )
-                    }
-            }
         val firstKey = schema.key("Query", "first")
         val leftError = ErrorEngineResult.of(EngineErrorData.of())
         val rightError = ErrorEngineResult.of(EngineErrorData.of())
@@ -831,7 +884,6 @@ class EngineResultTest {
 
         assertTrue(left.sameCompletedResultAs(right))
         assertFalse(left.sameCompletedResultAs(differentCheck))
-        assertFalse(left.sameCompletedResultAs(differentTypeCheck))
         assertTrue(leftErrorResult.sameCompletedResultAs(rightErrorResult))
     }
 
@@ -865,9 +917,8 @@ class EngineResultTest {
                     Arguments.of(consume, mapOf("value" to variable)),
                 )
             root.reserveCell(key).apply {
-                setValue(7)
-                setFieldCheckerResult(null)
-                setTypeCheckerResult(null)
+                value.set(7)
+                fieldCheckerResult.complete(null)
             }
             root.freeze()
             return root
@@ -923,9 +974,8 @@ class EngineResultTest {
                 Arguments.of(consume, mapOf("value" to variable)),
             )
         symbolicRoot.reserveCell(symbolicKey).apply {
-            setValue(7)
-            setFieldCheckerResult(null)
-            setTypeCheckerResult(null)
+            value.set(7)
+            fieldCheckerResult.complete(null)
         }
         symbolicRoot.freeze()
         val grounded =
@@ -945,13 +995,6 @@ class EngineResultTest {
                             mapOf("value" to 7),
                         ) to null,
                     ),
-                typeCheckerResults =
-                    mapOf(
-                        ObjectEngineResult.GroundKey.of(
-                            consume,
-                            mapOf("value" to 7),
-                        ) to null,
-                    ),
             )
 
         assertFalse(symbolicRoot.sameCompletedResultAs(grounded))
@@ -964,7 +1007,7 @@ class EngineResultTest {
             ObjectEngineResult.of(type = schema.requireQueryTypeDef(), mutable = true)
         incomplete
             .reserveCell(schema.key("Query", "first"))
-            .createValuePromise()
+            .value.claim()
 
         assertFailsWith<UncompletedPromiseException> {
             incomplete.sameCompletedResultAs(incomplete)
@@ -977,7 +1020,7 @@ class EngineResultTest {
         val incomplete = ObjectEngineResult.of(schema.requireQueryTypeDef(), mutable = true)
         incomplete
             .reserveCell(schema.key("Query", "first"))
-            .createValuePromise()
+            .value.claim()
 
         assertFailsWith<UncompletedPromiseException> {
             "different variant".sameCompletedResultAs(incomplete)
@@ -1198,15 +1241,15 @@ class EngineResultTest {
         )
         assertEquals(
             "first",
-            union.getCell(schema.key("Query", "first")).getValue().get(),
+            union.getCell(schema.key("Query", "first")).value.get(),
         )
         assertEquals(
             "second",
-            union.getCell(schema.key("Query", "second")).getValue().get(),
+            union.getCell(schema.key("Query", "second")).value.get(),
         )
         val user =
             assertIs<ObjectEngineResult>(
-                union.getCell(schema.key("Query", "user")).getValue().get(),
+                union.getCell(schema.key("Query", "user")).value.get(),
             )
         assertEquals(
             setOf(schema.key("User", "first"), schema.key("User", "second")),

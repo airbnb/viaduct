@@ -64,7 +64,7 @@ class IndependentQueryScopeOwnershipRegressionTest : Resolver26DispatcherResourc
             else -> operation.resolveWithTestDispatcher(selections)
         }
         val first = ObjectEngineResult.GroundKey.of(world.schema.requireObjectField("Query", "first"), emptyMap())
-        assertEquals(7, result.getCell(first).getValue().get())
+        assertEquals(7, result.getCell(first).value.get())
         assertTrue(result.correctResolution(operation, selections.merge(world.schema.requireQueryTypeDef())))
         assertEquals(2, observer.allQueryFragmentResults().values.flatten().toSet().size)
         assertEquals(4, result.registeredResolverOccurrenceApplicationIdentityCounts(operation).values.sum())

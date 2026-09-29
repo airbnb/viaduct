@@ -222,13 +222,13 @@ object ResolverBenchmarkCorpusSearch {
             is ListEngineResult ->
                 indices
                     .map { index ->
-                        get(index).getValue().get().shape(depth, beneathList = true)
+                        get(index).value.get().shape(depth, beneathList = true)
                     }
                     .fold(ResultShape(), ResultShape::plus)
             is ObjectEngineResult -> {
                 val childShapes =
                     keys.map { key ->
-                        val value = getCell(key).getValue().get()
+                        val value = getCell(key).value.get()
                         val child =
                             if (key is ObjectEngineResult.ParentKey) {
                                 ResultShape()

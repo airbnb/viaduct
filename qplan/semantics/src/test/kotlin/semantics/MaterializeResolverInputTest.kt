@@ -8,12 +8,14 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
+import kotlin.test.assertNull
 import kotlin.test.assertSame
 import model.EngineErrorData
 import model.ErrorEngineResult
 import model.ListEngineResult
 import model.MaterializeSelectionForest
 import model.ObjectEngineResult
+import model.Promise
 import model.fragmentFrom
 import model.outputType
 import model.outputValue
@@ -95,6 +97,15 @@ private suspend fun assertSlotDrivenMaterialization(
             type = valueType,
             values = mapOf(textKey to text),
         )
+    fun valueResult(
+        text: String,
+        typeCheckerResult: CheckerResult,
+    ): ObjectEngineResult =
+        ObjectEngineResult.of(
+            type = valueType,
+            typeCheckerResult = Promise.of(typeCheckerResult),
+            values = mapOf(textKey to text),
+        )
     val key =
         ObjectEngineResult.GroundKey.of(
             world.schema.requireObjectField("Query", "value"),
@@ -110,7 +121,6 @@ private suspend fun assertSlotDrivenMaterialization(
             type = world.schema.requireQueryTypeDef(),
             values = mapOf(key to valueResult("open")),
             fieldCheckerResults = emptyMap(),
-            typeCheckerResults = emptyMap(),
         )
     val openInput =
         materialize(
@@ -120,8 +130,7 @@ private suspend fun assertSlotDrivenMaterialization(
             openResult.fieldResolverCycleTask(listOf(key)),
         )
 
-    assertFalse(openResult.getCell(key).isFieldCheckerResultSet())
-    assertFalse(openResult.getCell(key).isTypeCheckerResultSet())
+    assertNull(openResult.getCell(key).fieldCheckerResult.get())
     assertEquals("open", assertIs<EngineObjectData.Sync>(openInput.get("value")).get("text"))
 
     val denial = ResolverInputDenial("field denied")
@@ -130,7 +139,6 @@ private suspend fun assertSlotDrivenMaterialization(
             type = world.schema.requireQueryTypeDef(),
             values = mapOf(key to valueResult("field denied")),
             fieldCheckerResults = mapOf(key to denial),
-            typeCheckerResults = emptyMap(),
         )
     val deniedInput =
         materialize(
@@ -146,9 +154,8 @@ private suspend fun assertSlotDrivenMaterialization(
     val typeDeniedResult =
         ObjectEngineResult.of(
             type = world.schema.requireQueryTypeDef(),
-            values = mapOf(key to valueResult("type denied")),
+            values = mapOf(key to valueResult("type denied", typeDenial)),
             fieldCheckerResults = emptyMap(),
-            typeCheckerResults = mapOf(key to typeDenial),
         )
     val typeDeniedInput =
         materialize(
@@ -166,9 +173,11 @@ private suspend fun assertSlotDrivenMaterialization(
     val multiplyDeniedResult =
         ObjectEngineResult.of(
             type = world.schema.requireQueryTypeDef(),
-            values = mapOf(key to valueResult("multiply denied")),
+            values =
+                mapOf(
+                    key to valueResult("multiply denied", combiningTypeDenial),
+                ),
             fieldCheckerResults = mapOf(key to fieldDenial),
-            typeCheckerResults = mapOf(key to combiningTypeDenial),
         )
     val multiplyDeniedInput =
         materialize(
@@ -192,15 +201,13 @@ private suspend fun assertSlotDrivenMaterialization(
     val listResult =
         ListEngineResult.of(
             typeExpr = valuesKey.field.outputType.unwrapList()!!,
-            values = listOf(valueResult("list item")),
-            typeCheckerResults = listOf(listItemDenial),
+            values = listOf(valueResult("list item", listItemDenial)),
         )
     val listedResult =
         ObjectEngineResult.of(
             type = world.schema.requireQueryTypeDef(),
             values = mapOf(valuesKey to listResult),
             fieldCheckerResults = emptyMap(),
-            typeCheckerResults = emptyMap(),
         )
     val listedSelections =
         world
@@ -220,9 +227,8 @@ private suspend fun assertSlotDrivenMaterialization(
     val rawFailure = EngineErrorData.of(IllegalStateException("raw failure"))
     val failedResult = ObjectEngineResult.of(world.schema.requireQueryTypeDef(), mutable = true)
     val failedCell = failedResult.reserveCell(key)
-    failedCell.setFieldCheckerResult(CheckerResult.Success)
-    failedCell.setTypeCheckerResult(CheckerResult.Success)
-    failedCell.setValue(ErrorEngineResult.of(rawFailure))
+    failedCell.value.set(ErrorEngineResult.of(rawFailure))
+    failedCell.fieldCheckerResult.complete(CheckerResult.Success)
     val failedInput =
         withTimeout(1_000) {
             materialize(
@@ -238,8 +244,9 @@ private suspend fun assertSlotDrivenMaterialization(
     val shortCircuitDenial = ResolverInputDenial("short circuit")
     val shortCircuitedResult = ObjectEngineResult.of(world.schema.requireQueryTypeDef(), mutable = true)
     val shortCircuitedCell = shortCircuitedResult.reserveCell(key)
-    shortCircuitedCell.reserveValue()
-    shortCircuitedCell.setFieldCheckerResult(shortCircuitDenial)
+    shortCircuitedCell.value
+    shortCircuitedCell.setActivated(true)
+    shortCircuitedCell.fieldCheckerResult.complete(shortCircuitDenial)
     val shortCircuitedInput =
         withTimeout(1_000) {
             materialize(
@@ -254,7 +261,7 @@ private suspend fun assertSlotDrivenMaterialization(
         shortCircuitDenial.error,
         assertIs<EngineErrorData>(shortCircuitedInput.outputValue("value")).cause,
     )
-    assertFalse(shortCircuitedCell.getValue().isCompleted)
+    assertFalse(shortCircuitedCell.value.isCompleted)
 }
 
 private class ResolverInputDenial(message: String) : CheckerResult.Error {

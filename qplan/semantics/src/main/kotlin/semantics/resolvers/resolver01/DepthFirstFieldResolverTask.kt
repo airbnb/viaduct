@@ -57,8 +57,13 @@ internal class DepthFirstFieldResolverTask private constructor(
                 "Resolver selection does not belong to its target object"
             }
             // The reactor may freeze the OER before this task runs.
-            publication.publicationCell.createValuePromise()
+            publication.publicationCell.value.claim()
             publication.publicationCell.setActivated(true)
+            if (!publication.publicationCell.fieldCheckerResult.isCompleted) {
+                check(publication.publicationCell.fieldCheckerResult.complete(null)) {
+                    "Field-checker result was completed twice"
+                }
+            }
             return DepthFirstFieldResolverTask(publication, queryOERDepth)
         }
     }
@@ -69,7 +74,7 @@ internal class DepthFirstFieldResolverTask private constructor(
         val invocationDemand = this.invocationDemand ?: operation.complete(selection.subselections)
         var fieldValue: ResolverOutputData? = reference ?: when (val arguments = key.arguments) {
             Arguments.Error -> {
-                check(publicationCell.getValue().complete(ErrorEngineResult.of(EngineErrorData.of()))) {
+                check(publicationCell.value.complete(ErrorEngineResult.of(EngineErrorData.of()))) {
                     "Cell value was completed twice"
                 }
                 return@with
@@ -149,7 +154,7 @@ internal class DepthFirstFieldResolverTask private constructor(
             invocationDemand = invocationDemand,
             parent = oerOccurrence,
         )
-        check(publicationCell.getValue().complete(passiveValue)) { "Cell value was completed twice" }
+        check(publicationCell.value.complete(passiveValue)) { "Cell value was completed twice" }
     }
 
     /** Invokes one independently rooted reference target using this resolver's Query-fragment policy. */

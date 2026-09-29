@@ -77,8 +77,8 @@ class PublicationValidationTest : Resolver26DispatcherResource {
                         operation.dispatcher.dispatchFieldResolver(if (publication === invalid) malformed else publication)
                     }
                     root.freeze()
-                    assertIs<ErrorEngineResult>(invalid.publicationCell.getValue().await())
-                    assertEquals(7, publications.single { it !== invalid }.publicationCell.getValue().await())
+                    assertIs<ErrorEngineResult>(invalid.publicationCell.value.await())
+                    assertEquals(7, publications.single { it !== invalid }.publicationCell.value.await())
                     assertEquals(listOf("sibling"), invoked.toList())
                 }
             }
@@ -147,8 +147,8 @@ class PublicationValidationTest : Resolver26DispatcherResource {
                     root.freeze()
                     orchestration.queryOER.occurrence.target.freeze()
                     coroutineContext.job.children.toList().joinAll()
-                    assertIs<ErrorEngineResult>(invalid.publicationCell.getValue().await())
-                    assertEquals(7, sibling.publicationCell.getValue().await())
+                    assertIs<ErrorEngineResult>(invalid.publicationCell.value.await())
+                    assertEquals(7, sibling.publicationCell.value.await())
                     invalid.variableProviderReads.forEach { providerRead ->
                         assertSame(
                             VariableBinding.Error,

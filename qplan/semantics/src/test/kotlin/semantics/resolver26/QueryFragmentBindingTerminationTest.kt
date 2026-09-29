@@ -63,15 +63,15 @@ class QueryFragmentBindingTerminationTest {
 
             val query = requireNotNull(fixture.queryResult)
             val consumer = root.cell(if (reference) "reference" else "consumer")
-            assertEquals(42, root.cell("healthy").getValue().get())
+            assertEquals(42, root.cell("healthy").value.get())
             assertFalse(fixture.consumerInvoked)
             if (exit != Exit.EXCLUDED) {
                 // With the queue drained, these installed tasks are suspended on the
                 // consumer's FromProvider / FromArgument / FromQueryField bindings.
                 assertTrue(query.cell("source").fetchActivated())
-                assertFalse(query.cell("source").getValue().isCompleted)
+                assertFalse(query.cell("source").value.isCompleted)
                 assertTrue(query.cell("dependency").fetchActivated())
-                assertFalse(query.cell("dependency").getValue().isCompleted)
+                assertFalse(query.cell("dependency").value.isCompleted)
                 assertTrue(fixture.independentStarted)
             }
 
@@ -83,11 +83,11 @@ class QueryFragmentBindingTerminationTest {
             dispatcher.runUntilIdle()
 
             if (exit == Exit.CANCEL) {
-                assertSame(fixture.cancellation, assertFailsWith<CancellationException> { consumer.getValue().get() })
+                assertSame(fixture.cancellation, assertFailsWith<CancellationException> { consumer.value.get() })
             } else if (exit == Exit.EXCLUDED) {
                 assertFalse(consumer.fetchActivated())
             } else {
-                val error = assertIs<ErrorEngineResult>(consumer.getValue().get())
+                val error = assertIs<ErrorEngineResult>(consumer.value.get())
                 if (exit == Exit.UNEXPECTED || exit == Exit.VARIABLES_PROVIDER_THROWS) {
                     assertSame(fixture.failure, error.errorData.cause)
                 }
@@ -113,9 +113,9 @@ class QueryFragmentBindingTerminationTest {
                 for (key in query.keys) assertFalse(query.getCell(key).fetchActivated())
                 // Unused bindings may remain pending; no Query task may wait for them.
             } else {
-                assertEquals(7, query.cell("independent").getValue().get())
-                assertIs<ErrorEngineResult>(query.cell("source").getValue().get())
-                assertIs<ErrorEngineResult>(query.cell("dependency").getValue().get())
+                assertEquals(7, query.cell("independent").value.get())
+                assertIs<ErrorEngineResult>(query.cell("source").value.get())
+                assertIs<ErrorEngineResult>(query.cell("dependency").value.get())
                 for (name in listOf("provided", "queryValue")) {
                     val variableId = fixture.variableId(name)
                     if (exit == Exit.CANCEL) {

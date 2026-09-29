@@ -120,6 +120,21 @@ internal class OrchestrationTask private constructor(
         (fieldPublications + conditionedPassivePublications).forEach(operation.dispatcher::dispatchFieldResolver)
         checkerPreparation.executablePublications.forEach(operation.dispatcher::dispatchFieldChecker)
         checkerPreparation.publishReadyAbsences()
+        val checkedCells = checkerPreparation.claimedSlots.mapTo(linkedSetOf()) { it.cell }
+        listOf(objectOER, queryOER).forEach { oer ->
+            oer.occurrence.target.keys.forEach { key ->
+                val cell = oer.occurrence.target.getCell(key)
+                if (
+                    cell !in checkedCells &&
+                        cell.value.isCompleted &&
+                        !cell.fieldCheckerResult.isCompleted
+                ) {
+                    check(cell.fieldCheckerResult.complete(null)) {
+                        "Field-checker result was completed twice"
+                    }
+                }
+            }
+        }
     }
 
     // Checks that passive values selected by closed construction demand were installed before task dispatch.

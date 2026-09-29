@@ -54,7 +54,7 @@ private fun ObjectEngineResult.objectConformsToSelections(
         val key = findStoredKey(operation, selection.key)
         key != null &&
             getCell(key)
-                .getValue()
+                .value
                 .get()
                 .engineResultConformsToSelections(
                     operation = operation,
@@ -81,7 +81,7 @@ private fun EngineResult?.engineResultConformsToSelections(
             )
         is ListEngineResult ->
             indices.all { index ->
-                get(index).getValue().get().engineResultConformsToSelections(
+                get(index).value.get().engineResultConformsToSelections(
                     operation = operation,
                     selections = selections,
                     path = path + ListEngineResult.Index.of(index),

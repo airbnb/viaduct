@@ -79,7 +79,7 @@ private class ResolverInputMaterializationLogic(
         selections.fetchIncluded().collect(type).byResponseKey().forEach { (responseKey, selection) ->
             val storedKey = selection.materializedObjectKey()
             val cell = reserveCell(storedKey)
-            cell.reserveValue()
+            cell.value
             val checkedValue =
                 cell.materializeValueForConsumer(
                     fieldDirectives = selection.fieldDirectives,
@@ -180,6 +180,6 @@ private class ResolverInputMaterializationLogic(
             materializeCheckedValueForResolver(fieldDirectives, reader, cycleChecker)
         } else {
             cycleChecker.cycleCheck(reader, valueCycleSlot)
-            getValue().await()
+            value.await()
     }
 }

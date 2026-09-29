@@ -113,11 +113,11 @@ class SymbolicKeyIdentityTest : Resolver26DispatcherResource {
 
         val resolved =
             operation.resolveWithTestDispatcher(fragment.subselections)
-        val items = assertIs<ListEngineResult>(resolved.getCell(itemsKey).getValue().get())
+        val items = assertIs<ListEngineResult>(resolved.getCell(itemsKey).value.get())
         val childKeys =
             items.indices.map { index ->
                 val item =
-                    assertIs<ObjectEngineResult>(items[index].getValue().get())
+                    assertIs<ObjectEngineResult>(items[index].value.get())
                 val childKey =
                     item.keys.single { groundKey ->
                         groundKey.field.name == "child"
@@ -125,7 +125,7 @@ class SymbolicKeyIdentityTest : Resolver26DispatcherResource {
                 childKey
             }
 
-        assertEquals(14, resolved.getCell(resultKey).getValue().get())
+        assertEquals(14, resolved.getCell(resultKey).value.get())
         assertEquals(1, childKeys.toSet().size)
         assertEquals(
             setOf(ResolverOccurrenceId.at(resolved, listOf(resultKey))),
@@ -252,7 +252,7 @@ class SymbolicKeyIdentityTest : Resolver26DispatcherResource {
         val symbolicKeys =
             frankKeys.filterNot { objectKey -> objectKey is ObjectEngineResult.GroundKey }
 
-        assertEquals(8, resolved.getCell(resultKey).getValue().get())
+        assertEquals(8, resolved.getCell(resultKey).value.get())
         assertEquals(3, frankApplications)
         assertEquals(3, frankKeys.size)
         assertEquals(1, literalKeys.size)
@@ -398,8 +398,8 @@ class SymbolicKeyIdentityTest : Resolver26DispatcherResource {
         val frankKeys =
             resolved.keys.filter { objectKey -> objectKey.field.name == "frank" }
 
-        assertEquals(3, resolved.getCell(leftKey).getValue().get())
-        assertEquals(5, resolved.getCell(rightKey).getValue().get())
+        assertEquals(3, resolved.getCell(leftKey).value.get())
+        assertEquals(5, resolved.getCell(rightKey).value.get())
         assertEquals(2, frankKeys.size)
         frankKeys.forEach { objectKey ->
             assertFalse(objectKey is ObjectEngineResult.GroundKey)

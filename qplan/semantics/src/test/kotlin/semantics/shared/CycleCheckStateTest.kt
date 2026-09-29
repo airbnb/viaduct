@@ -109,9 +109,9 @@ class CycleCheckStateTest {
         val fixture = Fixture()
         val key = fixture.key("first")
         fixture.target.reserveCell(key).also { cell ->
-            cell.createValuePromise()
+            cell.value.claim()
             cell.setActivated(true)
-            cell.getValue().complete("complete")
+            cell.value.complete("complete")
         }
         fixture.register("first")
 
@@ -159,7 +159,7 @@ class CycleCheckStateTest {
             writer = fixture.task("first", CycleTaskKind.FIELD_CHECKER),
         )
         fixture.checker.registerWriter(
-            slot = fixture.cell("first").typeCheckerCycleSlot,
+            slot = fixture.target.typeCheckerCycleSlot,
             writer = fixture.task("first", CycleTaskKind.TYPE_CHECKER),
         )
     }

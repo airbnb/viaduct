@@ -49,12 +49,12 @@ class SingularQueryGuardIsolationTest : Resolver26DispatcherResource {
                                 world.assumptions.operationSelectionsFrom("{ $order }"),
                                 CoroutineScope(resolverDispatcher + request),
                             )
-                            val bad = withTimeout(5_000) { result.getCell(key(world, "bad")).getValue().await() }
+                            val bad = withTimeout(5_000) { result.getCell(key(world, "bad")).value.await() }
                             assertIs<ErrorEngineResult>(bad)
-                            val good = withTimeout(5_000) { result.getCell(key(world, "good")).getValue().await() }
+                            val good = withTimeout(5_000) { result.getCell(key(world, "good")).value.await() }
                             val shared = observer.allQueryOERs().values.single { it.isDemanded() }.occurrence.target
                             assertTrue(withTimeout(5_000) { shared.getCell(key(world, "source")).fetchActivated() }, "A ready true alternative must activate source")
-                            assertEquals(7, withTimeout(5_000) { shared.getCell(key(world, "leaf")).getValue().await() })
+                            assertEquals(7, withTimeout(5_000) { shared.getCell(key(world, "leaf")).value.await() })
                             assertEquals(1, calls.get(), "The transitive leaf must be produced once")
                             assertEquals(7, good, "An unrelated failed owner must not poison the shared producer's $mode input")
                         } finally {
@@ -90,12 +90,12 @@ class SingularQueryGuardIsolationTest : Resolver26DispatcherResource {
                         )
                         withTimeout(5_000) { slowStarted.await(); fastStarted.await() }
                         val good = result.getCell(key(world, "good"))
-                        val beforeRelease = withTimeoutOrNull(1_000) { good.getValue().await() }
+                        val beforeRelease = withTimeoutOrNull(1_000) { good.value.await() }
                         val shared = observer.allQueryOERs().values.single { it.isDemanded() }.occurrence.target
                         val activatedBeforeRelease = withTimeout(5_000) { shared.getCell(key(world, "source")).fetchActivated() }
-                        val leafBeforeRelease = withTimeout(5_000) { shared.getCell(key(world, "leaf")).getValue().await() }
+                        val leafBeforeRelease = withTimeout(5_000) { shared.getCell(key(world, "leaf")).value.await() }
                         releaseSlow.complete(Unit)
-                        assertEquals(7, withTimeout(5_000) { good.getValue().await() })
+                        assertEquals(7, withTimeout(5_000) { good.value.await() })
                         assertTrue(activatedBeforeRelease, "Source already activated while the slow guard was pending")
                         assertEquals(7, leafBeforeRelease, "Source's independent leaf is already available")
                         assertEquals(1, calls.get())

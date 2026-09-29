@@ -70,7 +70,7 @@ internal class CoroutineFieldResolverTask private constructor(
         }
 
         private fun prepare(publication: GroundedFieldPublicationOccurrence<CoroutineOperationContext>): GroundedFieldPublicationOccurrence<CoroutineOperationContext> = publication.apply {
-            publicationCell.createValuePromise()
+            publicationCell.value.claim()
             // List cells are activated when the shared traversal allocates their list.
             if (publicationPath.last() is ObjectEngineResult.ObjectKey) {
                 check(publicationCell.setActivated(true)) { "Cell activation was decided twice" }

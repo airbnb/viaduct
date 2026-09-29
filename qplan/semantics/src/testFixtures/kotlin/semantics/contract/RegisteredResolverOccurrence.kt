@@ -134,7 +134,7 @@ private fun EngineResult?.visitRegisteredResolverOccurrences(
                         )
                     }
                     if (key !is ObjectEngineResult.ParentKey) {
-                        visit(cell.getValue().get(), fieldPath)
+                        visit(cell.value.get(), fieldPath)
                     }
                 }
             }
@@ -142,7 +142,7 @@ private fun EngineResult?.visitRegisteredResolverOccurrences(
             is ListEngineResult ->
                 value.forEachIndexed { index, cell ->
                     if (runBlocking { cell.fetchActivated() }) {
-                        visit(cell.getValue().get(), path + ListEngineResult.Index.of(index))
+                        visit(cell.value.get(), path + ListEngineResult.Index.of(index))
                     }
                 }
 

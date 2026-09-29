@@ -62,13 +62,13 @@ internal class DepthFirstReactor(
         check(children.isEmpty() && finished == dispatchedTasks) { "Reactor returned with unfinished tasks" }
         dispatchedTasks.filterIsInstance<DepthFirstOrchestrationTask>().forEach { task ->
             val target = task.objectOER.occurrence.target
-            check(task.objectOER.closedValueSelections.groundKeys().all { target.isCellSet(it) && target.getCell(it).getValue().isCompleted }) {
+            check(task.objectOER.closedValueSelections.groundKeys().all { target.isCellSet(it) && target.getCell(it).value.isCompleted }) {
                 "Completed OER ${task.path} is missing closed demand"
             }
             val queryTarget = task.queryOER.occurrence.target
             check(
                 task.queryOER.closedValueSelections.groundKeys().all { key ->
-                    queryTarget.isCellSet(key) && queryTarget.getCell(key).getValue().isCompleted
+                    queryTarget.isCellSet(key) && queryTarget.getCell(key).value.isCompleted
                 },
             ) {
                 "Completed Query OER ${task.path} is missing closed demand"

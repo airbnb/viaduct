@@ -99,7 +99,7 @@ class FieldCheckerClosureTest : Resolver26DispatcherResource {
         val operation = SharedOperationContext.create(world.assumptions)
         val result = operation.resolveWithTestDispatcher(world.assumptions.operationSelectionsFrom("{ checked(seed: 1) }"))
         val key = ObjectEngineResult.GroundKey.of(world.schema.requireObjectField("Query", "checked"), mapOf("seed" to 1))
-        assertEquals(1, result.getCell(key).getValue().get())
+        assertEquals(1, result.getCell(key).value.get())
     }
 
     @Test

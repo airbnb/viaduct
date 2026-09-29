@@ -125,7 +125,10 @@ class IndependentRoleAdversarialReviewTest {
                     executionContext = ResolutionExecutionContext.Unsupported,
                 )
             }
-            result.setCellValue(key, value)
+            result.reserveCell(key).apply {
+                this.value.set(value)
+                fieldCheckerResult.complete(null)
+            }
         }
         result.freeze()
         assertEquals(2, calls.get(), "The mutant really executes two source bodies")

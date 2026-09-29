@@ -1,6 +1,6 @@
 # Access-Check Semantics
 
-This document records the access-check behavior that qplan is intended to model. It describes semantic obligations rather than the implementation status of any resolver version. In particular, an incremental implementation may resolve checker-result slots before it begins enforcing those results during input materialization or GraphQL completion.
+This document records the access-check behavior that qplan models. It specifies semantic obligations independently of resolver implementation.
 
 The examples below specify the schema, value resolvers, checker registrations, required selections, and returned values. Nothing about a field's ownership, value, or access policy is left implicit.
 
@@ -8,22 +8,22 @@ The examples below specify the schema, value resolvers, checker registrations, r
 
 - A **field occurrence** is one selection of one field at one object-result occurrence, including its grounded arguments.
 - The **base type** of a GraphQL type expression is the type left after removing all list and non-null wrappers.
-- A **base cell** is the cell left after following all list wrappers in an engine result. For type checking, the relevant base cells are those whose value is an object engine result.
+- A **base cell** is the cell left after following all list wrappers in an engine result. An object-valued base cell points to an `ObjectEngineResult` occurrence.
+- An **object occurrence** is one `ObjectEngineResult` identified by its rooted result-tree occurrence. Ordinary object-valued base cells receive fresh object occurrences; a structural backedge such as `@parent` points to an existing occurrence rather than creating another one.
 - **Resolving a check** means running a checker and publishing its `CheckerResult`.
 - **Enforcing a check** means allowing a `CheckerResult.Error` to prevent a consumer from reading the corresponding value. Resolution and enforcement are separate operations.
 - An **unchecked read** reads the raw value without enforcing its checker results. It does not mark the value, resolver, or descendant work as permanently unchecked.
 
-## Logical Cell Results
+## Logical Access-Check Results
 
-Each result cell logically has three independent results:
+Access-check resolution produces two independently owned kinds of result:
 
-1. The value result.
-2. The field-checker result for the field occurrence that produced the cell.
-3. The type-checker result for the cell's base object, when its base type has a type checker.
+1. A field-checker result belongs to one field-cell occurrence.
+2. A type-checker result belongs to one concrete `ObjectEngineResult` occurrence.
 
-A checker-result value of `null` means that no checker applies. This is different from an unpublished checker-result promise: `null` is a completed semantic result, while an unpublished promise is work that has not yet been claimed or completed.
+A checker-result value of `null` means that no checker applies. Every field-cell occurrence and concrete OER occurrence has a checker-result promise; an unfinished promise denotes expected work, while a completed null is the terminal no-check result. Promise placement does not determine checker-application identity.
 
-Field and type results remain distinct while they are resolved. A consumer that enforces access must account for both. If both are errors, the production `CheckerResult` contract determines how they combine; the engine must not invent an independent generic precedence rule.
+Field and type results remain distinct while they are resolved. A consumer enforcing a field access reads the field result from the containing cell and, when the selected base value is an object, the type result from the reached object occurrence. It combines the applicable results only at enforcement time. If both are errors, the production `CheckerResult` contract determines how they combine; the engine must not invent an independent generic precedence rule.
 
 ## Field Checks
 
@@ -39,9 +39,9 @@ Supporting that general readiness graph in Resolver01–08 would require occurre
 
 Resolver01–08 require a checker-free resolver registry as an input precondition: `fieldChecker(field)` returns null for every field in their reasoning world. Shared construction-demand closure may consult the registry directly; absent checker registrations contribute no checker demand, so no checker-capability flag or filtered registry view is needed. This defines the supported input domain; it does not require runtime validation of the precondition.
 
-## Type Checks And Base Cells
+## Type Checks And Object Occurrences
 
-A type checker applies to each object-valued base cell of the checked type. List wrappers are significant because they can contain multiple such base cells.
+A type checker executes once for each concrete object occurrence of the checked type. List wrappers are significant because their object-valued base cells normally point to distinct object occurrences. Equal schema types, values, node IDs, or selections do not merge those occurrences. Reaching an existing OER through a structural backedge does not create another type-checker application.
 
 For example, consider this complete schema and execution world:
 
@@ -76,9 +76,9 @@ query {
 }
 ```
 
-There are three `User` base cells, so the `User` type checker runs three times: once for each returned object, not once for `Query.users`, once per list wrapper, or once per selected `User` field. The checker for the second base cell denies access only to that `User` occurrence; ordinary GraphQL null propagation then follows the declared nullable list and element wrappers.
+There are three distinct `User` OER occurrences, one reached through each object-valued base cell, so the `User` type checker runs three times: once for each returned object, not once for `Query.users`, once per list wrapper, or once per selected `User` field. The checker for the second occurrence denies access only to that `User` occurrence; ordinary GraphQL null propagation then follows the declared nullable list and element wrappers.
 
-This per-base-cell behavior is why type checks are first-class results rather than field checks copied onto every field of the type. Copying a type checker onto fields would repeat the same logical decision for every selected field and would fail to represent an object occurrence that must be checked even before choosing a particular child field.
+This per-OER behavior is why type checks are first-class results rather than field checks copied onto every field of the type. Copying a type checker onto fields would repeat the same logical decision for every selected field and would fail to represent an object occurrence that must be checked even before choosing a particular child field.
 
 ## Checker Required Selections
 
@@ -86,7 +86,7 @@ A field or type checker declares a named map of input-fragment pairs. Each named
 
 Construction unions the selections independently within each root: the containing occurrence is extended with the union of every named pair's object-rooted selections, and its orchestration's associated Query OER is extended with the union of every resolver and checker owner's nonempty Query-rooted selections. Materialization does not lose the owner or named-pair boundaries. Each pair is materialized independently, and the checker receives a name-to-pair map containing its separate object and Query projections. An empty Query template produces an empty Query-rooted value without demanding fields in the associated Query OER.
 
-This paired contract is intentionally different from the existing production `CheckerExecutor` SPI, whose named values are singular required selection sets. That SPI is a legacy integration boundary, not the qplan semantic model. Its Airbnb implementations currently nest a variable RSS at most once in practice, so an adapter can translate each singular outer RSS and its optional nested dependency into one pair, remember whether the object or Query member was the legacy outer RSS, and pass only that materialized member to the legacy checker. A replacement checker API will consume the pair directly. Qplan's registry, demand closure, scheduling, and materialization should use the paired model rather than preserve the legacy outer-RSS distinction.
+This paired contract is intentionally different from the production `CheckerExecutor` SPI, whose named values are singular required selection sets. That SPI is a legacy integration boundary, not the qplan semantic model. Its Airbnb implementations nest a variable RSS at most once in practice, so an adapter translates each singular outer RSS and its optional nested dependency into one pair, remembers whether the object or Query member was the legacy outer RSS, and passes only that materialized member back to the legacy checker. The replacement checker API consumes the pair directly. Qplan's registry, demand closure, scheduling, and materialization use the paired model rather than preserve the legacy outer-RSS distinction.
 
 The associated Query OER is a logical occurrence boundary owned by the containing orchestration. Resolver and checker occurrences in that scope share it, including exact-key value production, but materialize owner-local projections. It does not require an implementation to forgo safe physical batching across scopes, but work from the primary operation's Query OER or another containing occurrence's Query OER must not be substituted as though it had the same occurrence identity.
 
@@ -129,7 +129,7 @@ The consumer of a value determines whether its checker results are enforced:
 | Ordinary value-resolver input materialization | Yes |
 | Checker input materialization | No; it reads raw values |
 
-For query fields, resolving a value and resolving its checker normally proceed concurrently. The checker does not gate whether the query field's value resolver starts. A checked consumer evaluates the combined checker results first: an applicable denial can complete the consumption without awaiting or consulting the raw value, while a successful or consumer-inapplicable result proceeds to that value. For top-level mutation and subscription fields, production instead runs the field checker first and does not start the value resolver when that field check denies access.
+For query fields, resolving a value and resolving its field checker normally proceed concurrently. The field checker does not gate whether the query field's value resolver starts. Type-checker resolution begins once the value produces a concrete OER and belongs to that OER's orchestration. At enforcement, a singular object access combines its containing cell's field result with that OER's type result; a list access enforces the field result on the containing field and the type result of each reached object occurrence. For top-level mutation and subscription fields, production instead runs the field checker first and does not start the value resolver when that field check denies access.
 
 For an ordinary value resolver, a denial in an object- or Query-rooted input is represented like any other error-valued input. The denial does not suppress the resolver invocation or force its result to fail merely because the field was declared in a required selection set. Reading the denied selection propagates its policy error; a resolver that does not read that selection can still produce a value. The denied raw value is never exposed.
 
@@ -179,7 +179,7 @@ Thus a checker can directly read an unchecked active field, but the active field
 
 `CheckerResult.Error.isErrorForResolver(CheckerResultContext)` owns the decision whether a checker error applies to an ordinary resolver consumer. `CheckerResultContext.fieldDirectives` is a generic optional bridge for an execution integration to expose directives from the consuming field selection; neither the OSS checker API nor qplan assigns built-in meaning to a particular directive name.
 
-Qplan's materialization selections retain the generic `FieldDirectives` context from each source field occurrence and pass it to `isErrorForResolver`; qplan neither names nor interprets a policy directive. The test-fixture parser currently accepts no-argument custom directives declared only on `FIELD`, which is sufficient to model Airbnb's `@bypassPolicyCheck`: a service-defined checker error may recognize that spelling while an otherwise identical checker may ignore it. Co-applicable occurrences collected under one response key expose a directive only when every occurrence exposes it, preventing one annotated occurrence from weakening an unannotated occurrence. GraphQL response completion remains a distinct consumer and enforces combined checker errors directly.
+Qplan's materialization selections retain the generic `FieldDirectives` context from each source field occurrence and pass it to `isErrorForResolver`; qplan neither names nor interprets a policy directive. The test-fixture parser accepts no-argument custom directives declared only on `FIELD`, which is sufficient to model Airbnb's `@bypassPolicyCheck`: a service-defined checker error may recognize that spelling while an otherwise identical checker may ignore it. Co-applicable occurrences collected under one response key expose a directive only when every occurrence exposes it, preventing one annotated occurrence from weakening an unannotated occurrence. GraphQL response completion remains a distinct consumer and enforces combined checker errors directly.
 
 ## Demand Provenance Is Semantically Relevant
 
@@ -195,4 +195,4 @@ Selective successor-demand calculation retains the same provenance only while fi
 
 ## Exact Checker Applications
 
-Access-result correctness and access-check execution exactness are complementary judgments. `correctResolution` requires registered checker slots for checked client and resolver-input selections, follows claimed checker object fragments as unchecked value demand, validates each checker Query root as unchecked demand, reconstructs every named raw object/Query input pair, and requires the replayed success/error variant to match the stored slot; a checked occurrence at which no checker can run instead requires a null slot. It also compares the object and Query values actually passed to field resolvers with replayed checked materializations, including access errors at exact Engine value locations. Checker errors expose no tenant-independent equality, so replay does not compare error instances. `correctResolution` may still tolerate additional value structure and does not establish checker execution counts. Exact access evidence records each attempted checker call by checker kind, logical Query root, occurrence path, grounded arguments, and checked coordinate; comparison is duplicate-preserving so both omitted and repeated applications fail. Observation occurs after checker inputs are ready and immediately before checker invocation, and records no result or policy outcome.
+Access-result correctness and access-check execution exactness are complementary judgments. `correctResolution` requires registered checker results for checked client and resolver-input selections, follows applicable checker object fragments as unchecked value demand, validates each checker Query root as unchecked demand, reconstructs every named raw object/Query input pair, and requires the replayed success/error variant to match the stored result; a checked occurrence at which no checker can run instead requires a null result. It also compares the object and Query values actually passed to field resolvers with replayed checked materializations, including access errors at exact Engine value locations. Checker errors expose no tenant-independent equality, so replay does not compare error instances. `correctResolution` may still tolerate additional value structure and does not establish checker execution counts. Exact access evidence records each attempted checker call by checker kind, logical Query root, occurrence path, grounded arguments, and checked coordinate; comparison is duplicate-preserving so both omitted and repeated applications fail. Observation occurs after checker inputs are ready and immediately before checker invocation, and records no result or policy outcome.

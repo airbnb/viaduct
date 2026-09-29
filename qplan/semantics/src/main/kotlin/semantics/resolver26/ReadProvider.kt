@@ -78,7 +78,7 @@ private suspend fun ObjectEngineResult.readProvider(
         objectKey.fetchGroundedArguments(operation)
         val cell = current.reserveCell(objectKey)
         operation.cycleChecker.cycleCheck(reader, cell.valueCycleSlot)
-        val value = cell.reserveValue().await()
+        val value = cell.value.await()
         if (index == path.lastIndex) {
             return value.toProviderBinding(objectKey.field.outputType)
         }
@@ -115,7 +115,7 @@ private suspend fun ListEngineResult.toProviderInputListBinding(): VariableBindi
     }
     val values = mutableListOf<EngineInputData?>()
     indices.forEach { index ->
-        when (val binding = get(index).getValue().await().toProviderBinding(typeExpr)) {
+        when (val binding = get(index).value.await().toProviderBinding(typeExpr)) {
             VariableBinding.Error -> return VariableBinding.Error
             is VariableBinding.Input -> values += binding.value
         }

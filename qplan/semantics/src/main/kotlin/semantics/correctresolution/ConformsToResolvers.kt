@@ -72,9 +72,9 @@ private class ResolverConformanceLogic(
         producerField: ViaductSchema.ObjectField?,
     ): Boolean =
         keys.all { key ->
-            if (!getCell(key).getValue().isCompleted) return@all true
+            if (!getCell(key).value.isCompleted) return@all true
             if (!key.isContextuallyGrounded(operation)) return@all false
-            val value = getCell(key).getValue().get()
+            val value = getCell(key).value.get()
             val arguments = key.groundedArguments(operation)
             val fieldName = key.field.name
             source.requireArgumentlessField(key)
@@ -167,7 +167,7 @@ private class ResolverConformanceLogic(
                 )
             is ListEngineResult ->
                 indices.all { index ->
-                    get(index).getValue().get().engineResultConformsToResolvers(
+                    get(index).value.get().engineResultConformsToResolvers(
                         path = path + ListEngineResult.Index.of(index),
                         structuralParent = structuralParent,
                         producerField = producerField,
@@ -217,7 +217,7 @@ private class ResolverConformanceLogic(
                 resolverValue is List<*> &&
                     size == resolverValue.size &&
                     indices.all { index ->
-                        get(index).getValue().get().engineResultConformsToResolverValue(
+                        get(index).value.get().engineResultConformsToResolverValue(
                             resolverValue[index],
                             typeExpr,
                             path + ListEngineResult.Index.of(index),

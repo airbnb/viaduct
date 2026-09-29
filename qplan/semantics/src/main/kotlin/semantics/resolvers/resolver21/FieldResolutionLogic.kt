@@ -52,7 +52,7 @@ internal class FieldResolutionLogic(
     /** Publishes into the cell already activated by task preparation. */
     fun publishFieldError(cause: Exception) {
         val publication = fieldResolverTask.publication
-        publication.publicationCell.getValue().complete(ErrorEngineResult.of(EngineErrorData.of(cause)))
+        publication.publicationCell.value.complete(ErrorEngineResult.of(EngineErrorData.of(cause)))
     }
 
     suspend fun publishResult() {
@@ -62,7 +62,7 @@ internal class FieldResolutionLogic(
         val invocationDemand = publication.invocationDemand ?: publication.operation.complete(constructionDemand)
         var fieldValue: ResolverOutputData? = publication.reference ?: when (val arguments = key.arguments) {
             Arguments.Error -> {
-                check(publication.publicationCell.getValue().complete(ErrorEngineResult.of(EngineErrorData.of()))) {
+                check(publication.publicationCell.value.complete(ErrorEngineResult.of(EngineErrorData.of()))) {
                     "Cell value was completed twice"
                 }
                 return
@@ -88,7 +88,7 @@ internal class FieldResolutionLogic(
             invocationDemand = invocationDemand,
             parent = publication.oerOccurrence,
         )
-        check(publication.publicationCell.getValue().complete(passiveValue)) { "Cell value was completed twice" }
+        check(publication.publicationCell.value.complete(passiveValue)) { "Cell value was completed twice" }
     }
 
     private suspend fun runFieldResolver(

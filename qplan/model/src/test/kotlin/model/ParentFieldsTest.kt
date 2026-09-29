@@ -4,13 +4,36 @@ import model.testing.GJSchema
 import model.testing.TestWorld
 import model.invariants.conformsToSchema
 import kotlin.test.Test
+import kotlin.test.assertFalse
 import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
 import kotlin.test.assertSame
-import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import viaduct.engine.api.CheckerResult
 
 class ParentFieldsTest {
+    @Test
+    fun `parent backedge exposes the ancestor OER type-checker promise`() {
+        val assumptions = TestWorld.fromSDL(SINGULAR_PARENT_SCHEMA).assumptions
+        val schema = assumptions.schema
+        val parentType = schema.requireType("Parent") as viaduct.graphql.schema.ViaductSchema.Object
+        val childType = schema.requireType("Child") as viaduct.graphql.schema.ViaductSchema.Object
+        val parentPromise = Promise.ofDeferred<CheckerResult?>()
+        val parent =
+            ObjectEngineResult.of(
+                type = parentType,
+                typeCheckerResult = parentPromise,
+                mutable = true,
+            )
+        val parentKey = ObjectEngineResult.ParentKey.of(schema.requireObjectField("Child", "parent"))
+        val child = ObjectEngineResult.of(childType, values = mapOf(parentKey to parent))
+
+        val reachedParent = assertIs<ObjectEngineResult>(child.getCell(parentKey).value.get())
+
+        assertSame(parent, reachedParent)
+        assertSame(parentPromise, reachedParent.typeCheckerResult)
+    }
+
     @Test
     fun `completed result comparison distinguishes a wrong same-type parent occurrence`() {
         val assumptions =
@@ -44,19 +67,16 @@ class ParentFieldsTest {
             val root = ObjectEngineResult.of(linkType, mutable = true)
             val child = ObjectEngineResult.of(linkType, mutable = true)
             child.reserveCell(parentKey).also { cell ->
-                cell.setValue(if (wrongParent) child else root)
-                cell.setFieldCheckerResult(null)
-                cell.setTypeCheckerResult(null)
+                cell.value.set(if (wrongParent) child else root)
+                cell.fieldCheckerResult.complete(null)
             }
             root.reserveCell(childKey).also { cell ->
-                cell.setValue(child)
-                cell.setFieldCheckerResult(null)
-                cell.setTypeCheckerResult(null)
+                cell.value.set(child)
+                cell.fieldCheckerResult.complete(null)
             }
             query.reserveCell(rootKey).also { cell ->
-                cell.setValue(root)
-                cell.setFieldCheckerResult(null)
-                cell.setTypeCheckerResult(null)
+                cell.value.set(root)
+                cell.fieldCheckerResult.complete(null)
             }
             return query
         }
@@ -160,9 +180,8 @@ class ParentFieldsTest {
                 emptyMap(),
             )
         parent.reserveCell(alternateProducer).also { cell ->
-            cell.setValue(child)
-            cell.setFieldCheckerResult(null)
-            cell.setTypeCheckerResult(null)
+            cell.value.set(child)
+            cell.fieldCheckerResult.complete(null)
         }
 
         assertFalse(parent.conformsToSchema(assumptions.parentFieldRelations))
@@ -181,9 +200,8 @@ class ParentFieldsTest {
                 childType,
                 values = mapOf(parentKey to (parentOverride ?: parent)),
             )
-        parent.reserveCell(childKey).setValue(child)
-        parent.reserveCell(childKey).setFieldCheckerResult(null)
-        parent.reserveCell(childKey).setTypeCheckerResult(null)
+        parent.reserveCell(childKey).value.set(child)
+        parent.reserveCell(childKey).fieldCheckerResult.complete(null)
         return parent
     }
 

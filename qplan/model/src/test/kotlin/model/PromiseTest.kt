@@ -63,6 +63,20 @@ class PromiseTest {
         }
 
     @Test
+    fun `failed promise throws its cause from get and await`() =
+        runBlocking {
+            val promise = Promise.ofDeferred<String>()
+            val failure = IllegalStateException("failed")
+
+            assertTrue(promise.fail(failure))
+
+            assertEquals(failure, assertFailsWith<IllegalStateException> { promise.get() })
+            assertEquals(failure, assertFailsWith<IllegalStateException> { promise.await() })
+            assertFalse(promise.complete("late"))
+            assertFalse(promise.fail(IllegalStateException("later")))
+        }
+
+    @Test
     fun `cancel atomically admits one concurrent caller`() =
         runBlocking {
             val promise = Promise.ofDeferred<String>()
@@ -126,7 +140,7 @@ class PromiseTest {
                 .of(schema.requireQueryTypeDef(), mutable = true)
                 .reserveCell(field)
                 .also { cell -> cell.setActivated(true) }
-                .createValuePromise()
+                .value.claim()
 
         assertFailsWith<IllegalArgumentException> {
             promise.complete(null)

@@ -37,8 +37,7 @@ internal fun ObjectEngineResult.conformsToCheckedSelectionsAt(
         val cell = getCell(key)
         val checker = operation.world.resolverRegistry.fieldChecker(key.field)
         if (checker != null) {
-            if (!cell.isFieldCheckerResultSet()) return@all false
-            val storedResult = cell.getFieldCheckerResult().get()
+            val storedResult = cell.fieldCheckerResult.get()
             if (
                 key is ObjectEngineResult.ParentKey ||
                     key.groundedArguments(operation) !is Arguments.Resolved
@@ -56,7 +55,7 @@ internal fun ObjectEngineResult.conformsToCheckedSelectionsAt(
             }
         }
         cell
-            .getValue()
+            .value
             .get()
             .engineResultConformsToCheckedSelections(
                 operation = operation,
@@ -92,7 +91,7 @@ private fun EngineResult?.engineResultConformsToCheckedSelections(
         is ListEngineResult ->
             indices.all { index ->
                 get(index)
-                    .getValue()
+                    .value
                     .get()
                     .engineResultConformsToCheckedSelections(
                         operation = operation,

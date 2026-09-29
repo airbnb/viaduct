@@ -116,7 +116,7 @@ class RootFieldReferenceResolutionTest : Resolver26DispatcherResource {
 
         assertEquals(
             7,
-            resolved.getCell(world.schema.contractKey("Query", "result")).getValue().get(),
+            resolved.getCell(world.schema.contractKey("Query", "result")).value.get(),
         )
         assertEquals(1, observer.rootFieldReferenceInvocations().size)
     }
@@ -183,7 +183,7 @@ class RootFieldReferenceResolutionTest : Resolver26DispatcherResource {
             assertIs<ErrorEngineResult>(
                 result
                     .getCell(testWorld.schema.contractKey("Query", "container"))
-                    .getValue()
+                    .value
                     .get(),
             )
         val failure = assertIs<IllegalArgumentException>(error.errorData.cause)
@@ -268,19 +268,19 @@ class RootFieldReferenceResolutionTest : Resolver26DispatcherResource {
         val result = resolve(world, "fragment Result on Query { container { product { value } } }")
         val container =
             assertIs<ObjectEngineResult>(
-                result.getCell(world.schema.contractKey("Query", "container")).getValue().get(),
+                result.getCell(world.schema.contractKey("Query", "container")).value.get(),
             )
         val product =
             assertIs<ObjectEngineResult>(
                 container
                     .getCell(world.schema.contractKey("Container", "product"))
-                    .getValue()
+                    .value
                     .get(),
             )
 
         assertEquals(
             "value-7",
-            product.getCell(world.schema.contractKey("Product", "value")).getValue().get(),
+            product.getCell(world.schema.contractKey("Product", "value")).value.get(),
         )
     }
 
@@ -395,19 +395,19 @@ class RootFieldReferenceResolutionTest : Resolver26DispatcherResource {
         val result = operation.resolveWithTestDispatcher(query.subselections)
         val container =
             assertIs<ObjectEngineResult>(
-                result.getCell(world.schema.contractKey("Query", "container")).getValue().get(),
+                result.getCell(world.schema.contractKey("Query", "container")).value.get(),
             )
         val product =
             assertIs<ObjectEngineResult>(
                 container
                     .getCell(world.schema.contractKey("Container", "product"))
-                    .getValue()
+                    .value
                     .get(),
             )
 
         assertEquals(
             "value-9/value-10",
-            product.getCell(world.schema.contractKey("Product", "value")).getValue().get(),
+            product.getCell(world.schema.contractKey("Product", "value")).value.get(),
         )
         assertEquals(listOf(5), firstProviderArguments)
         assertEquals(listOf(9), secondProviderArguments)
@@ -496,16 +496,16 @@ class RootFieldReferenceResolutionTest : Resolver26DispatcherResource {
         val result = operation.resolveWithTestDispatcher(query.subselections)
         val container =
             assertIs<ObjectEngineResult>(
-                result.getCell(world.schema.contractKey("Query", "container")).getValue().get(),
+                result.getCell(world.schema.contractKey("Query", "container")).value.get(),
             )
         val product =
             assertIs<ObjectEngineResult>(
-                container.getCell(world.schema.contractKey("Container", "product")).getValue().get(),
+                container.getCell(world.schema.contractKey("Container", "product")).value.get(),
             )
 
         assertEquals(
             "product-42-resolved",
-            product.getCell(world.schema.contractKey("Product", "value")).getValue().get(),
+            product.getCell(world.schema.contractKey("Product", "value")).value.get(),
         )
         assertEquals(setOf(world.schema.contractKey("Product", "value")), product.keys)
         assertEquals(1, targetApplications.get())
@@ -601,13 +601,13 @@ class RootFieldReferenceResolutionTest : Resolver26DispatcherResource {
             operation.resolveWithTestDispatcher(query.subselections)
         val container =
             assertIs<ObjectEngineResult>(
-                result.getCell(world.schema.contractKey("Query", "container")).getValue().get(),
+                result.getCell(world.schema.contractKey("Query", "container")).value.get(),
             )
         val product =
             assertIs<ObjectEngineResult>(
                 container
                     .getCell(world.schema.contractKey("Container", "product"))
-                    .getValue()
+                    .value
                     .get(),
             )
         val create = world.schema.requireObjectField("ProductFactory", "create")
@@ -615,7 +615,7 @@ class RootFieldReferenceResolutionTest : Resolver26DispatcherResource {
 
         assertEquals(
             "product-42",
-            product.getCell(world.schema.contractKey("Product", "value")).getValue().get(),
+            product.getCell(world.schema.contractKey("Product", "value")).value.get(),
         )
         assertEquals(
             listOf("factories", "commerce", "products", "create"),
@@ -685,12 +685,12 @@ class RootFieldReferenceResolutionTest : Resolver26DispatcherResource {
             operation.resolveWithTestDispatcher(query.subselections)
         val product =
             assertIs<ObjectEngineResult>(
-                result.getCell(world.schema.contractKey("Query", "first")).getValue().get(),
+                result.getCell(world.schema.contractKey("Query", "first")).value.get(),
             )
 
         assertEquals(
             "done",
-            product.getCell(world.schema.contractKey("Product", "value")).getValue().get(),
+            product.getCell(world.schema.contractKey("Product", "value")).value.get(),
         )
         assertEquals(listOf("first", "second", "third"), applications.map { it.field.name })
         assertNotEquals(applications[0].resolverOccurrenceId, applications[1].resolverOccurrenceId)
@@ -761,18 +761,18 @@ class RootFieldReferenceResolutionTest : Resolver26DispatcherResource {
             )
         val container =
             assertIs<ObjectEngineResult>(
-                result.getCell(world.schema.contractKey("Query", "container")).getValue().get(),
+                result.getCell(world.schema.contractKey("Query", "container")).value.get(),
             )
         val products =
             assertIs<ListEngineResult>(
-                container.getCell(world.schema.contractKey("Container", "products")).getValue().get(),
+                container.getCell(world.schema.contractKey("Container", "products")).value.get(),
             )
 
         assertEquals(
             listOf(1, 2, 3),
             products.map { cell ->
-                val product = assertIs<ObjectEngineResult>(cell.getValue().get())
-                product.getCell(world.schema.contractKey("Product", "value")).getValue().get()
+                val product = assertIs<ObjectEngineResult>(cell.value.get())
+                product.getCell(world.schema.contractKey("Product", "value")).value.get()
             },
         )
     }
@@ -836,23 +836,23 @@ class RootFieldReferenceResolutionTest : Resolver26DispatcherResource {
         val result = operation.resolveWithTestDispatcher(query.subselections)
         val container =
             assertIs<ObjectEngineResult>(
-                result.getCell(world.schema.contractKey("Query", "container")).getValue().get(),
+                result.getCell(world.schema.contractKey("Query", "container")).value.get(),
             )
         val products =
             assertIs<ListEngineResult>(
-                container.getCell(world.schema.contractKey("Container", "products")).getValue().get(),
+                container.getCell(world.schema.contractKey("Container", "products")).value.get(),
             )
-        val first = assertIs<ObjectEngineResult>(products[0].getValue().get())
-        val third = assertIs<ObjectEngineResult>(products[2].getValue().get())
+        val first = assertIs<ObjectEngineResult>(products[0].value.get())
+        val third = assertIs<ObjectEngineResult>(products[2].value.get())
 
         assertEquals(
             1,
-            first.getCell(world.schema.contractKey("Product", "value")).getValue().get(),
+            first.getCell(world.schema.contractKey("Product", "value")).value.get(),
         )
-        assertIs<ErrorEngineResult>(products[1].getValue().get())
+        assertIs<ErrorEngineResult>(products[1].value.get())
         assertEquals(
             3,
-            third.getCell(world.schema.contractKey("Product", "value")).getValue().get(),
+            third.getCell(world.schema.contractKey("Product", "value")).value.get(),
         )
         assertTrue(
             result.correctResolution(operation, query.subselections.merge(world.schema.requireQueryTypeDef())),
@@ -884,16 +884,16 @@ class RootFieldReferenceResolutionTest : Resolver26DispatcherResource {
                         val numbers = root.awaitReferenceNumbers(world)
                         withTimeout(5_000) { successfulReferenceCompleted.await() }
 
-                        assertEquals(1, withTimeout(5_000) { numbers[0].getValue().await() })
+                        assertEquals(1, withTimeout(5_000) { numbers[0].value.await() })
                         val error =
                             assertIs<ErrorEngineResult>(
-                                withTimeout(5_000) { numbers[1].getValue().await() },
+                                withTimeout(5_000) { numbers[1].value.await() },
                             )
                         assertEquals(
                             "list reference cancelled",
                             assertIs<CancellationException>(error.errorData.cause).message,
                         )
-                        assertEquals(3, withTimeout(5_000) { numbers[2].getValue().await() })
+                        assertEquals(3, withTimeout(5_000) { numbers[2].value.await() })
                         assertTrue(requestJob.isActive, "threadCount=$threadCount")
                     } finally {
                         requestJob.cancelAndJoin()
@@ -926,10 +926,10 @@ class RootFieldReferenceResolutionTest : Resolver26DispatcherResource {
                             )
                         val numbers = root.awaitReferenceNumbers(world)
                         withTimeout(5_000) { successfulReferenceCompleted.await() }
-                        assertEquals(1, withTimeout(5_000) { numbers[0].getValue().await() })
+                        assertEquals(1, withTimeout(5_000) { numbers[0].value.await() })
                         val error =
                             assertIs<ErrorEngineResult>(
-                                withTimeout(5_000) { numbers[1].getValue().await() },
+                                withTimeout(5_000) { numbers[1].value.await() },
                             )
                         assertTrue(
                             assertIs<IllegalStateException>(error.errorData.cause)
@@ -941,7 +941,7 @@ class RootFieldReferenceResolutionTest : Resolver26DispatcherResource {
                                 ),
                             "threadCount=$threadCount",
                         )
-                        assertEquals(3, withTimeout(5_000) { numbers[2].getValue().await() })
+                        assertEquals(3, withTimeout(5_000) { numbers[2].value.await() })
                         assertTrue(requestJob.isActive, "threadCount=$threadCount")
                     } finally {
                         requestJob.cancelAndJoin()
@@ -1035,7 +1035,7 @@ class RootFieldReferenceResolutionTest : Resolver26DispatcherResource {
             val resolved = operation.resolveWithTestDispatcher(query.subselections)
             val container =
                 assertIs<ObjectEngineResult>(
-                    resolved.getCell(world.schema.contractKey("Query", "container")).getValue().get(),
+                    resolved.getCell(world.schema.contractKey("Query", "container")).value.get(),
                 )
             val referenceCell =
                 container.getCell(world.schema.contractKey("Container", "product"))
@@ -1544,14 +1544,14 @@ class RootFieldReferenceResolutionTest : Resolver26DispatcherResource {
         val container =
             assertIs<ObjectEngineResult>(
                 withTimeout(5_000) {
-                    getCell(world.schema.contractKey("Query", "container")).getValue().await()
+                    getCell(world.schema.contractKey("Query", "container")).value.await()
                 },
             )
         return assertIs(
             withTimeout(5_000) {
                 container
                     .getCell(world.schema.contractKey("Container", "numbers"))
-                    .getValue()
+                    .value
                     .await()
             },
         )
@@ -1610,14 +1610,14 @@ class RootFieldReferenceResolutionTest : Resolver26DispatcherResource {
             assertIs<ObjectEngineResult>(
                 result
                     .getCell(testWorld.schema.contractKey("Query", "container"))
-                    .getValue()
+                    .value
                     .get(),
             )
         val error =
             assertIs<ErrorEngineResult>(
                 container
                     .getCell(testWorld.schema.contractKey("Container", "product"))
-                    .getValue()
+                    .value
                     .get(),
             )
         val failure = assertIs<IllegalArgumentException>(error.errorData.cause)

@@ -42,9 +42,9 @@ import viaduct.engine.api.FieldDirectives
  * [reader] is the exact identity of the resolver or checker consuming the materialized value.
  * [cycleChecker] defaults to no-op for nested `ctx.query` results and correctness replay. Runtime
  * resolver-input materialization supplies its checker explicitly, independently of [operation].
- * When [checked] is true, missing field- or type-checker slots mean that no checker executor claimed
- * the occurrence and default open; claimed slots are awaited, combined, and enforced before a
- * selected value can be consumed. A false [checked] value is the narrow raw projection used for
+ * When [checked] is true, field- and type-checker promises are awaited, combined, and enforced
+ * before a selected value can be consumed; a completed null means no checker applies. A false
+ * [checked] value is the narrow raw projection used for
  * checker inputs. It skips checker slots but still cycle-checks and awaits each selected value slot.
  * Rawness is confined to this projection; an active resolver that produces a selected value applies
  * ordinary checked semantics to its own inputs.
@@ -206,7 +206,7 @@ private class MaterializationLogic(
             )
         } else {
             cycleChecker.cycleCheck(reader, valueCycleSlot)
-            getValue().await()
+            value.await()
         }
 }
 
@@ -216,20 +216,25 @@ internal suspend fun EngineResultCell.materializeCheckedValueForResolver(
     reader: CycleTask,
     cycleChecker: CycleCheckState,
 ): EngineResult? {
-    val hasFieldChecker = isFieldCheckerResultSet()
-    val hasTypeChecker = isTypeCheckerResultSet()
-    if (hasFieldChecker) cycleChecker.cycleCheck(reader, fieldCheckerCycleSlot)
-    if (hasTypeChecker) cycleChecker.cycleCheck(reader, typeCheckerCycleSlot)
-    if (hasFieldChecker) getFieldCheckerResult().await()
-    if (hasTypeChecker) getTypeCheckerResult().await()
+    cycleChecker.cycleCheck(reader, fieldCheckerCycleSlot)
+    fieldCheckerResult.await()
+
+    suspend fun awaitTypeChecker(value: EngineResult?) {
+        if (value is ObjectEngineResult) {
+            cycleChecker.cycleCheck(reader, value.typeCheckerCycleSlot)
+            value.typeCheckerResult.await()
+        }
+    }
 
     cycleChecker.cycleCheck(reader, valueCycleSlot)
+    val valuePromise = value
+    if (valuePromise.isCompleted) awaitTypeChecker(valuePromise.get())
     var attempt =
         materializeCheckedValue { error ->
             error.isErrorForResolver(CheckerResultContext(fieldDirectives))
         }
     if (attempt === EngineResultIsPending) {
-        getValue().await()
+        awaitTypeChecker(valuePromise.await())
         attempt =
             materializeCheckedValue { error ->
                 error.isErrorForResolver(CheckerResultContext(fieldDirectives))

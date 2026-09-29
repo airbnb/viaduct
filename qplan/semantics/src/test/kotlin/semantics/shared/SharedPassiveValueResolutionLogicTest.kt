@@ -122,7 +122,7 @@ class SharedPassiveValueResolutionLogicTest {
         assertTrue(typeNameKey !in result.keys)
         assertTrue(computedKey !in result.keys)
 
-        val profile = assertIs<ObjectEngineResult>(result.getCell(profileKey).getValue().get())
+        val profile = assertIs<ObjectEngineResult>(result.getCell(profileKey).value.get())
         assertEquals(userType, result.type)
         assertEquals(profileType, profile.type)
         assertEquals(setOf(rawKey), profile.keys)
@@ -204,7 +204,7 @@ class SharedPassiveValueResolutionLogicTest {
 
         val result = assertIs<ObjectEngineResult>(resolved.engineResult)
         assertEquals(setOf(nameKey, profileKey), result.keys)
-        val profile = assertIs<ObjectEngineResult>(result.getCell(profileKey).getValue().get())
+        val profile = assertIs<ObjectEngineResult>(result.getCell(profileKey).value.get())
         assertEquals(setOf(rawKey), profile.keys)
         assertEquals(
             setOf(emptyList()),
@@ -523,13 +523,13 @@ class SharedPassiveValueResolutionLogicTest {
 
         val result = assertIs<ListEngineResult>(replayed)
         result.forEachIndexed { index, cell ->
-            val item = assertIs<ObjectEngineResult>(cell.getValue().get())
+            val item = assertIs<ObjectEngineResult>(cell.value.get())
             val itemPath = rootPath + ListEngineResult.Index.of(index)
             assertSame(item, resolutionsByPath.getValue(itemPath).target)
-            assertEquals(1, item.getCell(computedKey).getValue().get())
+            assertEquals(1, item.getCell(computedKey).value.get())
 
-            val nested = assertIs<ObjectEngineResult>(item.getCell(nestedKey).getValue().get())
-            assertEquals(1, nested.getCell(renderedKey).getValue().get())
+            val nested = assertIs<ObjectEngineResult>(item.getCell(nestedKey).value.get())
+            assertEquals(1, nested.getCell(renderedKey).value.get())
         }
     }
 }

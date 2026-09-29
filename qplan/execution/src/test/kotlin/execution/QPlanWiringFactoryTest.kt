@@ -3,10 +3,12 @@ package execution
 import execution.testing.ExecutionTestFixture
 import model.ListEngineResult
 import model.ObjectEngineResult
+import model.Promise
 import model.engineResultOf
 import model.outputType
 import model.requireObjectField
 import model.requireQueryTypeDef
+import model.requireType
 import model.testing.TestWorld
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -14,6 +16,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.CheckerResultContext
+import viaduct.graphql.schema.ViaductSchema
 
 class QPlanWiringFactoryTest {
     @Test
@@ -92,21 +95,31 @@ class QPlanWiringFactoryTest {
         val completionOnlyDenial = TestCheckerError("field denied", resolverError = false)
         val typeDenial = TestCheckerError("type denied")
         val listDenial = TestCheckerError("list item denied")
+        val protectedType = world.schema.requireType("Protected") as ViaductSchema.Object
+        val textKey =
+            ObjectEngineResult.GroundKey.of(
+                world.schema.requireObjectField("Protected", "text"),
+                emptyMap(),
+            )
+        fun protected(
+            text: String,
+            typeCheckerResult: CheckerResult?,
+        ): ObjectEngineResult =
+            ObjectEngineResult.of(
+                type = protectedType,
+                typeCheckerResult = Promise.of(typeCheckerResult),
+                values = mapOf(textKey to text),
+            )
         val listField = world.schema.requireObjectField("Query", "listTypeDenied")
         val list =
             ListEngineResult.of(
                 typeExpr = listField.outputType.unwrapList()!!,
-                values = listOf("visible", "secret"),
-                typeCheckerResults = listOf(null, listDenial),
+                values = listOf(protected("visible", null), protected("secret", listDenial)),
             )
         val root =
             world.engineResultOf("Query") {
                 "fieldDenied".resolvesTo("secret", completionOnlyDenial)
-                "typeDenied".resolvesTo(
-                    value = "secret",
-                    fieldCheckerResult = null,
-                    typeCheckerResult = typeDenial,
-                )
+                "typeDenied" resolvesTo protected("secret", typeDenial)
                 "listTypeDenied" resolvesTo list
             }
         val fixture =
@@ -116,13 +129,13 @@ class QPlanWiringFactoryTest {
                 root = root,
             )
 
-        val result = fixture.runQuery("{ fieldDenied typeDenied listTypeDenied }")
+        val result = fixture.runQuery("{ fieldDenied typeDenied { text } listTypeDenied { text } }")
 
         assertEquals(
             mapOf(
                 "fieldDenied" to null,
                 "typeDenied" to null,
-                "listTypeDenied" to listOf("visible", null),
+                "listTypeDenied" to listOf(mapOf("text" to "visible"), null),
             ),
             result.getData(),
         )
@@ -147,8 +160,9 @@ class QPlanWiringFactoryTest {
         val denial = TestCheckerError("completion denied")
         val root = ObjectEngineResult.of(world.schema.requireQueryTypeDef(), mutable = true)
         val cell = root.reserveCell(key)
-        cell.reserveValue()
-        cell.setFieldCheckerResult(denial)
+        cell.value
+        cell.setActivated(true)
+        cell.fieldCheckerResult.complete(denial)
         val fixture =
             ExecutionTestFixture.fromResolvedRoot(
                 schemaSDL = "type Query { value: String }",
@@ -161,7 +175,7 @@ class QPlanWiringFactoryTest {
         assertEquals(mapOf("value" to null), result.getData())
         assertEquals(listOf("value"), result.errors.single().path)
         assertTrue(result.errors.single().message.contains("completion denied"))
-        assertFalse(cell.getValue().isCompleted)
+        assertFalse(cell.value.isCompleted)
     }
 
     @Test
@@ -250,8 +264,12 @@ class QPlanWiringFactoryTest {
             """
             type Query {
               fieldDenied: String
-              typeDenied: String
-              listTypeDenied: [String]
+              typeDenied: Protected
+              listTypeDenied: [Protected]
+            }
+
+            type Protected {
+              text: String
             }
             """.trimIndent()
     }

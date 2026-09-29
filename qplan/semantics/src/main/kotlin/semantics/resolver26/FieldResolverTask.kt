@@ -121,7 +121,7 @@ internal class FieldResolverTask private constructor(
             sourceOccurrence: ValueSourceOccurrence,
             publicationCell: EngineResultCell,
         ) {
-            publicationCell.createValuePromise()
+            publicationCell.value.claim()
             operation.cycleChecker.registerWriter(
                 slot = publicationCell.valueCycleSlot,
                 writer = oerOccurrence.root.fieldResolverCycleTask(sourceOccurrence.publicationPath),
@@ -160,7 +160,7 @@ internal class FieldResolverTask private constructor(
         ): SymbolicFieldPublicationOccurrence {
             val objectKey = sourceOccurrence.selection.key
             val publicationCell = oerOccurrence.target.reserveCell(objectKey)
-            publicationCell.createValuePromise()
+            publicationCell.value.claim()
             operation.cycleChecker.registerWriter(
                 slot = publicationCell.valueCycleSlot,
                 writer = oerOccurrence.fieldResolverCycleTask(objectKey),
@@ -194,8 +194,8 @@ internal class FieldResolverTask private constructor(
             cause: CancellationException
         ) {
             with(publication) {
-                publicationCell.cancelValue(cause)
-                if (!checkerScheduled && publicationCell.isFieldCheckerResultSet()) publicationCell.cancelFieldCheckerResult(cause)
+                publicationCell.value.cancel(cause)
+                if (!checkerScheduled) publicationCell.fieldCheckerResult.cancel(cause)
                 val fieldResolverOccurrence =
                     sourceOccurrence as? FieldResolverOccurrence
                         ?: return

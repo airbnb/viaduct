@@ -17,48 +17,43 @@ import viaduct.engine.api.CheckerResultContext
 
 class CheckedEngineResultTest {
     @Test
-    fun `cell completion includes every claimed slot`() {
+    fun `cell completion includes every cell slot`() {
         val cell = newCell()
 
         assertFalse(cell.isCompleted)
-        cell.setValue("ready")
-        assertTrue(cell.isCompleted)
-
-        val fieldPromise = cell.createFieldCheckerResultPromise()
-        val typePromise = cell.createTypeCheckerResultPromise()
+        cell.value.set("ready")
         assertFalse(cell.isCompleted)
 
-        fieldPromise.complete(CheckerResult.Success)
-        assertFalse(cell.isCompleted)
-        typePromise.complete(null)
+        cell.fieldCheckerResult.complete(null)
         assertTrue(cell.isCompleted)
     }
 
     @Test
     fun `unfinished value or checker slots produce pending attempts`() {
         val valuePending = newCell()
-        valuePending.reserveValue()
+        valuePending.value
         assertSame(EngineResultIsPending, valuePending.materializeCheckedValue { true })
 
         val fieldPending = newCell()
-        fieldPending.setValue("field")
-        fieldPending.createFieldCheckerResultPromise()
+        fieldPending.value.set("field")
+        fieldPending.fieldCheckerResult
         assertSame(EngineResultIsPending, fieldPending.materializeCheckedValue { true })
 
-        val typePending = newCell()
-        typePending.setValue("type")
-        typePending.createTypeCheckerResultPromise()
+        val (typePending, _) = newObjectCell(Promise.ofDeferred())
+        typePending.fieldCheckerResult.complete(null)
         assertSame(EngineResultIsPending, typePending.materializeCheckedValue { true })
     }
 
     @Test
-    fun `unclaimed checker slots default open including for null`() {
+    fun `null checker results leave values open including null`() {
         val valueCell = newCell()
-        valueCell.setValue("open")
+        valueCell.value.set("open")
+        valueCell.fieldCheckerResult.complete(null)
         assertSame("open", valueCell.materializeCheckedValue { true })
 
         val nullCell = newCell()
-        nullCell.setValue(null)
+        nullCell.value.set(null)
+        nullCell.fieldCheckerResult.complete(null)
         assertNull(nullCell.materializeCheckedValue { true })
     }
 
@@ -66,8 +61,9 @@ class CheckedEngineResultTest {
     fun `completed denial short circuits an unfinished value slot`() {
         val denial = TestCheckerError("denied")
         val cell = newCell()
-        cell.reserveValue()
-        cell.setFieldCheckerResult(denial)
+        cell.value
+        cell.setActivated(true)
+        assertTrue(cell.fieldCheckerResult.complete(denial))
 
         val materialized = cell.materializeCheckedValue { true }
 
@@ -79,8 +75,8 @@ class CheckedEngineResultTest {
         runBlocking {
             val denial = TestCheckerError("asynchronous denial")
             val cell = newCell()
-            cell.reserveValue()
-            val checkerPromise = cell.createFieldCheckerResultPromise()
+            cell.value
+            val checkerPromise = cell.fieldCheckerResult
             cell.setActivated(true)
             val awaiting =
                 async(start = CoroutineStart.UNDISPATCHED) {
@@ -92,15 +88,15 @@ class CheckedEngineResultTest {
             val result = withTimeout(1_000) { awaiting.await() }
 
             assertSame(denial.error, (result as ErrorEngineResult).errorData.cause)
-            assertFalse(cell.getValue().isCompleted)
+            assertFalse(cell.value.isCompleted)
         }
 
     @Test
     fun `unfinished checker slot takes precedence over a raw error`() {
         val rawError = ErrorEngineResult.of(EngineErrorData.of(IllegalStateException("raw")))
         val cell = newCell()
-        cell.setValue(rawError)
-        val fieldPromise = cell.createFieldCheckerResultPromise()
+        cell.value.set(rawError)
+        val fieldPromise = cell.fieldCheckerResult
 
         assertFalse(cell.isCompleted)
         assertSame(EngineResultIsPending, cell.materializeCheckedValue { true })
@@ -114,10 +110,8 @@ class CheckedEngineResultTest {
         val fieldError = TestCheckerError("field")
         val combinedError = TestCheckerError("combined")
         val typeError = CombiningCheckerError(fieldError, combinedError)
-        val cell = newCell()
-        cell.setValue("secret")
-        cell.setFieldCheckerResult(fieldError)
-        cell.setTypeCheckerResult(typeError)
+        val (cell, value) = newObjectCell(Promise.of(typeError))
+        assertTrue(cell.fieldCheckerResult.complete(fieldError))
         var observedError: CheckerResult.Error? = null
 
         val denied =
@@ -128,7 +122,39 @@ class CheckedEngineResultTest {
 
         assertSame(combinedError, observedError)
         assertSame(combinedError.error, (denied as ErrorEngineResult).errorData.cause)
-        assertSame("secret", cell.materializeCheckedValue { false })
+        assertSame(value, cell.materializeCheckedValue { false })
+    }
+
+    private fun newObjectCell(
+        typeCheckerResult: Promise<CheckerResult?> = Promise.of(null),
+    ): Pair<EngineResultCell, ObjectEngineResult> {
+        val schema =
+            TestWorld
+                .fromSDL(
+                    """
+                    type Query { value: Value }
+                    type Value { text: String }
+                    """.trimIndent(),
+                ).schema
+        val valueType = schema.requireType("Value")
+        require(valueType is viaduct.graphql.schema.ViaductSchema.Object)
+        val value =
+            ObjectEngineResult.of(
+                type = valueType,
+                typeCheckerResult = typeCheckerResult,
+                mutable = true,
+            )
+        val cell =
+            ObjectEngineResult
+                .of(schema.requireQueryTypeDef(), mutable = true)
+                .reserveCell(
+                    ObjectEngineResult.GroundKey.of(
+                        schema.requireObjectField("Query", "value"),
+                        emptyMap(),
+                    ),
+                )
+        cell.value.set(value)
+        return cell to value
     }
 
     private fun newCell(): EngineResultCell {

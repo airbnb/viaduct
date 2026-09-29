@@ -106,12 +106,12 @@ internal class FieldResolutionLogic(
             }
         }
         publication.publicationCell.setActivated(true)
-        // Activation itself can fail before the normal absent-checker publication. A failed
-        // value still needs a terminal absence slot so checked consumers can read its error.
-        if (!publication.checkerScheduled && publication.publicationCell.isFieldCheckerResultSet()) {
-            publication.publicationCell.getFieldCheckerResult().complete(null)
+        // Activation itself can fail before the normal no-checker publication. A failed
+        // value still needs a terminal null checker result so checked consumers can read its error.
+        if (!publication.checkerScheduled) {
+            publication.publicationCell.fieldCheckerResult.complete(null)
         }
-        publication.publicationCell.getValue().complete(ErrorEngineResult.of(EngineErrorData.of(cause)))
+        publication.publicationCell.value.complete(ErrorEngineResult.of(EngineErrorData.of(cause)))
     }
 
     suspend fun publishResult() {
@@ -194,7 +194,7 @@ internal class FieldResolutionLogic(
                 parent = publication.oerOccurrence,
             )
 
-        publication.publicationCell.getValue().complete(passiveValue)
+        publication.publicationCell.value.complete(passiveValue)
     }
 
     private suspend fun activatePublication(): Boolean {
@@ -239,10 +239,12 @@ internal class FieldResolutionLogic(
         check(publication.publicationCell.setActivated(activated)) {
             "Resolver26 field-task cell activation was already decided"
         }
-        if (activated && !publication.checkerScheduled) {
-            if (publication.publicationCell.isFieldCheckerResultSet()) {
-                check(publication.publicationCell.getFieldCheckerResult().complete(null))
-                }
+        if (
+            activated &&
+                !publication.checkerScheduled &&
+                !publication.publicationCell.fieldCheckerResult.isCompleted
+        ) {
+            check(publication.publicationCell.fieldCheckerResult.complete(null))
         }
         return activated
     }

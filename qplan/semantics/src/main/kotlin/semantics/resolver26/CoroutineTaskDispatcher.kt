@@ -22,13 +22,13 @@ internal class CoroutineTaskDispatcher<
     private val requestScope: CoroutineScope,
     private val runFieldResolver: suspend (F, CoroutineScope) -> Unit,
     private val cancelFieldResolver: (F, CancellationException) -> Unit = { publication, cause ->
-        publication.publicationCell.cancelValue(cause)
+        publication.publicationCell.value.cancel(cause)
     },
     private val runFieldChecker: suspend (C, CoroutineScope) -> Unit = { _, _ ->
         throw UnsupportedOperationException("This coroutine dispatcher does not support field checkers")
     },
     private val cancelFieldChecker: (C, CancellationException) -> Unit = { publication, cause ->
-        publication.publicationCell.cancelFieldCheckerResult(cause)
+        publication.publicationCell.fieldCheckerResult.cancel(cause)
     },
 ) : SharedTaskDispatcher<O, F> {
     override fun dispatchOrchestration(task: O) {

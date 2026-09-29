@@ -137,7 +137,7 @@ class ResolverStartTest : Resolver26DispatcherResource {
                     emptyMap(),
                 )
             val outerCell = result.getCell(outerKey)
-            assertEquals(7, outerCell.getValue().await())
+            assertEquals(7, outerCell.value.await())
 
             assertFailsWith<ResolverReadCycleException> {
                 observedChecker.cycleCheck(
@@ -184,7 +184,7 @@ class ResolverStartTest : Resolver26DispatcherResource {
                 )
 
             assertEquals(2, invocations.get())
-            assertEquals(7, result.getCell(key).getValue().await())
+            assertEquals(7, result.getCell(key).value.await())
         }
 
     @Test
@@ -305,7 +305,7 @@ class ResolverStartTest : Resolver26DispatcherResource {
                 }
 
                 withTimeout(5_000) { nestedStopped.await() }
-                assertIs<CancellationException>(root.cell("outer").getValue().awaitFailure())
+                assertIs<CancellationException>(root.cell("outer").value.awaitFailure())
                 assertTrue(requestJob.isActive)
                 assertFalse(gate.isCompleted)
             } finally {
@@ -329,14 +329,14 @@ class ResolverStartTest : Resolver26DispatcherResource {
                 val fast = root.cell("fast")
                 val slow = root.cell("slow")
 
-                assertFalse(slow.getValue().isCompleted)
+                assertFalse(slow.value.isCompleted)
                 withTimeout(5_000) { providerStarted.await() }
-                assertEquals(1, withTimeout(5_000) { fast.getValue().await() })
-                assertFalse(slow.getValue().isCompleted)
+                assertEquals(1, withTimeout(5_000) { fast.value.await() })
+                assertFalse(slow.value.isCompleted)
 
                 gate.complete(Unit)
-                assertEquals(2, withTimeout(5_000) { slow.getValue().await() })
-                assertTrue(slow.getValue().isCompleted)
+                assertEquals(2, withTimeout(5_000) { slow.value.await() })
+                assertTrue(slow.value.isCompleted)
             } finally {
                 requestJob.cancelAndJoin()
             }
@@ -360,7 +360,7 @@ class ResolverStartTest : Resolver26DispatcherResource {
             requestJob.cancelAndJoin()
 
             withTimeout(5_000) { providerStopped.await() }
-            assertIs<CancellationException>(root.cell("slow").getValue().awaitFailure())
+            assertIs<CancellationException>(root.cell("slow").value.awaitFailure())
             assertFalse(gate.isCompleted)
         }
 
@@ -400,9 +400,9 @@ class ResolverStartTest : Resolver26DispatcherResource {
 
                 withTimeout(5_000) { providerStarted.await() }
                 assertTrue(requestJob.isActive)
-                val error = assertIs<ErrorEngineResult>(slow.getValue().await())
+                val error = assertIs<ErrorEngineResult>(slow.value.await())
 
-                assertTrue(slow.getValue().isCompleted)
+                assertTrue(slow.value.isCompleted)
                 assertEquals(
                     "provider cancelled",
                     assertIs<CancellationException>(error.errorData.cause).message,
@@ -454,11 +454,11 @@ class ResolverStartTest : Resolver26DispatcherResource {
                 withTimeout(5_000) { providerStarted.await() }
                 val slowError =
                     assertIs<ErrorEngineResult>(
-                        withTimeout(5_000) { root.cell("slow").getValue().await() },
+                        withTimeout(5_000) { root.cell("slow").value.await() },
                     )
                 assertIs<CancellationException>(slowError.errorData.cause)
                 assertIs<ErrorEngineResult>(
-                    withTimeout(5_000) { root.cell("dependent").getValue().await() },
+                    withTimeout(5_000) { root.cell("dependent").value.await() },
                 )
                 assertTrue(requestJob.isActive)
             } finally {
@@ -496,7 +496,7 @@ class ResolverStartTest : Resolver26DispatcherResource {
                     SharedOperationContext.create(world.assumptions).startResolve(selections, requestScope)
                 val error =
                     assertIs<ErrorEngineResult>(
-                        withTimeout(5_000) { root.cell("slow").getValue().await() },
+                        withTimeout(5_000) { root.cell("slow").value.await() },
                     )
                 val publicationFailure = assertIs<IllegalStateException>(error.errorData.cause)
 
@@ -552,9 +552,9 @@ class ResolverStartTest : Resolver26DispatcherResource {
                         SharedOperationContext.create(world.assumptions).startResolve(selections, requestScope)
                     val fastError =
                         assertIs<ErrorEngineResult>(
-                            withTimeout(5_000) { root.cell("fast").getValue().await() },
+                            withTimeout(5_000) { root.cell("fast").value.await() },
                         )
-                    val slowValue = withTimeout(5_000) { root.cell("slow").getValue().await() }
+                    val slowValue = withTimeout(5_000) { root.cell("slow").value.await() }
 
                     assertEquals(
                         "tenant bug",
@@ -609,7 +609,7 @@ class ResolverStartTest : Resolver26DispatcherResource {
                     releaseBlocker.countDown()
 
                     val cancellation =
-                        withTimeout(5_000) { root.cell("fast").getValue().awaitFailure() }
+                        withTimeout(5_000) { root.cell("fast").value.awaitFailure() }
                     assertTrue(cancellation.message.orEmpty().contains("cancelled before dispatch"))
                     assertIs<CancellationException>(cancellation)
                     assertFalse(resolverStarted.get())

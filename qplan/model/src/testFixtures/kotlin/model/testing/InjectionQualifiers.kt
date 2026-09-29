@@ -54,6 +54,16 @@ annotation class FieldResolvers
 )
 annotation class FieldCheckers
 
+/** Canonical type checkers supplied to the test resolver registry. */
+@Qualifier
+@MustBeDocumented
+@Retention(AnnotationRetention.RUNTIME)
+@Target(
+    AnnotationTarget.FUNCTION,
+    AnnotationTarget.VALUE_PARAMETER,
+)
+annotation class TypeCheckers
+
 /** Alias-preserving variable-provider declarations supplied before registry assembly. */
 @Qualifier
 @MustBeDocumented

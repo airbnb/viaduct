@@ -49,8 +49,8 @@ interface GroundedFieldCheckerCapabilityContract {
                     world.operationSelectionsFrom("{ item { a } }"),
                 )
             val item = result.chainObjectValue(world, "Query", "item")
-            val bValue = item.chainCell(world, "Item", "b").getValue().get()
-            val aCheckerResult = item.chainCell(world, "Item", "a").getFieldCheckerResult()
+            val bValue = item.chainCell(world, "Item", "b").value.get()
+            val aCheckerResult = item.chainCell(world, "Item", "a").fieldCheckerResult
 
             if (case.readC && case.cResult is ChainDenial && !case.bypassC) {
                 assertSame(case.cResult.error, assertIs<ErrorEngineResult>(bValue).errorData.cause)
@@ -60,8 +60,8 @@ interface GroundedFieldCheckerCapabilityContract {
                 assertEquals(42, bValue)
                 assertSame(CheckerResult.Success, aCheckerResult.get())
             }
-            assertEquals(41, item.chainCell(world, "Item", "c").getValue().get())
-            assertSame(case.cResult, item.chainCell(world, "Item", "c").getFieldCheckerResult().get())
+            assertEquals(41, item.chainCell(world, "Item", "c").value.get())
+            assertSame(case.cResult, item.chainCell(world, "Item", "c").fieldCheckerResult.get())
             assertEquals(1, fixture.aCheckerCalls.get())
             assertEquals(1, fixture.bResolverCalls.get())
             assertEquals(0, fixture.bCheckerCalls.get())
@@ -88,7 +88,7 @@ interface GroundedFieldCheckerCapabilityContract {
             )
         val item = result.chainObjectValue(world, "Query", "item")
 
-        assertEquals(42, item.chainCell(world, "Item", "b").getValue().get())
+        assertEquals(42, item.chainCell(world, "Item", "b").value.get())
         assertEquals(1, fixture.aCheckerCalls.get())
         assertEquals(1, fixture.bResolverCalls.get())
         assertEquals(1, fixture.bCheckerCalls.get())
@@ -300,7 +300,7 @@ private fun ObjectEngineResult.chainObjectValue(
     world: model.Assumptions,
     typeName: String,
     fieldName: String,
-): ObjectEngineResult = assertIs(chainCell(world, typeName, fieldName).getValue().get())
+): ObjectEngineResult = assertIs(chainCell(world, typeName, fieldName).value.get())
 
 private fun Throwable.chainCauses(): Set<Throwable> =
     generateSequence(this) { it.cause }.toSet()

@@ -201,7 +201,7 @@ class FromFieldExclusionTest : Resolver26DispatcherResource {
         result.validateFromFieldBindings(operation, observer.invokedResolverOccurrences())
         assertTrue(result.correctResolution(operation, fragment.subselections.merge(world.schema.requireQueryTypeDef())))
         val key = ObjectEngineResult.GroundKey.of(world.schema.requireObjectField("Query", "outer"), mapOf("enabled" to enabled, "other" to other))
-        return Resolution(result.getCell(key).getValue().get(), observer.applications.toList())
+        return Resolution(result.getCell(key).value.get(), observer.applications.toList())
     }
 
     private class Resolution(val value: Any?, val applications: List<String>)

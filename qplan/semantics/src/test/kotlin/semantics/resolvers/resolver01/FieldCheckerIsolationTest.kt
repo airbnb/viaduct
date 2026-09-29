@@ -12,6 +12,7 @@ import viaduct.engine.api.CheckerResult
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
 
 class FieldCheckerIsolationTest {
     @Test
@@ -41,8 +42,8 @@ class FieldCheckerIsolationTest {
         val result = SharedOperationContext.create(world).resolve(world.operationSelectionsFrom("{ value }"))
         val key = ObjectEngineResult.GroundKey.of(world.schema.requireObjectField("Query", "value"), emptyMap())
 
-        assertEquals(7, result.getCell(key).getValue().get())
+        assertEquals(7, result.getCell(key).value.get())
         assertEquals(0, checkerCalls.get())
-        assertFalse(result.getCell(key).isFieldCheckerResultSet())
+        assertNull(result.getCell(key).fieldCheckerResult.get())
     }
 }

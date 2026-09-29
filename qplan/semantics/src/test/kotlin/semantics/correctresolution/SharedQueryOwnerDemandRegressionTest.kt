@@ -60,7 +60,10 @@ class SharedQueryOwnerDemandRegressionTest {
                 field,
                 Arguments.of(field, mapOf("value" to variable)),
             )
-            result.reserveCell(key).setValue(ErrorEngineResult.of(EngineErrorData.of()))
+            result.reserveCell(key).apply {
+                value.set(ErrorEngineResult.of(EngineErrorData.of()))
+                fieldCheckerResult.complete(null)
+            }
             operation.variableBindings.bindVariable(requireNotNull(variable.instanceId), VariableBinding.Error)
             observer.onQueryFragmentPrepared(ResolverOccurrenceId.at(result, listOf(key)), incompleteQuery)
         }
@@ -96,7 +99,10 @@ class SharedQueryOwnerDemandRegressionTest {
             consumer,
             Arguments.of(consumer, mapOf("value" to variable)),
         )
-        result.reserveCell(key).setValue(ErrorEngineResult.of(EngineErrorData.of()))
+        result.reserveCell(key).apply {
+            value.set(ErrorEngineResult.of(EngineErrorData.of()))
+            fieldCheckerResult.complete(null)
+        }
         result.freeze()
         val owner = ResolverOccurrenceId.at(result, listOf(key))
         val sourceDemand = world.fragmentFrom("fragment Demand on Query { source }").subselections.merge(queryType)

@@ -90,7 +90,7 @@ class SharedQueryInclusionFailureRegressionTest : Resolver26DispatcherResource {
         )
         fun value(name: String) = result.getCell(
             ObjectEngineResult.GroundKey.of(world.schema.requireObjectField("Query", name), emptyMap()),
-        ).getValue().get()
+        ).value.get()
 
         assertIs<ErrorEngineResult>(value("bad"))
         assertEquals(7, value("good"), "Healthy owner must retain its included source for order: $order")

@@ -39,7 +39,7 @@ internal fun decodeInputValue(
     value: InputValueWithState,
     variableValues: Map<String, EngineInputData?>,
     schema: ViaductSchema,
-    variableTarget: ResolverTarget.FieldTarget? = null,
+    variableTarget: ResolverTarget? = null,
 ): Any? =
     if (value.isLiteral) {
         decodeLiteral(
@@ -61,7 +61,7 @@ internal fun decodeLiteral(
     value: GraphQLValue<*>,
     variableValues: Map<String, EngineInputData?>,
     schema: ViaductSchema,
-    variableTarget: ResolverTarget.FieldTarget? = null,
+    variableTarget: ResolverTarget? = null,
 ): Any? {
     if (value is VariableReference) {
         return if (variableValues.containsKey(value.name)) {
@@ -184,7 +184,7 @@ private fun decodeObjectLiteral(
     value: ObjectValue,
     variableValues: Map<String, EngineInputData?>,
     schema: ViaductSchema,
-    variableTarget: ResolverTarget.FieldTarget?,
+    variableTarget: ResolverTarget?,
 ): Any {
     val suppliedFields = value.objectFields.associateBy { it.name }
     return decodeInputObjectFields(

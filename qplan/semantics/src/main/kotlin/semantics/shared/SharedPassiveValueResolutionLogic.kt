@@ -163,7 +163,7 @@ internal abstract class SharedPassiveValueResolutionLogic<
                         )
                     } else {
                         check(
-                            cell.getValue().complete(
+                            cell.value.set(
                                 resolvePassiveValues(
                                     value = element,
                                     root = root,

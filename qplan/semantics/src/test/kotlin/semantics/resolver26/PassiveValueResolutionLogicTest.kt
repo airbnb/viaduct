@@ -104,14 +104,14 @@ class PassiveValueResolutionLogicTest : Resolver26DispatcherResource {
         }
         val items =
             assertIs<ListEngineResult>(
-                result.getCell(itemsKey).getValue().get(),
+                result.getCell(itemsKey).value.get(),
             )
         assertEquals(listOf("one", "two"), items.map { cell ->
-            val item = assertIs<ObjectEngineResult>(cell.getValue().get())
+            val item = assertIs<ObjectEngineResult>(cell.value.get())
             assertFailsWith<NoSuchElementException> {
                 item.reserveCell(itemOmittedKey)
             }
-            item.getCell(valueKey).getValue().get()
+            item.getCell(valueKey).value.get()
         })
     }
 
@@ -183,8 +183,8 @@ class PassiveValueResolutionLogicTest : Resolver26DispatcherResource {
                 ),
             )
 
-        assertEquals("raw", result.getCell(rawKey).getValue().get())
-        assertEquals("computed", result.getCell(computedKey).getValue().get())
+        assertEquals("raw", result.getCell(rawKey).value.get())
+        assertEquals("computed", result.getCell(computedKey).value.get())
         assertFailsWith<NoSuchElementException> {
             result.reserveCell(omittedKey)
         }
@@ -251,7 +251,7 @@ class PassiveValueResolutionLogicTest : Resolver26DispatcherResource {
         assertEquals(1, result.keys.size)
         assertEquals(computedKey, result.keys.single { key -> key == computedKey })
         result.keys.forEach { key ->
-            assertEquals("ancestor", result.getCell(key).getValue().get())
+            assertEquals("ancestor", result.getCell(key).value.get())
         }
     }
 

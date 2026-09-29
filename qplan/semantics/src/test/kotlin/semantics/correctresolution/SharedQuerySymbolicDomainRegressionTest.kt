@@ -56,12 +56,18 @@ class SharedQuerySymbolicDomainRegressionTest {
         val query = ObjectEngineResult.of(queryType, mutable = true)
         val observer = CorrectnessResolverObserver()
         val operation = SharedOperationContext.create(world, resolverObserver = observer)
-        query.reserveCell(ObjectEngineResult.GroundKey.of(source, mapOf("value" to 7))).setValue(7)
+        query.reserveCell(ObjectEngineResult.GroundKey.of(source, mapOf("value" to 7))).apply {
+            value.set(7)
+            fieldCheckerResult.complete(null)
+        }
         if (extraSymbolicCell) {
             val variable = Arguments.Variable.of(source, "value").instantiate(ResolverOccurrenceId.at(query, emptyList()))
             val key = ObjectEngineResult.ObjectKey.of(source, Arguments.of(source, mapOf("value" to variable)))
             operation.variableBindings.bindVariable(requireNotNull(variable.instanceId), VariableBinding.of(7))
-            query.reserveCell(key).setValue(7)
+            query.reserveCell(key).apply {
+                value.set(7)
+                fieldCheckerResult.complete(null)
+            }
             if (declareExtra) {
                 observedDemand = (closedValueSelections + selectionForestOf(Selection.of(
                     key = key, possibleTypes = setOf(queryType), subselections = selectionForestOf(),

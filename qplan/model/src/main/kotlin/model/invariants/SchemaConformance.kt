@@ -104,8 +104,8 @@ private fun EngineResult.conformsToSchema(
                 ) {
                     return@all false
                 }
-                if (!cell.getValue().isCompleted) return@all true
-                val value = cell.getValue().get()
+                if (!cell.value.isCompleted) return@all true
+                val value = cell.value.get()
                 value.conformsToResultSchemaType(key.field.outputType) &&
                     if (key is ObjectEngineResult.ParentKey) {
                         parentFieldRelations[key.field]?.let { producerField ->
@@ -124,7 +124,7 @@ private fun EngineResult.conformsToSchema(
             }
         is ListEngineResult ->
             result.all { cell ->
-                val value = cell.getValue().get()
+                val value = cell.value.get()
                 value.conformsToResultSchemaType(result.typeExpr) &&
                     (value?.conformsToSchema(parentFieldRelations, ancestors) ?: true) &&
                     cell.hasCompletedCheckerResults()
@@ -329,7 +329,6 @@ private fun ViaductSchema.TypeExpr<*>.hasScalarType(expectedName: String): Boole
         (baseTypeDef as? ViaductSchema.Scalar)?.name == expectedName
 
 private fun EngineResultCell.hasCompletedCheckerResults(): Boolean {
-    getFieldCheckerResult().get()
-    getTypeCheckerResult().get()
+    fieldCheckerResult.get()
     return true
 }

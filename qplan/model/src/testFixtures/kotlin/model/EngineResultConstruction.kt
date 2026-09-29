@@ -53,8 +53,6 @@ class EngineResultScope internal constructor(
     private val values = linkedMapOf<ObjectEngineResult.GroundKey, EngineResult?>()
     private val fieldCheckerResults =
         linkedMapOf<ObjectEngineResult.GroundKey, CheckerResult?>()
-    private val typeCheckerResults =
-        linkedMapOf<ObjectEngineResult.GroundKey, CheckerResult?>()
 
     /** Selects a field coordinate on this scope's object type. */
     fun field(
@@ -82,28 +80,25 @@ class EngineResultScope internal constructor(
     fun String.resolvesTo(
         value: Any?,
         fieldCheckerResult: CheckerResult?,
-        typeCheckerResult: CheckerResult? = null,
     ) {
-        field(this).resolvesTo(value, fieldCheckerResult, typeCheckerResult)
+        field(this).resolvesTo(value, fieldCheckerResult)
     }
 
     /** Resolves this exact field coordinate to [value] with accepted access. */
     infix fun EngineResultFieldReference.resolvesTo(value: Any?) {
-        resolvesTo(value, null, null)
+        resolvesTo(value, null)
     }
 
     /** Resolves this exact field coordinate to [value] with the supplied checker results. */
     fun EngineResultFieldReference.resolvesTo(
         value: Any?,
         fieldCheckerResult: CheckerResult?,
-        typeCheckerResult: CheckerResult? = null,
     ) {
         require(key !in values) {
             "Duplicate engine-result field ${type.name}/${key.field.name}"
         }
         values[key] = coerceEngineResult(key.field.outputType, value)
         fieldCheckerResults[key] = fieldCheckerResult
-        typeCheckerResults[key] = typeCheckerResult
     }
 
     /** Constructs a nested object engine result using the same schema. */
@@ -117,7 +112,6 @@ class EngineResultScope internal constructor(
             type = type,
             values = values.toMap(),
             fieldCheckerResults = fieldCheckerResults.toMap(),
-            typeCheckerResults = typeCheckerResults.toMap(),
         )
 }
 

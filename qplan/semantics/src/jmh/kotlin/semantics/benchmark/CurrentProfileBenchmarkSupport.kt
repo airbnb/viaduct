@@ -308,7 +308,7 @@ internal class CurrentProfileBenchmarkSupport(
                 )
             is ListEngineResult ->
                 indices
-                    .map { index -> get(index).getValue().get().shape(world, depth) }
+                    .map { index -> get(index).value.get().shape(world, depth) }
                     .fold(
                         ResultShape(
                             fields = 0,
@@ -331,7 +331,7 @@ internal class CurrentProfileBenchmarkSupport(
                                     depth = depth + 1,
                                 )
                             } else {
-                                getCell(key).getValue().get().shape(world, depth + 1)
+                                getCell(key).value.get().shape(world, depth + 1)
                             }
                         child.copy(
                             fields = child.fields + 1,

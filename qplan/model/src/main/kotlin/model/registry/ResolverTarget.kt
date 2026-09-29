@@ -9,6 +9,11 @@ sealed interface ResolverTarget {
         val field: ViaductSchema.ObjectField
     }
 
+    /** A resolver slot associated with one concrete object type. */
+    sealed interface TypeTarget : ResolverTarget {
+        val type: ViaductSchema.Object
+    }
+
     /** The raw-value resolver slot of [field]. */
     data class FieldValueResolverTarget(
         override val field: ViaductSchema.ObjectField,
@@ -18,6 +23,11 @@ sealed interface ResolverTarget {
     data class FieldCheckerTarget(
         override val field: ViaductSchema.ObjectField,
     ) : FieldTarget
+
+    /** The type-checker resolver slot of [type]. */
+    data class TypeCheckerTarget(
+        override val type: ViaductSchema.Object,
+    ) : TypeTarget
 }
 
 internal fun ResolverTarget.render(): String =
@@ -26,4 +36,6 @@ internal fun ResolverTarget.render(): String =
             "field-value:${field.containingDef.name}/${field.name}"
         is ResolverTarget.FieldCheckerTarget ->
             "field-checker:${field.containingDef.name}/${field.name}"
+        is ResolverTarget.TypeCheckerTarget ->
+            "type-checker:${type.name}"
     }
