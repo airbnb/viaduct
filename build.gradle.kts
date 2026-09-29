@@ -18,7 +18,6 @@ val sharedFilePairs = listOf(
     "gradle.properties" to "core/gradle.properties",
     "gradle.properties" to "gradle-plugins/gradle.properties",
     "gradle.properties" to "publications/gradle.properties",
-    "gradle.properties" to "qplan/gradle.properties",
     "gradle/gradle-daemon-jvm.properties" to "qplan/gradle/gradle-daemon-jvm.properties",
     "build-logic/common/src/main/kotlin/viaduct/gradle/shared/BuildFlags.kt" to
         "gradle-plugins/common/src/main/kotlin/viaduct/gradle/shared/BuildFlags.kt",

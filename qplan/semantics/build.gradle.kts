@@ -43,8 +43,7 @@ val correctResolutionBenchmarkLoopCount =
 val correctResolutionProfileOutput =
     providers
         .gradleProperty("correctResolutionProfileOutput")
-        .map(layout.projectDirectory::file)
-        .map { it.asFile }
+        .map { configured -> file(configured) }
         .orElse(
             layout.buildDirectory
                 .file("reports/resolver-benchmarks/correct-resolution.jfr")
@@ -55,8 +54,7 @@ val propertyTestBenchmarkLoopCount =
 val propertyTestProfileOutput =
     providers
         .gradleProperty("propertyTestProfileOutput")
-        .map(layout.projectDirectory::file)
-        .map { it.asFile }
+        .map { configured -> file(configured) }
         .orElse(
             layout.buildDirectory
                 .file("reports/resolver-benchmarks/property-test.jfr")
@@ -65,8 +63,7 @@ val propertyTestProfileOutput =
 val resolver26OverheadProfileOutput =
     providers
         .gradleProperty("resolver26OverheadProfileOutput")
-        .map(layout.projectDirectory::file)
-        .map { it.asFile }
+        .map { configured -> file(configured) }
         .orElse(
             layout.buildDirectory
                 .file("reports/resolver-benchmarks/resolver26-overhead.jfr")
@@ -81,13 +78,7 @@ val resolverBenchmarkCorpusDirectory =
 val resolverBenchmarkQueriesFile =
     resolverBenchmarkCorpusDirectory.file("queries.json")
 
-// Capture providers during configuration so task actions do not retain the build script.
 tasks.register<JavaExec>("generateResolverBenchmarkCorpus") {
-    val resolverBenchmarkCorpusDirectory = resolverBenchmarkCorpusDirectory
-    val resolverBenchmarkCorpusSeed = resolverBenchmarkCorpusSeed
-    val resolverBenchmarkCorpusSize = resolverBenchmarkCorpusSize
-    val resolverBenchmarkQueryCount = resolverBenchmarkQueryCount
-    val resolverBenchmarkQuerySeed = resolverBenchmarkQuerySeed
     group = "benchmark"
     description = "Searches generated schema/registry pairs and writes the overhead benchmark corpus."
     dependsOn("testFixturesClasses")
@@ -114,10 +105,6 @@ tasks.register<JavaExec>("generateResolverBenchmarkCorpus") {
 }
 
 tasks.register<JavaExec>("generateResolverBenchmarkQueries") {
-    val resolverBenchmarkCorpusDirectory = resolverBenchmarkCorpusDirectory
-    val resolverBenchmarkQueriesFile = resolverBenchmarkQueriesFile
-    val resolverBenchmarkQueryCount = resolverBenchmarkQueryCount
-    val resolverBenchmarkQuerySeed = resolverBenchmarkQuerySeed
     group = "benchmark"
     description = "Snapshots the exact query batch for the resolver overhead benchmarks."
     dependsOn("testFixturesClasses")
@@ -146,7 +133,6 @@ val propertyTestBenchmarkCorpusDirectory =
     layout.projectDirectory.dir("src/jmh/resources/semantics/benchmark/property-test")
 
 tasks.register<JavaExec>("generatePropertyTestBenchmarkCorpus") {
-    val propertyTestBenchmarkCorpusDirectory = propertyTestBenchmarkCorpusDirectory
     group = "benchmark"
     description = "Snapshots the historical Resolver26 property-test benchmark case."
     dependsOn("testClasses")
@@ -170,7 +156,6 @@ fun registerResolverBenchmarkTask(
 ) {
     val taskName = "${resolver}${benchmark.replaceFirstChar(Char::uppercaseChar)}Benchmark"
     tasks.register<JavaExec>(taskName) {
-        val resolverBenchmarkLoopCount = resolverBenchmarkLoopCount
         group = "benchmark"
         description = "Runs the $benchmark JMH benchmark for $resolver."
         val benchmarkJar = tasks.named<org.gradle.jvm.tasks.Jar>("jmhJar")
@@ -218,8 +203,6 @@ listOf("resolver26").forEach { resolver ->
 }
 
 tasks.register<JavaExec>("resolver26OverheadProfile") {
-    val resolverBenchmarkLoopCount = resolverBenchmarkLoopCount
-    val resolver26OverheadProfileOutput = resolver26OverheadProfileOutput
     group = "benchmark"
     description = "Profiles only a measured Resolver26 fixed-corpus overhead iteration with JFR."
     val benchmarkJar = tasks.named<org.gradle.jvm.tasks.Jar>("jmhJar")
@@ -257,9 +240,6 @@ tasks.register<JavaExec>("resolver26OverheadProfile") {
 }
 
 tasks.register<JavaExec>("correctResolutionBenchmark") {
-    val correctResolutionBenchmarkInputCount = correctResolutionBenchmarkInputCount
-    val correctResolutionBenchmarkQuerySeed = correctResolutionBenchmarkQuerySeed
-    val correctResolutionBenchmarkLoopCount = correctResolutionBenchmarkLoopCount
     group = "benchmark"
     description = "Benchmarks correctResolution over a prepared fixed corpus."
     val benchmarkJar = tasks.named<org.gradle.jvm.tasks.Jar>("jmhJar")
@@ -286,10 +266,6 @@ tasks.register<JavaExec>("correctResolutionBenchmark") {
 }
 
 tasks.register<JavaExec>("correctResolutionProfile") {
-    val correctResolutionBenchmarkInputCount = correctResolutionBenchmarkInputCount
-    val correctResolutionBenchmarkQuerySeed = correctResolutionBenchmarkQuerySeed
-    val correctResolutionBenchmarkLoopCount = correctResolutionBenchmarkLoopCount
-    val correctResolutionProfileOutput = correctResolutionProfileOutput
     group = "benchmark"
     description = "Profiles only a measured correctResolution iteration with JFR."
     val benchmarkJar = tasks.named<org.gradle.jvm.tasks.Jar>("jmhJar")
@@ -332,7 +308,6 @@ tasks.register<JavaExec>("correctResolutionProfile") {
 }
 
 tasks.register<JavaExec>("propertyTestBenchmark") {
-    val propertyTestBenchmarkLoopCount = propertyTestBenchmarkLoopCount
     group = "benchmark"
     description = "Benchmarks one frozen Resolver26 property-test case and all of its oracles."
     val benchmarkJar = tasks.named<org.gradle.jvm.tasks.Jar>("jmhJar")
@@ -353,8 +328,6 @@ tasks.register<JavaExec>("propertyTestBenchmark") {
 }
 
 tasks.register<JavaExec>("propertyTestProfile") {
-    val propertyTestBenchmarkLoopCount = propertyTestBenchmarkLoopCount
-    val propertyTestProfileOutput = propertyTestProfileOutput
     group = "benchmark"
     description = "Profiles one measured frozen Resolver26 property-test case with JFR."
     val benchmarkJar = tasks.named<org.gradle.jvm.tasks.Jar>("jmhJar")
@@ -449,8 +422,7 @@ tasks.register<JavaExec>("materializeGeneratorConfigs") {
     val outputDirectory =
         providers
             .gradleProperty("generatorConfigOutput")
-            .map(layout.projectDirectory::dir)
-            .map { it.asFile }
+            .map(::file)
             .orElse(layout.projectDirectory.dir("src/test/resources").asFile)
     doFirst {
         args(outputDirectory.get().absolutePath)
@@ -518,15 +490,14 @@ val resolverPropertySeed =
         .orElse(providers.environmentVariable("RESOLVER_PROPERTY_SEED"))
 
 tasks.test {
-    val propertySeed = resolverPropertySeed
     inputs.property(
         "resolverPropertySeed",
-        propertySeed.orElse("unseeded"),
+        resolverPropertySeed.orElse("unseeded"),
     )
-    outputs.upToDateWhen { propertySeed.orNull == null }
+    outputs.upToDateWhen { resolverPropertySeed.orNull == null }
 
     doFirst {
-        propertySeed.orNull?.let { configured ->
+        resolverPropertySeed.orNull?.let { configured ->
             configured.toLongOrNull()
                 ?: throw GradleException(
                     "Set resolverPropertySeed, resolver.property.seed, or " +
@@ -592,12 +563,6 @@ val resolverPropertyReplayCase =
 val resolverPropertyReplaySize = providers.gradleProperty("resolverPropertySize")
 
 tasks.register<org.gradle.api.tasks.testing.Test>("resolverPropertyReplay") {
-    val resolverPropertyReplayClass = resolverPropertyReplayClass
-    val resolverPropertyReplayProfile = resolverPropertyReplayProfile
-    val resolverPropertyProfiles = resolverPropertyProfiles
-    val resolverPropertySeed = resolverPropertySeed
-    val resolverPropertyReplayCase = resolverPropertyReplayCase
-    val resolverPropertyReplaySize = resolverPropertyReplaySize
     group = "verification"
     description = "Replays one generated resolver profile or S:R:Q case."
     maxHeapSize = "2g"
@@ -722,9 +687,6 @@ val resolver23FieldCheckerStressProfiles =
     )
 
 tasks.register<org.gradle.api.tasks.testing.Test>("resolver23FieldCheckerStress") {
-    val resolver23FieldCheckerStressSeed = resolver23FieldCheckerStressSeed
-    val resolver23FieldCheckerStressProfile = resolver23FieldCheckerStressProfile
-    val resolver23FieldCheckerStressProfiles = resolver23FieldCheckerStressProfiles
     group = "verification"
     description = "Runs 2,500 generated Resolver23 field-checker cases for one replayable profile."
     maxHeapSize = "2g"
@@ -798,7 +760,6 @@ val resolver26ParentFocusedSeed =
         .orElse("2026090403")
 
 tasks.register<org.gradle.api.tasks.testing.Test>("resolver26ParentFocused") {
-    val resolver26ParentFocusedSeed = resolver26ParentFocusedSeed
     group = "verification"
     description = "Runs four 250-case slices of the parent-focused Resolver26 property."
     maxHeapSize = "2g"
@@ -838,7 +799,6 @@ val resolver26RootFieldReferenceFocusedSeed =
         .orElse("2026091001")
 
 tasks.register<org.gradle.api.tasks.testing.Test>("resolver26RootFieldReferenceFocused") {
-    val resolver26RootFieldReferenceFocusedSeed = resolver26RootFieldReferenceFocusedSeed
     group = "verification"
     description = "Runs the hard-coverage root-field-reference Resolver26 property."
     maxHeapSize = "2g"
@@ -873,10 +833,6 @@ tasks.register<org.gradle.api.tasks.testing.Test>("resolver26RootFieldReferenceF
 }
 
 tasks.register<org.gradle.api.tasks.testing.Test>("resolver26BroadStress") {
-    val resolver26BroadStressProfile = resolver26BroadStressProfile
-    val resolver26BroadStressProfiles = resolver26BroadStressProfiles
-    val resolver26BroadStressSize = resolver26BroadStressSize
-    val resolver26BroadStressSeed = resolver26BroadStressSeed
     group = "verification"
     description = "Runs every case in a seeded broad Resolver26 generated product."
     maxHeapSize = "2g"
@@ -939,10 +895,6 @@ val resolver26BroadStressCampaignProfile =
 val resolver26BroadStressCampaignProfiles = resolver26BroadStressProfiles.keys
 
 tasks.register<org.gradle.api.tasks.testing.Test>("resolver26BroadStressCampaign") {
-    val resolver26BroadStressCampaignRound = resolver26BroadStressCampaignRound
-    val resolver26BroadStressCampaignProfile = resolver26BroadStressCampaignProfile
-    val resolver26BroadStressCampaignProfiles = resolver26BroadStressCampaignProfiles
-    val resolverPropertyReplayCase = resolverPropertyReplayCase
     group = "verification"
     description = "Runs one recorded five-profile Resolver26 broad-stress campaign round."
     maxHeapSize = "2g"
@@ -1006,8 +958,6 @@ val resolver26MultithreadedStressRounds =
         .orElse("1")
 
 tasks.register<org.gradle.api.tasks.testing.Test>("resolver26MultithreadedStress") {
-    val resolver26MultithreadedStressSize = resolver26MultithreadedStressSize
-    val resolver26MultithreadedStressRounds = resolver26MultithreadedStressRounds
     group = "verification"
     description = "Runs each Resolver26 request on a fixed multithreaded dispatcher."
     maxHeapSize = "2g"
@@ -1037,10 +987,6 @@ tasks.register<org.gradle.api.tasks.testing.Test>("resolver26MultithreadedStress
 
 // Runtime field checks have their own replayable workload; checker-free broad campaigns stay unchanged.
 tasks.register<org.gradle.api.tasks.testing.Test>("resolver26FieldCheckerStress") {
-    val seedProvider = providers.gradleProperty("resolver26FieldCheckerStressSeed")
-    val profileProvider = providers.gradleProperty("resolver26FieldCheckerStressProfile").orElse("success")
-    val sizeProvider = providers.gradleProperty("resolver26FieldCheckerStressSize").orElse("50:5:10")
-    val resolverPropertyProfiles = resolverPropertyProfiles
     group = "verification"
     description = "Runs generated Resolver26 runtime field checks with exact checker application accounting."
     maxHeapSize = "2g"
@@ -1052,14 +998,14 @@ tasks.register<org.gradle.api.tasks.testing.Test>("resolver26FieldCheckerStress"
     outputs.upToDateWhen { false }
     testLogging { showStandardStreams = true }
     doFirst {
-        val seed = seedProvider.get().toLong()
-        val profile = "resolver26-field-checker-" + profileProvider.get()
+        val seed = providers.gradleProperty("resolver26FieldCheckerStressSeed").get().toLong()
+        val profile = "resolver26-field-checker-" + providers.gradleProperty("resolver26FieldCheckerStressProfile").orElse("success").get()
         val method = resolverPropertyProfiles[profile] ?: throw GradleException("Unknown field-checker profile $profile")
         filter.includeTestsMatching("semantics.resolver26.FieldCheckerGeneratedTest.$method")
         systemProperty("resolver.property.profile", profile)
         systemProperty("resolver.property.case", "all")
         systemProperty("resolver.property.seed", seed)
         systemProperty("kotest.proptest.default.seed", seed)
-        systemProperty("resolver.property.size", sizeProvider.get())
+        systemProperty("resolver.property.size", providers.gradleProperty("resolver26FieldCheckerStressSize").orElse("50:5:10").get())
     }
 }
