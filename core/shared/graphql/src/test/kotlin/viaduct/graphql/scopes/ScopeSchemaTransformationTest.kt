@@ -8,6 +8,7 @@ import graphql.schema.idl.UnExecutableSchemaGenerator
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.graphql.scopes.errors.DirectiveRetainedTypeScopeError
@@ -800,6 +801,65 @@ class ScopeSchemaTransformationTest : SchemaScopeTestBase() {
         assertThrows<DirectiveRetainedTypeScopeError> {
             scopedSchemaBuilder.build(SchemaView.Scoped(setOf("other-scope")))
         }
+    }
+
+    @Test
+    fun `rejects an undeclared scope on an extension that adds no members`() {
+        val schema = schemaFromSdl(
+            """
+            type Query @scope(to: ["*"]) {
+                greeting: String
+            }
+            extend type Query @scope(to: ["publik"])
+            """.trimIndent()
+        )
+        val builder = ScopedSchemaBuilder(schema, SchemaScopingMode.ScopeAware(setOf("public")), listOf())
+
+        val error = assertThrows<SchemaScopeValidationError> {
+            builder.build(SchemaView.Scoped(setOf("public")))
+        }
+
+        assertTrue(error.message!!.contains("'publik' is not a valid scope name"), error.message)
+    }
+
+    @Test
+    fun `rejects an extension that adds no members and declares a scope its base does not`() {
+        val schema = schemaFromSdl(
+            """
+            type Query @scope(to: ["public"]) {
+                greeting: String
+            }
+            extend type Query @scope(to: ["internal"])
+            """.trimIndent()
+        )
+        val builder = ScopedSchemaBuilder(
+            schema,
+            SchemaScopingMode.ScopeAware(setOf("public", "internal")),
+            listOf()
+        )
+
+        val error = assertThrows<SchemaScopeValidationError> {
+            builder.build(SchemaView.Scoped(setOf("public")))
+        }
+
+        assertTrue(error.message!!.contains("need to be defined in the root definition"), error.message)
+    }
+
+    @Test
+    fun `accepts an extension that adds no members and declares no scope`() {
+        val schema = schemaFromSdl(
+            """
+            type Query @scope(to: ["*"]) {
+                greeting: String
+            }
+            extend type Query @resolver
+            """.trimIndent()
+        )
+        val builder = ScopedSchemaBuilder(schema, SchemaScopingMode.ScopeAware(setOf("public")), listOf())
+
+        val scoped = builder.build(SchemaView.Scoped(setOf("public"))).filtered
+
+        assertNotNull(scoped.queryType.getFieldDefinition("greeting"))
     }
 
     private fun schemaFromSdl(sdl: String) =

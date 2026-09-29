@@ -165,7 +165,7 @@ internal class ScopeDirectiveParser(
         extensionDefinitions?.forEach { node ->
             val (extensionTenantLocalElementNames, extensionChildElementNames) = partitionChildNodes(node)
             val extensionHasScopeDirective = (node as DirectivesContainer<*>).getDirectives("scope").isNotEmpty()
-            if (extensionChildElementNames.isEmpty() && (extensionTenantLocalElementNames.isEmpty() || !extensionHasScopeDirective)) {
+            if (extensionChildElementNames.isEmpty() && !extensionHasScopeDirective) {
                 return@forEach
             }
             val scopesForExtension = getScopesFromDirective(node, "scope")
