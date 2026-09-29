@@ -3,7 +3,9 @@
 There are two categories of demo apps:
 
 - **Published** — pushed to `viaduct-dev/*` repos via Copybara and tested against published artifacts. These are: `cli-starter`, `jetty-starter`, `ktor-starter`, `micronaut-starter`, `starwars`.
-- **CI-only** — built and tested in CI but not published to a standalone repo. These are: `spring-starter`.
+- **CI-only** — built and tested in CI but not published to a standalone repo. These are: `spring-starter`, `starwars-java`.
+
+Every demo app, published or CI-only, pins `viaductVersion` in its own `gradle.properties` and is registered in `demoappRelativeDirs` (`build-logic/src/main/kotlin/buildroot/versioning.gradle.kts`), so `syncDemoAppVersions` and `confirmDemoAppVersions` cover it.
 
 To add a new demo app to the **publishing** workflow:
 

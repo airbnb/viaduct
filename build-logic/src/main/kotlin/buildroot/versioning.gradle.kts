@@ -41,7 +41,8 @@ val demoappRelativeDirs = listOf(
     "demoapps/ktor-starter",
     "demoapps/micronaut-starter",
     "demoapps/spring-starter",
-    "demoapps/starwars"
+    "demoapps/starwars",
+    "demoapps/starwars-java"
 )
 
 // --- task types ---
@@ -113,11 +114,14 @@ abstract class ConfirmDemoAppVersionsTask : DefaultTask() {
     @get:Input abstract val demoappDirs: ListProperty<String>
     @get:InputFile abstract val versionFile: RegularFileProperty
     @get:InputFiles abstract val inputFiles: ConfigurableFileCollection
+    @get:InputFiles abstract val discoveredDemoappProperties: ConfigurableFileCollection
     // Synthetic marker: written on success so Gradle can skip reruns when inputs haven't changed.
     @get:OutputFile abstract val markerFile: RegularFileProperty
 
     @TaskAction
     fun run() {
+        failOnUnlistedDemoapps()
+
         val expected = versionFile.get().asFile.readText().trim()
         val root = repoRoot.get().asFile
         val mismatches = mutableListOf<String>()
@@ -149,6 +153,26 @@ abstract class ConfirmDemoAppVersionsTask : DefaultTask() {
             writeText("ok")
         }
     }
+
+    private fun failOnUnlistedDemoapps() {
+        val listed = demoappDirs.get().toSet()
+        val unlisted = discoveredDemoappProperties.files
+            .filter { pinsViaductVersion(it) }
+            .map { "demoapps/${it.parentFile.name}" }
+            .filterNot { it in listed }
+            .sorted()
+        if (unlisted.isEmpty()) return
+
+        throw GradleException(
+            "confirmDemoAppVersions FAILED — these demoapps pin viaductVersion but are absent from " +
+                "demoappRelativeDirs, so syncDemoAppVersions never updates them:\n" +
+                unlisted.joinToString("\n") { "  $it" } +
+                "\n\nAdd them to demoappRelativeDirs in build-logic/src/main/kotlin/buildroot/versioning.gradle.kts."
+        )
+    }
+
+    private fun pinsViaductVersion(file: File): Boolean =
+        Properties().also { props -> file.inputStream().use(props::load) }.containsKey("viaductVersion")
 }
 
 @DisableCachingByDefault(because = "Writes a single file")
@@ -220,6 +244,9 @@ if (gradle.parent == null) {
         demoappDirs.set(demoappRelativeDirs)
         versionFile.set(layout.projectDirectory.file("VERSION"))
         inputFiles.setFrom(demoappRelativeDirs.map { layout.projectDirectory.file("$it/gradle.properties") })
+        discoveredDemoappProperties.setFrom(
+            layout.projectDirectory.dir("demoapps").asFileTree.matching { include("*/gradle.properties") }
+        )
         markerFile.set(layout.buildDirectory.file("validations/confirmDemoAppVersions.marker"))
     }
 
