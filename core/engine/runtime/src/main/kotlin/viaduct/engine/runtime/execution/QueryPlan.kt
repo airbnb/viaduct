@@ -8,10 +8,13 @@ import graphql.language.FragmentSpread as GJFragmentSpread
 import graphql.language.InlineFragment as GJInlineFragment
 import graphql.language.Selection as GJSelection
 import graphql.language.SelectionSet as GJSelectionSet
+import graphql.language.TypeName as GJTypeName
 import graphql.language.VariableDefinition
 import graphql.schema.GraphQLCompositeType
+import graphql.schema.GraphQLFieldsContainer
 import graphql.schema.GraphQLObjectType
 import graphql.schema.GraphQLSchema
+import graphql.schema.GraphQLTypeUtil
 import viaduct.engine.api.Coordinate
 import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.ExecutionAttribution
@@ -309,23 +312,50 @@ data class QueryPlan(
  *
  * Child selection sets are always rebuilt from the query plan. The selection sets still present
  * on the embedded graphql-java fields are source syntax, not a second source of truth.
+ *
+ * [enclosingTypeName] is the type of the field or fragment wrapping this selection set. If it
+ * differs from [QueryPlan.SelectionSet.parentType], the selections are wrapped in
+ * `... on parentType` so a narrowed selection set keeps its type condition. Only the names are
+ * compared, so the wrapper is sometimes redundant (e.g. when it widens), which is harmless.
  */
-internal fun QueryPlan.SelectionSet.toAstSelectionSet(): GJSelectionSet =
-    GJSelectionSet.newSelectionSet()
-        .selections(selections.flatMap { it.toAstSelections() })
+internal fun QueryPlan.SelectionSet.toAstSelectionSet(enclosingTypeName: String = parentType.name): GJSelectionSet {
+    val rendered = GJSelectionSet.newSelectionSet()
+        .selections(selections.flatMap { it.toAstSelections(parentType) })
         .build()
+    if (enclosingTypeName == parentType.name) return rendered
+    return GJSelectionSet.newSelectionSet()
+        .selection(
+            GJInlineFragment.newInlineFragment()
+                .typeCondition(GJTypeName(parentType.name))
+                .selectionSet(rendered)
+                .build()
+        ).build()
+}
 
-private fun QueryPlan.Selection.toAstSelections(): List<GJSelection<*>> =
+private fun QueryPlan.Selection.toAstSelections(parentType: GraphQLCompositeType): List<GJSelection<*>> =
     when (this) {
         is QueryPlan.Field ->
-            listOf(field.withSelectionSet(selectionSet?.toAstSelectionSet()))
-        is QueryPlan.InlineFragment -> listOf(
-            (inlineFragment ?: GJInlineFragment.newInlineFragment().build())
-                .transform { it.selectionSet(selectionSet.toAstSelectionSet()) }
-        )
+            listOf(
+                field.withSelectionSet(
+                    selectionSet?.let { it.toAstSelectionSet(parentType.fieldTypeName(field.name) ?: it.parentType.name) }
+                )
+            )
+        is QueryPlan.InlineFragment -> {
+            val fragment = inlineFragment ?: GJInlineFragment.newInlineFragment().build()
+            listOf(
+                fragment.transform {
+                    it.selectionSet(selectionSet.toAstSelectionSet(fragment.typeCondition?.name ?: parentType.name))
+                }
+            )
+        }
         is QueryPlan.FragmentSpread ->
             listOf(fragmentSpread ?: GJFragmentSpread.newFragmentSpread(name).build())
     }
+
+private fun GraphQLCompositeType.fieldTypeName(fieldName: String): String? =
+    (this as? GraphQLFieldsContainer)
+        ?.getFieldDefinition(fieldName)
+        ?.let { GraphQLTypeUtil.unwrapAll(it.type).name }
 
 internal fun MergedField.withSelectionSet(selectionSet: GJSelectionSet): MergedField =
     MergedField.newMergedField(fields.map { it.withSelectionSet(selectionSet) })

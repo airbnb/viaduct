@@ -1773,6 +1773,41 @@ class QueryPlanTest {
         assertEquals(SourceLocation.EMPTY, cf.sourceLocation)
     }
 
+    @Test
+    fun `toAstSelectionSet -- narrowed nested selection set keeps its type condition`() {
+        Fixture("type Query { r:R } type R { u:U } union U = A | B type A { x:Int } type B { y:Int }") {
+            val r = buildPlan("{ r { u { ... on A { x } } } }").selectionSet.selections.single() as Field
+            val u = r.selectionSet!!.selections.single() as Field
+            val onA = (u.selectionSet!!.selections.single() as InlineFragment).selectionSet
+            val narrowed = r.selectionSet!!.copy(selections = listOf(u.copy(selectionSet = onA)))
+
+            assertEquals("{u{...on A{x}}}", AstPrinter.printAstCompact(narrowed.toAstSelectionSet()))
+        }
+    }
+
+    @Test
+    fun `toAstSelectionSet -- narrowed root selection set is wrapped for its enclosing type`() {
+        Fixture("type Query { u:U } union U = A | B type A { x:Int } type B { y:Int }") {
+            val u = buildPlan("{ u { ... on A { x } } }").selectionSet.selections.single() as Field
+            val onA = (u.selectionSet!!.selections.single() as InlineFragment).selectionSet
+
+            assertEquals("{...on A{x}}", AstPrinter.printAstCompact(onA.toAstSelectionSet("U")))
+            assertEquals("{x}", AstPrinter.printAstCompact(onA.toAstSelectionSet()))
+        }
+    }
+
+    @Test
+    fun `toAstSelectionSet -- planned selection sets are not rewrapped`() {
+        Fixture("type Query { u:U } union U = A | B type A { x:Int } type B { y:Int }") {
+            val plan = buildPlan("{ u { __typename ... on A { x } } }")
+
+            assertEquals(
+                "{u{__typename ...on A{x}}}",
+                AstPrinter.printAstCompact(plan.selectionSet.toAstSelectionSet()),
+            )
+        }
+    }
+
     private class Fixture(
         sdl: String,
         val requiredSelectionSetRegistry: RequiredSelectionSetRegistry = RequiredSelectionSetRegistry.Empty,

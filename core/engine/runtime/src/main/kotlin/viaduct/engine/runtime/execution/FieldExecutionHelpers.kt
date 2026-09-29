@@ -16,9 +16,7 @@ import graphql.execution.ResultPath
 import graphql.execution.ValuesResolver
 import graphql.execution.directives.QueryDirectivesImpl
 import graphql.execution.instrumentation.parameters.InstrumentationFieldFetchParameters
-import graphql.language.InlineFragment as GJInlineFragment
 import graphql.language.SelectionSet as GJSelectionSet
-import graphql.language.TypeName as GJTypeName
 import graphql.language.VariableDefinition
 import graphql.normalized.ExecutableNormalizedField
 import graphql.schema.DataFetcher
@@ -220,22 +218,7 @@ object FieldExecutionHelpers {
     internal fun materializationSelectionSet(
         fieldType: GraphQLOutputType,
         selectionSet: QueryPlan.SelectionSet,
-    ): GJSelectionSet {
-        val renderedSelectionSet = selectionSet.toAstSelectionSet()
-        return if (GraphQLTypeUtil.unwrapAll(fieldType) is GraphQLObjectType) {
-            renderedSelectionSet
-        } else {
-            GJSelectionSet
-                .newSelectionSet()
-                .selection(
-                    GJInlineFragment
-                        .newInlineFragment()
-                        .typeCondition(GJTypeName(selectionSet.parentType.name))
-                        .selectionSet(renderedSelectionSet)
-                        .build()
-                ).build()
-        }
-    }
+    ): GJSelectionSet = selectionSet.toAstSelectionSet(GraphQLTypeUtil.unwrapAll(fieldType).name)
 
     internal fun toMaterializedObjectData(
         parameters: ExecutionParameters,
