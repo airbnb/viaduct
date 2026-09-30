@@ -8,6 +8,8 @@ For example, `EngineResult`, `Arguments`, and `Selection` are semantic model typ
 
 Exceptions, annotations, dependency-injection qualifiers, test utilities, parsing, schema decoding, registry assembly, and other composition infrastructure are outside these policies unless a rule explicitly includes them.
 
+`model.lowering` is production schema-preparation infrastructure in the main source set, not semantic model logic. It uses core schema builders and validation to construct the canonical lowered schema and map source field coordinates. SDL parsing, fixture-specific schema restrictions, and registry assembly remain in test fixtures.
+
 ## Carrier Boundary
 
 The carrier model treats `EngineInputData`, `EngineOutputData`, `ResolverOutputData`, and `EngineResult` as distinct checked semantic unions represented by Kotlin `Any` typealiases. Their members are defined by domain-specific conformance relations rather than Kotlin subtyping. Nullable uses add GraphQL null. The aliases cannot distinguish overloads or prevent arbitrary `Any` values from crossing unchecked programming boundaries, so construction, publication, conversion, and observation operations enforce the appropriate domain relation. `EngineObjectOrErrorData` is instead a nominal sealed union because it transports one of two precise outcomes across the asynchronous Query-fragment boundary.
@@ -120,7 +122,7 @@ An equality-free occurrence family is a finite collection of occurrences that su
 
 ## Mathematical Function Signatures
 
-Every function declared in the model main source set has a mathematical signature, regardless of its visibility or whether it is a member, extension, factory, or implementation helper. Each receiver, ordinary parameter, and return value must denote an input or output of the modeled mathematical operation.
+Every function declared in the model main source set outside `model.lowering` has a mathematical signature, regardless of its visibility or whether it is a member, extension, factory, or implementation helper. Each receiver, ordinary parameter, and return value must denote an input or output of the modeled mathematical operation.
 
 Kotlin suspension is an execution capability rather than part of a mathematical signature. A suspending function still denotes a mathematical function of its receivers, ordinary parameters, and return value; ignore its suspension points, coroutine context, scheduling, and parallelism unless the model represents those concepts explicitly. A blocking application of that suspending function denotes the same mathematical operation.
 
@@ -128,7 +130,7 @@ Kotlin suspension is an execution capability rather than part of a mathematical 
 
 Do not add parameters or results solely for programming concerns such as improving an exception message, retaining a source path, labeling a call site, logging, tracing, formatting, debugging, or selecting an implementation strategy. In particular, recursive semantic functions must not thread diagnostic context that does not affect their mathematical result. A partial function may throw when its input is outside its domain; that exception is not a modeled output. Diagnostics may be derived from inputs already present in the mathematical signature, but otherwise use a less specific message or no message.
 
-Keep functions requiring non-mathematical inputs or producing non-mathematical outputs in pre-reasoning infrastructure outside the model main source set.
+Keep functions requiring non-mathematical inputs or producing non-mathematical outputs in pre-reasoning infrastructure outside the model main source set, except for schema preparation in `model.lowering`.
 
 ## Public Type Forms
 
@@ -192,7 +194,7 @@ Logic-constructible types use private `FooImpl` classes by preference, such as `
 
 Externally supplied types have no qplan model construction factory or main-source implementation. Fixture composition obtains definitions from the canonical lowered `ViaductSchema` and privately implements `ResolverRegistry`; semantic code sees only those public interfaces.
 
-Keep schema decoding, GraphQL parsing, resolver-function definitions, registry assembly, dependency-injection modules, and other pre-reasoning composition outside production semantic source sets. The model-owned resolver wrappers are the boundary that hides those functions from semantic algorithms. Tests that need a complete reasoning world construct it through `model.testing.TestWorld`; ordinary test sources do not decode schemas or assemble registries directly.
+Keep schema decoding, GraphQL parsing, resolver-function definitions, registry assembly, dependency-injection modules, and other pre-reasoning composition outside production semantic source sets. The `model.lowering` preparation package is the explicit main-source exception. The model-owned resolver wrappers are the boundary that hides resolver functions from semantic algorithms. Tests that need a complete reasoning world construct it through `model.testing.TestWorld`; ordinary test sources do not decode schemas or assemble registries directly, except for focused tests of schema preparation.
 
 Constructors are private where possible and otherwise internal. Internal model code may call an internal constructor directly, but factory use remains preferred.
 

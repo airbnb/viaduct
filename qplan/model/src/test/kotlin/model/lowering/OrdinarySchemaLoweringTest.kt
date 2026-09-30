@@ -5,6 +5,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 import viaduct.graphql.schema.ViaductSchema
+import viaduct.graphql.schema.graphqljava.gjDef
 import viaduct.graphql.schema.graphqljava.graphqlValidate
 import viaduct.graphql.schema.graphqljava.viaductSchema
 
@@ -40,7 +41,7 @@ class OrdinarySchemaLoweringTest {
         )
         assertSame(
             graphQLSource.getObjectType("A"),
-            (loweredA as ViaductSchema.Object).sourceGraphQLJavaDefinitionOrNull,
+            (loweredA as ViaductSchema.Object).gjDef,
         )
 
         val sourceChoice = source.requireType("Choice") as ViaductSchema.Union

@@ -8,6 +8,7 @@ plugins {
 dependencies {
     api(libs.viaduct.engine.api)
     api(libs.viaduct.shared.viaductschema)
+    implementation(libs.graphql.java)
     implementation(libs.kotlinx.coroutines.core)
 
     testFixturesImplementation(libs.graphql.java)
