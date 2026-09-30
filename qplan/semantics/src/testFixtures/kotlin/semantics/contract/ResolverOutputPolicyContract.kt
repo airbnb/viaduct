@@ -7,7 +7,7 @@ import kotlin.test.assertTrue
 import model.EngineResult
 import model.ObjectEngineResult
 import model.objectOf
-import model.operationSelectionsFrom
+import model.parsing.operationSelectionsFrom
 import model.testing.TestWorld
 import org.junit.jupiter.api.Test
 import semantics.correctresolution.CorrectnessResolverObserver

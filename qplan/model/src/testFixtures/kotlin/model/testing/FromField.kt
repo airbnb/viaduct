@@ -6,6 +6,7 @@ import model.Fragment
 import model.ObjectEngineResult
 import model.SourceSchemaAdapter
 import model.isParentField
+import model.lowering.ViaductAndGJSchema
 import model.parsing.GJSelectionParser
 import model.registry.ProviderFragment
 import model.registry.ResolverTarget

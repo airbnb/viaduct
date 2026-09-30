@@ -5,7 +5,7 @@ import kotlin.test.assertContains
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
-import model.operationSelectionsFrom
+import model.parsing.operationSelectionsFrom
 import model.testing.TestWorld
 import semantics.shared.ResolverInvocationObservation
 import semantics.shared.ResolverObserver

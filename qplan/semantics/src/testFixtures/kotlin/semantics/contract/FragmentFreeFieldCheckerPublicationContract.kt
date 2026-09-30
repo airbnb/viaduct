@@ -22,7 +22,7 @@ import model.EngineResultCell
 import model.ObjectEngineResult
 import model.SelectionForest
 import model.emptyFragmentOf
-import model.operationSelectionsFrom
+import model.parsing.operationSelectionsFrom
 import model.registry.FieldCheckerResolver
 import model.requireObjectField
 import model.requireQueryTypeDef

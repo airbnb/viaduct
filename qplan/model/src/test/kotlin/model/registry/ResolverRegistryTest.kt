@@ -24,6 +24,7 @@ import model.SelectionForest
 import model.emptyFragmentOf
 import model.engineObjectDataOf
 import model.fragmentFrom
+import model.lowering.ViaductAndGJSchema
 import model.materializeSelectionForestOf
 import model.nodeReferenceIdentityOrNull
 import model.objectOf
@@ -36,8 +37,8 @@ import model.schemaType
 import model.selectionForestOf
 import model.testing.FieldResolverDefinition
 import model.testing.TestWorld
-import model.testing.ViaductAndGJSchema
 import model.testing.fieldResolverOf
+import model.testing.fromSDL
 import model.testing.nodeResolverOf
 import model.testing.resolverRegistryOf
 import model.testing.testRoot

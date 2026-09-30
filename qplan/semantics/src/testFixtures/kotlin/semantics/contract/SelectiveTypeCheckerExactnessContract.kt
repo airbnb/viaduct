@@ -26,11 +26,12 @@ import model.RootFieldReferenceData
 import model.SelectionForest
 import model.emptyFragmentOf
 import model.fragmentFrom
+import model.lowering.ViaductAndGJSchema
 import model.materializeSelectionForestOf
 import model.merge
 import model.objectOf
-import model.operationSelectionsFrom
 import model.outputValue
+import model.parsing.operationSelectionsFrom
 import model.registry.FieldCheckerResolver
 import model.registry.ResolverFragmentTemplates
 import model.registry.ResolverTarget
@@ -39,7 +40,6 @@ import model.requireObjectField
 import model.requireQueryTypeDef
 import model.requireType
 import model.testing.TestWorld
-import model.testing.ViaductAndGJSchema
 import model.testing.fieldResolverOf
 import semantics.correctresolution.CorrectnessCheckerObserver
 import semantics.correctresolution.CorrectnessResolverObserver

@@ -13,7 +13,7 @@ import model.fragmentFrom
 import model.materializeSelectionForestOf
 import model.merge
 import model.objectOf
-import model.operationSelectionsFrom
+import model.parsing.operationSelectionsFrom
 import model.registry.FieldCheckerResolver
 import model.registry.ResolverFragmentTemplates
 import model.registry.ResolverTarget

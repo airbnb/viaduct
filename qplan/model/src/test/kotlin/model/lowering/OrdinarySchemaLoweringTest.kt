@@ -14,7 +14,7 @@ class OrdinarySchemaLoweringTest {
     fun `preserves ordinary definitions roots relationships and metadata`() {
         val graphQLSource = graphQLSchema(SCHEMA)
         val source = graphQLSource.viaductSchema()
-        val lowered = lowerSchema(source)
+        val lowered = ViaductAndGJSchema.fromGraphQLSchema(graphQLSource).loweredSchema
 
         assertEquals("Read", lowered.queryTypeDef?.name)
         assertEquals("Write", lowered.mutationTypeDef?.name)

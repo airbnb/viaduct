@@ -12,7 +12,7 @@ import model.VariableBinding
 import model.arg
 import model.fragmentFrom
 import model.merge
-import model.operationSelectionsFrom
+import model.parsing.operationSelectionsFrom
 import model.registry.FieldCheckerResolver
 import model.registry.ProviderFragment
 import model.registry.ResolverFragmentTemplates

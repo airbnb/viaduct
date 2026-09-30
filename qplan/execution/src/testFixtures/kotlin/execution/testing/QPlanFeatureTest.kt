@@ -21,6 +21,7 @@ import model.SourceSchemaAdapter
 import model.emptyFragmentOf
 import model.engineObjectDataOf
 import model.fragmentFromDocument
+import model.lowering.ViaductAndGJSchema
 import model.registry.SelectiveFieldResolverFunction
 import model.requireQueryTypeDef
 import model.requireType
@@ -28,7 +29,6 @@ import model.testing.FieldResolverDefinition
 import model.testing.NodeResolverFunction
 import model.testing.TestWorld
 import model.testing.VariableDeclaration
-import model.testing.ViaductAndGJSchema
 import model.testing.fieldResolverOf
 import model.testing.nodeResolverOf
 import model.testing.selectionAwareFieldResolverOf

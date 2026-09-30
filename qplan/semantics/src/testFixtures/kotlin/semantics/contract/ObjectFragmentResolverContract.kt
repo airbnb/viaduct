@@ -14,7 +14,7 @@ import model.ObjectEngineResult
 import model.emptyFragmentOf
 import model.fragmentFrom
 import model.objectOf
-import model.operationSelectionsFrom
+import model.parsing.operationSelectionsFrom
 import model.requireField
 import model.requireObjectField
 import model.sameCompletedResultAs

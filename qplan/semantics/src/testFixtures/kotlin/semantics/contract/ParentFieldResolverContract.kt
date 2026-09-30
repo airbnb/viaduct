@@ -9,8 +9,8 @@ import model.ObjectEngineResult
 import model.emptyFragmentOf
 import model.fragmentFrom
 import model.objectOf
-import model.operationSelectionsFrom
 import model.outputValue
+import model.parsing.operationSelectionsFrom
 import model.requireObjectField
 import model.testing.TestWorld
 import model.testing.fieldResolverOf

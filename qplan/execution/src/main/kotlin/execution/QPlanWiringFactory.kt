@@ -32,8 +32,8 @@ import model.ErrorEngineResult
 import model.ListEngineResult
 import model.ObjectEngineResult
 import model.Promise
-import model.SourceSchemaAdapter
 import model.awaitCheckedValue
+import model.lowering.loweredFieldFromSourceCoordinate
 import model.materializeCheckedValue
 import viaduct.graphql.schema.ViaductSchema
 
@@ -44,9 +44,9 @@ import viaduct.graphql.schema.ViaductSchema
  * retain the same request scope so pending qplan promises can be exposed as completion stages.
  */
 class QPlanWiringFactory(
-    sourceSchema: SourceSchemaAdapter,
+    schema: ViaductSchema,
 ) : WiringFactory {
-    private val dataFetcher = ObjectEngineResultDataFetcher(sourceSchema)
+    private val dataFetcher = ObjectEngineResultDataFetcher(schema)
 
     override fun getDefaultDataFetcher(environment: FieldWiringEnvironment): DataFetcher<*> = dataFetcher
 
@@ -66,13 +66,13 @@ internal data class QPlanExecutionSource(
 )
 
 private class ObjectEngineResultDataFetcher(
-    private val sourceSchema: SourceSchemaAdapter,
+    private val schema: ViaductSchema,
 ) : DataFetcher<Any?> {
     override fun get(environment: DataFetchingEnvironment): Any? {
         val source = qplanSource(environment.getSource())
         val objectResult = source.objectResult
         val sourceFieldName = environment.fieldDefinition.name
-        val field = sourceSchema.field(objectResult.type.name, sourceFieldName)
+        val field = schema.loweredFieldFromSourceCoordinate(objectResult.type.name, sourceFieldName)
         require(field is ViaductSchema.ObjectField) {
             "QPlan completion requires a concrete field for " +
                 "${objectResult.type.name}/$sourceFieldName"

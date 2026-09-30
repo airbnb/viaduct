@@ -12,6 +12,7 @@ import model.Selection
 import model.SelectionForest
 import model.VariableBinding
 import model.fragmentFrom
+import model.lowering.ViaductAndGJSchema
 import model.materializeSelectionForestOf
 import model.merge
 import model.objectOf
@@ -21,7 +22,6 @@ import model.requireObjectField
 import model.requireQueryTypeDef
 import model.selectionForestOf
 import model.testing.TestWorld
-import model.testing.ViaductAndGJSchema
 import semantics.shared.Demand
 import semantics.shared.OEROccurrence
 import semantics.shared.OrchestrationConstructionDemand

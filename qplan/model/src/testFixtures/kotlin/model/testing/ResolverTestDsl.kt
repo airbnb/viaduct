@@ -31,6 +31,7 @@ import model.SourceSchemaAdapter
 import model.arg
 import model.emptyFragmentOf
 import model.fragmentFrom
+import model.lowering.ViaductAndGJSchema
 import model.objectOf
 import model.parsing.ErroneousVariableValue
 import model.requireType

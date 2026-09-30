@@ -4,6 +4,7 @@ import model.Arguments
 import model.MaterializeSelectionForest
 import model.SelectionForest
 import model.fragmentFrom
+import model.lowering.ViaductAndGJSchema
 import model.materializeSelectionForestOf
 import model.objectKey
 import model.registry.ProviderFragment
@@ -13,7 +14,6 @@ import model.registry.TypeCheckerResolver
 import model.registry.VariableDefinition
 import model.requireObjectField
 import model.requireQueryTypeDef
-import model.testing.ViaductAndGJSchema
 import model.usedVariables
 import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.CheckerResultContext

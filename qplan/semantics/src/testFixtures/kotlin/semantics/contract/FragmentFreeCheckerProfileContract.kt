@@ -12,7 +12,7 @@ import kotlin.test.assertSame
 import kotlin.test.assertTrue
 import model.ListEngineResult
 import model.ObjectEngineResult
-import model.operationSelectionsFrom
+import model.parsing.operationSelectionsFrom
 import model.registry.TypeCheckerResolver
 import model.requireQueryTypeDef
 import model.requireType

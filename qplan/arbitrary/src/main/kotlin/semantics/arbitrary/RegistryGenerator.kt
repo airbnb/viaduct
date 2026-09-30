@@ -24,6 +24,7 @@ import model.SourceSchemaAdapter
 import model.arg
 import model.fragmentFrom
 import model.inputType
+import model.lowering.ViaductAndGJSchema
 import model.objectOf
 import model.registry.FieldCheckerResolver
 import model.registry.ProviderFragment
@@ -33,7 +34,6 @@ import model.registry.VariableDefinition
 import model.requireType
 import model.selectionForestOf
 import model.testing.TestWorld
-import model.testing.ViaductAndGJSchema
 import model.testing.fieldResolverOf
 import model.testing.fromArgument
 import model.testing.fromObjectField

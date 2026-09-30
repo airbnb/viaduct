@@ -6,7 +6,7 @@ import model.ObjectEngineResult
 import model.SelectionForest
 import model.merge
 import model.objectOf
-import model.operationSelectionsFrom
+import model.parsing.operationSelectionsFrom
 import model.requireQueryTypeDef
 import model.testing.TestWorld
 import org.junit.jupiter.api.AfterEach

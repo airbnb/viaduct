@@ -33,7 +33,7 @@ import model.ObjectEngineResult
 import model.ResolverOccurrenceId
 import model.emptyFragmentOf
 import model.fragmentFrom
-import model.operationSelectionsFrom
+import model.parsing.operationSelectionsFrom
 import model.requireField
 import model.requireObjectField
 import model.testing.TestWorld

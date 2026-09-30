@@ -14,11 +14,12 @@ import model.ObjectEngineResult
 import model.SelectionForest
 import model.emptyFragmentOf
 import model.lowering.LOWERED_TYPENAME_FIELD
+import model.lowering.ViaductAndGJSchema
+import model.parsing.selectionsFrom
 import model.registry.FieldCheckerResolver
 import model.registry.ResolverRegistry
 import model.registry.TypeCheckerResolver
 import model.requireQueryTypeDef
-import model.selectionsFrom
 import viaduct.graphql.schema.ViaductSchema
 
 private val testRoots = IdentityHashMap<ViaductSchema, ObjectEngineResult>()

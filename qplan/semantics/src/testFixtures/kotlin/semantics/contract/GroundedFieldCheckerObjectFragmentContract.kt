@@ -16,7 +16,7 @@ import model.arg
 import model.emptyFragmentOf
 import model.fragmentFrom
 import model.materializeSelectionForestOf
-import model.operationSelectionsFrom
+import model.parsing.operationSelectionsFrom
 import model.registry.CheckerInput
 import model.registry.FieldCheckerResolver
 import model.registry.ResolverFragmentTemplates

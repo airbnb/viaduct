@@ -4,7 +4,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertSame
 import model.ObjectEngineResult
-import model.operationSelectionsFrom
+import model.parsing.operationSelectionsFrom
 import model.registry.FieldCheckerResolver
 import model.requireObjectField
 import model.requireQueryTypeDef

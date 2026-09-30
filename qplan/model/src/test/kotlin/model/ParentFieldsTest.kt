@@ -7,8 +7,9 @@ import kotlin.test.assertIs
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 import model.invariants.conformsToSchema
+import model.lowering.ViaductAndGJSchema
 import model.testing.TestWorld
-import model.testing.ViaductAndGJSchema
+import model.testing.fromSDL
 import viaduct.engine.api.CheckerResult
 
 class ParentFieldsTest {

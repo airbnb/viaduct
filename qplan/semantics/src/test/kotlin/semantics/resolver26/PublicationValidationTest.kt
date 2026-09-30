@@ -18,7 +18,7 @@ import model.ErrorEngineResult
 import model.ObjectEngineResult
 import model.ResolverOccurrenceId
 import model.VariableBinding
-import model.operationSelectionsFrom
+import model.parsing.operationSelectionsFrom
 import model.requireQueryTypeDef
 import model.testing.TestWorld
 import semantics.resolvers.resolver21.CoroutineFieldPublicationOccurrence

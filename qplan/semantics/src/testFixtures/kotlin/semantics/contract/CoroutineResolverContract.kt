@@ -33,8 +33,8 @@ import model.UncompletedPromiseException
 import model.emptyFragmentOf
 import model.fragmentFrom
 import model.objectOf
-import model.operationSelectionsFrom
 import model.outputValue
+import model.parsing.operationSelectionsFrom
 import model.registry.FieldValueResolver
 import model.registry.ResolverFragmentTemplates
 import model.registry.ResolverRegistry

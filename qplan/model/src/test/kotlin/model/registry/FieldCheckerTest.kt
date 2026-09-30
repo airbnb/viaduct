@@ -7,13 +7,13 @@ import model.Arguments
 import model.ObjectEngineResult
 import model.arg
 import model.fragmentFrom
+import model.lowering.ViaductAndGJSchema
 import model.materializeSelectionForestOf
 import model.merge
 import model.requireObjectField
 import model.requireQueryTypeDef
 import model.requireType
 import model.testing.TestWorld
-import model.testing.ViaductAndGJSchema
 import model.usedVariables
 import viaduct.engine.api.CheckerResult
 import viaduct.graphql.schema.ViaductSchema

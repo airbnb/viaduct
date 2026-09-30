@@ -1,6 +1,12 @@
 package execution
 
 import execution.testing.ExecutionTestFixture
+import graphql.ExecutionInput
+import graphql.GraphQL
+import graphql.schema.idl.RuntimeWiring
+import graphql.schema.idl.SchemaGenerator
+import graphql.schema.idl.SchemaParser
+import graphql.schema.idl.UnExecutableSchemaGenerator
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -9,6 +15,7 @@ import model.ListEngineResult
 import model.ObjectEngineResult
 import model.Promise
 import model.engineResultOf
+import model.lowering.ViaductAndGJSchema
 import model.outputType
 import model.requireObjectField
 import model.requireQueryTypeDef
@@ -19,6 +26,40 @@ import viaduct.engine.api.CheckerResultContext
 import viaduct.graphql.schema.ViaductSchema
 
 class QPlanWiringFactoryTest {
+    @Test
+    fun `wiring completes values using only main-source schema and result APIs`() {
+        val registry = SchemaParser().parse("type Query { greeting(prefix: String!): String! }")
+        val source = UnExecutableSchemaGenerator.makeUnExecutableSchema(registry)
+        val schema = ViaductAndGJSchema.fromGraphQLSchema(source).loweredSchema
+        val key =
+            ObjectEngineResult.GroundKey.of(
+                field = schema.requireObjectField("Query", "greeting"),
+                arguments = mapOf("prefix" to "hello"),
+            )
+        val root =
+            ObjectEngineResult.of(
+                type = schema.requireQueryTypeDef(),
+                values = mapOf(key to "hello world"),
+            )
+        val executableSchema =
+            SchemaGenerator().makeExecutableSchema(
+                registry,
+                RuntimeWiring.newRuntimeWiring().wiringFactory(QPlanWiringFactory(schema)).build(),
+            )
+
+        val result =
+            GraphQL.newGraphQL(executableSchema).build().execute(
+                ExecutionInput.newExecutionInput()
+                    .query("query(${'$'}prefix: String!) { message: greeting(prefix: ${'$'}prefix) }")
+                    .variables(mapOf("prefix" to "hello"))
+                    .root(root)
+                    .build(),
+            )
+
+        assertTrue(result.errors.isEmpty(), result.errors.joinToString { it.message })
+        assertEquals(mapOf("message" to "hello world"), result.getData())
+    }
+
     @Test
     fun `vanilla GraphQL execution completes a resolved OER tree`() {
         val world = TestWorld.fromSDL(SCHEMA).assumptions

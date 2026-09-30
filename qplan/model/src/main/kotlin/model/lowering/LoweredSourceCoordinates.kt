@@ -9,7 +9,7 @@ import viaduct.graphql.schema.ViaductSchema
  * Source fields retain their coordinates. Typename is a source pseudo-field represented by an
  * ordinary synthetic field after lowering.
  */
-internal fun ViaductSchema.loweredFieldFromSourceCoordinate(
+fun ViaductSchema.loweredFieldFromSourceCoordinate(
     sourceTypeName: String,
     sourceFieldName: String,
 ): ViaductSchema.Field {

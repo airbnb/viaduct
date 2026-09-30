@@ -8,7 +8,7 @@ For example, `EngineResult`, `Arguments`, and `Selection` are semantic model typ
 
 Exceptions, annotations, dependency-injection qualifiers, test utilities, parsing, schema decoding, registry assembly, and other composition infrastructure are outside these policies unless a rule explicitly includes them.
 
-`model.lowering` and `model.parsing` are production preparation infrastructure in the main source set, not semantic model logic. Lowering uses core schema builders and validation to construct the canonical lowered schema and map source field coordinates. Parsing decodes GraphQL selections and input values using the source GraphQL-Java schema and the corresponding canonical lowered schema. SDL parsing, fixture-specific schema restrictions, and registry assembly remain in test fixtures.
+`model.lowering` and `model.parsing` are production preparation infrastructure in the main source set, not semantic model logic. Lowering uses core schema builders and validation to construct the canonical lowered schema and map source field coordinates. `ViaductAndGJSchema.fromGraphQLSchema` pairs an existing source schema with its type relations and canonical lowered schema. Parsing decodes GraphQL selections and input values using that pair; its public APIs return selection forests rather than fixture `Fragment` values. SDL schema parsing, fixture-specific schema restrictions, `Fragment` convenience wrappers, and registry assembly remain in test fixtures.
 
 ## Carrier Boundary
 

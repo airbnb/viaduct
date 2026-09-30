@@ -1,9 +1,9 @@
 package execution.testing
 
 import model.fragmentFromDocument
+import model.lowering.ViaductAndGJSchema
 import model.registry.ResolutionExecutionContext
 import model.requireQueryTypeDef
-import model.testing.ViaductAndGJSchema
 import viaduct.engine.api.Engine
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData

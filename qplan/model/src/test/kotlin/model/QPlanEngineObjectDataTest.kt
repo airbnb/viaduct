@@ -12,7 +12,8 @@ import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 import kotlinx.coroutines.runBlocking
-import model.testing.ViaductAndGJSchema
+import model.lowering.ViaductAndGJSchema
+import model.testing.fromSDL
 import viaduct.engine.api.EngineObjectData
 import viaduct.errors.UnsetFieldException
 import viaduct.graphql.schema.ViaductSchema

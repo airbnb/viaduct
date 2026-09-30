@@ -12,7 +12,7 @@ import model.ErrorEngineResult
 import model.ObjectEngineResult
 import model.emptyFragmentOf
 import model.fragmentFrom
-import model.operationSelectionsFrom
+import model.parsing.operationSelectionsFrom
 import model.registry.FieldCheckerResolver
 import model.requireObjectField
 import model.requireQueryTypeDef

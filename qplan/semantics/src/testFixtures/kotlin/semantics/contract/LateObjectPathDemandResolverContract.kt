@@ -6,7 +6,7 @@ import kotlin.test.assertTrue
 import model.ObjectEngineResult
 import model.merge
 import model.objectOf
-import model.operationSelectionsFrom
+import model.parsing.operationSelectionsFrom
 import model.requireObjectField
 import model.requireQueryTypeDef
 import model.testing.TestWorld

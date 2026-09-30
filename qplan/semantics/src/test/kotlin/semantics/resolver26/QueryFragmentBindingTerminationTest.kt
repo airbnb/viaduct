@@ -28,7 +28,7 @@ import model.VariableBinding
 import model.VariableInstanceId
 import model.emptyFragmentOf
 import model.fragmentFrom
-import model.operationSelectionsFrom
+import model.parsing.operationSelectionsFrom
 import model.registry.ResolverTarget
 import model.requireObjectField
 import model.testing.TestWorld

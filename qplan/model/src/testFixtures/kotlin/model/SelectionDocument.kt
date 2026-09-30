@@ -7,7 +7,7 @@ import graphql.language.FragmentDefinition
 import graphql.language.FragmentSpread
 import graphql.language.InlineFragment
 import graphql.language.SelectionSet
-import model.testing.ViaductAndGJSchema
+import model.lowering.ViaductAndGJSchema
 import viaduct.graphql.schema.ViaductSchema
 import viaduct.graphql.utils.SelectionsParserUtils
 

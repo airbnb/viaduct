@@ -7,7 +7,6 @@ plugins {
 dependencies {
     implementation(project(":model"))
     implementation(project(":semantics"))
-    implementation(testFixtures(project(":model")))
     implementation(libs.graphql.java)
     implementation(libs.kotlinx.coroutines.jdk8)
 
@@ -22,6 +21,7 @@ dependencies {
     testFixturesImplementation(kotlin("test"))
 
     testImplementation(kotlin("test-junit5"))
+    testImplementation(testFixtures(project(":model")))
     testImplementation(libs.viaduct.shared.arbitrary)
     testImplementation(testFixtures(libs.viaduct.shared.arbitrary))
     testImplementation(libs.kotest.assertions.core.jvm)

@@ -4,10 +4,10 @@ import graphql.language.AstPrinter
 import model.Arguments
 import model.Fragment
 import model.engineObjectDataOf
+import model.lowering.ViaductAndGJSchema
 import model.registry.ResolverTarget
 import model.registry.VariablesProviderFunction
 import model.testing.VariableDeclaration
-import model.testing.ViaductAndGJSchema
 import model.testing.fromArgument
 import model.testing.fromObjectField
 import model.testing.fromQueryField

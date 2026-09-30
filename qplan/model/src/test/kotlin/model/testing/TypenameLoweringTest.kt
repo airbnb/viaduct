@@ -13,7 +13,7 @@ import model.fragmentFrom
 import model.merge
 import model.objectKey
 import model.objectOf
-import model.operationSelectionsFrom
+import model.parsing.operationSelectionsFrom
 import model.registry.ResolutionExecutionContext
 import model.requireField
 import model.requireObjectField

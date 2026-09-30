@@ -23,7 +23,6 @@ import java.util.concurrent.ExecutorService
 import kotlin.coroutines.CoroutineContext
 import kotlinx.coroutines.ExecutorCoroutineDispatcher
 import model.ObjectEngineResult
-import model.SourceSchemaAdapter
 import model.testing.TestWorld
 import semantics.resolver26.ResolutionDispatcherFactory
 import semantics.resolver26.configuredResolutionThreadCount
@@ -171,7 +170,7 @@ class ExecutionTestFixture private constructor(
             val runtimeWiring =
                 RuntimeWiring
                     .newRuntimeWiring()
-                    .wiringFactory(QPlanWiringFactory(SourceSchemaAdapter(world.schema)))
+                    .wiringFactory(QPlanWiringFactory(world.schema))
                     .build()
             val graphQLSchema =
                 SchemaGenerator().makeExecutableSchema(
@@ -207,7 +206,7 @@ class ExecutionTestFixture private constructor(
             val runtimeWiring =
                 RuntimeWiring
                     .newRuntimeWiring()
-                    .wiringFactory(QPlanWiringFactory(SourceSchemaAdapter(schema)))
+                    .wiringFactory(QPlanWiringFactory(schema))
                     .build()
             val graphQLSchema =
                 SchemaGenerator().makeExecutableSchema(

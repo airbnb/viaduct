@@ -29,7 +29,7 @@ import model.SelectionForest
 import model.emptyFragmentOf
 import model.fragmentFrom
 import model.merge
-import model.operationSelectionsFrom
+import model.parsing.operationSelectionsFrom
 import model.requireObjectField
 import model.requireQueryTypeDef
 import model.selectionForestOf

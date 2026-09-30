@@ -19,6 +19,7 @@ import model.fieldExpressions
 import model.inputType
 import model.lowering.ALL_SOURCE_OBJECTS_TYPE
 import model.lowering.LOWERED_TYPENAME_FIELD
+import model.lowering.ViaductAndGJSchema
 import model.matchingVariableTypes
 import model.merge
 import model.registry.FieldCheckerResolver

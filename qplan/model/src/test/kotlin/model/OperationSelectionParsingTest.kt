@@ -8,16 +8,85 @@ import graphql.schema.idl.SchemaParser
 import graphql.schema.idl.UnExecutableSchemaGenerator
 import java.util.Locale
 import model.lowering.LOWERED_TYPENAME_FIELD
+import model.lowering.ViaductAndGJSchema
 import model.lowering.lowerSchema
 import model.parsing.GJSelectionParser
+import model.parsing.materializeSelectionsFrom
+import model.parsing.operationSelectionsFrom
+import model.parsing.selectionsFrom
 import model.testing.TestWorld
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertSame
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.graphql.schema.ViaductSchema
 
 class OperationSelectionParsingTest {
+    @Test
+    fun `public parsing APIs use an existing GraphQL schema without TestWorld`() {
+        val sourceSchema =
+            UnExecutableSchemaGenerator.makeUnExecutableSchema(SchemaParser().parse(ARGUMENT_SCHEMA))
+        val schemas = ViaductAndGJSchema.fromGraphQLSchema(sourceSchema)
+        val schema = schemas.loweredSchema
+        val selections =
+            schemas.operationSelectionsFrom(
+                documentSource =
+                    """
+                    query Search(${'$'}term: String!) { ...Fields }
+                    fragment Fields on Query { result: search(term: ${'$'}term) }
+                    """.trimIndent(),
+                variables = mapOf("term" to "value"),
+            )
+
+        val search = selections.single()
+        assertSame(schema.requireField("Query", "search"), search.key.field)
+        assertEquals("value", search.key.arguments.fieldExpressions()["term"])
+        assertEquals(3, search.key.arguments.fieldExpressions()["limit"])
+
+        val (nominalType, fragment) =
+            schemas.selectionsFrom("fragment Input on Query { search }")
+        assertSame(schema.requireQueryTypeDef(), nominalType)
+        assertSame(schema.requireField("Query", "search"), fragment.single().key.field)
+
+        val (materializeType, materializeSelections) =
+            schemas.materializeSelectionsFrom(
+                "fragment Input on Query { renamed: search __typename }",
+                preserveSourceResponseKeys = true,
+            )
+        assertSame(schema.requireQueryTypeDef(), materializeType)
+        val byResponseKey =
+            buildMap {
+                materializeSelections.forEach { put(it.responseKey, it) }
+            }
+        assertEquals(setOf("renamed", "__typename"), byResponseKey.keys)
+        assertSame(schema.requireField("Query", "search"), byResponseKey.getValue("renamed").key.field)
+        assertSame(schema.requireField("Query", LOWERED_TYPENAME_FIELD), byResponseKey.getValue("__typename").key.field)
+    }
+
+    @Test
+    fun `public operation parsing rejects invalid documents and ambiguous operation selection`() {
+        val sourceSchema =
+            UnExecutableSchemaGenerator.makeUnExecutableSchema(SchemaParser().parse(ARGUMENT_SCHEMA))
+        val schemas = ViaductAndGJSchema.fromGraphQLSchema(sourceSchema)
+
+        val invalid =
+            assertThrows<IllegalArgumentException> {
+                schemas.operationSelectionsFrom("{ missing }")
+            }
+        assertTrue(invalid.message.orEmpty().startsWith("Invalid GraphQL document:"))
+
+        val document = "query First { search(term: \"first\") } query Second { search(term: \"second\") }"
+        assertThrows<IllegalArgumentException> {
+            schemas.operationSelectionsFrom(document)
+        }
+        assertThrows<IllegalArgumentException> {
+            schemas.operationSelectionsFrom(document, operationName = "Unknown")
+        }
+        val selections = schemas.operationSelectionsFrom(document, operationName = "Second")
+        assertEquals("second", selections.single().key.arguments.fieldExpressions()["term"])
+    }
+
     @Test
     fun `parses selections using a plain lowered schema without a fixture wrapper`() {
         val sourceSchema =

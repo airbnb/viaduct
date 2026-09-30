@@ -24,7 +24,7 @@ import model.ErrorEngineResult
 import model.ObjectEngineResult
 import model.VariableBinding
 import model.fragmentFrom
-import model.operationSelectionsFrom
+import model.parsing.operationSelectionsFrom
 import model.registry.ResolverFragmentTemplates
 import model.registry.ResolverTarget
 import model.registry.TypeCheckerResolver

@@ -21,7 +21,7 @@ import model.emptyFragmentOf
 import model.fragmentFrom
 import model.materializeSelectionForestOf
 import model.objectOf
-import model.operationSelectionsFrom
+import model.parsing.operationSelectionsFrom
 import model.registry.ResolverFragmentTemplates
 import model.registry.TypeCheckerResolver
 import model.requireObjectField

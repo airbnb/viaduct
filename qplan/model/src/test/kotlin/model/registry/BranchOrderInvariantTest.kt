@@ -7,12 +7,12 @@ import model.Arguments
 import model.Fragment
 import model.emptyFragmentOf
 import model.fragmentFrom
+import model.lowering.ViaductAndGJSchema
 import model.requireField
 import model.requireType
 import model.testing.FieldResolverDefinition
 import model.testing.FromField
 import model.testing.TestWorld
-import model.testing.ViaductAndGJSchema
 import model.testing.fieldResolverOf
 import model.testing.fromObjectField
 import model.testing.nodeResolverOf
