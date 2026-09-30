@@ -1,6 +1,6 @@
 @file:Suppress("MatchingDeclarationName")
 
-package model.testing
+package model.parsing
 
 import graphql.language.ArrayValue
 import graphql.language.BooleanValue

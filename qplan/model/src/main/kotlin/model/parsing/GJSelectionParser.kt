@@ -1,4 +1,4 @@
-package model.testing
+package model.parsing
 
 import graphql.GraphQLContext
 import graphql.execution.CoercedVariables
@@ -18,6 +18,7 @@ import graphql.language.VariableReference
 import graphql.parser.Parser
 import graphql.schema.GraphQLCompositeType
 import graphql.schema.GraphQLFieldDefinition
+import graphql.schema.GraphQLSchema
 import graphql.schema.GraphQLTypeUtil
 import graphql.validation.ValidationErrorType
 import graphql.validation.Validator
@@ -27,7 +28,7 @@ import model.EngineInputData
 import model.InclusionCondition
 import model.MaterializeSelectionForest
 import model.SelectionForest
-import model.SourceSchemaAdapter
+import model.lowering.loweredFieldFromSourceCoordinate
 import model.registry.ResolverTarget
 import model.requireQueryTypeDef
 import model.requireType
@@ -44,12 +45,12 @@ import viaduct.graphql.schema.ViaductSchema
  * fields retain their source coordinates.
  */
 internal class GJSelectionParser(
-    private val schema: GJSchema,
+    private val sourceSchema: GraphQLSchema,
+    private val schema: ViaductSchema,
     private val variableValues: Map<String, EngineInputData?>,
     private val variableTarget: ResolverTarget? = null,
     private val preserveSourceResponseKeys: Boolean = false,
 ) {
-    private val sourceSchema = SourceSchemaAdapter(schema)
     private var effectiveVariableTarget = variableTarget
 
     fun selectionsFrom(fragment: String): Pair<ViaductSchema.CompositeTypeDef, SelectionForest> {
@@ -74,7 +75,7 @@ internal class GJSelectionParser(
         val selections =
             decodeSelectionSet(
                 selectionSet = operation.selectionSet,
-                typeInScope = schema.graphQLSchema.queryType,
+                typeInScope = sourceSchema.queryType,
                 argumentDecoder =
                     CoercedArgumentDecoder(
                         variables = variables,
@@ -116,7 +117,7 @@ internal class GJSelectionParser(
                 )
         }
         val graphQLTypeCondition =
-            schema.graphQLSchema.getType(typeConditionName) as GraphQLCompositeType
+            sourceSchema.getType(typeConditionName) as GraphQLCompositeType
         val specSelections =
             decodeSelectionSet(
                 selectionSet = definition.selectionSet,
@@ -130,7 +131,7 @@ internal class GJSelectionParser(
     private fun validateFragment(document: Document) {
         val errors =
             Validator()
-                .validateDocument(schema.graphQLSchema, document, Locale.ENGLISH)
+                .validateDocument(sourceSchema, document, Locale.ENGLISH)
                 .filterNot { it.validationErrorType in STANDALONE_FRAGMENT_ERRORS }
         require(errors.isEmpty()) {
             errors.joinToString(
@@ -203,7 +204,7 @@ internal class GJSelectionParser(
         }
         val fieldDefinition =
             Introspection.getFieldDef(
-                schema.graphQLSchema,
+                sourceSchema,
                 typeInScope,
                 field.name,
             )!!
@@ -220,7 +221,7 @@ internal class GJSelectionParser(
                     fragmentsByName,
                 )
             }
-        val canonicalField = sourceSchema.field(typeInScope.name, field.name)
+        val canonicalField = schema.loweredFieldFromSourceCoordinate(typeInScope.name, field.name)
         return SpecSelection.Field.of(
             alias =
                 field.alias ?: field.name.takeIf {
@@ -244,7 +245,7 @@ internal class GJSelectionParser(
         val typeConditionName = fragment.typeCondition?.name
         val graphQLTypeCondition =
             typeConditionName?.let {
-                schema.graphQLSchema.getType(it) as GraphQLCompositeType
+                sourceSchema.getType(it) as GraphQLCompositeType
             }
         val modelTypeCondition =
             typeConditionName?.let { schema.requireType(it) as ViaductSchema.CompositeTypeDef }
@@ -273,7 +274,7 @@ internal class GJSelectionParser(
         require(fragment.directives.isEmpty()) { "Fragment definitions cannot be conditional" }
         val typeConditionName = fragment.typeCondition.name!!
         val graphQLTypeCondition =
-            schema.graphQLSchema.getType(typeConditionName) as GraphQLCompositeType
+            sourceSchema.getType(typeConditionName) as GraphQLCompositeType
         val selections =
             decodeSelectionSet(
                 fragment.selectionSet,
@@ -392,7 +393,7 @@ internal class GJSelectionParser(
         ): Map<String, Any?> {
             val values =
                 ValuesResolver.getArgumentValues(
-                    schema.graphQLSchema.codeRegistry,
+                    sourceSchema.codeRegistry,
                     fieldDefinition.arguments,
                     field.arguments,
                     variables,
@@ -419,7 +420,7 @@ internal class GJSelectionParser(
                 ConditionalNodes().shouldInclude(
                     container,
                     variables.toMap(),
-                    schema.graphQLSchema,
+                    sourceSchema,
                     graphQLContext,
                 )
             ) {
@@ -447,7 +448,7 @@ internal data class ParsedSpecFragment(
     val selections: List<SpecSelection>,
 )
 
-/** Generic no-argument field directives retained by the qplan test-fixture parser. */
+/** Generic no-argument field directives retained by the parser. */
 private class ParsedFieldDirectives(
     directiveNames: List<String>,
 ) : FieldDirectives {

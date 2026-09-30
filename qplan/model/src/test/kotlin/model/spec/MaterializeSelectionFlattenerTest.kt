@@ -10,12 +10,12 @@ import model.InclusionCondition
 import model.MaterializeSelectionForest
 import model.ObjectEngineResult
 import model.merge
+import model.parsing.GJSelectionParser
 import model.requireField
 import model.requireObjectField
 import model.requireQueryTypeDef
 import model.requireType
 import model.testing.GJSchema
-import model.testing.GJSelectionParser
 import model.testing.TestWorld
 import model.usedVariables
 import viaduct.engine.api.FieldDirectives
@@ -27,7 +27,7 @@ class MaterializeSelectionFlattenerTest {
         val world = TestWorld.fromSDL("type Query { value: String }")
         val schema = world.schema as GJSchema
         val (_, selections) =
-            GJSelectionParser(schema, emptyMap())
+            GJSelectionParser(schema.graphQLSchema, schema, emptyMap())
                 .materializeSelectionsFrom(
                     """
                     fragment ResolverInput on Query {
@@ -56,7 +56,7 @@ class MaterializeSelectionFlattenerTest {
         val world = TestWorld.fromSDL("type Query { value: String }")
         val schema = world.schema as GJSchema
         val (_, selections) =
-            GJSelectionParser(schema, emptyMap())
+            GJSelectionParser(schema.graphQLSchema, schema, emptyMap())
                 .materializeSelectionsFrom(
                     """
                     fragment ResolverInput on Query {
@@ -356,7 +356,7 @@ class MaterializeSelectionFlattenerTest {
             )
         val schema = world.schema as GJSchema
         val parsed =
-            GJSelectionParser(schema, emptyMap())
+            GJSelectionParser(schema.graphQLSchema, schema, emptyMap())
                 .specSelectionsFrom(
                     "fragment ResolverInput on Query { account: user { id } }",
                 )

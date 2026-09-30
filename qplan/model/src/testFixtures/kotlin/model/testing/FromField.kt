@@ -6,6 +6,7 @@ import model.Fragment
 import model.ObjectEngineResult
 import model.SourceSchemaAdapter
 import model.isParentField
+import model.parsing.GJSelectionParser
 import model.registry.ProviderFragment
 import model.registry.ResolverTarget
 import model.requireField
@@ -69,6 +70,7 @@ class FromField private constructor(
             }
             val parsed =
                 GJSelectionParser(
+                    sourceSchema = schema.graphQLSchema,
                     schema = schema,
                     variableValues = bindings,
                     variableTarget =

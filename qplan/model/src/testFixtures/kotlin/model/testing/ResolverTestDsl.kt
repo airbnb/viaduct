@@ -32,6 +32,7 @@ import model.arg
 import model.emptyFragmentOf
 import model.fragmentFrom
 import model.objectOf
+import model.parsing.ErroneousVariableValue
 import model.requireType
 import viaduct.engine.api.EngineObjectData
 import viaduct.graphql.schema.ViaductSchema

@@ -9,9 +9,9 @@ import graphql.language.OperationDefinition
 import graphql.parser.Parser
 import graphql.validation.Validator
 import java.util.Locale
+import model.parsing.GJSelectionParser
 import model.registry.ResolverTarget
 import model.testing.GJSchema
-import model.testing.GJSelectionParser
 import viaduct.graphql.schema.ViaductSchema
 
 /** Parses one post-validation fragment as test-fixture preparation outside semantic model logic. */
@@ -94,7 +94,8 @@ fun ViaductSchema.fragmentFrom(
     preserveSourceResponseKeys: Boolean = false,
 ): Fragment =
     GJSelectionParser(
-        schema = this as GJSchema,
+        sourceSchema = (this as GJSchema).graphQLSchema,
+        schema = this,
         variableValues = bindings,
         variableTarget =
             variableTarget
@@ -117,7 +118,8 @@ fun Assumptions.emptyFragmentOf(typeName: String): Fragment = schema.emptyFragme
 
 private fun ViaductSchema.selectionParser(): GJSelectionParser =
     GJSelectionParser(
-        schema = this as GJSchema,
+        sourceSchema = (this as GJSchema).graphQLSchema,
+        schema = this,
         variableValues = emptyMap(),
     )
 

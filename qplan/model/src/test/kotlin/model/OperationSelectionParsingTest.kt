@@ -4,15 +4,65 @@ import graphql.GraphQLContext
 import graphql.execution.CoercedVariables
 import graphql.language.OperationDefinition
 import graphql.parser.Parser
+import graphql.schema.idl.SchemaParser
+import graphql.schema.idl.UnExecutableSchemaGenerator
 import java.util.Locale
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
-import kotlin.test.assertSame
+import model.lowering.LOWERED_TYPENAME_FIELD
+import model.lowering.lowerSchema
+import model.parsing.GJSelectionParser
 import model.testing.TestWorld
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertSame
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import viaduct.graphql.schema.ViaductSchema
 
 class OperationSelectionParsingTest {
+    @Test
+    fun `parses selections using a plain lowered schema without a fixture wrapper`() {
+        val sourceSchema =
+            UnExecutableSchemaGenerator.makeUnExecutableSchema(SchemaParser().parse(ARGUMENT_SCHEMA))
+        val schema = lowerSchema(sourceSchema)
+        val parser =
+            GJSelectionParser(
+                sourceSchema = sourceSchema,
+                schema = schema,
+                variableValues = emptyMap(),
+                preserveSourceResponseKeys = true,
+            )
+        val operation =
+            Parser.parse("query(${'$'}term: String!) { result: search(term: ${'$'}term) __typename }")
+                .getDefinitionsOfType(OperationDefinition::class.java)
+                .single()
+
+        val selections =
+            parser.selectionsFrom(
+                operation = operation,
+                variables = CoercedVariables.of(mapOf("term" to "value")),
+                graphQLContext = GraphQLContext.getDefault(),
+                locale = Locale.ENGLISH,
+            )
+
+        val search = selections.single()
+        assertSame(schema.requireField("Query", "search"), search.key.field)
+        assertEquals(
+            mapOf(
+                "term" to "value",
+                "limit" to 3,
+                "sort" to "ASC",
+                "filter" to mapOf("enabled" to true, "tags" to listOf("all")),
+            ),
+            search.key.arguments.fieldExpressions(),
+        )
+
+        val (nominalType, fragment) =
+            parser.materializeSelectionsFrom("fragment Input on Query { __typename }")
+        assertSame(schema.requireQueryTypeDef(), nominalType)
+        val typename = fragment.single()
+        assertEquals("__typename", typename.responseKey)
+        assertSame(schema.requireField("Query", LOWERED_TYPENAME_FIELD), typename.key.field)
+    }
+
     @Test
     fun `decodes literals and coerced operation variables to ground keys`() {
         val fixture = Fixture(ARGUMENT_SCHEMA)
@@ -145,7 +195,7 @@ class OperationSelectionParsingTest {
     fun `rejects unsupported operation forms`() {
         val fixture = Fixture(ARGUMENT_SCHEMA)
 
-        assertFailsWith<IllegalArgumentException> {
+        assertThrows<IllegalArgumentException> {
             fixture.decodeUnvalidated(
                 """
                 mutation {
@@ -154,7 +204,7 @@ class OperationSelectionParsingTest {
                 """.trimIndent(),
             )
         }
-        assertFailsWith<IllegalArgumentException> {
+        assertThrows<IllegalArgumentException> {
             fixture.decodeUnvalidated(
                 """
                 query {
