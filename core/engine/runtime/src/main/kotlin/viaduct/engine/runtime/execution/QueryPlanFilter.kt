@@ -223,6 +223,9 @@ private class QueryPlanFilter(
             }
             selections += sourceField.copy(
                 constraints = Constraints.Unconstrained.withDirectives(sourceField.field.directives),
+                field = sourceField.field.transform {
+                    it.selectionSet(childProjection?.selectionSet?.toAstSelectionSet())
+                },
                 selectionSet = childProjection?.selectionSet,
                 childPlans = field.childPlans,
                 fieldTypeChildPlans = field.fieldTypeChildPlans,
