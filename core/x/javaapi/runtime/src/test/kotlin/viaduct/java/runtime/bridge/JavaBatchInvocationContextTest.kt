@@ -132,7 +132,7 @@ class JavaBatchInvocationContextTest {
             CompletableFuture.allOf(*queries.toTypedArray()).thenApply {
                 queries.map { query ->
                     assertSame(queryData, query.join().javaEngineObjectData)
-                    assertSame(schema, query.join().context().schema)
+                    assertSame(mocks.fullSchema, query.join().context().schema)
                     assertSame(GlobalIDCodecDefault, query.join().context().globalIDCodec)
                     TestNode(query.join().context(), nodeData)
                 }

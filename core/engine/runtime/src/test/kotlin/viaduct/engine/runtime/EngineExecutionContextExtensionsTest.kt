@@ -19,6 +19,7 @@ import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.EngineSelectionSet
+import viaduct.engine.api.FullSchema
 import viaduct.engine.api.NodeReference
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.ResolveSelectionSetOptions
@@ -244,7 +245,7 @@ class EngineExecutionContextExtensionsTest {
     @Test
     fun `extension throws when used on non-impl class`() {
         val fakeContext = object : EngineExecutionContext {
-            override val fullSchema: EngineSchema get() = mockk()
+            override val fullSchema: FullSchema get() = mockk()
             override val scopedSchema: EngineSchema get() = mockk()
             override val activeSchema: EngineSchema get() = mockk()
             override val engineSelectionSetFactory get() = mockk<EngineSelectionSet.Factory>()

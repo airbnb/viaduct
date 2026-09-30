@@ -9,6 +9,7 @@ import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.EngineSelectionSet
+import viaduct.engine.api.FullSchema
 import viaduct.engine.api.NodeReference
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.ResolveSelectionSetOptions
@@ -37,8 +38,12 @@ abstract class RemoteEngineExecutionContext(
 ) : EngineExecutionContext {
     private fun requireDelegate(operation: String): EngineExecutionContext = delegate ?: throw UnsupportedOperationException("'$operation' requires a local engine context")
 
-    override val fullSchema: EngineSchema
-        get() = localSchema ?: requireDelegate("fullSchema").fullSchema
+    private val fullLocalSchema: FullSchema? by lazy {
+        localSchema?.let { if (it is FullSchema) it else FullSchema(it) }
+    }
+
+    override val fullSchema: FullSchema
+        get() = fullLocalSchema ?: requireDelegate("fullSchema").fullSchema
 
     override val scopedSchema: EngineSchema
         get() = localSchema ?: requireDelegate("scopedSchema").scopedSchema

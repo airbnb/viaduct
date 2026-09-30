@@ -17,6 +17,7 @@ import viaduct.engine.EngineFactory
 import viaduct.engine.SchemaFactory
 import viaduct.engine.api.Engine
 import viaduct.engine.api.EngineSchema
+import viaduct.engine.api.FullSchema
 import viaduct.graphql.scopes.SchemaView
 import viaduct.graphql.scopes.ScopedSchemaBuilder
 import viaduct.service.api.SchemaId
@@ -29,7 +30,7 @@ import viaduct.utils.slf4j.logger
  */
 class EngineRegistry private constructor(
     private val schemasById: Map<SchemaId, Lazy<EngineSchema>> = emptyMap(),
-    private val fullSchema: EngineSchema,
+    private val fullSchema: FullSchema,
     private val documentProviderFactory: DocumentProviderFactory,
 ) {
     /**
@@ -44,7 +45,7 @@ class EngineRegistry private constructor(
      * Complete internal schema used for planning and execution. Unlike [SchemaId.Base], this
      * schema includes tenant-local fields.
      */
-    fun getFullSchema(): EngineSchema = fullSchema
+    fun getFullSchema(): FullSchema = fullSchema
 
     /**
      * Returns the base view without requiring it to be registered for execution.
@@ -159,7 +160,7 @@ class EngineRegistry private constructor(
             @OptIn(ExperimentalCoroutinesApi::class)
             private suspend fun buildScopedSchemas(
                 scopedSchemas: Map<SchemaId, SchemaConfiguration.ScopedSchemaConfig>,
-                fullSchema: EngineSchema
+                fullSchema: FullSchema
             ): List<Pair<SchemaId, Lazy<EngineSchema>>> =
                 scopedSchemas.entries.parallelMap(parallelWorkers = 4) { (schemaId, scopeConfig) ->
                     schemaId to

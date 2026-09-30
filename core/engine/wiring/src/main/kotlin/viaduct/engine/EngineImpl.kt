@@ -22,6 +22,7 @@ import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.ExecutionAttribution
 import viaduct.engine.api.ExecutionInput
+import viaduct.engine.api.FullSchema
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.ResolveRootFieldReferenceOptions
 import viaduct.engine.api.ResolveSelectionSetOptions
@@ -70,7 +71,7 @@ class EngineImpl(
     dispatcherRegistry: DispatcherRegistry,
     override val schema: EngineSchema,
     documentProvider: PreparsedDocumentProvider,
-    private val fullSchema: EngineSchema,
+    private val fullSchema: FullSchema,
     private val queryPlanFactory: QueryPlanFactory,
 ) : Engine, EngineGraphQLJavaCompat, SubqueryInstrumentationEngine, SelectionSetCompletionEngine {
     private val coroutineInterop: CoroutineInterop = config.coroutineInterop

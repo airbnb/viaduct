@@ -40,6 +40,7 @@ import viaduct.bootstrap.ProviderVariablesAPIData
 import viaduct.bootstrap.SelectionsBlockConfig
 import viaduct.bootstrap.VariableProviderEntryConfig
 import viaduct.engine.api.EngineExecutionContext
+import viaduct.engine.api.FullSchema
 import viaduct.engine.api.mocks.MockSchema
 import viaduct.engine.api.mocks.createEngineObjectData
 import viaduct.engine.api.spi.FieldResolverExecutor
@@ -589,7 +590,7 @@ class ViaductModernExecutorFactoryTest {
         runBlocking {
             val selections = SelectionsBlockConfig("fragment _ on Query { testBatchField @include(if: \$provided) }")
             val context = mockk<EngineExecutionContext> {
-                every { fullSchema } returns schema
+                every { fullSchema } returns FullSchema(schema)
                 every { requestContext } returns null
                 every { globalIDCodec } returns GlobalIDCodecDefault
             }

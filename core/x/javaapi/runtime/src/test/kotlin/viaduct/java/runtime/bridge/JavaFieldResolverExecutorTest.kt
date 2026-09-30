@@ -19,8 +19,8 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
-import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.ExecutionAttribution
+import viaduct.engine.api.FullSchema
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.select.SelectionsParser
 import viaduct.engine.api.spi.FieldResolverExecutor
@@ -253,7 +253,7 @@ class JavaFieldResolverExecutorTest {
     private fun mockEngineContext(codec: GlobalIDCodec = mockk()): EngineExecutionContext =
         mockk {
             every { requestContext } returns null
-            every { fullSchema } returns mockk<EngineSchema>()
+            every { fullSchema } returns mockk<FullSchema>()
             every { globalIDCodec } returns codec
         }
 }

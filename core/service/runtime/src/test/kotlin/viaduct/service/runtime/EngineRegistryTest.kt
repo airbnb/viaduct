@@ -10,6 +10,7 @@ import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.future.await
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNotSame
 import org.junit.jupiter.api.Assertions.assertNull
@@ -22,6 +23,7 @@ import viaduct.engine.EngineImpl
 import viaduct.engine.SchemaFactory
 import viaduct.engine.api.Engine
 import viaduct.engine.api.EngineSchema
+import viaduct.engine.api.FullSchema
 import viaduct.engine.runtime.context.CompositeLocalContext
 import viaduct.engine.runtime.execution.withThreadLocalCoroutineContext
 import viaduct.graphql.scopes.SchemaScopingMode
@@ -366,7 +368,7 @@ class EngineRegistryTest {
             }
         """.trimIndent()
         var selectedSchema: EngineSchema? = null
-        var fullSchema: EngineSchema? = null
+        var fullSchema: FullSchema? = null
         val engineFactory = mockk<EngineFactory> {
             every { create(any(), any(), any()) } answers {
                 selectedSchema = firstArg()
@@ -379,6 +381,9 @@ class EngineRegistryTest {
 
         registry.getEngine(SchemaId.Base)
 
+        assertInstanceOf(EngineSchema::class.java, selectedSchema)
+        assertTrue(selectedSchema !is FullSchema)
+        assertInstanceOf(FullSchema::class.java, fullSchema)
         assertNull(selectedSchema!!.schema.queryType.getFieldDefinition("internalOnly"))
         assertNotNull(fullSchema!!.schema.queryType.getFieldDefinition("internalOnly"))
     }
@@ -592,7 +597,7 @@ class EngineRegistryTest {
 
         val registeredBaseSchema = registry.getSchema(SchemaId.Base)
         assertValidSchema(registeredBaseSchema)
-        assertSame(baseSchema, registeredBaseSchema, "Base should reuse the provided schema when no filtering is needed")
+        assertSame(registry.getFullSchema(), registeredBaseSchema, "Base should reuse the full schema when no filtering is needed")
         assertSame(baseSchema.schema, registeredBaseSchema.schema, "fromSchema should use the exact provided schema")
 
         val scopedSchema = registry.getSchema(SchemaId.Scoped("from-schema", setOf("test")))

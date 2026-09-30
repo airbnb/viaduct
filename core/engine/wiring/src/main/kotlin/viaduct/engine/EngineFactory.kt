@@ -4,6 +4,7 @@ import graphql.execution.preparsed.NoOpPreparsedDocumentProvider
 import graphql.execution.preparsed.PreparsedDocumentProvider
 import viaduct.engine.api.Engine
 import viaduct.engine.api.EngineSchema
+import viaduct.engine.api.FullSchema
 import viaduct.engine.runtime.DispatcherRegistry
 import viaduct.engine.runtime.execution.QueryPlanFactory
 
@@ -20,13 +21,13 @@ class EngineFactory(
      *
      * @param schema The compiled Viaduct schema to validate against, but not used for execution except for introspection queries.
      * @param documentProvider Provider for preparsed and cached GraphQL documents.
-     * @param fullSchema The full Viaduct schema used for execution. Defaults to [schema] when not supplied.
+     * @param fullSchema The complete internal Viaduct schema used for execution.
      * @return A configured Engine instance.
      */
     fun create(
         schema: EngineSchema,
         documentProvider: PreparsedDocumentProvider = NoOpPreparsedDocumentProvider(),
-        fullSchema: EngineSchema = schema,
+        fullSchema: FullSchema,
     ): Engine {
         return EngineImpl(
             config,

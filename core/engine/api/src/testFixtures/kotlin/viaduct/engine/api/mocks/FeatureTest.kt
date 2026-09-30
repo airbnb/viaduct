@@ -11,6 +11,7 @@ import viaduct.engine.api.Engine
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.ExecutionInput
+import viaduct.engine.api.FullSchema
 import viaduct.engine.runtime.execution.DefaultCoroutineInterop
 import viaduct.engine.runtime.tenantloading.ExecutorValidator
 import viaduct.engine.runtime.tenantloading.StandardDispatcherRegistryFactory
@@ -97,7 +98,7 @@ fun EngineTestModule.runFeatureTest(
         },
         resolverInstrumentation = config.resolverInstrumentation,
     ).create(fullSchema)
-    val engine = EngineFactory(config, dispatcherRegistry).create(executableSchema, fullSchema = fullSchema)
+    val engine = EngineFactory(config, dispatcherRegistry).create(executableSchema, fullSchema = FullSchema(fullSchema))
     FeatureTest(engine).block()
 }
 

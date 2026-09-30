@@ -10,7 +10,7 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.engine.api.EngineExecutionContext
-import viaduct.engine.api.EngineSchema
+import viaduct.engine.api.FullSchema
 import viaduct.errors.FrameworkException
 import viaduct.errors.TenantUsageException
 import viaduct.java.api.globalid.GlobalID
@@ -104,7 +104,7 @@ class SimpleFieldExecutionContextTest {
 
     @Test
     fun `getSchema returns schema from engineExecutionContext`() {
-        val schema = mockk<EngineSchema>()
+        val schema = mockk<FullSchema>()
         val engineCtx = mockk<EngineExecutionContext> {
             every { fullSchema } returns schema
         }

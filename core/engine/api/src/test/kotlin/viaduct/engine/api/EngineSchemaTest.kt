@@ -7,12 +7,24 @@ import graphql.schema.GraphQLOutputType
 import graphql.schema.GraphQLTypeUtil
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNotEquals
+import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.engine.SchemaFactory
 import viaduct.graphql.utils.DefaultSchemaFactory
 
 class EngineSchemaTest {
+    @Test
+    fun `full schema reuses type relations and copying produces a plain engine schema`() {
+        val schema = mkSchema("extend type Query { name: String }")
+        val fullSchema = FullSchema(schema)
+
+        assertSame(schema.rels, fullSchema.rels)
+        assertEquals(schema.schema, fullSchema.copy().schema)
+        assertNotEquals(fullSchema, fullSchema.copy())
+    }
+
     @Test
     fun `mutation namespace type returns true for namespace type reachable from mutation root`() {
         val schema = mkSchema(

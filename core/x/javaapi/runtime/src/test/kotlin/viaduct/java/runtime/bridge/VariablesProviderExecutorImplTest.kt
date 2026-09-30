@@ -14,6 +14,7 @@ import org.junit.jupiter.api.assertThrows
 import viaduct.bootstrap.FieldEntryConfig
 import viaduct.bootstrap.SelectionsBlockConfig
 import viaduct.engine.api.EngineExecutionContext
+import viaduct.engine.api.FullSchema
 import viaduct.engine.api.VariablesResolver
 import viaduct.engine.api.mocks.MockSchema
 import viaduct.errors.FrameworkException
@@ -43,7 +44,7 @@ class VariablesProviderExecutorImplTest {
         """.trimIndent()
     )
     private val engineContext = mockk<EngineExecutionContext> {
-        every { fullSchema } returns schema
+        every { fullSchema } returns FullSchema(schema)
         every { globalIDCodec } returns GlobalIDCodecDefault
         every { requestContext } returns "request"
     }

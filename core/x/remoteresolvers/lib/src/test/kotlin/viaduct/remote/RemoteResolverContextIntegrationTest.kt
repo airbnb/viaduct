@@ -136,7 +136,8 @@ class RemoteResolverContextIntegrationTest {
                     )
 
                 assertFalse(response.resultsList.single().hasError())
-                assertSame(runtimeSchema, observedFullSchema.get())
+                assertSame(runtimeSchema.schema, observedFullSchema.get().schema)
+                assertSame(runtimeSchema.rels, observedFullSchema.get().rels)
                 assertSame(runtimeSchema, observedSelectionSchema.get())
                 val data =
                     EngineObjectDataSerializer.deserialize(
