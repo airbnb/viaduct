@@ -50,9 +50,9 @@ class SharedQueryInclusionFailureRegressionTest : Resolver26DispatcherResource {
             """.trimIndent(),
             fieldResolvers = { schema ->
                 val owners = listOf("bad", "good").associate { name ->
-                    val field = schema.requireObjectField("Query", name)
+                    val field = schema.loweredSchema.requireObjectField("Query", name)
                     val resolver = fieldResolverOf(
-                        objectFragment = schema.emptyFragmentOf("Query"),
+                        objectFragment = schema.loweredSchema.emptyFragmentOf("Query"),
                         queryFragment = schema.fragmentFrom(
                             "fragment Owner on Query { " + (if (fromQueryField) "${name}Flag " else "") +
                                 "source @include(if: ${'$'}enabled) }",
@@ -69,14 +69,14 @@ class SharedQueryInclusionFailureRegressionTest : Resolver26DispatcherResource {
                     }
                 }
                 val flags = listOf("bad", "good").associate { name ->
-                    schema.requireObjectField("Query", "${name}Flag") to
-                        fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
+                    schema.loweredSchema.requireObjectField("Query", "${name}Flag") to
+                        fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
                             if (name == "bad") EngineErrorData.of(failure) else true
                         }
                 }
                 owners + flags + (
-                    schema.requireObjectField("Query", "source") to
-                        fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
+                    schema.loweredSchema.requireObjectField("Query", "source") to
+                        fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
                             sourceApplications.incrementAndGet()
                             7
                         }
@@ -87,7 +87,7 @@ class SharedQueryInclusionFailureRegressionTest : Resolver26DispatcherResource {
                     emptyMap()
                 } else {
                     listOf("bad", "good").associate { name ->
-                        val field = schema.requireObjectField("Query", name)
+                        val field = schema.loweredSchema.requireObjectField("Query", name)
                         Arguments.Variable.of(field, "enabled") to schema.fromQueryField(
                             queryFragmentSource = "fragment Flag on Query { ${name}Flag }",
                             responsePath = listOf("${name}Flag"),
@@ -99,7 +99,7 @@ class SharedQueryInclusionFailureRegressionTest : Resolver26DispatcherResource {
         )
         val operation = SharedOperationContext.create(world.assumptions)
         val result = operation.resolveWithTestDispatcher(
-            world.assumptions.fragmentFrom("fragment Test on Query { $order }").subselections,
+            world.schemas.fragmentFrom("fragment Test on Query { $order }").subselections,
         )
 
         fun value(name: String) =

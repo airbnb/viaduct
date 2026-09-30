@@ -67,12 +67,12 @@ internal fun validateRuntimeTypeCheckerCase(
         type Source { token: Int! }
         """.trimIndent(),
         fieldCheckers = { schema ->
-            listOf(schema.requireObjectField("Query", "gate"), schema.requireObjectField("Item", "protected"))
-                .associateWith { field -> FieldCheckerResolver.of(field, schema.requireQueryTypeDef()) { _, _, _ -> RuntimeTypeDenial } }
+            listOf(schema.loweredSchema.requireObjectField("Query", "gate"), schema.loweredSchema.requireObjectField("Item", "protected"))
+                .associateWith { field -> FieldCheckerResolver.of(field, schema.loweredSchema.requireQueryTypeDef()) { _, _, _ -> RuntimeTypeDenial } }
         },
         typeCheckers = { schema ->
-            val item = schema.requireType("Item") as ViaductSchema.Object
-            val source = schema.requireType("Source") as ViaductSchema.Object
+            val item = schema.loweredSchema.requireType("Item") as ViaductSchema.Object
+            val source = schema.loweredSchema.requireType("Source") as ViaductSchema.Object
             val target = ResolverTarget.TypeCheckerTarget(item)
 
             fun pair(offset: Int): ResolverFragmentTemplates =
@@ -88,14 +88,14 @@ internal fun validateRuntimeTypeCheckerCase(
                         Arguments.Variable.of(target, "local") to VariableDefinition.FromField.of(
                             ProviderFragment.OBJECT,
                             listOf(
-                                ObjectEngineResult.Key.of(schema.requireObjectField("Item", "source"), emptyMap()),
-                                ObjectEngineResult.Key.of(schema.requireObjectField("Source", "token"), emptyMap())
+                                ObjectEngineResult.Key.of(schema.loweredSchema.requireObjectField("Item", "source"), emptyMap()),
+                                ObjectEngineResult.Key.of(schema.loweredSchema.requireObjectField("Source", "token"), emptyMap())
                             ),
                             listOf("localSource", "token"),
                         ),
                         Arguments.Variable.of(target, "remote") to VariableDefinition.FromField.of(
                             ProviderFragment.QUERY,
-                            listOf(ObjectEngineResult.Key.of(schema.requireObjectField("Query", "viewer"), emptyMap())),
+                            listOf(ObjectEngineResult.Key.of(schema.loweredSchema.requireObjectField("Query", "viewer"), emptyMap())),
                             listOf("viewer"),
                         ),
                     ),
@@ -106,7 +106,7 @@ internal fun validateRuntimeTypeCheckerCase(
                     },
                 )
             mapOf(
-                item to TypeCheckerResolver.of(item, schema.requireQueryTypeDef(), mapOf("left" to pair(0), "right" to pair(1))) { inputs, _ ->
+                item to TypeCheckerResolver.of(item, schema.loweredSchema.requireQueryTypeDef(), mapOf("left" to pair(0), "right" to pair(1))) { inputs, _ ->
                     val localToken = (inputs.getValue("left").objectValue.get("source") as viaduct.engine.api.EngineObjectData.Sync).get("token") as Int
                     inputs.forEach { (name, input) ->
                         assertEquals(viewer, input.objectValue.get("remote"))
@@ -116,7 +116,7 @@ internal fun validateRuntimeTypeCheckerCase(
                     }
                     if (mode == GeneratedTypeCheckerMode.DENIAL || (mode == GeneratedTypeCheckerMode.MIXED && localToken % 2 == 1)) RuntimeTypeDenial else CheckerResult.Success
                 },
-                source to TypeCheckerResolver.of(source, schema.requireQueryTypeDef()) { _, _ -> error("Raw-only Source must not be checked") },
+                source to TypeCheckerResolver.of(source, schema.loweredSchema.requireQueryTypeDef()) { _, _ -> error("Raw-only Source must not be checked") },
             )
         },
     )
@@ -127,7 +127,7 @@ internal fun validateRuntimeTypeCheckerCase(
         val checkerObserver = CorrectnessCheckerObserver(applications)
         val resolverObserver = CorrectnessResolverObserver()
         val operation = SharedOperationContext.create(world.assumptions, resolverObserver = resolverObserver, checkerObserver = checkerObserver)
-        val selections = world.assumptions.operationSelectionsFrom(query)
+        val selections = world.schemas.operationSelectionsFrom(query)
         val result = operation.resolve(selections, dispatcher)
         assertEquals(4, providerCalls.get(), coordinates.summary())
         val typeCalls = applications.checkerApplications().filter { it.checkerKind == CheckerKind.TYPE }

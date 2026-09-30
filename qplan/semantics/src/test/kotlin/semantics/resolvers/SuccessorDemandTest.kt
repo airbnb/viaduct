@@ -20,7 +20,7 @@ import viaduct.graphql.schema.ViaductSchema
 class SuccessorDemandTest {
     @Test
     fun `successor demand lifts nested parent selections through producer fields`() {
-        val world =
+        val worldFixture =
             TestWorld.fromSDL(
                 schemaSDL =
                     """
@@ -30,23 +30,24 @@ class SuccessorDemandTest {
                     type Company { parent: Organization @parent, user: User }
                     type User { parent: Company @parent }
                     """.trimIndent(),
-            ).assumptions
-        val schema = world.schema
-        val query = schema.requireQueryTypeDef()
-        val organization = schema.requireType("Organization") as ViaductSchema.Object
-        val company = schema.requireType("Company") as ViaductSchema.Object
-        val user = schema.requireType("User") as ViaductSchema.Object
+            )
+        val world = worldFixture.assumptions
+        val schema = worldFixture.schemas
+        val query = schema.loweredSchema.requireQueryTypeDef()
+        val organization = schema.loweredSchema.requireType("Organization") as ViaductSchema.Object
+        val company = schema.loweredSchema.requireType("Company") as ViaductSchema.Object
+        val user = schema.loweredSchema.requireType("User") as ViaductSchema.Object
         val selections =
             schema.fragmentFrom(
                 "fragment ignored on Query { organization { company { user { parent { parent { name } } } } } }",
             ).subselections
 
         val completed = SharedOperationContext.create(world).let { resolutionOperation -> selections.successorDemand(resolutionOperation) }
-        val organizationSelection = completed.merge(query)[schema.key(query, "organization")]
+        val organizationSelection = completed.merge(query)[schema.loweredSchema.key(query, "organization")]
         val organizationDemand = organizationSelection.subselections.merge(organization)
-        val companySelection = organizationDemand[schema.key(organization, "company")]
+        val companySelection = organizationDemand[schema.loweredSchema.key(organization, "company")]
         val companyDemand = companySelection.subselections.merge(company)
-        val userSelection = companyDemand[schema.key(company, "user")]
+        val userSelection = companyDemand[schema.loweredSchema.key(company, "user")]
         val userDemand = userSelection.subselections.merge(user)
 
         assertEquals(setOf("company", "name"), organizationDemand.keys().objectKeyFieldNames())
@@ -56,7 +57,7 @@ class SuccessorDemandTest {
 
     @Test
     fun `boundary demand retains resolver paths but omits passive leaves`() {
-        val world =
+        val worldFixture =
             TestWorld.fromSDL(
                 schemaSDL =
                     """
@@ -77,13 +78,13 @@ class SuccessorDemandTest {
                     """.trimIndent(),
                 fieldResolvers = { schema ->
                     mapOf(
-                        schema.requireField("Query", "root") to
+                        schema.loweredSchema.requireField("Query", "root") to
                             fieldResolverOf(
-                                schema.emptyFragmentOf("Query"),
+                                schema.loweredSchema.emptyFragmentOf("Query"),
                             ) { _, _ ->
                                 EngineErrorData.of()
                             },
-                        schema.requireField("Root", "consumer") to
+                        schema.loweredSchema.requireField("Root", "consumer") to
                             fieldResolverOf(
                                 objectFragment =
                                     schema.fragmentFrom(
@@ -101,16 +102,17 @@ class SuccessorDemandTest {
                             ) { _, _ ->
                                 "consumer"
                             },
-                        schema.requireField("Box", "computed") to
+                        schema.loweredSchema.requireField("Box", "computed") to
                             fieldResolverOf(
-                                schema.emptyFragmentOf("Box"),
+                                schema.loweredSchema.emptyFragmentOf("Box"),
                             ) { _, _ ->
                                 "computed"
                             },
                     )
                 },
-            ).assumptions
-        val schema = world.schema
+            )
+        val world = worldFixture.assumptions
+        val schema = worldFixture.schemas
         val selections =
             schema.fragmentFrom(
                 "fragment ignored on Query { root { consumer } }",
@@ -119,16 +121,16 @@ class SuccessorDemandTest {
         val full =
             SharedOperationContext.create(world).let {
                     resolutionOperation ->
-                selections.successorDemand(resolutionOperation).merge(schema.requireQueryTypeDef()).instantiateBindings(resolutionOperation)
-            }[schema.key(schema.requireQueryTypeDef(), "root")]
+                selections.successorDemand(resolutionOperation).merge(schema.loweredSchema.requireQueryTypeDef()).instantiateBindings(resolutionOperation)
+            }[schema.loweredSchema.key(schema.loweredSchema.requireQueryTypeDef(), "root")]
                 .subselections
         val boundaries =
             SharedOperationContext.create(world).let {
                     resolutionOperation ->
-                selections.successorBoundaryDemand(resolutionOperation).merge(schema.requireQueryTypeDef()).instantiateBindings(resolutionOperation)
-            }[schema.key(schema.requireQueryTypeDef(), "root")]
+                selections.successorBoundaryDemand(resolutionOperation).merge(schema.loweredSchema.requireQueryTypeDef()).instantiateBindings(resolutionOperation)
+            }[schema.loweredSchema.key(schema.loweredSchema.requireQueryTypeDef(), "root")]
                 .subselections
-        val rootType = schema.requireType("Root") as ViaductSchema.Object
+        val rootType = schema.loweredSchema.requireType("Root") as ViaductSchema.Object
         val fullRoot = SharedOperationContext.create(world).let { resolutionOperation -> full.merge(rootType).instantiateBindings(resolutionOperation) }
         val boundaryRoot = SharedOperationContext.create(world).let { resolutionOperation -> boundaries.merge(rootType).instantiateBindings(resolutionOperation) }
 
@@ -141,9 +143,9 @@ class SuccessorDemandTest {
             boundaryRoot.groundKeys().fieldNames(),
         )
 
-        val boxType = schema.requireType("Box") as ViaductSchema.Object
-        val fullBox = fullRoot[schema.key(rootType, "box")]
-        val boundaryBox = boundaryRoot[schema.key(rootType, "box")]
+        val boxType = schema.loweredSchema.requireType("Box") as ViaductSchema.Object
+        val fullBox = fullRoot[schema.loweredSchema.key(rootType, "box")]
+        val boundaryBox = boundaryRoot[schema.loweredSchema.key(rootType, "box")]
         assertEquals(
             setOf("passive", "computed", "V_A_typename"),
             SharedOperationContext.create(world).let { resolutionOperation ->

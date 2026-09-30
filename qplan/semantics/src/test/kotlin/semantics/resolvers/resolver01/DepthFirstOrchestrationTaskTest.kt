@@ -13,7 +13,7 @@ import viaduct.graphql.schema.ViaductSchema
 class DepthFirstOrchestrationTaskTest {
     @Test
     fun `orchestration tasks validate source and target types at construction`() {
-        val world =
+        val worldFixture =
             TestWorld.fromSDL(
                 """
                 type Query {
@@ -24,7 +24,8 @@ class DepthFirstOrchestrationTaskTest {
                   value: Int
                 }
                 """.trimIndent(),
-            ).assumptions
+            )
+        val world = worldFixture.assumptions
         val source = world.resolverRegistry.createRootQueryInput()
         val target =
             ObjectEngineResult.of(
@@ -38,8 +39,7 @@ class DepthFirstOrchestrationTaskTest {
                 occurrence = OEROccurrence(target, emptyList(), target),
                 source = source,
                 constructionDemand =
-                    world
-                        .fragmentFrom("fragment ignored on Query { __typename }")
+                    worldFixture.schemas.fragmentFrom("fragment ignored on Query { __typename }")
                         .subselections,
                 queryOERDepth = 0,
             )

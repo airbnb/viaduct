@@ -17,7 +17,7 @@ class FieldCheckerIsolationTest {
     @Test
     fun `value-only resolver ignores checker definitions and never dispatches checker work`() {
         val checkerCalls = AtomicInteger()
-        val world =
+        val worldFixture =
             TestWorld.fromDSL(
                 schemaSDL =
                     """
@@ -27,18 +27,19 @@ class FieldCheckerIsolationTest {
                     """.trimIndent(),
                 selectiveResolvers = false,
                 fieldCheckers = { schema ->
-                    val field = schema.requireObjectField("Query", "value")
+                    val field = schema.loweredSchema.requireObjectField("Query", "value")
                     mapOf(
                         field to
-                            FieldCheckerResolver.of(field, schema.requireQueryTypeDef()) { _, _, _ ->
+                            FieldCheckerResolver.of(field, schema.loweredSchema.requireQueryTypeDef()) { _, _, _ ->
                                 checkerCalls.incrementAndGet()
                                 CheckerResult.Success
                             },
                     )
                 },
-            ).assumptions
+            )
+        val world = worldFixture.assumptions
 
-        val result = SharedOperationContext.create(world).resolve(world.operationSelectionsFrom("{ value }"))
+        val result = SharedOperationContext.create(world).resolve(worldFixture.schemas.operationSelectionsFrom("{ value }"))
         val key = ObjectEngineResult.GroundKey.of(world.schema.requireObjectField("Query", "value"), emptyMap())
 
         assertEquals(7, result.getCell(key).value.get())

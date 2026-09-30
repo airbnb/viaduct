@@ -7,6 +7,7 @@ import model.engineObjectDataOf
 import model.registry.ResolverTarget
 import model.registry.VariablesProviderFunction
 import model.testing.VariableDeclaration
+import model.testing.ViaductAndGJSchema
 import model.testing.fromArgument
 import model.testing.fromObjectField
 import model.testing.fromQueryField
@@ -25,7 +26,7 @@ internal class ExecutorVariableDeclarations(
 )
 
 internal fun FieldResolverExecutor.compileVariableDeclarations(
-    schema: ViaductSchema,
+    schema: ViaductAndGJSchema,
     field: ViaductSchema.ObjectField,
     objectFragment: Fragment,
     queryFragment: Fragment?,
@@ -75,7 +76,7 @@ internal fun FieldResolverExecutor.compileVariableDeclarations(
         }
     }
     argumentVariables.variables.forEach { (name, path) ->
-        declare(name) { schema.fromArgument(field, path.split('.')) }
+        declare(name) { schema.loweredSchema.fromArgument(field, path.split('.')) }
     }
     objectFieldVariables.variables.forEach { (name, path) ->
         declare(name) {

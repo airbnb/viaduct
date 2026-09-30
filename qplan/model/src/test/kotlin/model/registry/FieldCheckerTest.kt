@@ -13,6 +13,7 @@ import model.requireObjectField
 import model.requireQueryTypeDef
 import model.requireType
 import model.testing.TestWorld
+import model.testing.ViaductAndGJSchema
 import model.usedVariables
 import viaduct.engine.api.CheckerResult
 import viaduct.graphql.schema.ViaductSchema
@@ -21,9 +22,9 @@ class FieldCheckerTest {
     @Test
     fun `retains named fragment pairs and combines resolution demand per root`() {
         val world = TestWorld.fromSDL(SCHEMA_SDL)
-        val schema = world.schema
-        val itemType = schema.requireType("Item") as ViaductSchema.Object
-        val queryType = schema.requireQueryTypeDef()
+        val schema = world.schemas
+        val itemType = schema.loweredSchema.requireType("Item") as ViaductSchema.Object
+        val queryType = schema.loweredSchema.requireQueryTypeDef()
         val ownershipInput =
             fragments(
                 schema = schema,
@@ -43,7 +44,7 @@ class FieldCheckerTest {
             )
         val checker =
             FieldCheckerResolver.of(
-                field = schema.requireObjectField("Item", "secured"),
+                field = schema.loweredSchema.requireObjectField("Item", "secured"),
                 queryType = queryType,
                 fragmentTemplates =
                     mapOf(
@@ -75,9 +76,9 @@ class FieldCheckerTest {
     @Test
     fun `variables are shared across one named object and Query fragment pair`() {
         val world = TestWorld.fromSDL(SCHEMA_SDL)
-        val schema = world.schema
-        val field = schema.requireObjectField("Item", "secured")
-        val queryType = schema.requireQueryTypeDef()
+        val schema = world.schemas
+        val field = schema.loweredSchema.requireObjectField("Item", "secured")
+        val queryType = schema.loweredSchema.requireQueryTypeDef()
         val objectVariable = Arguments.Variable.of(ResolverTarget.FieldCheckerTarget(field), "objectId")
         val queryVariable = Arguments.Variable.of(ResolverTarget.FieldCheckerTarget(field), "queryId")
         val objectFragment =
@@ -90,7 +91,7 @@ class FieldCheckerTest {
                 path =
                     listOf(
                         ObjectEngineResult.Key.of(
-                            schema.requireObjectField("Item", "testId"),
+                            schema.loweredSchema.requireObjectField("Item", "testId"),
                             emptyMap(),
                         ),
                     ),
@@ -102,7 +103,7 @@ class FieldCheckerTest {
                 path =
                     listOf(
                         ObjectEngineResult.Key.of(
-                            schema.requireObjectField("Query", "policy"),
+                            schema.loweredSchema.requireObjectField("Query", "policy"),
                             emptyMap(),
                         ),
                     ),
@@ -172,9 +173,9 @@ class FieldCheckerTest {
     @Test
     fun `same named variables are lowered independently in different fragment pairs`() {
         val world = TestWorld.fromSDL(SCHEMA_SDL)
-        val schema = world.schema
-        val field = schema.requireObjectField("Item", "secured")
-        val queryType = schema.requireQueryTypeDef()
+        val schema = world.schemas
+        val field = schema.loweredSchema.requireObjectField("Item", "secured")
+        val queryType = schema.loweredSchema.requireQueryTypeDef()
         val variable = Arguments.Variable.of(ResolverTarget.FieldCheckerTarget(field), "seed")
         val definition = VariableDefinition.FromArgument.of(requireNotNull(field.arg("seed")))
         val ownerInput =
@@ -230,7 +231,7 @@ class FieldCheckerTest {
     }
 
     private fun fragments(
-        schema: ViaductSchema,
+        schema: ViaductAndGJSchema,
         objectFragment: String,
         queryFragment: String,
     ): ResolverFragmentTemplates =

@@ -17,7 +17,7 @@ class ParentConstructionDemandComplexityRegressionTest {
                 .joinToString(" ") { "field$it" }
             "field$index: Int @resolver(of: \"$inputs\", result: 1)"
         }
-        val original = TestWorld.fromDSL(
+        val originalFixture = TestWorld.fromDSL(
             """
             extend type Query {
               $fields
@@ -30,13 +30,14 @@ class ParentConstructionDemandComplexityRegressionTest {
               parent: Parent @parent
             }
             """.trimIndent(),
-        ).assumptions
+        )
+        val original = originalFixture.assumptions
         var lookups = 0
         val registry = object : ResolverRegistry by original.resolverRegistry {
             override fun resolver(field: ViaductSchema.ObjectField) = original.resolverRegistry.resolver(field).also { lookups++ }
         }
         val world = Assumptions.of(original.schema, registry, original.selectiveResolvers)
-        val input = world.schema.fragmentFrom("fragment F on Query { field0 }").subselections
+        val input = originalFixture.schemas.fragmentFrom("fragment F on Query { field0 }").subselections
 
         val additional = input.liftParentConstructionDemand(world)
 

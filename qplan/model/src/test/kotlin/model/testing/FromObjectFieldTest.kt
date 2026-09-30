@@ -27,7 +27,7 @@ class FromObjectFieldTest {
                   profile: Profile!
                 }
                 """.trimIndent(),
-            ).schema
+            ).schemas
 
         val provider =
             schema.fromObjectField(
@@ -44,9 +44,9 @@ class FromObjectFieldTest {
 
         assertEquals(
             listOf(
-                ObjectEngineResult.Key.of(schema.requireField("Query", "profile"), emptyMap()),
+                ObjectEngineResult.Key.of(schema.loweredSchema.requireField("Query", "profile"), emptyMap()),
                 ObjectEngineResult.Key.of(
-                    schema.requireField("Profile", "commonName"),
+                    schema.loweredSchema.requireField("Profile", "commonName"),
                     mapOf("style" to 2),
                 ),
             ),
@@ -63,7 +63,7 @@ class FromObjectFieldTest {
                   z(w: Int!): Int!
                 }
                 """.trimIndent(),
-            ).schema
+            ).schemas
         val source =
             """
             fragment Provider on Query {
@@ -79,7 +79,7 @@ class FromObjectFieldTest {
             )
 
         assertEquals(
-            listOf(ObjectEngineResult.Key.of(schema.requireField("Query", "z"), mapOf("w" to 2))),
+            listOf(ObjectEngineResult.Key.of(schema.loweredSchema.requireField("Query", "z"), mapOf("w" to 2))),
             provider.keyPath,
         )
     }
@@ -107,7 +107,7 @@ class FromObjectFieldTest {
                   foo: Foo
                 }
                 """.trimIndent(),
-            ).schema
+            ).schemas
 
         val failure =
             assertFailsWith<IllegalArgumentException> {
@@ -147,7 +147,7 @@ class FromObjectFieldTest {
                   user: User!
                 }
                 """.trimIndent(),
-            ).schema
+            ).schemas
 
         val provider =
             schema.fromObjectField(
@@ -163,7 +163,7 @@ class FromObjectFieldTest {
             )
 
         assertEquals(
-            listOf(ObjectEngineResult.Key.of(schema.requireField("Named", "name"), emptyMap())),
+            listOf(ObjectEngineResult.Key.of(schema.loweredSchema.requireField("Named", "name"), emptyMap())),
             provider.keyPath,
         )
     }
@@ -182,7 +182,7 @@ class FromObjectFieldTest {
                   profile: Profile!
                 }
                 """.trimIndent(),
-            ).schema
+            ).schemas
         val source =
             """
             fragment Provider on Query {
@@ -357,22 +357,22 @@ class FromObjectFieldTest {
         TestWorld.fromSDL(
             schemaSDL = schemaSDL,
             fieldResolvers = { schema ->
-                schema.requireQueryTypeDef().fields
+                schema.loweredSchema.requireQueryTypeDef().fields
                     .filter { field -> field.name != "V_A_typename" }
                     .associateWith {
-                        fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
+                        fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
                             EngineErrorData.of()
                         }
                     } +
                     mapOf(
-                        schema.requireField("Query", "result") to
+                        schema.loweredSchema.requireField("Query", "result") to
                             fieldResolverOf(schema.fragmentFrom(objectFragment)) { _, _ ->
                                 1
                             },
                     )
             },
             variableProviders = { schema ->
-                val owner = schema.requireField("Query", "result") as ViaductSchema.ObjectField
+                val owner = schema.loweredSchema.requireField("Query", "result") as ViaductSchema.ObjectField
                 mapOf(
                     Arguments.Variable.of(owner, "value") to
                         schema.fromObjectField(objectFragment, responsePath),

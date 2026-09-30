@@ -58,13 +58,13 @@ class ReferenceQueryTypeCheckerCorrectResolutionTest {
     @Test
     fun `cached raw validation cannot discharge an independent root check`() {
         var checkerReplays = 0
-        val world = TestWorld.fromSDL(
+        val worldFixture = TestWorld.fromSDL(
             "type Query { dependency: Int! }",
             fieldResolvers = { schema ->
-                mapOf(schema.requireObjectField("Query", "dependency") to fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> 7 })
+                mapOf(schema.loweredSchema.requireObjectField("Query", "dependency") to fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> 7 })
             },
             typeCheckers = { schema ->
-                val query = schema.requireQueryTypeDef()
+                val query = schema.loweredSchema.requireQueryTypeDef()
                 mapOf(
                     query to TypeCheckerResolver.of(query, query) { _, _ ->
                         checkerReplays++
@@ -72,15 +72,16 @@ class ReferenceQueryTypeCheckerCorrectResolutionTest {
                     },
                 )
             },
-        ).assumptions
-        val query = world.schema.requireQueryTypeDef()
+        )
+        val world = worldFixture.assumptions
+        val query = worldFixture.schema.requireQueryTypeDef()
         val operation = SharedOperationContext.create(world)
         val primary = ObjectEngineResult.of(query)
         val witness = operation.rootFieldReferenceWitness(primary)
         val state = QueryOERValidationState()
         val cache = state.replayCache(primary, witness)
         val key = ObjectEngineResult.GroundKey.of(world.schema.requireObjectField("Query", "dependency"), emptyMap())
-        val selections = world.operationSelectionsFrom("{ dependency }").merge(query)
+        val selections = worldFixture.schemas.operationSelectionsFrom("{ dependency }").merge(query)
         for (typeResult in listOf(null, CheckerResult.Success)) {
             val nested = ObjectEngineResult.of(query, values = mapOf(key to 7), typeCheckerResult = Promise.of(typeResult))
             assertTrue(cache.queryResultConforms(operation, nested, selections, selectionsAreChecked = false))
@@ -99,28 +100,28 @@ class ReferenceQueryTypeCheckerCorrectResolutionTest {
         reference: Boolean = true,
         excludeDependency: Boolean = false,
     ): Boolean {
-        val world = TestWorld.fromSDL(
+        val worldFixture = TestWorld.fromSDL(
             "type Query { reference: Int! ordinary: Int! target: Int! dependency: Int! policy: Int! }",
             fieldResolvers = { schema ->
-                val empty = schema.emptyFragmentOf("Query")
-                val target = schema.requireObjectField("Query", "target")
+                val empty = schema.loweredSchema.emptyFragmentOf("Query")
+                val target = schema.loweredSchema.requireObjectField("Query", "target")
                 buildMap {
-                    put(schema.requireObjectField("Query", "reference"), fieldResolverOf(empty) { _, _ -> RootFieldReferenceData.of(listOf(target), emptyMap()) })
+                    put(schema.loweredSchema.requireObjectField("Query", "reference"), fieldResolverOf(empty) { _, _ -> RootFieldReferenceData.of(listOf(target), emptyMap()) })
                     listOf("ordinary", "target").forEach { name ->
                         val selection = if (excludeDependency) "dependency @skip(if: true)" else "dependency"
                         put(
-                            schema.requireObjectField("Query", name),
+                            schema.loweredSchema.requireObjectField("Query", name),
                             fieldResolverOf(empty, schema.fragmentFrom("fragment Input on Query { $selection }")) { _, query, _ ->
                                 if (excludeDependency) 7 else query.get("dependency")
                             },
                         )
                     }
-                    put(schema.requireObjectField("Query", "dependency"), fieldResolverOf(empty) { _, _ -> 7 })
-                    put(schema.requireObjectField("Query", "policy"), fieldResolverOf(empty) { _, _ -> 11 })
+                    put(schema.loweredSchema.requireObjectField("Query", "dependency"), fieldResolverOf(empty) { _, _ -> 7 })
+                    put(schema.loweredSchema.requireObjectField("Query", "policy"), fieldResolverOf(empty) { _, _ -> 11 })
                 }
             },
             typeCheckers = { schema ->
-                val query = schema.requireQueryTypeDef()
+                val query = schema.loweredSchema.requireQueryTypeDef()
                 mapOf(
                     query to TypeCheckerResolver.of(
                         query,
@@ -134,8 +135,9 @@ class ReferenceQueryTypeCheckerCorrectResolutionTest {
                     ) { _, _ -> CheckerResult.Success },
                 )
             },
-        ).assumptions
-        val query = world.schema.requireQueryTypeDef()
+        )
+        val world = worldFixture.assumptions
+        val query = worldFixture.schema.requireQueryTypeDef()
 
         fun key(name: String) = ObjectEngineResult.GroundKey.of(world.schema.requireObjectField("Query", name), emptyMap())
         val selected = key(if (reference) "reference" else "ordinary")
@@ -172,7 +174,7 @@ class ReferenceQueryTypeCheckerCorrectResolutionTest {
             observer.onQueryFragmentPrepared(ResolverOccurrenceId.at(root, listOf(selected)), nested, OEROccurrence(root, emptyList(), root))
         }
         val operation = SharedOperationContext.create(world, resolverObserver = observer)
-        return root.correctResolution(operation, world.operationSelectionsFrom("{ ${selected.field.name} }").merge(query))
+        return root.correctResolution(operation, worldFixture.schemas.operationSelectionsFrom("{ ${selected.field.name} }").merge(query))
     }
 }
 

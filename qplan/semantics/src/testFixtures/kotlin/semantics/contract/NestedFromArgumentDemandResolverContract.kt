@@ -35,7 +35,7 @@ interface NestedFromArgumentDemandResolverContract : ResolverContract {
 
         val resolved =
             resolveAndValidate(
-                world,
+                testWorld,
                 """
                 query {
                   holder { __typename }

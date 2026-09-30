@@ -25,9 +25,9 @@ class TypeCheckerResolverTest {
     @Test
     fun `retains a type target and shares checker fragment mechanics`() =
         runBlocking {
-            val schema = TestWorld.fromSDL(SCHEMA_SDL).schema
-            val itemType = schema.requireType("Item") as ViaductSchema.Object
-            val queryType = schema.requireQueryTypeDef()
+            val schema = TestWorld.fromSDL(SCHEMA_SDL).schemas
+            val itemType = schema.loweredSchema.requireType("Item") as ViaductSchema.Object
+            val queryType = schema.loweredSchema.requireQueryTypeDef()
             val checker =
                 TypeCheckerResolver.of(
                     type = itemType,
@@ -75,9 +75,9 @@ class TypeCheckerResolverTest {
 
     @Test
     fun `type checker variables retain their type-checker target through lowering`() {
-        val schema = TestWorld.fromSDL(SCHEMA_SDL).schema
-        val itemType = schema.requireType("Item") as ViaductSchema.Object
-        val queryType = schema.requireQueryTypeDef()
+        val schema = TestWorld.fromSDL(SCHEMA_SDL).schemas
+        val itemType = schema.loweredSchema.requireType("Item") as ViaductSchema.Object
+        val queryType = schema.loweredSchema.requireQueryTypeDef()
         val target = ResolverTarget.TypeCheckerTarget(itemType)
         val ownerVariable = Arguments.Variable.of(target, "ownerId")
         val viewerVariable = Arguments.Variable.of(target, "viewerId")
@@ -103,7 +103,7 @@ class TypeCheckerResolverTest {
                                 path =
                                     listOf(
                                         ObjectEngineResult.Key.of(
-                                            schema.requireObjectField("Item", "id"),
+                                            schema.loweredSchema.requireObjectField("Item", "id"),
                                             emptyMap(),
                                         ),
                                     ),
@@ -115,7 +115,7 @@ class TypeCheckerResolverTest {
                                 path =
                                     listOf(
                                         ObjectEngineResult.Key.of(
-                                            schema.requireObjectField("Query", "viewer"),
+                                            schema.loweredSchema.requireObjectField("Query", "viewer"),
                                             emptyMap(),
                                         ),
                                     ),
@@ -160,8 +160,8 @@ class TypeCheckerResolverTest {
     @Test
     fun `type checker providers receive an empty argument tuple`() =
         runBlocking {
-            val schema = TestWorld.fromSDL(SCHEMA_SDL).schema
-            val itemType = schema.requireType("Item") as ViaductSchema.Object
+            val schema = TestWorld.fromSDL(SCHEMA_SDL).schemas
+            val itemType = schema.loweredSchema.requireType("Item") as ViaductSchema.Object
             val target = ResolverTarget.TypeCheckerTarget(itemType)
             val variable = Arguments.Variable.of(target, "provided")
             val templates =
@@ -182,7 +182,7 @@ class TypeCheckerResolverTest {
             val checker =
                 TypeCheckerResolver.of(
                     type = itemType,
-                    queryType = schema.requireQueryTypeDef(),
+                    queryType = schema.loweredSchema.requireQueryTypeDef(),
                     fragmentTemplates = mapOf("access" to templates),
                 ) { _, _ -> CheckerResult.Success }
 
@@ -191,10 +191,10 @@ class TypeCheckerResolverTest {
 
     @Test
     fun `type checker rejects field-owned and from-argument variables`() {
-        val schema = TestWorld.fromSDL(SCHEMA_SDL).schema
-        val itemType = schema.requireType("Item") as ViaductSchema.Object
-        val queryType = schema.requireQueryTypeDef()
-        val checkedField = schema.requireObjectField("Item", "secured")
+        val schema = TestWorld.fromSDL(SCHEMA_SDL).schemas
+        val itemType = schema.loweredSchema.requireType("Item") as ViaductSchema.Object
+        val queryType = schema.loweredSchema.requireQueryTypeDef()
+        val checkedField = schema.loweredSchema.requireObjectField("Item", "secured")
         val argument = requireNotNull(checkedField.arg("seed"))
 
         fun templates(target: ResolverTarget.FieldCheckerTarget): ResolverFragmentTemplates {

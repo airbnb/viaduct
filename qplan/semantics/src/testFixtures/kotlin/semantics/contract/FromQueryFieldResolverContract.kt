@@ -54,10 +54,10 @@ interface FromQueryFieldResolverContract : ResolverContract {
                     }
                     """.trimIndent(),
                 fieldResolvers = { schema ->
-                    val empty = schema.emptyFragmentOf("Query")
-                    val provider = schema.requireObjectField("Query", "provider")
-                    val consume = schema.requireObjectField("Query", "consume")
-                    val consumer = schema.requireObjectField("Query", "consumer")
+                    val empty = schema.loweredSchema.emptyFragmentOf("Query")
+                    val provider = schema.loweredSchema.requireObjectField("Query", "provider")
+                    val consume = schema.loweredSchema.requireObjectField("Query", "consume")
+                    val consumer = schema.loweredSchema.requireObjectField("Query", "consumer")
                     mapOf(
                         provider to fieldResolverOf(empty) { _, _ -> 7 },
                         consume to
@@ -78,7 +78,7 @@ interface FromQueryFieldResolverContract : ResolverContract {
                     )
                 },
                 variableProviders = { schema ->
-                    val consumer = schema.requireObjectField("Query", "consumer")
+                    val consumer = schema.loweredSchema.requireObjectField("Query", "consumer")
                     mapOf(
                         Arguments.Variable.of(consumer, "provided") to
                             schema.fromQueryField(
@@ -91,7 +91,7 @@ interface FromQueryFieldResolverContract : ResolverContract {
         val world = testWorld.assumptions
         val consumerKey = world.schema.contractKey("Query", "consumer")
 
-        val resolved = resolveAndValidate(world, "query { consumer }")
+        val resolved = resolveAndValidate(testWorld, "query { consumer }")
 
         assertEquals(
             if (consumeInObjectFragment && consumeInQueryFragment) 14 else 7,

@@ -144,24 +144,24 @@ class FromFieldExclusionTest : Resolver26DispatcherResource {
                 type B { c: Int }
             """.trimIndent(),
             fieldResolvers = { schema ->
-                val outer = schema.requireObjectField("Query", "outer")
+                val outer = schema.loweredSchema.requireObjectField("Query", "outer")
                 val fragment = schema.fragmentFrom(fragmentSource, variableField = outer)
                 mapOf(
                     outer to fieldResolverOf(
-                        objectFragment = if (provider == ProviderFragment.OBJECT) fragment else schema.emptyFragmentOf("Query"),
-                        queryFragment = if (provider == ProviderFragment.QUERY) fragment else schema.emptyFragmentOf("Query"),
+                        objectFragment = if (provider == ProviderFragment.OBJECT) fragment else schema.loweredSchema.emptyFragmentOf("Query"),
+                        queryFragment = if (provider == ProviderFragment.QUERY) fragment else schema.loweredSchema.emptyFragmentOf("Query"),
                     ) { obj, query, _ ->
                         (if (provider == ProviderFragment.OBJECT) obj else query).outputValue("consume")
                     },
-                    schema.requireObjectField("Query", "consume") to fieldResolverOf(schema.emptyFragmentOf("Query")) { _, args ->
+                    schema.loweredSchema.requireObjectField("Query", "consume") to fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, args ->
                         args.fieldValues.getValue("value") ?: -1
                     },
-                    schema.requireObjectField("Query", "a") to fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> schema.objectOf("A") },
-                    schema.requireObjectField("Query", "flag") to fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> false },
-                    schema.requireObjectField("A", "b") to fieldResolverOf(schema.emptyFragmentOf("A")) { _, _ ->
-                        if (nullAt == "b") null else schema.objectOf("B")
+                    schema.loweredSchema.requireObjectField("Query", "a") to fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> schema.loweredSchema.objectOf("A") },
+                    schema.loweredSchema.requireObjectField("Query", "flag") to fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> false },
+                    schema.loweredSchema.requireObjectField("A", "b") to fieldResolverOf(schema.loweredSchema.emptyFragmentOf("A")) { _, _ ->
+                        if (nullAt == "b") null else schema.loweredSchema.objectOf("B")
                     },
-                    schema.requireObjectField("B", "c") to fieldResolverOf(schema.emptyFragmentOf("B")) { _, _ ->
+                    schema.loweredSchema.requireObjectField("B", "c") to fieldResolverOf(schema.loweredSchema.emptyFragmentOf("B")) { _, _ ->
                         when {
                             errorAt == "c" -> EngineErrorData.of()
                             nullAt == "c" -> null
@@ -171,7 +171,7 @@ class FromFieldExclusionTest : Resolver26DispatcherResource {
                 )
             },
             variableProviders = { schema ->
-                val outer = schema.requireObjectField("Query", "outer")
+                val outer = schema.loweredSchema.requireObjectField("Query", "outer")
 
                 fun fromPath(path: List<String>) =
                     when (provider) {
@@ -181,9 +181,9 @@ class FromFieldExclusionTest : Resolver26DispatcherResource {
                 buildMap {
                     put(Arguments.Variable.of(outer, "value"), fromPath(responsePath))
                     if ("${'$'}enabled" in source) {
-                        put(Arguments.Variable.of(outer, "enabled"), if (conditionFromField) fromPath(listOf("flag")) else schema.fromArgument(outer, "enabled"))
+                        put(Arguments.Variable.of(outer, "enabled"), if (conditionFromField) fromPath(listOf("flag")) else schema.loweredSchema.fromArgument(outer, "enabled"))
                     }
-                    if ("${'$'}other" in source) put(Arguments.Variable.of(outer, "other"), schema.fromArgument(outer, "other"))
+                    if ("${'$'}other" in source) put(Arguments.Variable.of(outer, "other"), schema.loweredSchema.fromArgument(outer, "other"))
                 }
             },
         )
@@ -204,7 +204,7 @@ class FromFieldExclusionTest : Resolver26DispatcherResource {
             }
         }
         val operation = SharedOperationContext.create(world.assumptions, resolverObserver = observer)
-        val fragment = world.assumptions.fragmentFrom("fragment Query on Query { outer(enabled: $enabled, other: $other) $extra }")
+        val fragment = world.schemas.fragmentFrom("fragment Query on Query { outer(enabled: $enabled, other: $other) $extra }")
         val result = operation.resolveWithTestDispatcher(fragment.subselections)
         result.validateFromFieldBindings(operation, observer.invokedResolverOccurrences())
         assertTrue(result.correctResolution(operation, fragment.subselections.merge(world.schema.requireQueryTypeDef())))

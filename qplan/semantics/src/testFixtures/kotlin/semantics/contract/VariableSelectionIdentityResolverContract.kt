@@ -68,7 +68,7 @@ interface VariableSelectionIdentityResolverContract : ResolverContract {
             )
         val world = testWorld.assumptions
         val resultKey = world.schema.contractKey("Query", "result")
-        val resultSelections = world.operationSelectionsFrom("query { result }")
+        val resultSelections = testWorld.schemas.operationSelectionsFrom("query { result }")
 
         val resolvedResult =
             resolveAndValidate(
@@ -90,7 +90,7 @@ interface VariableSelectionIdentityResolverContract : ResolverContract {
         val oneKey = world.schema.contractKey("Payload", "one")
         val twoKey = world.schema.contractKey("Payload", "two")
         val externalSelections =
-            world.operationSelectionsFrom(
+            testWorld.schemas.operationSelectionsFrom(
                 """
                 query {
                   payload(arg: 1) { one }
@@ -174,7 +174,7 @@ interface VariableSelectionIdentityResolverContract : ResolverContract {
                 ),
             )
         val selections =
-            world.operationSelectionsFrom(
+            testWorld.schemas.operationSelectionsFrom(
                 """query { result(seed: 1, other: 1) }""",
             )
 
@@ -264,7 +264,7 @@ interface VariableSelectionIdentityResolverContract : ResolverContract {
         val world = testWorld.assumptions
         val resultKey = world.schema.contractKey("Query", "result")
         val selections =
-            world.operationSelectionsFrom(
+            testWorld.schemas.operationSelectionsFrom(
                 """
                 query {
                   root {

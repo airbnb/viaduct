@@ -70,10 +70,9 @@ private suspend fun assertSlotDrivenMaterialization(
         CycleTask,
     ) -> EngineObjectData.Sync,
 ) {
-    val world =
-        TestWorld
-            .fromSDL(
-                """
+    val worldFixture = TestWorld
+        .fromSDL(
+            """
                 type Query {
                   value: Value!
                   values: [Value!]!
@@ -82,8 +81,9 @@ private suspend fun assertSlotDrivenMaterialization(
                 type Value {
                   text: String!
                 }
-                """.trimIndent(),
-            ).assumptions
+            """.trimIndent(),
+        )
+    val world = worldFixture.assumptions
     val operation = SharedOperationContext.create(world)
     val valueType = world.schema.requireType("Value")
     require(valueType is viaduct.graphql.schema.ViaductSchema.Object)
@@ -114,7 +114,7 @@ private suspend fun assertSlotDrivenMaterialization(
             emptyMap(),
         )
     val selections =
-        world
+        worldFixture.schemas
             .fragmentFrom("fragment ignored on Query { value { text } }")
             .materializeSelections
 
@@ -212,7 +212,7 @@ private suspend fun assertSlotDrivenMaterialization(
             fieldCheckerResults = emptyMap(),
         )
     val listedSelections =
-        world
+        worldFixture.schemas
             .fragmentFrom("fragment ignored on Query { values { text } }")
             .materializeSelections
     val listedInput =

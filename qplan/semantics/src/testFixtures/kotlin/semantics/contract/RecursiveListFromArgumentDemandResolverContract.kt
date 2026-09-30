@@ -43,7 +43,7 @@ interface RecursiveListFromArgumentDemandResolverContract : ResolverContract {
 
         val resolved =
             resolveAndValidate(
-                world,
+                testWorld,
                 """
                 query {
                   item {

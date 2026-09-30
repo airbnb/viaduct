@@ -17,8 +17,8 @@ import model.testing.TestWorld
 import viaduct.engine.api.CheckerResult
 
 class FieldCheckerRuntimeVariablesTest {
-    private val schema = TestWorld.fromSDL("type Query { checked: Int flag: Boolean echo(value: Int): Int }").schema
-    private val field = schema.requireObjectField("Query", "checked")
+    private val schema = TestWorld.fromSDL("type Query { checked: Int flag: Boolean echo(value: Int): Int }").schemas
+    private val field = schema.loweredSchema.requireObjectField("Query", "checked")
 
     @Test
     fun `parent variable validation specializes abstract branches on both input roots`() {
@@ -33,8 +33,8 @@ class FieldCheckerRuntimeVariablesTest {
             type ParentA implements ParentIface { id: ID child: ChildA localized(locale: String!): String }
             type ParentB implements ParentIface { id: ID localized(locale: String!): String }
             """.trimIndent(),
-        ).schema
-        val checked = mixed.requireObjectField("Query", "checked")
+        ).schemas
+        val checked = mixed.loweredSchema.requireObjectField("Query", "checked")
         for (root in ProviderFragment.entries) {
             fun checker(
                 type: String,
@@ -50,7 +50,7 @@ class FieldCheckerRuntimeVariablesTest {
                     if (root == ProviderFragment.QUERY) input else empty,
                     mapOf(Arguments.Variable.of(ResolverTarget.FieldCheckerTarget(checked), "locale") to VariableDefinition.FromArgument.of(requireNotNull(checked.arg("locale")))),
                 )
-                return FieldCheckerResolver.of(checked, mixed.requireQueryTypeDef(), mapOf("input" to pair)) { _, _, _ -> CheckerResult.Success }
+                return FieldCheckerResolver.of(checked, mixed.loweredSchema.requireQueryTypeDef(), mapOf("input" to pair)) { _, _, _ -> CheckerResult.Success }
             }
             assertFailsWith<IllegalArgumentException> { checker("ParentA") }
             checker("ParentB")
@@ -68,7 +68,7 @@ class FieldCheckerRuntimeVariablesTest {
                     mapOf(Arguments.Variable.of(ResolverTarget.FieldCheckerTarget(field), "v") to VariableDefinition.FromProvider),
                     variablesProvider = { mapOf("v" to value) },
                 )
-            val checker = FieldCheckerResolver.of(field, schema.requireQueryTypeDef(), mapOf("left" to pair(1), "right" to pair(2))) { _, _, _ -> CheckerResult.Success }
+            val checker = FieldCheckerResolver.of(field, schema.loweredSchema.requireQueryTypeDef(), mapOf("left" to pair(1), "right" to pair(2))) { _, _, _ -> CheckerResult.Success }
             assertEquals(mapOf("left:v" to 1, "right:v" to 2), checker.provideVariables(Arguments.Resolved.of(field, emptyMap())))
         }
 
@@ -81,13 +81,13 @@ class FieldCheckerRuntimeVariablesTest {
             mapOf(
                 variable to VariableDefinition.FromField.of(
                     ProviderFragment.OBJECT,
-                    listOf(ObjectEngineResult.Key.of(schema.requireObjectField("Query", "flag"), emptyMap())),
+                    listOf(ObjectEngineResult.Key.of(schema.loweredSchema.requireObjectField("Query", "flag"), emptyMap())),
                     listOf("flag"),
                 )
             ),
         )
         assertFailsWith<IllegalArgumentException> {
-            FieldCheckerResolver.of(field, schema.requireQueryTypeDef(), mapOf("input" to pair)) { _, _, _ -> CheckerResult.Success }
+            FieldCheckerResolver.of(field, schema.loweredSchema.requireQueryTypeDef(), mapOf("input" to pair)) { _, _, _ -> CheckerResult.Success }
         }
     }
 
@@ -100,7 +100,7 @@ class FieldCheckerRuntimeVariablesTest {
                 mapOf(Arguments.Variable.of(ResolverTarget.FieldCheckerTarget(field), "v") to VariableDefinition.FromProvider),
                 variablesProvider = { mapOf("wrong" to 1) },
             )
-            val checker = FieldCheckerResolver.of(field, schema.requireQueryTypeDef(), mapOf("input" to pair)) { _, _, _ -> CheckerResult.Success }
+            val checker = FieldCheckerResolver.of(field, schema.loweredSchema.requireQueryTypeDef(), mapOf("input" to pair)) { _, _, _ -> CheckerResult.Success }
             assertFailsWith<IllegalArgumentException> { checker.provideVariables(Arguments.Resolved.of(field, emptyMap())) }
         }
 }

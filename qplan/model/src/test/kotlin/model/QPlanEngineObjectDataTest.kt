@@ -12,14 +12,14 @@ import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 import kotlinx.coroutines.runBlocking
-import model.testing.GJSchema
+import model.testing.ViaductAndGJSchema
 import viaduct.engine.api.EngineObjectData
 import viaduct.errors.UnsetFieldException
 import viaduct.graphql.schema.ViaductSchema
 
 class QPlanEngineObjectDataTest {
-    private val fixture = GJSchema.fromSDL(SCHEMA_SDL)
-    private val schema: ViaductSchema = fixture
+    private val fixture = ViaductAndGJSchema.fromSDL(SCHEMA_SDL)
+    private val schema: ViaductSchema = fixture.loweredSchema
     private val userType = schema.requireType("User") as ViaductSchema.Object
     private val graphQLUserType = requireNotNull(fixture.graphQLSchema.getObjectType("User"))
 

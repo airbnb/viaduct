@@ -46,7 +46,7 @@ class SingularQueryGuardIsolationTest : Resolver26DispatcherResource {
                         val request = Job()
                         try {
                             val result = operation.startResolve(
-                                world.assumptions.operationSelectionsFrom("{ $order }"),
+                                world.schemas.operationSelectionsFrom("{ $order }"),
                                 CoroutineScope(resolverDispatcher + request),
                             )
                             val bad = withTimeout(5_000) { result.getCell(key(world, "bad")).value.await() }
@@ -87,7 +87,7 @@ class SingularQueryGuardIsolationTest : Resolver26DispatcherResource {
                     val request = Job()
                     try {
                         val result = operation.startResolve(
-                            world.assumptions.operationSelectionsFrom("{ bad good }"),
+                            world.schemas.operationSelectionsFrom("{ bad good }"),
                             CoroutineScope(resolverDispatcher + request),
                         )
                         withTimeout(5_000) {
@@ -122,9 +122,9 @@ class SingularQueryGuardIsolationTest : Resolver26DispatcherResource {
             selectiveResolvers = true,
             schemaSDL = "type Query { bad: Int!, good: Int!, source: Int!, leaf: Int!, echo(value: Int!): Int! }",
             fieldResolvers = { schema ->
-                val empty = schema.emptyFragmentOf("Query")
+                val empty = schema.loweredSchema.emptyFragmentOf("Query")
                 val owners = listOf("bad", "good").associate { name ->
-                    val field = schema.requireObjectField("Query", name)
+                    val field = schema.loweredSchema.requireObjectField("Query", name)
                     field to fieldResolverOf(
                         objectFragment = empty,
                         queryFragment = schema.fragmentFrom(
@@ -137,7 +137,7 @@ class SingularQueryGuardIsolationTest : Resolver26DispatcherResource {
                             mapOf("enabled" to true)
                         }
                 }
-                val source = schema.requireObjectField("Query", "source")
+                val source = schema.loweredSchema.requireObjectField("Query", "source")
                 owners + mapOf(
                     source to fieldResolverOf(
                         objectFragment = if (mode == "objectProvider") {
@@ -157,15 +157,15 @@ class SingularQueryGuardIsolationTest : Resolver26DispatcherResource {
                             else -> query.outputValue("leaf")
                         }
                     },
-                    schema.requireObjectField("Query", "leaf") to fieldResolverOf(empty) { _, _ ->
+                    schema.loweredSchema.requireObjectField("Query", "leaf") to fieldResolverOf(empty) { _, _ ->
                         leafCalls.incrementAndGet()
                         7
                     },
-                    schema.requireObjectField("Query", "echo") to fieldResolverOf(empty) { _, arguments -> arguments.fieldValues.getValue("value") },
+                    schema.loweredSchema.requireObjectField("Query", "echo") to fieldResolverOf(empty) { _, arguments -> arguments.fieldValues.getValue("value") },
                 )
             },
             variableProviders = { schema ->
-                val source = schema.requireObjectField("Query", "source")
+                val source = schema.loweredSchema.requireObjectField("Query", "source")
                 when (mode) {
                     "objectProvider" -> mapOf(
                         Arguments.Variable.of(source, "value") to schema.fromObjectField(

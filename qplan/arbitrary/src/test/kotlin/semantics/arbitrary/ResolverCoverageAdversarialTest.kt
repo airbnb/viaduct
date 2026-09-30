@@ -49,7 +49,7 @@ class ResolverCoverageAdversarialTest {
             assertTrue(schema.sdl.contains("[[${field.type.namedType}"))
 
             val registry = schema.registry(config).next(random)
-            val world = registry.world(schema).assumptions
+            val world = registry.world(schema)
             val canonicalField = world.schema.requireObjectField("Query", field.name)
             val value =
                 world.resolverRegistry.resolver(canonicalField)(
@@ -105,7 +105,7 @@ class ResolverCoverageAdversarialTest {
                     }.firstNotNullOfOrNull { it }
                         ?: error("Could not generate a Node-valued resolver with list=$listOutput")
                 val (schema, registry, sourceField) = generated
-                val world = registry.world(schema).assumptions
+                val world = registry.world(schema)
                 val producerField =
                     world.schema.requireObjectField(sourceField.typeName, sourceField.fieldName)
                 registry.clearResolutionWitness()
@@ -114,7 +114,7 @@ class ResolverCoverageAdversarialTest {
                     resolverObserver = registry.resolverObserver(),
                 )
                 operation.resolveObservedFields(
-                    world.fragmentFrom("fragment Test on Query { ${producerField.name} { id } }").subselections,
+                    world.schemas.fragmentFrom("fragment Test on Query { ${producerField.name} { id } }").subselections,
                 )
 
                 assertEquals(

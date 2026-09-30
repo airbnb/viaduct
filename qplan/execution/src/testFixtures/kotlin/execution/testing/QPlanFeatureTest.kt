@@ -28,6 +28,7 @@ import model.testing.FieldResolverDefinition
 import model.testing.NodeResolverFunction
 import model.testing.TestWorld
 import model.testing.VariableDeclaration
+import model.testing.ViaductAndGJSchema
 import model.testing.fieldResolverOf
 import model.testing.nodeResolverOf
 import model.testing.selectionAwareFieldResolverOf
@@ -104,9 +105,9 @@ fun EngineTestModule.runQPlanFeatureTest(
             schemaSDL = fullSchemaSDL,
             fieldResolvers = { canonicalSchema ->
                 registryInputs
-                    .getOrPut(canonicalSchema) {
+                    .getOrPut(canonicalSchema.loweredSchema) {
                         qplanRegistryInputs(
-                            schema = canonicalSchema,
+                            schemas = canonicalSchema,
                             context = context,
                             fieldSelectivityProvider = fieldSelectivityProvider,
                             includeDefaultQueryNodeResolvers = !withoutDefaultQueryNodeResolvers,
@@ -119,9 +120,9 @@ fun EngineTestModule.runQPlanFeatureTest(
             },
             variableProviders = { canonicalSchema ->
                 registryInputs
-                    .getOrPut(canonicalSchema) {
+                    .getOrPut(canonicalSchema.loweredSchema) {
                         qplanRegistryInputs(
-                            schema = canonicalSchema,
+                            schemas = canonicalSchema,
                             context = context,
                             fieldSelectivityProvider = fieldSelectivityProvider,
                             includeDefaultQueryNodeResolvers = !withoutDefaultQueryNodeResolvers,
@@ -177,11 +178,12 @@ private data class QPlanRegistryInputs(
 )
 
 private fun EngineTestModule.qplanRegistryInputs(
-    schema: QPlanSchema,
+    schemas: ViaductAndGJSchema,
     context: EngineExecutionContext,
     fieldSelectivityProvider: FieldSelectivityProvider,
     includeDefaultQueryNodeResolvers: Boolean,
 ): QPlanRegistryInputs {
+    val schema = schemas.loweredSchema
     val sourceSchema = SourceSchemaAdapter(schema)
     val variableProviders = linkedMapOf<Arguments.Variable, VariableDeclaration>()
     val supplied =
@@ -195,11 +197,11 @@ private fun EngineTestModule.qplanRegistryInputs(
             val sourceField =
                 requireNotNull(fullSchema.schema.getObjectType(coordinate.first))
                     .getFieldDefinition(coordinate.second)
-            val objectFragment = executor.objectFragment(schema, field)
-            val queryFragment = executor.queryFragment(schema, field)
+            val objectFragment = executor.objectFragment(schemas, field)
+            val queryFragment = executor.queryFragment(schemas, field)
             val variables =
                 executor.compileVariableDeclarations(
-                    schema = schema,
+                    schema = schemas,
                     field = field,
                     objectFragment = objectFragment,
                     queryFragment = queryFragment,
@@ -253,7 +255,7 @@ private fun EngineTestModule.qplanRegistryInputs(
                         queryValue,
                         arguments,
                         selectionSet,
-                        QPlanEngineExecutionContext(context, schema, resolutionContext),
+                        QPlanEngineExecutionContext(context, schemas, resolutionContext),
                     )
                 }
             val resolver =
@@ -317,7 +319,7 @@ private fun EngineTestModule.namespaceFieldResolvers(
         }.toMap()
 
 private fun FieldResolverExecutor.objectFragment(
-    schema: QPlanSchema,
+    schema: ViaductAndGJSchema,
     field: QPlanSchema.ObjectField,
 ): Fragment =
     objectSelectionSet?.let { required ->
@@ -325,10 +327,10 @@ private fun FieldResolverExecutor.objectFragment(
             document = required.selections.toDocument(),
             variableField = field,
         )
-    } ?: schema.emptyFragmentOf(field.containingDef.name)
+    } ?: schema.loweredSchema.emptyFragmentOf(field.containingDef.name)
 
 private fun FieldResolverExecutor.queryFragment(
-    schema: QPlanSchema,
+    schema: ViaductAndGJSchema,
     field: QPlanSchema.ObjectField,
 ): Fragment =
     querySelectionSet?.let { required ->
@@ -336,7 +338,7 @@ private fun FieldResolverExecutor.queryFragment(
             document = required.selections.toDocument(),
             variableField = field,
         )
-    } ?: schema.emptyFragmentOf(schema.requireQueryTypeDef().name)
+    } ?: schema.loweredSchema.emptyFragmentOf(schema.loweredSchema.requireQueryTypeDef().name)
 
 private fun EngineTestModule.builtInNodeFieldResolvers(
     schema: QPlanSchema,
@@ -394,9 +396,10 @@ private fun nodeReference(
 }
 
 private fun EngineTestModule.qplanNodeResolvers(
-    schema: QPlanSchema,
+    schemas: ViaductAndGJSchema,
     context: EngineExecutionContext,
 ): Map<QPlanSchema.Object, NodeResolverFunction> {
+    val schema = schemas.loweredSchema
     val sourceSchema = SourceSchemaAdapter(schema)
     val supplied =
         nodeResolverExecutors.associate { (typeName, executor) ->
@@ -461,7 +464,7 @@ private fun EngineTestModule.qplanNodeResolvers(
                         invokeExecutor(
                             id,
                             selections.toEngineSelectionSet(type, fullSchema, sourceSchema),
-                            QPlanEngineExecutionContext(context, schema, resolutionContext),
+                            QPlanEngineExecutionContext(context, schemas, resolutionContext),
                         )
                     }
                 } else {
@@ -473,7 +476,7 @@ private fun EngineTestModule.qplanNodeResolvers(
                                 "id",
                                 emptyMap(),
                             ),
-                            QPlanEngineExecutionContext(context, schema, resolutionContext),
+                            QPlanEngineExecutionContext(context, schemas, resolutionContext),
                         )
                     }
                 }

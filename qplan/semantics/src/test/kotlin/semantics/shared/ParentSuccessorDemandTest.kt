@@ -13,7 +13,7 @@ import model.testing.TestWorld
 class ParentSuccessorDemandTest {
     @Test
     fun `selections without parent demand contribute nothing`() {
-        val selections = schema.fragmentFrom(
+        val selections = fixture.schemas.fragmentFrom(
             "fragment F on Query { organization { name company { title user { label } } } }",
         ).subselections
 
@@ -22,7 +22,7 @@ class ParentSuccessorDemandTest {
 
     @Test
     fun `grandparent lifting returns only additions and their containing paths`() {
-        val selections = schema.fragmentFrom(
+        val selections = fixture.schemas.fragmentFrom(
             "fragment F on Query { organization { company { title user { label parent { parent { name } } } } } }",
         ).subselections
 
@@ -50,7 +50,7 @@ class ParentSuccessorDemandTest {
 
     @Test
     fun `lifted additions preserve conditions across ancestor boundaries`() {
-        val selections = schema.fragmentFrom(
+        val selections = fixture.schemas.fragmentFrom(
             """
             fragment F on Query {
               organization @include(if: ${'$'}outer) {
@@ -88,7 +88,7 @@ class ParentSuccessorDemandTest {
 
     private fun ObjectSelectionForest.fieldNames(): Set<String> = keys().mapTo(mutableSetOf()) { it.field.name }
 
-    private val world = TestWorld.fromSDL(
+    private val fixture = TestWorld.fromSDL(
         schemaSDL =
             """
             directive @parent on FIELD_DEFINITION
@@ -97,7 +97,8 @@ class ParentSuccessorDemandTest {
             type Company { parent: Organization @parent, title: String, user: User }
             type User { parent: Company @parent, label: String }
             """.trimIndent(),
-    ).assumptions
+    )
+    private val world = fixture.assumptions
     private val schema = world.schema
     private val organization = schema.requireObjectField("Organization", "name").containingDef
     private val company = schema.requireObjectField("Company", "user").containingDef

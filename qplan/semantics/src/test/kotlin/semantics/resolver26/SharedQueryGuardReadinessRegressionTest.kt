@@ -33,9 +33,9 @@ class SharedQueryGuardReadinessRegressionTest : Resolver26DispatcherResource {
                 schemaSDL = "type Query { slow: Int!, fast: Int!, source: Int! }",
                 fieldResolvers = { schema ->
                     val owners = listOf("slow", "fast").associate { name ->
-                        val field = schema.requireObjectField("Query", name)
+                        val field = schema.loweredSchema.requireObjectField("Query", name)
                         field to fieldResolverOf(
-                            objectFragment = schema.emptyFragmentOf("Query"),
+                            objectFragment = schema.loweredSchema.emptyFragmentOf("Query"),
                             queryFragment = schema.fragmentFrom(
                                 "fragment Input on Query { source @include(if: ${'$'}enabled) }",
                                 variableField = field,
@@ -52,8 +52,8 @@ class SharedQueryGuardReadinessRegressionTest : Resolver26DispatcherResource {
                             }
                     }
                     owners + (
-                        schema.requireObjectField("Query", "source") to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
+                        schema.loweredSchema.requireObjectField("Query", "source") to
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
                                 7
                             }
                     )
@@ -64,7 +64,7 @@ class SharedQueryGuardReadinessRegressionTest : Resolver26DispatcherResource {
             try {
                 val operation = SharedOperationContext.create(world.assumptions)
                 val result = operation.startResolve(
-                    world.assumptions.fragmentFrom("fragment Test on Query { slow fast }").subselections,
+                    world.schemas.fragmentFrom("fragment Test on Query { slow fast }").subselections,
                     scope,
                 )
                 withTimeout(5_000) {

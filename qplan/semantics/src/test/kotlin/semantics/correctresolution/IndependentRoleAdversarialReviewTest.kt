@@ -44,7 +44,7 @@ class IndependentRoleAdversarialReviewTest {
         val world = world(calls, references = false)
         val observer = RecordingObserver()
         val operation = SharedOperationContext.create(world.assumptions, resolverObserver = observer)
-        val selections = world.assumptions.fragmentFrom("fragment Result on Query { left right }").subselections
+        val selections = world.schemas.fragmentFrom("fragment Result on Query { left right }").subselections
         val result = operation.resolve(selections)
         assertEquals(1, calls.get())
         assertEquals(3, observer.log.snapshot().applications.size)
@@ -59,7 +59,7 @@ class IndependentRoleAdversarialReviewTest {
         val world = world(calls, references = true)
         val observer = RecordingObserver()
         val operation = SharedOperationContext.create(world.assumptions, resolverObserver = observer)
-        val selections = world.assumptions.fragmentFrom("fragment Result on Query { left right }").subselections
+        val selections = world.schemas.fragmentFrom("fragment Result on Query { left right }").subselections
         val result = operation.resolve(selections)
         assertEquals(2, calls.get())
         assertEquals(6, observer.log.snapshot().applications.size)
@@ -140,7 +140,7 @@ class IndependentRoleAdversarialReviewTest {
         assertEquals(4, observer.log.snapshot().applications.size)
         assertTrue(observer.rootFieldReferenceInvocations().isEmpty(), "No source result contains a reference")
         assertEquals(2, observer.allQueryFragmentResults().values.map { it.single() }.toSet().size)
-        val requested = world.assumptions.fragmentFrom("fragment Result on Query { left right }").subselections.merge(queryType)
+        val requested = world.schemas.fragmentFrom("fragment Result on Query { left right }").subselections.merge(queryType)
         assertTrue(result.correctResolution(operation, requested), "All actual values and owner projections remain correct")
         val accepted = try {
             result.registeredResolverOccurrenceApplicationIdentityCounts(operation) ==
@@ -159,13 +159,13 @@ class IndependentRoleAdversarialReviewTest {
             selectiveResolvers = false,
             schemaSDL = "type Query { left: Int! right: Int! target: Int! source: Int! }",
             fieldResolvers = { schema ->
-                val empty = schema.emptyFragmentOf("Query")
+                val empty = schema.loweredSchema.emptyFragmentOf("Query")
                 val query = schema.fragmentFrom("fragment Input on Query { source }")
-                val target = schema.requireObjectField("Query", "target")
+                val target = schema.loweredSchema.requireObjectField("Query", "target")
                 buildMap {
                     listOf("left", "right").forEach { name ->
                         put(
-                            schema.requireObjectField("Query", name),
+                            schema.loweredSchema.requireObjectField("Query", name),
                             if (references) {
                                 fieldResolverOf(empty) { _, _ -> RootFieldReferenceData.of(listOf(target), emptyMap()) }
                             } else {
@@ -175,7 +175,7 @@ class IndependentRoleAdversarialReviewTest {
                     }
                     put(target, fieldResolverOf(empty, query) { _, value, _ -> value.outputValue("source") })
                     put(
-                        schema.requireObjectField("Query", "source"),
+                        schema.loweredSchema.requireObjectField("Query", "source"),
                         fieldResolverOf(empty) { _, _ ->
                             calls.incrementAndGet()
                             7

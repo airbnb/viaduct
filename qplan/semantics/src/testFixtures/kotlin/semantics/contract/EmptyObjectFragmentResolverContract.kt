@@ -27,7 +27,7 @@ interface EmptyObjectFragmentResolverContract :
             TestWorld.fromSDL(
                 schemaSDL = "type Query { value: Int }",
                 selectiveResolvers = selectiveResolvers,
-            ).assumptions
+            )
         val result = resolveAndValidate(world, "query { __typename }")
 
         assertTrue(result.keys.isEmpty())
@@ -63,8 +63,7 @@ interface EmptyObjectFragmentResolverContract :
                     }
                     """.trimIndent(),
             )
-        val world = testWorld.assumptions
-        resolveAndValidate(world, "query { items { selected } }", resolverObserver = invocationObserver)
+        resolveAndValidate(testWorld, "query { items { selected } }", resolverObserver = invocationObserver)
     }
 
     @Test
@@ -111,7 +110,7 @@ interface EmptyObjectFragmentResolverContract :
                     """.trimIndent(),
             )
         val world = testWorld.assumptions
-        val result = resolveAndValidate(world, "query { items { computed } }", resolverObserver = invocationObserver)
+        val result = resolveAndValidate(testWorld, "query { items { computed } }", resolverObserver = invocationObserver)
         val items =
             assertIs<ListEngineResult>(
                 result.getCell(world.schema.contractKey("Query", "items")).get(),
@@ -163,7 +162,7 @@ interface EmptyObjectFragmentResolverContract :
             )
         val world = testWorld.assumptions
         val result =
-            resolveAndValidate(world, "query { item { computed } }", resolverObserver = invocationObserver)
+            resolveAndValidate(testWorld, "query { item { computed } }", resolverObserver = invocationObserver)
         val item =
             assertIs<ObjectEngineResult>(
                 result.getCell(world.schema.contractKey("Query", "item")).get(),

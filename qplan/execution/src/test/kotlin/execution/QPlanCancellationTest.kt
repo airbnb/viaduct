@@ -162,11 +162,11 @@ class QPlanCancellationTest {
             TestWorld.fromSDL(
                 schemaSDL = CANCELLATION_SCHEMA,
                 fieldResolvers = { schema ->
-                    val fast = schema.requireObjectField("Query", "fast")
-                    val cancelled = schema.requireObjectField("Query", "cancelled")
-                    val dependency = schema.requireObjectField("Query", "dependency")
+                    val fast = schema.loweredSchema.requireObjectField("Query", "fast")
+                    val cancelled = schema.loweredSchema.requireObjectField("Query", "cancelled")
+                    val dependency = schema.loweredSchema.requireObjectField("Query", "dependency")
                     mapOf(
-                        fast to fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> 1 },
+                        fast to fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> 1 },
                         cancelled to
                             fieldResolverOf(
                                 schema.fragmentFrom(
@@ -179,7 +179,7 @@ class QPlanCancellationTest {
                                     throw CancellationException("provider cancelled")
                                 },
                         dependency to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> 3 },
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> 3 },
                     )
                 },
             )
@@ -200,14 +200,14 @@ class QPlanCancellationTest {
             TestWorld.fromSDL(
                 schemaSDL = LIST_SCHEMA,
                 fieldResolvers = { schema ->
-                    val fast = schema.requireObjectField("Query", "fast")
-                    val numbers = schema.requireObjectField("Query", "numbers")
-                    val number = schema.requireObjectField("Query", "number")
-                    val dependency = schema.requireObjectField("Query", "dependency")
+                    val fast = schema.loweredSchema.requireObjectField("Query", "fast")
+                    val numbers = schema.loweredSchema.requireObjectField("Query", "numbers")
+                    val number = schema.loweredSchema.requireObjectField("Query", "number")
+                    val dependency = schema.loweredSchema.requireObjectField("Query", "dependency")
                     mapOf(
-                        fast to fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> 1 },
+                        fast to fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> 1 },
                         numbers to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
                                 listOf(
                                     RootFieldReferenceData.of(
                                         listOf(number),
@@ -222,7 +222,7 @@ class QPlanCancellationTest {
                             },
                         number to
                             fieldResolverOf(
-                                objectFragment = schema.emptyFragmentOf("Query"),
+                                objectFragment = schema.loweredSchema.emptyFragmentOf("Query"),
                                 queryFragment =
                                     schema.fragmentFrom(
                                         "fragment NumberQuery on Query { " +
@@ -247,7 +247,7 @@ class QPlanCancellationTest {
                                 }
                             },
                         dependency to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> 3 },
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> 3 },
                     )
                 },
             )

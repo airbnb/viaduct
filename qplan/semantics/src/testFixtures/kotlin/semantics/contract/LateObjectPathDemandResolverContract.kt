@@ -66,7 +66,7 @@ interface LateObjectPathDemandResolverContract : ResolverContract {
         val xKey = world.schema.contractKey("Foo", "x")
         val yKey = world.schema.contractKey("Foo", "y")
         val selections =
-            world.operationSelectionsFrom(
+            testWorld.schemas.operationSelectionsFrom(
                 "query { foo { x y } }",
             )
 
@@ -147,7 +147,7 @@ interface LateObjectPathDemandResolverContract : ResolverContract {
         val world = testWorld.assumptions
         val triggerKey = world.schema.contractKey("Query", "trigger")
 
-        val resolved = resolveAndValidate(world, "query { trigger }", resolverObserver = invocationObserver)
+        val resolved = resolveAndValidate(testWorld, "query { trigger }", resolverObserver = invocationObserver)
 
         assertEquals(2, resolved.getCell(triggerKey).get())
         assertEquals(1, nodeApplications)
@@ -234,7 +234,7 @@ interface LateObjectPathDemandResolverContract : ResolverContract {
         val world = testWorld.assumptions
         val resultKey = world.schema.contractKey("Query", "result")
 
-        val resolved = resolveAndValidate(world, "query { result }", resolverObserver = invocationObserver)
+        val resolved = resolveAndValidate(testWorld, "query { result }", resolverObserver = invocationObserver)
 
         assertEquals(2, resolved.getCell(resultKey).get())
         assertEquals(1, nodeApplications)
@@ -293,7 +293,7 @@ interface LateObjectPathDemandResolverContract : ResolverContract {
         val world = testWorld.assumptions
         val lateKey = world.schema.contractKey("Query", "late")
 
-        val resolved = resolveAndValidate(world, "query { late }", resolverObserver = invocationObserver)
+        val resolved = resolveAndValidate(testWorld, "query { late }", resolverObserver = invocationObserver)
 
         assertEquals(7, resolved.getCell(lateKey).get())
         assertEquals(1, parentApplications)
@@ -350,7 +350,7 @@ interface LateObjectPathDemandResolverContract : ResolverContract {
         val world = testWorld.assumptions
         val resultKey = world.schema.contractKey("Query", "result")
 
-        val resolved = resolveAndValidate(world, "query { result }", resolverObserver = invocationObserver)
+        val resolved = resolveAndValidate(testWorld, "query { result }", resolverObserver = invocationObserver)
 
         assertEquals(7, resolved.getCell(resultKey).get())
         assertEquals(1, holderApplications)
@@ -407,7 +407,7 @@ interface LateObjectPathDemandResolverContract : ResolverContract {
         val outerKey = world.schema.contractKey("Query", "outer")
         val parentKey = world.schema.contractKey("Query", "parent")
 
-        val resolved = resolveAndValidate(world, "query { early outer }", resolverObserver = invocationObserver)
+        val resolved = resolveAndValidate(testWorld, "query { early outer }", resolverObserver = invocationObserver)
         val parent = resolved.getCell(parentKey).get() as ObjectEngineResult
 
         assertEquals(1, resolved.getCell(outerKey).get())

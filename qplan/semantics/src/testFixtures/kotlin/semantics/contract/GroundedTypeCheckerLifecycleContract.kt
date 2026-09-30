@@ -41,7 +41,7 @@ interface GroundedTypeCheckerLifecycleContract {
 
     @Test
     fun `type checker and checked parent input cycle terminates on the OER slot`() {
-        val world = TestWorld.fromSDL(
+        val worldFixture = TestWorld.fromSDL(
             selectiveResolvers = coroutineResolverSubject.selectiveResolvers,
             schemaSDL = """
                 directive @parent on FIELD_DEFINITION
@@ -51,23 +51,23 @@ interface GroundedTypeCheckerLifecycleContract {
             """.trimIndent(),
             fieldResolvers = { schema ->
                 mapOf(
-                    schema.requireObjectField("Query", "root") to fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
-                        schema.objectOf("Root") {
+                    schema.loweredSchema.requireObjectField("Query", "root") to fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
+                        schema.loweredSchema.objectOf("Root") {
                             "value" setTo 1
-                            "child" setTo schema.objectOf("Child")
+                            "child" setTo schema.loweredSchema.objectOf("Child")
                         }
                     },
-                    schema.requireObjectField("Child", "derived") to fieldResolverOf(schema.fragmentFrom("fragment Input on Child { parent { value } }")) { input, _ ->
+                    schema.loweredSchema.requireObjectField("Child", "derived") to fieldResolverOf(schema.fragmentFrom("fragment Input on Child { parent { value } }")) { input, _ ->
                         (input.get("parent") as viaduct.engine.api.EngineObjectData.Sync).get("value")
                     },
                 )
             },
             typeCheckers = { schema ->
-                val root = schema.requireType("Root") as ViaductSchema.Object
+                val root = schema.loweredSchema.requireType("Root") as ViaductSchema.Object
                 mapOf(
                     root to TypeCheckerResolver.of(
                         root,
-                        schema.requireQueryTypeDef(),
+                        schema.loweredSchema.requireQueryTypeDef(),
                         mapOf(
                             "input" to ResolverFragmentTemplates(
                                 schema.fragmentFrom("fragment Input on Root { child { derived } }").materializeSelections,
@@ -80,8 +80,9 @@ interface GroundedTypeCheckerLifecycleContract {
                     }
                 )
             },
-        ).assumptions
-        val result = coroutineResolverSubject.resolve(SharedOperationContext.create(world), world.operationSelectionsFrom("{ root { value } }"))
+        )
+        val world = worldFixture.assumptions
+        val result = coroutineResolverSubject.resolve(SharedOperationContext.create(world), worldFixture.schemas.operationSelectionsFrom("{ root { value } }"))
         val root = assertIs<ObjectEngineResult>(result.getCell(ObjectEngineResult.GroundKey.of(world.schema.requireObjectField("Query", "root"), emptyMap())).value.get())
         val failure = assertFailsWith<Exception> { root.typeCheckerResult.get() }
         assertTrue(generateSequence(failure as Throwable?) { it.cause }.any { it is ResolverReadCycleException })
@@ -93,13 +94,16 @@ interface GroundedTypeCheckerLifecycleContract {
             val entered = CompletableDeferred<Unit>()
             val cancelled = CompletableDeferred<Unit>()
             val checkerInvoked = AtomicBoolean()
-            val world = TestWorld.fromSDL(
+            val worldFixture = TestWorld.fromSDL(
                 selectiveResolvers = coroutineResolverSubject.selectiveResolvers,
                 schemaSDL = "type Query { item: Item! dependency: Int! } type Item { value: Int! }",
                 fieldResolvers = { schema ->
                     mapOf(
-                        schema.requireObjectField("Query", "item") to fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> schema.objectOf("Item") { "value" setTo 1 } },
-                        schema.requireObjectField("Query", "dependency") to fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
+                        schema.loweredSchema.requireObjectField(
+                            "Query",
+                            "item"
+                        ) to fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> schema.loweredSchema.objectOf("Item") { "value" setTo 1 } },
+                        schema.loweredSchema.requireObjectField("Query", "dependency") to fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
                             entered.complete(Unit)
                             try {
                                 CompletableDeferred<Nothing>().await()
@@ -110,11 +114,11 @@ interface GroundedTypeCheckerLifecycleContract {
                     )
                 },
                 typeCheckers = { schema ->
-                    val item = schema.requireType("Item") as ViaductSchema.Object
+                    val item = schema.loweredSchema.requireType("Item") as ViaductSchema.Object
                     mapOf(
                         item to TypeCheckerResolver.of(
                             item,
-                            schema.requireQueryTypeDef(),
+                            schema.loweredSchema.requireQueryTypeDef(),
                             mapOf(
                                 "input" to ResolverFragmentTemplates(
                                     materializeSelectionForestOf(),
@@ -127,11 +131,17 @@ interface GroundedTypeCheckerLifecycleContract {
                         }
                     )
                 },
-            ).assumptions
+            )
+            val world = worldFixture.assumptions
             val requestJob = Job()
             val requestScope = CoroutineScope(coroutineContext + requestJob)
             try {
-                val result = coroutineResolverSubject.startResolution(SharedOperationContext.create(world), requestScope, world.operationSelectionsFrom("{ item { value } }"), CycleCheckState.create())
+                val result = coroutineResolverSubject.startResolution(
+                    SharedOperationContext.create(world),
+                    requestScope,
+                    worldFixture.schemas.operationSelectionsFrom("{ item { value } }"),
+                    CycleCheckState.create()
+                )
                 withTimeout(5_000) { entered.await() }
                 val item = assertIs<ObjectEngineResult>(result.getCell(ObjectEngineResult.GroundKey.of(world.schema.requireObjectField("Query", "item"), emptyMap())).value.get())
                 val cancellation = CancellationException("cancel type checker input")

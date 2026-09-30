@@ -158,14 +158,14 @@ class QPlanDeferTest : ExecutionTestFixtureResource {
             TestWorld.fromSDL(
                 schemaSDL = NESTED_SCHEMA,
                 fieldResolvers = { schema ->
-                    val viewerField = schema.requireObjectField("Query", "viewer")
+                    val viewerField = schema.loweredSchema.requireObjectField("Query", "viewer")
                     val viewerType =
-                        schema.requireType("Viewer") as
+                        schema.loweredSchema.requireType("Viewer") as
                             viaduct.graphql.schema.ViaductSchema.Object
                     mapOf(
                         viewerField to
                             selectiveFieldResolverOf(
-                                schema.emptyFragmentOf("Query"),
+                                schema.loweredSchema.emptyFragmentOf("Query"),
                             ) { _, _, _ ->
                                 engineObjectDataOf(
                                     viewerType,
@@ -305,10 +305,10 @@ class QPlanDeferTest : ExecutionTestFixtureResource {
             TestWorld.fromSDL(
                 schemaSDL = SCHEMA,
                 fieldResolvers = { schema ->
-                    val fast = schema.requireObjectField("Query", "fast")
-                    val slow = schema.requireObjectField("Query", "slow")
+                    val fast = schema.loweredSchema.requireObjectField("Query", "fast")
+                    val slow = schema.loweredSchema.requireObjectField("Query", "slow")
                     mapOf(
-                        fast to fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> 1 },
+                        fast to fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> 1 },
                         slow to
                             fieldResolverOf(
                                 schema.fragmentFrom(
@@ -349,17 +349,17 @@ class QPlanDeferTest : ExecutionTestFixtureResource {
             TestWorld.fromSDL(
                 schemaSDL = NESTED_SCHEMA,
                 fieldResolvers = { schema ->
-                    val viewer = schema.requireObjectField("Query", "viewer")
-                    val viewerType = schema.requireType("Viewer") as viaduct.graphql.schema.ViaductSchema.Object
-                    val fast = schema.requireObjectField("Viewer", "fast")
-                    val slow = schema.requireObjectField("Viewer", "slow")
-                    val dependency = schema.requireObjectField("Viewer", "dependency")
+                    val viewer = schema.loweredSchema.requireObjectField("Query", "viewer")
+                    val viewerType = schema.loweredSchema.requireType("Viewer") as viaduct.graphql.schema.ViaductSchema.Object
+                    val fast = schema.loweredSchema.requireObjectField("Viewer", "fast")
+                    val slow = schema.loweredSchema.requireObjectField("Viewer", "slow")
+                    val dependency = schema.loweredSchema.requireObjectField("Viewer", "dependency")
                     mapOf(
                         viewer to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
                                 engineObjectDataOf(viewerType)
                             },
-                        fast to fieldResolverOf(schema.emptyFragmentOf("Viewer")) { _, _ -> 1 },
+                        fast to fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Viewer")) { _, _ -> 1 },
                         slow to
                             fieldResolverOf(
                                 schema.fragmentFrom(
@@ -374,7 +374,7 @@ class QPlanDeferTest : ExecutionTestFixtureResource {
                                     mapOf("ready" to false)
                                 },
                         dependency to
-                            fieldResolverOf(schema.emptyFragmentOf("Viewer")) { _, _ -> 3 },
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Viewer")) { _, _ -> 3 },
                     )
                 },
             )
@@ -390,15 +390,15 @@ class QPlanDeferTest : ExecutionTestFixtureResource {
             TestWorld.fromSDL(
                 schemaSDL = DEPENDENT_SCHEMA,
                 fieldResolvers = { schema ->
-                    val a = schema.requireObjectField("Query", "a")
+                    val a = schema.loweredSchema.requireObjectField("Query", "a")
                     val aType =
-                        schema.requireType("A") as
+                        schema.loweredSchema.requireType("A") as
                             viaduct.graphql.schema.ViaductSchema.Object
-                    val ab = schema.requireObjectField("A", "ab")
-                    val ac = schema.requireObjectField("A", "ac")
+                    val ab = schema.loweredSchema.requireObjectField("A", "ab")
+                    val ac = schema.loweredSchema.requireObjectField("A", "ac")
                     mapOf(
                         a to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
                                 engineObjectDataOf(aType, mapOf("aa" to 42))
                             },
                         ab to

@@ -27,32 +27,33 @@ import semantics.shared.SharedOperationContext
 class SharedQueryOwnerDemandRegressionTest {
     @Test
     fun `cached shared scope validation cannot erase a second owner's input obligation`() {
-        val world = TestWorld.fromSDL(
+        val worldFixture = TestWorld.fromSDL(
             schemaSDL = "type Query { first(value: Int!): Int! second(value: Int!): Int! left: Int! right: Int! }",
             fieldResolvers = { schema ->
                 mapOf(
-                    schema.requireObjectField("Query", "first") to fieldResolverOf(
-                        objectFragment = schema.emptyFragmentOf("Query"),
+                    schema.loweredSchema.requireObjectField("Query", "first") to fieldResolverOf(
+                        objectFragment = schema.loweredSchema.emptyFragmentOf("Query"),
                         queryFragment = schema.fragmentFrom("fragment First on Query { left }"),
                     ) { _, _, _ -> error("Erroneous arguments must suppress invocation") },
-                    schema.requireObjectField("Query", "second") to fieldResolverOf(
-                        objectFragment = schema.emptyFragmentOf("Query"),
+                    schema.loweredSchema.requireObjectField("Query", "second") to fieldResolverOf(
+                        objectFragment = schema.loweredSchema.emptyFragmentOf("Query"),
                         queryFragment = schema.fragmentFrom("fragment Second on Query { right }"),
                     ) { _, _, _ -> error("Erroneous arguments must suppress invocation") },
-                    schema.requireObjectField("Query", "left") to
-                        fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> 7 },
-                    schema.requireObjectField("Query", "right") to
-                        fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> 9 },
+                    schema.loweredSchema.requireObjectField("Query", "left") to
+                        fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> 7 },
+                    schema.loweredSchema.requireObjectField("Query", "right") to
+                        fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> 9 },
                 )
             },
-        ).assumptions
-        val queryType = world.schema.requireQueryTypeDef()
+        )
+        val world = worldFixture.assumptions
+        val queryType = worldFixture.schema.requireQueryTypeDef()
         val result = ObjectEngineResult.of(queryType, mutable = true)
         val observer = CorrectnessResolverObserver()
         val operation = SharedOperationContext.create(world, resolverObserver = observer)
         val incompleteQuery = world.engineResultOf("Query") { "left" resolvesTo 7 }
         listOf("first", "second").forEach { name ->
-            val field = world.schema.requireObjectField("Query", name)
+            val field = worldFixture.schema.requireObjectField("Query", name)
             val variable = Arguments.Variable.of(field, "value").instantiate(
                 ResolverOccurrenceId.at(result, emptyList()),
             )
@@ -76,21 +77,22 @@ class SharedQueryOwnerDemandRegressionTest {
 
     @Test
     fun `observed closure cannot erase an error argument owner's Query input obligation`() {
-        val world = TestWorld.fromSDL(
+        val worldFixture = TestWorld.fromSDL(
             schemaSDL = "type Query { consumer(value: Int!): Int! source: Int! }",
             fieldResolvers = { schema ->
                 mapOf(
-                    schema.requireObjectField("Query", "consumer") to fieldResolverOf(
-                        objectFragment = schema.emptyFragmentOf("Query"),
+                    schema.loweredSchema.requireObjectField("Query", "consumer") to fieldResolverOf(
+                        objectFragment = schema.loweredSchema.emptyFragmentOf("Query"),
                         queryFragment = schema.fragmentFrom("fragment Input on Query { source }"),
                     ) { _, _, _ -> error("Erroneous arguments must suppress invocation") },
-                    schema.requireObjectField("Query", "source") to
-                        fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> 7 },
+                    schema.loweredSchema.requireObjectField("Query", "source") to
+                        fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> 7 },
                 )
             },
-        ).assumptions
-        val queryType = world.schema.requireQueryTypeDef()
-        val consumer = world.schema.requireObjectField("Query", "consumer")
+        )
+        val world = worldFixture.assumptions
+        val queryType = worldFixture.schema.requireQueryTypeDef()
+        val consumer = worldFixture.schema.requireObjectField("Query", "consumer")
         val result = ObjectEngineResult.of(queryType, mutable = true)
         val variable = Arguments.Variable.of(consumer, "value").instantiate(
             ResolverOccurrenceId.at(result, emptyList()),
@@ -105,7 +107,7 @@ class SharedQueryOwnerDemandRegressionTest {
         }
         result.freeze()
         val owner = ResolverOccurrenceId.at(result, listOf(key))
-        val sourceDemand = world.fragmentFrom("fragment Demand on Query { source }").subselections.merge(queryType)
+        val sourceDemand = worldFixture.schemas.fragmentFrom("fragment Demand on Query { source }").subselections.merge(queryType)
         val emptyDemand = selectionForestOf().merge(queryType)
 
         fun operation(

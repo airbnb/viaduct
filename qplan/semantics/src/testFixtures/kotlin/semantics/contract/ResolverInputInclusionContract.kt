@@ -25,11 +25,11 @@ interface ResolverInputInclusionContract : ResolverContract {
                     }
                     """.trimIndent(),
                 fieldResolvers = { schema ->
-                    val source = schema.requireObjectField("Query", "source")
-                    val consumer = schema.requireObjectField("Query", "consumer")
+                    val source = schema.loweredSchema.requireObjectField("Query", "source")
+                    val consumer = schema.loweredSchema.requireObjectField("Query", "consumer")
                     mapOf(
                         source to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> 7 },
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> 7 },
                         consumer to
                             fieldResolverOf(
                                 objectFragment =
@@ -56,10 +56,10 @@ interface ResolverInputInclusionContract : ResolverContract {
                     )
                 },
                 variableProviders = { schema ->
-                    val consumer = schema.requireObjectField("Query", "consumer")
+                    val consumer = schema.loweredSchema.requireObjectField("Query", "consumer")
                     mapOf(
                         Arguments.Variable.of(consumer, "enabled") to
-                            schema.fromArgument(consumer, "enabled"),
+                            schema.loweredSchema.fromArgument(consumer, "enabled"),
                     )
                 },
             )
@@ -69,7 +69,7 @@ interface ResolverInputInclusionContract : ResolverContract {
 
         val resolved =
             resolveAndValidate(
-                world,
+                testWorld,
                 "query { excluded: consumer(enabled: false) included: consumer(enabled: true) }",
             )
 

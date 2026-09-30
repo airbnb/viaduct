@@ -233,7 +233,7 @@ class InclusionCombinationTest : Resolver26DispatcherResource {
     }
 
     private fun TestWorld.fullChainQuery(fieldName: String): Fragment =
-        assumptions.fragmentFrom(
+        schemas.fragmentFrom(
             """
             fragment Result on Query {
               $fieldName {

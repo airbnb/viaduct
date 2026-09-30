@@ -39,7 +39,7 @@ interface NestedObjectPathUseResolverContract : ResolverContract {
                 emptyMap(),
             )
 
-        val resolved = resolveAndValidate(world, "query { result }")
+        val resolved = resolveAndValidate(testWorld, "query { result }")
 
         assertEquals(7, resolved.getCell(resultKey).get())
     }

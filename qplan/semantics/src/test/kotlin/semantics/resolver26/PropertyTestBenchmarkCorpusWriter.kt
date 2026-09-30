@@ -55,7 +55,7 @@ object PropertyTestBenchmarkCorpusWriter {
                         val coordinates = requireNotNull(testCase.coordinates)
                         val world: Assumptions =
                             testWorld.newAssumptions(selectiveResolvers = true)
-                        val fragment: Fragment = world.fragmentFrom(testCase.query.source)
+                        val fragment: Fragment = testWorld.schemas.fragmentFrom(testCase.query.source)
 
                         testCase.registry.clearResolutionWitness()
                         val appliedResolverOccurrences =

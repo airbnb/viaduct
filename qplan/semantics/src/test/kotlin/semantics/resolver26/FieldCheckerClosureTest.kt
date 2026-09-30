@@ -37,14 +37,18 @@ class FieldCheckerClosureTest : Resolver26DispatcherResource {
             }
                 """.trimIndent(),
                 fieldCheckers = { schema ->
-                    val checked = schema.requireObjectField("Query", "checked")
-                    val raw = schema.requireObjectField("Query", "raw")
-                    val protected = schema.requireObjectField("Query", "protected")
+                    val checked = schema.loweredSchema.requireObjectField("Query", "checked")
+                    val raw = schema.loweredSchema.requireObjectField("Query", "raw")
+                    val protected = schema.loweredSchema.requireObjectField("Query", "protected")
                     val fragment = schema.fragmentFrom("fragment Input on Query { raw }").materializeSelections
                     mapOf(
-                        checked to FieldCheckerResolver.of(checked, schema.requireQueryTypeDef(), mapOf("input" to ResolverFragmentTemplates(fragment, fragment))) { _, _, _ -> CheckerResult.Success },
-                        raw to FieldCheckerResolver.of(raw, schema.requireQueryTypeDef()) { _, _, _ -> error("raw checker must not run") },
-                        protected to FieldCheckerResolver.of(protected, schema.requireQueryTypeDef()) { _, _, _ -> CheckerResult.Success },
+                        checked to FieldCheckerResolver.of(
+                            checked,
+                            schema.loweredSchema.requireQueryTypeDef(),
+                            mapOf("input" to ResolverFragmentTemplates(fragment, fragment))
+                        ) { _, _, _ -> CheckerResult.Success },
+                        raw to FieldCheckerResolver.of(raw, schema.loweredSchema.requireQueryTypeDef()) { _, _, _ -> error("raw checker must not run") },
+                        protected to FieldCheckerResolver.of(protected, schema.loweredSchema.requireQueryTypeDef()) { _, _, _ -> CheckerResult.Success },
                     )
                 },
             )
@@ -54,7 +58,7 @@ class FieldCheckerClosureTest : Resolver26DispatcherResource {
                 operation,
                 OEROccurrence(root, emptyList(), root),
                 world.assumptions.resolverRegistry.createRootQueryInput(),
-                world.assumptions.operationSelectionsFrom("{ checked }")
+                world.schemas.operationSelectionsFrom("{ checked }")
             )
             assertEquals(
                 setOf("checked", "protected"),
@@ -102,7 +106,7 @@ class FieldCheckerClosureTest : Resolver26DispatcherResource {
             """.trimIndent(),
         )
         val operation = SharedOperationContext.create(world.assumptions)
-        val result = operation.resolveWithTestDispatcher(world.assumptions.operationSelectionsFrom("{ checked(seed: 1) }"))
+        val result = operation.resolveWithTestDispatcher(world.schemas.operationSelectionsFrom("{ checked(seed: 1) }"))
         val key = ObjectEngineResult.GroundKey.of(world.schema.requireObjectField("Query", "checked"), mapOf("seed" to 1))
         assertEquals(1, result.getCell(key).value.get())
     }
@@ -117,17 +121,17 @@ class FieldCheckerClosureTest : Resolver26DispatcherResource {
             }
             """.trimIndent(),
             fieldCheckers = { schema ->
-                val checked = schema.requireObjectField("Query", "checked")
+                val checked = schema.loweredSchema.requireObjectField("Query", "checked")
                 val pair = ResolverFragmentTemplates(
                     schema.fragmentFrom("fragment Input on Query { bridge(seed: ${'$'}seed) }", variableTarget = ResolverTarget.FieldCheckerTarget(checked)).materializeSelections,
                     materializeSelectionForestOf(),
                     mapOf(Arguments.Variable.of(ResolverTarget.FieldCheckerTarget(checked), "seed") to VariableDefinition.FromArgument.of(checkNotNull(checked.arg("seed")))),
                 )
-                mapOf(checked to FieldCheckerResolver.of(checked, schema.requireQueryTypeDef(), mapOf("input" to pair)) { _, _, _ -> CheckerResult.Success })
+                mapOf(checked to FieldCheckerResolver.of(checked, schema.loweredSchema.requireQueryTypeDef(), mapOf("input" to pair)) { _, _, _ -> CheckerResult.Success })
             },
         )
         val failure = assertFailsWith<IllegalArgumentException> {
-            SharedOperationContext.create(world.assumptions).resolveWithTestDispatcher(world.assumptions.operationSelectionsFrom("{ checked(seed: 1) }"))
+            SharedOperationContext.create(world.assumptions).resolveWithTestDispatcher(world.schemas.operationSelectionsFrom("{ checked(seed: 1) }"))
         }
         assertTrue(failure.message.orEmpty().contains("Unbounded symbolic"))
     }

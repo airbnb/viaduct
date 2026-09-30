@@ -25,12 +25,12 @@ class TypenameLoweringTest {
     @Test
     fun `lowered schema owns ordinary typename fields and an all-source-objects interface`() {
         val world = TestWorld.fromSDL(SCHEMA)
-        val schema = world.schema
+        val schema = world.schemas
         val allSourceObjects =
-            assertIs<ViaductSchema.Interface>(schema.requireType("V_A_AllSourceObjects"))
+            assertIs<ViaductSchema.Interface>(schema.loweredSchema.requireType("V_A_AllSourceObjects"))
         val objectTypes =
             listOf("Query", "A", "B")
-                .map { name -> schema.requireType(name) as ViaductSchema.Object }
+                .map { name -> schema.loweredSchema.requireType(name) as ViaductSchema.Object }
 
         assertEquals(objectTypes.toSet(), allSourceObjects.possibleObjectTypes)
         assertEquals(
@@ -44,7 +44,7 @@ class TypenameLoweringTest {
             "A",
             "B",
         ).forEach { typeName ->
-            val field = schema.requireField(typeName, "V_A_typename")
+            val field = schema.loweredSchema.requireField(typeName, "V_A_typename")
             assertEquals(typeName, field.containingDef.name)
             assertTrue(field.args.isEmpty())
             assertEquals("String", field.type.baseTypeDef.name)
@@ -52,10 +52,10 @@ class TypenameLoweringTest {
         }
         listOf("A_V_A_Bridge", "Node_V_A_Bridge").forEach { typeName ->
             assertFailsWith<IllegalStateException> {
-                schema.requireType(typeName)
+                schema.loweredSchema.requireType(typeName)
             }
         }
-        assertIs<ViaductSchema.Union>(schema.requireType("Choice"))
+        assertIs<ViaductSchema.Union>(schema.loweredSchema.requireType("Choice"))
         listOf(
             "Query",
             "Item",
@@ -65,14 +65,14 @@ class TypenameLoweringTest {
             "B",
         ).forEach { typeName ->
             assertFailsWith<IllegalStateException> {
-                schema.requireField(typeName, "__typename")
+                schema.loweredSchema.requireField(typeName, "__typename")
             }
         }
     }
 
     @Test
     fun `internal fragments lower object interface union and node typename selections`() {
-        val schema = TestWorld.fromSDL(SCHEMA).schema
+        val schema = TestWorld.fromSDL(SCHEMA).schemas
 
         val objectFragment = schema.fragmentFrom("fragment F on A { __typename }")
         val objectSelection = objectFragment.subselections.single()
@@ -88,7 +88,7 @@ class TypenameLoweringTest {
         assertEquals("Item", interfaceSelection.key.field.containingDef.name)
         assertEquals(
             "A",
-            interfaceSelection.key.objectKey(schema.requireType("A") as ViaductSchema.Object)
+            interfaceSelection.key.objectKey(schema.loweredSchema.requireType("A") as ViaductSchema.Object)
                 .field.containingDef.name,
         )
 
@@ -114,10 +114,10 @@ class TypenameLoweringTest {
     fun `external operations erase typename while preserving composite selections`() {
         val world = TestWorld.fromSDL(SCHEMA)
 
-        assertTrue(world.assumptions.operationSelectionsFrom("query { __typename }").isEmpty())
+        assertTrue(world.schemas.operationSelectionsFrom("query { __typename }").isEmpty())
 
         val nested =
-            world.assumptions.operationSelectionsFrom(
+            world.schemas.operationSelectionsFrom(
                 """
                 query {
                   a {
@@ -143,13 +143,13 @@ class TypenameLoweringTest {
     fun `generated typename resolvers are argumentless dependency-free constants`() =
         runBlocking {
             val world = TestWorld.fromSDL(SCHEMA)
-            val schema = world.schema
+            val schema = world.schemas
             val registry = world.resolverRegistry
             val allSourceObjects =
-                schema.requireType("V_A_AllSourceObjects") as ViaductSchema.Interface
+                schema.loweredSchema.requireType("V_A_AllSourceObjects") as ViaductSchema.Interface
 
             allSourceObjects.possibleObjectTypes.forEach { type ->
-                val field = schema.requireObjectField(type.name, "V_A_typename")
+                val field = schema.loweredSchema.requireObjectField(type.name, "V_A_typename")
                 val resolver = registry.resolver(field)
                 assertTrue(field in registry)
                 assertTrue(field.args.isEmpty())
@@ -159,7 +159,7 @@ class TypenameLoweringTest {
                 assertEquals(
                     type.name,
                     resolver(
-                        input = schema.objectOf(type.name),
+                        input = schema.loweredSchema.objectOf(type.name),
                         arguments = Arguments.Resolved.of(field, emptyMap()),
                         selectiveResolvers = world.assumptions.selectiveResolvers,
                         executionContext = ResolutionExecutionContext.Unsupported,

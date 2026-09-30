@@ -45,7 +45,7 @@ class FieldCheckerLifecycleTest : Resolver26DispatcherResource {
         val world = providerWorld { throw failure }
         val recorder = CheckerApplicationRecorder()
         val operation = SharedOperationContext.create(world.assumptions, checkerObserver = recorder)
-        val result = operation.resolveWithTestDispatcher(world.assumptions.operationSelectionsFrom("{ checked }"))
+        val result = operation.resolveWithTestDispatcher(world.schemas.operationSelectionsFrom("{ checked }"))
         val key = ObjectEngineResult.GroundKey.of(world.schema.requireObjectField("Query", "checked"), emptyMap())
         assertEquals(1, result.getCell(key).value.get())
         assertSame(failure, assertFailsWith<IllegalStateException> { result.getCell(key).fieldCheckerResult.get() })
@@ -66,7 +66,7 @@ class FieldCheckerLifecycleTest : Resolver26DispatcherResource {
             val queued = QueuedDispatcher()
             val job = Job()
             val operation = SharedOperationContext.create(world.assumptions)
-            val result = operation.startResolve(world.assumptions.operationSelectionsFrom("{ checked }"), CoroutineScope(job + queued))
+            val result = operation.startResolve(world.schemas.operationSelectionsFrom("{ checked }"), CoroutineScope(job + queued))
             job.cancel()
             queued.drain()
             withTimeout(2_000) { job.join() }
@@ -83,7 +83,7 @@ class FieldCheckerLifecycleTest : Resolver26DispatcherResource {
             }
             val operation = SharedOperationContext.create(world.assumptions)
             val job = Job()
-            val result = operation.startResolve(world.assumptions.operationSelectionsFrom("{ checked }"), CoroutineScope(job + resolverDispatcher))
+            val result = operation.startResolve(world.schemas.operationSelectionsFrom("{ checked }"), CoroutineScope(job + resolverDispatcher))
             withTimeout(2_000) { entered.await() }
             assertFailsWith<TimeoutCancellationException> { withTimeout(50) { job.join() } }
             withTimeout(2_000) { job.cancelAndJoin() }
@@ -103,18 +103,18 @@ class FieldCheckerLifecycleTest : Resolver26DispatcherResource {
             }
             """.trimIndent(),
             fieldCheckers = { schema ->
-                val checked = schema.requireObjectField("Query", "checked")
-                val dependency = schema.requireObjectField("Query", "dependency")
-                val protected = schema.requireObjectField("Query", "protected")
+                val checked = schema.loweredSchema.requireObjectField("Query", "checked")
+                val dependency = schema.loweredSchema.requireObjectField("Query", "dependency")
+                val protected = schema.loweredSchema.requireObjectField("Query", "protected")
                 mapOf(
-                    checked to FieldCheckerResolver.of(checked, schema.requireQueryTypeDef()) { _, _, ctx ->
+                    checked to FieldCheckerResolver.of(checked, schema.loweredSchema.requireQueryTypeDef()) { _, _, ctx ->
                         val selections = schema.fragmentFrom("fragment Child on Query { dependency }").materializeSelections
                         assertEquals(7, ctx.resolveSelectionSet(selections).get("dependency"))
                         assertEquals(7, ctx.resolveSelectionSet(selections).get("dependency"))
                         CheckerResult.Success
                     },
-                    dependency to FieldCheckerResolver.of(dependency, schema.requireQueryTypeDef()) { _, _, _ -> CheckerResult.Success },
-                    protected to FieldCheckerResolver.of(protected, schema.requireQueryTypeDef()) { _, _, _ -> CheckerResult.Success },
+                    dependency to FieldCheckerResolver.of(dependency, schema.loweredSchema.requireQueryTypeDef()) { _, _, _ -> CheckerResult.Success },
+                    protected to FieldCheckerResolver.of(protected, schema.loweredSchema.requireQueryTypeDef()) { _, _, _ -> CheckerResult.Success },
                 )
             },
         )
@@ -129,7 +129,7 @@ class FieldCheckerLifecycleTest : Resolver26DispatcherResource {
             }
         }
         val operation = SharedOperationContext.create(world.assumptions, checkerObserver = recorder, resolverObserver = resolverObserver)
-        operation.resolveWithTestDispatcher(world.assumptions.operationSelectionsFrom("{ checked dependency }"))
+        operation.resolveWithTestDispatcher(world.schemas.operationSelectionsFrom("{ checked dependency }"))
         assertEquals(5, recorder.checkerApplications().size)
         assertEquals(3, recorder.checkerApplications().count { it.checkedCoordinate.name == "protected" })
         assertEquals(3, roots.toSet().size)
@@ -144,11 +144,11 @@ class FieldCheckerLifecycleTest : Resolver26DispatcherResource {
         }
             """.trimIndent(),
             fieldCheckers = { schema ->
-                val field = schema.requireObjectField("Query", "checked")
+                val field = schema.loweredSchema.requireObjectField("Query", "checked")
                 mapOf(
                     field to FieldCheckerResolver.of(
                         field,
-                        schema.requireQueryTypeDef(),
+                        schema.loweredSchema.requireQueryTypeDef(),
                         mapOf(
                             "input" to ResolverFragmentTemplates(
                                 objectFragmentTemplate = schema.fragmentFrom(

@@ -33,6 +33,7 @@ import model.registry.VariableDefinition
 import model.requireType
 import model.selectionForestOf
 import model.testing.TestWorld
+import model.testing.ViaductAndGJSchema
 import model.testing.fieldResolverOf
 import model.testing.fromArgument
 import model.testing.fromObjectField
@@ -471,16 +472,16 @@ class ArbitraryRegistry internal constructor(
                 schemaSDL = schemaSDL,
                 nodeResolvers = { canonicalSchema ->
                     nodeValues.map { (typeName, plan) ->
-                        val type = canonicalSchema.requireType(typeName) as ViaductSchema.Object
+                        val type = canonicalSchema.loweredSchema.requireType(typeName) as ViaductSchema.Object
                         val materialize: (String) -> ResolverOutputData? = { id ->
                             when (plan) {
                                 is ObjectPlan ->
                                     plan.materializeObject(
-                                        schema = canonicalSchema,
+                                        schema = canonicalSchema.loweredSchema,
                                         inputId = id,
                                         generatedHashSeed = stableGeneratedHash(typeName, id),
                                     )
-                                is RootFieldReferencePlan -> plan.materializeReference(canonicalSchema)
+                                is RootFieldReferencePlan -> plan.materializeReference(canonicalSchema.loweredSchema)
                                 else -> error("Node resolver $typeName has unsupported value plan $plan")
                             }
                         }
@@ -496,7 +497,7 @@ class ArbitraryRegistry internal constructor(
                     }.toMap()
                 },
                 fieldResolvers = { canonicalSchema ->
-                    val sourceSchema = SourceSchemaAdapter(canonicalSchema)
+                    val sourceSchema = SourceSchemaAdapter(canonicalSchema.loweredSchema)
                     fieldValues.map { (coordinate, plan) ->
                         val field =
                             sourceSchema.field(
@@ -505,7 +506,7 @@ class ArbitraryRegistry internal constructor(
                             )
                         val constant =
                             plan.materialize(
-                                canonicalSchema,
+                                canonicalSchema.loweredSchema,
                                 sourceSchema.typeExpr(field),
                             )
                         val program = resolverPrograms.getValue(coordinate)
@@ -594,7 +595,7 @@ class ArbitraryRegistry internal constructor(
                                                 )
                                             } else {
                                                 plan.materialize(
-                                                    schema = canonicalSchema,
+                                                    schema = canonicalSchema.loweredSchema,
                                                     typeExpr = sourceSchema.typeExpr(field),
                                                     generatedHashSeed = generatedHashSeed,
                                                 )
@@ -633,7 +634,7 @@ class ArbitraryRegistry internal constructor(
                     }.toMap()
                 },
                 variableProviders = { canonicalSchema ->
-                    val sourceSchema = SourceSchemaAdapter(canonicalSchema)
+                    val sourceSchema = SourceSchemaAdapter(canonicalSchema.loweredSchema)
                     variableProviders.mapNotNull { provider ->
                         if (provider is FromProviderVariableProviderPlan) return@mapNotNull null
                         val field =
@@ -647,7 +648,7 @@ class ArbitraryRegistry internal constructor(
                         ) to
                             when (provider) {
                                 is FromArgumentVariableProviderPlan ->
-                                    canonicalSchema.fromArgument(
+                                    canonicalSchema.loweredSchema.fromArgument(
                                         field = field,
                                         path = provider.argumentPath,
                                     )
@@ -689,12 +690,12 @@ class ArbitraryRegistry internal constructor(
     }
 
     private fun generatedFieldCheckers(
-        schema: ViaductSchema,
+        schema: ViaductAndGJSchema,
         mode: GeneratedFieldCheckerMode,
     ): Map<ViaductSchema.ObjectField, FieldCheckerResolver> {
         if (mode == GeneratedFieldCheckerMode.NONE) return emptyMap()
-        val sourceSchema = SourceSchemaAdapter(schema)
-        val queryType = schema.requireType("Query") as ViaductSchema.Object
+        val sourceSchema = SourceSchemaAdapter(schema.loweredSchema)
+        val queryType = schema.loweredSchema.requireType("Query") as ViaductSchema.Object
         return generatedFieldCheckerCoordinates(mode).associate { coordinate ->
             val field =
                 sourceSchema.field(
@@ -3132,14 +3133,14 @@ internal data class FragmentPlan(
     val selections: List<FragmentSelectionPlan>,
 ) {
     fun materialize(
-        schema: ViaductSchema,
+        schema: ViaductAndGJSchema,
         variableField: ViaductSchema.ObjectField,
         variableTarget: ResolverTarget =
             ResolverTarget.FieldValueResolverTarget(variableField),
     ): Fragment =
         if (selections.isEmpty()) {
             Fragment.of(
-                nominalType = schema.requireType(ownerName) as ViaductSchema.Object,
+                nominalType = schema.loweredSchema.requireType(ownerName) as ViaductSchema.Object,
                 subselections = selectionForestOf(),
             )
         } else {
@@ -3147,7 +3148,7 @@ internal data class FragmentPlan(
             Fragment.of(
                 nominalType = parsed.nominalType,
                 materializeSelections =
-                    selections.materialize(schema, parsed.materializeSelections),
+                    selections.materialize(schema.loweredSchema, parsed.materializeSelections),
             )
         }
 
@@ -3213,7 +3214,7 @@ internal data class FragmentSelectionPlan(
         }
 
     fun materialize(
-        schema: ViaductSchema,
+        schema: ViaductAndGJSchema,
         owner: ViaductSchema.Object,
         variableField: ViaductSchema.ObjectField,
     ): Selection =

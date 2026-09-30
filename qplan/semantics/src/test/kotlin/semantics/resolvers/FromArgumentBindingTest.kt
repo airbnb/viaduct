@@ -27,19 +27,19 @@ class FromArgumentBindingTest {
                 schemaSDL = "type Query { echo(value: Int): Int }",
                 fieldResolvers = { schema ->
                     mapOf(
-                        schema.requireField("Query", "echo") to
+                        schema.loweredSchema.requireField("Query", "echo") to
                             fieldResolverOf(
-                                schema.emptyFragmentOf("Query"),
+                                schema.loweredSchema.emptyFragmentOf("Query"),
                             ) { _, _ ->
                                 0
                             },
                     )
                 },
                 variableProviders = { schema ->
-                    val field = schema.requireObjectField("Query", "echo")
+                    val field = schema.loweredSchema.requireObjectField("Query", "echo")
                     mapOf(
                         Arguments.Variable.of(field, "value") to
-                            schema.fromArgument(field, "value"),
+                            schema.loweredSchema.fromArgument(field, "value"),
                     )
                 },
             )

@@ -214,7 +214,7 @@ private suspend fun runResolver26MultithreadedStress(
         ) { testWorld, testCase ->
             val world: Assumptions =
                 testWorld.newAssumptions(selectiveResolvers = true)
-            val fragment: Fragment = world.fragmentFrom(testCase.query.source)
+            val fragment: Fragment = testWorld.schemas.fragmentFrom(testCase.query.source)
 
             val appliedResolverOccurrences =
                 ConcurrentHashMap.newKeySet<ResolverOccurrenceId>()

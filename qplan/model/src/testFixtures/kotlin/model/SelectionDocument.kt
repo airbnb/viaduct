@@ -7,6 +7,7 @@ import graphql.language.FragmentDefinition
 import graphql.language.FragmentSpread
 import graphql.language.InlineFragment
 import graphql.language.SelectionSet
+import model.testing.ViaductAndGJSchema
 import viaduct.graphql.schema.ViaductSchema
 import viaduct.graphql.utils.SelectionsParserUtils
 
@@ -18,7 +19,7 @@ import viaduct.graphql.utils.SelectionsParserUtils
  * that policy in model fixture preparation allows a future carrier to preserve and share named
  * fragments without changing execution adapters.
  */
-fun ViaductSchema.fragmentFromDocument(
+fun ViaductAndGJSchema.fragmentFromDocument(
     document: Document,
     bindings: Map<String, EngineInputData?> = emptyMap(),
     variableField: ViaductSchema.ObjectField? = null,

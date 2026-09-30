@@ -46,13 +46,13 @@ interface ParentFieldResolverContract : ResolverContract {
                     type Child { parent: Container! @parent, value: String! }
                     """.trimIndent(),
                 fieldResolvers = { schema ->
-                    val emptyQuery = schema.emptyFragmentOf("Query")
+                    val emptyQuery = schema.loweredSchema.emptyFragmentOf("Query")
                     mapOf(
-                        schema.requireObjectField("Query", "container") to
-                            fieldResolverOf(emptyQuery) { _, _ -> schema.objectOf("Container") },
-                        schema.requireObjectField("Query", "token") to
+                        schema.loweredSchema.requireObjectField("Query", "container") to
+                            fieldResolverOf(emptyQuery) { _, _ -> schema.loweredSchema.objectOf("Container") },
+                        schema.loweredSchema.requireObjectField("Query", "token") to
                             fieldResolverOf(emptyQuery) { _, _ -> "ready" },
-                        schema.requireObjectField("Query", "result") to
+                        schema.loweredSchema.requireObjectField("Query", "result") to
                             fieldResolverOf(
                                 objectFragment = emptyQuery,
                                 queryFragment =
@@ -69,19 +69,19 @@ interface ParentFieldResolverContract : ResolverContract {
                                     assertIs<EngineObjectData.Sync>(container.outputValue("child"))
                                 child.outputValue("value")
                             },
-                        schema.requireObjectField("Container", "child") to
-                            fieldResolverOf(schema.emptyFragmentOf("Container")) { _, _ ->
-                                schema.objectOf("Child")
+                        schema.loweredSchema.requireObjectField("Container", "child") to
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Container")) { _, _ ->
+                                schema.loweredSchema.objectOf("Child")
                             },
-                        schema.requireObjectField("Container", "ancestor") to
+                        schema.loweredSchema.requireObjectField("Container", "ancestor") to
                             fieldResolverOf(
-                                objectFragment = schema.emptyFragmentOf("Container"),
+                                objectFragment = schema.loweredSchema.emptyFragmentOf("Container"),
                                 queryFragment =
                                     schema.fragmentFrom(
                                         "fragment AncestorQuery on Query { token }",
                                     ),
                             ) { _, queryValue, _ -> queryValue.outputValue("token") },
-                        schema.requireObjectField("Child", "value") to
+                        schema.loweredSchema.requireObjectField("Child", "value") to
                             fieldResolverOf(
                                 schema.fragmentFrom(
                                     "fragment ValueInput on Child { parent { ancestor } }",
@@ -94,12 +94,11 @@ interface ParentFieldResolverContract : ResolverContract {
                     )
                 },
             )
-        val world = testWorld.assumptions
-        val resultKey = world.schema.contractKey("Query", "result")
+        val resultKey = testWorld.schema.contractKey("Query", "result")
 
         val result =
             resolveAndValidate(
-                world,
+                testWorld,
                 "query { result }",
                 resolverObserver = observer,
             )
@@ -121,7 +120,7 @@ interface ParentFieldResolverContract : ResolverContract {
 
     @Test
     fun `parent demand waits for a revisited active child field`() {
-        val world =
+        val worldFixture =
             TestWorld.fromSDL(
                 selectiveResolvers = selectiveResolvers,
                 schemaSDL =
@@ -135,25 +134,25 @@ interface ParentFieldResolverContract : ResolverContract {
                     """.trimIndent(),
                 fieldResolvers = { schema ->
                     mapOf(
-                        schema.requireObjectField("Query", "root") to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
-                                schema.objectOf("Root")
+                        schema.loweredSchema.requireObjectField("Query", "root") to
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
+                                schema.loweredSchema.objectOf("Root")
                             },
-                        schema.requireObjectField("Root", "child") to
-                            fieldResolverOf(schema.emptyFragmentOf("Root")) { _, _ ->
-                                schema.objectOf("Child")
+                        schema.loweredSchema.requireObjectField("Root", "child") to
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Root")) { _, _ ->
+                                schema.loweredSchema.objectOf("Child")
                             },
-                        schema.requireObjectField("Child", "grandchild") to
-                            fieldResolverOf(schema.emptyFragmentOf("Child")) { _, _ ->
-                                schema.objectOf("Grandchild")
+                        schema.loweredSchema.requireObjectField("Child", "grandchild") to
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Child")) { _, _ ->
+                                schema.loweredSchema.objectOf("Grandchild")
                             },
-                        schema.requireObjectField("Child", "marker") to
-                            fieldResolverOf(schema.emptyFragmentOf("Child")) { _, _ -> "child" },
-                        schema.requireObjectField("Grandchild", "greatGrandchild") to
-                            fieldResolverOf(schema.emptyFragmentOf("Grandchild")) { _, _ ->
-                                schema.objectOf("GreatGrandchild")
+                        schema.loweredSchema.requireObjectField("Child", "marker") to
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Child")) { _, _ -> "child" },
+                        schema.loweredSchema.requireObjectField("Grandchild", "greatGrandchild") to
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Grandchild")) { _, _ ->
+                                schema.loweredSchema.objectOf("GreatGrandchild")
                             },
-                        schema.requireObjectField("Root", "ancestorValue") to
+                        schema.loweredSchema.requireObjectField("Root", "ancestorValue") to
                             fieldResolverOf(
                                 schema.fragmentFrom(
                                     "fragment ignored on Root { " +
@@ -169,7 +168,7 @@ interface ParentFieldResolverContract : ResolverContract {
                                 assertEquals("child", revisitedChild.outputValue("marker"))
                                 42
                             },
-                        schema.requireObjectField("GreatGrandchild", "result") to
+                        schema.loweredSchema.requireObjectField("GreatGrandchild", "result") to
                             fieldResolverOf(
                                 schema.fragmentFrom(
                                     "fragment ignored on GreatGrandchild { " +
@@ -186,11 +185,12 @@ interface ParentFieldResolverContract : ResolverContract {
                             },
                     )
                 },
-            ).assumptions
+            )
+        val world = worldFixture.assumptions
 
         val result =
             resolveAndValidate(
-                world,
+                worldFixture,
                 "query { root { child { grandchild { greatGrandchild { result } } } } }",
             )
         val root =
@@ -222,7 +222,7 @@ interface ParentFieldResolverContract : ResolverContract {
 
     @Test
     fun `parent demand can revisit its child before deepening the same parent`() {
-        val world =
+        val worldFixture =
             TestWorld.fromSDL(
                 selectiveResolvers = selectiveResolvers,
                 schemaSDL =
@@ -234,15 +234,15 @@ interface ParentFieldResolverContract : ResolverContract {
                     """.trimIndent(),
                 fieldResolvers = { schema ->
                     mapOf(
-                        schema.requireObjectField("Query", "root") to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
-                                schema.objectOf("Root")
+                        schema.loweredSchema.requireObjectField("Query", "root") to
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
+                                schema.loweredSchema.objectOf("Root")
                             },
-                        schema.requireObjectField("Root", "child") to
-                            fieldResolverOf(schema.emptyFragmentOf("Root")) { _, _ ->
-                                schema.objectOf("Child")
+                        schema.loweredSchema.requireObjectField("Root", "child") to
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Root")) { _, _ ->
+                                schema.loweredSchema.objectOf("Child")
                             },
-                        schema.requireObjectField("Child", "result") to
+                        schema.loweredSchema.requireObjectField("Child", "result") to
                             fieldResolverOf(
                                 schema.fragmentFrom(
                                     "fragment ignored on Child { " +
@@ -259,9 +259,10 @@ interface ParentFieldResolverContract : ResolverContract {
                             },
                     )
                 },
-            ).assumptions
+            )
+        val world = worldFixture.assumptions
 
-        val result = resolveAndValidate(world, "query { root { child { result } } }")
+        val result = resolveAndValidate(worldFixture, "query { root { child { result } } }")
         val root =
             assertIs<ObjectEngineResult>(
                 result.getCell(world.schema.contractKey("Query", "root")).get(),
@@ -279,7 +280,7 @@ interface ParentFieldResolverContract : ResolverContract {
 
     @Test
     fun `recursive same-type parent chain retains immediate occurrence identity`() {
-        val world =
+        val worldFixture =
             TestWorld.fromSDL(
                 selectiveResolvers = selectiveResolvers,
                 schemaSDL =
@@ -290,21 +291,22 @@ interface ParentFieldResolverContract : ResolverContract {
                     """.trimIndent(),
                 fieldResolvers = { schema ->
                     mapOf(
-                        schema.requireObjectField("Query", "root") to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
-                                schema.objectOf("Link") { "name" setTo "root" }
+                        schema.loweredSchema.requireObjectField("Query", "root") to
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
+                                schema.loweredSchema.objectOf("Link") { "name" setTo "root" }
                             },
-                        schema.requireObjectField("Link", "child") to
-                            fieldResolverOf(schema.emptyFragmentOf("Link")) { _, _ ->
-                                schema.objectOf("Link") { "name" setTo "child" }
+                        schema.loweredSchema.requireObjectField("Link", "child") to
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Link")) { _, _ ->
+                                schema.loweredSchema.objectOf("Link") { "name" setTo "child" }
                             },
                     )
                 },
-            ).assumptions
+            )
+        val world = worldFixture.assumptions
 
         val result =
             resolveAndValidate(
-                world,
+                worldFixture,
                 "query { root { child { child { parent { parent { name } } } } } }",
             )
         val root =
@@ -319,7 +321,7 @@ interface ParentFieldResolverContract : ResolverContract {
             assertIs<ObjectEngineResult>(
                 firstChild.getCell(world.schema.contractKey("Link", "child")).get(),
             )
-        val parentKey = world.schema.contractKey("Link", "parent")
+        val parentKey = worldFixture.schema.contractKey("Link", "parent")
 
         assertSame(firstChild, secondChild.getCell(parentKey).get())
         assertSame(root, firstChild.getCell(parentKey).get())
@@ -327,7 +329,7 @@ interface ParentFieldResolverContract : ResolverContract {
 
     @Test
     fun `resolver produced parent field cannot replace the structural parent`() {
-        val world =
+        val worldFixture =
             TestWorld.fromSDL(
                 selectiveResolvers = selectiveResolvers,
                 schemaSDL =
@@ -339,21 +341,21 @@ interface ParentFieldResolverContract : ResolverContract {
                     """.trimIndent(),
                 fieldResolvers = { schema ->
                     val unrelatedCompany =
-                        schema.objectOf("Company") {
+                        schema.loweredSchema.objectOf("Company") {
                             "name" setTo "unrelated"
                         }
                     mapOf(
-                        schema.requireObjectField("Query", "company") to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
-                                schema.objectOf("Company") {
+                        schema.loweredSchema.requireObjectField("Query", "company") to
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
+                                schema.loweredSchema.objectOf("Company") {
                                     "name" setTo "structural"
                                     "user" setTo
-                                        schema.objectOf("User") {
+                                        schema.loweredSchema.objectOf("User") {
                                             "parent" setTo unrelatedCompany
                                         }
                                 }
                             },
-                        schema.requireObjectField("User", "companyName") to
+                        schema.loweredSchema.requireObjectField("User", "companyName") to
                             fieldResolverOf(
                                 schema.fragmentFrom(
                                     "fragment ignored on User { parent { name } }",
@@ -367,11 +369,12 @@ interface ParentFieldResolverContract : ResolverContract {
                             },
                     )
                 },
-            ).assumptions
+            )
+        val world = worldFixture.assumptions
 
         val result =
             resolveAndValidate(
-                world,
+                worldFixture,
                 "query { company { user { companyName } } }",
             )
         val company =
@@ -395,7 +398,7 @@ interface ParentFieldResolverContract : ResolverContract {
 
     @Test
     fun `resolver produced parent field is not traversed as a passive child`() {
-        val world =
+        val worldFixture =
             TestWorld.fromSDL(
                 selectiveResolvers = selectiveResolvers,
                 schemaSDL =
@@ -408,29 +411,30 @@ interface ParentFieldResolverContract : ResolverContract {
                     """.trimIndent(),
                 fieldResolvers = { schema ->
                     mapOf(
-                        schema.requireObjectField("Query", "root") to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
-                                schema.objectOf("Root")
+                        schema.loweredSchema.requireObjectField("Query", "root") to
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
+                                schema.loweredSchema.objectOf("Root")
                             },
-                        schema.requireObjectField("Root", "child") to
-                            fieldResolverOf(schema.emptyFragmentOf("Root")) { _, _ ->
-                                schema.objectOf("Child") {
-                                    "parent" setTo schema.objectOf("Root")
+                        schema.loweredSchema.requireObjectField("Root", "child") to
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Root")) { _, _ ->
+                                schema.loweredSchema.objectOf("Child") {
+                                    "parent" setTo schema.loweredSchema.objectOf("Root")
                                 }
                             },
-                        schema.requireObjectField("Child", "grandchild") to
-                            fieldResolverOf(schema.emptyFragmentOf("Child")) { _, _ ->
-                                schema.objectOf("Grandchild") {
-                                    "parent" setTo schema.objectOf("Child")
+                        schema.loweredSchema.requireObjectField("Child", "grandchild") to
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Child")) { _, _ ->
+                                schema.loweredSchema.objectOf("Grandchild") {
+                                    "parent" setTo schema.loweredSchema.objectOf("Child")
                                 }
                             },
                     )
                 },
-            ).assumptions
+            )
+        val world = worldFixture.assumptions
 
         val result =
             resolveAndValidate(
-                world,
+                worldFixture,
                 "query { root { child { grandchild { parent { parent { __typename } } } } } }",
             )
         val root =
@@ -459,7 +463,7 @@ interface ParentFieldResolverContract : ResolverContract {
 
     @Test
     fun `resolver input closes sibling demand reached through a child parent`() {
-        val world =
+        val worldFixture =
             TestWorld.fromSDL(
                 selectiveResolvers = selectiveResolvers,
                 schemaSDL =
@@ -472,17 +476,17 @@ interface ParentFieldResolverContract : ResolverContract {
                     """.trimIndent(),
                 fieldResolvers = { schema ->
                     mapOf(
-                        schema.requireObjectField("Query", "root") to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> schema.objectOf("Root") },
-                        schema.requireObjectField("Root", "child") to
-                            fieldResolverOf(schema.emptyFragmentOf("Root")) { _, _ ->
-                                schema.objectOf("Child")
+                        schema.loweredSchema.requireObjectField("Query", "root") to
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> schema.loweredSchema.objectOf("Root") },
+                        schema.loweredSchema.requireObjectField("Root", "child") to
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Root")) { _, _ ->
+                                schema.loweredSchema.objectOf("Child")
                             },
-                        schema.requireObjectField("Root", "sibling") to
-                            fieldResolverOf(schema.emptyFragmentOf("Root")) { _, _ ->
-                                schema.objectOf("Sibling") { "label" setTo "ready" }
+                        schema.loweredSchema.requireObjectField("Root", "sibling") to
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Root")) { _, _ ->
+                                schema.loweredSchema.objectOf("Sibling") { "label" setTo "ready" }
                             },
-                        schema.requireObjectField("Root", "result") to
+                        schema.loweredSchema.requireObjectField("Root", "result") to
                             fieldResolverOf(
                                 schema.fragmentFrom(
                                     "fragment ignored on Root { child { parent { sibling { __typename } } } }",
@@ -496,9 +500,10 @@ interface ParentFieldResolverContract : ResolverContract {
                             },
                     )
                 },
-            ).assumptions
+            )
+        val world = worldFixture.assumptions
 
-        val result = resolveAndValidate(world, "query { root { result } }")
+        val result = resolveAndValidate(worldFixture, "query { root { result } }")
         val root = assertIs<ObjectEngineResult>(result.getCell(world.schema.contractKey("Query", "root")).get())
 
         assertEquals("Sibling", root.getCell(world.schema.contractKey("Root", "result")).get())
@@ -506,7 +511,7 @@ interface ParentFieldResolverContract : ResolverContract {
 
     @Test
     fun `child resolver parent input closes active ancestor demand`() {
-        val world =
+        val worldFixture =
             TestWorld.fromSDL(
                 selectiveResolvers = selectiveResolvers,
                 schemaSDL =
@@ -518,15 +523,15 @@ interface ParentFieldResolverContract : ResolverContract {
                     """.trimIndent(),
                 fieldResolvers = { schema ->
                     mapOf(
-                        schema.requireObjectField("Query", "root") to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> schema.objectOf("Root") },
-                        schema.requireObjectField("Root", "child") to
-                            fieldResolverOf(schema.emptyFragmentOf("Root")) { _, _ ->
-                                schema.objectOf("Child")
+                        schema.loweredSchema.requireObjectField("Query", "root") to
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> schema.loweredSchema.objectOf("Root") },
+                        schema.loweredSchema.requireObjectField("Root", "child") to
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Root")) { _, _ ->
+                                schema.loweredSchema.objectOf("Child")
                             },
-                        schema.requireObjectField("Root", "sibling") to
-                            fieldResolverOf(schema.emptyFragmentOf("Root")) { _, _ -> "ready" },
-                        schema.requireObjectField("Child", "value") to
+                        schema.loweredSchema.requireObjectField("Root", "sibling") to
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Root")) { _, _ -> "ready" },
+                        schema.loweredSchema.requireObjectField("Child", "value") to
                             fieldResolverOf(
                                 schema.fragmentFrom(
                                     "fragment ignored on Child { parent { sibling } }",
@@ -537,9 +542,10 @@ interface ParentFieldResolverContract : ResolverContract {
                             },
                     )
                 },
-            ).assumptions
+            )
+        val world = worldFixture.assumptions
 
-        val result = resolveAndValidate(world, "query { root { child { value } } }")
+        val result = resolveAndValidate(worldFixture, "query { root { child { value } } }")
         val root = assertIs<ObjectEngineResult>(result.getCell(world.schema.contractKey("Query", "root")).get())
         val child =
             assertIs<ObjectEngineResult>(
@@ -552,7 +558,7 @@ interface ParentFieldResolverContract : ResolverContract {
     @Test
     fun `materialized parent EOD is a copy of the ancestor value`() {
         lateinit var sourceParent: EngineObjectData.Sync
-        val world =
+        val worldFixture =
             TestWorld.fromSDL(
                 selectiveResolvers = selectiveResolvers,
                 schemaSDL =
@@ -563,17 +569,17 @@ interface ParentFieldResolverContract : ResolverContract {
                     type User { parent: Company @parent, label: String }
                     """.trimIndent(),
                 fieldResolvers = { schema ->
-                    sourceParent = schema.objectOf("Company") { "name" setTo "Airbnb" }
+                    sourceParent = schema.loweredSchema.objectOf("Company") { "name" setTo "Airbnb" }
                     mapOf(
-                        schema.requireObjectField("Query", "company") to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
+                        schema.loweredSchema.requireObjectField("Query", "company") to
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
                                 sourceParent
                             },
-                        schema.requireObjectField("Company", "user") to
-                            fieldResolverOf(schema.emptyFragmentOf("Company")) { _, _ ->
-                                schema.objectOf("User")
+                        schema.loweredSchema.requireObjectField("Company", "user") to
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Company")) { _, _ ->
+                                schema.loweredSchema.objectOf("User")
                             },
-                        schema.requireObjectField("User", "label") to
+                        schema.loweredSchema.requireObjectField("User", "label") to
                             fieldResolverOf(
                                 schema.fragmentFrom(
                                     "fragment ignored on User { parent { name } }",
@@ -586,9 +592,10 @@ interface ParentFieldResolverContract : ResolverContract {
                             },
                     )
                 },
-            ).assumptions
+            )
+        val world = worldFixture.assumptions
 
-        val result = resolveAndValidate(world, "query { company { user { label } } }")
+        val result = resolveAndValidate(worldFixture, "query { company { user { label } } }")
         val company =
             assertIs<ObjectEngineResult>(
                 result.getCell(world.schema.contractKey("Query", "company")).get(),
@@ -604,7 +611,7 @@ interface ParentFieldResolverContract : ResolverContract {
 
     @Test
     fun `parent demand crosses nested-list child fields and reaches grandparents`() {
-        val world =
+        val worldFixture =
             TestWorld.fromSDL(
                 selectiveResolvers = selectiveResolvers,
                 schemaSDL =
@@ -617,19 +624,19 @@ interface ParentFieldResolverContract : ResolverContract {
                     """.trimIndent(),
                 fieldResolvers = { schema ->
                     mapOf(
-                        schema.requireObjectField("Query", "organization") to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
-                                schema.objectOf("Organization") { "name" setTo "Engineering" }
+                        schema.loweredSchema.requireObjectField("Query", "organization") to
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
+                                schema.loweredSchema.objectOf("Organization") { "name" setTo "Engineering" }
                             },
-                        schema.requireObjectField("Organization", "company") to
-                            fieldResolverOf(schema.emptyFragmentOf("Organization")) { _, _ ->
-                                schema.objectOf("Company")
+                        schema.loweredSchema.requireObjectField("Organization", "company") to
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Organization")) { _, _ ->
+                                schema.loweredSchema.objectOf("Company")
                             },
-                        schema.requireObjectField("Company", "users") to
-                            fieldResolverOf(schema.emptyFragmentOf("Company")) { _, _ ->
-                                listOf(listOf(schema.objectOf("User"), schema.objectOf("User")))
+                        schema.loweredSchema.requireObjectField("Company", "users") to
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Company")) { _, _ ->
+                                listOf(listOf(schema.loweredSchema.objectOf("User"), schema.loweredSchema.objectOf("User")))
                             },
-                        schema.requireObjectField("User", "organizationName") to
+                        schema.loweredSchema.requireObjectField("User", "organizationName") to
                             fieldResolverOf(
                                 schema.fragmentFrom(
                                     "fragment ignored on User { parent { parent { name } } }",
@@ -642,9 +649,10 @@ interface ParentFieldResolverContract : ResolverContract {
                             },
                     )
                 },
-            ).assumptions
+            )
+        val world = worldFixture.assumptions
         val selections =
-            world.operationSelectionsFrom(
+            worldFixture.schemas.operationSelectionsFrom(
                 "query { organization { company { users { organizationName } } } }",
             )
         val result = resolveAndValidate(world, selections)

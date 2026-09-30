@@ -55,25 +55,26 @@ class QueryScopeOwnershipTest {
                 addresses += AddressEvent(resolverOccurrenceId, resolverOER, resolverKey)
             }
         }
-        val world = TestWorld.fromSDL(
+        val worldFixture = TestWorld.fromSDL(
             selectiveResolvers = true,
             schemaSDL = "type Query { items: [Item!]! source: Int! } type Item { value: Int! }",
             fieldResolvers = { schema ->
                 mapOf(
-                    schema.requireObjectField("Query", "items") to
-                        fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
-                            listOf(schema.objectOf("Item"), schema.objectOf("Item"))
+                    schema.loweredSchema.requireObjectField("Query", "items") to
+                        fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
+                            listOf(schema.loweredSchema.objectOf("Item"), schema.loweredSchema.objectOf("Item"))
                         },
-                    schema.requireObjectField("Item", "value") to fieldResolverOf(
-                        schema.emptyFragmentOf("Item"),
+                    schema.loweredSchema.requireObjectField("Item", "value") to fieldResolverOf(
+                        schema.loweredSchema.emptyFragmentOf("Item"),
                         schema.fragmentFrom("fragment Input on Query { source }"),
                     ) { _, query, _ -> query.selectionValues().getValue("source") },
-                    schema.requireObjectField("Query", "source") to
-                        fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> 7 },
+                    schema.loweredSchema.requireObjectField("Query", "source") to
+                        fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> 7 },
                 )
             },
-        ).assumptions
-        val selection = world.fragmentFrom("fragment Result on Query { items { value } }").subselections
+        )
+        val world = worldFixture.assumptions
+        val selection = worldFixture.schemas.fragmentFrom("fragment Result on Query { items { value } }").subselections
         val operation = SharedOperationContext.create(world, resolverObserver = recorder)
         val result = operation.resolve(selection)
         assertEquals(2, scopes.size)

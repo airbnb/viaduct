@@ -685,7 +685,7 @@ class GeneratorTest {
             val countWorld =
                 registry.world(
                     schema = schema,
-                ).assumptions
+                )
             val field =
                 countWorld.schema.requireObjectField(
                     coordinate.typeName,
@@ -699,7 +699,7 @@ class GeneratorTest {
             )
             val generatedField = schema.query.fields.single { it.name == coordinate.fieldName }
             val subselection = if (schema.isComposite(generatedField.type.namedType)) " { __typename }" else ""
-            operation.resolveObservedField(countWorld.fragmentFrom("fragment Test on Query { ${field.name}$subselection }").subselections)
+            operation.resolveObservedField(countWorld.schemas.fragmentFrom("fragment Test on Query { ${field.name}$subselection }").subselections)
 
             val counts = registry.resolutionApplicationCounts()
             assertEquals(1L, counts.getValue(coordinate))

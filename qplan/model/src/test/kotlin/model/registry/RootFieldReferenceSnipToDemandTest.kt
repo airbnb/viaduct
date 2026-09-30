@@ -18,17 +18,17 @@ class RootFieldReferenceSnipToDemandTest {
     @Test
     fun `projection preserves direct and nested root-field references`() {
         val world = TestWorld.fromSDL(SCHEMA_SDL)
-        val schema = world.schema
+        val schema = world.schemas
         val reference =
             RootFieldReferenceData.of(
                 path =
                     listOf(
-                        schema.requireObjectField("Query", "factory"),
-                        schema.requireObjectField("ProductFactory", "create"),
+                        schema.loweredSchema.requireObjectField("Query", "factory"),
+                        schema.loweredSchema.requireObjectField("ProductFactory", "create"),
                     ),
                 arguments =
                     Arguments.Resolved.of(
-                        schema.requireObjectField("ProductFactory", "create"),
+                        schema.loweredSchema.requireObjectField("ProductFactory", "create"),
                         emptyMap(),
                     ),
             )
@@ -48,7 +48,7 @@ class RootFieldReferenceSnipToDemandTest {
 
         val wrapper =
             engineObjectDataOf(
-                schema.requireType("Wrapper") as ViaductSchema.Object,
+                schema.loweredSchema.requireType("Wrapper") as ViaductSchema.Object,
                 mapOf("product" to reference),
             )
         val projected =

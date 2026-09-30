@@ -23,11 +23,11 @@ import model.registry.VariableDefinition
 import model.requireObjectField
 import model.requireQueryTypeDef
 import model.testing.TestWorld
+import model.testing.ViaductAndGJSchema
 import model.testing.fieldResolverOf
 import semantics.shared.SharedOperationContext
 import semantics.shared.VariableBindingsState
 import viaduct.engine.api.CheckerResult
-import viaduct.graphql.schema.ViaductSchema
 
 /** Forged bindings must not become assumptions of the checker relation being judged. */
 class CheckerProviderCorrectResolutionTest {
@@ -41,7 +41,7 @@ class CheckerProviderCorrectResolutionTest {
         val providerReplays = mutableMapOf<String, Int>()
 
         fun templates(
-            schema: ViaductSchema,
+            schema: ViaductAndGJSchema,
             target: ResolverTarget,
         ): Map<String, ResolverFragmentTemplates> =
             listOf("object", "query").associateWith { name ->
@@ -61,31 +61,38 @@ class CheckerProviderCorrectResolutionTest {
                 )
             }
 
-        val world = TestWorld.fromSDL(
+        val worldFixture = TestWorld.fromSDL(
             "type Query { value(id: Int!): Int! echo(value: [Int]): Int! }",
             fieldResolvers = { schema ->
                 listOf("value", "echo").associate { name ->
-                    schema.requireObjectField("Query", name) to fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> 1 }
+                    schema.loweredSchema.requireObjectField("Query", name) to fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> 1 }
                 }
             },
             fieldCheckers = { schema ->
                 if (typeChecker) {
                     emptyMap()
                 } else {
-                    val field = schema.requireObjectField("Query", "value")
-                    mapOf(field to FieldCheckerResolver.of(field, schema.requireQueryTypeDef(), templates(schema, ResolverTarget.FieldCheckerTarget(field))) { _, _, _ -> CheckerResult.Success })
+                    val field = schema.loweredSchema.requireObjectField("Query", "value")
+                    mapOf(
+                        field to FieldCheckerResolver.of(
+                            field,
+                            schema.loweredSchema.requireQueryTypeDef(),
+                            templates(schema, ResolverTarget.FieldCheckerTarget(field))
+                        ) { _, _, _ -> CheckerResult.Success }
+                    )
                 }
             },
             typeCheckers = { schema ->
                 if (!typeChecker) {
                     emptyMap()
                 } else {
-                    val query = schema.requireQueryTypeDef()
+                    val query = schema.loweredSchema.requireQueryTypeDef()
                     mapOf(query to TypeCheckerResolver.of(query, query, templates(schema, ResolverTarget.TypeCheckerTarget(query))) { _, _ -> CheckerResult.Success })
                 }
             },
-        ).assumptions
-        val query = world.schema.requireQueryTypeDef()
+        )
+        val world = worldFixture.assumptions
+        val query = worldFixture.schema.requireQueryTypeDef()
         val value = ObjectEngineResult.GroundKey.of(world.schema.requireObjectField("Query", "value"), mapOf("id" to 7))
         val root = ObjectEngineResult.of(query, typeCheckerResult = Promise.of(if (typeChecker) CheckerResult.Success else null), mutable = true)
         root.reserveCell(value).apply {
@@ -127,7 +134,7 @@ class CheckerProviderCorrectResolutionTest {
                 bindings.bindVariable(definition.variable.instanceId!!, VariableBinding.of(bindingValue))
             }
             val operation = SharedOperationContext.create(world, variableBindings = bindings, checkerObserver = observer)
-            val selections = world.operationSelectionsFrom("{ value(id: 7) }").merge(query)
+            val selections = worldFixture.schemas.operationSelectionsFrom("{ value(id: 7) }").merge(query)
             return root.correctResolution(operation, selections)
         }
 

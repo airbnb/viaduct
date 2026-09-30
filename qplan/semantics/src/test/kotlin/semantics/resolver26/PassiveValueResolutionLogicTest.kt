@@ -33,10 +33,9 @@ import viaduct.graphql.schema.ViaductSchema
 class PassiveValueResolutionLogicTest : Resolver26DispatcherResource {
     @Test
     fun `passive-only object trees freeze synchronously as they are created`() {
-        val world =
-            TestWorld
-                .fromSDL(
-                    """
+        val worldFixture = TestWorld
+            .fromSDL(
+                """
                     type Query {
                       container: Container!
                     }
@@ -50,8 +49,9 @@ class PassiveValueResolutionLogicTest : Resolver26DispatcherResource {
                       value: String!
                       omitted: String
                     }
-                    """.trimIndent(),
-                ).assumptions
+                """.trimIndent(),
+            )
+        val world = worldFixture.assumptions
         val schema = world.schema
         val containerField = schema.requireObjectField("Query", "container")
         val itemsKey =
@@ -83,7 +83,7 @@ class PassiveValueResolutionLogicTest : Resolver26DispatcherResource {
                     )
             }
         val invocationDemand =
-            world.fragmentFrom(
+            worldFixture.schemas.fragmentFrom(
                 "fragment ignored on Container { items { value } }",
             ).subselections
 
@@ -136,9 +136,9 @@ class PassiveValueResolutionLogicTest : Resolver26DispatcherResource {
                     """.trimIndent(),
                 fieldResolvers = { schema ->
                     mapOf(
-                        schema.requireObjectField("Item", "computed") to
+                        schema.loweredSchema.requireObjectField("Item", "computed") to
                             fieldResolverOf(
-                                schema.emptyFragmentOf("Item"),
+                                schema.loweredSchema.emptyFragmentOf("Item"),
                             ) { _, _ -> "computed" },
                     )
                 },
@@ -166,11 +166,11 @@ class PassiveValueResolutionLogicTest : Resolver26DispatcherResource {
                 "raw" setTo "raw"
             }
         val invocationDemand =
-            world.fragmentFrom(
+            testWorld.schemas.fragmentFrom(
                 "fragment ignored on Item { raw }",
             ).subselections
         val constructionDemand =
-            world.fragmentFrom(
+            testWorld.schemas.fragmentFrom(
                 "fragment ignored on Item { computed }",
             ).subselections
 
@@ -209,9 +209,9 @@ class PassiveValueResolutionLogicTest : Resolver26DispatcherResource {
                     """.trimIndent(),
                 fieldResolvers = { schema ->
                     mapOf(
-                        schema.requireObjectField("Item", "computed") to
+                        schema.loweredSchema.requireObjectField("Item", "computed") to
                             fieldResolverOf(
-                                schema.emptyFragmentOf("Item"),
+                                schema.loweredSchema.emptyFragmentOf("Item"),
                             ) { _, _ -> error("standard resolver must not run") },
                     )
                 },

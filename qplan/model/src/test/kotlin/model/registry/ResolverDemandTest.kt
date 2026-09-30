@@ -44,7 +44,7 @@ class ResolverDemandTest {
                     """.trimIndent(),
                 fieldResolvers = { schema ->
                     mapOf(
-                        schema.requireField("Query", "x") to
+                        schema.loweredSchema.requireField("Query", "x") to
                             resolver(
                                 schema.fragmentFrom(
                                     """
@@ -56,13 +56,13 @@ class ResolverDemandTest {
                                     """.trimIndent(),
                                 ),
                             ),
-                        schema.requireField("Query", "y") to resolver(schema.emptyFragmentOf("Query")),
-                        schema.requireField("Query", "z") to resolver(schema.emptyFragmentOf("Query")),
-                        schema.requireField("Query", "raw") to resolver(schema.emptyFragmentOf("Query")),
+                        schema.loweredSchema.requireField("Query", "y") to resolver(schema.loweredSchema.emptyFragmentOf("Query")),
+                        schema.loweredSchema.requireField("Query", "z") to resolver(schema.loweredSchema.emptyFragmentOf("Query")),
+                        schema.loweredSchema.requireField("Query", "raw") to resolver(schema.loweredSchema.emptyFragmentOf("Query")),
                     )
                 },
                 variableProviders = { schema ->
-                    val owner = schema.requireObjectField("Query", "x")
+                    val owner = schema.loweredSchema.requireObjectField("Query", "x")
                     mapOf(
                         Arguments.Variable.of(owner, "b") to
                             schema.fromObjectField(
@@ -85,12 +85,12 @@ class ResolverDemandTest {
                     )
                 },
             )
-        val schema = world.schema
+        val schema = world.schemas
         val registry = world.resolverRegistry
-        val x = schema.requireObjectField("Query", "x")
-        val y = schema.requireObjectField("Query", "y")
-        val z = schema.requireObjectField("Query", "z")
-        val raw = schema.requireObjectField("Query", "raw")
+        val x = schema.loweredSchema.requireObjectField("Query", "x")
+        val y = schema.loweredSchema.requireObjectField("Query", "y")
+        val z = schema.loweredSchema.requireObjectField("Query", "z")
+        val raw = schema.loweredSchema.requireObjectField("Query", "raw")
 
         assertEquals(setOf(y, z, raw), registry.mayDemandFrom(x))
     }
@@ -110,9 +110,9 @@ class ResolverDemandTest {
                     }
                     """.trimIndent(),
                 fieldResolvers = { schema ->
-                    val empty = schema.emptyFragmentOf("Query")
+                    val empty = schema.loweredSchema.emptyFragmentOf("Query")
                     mapOf(
-                        schema.requireField("Query", "x") to
+                        schema.loweredSchema.requireField("Query", "x") to
                             resolver(
                                 schema.fragmentFrom(
                                     """
@@ -123,7 +123,7 @@ class ResolverDemandTest {
                                     """.trimIndent(),
                                 ),
                             ),
-                        schema.requireField("Query", "y") to
+                        schema.loweredSchema.requireField("Query", "y") to
                             resolver(
                                 schema.fragmentFrom(
                                     """
@@ -134,14 +134,14 @@ class ResolverDemandTest {
                                     """.trimIndent(),
                                 ),
                             ),
-                        schema.requireField("Query", "xSource") to resolver(empty),
-                        schema.requireField("Query", "ySource") to resolver(empty),
-                        schema.requireField("Query", "consume") to resolver(empty),
+                        schema.loweredSchema.requireField("Query", "xSource") to resolver(empty),
+                        schema.loweredSchema.requireField("Query", "ySource") to resolver(empty),
+                        schema.loweredSchema.requireField("Query", "consume") to resolver(empty),
                     )
                 },
                 variableProviders = { schema ->
-                    val x = schema.requireObjectField("Query", "x")
-                    val y = schema.requireObjectField("Query", "y")
+                    val x = schema.loweredSchema.requireObjectField("Query", "x")
+                    val y = schema.loweredSchema.requireObjectField("Query", "y")
                     mapOf(
                         Arguments.Variable.of(x, "same") to
                             schema.fromObjectField(
@@ -156,9 +156,9 @@ class ResolverDemandTest {
                     )
                 },
             )
-        val schema = world.schema
-        val x = schema.requireObjectField("Query", "x")
-        val y = schema.requireObjectField("Query", "y")
+        val schema = world.schemas
+        val x = schema.loweredSchema.requireObjectField("Query", "x")
+        val y = schema.loweredSchema.requireObjectField("Query", "y")
         val xVariable = Arguments.Variable.of(x, "same")
         val yVariable = Arguments.Variable.of(y, "same")
 
@@ -171,13 +171,13 @@ class ResolverDemandTest {
             world.resolverRegistry.resolver(y).variables.keys,
         )
         assertEquals(
-            schema.requireObjectField("Query", "xSource"),
+            schema.loweredSchema.requireObjectField("Query", "xSource"),
             assertIs<VariableDefinition.FromField>(
                 world.resolverRegistry.resolver(x).variables.getValue(xVariable),
             ).path.single().field,
         )
         assertEquals(
-            schema.requireObjectField("Query", "ySource"),
+            schema.loweredSchema.requireObjectField("Query", "ySource"),
             assertIs<VariableDefinition.FromField>(
                 world.resolverRegistry.resolver(y).variables.getValue(yVariable),
             ).path.single().field,
@@ -197,7 +197,7 @@ class ResolverDemandTest {
                     """.trimIndent(),
                 fieldResolvers = { schema ->
                     mapOf(
-                        schema.requireField("Query", "source") to
+                        schema.loweredSchema.requireField("Query", "source") to
                             resolver(
                                 schema.fragmentFrom(
                                     """
@@ -207,15 +207,15 @@ class ResolverDemandTest {
                                     """.trimIndent(),
                                 ),
                             ),
-                        schema.requireField("Query", "consume") to
-                            resolver(schema.emptyFragmentOf("Query")),
+                        schema.loweredSchema.requireField("Query", "consume") to
+                            resolver(schema.loweredSchema.emptyFragmentOf("Query")),
                     )
                 },
                 variableProviders = { schema ->
-                    val source = schema.requireObjectField("Query", "source")
+                    val source = schema.loweredSchema.requireObjectField("Query", "source")
                     mapOf(
                         Arguments.Variable.of(source, "seed") to
-                            schema.fromArgument(source, "seed"),
+                            schema.loweredSchema.fromArgument(source, "seed"),
                     )
                 },
             )
@@ -252,18 +252,18 @@ class ResolverDemandTest {
                         }
                         """.trimIndent(),
                     fieldResolvers = { schema ->
-                        val empty = schema.emptyFragmentOf("Query")
+                        val empty = schema.loweredSchema.emptyFragmentOf("Query")
                         mapOf(
-                            schema.requireField("Query", "source") to resolver(empty),
-                            schema.requireField("Query", "other") to resolver(empty),
+                            schema.loweredSchema.requireField("Query", "source") to resolver(empty),
+                            schema.loweredSchema.requireField("Query", "other") to resolver(empty),
                         )
                     },
                     variableProviders = { schema ->
-                        val source = schema.requireObjectField("Query", "source")
-                        val other = schema.requireObjectField("Query", "other")
+                        val source = schema.loweredSchema.requireObjectField("Query", "source")
+                        val other = schema.loweredSchema.requireObjectField("Query", "other")
                         mapOf(
                             Arguments.Variable.of(source, "seed") to
-                                schema.fromArgument(other, "seed"),
+                                schema.loweredSchema.fromArgument(other, "seed"),
                         )
                     },
                 )
@@ -292,13 +292,13 @@ class ResolverDemandTest {
                         """.trimIndent(),
                     fieldResolvers = { schema ->
                         mapOf(
-                            schema.requireField("Query", "company") to
-                                resolver(schema.emptyFragmentOf("Query")),
-                            schema.requireField("Company", "users") to
-                                resolver(schema.emptyFragmentOf("Company")),
-                            schema.requireField("Company", "localizedName") to
-                                resolver(schema.emptyFragmentOf("Company")),
-                            schema.requireField("User", "display") to
+                            schema.loweredSchema.requireField("Query", "company") to
+                                resolver(schema.loweredSchema.emptyFragmentOf("Query")),
+                            schema.loweredSchema.requireField("Company", "users") to
+                                resolver(schema.loweredSchema.emptyFragmentOf("Company")),
+                            schema.loweredSchema.requireField("Company", "localizedName") to
+                                resolver(schema.loweredSchema.emptyFragmentOf("Company")),
+                            schema.loweredSchema.requireField("User", "display") to
                                 resolver(
                                     schema.fragmentFrom(
                                         """
@@ -311,10 +311,10 @@ class ResolverDemandTest {
                         )
                     },
                     variableProviders = { schema ->
-                        val display = schema.requireObjectField("User", "display")
+                        val display = schema.loweredSchema.requireObjectField("User", "display")
                         mapOf(
                             Arguments.Variable.of(display, "locale") to
-                                schema.fromArgument(display, "locale"),
+                                schema.loweredSchema.fromArgument(display, "locale"),
                         )
                     },
                 )
@@ -340,7 +340,7 @@ class ResolverDemandTest {
                         }
                         """.trimIndent(),
                     fieldResolvers = { schema ->
-                        val result = schema.requireObjectField("Child", "result")
+                        val result = schema.loweredSchema.requireObjectField("Child", "result")
                         mapOf(
                             result to
                                 resolver(
@@ -356,10 +356,10 @@ class ResolverDemandTest {
                         )
                     },
                     variableProviders = { schema ->
-                        val result = schema.requireObjectField("Child", "result")
+                        val result = schema.loweredSchema.requireObjectField("Child", "result")
                         mapOf(
                             Arguments.Variable.of(result, "enabled") to
-                                schema.fromArgument(result, "enabled"),
+                                schema.loweredSchema.fromArgument(result, "enabled"),
                         )
                     },
                 )
@@ -383,7 +383,7 @@ class ResolverDemandTest {
                 }
                 """.trimIndent(),
             fieldResolvers = { schema ->
-                val result = schema.requireObjectField("Child", "result")
+                val result = schema.loweredSchema.requireObjectField("Child", "result")
                 mapOf(
                     result to
                         resolver(
@@ -400,7 +400,7 @@ class ResolverDemandTest {
                 )
             },
             variableProviders = { schema ->
-                val result = schema.requireObjectField("Child", "result")
+                val result = schema.loweredSchema.requireObjectField("Child", "result")
                 mapOf(
                     Arguments.Variable.of(result, "enabled") to
                         schema.fromObjectField(
@@ -439,9 +439,9 @@ class ResolverDemandTest {
                         }
                         """.trimIndent(),
                     fieldResolvers = { schema ->
-                        val empty = schema.emptyFragmentOf("Query")
+                        val empty = schema.loweredSchema.emptyFragmentOf("Query")
                         mapOf(
-                            schema.requireField("Query", "result") to
+                            schema.loweredSchema.requireField("Query", "result") to
                                 fieldResolverOf(
                                     objectFragment = schema.fragmentFrom(objectFragment),
                                     queryFragment =
@@ -451,11 +451,11 @@ class ResolverDemandTest {
                                             empty
                                         },
                                 ) { _, _, _ -> 1 },
-                            schema.requireField("Query", "z") to resolver(empty),
+                            schema.loweredSchema.requireField("Query", "z") to resolver(empty),
                         )
                     },
                     variableProviders = { schema ->
-                        val owner = schema.requireObjectField("Query", "result")
+                        val owner = schema.loweredSchema.requireObjectField("Query", "result")
                         mapOf(
                             Arguments.Variable.of(owner, "objectValue") to
                                 schema.fromObjectField(
@@ -541,7 +541,7 @@ class ResolverDemandTest {
                         }
                         """.trimIndent(),
                     fieldResolvers = { schema ->
-                        val result = schema.requireObjectField("Query", "result")
+                        val result = schema.loweredSchema.requireObjectField("Query", "result")
                         mapOf(
                             result to
                                 fieldResolverOf(
@@ -551,14 +551,14 @@ class ResolverDemandTest {
                                             "fragment QueryUse on Query { consume(value: ${'$'}value) }",
                                         ),
                                 ) { _, _, _ -> error("Not invoked") },
-                            schema.requireObjectField("Query", "provider") to
-                                resolver(schema.emptyFragmentOf("Query")),
-                            schema.requireObjectField("Query", "consume") to
-                                resolver(schema.emptyFragmentOf("Query")),
+                            schema.loweredSchema.requireObjectField("Query", "provider") to
+                                resolver(schema.loweredSchema.emptyFragmentOf("Query")),
+                            schema.loweredSchema.requireObjectField("Query", "consume") to
+                                resolver(schema.loweredSchema.emptyFragmentOf("Query")),
                         )
                     },
                     variableProviders = { schema ->
-                        val result = schema.requireObjectField("Query", "result")
+                        val result = schema.loweredSchema.requireObjectField("Query", "result")
                         mapOf(
                             Arguments.Variable.of(result, "value") to
                                 schema.fromObjectField(providerFragment, listOf("provided")),
@@ -583,25 +583,25 @@ class ResolverDemandTest {
                         }
                         """.trimIndent(),
                     fieldResolvers = { schema ->
-                        val result = schema.requireObjectField("Query", "result")
+                        val result = schema.loweredSchema.requireObjectField("Query", "result")
                         mapOf(
                             result to
                                 fieldResolverOf(
-                                    objectFragment = schema.emptyFragmentOf("Query"),
+                                    objectFragment = schema.loweredSchema.emptyFragmentOf("Query"),
                                     queryFragment =
                                         schema.fragmentFrom(
                                             "fragment QueryUse on Query { consume(value: ${'$'}value) }",
                                         ),
                                 ) { _, _, _ -> error("Not invoked") },
-                            schema.requireObjectField("Query", "consume") to
-                                resolver(schema.emptyFragmentOf("Query")),
+                            schema.loweredSchema.requireObjectField("Query", "consume") to
+                                resolver(schema.loweredSchema.emptyFragmentOf("Query")),
                         )
                     },
                     variableProviders = { schema ->
-                        val result = schema.requireObjectField("Query", "result")
+                        val result = schema.loweredSchema.requireObjectField("Query", "result")
                         mapOf(
                             Arguments.Variable.of(result, "value") to
-                                schema.fromArgument(result, "value"),
+                                schema.loweredSchema.fromArgument(result, "value"),
                         )
                     },
                 )
@@ -623,7 +623,7 @@ class ResolverDemandTest {
                         }
                         """.trimIndent(),
                     fieldResolvers = { schema ->
-                        val result = schema.requireObjectField("Query", "result")
+                        val result = schema.loweredSchema.requireObjectField("Query", "result")
                         mapOf(
                             result to
                                 resolver(
@@ -633,15 +633,15 @@ class ResolverDemandTest {
                                         variableField = result,
                                     ),
                                 ),
-                            schema.requireObjectField("Query", "dependency") to
-                                resolver(schema.emptyFragmentOf("Query")),
+                            schema.loweredSchema.requireObjectField("Query", "dependency") to
+                                resolver(schema.loweredSchema.emptyFragmentOf("Query")),
                         )
                     },
                     variableProviders = { schema ->
-                        val result = schema.requireObjectField("Query", "result")
+                        val result = schema.loweredSchema.requireObjectField("Query", "result")
                         mapOf(
                             Arguments.Variable.of(result, "flag") to
-                                schema.fromArgument(result, "flag"),
+                                schema.loweredSchema.fromArgument(result, "flag"),
                         )
                     },
                 )
@@ -668,7 +668,7 @@ class ResolverDemandTest {
                         }
                         """.trimIndent(),
                     fieldResolvers = { schema ->
-                        val result = schema.requireObjectField("Query", "result")
+                        val result = schema.loweredSchema.requireObjectField("Query", "result")
                         mapOf(
                             result to
                                 fieldResolverOf(
@@ -686,14 +686,14 @@ class ResolverDemandTest {
                                 ) { _, _, _ ->
                                     error("Not invoked")
                                 },
-                            schema.requireObjectField("Query", "enabled") to
-                                resolver(schema.emptyFragmentOf("Query")),
-                            schema.requireObjectField("Query", "dependency") to
-                                resolver(schema.emptyFragmentOf("Query")),
+                            schema.loweredSchema.requireObjectField("Query", "enabled") to
+                                resolver(schema.loweredSchema.emptyFragmentOf("Query")),
+                            schema.loweredSchema.requireObjectField("Query", "dependency") to
+                                resolver(schema.loweredSchema.emptyFragmentOf("Query")),
                         )
                     },
                     variableProviders = { schema ->
-                        val result = schema.requireObjectField("Query", "result")
+                        val result = schema.loweredSchema.requireObjectField("Query", "result")
                         mapOf(
                             Arguments.Variable.of(result, "enabled") to
                                 schema.fromObjectField(
@@ -728,7 +728,7 @@ class ResolverDemandTest {
                         }
                         """.trimIndent(),
                     fieldResolvers = { schema ->
-                        val result = schema.requireObjectField("Query", "result")
+                        val result = schema.loweredSchema.requireObjectField("Query", "result")
                         mapOf(
                             result to
                                 resolver(
@@ -738,15 +738,15 @@ class ResolverDemandTest {
                                         variableField = result,
                                     ),
                                 ),
-                            schema.requireObjectField("Query", "dependency") to
-                                resolver(schema.emptyFragmentOf("Query")),
+                            schema.loweredSchema.requireObjectField("Query", "dependency") to
+                                resolver(schema.loweredSchema.emptyFragmentOf("Query")),
                         )
                     },
                     variableProviders = { schema ->
-                        val result = schema.requireObjectField("Query", "result")
+                        val result = schema.loweredSchema.requireObjectField("Query", "result")
                         mapOf(
                             Arguments.Variable.of(result, "flag") to
-                                schema.fromArgument(result, "flag"),
+                                schema.loweredSchema.fromArgument(result, "flag"),
                         )
                     },
                 )
@@ -786,7 +786,7 @@ class ResolverDemandTest {
                         """.trimIndent(),
                     fieldResolvers = { schema ->
                         mapOf(
-                            schema.requireField("Query", "result") to
+                            schema.loweredSchema.requireField("Query", "result") to
                                 resolver(
                                     schema.fragmentFrom(
                                         """
@@ -801,14 +801,14 @@ class ResolverDemandTest {
                                         """.trimIndent(),
                                     ),
                                 ),
-                            schema.requireField("Query", "consume") to
-                                resolver(schema.emptyFragmentOf("Query")),
-                            schema.requireField("Query", "subject") to
-                                resolver(schema.emptyFragmentOf("Query")),
+                            schema.loweredSchema.requireField("Query", "consume") to
+                                resolver(schema.loweredSchema.emptyFragmentOf("Query")),
+                            schema.loweredSchema.requireField("Query", "subject") to
+                                resolver(schema.loweredSchema.emptyFragmentOf("Query")),
                         )
                     },
                     variableProviders = { schema ->
-                        val owner = schema.requireField("Query", "result") as ViaductSchema.ObjectField
+                        val owner = schema.loweredSchema.requireField("Query", "result") as ViaductSchema.ObjectField
                         mapOf(
                             Arguments.Variable.of(owner, "value") to
                                 schema.fromObjectField(
@@ -837,8 +837,8 @@ class ResolverDemandTest {
             TestWorld.fromSDL(
                 schemaSDL = DEMAND_SCHEMA,
                 nodeResolvers = { schema ->
-                    val user = schema.requireType("User") as ViaductSchema.Object
-                    val admin = schema.requireType("Admin") as ViaductSchema.Object
+                    val user = schema.loweredSchema.requireType("User") as ViaductSchema.Object
+                    val admin = schema.loweredSchema.requireType("Admin") as ViaductSchema.Object
                     mapOf(
                         user to nodeResolverOf { _: String -> error("Not invoked") },
                         admin to nodeResolverOf { _: String -> error("Not invoked") },
@@ -868,25 +868,25 @@ class ResolverDemandTest {
                             """.trimIndent(),
                         )
                     mapOf(
-                        schema.requireField("Query", "node") to
-                            resolver(schema.emptyFragmentOf("Query")),
-                        schema.requireField("Query", "consumer") to
+                        schema.loweredSchema.requireField("Query", "node") to
+                            resolver(schema.loweredSchema.emptyFragmentOf("Query")),
+                        schema.loweredSchema.requireField("Query", "consumer") to
                             resolver(consumerFragment),
-                        schema.requireField("Query", "outer") to resolver(outerFragment),
-                        schema.requireField("User", "resolved") to
-                            resolver(schema.emptyFragmentOf("User")),
-                        schema.requireField("Admin", "resolved") to
-                            resolver(schema.emptyFragmentOf("Admin")),
+                        schema.loweredSchema.requireField("Query", "outer") to resolver(outerFragment),
+                        schema.loweredSchema.requireField("User", "resolved") to
+                            resolver(schema.loweredSchema.emptyFragmentOf("User")),
+                        schema.loweredSchema.requireField("Admin", "resolved") to
+                            resolver(schema.loweredSchema.emptyFragmentOf("Admin")),
                     )
                 },
             )
-        val schema = world.schema
+        val schema = world.schemas
         val registry = world.resolverRegistry
-        val queryNode = schema.requireObjectField("Query", "node")
-        val consumer = schema.requireObjectField("Query", "consumer")
-        val outer = schema.requireObjectField("Query", "outer")
-        val userResolved = schema.requireObjectField("User", "resolved")
-        val adminResolved = schema.requireObjectField("Admin", "resolved")
+        val queryNode = schema.loweredSchema.requireObjectField("Query", "node")
+        val consumer = schema.loweredSchema.requireObjectField("Query", "consumer")
+        val outer = schema.loweredSchema.requireObjectField("Query", "outer")
+        val userResolved = schema.loweredSchema.requireObjectField("User", "resolved")
+        val adminResolved = schema.loweredSchema.requireObjectField("Admin", "resolved")
 
         assertEquals(
             setOf(
@@ -910,7 +910,7 @@ class ResolverDemandTest {
                     schemaSDL = CYCLE_SCHEMA,
                     fieldResolvers = { schema ->
                         mapOf(
-                            schema.requireField("Query", "a") to
+                            schema.loweredSchema.requireField("Query", "a") to
                                 resolver(
                                     schema.fragmentFrom(
                                         """
@@ -922,7 +922,7 @@ class ResolverDemandTest {
                                         """.trimIndent(),
                                     ),
                                 ),
-                            schema.requireField("Query", "b") to
+                            schema.loweredSchema.requireField("Query", "b") to
                                 resolver(
                                     schema.fragmentFrom(
                                         """
@@ -949,11 +949,11 @@ class ResolverDemandTest {
                 TestWorld.fromSDL(
                     schemaSDL = "type Query { value: Int! }",
                     fieldResolvers = { schema ->
-                        val value = schema.requireObjectField("Query", "value")
+                        val value = schema.loweredSchema.requireObjectField("Query", "value")
                         mapOf(
                             value to
                                 fieldResolverOf(
-                                    objectFragment = schema.emptyFragmentOf("Query"),
+                                    objectFragment = schema.loweredSchema.emptyFragmentOf("Query"),
                                     queryFragment =
                                         schema.fragmentFrom(
                                             "fragment ValueQuery on Query { value }",
@@ -974,9 +974,9 @@ class ResolverDemandTest {
                 TestWorld.fromSDL(
                     schemaSDL = "type Query { first: Int!, second: Int! }",
                     fieldResolvers = { schema ->
-                        val first = schema.requireObjectField("Query", "first")
-                        val second = schema.requireObjectField("Query", "second")
-                        val empty = schema.emptyFragmentOf("Query")
+                        val first = schema.loweredSchema.requireObjectField("Query", "first")
+                        val second = schema.loweredSchema.requireObjectField("Query", "second")
+                        val empty = schema.loweredSchema.emptyFragmentOf("Query")
                         mapOf(
                             first to
                                 fieldResolverOf(
@@ -1015,13 +1015,13 @@ class ResolverDemandTest {
                     """.trimIndent(),
                 fieldResolvers = { schema ->
                     mapOf(
-                        schema.requireField("Query", "first") to
+                        schema.loweredSchema.requireField("Query", "first") to
                             resolver(
                                 schema.fragmentFrom(
                                     "fragment ignored on Query { second @skip(if: true) }",
                                 ),
                             ),
-                        schema.requireField("Query", "second") to
+                        schema.loweredSchema.requireField("Query", "second") to
                             resolver(
                                 schema.fragmentFrom(
                                     "fragment ignored on Query { first }",
@@ -1030,9 +1030,9 @@ class ResolverDemandTest {
                     )
                 },
             )
-        val schema = world.schema
-        val first = schema.requireObjectField("Query", "first")
-        val second = schema.requireObjectField("Query", "second")
+        val schema = world.schemas
+        val first = schema.loweredSchema.requireObjectField("Query", "first")
+        val second = schema.loweredSchema.requireObjectField("Query", "second")
 
         assertTrue(world.resolverRegistry.mayDemandFrom(first).isEmpty())
         assertEquals(setOf(first), world.resolverRegistry.mayDemandFrom(second))
@@ -1068,14 +1068,14 @@ class ResolverDemandTest {
                                 subselections = parsedSecond.subselections,
                             )
                         mapOf(
-                            schema.requireField("Query", "first") to
+                            schema.loweredSchema.requireField("Query", "first") to
                                 resolver(
                                     Fragment.of(
-                                        schema.requireQueryTypeDef(),
+                                        schema.loweredSchema.requireQueryTypeDef(),
                                         selectionForestOf(errorSecond),
                                     ),
                                 ),
-                            schema.requireField("Query", "second") to
+                            schema.loweredSchema.requireField("Query", "second") to
                                 resolver(
                                     schema.fragmentFrom(
                                         "fragment ignored on Query { first(arg: 1) }",
@@ -1157,18 +1157,18 @@ class ResolverDemandTest {
                     """.trimIndent(),
                 fieldResolvers = { schema ->
                     mapOf(
-                        schema.requireField("Query", "result") to
+                        schema.loweredSchema.requireField("Query", "result") to
                             resolver(schema.fragmentFrom(ownerFragment)),
-                        schema.requireField("Query", "consume") to
-                            resolver(schema.emptyFragmentOf("Query")),
-                        schema.requireField("Query", "source") to
-                            resolver(schema.emptyFragmentOf("Query")),
-                        schema.requireField("Query", "payload") to
-                            resolver(schema.emptyFragmentOf("Query")),
+                        schema.loweredSchema.requireField("Query", "consume") to
+                            resolver(schema.loweredSchema.emptyFragmentOf("Query")),
+                        schema.loweredSchema.requireField("Query", "source") to
+                            resolver(schema.loweredSchema.emptyFragmentOf("Query")),
+                        schema.loweredSchema.requireField("Query", "payload") to
+                            resolver(schema.loweredSchema.emptyFragmentOf("Query")),
                     )
                 },
                 variableProviders = { schema ->
-                    val owner = schema.requireField("Query", "result") as ViaductSchema.ObjectField
+                    val owner = schema.loweredSchema.requireField("Query", "result") as ViaductSchema.ObjectField
                     mapOf(
                         Arguments.Variable.of(owner, "value") to
                             schema.fromObjectField(

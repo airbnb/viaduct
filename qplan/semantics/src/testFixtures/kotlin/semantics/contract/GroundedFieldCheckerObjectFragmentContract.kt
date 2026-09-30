@@ -39,16 +39,16 @@ interface GroundedFieldCheckerObjectFragmentContract {
 
     @Test
     fun `value and checker wait cycle fails instead of hanging`() {
-        val world =
+        val worldFixture =
             TestWorld.fromSDL(
                 schemaSDL = "type Query { checked: Int!, dependency: Int! }",
                 selectiveResolvers = coroutineResolverSubject.selectiveResolvers,
                 fieldResolvers = { schema ->
-                    val checked = schema.requireObjectField("Query", "checked")
-                    val dependency = schema.requireObjectField("Query", "dependency")
+                    val checked = schema.loweredSchema.requireObjectField("Query", "checked")
+                    val dependency = schema.loweredSchema.requireObjectField("Query", "dependency")
                     mapOf(
                         checked to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> 1 },
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> 1 },
                         dependency to
                             fieldResolverOf(
                                 schema.fragmentFrom("fragment Input on Query { checked }"),
@@ -56,12 +56,12 @@ interface GroundedFieldCheckerObjectFragmentContract {
                     )
                 },
                 fieldCheckers = { schema ->
-                    val checked = schema.requireObjectField("Query", "checked")
+                    val checked = schema.loweredSchema.requireObjectField("Query", "checked")
                     mapOf(
                         checked to
                             FieldCheckerResolver.of(
                                 checked,
-                                schema.requireQueryTypeDef(),
+                                schema.loweredSchema.requireQueryTypeDef(),
                                 fragmentTemplates =
                                     mapOf(
                                         "input" to
@@ -80,12 +80,13 @@ interface GroundedFieldCheckerObjectFragmentContract {
                             },
                     )
                 },
-            ).assumptions
+            )
+        val world = worldFixture.assumptions
 
         val result =
             coroutineResolverSubject.resolve(
                 SharedOperationContext.create(world),
-                world.operationSelectionsFrom("{ checked }"),
+                worldFixture.schemas.operationSelectionsFrom("{ checked }"),
             )
         val failure =
             assertFailsWith<Exception> {
@@ -107,7 +108,7 @@ interface GroundedFieldCheckerObjectFragmentContract {
         val inputsSeen = AtomicReference<Map<String, CheckerInput>>()
         val rawActiveChecks = AtomicInteger()
         val rawNestedChecks = AtomicInteger()
-        val world =
+        val worldFixture =
             TestWorld.fromDSL(
                 schemaSDL =
                     """
@@ -128,8 +129,8 @@ interface GroundedFieldCheckerObjectFragmentContract {
                     """.trimIndent(),
                 selectiveResolvers = coroutineResolverSubject.selectiveResolvers,
                 fieldCheckers = { schema ->
-                    val query = schema.requireQueryTypeDef()
-                    val checked = schema.requireObjectField("Item", "checked")
+                    val query = schema.loweredSchema.requireQueryTypeDef()
+                    val checked = schema.loweredSchema.requireObjectField("Item", "checked")
                     val seed = Arguments.Variable.of(ResolverTarget.FieldCheckerTarget(checked), "seed")
                     val fragments =
                         linkedMapOf(
@@ -182,17 +183,17 @@ interface GroundedFieldCheckerObjectFragmentContract {
                                 inputsSeen.set(inputs)
                                 CheckerResult.Success
                             },
-                        schema.requireObjectField("Item", "active") to
+                        schema.loweredSchema.requireObjectField("Item", "active") to
                             FieldCheckerResolver.of(
-                                schema.requireObjectField("Item", "active"),
+                                schema.loweredSchema.requireObjectField("Item", "active"),
                                 query,
                             ) { _, _, _ ->
                                 rawActiveChecks.incrementAndGet()
                                 CheckerResult.Success
                             },
-                        schema.requireObjectField("Child", "nested") to
+                        schema.loweredSchema.requireObjectField("Child", "nested") to
                             FieldCheckerResolver.of(
-                                schema.requireObjectField("Child", "nested"),
+                                schema.loweredSchema.requireObjectField("Child", "nested"),
                                 query,
                             ) { _, _, _ ->
                                 rawNestedChecks.incrementAndGet()
@@ -200,12 +201,13 @@ interface GroundedFieldCheckerObjectFragmentContract {
                             },
                     )
                 },
-            ).assumptions
+            )
+        val world = worldFixture.assumptions
 
         val result =
             coroutineResolverSubject.resolve(
                 SharedOperationContext.create(world),
-                world.operationSelectionsFrom("{ item { checked(seed: 5) } }"),
+                worldFixture.schemas.operationSelectionsFrom("{ item { checked(seed: 5) } }"),
             )
         val itemKey =
             ObjectEngineResult.GroundKey.of(

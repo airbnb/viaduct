@@ -52,22 +52,23 @@ class QueryObserverCompatibilityTest : Resolver26DispatcherResource {
                         events += observation.field.name
                     }
                 }
-                val world = TestWorld.fromSDL(
+                val worldFixture = TestWorld.fromSDL(
                     selectiveResolvers = subject.selective,
                     schemaSDL = "type Query { consumer: Int! dependency: Int! }",
                     fieldResolvers = { schema ->
                         mapOf(
-                            schema.requireObjectField("Query", "consumer") to fieldResolverOf(
-                                schema.emptyFragmentOf("Query"),
+                            schema.loweredSchema.requireObjectField("Query", "consumer") to fieldResolverOf(
+                                schema.loweredSchema.emptyFragmentOf("Query"),
                                 schema.fragmentFrom("fragment Input on Query { dependency }"),
                             ) { _, query, _ -> query.selectionValues().getValue("dependency") },
-                            schema.requireObjectField("Query", "dependency") to
-                                fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> 7 },
+                            schema.loweredSchema.requireObjectField("Query", "dependency") to
+                                fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> 7 },
                         )
                     },
-                ).assumptions
+                )
+                val world = worldFixture.assumptions
                 val operation = SharedOperationContext.create(world, resolverObserver = observer)
-                subject.resolve(operation, world.fragmentFrom("fragment Result on Query { consumer }").subselections)
+                subject.resolve(operation, worldFixture.schemas.fragmentFrom("fragment Result on Query { consumer }").subselections)
                 assertEquals(1, observer.allQueryFragmentResults().size, "Recorder still captured the association")
                 assertEquals(listOf("prepared", "dependency", "consumer"), events)
             }

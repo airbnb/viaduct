@@ -75,7 +75,7 @@ interface FragmentFreeTypeCheckerEnforcementContract {
         val typeDenial = TypeEnforcementError("type denied")
         val combinedDenial = TypeEnforcementError("combined denial")
         val combiningTypeDenial = CombiningTypeEnforcementError(fieldDenial, combinedDenial)
-        val world =
+        val worldFixture =
             TestWorld.fromSDL(
                 selectiveResolvers = coroutineResolverSubject.selectiveResolvers,
                 schemaSDL =
@@ -111,12 +111,12 @@ interface FragmentFreeTypeCheckerEnforcementContract {
                 fieldResolvers = { schema ->
                     buildMap {
                         cases.forEachIndexed { index, case ->
-                            val dependency = schema.requireObjectField("Query", case.dependency)
-                            val consumer = schema.requireObjectField("Query", case.consumer)
+                            val dependency = schema.loweredSchema.requireObjectField("Query", case.dependency)
+                            val consumer = schema.loweredSchema.requireObjectField("Query", case.consumer)
                             put(
                                 dependency,
-                                fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
-                                    schema.objectOf(case.type) { "value" setTo index + 1 }
+                                fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
+                                    schema.loweredSchema.objectOf(case.type) { "value" setTo index + 1 }
                                 },
                             )
                             put(
@@ -145,9 +145,9 @@ interface FragmentFreeTypeCheckerEnforcementContract {
                         "fieldDeniedTypeAllowed" to fieldDenial,
                         "fieldAllowedTypeDenied" to CheckerResult.Success,
                     ).associate { (name, result) ->
-                        val field = schema.requireObjectField("Query", name)
+                        val field = schema.loweredSchema.requireObjectField("Query", name)
                         field to
-                            FieldCheckerResolver.of(field, schema.requireQueryTypeDef()) { _, _, _ ->
+                            FieldCheckerResolver.of(field, schema.loweredSchema.requireQueryTypeDef()) { _, _, _ ->
                                 result
                             }
                     }
@@ -161,18 +161,19 @@ interface FragmentFreeTypeCheckerEnforcementContract {
                         "FieldDeniedTypeAllowed" to CheckerResult.Success,
                         "FieldAllowedTypeDenied" to typeDenial,
                     ).associate { (name, result) ->
-                        val type = schema.requireType(name) as ViaductSchema.Object
+                        val type = schema.loweredSchema.requireType(name) as ViaductSchema.Object
                         type to
-                            TypeCheckerResolver.of(type, schema.requireQueryTypeDef()) { _, _ ->
+                            TypeCheckerResolver.of(type, schema.loweredSchema.requireQueryTypeDef()) { _, _ ->
                                 result
                             }
                     }
                 },
-            ).assumptions
+            )
+        val world = worldFixture.assumptions
 
         val result =
             resolveT2(
-                world,
+                worldFixture,
                 cases.joinToString(prefix = "{ ", postfix = " }") { it.consumer },
             )
 
@@ -190,7 +191,7 @@ interface FragmentFreeTypeCheckerEnforcementContract {
     fun `one type result is shared by directive-sensitive repeated consumers`() {
         val checkerCalls = AtomicInteger()
         val denial = DirectiveAwareTypeEnforcementError()
-        val world =
+        val worldFixture =
             TestWorld.fromSDL(
                 selectiveResolvers = coroutineResolverSubject.selectiveResolvers,
                 schemaSDL =
@@ -200,13 +201,13 @@ interface FragmentFreeTypeCheckerEnforcementContract {
                     type Item { value: Int! }
                     """.trimIndent(),
                 fieldResolvers = { schema ->
-                    val item = schema.requireObjectField("Query", "item")
-                    val bypassed = schema.requireObjectField("Query", "bypassed")
-                    val blocked = schema.requireObjectField("Query", "blocked")
+                    val item = schema.loweredSchema.requireObjectField("Query", "item")
+                    val bypassed = schema.loweredSchema.requireObjectField("Query", "bypassed")
+                    val blocked = schema.loweredSchema.requireObjectField("Query", "blocked")
                     mapOf(
                         item to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
-                                schema.objectOf("Item") { "value" setTo 7 }
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
+                                schema.loweredSchema.objectOf("Item") { "value" setTo 7 }
                             },
                         bypassed to
                             fieldResolverOf(
@@ -223,17 +224,18 @@ interface FragmentFreeTypeCheckerEnforcementContract {
                     )
                 },
                 typeCheckers = { schema ->
-                    val item = schema.requireType("Item") as ViaductSchema.Object
+                    val item = schema.loweredSchema.requireType("Item") as ViaductSchema.Object
                     mapOf(
-                        item to TypeCheckerResolver.of(item, schema.requireQueryTypeDef()) { _, _ ->
+                        item to TypeCheckerResolver.of(item, schema.loweredSchema.requireQueryTypeDef()) { _, _ ->
                             checkerCalls.incrementAndGet()
                             denial
                         },
                     )
                 },
-            ).assumptions
+            )
+        val world = worldFixture.assumptions
 
-        val result = resolveT2(world, "{ bypassed blocked }")
+        val result = resolveT2(worldFixture, "{ bypassed blocked }")
 
         assertEquals(7, result.t2Value(world, "bypassed"))
         assertSame(denial.error, result.t2Error(world, "blocked").errorData.cause)
@@ -246,7 +248,7 @@ interface FragmentFreeTypeCheckerEnforcementContract {
         val materializedInput = AtomicReference<EngineObjectData.Sync>()
         val recorder = CheckerApplicationRecorder()
         val denial = TypeEnforcementError("list element denied")
-        val world =
+        val worldFixture =
             TestWorld.fromSDL(
                 selectiveResolvers = coroutineResolverSubject.selectiveResolvers,
                 schemaSDL =
@@ -255,17 +257,17 @@ interface FragmentFreeTypeCheckerEnforcementContract {
                     type Item { value: Int! }
                     """.trimIndent(),
                 fieldResolvers = { schema ->
-                    val matrix = schema.requireObjectField("Query", "matrix")
-                    val consumer = schema.requireObjectField("Query", "consumer")
+                    val matrix = schema.loweredSchema.requireObjectField("Query", "matrix")
+                    val consumer = schema.loweredSchema.requireObjectField("Query", "consumer")
                     mapOf(
                         matrix to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
                                 listOf(
                                     listOf(
-                                        schema.objectOf("Item") { "value" setTo 1 },
-                                        schema.objectOf("Item") { "value" setTo 2 },
+                                        schema.loweredSchema.objectOf("Item") { "value" setTo 1 },
+                                        schema.loweredSchema.objectOf("Item") { "value" setTo 2 },
                                     ),
-                                    listOf(schema.objectOf("Item") { "value" setTo 3 }),
+                                    listOf(schema.loweredSchema.objectOf("Item") { "value" setTo 3 }),
                                 )
                             },
                         consumer to
@@ -278,20 +280,21 @@ interface FragmentFreeTypeCheckerEnforcementContract {
                     )
                 },
                 typeCheckers = { schema ->
-                    val item = schema.requireType("Item") as ViaductSchema.Object
+                    val item = schema.loweredSchema.requireType("Item") as ViaductSchema.Object
                     mapOf(
-                        item to TypeCheckerResolver.of(item, schema.requireQueryTypeDef()) { _, _ ->
+                        item to TypeCheckerResolver.of(item, schema.loweredSchema.requireQueryTypeDef()) { _, _ ->
                             checkerCalls.incrementAndGet()
                             denial
                         },
                     )
                 },
-            ).assumptions
+            )
+        val world = worldFixture.assumptions
 
         val result =
             coroutineResolverSubject.resolve(
                 SharedOperationContext.create(world, checkerObserver = recorder),
-                world.operationSelectionsFrom("{ consumer }"),
+                worldFixture.schemas.operationSelectionsFrom("{ consumer }"),
             )
 
         assertEquals(1, result.t2Value(world, "consumer"))
@@ -315,7 +318,7 @@ interface FragmentFreeTypeCheckerEnforcementContract {
         val checkerCalls = AtomicInteger()
         val materializedInput = AtomicReference<EngineObjectData.Sync>()
         val denial = TypeEnforcementError("referenced item denied")
-        val world =
+        val worldFixture =
             TestWorld.fromSDL(
                 selectiveResolvers = coroutineResolverSubject.selectiveResolvers,
                 schemaSDL =
@@ -325,13 +328,13 @@ interface FragmentFreeTypeCheckerEnforcementContract {
                     type Item { value: Int! }
                     """.trimIndent(),
                 fieldResolvers = { schema ->
-                    val container = schema.requireObjectField("Query", "container")
-                    val lookup = schema.requireObjectField("Query", "lookup")
-                    val consumer = schema.requireObjectField("Query", "consumer")
+                    val container = schema.loweredSchema.requireObjectField("Query", "container")
+                    val lookup = schema.loweredSchema.requireObjectField("Query", "lookup")
+                    val consumer = schema.loweredSchema.requireObjectField("Query", "consumer")
                     mapOf(
                         container to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
-                                schema.objectOf("Container") {
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
+                                schema.loweredSchema.objectOf("Container") {
                                     "items" setTo
                                         listOf(
                                             RootFieldReferenceData.of(listOf(lookup), mapOf("id" to 1)),
@@ -340,8 +343,8 @@ interface FragmentFreeTypeCheckerEnforcementContract {
                                 }
                             },
                         lookup to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, arguments ->
-                                schema.objectOf("Item") {
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, arguments ->
+                                schema.loweredSchema.objectOf("Item") {
                                     "value" setTo arguments.fieldValues.getValue("id")
                                 }
                             },
@@ -357,17 +360,18 @@ interface FragmentFreeTypeCheckerEnforcementContract {
                     )
                 },
                 typeCheckers = { schema ->
-                    val item = schema.requireType("Item") as ViaductSchema.Object
+                    val item = schema.loweredSchema.requireType("Item") as ViaductSchema.Object
                     mapOf(
-                        item to TypeCheckerResolver.of(item, schema.requireQueryTypeDef()) { _, _ ->
+                        item to TypeCheckerResolver.of(item, schema.loweredSchema.requireQueryTypeDef()) { _, _ ->
                             checkerCalls.incrementAndGet()
                             denial
                         },
                     )
                 },
-            ).assumptions
+            )
+        val world = worldFixture.assumptions
 
-        val result = resolveT2(world, "{ consumer }")
+        val result = resolveT2(worldFixture, "{ consumer }")
 
         assertEquals(1, result.t2Value(world, "consumer"))
         val container = assertIs<EngineObjectData.Sync>(materializedInput.get().outputValue("container"))
@@ -384,7 +388,7 @@ interface FragmentFreeTypeCheckerEnforcementContract {
         val fieldDenial = TypeEnforcementError("field denied")
         val combinedDenial = TypeEnforcementError("combined denial")
         val typeDenial = CombiningTypeEnforcementError(fieldDenial, combinedDenial)
-        val world =
+        val worldFixture =
             TestWorld.fromSDL(
                 selectiveResolvers = coroutineResolverSubject.selectiveResolvers,
                 schemaSDL =
@@ -393,15 +397,15 @@ interface FragmentFreeTypeCheckerEnforcementContract {
                     type Item { value: Int! }
                     """.trimIndent(),
                 fieldResolvers = { schema ->
-                    val item = schema.requireObjectField("Query", "item")
-                    val trigger = schema.requireObjectField("Query", "trigger")
-                    val consumer = schema.requireObjectField("Query", "consumer")
+                    val item = schema.loweredSchema.requireObjectField("Query", "item")
+                    val trigger = schema.loweredSchema.requireObjectField("Query", "trigger")
+                    val consumer = schema.loweredSchema.requireObjectField("Query", "consumer")
                     mapOf(
                         item to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
-                                schema.objectOf("Item") { "value" setTo 7 }
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
+                                schema.loweredSchema.objectOf("Item") { "value" setTo 7 }
                             },
-                        trigger to fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> 1 },
+                        trigger to fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> 1 },
                         consumer to
                             fieldResolverOf(
                                 schema.fragmentFrom("fragment Input on Query { item { value } }"),
@@ -409,14 +413,14 @@ interface FragmentFreeTypeCheckerEnforcementContract {
                     )
                 },
                 fieldCheckers = { schema ->
-                    val item = schema.requireObjectField("Query", "item")
-                    val trigger = schema.requireObjectField("Query", "trigger")
+                    val item = schema.loweredSchema.requireObjectField("Query", "item")
+                    val trigger = schema.loweredSchema.requireObjectField("Query", "trigger")
                     val raw = schema.fragmentFrom("fragment Raw on Query { item { value } }").materializeSelections
                     mapOf(
                         trigger to
                             FieldCheckerResolver.of(
                                 trigger,
-                                schema.requireQueryTypeDef(),
+                                schema.loweredSchema.requireQueryTypeDef(),
                                 fragmentTemplates =
                                     mapOf(
                                         "raw" to
@@ -432,23 +436,24 @@ interface FragmentFreeTypeCheckerEnforcementContract {
                                 CheckerResult.Success
                             },
                         item to
-                            FieldCheckerResolver.of(item, schema.requireQueryTypeDef()) { _, _, _ ->
+                            FieldCheckerResolver.of(item, schema.loweredSchema.requireQueryTypeDef()) { _, _, _ ->
                                 fieldDenial
                             },
                     )
                 },
                 typeCheckers = { schema ->
-                    val item = schema.requireType("Item") as ViaductSchema.Object
+                    val item = schema.loweredSchema.requireType("Item") as ViaductSchema.Object
                     mapOf(
-                        item to TypeCheckerResolver.of(item, schema.requireQueryTypeDef()) { _, _ ->
+                        item to TypeCheckerResolver.of(item, schema.loweredSchema.requireQueryTypeDef()) { _, _ ->
                             typeCheckerCalls.incrementAndGet()
                             typeDenial
                         },
                     )
                 },
-            ).assumptions
+            )
+        val world = worldFixture.assumptions
 
-        val result = resolveT2(world, "{ trigger consumer }")
+        val result = resolveT2(worldFixture, "{ trigger consumer }")
 
         assertEquals(1, result.t2Value(world, "trigger"))
         assertSame(combinedDenial.error, result.t2Error(world, "consumer").errorData.cause)
@@ -460,7 +465,7 @@ interface FragmentFreeTypeCheckerEnforcementContract {
     fun `parent backedge reuses and enforces the ancestor type result`() {
         val checkerCalls = AtomicInteger()
         val denial = TypeEnforcementError("ancestor denied")
-        val world =
+        val worldFixture =
             TestWorld.fromSDL(
                 selectiveResolvers = coroutineResolverSubject.selectiveResolvers,
                 schemaSDL =
@@ -471,14 +476,14 @@ interface FragmentFreeTypeCheckerEnforcementContract {
                     type Child { parent: Root! @parent, consumer: Int! }
                     """.trimIndent(),
                 fieldResolvers = { schema ->
-                    val root = schema.requireObjectField("Query", "root")
-                    val consumer = schema.requireObjectField("Child", "consumer")
+                    val root = schema.loweredSchema.requireObjectField("Query", "root")
+                    val consumer = schema.loweredSchema.requireObjectField("Child", "consumer")
                     mapOf(
                         root to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
-                                schema.objectOf("Root") {
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
+                                schema.loweredSchema.objectOf("Root") {
                                     "value" setTo 7
-                                    "child" setTo schema.objectOf("Child")
+                                    "child" setTo schema.loweredSchema.objectOf("Child")
                                 }
                             },
                         consumer to
@@ -488,17 +493,18 @@ interface FragmentFreeTypeCheckerEnforcementContract {
                     )
                 },
                 typeCheckers = { schema ->
-                    val root = schema.requireType("Root") as ViaductSchema.Object
+                    val root = schema.loweredSchema.requireType("Root") as ViaductSchema.Object
                     mapOf(
-                        root to TypeCheckerResolver.of(root, schema.requireQueryTypeDef()) { _, _ ->
+                        root to TypeCheckerResolver.of(root, schema.loweredSchema.requireQueryTypeDef()) { _, _ ->
                             checkerCalls.incrementAndGet()
                             denial
                         },
                     )
                 },
-            ).assumptions
+            )
+        val world = worldFixture.assumptions
 
-        val result = resolveT2(world, "{ root { child { consumer } } } ")
+        val result = resolveT2(worldFixture, "{ root { child { consumer } } } ")
         val root = assertIs<ObjectEngineResult>(result.t2Value(world, "root"))
         val child = assertIs<ObjectEngineResult>(root.t2Value(world, "child", "Root"))
         val parent = assertIs<ObjectEngineResult>(child.t2Value(world, "parent", "Child"))
@@ -513,7 +519,7 @@ interface FragmentFreeTypeCheckerEnforcementContract {
         val childFailure = IllegalStateException("child failed")
         val checkerFailure = IllegalStateException("type checker failed")
         val denial = TypeEnforcementError("type denied")
-        val world =
+        val worldFixture =
             TestWorld.fromSDL(
                 selectiveResolvers = coroutineResolverSubject.selectiveResolvers,
                 schemaSDL =
@@ -523,20 +529,20 @@ interface FragmentFreeTypeCheckerEnforcementContract {
                     type Failed { value: Int! }
                     """.trimIndent(),
                 fieldResolvers = { schema ->
-                    val denied = schema.requireObjectField("Query", "denied")
-                    val failed = schema.requireObjectField("Query", "failed")
-                    val deniedValue = schema.requireObjectField("Denied", "value")
-                    val consumeDenied = schema.requireObjectField("Query", "consumeDenied")
-                    val consumeFailed = schema.requireObjectField("Query", "consumeFailed")
+                    val denied = schema.loweredSchema.requireObjectField("Query", "denied")
+                    val failed = schema.loweredSchema.requireObjectField("Query", "failed")
+                    val deniedValue = schema.loweredSchema.requireObjectField("Denied", "value")
+                    val consumeDenied = schema.loweredSchema.requireObjectField("Query", "consumeDenied")
+                    val consumeFailed = schema.loweredSchema.requireObjectField("Query", "consumeFailed")
                     mapOf(
                         denied to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> schema.objectOf("Denied") },
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> schema.loweredSchema.objectOf("Denied") },
                         failed to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
-                                schema.objectOf("Failed") { "value" setTo 1 }
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
+                                schema.loweredSchema.objectOf("Failed") { "value" setTo 1 }
                             },
                         deniedValue to
-                            fieldResolverOf(schema.emptyFragmentOf("Denied")) { _, _ -> throw childFailure },
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Denied")) { _, _ -> throw childFailure },
                         consumeDenied to
                             fieldResolverOf(
                                 schema.fragmentFrom("fragment Input on Query { denied { value } }"),
@@ -548,16 +554,17 @@ interface FragmentFreeTypeCheckerEnforcementContract {
                     )
                 },
                 typeCheckers = { schema ->
-                    val denied = schema.requireType("Denied") as ViaductSchema.Object
-                    val failed = schema.requireType("Failed") as ViaductSchema.Object
+                    val denied = schema.loweredSchema.requireType("Denied") as ViaductSchema.Object
+                    val failed = schema.loweredSchema.requireType("Failed") as ViaductSchema.Object
                     mapOf(
-                        denied to TypeCheckerResolver.of(denied, schema.requireQueryTypeDef()) { _, _ -> denial },
-                        failed to TypeCheckerResolver.of(failed, schema.requireQueryTypeDef()) { _, _ -> throw checkerFailure },
+                        denied to TypeCheckerResolver.of(denied, schema.loweredSchema.requireQueryTypeDef()) { _, _ -> denial },
+                        failed to TypeCheckerResolver.of(failed, schema.loweredSchema.requireQueryTypeDef()) { _, _ -> throw checkerFailure },
                     )
                 },
-            ).assumptions
+            )
+        val world = worldFixture.assumptions
 
-        val result = resolveT2(world, "{ consumeDenied consumeFailed }")
+        val result = resolveT2(worldFixture, "{ consumeDenied consumeFailed }")
 
         assertSame(denial.error, result.t2Error(world, "consumeDenied").errorData.cause)
         assertTrue(
@@ -574,7 +581,7 @@ interface FragmentFreeTypeCheckerEnforcementContract {
     @Test
     fun `type-checker cancellation cancels its waiting consumer without suppressing siblings`() {
         val cancellation = CancellationException("type checker cancelled")
-        val world =
+        val worldFixture =
             TestWorld.fromSDL(
                 selectiveResolvers = coroutineResolverSubject.selectiveResolvers,
                 schemaSDL =
@@ -583,30 +590,31 @@ interface FragmentFreeTypeCheckerEnforcementContract {
                     type Item { value: Int! }
                     """.trimIndent(),
                 fieldResolvers = { schema ->
-                    val item = schema.requireObjectField("Query", "item")
-                    val consumer = schema.requireObjectField("Query", "consumer")
-                    val healthy = schema.requireObjectField("Query", "healthy")
+                    val item = schema.loweredSchema.requireObjectField("Query", "item")
+                    val consumer = schema.loweredSchema.requireObjectField("Query", "consumer")
+                    val healthy = schema.loweredSchema.requireObjectField("Query", "healthy")
                     mapOf(
                         item to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
-                                schema.objectOf("Item") { "value" setTo 7 }
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
+                                schema.loweredSchema.objectOf("Item") { "value" setTo 7 }
                             },
                         consumer to
                             fieldResolverOf(
                                 schema.fragmentFrom("fragment Input on Query { item { value } }"),
                             ) { input, _ -> input.outputValue("item") },
-                        healthy to fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> 42 },
+                        healthy to fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> 42 },
                     )
                 },
                 typeCheckers = { schema ->
-                    val item = schema.requireType("Item") as ViaductSchema.Object
+                    val item = schema.loweredSchema.requireType("Item") as ViaductSchema.Object
                     mapOf(
-                        item to TypeCheckerResolver.of(item, schema.requireQueryTypeDef()) { _, _ -> throw cancellation },
+                        item to TypeCheckerResolver.of(item, schema.loweredSchema.requireQueryTypeDef()) { _, _ -> throw cancellation },
                     )
                 },
-            ).assumptions
+            )
+        val world = worldFixture.assumptions
 
-        val result = resolveT2(world, "{ consumer healthy }")
+        val result = resolveT2(worldFixture, "{ consumer healthy }")
 
         assertTrue(
             result
@@ -624,7 +632,7 @@ interface FragmentFreeTypeCheckerEnforcementContract {
     fun `request cancellation during type-checker execution terminates the OER-owned result`() =
         runBlocking {
             val checkerEntered = CompletableDeferred<Unit>()
-            val world =
+            val worldFixture =
                 TestWorld.fromSDL(
                     selectiveResolvers = coroutineResolverSubject.selectiveResolvers,
                     schemaSDL =
@@ -633,12 +641,12 @@ interface FragmentFreeTypeCheckerEnforcementContract {
                         type Item { value: Int! }
                         """.trimIndent(),
                     fieldResolvers = { schema ->
-                        val item = schema.requireObjectField("Query", "item")
-                        val consumer = schema.requireObjectField("Query", "consumer")
+                        val item = schema.loweredSchema.requireObjectField("Query", "item")
+                        val consumer = schema.loweredSchema.requireObjectField("Query", "consumer")
                         mapOf(
                             item to
-                                fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
-                                    schema.objectOf("Item") { "value" setTo 7 }
+                                fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
+                                    schema.loweredSchema.objectOf("Item") { "value" setTo 7 }
                                 },
                             consumer to
                                 fieldResolverOf(
@@ -647,15 +655,16 @@ interface FragmentFreeTypeCheckerEnforcementContract {
                         )
                     },
                     typeCheckers = { schema ->
-                        val item = schema.requireType("Item") as ViaductSchema.Object
+                        val item = schema.loweredSchema.requireType("Item") as ViaductSchema.Object
                         mapOf(
-                            item to TypeCheckerResolver.of(item, schema.requireQueryTypeDef()) { _, _ ->
+                            item to TypeCheckerResolver.of(item, schema.loweredSchema.requireQueryTypeDef()) { _, _ ->
                                 checkerEntered.complete(Unit)
                                 CompletableDeferred<Nothing>().await()
                             },
                         )
                     },
-                ).assumptions
+                )
+            val world = worldFixture.assumptions
             val requestJob = Job()
             val requestScope = CoroutineScope(coroutineContext + requestJob)
             val cancellation = CancellationException("request cancelled during type checker")
@@ -664,7 +673,7 @@ interface FragmentFreeTypeCheckerEnforcementContract {
                     coroutineResolverSubject.startResolution(
                         SharedOperationContext.create(world),
                         requestScope,
-                        world.operationSelectionsFrom("{ consumer }"),
+                        worldFixture.schemas.operationSelectionsFrom("{ consumer }"),
                         CycleCheckState.create(),
                     )
                 withTimeout(5_000) { checkerEntered.await() }
@@ -707,7 +716,7 @@ interface FragmentFreeTypeCheckerEnforcementContract {
                     if (slot.kind == CycleSlotKind.TYPE_CHECKER) reads += Read(slot, reader)
                 }
             }
-        val world =
+        val worldFixture =
             TestWorld.fromSDL(
                 selectiveResolvers = coroutineResolverSubject.selectiveResolvers,
                 schemaSDL =
@@ -716,12 +725,12 @@ interface FragmentFreeTypeCheckerEnforcementContract {
                     type Item { value: Int! }
                     """.trimIndent(),
                 fieldResolvers = { schema ->
-                    val item = schema.requireObjectField("Query", "item")
-                    val consumer = schema.requireObjectField("Query", "consumer")
+                    val item = schema.loweredSchema.requireObjectField("Query", "item")
+                    val consumer = schema.loweredSchema.requireObjectField("Query", "consumer")
                     mapOf(
                         item to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
-                                schema.objectOf("Item") { "value" setTo 7 }
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
+                                schema.loweredSchema.objectOf("Item") { "value" setTo 7 }
                             },
                         consumer to
                             fieldResolverOf(
@@ -732,17 +741,18 @@ interface FragmentFreeTypeCheckerEnforcementContract {
                     )
                 },
                 typeCheckers = { schema ->
-                    val item = schema.requireType("Item") as ViaductSchema.Object
+                    val item = schema.loweredSchema.requireType("Item") as ViaductSchema.Object
                     mapOf(
-                        item to TypeCheckerResolver.of(item, schema.requireQueryTypeDef()) { _, _ -> CheckerResult.Success },
+                        item to TypeCheckerResolver.of(item, schema.loweredSchema.requireQueryTypeDef()) { _, _ -> CheckerResult.Success },
                     )
                 },
-            ).assumptions
+            )
+        val world = worldFixture.assumptions
 
         val result =
             coroutineResolverSubject.resolve(
                 SharedOperationContext.create(world),
-                world.operationSelectionsFrom("{ consumer }"),
+                worldFixture.schemas.operationSelectionsFrom("{ consumer }"),
                 cycleChecker,
             )
 
@@ -755,12 +765,12 @@ interface FragmentFreeTypeCheckerEnforcementContract {
     }
 
     private fun resolveT2(
-        world: model.Assumptions,
+        world: TestWorld,
         query: String,
     ): ObjectEngineResult =
         coroutineResolverSubject.resolve(
-            SharedOperationContext.create(world),
-            world.operationSelectionsFrom(query),
+            SharedOperationContext.create(world.assumptions),
+            world.schemas.operationSelectionsFrom(query),
         )
 }
 

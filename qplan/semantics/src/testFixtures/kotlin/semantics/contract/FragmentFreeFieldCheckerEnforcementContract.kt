@@ -30,7 +30,7 @@ interface FragmentFreeFieldCheckerEnforcementContract {
 
     @Test
     fun `allowed active and passive dependencies reach their consumers`() {
-        val world =
+        val worldFixture =
             TestWorld.fromDSL(
                 schemaSDL =
                     """
@@ -48,16 +48,17 @@ interface FragmentFreeFieldCheckerEnforcementContract {
                 selectiveResolvers = coroutineResolverSubject.selectiveResolvers,
                 fieldCheckers = { schema ->
                     listOf("active", "passive").associate { name ->
-                        val field = schema.requireObjectField("Item", name)
+                        val field = schema.loweredSchema.requireObjectField("Item", name)
                         field to
-                            FieldCheckerResolver.of(field, schema.requireQueryTypeDef()) { _, _, _ ->
+                            FieldCheckerResolver.of(field, schema.loweredSchema.requireQueryTypeDef()) { _, _, _ ->
                                 CheckerResult.Success
                             }
                     }
                 },
-            ).assumptions
+            )
+        val world = worldFixture.assumptions
 
-        val item = resolveF2(world, "{ item { consumeActive consumePassive } }").item(world)
+        val item = resolveF2(worldFixture, "{ item { consumeActive consumePassive } }").item(world)
 
         assertEquals(7, item.value(world, "consumeActive"))
         assertEquals(11, item.value(world, "consumePassive"))
@@ -66,7 +67,7 @@ interface FragmentFreeFieldCheckerEnforcementContract {
     @Test
     fun `denied active and passive dependencies become consumer input errors`() {
         val denial = EnforcementCheckerError("denied")
-        val world =
+        val worldFixture =
             TestWorld.fromDSL(
                 schemaSDL =
                     """
@@ -84,13 +85,14 @@ interface FragmentFreeFieldCheckerEnforcementContract {
                 selectiveResolvers = coroutineResolverSubject.selectiveResolvers,
                 fieldCheckers = { schema ->
                     listOf("active", "passive").associate { name ->
-                        val field = schema.requireObjectField("Item", name)
-                        field to FieldCheckerResolver.of(field, schema.requireQueryTypeDef()) { _, _, _ -> denial }
+                        val field = schema.loweredSchema.requireObjectField("Item", name)
+                        field to FieldCheckerResolver.of(field, schema.loweredSchema.requireQueryTypeDef()) { _, _, _ -> denial }
                     }
                 },
-            ).assumptions
+            )
+        val world = worldFixture.assumptions
 
-        val item = resolveF2(world, "{ item { consumeActive consumePassive } }").item(world)
+        val item = resolveF2(worldFixture, "{ item { consumeActive consumePassive } }").item(world)
 
         assertSame(denial.error, assertIs<ErrorEngineResult>(item.value(world, "consumeActive")).errorData.cause)
         assertSame(denial.error, assertIs<ErrorEngineResult>(item.value(world, "consumePassive")).errorData.cause)
@@ -111,11 +113,11 @@ interface FragmentFreeFieldCheckerEnforcementContract {
                     }
                     """.trimIndent(),
                 fieldResolvers = { schema ->
-                    val dependency = schema.requireObjectField("Query", "dependency")
-                    val consumer = schema.requireObjectField("Query", "consumer")
+                    val dependency = schema.loweredSchema.requireObjectField("Query", "dependency")
+                    val consumer = schema.loweredSchema.requireObjectField("Query", "consumer")
                     mapOf(
                         dependency to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> 7 },
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> 7 },
                         consumer to
                             fieldResolverOf(
                                 schema.fragmentFrom(
@@ -128,10 +130,10 @@ interface FragmentFreeFieldCheckerEnforcementContract {
                     )
                 },
                 fieldCheckers = { schema ->
-                    val dependency = schema.requireObjectField("Query", "dependency")
+                    val dependency = schema.loweredSchema.requireObjectField("Query", "dependency")
                     mapOf(
                         dependency to
-                            FieldCheckerResolver.of(dependency, schema.requireQueryTypeDef()) { _, _, _ ->
+                            FieldCheckerResolver.of(dependency, schema.loweredSchema.requireQueryTypeDef()) { _, _, _ ->
                                 denial
                             },
                     )
@@ -139,7 +141,7 @@ interface FragmentFreeFieldCheckerEnforcementContract {
             )
         val world = testWorld.assumptions
 
-        val result = resolveF2(world, "{ consumer }")
+        val result = resolveF2(testWorld, "{ consumer }")
 
         assertEquals(42, result.value(world, "consumer", "Query"))
         assertEquals(1, consumerCalls.get())
@@ -149,7 +151,7 @@ interface FragmentFreeFieldCheckerEnforcementContract {
     fun `one checker result is shared by multiple consumers`() {
         val checkerCalls = AtomicInteger()
         val denial = EnforcementCheckerError("denied")
-        val world =
+        val worldFixture =
             TestWorld.fromDSL(
                 schemaSDL =
                     """
@@ -165,18 +167,19 @@ interface FragmentFreeFieldCheckerEnforcementContract {
                     """.trimIndent(),
                 selectiveResolvers = coroutineResolverSubject.selectiveResolvers,
                 fieldCheckers = { schema ->
-                    val field = schema.requireObjectField("Item", "denied")
+                    val field = schema.loweredSchema.requireObjectField("Item", "denied")
                     mapOf(
                         field to
-                            FieldCheckerResolver.of(field, schema.requireQueryTypeDef()) { _, _, _ ->
+                            FieldCheckerResolver.of(field, schema.loweredSchema.requireQueryTypeDef()) { _, _, _ ->
                                 checkerCalls.incrementAndGet()
                                 denial
                             },
                     )
                 },
-            ).assumptions
+            )
+        val world = worldFixture.assumptions
 
-        val item = resolveF2(world, "{ item { first second } }").item(world)
+        val item = resolveF2(worldFixture, "{ item { first second } }").item(world)
 
         assertSame(denial.error, assertIs<ErrorEngineResult>(item.value(world, "first")).errorData.cause)
         assertSame(denial.error, assertIs<ErrorEngineResult>(item.value(world, "second")).errorData.cause)
@@ -186,7 +189,7 @@ interface FragmentFreeFieldCheckerEnforcementContract {
     @Test
     fun `checker error can define directive-sensitive resolver applicability`() {
         val denial = DirectiveAwareCheckerError()
-        val world =
+        val worldFixture =
             TestWorld.fromDSL(
                 schemaSDL =
                     """
@@ -206,17 +209,18 @@ interface FragmentFreeFieldCheckerEnforcementContract {
                     """.trimIndent(),
                 selectiveResolvers = coroutineResolverSubject.selectiveResolvers,
                 fieldCheckers = { schema ->
-                    val field = schema.requireObjectField("Item", "denied")
+                    val field = schema.loweredSchema.requireObjectField("Item", "denied")
                     mapOf(
                         field to
-                            FieldCheckerResolver.of(field, schema.requireQueryTypeDef()) { _, _, _ ->
+                            FieldCheckerResolver.of(field, schema.loweredSchema.requireQueryTypeDef()) { _, _, _ ->
                                 denial
                             },
                     )
                 },
-            ).assumptions
+            )
+        val world = worldFixture.assumptions
 
-        val item = resolveF2(world, "{ item { bypassed blocked } }").item(world)
+        val item = resolveF2(worldFixture, "{ item { bypassed blocked } }").item(world)
 
         assertEquals(7, item.value(world, "bypassed"))
         assertSame(denial.error, assertIs<ErrorEngineResult>(item.value(world, "blocked")).errorData.cause)
@@ -237,11 +241,11 @@ interface FragmentFreeFieldCheckerEnforcementContract {
                     }
                     """.trimIndent(),
                 fieldResolvers = { schema ->
-                    val dependency = schema.requireObjectField("Query", "dependency")
-                    val consumer = schema.requireObjectField("Query", "consumer")
+                    val dependency = schema.loweredSchema.requireObjectField("Query", "dependency")
+                    val consumer = schema.loweredSchema.requireObjectField("Query", "consumer")
                     mapOf(
                         dependency to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
                                 EngineErrorData.of(rawFailure)
                             },
                         consumer to
@@ -255,10 +259,10 @@ interface FragmentFreeFieldCheckerEnforcementContract {
                     )
                 },
                 fieldCheckers = { schema ->
-                    val dependency = schema.requireObjectField("Query", "dependency")
+                    val dependency = schema.loweredSchema.requireObjectField("Query", "dependency")
                     mapOf(
                         dependency to
-                            FieldCheckerResolver.of(dependency, schema.requireQueryTypeDef()) { _, _, _ ->
+                            FieldCheckerResolver.of(dependency, schema.loweredSchema.requireQueryTypeDef()) { _, _, _ ->
                                 checkerDenial
                             },
                     )
@@ -266,7 +270,7 @@ interface FragmentFreeFieldCheckerEnforcementContract {
             )
         val world = testWorld.assumptions
 
-        val result = resolveF2(world, "{ consumer }")
+        val result = resolveF2(testWorld, "{ consumer }")
         val error = assertIs<ErrorEngineResult>(result.value(world, "consumer", "Query"))
 
         assertSame(checkerDenial.error, error.errorData.cause)
@@ -286,11 +290,11 @@ interface FragmentFreeFieldCheckerEnforcementContract {
                     }
                     """.trimIndent(),
                 fieldResolvers = { schema ->
-                    val dependency = schema.requireObjectField("Query", "dependency")
-                    val consumer = schema.requireObjectField("Query", "consumer")
+                    val dependency = schema.loweredSchema.requireObjectField("Query", "dependency")
+                    val consumer = schema.loweredSchema.requireObjectField("Query", "consumer")
                     mapOf(
                         dependency to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, arguments ->
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, arguments ->
                                 arguments.fieldValues.getValue("value")
                             },
                         consumer to
@@ -308,17 +312,17 @@ interface FragmentFreeFieldCheckerEnforcementContract {
                     )
                 },
                 variableProviders = { schema ->
-                    val consumer = schema.requireObjectField("Query", "consumer")
+                    val consumer = schema.loweredSchema.requireObjectField("Query", "consumer")
                     mapOf(
                         Arguments.Variable.of(consumer, "value") to
-                            schema.fromArgument(consumer, "value"),
+                            schema.loweredSchema.fromArgument(consumer, "value"),
                     )
                 },
                 fieldCheckers = { schema ->
-                    val dependency = schema.requireObjectField("Query", "dependency")
+                    val dependency = schema.loweredSchema.requireObjectField("Query", "dependency")
                     mapOf(
                         dependency to
-                            FieldCheckerResolver.of(dependency, schema.requireQueryTypeDef()) { _, _, _ ->
+                            FieldCheckerResolver.of(dependency, schema.loweredSchema.requireQueryTypeDef()) { _, _, _ ->
                                 denial
                             },
                     )
@@ -326,7 +330,7 @@ interface FragmentFreeFieldCheckerEnforcementContract {
             )
         val world = testWorld.assumptions
 
-        val result = resolveF2(world, "{ consumer(value: 7) }")
+        val result = resolveF2(testWorld, "{ consumer(value: 7) }")
 
         val error =
             assertIs<ErrorEngineResult>(
@@ -346,7 +350,7 @@ interface FragmentFreeFieldCheckerEnforcementContract {
     @Test
     fun `checker failure terminates a waiting consumer with the original failure`() {
         val failure = IllegalStateException("checker failed")
-        val world =
+        val worldFixture =
             TestWorld.fromDSL(
                 schemaSDL =
                     """
@@ -361,17 +365,18 @@ interface FragmentFreeFieldCheckerEnforcementContract {
                     """.trimIndent(),
                 selectiveResolvers = coroutineResolverSubject.selectiveResolvers,
                 fieldCheckers = { schema ->
-                    val field = schema.requireObjectField("Item", "dependency")
+                    val field = schema.loweredSchema.requireObjectField("Item", "dependency")
                     mapOf(
                         field to
-                            FieldCheckerResolver.of(field, schema.requireQueryTypeDef()) { _, _, _ ->
+                            FieldCheckerResolver.of(field, schema.loweredSchema.requireQueryTypeDef()) { _, _, _ ->
                                 throw failure
                             },
                     )
                 },
-            ).assumptions
+            )
+        val world = worldFixture.assumptions
 
-        val item = resolveF2(world, "{ item { consumer } }").item(world)
+        val item = resolveF2(worldFixture, "{ item { consumer } }").item(world)
         val publishedFailure = assertIs<ErrorEngineResult>(item.value(world, "consumer")).errorData.cause
 
         assertSame(failure, publishedFailure?.cause)
@@ -391,14 +396,14 @@ interface FragmentFreeFieldCheckerEnforcementContract {
                     }
                     """.trimIndent(),
                 fieldResolvers = { schema ->
-                    val dependency = schema.requireObjectField("Query", "dependency")
-                    val consumer = schema.requireObjectField("Query", "consumer")
+                    val dependency = schema.loweredSchema.requireObjectField("Query", "dependency")
+                    val consumer = schema.loweredSchema.requireObjectField("Query", "consumer")
                     mapOf(
                         dependency to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> 7 },
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> 7 },
                         consumer to
                             fieldResolverOf(
-                                objectFragment = schema.emptyFragmentOf("Query"),
+                                objectFragment = schema.loweredSchema.emptyFragmentOf("Query"),
                                 queryFragment =
                                     schema.fragmentFrom(
                                         "fragment ConsumerQuery on Query { dependency }",
@@ -409,10 +414,10 @@ interface FragmentFreeFieldCheckerEnforcementContract {
                     )
                 },
                 fieldCheckers = { schema ->
-                    val dependency = schema.requireObjectField("Query", "dependency")
+                    val dependency = schema.loweredSchema.requireObjectField("Query", "dependency")
                     mapOf(
                         dependency to
-                            FieldCheckerResolver.of(dependency, schema.requireQueryTypeDef()) { _, _, _ ->
+                            FieldCheckerResolver.of(dependency, schema.loweredSchema.requireQueryTypeDef()) { _, _, _ ->
                                 denial
                             },
                     )
@@ -420,7 +425,7 @@ interface FragmentFreeFieldCheckerEnforcementContract {
             )
         val world = testWorld.assumptions
 
-        val result = resolveF2(world, "{ consumer }")
+        val result = resolveF2(testWorld, "{ consumer }")
         val error = assertIs<ErrorEngineResult>(result.value(world, "consumer", "Query"))
 
         assertSame(denial.error, error.errorData.cause)
@@ -441,14 +446,14 @@ interface FragmentFreeFieldCheckerEnforcementContract {
                     }
                     """.trimIndent(),
                 fieldResolvers = { schema ->
-                    val dependency = schema.requireObjectField("Query", "dependency")
-                    val consumer = schema.requireObjectField("Query", "consumer")
+                    val dependency = schema.loweredSchema.requireObjectField("Query", "dependency")
+                    val consumer = schema.loweredSchema.requireObjectField("Query", "consumer")
                     mapOf(
                         dependency to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> 7 },
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> 7 },
                         consumer to
                             fieldResolverOf(
-                                objectFragment = schema.emptyFragmentOf("Query"),
+                                objectFragment = schema.loweredSchema.emptyFragmentOf("Query"),
                                 queryFragment =
                                     schema.fragmentFrom(
                                         "fragment ConsumerQuery on Query { dependency }",
@@ -460,10 +465,10 @@ interface FragmentFreeFieldCheckerEnforcementContract {
                     )
                 },
                 fieldCheckers = { schema ->
-                    val dependency = schema.requireObjectField("Query", "dependency")
+                    val dependency = schema.loweredSchema.requireObjectField("Query", "dependency")
                     mapOf(
                         dependency to
-                            FieldCheckerResolver.of(dependency, schema.requireQueryTypeDef()) { _, _, _ ->
+                            FieldCheckerResolver.of(dependency, schema.loweredSchema.requireQueryTypeDef()) { _, _, _ ->
                                 denial
                             },
                     )
@@ -471,20 +476,20 @@ interface FragmentFreeFieldCheckerEnforcementContract {
             )
         val world = testWorld.assumptions
 
-        val result = resolveF2(world, "{ consumer }")
+        val result = resolveF2(testWorld, "{ consumer }")
 
         assertEquals(42, result.value(world, "consumer", "Query"))
         assertEquals(1, consumerCalls.get())
     }
 
     private fun resolveF2(
-        world: Assumptions,
+        world: TestWorld,
         query: String,
         resolverObserver: ResolverObserver = ResolverObserver.NOP,
     ): ObjectEngineResult =
         coroutineResolverSubject.resolve(
-            SharedOperationContext.create(world, resolverObserver = resolverObserver),
-            world.operationSelectionsFrom(query),
+            SharedOperationContext.create(world.assumptions, resolverObserver = resolverObserver),
+            world.schemas.operationSelectionsFrom(query),
         )
 }
 

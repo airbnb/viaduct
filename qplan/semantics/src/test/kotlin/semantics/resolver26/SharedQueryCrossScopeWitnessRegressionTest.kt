@@ -101,20 +101,20 @@ class SharedQueryCrossScopeWitnessRegressionTest : Resolver26DispatcherResource 
             """.trimIndent(),
             fieldResolvers = { schema ->
                 mapOf(
-                    schema.requireObjectField("Query", "items") to
-                        fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
-                            List(if (sameScope) 1 else 2) { schema.objectOf("Payload") {} }
+                    schema.loweredSchema.requireObjectField("Query", "items") to
+                        fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
+                            List(if (sameScope) 1 else 2) { schema.loweredSchema.objectOf("Payload") {} }
                         },
-                    schema.requireObjectField("Query", "source") to
-                        fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> 7 },
-                    schema.requireObjectField("Payload", "computed") to
+                    schema.loweredSchema.requireObjectField("Query", "source") to
+                        fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> 7 },
+                    schema.loweredSchema.requireObjectField("Payload", "computed") to
                         fieldResolverOf(
-                            objectFragment = schema.emptyFragmentOf("Payload"),
+                            objectFragment = schema.loweredSchema.emptyFragmentOf("Payload"),
                             queryFragment = schema.fragmentFrom("fragment Input on Query { source }"),
                         ) { _, query, _ -> query.outputValue("source") },
-                    schema.requireObjectField("Payload", "sibling") to
+                    schema.loweredSchema.requireObjectField("Payload", "sibling") to
                         fieldResolverOf(
-                            objectFragment = schema.emptyFragmentOf("Payload"),
+                            objectFragment = schema.loweredSchema.emptyFragmentOf("Payload"),
                             queryFragment = schema.fragmentFrom("fragment Input on Query { source }"),
                         ) { _, query, _ -> query.outputValue("source") },
                 )
@@ -137,7 +137,7 @@ class SharedQueryCrossScopeWitnessRegressionTest : Resolver26DispatcherResource 
             }
         }
         val operation = SharedOperationContext.create(world.assumptions, resolverObserver = observer)
-        val selections = world.assumptions.fragmentFrom(
+        val selections = world.schemas.fragmentFrom(
             if (sameScope) {
                 "fragment Test on Query { items { computed sibling } }"
             } else {

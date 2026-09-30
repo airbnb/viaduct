@@ -8,6 +8,7 @@ import model.merge
 import model.objectOf
 import model.operationSelectionsFrom
 import model.requireQueryTypeDef
+import model.testing.TestWorld
 import org.junit.jupiter.api.AfterEach
 import semantics.correctresolution.CorrectnessResolverObserver
 import semantics.correctresolution.conformsToResolvers
@@ -109,16 +110,16 @@ internal fun ResolverContract.resolveAndValidate(
     )
 
 internal fun ResolverContract.resolveAndValidate(
-    world: Assumptions,
+    world: TestWorld,
     documentSource: String,
     variables: Map<String, Any?> = emptyMap(),
     operationName: String? = null,
     resolverObserver: ResolverObserver = CorrectnessResolverObserver(),
 ): ObjectEngineResult =
     resolveAndValidate(
-        world = world,
+        world = world.assumptions,
         selections =
-            world.operationSelectionsFrom(
+            world.schemas.operationSelectionsFrom(
                 documentSource = documentSource,
                 variables = variables,
                 operationName = operationName,
@@ -127,17 +128,17 @@ internal fun ResolverContract.resolveAndValidate(
     )
 
 internal fun ResolverContract.resolveAndValidateObserved(
-    world: Assumptions,
+    world: TestWorld,
     documentSource: String,
     variables: Map<String, Any?> = emptyMap(),
     operationName: String? = null,
     resolverObserver: ResolverObserver = CorrectnessResolverObserver(),
 ): ResolverResolutionObservation =
     resolveAndValidateObserved(
-        world = world,
-        root = world.objectOf("Query"),
+        world = world.assumptions,
+        root = world.schema.objectOf("Query"),
         selections =
-            world.operationSelectionsFrom(
+            world.schemas.operationSelectionsFrom(
                 documentSource = documentSource,
                 variables = variables,
                 operationName = operationName,

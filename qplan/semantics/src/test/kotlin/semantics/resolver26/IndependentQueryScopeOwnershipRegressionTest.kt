@@ -38,26 +38,26 @@ class IndependentQueryScopeOwnershipRegressionTest : Resolver26DispatcherResourc
                 type Query { first: Int!, target: Int!, intermediate: Int!, source: Int! }
             """.trimIndent(),
             fieldResolvers = { schema ->
-                val empty = schema.emptyFragmentOf("Query")
-                val target = schema.requireObjectField("Query", "target")
+                val empty = schema.loweredSchema.emptyFragmentOf("Query")
+                val target = schema.loweredSchema.requireObjectField("Query", "target")
                 mapOf(
-                    schema.requireObjectField("Query", "first") to
+                    schema.loweredSchema.requireObjectField("Query", "first") to
                         fieldResolverOf(empty) { _, _ -> RootFieldReferenceData.of(listOf(target), emptyMap()) },
                     target to fieldResolverOf(
                         empty,
                         schema.fragmentFrom("fragment TargetInput on Query { intermediate }"),
                     ) { _, query, _ -> query.outputValue("intermediate") },
-                    schema.requireObjectField("Query", "intermediate") to fieldResolverOf(
+                    schema.loweredSchema.requireObjectField("Query", "intermediate") to fieldResolverOf(
                         empty,
                         schema.fragmentFrom("fragment IntermediateInput on Query { source }"),
                     ) { _, query, _ -> query.outputValue("source") },
-                    schema.requireObjectField("Query", "source") to fieldResolverOf(empty) { _, _ -> 7 },
+                    schema.loweredSchema.requireObjectField("Query", "source") to fieldResolverOf(empty) { _, _ -> 7 },
                 )
             },
         )
         val observer = CorrectnessResolverObserver()
         val operation = SharedOperationContext.create(world.assumptions, resolverObserver = observer)
-        val selections = world.assumptions.fragmentFrom("fragment Test on Query { first }").subselections
+        val selections = world.schemas.fragmentFrom("fragment Test on Query { first }").subselections
         val result = when (resolver) {
             2 -> operation.resolve02(selections)
             23 -> operation.resolve23(selections)

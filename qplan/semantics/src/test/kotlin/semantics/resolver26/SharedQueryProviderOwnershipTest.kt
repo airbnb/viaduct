@@ -52,7 +52,7 @@ class SharedQueryProviderOwnershipTest : Resolver26DispatcherResource {
                 fieldResolvers = { schema ->
                     val owners =
                         listOf("first", "second").associate { name ->
-                            val field = schema.requireObjectField("Payload", name)
+                            val field = schema.loweredSchema.requireObjectField("Payload", name)
                             field to
                                 fieldResolverOf(
                                     objectFragment =
@@ -83,26 +83,26 @@ class SharedQueryProviderOwnershipTest : Resolver26DispatcherResource {
                         }
                     owners +
                         mapOf(
-                            schema.requireObjectField("Query", "payload") to
-                                fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
-                                    schema.objectOf("Payload") { "seed" setTo 11 }
+                            schema.loweredSchema.requireObjectField("Query", "payload") to
+                                fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
+                                    schema.loweredSchema.objectOf("Payload") { "seed" setTo 11 }
                                 },
-                            schema.requireObjectField("Query", "seed") to
-                                fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
+                            schema.loweredSchema.requireObjectField("Query", "seed") to
+                                fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
                                     count("querySeed")
                                     7
                                 },
-                            schema.requireObjectField("Payload", "seed") to
-                                fieldResolverOf(schema.emptyFragmentOf("Payload")) { _, _ ->
+                            schema.loweredSchema.requireObjectField("Payload", "seed") to
+                                fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Payload")) { _, _ ->
                                     error("Passive source owns this field")
                                 },
-                            schema.requireObjectField("Payload", "localConsume") to
-                                fieldResolverOf(schema.emptyFragmentOf("Payload")) { _, arguments ->
+                            schema.loweredSchema.requireObjectField("Payload", "localConsume") to
+                                fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Payload")) { _, arguments ->
                                     count("localConsume")
                                     arguments.fieldValues.getValue("value")
                                 },
-                            schema.requireObjectField("Query", "consume") to
-                                fieldResolverOf(schema.emptyFragmentOf("Query")) { _, arguments ->
+                            schema.loweredSchema.requireObjectField("Query", "consume") to
+                                fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, arguments ->
                                     count("queryConsume")
                                     (arguments.fieldValues.getValue("local") as Int) +
                                         (arguments.fieldValues.getValue("query") as Int)
@@ -112,7 +112,7 @@ class SharedQueryProviderOwnershipTest : Resolver26DispatcherResource {
                 variableProviders = { schema ->
                     listOf("first", "second")
                         .flatMap { name ->
-                            val field = schema.requireObjectField("Payload", name)
+                            val field = schema.loweredSchema.requireObjectField("Payload", name)
                             listOf(
                                 Arguments.Variable.of(field, "local") to
                                     schema.fromObjectField(
@@ -134,7 +134,7 @@ class SharedQueryProviderOwnershipTest : Resolver26DispatcherResource {
         val operation =
             SharedOperationContext.create(world.assumptions, resolverObserver = observer)
         val selections =
-            world.assumptions
+            world.schemas
                 .fragmentFrom("fragment Test on Query { payload { first second } }")
                 .subselections
         val result = operation.resolveWithTestDispatcher(selections)

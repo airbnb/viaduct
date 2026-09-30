@@ -30,7 +30,7 @@ interface FragmentFreeCheckerProfileContract {
     fun `type checker runs once for every demanded object occurrence`() {
         val invocations = AtomicInteger()
         val recorder = CheckerApplicationRecorder()
-        val world =
+        val worldFixture =
             TestWorld.fromDSL(
                 schemaSDL =
                     """
@@ -49,22 +49,23 @@ interface FragmentFreeCheckerProfileContract {
                     """.trimIndent(),
                 selectiveResolvers = coroutineResolverSubject.selectiveResolvers,
                 typeCheckers = { schema ->
-                    val item = schema.requireType("Item") as ViaductSchema.Object
+                    val item = schema.loweredSchema.requireType("Item") as ViaductSchema.Object
                     mapOf(
                         item to
-                            TypeCheckerResolver.of(item, schema.requireQueryTypeDef()) { inputs, _ ->
+                            TypeCheckerResolver.of(item, schema.loweredSchema.requireQueryTypeDef()) { inputs, _ ->
                                 assertTrue(inputs.isEmpty())
                                 invocations.incrementAndGet()
                                 CheckerResult.Success
                             },
                     )
                 },
-            ).assumptions
+            )
+        val world = worldFixture.assumptions
 
         val result =
             coroutineResolverSubject.resolve(
                 SharedOperationContext.create(world, checkerObserver = recorder),
-                world.operationSelectionsFrom(
+                worldFixture.schemas.operationSelectionsFrom(
                     "{ singular { id } repeated { id } nested { id } missing { id } failed { id } scalar }",
                 ),
             )

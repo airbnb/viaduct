@@ -54,23 +54,23 @@ class ResolverStartTest : Resolver26DispatcherResource {
         val testWorld = TestWorld.fromSDL(
             schemaSDL = "type Query { outer: Int inner: Int dependency: Int }",
             fieldResolvers = { schema ->
-                val empty = schema.emptyFragmentOf("Query")
+                val empty = schema.loweredSchema.emptyFragmentOf("Query")
                 val nested = schema.fragmentFrom("fragment Nested on Query { inner }")
                 mapOf(
-                    schema.requireObjectField("Query", "outer") to fieldResolverOf(empty) { _, _, executionContext ->
+                    schema.loweredSchema.requireObjectField("Query", "outer") to fieldResolverOf(empty) { _, _, executionContext ->
                         executionContext.resolveSelectionSet(nested.materializeSelections).get("inner")
                     },
-                    schema.requireObjectField("Query", "inner") to fieldResolverOf(
+                    schema.loweredSchema.requireObjectField("Query", "inner") to fieldResolverOf(
                         empty,
                         schema.fragmentFrom("fragment Input on Query { dependency }"),
                     ) { _, query, _ -> query.get("dependency") },
-                    schema.requireObjectField("Query", "dependency") to fieldResolverOf(empty) { _, _ -> 7 },
+                    schema.loweredSchema.requireObjectField("Query", "dependency") to fieldResolverOf(empty) { _, _ -> 7 },
                 )
             },
         )
         val operation = SharedOperationContext.create(testWorld.assumptions, resolverObserver = observer)
         val root = operation.resolveWithTestDispatcher(
-            operation.world.operationSelectionsFrom("{ outer }"),
+            testWorld.schemas.operationSelectionsFrom("{ outer }"),
         )
         val byField = observer.events.associateBy { it.field.name }
         assertEquals(setOf("outer", "inner", "dependency"), byField.keys)
@@ -95,12 +95,12 @@ class ResolverStartTest : Resolver26DispatcherResource {
                 TestWorld.fromSDL(
                     schemaSDL = "type Query { outer: Int!, inner: Int! }",
                     fieldResolvers = { schema ->
-                        val outer = schema.requireObjectField("Query", "outer")
-                        val inner = schema.requireObjectField("Query", "inner")
+                        val outer = schema.loweredSchema.requireObjectField("Query", "outer")
+                        val inner = schema.loweredSchema.requireObjectField("Query", "inner")
                         val nested = schema.fragmentFrom("fragment Nested on Query { inner }")
                         mapOf(
                             outer to
-                                fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _, executionContext ->
+                                fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _, executionContext ->
                                     observedChecker =
                                         assertIs<FieldResolverTask>(executionContext)
                                             .publication
@@ -111,7 +111,7 @@ class ResolverStartTest : Resolver26DispatcherResource {
                                         .get("inner")
                                 },
                             inner to
-                                fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _, executionContext ->
+                                fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _, executionContext ->
                                     innerRoot =
                                         assertIs<FieldResolverTask>(executionContext)
                                             .publication
@@ -125,7 +125,7 @@ class ResolverStartTest : Resolver26DispatcherResource {
             val operation = SharedOperationContext.create(testWorld.assumptions)
             val result =
                 operation.resolveWithTestDispatcher(
-                    operation.world.operationSelectionsFrom("query { outer }"),
+                    testWorld.schemas.operationSelectionsFrom("query { outer }"),
                 )
             val outerKey =
                 ObjectEngineResult.GroundKey.of(
@@ -156,12 +156,12 @@ class ResolverStartTest : Resolver26DispatcherResource {
                 TestWorld.fromSDL(
                     schemaSDL = "type Query { recursive: Int! }",
                     fieldResolvers = { schema ->
-                        val field = schema.requireObjectField("Query", "recursive")
+                        val field = schema.loweredSchema.requireObjectField("Query", "recursive")
                         val nested =
                             schema.fragmentFrom("fragment Nested on Query { recursive }")
                         mapOf(
                             field to
-                                fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _, executionContext ->
+                                fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _, executionContext ->
                                     if (invocations.incrementAndGet() > 1) {
                                         7
                                     } else {
@@ -176,7 +176,7 @@ class ResolverStartTest : Resolver26DispatcherResource {
             val operation = SharedOperationContext.create(testWorld.assumptions)
             val result =
                 operation.resolveWithTestDispatcher(
-                    operation.world.operationSelectionsFrom("query { recursive }"),
+                    testWorld.schemas.operationSelectionsFrom("query { recursive }"),
                 )
             val key =
                 ObjectEngineResult.GroundKey.of(
@@ -198,10 +198,10 @@ class ResolverStartTest : Resolver26DispatcherResource {
                 schemaSDL = "type Query { consumer: Int slow: Int }",
                 fieldResolvers = { schema ->
                     mapOf(
-                        schema.requireObjectField("Query", "consumer") to fieldResolverOf(
+                        schema.loweredSchema.requireObjectField("Query", "consumer") to fieldResolverOf(
                             schema.fragmentFrom("fragment Input on Query { slow }"),
                         ) { _, _ -> error("consumer must not enter") },
-                        schema.requireObjectField("Query", "slow") to fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
+                        schema.loweredSchema.requireObjectField("Query", "slow") to fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
                             entered.complete(Unit)
                             try {
                                 awaitCancellation()
@@ -216,7 +216,7 @@ class ResolverStartTest : Resolver26DispatcherResource {
             try {
                 val operation = SharedOperationContext.create(testWorld.assumptions, resolverObserver = observer)
                 operation.startResolve(
-                    operation.world.operationSelectionsFrom("{ consumer }"),
+                    testWorld.schemas.operationSelectionsFrom("{ consumer }"),
                     CoroutineScope(resolverDispatcher + job),
                 )
                 withTimeout(5000) { entered.await() }
@@ -246,13 +246,13 @@ class ResolverStartTest : Resolver26DispatcherResource {
                         }
                         """.trimIndent(),
                     fieldResolvers = { schema ->
-                        val outer = schema.requireObjectField("Query", "outer")
-                        val slow = schema.requireObjectField("Query", "slow")
+                        val outer = schema.loweredSchema.requireObjectField("Query", "outer")
+                        val slow = schema.loweredSchema.requireObjectField("Query", "slow")
                         val nestedFragment =
                             schema.fragmentFrom("fragment Nested on Query { slow }")
                         mapOf(
                             outer to
-                                fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _, executionContext ->
+                                fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _, executionContext ->
                                     val task = assertIs<FieldResolverTask>(executionContext)
                                     val publication = task.publication
                                     val operation: OperationContext = publication
@@ -282,7 +282,7 @@ class ResolverStartTest : Resolver26DispatcherResource {
                                         .get("slow")
                                 },
                             slow to
-                                fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
+                                fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
                                     nestedStarted.complete(Unit)
                                     try {
                                         gate.await()
@@ -294,7 +294,7 @@ class ResolverStartTest : Resolver26DispatcherResource {
                         )
                     },
                 )
-            val selections = world.assumptions.operationSelectionsFrom("query { outer }")
+            val selections = world.schemas.operationSelectionsFrom("query { outer }")
             val requestJob = Job()
             val requestScope = CoroutineScope(resolverDispatcher + requestJob)
 
@@ -321,7 +321,7 @@ class ResolverStartTest : Resolver26DispatcherResource {
             val providerStarted = CompletableDeferred<Unit>()
             val gate = CompletableDeferred<Unit>()
             val world = delayedWorld(providerStarted, gate)
-            val selections = world.assumptions.operationSelectionsFrom("query { fast slow }")
+            val selections = world.schemas.operationSelectionsFrom("query { fast slow }")
             val requestJob = Job()
             val requestScope = CoroutineScope(resolverDispatcher + requestJob)
 
@@ -351,7 +351,7 @@ class ResolverStartTest : Resolver26DispatcherResource {
             val providerStopped = CompletableDeferred<Unit>()
             val gate = CompletableDeferred<Unit>()
             val world = delayedWorld(providerStarted, gate, providerStopped)
-            val selections = world.assumptions.operationSelectionsFrom("query { slow }")
+            val selections = world.schemas.operationSelectionsFrom("query { slow }")
             val requestJob = Job()
             val requestScope = CoroutineScope(resolverDispatcher + requestJob)
 
@@ -374,7 +374,7 @@ class ResolverStartTest : Resolver26DispatcherResource {
                 TestWorld.fromSDL(
                     schemaSDL = SCHEMA,
                     fieldResolvers = { schema ->
-                        val slow = schema.requireObjectField("Query", "slow")
+                        val slow = schema.loweredSchema.requireObjectField("Query", "slow")
                         mapOf(
                             slow to
                                 fieldResolverOf(
@@ -391,7 +391,7 @@ class ResolverStartTest : Resolver26DispatcherResource {
                         )
                     },
                 )
-            val selections = world.assumptions.operationSelectionsFrom("query { slow }")
+            val selections = world.schemas.operationSelectionsFrom("query { slow }")
             val requestJob = Job()
             val requestScope = CoroutineScope(resolverDispatcher + requestJob)
 
@@ -423,8 +423,8 @@ class ResolverStartTest : Resolver26DispatcherResource {
                 TestWorld.fromSDL(
                     schemaSDL = SCHEMA,
                     fieldResolvers = { schema ->
-                        val slow = schema.requireObjectField("Query", "slow")
-                        val dependent = schema.requireObjectField("Query", "dependent")
+                        val slow = schema.loweredSchema.requireObjectField("Query", "slow")
+                        val dependent = schema.loweredSchema.requireObjectField("Query", "dependent")
                         mapOf(
                             slow to
                                 fieldResolverOf(
@@ -445,7 +445,7 @@ class ResolverStartTest : Resolver26DispatcherResource {
                         )
                     },
                 )
-            val selections = world.assumptions.operationSelectionsFrom("query { dependent }")
+            val selections = world.schemas.operationSelectionsFrom("query { dependent }")
             val requestJob = Job()
             val requestScope = CoroutineScope(resolverDispatcher + requestJob)
 
@@ -475,7 +475,7 @@ class ResolverStartTest : Resolver26DispatcherResource {
                 TestWorld.fromSDL(
                     schemaSDL = SCHEMA,
                     fieldResolvers = { schema ->
-                        val slow = schema.requireObjectField("Query", "slow")
+                        val slow = schema.loweredSchema.requireObjectField("Query", "slow")
                         mapOf(
                             slow to
                                 fieldResolverOf(
@@ -489,7 +489,7 @@ class ResolverStartTest : Resolver26DispatcherResource {
                         )
                     },
                 )
-            val selections = world.assumptions.operationSelectionsFrom("query { slow }")
+            val selections = world.schemas.operationSelectionsFrom("query { slow }")
             val requestJob = Job()
             val requestScope = CoroutineScope(resolverDispatcher + requestJob)
 
@@ -522,11 +522,11 @@ class ResolverStartTest : Resolver26DispatcherResource {
                     TestWorld.fromSDL(
                         schemaSDL = SCHEMA,
                         fieldResolvers = { schema ->
-                            val fast = schema.requireObjectField("Query", "fast")
-                            val slow = schema.requireObjectField("Query", "slow")
+                            val fast = schema.loweredSchema.requireObjectField("Query", "fast")
+                            val slow = schema.loweredSchema.requireObjectField("Query", "slow")
                             mapOf(
                                 fast to
-                                    fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
+                                    fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
                                         throw NullPointerException("tenant bug")
                                     },
                                 slow to
@@ -545,7 +545,7 @@ class ResolverStartTest : Resolver26DispatcherResource {
                         },
                     )
                 val selections =
-                    world.assumptions.operationSelectionsFrom("query { fast slow }")
+                    world.schemas.operationSelectionsFrom("query { fast slow }")
                 val requestJob = Job()
                 val requestScope = CoroutineScope(dispatcher + requestJob)
 
@@ -588,10 +588,10 @@ class ResolverStartTest : Resolver26DispatcherResource {
                     TestWorld.fromSDL(
                         schemaSDL = SCHEMA,
                         fieldResolvers = { schema ->
-                            val fast = schema.requireObjectField("Query", "fast")
+                            val fast = schema.loweredSchema.requireObjectField("Query", "fast")
                             mapOf(
                                 fast to
-                                    fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
+                                    fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
                                         resolverStarted.set(true)
                                         1
                                     },
@@ -604,7 +604,7 @@ class ResolverStartTest : Resolver26DispatcherResource {
                 try {
                     val root =
                         SharedOperationContext.create(world.assumptions).startResolve(
-                            world.assumptions.operationSelectionsFrom("query { fast }"),
+                            world.schemas.operationSelectionsFrom("query { fast }"),
                             requestScope,
                         )
                     requestJob.cancel(CancellationException("cancelled before dispatch"))
@@ -630,10 +630,10 @@ class ResolverStartTest : Resolver26DispatcherResource {
         TestWorld.fromSDL(
             schemaSDL = SCHEMA,
             fieldResolvers = { schema ->
-                val fast = schema.requireObjectField("Query", "fast")
-                val slow = schema.requireObjectField("Query", "slow")
+                val fast = schema.loweredSchema.requireObjectField("Query", "fast")
+                val slow = schema.loweredSchema.requireObjectField("Query", "slow")
                 mapOf(
-                    fast to fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> 1 },
+                    fast to fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> 1 },
                     slow to
                         fieldResolverOf(
                             schema.fragmentFrom(

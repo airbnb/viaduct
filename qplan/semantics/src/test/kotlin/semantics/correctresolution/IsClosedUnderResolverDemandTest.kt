@@ -17,7 +17,8 @@ import semantics.shared.SharedOperationContext
 class IsClosedUnderResolverDemandTest {
     @Test
     fun `non-node object does not require an id field`() {
-        val world = TestWorld.fromSDL(SCHEMA_SDL).assumptions
+        val worldFixture = TestWorld.fromSDL(SCHEMA_SDL)
+        val world = worldFixture.assumptions
         val result =
             world.engineResultOf("Profile") {
                 "name" resolvesTo "Ada"
@@ -46,9 +47,9 @@ class IsClosedUnderResolverDemandTest {
                     }
                     """.trimIndent(),
                 fieldResolvers = { schema ->
-                    val result = schema.requireObjectField("Parent", "result")
-                    val consume = schema.requireObjectField("Child", "consume")
-                    val parent = schema.requireObjectField("Query", "parent")
+                    val result = schema.loweredSchema.requireObjectField("Parent", "result")
+                    val consume = schema.loweredSchema.requireObjectField("Child", "consume")
+                    val parent = schema.loweredSchema.requireObjectField("Query", "parent")
                     mapOf(
                         result to
                             fieldResolverOf(
@@ -64,25 +65,25 @@ class IsClosedUnderResolverDemandTest {
                             ) { _, _ -> 14 },
                         consume to
                             fieldResolverOf(
-                                schema.emptyFragmentOf("Child"),
+                                schema.loweredSchema.emptyFragmentOf("Child"),
                             ) { _, _ -> 14 },
                         parent to
                             fieldResolverOf(
-                                schema.emptyFragmentOf("Query"),
+                                schema.loweredSchema.emptyFragmentOf("Query"),
                             ) { _, _ -> null },
                     )
                 },
                 variableProviders = { schema ->
-                    val result = schema.requireObjectField("Parent", "result")
+                    val result = schema.loweredSchema.requireObjectField("Parent", "result")
                     mapOf(
                         Arguments.Variable.of(result, "seed") to
-                            schema.fromArgument(result, "seed"),
+                            schema.loweredSchema.fromArgument(result, "seed"),
                     )
                 },
             )
         val world = testWorld.assumptions
         val operation = SharedOperationContext.create(world)
-        val resultField = world.schema.requireObjectField("Parent", "result")
+        val resultField = testWorld.schema.requireObjectField("Parent", "result")
         val resultKey = ObjectEngineResult.GroundKey.of(resultField, mapOf("seed" to 7))
         val result =
             world.engineResultOf("Parent") {

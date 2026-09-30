@@ -11,7 +11,6 @@ import kotlin.math.abs
 import kotlin.math.ceil
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.runBlocking
-import model.Assumptions
 import model.EngineResult
 import model.ErrorEngineResult
 import model.Fragment
@@ -19,6 +18,7 @@ import model.ListEngineResult
 import model.ObjectEngineResult
 import model.ResolverOccurrenceId
 import model.fragmentFrom
+import model.testing.TestWorld
 import semantics.arbitrary.ArbitraryQuery
 import semantics.arbitrary.ArbitraryRegistry
 import semantics.arbitrary.ArbitrarySchema
@@ -113,7 +113,7 @@ object ResolverBenchmarkCorpusSearch {
             if (!candidate.disqualified) {
                 try {
                     candidate.observe(
-                        testWorld.newAssumptions(selectiveResolvers = true),
+                        testWorld,
                         testCase,
                         resolverCoroutineContext,
                     )
@@ -137,11 +137,12 @@ object ResolverBenchmarkCorpusSearch {
     }
 
     private fun Candidate.observe(
-        world: Assumptions,
+        testWorld: TestWorld,
         testCase: ResolverTestCase,
         resolverCoroutineContext: CoroutineContext,
     ) {
-        val fragment: Fragment = world.fragmentFrom(testCase.query.source)
+        val world = testWorld.newAssumptions(selectiveResolvers = true)
+        val fragment: Fragment = testWorld.schemas.fragmentFrom(testCase.query.source)
         registry.clearResolutionWitness()
         val applicationObservations =
             Collections.synchronizedList(

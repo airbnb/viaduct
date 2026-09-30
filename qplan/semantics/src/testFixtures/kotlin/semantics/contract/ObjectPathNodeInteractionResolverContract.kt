@@ -62,7 +62,7 @@ interface ObjectPathNodeInteractionResolverContract : ResolverContract {
 
         val resolved =
             resolveAndValidate(
-                world,
+                testWorld,
                 """
                 query {
                   item {
@@ -144,7 +144,7 @@ interface ObjectPathNodeInteractionResolverContract : ResolverContract {
         val world = testWorld.assumptions
 
         resolveAndValidate(
-            world,
+            testWorld,
             """
                     query {
                       item {

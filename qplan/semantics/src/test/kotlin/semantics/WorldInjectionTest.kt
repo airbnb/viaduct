@@ -36,25 +36,25 @@ class WorldInjectionTest {
                 TestWorld.fromSDL(
                     schemaSDL = SCHEMA_SDL,
                     nodeResolvers = { schema ->
-                        val user = schema.requireType("User") as ViaductSchema.Object
+                        val user = schema.loweredSchema.requireType("User") as ViaductSchema.Object
                         mapOf(
                             user to
                                 nodeResolverOf { id ->
-                                    schema.objectOf("User") {
+                                    schema.loweredSchema.objectOf("User") {
                                         "id" setTo id
                                     }
                                 },
                         )
                     },
                     fieldResolvers = { schema ->
-                        val userField = schema.requireField("Query", "user")
-                        val queryFragment = schema.emptyFragmentOf("Query")
+                        val userField = schema.loweredSchema.requireField("Query", "user")
+                        val queryFragment = schema.loweredSchema.emptyFragmentOf("Query")
                         mapOf<ViaductSchema.Field, FieldResolverDefinition>(
                             userField to
                                 fieldResolverOf(
                                     objectFragment = queryFragment,
                                     function = { _, _ ->
-                                        schema.objectOf("User") {
+                                        schema.loweredSchema.objectOf("User") {
                                             "id" setTo "field"
                                         }
                                     },
@@ -87,7 +87,7 @@ class WorldInjectionTest {
 
             val queryNode = schema.requireObjectField("Query", "node")
             val selections =
-                world.fragmentFrom(
+                testWorld.schemas.fragmentFrom(
                     """
                 fragment ignored on User {
                   id

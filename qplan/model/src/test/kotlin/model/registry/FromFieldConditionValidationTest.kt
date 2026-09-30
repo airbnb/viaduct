@@ -59,20 +59,20 @@ class FromFieldConditionValidationTest {
                 }
             """.trimIndent(),
             fieldResolvers = { schema ->
-                val outer = schema.requireObjectField("Query", "outer")
+                val outer = schema.loweredSchema.requireObjectField("Query", "outer")
                 val fragment = schema.fragmentFrom(fragmentSource, variableField = outer)
                 mapOf(
                     outer to fieldResolverOf(
-                        objectFragment = if (provider == ProviderFragment.OBJECT) fragment else schema.emptyFragmentOf("Query"),
-                        queryFragment = if (provider == ProviderFragment.QUERY) fragment else schema.emptyFragmentOf("Query"),
+                        objectFragment = if (provider == ProviderFragment.OBJECT) fragment else schema.loweredSchema.emptyFragmentOf("Query"),
+                        queryFragment = if (provider == ProviderFragment.QUERY) fragment else schema.loweredSchema.emptyFragmentOf("Query"),
                     ) { _, _, _ -> 1 },
-                    schema.requireObjectField("Query", "a") to fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> true },
-                    schema.requireObjectField("Query", "b") to fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> true },
-                    schema.requireObjectField("Query", "consume") to fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> 1 },
+                    schema.loweredSchema.requireObjectField("Query", "a") to fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> true },
+                    schema.loweredSchema.requireObjectField("Query", "b") to fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> true },
+                    schema.loweredSchema.requireObjectField("Query", "consume") to fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> 1 },
                 )
             },
             variableProviders = { schema ->
-                val outer = schema.requireObjectField("Query", "outer")
+                val outer = schema.loweredSchema.requireObjectField("Query", "outer")
 
                 fun fromPath(name: String) =
                     when (provider) {

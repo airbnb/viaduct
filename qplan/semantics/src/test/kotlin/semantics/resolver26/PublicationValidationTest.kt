@@ -39,14 +39,15 @@ class PublicationValidationTest : Resolver26DispatcherResource {
         runBlocking(resolverDispatcher) {
             withTimeout(5_000) {
                 coroutineScope {
-                    val world = TestWorld.fromDSL(
+                    val worldFixture = TestWorld.fromDSL(
                         """
                         extend type Query {
                           invalid: Int! @resolver(result: 1)
                           sibling: Int! @resolver(result: 7)
                         }
                         """.trimIndent(),
-                    ).assumptions
+                    )
+                    val world = worldFixture.assumptions
                     val invoked = ConcurrentLinkedQueue<String>()
                     val operation = CoroutineOperationContext(
                         SharedOperationContext.create(world, resolverObserver = recording(invoked)),
@@ -59,7 +60,7 @@ class PublicationValidationTest : Resolver26DispatcherResource {
                         operation,
                         OEROccurrence(root, emptyList(), root),
                         world.resolverRegistry.createRootQueryInput(),
-                        world.operationSelectionsFrom("{ invalid sibling }"),
+                        worldFixture.schemas.operationSelectionsFrom("{ invalid sibling }"),
                     )
                     val publications = CoroutineFieldResolverTask.prepareAll(orchestration)
                     val invalid = publications.single { it.selection.key.field.name == "invalid" }
@@ -89,7 +90,7 @@ class PublicationValidationTest : Resolver26DispatcherResource {
         runBlocking(resolverDispatcher) {
             withTimeout(5_000) {
                 coroutineScope {
-                    val world = TestWorld.fromDSL(
+                    val worldFixture = TestWorld.fromDSL(
                         """
                         extend type Query {
                           invalid: Int! @resolver(
@@ -102,7 +103,8 @@ class PublicationValidationTest : Resolver26DispatcherResource {
                           sibling: Int! @resolver(result: 7)
                         }
                         """.trimIndent(),
-                    ).assumptions
+                    )
+                    val world = worldFixture.assumptions
                     val invoked = ConcurrentLinkedQueue<String>()
                     val providerReads = AtomicInteger()
                     val cycleState = CycleCheckState.create()
@@ -127,7 +129,7 @@ class PublicationValidationTest : Resolver26DispatcherResource {
                         operation,
                         OEROccurrence(root, emptyList(), root),
                         world.resolverRegistry.createRootQueryInput(),
-                        world.operationSelectionsFrom("{ invalid sibling }"),
+                        worldFixture.schemas.operationSelectionsFrom("{ invalid sibling }"),
                     )
                     val publications = FieldResolverTask.prepareAll(orchestration)
                     val invalid = publications.single { it.sourceOccurrence.selection.key.field.name == "invalid" }

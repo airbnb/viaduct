@@ -52,13 +52,13 @@ class ResolverTestDslTest {
                 }
                 """.trimIndent(),
             )
-        val schema = world.schema
-        val containerField = schema.requireObjectField("Query", "container")
+        val schema = world.schemas
+        val containerField = schema.loweredSchema.requireObjectField("Query", "container")
         val container =
             assertIs<EngineObjectData.Sync>(
                 world.apply(containerField),
             )
-        val total = schema.requireObjectField("Container", "total")
+        val total = schema.loweredSchema.requireObjectField("Container", "total")
 
         val result = world.apply(total, container, mapOf("extra" to 4))
 
@@ -322,13 +322,13 @@ class ResolverTestDslTest {
                 }
                 """.trimIndent(),
             )
-        val schema = world.schema
-        val viewer = schema.requireObjectField("Query", "viewer")
+        val schema = world.schemas
+        val viewer = schema.loweredSchema.requireObjectField("Query", "viewer")
         val reference =
             assertIs<RootFieldReferenceData>(
                 world.apply(viewer, arguments = mapOf("id" to "user-2")),
             )
-        val node = schema.requireObjectField("Query", "node")
+        val node = schema.loweredSchema.requireObjectField("Query", "node")
         val user =
             assertIs<EngineObjectData.Sync>(
                 world.apply(
@@ -346,7 +346,7 @@ class ResolverTestDslTest {
             8,
             user.get("score"),
         )
-        val sourceSchema = SourceSchemaAdapter(schema)
+        val sourceSchema = SourceSchemaAdapter(schema.loweredSchema)
         assertEquals(viewer, sourceSchema.field("Query", "viewer"))
     }
 

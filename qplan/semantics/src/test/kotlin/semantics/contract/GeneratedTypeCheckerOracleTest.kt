@@ -48,27 +48,27 @@ class GeneratedTypeCheckerOracleTest : Resolver26DispatcherResource {
                         """.trimIndent(),
                     fieldResolvers = { schema ->
                         mapOf(
-                            schema.requireObjectField("Query", "selected") to
-                                fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> 1 },
-                            schema.requireObjectField("Query", "surplus") to
+                            schema.loweredSchema.requireObjectField("Query", "selected") to
+                                fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> 1 },
+                            schema.loweredSchema.requireObjectField("Query", "surplus") to
                                 fieldResolverOf(
                                     schema.fragmentFrom(
                                         "fragment SurplusInput on Query { dependency { value } }",
                                     ),
                                 ) { _, _ -> 2 },
-                            schema.requireObjectField("Query", "dependency") to
-                                fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
-                                    schema.objectOf("Dependency") { "value" setTo 3 }
+                            schema.loweredSchema.requireObjectField("Query", "dependency") to
+                                fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
+                                    schema.loweredSchema.objectOf("Dependency") { "value" setTo 3 }
                                 },
                         )
                     },
                     typeCheckers = { schema ->
-                        val dependency = schema.requireType("Dependency") as ViaductSchema.Object
+                        val dependency = schema.loweredSchema.requireType("Dependency") as ViaductSchema.Object
                         mapOf(
                             dependency to
                                 TypeCheckerResolver.of(
                                     dependency,
-                                    schema.requireQueryTypeDef(),
+                                    schema.loweredSchema.requireQueryTypeDef(),
                                 ) { _, _ -> CheckerResult.Success },
                         )
                     },
@@ -87,11 +87,11 @@ class GeneratedTypeCheckerOracleTest : Resolver26DispatcherResource {
             // real type check for Dependency.
             val result =
                 if (symbolic) {
-                    operation.resolveWithTestDispatcher(world.operationSelectionsFrom("{ selected surplus }"))
+                    operation.resolveWithTestDispatcher(testWorld.schemas.operationSelectionsFrom("{ selected surplus }"))
                 } else {
-                    operation.resolve(world.operationSelectionsFrom("{ selected surplus }"))
+                    operation.resolve(testWorld.schemas.operationSelectionsFrom("{ selected surplus }"))
                 }
-            val intended = world.fragmentFrom("fragment Intended on Query { selected }")
+            val intended = testWorld.schemas.fragmentFrom("fragment Intended on Query { selected }")
 
             val correct = result.correctResolution(operation, intended)
             val applicationsMatch =
@@ -122,26 +122,26 @@ class GeneratedTypeCheckerOracleTest : Resolver26DispatcherResource {
 
     @Test
     fun `generated oracle rejects an unnecessary type check on a raw-only nested object`() {
-        val world = TestWorld.fromSDL(
+        val worldFixture = TestWorld.fromSDL(
             schemaSDL = "type Query { item: Item! } type Item { value: Int! raw: Raw! } type Raw { token: Int! }",
             fieldResolvers = { schema ->
                 mapOf(
-                    schema.requireObjectField("Query", "item") to
-                        fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
-                            schema.objectOf("Item") {
+                    schema.loweredSchema.requireObjectField("Query", "item") to
+                        fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
+                            schema.loweredSchema.objectOf("Item") {
                                 "value" setTo 1
-                                "raw" setTo schema.objectOf("Raw") { "token" setTo 7 }
+                                "raw" setTo schema.loweredSchema.objectOf("Raw") { "token" setTo 7 }
                             }
                         }
                 )
             },
             typeCheckers = { schema ->
-                val item = schema.requireType("Item") as ViaductSchema.Object
-                val raw = schema.requireType("Raw") as ViaductSchema.Object
+                val item = schema.loweredSchema.requireType("Item") as ViaductSchema.Object
+                val raw = schema.loweredSchema.requireType("Raw") as ViaductSchema.Object
                 mapOf(
                     item to TypeCheckerResolver.of(
                         item,
-                        schema.requireQueryTypeDef(),
+                        schema.loweredSchema.requireQueryTypeDef(),
                         mapOf(
                             "input" to ResolverFragmentTemplates(
                                 schema.fragmentFrom("fragment Input on Item { raw { token } }").materializeSelections,
@@ -149,12 +149,13 @@ class GeneratedTypeCheckerOracleTest : Resolver26DispatcherResource {
                             )
                         ),
                     ) { _, _ -> CheckerResult.Success },
-                    raw to TypeCheckerResolver.of(raw, schema.requireQueryTypeDef()) { _, _ -> CheckerResult.Success },
+                    raw to TypeCheckerResolver.of(raw, schema.loweredSchema.requireQueryTypeDef()) { _, _ -> CheckerResult.Success },
                 )
             },
-        ).assumptions
-        val itemType = world.schema.requireType("Item") as ViaductSchema.Object
-        val rawType = world.schema.requireType("Raw") as ViaductSchema.Object
+        )
+        val world = worldFixture.assumptions
+        val itemType = worldFixture.schema.requireType("Item") as ViaductSchema.Object
+        val rawType = worldFixture.schema.requireType("Raw") as ViaductSchema.Object
         val itemKey = ObjectEngineResult.GroundKey.of(world.schema.requireObjectField("Query", "item"), emptyMap())
         val valueKey = ObjectEngineResult.GroundKey.of(world.schema.requireObjectField("Item", "value"), emptyMap())
         val rawKey = ObjectEngineResult.GroundKey.of(world.schema.requireObjectField("Item", "raw"), emptyMap())
@@ -195,7 +196,7 @@ class GeneratedTypeCheckerOracleTest : Resolver26DispatcherResource {
             ),
         ).forEach(recorder::onCheckerInvocation)
 
-        val selections = world.fragmentFrom("fragment Query on Query { item { value } }")
+        val selections = worldFixture.schemas.fragmentFrom("fragment Query on Query { item { value } }")
         val correct = root.correctResolution(operation, selections)
         val applicationsMatch = recorder.hasExactlyCheckerApplications(root.registeredCheckerApplications(operation))
         assertTrue(correct, "correctResolution rejected the injected result")

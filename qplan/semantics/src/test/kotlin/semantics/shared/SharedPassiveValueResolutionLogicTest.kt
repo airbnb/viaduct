@@ -58,17 +58,17 @@ class SharedPassiveValueResolutionLogicTest {
                     """.trimIndent(),
                 fieldResolvers = { schema ->
                     mapOf(
-                        schema.requireField("Query", "user") to
+                        schema.loweredSchema.requireField("Query", "user") to
                             fieldResolverOf(
-                                schema.emptyFragmentOf("Query"),
-                            ) { _, _ -> schema.objectOf("User") },
-                        schema.requireField("User", "computed") to
+                                schema.loweredSchema.emptyFragmentOf("Query"),
+                            ) { _, _ -> schema.loweredSchema.objectOf("User") },
+                        schema.loweredSchema.requireField("User", "computed") to
                             fieldResolverOf(
-                                schema.emptyFragmentOf("User"),
+                                schema.loweredSchema.emptyFragmentOf("User"),
                             ) { _, _ -> "computed" },
-                        schema.requireField("Profile", "rendered") to
+                        schema.loweredSchema.requireField("Profile", "rendered") to
                             fieldResolverOf(
-                                schema.emptyFragmentOf("Profile"),
+                                schema.loweredSchema.emptyFragmentOf("Profile"),
                             ) { _, _ -> "rendered" },
                     )
                 },
@@ -94,7 +94,7 @@ class SharedPassiveValueResolutionLogicTest {
                     }
             }
         val selections =
-            world.fragmentFrom(
+            testWorld.schemas.fragmentFrom(
                 """
                 fragment ignored on User {
                   __typename
@@ -161,17 +161,17 @@ class SharedPassiveValueResolutionLogicTest {
                     """.trimIndent(),
                 fieldResolvers = { schema ->
                     mapOf(
-                        schema.requireField("Query", "user") to
+                        schema.loweredSchema.requireField("Query", "user") to
                             fieldResolverOf(
-                                schema.emptyFragmentOf("Query"),
-                            ) { _, _ -> schema.objectOf("User") },
-                        schema.requireField("User", "computed") to
+                                schema.loweredSchema.emptyFragmentOf("Query"),
+                            ) { _, _ -> schema.loweredSchema.objectOf("User") },
+                        schema.loweredSchema.requireField("User", "computed") to
                             fieldResolverOf(
-                                schema.emptyFragmentOf("User"),
+                                schema.loweredSchema.emptyFragmentOf("User"),
                             ) { _, _ -> "computed" },
-                        schema.requireField("Profile", "rendered") to
+                        schema.loweredSchema.requireField("Profile", "rendered") to
                             fieldResolverOf(
-                                schema.emptyFragmentOf("Profile"),
+                                schema.loweredSchema.emptyFragmentOf("Profile"),
                             ) { _, _ -> "rendered" },
                     )
                 },
@@ -190,7 +190,7 @@ class SharedPassiveValueResolutionLogicTest {
                     }
             }
         val constructionDemand =
-            world.fragmentFrom(
+            testWorld.schemas.fragmentFrom(
                 "fragment ignored on User { computed }",
             ).subselections
 
@@ -239,7 +239,7 @@ class SharedPassiveValueResolutionLogicTest {
                 "extra" setTo "rejected"
             }
         val selections =
-            world.fragmentFrom(
+            testWorld.schemas.fragmentFrom(
                 "fragment ignored on User { selected }",
             ).subselections
 
@@ -259,10 +259,9 @@ class SharedPassiveValueResolutionLogicTest {
 
     @Test
     fun `selective output permits fields in invocation demand beyond construction demand`() {
-        val world =
-            TestWorld
-                .fromSDL(
-                    """
+        val worldFixture = TestWorld
+            .fromSDL(
+                """
                     type Item {
                       computed: Int!
                       seed: Int!
@@ -271,8 +270,9 @@ class SharedPassiveValueResolutionLogicTest {
                     type Query {
                       item: Item!
                     }
-                    """.trimIndent(),
-                ).assumptions
+                """.trimIndent(),
+            )
+        val world = worldFixture.assumptions
         val computedKey =
             ObjectEngineResult.GroundKey.of(
                 world.schema.requireObjectField("Item", "computed"),
@@ -289,9 +289,9 @@ class SharedPassiveValueResolutionLogicTest {
                 "seed" setTo 3
             }
         val constructionDemand =
-            world.fragmentFrom("fragment ignored on Item { computed }").subselections
+            worldFixture.schemas.fragmentFrom("fragment ignored on Item { computed }").subselections
         val invocationDemand =
-            world.fragmentFrom("fragment ignored on Item { computed seed }").subselections
+            worldFixture.schemas.fragmentFrom("fragment ignored on Item { computed seed }").subselections
 
         val resolved =
             runBlocking {
@@ -312,10 +312,9 @@ class SharedPassiveValueResolutionLogicTest {
 
     @Test
     fun `missing invocation-only fields do not require downstream resolution`() {
-        val world =
-            TestWorld
-                .fromSDL(
-                    """
+        val worldFixture = TestWorld
+            .fromSDL(
+                """
                     type Item {
                       computed: Int!
                       seed: Int!
@@ -324,16 +323,17 @@ class SharedPassiveValueResolutionLogicTest {
                     type Query {
                       item: Item!
                     }
-                    """.trimIndent(),
-                ).assumptions
+                """.trimIndent(),
+            )
+        val world = worldFixture.assumptions
         val value =
             world.schema.objectOf("Item") {
                 "computed" setTo 7
             }
         val constructionDemand =
-            world.fragmentFrom("fragment ignored on Item { computed }").subselections
+            worldFixture.schemas.fragmentFrom("fragment ignored on Item { computed }").subselections
         val invocationDemand =
-            world.fragmentFrom("fragment ignored on Item { computed seed }").subselections
+            worldFixture.schemas.fragmentFrom("fragment ignored on Item { computed seed }").subselections
 
         val resolved =
             runBlocking {
@@ -377,7 +377,7 @@ class SharedPassiveValueResolutionLogicTest {
                 "extra" setTo "ignored"
             }
         val selections =
-            world.fragmentFrom(
+            testWorld.schemas.fragmentFrom(
                 "fragment ignored on User { selected }",
             ).subselections
 
@@ -399,10 +399,9 @@ class SharedPassiveValueResolutionLogicTest {
 
     @Test
     fun `rejects an argument-bearing passive object field`() {
-        val world =
-            TestWorld
-                .fromSDL(
-                    """
+        val worldFixture = TestWorld
+            .fromSDL(
+                """
                     type Item {
                       value(index: Int): String
                     }
@@ -410,8 +409,9 @@ class SharedPassiveValueResolutionLogicTest {
                     type Query {
                       item: Item
                     }
-                    """.trimIndent(),
-                ).assumptions
+                """.trimIndent(),
+            )
+        val world = worldFixture.assumptions
         val itemType = world.schema.requireType("Item") as ViaductSchema.Object
         val field = world.schema.requireObjectField("Item", "value")
         val value =
@@ -427,7 +427,7 @@ class SharedPassiveValueResolutionLogicTest {
                     ),
             )
         val selections =
-            world.fragmentFrom(
+            worldFixture.schemas.fragmentFrom(
                 "fragment ignored on Item { value(index: 1) }",
             ).subselections
 
@@ -465,19 +465,19 @@ class SharedPassiveValueResolutionLogicTest {
                     }
                     """.trimIndent(),
                 fieldResolvers = { schema ->
-                    val emptyQuery = schema.emptyFragmentOf("Query")
-                    val emptyItem = schema.emptyFragmentOf("Item")
-                    val emptyNested = schema.emptyFragmentOf("Nested")
+                    val emptyQuery = schema.loweredSchema.emptyFragmentOf("Query")
+                    val emptyItem = schema.loweredSchema.emptyFragmentOf("Item")
+                    val emptyNested = schema.loweredSchema.emptyFragmentOf("Nested")
                     mapOf(
-                        schema.requireField("Query", "items") to
+                        schema.loweredSchema.requireField("Query", "items") to
                             fieldResolverOf(emptyQuery) { _, _ ->
                                 error("Not invoked")
                             },
-                        schema.requireField("Item", "computed") to
+                        schema.loweredSchema.requireField("Item", "computed") to
                             fieldResolverOf(emptyItem) { _, _ ->
                                 error("Not invoked")
                             },
-                        schema.requireField("Nested", "rendered") to
+                        schema.loweredSchema.requireField("Nested", "rendered") to
                             fieldResolverOf(emptyNested) { _, _ ->
                                 error("Not invoked")
                             },
@@ -497,7 +497,7 @@ class SharedPassiveValueResolutionLogicTest {
                 },
             )
         val selections =
-            world.fragmentFrom(
+            testWorld.schemas.fragmentFrom(
                 """
                 fragment ignored on Item {
                   computed

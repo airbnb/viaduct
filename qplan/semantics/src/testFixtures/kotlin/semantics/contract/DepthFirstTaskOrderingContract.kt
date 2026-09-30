@@ -57,24 +57,24 @@ interface DepthFirstTaskOrderingContract : ResolverContract {
                     """.trimIndent(),
                 fieldResolvers = { schema ->
                     mapOf(
-                        schema.requireField("Query", "container") to
+                        schema.loweredSchema.requireField("Query", "container") to
                             fieldResolverOf(
-                                schema.emptyFragmentOf("Query"),
+                                schema.loweredSchema.emptyFragmentOf("Query"),
                             ) { _, _ ->
-                                schema.objectOf("Container") {
+                                schema.loweredSchema.objectOf("Container") {
                                     "left" setTo objectOf("Child")
                                     "right" setTo objectOf("Child")
                                 }
                             },
-                        schema.requireField("Child", "nested") to
+                        schema.loweredSchema.requireField("Child", "nested") to
                             fieldResolverOf(
-                                schema.emptyFragmentOf("Child"),
+                                schema.loweredSchema.emptyFragmentOf("Child"),
                             ) { _, _ ->
                                 "nested"
                             },
-                        schema.requireField("Query", "after") to
+                        schema.loweredSchema.requireField("Query", "after") to
                             fieldResolverOf(
-                                schema.emptyFragmentOf("Query"),
+                                schema.loweredSchema.emptyFragmentOf("Query"),
                             ) { _, _ ->
                                 "after"
                             },
@@ -83,9 +83,8 @@ interface DepthFirstTaskOrderingContract : ResolverContract {
             )
         val world = testWorld.assumptions
         val selections =
-            world
-                .fragmentFrom(
-                    """
+            testWorld.schemas.fragmentFrom(
+                """
                     fragment ignored on Query {
                       container {
                         left { nested }
@@ -93,8 +92,8 @@ interface DepthFirstTaskOrderingContract : ResolverContract {
                       }
                       after
                     }
-                    """.trimIndent(),
-                ).subselections
+                """.trimIndent(),
+            ).subselections
         val taskTrace = mutableListOf<ResolverTaskObservation>()
 
         resolveAndObserveTasks(

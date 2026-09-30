@@ -74,11 +74,11 @@ class RootFieldReferenceResolutionTest : Resolver26DispatcherResource {
                     }
                     """.trimIndent(),
                 fieldResolvers = { schema ->
-                    val empty = schema.emptyFragmentOf("Query")
-                    val result = schema.requireObjectField("Query", "result")
-                    val numbers = schema.requireObjectField("Query", "numbers")
-                    val one = schema.requireObjectField("Query", "one")
-                    val echo = schema.requireObjectField("Query", "echo")
+                    val empty = schema.loweredSchema.emptyFragmentOf("Query")
+                    val result = schema.loweredSchema.requireObjectField("Query", "result")
+                    val numbers = schema.loweredSchema.requireObjectField("Query", "numbers")
+                    val one = schema.loweredSchema.requireObjectField("Query", "one")
+                    val echo = schema.loweredSchema.requireObjectField("Query", "echo")
                     mapOf(
                         result to
                             fieldResolverOf(
@@ -96,7 +96,7 @@ class RootFieldReferenceResolutionTest : Resolver26DispatcherResource {
                     )
                 },
                 variableProviders = { schema ->
-                    val result = schema.requireObjectField("Query", "result")
+                    val result = schema.loweredSchema.requireObjectField("Query", "result")
                     mapOf(
                         Arguments.Variable.of(result, "provided") to
                             schema.fromObjectField(
@@ -108,7 +108,7 @@ class RootFieldReferenceResolutionTest : Resolver26DispatcherResource {
                 },
             )
         val world = testWorld.assumptions
-        val query = world.fragmentFrom("fragment Result on Query { result }")
+        val query = testWorld.schemas.fragmentFrom("fragment Result on Query { result }")
         val observer = CorrectnessResolverObserver()
         val operation = SharedOperationContext.create(world, resolverObserver = observer)
 
@@ -152,12 +152,12 @@ class RootFieldReferenceResolutionTest : Resolver26DispatcherResource {
                     union LookupResult = Product | Service
                     """.trimIndent(),
                 fieldResolvers = { schema ->
-                    val container = schema.requireObjectField("Query", "container")
-                    val lookup = schema.requireObjectField("Query", "lookup")
+                    val container = schema.loweredSchema.requireObjectField("Query", "container")
+                    val lookup = schema.loweredSchema.requireObjectField("Query", "lookup")
                     mapOf(
                         container to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
-                                schema.objectOf("Container") {
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
+                                schema.loweredSchema.objectOf("Container") {
                                     "item" setTo
                                         RootFieldReferenceData.of(
                                             path = listOf(lookup),
@@ -166,9 +166,9 @@ class RootFieldReferenceResolutionTest : Resolver26DispatcherResource {
                                 }
                             },
                         lookup to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
                                 targetApplications.incrementAndGet()
-                                schema.objectOf("Product") { "value" setTo "unreachable" }
+                                schema.loweredSchema.objectOf("Product") { "value" setTo "unreachable" }
                             },
                     )
                 },
@@ -176,7 +176,7 @@ class RootFieldReferenceResolutionTest : Resolver26DispatcherResource {
 
         val result =
             resolve(
-                testWorld.assumptions,
+                testWorld,
                 "fragment Result on Query { container { item { value } } }",
             )
         val error =
@@ -224,15 +224,15 @@ class RootFieldReferenceResolutionTest : Resolver26DispatcherResource {
                     }
                     """.trimIndent(),
                 fieldResolvers = { schema ->
-                    val empty = schema.emptyFragmentOf("Query")
-                    val container = schema.requireObjectField("Query", "container")
-                    val product = schema.requireObjectField("Query", "product")
-                    val provided = schema.requireObjectField("Query", "provided")
-                    val label = schema.requireObjectField("Query", "label")
+                    val empty = schema.loweredSchema.emptyFragmentOf("Query")
+                    val container = schema.loweredSchema.requireObjectField("Query", "container")
+                    val product = schema.loweredSchema.requireObjectField("Query", "product")
+                    val provided = schema.loweredSchema.requireObjectField("Query", "provided")
+                    val label = schema.loweredSchema.requireObjectField("Query", "label")
                     mapOf(
                         container to
                             fieldResolverOf(empty) { _, _ ->
-                                schema.objectOf("Container") {
+                                schema.loweredSchema.objectOf("Container") {
                                     "product" setTo
                                         RootFieldReferenceData.of(listOf(product), emptyMap())
                                 }
@@ -242,7 +242,7 @@ class RootFieldReferenceResolutionTest : Resolver26DispatcherResource {
                                 objectFragment = empty,
                                 queryFragment = schema.fragmentFrom(targetQueryFragment),
                             ) { _, queryValue, _ ->
-                                schema.objectOf("Product") {
+                                schema.loweredSchema.objectOf("Product") {
                                     "value" setTo queryValue.get("querySide")
                                 }
                             },
@@ -254,7 +254,7 @@ class RootFieldReferenceResolutionTest : Resolver26DispatcherResource {
                     )
                 },
                 variableProviders = { schema ->
-                    val product = schema.requireObjectField("Query", "product")
+                    val product = schema.loweredSchema.requireObjectField("Query", "product")
                     mapOf(
                         Arguments.Variable.of(product, "provided") to
                             schema.fromQueryField(
@@ -265,7 +265,7 @@ class RootFieldReferenceResolutionTest : Resolver26DispatcherResource {
                 },
             )
         val world = testWorld.assumptions
-        val result = resolve(world, "fragment Result on Query { container { product { value } } }")
+        val result = resolve(testWorld, "fragment Result on Query { container { product { value } } }")
         val container =
             assertIs<ObjectEngineResult>(
                 result.getCell(world.schema.contractKey("Query", "container")).value.get(),
@@ -310,10 +310,10 @@ class RootFieldReferenceResolutionTest : Resolver26DispatcherResource {
                     }
                     """.trimIndent(),
                 fieldResolvers = { schema ->
-                    val container = schema.requireObjectField("Query", "container")
-                    val first = schema.requireObjectField("Query", "first")
-                    val second = schema.requireObjectField("Query", "second")
-                    val label = schema.requireObjectField("Query", "label")
+                    val container = schema.loweredSchema.requireObjectField("Query", "container")
+                    val first = schema.loweredSchema.requireObjectField("Query", "first")
+                    val second = schema.loweredSchema.requireObjectField("Query", "second")
+                    val label = schema.loweredSchema.requireObjectField("Query", "label")
                     val firstQueryFragment =
                         """
                         fragment FirstQuery on Query {
@@ -330,8 +330,8 @@ class RootFieldReferenceResolutionTest : Resolver26DispatcherResource {
                         """.trimIndent()
                     mapOf(
                         container to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
-                                schema.objectOf("Container") {
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
+                                schema.loweredSchema.objectOf("Container") {
                                     "product" setTo
                                         RootFieldReferenceData.of(
                                             path = listOf(first),
@@ -341,7 +341,7 @@ class RootFieldReferenceResolutionTest : Resolver26DispatcherResource {
                             },
                         first to
                             fieldResolverOf(
-                                objectFragment = schema.emptyFragmentOf("Query"),
+                                objectFragment = schema.loweredSchema.emptyFragmentOf("Query"),
                                 queryFragment =
                                     schema.fragmentFrom(firstQueryFragment, variableField = first),
                             ) { _, queryValue, _ ->
@@ -358,38 +358,38 @@ class RootFieldReferenceResolutionTest : Resolver26DispatcherResource {
                             },
                         second to
                             fieldResolverOf(
-                                objectFragment = schema.emptyFragmentOf("Query"),
+                                objectFragment = schema.loweredSchema.emptyFragmentOf("Query"),
                                 queryFragment =
                                     schema.fragmentFrom(secondQueryFragment, variableField = second),
                             ) { _, queryValue, _ ->
                                 val value =
                                     "${queryValue.get("argumentLabel")}/${queryValue.get("providerLabel")}"
                                 secondQueryValues += value
-                                schema.objectOf("Product") { "value" setTo value }
+                                schema.loweredSchema.objectOf("Product") { "value" setTo value }
                             }.withVariablesProvider(setOf("provided")) { arguments ->
                                 val id = arguments.fieldValues.getValue("id") as Int
                                 secondProviderArguments += id
                                 mapOf("provided" to id + 1)
                             },
                         label to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, arguments ->
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, arguments ->
                                 "value-${arguments.fieldValues.getValue("value")}"
                             },
                     )
                 },
                 variableProviders = { schema ->
-                    val first = schema.requireObjectField("Query", "first")
-                    val second = schema.requireObjectField("Query", "second")
+                    val first = schema.loweredSchema.requireObjectField("Query", "first")
+                    val second = schema.loweredSchema.requireObjectField("Query", "second")
                     mapOf(
                         Arguments.Variable.of(first, "argument") to
-                            schema.fromArgument(first, "id"),
+                            schema.loweredSchema.fromArgument(first, "id"),
                         Arguments.Variable.of(second, "argument") to
-                            schema.fromArgument(second, "id"),
+                            schema.loweredSchema.fromArgument(second, "id"),
                     )
                 },
             )
         val world = testWorld.assumptions
-        val query = world.fragmentFrom("fragment Result on Query { container { product { value } } }")
+        val query = testWorld.schemas.fragmentFrom("fragment Result on Query { container { product { value } } }")
         val operation =
             SharedOperationContext.create(world, resolverObserver = CorrectnessResolverObserver())
         val result = operation.resolveWithTestDispatcher(query.subselections)
@@ -446,15 +446,15 @@ class RootFieldReferenceResolutionTest : Resolver26DispatcherResource {
                     }
                     """.trimIndent(),
                 fieldResolvers = { schema ->
-                    val container = schema.requireObjectField("Query", "container")
-                    val catalog = schema.requireObjectField("Query", "catalog")
-                    val suffix = schema.requireObjectField("Query", "suffix")
-                    val prefix = schema.requireObjectField("Catalog", "prefix")
-                    val product = schema.requireObjectField("Catalog", "product")
+                    val container = schema.loweredSchema.requireObjectField("Query", "container")
+                    val catalog = schema.loweredSchema.requireObjectField("Query", "catalog")
+                    val suffix = schema.loweredSchema.requireObjectField("Query", "suffix")
+                    val prefix = schema.loweredSchema.requireObjectField("Catalog", "prefix")
+                    val product = schema.loweredSchema.requireObjectField("Catalog", "product")
                     mapOf(
                         container to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
-                                schema.objectOf("Container") {
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
+                                schema.loweredSchema.objectOf("Container") {
                                     "product" setTo
                                         RootFieldReferenceData.of(
                                             path = listOf(catalog, product),
@@ -463,16 +463,16 @@ class RootFieldReferenceResolutionTest : Resolver26DispatcherResource {
                                 }
                             },
                         catalog to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
-                                schema.objectOf("Catalog") {}
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
+                                schema.loweredSchema.objectOf("Catalog") {}
                             },
                         prefix to
-                            fieldResolverOf(schema.emptyFragmentOf("Catalog")) { _, _ -> "product" },
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Catalog")) { _, _ -> "product" },
                         suffix to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> "resolved" },
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> "resolved" },
                         product to
                             fieldResolverOf(
-                                schema.emptyFragmentOf("Catalog"),
+                                schema.loweredSchema.emptyFragmentOf("Catalog"),
                                 schema.fragmentFrom(
                                     "fragment QueryInput on Query { catalog { prefix } suffix }",
                                 ),
@@ -480,7 +480,7 @@ class RootFieldReferenceResolutionTest : Resolver26DispatcherResource {
                                 targetApplications.incrementAndGet()
                                 val catalogInput =
                                     queryValue.get("catalog") as EngineObjectData.Sync
-                                schema.objectOf("Product") {
+                                schema.loweredSchema.objectOf("Product") {
                                     "value" setTo
                                         "${catalogInput.get("prefix")}-${arguments.fieldValues.getValue("id")}-${queryValue.get("suffix")}"
                                     "omitted" setTo "must not be materialized"
@@ -490,7 +490,7 @@ class RootFieldReferenceResolutionTest : Resolver26DispatcherResource {
                 },
             )
         val world = testWorld.assumptions
-        val query = world.fragmentFrom("fragment Result on Query { container { product { value } } }")
+        val query = testWorld.schemas.fragmentFrom("fragment Result on Query { container { product { value } } }")
         val operation =
             SharedOperationContext.create(world, resolverObserver = CorrectnessResolverObserver())
         val result = operation.resolveWithTestDispatcher(query.subselections)
@@ -548,15 +548,15 @@ class RootFieldReferenceResolutionTest : Resolver26DispatcherResource {
                     }
                     """.trimIndent(),
                 fieldResolvers = { schema ->
-                    val container = schema.requireObjectField("Query", "container")
-                    val factories = schema.requireObjectField("Query", "factories")
-                    val commerce = schema.requireObjectField("Factories", "commerce")
-                    val products = schema.requireObjectField("CommerceFactories", "products")
-                    val create = schema.requireObjectField("ProductFactory", "create")
+                    val container = schema.loweredSchema.requireObjectField("Query", "container")
+                    val factories = schema.loweredSchema.requireObjectField("Query", "factories")
+                    val commerce = schema.loweredSchema.requireObjectField("Factories", "commerce")
+                    val products = schema.loweredSchema.requireObjectField("CommerceFactories", "products")
+                    val create = schema.loweredSchema.requireObjectField("ProductFactory", "create")
                     mapOf(
                         container to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
-                                schema.objectOf("Container") {
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
+                                schema.loweredSchema.objectOf("Container") {
                                     "product" setTo
                                         RootFieldReferenceData.of(
                                             path = listOf(factories, commerce, products, create),
@@ -565,20 +565,20 @@ class RootFieldReferenceResolutionTest : Resolver26DispatcherResource {
                                 }
                             },
                         factories to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
-                                schema.objectOf("Factories")
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
+                                schema.loweredSchema.objectOf("Factories")
                             },
                         commerce to
-                            fieldResolverOf(schema.emptyFragmentOf("Factories")) { _, _ ->
-                                schema.objectOf("CommerceFactories")
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Factories")) { _, _ ->
+                                schema.loweredSchema.objectOf("CommerceFactories")
                             },
                         products to
-                            fieldResolverOf(schema.emptyFragmentOf("CommerceFactories")) { _, _ ->
-                                schema.objectOf("ProductFactory")
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("CommerceFactories")) { _, _ ->
+                                schema.loweredSchema.objectOf("ProductFactory")
                             },
                         create to
-                            fieldResolverOf(schema.emptyFragmentOf("ProductFactory")) { _, arguments ->
-                                schema.objectOf("Product") {
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("ProductFactory")) { _, arguments ->
+                                schema.loweredSchema.objectOf("Product") {
                                     "value" setTo "product-${arguments.fieldValues.getValue("id")}"
                                 }
                             },
@@ -587,7 +587,7 @@ class RootFieldReferenceResolutionTest : Resolver26DispatcherResource {
             )
         val world = testWorld.assumptions
 
-        val query = world.fragmentFrom("fragment Result on Query { container { product { value } } }")
+        val query = testWorld.schemas.fragmentFrom("fragment Result on Query { container { product { value } } }")
 
         val recordingObserver = object : CorrectnessResolverObserver() {
             override fun onResolverInvocation(observation: ResolverInvocationObservation) {
@@ -650,28 +650,28 @@ class RootFieldReferenceResolutionTest : Resolver26DispatcherResource {
                     }
                     """.trimIndent(),
                 fieldResolvers = { schema ->
-                    val first = schema.requireObjectField("Query", "first")
-                    val second = schema.requireObjectField("Query", "second")
-                    val third = schema.requireObjectField("Query", "third")
+                    val first = schema.loweredSchema.requireObjectField("Query", "first")
+                    val second = schema.loweredSchema.requireObjectField("Query", "second")
+                    val third = schema.loweredSchema.requireObjectField("Query", "third")
                     mapOf(
                         first to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
                                 RootFieldReferenceData.of(listOf(second), emptyMap())
                             },
                         second to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
                                 RootFieldReferenceData.of(listOf(third), emptyMap())
                             },
                         third to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
-                                schema.objectOf("Product") { "value" setTo "done" }
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
+                                schema.loweredSchema.objectOf("Product") { "value" setTo "done" }
                             },
                     )
                 },
             )
         val world = testWorld.assumptions
 
-        val query = world.fragmentFrom("fragment Result on Query { first { value } }")
+        val query = testWorld.schemas.fragmentFrom("fragment Result on Query { first { value } }")
 
         val recordingObserver = object : CorrectnessResolverObserver() {
             override fun onResolverInvocation(observation: ResolverInvocationObservation) {
@@ -725,29 +725,29 @@ class RootFieldReferenceResolutionTest : Resolver26DispatcherResource {
                     }
                     """.trimIndent(),
                 fieldResolvers = { schema ->
-                    val container = schema.requireObjectField("Query", "container")
-                    val target = schema.requireObjectField("Query", "product")
-                    val products = schema.requireObjectField("Container", "products")
+                    val container = schema.loweredSchema.requireObjectField("Query", "container")
+                    val target = schema.loweredSchema.requireObjectField("Query", "product")
+                    val products = schema.loweredSchema.requireObjectField("Container", "products")
                     mapOf(
                         container to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
-                                schema.objectOf("Container") {
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
+                                schema.loweredSchema.objectOf("Container") {
                                     "products" setTo
                                         listOf(
                                             RootFieldReferenceData.of(listOf(target), mapOf("id" to 1)),
-                                            schema.objectOf("Product") { "value" setTo 2 },
+                                            schema.loweredSchema.objectOf("Product") { "value" setTo 2 },
                                             RootFieldReferenceData.of(listOf(target), mapOf("id" to 3)),
                                         )
                                 }
                             },
                         target to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, arguments ->
-                                schema.objectOf("Product") {
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, arguments ->
+                                schema.loweredSchema.objectOf("Product") {
                                     "value" setTo arguments.fieldValues.getValue("id")
                                 }
                             },
                         products to
-                            fieldResolverOf(schema.emptyFragmentOf("Container")) { _, _ ->
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Container")) { _, _ ->
                                 error("passively overridden list resolver must not run")
                             },
                     )
@@ -756,7 +756,7 @@ class RootFieldReferenceResolutionTest : Resolver26DispatcherResource {
         val world = testWorld.assumptions
         val result =
             resolve(
-                world,
+                testWorld,
                 "fragment Result on Query { container { products { value } } }",
             )
         val container =
@@ -797,32 +797,32 @@ class RootFieldReferenceResolutionTest : Resolver26DispatcherResource {
                     }
                     """.trimIndent(),
                 fieldResolvers = { schema ->
-                    val container = schema.requireObjectField("Query", "container")
-                    val target = schema.requireObjectField("Query", "product")
-                    val products = schema.requireObjectField("Container", "products")
+                    val container = schema.loweredSchema.requireObjectField("Query", "container")
+                    val target = schema.loweredSchema.requireObjectField("Query", "product")
+                    val products = schema.loweredSchema.requireObjectField("Container", "products")
                     mapOf(
                         container to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
-                                schema.objectOf("Container") {
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
+                                schema.loweredSchema.objectOf("Container") {
                                     "products" setTo
                                         listOf(
                                             RootFieldReferenceData.of(listOf(target), mapOf("id" to 1)),
                                             RootFieldReferenceData.of(listOf(target), mapOf("id" to 2)),
-                                            schema.objectOf("Product") { "value" setTo 3 },
+                                            schema.loweredSchema.objectOf("Product") { "value" setTo 3 },
                                         )
                                 }
                             },
                         target to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, arguments ->
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, arguments ->
                                 val id = arguments.fieldValues.getValue("id") as Int
                                 if (id == 2) {
                                     EngineErrorData.of()
                                 } else {
-                                    schema.objectOf("Product") { "value" setTo id }
+                                    schema.loweredSchema.objectOf("Product") { "value" setTo id }
                                 }
                             },
                         products to
-                            fieldResolverOf(schema.emptyFragmentOf("Container")) { _, _ ->
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Container")) { _, _ ->
                                 error("passively overridden list resolver must not run")
                             },
                     )
@@ -830,7 +830,7 @@ class RootFieldReferenceResolutionTest : Resolver26DispatcherResource {
             )
         val world = testWorld.assumptions
         val query =
-            world.fragmentFrom("fragment Result on Query { container { products { value } } }")
+            testWorld.schemas.fragmentFrom("fragment Result on Query { container { products { value } } }")
         val operation =
             SharedOperationContext.create(world, resolverObserver = CorrectnessResolverObserver())
         val result = operation.resolveWithTestDispatcher(query.subselections)
@@ -865,18 +865,19 @@ class RootFieldReferenceResolutionTest : Resolver26DispatcherResource {
             listOf(1, 4).forEach { threadCount ->
                 ResolutionDispatcherFactory.create(threadCount).use { dispatcher ->
                     val successfulReferenceCompleted = CompletableDeferred<Unit>()
-                    val world =
+                    val testWorld =
                         listReferenceFailureWorld(
                             fatal = false,
                             successfulReferenceCompleted = successfulReferenceCompleted,
-                        ).assumptions
+                        )
+                    val world = testWorld.assumptions
                     val requestJob = Job()
                     val requestScope = CoroutineScope(dispatcher + requestJob)
 
                     try {
                         val root =
                             SharedOperationContext.create(world).startResolve(
-                                world.fragmentFrom(
+                                testWorld.schemas.fragmentFrom(
                                     "fragment Result on Query { container { numbers } }",
                                 ).subselections,
                                 requestScope,
@@ -908,18 +909,19 @@ class RootFieldReferenceResolutionTest : Resolver26DispatcherResource {
             listOf(1, 4).forEach { threadCount ->
                 ResolutionDispatcherFactory.create(threadCount).use { dispatcher ->
                     val successfulReferenceCompleted = CompletableDeferred<Unit>()
-                    val world =
+                    val testWorld =
                         listReferenceFailureWorld(
                             fatal = true,
                             successfulReferenceCompleted = successfulReferenceCompleted,
-                        ).assumptions
+                        )
+                    val world = testWorld.assumptions
                     val requestJob = Job()
                     val requestScope = CoroutineScope(dispatcher + requestJob)
 
                     try {
                         val root =
                             SharedOperationContext.create(world).startResolve(
-                                world.fragmentFrom(
+                                testWorld.schemas.fragmentFrom(
                                     "fragment Result on Query { container { numbers } }",
                                 ).subselections,
                                 requestScope,
@@ -981,10 +983,10 @@ class RootFieldReferenceResolutionTest : Resolver26DispatcherResource {
                         }
                         """.trimIndent(),
                     fieldResolvers = { schema ->
-                        val result = schema.requireObjectField("Query", "result")
-                        val container = schema.requireObjectField("Query", "container")
-                        val target = schema.requireObjectField("Query", "product")
-                        val consumer = schema.requireObjectField("Container", "product")
+                        val result = schema.loweredSchema.requireObjectField("Query", "result")
+                        val container = schema.loweredSchema.requireObjectField("Query", "container")
+                        val target = schema.loweredSchema.requireObjectField("Query", "product")
+                        val consumer = schema.loweredSchema.requireObjectField("Container", "product")
                         mapOf(
                             result to
                                 fieldResolverOf(
@@ -1000,34 +1002,34 @@ class RootFieldReferenceResolutionTest : Resolver26DispatcherResource {
                                     ),
                                 ) { _, _ -> 1 },
                             container to
-                                fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
-                                    schema.objectOf("Container") {
+                                fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
+                                    schema.loweredSchema.objectOf("Container") {
                                         "product" setTo
                                             RootFieldReferenceData.of(listOf(target), emptyMap())
                                     }
                                 },
                             target to
-                                fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
+                                fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
                                     targetApplications.incrementAndGet()
-                                    schema.objectOf("Product") { "value" setTo "target" }
+                                    schema.loweredSchema.objectOf("Product") { "value" setTo "target" }
                                 },
                             consumer to
-                                fieldResolverOf(schema.emptyFragmentOf("Container")) { _, _ ->
+                                fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Container")) { _, _ ->
                                     error("passively overridden consumer resolver must not run")
                                 },
                         )
                     },
                     variableProviders = { schema ->
-                        val result = schema.requireObjectField("Query", "result")
+                        val result = schema.loweredSchema.requireObjectField("Query", "result")
                         mapOf(
                             Arguments.Variable.of(result, "enabled") to
-                                schema.fromArgument(result, "enabled"),
+                                schema.loweredSchema.fromArgument(result, "enabled"),
                         )
                     },
                 )
             val world = testWorld.assumptions
             val query =
-                world.fragmentFrom(
+                testWorld.schemas.fragmentFrom(
                     "fragment Result on Query { result(enabled: $enabled) }",
                 )
             val operation =
@@ -1140,10 +1142,10 @@ class RootFieldReferenceResolutionTest : Resolver26DispatcherResource {
                     }
                     """.trimIndent(),
                 fieldResolvers = { schema ->
-                    val empty = schema.emptyFragmentOf("Query")
-                    val consumer = schema.requireObjectField("Query", "consumer")
-                    val container = schema.requireObjectField("Query", "container")
-                    val product = schema.requireObjectField("Query", "product")
+                    val empty = schema.loweredSchema.emptyFragmentOf("Query")
+                    val consumer = schema.loweredSchema.requireObjectField("Query", "consumer")
+                    val container = schema.loweredSchema.requireObjectField("Query", "container")
+                    val product = schema.loweredSchema.requireObjectField("Query", "product")
                     mapOf(
                         consumer to
                             fieldResolverOf(
@@ -1152,14 +1154,14 @@ class RootFieldReferenceResolutionTest : Resolver26DispatcherResource {
                             ) { _, _, _ -> error("error-valued consumer must not run") },
                         container to
                             fieldResolverOf(empty) { _, _ ->
-                                schema.objectOf("Container") {
+                                schema.loweredSchema.objectOf("Container") {
                                     "product" setTo
                                         RootFieldReferenceData.of(listOf(product), emptyMap())
                                 }
                             },
                         product to
                             fieldResolverOf(empty) { _, _ ->
-                                schema.objectOf("Product") { "value" setTo "target" }
+                                schema.loweredSchema.objectOf("Product") { "value" setTo "target" }
                             },
                     )
                 },
@@ -1167,7 +1169,7 @@ class RootFieldReferenceResolutionTest : Resolver26DispatcherResource {
         val world = testWorld.assumptions
         val observer = CorrectnessResolverObserver()
         val operation = SharedOperationContext.create(world, resolverObserver = observer)
-        val queryFragment = world.fragmentFrom(queryFragmentSource)
+        val queryFragment = testWorld.schemas.fragmentFrom(queryFragmentSource)
         val queryResult = operation.resolveWithTestDispatcher(queryFragment.subselections)
         assertEquals(1, observer.rootFieldReferenceInvocations().size)
 
@@ -1231,10 +1233,7 @@ class RootFieldReferenceResolutionTest : Resolver26DispatcherResource {
                 variableBindings = resolution.operation.variableBindings,
                 resolverObserver = malformedObserver,
             )
-        val query =
-            resolution.operation.world.fragmentFrom(
-                "fragment Result on Query { result(enabled: true) }",
-            )
+        val query = resolution.query
 
         assertTrue(
             resolution.result.correctResolution(
@@ -1264,25 +1263,25 @@ class RootFieldReferenceResolutionTest : Resolver26DispatcherResource {
                     }
                     """.trimIndent(),
                 fieldResolvers = { schema ->
-                    val container = schema.requireObjectField("Query", "container")
-                    val target = schema.requireObjectField("Query", "product")
+                    val container = schema.loweredSchema.requireObjectField("Query", "container")
+                    val target = schema.loweredSchema.requireObjectField("Query", "product")
                     mapOf(
                         container to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
-                                schema.objectOf("Container") {
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
+                                schema.loweredSchema.objectOf("Container") {
                                     "product" setTo
                                         RootFieldReferenceData.of(listOf(target), emptyMap())
                                 }
                             },
                         target to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
-                                schema.objectOf("Product") { "value" setTo "target" }
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
+                                schema.loweredSchema.objectOf("Product") { "value" setTo "target" }
                             },
                     )
                 },
             )
         val world = testWorld.assumptions
-        val query = world.fragmentFrom("fragment Result on Query { container { product { value } } }")
+        val query = testWorld.schemas.fragmentFrom("fragment Result on Query { container { product { value } } }")
         val observer = CorrectnessResolverObserver()
         val operation = SharedOperationContext.create(world, resolverObserver = observer)
         val result = operation.resolveWithTestDispatcher(query.subselections)
@@ -1330,27 +1329,27 @@ class RootFieldReferenceResolutionTest : Resolver26DispatcherResource {
                     }
                     """.trimIndent(),
                 fieldResolvers = { schema ->
-                    val container = schema.requireObjectField("Query", "container")
-                    val target = schema.requireObjectField("Query", "product")
+                    val container = schema.loweredSchema.requireObjectField("Query", "container")
+                    val target = schema.loweredSchema.requireObjectField("Query", "product")
                     val reference = RootFieldReferenceData.of(listOf(target), emptyMap())
                     mapOf(
                         container to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
-                                schema.objectOf("Container") {
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
+                                schema.loweredSchema.objectOf("Container") {
                                     "first" setTo reference
                                     "second" setTo reference
                                 }
                             },
                         target to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
-                                schema.objectOf("Product") { "value" setTo "target" }
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
+                                schema.loweredSchema.objectOf("Product") { "value" setTo "target" }
                             },
                     )
                 },
             )
         val world = testWorld.assumptions
         val query =
-            world.fragmentFrom(
+            testWorld.schemas.fragmentFrom(
                 "fragment Result on Query { container { first { value } second { value } } }",
             )
         val observer = CorrectnessResolverObserver()
@@ -1407,9 +1406,9 @@ class RootFieldReferenceResolutionTest : Resolver26DispatcherResource {
                     }
                     """.trimIndent(),
                 fieldResolvers = { schema ->
-                    val result = schema.requireObjectField("Query", "result")
-                    val container = schema.requireObjectField("Query", "container")
-                    val target = schema.requireObjectField("Query", "product")
+                    val result = schema.loweredSchema.requireObjectField("Query", "result")
+                    val container = schema.loweredSchema.requireObjectField("Query", "container")
+                    val target = schema.loweredSchema.requireObjectField("Query", "product")
                     mapOf(
                         result to
                             fieldResolverOf(
@@ -1425,8 +1424,8 @@ class RootFieldReferenceResolutionTest : Resolver26DispatcherResource {
                                 ),
                             ) { _, _ -> 1 },
                         container to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
-                                schema.objectOf("Container") {
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
+                                schema.loweredSchema.objectOf("Container") {
                                     "products" setTo
                                         listOf(
                                             RootFieldReferenceData.of(
@@ -1437,9 +1436,9 @@ class RootFieldReferenceResolutionTest : Resolver26DispatcherResource {
                                 }
                             },
                         target to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
                                 targetApplications.incrementAndGet()
-                                schema.objectOf("Product") { "value" setTo "target" }
+                                schema.loweredSchema.objectOf("Product") { "value" setTo "target" }
                             },
                     )
                 },
@@ -1447,9 +1446,9 @@ class RootFieldReferenceResolutionTest : Resolver26DispatcherResource {
                     if (!withChecker) {
                         emptyMap()
                     } else {
-                        val products = schema.requireObjectField("Container", "products")
+                        val products = schema.loweredSchema.requireObjectField("Container", "products")
                         mapOf(
-                            products to FieldCheckerResolver.of(products, schema.requireQueryTypeDef()) { _, _, _ ->
+                            products to FieldCheckerResolver.of(products, schema.loweredSchema.requireQueryTypeDef()) { _, _, _ ->
                                 checkerApplications.incrementAndGet()
                                 CheckerResult.Success
                             }
@@ -1457,18 +1456,18 @@ class RootFieldReferenceResolutionTest : Resolver26DispatcherResource {
                     }
                 },
                 variableProviders = { schema ->
-                    val result = schema.requireObjectField("Query", "result")
+                    val result = schema.loweredSchema.requireObjectField("Query", "result")
                     mapOf(
                         Arguments.Variable.of(result, "enabled") to
-                            schema.fromArgument(result, "enabled"),
+                            schema.loweredSchema.fromArgument(result, "enabled"),
                     )
                 },
             )
         val world = testWorld.assumptions
-        val query = world.fragmentFrom("fragment Result on Query { result(enabled: $enabled) }")
+        val query = testWorld.schemas.fragmentFrom("fragment Result on Query { result(enabled: $enabled) }")
         val operation = SharedOperationContext.create(world, resolverObserver = CorrectnessResolverObserver())
         val result = operation.resolveWithTestDispatcher(query.subselections)
-        return ConditionalPassiveListResolution(result, operation, targetApplications, checkerApplications)
+        return ConditionalPassiveListResolution(result, operation, targetApplications, checkerApplications, query)
     }
 
     private fun listReferenceFailureWorld(
@@ -1489,13 +1488,13 @@ class RootFieldReferenceResolutionTest : Resolver26DispatcherResource {
                 }
                 """.trimIndent(),
             fieldResolvers = { schema ->
-                val container = schema.requireObjectField("Query", "container")
-                val number = schema.requireObjectField("Query", "number")
-                val dependency = schema.requireObjectField("Query", "dependency")
+                val container = schema.loweredSchema.requireObjectField("Query", "container")
+                val number = schema.loweredSchema.requireObjectField("Query", "number")
+                val dependency = schema.loweredSchema.requireObjectField("Query", "dependency")
                 mapOf(
                     container to
-                        fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
-                            schema.objectOf("Container") {
+                        fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
+                            schema.loweredSchema.objectOf("Container") {
                                 "numbers" setTo
                                     listOf(
                                         RootFieldReferenceData.of(
@@ -1512,7 +1511,7 @@ class RootFieldReferenceResolutionTest : Resolver26DispatcherResource {
                         },
                     number to
                         fieldResolverOf(
-                            objectFragment = schema.emptyFragmentOf("Query"),
+                            objectFragment = schema.loweredSchema.emptyFragmentOf("Query"),
                             queryFragment =
                                 schema.fragmentFrom(
                                     "fragment NumberQuery on Query { " +
@@ -1537,7 +1536,7 @@ class RootFieldReferenceResolutionTest : Resolver26DispatcherResource {
                             }
                         },
                     dependency to
-                        fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> 0 },
+                        fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> 0 },
                 )
             },
         )
@@ -1580,24 +1579,24 @@ class RootFieldReferenceResolutionTest : Resolver26DispatcherResource {
                     }
                     """.trimIndent(),
                 fieldResolvers = { schema ->
-                    val container = schema.requireObjectField("Query", "container")
-                    val target = schema.requireObjectField("Query", "product")
-                    val prefix = schema.requireObjectField("Query", "prefix")
+                    val container = schema.loweredSchema.requireObjectField("Query", "container")
+                    val target = schema.loweredSchema.requireObjectField("Query", "product")
+                    val prefix = schema.loweredSchema.requireObjectField("Query", "prefix")
                     mapOf(
                         container to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
-                                schema.objectOf("Container") {
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
+                                schema.loweredSchema.objectOf("Container") {
                                     "product" setTo
                                         RootFieldReferenceData.of(listOf(target), emptyMap())
                                 }
                             },
                         prefix to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> "prefix" },
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> "prefix" },
                         target to
                             fieldResolverOf(
                                 schema.fragmentFrom("fragment Input on Query { prefix }"),
                             ) { _, _ ->
-                                schema.objectOf("Product") { "value" setTo "unreachable" }
+                                schema.loweredSchema.objectOf("Product") { "value" setTo "unreachable" }
                             },
                     )
                 },
@@ -1605,7 +1604,7 @@ class RootFieldReferenceResolutionTest : Resolver26DispatcherResource {
 
         val result =
             resolve(
-                testWorld.assumptions,
+                testWorld,
                 "fragment Result on Query { container { product { value } } }",
             )
         val container =
@@ -1630,11 +1629,11 @@ class RootFieldReferenceResolutionTest : Resolver26DispatcherResource {
     }
 
     private fun resolve(
-        world: model.Assumptions,
+        testWorld: TestWorld,
         query: String,
     ): ObjectEngineResult {
-        val fragment = world.fragmentFrom(query)
-        return SharedOperationContext.create(world).resolveWithTestDispatcher(fragment.subselections)
+        val fragment = testWorld.schemas.fragmentFrom(query)
+        return SharedOperationContext.create(testWorld.assumptions).resolveWithTestDispatcher(fragment.subselections)
     }
 
     private data class ConditionalPassiveListResolution(
@@ -1642,5 +1641,6 @@ class RootFieldReferenceResolutionTest : Resolver26DispatcherResource {
         val operation: SharedOperationContext<*>,
         val targetApplications: AtomicInteger,
         val checkerApplications: AtomicInteger,
+        val query: model.Fragment,
     )
 }

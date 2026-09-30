@@ -53,7 +53,7 @@ internal class CorrectResolutionBenchmarkSupport(
                     val world = testWorld.newAssumptions(selectiveResolvers = true)
                     val operation =
                         SharedOperationContext.create(world, resolverObserver = CorrectnessResolverObserver())
-                    val fragment = world.fragmentFrom(query.source)
+                    val fragment = testWorld.schemas.fragmentFrom(query.source)
                     val result =
                         subject.resolve(
                             operation = operation,

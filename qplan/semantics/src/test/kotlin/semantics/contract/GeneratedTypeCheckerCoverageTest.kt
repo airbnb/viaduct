@@ -93,26 +93,26 @@ class GeneratedTypeCheckerCoverageTest {
             """.trimIndent(),
             fieldResolvers = { schema ->
                 mapOf(
-                    schema.requireObjectField("Query", "item") to fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
-                        schema.objectOf("Item") {
+                    schema.loweredSchema.requireObjectField("Query", "item") to fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
+                        schema.loweredSchema.objectOf("Item") {
                             "value" setTo 1
-                            "dependency" setTo schema.objectOf("Dependency") { "value" setTo 2 }
+                            "dependency" setTo schema.loweredSchema.objectOf("Dependency") { "value" setTo 2 }
                         }
                     },
-                    schema.requireObjectField("Query", "source") to fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
-                        schema.objectOf("Dependency") { "value" setTo 3 }
+                    schema.loweredSchema.requireObjectField("Query", "source") to fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
+                        schema.loweredSchema.objectOf("Dependency") { "value" setTo 3 }
                     },
-                    schema.requireObjectField("Item", "active") to fieldResolverOf(schema.fragmentFrom("fragment Input on Item { dependency { value } }")) { _, _ -> 4 },
-                    schema.requireObjectField("Query", "probe") to fieldResolverOf(schema.fragmentFrom("fragment Input on Query { source { value } }")) { _, _ -> 5 },
+                    schema.loweredSchema.requireObjectField("Item", "active") to fieldResolverOf(schema.fragmentFrom("fragment Input on Item { dependency { value } }")) { _, _ -> 4 },
+                    schema.loweredSchema.requireObjectField("Query", "probe") to fieldResolverOf(schema.fragmentFrom("fragment Input on Query { source { value } }")) { _, _ -> 5 },
                 )
             },
             typeCheckers = { schema ->
-                val item = schema.requireType("Item") as ViaductSchema.Object
-                val dependency = schema.requireType("Dependency") as ViaductSchema.Object
+                val item = schema.loweredSchema.requireType("Item") as ViaductSchema.Object
+                val dependency = schema.loweredSchema.requireType("Dependency") as ViaductSchema.Object
                 mapOf(
                     item to TypeCheckerResolver.of(
                         item,
-                        schema.requireQueryTypeDef(),
+                        schema.loweredSchema.requireQueryTypeDef(),
                         mapOf(
                             "input" to ResolverFragmentTemplates(
                                 schema.fragmentFrom("fragment Input on Item { active }").materializeSelections,
@@ -120,19 +120,19 @@ class GeneratedTypeCheckerCoverageTest {
                             ),
                         )
                     ) { _, _ -> CheckerResult.Success },
-                    dependency to TypeCheckerResolver.of(dependency, schema.requireQueryTypeDef()) { _, _ -> Denial },
+                    dependency to TypeCheckerResolver.of(dependency, schema.loweredSchema.requireQueryTypeDef()) { _, _ -> Denial },
                 )
             },
             fieldCheckers = { schema ->
                 listOf("Query" to "item", "Dependency" to "value").associate { (type, name) ->
-                    val field = schema.requireObjectField(type, name)
-                    field to FieldCheckerResolver.of(field, schema.requireQueryTypeDef()) { _, _, _ -> CheckerResult.Success }
+                    val field = schema.loweredSchema.requireObjectField(type, name)
+                    field to FieldCheckerResolver.of(field, schema.loweredSchema.requireQueryTypeDef()) { _, _, _ -> CheckerResult.Success }
                 }
             },
-        ).newAssumptions(selectiveResolvers = true)
-        val fragment = world.fragmentFrom("fragment Test on Query { item { value } }")
+        )
+        val fragment = world.schemas.fragmentFrom("fragment Test on Query { item { value } }")
         val recorder = CheckerApplicationRecorder()
-        val subject = ResolverGeneratedTest().observeResolution(world, world.objectOf("Query"), fragment.subselections, checkerObserver = recorder)
+        val subject = ResolverGeneratedTest().observeResolution(world.newAssumptions(selectiveResolvers = true), world.schema.objectOf("Query"), fragment.subselections, checkerObserver = recorder)
         return GeneratedResolutionObservation(subject.operation, fragment, subject, recorder.checkerApplications())
     }
 

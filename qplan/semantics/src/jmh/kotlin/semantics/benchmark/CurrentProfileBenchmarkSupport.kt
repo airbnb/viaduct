@@ -77,7 +77,7 @@ internal class CurrentProfileBenchmarkSupport(
         val testWorld = corpus.world()
         val parsedQueries =
             querySources.map { source ->
-                testWorld.assumptions.fragmentFrom(source).subselections
+                testWorld.schemas.fragmentFrom(source).subselections
             }
         overheadCases =
             Array(loopCount * parsedQueries.size) { index ->
@@ -113,7 +113,7 @@ internal class CurrentProfileBenchmarkSupport(
         val samples =
             querySources.map { source ->
                 val world = testWorld.newAssumptions(selectiveResolvers = true)
-                val selections = world.fragmentFrom(source).subselections
+                val selections = testWorld.schemas.fragmentFrom(source).subselections
                 corpus.registry.clearResolutionWitness()
                 val applicationObservations =
                     Collections.synchronizedList(
@@ -243,7 +243,7 @@ internal class CurrentProfileBenchmarkSupport(
                     val world = testWorld.newAssumptions(selectiveResolvers = true)
                     val observer = testCase.registry.resolverObserver()
                     val operation = SharedOperationContext.create(world, resolverObserver = observer)
-                    val fragment = world.fragmentFrom(testCase.query.source)
+                    val fragment = testWorld.schemas.fragmentFrom(testCase.query.source)
                     testCase.registry.clearResolutionWitness()
                     val result =
                         subject.resolve(

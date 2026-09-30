@@ -54,11 +54,11 @@ class TypeCheckerDemandOracleConditionTest : Resolver26DispatcherResource {
             type Dependency { token: Int! }
             """.trimIndent(),
             fieldCheckers = { schema ->
-                val field = schema.requireObjectField("Query", "checked")
+                val field = schema.loweredSchema.requireObjectField("Query", "checked")
                 mapOf(
                     field to FieldCheckerResolver.of(
                         field,
-                        schema.requireQueryTypeDef(),
+                        schema.loweredSchema.requireQueryTypeDef(),
                         mapOf(
                             "input" to ResolverFragmentTemplates(
                                 model.materializeSelectionForestOf(),
@@ -69,8 +69,8 @@ class TypeCheckerDemandOracleConditionTest : Resolver26DispatcherResource {
                 )
             },
             typeCheckers = { schema ->
-                val type = schema.requireType("Dependency") as ViaductSchema.Object
-                mapOf(type to TypeCheckerResolver.of(type, schema.requireQueryTypeDef()) { _, _ -> CheckerResult.Success })
+                val type = schema.loweredSchema.requireType("Dependency") as ViaductSchema.Object
+                mapOf(type to TypeCheckerResolver.of(type, schema.loweredSchema.requireQueryTypeDef()) { _, _ -> CheckerResult.Success })
             },
         )
         val applications = CheckerApplicationRecorder()
@@ -80,7 +80,7 @@ class TypeCheckerDemandOracleConditionTest : Resolver26DispatcherResource {
             resolverObserver = CorrectnessResolverObserver(),
             checkerObserver = checkerObserver,
         )
-        val selections = world.assumptions.operationSelectionsFrom("{ trigger }")
+        val selections = world.schemas.operationSelectionsFrom("{ trigger }")
         val result = operation.resolveWithTestDispatcher(selections)
         assertTrue(checkerObserver.allQueryFragmentResults().isEmpty(), "No checker reached Query input materialization")
         assertEquals(1, applications.checkerApplications().size)
@@ -113,12 +113,12 @@ class TypeCheckerDemandOracleConditionTest : Resolver26DispatcherResource {
                 type Raw { token: Int! }
                 """.trimIndent(),
                 fieldCheckers = { schema ->
-                    val other = schema.requireObjectField("Query", "other")
+                    val other = schema.loweredSchema.requireObjectField("Query", "other")
                     mapOf(
                         other to
                             FieldCheckerResolver.of(
                                 other,
-                                schema.requireQueryTypeDef(),
+                                schema.loweredSchema.requireQueryTypeDef(),
                                 mapOf(
                                     "raw" to
                                         ResolverFragmentTemplates(
@@ -130,9 +130,9 @@ class TypeCheckerDemandOracleConditionTest : Resolver26DispatcherResource {
                     )
                 },
                 typeCheckers = { schema ->
-                    val raw = schema.requireType("Raw") as ViaductSchema.Object
+                    val raw = schema.loweredSchema.requireType("Raw") as ViaductSchema.Object
                     mapOf(
-                        raw to TypeCheckerResolver.of(raw, schema.requireQueryTypeDef()) { _, _ ->
+                        raw to TypeCheckerResolver.of(raw, schema.loweredSchema.requireQueryTypeDef()) { _, _ ->
                             typeChecks.incrementAndGet()
                             CheckerResult.Success
                         },
@@ -146,7 +146,7 @@ class TypeCheckerDemandOracleConditionTest : Resolver26DispatcherResource {
                 resolverObserver = CorrectnessResolverObserver(),
                 checkerObserver = CorrectnessCheckerObserver(applications),
             )
-        val selections = world.assumptions.operationSelectionsFrom("{ trigger other }")
+        val selections = world.schemas.operationSelectionsFrom("{ trigger other }")
         val result = operation.resolveWithTestDispatcher(selections)
 
         assertEquals(if (enabled == true) 1 else 0, typeChecks.get(), "Only an included error owner contributes checked Raw demand")

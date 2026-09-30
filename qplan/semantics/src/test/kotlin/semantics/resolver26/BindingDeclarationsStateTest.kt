@@ -36,7 +36,8 @@ class BindingDeclarationsStateTest {
     }
 
     private fun target(): ObjectEngineResult {
-        val world = TestWorld.fromSDL("type Query { value: Int }").assumptions
+        val worldFixture = TestWorld.fromSDL("type Query { value: Int }")
+        val world = worldFixture.assumptions
         return ObjectEngineResult.of(world.schema.requireQueryTypeDef(), mutable = true)
     }
 }

@@ -44,7 +44,7 @@ class SymbolicFieldCheckerTest : Resolver26DispatcherResource {
                     type Source { token: [Int] }
                     """.trimIndent(),
                     fieldCheckers = { schema ->
-                        val field = schema.requireObjectField("Query", "checked")
+                        val field = schema.loweredSchema.requireObjectField("Query", "checked")
                         val input = schema.fragmentFrom(
                             "fragment Input on Query { source { token } echo(value: ${'$'}v) }",
                             variableTarget = ResolverTarget.FieldCheckerTarget(field),
@@ -57,14 +57,14 @@ class SymbolicFieldCheckerTest : Resolver26DispatcherResource {
                                 Arguments.Variable.of(ResolverTarget.FieldCheckerTarget(field), "v") to VariableDefinition.FromField.of(
                                     providerRoot,
                                     listOf(
-                                        ObjectEngineResult.Key.of(schema.requireObjectField("Query", "source"), emptyMap()),
-                                        ObjectEngineResult.Key.of(schema.requireObjectField("Source", "token"), emptyMap()),
+                                        ObjectEngineResult.Key.of(schema.loweredSchema.requireObjectField("Query", "source"), emptyMap()),
+                                        ObjectEngineResult.Key.of(schema.loweredSchema.requireObjectField("Source", "token"), emptyMap()),
                                     ),
                                     listOf("source", "token"),
                                 )
                             ),
                         )
-                        mapOf(field to FieldCheckerResolver.of(field, schema.requireQueryTypeDef(), mapOf("input" to pair)) { _, _, _ -> CheckerResult.Success })
+                        mapOf(field to FieldCheckerResolver.of(field, schema.loweredSchema.requireQueryTypeDef(), mapOf("input" to pair)) { _, _, _ -> CheckerResult.Success })
                     },
                 )
                 val resolution = resolveChecked(world, "{ checked }")
@@ -96,7 +96,7 @@ class SymbolicFieldCheckerTest : Resolver26DispatcherResource {
             }
             """.trimIndent(),
             fieldCheckers = { schema ->
-                val field = schema.requireObjectField("Item", "result")
+                val field = schema.loweredSchema.requireObjectField("Item", "result")
                 val objectSource = "fragment Input on Item { token remote: echo(value: ${'$'}remote) argument: echo(value: ${'$'}arg) }"
                 val querySource = "fragment Input on Query { viewer local: echo(value: ${'$'}local) provided: echo(value: ${'$'}provided) }"
 
@@ -108,11 +108,19 @@ class SymbolicFieldCheckerTest : Resolver26DispatcherResource {
                             Arguments.Variable.of(
                                 ResolverTarget.FieldCheckerTarget(field),
                                 "remote"
-                            ) to VariableDefinition.FromField.of(ProviderFragment.QUERY, listOf(ObjectEngineResult.Key.of(schema.requireObjectField("Query", "viewer"), emptyMap())), listOf("viewer")),
+                            ) to VariableDefinition.FromField.of(
+                                ProviderFragment.QUERY,
+                                listOf(ObjectEngineResult.Key.of(schema.loweredSchema.requireObjectField("Query", "viewer"), emptyMap())),
+                                listOf("viewer")
+                            ),
                             Arguments.Variable.of(
                                 ResolverTarget.FieldCheckerTarget(field),
                                 "local"
-                            ) to VariableDefinition.FromField.of(ProviderFragment.OBJECT, listOf(ObjectEngineResult.Key.of(schema.requireObjectField("Item", "token"), emptyMap())), listOf("token")),
+                            ) to VariableDefinition.FromField.of(
+                                ProviderFragment.OBJECT,
+                                listOf(ObjectEngineResult.Key.of(schema.loweredSchema.requireObjectField("Item", "token"), emptyMap())),
+                                listOf("token")
+                            ),
                             Arguments.Variable.of(ResolverTarget.FieldCheckerTarget(field), "arg") to VariableDefinition.FromArgument.of(checkNotNull(field.arg("seed"))),
                             Arguments.Variable.of(ResolverTarget.FieldCheckerTarget(field), "provided") to VariableDefinition.FromProvider,
                         ),
@@ -122,7 +130,7 @@ class SymbolicFieldCheckerTest : Resolver26DispatcherResource {
                         },
                     )
                 mapOf(
-                    field to FieldCheckerResolver.of(field, schema.requireQueryTypeDef(), mapOf("left" to pair(17), "right" to pair(19))) { arguments, inputs, _ ->
+                    field to FieldCheckerResolver.of(field, schema.loweredSchema.requireQueryTypeDef(), mapOf("left" to pair(17), "right" to pair(19))) { arguments, inputs, _ ->
                         inputs.forEach { (name, input) ->
                             assertEquals(11, input.objectValue.get("remote"))
                             assertEquals(arguments.fieldValues["seed"], input.objectValue.get("argument"))
@@ -164,7 +172,7 @@ class SymbolicFieldCheckerTest : Resolver26DispatcherResource {
                 type Item { token: Int! protected: Int! }
                 """.trimIndent(),
                 fieldCheckers = { schema ->
-                    val field = schema.requireObjectField("Item", "protected")
+                    val field = schema.loweredSchema.requireObjectField("Item", "protected")
                     val objectSource = "fragment Input on Item { excluded: token @include(if: ${'$'}enabled) included: token }"
                     val querySource = "fragment Input on Query { excluded: echo(value: ${'$'}excluded) included: echo(value: ${'$'}included) }"
                     val pair = ResolverFragmentTemplates(
@@ -177,7 +185,7 @@ class SymbolicFieldCheckerTest : Resolver26DispatcherResource {
                                 "excluded"
                             ) to VariableDefinition.FromField.of(
                                 ProviderFragment.OBJECT,
-                                listOf(ObjectEngineResult.Key.of(schema.requireObjectField("Item", "token"), emptyMap())),
+                                listOf(ObjectEngineResult.Key.of(schema.loweredSchema.requireObjectField("Item", "token"), emptyMap())),
                                 listOf("excluded")
                             ),
                             Arguments.Variable.of(
@@ -185,7 +193,7 @@ class SymbolicFieldCheckerTest : Resolver26DispatcherResource {
                                 "included"
                             ) to VariableDefinition.FromField.of(
                                 ProviderFragment.OBJECT,
-                                listOf(ObjectEngineResult.Key.of(schema.requireObjectField("Item", "token"), emptyMap())),
+                                listOf(ObjectEngineResult.Key.of(schema.loweredSchema.requireObjectField("Item", "token"), emptyMap())),
                                 listOf("included")
                             ),
                         ),
@@ -196,7 +204,7 @@ class SymbolicFieldCheckerTest : Resolver26DispatcherResource {
                         model.materializeSelectionForestOf(),
                     )
                     mapOf(
-                        field to FieldCheckerResolver.of(field, schema.requireQueryTypeDef(), mapOf("local" to pair, "physical" to physical)) { _, inputs, _ ->
+                        field to FieldCheckerResolver.of(field, schema.loweredSchema.requireQueryTypeDef(), mapOf("local" to pair, "physical" to physical)) { _, inputs, _ ->
                             val input = inputs.getValue("local")
                             assertEquals(enabled, input.objectValue.isPresent("excluded"))
                             assertEquals(if (enabled) 8 else null, input.queryValue.get("excluded"))
@@ -224,12 +232,12 @@ class SymbolicFieldCheckerTest : Resolver26DispatcherResource {
             }
             """.trimIndent(),
             fieldCheckers = { schema ->
-                val raw = schema.requireObjectField("Query", "raw")
-                val dependency = schema.requireObjectField("Query", "dependency")
+                val raw = schema.loweredSchema.requireObjectField("Query", "raw")
+                val dependency = schema.loweredSchema.requireObjectField("Query", "dependency")
                 mapOf(
                     raw to FieldCheckerResolver.of(
                         raw,
-                        schema.requireQueryTypeDef(),
+                        schema.loweredSchema.requireQueryTypeDef(),
                         mapOf(
                             "input" to ResolverFragmentTemplates(
                                 schema.fragmentFrom("fragment Input on Query { dependency }").materializeSelections,
@@ -242,7 +250,7 @@ class SymbolicFieldCheckerTest : Resolver26DispatcherResource {
                     },
                     dependency to FieldCheckerResolver.of(
                         dependency,
-                        schema.requireQueryTypeDef(),
+                        schema.loweredSchema.requireQueryTypeDef(),
                         mapOf(
                             "excluded" to ResolverFragmentTemplates(
                                 schema.fragmentFrom(
@@ -295,8 +303,8 @@ class SymbolicFieldCheckerTest : Resolver26DispatcherResource {
             }
             """.trimIndent(),
             fieldCheckers = { schema ->
-                val field = schema.requireObjectField("Query", "checked")
-                mapOf(field to FieldCheckerResolver.of(field, schema.requireQueryTypeDef()) { _, _, _ -> CheckerResult.Success })
+                val field = schema.loweredSchema.requireObjectField("Query", "checked")
+                mapOf(field to FieldCheckerResolver.of(field, schema.loweredSchema.requireQueryTypeDef()) { _, _, _ -> CheckerResult.Success })
             },
         )
         val resolution = resolveChecked(world, "{ first second }")
@@ -315,7 +323,7 @@ class SymbolicFieldCheckerTest : Resolver26DispatcherResource {
         val checkers = CorrectnessCheckerObserver(recorder)
         val resolvers = CorrectnessResolverObserver()
         val operation = SharedOperationContext.create(world.assumptions, resolverObserver = resolvers, checkerObserver = checkers)
-        val selections = world.assumptions.operationSelectionsFrom(query)
+        val selections = world.schemas.operationSelectionsFrom(query)
         val result = operation.resolveWithTestDispatcher(selections)
         beforeReplay()
         assertTrue(result.correctResolution(operation, selections.merge(result.type)), "checker-aware correctness")

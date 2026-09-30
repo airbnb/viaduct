@@ -17,7 +17,7 @@ class FieldCheckerEnforcementIsolationTest {
     @Test
     fun `Resolver21 checker denial remains separate from the raw value slot`() {
         val denial = Resolver21Denial()
-        val world =
+        val worldFixture =
             TestWorld.fromDSL(
                 schemaSDL =
                     """
@@ -27,14 +27,15 @@ class FieldCheckerEnforcementIsolationTest {
                     """.trimIndent(),
                 selectiveResolvers = false,
                 fieldCheckers = { schema ->
-                    val field = schema.requireObjectField("Query", "denied")
+                    val field = schema.loweredSchema.requireObjectField("Query", "denied")
                     mapOf(
-                        field to FieldCheckerResolver.of(field, schema.requireQueryTypeDef()) { _, _, _ -> denial },
+                        field to FieldCheckerResolver.of(field, schema.loweredSchema.requireQueryTypeDef()) { _, _, _ -> denial },
                     )
                 },
-            ).assumptions
+            )
+        val world = worldFixture.assumptions
 
-        val result = SharedOperationContext.create(world).resolve(world.operationSelectionsFrom("{ denied }"))
+        val result = SharedOperationContext.create(world).resolve(worldFixture.schemas.operationSelectionsFrom("{ denied }"))
         val cell =
             result.getCell(
                 ObjectEngineResult.GroundKey.of(

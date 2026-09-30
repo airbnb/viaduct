@@ -39,6 +39,7 @@ import model.requireObjectField
 import model.requireQueryTypeDef
 import model.requireType
 import model.testing.TestWorld
+import model.testing.ViaductAndGJSchema
 import model.testing.fieldResolverOf
 import semantics.correctresolution.CorrectnessCheckerObserver
 import semantics.correctresolution.CorrectnessResolverObserver
@@ -59,7 +60,7 @@ interface SelectiveTypeCheckerExactnessContract {
     @Test
     fun `selective producer receives object but not Query type-checker demand`() {
         val producerDemand = AtomicReference<SelectionForest>()
-        val world =
+        val worldFixture =
             TestWorld.fromSDL(
                 selectiveResolvers = true,
                 schemaSDL =
@@ -77,25 +78,25 @@ interface SelectiveTypeCheckerExactnessContract {
                     """.trimIndent(),
                 fieldResolvers = { schema ->
                     mapOf(
-                        schema.requireObjectField("Query", "item") to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
-                                schema.objectOf("Item") {
+                        schema.loweredSchema.requireObjectField("Query", "item") to
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
+                                schema.loweredSchema.objectOf("Item") {
                                     "visible" setTo 1
                                     "objectPolicy" setTo 2
                                     "queryPolicy" setTo 999
                                 }
                             },
-                        schema.requireObjectField("Query", "queryPolicy") to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> 3 },
+                        schema.loweredSchema.requireObjectField("Query", "queryPolicy") to
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> 3 },
                     )
                 },
                 typeCheckers = { schema ->
-                    val item = schema.requireType("Item") as ViaductSchema.Object
+                    val item = schema.loweredSchema.requireType("Item") as ViaductSchema.Object
                     mapOf(
                         item to
                             TypeCheckerResolver.of(
                                 item,
-                                schema.requireQueryTypeDef(),
+                                schema.loweredSchema.requireQueryTypeDef(),
                                 fragmentTemplates =
                                     mapOf(
                                         "input" to
@@ -119,7 +120,8 @@ interface SelectiveTypeCheckerExactnessContract {
                             },
                     )
                 },
-            ).assumptions
+            )
+        val world = worldFixture.assumptions
         val observer =
             object : ResolverObserver {
                 override fun onResolverInvocation(observation: ResolverInvocationObservation) {
@@ -129,10 +131,10 @@ interface SelectiveTypeCheckerExactnessContract {
 
         coroutineResolverSubject.resolve(
             SharedOperationContext.create(world, resolverObserver = observer),
-            world.operationSelectionsFrom("{ item { visible } }"),
+            worldFixture.schemas.operationSelectionsFrom("{ item { visible } }"),
         )
 
-        val item = world.schema.requireType("Item") as ViaductSchema.Object
+        val item = worldFixture.schema.requireType("Item") as ViaductSchema.Object
         assertEquals(
             setOf("visible", "objectPolicy"),
             assertNotNull(producerDemand.get()).merge(item).groundKeys().mapTo(linkedSetOf()) { it.field.name },
@@ -142,62 +144,64 @@ interface SelectiveTypeCheckerExactnessContract {
     @Test
     fun `type checker raw demand restores checked inputs only beyond active boundaries`() {
         listOf(false, true).forEach { selectRaw ->
-            val world = TestWorld.fromSDL(
-                schemaSDL = """
+            val worldFixture =
+                TestWorld.fromSDL(
+                    schemaSDL = """
                     type Query { item: Item! }
                     type Item { value: Int! raw: Raw! unused: Raw! }
                     type Raw { token: Int! active: Int! dependency: Dependency! extra: Int! }
                     type Dependency { value: Int! policy: Int! }
-                """.trimIndent(),
-                fieldResolvers = { schema ->
-                    mapOf(
-                        schema.requireObjectField("Query", "item") to fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
-                            schema.objectOf("Item") {
-                                "value" setTo 1
-                                "raw" setTo schema.objectOf("Raw") {
-                                    "token" setTo 2
-                                    "dependency" setTo schema.objectOf("Dependency") {
-                                        "value" setTo 3
-                                        "policy" setTo 4
+                    """.trimIndent(),
+                    fieldResolvers = { schema ->
+                        mapOf(
+                            schema.loweredSchema.requireObjectField("Query", "item") to fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
+                                schema.loweredSchema.objectOf("Item") {
+                                    "value" setTo 1
+                                    "raw" setTo schema.loweredSchema.objectOf("Raw") {
+                                        "token" setTo 2
+                                        "dependency" setTo schema.loweredSchema.objectOf("Dependency") {
+                                            "value" setTo 3
+                                            "policy" setTo 4
+                                        }
+                                        "extra" setTo 99
                                     }
-                                    "extra" setTo 99
+                                    "unused" setTo schema.loweredSchema.objectOf("Raw") { "token" setTo 100 }
                                 }
-                                "unused" setTo schema.objectOf("Raw") { "token" setTo 100 }
+                            },
+                            schema.loweredSchema.requireObjectField("Raw", "active") to fieldResolverOf(
+                                schema.fragmentFrom("fragment Input on Raw { dependency { value } }"),
+                            ) { input, _ -> (input.get("dependency") as viaduct.engine.api.EngineObjectData.Sync).get("value") },
+                        )
+                    },
+                    typeCheckers = { schema ->
+                        listOf("Item", "Raw", "Dependency").associate { name ->
+                            val type = schema.loweredSchema.requireType(name) as ViaductSchema.Object
+                            val objectSelections = when (name) {
+                                "Item" -> "raw { token active }"
+                                "Raw" -> "token"
+                                else -> "policy"
                             }
-                        },
-                        schema.requireObjectField("Raw", "active") to fieldResolverOf(
-                            schema.fragmentFrom("fragment Input on Raw { dependency { value } }"),
-                        ) { input, _ -> (input.get("dependency") as viaduct.engine.api.EngineObjectData.Sync).get("value") },
-                    )
-                },
-                typeCheckers = { schema ->
-                    listOf("Item", "Raw", "Dependency").associate { name ->
-                        val type = schema.requireType(name) as ViaductSchema.Object
-                        val objectSelections = when (name) {
-                            "Item" -> "raw { token active }"
-                            "Raw" -> "token"
-                            else -> "policy"
-                        }
-                        type to TypeCheckerResolver.of(type, schema.requireQueryTypeDef(), mapOf("input" to schema.t4Pair(name, objectSelections))) { inputs, _ ->
-                            val input = inputs.getValue("input").objectValue
-                            assertTrue(input.getSelections().iterator().hasNext())
-                            if (name == "Item") {
-                                val raw = input.get("raw") as viaduct.engine.api.EngineObjectData.Sync
-                                assertEquals(2, raw.get("token"))
-                                assertEquals(3, raw.get("active"))
+                            type to TypeCheckerResolver.of(type, schema.loweredSchema.requireQueryTypeDef(), mapOf("input" to schema.t4Pair(name, objectSelections))) { inputs, _ ->
+                                val input = inputs.getValue("input").objectValue
+                                assertTrue(input.getSelections().iterator().hasNext())
+                                if (name == "Item") {
+                                    val raw = input.get("raw") as viaduct.engine.api.EngineObjectData.Sync
+                                    assertEquals(2, raw.get("token"))
+                                    assertEquals(3, raw.get("active"))
+                                }
+                                if (name == "Raw") TypeExactnessDenial() else CheckerResult.Success
                             }
-                            if (name == "Raw") TypeExactnessDenial() else CheckerResult.Success
                         }
-                    }
-                },
-                fieldCheckers = { schema ->
-                    listOf("Item" to "raw", "Raw" to "token", "Raw" to "active", "Raw" to "dependency", "Dependency" to "value", "Dependency" to "policy").associate { (type, name) ->
-                        val field = schema.requireObjectField(type, name)
-                        field to FieldCheckerResolver.of(field, schema.requireQueryTypeDef()) { _, _, _ -> CheckerResult.Success }
-                    }
-                },
-            ).assumptions
-            val run = resolveTypeExactness(world, if (selectRaw) "{ item { value raw { token } } }" else "{ item { value } }")
+                    },
+                    fieldCheckers = { schema ->
+                        listOf("Item" to "raw", "Raw" to "token", "Raw" to "active", "Raw" to "dependency", "Dependency" to "value", "Dependency" to "policy").associate { (type, name) ->
+                            val field = schema.loweredSchema.requireObjectField(type, name)
+                            field to FieldCheckerResolver.of(field, schema.loweredSchema.requireQueryTypeDef()) { _, _, _ -> CheckerResult.Success }
+                        }
+                    },
+                )
+            val world = worldFixture.assumptions
+            val run = resolveTypeExactness(worldFixture, if (selectRaw) "{ item { value raw { token } } }" else "{ item { value } }")
             val itemKey = world.t4Key("Query", "item")
             val rawKey = world.t4Key("Item", "raw")
             val dependencyKey = world.t4Key("Raw", "dependency")
@@ -229,45 +233,47 @@ interface SelectiveTypeCheckerExactnessContract {
 
     @Test
     fun `abstract nested lists check each concrete occurrence including empty selected subtrees`() {
-        val world = TestWorld.fromSDL(
-            schemaSDL = """
+        val worldFixture =
+            TestWorld.fromSDL(
+                schemaSDL = """
                 type Query { items: [[Entry]] }
                 union Entry = Item | Other
                 type Item { value: Int! policy: Int! extra: Int! }
                 type Other { value: Int! policy: Int! }
-            """.trimIndent(),
-            fieldResolvers = { schema ->
-                mapOf(
-                    schema.requireObjectField("Query", "items") to fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
-                        val item = schema.objectOf("Item") {
-                            "value" setTo 1
-                            "policy" setTo 7
-                            "extra" setTo 99
-                        }
-                        listOf(
-                            listOf(item, null, item),
-                            null,
+                """.trimIndent(),
+                fieldResolvers = { schema ->
+                    mapOf(
+                        schema.loweredSchema.requireObjectField("Query", "items") to fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
+                            val item = schema.loweredSchema.objectOf("Item") {
+                                "value" setTo 1
+                                "policy" setTo 7
+                                "extra" setTo 99
+                            }
                             listOf(
-                                schema.objectOf("Other") {
-                                    "value" setTo 2
-                                    "policy" setTo 8
-                                }
+                                listOf(item, null, item),
+                                null,
+                                listOf(
+                                    schema.loweredSchema.objectOf("Other") {
+                                        "value" setTo 2
+                                        "policy" setTo 8
+                                    }
+                                )
                             )
-                        )
-                    },
-                )
-            },
-            typeCheckers = { schema ->
-                listOf("Item", "Other").associate { name ->
-                    val type = schema.requireType(name) as ViaductSchema.Object
-                    type to TypeCheckerResolver.of(type, schema.requireQueryTypeDef(), mapOf("policy" to schema.t4Pair(name, "policy"))) { inputs, _ ->
-                        assertEquals(if (name == "Item") 7 else 8, inputs.getValue("policy").objectValue.get("policy"))
-                        CheckerResult.Success
+                        },
+                    )
+                },
+                typeCheckers = { schema ->
+                    listOf("Item", "Other").associate { name ->
+                        val type = schema.loweredSchema.requireType(name) as ViaductSchema.Object
+                        type to TypeCheckerResolver.of(type, schema.loweredSchema.requireQueryTypeDef(), mapOf("policy" to schema.t4Pair(name, "policy"))) { inputs, _ ->
+                            assertEquals(if (name == "Item") 7 else 8, inputs.getValue("policy").objectValue.get("policy"))
+                            CheckerResult.Success
+                        }
                     }
-                }
-            },
-        ).assumptions
-        val run = resolveTypeExactness(world, "{ items { ... on Other { value } } }")
+                },
+            )
+        val world = worldFixture.assumptions
+        val run = resolveTypeExactness(worldFixture, "{ items { ... on Other { value } } }")
         val items = world.t4Key("Query", "items")
         val outer = assertIs<ListEngineResult>(run.result.getCell(items).value.get())
         val inner = assertIs<ListEngineResult>(outer[0].value.get())
@@ -286,42 +292,47 @@ interface SelectiveTypeCheckerExactnessContract {
 
     @Test
     fun `field and type owners at the same path retain distinct shared Query scopes`() {
-        val world = TestWorld.fromSDL(
-            schemaSDL = """
+        val worldFixture =
+            TestWorld.fromSDL(
+                schemaSDL = """
                 type Query { item(id: Int!): Item! marker: Int! }
                 type Item { value: Int! read: Int! }
-            """.trimIndent(),
-            fieldResolvers = { schema ->
-                mapOf(
-                    schema.requireObjectField("Query", "item") to fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> schema.objectOf("Item") { "value" setTo 1 } },
-                    schema.requireObjectField("Query", "marker") to fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> 7 },
-                    schema.requireObjectField(
-                        "Item",
-                        "read"
-                    ) to fieldResolverOf(schema.emptyFragmentOf("Item"), schema.fragmentFrom("fragment Input on Query { marker }")) { _, query, _ -> query.get("marker") },
-                )
-            },
-            fieldCheckers = { schema ->
-                listOf("Query" to "item", "Item" to "value").associate { (name, fieldName) ->
-                    val field = schema.requireObjectField(name, fieldName)
-                    field to FieldCheckerResolver.of(field, schema.requireQueryTypeDef(), mapOf("input" to schema.t4Pair(name, query = "alias: marker"))) { _, inputs, _ ->
-                        assertEquals(7, inputs.getValue("input").queryValue.get("alias"))
-                        CheckerResult.Success
+                """.trimIndent(),
+                fieldResolvers = { schema ->
+                    mapOf(
+                        schema.loweredSchema.requireObjectField(
+                            "Query",
+                            "item"
+                        ) to fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> schema.loweredSchema.objectOf("Item") { "value" setTo 1 } },
+                        schema.loweredSchema.requireObjectField("Query", "marker") to fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> 7 },
+                        schema.loweredSchema.requireObjectField(
+                            "Item",
+                            "read"
+                        ) to fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Item"), schema.fragmentFrom("fragment Input on Query { marker }")) { _, query, _ -> query.get("marker") },
+                    )
+                },
+                fieldCheckers = { schema ->
+                    listOf("Query" to "item", "Item" to "value").associate { (name, fieldName) ->
+                        val field = schema.loweredSchema.requireObjectField(name, fieldName)
+                        field to FieldCheckerResolver.of(field, schema.loweredSchema.requireQueryTypeDef(), mapOf("input" to schema.t4Pair(name, query = "alias: marker"))) { _, inputs, _ ->
+                            assertEquals(7, inputs.getValue("input").queryValue.get("alias"))
+                            CheckerResult.Success
+                        }
                     }
-                }
-            },
-            typeCheckers = { schema ->
-                listOf("Query", "Item").associate { name ->
-                    val type = schema.requireType(name) as ViaductSchema.Object
-                    type to TypeCheckerResolver.of(
-                        type,
-                        schema.requireQueryTypeDef(),
-                        if (name == "Query") emptyMap() else mapOf("input" to schema.t4Pair(name, query = "marker"))
-                    ) { _, _ -> CheckerResult.Success }
-                }
-            },
-        ).assumptions
-        val run = resolveTypeExactness(world, "{ first: item(id: 1) { value read } second: item(id: 2) { value read } }")
+                },
+                typeCheckers = { schema ->
+                    listOf("Query", "Item").associate { name ->
+                        val type = schema.loweredSchema.requireType(name) as ViaductSchema.Object
+                        type to TypeCheckerResolver.of(
+                            type,
+                            schema.loweredSchema.requireQueryTypeDef(),
+                            if (name == "Query") emptyMap() else mapOf("input" to schema.t4Pair(name, query = "marker"))
+                        ) { _, _ -> CheckerResult.Success }
+                    }
+                },
+            )
+        val world = worldFixture.assumptions
+        val run = resolveTypeExactness(worldFixture, "{ first: item(id: 1) { value read } second: item(id: 2) { value read } }")
         val queryRoots = (1..2).map { id ->
             val key = world.t4Key("Query", "item", mapOf("id" to id))
             val childId = ResolverOccurrenceId.at(run.result, listOf(key))
@@ -351,37 +362,43 @@ interface SelectiveTypeCheckerExactnessContract {
 
     @Test
     fun `type checker parent input lifts ancestor demand through nested list occurrences`() {
-        val world = TestWorld.fromSDL(
-            schemaSDL = """
+        val worldFixture =
+            TestWorld.fromSDL(
+                schemaSDL = """
                 directive @parent on FIELD_DEFINITION
                 type Query { root: Root! marker: Int! }
                 type Root { children: [[Child!]!]! secret: Int! }
                 type Child { parent: Root! @parent value: Int! }
-            """.trimIndent(),
-            fieldResolvers = { schema ->
-                mapOf(
-                    schema.requireObjectField("Query", "root") to fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
-                        schema.objectOf("Root") {
-                            "secret" setTo 7
-                            "children" setTo listOf(listOf(schema.objectOf("Child") { "value" setTo 1 }, schema.objectOf("Child") { "value" setTo 1 }))
+                """.trimIndent(),
+                fieldResolvers = { schema ->
+                    mapOf(
+                        schema.loweredSchema.requireObjectField("Query", "root") to fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
+                            schema.loweredSchema.objectOf("Root") {
+                                "secret" setTo 7
+                                "children" setTo listOf(listOf(schema.loweredSchema.objectOf("Child") { "value" setTo 1 }, schema.loweredSchema.objectOf("Child") { "value" setTo 1 }))
+                            }
+                        },
+                        schema.loweredSchema.requireObjectField("Query", "marker") to fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> 9 },
+                    )
+                },
+                typeCheckers = { schema ->
+                    listOf("Root", "Child").associate { name ->
+                        val type = schema.loweredSchema.requireType(name) as ViaductSchema.Object
+                        type to TypeCheckerResolver.of(
+                            type,
+                            schema.loweredSchema.requireQueryTypeDef(),
+                            mapOf("input" to schema.t4Pair(name, if (name == "Child") "parent { secret }" else "", "marker"))
+                        ) { inputs, _ ->
+                            assertEquals(9, inputs.getValue("input").queryValue.get("marker"))
+                            if (name == "Child") assertEquals(7, (inputs.getValue("input").objectValue.get("parent") as viaduct.engine.api.EngineObjectData.Sync).get("secret"))
+                            CheckerResult.Success
                         }
-                    },
-                    schema.requireObjectField("Query", "marker") to fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> 9 },
-                )
-            },
-            typeCheckers = { schema ->
-                listOf("Root", "Child").associate { name ->
-                    val type = schema.requireType(name) as ViaductSchema.Object
-                    type to TypeCheckerResolver.of(type, schema.requireQueryTypeDef(), mapOf("input" to schema.t4Pair(name, if (name == "Child") "parent { secret }" else "", "marker"))) { inputs, _ ->
-                        assertEquals(9, inputs.getValue("input").queryValue.get("marker"))
-                        if (name == "Child") assertEquals(7, (inputs.getValue("input").objectValue.get("parent") as viaduct.engine.api.EngineObjectData.Sync).get("secret"))
-                        CheckerResult.Success
                     }
-                }
-            },
-        ).assumptions
+                },
+            )
+        val world = worldFixture.assumptions
         listOf("{ root { children { value } } }", "{ root { children { value parent { secret } } } }").forEach { query ->
-            val run = resolveTypeExactness(world, query)
+            val run = resolveTypeExactness(worldFixture, query)
             val rootKey = world.t4Key("Query", "root")
             val children = world.t4Key("Root", "children")
             run.validate(
@@ -396,39 +413,41 @@ interface SelectiveTypeCheckerExactnessContract {
 
     @Test
     fun `reference targets receive type checker demand and keep publication occurrences distinct`() {
-        val world = TestWorld.fromSDL(
-            schemaSDL = """
+        val worldFixture =
+            TestWorld.fromSDL(
+                schemaSDL = """
                 type Query { container: Container! lookup(id: Int!): Item! marker: Int! }
                 type Container { items: [Item!]! }
                 type Item { value: Int! policy: Int! }
-            """.trimIndent(),
-            fieldResolvers = { schema ->
-                val lookup = schema.requireObjectField("Query", "lookup")
-                mapOf(
-                    schema.requireObjectField("Query", "container") to fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
-                        schema.objectOf("Container") { "items" setTo List(2) { RootFieldReferenceData.of(listOf(lookup), mapOf("id" to 1)) } }
-                    },
-                    lookup to fieldResolverOf(schema.emptyFragmentOf("Query"), schema.fragmentFrom("fragment Input on Query { marker }")) { _, _, _ ->
-                        schema.objectOf("Item") {
-                            "value" setTo 1
-                            "policy" setTo 7
+                """.trimIndent(),
+                fieldResolvers = { schema ->
+                    val lookup = schema.loweredSchema.requireObjectField("Query", "lookup")
+                    mapOf(
+                        schema.loweredSchema.requireObjectField("Query", "container") to fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
+                            schema.loweredSchema.objectOf("Container") { "items" setTo List(2) { RootFieldReferenceData.of(listOf(lookup), mapOf("id" to 1)) } }
+                        },
+                        lookup to fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query"), schema.fragmentFrom("fragment Input on Query { marker }")) { _, _, _ ->
+                            schema.loweredSchema.objectOf("Item") {
+                                "value" setTo 1
+                                "policy" setTo 7
+                            }
+                        },
+                        schema.loweredSchema.requireObjectField("Query", "marker") to fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> 9 },
+                    )
+                },
+                typeCheckers = { schema ->
+                    val item = schema.loweredSchema.requireType("Item") as ViaductSchema.Object
+                    mapOf(
+                        item to TypeCheckerResolver.of(item, schema.loweredSchema.requireQueryTypeDef(), mapOf("input" to schema.t4Pair("Item", "policy", "marker"))) { inputs, _ ->
+                            assertEquals(7, inputs.getValue("input").objectValue.get("policy"))
+                            assertEquals(9, inputs.getValue("input").queryValue.get("marker"))
+                            CheckerResult.Success
                         }
-                    },
-                    schema.requireObjectField("Query", "marker") to fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> 9 },
-                )
-            },
-            typeCheckers = { schema ->
-                val item = schema.requireType("Item") as ViaductSchema.Object
-                mapOf(
-                    item to TypeCheckerResolver.of(item, schema.requireQueryTypeDef(), mapOf("input" to schema.t4Pair("Item", "policy", "marker"))) { inputs, _ ->
-                        assertEquals(7, inputs.getValue("input").objectValue.get("policy"))
-                        assertEquals(9, inputs.getValue("input").queryValue.get("marker"))
-                        CheckerResult.Success
-                    }
-                )
-            },
-        ).assumptions
-        val run = resolveTypeExactness(world, "{ container { items { value } } }")
+                    )
+                },
+            )
+        val world = worldFixture.assumptions
+        val run = resolveTypeExactness(worldFixture, "{ container { items { value } } }")
         val prefix = listOf(world.t4Key("Query", "container"), world.t4Key("Container", "items"))
         val targets = run.invocations.filter { it.field.name == "lookup" }
         assertEquals(2, targets.size)
@@ -445,50 +464,52 @@ interface SelectiveTypeCheckerExactnessContract {
         val consumerEntered = CompletableDeferred<Unit>()
         val fieldDenial = TypeExactnessDenial()
         val typeDenial = TypeExactnessDenial()
-        val world = TestWorld.fromSDL(
-            schemaSDL = "type Query { item: Item! consume: Int! } type Item { value: Int! policy: Int! }",
-            fieldResolvers = { schema ->
-                mapOf(
-                    schema.requireObjectField("Query", "item") to fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
-                        consumerEntered.await()
-                        schema.objectOf("Item") {
-                            "value" setTo 1
-                            "policy" setTo 7
+        val worldFixture =
+            TestWorld.fromSDL(
+                schemaSDL = "type Query { item: Item! consume: Int! } type Item { value: Int! policy: Int! }",
+                fieldResolvers = { schema ->
+                    mapOf(
+                        schema.loweredSchema.requireObjectField("Query", "item") to fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
+                            consumerEntered.await()
+                            schema.loweredSchema.objectOf("Item") {
+                                "value" setTo 1
+                                "policy" setTo 7
+                            }
+                        },
+                        schema.loweredSchema.requireObjectField("Query", "consume") to fieldResolverOf(schema.fragmentFrom("fragment Input on Query { alias: item { value } }")) { input, _ ->
+                            consumerEntered.complete(Unit)
+                            val error = input.outputValue("alias") as EngineErrorData
+                            when (error.cause) {
+                                fieldDenial.error -> 1
+                                typeDenial.error -> 2
+                                else -> 3
+                            }
+                        },
+                    )
+                },
+                fieldCheckers = { schema ->
+                    val item = schema.loweredSchema.requireObjectField("Query", "item")
+                    mapOf(item to FieldCheckerResolver.of(item, schema.loweredSchema.requireQueryTypeDef()) { _, _, _ -> fieldDenial })
+                },
+                typeCheckers = { schema ->
+                    val item = schema.loweredSchema.requireType("Item") as ViaductSchema.Object
+                    mapOf(
+                        item to TypeCheckerResolver.of(item, schema.loweredSchema.requireQueryTypeDef(), mapOf("input" to schema.t4Pair("Item", "policy"))) { inputs, _ ->
+                            assertEquals(7, inputs.getValue("input").objectValue.get("policy"))
+                            typeDenial
                         }
-                    },
-                    schema.requireObjectField("Query", "consume") to fieldResolverOf(schema.fragmentFrom("fragment Input on Query { alias: item { value } }")) { input, _ ->
-                        consumerEntered.complete(Unit)
-                        val error = input.outputValue("alias") as EngineErrorData
-                        when (error.cause) {
-                            fieldDenial.error -> 1
-                            typeDenial.error -> 2
-                            else -> 3
-                        }
-                    },
-                )
-            },
-            fieldCheckers = { schema ->
-                val item = schema.requireObjectField("Query", "item")
-                mapOf(item to FieldCheckerResolver.of(item, schema.requireQueryTypeDef()) { _, _, _ -> fieldDenial })
-            },
-            typeCheckers = { schema ->
-                val item = schema.requireType("Item") as ViaductSchema.Object
-                mapOf(
-                    item to TypeCheckerResolver.of(item, schema.requireQueryTypeDef(), mapOf("input" to schema.t4Pair("Item", "policy"))) { inputs, _ ->
-                        assertEquals(7, inputs.getValue("input").objectValue.get("policy"))
-                        typeDenial
-                    }
-                )
-            },
-        ).assumptions
-        val run = resolveTypeExactness(world, "{ consume }")
+                    )
+                },
+            )
+        val world = worldFixture.assumptions
+        val run = resolveTypeExactness(worldFixture, "{ consume }")
         val itemKey = world.t4Key("Query", "item")
         assertEquals(1, run.result.getCell(world.t4Key("Query", "consume")).value.get())
         run.validate(listOf(run.field(listOf(itemKey)), run.type("Item", listOf(itemKey))))
     }
 
     private fun resolveTypeExactness(
-        world: Assumptions,
+        world: TestWorld,
         query: String
     ): TypeExactnessRun {
         val recorder = CheckerApplicationRecorder()
@@ -500,8 +521,8 @@ interface SelectiveTypeCheckerExactnessContract {
                 invocations += observation
             }
         }
-        val operation = SharedOperationContext.create(world, resolverObserver = observer, checkerObserver = checkerObserver)
-        val selections = world.operationSelectionsFrom(query)
+        val operation = SharedOperationContext.create(world.assumptions, resolverObserver = observer, checkerObserver = checkerObserver)
+        val selections = world.schemas.operationSelectionsFrom(query)
         val result = coroutineResolverSubject.resolve(operation, selections)
         return TypeExactnessRun(operation, selections, result, recorder, checkerObserver, invocations)
     }
@@ -552,7 +573,7 @@ private fun Assumptions.t4Key(
     arguments: Map<String, Any?> = emptyMap()
 ): ObjectEngineResult.GroundKey = ObjectEngineResult.GroundKey.of(schema.requireObjectField(type, field), arguments)
 
-private fun ViaductSchema.t4Pair(
+private fun ViaductAndGJSchema.t4Pair(
     type: String,
     objectInput: String = "",
     query: String = ""

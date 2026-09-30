@@ -50,7 +50,7 @@ class FromField private constructor(
 
     companion object {
         internal fun compile(
-            schema: GJSchema,
+            schema: ViaductAndGJSchema,
             fragmentSource: String,
             responsePath: List<String>,
             variableField: ViaductSchema.ObjectField?,
@@ -71,13 +71,13 @@ class FromField private constructor(
             val parsed =
                 GJSelectionParser(
                     sourceSchema = schema.graphQLSchema,
-                    schema = schema,
+                    schema = schema.loweredSchema,
                     variableValues = bindings,
                     variableTarget =
                         variableField?.let(ResolverTarget::FieldValueResolverTarget),
                 ).specSelectionsFrom(fragmentSource)
             if (providerFragment == ProviderFragment.QUERY) {
-                require(parsed.nominalType == schema.requireQueryTypeDef()) {
+                require(parsed.nominalType == schema.loweredSchema.requireQueryTypeDef()) {
                     "fromQueryField provider fragment must be rooted at Query"
                 }
             }
@@ -95,7 +95,7 @@ class FromField private constructor(
                         nominalType = parsed.nominalType,
                         materializeSelections =
                             flattenForMaterialization(
-                                schema,
+                                schema.loweredSchema,
                                 parsed.nominalType,
                                 parsed.selections,
                             ),
@@ -109,14 +109,14 @@ class FromField private constructor(
 }
 
 /** Compiles a production-shaped response-key path against an alias-preserving object fragment. */
-fun ViaductSchema.fromObjectField(
+fun ViaductAndGJSchema.fromObjectField(
     objectFragmentSource: String,
     responsePath: List<String>,
     variableField: ViaductSchema.ObjectField? = null,
     bindings: Map<String, EngineInputData?> = emptyMap(),
 ): FromField =
     FromField.compile(
-        schema = this as GJSchema,
+        schema = this,
         fragmentSource = objectFragmentSource,
         responsePath = responsePath,
         variableField = variableField,
@@ -125,14 +125,14 @@ fun ViaductSchema.fromObjectField(
     )
 
 /** Compiles a production-shaped response-key path against an alias-preserving Query fragment. */
-fun ViaductSchema.fromQueryField(
+fun ViaductAndGJSchema.fromQueryField(
     queryFragmentSource: String,
     responsePath: List<String>,
     variableField: ViaductSchema.ObjectField? = null,
     bindings: Map<String, EngineInputData?> = emptyMap(),
 ): FromField =
     FromField.compile(
-        schema = this as GJSchema,
+        schema = this,
         fragmentSource = queryFragmentSource,
         responsePath = responsePath,
         variableField = variableField,
@@ -153,7 +153,7 @@ private data class MatchingField(
     val lossyCondition: Pair<ViaductSchema.CompositeTypeDef, ViaductSchema.CompositeTypeDef>?,
 )
 
-private fun GJSchema.compilePath(
+private fun ViaductAndGJSchema.compilePath(
     typeInScope: ViaductSchema.CompositeTypeDef,
     selections: List<SpecSelection>,
     responsePath: List<String>,
@@ -222,7 +222,7 @@ private fun GJSchema.compilePath(
     )
 }
 
-private fun GJSchema.matchingFields(
+private fun ViaductAndGJSchema.matchingFields(
     selections: List<SpecSelection>,
     typeInScope: ViaductSchema.CompositeTypeDef,
     responseKey: String,
@@ -234,11 +234,11 @@ private fun GJSchema.matchingFields(
                 if ((selection.alias ?: selection.fieldName) != responseKey) {
                     emptyList()
                 } else {
-                    val field = requireField(typeInScope.name, selection.fieldName)
+                    val field = loweredSchema.requireField(typeInScope.name, selection.fieldName)
                     listOf(
                         MatchingField(
                             keys = listOf(ObjectEngineResult.Key.of(field, selection.arguments)),
-                            typeExpr = SourceSchemaAdapter(this@matchingFields).typeExpr(field),
+                            typeExpr = SourceSchemaAdapter(loweredSchema).typeExpr(field),
                             subselections = selection.subselections.orEmpty(),
                             lossyCondition = lossyCondition,
                         ),

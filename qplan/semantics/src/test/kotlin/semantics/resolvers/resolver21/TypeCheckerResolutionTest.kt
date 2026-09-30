@@ -46,7 +46,7 @@ class TypeCheckerResolutionTest {
     @Test
     fun `fragment-free named inputs are raw object and Query projections`() {
         val invoked = AtomicBoolean()
-        val world =
+        val worldFixture =
             TestWorld.fromDSL(
                 schemaSDL =
                     """
@@ -60,7 +60,7 @@ class TypeCheckerResolutionTest {
                     """.trimIndent(),
                 selectiveResolvers = false,
                 typeCheckers = { schema ->
-                    val item = schema.requireType("Item") as ViaductSchema.Object
+                    val item = schema.loweredSchema.requireType("Item") as ViaductSchema.Object
                     val emptyPair =
                         ResolverFragmentTemplates(
                             objectFragmentTemplate = materializeSelectionForestOf(),
@@ -70,7 +70,7 @@ class TypeCheckerResolutionTest {
                         item to
                             TypeCheckerResolver.of(
                                 item,
-                                schema.requireQueryTypeDef(),
+                                schema.loweredSchema.requireQueryTypeDef(),
                                 fragmentTemplates = mapOf("empty" to emptyPair),
                             ) { inputs, _ ->
                                 val input = inputs.getValue("empty")
@@ -83,11 +83,12 @@ class TypeCheckerResolutionTest {
                             },
                     )
                 },
-            ).assumptions
+            )
+        val world = worldFixture.assumptions
 
         val result =
             SharedOperationContext.create(world).resolve(
-                world.operationSelectionsFrom("{ item { id } }"),
+                worldFixture.schemas.operationSelectionsFrom("{ item { id } }"),
             )
 
         assertTrue(invoked.get())
@@ -99,7 +100,7 @@ class TypeCheckerResolutionTest {
         runBlocking {
             val denial = TypeDenial()
             val failure = IllegalStateException("type checker failed")
-            val world =
+            val worldFixture =
                 TestWorld.fromDSL(
                     schemaSDL =
                         """
@@ -113,16 +114,17 @@ class TypeCheckerResolutionTest {
                         """.trimIndent(),
                     selectiveResolvers = false,
                     typeCheckers = { schema ->
-                        val denied = schema.requireType("Denied") as ViaductSchema.Object
-                        val failed = schema.requireType("Failed") as ViaductSchema.Object
+                        val denied = schema.loweredSchema.requireType("Denied") as ViaductSchema.Object
+                        val failed = schema.loweredSchema.requireType("Failed") as ViaductSchema.Object
                         mapOf(
-                            denied to TypeCheckerResolver.of(denied, schema.requireQueryTypeDef()) { _, _ -> denial },
-                            failed to TypeCheckerResolver.of(failed, schema.requireQueryTypeDef()) { _, _ -> throw failure },
+                            denied to TypeCheckerResolver.of(denied, schema.loweredSchema.requireQueryTypeDef()) { _, _ -> denial },
+                            failed to TypeCheckerResolver.of(failed, schema.loweredSchema.requireQueryTypeDef()) { _, _ -> throw failure },
                         )
                     },
-                ).assumptions
+                )
+            val world = worldFixture.assumptions
             val operation = SharedOperationContext.create(world)
-            val result = operation.resolve(world.operationSelectionsFrom("{ denied { id } failed { id } }"))
+            val result = operation.resolve(worldFixture.schemas.operationSelectionsFrom("{ denied { id } failed { id } }"))
             val denied = result.objectValue("denied")
             val failed = result.objectValue("failed")
 
@@ -134,7 +136,7 @@ class TypeCheckerResolutionTest {
                     operation = operation,
                     cycleChecker = CycleCheckState.createNOP(),
                     selections =
-                        world.fragmentFrom("fragment Input on Query { denied { id } }").materializeSelections,
+                        worldFixture.schemas.fragmentFrom("fragment Input on Query { denied { id } }").materializeSelections,
                     reader = result.fieldResolverCycleTask(emptyList()),
                 )
             assertSame(denial.error, assertIs<EngineErrorData>(materialized.outputValue("denied")).cause)
@@ -143,7 +145,7 @@ class TypeCheckerResolutionTest {
     @Test
     fun `unchecked checker-only reads retain immediate null type results`() {
         val typeInvocations = AtomicInteger()
-        val world =
+        val worldFixture =
             TestWorld.fromDSL(
                 schemaSDL =
                     """
@@ -156,13 +158,13 @@ class TypeCheckerResolutionTest {
                     """.trimIndent(),
                 selectiveResolvers = false,
                 fieldCheckers = { schema ->
-                    val checked = schema.requireObjectField("Query", "checked")
+                    val checked = schema.loweredSchema.requireObjectField("Query", "checked")
                     val raw = schema.fragmentFrom("fragment Raw on Query { raw { id } }").materializeSelections
                     mapOf(
                         checked to
                             FieldCheckerResolver.of(
                                 checked,
-                                schema.requireQueryTypeDef(),
+                                schema.loweredSchema.requireQueryTypeDef(),
                                 fragmentTemplates =
                                     mapOf(
                                         "raw" to
@@ -178,19 +180,20 @@ class TypeCheckerResolutionTest {
                     )
                 },
                 typeCheckers = { schema ->
-                    val item = schema.requireType("Item") as ViaductSchema.Object
+                    val item = schema.loweredSchema.requireType("Item") as ViaductSchema.Object
                     mapOf(
-                        item to TypeCheckerResolver.of(item, schema.requireQueryTypeDef()) { _, _ ->
+                        item to TypeCheckerResolver.of(item, schema.loweredSchema.requireQueryTypeDef()) { _, _ ->
                             typeInvocations.incrementAndGet()
                             CheckerResult.Success
                         },
                     )
                 },
-            ).assumptions
+            )
+        val world = worldFixture.assumptions
 
         val result =
             SharedOperationContext.create(world).resolve22(
-                world.operationSelectionsFrom("{ checked }"),
+                worldFixture.schemas.operationSelectionsFrom("{ checked }"),
             )
         val raw = result.objectValue("raw")
 
@@ -202,7 +205,7 @@ class TypeCheckerResolutionTest {
     @Test
     fun `parent backedge reuses the ancestor type-check result`() {
         val invocations = AtomicInteger()
-        val world =
+        val worldFixture =
             TestWorld.fromDSL(
                 schemaSDL =
                     """
@@ -221,19 +224,20 @@ class TypeCheckerResolutionTest {
                     """.trimIndent(),
                 selectiveResolvers = false,
                 typeCheckers = { schema ->
-                    val root = schema.requireType("Root") as ViaductSchema.Object
+                    val root = schema.loweredSchema.requireType("Root") as ViaductSchema.Object
                     mapOf(
-                        root to TypeCheckerResolver.of(root, schema.requireQueryTypeDef()) { _, _ ->
+                        root to TypeCheckerResolver.of(root, schema.loweredSchema.requireQueryTypeDef()) { _, _ ->
                             invocations.incrementAndGet()
                             CheckerResult.Success
                         },
                     )
                 },
-            ).assumptions
+            )
+        val world = worldFixture.assumptions
 
         val result =
             SharedOperationContext.create(world).resolve22(
-                world.operationSelectionsFrom("{ root { child { parent { value } } } }"),
+                worldFixture.schemas.operationSelectionsFrom("{ root { child { parent { value } } } }"),
             )
         val root = result.objectValue("root")
         val child = root.objectValue("child")
@@ -248,7 +252,7 @@ class TypeCheckerResolutionTest {
     fun `cancellation before type-checker entry cancels the OER promise`() =
         runBlocking {
             val invoked = AtomicBoolean()
-            val world =
+            val worldFixture =
                 TestWorld.fromDSL(
                     schemaSDL =
                         """
@@ -258,7 +262,7 @@ class TypeCheckerResolutionTest {
                         """.trimIndent(),
                     selectiveResolvers = false,
                     typeCheckers = { schema ->
-                        val query = schema.requireQueryTypeDef()
+                        val query = schema.loweredSchema.requireQueryTypeDef()
                         mapOf(
                             query to TypeCheckerResolver.of(query, query) { _, _ ->
                                 invoked.set(true)
@@ -266,7 +270,8 @@ class TypeCheckerResolutionTest {
                             },
                         )
                     },
-                ).assumptions
+                )
+            val world = worldFixture.assumptions
             val queued = QueuedDispatcher()
             val job = Job()
             val operation = SharedOperationContext.create(world)
@@ -274,7 +279,7 @@ class TypeCheckerResolutionTest {
                 startCoroutineResolution(
                     operation = operation,
                     requestScope = CoroutineScope(job + queued),
-                    selections = world.operationSelectionsFrom("{ value }"),
+                    selections = worldFixture.schemas.operationSelectionsFrom("{ value }"),
                     cycleChecker = CycleCheckState.create(),
                 )
 

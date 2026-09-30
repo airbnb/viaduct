@@ -28,14 +28,14 @@ interface QueryFragmentFromObjectPathResolverContract : ResolverContract {
                     }
                     """.trimIndent(),
                 fieldResolvers = { schema ->
-                    val provider = schema.requireObjectField("Query", "provider")
-                    val source = schema.requireObjectField("Query", "source")
-                    val consumer = schema.requireObjectField("Query", "consumer")
+                    val provider = schema.loweredSchema.requireObjectField("Query", "provider")
+                    val source = schema.loweredSchema.requireObjectField("Query", "source")
+                    val consumer = schema.loweredSchema.requireObjectField("Query", "consumer")
                     mapOf(
                         provider to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> 7 },
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> 7 },
                         source to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, arguments ->
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, arguments ->
                                 arguments.fieldValues.getValue("value")
                             },
                         consumer to
@@ -51,7 +51,7 @@ interface QueryFragmentFromObjectPathResolverContract : ResolverContract {
                     )
                 },
                 variableProviders = { schema ->
-                    val consumer = schema.requireObjectField("Query", "consumer")
+                    val consumer = schema.loweredSchema.requireObjectField("Query", "consumer")
                     mapOf(
                         Arguments.Variable.of(consumer, "providedValue") to
                             schema.fromObjectField(providerFragment, listOf("provided")),
@@ -61,7 +61,7 @@ interface QueryFragmentFromObjectPathResolverContract : ResolverContract {
         val world = testWorld.assumptions
         val consumerKey = world.schema.contractKey("Query", "consumer")
 
-        val resolved = resolveAndValidate(world, "query { consumer }")
+        val resolved = resolveAndValidate(testWorld, "query { consumer }")
 
         assertEquals(7, resolved.getCell(consumerKey).get())
     }

@@ -73,7 +73,7 @@ interface ObjectFragmentResolverContract : ResolverContract {
             )
         val world = testWorld.assumptions
         val result =
-            resolveAndValidate(world, "query { viewer { total } }", resolverObserver = invocationObserver)
+            resolveAndValidate(testWorld, "query { viewer { total } }", resolverObserver = invocationObserver)
         val viewer =
             assertIs<ObjectEngineResult>(
                 result.getCell(world.schema.contractKey("Query", "viewer")).get(),
@@ -138,7 +138,7 @@ interface ObjectFragmentResolverContract : ResolverContract {
             )
         val world = testWorld.assumptions
         val result =
-            resolveAndValidate(world, "query { holders { chosen } }", resolverObserver = invocationObserver)
+            resolveAndValidate(testWorld, "query { holders { chosen } }", resolverObserver = invocationObserver)
         val holders =
             assertIs<ListEngineResult>(
                 result.getCell(world.schema.contractKey("Query", "holders")).get(),
@@ -168,9 +168,9 @@ interface ObjectFragmentResolverContract : ResolverContract {
                     }
                     """.trimIndent(),
                 fieldResolvers = { schema ->
-                    val source = schema.requireObjectField("Query", "source")
-                    val nullable = schema.requireObjectField("Query", "nullable")
-                    val result = schema.requireObjectField("Query", "result")
+                    val source = schema.loweredSchema.requireObjectField("Query", "source")
+                    val nullable = schema.loweredSchema.requireObjectField("Query", "nullable")
+                    val result = schema.loweredSchema.requireObjectField("Query", "result")
                     val resultFragment =
                         schema.fragmentFrom(
                             """
@@ -183,11 +183,11 @@ interface ObjectFragmentResolverContract : ResolverContract {
                         )
                     mapOf(
                         source to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
                                 7
                             },
                         nullable to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
                                 null
                             },
                         result to
@@ -207,7 +207,7 @@ interface ObjectFragmentResolverContract : ResolverContract {
             )
         val world = testWorld.assumptions
 
-        val resolved = resolveAndValidate(world, "query { result }")
+        val resolved = resolveAndValidate(testWorld, "query { result }")
 
         assertEquals(
             1,
@@ -233,8 +233,8 @@ interface ObjectFragmentResolverContract : ResolverContract {
                     }
                     """.trimIndent(),
                 fieldResolvers = { schema ->
-                    val container = schema.requireObjectField("Query", "container")
-                    val result = schema.requireObjectField("Query", "result")
+                    val container = schema.loweredSchema.requireObjectField("Query", "container")
+                    val result = schema.loweredSchema.requireObjectField("Query", "result")
                     val resultFragment =
                         schema.fragmentFrom(
                             """
@@ -246,8 +246,8 @@ interface ObjectFragmentResolverContract : ResolverContract {
                         )
                     mapOf(
                         container to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
-                                schema.objectOf("Container") {
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
+                                schema.loweredSchema.objectOf("Container") {
                                     "one" setTo 2
                                     "two" setTo 3
                                 }
@@ -272,7 +272,7 @@ interface ObjectFragmentResolverContract : ResolverContract {
             )
         val world = testWorld.assumptions
 
-        val resolved = resolveAndValidate(world, "query { result }")
+        val resolved = resolveAndValidate(testWorld, "query { result }")
 
         assertEquals(
             5,
@@ -317,7 +317,7 @@ interface ObjectFragmentResolverContract : ResolverContract {
             )
         val world = testWorld.assumptions
         val result =
-            resolveAndValidate(world, "query { viewer { greeting } }", resolverObserver = invocationObserver)
+            resolveAndValidate(testWorld, "query { viewer { greeting } }", resolverObserver = invocationObserver)
         val viewer =
             assertIs<ObjectEngineResult>(
                 result.getCell(world.schema.contractKey("Query", "viewer")).get(),
@@ -380,7 +380,7 @@ interface ObjectFragmentResolverContract : ResolverContract {
             )
         val world = testWorld.assumptions
         val result =
-            resolveAndValidate(world, "query { viewer { message } }", resolverObserver = invocationObserver)
+            resolveAndValidate(testWorld, "query { viewer { message } }", resolverObserver = invocationObserver)
         val viewer =
             assertIs<ObjectEngineResult>(
                 result.getCell(world.schema.contractKey("Query", "viewer")).get(),
@@ -426,7 +426,7 @@ interface ObjectFragmentResolverContract : ResolverContract {
             )
         val world = testWorld.assumptions
         val result =
-            resolveAndValidate(world, "query { chain { computed } }")
+            resolveAndValidate(testWorld, "query { chain { computed } }")
         val chain =
             assertIs<ObjectEngineResult>(
                 result.getCell(world.schema.contractKey("Query", "chain")).get(),
@@ -472,7 +472,7 @@ interface ObjectFragmentResolverContract : ResolverContract {
             )
         val world = testWorld.assumptions
         val result =
-            resolveAndValidate(world, "query { holder { result } }")
+            resolveAndValidate(testWorld, "query { holder { result } }")
         val holder =
             assertIs<ObjectEngineResult>(
                 result.getCell(world.schema.contractKey("Query", "holder")).get(),
@@ -521,7 +521,7 @@ interface ObjectFragmentResolverContract : ResolverContract {
             )
         val world = testWorld.assumptions
         val result =
-            resolveAndValidate(world, "query { items { computed } }", resolverObserver = invocationObserver)
+            resolveAndValidate(testWorld, "query { items { computed } }", resolverObserver = invocationObserver)
         val items =
             assertIs<ListEngineResult>(
                 result.getCell(world.schema.contractKey("Query", "items")).get(),
@@ -567,7 +567,7 @@ interface ObjectFragmentResolverContract : ResolverContract {
                     """.trimIndent(),
             )
         val world = testWorld.assumptions
-        val selections = world.operationSelectionsFrom("query { result }")
+        val selections = testWorld.schemas.operationSelectionsFrom("query { result }")
 
         val completeWorld =
             Assumptions.of(
@@ -640,9 +640,9 @@ interface ObjectFragmentResolverContract : ResolverContract {
                     type Query { groups: [Group!]! }
                     """.trimIndent(),
                 fieldResolvers = { schema ->
-                    val groups = schema.requireField("Query", "groups")
+                    val groups = schema.loweredSchema.requireField("Query", "groups")
                     checkNotNull(groups.type.unwrapList())
-                    val seedKey = schema.contractKey("Group", "seed")
+                    val seedKey = schema.loweredSchema.contractKey("Group", "seed")
 
                     fun computedResolver(typeName: String) =
                         fieldResolverOf(
@@ -658,18 +658,18 @@ interface ObjectFragmentResolverContract : ResolverContract {
                     mapOf(
                         groups to
                             fieldResolverOf(
-                                schema.emptyFragmentOf("Query"),
+                                schema.loweredSchema.emptyFragmentOf("Query"),
                             ) { _, _ ->
                                 listOf(
-                                    schema.objectOf("Group") {
+                                    schema.loweredSchema.objectOf("Group") {
                                         "seed" setTo 1
                                     },
-                                    schema.objectOf("Group") {
+                                    schema.loweredSchema.objectOf("Group") {
                                         "seed" setTo 2
                                     },
                                 )
                             },
-                        schema.requireField("Group", "product") to
+                        schema.loweredSchema.requireField("Group", "product") to
                             fieldResolverOf(
                                 schema.fragmentFrom(
                                     "fragment ignored on Group { seed }",
@@ -681,16 +681,16 @@ interface ObjectFragmentResolverContract : ResolverContract {
                                     arguments.fieldValues.getValue("factor") as Int
                                 productApplications.add(seed to factor)
                                 val base = seed * factor
-                                schema.objectOf(
+                                schema.loweredSchema.objectOf(
                                     if (base % 2 == 0) "EvenProduct" else "OddProduct",
                                 ) {
                                     "label" setTo "${seed}x$factor"
                                     "base" setTo base
                                 }
                             },
-                        schema.requireField("EvenProduct", "computed") to
+                        schema.loweredSchema.requireField("EvenProduct", "computed") to
                             computedResolver("EvenProduct"),
-                        schema.requireField("OddProduct", "computed") to
+                        schema.loweredSchema.requireField("OddProduct", "computed") to
                             computedResolver("OddProduct"),
                     )
                 },
@@ -698,7 +698,7 @@ interface ObjectFragmentResolverContract : ResolverContract {
         val world = testWorld.assumptions
         val result =
             resolveAndValidate(
-                world,
+                testWorld,
                 """
                 query {
                   groups {
@@ -773,22 +773,22 @@ interface ObjectFragmentResolverContract : ResolverContract {
                     type Query { groups: [Group!]! }
                     """.trimIndent(),
                 fieldResolvers = { schema ->
-                    val groups = schema.requireField("Query", "groups")
+                    val groups = schema.loweredSchema.requireField("Query", "groups")
                     checkNotNull(groups.type.unwrapList())
-                    val entries = schema.requireField("Group", "entries")
+                    val entries = schema.loweredSchema.requireField("Group", "entries")
                     checkNotNull(entries.type.unwrapList())
-                    val seedKey = schema.contractKey("Group", "seed")
-                    val rawKey = schema.contractKey("Entry", "raw")
+                    val seedKey = schema.loweredSchema.contractKey("Group", "seed")
+                    val rawKey = schema.loweredSchema.contractKey("Entry", "raw")
                     mapOf(
                         groups to
                             fieldResolverOf(
-                                schema.emptyFragmentOf("Query"),
+                                schema.loweredSchema.emptyFragmentOf("Query"),
                             ) { _, _ ->
                                 listOf(
-                                    schema.objectOf("Group") {
+                                    schema.loweredSchema.objectOf("Group") {
                                         "seed" setTo 10
                                     },
-                                    schema.objectOf("Group") {
+                                    schema.loweredSchema.objectOf("Group") {
                                         "seed" setTo 20
                                     },
                                 )
@@ -805,12 +805,12 @@ interface ObjectFragmentResolverContract : ResolverContract {
                                     arguments.fieldValues.getValue("count") as Int
                                 applications.add(seed to count)
                                 (0 until count).map { offset ->
-                                    schema.objectOf("Entry") {
+                                    schema.loweredSchema.objectOf("Entry") {
                                         "raw" setTo seed + offset
                                     }
                                 }
                             },
-                        schema.requireField("Entry", "rendered") to
+                        schema.loweredSchema.requireField("Entry", "rendered") to
                             fieldResolverOf(
                                 schema.fragmentFrom(
                                     "fragment ignored on Entry { raw }",
@@ -827,7 +827,7 @@ interface ObjectFragmentResolverContract : ResolverContract {
         val world = testWorld.assumptions
         val result =
             resolveAndValidate(
-                world,
+                testWorld,
                 """
                 query {
                   groups {

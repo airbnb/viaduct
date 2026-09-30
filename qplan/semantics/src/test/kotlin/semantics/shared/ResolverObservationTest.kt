@@ -98,13 +98,13 @@ class ResolverObservationTest : Resolver26DispatcherResource {
                             selectiveResolvers = subject.selective,
                             schemaSDL = "type Query { value: Int reference: Int }",
                             fieldResolvers = { schema ->
-                                val value = schema.requireObjectField("Query", "value")
+                                val value = schema.loweredSchema.requireObjectField("Query", "value")
                                 mapOf(
-                                    schema.requireObjectField("Query", "reference") to
-                                        fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
+                                    schema.loweredSchema.requireObjectField("Query", "reference") to
+                                        fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
                                             RootFieldReferenceData.of(listOf(value), emptyMap())
                                         },
-                                    value to fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
+                                    value to fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
                                         entered += 1
                                         if (suspendAfterEntry) awaitCancellation()
                                         7
@@ -113,7 +113,7 @@ class ResolverObservationTest : Resolver26DispatcherResource {
                             },
                         )
                         val operation = SharedOperationContext.create(testWorld.assumptions, resolverObserver = observer)
-                        val selections = operation.world.operationSelectionsFrom(if (reference) "{ reference }" else "{ value }")
+                        val selections = testWorld.schemas.operationSelectionsFrom(if (reference) "{ reference }" else "{ value }")
                         try {
                             val attempt = runCatching { subject.resolve(operation, selections) }
                             assertEquals(1, entered, "The recorded resolver must actually be entered")
@@ -149,17 +149,17 @@ class ResolverObservationTest : Resolver26DispatcherResource {
                     selectiveResolvers = subject.selective,
                     schemaSDL = "type Query { reference: Int! value(arg: Int!): Int! }",
                     fieldResolvers = { schema ->
-                        val value = schema.requireObjectField("Query", "value")
+                        val value = schema.loweredSchema.requireObjectField("Query", "value")
                         mapOf(
-                            schema.requireObjectField("Query", "reference") to
-                                fieldResolverOf(schema.emptyFragmentOf("Query")) { input, arguments ->
+                            schema.loweredSchema.requireObjectField("Query", "reference") to
+                                fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { input, arguments ->
                                     val event = events.last()
                                     assertEquals("reference", event.field.name)
                                     assertSame(input, event.input)
                                     assertSame(arguments, event.arguments)
                                     RootFieldReferenceData.of(listOf(value), mapOf("arg" to 7))
                                 },
-                            value to fieldResolverOf(schema.emptyFragmentOf("Query")) { input, arguments ->
+                            value to fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { input, arguments ->
                                 val event = events.last()
                                 assertEquals("value", event.field.name)
                                 assertSame(input, event.input)
@@ -171,7 +171,7 @@ class ResolverObservationTest : Resolver26DispatcherResource {
                 )
                 val world = testWorld.assumptions
                 val operation = SharedOperationContext.create(world, resolverObserver = observer)
-                val result = subject.resolve(operation, world.operationSelectionsFrom("{ reference }"))
+                val result = subject.resolve(operation, testWorld.schemas.operationSelectionsFrom("{ reference }"))
                 assertEquals(listOf("reference", "value"), events.map { it.field.name })
                 assertEquals(7, result.getCell(result.keys.single()).get())
                 val hop = observer.rootFieldReferenceInvocations().single()
@@ -212,20 +212,20 @@ class ResolverObservationTest : Resolver26DispatcherResource {
                             selectiveResolvers = subject.selective,
                             schemaSDL = "type Query { reference: Int value: Int }",
                             fieldResolvers = { schema ->
-                                val value = schema.requireObjectField("Query", "value")
+                                val value = schema.loweredSchema.requireObjectField("Query", "value")
                                 mapOf(
-                                    schema.requireObjectField("Query", "reference") to
-                                        fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
+                                    schema.loweredSchema.requireObjectField("Query", "reference") to
+                                        fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
                                             RootFieldReferenceData.of(listOf(value), emptyMap())
                                         },
-                                    value to fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> throw failure },
+                                    value to fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> throw failure },
                                 )
                             },
                         )
                         val operation = SharedOperationContext.create(testWorld.assumptions, resolverObserver = observer)
                         // DFS propagates these failures; coroutine subjects publish a field error.
                         try {
-                            subject.resolve(operation, operation.world.operationSelectionsFrom(if (reference) "{ reference }" else "{ value }"))
+                            subject.resolve(operation, testWorld.schemas.operationSelectionsFrom(if (reference) "{ reference }" else "{ value }"))
                         } catch (caught: Exception) {
                             assertSame(failure, caught)
                         }
@@ -266,22 +266,22 @@ class ResolverObservationTest : Resolver26DispatcherResource {
                     schemaSDL = "type Query { dependency: Int! consumer: Int! }",
                     fieldResolvers = { schema ->
                         mapOf(
-                            schema.requireObjectField("Query", "dependency") to
-                                fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
+                            schema.loweredSchema.requireObjectField("Query", "dependency") to
+                                fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
                                     assertEquals(listOf("prepared", "dependency"), order.toList())
                                     assertEquals(1, observer.allQueryFragmentResults().size)
                                     7
                                 },
-                            schema.requireObjectField("Query", "consumer") to
+                            schema.loweredSchema.requireObjectField("Query", "consumer") to
                                 fieldResolverOf(
-                                    schema.emptyFragmentOf("Query"),
+                                    schema.loweredSchema.emptyFragmentOf("Query"),
                                     schema.fragmentFrom("fragment Input on Query { dependency }"),
                                 ) { _, _, _ -> 7 },
                         )
                     },
                 )
                 val operation = SharedOperationContext.create(testWorld.assumptions, resolverObserver = observer)
-                val root = subject.resolve(operation, operation.world.operationSelectionsFrom("{ consumer }"))
+                val root = subject.resolve(operation, testWorld.schemas.operationSelectionsFrom("{ consumer }"))
                 assertEquals(listOf("prepared", "dependency", "consumer"), order.toList())
                 val owner = ResolverOccurrenceId.at(root, listOf(root.keys.single()))
                 val queryRoot = observer.queryFragmentResults(owner).single()
@@ -304,15 +304,15 @@ class ResolverObservationTest : Resolver26DispatcherResource {
                     schemaSDL = "type Query { object: Thing } type Thing { value: Int }",
                     fieldResolvers = { schema ->
                         mapOf(
-                            schema.requireObjectField("Query", "object") to
-                                fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> null }
+                            schema.loweredSchema.requireObjectField("Query", "object") to
+                                fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> null }
                                     .mapOutput { it }
                                     .mapDemand { selectionForestOf() }
                         )
                     },
                 )
                 val operation = SharedOperationContext.create(testWorld.assumptions, resolverObserver = observer)
-                subject.resolve(operation, operation.world.operationSelectionsFrom("{ object { value } }"))
+                subject.resolve(operation, testWorld.schemas.operationSelectionsFrom("{ object { value } }"))
                 val event = events.single()
                 if (subject.selective) assertFalse(assertNotNull(event.suppliedDemand).isEmpty()) else assertNull(event.suppliedDemand)
             }
@@ -339,10 +339,10 @@ class ResolverObservationTest : Resolver26DispatcherResource {
                             schemaSDL =
                                 "type Query { reference: Int target: Int dependency: Int }",
                             fieldResolvers = { schema ->
-                                val target = schema.requireObjectField("Query", "target")
-                                val empty = schema.emptyFragmentOf("Query")
+                                val target = schema.loweredSchema.requireObjectField("Query", "target")
+                                val empty = schema.loweredSchema.emptyFragmentOf("Query")
                                 mapOf(
-                                    schema.requireObjectField("Query", "reference") to
+                                    schema.loweredSchema.requireObjectField("Query", "reference") to
                                         fieldResolverOf(empty) { _, _ ->
                                             entries += "reference"
                                             RootFieldReferenceData.of(
@@ -360,7 +360,7 @@ class ResolverObservationTest : Resolver26DispatcherResource {
                                             entries += "target"
                                             query.get("dependency")
                                         },
-                                    schema.requireObjectField("Query", "dependency") to
+                                    schema.loweredSchema.requireObjectField("Query", "dependency") to
                                         fieldResolverOf(empty) { _, _ ->
                                             entries += "dependency"
                                             7
@@ -374,7 +374,7 @@ class ResolverObservationTest : Resolver26DispatcherResource {
                             world,
                             resolverObserver = observer,
                         )
-                    val selections = world.operationSelectionsFrom("{ reference }")
+                    val selections = testWorld.schemas.operationSelectionsFrom("{ reference }")
                     val root = subject.resolve(operation, selections)
                     assertEquals(7, root.getCell(root.keys.single()).get())
                     assertEquals(
@@ -444,10 +444,10 @@ class ResolverObservationTest : Resolver26DispatcherResource {
                 TestWorld.fromSDL(
                     schemaSDL = "type Query { reference: Int target: Int dependency: Int }",
                     fieldResolvers = { schema ->
-                        val target = schema.requireObjectField("Query", "target")
-                        val empty = schema.emptyFragmentOf("Query")
+                        val target = schema.loweredSchema.requireObjectField("Query", "target")
+                        val empty = schema.loweredSchema.emptyFragmentOf("Query")
                         mapOf(
-                            schema.requireObjectField("Query", "reference") to
+                            schema.loweredSchema.requireObjectField("Query", "reference") to
                                 fieldResolverOf(empty) { _, _ ->
                                     entries += "reference"
                                     RootFieldReferenceData.of(listOf(target), emptyMap())
@@ -462,7 +462,7 @@ class ResolverObservationTest : Resolver26DispatcherResource {
                                     entries += "target"
                                     error("A target with unfinished Query input cannot enter")
                                 },
-                            schema.requireObjectField("Query", "dependency") to
+                            schema.loweredSchema.requireObjectField("Query", "dependency") to
                                 fieldResolverOf(empty) { _, _ ->
                                     entries += "dependency"
                                     entered.complete(Unit)
@@ -483,7 +483,7 @@ class ResolverObservationTest : Resolver26DispatcherResource {
             val job = Job()
             try {
                 operation.startResolve(
-                    operation.world.operationSelectionsFrom("{ reference }"),
+                    testWorld.schemas.operationSelectionsFrom("{ reference }"),
                     CoroutineScope(resolverDispatcher + job),
                 )
                 withTimeout(5_000) { entered.await() }

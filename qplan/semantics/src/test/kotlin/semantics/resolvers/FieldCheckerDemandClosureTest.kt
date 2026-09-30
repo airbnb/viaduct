@@ -4,7 +4,6 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import model.Arguments
-import model.Assumptions
 import model.ListEngineResult
 import model.ObjectEngineResult
 import model.ObjectSelectionForest
@@ -22,6 +21,7 @@ import model.requireObjectField
 import model.requireQueryTypeDef
 import model.selectionForestOf
 import model.testing.TestWorld
+import model.testing.ViaductAndGJSchema
 import semantics.shared.Demand
 import semantics.shared.OEROccurrence
 import semantics.shared.OrchestrationConstructionDemand
@@ -72,7 +72,8 @@ class FieldCheckerDemandClosureTest {
               c: Int
             }
             """.trimIndent(),
-        ).assumptions
+        )
+
         assertDemand(
             close(world, checked = "a", source = world.schema.objectOf("Box")),
             checked = setOf("a", "b", "c"),
@@ -99,13 +100,14 @@ class FieldCheckerDemandClosureTest {
                     checker(schema, "Nested", "raw", "forbidden"),
                 )
             },
-        ).assumptions
+        )
+
         val closed = close(world, checked = "a nested { ordinary }")
         val nestedKey = key(world, "Box", "nested")
         val root = ObjectEngineResult.of(world.schema.requireQueryTypeDef(), emptyMap())
         val target = ObjectEngineResult.of(nestedKey.field.type.baseTypeDef as ViaductSchema.Object, emptyMap())
         val child = world.schema.objectOf("Nested").closeConstructionDemand(
-            SharedOperationContext.create(world),
+            SharedOperationContext.create(world.assumptions),
             OEROccurrence(root, listOf(nestedKey), target),
             initialDemand = Demand(
                 checked = closed.checked[nestedKey].subselections,
@@ -130,8 +132,9 @@ class FieldCheckerDemandClosureTest {
             }
             """.trimIndent(),
             fieldCheckers = { schema -> mapOf(checker(schema, "Box", "a", "first: b(seed: 7) second: b(seed: 8)")) },
-        ).assumptions
-        val operation = SharedOperationContext.create(world)
+        )
+
+        val operation = SharedOperationContext.create(world.assumptions)
         repeat(2) {
             val root = ObjectEngineResult.of(world.schema.requireQueryTypeDef(), emptyMap())
             repeat(2) { index ->
@@ -174,11 +177,11 @@ class FieldCheckerDemandClosureTest {
             type Box { a: Int }
             """.trimIndent(),
             fieldCheckers = { schema ->
-                val a = schema.requireObjectField("Box", "a")
+                val a = schema.loweredSchema.requireObjectField("Box", "a")
                 mapOf(
                     a to FieldCheckerResolver.of(
                         a,
-                        schema.requireQueryTypeDef(),
+                        schema.loweredSchema.requireQueryTypeDef(),
                         fragmentTemplates = mapOf(
                             "empty" to
                                 ResolverFragmentTemplates(
@@ -203,7 +206,8 @@ class FieldCheckerDemandClosureTest {
                     checker(schema, "Query", "viewer", "forbidden"),
                 )
             },
-        ).assumptions
+        )
+
         val checker = requireNotNull(world.resolverRegistry.fieldChecker(world.schema.requireObjectField("Box", "a")))
         assertEquals(setOf("empty", "viewer", "emptyQuery"), checker.fragmentTemplates.keys)
         val operationRoot = ObjectEngineResult.of(world.schema.requireQueryTypeDef(), emptyMap())
@@ -211,7 +215,7 @@ class FieldCheckerDemandClosureTest {
         val objectTarget = ObjectEngineResult.of(world.schema.requireObjectField("Box", "a").containingDef, emptyMap())
         val closed =
             world.schema.objectOf("Box") { "a" setTo 1 }.closeOrchestrationConstructionDemand(
-                operation = SharedOperationContext.create(world),
+                operation = SharedOperationContext.create(world.assumptions),
                 objectOccurrence =
                     OEROccurrence(
                         operationRoot,
@@ -281,7 +285,7 @@ class FieldCheckerDemandClosureTest {
         val root = ObjectEngineResult.of(world.schema.requireQueryTypeDef(), emptyMap())
         val child = ObjectEngineResult.of(world.schema.requireObjectField("Child", "parent").containingDef, emptyMap())
         val childClosed = world.schema.objectOf("Child").closeConstructionDemand(
-            SharedOperationContext.create(world),
+            SharedOperationContext.create(world.assumptions),
             OEROccurrence(root, listOf(children, ListEngineResult.Index.of(0), ListEngineResult.Index.of(0)), child),
             initialDemand = Demand.unchecked(closed.unchecked[children].subselections),
         )
@@ -300,7 +304,7 @@ class FieldCheckerDemandClosureTest {
         val target = ObjectEngineResult.of(field.containingDef, emptyMap())
         val errored = ObjectEngineResult.GroundKey.of(field, Arguments.Error)
         val closed = world.schema.objectOf("Box").closeConstructionDemand(
-            SharedOperationContext.create(world),
+            SharedOperationContext.create(world.assumptions),
             OEROccurrence(root, emptyList(), target),
             initialDemand = Demand.checked(
                 selectionForestOf(Selection.of(errored, setOf(field.containingDef), selectionForestOf())),
@@ -337,7 +341,8 @@ class FieldCheckerDemandClosureTest {
                     checker(schema, "Box", "checkedB", "audit"),
                 )
             },
-        ).assumptions
+        )
+
         for (fields in listOf("a b", "b a")) {
             assertDemand(
                 close(world, checked = "children { $fields }"),
@@ -347,7 +352,7 @@ class FieldCheckerDemandClosureTest {
         }
     }
 
-    private fun chainWorld(): Assumptions =
+    private fun chainWorld(): TestWorld =
         TestWorld.fromDSL(
             """
         extend type Query { boxes: [Box] @resolver(result: []) }
@@ -368,12 +373,12 @@ class FieldCheckerDemandClosureTest {
                     checker(schema, "Box", "c", "audit"),
                 )
             },
-        ).assumptions
+        )
 
     private fun parentWorld(
         aInput: String,
         bInput: String = "checkedAncestor"
-    ): Assumptions =
+    ): TestWorld =
         TestWorld.fromDSL(
             """
         extend type Query { boxes: [Box] @resolver(result: []) }
@@ -411,18 +416,18 @@ class FieldCheckerDemandClosureTest {
                     checker(schema, "Child", "checkedLocal", "localAudit"),
                 )
             },
-        ).assumptions
+        )
 
     private fun checker(
-        schema: ViaductSchema,
+        schema: ViaductAndGJSchema,
         type: String,
         name: String,
         vararg inputs: String,
     ): Pair<ViaductSchema.ObjectField, FieldCheckerResolver> {
-        val field = schema.requireObjectField(type, name)
+        val field = schema.loweredSchema.requireObjectField(type, name)
         return field to FieldCheckerResolver.of(
             field,
-            schema.requireQueryTypeDef(),
+            schema.loweredSchema.requireQueryTypeDef(),
             fragmentTemplates =
                 inputs.mapIndexed { index, input ->
                     "input$index" to
@@ -438,7 +443,7 @@ class FieldCheckerDemandClosureTest {
     }
 
     private fun close(
-        world: Assumptions,
+        world: TestWorld,
         checked: String,
         source: EngineObjectData.Sync = world.schema.objectOf("Box") { "a" setTo 1 },
     ): Demand<ObjectSelectionForest> {
@@ -446,7 +451,7 @@ class FieldCheckerDemandClosureTest {
         val target = ObjectEngineResult.of(world.schema.requireObjectField("Box", "a").containingDef, emptyMap())
         val occurrence = OEROccurrence(root, listOf(key(world, "Query", "boxes"), ListEngineResult.Index.of(0)), target)
         val closed = source.closeConstructionDemand(
-            SharedOperationContext.create(world),
+            SharedOperationContext.create(world.assumptions),
             occurrence,
             Demand.checked(selections(world, "Box", checked)),
         )
@@ -475,13 +480,13 @@ class FieldCheckerDemandClosureTest {
     }
 
     private fun selections(
-        world: Assumptions,
+        world: TestWorld,
         type: String,
         fields: String
-    ): SelectionForest = world.schema.fragmentFrom("fragment F on $type { $fields }").subselections
+    ): SelectionForest = world.schemas.fragmentFrom("fragment F on $type { $fields }").subselections
 
     private fun key(
-        world: Assumptions,
+        world: TestWorld,
         type: String,
         name: String,
         arguments: Map<String, Any?> = emptyMap(),

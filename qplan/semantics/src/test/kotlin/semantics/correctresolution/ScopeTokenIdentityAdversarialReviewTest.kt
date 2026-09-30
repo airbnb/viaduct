@@ -36,33 +36,34 @@ import semantics.shared.materializeResult
 class ScopeTokenIdentityAdversarialReviewTest {
     @Test
     fun `separate Query roots for the same containing occurrence are rejected with fresh scope wrappers`() {
-        val world = TestWorld.fromSDL(
+        val worldFixture = TestWorld.fromSDL(
             schemaSDL = "type Query { left: Int! right: Int! source: Int! }",
             fieldResolvers = { schema ->
                 buildMap {
                     listOf("left", "right").forEach { name ->
                         put(
-                            schema.requireObjectField("Query", name),
+                            schema.loweredSchema.requireObjectField("Query", name),
                             fieldResolverOf(
-                                schema.emptyFragmentOf("Query"),
+                                schema.loweredSchema.emptyFragmentOf("Query"),
                                 schema.fragmentFrom("fragment Input on Query { source }"),
                             ) { _, query, _ -> query.selectionValues().getValue("source") },
                         )
                     }
                     put(
-                        schema.requireObjectField("Query", "source"),
-                        fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> 7 },
+                        schema.loweredSchema.requireObjectField("Query", "source"),
+                        fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> 7 },
                     )
                 }
             },
-        ).assumptions
-        val queryType = world.schema.requireQueryTypeDef()
+        )
+        val world = worldFixture.assumptions
+        val queryType = worldFixture.schema.requireQueryTypeDef()
         val result = world.engineResultOf("Query") {
             "left" resolvesTo 7
             "right" resolvesTo 7
         }
-        val resultDemand = world.fragmentFrom("fragment Result on Query { left right }").subselections.merge(queryType)
-        val queryDemand = world.fragmentFrom("fragment Input on Query { source }").subselections.merge(queryType)
+        val resultDemand = worldFixture.schemas.fragmentFrom("fragment Result on Query { left right }").subselections.merge(queryType)
+        val queryDemand = worldFixture.schemas.fragmentFrom("fragment Input on Query { source }").subselections.merge(queryType)
         val queries = listOf(world.engineResultOf("Query") { "source" resolvesTo 7 }, world.engineResultOf("Query") { "source" resolvesTo 7 })
 
         fun observe(reuseScopeWrapper: Boolean): CorrectnessResolverObserver {
@@ -101,28 +102,29 @@ class ScopeTokenIdentityAdversarialReviewTest {
 
     @Test
     fun `a resolver on the associated Query root cannot claim a new containing scope`() {
-        val world = TestWorld.fromSDL(
+        val worldFixture = TestWorld.fromSDL(
             schemaSDL = "type Query { answer: Int! middle: Int! source: Int! }",
             fieldResolvers = { schema ->
                 buildMap {
                     listOf("answer" to "middle", "middle" to "source").forEach { (name, dependency) ->
                         put(
-                            schema.requireObjectField("Query", name),
+                            schema.loweredSchema.requireObjectField("Query", name),
                             fieldResolverOf(
-                                schema.emptyFragmentOf("Query"),
+                                schema.loweredSchema.emptyFragmentOf("Query"),
                                 schema.fragmentFrom("fragment Input on Query { $dependency }"),
                             ) { _, query, _ -> query.selectionValues().getValue(dependency) }
                         )
                     }
-                    put(schema.requireObjectField("Query", "source"), fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> 7 })
+                    put(schema.loweredSchema.requireObjectField("Query", "source"), fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> 7 })
                 }
             },
-        ).assumptions
-        val queryType = world.schema.requireQueryTypeDef()
+        )
+        val world = worldFixture.assumptions
+        val queryType = worldFixture.schema.requireQueryTypeDef()
         val result = world.engineResultOf("Query") { "answer" resolvesTo 7 }
         val firstQuery = world.engineResultOf("Query") { "middle" resolvesTo 7 }
         val secondQuery = world.engineResultOf("Query") { "source" resolvesTo 7 }
-        val resultDemand = world.fragmentFrom("fragment Result on Query { answer }").subselections.merge(queryType)
+        val resultDemand = worldFixture.schemas.fragmentFrom("fragment Result on Query { answer }").subselections.merge(queryType)
         val sharedQuery = world.engineResultOf("Query") {
             "middle" resolvesTo 7
             "source" resolvesTo 7
@@ -133,7 +135,7 @@ class ScopeTokenIdentityAdversarialReviewTest {
             SharedOERContext(
                 OEROccurrence(sharedQuery, emptyList(), sharedQuery),
                 engineObjectDataOf(queryType),
-                world.fragmentFrom("fragment Input on Query { middle source }").subselections.merge(queryType)
+                worldFixture.schemas.fragmentFrom("fragment Input on Query { middle source }").subselections.merge(queryType)
             ),
             queryOERDepth = 1,
         )
@@ -155,7 +157,11 @@ class ScopeTokenIdentityAdversarialReviewTest {
             val containing = OEROccurrence(root, emptyList(), root)
             val selected = if (name == "answer") "middle" else "source"
             observer.onQueryOERPrepared(
-                SharedOERContext(OEROccurrence(query, emptyList(), query), engineObjectDataOf(queryType), world.fragmentFrom("fragment Input on Query { $selected }").subselections.merge(queryType)),
+                SharedOERContext(
+                    OEROccurrence(query, emptyList(), query),
+                    engineObjectDataOf(queryType),
+                    worldFixture.schemas.fragmentFrom("fragment Input on Query { $selected }").subselections.merge(queryType)
+                ),
                 queryOERDepth = if (name == "answer") 1 else 2,
             )
             observer.onQueryFragmentPrepared(owner, query, containing)

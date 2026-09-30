@@ -72,7 +72,7 @@ class GeneratedTypeCheckerVariableCoverageTest : ResolverContract, Resolver26Dis
             type Source { token: Int! }
             """.trimIndent(),
             typeCheckers = { schema ->
-                val item = schema.requireType("Item") as ViaductSchema.Object
+                val item = schema.loweredSchema.requireType("Item") as ViaductSchema.Object
                 val target = ResolverTarget.TypeCheckerTarget(item)
                 val variables = ProviderFragment.entries.associate { source ->
                     val owner = if (source == ProviderFragment.OBJECT) "Item" else "Query"
@@ -80,8 +80,8 @@ class GeneratedTypeCheckerVariableCoverageTest : ResolverContract, Resolver26Dis
                     Arguments.Variable.of(target, name) to VariableDefinition.FromField.of(
                         source,
                         listOf(
-                            ObjectEngineResult.Key.of(schema.requireObjectField(owner, "source"), emptyMap()),
-                            ObjectEngineResult.Key.of(schema.requireObjectField("Source", "token"), emptyMap()),
+                            ObjectEngineResult.Key.of(schema.loweredSchema.requireObjectField(owner, "source"), emptyMap()),
+                            ObjectEngineResult.Key.of(schema.loweredSchema.requireObjectField("Source", "token"), emptyMap()),
                         ),
                         listOf("source", "token"),
                     )
@@ -93,11 +93,11 @@ class GeneratedTypeCheckerVariableCoverageTest : ResolverContract, Resolver26Dis
                     allVariables,
                     variablesProvider = { mapOf("provided" to 3) },
                 )
-                mapOf(item to TypeCheckerResolver.of(item, schema.requireQueryTypeDef(), mapOf("input" to pair)) { _, _ -> CheckerResult.Success })
+                mapOf(item to TypeCheckerResolver.of(item, schema.loweredSchema.requireQueryTypeDef(), mapOf("input" to pair)) { _, _ -> CheckerResult.Success })
             },
         )
         val world = testWorld.newAssumptions(selectiveResolvers = true)
-        val fragment = world.fragmentFrom("fragment Test on Query { item { __typename } }")
+        val fragment = testWorld.schemas.fragmentFrom("fragment Test on Query { item { __typename } }")
         val recorder = CheckerApplicationRecorder()
         val subject = observeResolution(world, world.objectOf("Query"), fragment.subselections, checkerObserver = recorder)
         return GeneratedResolutionObservation(subject.operation, fragment, subject, recorder.checkerApplications())

@@ -22,20 +22,21 @@ class SuccessorDemandRegressionTest {
 
         fun inputs(index: Int) = ((index + 1)..minOf(index + 2, depth)).joinToString(" ") { "field$it" }
         val fields = (0..depth).joinToString("\n") { "field$it: Int @resolver(of: \"${inputs(it)}\", result: 1)" }
-        val original = TestWorld
+        val originalFixture = TestWorld
             .fromDSL(
                 "extend type Query { $fields }",
                 fieldCheckers = { schema ->
                     (0 until depth).associate { index ->
-                        val field = schema.requireObjectField("Query", "field$index")
+                        val field = schema.loweredSchema.requireObjectField("Query", "field$index")
                         val pair = ResolverFragmentTemplates(
                             schema.fragmentFrom("fragment Input on Query { ${inputs(index)} }").materializeSelections,
                             model.materializeSelectionForestOf(),
                         )
-                        field to FieldCheckerResolver.of(field, schema.requireQueryTypeDef(), mapOf("first" to pair, "second" to pair)) { _, _, _ -> CheckerResult.Success }
+                        field to FieldCheckerResolver.of(field, schema.loweredSchema.requireQueryTypeDef(), mapOf("first" to pair, "second" to pair)) { _, _, _ -> CheckerResult.Success }
                     }
                 },
-            ).assumptions
+            )
+        val original = originalFixture.assumptions
         var lookups = 0
         val registry = object : ResolverRegistry by original.resolverRegistry {
             override fun resolver(field: ViaductSchema.ObjectField) = original.resolverRegistry.resolver(field).also { lookups++ }
@@ -43,7 +44,7 @@ class SuccessorDemandRegressionTest {
             override fun fieldChecker(field: ViaductSchema.ObjectField) = original.resolverRegistry.fieldChecker(field).also { lookups++ }
         }
         val world = Assumptions.of(original.schema, registry, original.selectiveResolvers)
-        val actual = world.schema
+        val actual = originalFixture.schemas
             .fragmentFrom("fragment Output on Query { field0 }")
             .subselections
             .successorDemand(world)

@@ -42,11 +42,11 @@ interface DepthFirstQueryFringeOrderingContract : ResolverContract {
                     type Child { value: Int! }
                     """.trimIndent(),
                 fieldResolvers = { schema ->
-                    val target = schema.requireObjectField("Query", "target")
+                    val target = schema.loweredSchema.requireObjectField("Query", "target")
                     mapOf(
-                        schema.requireObjectField("Query", "container") to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
-                                schema.objectOf("Container") {
+                        schema.loweredSchema.requireObjectField("Query", "container") to
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
+                                schema.loweredSchema.objectOf("Container") {
                                     "left" setTo objectOf("Child")
                                     "values" setTo
                                         listOf(
@@ -57,7 +57,7 @@ interface DepthFirstQueryFringeOrderingContract : ResolverContract {
                                         )
                                 }
                             },
-                        schema.requireObjectField("Query", "after") to
+                        schema.loweredSchema.requireObjectField("Query", "after") to
                             fieldResolverOf(
                                 schema.fragmentFrom(
                                     "fragment After on Query { container { left { value } values } }",
@@ -65,22 +65,22 @@ interface DepthFirstQueryFringeOrderingContract : ResolverContract {
                             ) { _, _ -> 9 },
                         target to
                             fieldResolverOf(
-                                objectFragment = schema.emptyFragmentOf("Query"),
+                                objectFragment = schema.loweredSchema.emptyFragmentOf("Query"),
                                 queryFragment =
                                     schema.fragmentFrom(
                                         "fragment TargetQuery on Query { dependency }",
                                     ),
                             ) { _, query, _ -> query.selectionValues().getValue("dependency") },
-                        schema.requireObjectField("Query", "dependency") to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> 7 },
-                        schema.requireObjectField("Child", "value") to
-                            fieldResolverOf(schema.emptyFragmentOf("Child")) { _, _ -> 8 },
+                        schema.loweredSchema.requireObjectField("Query", "dependency") to
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> 7 },
+                        schema.loweredSchema.requireObjectField("Child", "value") to
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Child")) { _, _ -> 8 },
                     )
                 },
             )
 
         resolveAndValidate(
-            fixture.assumptions,
+            fixture,
             "{ container { left { value } values } after }",
             resolverObserver = invocationObserver,
         )
@@ -110,24 +110,24 @@ interface DepthFirstQueryFringeOrderingContract : ResolverContract {
                     type Dependency { value: Int! }
                     """.trimIndent(),
                 fieldResolvers = { schema ->
-                    val container = schema.requireObjectField("Query", "container")
-                    val dependency = schema.requireObjectField("Query", "dependency")
-                    val owner = schema.requireObjectField("Container", "owner")
-                    val value = schema.requireObjectField("Dependency", "value")
+                    val container = schema.loweredSchema.requireObjectField("Query", "container")
+                    val dependency = schema.loweredSchema.requireObjectField("Query", "dependency")
+                    val owner = schema.loweredSchema.requireObjectField("Container", "owner")
+                    val value = schema.loweredSchema.requireObjectField("Dependency", "value")
                     mapOf(
                         container to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
-                                schema.objectOf("Container")
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
+                                schema.loweredSchema.objectOf("Container")
                             },
                         dependency to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
-                                schema.objectOf("Dependency")
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
+                                schema.loweredSchema.objectOf("Dependency")
                             },
                         value to
-                            fieldResolverOf(schema.emptyFragmentOf("Dependency")) { _, _ -> 7 },
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Dependency")) { _, _ -> 7 },
                         owner to
                             fieldResolverOf(
-                                objectFragment = schema.emptyFragmentOf("Container"),
+                                objectFragment = schema.loweredSchema.emptyFragmentOf("Container"),
                                 queryFragment =
                                     schema.fragmentFrom(
                                         "fragment OwnerQuery on Query { dependency { value } }",
@@ -142,7 +142,7 @@ interface DepthFirstQueryFringeOrderingContract : ResolverContract {
             )
 
         resolveAndValidate(
-            fixture.assumptions,
+            fixture,
             "{ container { owner } }",
             resolverObserver = invocationObserver,
         )
@@ -174,37 +174,37 @@ interface DepthFirstQueryFringeOrderingContract : ResolverContract {
                     type Child { value: Int! }
                     """.trimIndent(),
                 fieldResolvers = { schema ->
-                    val container = schema.requireObjectField("Query", "container")
-                    val target = schema.requireObjectField("Query", "target")
+                    val container = schema.loweredSchema.requireObjectField("Query", "container")
+                    val target = schema.loweredSchema.requireObjectField("Query", "target")
                     mapOf(
                         container to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
-                                schema.objectOf("Container") {
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
+                                schema.loweredSchema.objectOf("Container") {
                                     "child" setTo objectOf("Child")
                                 }
                             },
-                        schema.requireObjectField("Query", "dependency") to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> 7 },
+                        schema.loweredSchema.requireObjectField("Query", "dependency") to
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> 7 },
                         target to
                             fieldResolverOf(
-                                objectFragment = schema.emptyFragmentOf("Query"),
+                                objectFragment = schema.loweredSchema.emptyFragmentOf("Query"),
                                 queryFragment =
                                     schema.fragmentFrom("fragment TargetQuery on Query { dependency }"),
                             ) { _, query, _ -> query.selectionValues().getValue("dependency") },
-                        schema.requireObjectField("Query", "after") to
+                        schema.loweredSchema.requireObjectField("Query", "after") to
                             fieldResolverOf(
                                 schema.fragmentFrom(
                                     "fragment After on Query { container { child { value } } target }",
                                 ),
                             ) { _, _ -> 9 },
-                        schema.requireObjectField("Child", "value") to
-                            fieldResolverOf(schema.emptyFragmentOf("Child")) { _, _ -> 8 },
+                        schema.loweredSchema.requireObjectField("Child", "value") to
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Child")) { _, _ -> 8 },
                     )
                 },
             )
 
         resolveAndValidate(
-            fixture.assumptions,
+            fixture,
             "{ container { child { value } } target after }",
             resolverObserver = invocationObserver,
         )

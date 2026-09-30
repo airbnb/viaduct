@@ -19,7 +19,7 @@ class RootReferenceTypeCheckerTest {
     @Test
     fun `root-field-reference result gets one concrete occurrence type check`() {
         val invocations = AtomicInteger()
-        val world =
+        val worldFixture =
             TestWorld.fromDSL(
                 schemaSDL =
                     """
@@ -35,19 +35,20 @@ class RootReferenceTypeCheckerTest {
                     """.trimIndent(),
                 selectiveResolvers = false,
                 typeCheckers = { schema ->
-                    val user = schema.requireType("User") as ViaductSchema.Object
+                    val user = schema.loweredSchema.requireType("User") as ViaductSchema.Object
                     mapOf(
-                        user to TypeCheckerResolver.of(user, schema.requireQueryTypeDef()) { _, _ ->
+                        user to TypeCheckerResolver.of(user, schema.loweredSchema.requireQueryTypeDef()) { _, _ ->
                             invocations.incrementAndGet()
                             CheckerResult.Success
                         },
                     )
                 },
-            ).assumptions
+            )
+        val world = worldFixture.assumptions
 
         val result =
             SharedOperationContext.create(world).resolve(
-                world.operationSelectionsFrom("{ viewer { score } }"),
+                worldFixture.schemas.operationSelectionsFrom("{ viewer { score } }"),
             )
         val viewerField = result.type.fields.single { it.name == "viewer" }
         val viewer =

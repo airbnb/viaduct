@@ -27,13 +27,13 @@ internal fun seedAndT3World(vector: T3Vector): SeedAndT3Fixture {
                 }
                 """.trimIndent(),
             fieldResolvers = { schema ->
-                val seed = schema.requireObjectField("Query", "seed")
-                val t3 = schema.requireObjectField("Query", "t3")
+                val seed = schema.loweredSchema.requireObjectField("Query", "seed")
+                val t3 = schema.loweredSchema.requireObjectField("Query", "t3")
                 val t3Input = schema.fragmentFrom(T3_INPUT_FRAGMENT, variableField = t3)
 
                 mapOf(
                     seed to
-                        fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
+                        fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
                             seedApplications.incrementAndGet()
                             SEED_VALUE
                         },
@@ -52,7 +52,7 @@ internal fun seedAndT3World(vector: T3Vector): SeedAndT3Fixture {
                                     inputFingerprint or
                                     ((input.get("right") as Int) shl RIGHT_SHIFT)
                             }
-                            schema.outputChain(
+                            schema.loweredSchema.outputChain(
                                 valueAt = { depth -> t3DepthTag(depth) or inputFingerprint },
                             )
                         }.withVariablesProvider(T3Vector.variableNames) {
@@ -100,17 +100,17 @@ internal fun inclusionCombinationWorld(): InclusionCombinationFixture {
                 }
                 """.trimIndent(),
             fieldResolvers = { schema ->
-                val seed = schema.requireObjectField("Query", "seed")
-                val t3 = schema.requireObjectField("Query", "t3")
-                val t2 = schema.requireObjectField("Query", "t2")
-                val t1 = schema.requireObjectField("Query", "t1")
+                val seed = schema.loweredSchema.requireObjectField("Query", "seed")
+                val t3 = schema.loweredSchema.requireObjectField("Query", "t3")
+                val t2 = schema.loweredSchema.requireObjectField("Query", "t2")
+                val t1 = schema.loweredSchema.requireObjectField("Query", "t1")
                 val t3Fragment = schema.fragmentFrom(T3_INPUT_FRAGMENT, variableField = t3)
                 val t2Fragment = schema.fragmentFrom(T2_INPUT_FRAGMENT, variableField = t2)
                 val t1Fragment = schema.fragmentFrom(T1_INPUT_FRAGMENT, variableField = t1)
 
                 mapOf(
                     seed to
-                        fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
+                        fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
                             seedApplications.incrementAndGet()
                             SEED_VALUE
                         },
@@ -130,7 +130,7 @@ internal fun inclusionCombinationWorld(): InclusionCombinationFixture {
                                     inputFingerprint or
                                     ((input.get("right") as Int) shl RIGHT_SHIFT)
                             }
-                            schema.outputChain(
+                            schema.loweredSchema.outputChain(
                                 valueAt = { depth -> t3DepthTag(depth) or inputFingerprint },
                             )
                         }.withVariablesProvider(T3Vector.variableNames) {
@@ -142,7 +142,7 @@ internal fun inclusionCombinationWorld(): InclusionCombinationFixture {
                             t2Applications.incrementAndGet()
                             val snapshot = input.snapshot()
                             t2Input.set(snapshot)
-                            schema.outputChain(
+                            schema.loweredSchema.outputChain(
                                 valueAt = { depth -> t2FingerprintFromInput(input, depth) },
                             )
                         }.withVariablesProvider(T2Vector.variableNames) {
@@ -154,7 +154,7 @@ internal fun inclusionCombinationWorld(): InclusionCombinationFixture {
                             t1Applications.incrementAndGet()
                             val snapshot = input.snapshot()
                             t1Input.set(snapshot)
-                            schema.outputChain(
+                            schema.loweredSchema.outputChain(
                                 valueAt = { depth -> t1FingerprintFromInput(input, depth) },
                             )
                         }.withVariablesProvider(T1Vector.variableNames) {

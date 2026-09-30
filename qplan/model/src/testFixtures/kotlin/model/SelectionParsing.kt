@@ -7,15 +7,16 @@ import graphql.execution.ValuesResolver
 import graphql.language.FragmentDefinition
 import graphql.language.OperationDefinition
 import graphql.parser.Parser
+import graphql.schema.GraphQLSchema
 import graphql.validation.Validator
 import java.util.Locale
 import model.parsing.GJSelectionParser
 import model.registry.ResolverTarget
-import model.testing.GJSchema
+import model.testing.ViaductAndGJSchema
 import viaduct.graphql.schema.ViaductSchema
 
 /** Parses one post-validation fragment as test-fixture preparation outside semantic model logic. */
-fun Assumptions.selectionsFrom(fragment: String): Pair<ViaductSchema.CompositeTypeDef, SelectionForest> = schema.selectionParser().selectionsFrom(fragment)
+fun ViaductAndGJSchema.selectionsFrom(fragment: String): Pair<ViaductSchema.CompositeTypeDef, SelectionForest> = selectionParser().selectionsFrom(fragment)
 
 /**
  * Decodes one post-validation query operation with already-coerced operation variables.
@@ -24,25 +25,24 @@ fun Assumptions.selectionsFrom(fragment: String): Pair<ViaductSchema.CompositeTy
  * full-operation demand. Named fragment spreads are inlined while decoding.
  */
 fun Assumptions.selectionsFrom(
+    sourceSchema: GraphQLSchema,
     operation: OperationDefinition,
     variables: CoercedVariables,
     graphQLContext: GraphQLContext = GraphQLContext.getDefault(),
     locale: Locale = Locale.getDefault(),
     fragmentsByName: Map<String, FragmentDefinition> = emptyMap(),
 ): SelectionForest =
-    schema
-        .selectionParser()
+    GJSelectionParser(sourceSchema, schema, emptyMap())
         .selectionsFrom(operation, variables, graphQLContext, locale, fragmentsByName)
 
 /** Parses and decodes one validated query operation with raw request variables. */
-fun Assumptions.operationSelectionsFrom(
+fun ViaductAndGJSchema.operationSelectionsFrom(
     documentSource: String,
     variables: Map<String, Any?> = emptyMap(),
     operationName: String? = null,
     graphQLContext: GraphQLContext = GraphQLContext.getDefault(),
     locale: Locale = Locale.getDefault(),
 ): SelectionForest {
-    val graphQLSchema = (schema as GJSchema).graphQLSchema
     val document = Parser.parse(documentSource)
     val errors = Validator().validateDocument(graphQLSchema, document, locale)
     require(errors.isEmpty()) {
@@ -76,7 +76,7 @@ fun Assumptions.operationSelectionsFrom(
             graphQLContext,
             locale,
         )
-    return selectionsFrom(
+    return selectionParser().selectionsFrom(
         operation,
         coercedVariables,
         graphQLContext,
@@ -86,7 +86,7 @@ fun Assumptions.operationSelectionsFrom(
 }
 
 /** Parses one post-validation GraphQL fragment into the model fragment used by tests. */
-fun ViaductSchema.fragmentFrom(
+fun ViaductAndGJSchema.fragmentFrom(
     source: String,
     bindings: Map<String, EngineInputData?> = emptyMap(),
     variableField: ViaductSchema.ObjectField? = null,
@@ -94,17 +94,14 @@ fun ViaductSchema.fragmentFrom(
     preserveSourceResponseKeys: Boolean = false,
 ): Fragment =
     GJSelectionParser(
-        sourceSchema = (this as GJSchema).graphQLSchema,
-        schema = this,
+        sourceSchema = graphQLSchema,
+        schema = loweredSchema,
         variableValues = bindings,
         variableTarget =
             variableTarget
                 ?: variableField?.let(ResolverTarget::FieldValueResolverTarget),
         preserveSourceResponseKeys = preserveSourceResponseKeys,
     ).fragmentFrom(source)
-
-/** Parses one post-validation GraphQL fragment without operation-variable bindings. */
-fun Assumptions.fragmentFrom(source: String): Fragment = schema.fragmentFrom(source)
 
 /** Constructs the model-only empty fragment that GraphQL text cannot express. */
 fun ViaductSchema.emptyFragmentOf(typeName: String): Fragment =
@@ -116,10 +113,10 @@ fun ViaductSchema.emptyFragmentOf(typeName: String): Fragment =
 /** Constructs the model-only empty fragment that GraphQL text cannot express. */
 fun Assumptions.emptyFragmentOf(typeName: String): Fragment = schema.emptyFragmentOf(typeName)
 
-private fun ViaductSchema.selectionParser(): GJSelectionParser =
+private fun ViaductAndGJSchema.selectionParser(): GJSelectionParser =
     GJSelectionParser(
-        sourceSchema = (this as GJSchema).graphQLSchema,
-        schema = this,
+        sourceSchema = graphQLSchema,
+        schema = loweredSchema,
         variableValues = emptyMap(),
     )
 

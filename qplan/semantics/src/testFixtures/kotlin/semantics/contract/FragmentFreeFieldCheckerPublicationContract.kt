@@ -58,7 +58,7 @@ interface FragmentFreeFieldCheckerPublicationContract {
                     assertBarrier()
                 }
             }
-        val world =
+        val worldFixture =
             TestWorld.fromDSL(
                 schemaSDL =
                     """
@@ -69,16 +69,17 @@ interface FragmentFreeFieldCheckerPublicationContract {
                     """.trimIndent(),
                 selectiveResolvers = coroutineResolverSubject.selectiveResolvers,
                 fieldCheckers = { schema ->
-                    val field = schema.requireObjectField("Query", "first")
+                    val field = schema.loweredSchema.requireObjectField("Query", "first")
                     mapOf(
                         field to
-                            FieldCheckerResolver.of(field, schema.requireQueryTypeDef()) { _, _, _ ->
+                            FieldCheckerResolver.of(field, schema.loweredSchema.requireQueryTypeDef()) { _, _, _ ->
                                 assertBarrier()
                                 CheckerResult.Success
                             },
                     )
                 },
-            ).assumptions
+            )
+        val world = worldFixture.assumptions
         val cycleChecker =
             object : CycleCheckState {
                 override fun registerWriter(
@@ -97,7 +98,7 @@ interface FragmentFreeFieldCheckerPublicationContract {
 
         resolve(
             world,
-            world.operationSelectionsFrom("{ first second }"),
+            worldFixture.schemas.operationSelectionsFrom("{ first second }"),
             cycleChecker,
             resolverObserver,
         )
@@ -111,7 +112,7 @@ interface FragmentFreeFieldCheckerPublicationContract {
         val activeChecks = AtomicInteger()
         val passiveChecks = AtomicInteger()
         val extraChecks = AtomicInteger()
-        val world =
+        val worldFixture =
             TestWorld.fromDSL(
                 schemaSDL =
                     """
@@ -132,17 +133,18 @@ interface FragmentFreeFieldCheckerPublicationContract {
                         "passive" to passiveChecks,
                         "extra" to extraChecks,
                     ).associate { (name, count) ->
-                        val field = schema.requireObjectField("Item", name)
+                        val field = schema.loweredSchema.requireObjectField("Item", name)
                         field to
-                            FieldCheckerResolver.of(field, schema.requireQueryTypeDef()) { _, _, _ ->
+                            FieldCheckerResolver.of(field, schema.loweredSchema.requireQueryTypeDef()) { _, _, _ ->
                                 count.incrementAndGet()
                                 CheckerResult.Success
                             }
                     }
                 },
-            ).assumptions
+            )
+        val world = worldFixture.assumptions
 
-        val root = resolve(world, world.operationSelectionsFrom("{ item { active passive } }"))
+        val root = resolve(world, worldFixture.schemas.operationSelectionsFrom("{ item { active passive } }"))
         val item = root.objectValue(world, "Query", "item")
 
         assertEquals(1, activeChecks.get())
@@ -155,35 +157,36 @@ interface FragmentFreeFieldCheckerPublicationContract {
     @Test
     fun `argument-distinct occurrences receive grounded arguments`() {
         val argumentsSeen = ConcurrentLinkedQueue<Int>()
-        val world =
+        val worldFixture =
             TestWorld.fromSDL(
                 schemaSDL = "type Query { checked(value: Int!): Int! }",
                 selectiveResolvers = coroutineResolverSubject.selectiveResolvers,
                 fieldResolvers = { schema ->
-                    val checked = schema.requireObjectField("Query", "checked")
+                    val checked = schema.loweredSchema.requireObjectField("Query", "checked")
                     mapOf(
                         checked to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, arguments ->
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, arguments ->
                                 arguments.fieldValues.getValue("value")
                             },
                     )
                 },
                 fieldCheckers = { schema ->
-                    val checked = schema.requireObjectField("Query", "checked")
+                    val checked = schema.loweredSchema.requireObjectField("Query", "checked")
                     mapOf(
                         checked to
-                            FieldCheckerResolver.of(checked, schema.requireQueryTypeDef()) { arguments, _, _ ->
+                            FieldCheckerResolver.of(checked, schema.loweredSchema.requireQueryTypeDef()) { arguments, _, _ ->
                                 argumentsSeen += arguments.fieldValues.getValue("value") as Int
                                 CheckerResult.Success
                             },
                     )
                 },
-            ).assumptions
+            )
+        val world = worldFixture.assumptions
 
         val result =
             resolve(
                 world,
-                world.operationSelectionsFrom("{ first: checked(value: 1) second: checked(value: 2) }"),
+                worldFixture.schemas.operationSelectionsFrom("{ first: checked(value: 1) second: checked(value: 2) }"),
             )
 
         assertEquals(setOf(1, 2), argumentsSeen.toSet())
@@ -198,7 +201,7 @@ interface FragmentFreeFieldCheckerPublicationContract {
     fun `checker denial absence and exception do not change field values`() {
         val failure = IllegalStateException("checker failed")
         val denial = ContractCheckerError()
-        val world =
+        val worldFixture =
             TestWorld.fromDSL(
                 schemaSDL =
                     """
@@ -214,17 +217,18 @@ interface FragmentFreeFieldCheckerPublicationContract {
                         name: String,
                         function: suspend () -> CheckerResult
                     ): Pair<viaduct.graphql.schema.ViaductSchema.ObjectField, FieldCheckerResolver> {
-                        val field = schema.requireObjectField("Query", name)
-                        return field to FieldCheckerResolver.of(field, schema.requireQueryTypeDef()) { _, _, _ -> function() }
+                        val field = schema.loweredSchema.requireObjectField("Query", name)
+                        return field to FieldCheckerResolver.of(field, schema.loweredSchema.requireQueryTypeDef()) { _, _, _ -> function() }
                     }
                     mapOf(
                         checker("denied") { denial },
                         checker("failed") { throw failure },
                     )
                 },
-            ).assumptions
+            )
+        val world = worldFixture.assumptions
 
-        val result = resolve(world, world.operationSelectionsFrom("{ denied absent failed }"))
+        val result = resolve(world, worldFixture.schemas.operationSelectionsFrom("{ denied absent failed }"))
 
         assertEquals(1, result.cell(world, "Query", "denied").value.get())
         assertEquals(2, result.cell(world, "Query", "absent").value.get())
@@ -244,7 +248,8 @@ interface FragmentFreeFieldCheckerPublicationContract {
         runBlocking {
             for (cancelBeforeEntry in listOf(true, false)) {
                 val checkerEntered = CompletableDeferred<Unit>()
-                val world = cancellationWorld(checkerEntered).assumptions
+                val worldFixture = cancellationWorld(checkerEntered)
+                val world = worldFixture.assumptions
                 val requestJob = Job()
                 val requestScope = CoroutineScope(coroutineContext + requestJob)
                 val cancellation = CancellationException("request cancelled")
@@ -253,7 +258,7 @@ interface FragmentFreeFieldCheckerPublicationContract {
                         coroutineResolverSubject.startResolution(
                             SharedOperationContext.create(world),
                             requestScope,
-                            world.operationSelectionsFrom("{ checked }"),
+                            worldFixture.schemas.operationSelectionsFrom("{ checked }"),
                             CycleCheckState.create(),
                         )
                     if (cancelBeforeEntry) {
@@ -285,10 +290,10 @@ interface FragmentFreeFieldCheckerPublicationContract {
                 """.trimIndent(),
             selectiveResolvers = coroutineResolverSubject.selectiveResolvers,
             fieldCheckers = { schema ->
-                val checked = schema.requireObjectField("Query", "checked")
+                val checked = schema.loweredSchema.requireObjectField("Query", "checked")
                 mapOf(
                     checked to
-                        FieldCheckerResolver.of(checked, schema.requireQueryTypeDef()) { _, _, _ ->
+                        FieldCheckerResolver.of(checked, schema.loweredSchema.requireQueryTypeDef()) { _, _, _ ->
                             checkerEntered.complete(Unit)
                             CompletableDeferred<Nothing>().await()
                         },

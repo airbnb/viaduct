@@ -61,10 +61,10 @@ class QueryFragmentExpansionTest : CoroutineResolverTestSubject() {
                 selectiveResolvers = true,
                 fieldResolvers = { schema ->
                     (0..depth).associate { index ->
-                        val field = schema.requireObjectField("Query", "field$index")
+                        val field = schema.loweredSchema.requireObjectField("Query", "field$index")
                         val queryFragment =
                             if (index == depth) {
-                                schema.emptyFragmentOf("Query")
+                                schema.loweredSchema.emptyFragmentOf("Query")
                             } else {
                                 schema.fragmentFrom(
                                     "fragment Input on Query { field${index + 1} }",
@@ -72,7 +72,7 @@ class QueryFragmentExpansionTest : CoroutineResolverTestSubject() {
                             }
                         field to
                             fieldResolverOf(
-                                schema.emptyFragmentOf("Query"),
+                                schema.loweredSchema.emptyFragmentOf("Query"),
                                 queryFragment,
                             ) { _, _, _ ->
                                 resolverInvocations.incrementAndGet()
@@ -82,7 +82,7 @@ class QueryFragmentExpansionTest : CoroutineResolverTestSubject() {
                 },
                 fieldCheckers = { schema ->
                     (0..depth).associate { index ->
-                        val field = schema.requireObjectField("Query", "field$index")
+                        val field = schema.loweredSchema.requireObjectField("Query", "field$index")
                         val querySelections =
                             if (index == depth) {
                                 materializeSelectionForestOf()
@@ -100,7 +100,7 @@ class QueryFragmentExpansionTest : CoroutineResolverTestSubject() {
                         field to
                             FieldCheckerResolver.of(
                                 field = field,
-                                queryType = schema.requireQueryTypeDef(),
+                                queryType = schema.loweredSchema.requireQueryTypeDef(),
                                 fragmentTemplates = mapOf("left" to templates, "right" to templates),
                             ) { _, _, _ ->
                                 checkerInvocations.incrementAndGet()
@@ -113,7 +113,7 @@ class QueryFragmentExpansionTest : CoroutineResolverTestSubject() {
 
         resolve(
             SharedOperationContext.create(world),
-            world.operationSelectionsFrom("{ field0 }"),
+            testWorld.schemas.operationSelectionsFrom("{ field0 }"),
         )
 
         return InvocationCounts(

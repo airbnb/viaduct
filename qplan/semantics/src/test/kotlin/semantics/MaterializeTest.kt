@@ -53,9 +53,10 @@ class MaterializeTest {
     fun `excluded selections do not read value or checker slots`() =
         runBlocking {
             listOf(false, true).forEach { checked ->
-                val world = TestWorld.fromSDL("type Query { value: String! }").assumptions
-                val type = world.schema.requireQueryTypeDef()
-                val field = world.schema.requireObjectField("Query", "value")
+                val worldFixture = TestWorld.fromSDL("type Query { value: String! }")
+                val world = worldFixture.assumptions
+                val type = worldFixture.schema.requireQueryTypeDef()
+                val field = worldFixture.schema.requireObjectField("Query", "value")
                 val key = ObjectEngineResult.GroundKey.of(field, emptyMap())
                 val result = ObjectEngineResult.of(type, mutable = true)
                 val variable =
@@ -103,9 +104,10 @@ class MaterializeTest {
     fun `included selections materialize in checked and raw modes`() =
         runBlocking {
             listOf(false, true).forEach { checked ->
-                val world = TestWorld.fromSDL("type Query { value: String! }").assumptions
-                val type = world.schema.requireQueryTypeDef()
-                val field = world.schema.requireObjectField("Query", "value")
+                val worldFixture = TestWorld.fromSDL("type Query { value: String! }")
+                val world = worldFixture.assumptions
+                val type = worldFixture.schema.requireQueryTypeDef()
+                val field = worldFixture.schema.requireObjectField("Query", "value")
                 val key = ObjectEngineResult.GroundKey.of(field, emptyMap())
                 val result =
                     ObjectEngineResult.of(
@@ -149,21 +151,20 @@ class MaterializeTest {
     @Test
     fun `materialization awaits a present deferred value`() =
         runBlocking {
-            val world =
-                TestWorld
-                    .fromSDL(
-                        """
+            val worldFixture = TestWorld
+                .fromSDL(
+                    """
                         type Query { value: String! }
-                        """.trimIndent(),
-                    ).assumptions
+                    """.trimIndent(),
+                )
+            val world = worldFixture.assumptions
             val field =
                 ObjectEngineResult.GroundKey.of(
                     world.schema.requireObjectField("Query", "value"),
                     emptyMap(),
                 )
             val selections =
-                world
-                    .fragmentFrom("fragment ignored on Query { value }")
+                worldFixture.schemas.fragmentFrom("fragment ignored on Query { value }")
                     .materializeSelections
             val result =
                 ObjectEngineResult.of(
@@ -194,16 +195,15 @@ class MaterializeTest {
 
     @Test
     fun `materialization rejects an absent value immediately`() {
-        val world =
-            TestWorld
-                .fromSDL(
-                    """
+        val worldFixture = TestWorld
+            .fromSDL(
+                """
                     type Query { value: String! }
-                    """.trimIndent(),
-                ).assumptions
+                """.trimIndent(),
+            )
+        val world = worldFixture.assumptions
         val selections =
-            world
-                .fragmentFrom("fragment ignored on Query { value }")
+            worldFixture.schemas.fragmentFrom("fragment ignored on Query { value }")
                 .materializeSelections
         val result = ObjectEngineResult.of(world.schema.requireQueryTypeDef())
 
@@ -220,15 +220,15 @@ class MaterializeTest {
 
     @Test
     fun `nested materialization checks a cycle before awaiting`() {
-        val world =
-            TestWorld
-                .fromSDL(
-                    """
+        val worldFixture = TestWorld
+            .fromSDL(
+                """
                     type Query { child: Child! }
                     type Child { value: String! }
-                    """.trimIndent(),
-                ).assumptions
-        val childType = world.schema.requireType("Child") as ViaductSchema.Object
+                """.trimIndent(),
+            )
+        val world = worldFixture.assumptions
+        val childType = worldFixture.schema.requireType("Child") as ViaductSchema.Object
         val childKey =
             ObjectEngineResult.GroundKey.of(
                 world.schema.requireObjectField("Query", "child"),
@@ -251,8 +251,7 @@ class MaterializeTest {
                 values = mapOf(childKey to childResult),
             )
         val selections =
-            world
-                .fragmentFrom("fragment ignored on Query { child { value } }")
+            worldFixture.schemas.fragmentFrom("fragment ignored on Query { child { value } }")
                 .materializeSelections
         val cycleChecker = CycleCheckState.create()
         val readerIdentity = result.fieldResolverCycleTask(reader)
@@ -279,10 +278,9 @@ class MaterializeTest {
     @Test
     fun `Node fields materialize at their source coordinates`() =
         runBlocking {
-            val world =
-                TestWorld
-                    .fromSDL(
-                        """
+            val worldFixture = TestWorld
+                .fromSDL(
+                    """
                         interface Node {
                           id: ID!
                         }
@@ -299,10 +297,11 @@ class MaterializeTest {
                         type Query {
                           parent: Parent!
                         }
-                        """.trimIndent(),
-                    ).assumptions
-            val parent = world.schema.requireType("Parent") as ViaductSchema.Object
-            val user = world.schema.requireType("User") as ViaductSchema.Object
+                    """.trimIndent(),
+                )
+            val world = worldFixture.assumptions
+            val parent = worldFixture.schema.requireType("Parent") as ViaductSchema.Object
+            val user = worldFixture.schema.requireType("User") as ViaductSchema.Object
             val producer =
                 ObjectEngineResult.GroundKey.of(
                     world.schema.requireObjectField("Parent", "user"),
@@ -343,10 +342,9 @@ class MaterializeTest {
                         ),
                 )
             val selections =
-                world
-                    .fragmentFrom(
-                        "fragment ParentInput on Parent { user { id } users { id } }",
-                    )
+                worldFixture.schemas.fragmentFrom(
+                    "fragment ParentInput on Parent { user { id } users { id } }",
+                )
                     .materializeSelections
 
             val materialized =
@@ -382,14 +380,14 @@ class MaterializeTest {
     @Test
     fun `distinct response aliases can read one exact stored key`() =
         runBlocking {
-            val world =
-                TestWorld
-                    .fromSDL(
-                        """
+            val worldFixture = TestWorld
+                .fromSDL(
+                    """
                         type Query { value: String! }
-                        """.trimIndent(),
-                    ).assumptions
-            val field = world.schema.requireObjectField("Query", "value")
+                    """.trimIndent(),
+                )
+            val world = worldFixture.assumptions
+            val field = worldFixture.schema.requireObjectField("Query", "value")
             val storedKey = ObjectEngineResult.GroundKey.of(field, emptyMap())
             val selections =
                 materializeSelectionForestOf(
@@ -427,8 +425,8 @@ class MaterializeTest {
     @Test
     fun `missing field checker slot defaults materialization open`() =
         runBlocking {
-            val world =
-                TestWorld.fromSDL("type Query { value: String! }").assumptions
+            val worldFixture = TestWorld.fromSDL("type Query { value: String! }")
+            val world = worldFixture.assumptions
             val key =
                 ObjectEngineResult.GroundKey.of(
                     world.schema.requireObjectField("Query", "value"),
@@ -441,8 +439,7 @@ class MaterializeTest {
                     fieldCheckerResults = emptyMap(),
                 )
             val selections =
-                world
-                    .fragmentFrom("fragment ignored on Query { value }")
+                worldFixture.schemas.fragmentFrom("fragment ignored on Query { value }")
                     .materializeSelections
 
             val materialized =
@@ -459,8 +456,8 @@ class MaterializeTest {
     @Test
     fun `present field checker slot is enforced without a policy flag`() =
         runBlocking {
-            val world =
-                TestWorld.fromSDL("type Query { value: String! }").assumptions
+            val worldFixture = TestWorld.fromSDL("type Query { value: String! }")
+            val world = worldFixture.assumptions
             val key =
                 ObjectEngineResult.GroundKey.of(
                     world.schema.requireObjectField("Query", "value"),
@@ -474,8 +471,7 @@ class MaterializeTest {
                     fieldCheckerResults = mapOf(key to denial),
                 )
             val selections =
-                world
-                    .fragmentFrom("fragment ignored on Query { value }")
+                worldFixture.schemas.fragmentFrom("fragment ignored on Query { value }")
                     .materializeSelections
 
             val materialized =
@@ -491,13 +487,13 @@ class MaterializeTest {
     @Test
     fun `checker denial completes without awaiting the raw value`() =
         runBlocking {
-            val world =
-                TestWorld
-                    .fromSDL(
-                        """
+            val worldFixture = TestWorld
+                .fromSDL(
+                    """
                         type Query { value: String! }
-                        """.trimIndent(),
-                    ).assumptions
+                    """.trimIndent(),
+                )
+            val world = worldFixture.assumptions
             val key =
                 ObjectEngineResult.GroundKey.of(
                     world.schema.requireObjectField("Query", "value"),
@@ -510,8 +506,7 @@ class MaterializeTest {
             val checkerPromise = cell.fieldCheckerResult
             cell.setActivated(true)
             val selections =
-                world
-                    .fragmentFrom("fragment ignored on Query { value }")
+                worldFixture.schemas.fragmentFrom("fragment ignored on Query { value }")
                     .materializeSelections
 
             val materialized =
@@ -537,14 +532,14 @@ class MaterializeTest {
     @Test
     fun `raw materialization skips unfinished checker slots`() =
         runBlocking {
-            val world =
-                TestWorld
-                    .fromSDL(
-                        """
+            val worldFixture = TestWorld
+                .fromSDL(
+                    """
                         type Query { value: Value! }
                         type Value { text: String! }
-                        """.trimIndent(),
-                    ).assumptions
+                    """.trimIndent(),
+                )
+            val world = worldFixture.assumptions
             val key =
                 ObjectEngineResult.GroundKey.of(
                     world.schema.requireObjectField("Query", "value"),
@@ -568,8 +563,7 @@ class MaterializeTest {
             cell.value.set(value)
             val fieldChecker = cell.fieldCheckerResult
             val selections =
-                world
-                    .fragmentFrom("fragment ignored on Query { value { text } }")
+                worldFixture.schemas.fragmentFrom("fragment ignored on Query { value { text } }")
                     .materializeSelections
 
             val materialized =
@@ -590,7 +584,8 @@ class MaterializeTest {
 
     @Test
     fun `raw materialization cycle-checks the value slot`() {
-        val world = TestWorld.fromSDL("type Query { value: String! }").assumptions
+        val worldFixture = TestWorld.fromSDL("type Query { value: String! }")
+        val world = worldFixture.assumptions
         val key =
             ObjectEngineResult.GroundKey.of(
                 world.schema.requireObjectField("Query", "value"),
@@ -604,8 +599,7 @@ class MaterializeTest {
         val cycleChecker = CycleCheckState.create()
         cycleChecker.registerWriter(cell.valueCycleSlot, reader)
         val selections =
-            world
-                .fragmentFrom("fragment ignored on Query { value }")
+            worldFixture.schemas.fragmentFrom("fragment ignored on Query { value }")
                 .materializeSelections
 
         assertFailsWith<ResolverReadCycleException> {
@@ -625,15 +619,15 @@ class MaterializeTest {
     @Test
     fun `raw materialization remains raw through nested objects and lists`() =
         runBlocking {
-            val world =
-                TestWorld
-                    .fromSDL(
-                        """
+            val worldFixture = TestWorld
+                .fromSDL(
+                    """
                         type Query { values: [Value!]! }
                         type Value { text: String! }
-                        """.trimIndent(),
-                    ).assumptions
-            val valueType = world.schema.requireType("Value") as ViaductSchema.Object
+                    """.trimIndent(),
+                )
+            val world = worldFixture.assumptions
+            val valueType = worldFixture.schema.requireType("Value") as ViaductSchema.Object
             val textKey =
                 ObjectEngineResult.GroundKey.of(
                     world.schema.requireObjectField("Value", "text"),
@@ -662,8 +656,7 @@ class MaterializeTest {
                     values = mapOf(valuesKey to values),
                 )
             val selections =
-                world
-                    .fragmentFrom("fragment ignored on Query { values { text } }")
+                worldFixture.schemas.fragmentFrom("fragment ignored on Query { values { text } }")
                     .materializeSelections
 
             val materialized =

@@ -175,7 +175,7 @@ interface DeepResolverStressContract : ResolverContract {
                     if (caseQueryFragmentCount == 0) queryFragmentFreeCases += 1
                     assertTrue(testCase.query.selectionDepth >= 4)
                     val world = testWorld.newAssumptions()
-                    val fragment = world.fragmentFrom(testCase.query.source)
+                    val fragment = testWorld.schemas.fragmentFrom(testCase.query.source)
                     testCase.registry.clearResolutionWitness()
                     val resolution =
                         observeResolution(

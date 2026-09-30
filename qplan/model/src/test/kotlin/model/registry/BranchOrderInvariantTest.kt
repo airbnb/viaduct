@@ -12,6 +12,7 @@ import model.requireType
 import model.testing.FieldResolverDefinition
 import model.testing.FromField
 import model.testing.TestWorld
+import model.testing.ViaductAndGJSchema
 import model.testing.fieldResolverOf
 import model.testing.fromObjectField
 import model.testing.nodeResolverOf
@@ -64,9 +65,9 @@ class BranchOrderInvariantTest {
                         """.trimIndent(),
                     fieldResolvers = { schema ->
                         mapOf(
-                            schema.requireField("Query", "parent") to
-                                resolver(schema.emptyFragmentOf("Query")),
-                            schema.requireField("Parent", "result") to
+                            schema.loweredSchema.requireField("Query", "parent") to
+                                resolver(schema.loweredSchema.emptyFragmentOf("Query")),
+                            schema.loweredSchema.requireField("Parent", "result") to
                                 resolver(
                                     schema.fragmentFrom(
                                         """
@@ -79,12 +80,12 @@ class BranchOrderInvariantTest {
                                         """.trimIndent(),
                                     ),
                                 ),
-                            schema.requireField("Branch", "consume") to
-                                resolver(schema.emptyFragmentOf("Branch")),
+                            schema.loweredSchema.requireField("Branch", "consume") to
+                                resolver(schema.loweredSchema.emptyFragmentOf("Branch")),
                         )
                     },
                     variableProviders = { schema ->
-                        val owner = schema.requireField("Parent", "result") as ViaductSchema.ObjectField
+                        val owner = schema.loweredSchema.requireField("Parent", "result") as ViaductSchema.ObjectField
                         mapOf(
                             Arguments.Variable.of(owner, "value") to
                                 schema.fromObjectField(
@@ -118,7 +119,7 @@ class BranchOrderInvariantTest {
                         """.trimIndent(),
                     fieldResolvers = { schema ->
                         mapOf(
-                            schema.requireField("Query", "result") to
+                            schema.loweredSchema.requireField("Query", "result") to
                                 resolver(
                                     schema.fragmentFrom(
                                         """
@@ -131,16 +132,16 @@ class BranchOrderInvariantTest {
                                         """.trimIndent(),
                                     ),
                                 ),
-                            schema.requireField("Query", "common") to
+                            schema.loweredSchema.requireField("Query", "common") to
                                 resolver(
                                     schema.fragmentFrom(
                                         "fragment ignored on Query { child { field(arg: 1) } }",
                                     ),
                                 ),
-                            schema.requireField("Query", "child") to
-                                resolver(schema.emptyFragmentOf("Query")),
-                            schema.requireField("Child", "field") to
-                                resolver(schema.emptyFragmentOf("Child")),
+                            schema.loweredSchema.requireField("Query", "child") to
+                                resolver(schema.loweredSchema.emptyFragmentOf("Query")),
+                            schema.loweredSchema.requireField("Child", "field") to
+                                resolver(schema.loweredSchema.emptyFragmentOf("Child")),
                         )
                     },
                     variableProviders = { schema ->
@@ -229,9 +230,9 @@ class BranchOrderInvariantTest {
                 }
                 """.trimIndent(),
             fieldResolvers = { schema ->
-                val emptyQuery = schema.emptyFragmentOf("Query")
+                val emptyQuery = schema.loweredSchema.emptyFragmentOf("Query")
                 mapOf(
-                    schema.requireField("Query", "result") to
+                    schema.loweredSchema.requireField("Query", "result") to
                         resolver(
                             schema.fragmentFrom(
                                 """
@@ -247,12 +248,12 @@ class BranchOrderInvariantTest {
                                 """.trimIndent(),
                             ),
                         ),
-                    schema.requireField("Query", "a") to resolver(emptyQuery),
-                    schema.requireField("Query", "b") to resolver(emptyQuery),
-                    schema.requireField("Query", "c") to resolver(emptyQuery),
-                    schema.requireField("Query", "d") to resolver(emptyQuery),
-                    schema.requireField("Branch", "consume") to
-                        resolver(schema.emptyFragmentOf("Branch")),
+                    schema.loweredSchema.requireField("Query", "a") to resolver(emptyQuery),
+                    schema.loweredSchema.requireField("Query", "b") to resolver(emptyQuery),
+                    schema.loweredSchema.requireField("Query", "c") to resolver(emptyQuery),
+                    schema.loweredSchema.requireField("Query", "d") to resolver(emptyQuery),
+                    schema.loweredSchema.requireField("Branch", "consume") to
+                        resolver(schema.loweredSchema.emptyFragmentOf("Branch")),
                 )
             },
             variableProviders = { schema ->
@@ -297,7 +298,7 @@ class BranchOrderInvariantTest {
                         """.trimIndent(),
                     fieldResolvers = { schema ->
                         mapOf(
-                            schema.requireField("Query", "result") to
+                            schema.loweredSchema.requireField("Query", "result") to
                                 resolver(
                                     schema.fragmentFrom(
                                         """
@@ -308,10 +309,10 @@ class BranchOrderInvariantTest {
                                         """.trimIndent(),
                                     ),
                                 ),
-                            schema.requireField("Query", "child") to
-                                resolver(schema.emptyFragmentOf("Query")),
-                            schema.requireField("Branch", "consume") to
-                                resolver(schema.emptyFragmentOf("Branch")),
+                            schema.loweredSchema.requireField("Query", "child") to
+                                resolver(schema.loweredSchema.emptyFragmentOf("Query")),
+                            schema.loweredSchema.requireField("Branch", "consume") to
+                                resolver(schema.loweredSchema.emptyFragmentOf("Branch")),
                         )
                     },
                     variableProviders = { schema ->
@@ -346,7 +347,7 @@ class BranchOrderInvariantTest {
                 """.trimIndent(),
             fieldResolvers = { schema ->
                 mapOf(
-                    schema.requireField("Query", "result") to
+                    schema.loweredSchema.requireField("Query", "result") to
                         resolver(
                             schema.fragmentFrom(
                                 """
@@ -357,10 +358,10 @@ class BranchOrderInvariantTest {
                                 """.trimIndent(),
                             ),
                         ),
-                    schema.requireField("Query", "source") to
-                        resolver(schema.emptyFragmentOf("Query")),
-                    schema.requireField("Query", "consume") to
-                        resolver(schema.emptyFragmentOf("Query")),
+                    schema.loweredSchema.requireField("Query", "source") to
+                        resolver(schema.loweredSchema.emptyFragmentOf("Query")),
+                    schema.loweredSchema.requireField("Query", "consume") to
+                        resolver(schema.loweredSchema.emptyFragmentOf("Query")),
                 )
             },
             variableProviders = { schema ->
@@ -394,12 +395,12 @@ class BranchOrderInvariantTest {
                 }
                 """.trimIndent(),
             nodeResolvers = { schema ->
-                val user = schema.requireType("User") as ViaductSchema.Object
+                val user = schema.loweredSchema.requireType("User") as ViaductSchema.Object
                 mapOf(user to nodeResolverOf { _: String -> error("Not invoked") })
             },
             fieldResolvers = { schema ->
                 mapOf(
-                    schema.requireField("Query", "result") to
+                    schema.loweredSchema.requireField("Query", "result") to
                         resolver(
                             schema.fragmentFrom(
                                 """
@@ -410,10 +411,10 @@ class BranchOrderInvariantTest {
                                 """.trimIndent(),
                             ),
                         ),
-                    schema.requireField("Query", "user") to
-                        resolver(schema.emptyFragmentOf("Query")),
-                    schema.requireField("Query", "consume") to
-                        resolver(schema.emptyFragmentOf("Query")),
+                    schema.loweredSchema.requireField("Query", "user") to
+                        resolver(schema.loweredSchema.emptyFragmentOf("Query")),
+                    schema.loweredSchema.requireField("Query", "consume") to
+                        resolver(schema.loweredSchema.emptyFragmentOf("Query")),
                 )
             },
             variableProviders = { schema ->
@@ -455,9 +456,9 @@ class BranchOrderInvariantTest {
             }
             """.trimIndent()
 
-        fun branchResolvers(schema: ViaductSchema): Map<ViaductSchema.Field, FieldResolverDefinition> =
+        fun branchResolvers(schema: ViaductAndGJSchema): Map<ViaductSchema.Field, FieldResolverDefinition> =
             mapOf(
-                schema.requireField("Query", "result") to
+                schema.loweredSchema.requireField("Query", "result") to
                     resolver(
                         schema.fragmentFrom(
                             """
@@ -470,31 +471,31 @@ class BranchOrderInvariantTest {
                             """.trimIndent(),
                         ),
                     ),
-                schema.requireField("Query", "shared") to resolver(schema.emptyFragmentOf("Query")),
-                schema.requireField("Branch", "consume") to
-                    resolver(schema.emptyFragmentOf("Branch")),
+                schema.loweredSchema.requireField("Query", "shared") to resolver(schema.loweredSchema.emptyFragmentOf("Query")),
+                schema.loweredSchema.requireField("Branch", "consume") to
+                    resolver(schema.loweredSchema.emptyFragmentOf("Branch")),
             )
 
         fun twoBranchResolvers(
-            schema: ViaductSchema,
+            schema: ViaductAndGJSchema,
             resultFragment: String,
         ): Map<ViaductSchema.Field, FieldResolverDefinition> =
             mapOf(
-                schema.requireField("Query", "result") to
+                schema.loweredSchema.requireField("Query", "result") to
                     resolver(schema.fragmentFrom(resultFragment)),
-                schema.requireField("Query", "a") to resolver(schema.emptyFragmentOf("Query")),
-                schema.requireField("Query", "b") to resolver(schema.emptyFragmentOf("Query")),
-                schema.requireField("Branch", "consume") to
-                    resolver(schema.emptyFragmentOf("Branch")),
+                schema.loweredSchema.requireField("Query", "a") to resolver(schema.loweredSchema.emptyFragmentOf("Query")),
+                schema.loweredSchema.requireField("Query", "b") to resolver(schema.loweredSchema.emptyFragmentOf("Query")),
+                schema.loweredSchema.requireField("Branch", "consume") to
+                    resolver(schema.loweredSchema.emptyFragmentOf("Branch")),
             )
 
         fun variable(
-            schema: ViaductSchema,
+            schema: ViaductAndGJSchema,
             name: String,
             provider: String,
             responsePath: List<String>,
         ): Map<Arguments.Variable, FromField> {
-            val owner = schema.requireField("Query", "result") as ViaductSchema.ObjectField
+            val owner = schema.loweredSchema.requireField("Query", "result") as ViaductSchema.ObjectField
             return mapOf(
                 Arguments.Variable.of(owner, name) to
                     schema.fromObjectField(provider, responsePath),

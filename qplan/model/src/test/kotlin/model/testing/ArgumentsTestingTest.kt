@@ -15,8 +15,8 @@ class ArgumentsTestingTest {
                   value(arg: Int!): Int!
                 }
                 """.trimIndent(),
-            ).schema
-        val field = schema.requireObjectField("Query", "value")
+            ).schemas
+        val field = schema.loweredSchema.requireObjectField("Query", "value")
         val fragment =
             schema.fragmentFrom(
                 source =

@@ -49,7 +49,7 @@ interface PassiveFromArgumentDemandResolverContract : ResolverContract {
 
         val resolved =
             resolveAndValidate(
-                world,
+                testWorld,
                 """
                 query {
                   container {

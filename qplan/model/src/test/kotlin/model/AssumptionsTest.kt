@@ -16,12 +16,27 @@ import viaduct.graphql.schema.ViaductSchema
 
 class AssumptionsTest {
     @Test
+    fun `schema holder exposes the canonical schema without implementing it`() {
+        val fixture = TestWorld.fromSDL(SCHEMA_SDL)
+        val holder: Any = fixture.schemas
+
+        assertFalse(holder is ViaductSchema)
+        assertSame(fixture.schemas.loweredSchema, fixture.schema)
+        assertSame(fixture.schema, fixture.assumptions.schema)
+        assertSame(
+            fixture.schema.requireField("Query", "node"),
+            SourceSchemaAdapter(fixture.schema).field("Query", "node"),
+        )
+    }
+
+    @Test
     fun `constructs a resolver fragment variable with its defining field`() {
-        val assumptions = TestWorld.fromSDL(SCHEMA_SDL).assumptions
+        val fixture = TestWorld.fromSDL(SCHEMA_SDL)
+        val assumptions = fixture.assumptions
         val variableField = assumptions.schema.requireObjectField("Query", "node")
 
         val fragment =
-            assumptions.schema.fragmentFrom(
+            fixture.schemas.fragmentFrom(
                 source =
                     """
                 fragment ignored on Query {
@@ -46,10 +61,11 @@ class AssumptionsTest {
 
     @Test
     fun `parses and validates a named fragment against the retained schema`() {
-        val assumptions = TestWorld.fromSDL(SCHEMA_SDL).assumptions
+        val fixture = TestWorld.fromSDL(SCHEMA_SDL)
+        val assumptions = fixture.assumptions
 
         val fragment =
-            assumptions.fragmentFrom(
+            fixture.schemas.fragmentFrom(
                 """
                 fragment ignored on Query {
                   result: node(filter: {tags: "one", role: ADMIN}) {
@@ -83,11 +99,11 @@ class AssumptionsTest {
 
     @Test
     fun `rejects a named fragment that is invalid for the retained schema`() {
-        val assumptions = TestWorld.fromSDL(SCHEMA_SDL).assumptions
+        val fixture = TestWorld.fromSDL(SCHEMA_SDL)
 
         val exception =
             assertFailsWith<IllegalArgumentException> {
-                assumptions.fragmentFrom(
+                fixture.schemas.fragmentFrom(
                     """
                     fragment ignored on Query {
                       missing
@@ -101,7 +117,8 @@ class AssumptionsTest {
 
     @Test
     fun `parses a fragment from a schema with explicit variable bindings`() {
-        val schema = TestWorld.fromSDL(SCHEMA_SDL).schema
+        val schemas = TestWorld.fromSDL(SCHEMA_SDL).schemas
+        val schema = schemas.loweredSchema
         val filterType = schema.requireType("Filter") as ViaductSchema.Input
         val filter =
             toEngineInputObjectData(
@@ -110,7 +127,7 @@ class AssumptionsTest {
             )
 
         val fragment =
-            schema.fragmentFrom(
+            schemas.fragmentFrom(
                 source =
                     """
                     fragment ignored on Query {

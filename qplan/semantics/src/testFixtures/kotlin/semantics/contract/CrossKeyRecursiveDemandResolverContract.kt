@@ -38,10 +38,9 @@ interface CrossKeyRecursiveDemandResolverContract : ResolverContract {
                     }
                     """.trimIndent(),
             )
-        val world = testWorld.assumptions
 
         resolveAndValidate(
-            world,
+            testWorld,
             """
                 query {
                   item {

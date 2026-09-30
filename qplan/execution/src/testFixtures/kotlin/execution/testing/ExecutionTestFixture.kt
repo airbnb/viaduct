@@ -184,6 +184,7 @@ class ExecutionTestFixture private constructor(
                     .queryExecutionStrategy(
                         QPlanExecutionStrategy(
                             world = world.assumptions,
+                            sourceSchema = world.schemas.graphQLSchema,
                             resolverCoroutineContext = resolverCoroutineContext,
                         ),
                     )

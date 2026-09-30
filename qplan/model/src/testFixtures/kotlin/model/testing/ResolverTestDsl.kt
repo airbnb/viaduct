@@ -45,11 +45,11 @@ internal class ResolverTestDsl private constructor(
     private val fieldDefinitions: List<DslFieldResolver>,
     private val nodeDefinitions: List<DslNodeResolver>,
 ) {
-    fun nodeResolvers(schema: ViaductSchema): Map<ViaductSchema.Object, NodeResolverFunction> = Compiler(schema, fieldDefinitions, nodeDefinitions).nodeResolvers()
+    fun nodeResolvers(schema: ViaductAndGJSchema): Map<ViaductSchema.Object, NodeResolverFunction> = Compiler(schema, fieldDefinitions, nodeDefinitions).nodeResolvers()
 
-    fun fieldResolvers(schema: ViaductSchema): Map<ViaductSchema.Field, FieldResolverDefinition> = Compiler(schema, fieldDefinitions, nodeDefinitions).fieldResolvers()
+    fun fieldResolvers(schema: ViaductAndGJSchema): Map<ViaductSchema.Field, FieldResolverDefinition> = Compiler(schema, fieldDefinitions, nodeDefinitions).fieldResolvers()
 
-    fun variableProviders(schema: ViaductSchema): Map<Arguments.Variable, VariableDeclaration> = Compiler(schema, fieldDefinitions, nodeDefinitions).variableProviders()
+    fun variableProviders(schema: ViaductAndGJSchema): Map<Arguments.Variable, VariableDeclaration> = Compiler(schema, fieldDefinitions, nodeDefinitions).variableProviders()
 
     companion object {
         fun parse(source: String): ResolverTestDsl {
@@ -291,10 +291,11 @@ internal class ResolverTestDsl private constructor(
 }
 
 private class Compiler(
-    private val schema: ViaductSchema,
+    private val schemas: ViaductAndGJSchema,
     private val fieldDefinitions: List<DslFieldResolver>,
     private val nodeDefinitions: List<DslNodeResolver>,
 ) {
+    private val schema = schemas.loweredSchema
     private val sourceSchema = SourceSchemaAdapter(schema)
     private val nodeEntries: List<CompiledNodeResult> =
         nodeDefinitions.flatMap { definition ->
@@ -421,7 +422,7 @@ private class Compiler(
                             put(
                                 variable,
                                 preparedObjectFragment(field, definition.of).let { fragment ->
-                                    schema.fromObjectField(
+                                    schemas.fromObjectField(
                                         objectFragmentSource = fragment.source,
                                         responsePath = pathVariables.getValue(name).path,
                                         variableField = field,
@@ -450,7 +451,7 @@ private class Compiler(
             schema.emptyFragmentOf(field.containingDef.name)
         } else {
             val fragment = preparedObjectFragment(field, source)
-            schema.fragmentFrom(
+            schemas.fragmentFrom(
                 source = fragment.source,
                 bindings = fragment.bindings,
                 variableField = field,

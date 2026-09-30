@@ -97,7 +97,8 @@ private data class BindingFixture(
 }
 
 private fun bindingFixture(): BindingFixture {
-    val world = bindingWorld().assumptions
+    val worldFixture = bindingWorld()
+    val world = worldFixture.assumptions
     return bindingFixture(
         SharedOperationContext.create(world, resolverObserver = CorrectnessResolverObserver()),
         completedBindingResult(world),

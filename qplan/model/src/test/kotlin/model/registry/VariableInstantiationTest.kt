@@ -30,7 +30,7 @@ class VariableInstantiationTest {
                 }
                 """.trimIndent(),
             fieldResolvers = { schema ->
-                val result = schema.requireObjectField("Query", "result")
+                val result = schema.loweredSchema.requireObjectField("Query", "result")
                 mapOf(
                     result to
                         fieldResolverOf(
@@ -43,15 +43,15 @@ class VariableInstantiationTest {
                                 """.trimIndent(),
                             ),
                         ) { _, _ -> 1 },
-                    schema.requireObjectField("Query", "consume") to
-                        fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> 1 },
+                    schema.loweredSchema.requireObjectField("Query", "consume") to
+                        fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> 1 },
                 )
             },
             variableProviders = { schema ->
-                val result = schema.requireObjectField("Query", "result")
+                val result = schema.loweredSchema.requireObjectField("Query", "result")
                 mapOf(
                     Arguments.Variable.of(result, "seed") to
-                        schema.fromArgument(result, "seed"),
+                        schema.loweredSchema.fromArgument(result, "seed"),
                 )
             },
         )

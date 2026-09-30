@@ -51,7 +51,7 @@ interface ObjectFragmentFromArgumentResolverContract :
         val secondKey = ObjectEngineResult.GroundKey.of(resultField, mapOf("seed" to 8))
         val resolution =
             resolveAndValidateObserved(
-                world,
+                testWorld,
                 """
                 query Resolve(${'$'}first: Int!, ${'$'}second: Int!) {
                   first: result(seed: ${'$'}first)
@@ -113,24 +113,24 @@ interface ObjectFragmentFromArgumentResolverContract :
                     }
                     """.trimIndent(),
                 fieldResolvers = { schema ->
-                    val result = schema.requireObjectField("Query", "result")
-                    val consume = schema.requireObjectField("Query", "consume")
+                    val result = schema.loweredSchema.requireObjectField("Query", "result")
+                    val consume = schema.loweredSchema.requireObjectField("Query", "consume")
                     mapOf(
                         result to
                             fieldResolverOf(schema.fragmentFrom(resultFragment)) { input, _ ->
                                 input.selectionValues().getValue("consume")
                             },
                         consume to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, arguments ->
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, arguments ->
                                 arguments.fieldValues.getValue("value") as Int
                             },
                     )
                 },
                 variableProviders = { schema ->
-                    val result = schema.requireObjectField("Query", "result")
+                    val result = schema.loweredSchema.requireObjectField("Query", "result")
                     mapOf(
                         Arguments.Variable.of(result, "argumentValue") to
-                            schema.fromArgument(result, "value"),
+                            schema.loweredSchema.fromArgument(result, "value"),
                     )
                 },
             )
@@ -141,7 +141,7 @@ interface ObjectFragmentFromArgumentResolverContract :
                 mapOf("value" to 7),
             )
         val resolved =
-            resolveAndValidate(world, "query { result(value: 7) }")
+            resolveAndValidate(testWorld, "query { result(value: 7) }")
 
         assertEquals(7, resolved.getCell(resultKey).get())
     }
@@ -169,24 +169,24 @@ interface ObjectFragmentFromArgumentResolverContract :
                     }
                     """.trimIndent(),
                 fieldResolvers = { schema ->
-                    val result = schema.requireObjectField("Query", "result")
-                    val consume = schema.requireObjectField("Query", "consume")
+                    val result = schema.loweredSchema.requireObjectField("Query", "result")
+                    val consume = schema.loweredSchema.requireObjectField("Query", "consume")
                     mapOf(
                         result to
                             fieldResolverOf(schema.fragmentFrom(resultFragment)) { input, _ ->
                                 input.selectionValues().getValue("consume")
                             },
                         consume to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, arguments ->
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, arguments ->
                                 arguments.fieldValues.getValue("value") as Int
                             },
                     )
                 },
                 variableProviders = { schema ->
-                    val result = schema.requireObjectField("Query", "result")
+                    val result = schema.loweredSchema.requireObjectField("Query", "result")
                     mapOf(
                         Arguments.Variable.of(result, "nestedValue") to
-                            schema.fromArgument(result, listOf("input", "value")),
+                            schema.loweredSchema.fromArgument(result, listOf("input", "value")),
                     )
                 },
             )
@@ -197,7 +197,7 @@ interface ObjectFragmentFromArgumentResolverContract :
                 mapOf("input" to mapOf("value" to 2)),
             )
 
-        val resolved = resolveAndValidate(world, "query { result(input: {value: 2}) }")
+        val resolved = resolveAndValidate(testWorld, "query { result(input: {value: 2}) }")
 
         assertEquals(2, resolved.getCell(resultKey).get())
     }
@@ -225,24 +225,24 @@ interface ObjectFragmentFromArgumentResolverContract :
                     }
                     """.trimIndent(),
                 fieldResolvers = { schema ->
-                    val result = schema.requireObjectField("Query", "result")
-                    val consume = schema.requireObjectField("Query", "consume")
+                    val result = schema.loweredSchema.requireObjectField("Query", "result")
+                    val consume = schema.loweredSchema.requireObjectField("Query", "consume")
                     mapOf(
                         result to
                             fieldResolverOf(schema.fragmentFrom(resultFragment)) { input, _ ->
                                 input.selectionValues().getValue("consume") ?: 7
                             },
                         consume to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, arguments ->
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, arguments ->
                                 arguments.fieldValues.getValue("value")
                             },
                     )
                 },
                 variableProviders = { schema ->
-                    val result = schema.requireObjectField("Query", "result")
+                    val result = schema.loweredSchema.requireObjectField("Query", "result")
                     mapOf(
                         Arguments.Variable.of(result, "nestedValue") to
-                            schema.fromArgument(result, listOf("input", "value")),
+                            schema.loweredSchema.fromArgument(result, listOf("input", "value")),
                     )
                 },
             )
@@ -253,7 +253,7 @@ interface ObjectFragmentFromArgumentResolverContract :
                 mapOf("input" to null),
             )
 
-        val resolved = resolveAndValidate(world, "query { result(input: null) }")
+        val resolved = resolveAndValidate(testWorld, "query { result(input: null) }")
 
         assertEquals(7, resolved.getCell(resultKey).get())
     }
@@ -281,7 +281,7 @@ interface ObjectFragmentFromArgumentResolverContract :
                 world.schema.requireObjectField("Query", "one"),
                 mapOf("seed" to 7),
             )
-        val resolved = resolveAndValidate(world, "query { one(seed: 7) }")
+        val resolved = resolveAndValidate(testWorld, "query { one(seed: 7) }")
 
         assertEquals(8, resolved.getCell(oneKey).get())
     }

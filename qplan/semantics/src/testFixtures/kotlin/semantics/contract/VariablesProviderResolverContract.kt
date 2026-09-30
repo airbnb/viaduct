@@ -42,7 +42,7 @@ interface VariablesProviderResolverContract : ResolverContract {
         val secondKey = ObjectEngineResult.GroundKey.of(resultField, mapOf("seed" to 5))
         val resolution =
             resolveAndValidateObserved(
-                world,
+                testWorld,
                 "query { first: result(seed: 4) second: result(seed: 5) }",
             )
 
@@ -97,7 +97,7 @@ interface VariablesProviderResolverContract : ResolverContract {
         val resultField = world.schema.requireObjectField("Query", "result")
         val resultKey = ObjectEngineResult.GroundKey.of(resultField, emptyMap())
 
-        val resolved = resolveAndValidate(world, "query { result }")
+        val resolved = resolveAndValidate(testWorld, "query { result }")
 
         assertNull(resolved.getCell(resultKey).get())
     }
@@ -124,7 +124,7 @@ interface VariablesProviderResolverContract : ResolverContract {
         val resultField = world.schema.requireObjectField("Query", "result")
         val resultKey = ObjectEngineResult.GroundKey.of(resultField, emptyMap())
 
-        val resolved = resolveAndValidate(world, "query { result }")
+        val resolved = resolveAndValidate(testWorld, "query { result }")
 
         assertIs<ErrorEngineResult>(resolved.getCell(resultKey).get())
     }

@@ -64,7 +64,7 @@ interface ListPassiveDeepeningGeneratedResolverContract : ResolverContract {
                     val world = testWorld.newAssumptions(selectiveResolvers)
                     val operation =
                         SharedOperationContext.create(world, resolverObserver = registry.resolverObserver())
-                    val fragment = world.fragmentFrom(query.source)
+                    val fragment = testWorld.schemas.fragmentFrom(query.source)
                     listDeepeningCases +=
                         countListPassiveDeepening(
                             operation,

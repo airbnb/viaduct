@@ -48,7 +48,8 @@ interface SelectiveFieldCheckerExactnessContract {
                     }
                 }
             val checkerRecorder = CheckerApplicationRecorder()
-            val world = exactnessWorld().assumptions
+            val worldFixture = exactnessWorld()
+            val world = worldFixture.assumptions
             val operation =
                 SharedOperationContext.create(
                     world = world,
@@ -65,7 +66,7 @@ interface SelectiveFieldCheckerExactnessContract {
             val result =
                 coroutineResolverSubject.resolve(
                     operation,
-                    world.operationSelectionsFrom(query),
+                    worldFixture.schemas.operationSelectionsFrom(query),
                 )
 
             val itemType = world.schema.requireType("Item") as ViaductSchema.Object
@@ -124,13 +125,14 @@ interface SelectiveFieldCheckerExactnessContract {
     @Test
     fun `checker applications coalesce in one associated Query scope with exact paths`() {
         val checkerRecorder = CheckerApplicationRecorder()
-        val world = sharedQueryScopeWorld().assumptions
+        val worldFixture = sharedQueryScopeWorld()
+        val world = worldFixture.assumptions
         val operation = SharedOperationContext.create(world, checkerObserver = checkerRecorder)
 
         val result =
             coroutineResolverSubject.resolve(
                 operation,
-                world.operationSelectionsFrom(
+                worldFixture.schemas.operationSelectionsFrom(
                     "{ item { first: checked(seed: 1) second: checked(seed: 2) } }",
                 ),
             )
@@ -172,19 +174,19 @@ interface SelectiveFieldCheckerExactnessContract {
                 }
                 """.trimIndent(),
             fieldResolvers = { schema ->
-                val item = schema.requireObjectField("Query", "item")
-                val checked = schema.requireObjectField("Item", "checked")
-                val raw = schema.requireObjectField("Item", "raw")
+                val item = schema.loweredSchema.requireObjectField("Query", "item")
+                val checked = schema.loweredSchema.requireObjectField("Item", "checked")
+                val raw = schema.loweredSchema.requireObjectField("Item", "raw")
                 mapOf(
                     item to
-                        fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
-                            schema.objectOf("Item") {
+                        fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
+                            schema.loweredSchema.objectOf("Item") {
                                 "dependency" setTo 41
                                 "extra" setTo 99
                             }
                         },
                     checked to
-                        fieldResolverOf(schema.emptyFragmentOf("Item")) { _, arguments ->
+                        fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Item")) { _, arguments ->
                             arguments.fieldValues.getValue("seed")
                         },
                     raw to
@@ -196,10 +198,10 @@ interface SelectiveFieldCheckerExactnessContract {
                 )
             },
             fieldCheckers = { schema ->
-                val query = schema.requireQueryTypeDef()
-                val checked = schema.requireObjectField("Item", "checked")
+                val query = schema.loweredSchema.requireQueryTypeDef()
+                val checked = schema.loweredSchema.requireObjectField("Item", "checked")
                 listOf("checked", "raw", "dependency", "extra").associate { name ->
-                    val field = schema.requireObjectField("Item", name)
+                    val field = schema.loweredSchema.requireObjectField("Item", name)
                     field to
                         FieldCheckerResolver.of(
                             field = field,
@@ -240,14 +242,14 @@ interface SelectiveFieldCheckerExactnessContract {
                 }
                 """.trimIndent(),
             fieldResolvers = { schema ->
-                val item = schema.requireObjectField("Query", "item")
-                val wrapper = schema.requireObjectField("Query", "wrapper")
-                val policy = schema.requireObjectField("Query", "policy")
-                val checked = schema.requireObjectField("Item", "checked")
+                val item = schema.loweredSchema.requireObjectField("Query", "item")
+                val wrapper = schema.loweredSchema.requireObjectField("Query", "wrapper")
+                val policy = schema.loweredSchema.requireObjectField("Query", "policy")
+                val checked = schema.loweredSchema.requireObjectField("Item", "checked")
                 mapOf(
                     item to
-                        fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
-                            schema.objectOf("Item")
+                        fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
+                            schema.loweredSchema.objectOf("Item")
                         },
                     wrapper to
                         fieldResolverOf(
@@ -255,16 +257,16 @@ interface SelectiveFieldCheckerExactnessContract {
                         ) { input, _ ->
                             input.selectionValues().getValue("policy")
                         },
-                    policy to fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> 7 },
+                    policy to fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> 7 },
                     checked to
-                        fieldResolverOf(schema.emptyFragmentOf("Item")) { _, arguments ->
+                        fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Item")) { _, arguments ->
                             arguments.fieldValues.getValue("seed")
                         },
                 )
             },
             fieldCheckers = { schema ->
-                val query = schema.requireQueryTypeDef()
-                val checked = schema.requireObjectField("Item", "checked")
+                val query = schema.loweredSchema.requireQueryTypeDef()
+                val checked = schema.loweredSchema.requireObjectField("Item", "checked")
                 listOf(
                     checked to
                         FieldCheckerResolver.of(
@@ -282,14 +284,14 @@ interface SelectiveFieldCheckerExactnessContract {
                                         ),
                                 ),
                         ) { _, _, _ -> CheckerResult.Success },
-                    schema.requireObjectField("Query", "wrapper") to
+                    schema.loweredSchema.requireObjectField("Query", "wrapper") to
                         FieldCheckerResolver.of(
-                            schema.requireObjectField("Query", "wrapper"),
+                            schema.loweredSchema.requireObjectField("Query", "wrapper"),
                             query,
                         ) { _, _, _ -> CheckerResult.Success },
-                    schema.requireObjectField("Query", "policy") to
+                    schema.loweredSchema.requireObjectField("Query", "policy") to
                         FieldCheckerResolver.of(
-                            schema.requireObjectField("Query", "policy"),
+                            schema.loweredSchema.requireObjectField("Query", "policy"),
                             query,
                         ) { _, _, _ -> CheckerResult.Success },
                 ).toMap()

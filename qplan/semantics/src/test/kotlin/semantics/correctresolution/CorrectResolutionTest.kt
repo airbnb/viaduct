@@ -57,11 +57,11 @@ class CorrectResolutionTest : Resolver26DispatcherResource {
             }
             val world = testWorld.assumptions
             val operation = SharedOperationContext.create(world, resolverObserver = observer)
-            val fragment = world.fragmentFrom("fragment Main on Query { value }")
+            val fragment = testWorld.schemas.fragmentFrom("fragment Main on Query { value }")
             val root = operation.resolveWithTestDispatcher(fragment.subselections)
             assertEquals(1, events.size)
             repeat(2) { assertTrue(root.correctResolution(operation, fragment)) }
-            val field = world.schema.requireObjectField("Query", "value")
+            val field = testWorld.schema.requireObjectField("Query", "value")
             world.resolverRegistry.resolver(field)(
                 input = engineObjectDataOf(world.schema.requireQueryTypeDef()),
                 queryValue = engineObjectDataOf(world.schema.requireQueryTypeDef()),
@@ -90,16 +90,16 @@ class CorrectResolutionTest : Resolver26DispatcherResource {
                     }
                     """.trimIndent(),
                 fieldResolvers = { schema ->
-                    val user = schema.requireObjectField("Query", "user")
+                    val user = schema.loweredSchema.requireObjectField("Query", "user")
                     mapOf(
                         user to
                             selectiveFieldResolverOf(
-                                objectFragment = schema.emptyFragmentOf("Query"),
+                                objectFragment = schema.loweredSchema.emptyFragmentOf("Query"),
                                 function = { _, _, selections ->
                                     val fields = mutableSetOf<String>()
                                     selections.forEach { selection -> fields += selection.key.field.name }
                                     observedFields += fields
-                                    schema.objectOf("User") {
+                                    schema.loweredSchema.objectOf("User") {
                                         if ("name" in fields) "name" setTo "Ada"
                                         if ("age" in fields) "age" setTo 37
                                     }
@@ -111,16 +111,15 @@ class CorrectResolutionTest : Resolver26DispatcherResource {
         val world = testWorld.assumptions
         val operation = SharedOperationContext.create(world, resolverObserver = CorrectnessResolverObserver())
         val selections =
-            world
-                .fragmentFrom(
-                    """
+            testWorld.schemas.fragmentFrom(
+                """
                     fragment ignored on Query {
                       user {
                         name
                       }
                     }
-                    """.trimIndent(),
-                ).subselections
+                """.trimIndent(),
+            ).subselections
         val result = operation.resolveWithTestDispatcher(selections)
         val querySelections = selections.merge(world.schema.requireQueryTypeDef())
 
@@ -138,7 +137,8 @@ class CorrectResolutionTest : Resolver26DispatcherResource {
 
     @Test
     fun `selections must be rooted at Query`() {
-        val world = TestWorld.fromSDL(SCHEMA_SDL).assumptions
+        val worldFixture = TestWorld.fromSDL(SCHEMA_SDL)
+        val world = worldFixture.assumptions
         val result = world.engineResultOf("Query")
         val operation = SharedOperationContext.create(world)
         val profileSelections =
@@ -165,17 +165,17 @@ class CorrectResolutionTest : Resolver26DispatcherResource {
                     }
                     """.trimIndent(),
                 fieldResolvers = { schema ->
-                    val source = schema.requireObjectField("Query", "source")
-                    val extra = schema.requireObjectField("Query", "extra")
-                    val consumer = schema.requireObjectField("Query", "consumer")
+                    val source = schema.loweredSchema.requireObjectField("Query", "source")
+                    val extra = schema.loweredSchema.requireObjectField("Query", "extra")
+                    val consumer = schema.loweredSchema.requireObjectField("Query", "consumer")
                     mapOf(
                         source to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> 7 },
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> 7 },
                         extra to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> 9 },
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> 9 },
                         consumer to
                             fieldResolverOf(
-                                objectFragment = schema.emptyFragmentOf("Query"),
+                                objectFragment = schema.loweredSchema.emptyFragmentOf("Query"),
                                 queryFragment =
                                     schema.fragmentFrom(
                                         """
@@ -191,17 +191,16 @@ class CorrectResolutionTest : Resolver26DispatcherResource {
                 },
             )
         val world = testWorld.assumptions
-        val consumer = world.schema.requireObjectField("Query", "consumer")
+        val consumer = testWorld.schema.requireObjectField("Query", "consumer")
         val consumerKey = ObjectEngineResult.GroundKey.of(consumer, emptyMap())
         val selections =
-            world
-                .fragmentFrom(
-                    """
+            testWorld.schemas.fragmentFrom(
+                """
                     fragment ignored on Query {
                       consumer
                     }
-                    """.trimIndent(),
-                ).subselections
+                """.trimIndent(),
+            ).subselections
                 .merge(world.schema.requireQueryTypeDef())
         val result =
             world.engineResultOf("Query") {
@@ -250,8 +249,7 @@ class CorrectResolutionTest : Resolver26DispatcherResource {
                 occurrence = OEROccurrence(queryResult, emptyList(), queryResult),
                 source = engineObjectDataOf(world.schema.requireQueryTypeDef()),
                 closedValueSelections =
-                    world
-                        .fragmentFrom("fragment Scope on Query { source }")
+                    testWorld.schemas.fragmentFrom("fragment Scope on Query { source }")
                         .subselections
                         .merge(world.schema.requireQueryTypeDef()),
             ),
@@ -270,24 +268,24 @@ class CorrectResolutionTest : Resolver26DispatcherResource {
 
     @Test
     fun `checker object fragments participate in demand closure`() {
-        val world =
+        val worldFixture =
             TestWorld.fromSDL(
                 schemaSDL = "type Query { checked: Int! objectSource: Int! }",
                 fieldResolvers = { schema ->
                     mapOf(
-                        schema.requireObjectField("Query", "checked") to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> 11 },
-                        schema.requireObjectField("Query", "objectSource") to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> 7 },
+                        schema.loweredSchema.requireObjectField("Query", "checked") to
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> 11 },
+                        schema.loweredSchema.requireObjectField("Query", "objectSource") to
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> 7 },
                     )
                 },
                 fieldCheckers = { schema ->
-                    val checked = schema.requireObjectField("Query", "checked")
+                    val checked = schema.loweredSchema.requireObjectField("Query", "checked")
                     mapOf(
                         checked to
                             FieldCheckerResolver.of(
                                 field = checked,
-                                queryType = schema.requireQueryTypeDef(),
+                                queryType = schema.loweredSchema.requireQueryTypeDef(),
                                 fragmentTemplates =
                                     mapOf(
                                         "inputs" to
@@ -303,12 +301,12 @@ class CorrectResolutionTest : Resolver26DispatcherResource {
                             ) { _, _, _ -> CheckerResult.Success },
                     )
                 },
-            ).assumptions
-        val checked = world.schema.requireObjectField("Query", "checked")
+            )
+        val world = worldFixture.assumptions
+        val checked = worldFixture.schema.requireObjectField("Query", "checked")
         val checkedKey = ObjectEngineResult.GroundKey.of(checked, emptyMap())
         val selections =
-            world
-                .fragmentFrom("fragment Query on Query { checked }")
+            worldFixture.schemas.fragmentFrom("fragment Query on Query { checked }")
                 .subselections
                 .merge(world.schema.requireQueryTypeDef())
 
@@ -368,31 +366,31 @@ class CorrectResolutionTest : Resolver26DispatcherResource {
     @Test
     fun `checker result must agree with its replayed relation`() {
         var checkerCalls = 0
-        val world =
-            TestWorld
-                .fromSDL(
-                    schemaSDL = "type Query { checked: Int! }",
-                    fieldResolvers = { schema ->
-                        val checked = schema.requireObjectField("Query", "checked")
-                        mapOf(
-                            checked to
-                                fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> 11 },
-                        )
-                    },
-                    fieldCheckers = { schema ->
-                        val checked = schema.requireObjectField("Query", "checked")
-                        mapOf(
-                            checked to
-                                FieldCheckerResolver.of(checked, schema.requireQueryTypeDef()) { _, _, _ ->
-                                    checkerCalls += 1
-                                    CheckerResult.Success
-                                },
-                        )
-                    },
-                ).assumptions
-        val checked = world.schema.requireObjectField("Query", "checked")
+        val worldFixture = TestWorld
+            .fromSDL(
+                schemaSDL = "type Query { checked: Int! }",
+                fieldResolvers = { schema ->
+                    val checked = schema.loweredSchema.requireObjectField("Query", "checked")
+                    mapOf(
+                        checked to
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> 11 },
+                    )
+                },
+                fieldCheckers = { schema ->
+                    val checked = schema.loweredSchema.requireObjectField("Query", "checked")
+                    mapOf(
+                        checked to
+                            FieldCheckerResolver.of(checked, schema.loweredSchema.requireQueryTypeDef()) { _, _, _ ->
+                                checkerCalls += 1
+                                CheckerResult.Success
+                            },
+                    )
+                },
+            )
+        val world = worldFixture.assumptions
+        val checked = worldFixture.schema.requireObjectField("Query", "checked")
         val checkedKey = ObjectEngineResult.GroundKey.of(checked, emptyMap())
-        val query = world.fragmentFrom("fragment Query on Query { checked }")
+        val query = worldFixture.schemas.fragmentFrom("fragment Query on Query { checked }")
 
         fun result(checkerResult: CheckerResult): ObjectEngineResult =
             ObjectEngineResult.of(
@@ -418,45 +416,45 @@ class CorrectResolutionTest : Resolver26DispatcherResource {
 
     @Test
     fun `checker query fragment witness participates in replay`() {
-        val world =
-            TestWorld
-                .fromSDL(
-                    schemaSDL = "type Query { source: Int! checked: Int! }",
-                    fieldResolvers = { schema ->
-                        mapOf(
-                            schema.requireObjectField("Query", "source") to
-                                fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> 7 },
-                            schema.requireObjectField("Query", "checked") to
-                                fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> 11 },
-                        )
-                    },
-                    fieldCheckers = { schema ->
-                        val checked = schema.requireObjectField("Query", "checked")
-                        mapOf(
-                            checked to
-                                FieldCheckerResolver.of(
-                                    field = checked,
-                                    queryType = schema.requireQueryTypeDef(),
-                                    fragmentTemplates =
-                                        mapOf(
-                                            "input" to
-                                                ResolverFragmentTemplates(
-                                                    objectFragmentTemplate = materializeSelectionForestOf(),
-                                                    queryFragmentTemplate =
-                                                        schema
-                                                            .fragmentFrom(
-                                                                "fragment Input on Query { querySource: source }",
-                                                            ).materializeSelections,
-                                                ),
-                                        ),
-                                ) { _, inputs, _ ->
-                                    check(inputs.getValue("input").queryValue.get("querySource") == 7)
-                                    CheckerResult.Success
-                                },
-                        )
-                    },
-                ).assumptions
-        val checked = world.schema.requireObjectField("Query", "checked")
+        val worldFixture = TestWorld
+            .fromSDL(
+                schemaSDL = "type Query { source: Int! checked: Int! }",
+                fieldResolvers = { schema ->
+                    mapOf(
+                        schema.loweredSchema.requireObjectField("Query", "source") to
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> 7 },
+                        schema.loweredSchema.requireObjectField("Query", "checked") to
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> 11 },
+                    )
+                },
+                fieldCheckers = { schema ->
+                    val checked = schema.loweredSchema.requireObjectField("Query", "checked")
+                    mapOf(
+                        checked to
+                            FieldCheckerResolver.of(
+                                field = checked,
+                                queryType = schema.loweredSchema.requireQueryTypeDef(),
+                                fragmentTemplates =
+                                    mapOf(
+                                        "input" to
+                                            ResolverFragmentTemplates(
+                                                objectFragmentTemplate = materializeSelectionForestOf(),
+                                                queryFragmentTemplate =
+                                                    schema
+                                                        .fragmentFrom(
+                                                            "fragment Input on Query { querySource: source }",
+                                                        ).materializeSelections,
+                                            ),
+                                    ),
+                            ) { _, inputs, _ ->
+                                check(inputs.getValue("input").queryValue.get("querySource") == 7)
+                                CheckerResult.Success
+                            },
+                    )
+                },
+            )
+        val world = worldFixture.assumptions
+        val checked = worldFixture.schema.requireObjectField("Query", "checked")
         val checkedKey = ObjectEngineResult.GroundKey.of(checked, emptyMap())
         val result =
             ObjectEngineResult.of(
@@ -465,7 +463,7 @@ class CorrectResolutionTest : Resolver26DispatcherResource {
                 fieldCheckerResults = mapOf(checkedKey to CheckerResult.Success),
             )
         val occurrenceId = ResolverOccurrenceId.at(result, listOf(checkedKey))
-        val query = world.fragmentFrom("fragment Query on Query { checked }")
+        val query = worldFixture.schemas.fragmentFrom("fragment Query on Query { checked }")
 
         fun operation(vararg queryValues: Int): SharedOperationContext<*> {
             val observer = CorrectnessCheckerObserver()
@@ -495,9 +493,9 @@ class CorrectResolutionTest : Resolver26DispatcherResource {
                 schemaSDL = "type Query { denied: Int! consumer: Int! }",
                 fieldResolvers = { schema ->
                     mapOf(
-                        schema.requireObjectField("Query", "denied") to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> 1 },
-                        schema.requireObjectField("Query", "consumer") to
+                        schema.loweredSchema.requireObjectField("Query", "denied") to
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> 1 },
+                        schema.loweredSchema.requireObjectField("Query", "consumer") to
                             fieldResolverOf(
                                 schema.fragmentFrom(
                                     "fragment Input on Query { failure: denied }",
@@ -506,18 +504,18 @@ class CorrectResolutionTest : Resolver26DispatcherResource {
                     )
                 },
                 fieldCheckers = { schema ->
-                    val denied = schema.requireObjectField("Query", "denied")
+                    val denied = schema.loweredSchema.requireObjectField("Query", "denied")
                     mapOf(
                         denied to
-                            FieldCheckerResolver.of(denied, schema.requireQueryTypeDef()) { _, _, _ ->
+                            FieldCheckerResolver.of(denied, schema.loweredSchema.requireQueryTypeDef()) { _, _, _ ->
                                 denial
                             },
                     )
                 },
             )
         val world = testWorld.assumptions
-        val denied = world.schema.requireObjectField("Query", "denied")
-        val consumer = world.schema.requireObjectField("Query", "consumer")
+        val denied = testWorld.schema.requireObjectField("Query", "denied")
+        val consumer = testWorld.schema.requireObjectField("Query", "consumer")
         val deniedKey = ObjectEngineResult.GroundKey.of(denied, emptyMap())
         val consumerKey = ObjectEngineResult.GroundKey.of(consumer, emptyMap())
         val result =
@@ -532,7 +530,7 @@ class CorrectResolutionTest : Resolver26DispatcherResource {
                 }
                 freeze()
             }
-        val fragment = world.fragmentFrom("fragment Query on Query { consumer }")
+        val fragment = testWorld.schemas.fragmentFrom("fragment Query on Query { consumer }")
         val resolver = world.resolverRegistry.resolver(consumer)
         val occurrenceId = ResolverOccurrenceId.at(result, listOf(consumerKey))
         val inputSelections = resolver.instantiateObjectMaterializationSelections(occurrenceId)
@@ -586,7 +584,7 @@ class CorrectResolutionTest : Resolver26DispatcherResource {
 
     @Test
     fun `resolver fromArgument binding must agree with its owning arguments`() {
-        val world =
+        val worldFixture =
             TestWorld.fromDSL(
                 selectiveResolvers = true,
                 schemaSDL =
@@ -601,10 +599,11 @@ class CorrectResolutionTest : Resolver26DispatcherResource {
                         @resolver(result: "sum(${'$'}value)")
                     }
                     """.trimIndent(),
-            ).assumptions
+            )
+        val world = worldFixture.assumptions
         val operation = SharedOperationContext.create(world)
-        val consumer = world.schema.requireObjectField("Query", "consumer")
-        val source = world.schema.requireObjectField("Query", "source")
+        val consumer = worldFixture.schema.requireObjectField("Query", "consumer")
+        val source = worldFixture.schema.requireObjectField("Query", "source")
         val consumerKey =
             ObjectEngineResult.GroundKey.of(
                 consumer,
@@ -633,14 +632,13 @@ class CorrectResolutionTest : Resolver26DispatcherResource {
         }
         result.freeze()
         val selections =
-            world
-                .fragmentFrom(
-                    """
+            worldFixture.schemas.fragmentFrom(
+                """
                     fragment ignored on Query {
                       consumer(seed: 7)
                     }
-                    """.trimIndent(),
-                ).subselections
+                """.trimIndent(),
+            ).subselections
                 .merge(world.schema.requireQueryTypeDef())
 
         assertFalse(result.correctResolution(operation, selections))
@@ -648,68 +646,68 @@ class CorrectResolutionTest : Resolver26DispatcherResource {
 
     @Test
     fun `invalid result root is rejected before resolver replay`() {
-        val world =
-            TestWorld
-                .fromSDL(
-                    """
+        val worldFixture = TestWorld
+            .fromSDL(
+                """
                     type Query { profile: Profile! }
                     type Profile { value: Int! }
-                    """.trimIndent(),
-                    fieldResolvers = { schema ->
-                        mapOf(
-                            schema.requireObjectField("Profile", "value") to
-                                fieldResolverOf(schema.emptyFragmentOf("Profile")) { _, _ ->
-                                    error("A non-Query root must be rejected before replay")
-                                },
-                        )
-                    },
-                ).assumptions
+                """.trimIndent(),
+                fieldResolvers = { schema ->
+                    mapOf(
+                        schema.loweredSchema.requireObjectField("Profile", "value") to
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Profile")) { _, _ ->
+                                error("A non-Query root must be rejected before replay")
+                            },
+                    )
+                },
+            )
+        val world = worldFixture.assumptions
         val result = world.engineResultOf("Profile") { "value" resolvesTo 7 }
-        val query = world.fragmentFrom("fragment ignored on Query { profile { value } }")
+        val query = worldFixture.schemas.fragmentFrom("fragment ignored on Query { profile { value } }")
 
         assertFalse(result.correctResolution(SharedOperationContext.create(world), query))
     }
 
     @Test
     fun `missing client selection is rejected before replaying existing fields`() {
-        val world =
-            TestWorld
-                .fromSDL(
-                    "type Query { existing: Int! missing: Int! }",
-                    fieldResolvers = { schema ->
-                        mapOf(
-                            schema.requireObjectField("Query", "existing") to
-                                fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
-                                    error("Selection validation must precede replay")
-                                },
-                        )
-                    },
-                ).assumptions
+        val worldFixture = TestWorld
+            .fromSDL(
+                "type Query { existing: Int! missing: Int! }",
+                fieldResolvers = { schema ->
+                    mapOf(
+                        schema.loweredSchema.requireObjectField("Query", "existing") to
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
+                                error("Selection validation must precede replay")
+                            },
+                    )
+                },
+            )
+        val world = worldFixture.assumptions
         val result = world.engineResultOf("Query") { "existing" resolvesTo 7 }
-        val query = world.fragmentFrom("fragment ignored on Query { existing missing }")
+        val query = worldFixture.schemas.fragmentFrom("fragment ignored on Query { existing missing }")
 
         assertFalse(result.correctResolution(SharedOperationContext.create(world), query))
     }
 
     @Test
     fun `missing resolver input is rejected before invoking its relation`() {
-        val world =
-            TestWorld
-                .fromSDL(
-                    "type Query { source: Int! consumer: Int! }",
-                    fieldResolvers = { schema ->
-                        mapOf(
-                            schema.requireObjectField("Query", "consumer") to
-                                fieldResolverOf(
-                                    schema.fragmentFrom("fragment ignored on Query { source }"),
-                                ) { _, _ ->
-                                    error("Missing resolver demand must be rejected before replay")
-                                },
-                        )
-                    },
-                ).assumptions
+        val worldFixture = TestWorld
+            .fromSDL(
+                "type Query { source: Int! consumer: Int! }",
+                fieldResolvers = { schema ->
+                    mapOf(
+                        schema.loweredSchema.requireObjectField("Query", "consumer") to
+                            fieldResolverOf(
+                                schema.fragmentFrom("fragment ignored on Query { source }"),
+                            ) { _, _ ->
+                                error("Missing resolver demand must be rejected before replay")
+                            },
+                    )
+                },
+            )
+        val world = worldFixture.assumptions
         val result = world.engineResultOf("Query") { "consumer" resolvesTo 7 }
-        val query = world.fragmentFrom("fragment ignored on Query { consumer }")
+        val query = worldFixture.schemas.fragmentFrom("fragment ignored on Query { consumer }")
 
         assertFalse(result.correctResolution(SharedOperationContext.create(world), query))
     }
@@ -717,22 +715,22 @@ class CorrectResolutionTest : Resolver26DispatcherResource {
     @Test
     fun `closed but corrupted scalar output fails conformance with one replay`() {
         var replays = 0
-        val world =
-            TestWorld
-                .fromSDL(
-                    "type Query { value: Int! }",
-                    fieldResolvers = { schema ->
-                        mapOf(
-                            schema.requireObjectField("Query", "value") to
-                                fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
-                                    replays += 1
-                                    7
-                                },
-                        )
-                    },
-                ).assumptions
+        val worldFixture = TestWorld
+            .fromSDL(
+                "type Query { value: Int! }",
+                fieldResolvers = { schema ->
+                    mapOf(
+                        schema.loweredSchema.requireObjectField("Query", "value") to
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
+                                replays += 1
+                                7
+                            },
+                    )
+                },
+            )
+        val world = worldFixture.assumptions
         val result = world.engineResultOf("Query") { "value" resolvesTo 8 }
-        val query = world.fragmentFrom("fragment ignored on Query { value }")
+        val query = worldFixture.schemas.fragmentFrom("fragment ignored on Query { value }")
 
         assertFalse(result.correctResolution(SharedOperationContext.create(world), query))
         assertEquals(1, replays, "Demand and conformance must share their replay")
@@ -740,30 +738,30 @@ class CorrectResolutionTest : Resolver26DispatcherResource {
 
     @Test
     fun `parent backedge must name the exact containing occurrence`() {
-        val world =
-            TestWorld
-                .fromSDL(
-                    """
+        val worldFixture = TestWorld
+            .fromSDL(
+                """
                     directive @parent on FIELD_DEFINITION
                     type Query { root: Root! }
                     type Root { child: Child! }
                     type Child { parent: Root @parent }
-                    """.trimIndent(),
-                    fieldResolvers = { schema ->
-                        mapOf(
-                            schema.requireObjectField("Query", "root") to
-                                fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
-                                    schema.objectOf("Root")
-                                },
-                            schema.requireObjectField("Root", "child") to
-                                fieldResolverOf(schema.emptyFragmentOf("Root")) { _, _ ->
-                                    schema.objectOf("Child")
-                                },
-                        )
-                    },
-                ).assumptions
+                """.trimIndent(),
+                fieldResolvers = { schema ->
+                    mapOf(
+                        schema.loweredSchema.requireObjectField("Query", "root") to
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
+                                schema.loweredSchema.objectOf("Root")
+                            },
+                        schema.loweredSchema.requireObjectField("Root", "child") to
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Root")) { _, _ ->
+                                schema.loweredSchema.objectOf("Child")
+                            },
+                    )
+                },
+            )
+        val world = worldFixture.assumptions
         val operation = SharedOperationContext.create(world)
-        val query = world.schema.emptyFragmentOf("Query")
+        val query = worldFixture.schema.emptyFragmentOf("Query")
 
         fun result(correctParent: Boolean): ObjectEngineResult {
             val root =
@@ -803,38 +801,38 @@ class CorrectResolutionTest : Resolver26DispatcherResource {
     @Test
     fun `nested Query results replay independently without poisoning later judgments`() {
         val replays = mutableListOf<String>()
-        val world =
-            TestWorld
-                .fromSDL(
-                    "type Query { source: Int! left: Int! right: Int! }",
-                    fieldResolvers = { schema ->
-                        buildMap {
+        val worldFixture = TestWorld
+            .fromSDL(
+                "type Query { source: Int! left: Int! right: Int! }",
+                fieldResolvers = { schema ->
+                    buildMap {
+                        put(
+                            schema.loweredSchema.requireObjectField("Query", "source"),
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
+                                replays += "source"
+                                7
+                            },
+                        )
+                        for (name in listOf("left", "right")) {
                             put(
-                                schema.requireObjectField("Query", "source"),
-                                fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
-                                    replays += "source"
-                                    7
+                                schema.loweredSchema.requireObjectField("Query", name),
+                                fieldResolverOf(
+                                    objectFragment = schema.loweredSchema.emptyFragmentOf("Query"),
+                                    queryFragment =
+                                        schema.fragmentFrom(
+                                            "fragment ignored on Query { aliased: source }",
+                                        ),
+                                ) { _, queryValue, _ ->
+                                    replays += name
+                                    queryValue.get("aliased")
                                 },
                             )
-                            for (name in listOf("left", "right")) {
-                                put(
-                                    schema.requireObjectField("Query", name),
-                                    fieldResolverOf(
-                                        objectFragment = schema.emptyFragmentOf("Query"),
-                                        queryFragment =
-                                            schema.fragmentFrom(
-                                                "fragment ignored on Query { aliased: source }",
-                                            ),
-                                    ) { _, queryValue, _ ->
-                                        replays += name
-                                        queryValue.get("aliased")
-                                    },
-                                )
-                            }
                         }
-                    },
-                ).assumptions
-        val query = world.fragmentFrom("fragment ignored on Query { left right }")
+                    }
+                },
+            )
+        val world = worldFixture.assumptions
+        val query = worldFixture.schemas.fragmentFrom("fragment ignored on Query { left right }")
         val result =
             world.engineResultOf("Query") {
                 "left" resolvesTo 7

@@ -27,15 +27,15 @@ import viaduct.engine.api.CheckerResult
 class CheckerInputCorrectResolutionTest {
     @Test
     fun `replay rejects wrong scalar projections even when both named inputs agree and return success`() {
-        val world = TestWorld.fromSDL(
+        val worldFixture = TestWorld.fromSDL(
             schemaSDL = "type Query { value: Int! marker: Int! }",
             fieldResolvers = { schema ->
                 listOf("value", "marker").associate { name ->
-                    schema.requireObjectField("Query", name) to fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> 7 }
+                    schema.loweredSchema.requireObjectField("Query", name) to fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> 7 }
                 }
             },
             typeCheckers = { schema ->
-                val query = schema.requireQueryTypeDef()
+                val query = schema.loweredSchema.requireQueryTypeDef()
                 val selections = schema.fragmentFrom("fragment Input on Query { alias: marker }").materializeSelections
                 mapOf(
                     query to TypeCheckerResolver.of(
@@ -45,15 +45,16 @@ class CheckerInputCorrectResolutionTest {
                     ) { _, _ -> CheckerResult.Success }
                 )
             },
-        ).assumptions
-        val query = world.schema.requireQueryTypeDef()
+        )
+        val world = worldFixture.assumptions
+        val query = worldFixture.schema.requireQueryTypeDef()
         val value = ObjectEngineResult.GroundKey.of(world.schema.requireObjectField("Query", "value"), emptyMap())
         val marker = ObjectEngineResult.GroundKey.of(world.schema.requireObjectField("Query", "marker"), emptyMap())
         val root = ObjectEngineResult.of(query, values = mapOf(value to 7, marker to 7), typeCheckerResult = Promise.of(CheckerResult.Success))
         val queryInput = ObjectEngineResult.of(query, values = mapOf(marker to 7))
         val target = ResolverTarget.TypeCheckerTarget(query)
         val observation = CheckerInvocationObservation(CheckerKind.TYPE, root, emptyList(), null, target)
-        val fragment = world.fragmentFrom("fragment Query on Query { value }")
+        val fragment = worldFixture.schemas.fragmentFrom("fragment Query on Query { value }")
 
         fun conforms(
             objectScalar: Int,

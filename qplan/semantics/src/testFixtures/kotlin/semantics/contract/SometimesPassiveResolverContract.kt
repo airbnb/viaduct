@@ -43,7 +43,7 @@ interface SometimesPassiveResolverContract : ResolverContract {
             )
         val world = testWorld.assumptions
 
-        val result = resolveAndValidate(world, "query { item { computed } }", resolverObserver = invocationObserver)
+        val result = resolveAndValidate(testWorld, "query { item { computed } }", resolverObserver = invocationObserver)
         val item =
             assertIs<ObjectEngineResult>(
                 result.getCell(world.schema.contractKey("Query", "item")).get(),
@@ -88,7 +88,7 @@ interface SometimesPassiveResolverContract : ResolverContract {
             )
         val world = testWorld.assumptions
 
-        val result = resolveAndValidate(world, "query { item { computed { leaf } } }", resolverObserver = invocationObserver)
+        val result = resolveAndValidate(testWorld, "query { item { computed { leaf } } }", resolverObserver = invocationObserver)
         val item =
             assertIs<ObjectEngineResult>(
                 result.getCell(world.schema.contractKey("Query", "item")).get(),
@@ -135,7 +135,7 @@ interface SometimesPassiveObjectFragmentResolverContract : ResolverContract {
             )
         val world = testWorld.assumptions
 
-        val result = resolveAndValidate(world, "query { item { computed } }", resolverObserver = invocationObserver)
+        val result = resolveAndValidate(testWorld, "query { item { computed } }", resolverObserver = invocationObserver)
         val item =
             assertIs<ObjectEngineResult>(
                 result.getCell(world.schema.contractKey("Query", "item")).get(),
@@ -175,7 +175,7 @@ interface SometimesPassiveObjectFragmentResolverContract : ResolverContract {
             )
         val world = testWorld.assumptions
 
-        val result = resolveAndValidate(world, "query { item { computed } }", resolverObserver = invocationObserver)
+        val result = resolveAndValidate(testWorld, "query { item { computed } }", resolverObserver = invocationObserver)
         val item =
             assertIs<ObjectEngineResult>(
                 result.getCell(world.schema.contractKey("Query", "item")).get(),
@@ -234,7 +234,7 @@ interface SometimesPassiveObjectPathResolverContract : ResolverContract {
             )
         val world = testWorld.assumptions
 
-        val resolved = resolveAndValidate(world, "query { item { result } }", resolverObserver = invocationObserver)
+        val resolved = resolveAndValidate(testWorld, "query { item { result } }", resolverObserver = invocationObserver)
         val item =
             assertIs<ObjectEngineResult>(
                 resolved.getCell(world.schema.contractKey("Query", "item")).get(),
@@ -281,7 +281,7 @@ interface SometimesPassiveObjectPathResolverContract : ResolverContract {
         val world = testWorld.assumptions
 
         val resolution =
-            resolveAndValidateObserved(world, "query { item { computed } }", resolverObserver = invocationObserver)
+            resolveAndValidateObserved(testWorld, "query { item { computed } }", resolverObserver = invocationObserver)
         val resolved = resolution.result
         val item =
             assertIs<ObjectEngineResult>(
@@ -334,26 +334,26 @@ interface SometimesPassiveSelectiveResolverContract : ResolverContract {
                     """.trimIndent(),
                 fieldResolvers = { schema ->
                     mapOf(
-                        schema.requireField("Query", "item") to
+                        schema.loweredSchema.requireField("Query", "item") to
                             fieldResolverOf(
-                                objectFragment = schema.emptyFragmentOf("Query"),
+                                objectFragment = schema.loweredSchema.emptyFragmentOf("Query"),
                                 function = { _, _ ->
                                     events += "function Query/item"
-                                    schema.objectOf("Item") {
+                                    schema.loweredSchema.objectOf("Item") {
                                         "seed" setTo 3
                                         "computed" setTo 7
                                     }
                                 },
                             ),
-                        schema.requireField("Item", "seed") to
+                        schema.loweredSchema.requireField("Item", "seed") to
                             fieldResolverOf(
-                                objectFragment = schema.emptyFragmentOf("Item"),
+                                objectFragment = schema.loweredSchema.emptyFragmentOf("Item"),
                                 function = { _, _ ->
                                     events += "function Item/seed"
                                     1
                                 },
                             ),
-                        schema.requireField("Item", "computed") to
+                        schema.loweredSchema.requireField("Item", "computed") to
                             fieldResolverOf(
                                 objectFragment =
                                     schema.fragmentFrom(
@@ -369,7 +369,7 @@ interface SometimesPassiveSelectiveResolverContract : ResolverContract {
             )
         val world = testWorld.assumptions
 
-        val result = resolveAndValidate(world, "query { item { computed } }", resolverObserver = invocationObserver)
+        val result = resolveAndValidate(testWorld, "query { item { computed } }", resolverObserver = invocationObserver)
         val item =
             assertIs<ObjectEngineResult>(
                 result.getCell(world.schema.contractKey("Query", "item")).get(),

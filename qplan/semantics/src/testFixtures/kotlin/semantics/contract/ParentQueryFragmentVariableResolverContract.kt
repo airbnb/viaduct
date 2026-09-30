@@ -66,20 +66,20 @@ interface ParentQueryFragmentVariableResolverContract : ResolverContract {
                     }
                     """.trimIndent(),
                 fieldResolvers = { schema ->
-                    val emptyQuery = schema.emptyFragmentOf("Query")
-                    val emptyRoot = schema.emptyFragmentOf("Root")
-                    val emptyBranch = schema.emptyFragmentOf("Branch")
-                    val root = schema.requireObjectField("Query", "root")
-                    val queryProvided = schema.requireObjectField("Query", "queryProvided")
-                    val consume = schema.requireObjectField("Query", "consume")
-                    val branch = schema.requireObjectField("Root", "branch")
-                    val leaf = schema.requireObjectField("Branch", "leaf")
-                    val bridge = schema.requireObjectField("Branch", "bridge")
-                    val result = schema.requireObjectField("Leaf", "result")
+                    val emptyQuery = schema.loweredSchema.emptyFragmentOf("Query")
+                    val emptyRoot = schema.loweredSchema.emptyFragmentOf("Root")
+                    val emptyBranch = schema.loweredSchema.emptyFragmentOf("Branch")
+                    val root = schema.loweredSchema.requireObjectField("Query", "root")
+                    val queryProvided = schema.loweredSchema.requireObjectField("Query", "queryProvided")
+                    val consume = schema.loweredSchema.requireObjectField("Query", "consume")
+                    val branch = schema.loweredSchema.requireObjectField("Root", "branch")
+                    val leaf = schema.loweredSchema.requireObjectField("Branch", "leaf")
+                    val bridge = schema.loweredSchema.requireObjectField("Branch", "bridge")
+                    val result = schema.loweredSchema.requireObjectField("Leaf", "result")
                     mapOf(
                         root to
                             fieldResolverOf(emptyQuery) { _, _ ->
-                                schema.objectOf("Root") { "rootValue" setTo 100 }
+                                schema.loweredSchema.objectOf("Root") { "rootValue" setTo 100 }
                             },
                         queryProvided to fieldResolverOf(emptyQuery) { _, _ -> 11 },
                         consume to
@@ -88,10 +88,10 @@ interface ParentQueryFragmentVariableResolverContract : ResolverContract {
                             },
                         branch to
                             fieldResolverOf(emptyRoot) { _, _ ->
-                                schema.objectOf("Branch") { "objectProvided" setTo 7 }
+                                schema.loweredSchema.objectOf("Branch") { "objectProvided" setTo 7 }
                             },
                         leaf to
-                            fieldResolverOf(emptyBranch) { _, _ -> schema.objectOf("Leaf") },
+                            fieldResolverOf(emptyBranch) { _, _ -> schema.loweredSchema.objectOf("Leaf") },
                         bridge to
                             fieldResolverOf(
                                 objectFragment = schema.fragmentFrom(bridgeObjectFragment),
@@ -113,12 +113,12 @@ interface ParentQueryFragmentVariableResolverContract : ResolverContract {
                     )
                 },
                 variableProviders = { schema ->
-                    val bridge = schema.requireObjectField("Branch", "bridge")
+                    val bridge = schema.loweredSchema.requireObjectField("Branch", "bridge")
                     mapOf(
                         Arguments.Variable.of(bridge, "provided") to
                             when (source) {
                                 ParentQueryVariableSource.ARGUMENT ->
-                                    schema.fromArgument(bridge, "seed")
+                                    schema.loweredSchema.fromArgument(bridge, "seed")
                                 ParentQueryVariableSource.OBJECT_FIELD ->
                                     schema.fromObjectField(
                                         bridgeObjectFragment,
@@ -139,7 +139,7 @@ interface ParentQueryFragmentVariableResolverContract : ResolverContract {
         val leafKey = world.schema.contractKey("Branch", "leaf")
         val resultKey = world.schema.contractKey("Leaf", "result")
 
-        val resolved = resolveAndValidate(world, "query { root { branch { leaf { result } } } }")
+        val resolved = resolveAndValidate(testWorld, "query { root { branch { leaf { result } } } }")
         val root = assertIs<model.ObjectEngineResult>(resolved.getCell(rootKey).get())
         val branch = assertIs<model.ObjectEngineResult>(root.getCell(branchKey).get())
         val leaf = assertIs<model.ObjectEngineResult>(branch.getCell(leafKey).get())

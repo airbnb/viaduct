@@ -41,12 +41,12 @@ interface ResolverSelectiveDemandWitnessContract : ResolverContract {
                     }
                     """.trimIndent(),
                 fieldResolvers = { schema ->
-                    val item = schema.requireField("Query", "item")
-                    val computed = schema.requireField("Item", "computed")
+                    val item = schema.loweredSchema.requireField("Query", "item")
+                    val computed = schema.loweredSchema.requireField("Item", "computed")
                     mapOf(
                         item to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
-                                schema.objectOf("Item") {
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
+                                schema.loweredSchema.objectOf("Item") {
                                     "base" setTo "input"
                                 }
                             },
@@ -66,7 +66,7 @@ interface ResolverSelectiveDemandWitnessContract : ResolverContract {
                 },
             )
         val world = testWorld.assumptions
-        val fragment = world.fragmentFrom("fragment ignored on Query { item { computed } }")
+        val fragment = testWorld.schemas.fragmentFrom("fragment ignored on Query { item { computed } }")
         val itemType = world.schema.requireType("Item") as ViaductSchema.Object
 
         val resolution =

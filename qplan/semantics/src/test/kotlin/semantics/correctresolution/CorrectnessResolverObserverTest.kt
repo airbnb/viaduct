@@ -16,7 +16,8 @@ import semantics.shared.ResolverInvocationObservation
 class CorrectnessResolverObserverTest {
     @Test
     fun `invocation identities deduplicate repeated observations`() {
-        val world = TestWorld.fromSDL("type Query { first: Int second: Int }").assumptions
+        val worldFixture = TestWorld.fromSDL("type Query { first: Int second: Int }")
+        val world = worldFixture.assumptions
         val root = ObjectEngineResult.of(type = world.schema.requireQueryTypeDef(), mutable = true)
         val observations = listOf("first", "second").map { name ->
             val field = world.schema.requireObjectField("Query", name)

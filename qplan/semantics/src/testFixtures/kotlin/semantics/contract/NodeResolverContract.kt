@@ -48,21 +48,21 @@ interface NodeResolverContract : ResolverContract {
                     type Query { viewer: Viewer! }
                     """.trimIndent(),
                 fieldResolvers = { schema ->
-                    val viewer = schema.requireObjectField("Query", "viewer")
-                    val result = schema.requireObjectField("Viewer", "result")
-                    val value = schema.requireObjectField("Leaf", "value")
+                    val viewer = schema.loweredSchema.requireObjectField("Query", "viewer")
+                    val result = schema.loweredSchema.requireObjectField("Viewer", "result")
+                    val value = schema.loweredSchema.requireObjectField("Leaf", "value")
                     mapOf(
                         viewer to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
-                                schema.objectOf("Viewer") {
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
+                                schema.loweredSchema.objectOf("Viewer") {
                                     "item" setTo
-                                        schema.objectOf("Item") {
+                                        schema.loweredSchema.objectOf("Item") {
                                             "id" setTo "item-1"
                                         }
                                 }
                             },
                         value to
-                            fieldResolverOf(schema.emptyFragmentOf("Leaf")) { _, _ ->
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Leaf")) { _, _ ->
                                 "resolved"
                             },
                         result to
@@ -81,19 +81,18 @@ interface NodeResolverContract : ResolverContract {
                 },
                 nodeResolvers = { schema ->
                     mapOf(
-                        schema.contractObjectType("Item") to
+                        schema.loweredSchema.contractObjectType("Item") to
                             nodeResolverOf { id ->
-                                schema.objectOf("Item") {
+                                schema.loweredSchema.objectOf("Item") {
                                     "id" setTo id
-                                    "leaf" setTo schema.objectOf("Leaf")
+                                    "leaf" setTo schema.loweredSchema.objectOf("Leaf")
                                 }
                             },
                     )
                 },
             )
-        val world = testWorld.assumptions
-        val schema = world.schema
-        val result = resolveAndValidate(world, "query { viewer { result } }")
+        val schema = testWorld.schema
+        val result = resolveAndValidate(testWorld, "query { viewer { result } }")
         val viewer =
             assertIs<ObjectEngineResult>(
                 result.getCell(schema.contractKey("Query", "viewer")).get(),
@@ -119,17 +118,17 @@ interface NodeResolverContract : ResolverContract {
                     type Query { foo: Foo!, referencedFoo: ReferencedFoo! }
                     """.trimIndent(),
                 fieldResolvers = { schema ->
-                    val foo = schema.requireObjectField("Query", "foo")
-                    val referencedFoo = schema.requireObjectField("Query", "referencedFoo")
+                    val foo = schema.loweredSchema.requireObjectField("Query", "foo")
+                    val referencedFoo = schema.loweredSchema.requireObjectField("Query", "referencedFoo")
                     mapOf(
                         foo to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
-                                schema.objectOf("Foo") { "id" setTo "source-id" }
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
+                                schema.loweredSchema.objectOf("Foo") { "id" setTo "source-id" }
                             },
                         referencedFoo to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
                                 targetApplications.incrementAndGet()
-                                schema.objectOf("Foo") {
+                                schema.loweredSchema.objectOf("Foo") {
                                     "id" setTo "target-id"
                                     "value" setTo "from-reference"
                                 }
@@ -137,8 +136,8 @@ interface NodeResolverContract : ResolverContract {
                     )
                 },
                 nodeResolvers = { schema ->
-                    val foo = schema.requireType("Foo") as ViaductSchema.Object
-                    val referencedFoo = schema.requireObjectField("Query", "referencedFoo")
+                    val foo = schema.loweredSchema.requireType("Foo") as ViaductSchema.Object
+                    val referencedFoo = schema.loweredSchema.requireObjectField("Query", "referencedFoo")
                     mapOf(
                         foo to
                             nodeResolverOf { id ->
@@ -153,7 +152,7 @@ interface NodeResolverContract : ResolverContract {
                 },
             )
         val world = testWorld.assumptions
-        val result = resolveAndValidate(world, "query { foo { id value } }")
+        val result = resolveAndValidate(testWorld, "query { foo { id value } }")
         val resolvedFoo =
             assertIs<ObjectEngineResult>(
                 result.getCell(world.schema.contractKey("Query", "foo")).get(),
@@ -192,11 +191,11 @@ interface NodeResolverContract : ResolverContract {
                     """.trimIndent(),
                 nodeResolvers = { schema ->
                     mapOf(
-                        schema.contractObjectType("Baz") to
+                        schema.loweredSchema.contractObjectType("Baz") to
                             nodeResolverOf { id ->
                                 when (id) {
                                     "1" ->
-                                        schema.objectOf("Baz") {
+                                        schema.loweredSchema.objectOf("Baz") {
                                             "id" setTo id
                                         }
                                     "2" -> {
@@ -209,19 +208,19 @@ interface NodeResolverContract : ResolverContract {
                     )
                 },
                 fieldResolvers = { schema ->
-                    val baz = schema.requireObjectField("Query", "baz")
-                    val anotherBaz = schema.requireObjectField("Baz", "anotherBaz")
-                    val z = schema.requireObjectField("Baz", "z")
+                    val baz = schema.loweredSchema.requireObjectField("Query", "baz")
+                    val anotherBaz = schema.loweredSchema.requireObjectField("Baz", "anotherBaz")
+                    val z = schema.loweredSchema.requireObjectField("Baz", "z")
                     mapOf(
                         baz to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
-                                schema.objectOf("Baz") {
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
+                                schema.loweredSchema.objectOf("Baz") {
                                     "id" setTo "1"
                                 }
                             },
                         anotherBaz to
-                            fieldResolverOf(schema.emptyFragmentOf("Baz")) { _, _ ->
-                                schema.objectOf("Baz") {
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Baz")) { _, _ ->
+                                schema.loweredSchema.objectOf("Baz") {
                                     "id" setTo "2"
                                 }
                             },
@@ -237,9 +236,8 @@ interface NodeResolverContract : ResolverContract {
                     )
                 },
             )
-        val world = testWorld.assumptions
-        val schema = world.schema
-        val result = resolveAndValidate(world, "query { baz { z } }")
+        val schema = testWorld.schema
+        val result = resolveAndValidate(testWorld, "query { baz { z } }")
         val baz =
             assertIs<ObjectEngineResult>(
                 result.getCell(schema.contractKey("Query", "baz")).get(),
@@ -289,7 +287,7 @@ interface NodeResolverContract : ResolverContract {
             )
         val world = testWorld.assumptions
         resolveAndValidate(
-            world,
+            testWorld,
             """
                 query {
                   viewer(id: "1") {
@@ -326,9 +324,9 @@ interface NodeResolverContract : ResolverContract {
                     """.trimIndent(),
                 nodeResolvers = { schema ->
                     mapOf(
-                        schema.contractObjectType("Profile") to
+                        schema.loweredSchema.contractObjectType("Profile") to
                             nodeResolverOf { id ->
-                                schema.objectOf("Profile") {
+                                schema.loweredSchema.objectOf("Profile") {
                                     "id" setTo id
                                     "name" setTo "Ada"
                                 }
@@ -337,12 +335,12 @@ interface NodeResolverContract : ResolverContract {
                 },
                 fieldResolvers = { schema ->
                     mapOf(
-                        schema.requireField("Query", "viewer") to
+                        schema.loweredSchema.requireField("Query", "viewer") to
                             fieldResolverOf(
-                                schema.emptyFragmentOf("Query"),
+                                schema.loweredSchema.emptyFragmentOf("Query"),
                             ) { input, _ ->
                                 require(input.hasExactlyFields())
-                                schema.objectOf("Viewer") {
+                                schema.loweredSchema.objectOf("Viewer") {
                                     "card" setTo
                                         objectOf("Card") {
                                             "profile" setTo
@@ -355,11 +353,10 @@ interface NodeResolverContract : ResolverContract {
                     )
                 },
             )
-        val world = testWorld.assumptions
-        val schema = world.schema
+        val schema = testWorld.schema
         val result =
             resolveAndValidate(
-                world,
+                testWorld,
                 "query { viewer { card { profile { id name } } } }",
             )
         val viewer =
@@ -401,16 +398,16 @@ interface NodeResolverContract : ResolverContract {
                     """.trimIndent(),
                 nodeResolvers = { schema ->
                     mapOf(
-                        schema.contractObjectType("User") to
+                        schema.loweredSchema.contractObjectType("User") to
                             nodeResolverOf { id ->
-                                schema.objectOf("User") {
+                                schema.loweredSchema.objectOf("User") {
                                     "id" setTo id
                                     "name" setTo "user-$id"
                                 }
                             },
-                        schema.contractObjectType("Admin") to
+                        schema.loweredSchema.contractObjectType("Admin") to
                             nodeResolverOf { id ->
-                                schema.objectOf("Admin") {
+                                schema.loweredSchema.objectOf("Admin") {
                                     "id" setTo id
                                     "level" setTo 7
                                 }
@@ -418,20 +415,20 @@ interface NodeResolverContract : ResolverContract {
                     )
                 },
                 fieldResolvers = { schema ->
-                    val nodes = schema.requireField("Query", "nodes")
+                    val nodes = schema.loweredSchema.requireField("Query", "nodes")
                     mapOf(
                         nodes to
                             fieldResolverOf(
-                                schema.emptyFragmentOf("Query"),
+                                schema.loweredSchema.emptyFragmentOf("Query"),
                             ) { input, arguments ->
                                 require(input.hasExactlyFields())
                                 val group =
                                     arguments.fieldValues.getValue("group") as String
                                 listOf(
-                                    schema.objectOf("User") {
+                                    schema.loweredSchema.objectOf("User") {
                                         "id" setTo "$group-user"
                                     },
-                                    schema.objectOf("Admin") {
+                                    schema.loweredSchema.objectOf("Admin") {
                                         "id" setTo "$group-admin"
                                     },
                                 )
@@ -439,11 +436,10 @@ interface NodeResolverContract : ResolverContract {
                     )
                 },
             )
-        val world = testWorld.newAssumptions()
-        val schema = world.schema
+        val schema = testWorld.schema
         val result =
             resolveAndValidate(
-                world,
+                testWorld,
                 """
                 query {
                   first: nodes(group: "first") {
@@ -494,9 +490,9 @@ interface NodeResolverContract : ResolverContract {
                     """.trimIndent(),
                 nodeResolvers = { schema ->
                     mapOf(
-                        schema.contractObjectType("User") to
+                        schema.loweredSchema.contractObjectType("User") to
                             nodeResolverOf { id ->
-                                schema.objectOf("User") {
+                                schema.loweredSchema.objectOf("User") {
                                     "id" setTo id
                                     "name" setTo "user-$id"
                                 }
@@ -504,18 +500,18 @@ interface NodeResolverContract : ResolverContract {
                     )
                 },
                 fieldResolvers = { schema ->
-                    val matrix = schema.requireField("Query", "matrix")
+                    val matrix = schema.loweredSchema.requireField("Query", "matrix")
 
                     fun row(vararg ids: String): EngineOutputListData =
                         ids.map { id ->
-                            schema.objectOf("User") {
+                            schema.loweredSchema.objectOf("User") {
                                 "id" setTo id
                             }
                         }
                     mapOf(
                         matrix to
                             fieldResolverOf(
-                                objectFragment = schema.emptyFragmentOf("Query"),
+                                objectFragment = schema.loweredSchema.emptyFragmentOf("Query"),
                                 function = { _, _ ->
                                     listOf(row("a", "b"), row("c"))
                                 },
@@ -523,10 +519,9 @@ interface NodeResolverContract : ResolverContract {
                     )
                 },
             )
-        val world = testWorld.newAssumptions()
-        val schema = world.schema
+        val schema = testWorld.schema
         val result =
-            resolveAndValidate(world, "query { matrix { id name } }", resolverObserver = invocationObserver)
+            resolveAndValidate(testWorld, "query { matrix { id name } }", resolverObserver = invocationObserver)
         val matrix =
             assertIs<ListEngineResult>(
                 result.getCell(schema.contractKey("Query", "matrix")).get(),

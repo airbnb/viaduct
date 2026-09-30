@@ -30,7 +30,7 @@ class ParentDemandProvenanceTest {
     }
 
     private fun assertNestedCheckedParentDemand(queryRooted: Boolean) {
-        val world = TestWorld.fromDSL(
+        val worldFixture = TestWorld.fromDSL(
             """
             extend type Query {
               organization: Organization @resolver(result: {})
@@ -43,10 +43,11 @@ class ParentDemandProvenanceTest {
               parent: Organization @parent
             }
             """.trimIndent(),
-        ).assumptions
-        val schema = world.schema
-        val queryType = schema.requireQueryTypeDef()
-        val organizationType = schema.requireObjectField("Organization", "company").containingDef
+        )
+        val world = worldFixture.assumptions
+        val schema = worldFixture.schemas
+        val queryType = schema.loweredSchema.requireQueryTypeDef()
+        val organizationType = schema.loweredSchema.requireObjectField("Organization", "company").containingDef
         val objectRoot = ObjectEngineResult.of(queryType, emptyMap())
         val queryRoot = ObjectEngineResult.of(queryType, emptyMap())
         val original = schema.fragmentFrom(
@@ -59,7 +60,7 @@ class ParentDemandProvenanceTest {
                 OrchestrationConstructionDemand.checkedObject(original)
             }
 
-        val closed = schema.objectOf("Query").closeOrchestrationConstructionDemand(
+        val closed = schema.loweredSchema.objectOf("Query").closeOrchestrationConstructionDemand(
             operation = SharedOperationContext.create(world),
             objectOccurrence = OEROccurrence(objectRoot, emptyList(), objectRoot),
             queryOccurrence = OEROccurrence(queryRoot, emptyList(), queryRoot),

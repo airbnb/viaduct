@@ -46,7 +46,7 @@ interface GroundedFieldCheckerCapabilityContract {
             val result =
                 coroutineResolverSubject.resolve(
                     SharedOperationContext.create(world),
-                    world.operationSelectionsFrom("{ item { a } }"),
+                    fixture.world.schemas.operationSelectionsFrom("{ item { a } }"),
                 )
             val item = result.chainObjectValue(world, "Query", "item")
             val bValue = item.chainCell(world, "Item", "b").value.get()
@@ -84,7 +84,7 @@ interface GroundedFieldCheckerCapabilityContract {
         val result =
             coroutineResolverSubject.resolve(
                 SharedOperationContext.create(world),
-                world.operationSelectionsFrom("{ item { a b c } }"),
+                fixture.world.schemas.operationSelectionsFrom("{ item { a b c } }"),
             )
         val item = result.chainObjectValue(world, "Query", "item")
 
@@ -98,7 +98,7 @@ interface GroundedFieldCheckerCapabilityContract {
     @Test
     fun `checker object input follows parent backedges raw`() {
         val auditSeen = AtomicInteger()
-        val world =
+        val worldFixture =
             TestWorld.fromDSL(
                 schemaSDL =
                     """
@@ -118,12 +118,12 @@ interface GroundedFieldCheckerCapabilityContract {
                     """.trimIndent(),
                 selectiveResolvers = coroutineResolverSubject.selectiveResolvers,
                 fieldCheckers = { schema ->
-                    val protected = schema.requireObjectField("Child", "protected")
+                    val protected = schema.loweredSchema.requireObjectField("Child", "protected")
                     mapOf(
                         protected to
                             FieldCheckerResolver.of(
                                 protected,
-                                schema.requireQueryTypeDef(),
+                                schema.loweredSchema.requireQueryTypeDef(),
                                 fragmentTemplates =
                                     mapOf(
                                         "input" to
@@ -146,11 +146,12 @@ interface GroundedFieldCheckerCapabilityContract {
                             },
                     )
                 },
-            ).assumptions
+            )
+        val world = worldFixture.assumptions
 
         coroutineResolverSubject.resolve(
             SharedOperationContext.create(world),
-            world.operationSelectionsFrom("{ box { children { protected } } }"),
+            worldFixture.schemas.operationSelectionsFrom("{ box { children { protected } } }"),
         )
 
         assertEquals(9, auditSeen.get())
@@ -188,14 +189,14 @@ interface GroundedFieldCheckerCapabilityContract {
                             },
                         )
                     mapOf(
-                        schema.requireObjectField("Query", "item") to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
-                                schema.objectOf("Item") {
+                        schema.loweredSchema.requireObjectField("Query", "item") to
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
+                                schema.loweredSchema.objectOf("Item") {
                                     "a" setTo 7
                                     "c" setTo 41
                                 }
                             },
-                        schema.requireObjectField("Item", "b") to
+                        schema.loweredSchema.requireObjectField("Item", "b") to
                             fieldResolverOf(bFragment) { input, _ ->
                                 bResolverCalls.incrementAndGet()
                                 if (case.readC) {
@@ -207,9 +208,9 @@ interface GroundedFieldCheckerCapabilityContract {
                     )
                 },
                 fieldCheckers = { schema ->
-                    val a = schema.requireObjectField("Item", "a")
-                    val b = schema.requireObjectField("Item", "b")
-                    val c = schema.requireObjectField("Item", "c")
+                    val a = schema.loweredSchema.requireObjectField("Item", "a")
+                    val b = schema.loweredSchema.requireObjectField("Item", "b")
+                    val c = schema.loweredSchema.requireObjectField("Item", "c")
 
                     fun bInput(alias: String): ResolverFragmentTemplates =
                         ResolverFragmentTemplates(
@@ -223,7 +224,7 @@ interface GroundedFieldCheckerCapabilityContract {
                         a to
                             FieldCheckerResolver.of(
                                 a,
-                                schema.requireQueryTypeDef(),
+                                schema.loweredSchema.requireQueryTypeDef(),
                                 fragmentTemplates =
                                     linkedMapOf(
                                         "first" to bInput("firstB"),
@@ -236,12 +237,12 @@ interface GroundedFieldCheckerCapabilityContract {
                                 CheckerResult.Success
                             },
                         b to
-                            FieldCheckerResolver.of(b, schema.requireQueryTypeDef()) { _, _, _ ->
+                            FieldCheckerResolver.of(b, schema.loweredSchema.requireQueryTypeDef()) { _, _, _ ->
                                 bCheckerCalls.incrementAndGet()
                                 CheckerResult.Success
                             },
                         c to
-                            FieldCheckerResolver.of(c, schema.requireQueryTypeDef()) { _, _, _ ->
+                            FieldCheckerResolver.of(c, schema.loweredSchema.requireQueryTypeDef()) { _, _, _ ->
                                 cCheckerCalls.incrementAndGet()
                                 case.cResult
                             },

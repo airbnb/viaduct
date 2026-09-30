@@ -50,7 +50,7 @@ class ExecutorVariableDeclarationsTest {
             input Input { value: Int! }
             """.trimIndent(),
             fieldResolvers = { schema ->
-                val field = schema.requireObjectField("Query", "result")
+                val field = schema.loweredSchema.requireObjectField("Query", "result")
                 val objectFragment = schema.fragmentFrom("fragment _ on Query { $objectSource }", variableField = field)
                 val queryFragment = schema.fragmentFrom("fragment _ on Query { $querySource }", variableField = field)
                 compiled = executor.compileVariableDeclarations(
@@ -186,8 +186,8 @@ class ExecutorVariableDeclarationsTest {
     @Test
     fun `direct callback rejects missing and extra names`(): Unit =
         runBlocking {
-            val schema = TestWorld.fromSDL("type Query { result: Int use(x: Int!): Int! }").schema
-            val field = schema.requireObjectField("Query", "result")
+            val schema = TestWorld.fromSDL("type Query { result: Int use(x: Int!): Int! }").schemas
+            val field = schema.loweredSchema.requireObjectField("Query", "result")
             val fragment = schema.fragmentFrom("fragment _ on Query { use(x: \$value) }", variableField = field)
             for (output in listOf(emptyMap(), mapOf("value" to 1, "extra" to 2))) {
                 val executor = object : MockFieldUnbatchedResolverExecutor(resolverId = "Query.result") {
@@ -215,8 +215,8 @@ class ExecutorVariableDeclarationsTest {
 
     @Test
     fun `rejects missing explicit declarations even when legacy recipes exist`() {
-        val schema = TestWorld.fromSDL("type Query { result(x: Int!): Int use(x: Int!): Int! }").schema
-        val field = schema.requireObjectField("Query", "result")
+        val schema = TestWorld.fromSDL("type Query { result(x: Int!): Int use(x: Int!): Int! }").schemas
+        val field = schema.loweredSchema.requireObjectField("Query", "result")
         for (arguments in listOf(emptyMap(), mapOf("arg" to "x"))) {
             val selections = if (arguments.isEmpty()) "use(x: \$value)" else "a: use(x: \$arg) use(x: \$value)"
             val objectFragment = schema.fragmentFrom("fragment _ on Query { $selections }", variableField = field)

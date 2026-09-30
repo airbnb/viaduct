@@ -22,15 +22,15 @@ import semantics.shared.SharedOperationContext
 class DepthFirstReactorTest {
     @Test
     fun `Query OER depth precedes task kind and equal-depth insertion order`() {
-        val world =
+        val worldFixture =
             TestWorld.fromSDL(
                 schemaSDL = "type Query { value: Int }",
                 selectiveResolvers = false,
-            ).assumptions
+            )
+        val world = worldFixture.assumptions
         val source = world.resolverRegistry.createRootQueryInput()
         val selections =
-            world
-                .fragmentFrom("fragment ignored on Query { __typename }")
+            worldFixture.schemas.fragmentFrom("fragment ignored on Query { __typename }")
                 .subselections
         val sourceType = source.schemaType
         val selection = selections.merge(sourceType).byGroundKey().values.single()
@@ -100,14 +100,14 @@ class DepthFirstReactorTest {
 
     @Test
     fun `resolve can only be called once`() {
-        val world =
+        val worldFixture =
             TestWorld.fromSDL(
                 schemaSDL = "type Query { value: Int }",
                 selectiveResolvers = false,
-            ).assumptions
+            )
+        val world = worldFixture.assumptions
         val selections =
-            world
-                .fragmentFrom("fragment ignored on Query { __typename }")
+            worldFixture.schemas.fragmentFrom("fragment ignored on Query { __typename }")
                 .subselections
         val reactor =
             DepthFirstReactor(

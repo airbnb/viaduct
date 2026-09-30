@@ -231,7 +231,7 @@ class OperationSelectionParsingTest {
             operationText: String,
             variables: Map<String, Any?> = emptyMap(),
         ): SelectionForest =
-            world.assumptions.operationSelectionsFrom(
+            world.schemas.operationSelectionsFrom(
                 documentSource = operationText,
                 variables = variables,
                 graphQLContext = graphQLContext,
@@ -242,6 +242,7 @@ class OperationSelectionParsingTest {
             val document = Parser.parse(operationText)
             val operation = document.getDefinitionsOfType(OperationDefinition::class.java).single()
             return world.assumptions.selectionsFrom(
+                sourceSchema = world.schemas.graphQLSchema,
                 operation = operation,
                 variables = CoercedVariables.emptyVariables(),
                 graphQLContext = graphQLContext,

@@ -20,7 +20,7 @@ class SelectionDocumentTest {
             )
 
         val fragment =
-            world.schema.fragmentFromDocument(
+            world.schemas.fragmentFromDocument(
                 Parser.parse(
                     """
                     fragment Main on Query {
@@ -57,7 +57,7 @@ class SelectionDocumentTest {
             )
 
         val fragment =
-            world.schema.fragmentFromDocument(
+            world.schemas.fragmentFromDocument(
                 Parser.parse(
                     """
                     fragment Value on Query {
@@ -91,7 +91,7 @@ class SelectionDocumentTest {
             )
 
         val fragment =
-            world.schema.fragmentFromDocument(
+            world.schemas.fragmentFromDocument(
                 Parser.parse(
                     """
                     fragment Directed on Query {

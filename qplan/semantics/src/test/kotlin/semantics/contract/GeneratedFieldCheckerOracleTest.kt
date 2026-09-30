@@ -21,17 +21,18 @@ import viaduct.engine.api.CheckerResultContext
 class GeneratedFieldCheckerOracleTest {
     @Test
     fun `an unregistered field cannot publish a non-null checker result`() {
-        val world =
+        val worldFixture =
             TestWorld.fromSDL(
                 schemaSDL = "type Query { value: Int! }",
                 fieldResolvers = { schema ->
-                    val value = schema.requireObjectField("Query", "value")
+                    val value = schema.loweredSchema.requireObjectField("Query", "value")
                     mapOf(
                         value to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> 7 },
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> 7 },
                     )
                 },
-            ).assumptions
+            )
+        val world = worldFixture.assumptions
         val key =
             ObjectEngineResult.GroundKey.of(
                 world.schema.requireObjectField("Query", "value"),
@@ -44,7 +45,7 @@ class GeneratedFieldCheckerOracleTest {
                 resolverObserver = CorrectnessResolverObserver(),
                 checkerObserver = CorrectnessCheckerObserver(applications),
             )
-        val selections = world.fragmentFrom("fragment Query on Query { value }")
+        val selections = worldFixture.schemas.fragmentFrom("fragment Query on Query { value }")
 
         listOf(CheckerResult.Success, Denial, null).forEach { stored ->
             val result = ObjectEngineResult.of(

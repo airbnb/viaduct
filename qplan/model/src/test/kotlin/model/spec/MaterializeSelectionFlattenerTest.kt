@@ -15,7 +15,6 @@ import model.requireField
 import model.requireObjectField
 import model.requireQueryTypeDef
 import model.requireType
-import model.testing.GJSchema
 import model.testing.TestWorld
 import model.usedVariables
 import viaduct.engine.api.FieldDirectives
@@ -25,9 +24,9 @@ class MaterializeSelectionFlattenerTest {
     @Test
     fun `Boolean literal directives lower with include and skip semantics`() {
         val world = TestWorld.fromSDL("type Query { value: String }")
-        val schema = world.schema as GJSchema
+        val schema = world.schemas
         val (_, selections) =
-            GJSelectionParser(schema.graphQLSchema, schema, emptyMap())
+            GJSelectionParser(schema.graphQLSchema, schema.loweredSchema, emptyMap())
                 .materializeSelectionsFrom(
                     """
                     fragment ResolverInput on Query {
@@ -54,9 +53,9 @@ class MaterializeSelectionFlattenerTest {
     @Test
     fun `fragment and field directives flatten into one conjunctive condition`() {
         val world = TestWorld.fromSDL("type Query { value: String }")
-        val schema = world.schema as GJSchema
+        val schema = world.schemas
         val (_, selections) =
-            GJSelectionParser(schema.graphQLSchema, schema, emptyMap())
+            GJSelectionParser(schema.graphQLSchema, schema.loweredSchema, emptyMap())
                 .materializeSelectionsFrom(
                     """
                     fragment ResolverInput on Query {
@@ -354,22 +353,22 @@ class MaterializeSelectionFlattenerTest {
                 }
                 """.trimIndent(),
             )
-        val schema = world.schema as GJSchema
+        val schema = world.schemas
         val parsed =
-            GJSelectionParser(schema.graphQLSchema, schema, emptyMap())
+            GJSelectionParser(schema.graphQLSchema, schema.loweredSchema, emptyMap())
                 .specSelectionsFrom(
                     "fragment ResolverInput on Query { account: user { id } }",
                 )
         val selections =
-            flattenForMaterialization(schema, parsed.nominalType, parsed.selections)
+            flattenForMaterialization(schema.loweredSchema, parsed.nominalType, parsed.selections)
 
-        val account = selections.collect(schema.requireQueryTypeDef())["account"]
+        val account = selections.collect(schema.loweredSchema.requireQueryTypeDef())["account"]
         assertEquals("user", account.key.field.name)
         assertEquals(
             setOf("user"),
             selections
                 .constructionSelections()
-                .merge(schema.requireQueryTypeDef())
+                .merge(schema.loweredSchema.requireQueryTypeDef())
                 .keys()
                 .mapTo(linkedSetOf()) { key -> key.field.name },
         )
@@ -377,7 +376,7 @@ class MaterializeSelectionFlattenerTest {
         assertEquals(
             setOf("id"),
             account.subselections
-                .collect(schema.requireType("User") as ViaductSchema.Object)
+                .collect(schema.loweredSchema.requireType("User") as ViaductSchema.Object)
                 .responseKeys(),
         )
     }

@@ -49,7 +49,7 @@ interface ObjectFragmentFromObjectPathResolverContract :
         val resultField = world.schema.requireObjectField("Query", "result")
         val resultKey = ObjectEngineResult.GroundKey.of(resultField, emptyMap())
         val resolver = world.resolverRegistry.resolver(resultField)
-        val resolution = resolveAndValidateObserved(world, "query { result }")
+        val resolution = resolveAndValidateObserved(testWorld, "query { result }")
         val resolved = resolution.result
         val boundVariable =
             resolver
@@ -95,7 +95,7 @@ interface ObjectFragmentFromObjectPathResolverContract :
                 mapOf("seed" to 7),
             )
 
-        val resolved = resolveAndValidate(world, "query { result(seed: 7) }")
+        val resolved = resolveAndValidate(testWorld, "query { result(seed: 7) }")
 
         assertEquals(7, resolved.getCell(resultKey).get())
     }
@@ -130,7 +130,7 @@ interface ObjectFragmentFromObjectPathResolverContract :
                 emptyMap(),
             )
 
-        val resolved = resolveAndValidate(world, "query { result }")
+        val resolved = resolveAndValidate(testWorld, "query { result }")
 
         assertEquals(11, resolved.getCell(resultKey).get())
     }
@@ -169,7 +169,7 @@ interface ObjectFragmentFromObjectPathResolverContract :
                 emptyMap(),
             )
 
-        val resolved = resolveAndValidate(world, "query { result }")
+        val resolved = resolveAndValidate(testWorld, "query { result }")
 
         assertEquals(13, resolved.getCell(resultKey).get())
     }
@@ -211,7 +211,7 @@ interface ObjectFragmentFromObjectPathResolverContract :
 
         val resolved =
             resolveAndValidate(
-                world,
+                testWorld,
                 "query { box { passive } result }",
             )
 
@@ -260,7 +260,7 @@ interface ObjectFragmentFromObjectPathResolverContract :
                 emptyMap(),
             )
 
-        val resolved = resolveAndValidate(world, "query { result }")
+        val resolved = resolveAndValidate(testWorld, "query { result }")
 
         assertEquals(17, resolved.getCell(resultKey).get())
     }
@@ -312,7 +312,7 @@ interface ObjectFragmentFromObjectPathResolverContract :
             val resultField = world.schema.requireObjectField("Query", "result")
             val resultKey = ObjectEngineResult.GroundKey.of(resultField, emptyMap())
             val resolver = world.resolverRegistry.resolver(resultField)
-            val resolution = resolveAndValidateObserved(world, "query { result }", resolverObserver = invocationObserver)
+            val resolution = resolveAndValidateObserved(testWorld, "query { result }", resolverObserver = invocationObserver)
             val resolved = resolution.result
             val boundVariable =
                 resolver
@@ -380,7 +380,7 @@ interface ObjectFragmentFromObjectPathResolverContract :
                 emptyMap(),
             )
 
-        val resolved = resolveAndValidate(world, "query { result }")
+        val resolved = resolveAndValidate(testWorld, "query { result }")
 
         assertEquals(9, resolved.getCell(resultKey).get())
     }
@@ -412,7 +412,7 @@ interface ObjectFragmentFromObjectPathResolverContract :
                 emptyMap(),
             )
 
-        val resolved = resolveAndValidate(world, "query { result }", resolverObserver = applicationArguments)
+        val resolved = resolveAndValidate(testWorld, "query { result }", resolverObserver = applicationArguments)
 
         assertEquals(10, resolved.getCell(resultKey).get())
         applicationArguments.assertArguments(

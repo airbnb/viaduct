@@ -25,7 +25,7 @@ class GeneratedFieldCheckerCoverageTest {
           other: Int!
         }
         """.trimIndent(),
-    ).assumptions
+    ).schemas
 
     @Test
     fun `recognizes repeated concrete coordinates through different abstract object paths`() {

@@ -7,8 +7,8 @@ import kotlin.test.assertIs
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 import model.invariants.conformsToSchema
-import model.testing.GJSchema
 import model.testing.TestWorld
+import model.testing.ViaductAndGJSchema
 import viaduct.engine.api.CheckerResult
 
 class ParentFieldsTest {
@@ -185,7 +185,7 @@ class ParentFieldsTest {
     @Test
     fun `parent relation rejects an argument-bearing child producer`() {
         val schema =
-            GJSchema.fromSDL(
+            ViaductAndGJSchema.fromSDL(
                 """
                 directive @parent on FIELD_DEFINITION
                 type Query { parent: Parent }
@@ -195,7 +195,7 @@ class ParentFieldsTest {
             )
 
         assertFailsWith<IllegalArgumentException> {
-            parentFieldRelations(schema)
+            parentFieldRelations(schema.loweredSchema)
         }
     }
 

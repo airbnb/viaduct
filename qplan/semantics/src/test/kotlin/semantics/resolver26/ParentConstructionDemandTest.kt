@@ -15,7 +15,7 @@ import model.testing.TestWorld
 class ParentConstructionDemandTest {
     @Test
     fun `selections without parent demand contribute nothing`() {
-        val world =
+        val worldFixture =
             TestWorld.fromDSL(
                 """
                 extend type Query {
@@ -31,9 +31,10 @@ class ParentConstructionDemandTest {
                   title: String
                 }
                 """.trimIndent(),
-            ).assumptions
+            )
+        val world = worldFixture.assumptions
         val input =
-            world.schema
+            worldFixture.schemas
                 .fragmentFrom("fragment F on Query { organization { company { title } } }")
                 .subselections
 
@@ -47,7 +48,7 @@ class ParentConstructionDemandTest {
 
     @Test
     fun `a direct parent selection lifts demand across its producer edge`() {
-        val world =
+        val worldFixture =
             TestWorld.fromDSL(
                 """
                 extend type Query {
@@ -63,9 +64,10 @@ class ParentConstructionDemandTest {
                   parent: Organization @parent
                 }
                 """.trimIndent(),
-            ).assumptions
-        val schema = world.schema
-        val organization = schema.requireObjectField("Organization", "company").containingDef
+            )
+        val world = worldFixture.assumptions
+        val schema = worldFixture.schemas
+        val organization = schema.loweredSchema.requireObjectField("Organization", "company").containingDef
         val input =
             schema
                 .fragmentFrom(
@@ -74,7 +76,7 @@ class ParentConstructionDemandTest {
 
         // `Company.parent` points back across the `Organization.company` producer edge.
         // The returned addition therefore asks the Organization OER itself for `name`.
-        val expected = input.liftParentConstructionDemand(world).merge(schema.requireQueryTypeDef())
+        val expected = input.liftParentConstructionDemand(world).merge(schema.loweredSchema.requireQueryTypeDef())
 
         // Expected lifted demand:
         //
@@ -90,7 +92,7 @@ class ParentConstructionDemandTest {
 
     @Test
     fun `a resolver object fragment can introduce parent demand`() {
-        val world =
+        val worldFixture =
             TestWorld.fromDSL(
                 """
                 extend type Query {
@@ -108,9 +110,10 @@ class ParentConstructionDemandTest {
                     @resolver(of: "parent { name }", result: null)
                 }
                 """.trimIndent(),
-            ).assumptions
-        val schema = world.schema
-        val organization = schema.requireObjectField("Organization", "company").containingDef
+            )
+        val world = worldFixture.assumptions
+        val schema = worldFixture.schemas
+        val organization = schema.loweredSchema.requireObjectField("Organization", "company").containingDef
         val input =
             schema
                 .fragmentFrom("fragment F on Query { organization { company { displayName } } }")
@@ -118,7 +121,7 @@ class ParentConstructionDemandTest {
 
         // The client never selected `parent`. It selected `displayName`, whose fixed resolver
         // input selects `parent { name }`; that hidden input still lifts `name` to Organization.
-        val expected = input.liftParentConstructionDemand(world).merge(schema.requireQueryTypeDef())
+        val expected = input.liftParentConstructionDemand(world).merge(schema.loweredSchema.requireQueryTypeDef())
 
         // Expected lifted demand:
         //
@@ -134,7 +137,7 @@ class ParentConstructionDemandTest {
 
     @Test
     fun `lifted active demand can introduce another parent request`() {
-        val world =
+        val worldFixture =
             TestWorld.fromDSL(
                 """
                 extend type Query {
@@ -159,10 +162,11 @@ class ParentConstructionDemandTest {
                     @resolver(of: "parent { bridge }", result: 1)
                 }
                 """.trimIndent(),
-            ).assumptions
-        val schema = world.schema
-        val grand = schema.requireObjectField("Grand", "parentNode").containingDef
-        val parent = schema.requireObjectField("Parent", "child").containingDef
+            )
+        val world = worldFixture.assumptions
+        val schema = worldFixture.schemas
+        val grand = schema.loweredSchema.requireObjectField("Grand", "parentNode").containingDef
+        val parent = schema.loweredSchema.requireObjectField("Parent", "child").containingDef
         val input =
             schema
                 .fragmentFrom("fragment F on Query { grand { parentNode { child { result } } } }")
@@ -172,7 +176,7 @@ class ParentConstructionDemandTest {
         // 1. `Child.result` requires `parent { bridge }`, so Parent must resolve `bridge`.
         // 2. `Parent.bridge` is itself active and requires `parent { grandValue }`.
         // 3. That second parent request makes Grand resolve `grandValue` as well.
-        val expected = input.liftParentConstructionDemand(world).merge(schema.requireQueryTypeDef())
+        val expected = input.liftParentConstructionDemand(world).merge(schema.loweredSchema.requireQueryTypeDef())
 
         // Expected lifted demand:
         //
@@ -193,7 +197,7 @@ class ParentConstructionDemandTest {
 
     @Test
     fun `parent demand can cross two producer edges`() {
-        val world =
+        val worldFixture =
             TestWorld.fromDSL(
                 """
                 extend type Query {
@@ -216,10 +220,11 @@ class ParentConstructionDemandTest {
                     @resolver(of: "parent { parent { name } }", result: null)
                 }
                 """.trimIndent(),
-            ).assumptions
-        val schema = world.schema
-        val organization = schema.requireObjectField("Organization", "company").containingDef
-        val company = schema.requireObjectField("Company", "user").containingDef
+            )
+        val world = worldFixture.assumptions
+        val schema = worldFixture.schemas
+        val organization = schema.loweredSchema.requireObjectField("Organization", "company").containingDef
+        val company = schema.loweredSchema.requireObjectField("Company", "user").containingDef
         val input =
             schema
                 .fragmentFrom(
@@ -229,7 +234,7 @@ class ParentConstructionDemandTest {
         // The first lift makes `Company.parent { name }` construction demand. An intermediate
         // Company OER therefore needs its parent backedge populated. The second lift places the
         // same `name` demand directly on the ancestor Organization OER.
-        val expected = input.liftParentConstructionDemand(world).merge(schema.requireQueryTypeDef())
+        val expected = input.liftParentConstructionDemand(world).merge(schema.loweredSchema.requireQueryTypeDef())
 
         // Expected lifted demand:
         //
@@ -253,7 +258,7 @@ class ParentConstructionDemandTest {
 
     @Test
     fun `lifted demand retains client inclusion conditions`() {
-        val world =
+        val worldFixture =
             TestWorld.fromDSL(
                 """
                 extend type Query {
@@ -269,10 +274,11 @@ class ParentConstructionDemandTest {
                   parent: Organization @parent
                 }
                 """.trimIndent(),
-            ).assumptions
-        val schema = world.schema
-        val organizationField = schema.requireObjectField("Query", "organization")
-        val organization = schema.requireObjectField("Organization", "company").containingDef
+            )
+        val world = worldFixture.assumptions
+        val schema = worldFixture.schemas
+        val organizationField = schema.loweredSchema.requireObjectField("Query", "organization")
+        val organization = schema.loweredSchema.requireObjectField("Organization", "company").containingDef
         val input =
             schema
                 .fragmentFrom(
@@ -286,7 +292,7 @@ class ParentConstructionDemandTest {
                     variableField = organizationField,
                 ).subselections
 
-        val expected = input.liftParentConstructionDemand(world).merge(schema.requireQueryTypeDef())
+        val expected = input.liftParentConstructionDemand(world).merge(schema.loweredSchema.requireQueryTypeDef())
 
         // Expected lifted demand:
         //
@@ -314,7 +320,7 @@ class ParentConstructionDemandTest {
 
     @Test
     fun `resolver-local conditions cannot suppress parent demand during lifting`() {
-        val world =
+        val worldFixture =
             TestWorld.fromDSL(
                 """
                 extend type Query {
@@ -335,15 +341,16 @@ class ParentConstructionDemandTest {
                     )
                 }
                 """.trimIndent(),
-            ).assumptions
-        val schema = world.schema
-        val root = schema.requireObjectField("Root", "child").containingDef
+            )
+        val world = worldFixture.assumptions
+        val schema = worldFixture.schemas
+        val root = schema.loweredSchema.requireObjectField("Root", "child").containingDef
         val input =
             schema
                 .fragmentFrom("fragment F on Query { root { child { result(enabled: false) } } }")
                 .subselections
 
-        val expected = input.liftParentConstructionDemand(world).merge(schema.requireQueryTypeDef())
+        val expected = input.liftParentConstructionDemand(world).merge(schema.loweredSchema.requireQueryTypeDef())
 
         // Expected lifted demand:
         //
@@ -365,8 +372,9 @@ class ParentConstructionDemandTest {
 
     @Test
     fun `mixed parent and ordinary field selection retains ordinary resolver parent demand`() {
-        val world = TestWorld.fromDSL(
-            """
+        val worldFixture =
+            TestWorld.fromDSL(
+                """
             extend type Query { children: [Child] }
 
             interface Child { edge: Parent }
@@ -387,10 +395,11 @@ class ParentConstructionDemandTest {
             }
 
             type NestedChild { parent: OrdinaryChild @parent }
-            """.trimIndent(),
-        ).assumptions
-        val schema = world.schema
-        val ordinaryChild = schema.requireObjectField("OrdinaryChild", "edge").containingDef
+                """.trimIndent(),
+            )
+        val world = worldFixture.assumptions
+        val schema = worldFixture.schemas
+        val ordinaryChild = schema.loweredSchema.requireObjectField("OrdinaryChild", "edge").containingDef
 
         // On ParentChild, `edge` is a parent backedge. On OrdinaryChild, the same interface field
         // is an ordinary resolver whose input eventually lifts `required` back from NestedChild.
@@ -401,7 +410,7 @@ class ParentConstructionDemandTest {
         )) {
             val input = schema.fragmentFrom("fragment F on Query { $selectionSet }").subselections
             val expected = input + input.liftParentConstructionDemand(world)
-            val expectedOrdinaryChild = expected.merge(schema.requireQueryTypeDef())
+            val expectedOrdinaryChild = expected.merge(schema.loweredSchema.requireQueryTypeDef())
                 .single().subselections.merge(ordinaryChild)
 
             // Expected combined demand after specializing to OrdinaryChild:

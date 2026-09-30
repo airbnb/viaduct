@@ -10,6 +10,7 @@ import graphql.execution.SimpleDataFetcherExceptionHandler
 import graphql.incremental.DelayedIncrementalPartialResult
 import graphql.incremental.IncrementalExecutionResult
 import graphql.incremental.IncrementalExecutionResultImpl
+import graphql.schema.GraphQLSchema
 import java.util.concurrent.CancellationException
 import java.util.concurrent.CompletableFuture
 import kotlin.coroutines.CoroutineContext
@@ -37,6 +38,7 @@ import semantics.shared.SharedOperationContext
  */
 class QPlanExecutionStrategy(
     private val world: Assumptions,
+    private val sourceSchema: GraphQLSchema,
     private val resolverCoroutineContext: CoroutineContext,
     dataFetcherExceptionHandler: DataFetcherExceptionHandler =
         SimpleDataFetcherExceptionHandler(),
@@ -48,6 +50,7 @@ class QPlanExecutionStrategy(
         // Query Planniing: Convert operation to be executed into a [SelectionForest]
         val selections =
             world.selectionsFrom(
+                sourceSchema = sourceSchema,
                 operation = executionContext.operationDefinition,
                 variables = executionContext.coercedVariables,
                 graphQLContext = executionContext.graphQLContext,

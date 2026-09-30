@@ -92,7 +92,7 @@ internal class PropertyTestBenchmarkSupport(
                 val fragment: Fragment
                 try {
                     world = testWorld.newAssumptions(selectiveResolvers = true)
-                    fragment = world.fragmentFrom(querySource)
+                    fragment = testWorld.schemas.fragmentFrom(querySource)
                 } finally {
                     preparationEvent?.finish()
                 }

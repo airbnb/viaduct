@@ -158,7 +158,7 @@ class QueryFragmentBindingTerminationTest {
         var queryResult: ObjectEngineResult? = null
         var consumerOccurrence: ResolverOccurrenceId? = null
 
-        val world = TestWorld.fromSDL(
+        val worldFixture = TestWorld.fromSDL(
             schemaSDL =
                 """
                 type Query {
@@ -173,9 +173,9 @@ class QueryFragmentBindingTerminationTest {
                 }
                 """.trimIndent(),
             fieldResolvers = { schema ->
-                val driver = schema.requireObjectField("Query", "driver")
-                val consumer = schema.requireObjectField("Query", "consumer")
-                val independent = schema.requireObjectField("Query", "independent")
+                val driver = schema.loweredSchema.requireObjectField("Query", "driver")
+                val consumer = schema.loweredSchema.requireObjectField("Query", "consumer")
+                val independent = schema.loweredSchema.requireObjectField("Query", "independent")
                 mapOf(
                     driver to fieldResolverOf(
                         schema.fragmentFrom(
@@ -187,12 +187,12 @@ class QueryFragmentBindingTerminationTest {
                         if (exit == Exit.ARGUMENT_ERROR) throw failure
                         mapOf("seed" to 5)
                     },
-                    schema.requireObjectField("Query", "reference") to
-                        fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
+                    schema.loweredSchema.requireObjectField("Query", "reference") to
+                        fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
                             RootFieldReferenceData.of(listOf(consumer), mapOf("seed" to 5))
                         },
                     consumer to fieldResolverOf(
-                        objectFragment = schema.emptyFragmentOf("Query"),
+                        objectFragment = schema.loweredSchema.emptyFragmentOf("Query"),
                         queryFragment = schema.fragmentFrom(
                             "fragment ConsumerQuery on Query { source(value: ${'$'}provided) " +
                                 "dependency(value: ${'$'}queryValue, seed: ${'$'}seed) independent }",
@@ -223,22 +223,22 @@ class QueryFragmentBindingTerminationTest {
                         independentGate.await()
                         mapOf("local" to 7)
                     },
-                    schema.requireObjectField("Query", "source") to
-                        fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> 7 },
-                    schema.requireObjectField("Query", "dependency") to
-                        fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> error("Failed binding must skip dependency") },
-                    schema.requireObjectField("Query", "sink") to
-                        fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> 7 },
-                    schema.requireObjectField("Query", "healthy") to
-                        fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> 42 },
+                    schema.loweredSchema.requireObjectField("Query", "source") to
+                        fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> 7 },
+                    schema.loweredSchema.requireObjectField("Query", "dependency") to
+                        fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> error("Failed binding must skip dependency") },
+                    schema.loweredSchema.requireObjectField("Query", "sink") to
+                        fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> 7 },
+                    schema.loweredSchema.requireObjectField("Query", "healthy") to
+                        fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> 42 },
                 )
             },
             variableProviders = { schema ->
-                val driver = schema.requireObjectField("Query", "driver")
-                val consumer = schema.requireObjectField("Query", "consumer")
+                val driver = schema.loweredSchema.requireObjectField("Query", "driver")
+                val consumer = schema.loweredSchema.requireObjectField("Query", "consumer")
                 mapOf(
-                    Arguments.Variable.of(driver, "enabled") to schema.fromArgument(driver, "enabled"),
-                    Arguments.Variable.of(consumer, "seed") to schema.fromArgument(consumer, "seed"),
+                    Arguments.Variable.of(driver, "enabled") to schema.loweredSchema.fromArgument(driver, "enabled"),
+                    Arguments.Variable.of(consumer, "seed") to schema.loweredSchema.fromArgument(consumer, "seed"),
                     Arguments.Variable.of(consumer, "queryValue") to schema.fromQueryField(
                         queryFragmentSource = "fragment Source on Query { source(value: ${'$'}provided) }",
                         responsePath = listOf("source"),
@@ -246,7 +246,8 @@ class QueryFragmentBindingTerminationTest {
                     ),
                 )
             },
-        ).assumptions
+        )
+        val world = worldFixture.assumptions
 
         val operation = SharedOperationContext.create(
             world,
@@ -261,7 +262,7 @@ class QueryFragmentBindingTerminationTest {
                 }
             }
         )
-        val selections = world.operationSelectionsFrom(
+        val selections = worldFixture.schemas.operationSelectionsFrom(
             when {
                 exit == Exit.ARGUMENT_ERROR -> "query { driver(enabled: true) healthy }"
                 exit == Exit.EXCLUDED -> "query { driver(enabled: false) healthy }"

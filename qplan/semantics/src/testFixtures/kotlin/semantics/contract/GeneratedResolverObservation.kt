@@ -230,7 +230,7 @@ private fun ResolverContract.observeGeneratedResolution(
     querySource: String,
 ): GeneratedResolutionObservation {
     val world = testWorld.newAssumptions(selectiveResolvers)
-    val fragment = world.fragmentFrom(querySource)
+    val fragment = testWorld.schemas.fragmentFrom(querySource)
     val subject =
         observeResolution(
             world,

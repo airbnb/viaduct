@@ -27,11 +27,12 @@ class ResolverInputReplayTest {
     @Test
     fun `early denial witness must be the exact applicable field error at that alias`() {
         listOf(true, false).forEach { applicable ->
-            val world = TestWorld.fromSDL("type Query { item: Item! consume: Int! } type Item { value: Int! }").assumptions
-            val schema = world.schema
-            val query = schema.requireQueryTypeDef()
-            val item = schema.requireType("Item") as ViaductSchema.Object
-            val itemField = schema.requireObjectField("Query", "item")
+            val worldFixture = TestWorld.fromSDL("type Query { item: Item! consume: Int! } type Item { value: Int! }")
+            val world = worldFixture.assumptions
+            val schema = worldFixture.schemas
+            val query = schema.loweredSchema.requireQueryTypeDef()
+            val item = schema.loweredSchema.requireType("Item") as ViaductSchema.Object
+            val itemField = schema.loweredSchema.requireObjectField("Query", "item")
             val itemKey = ObjectEngineResult.GroundKey.of(itemField, emptyMap())
             val fieldError = ReplayDenial(applicable)
             val typeError = ReplayDenial(true)
@@ -42,11 +43,11 @@ class ResolverInputReplayTest {
                 ),
                 fieldCheckerResults = mapOf(itemKey to fieldError)
             )
-            val consumer = schema.requireObjectField("Query", "consume")
+            val consumer = schema.loweredSchema.requireObjectField("Query", "consume")
             val consumerKey = ObjectEngineResult.GroundKey.of(consumer, emptyMap())
             val id = ResolverOccurrenceId.at(root, listOf(consumerKey))
             val selections = schema.fragmentFrom("fragment Input on Query { alias: item { value } }").materializeSelections
-            val emptySelections = schema.emptyFragmentOf("Query").materializeSelections
+            val emptySelections = schema.loweredSchema.emptyFragmentOf("Query").materializeSelections
             val emptyQuery = engineObjectDataOf(query)
 
             fun input(error: Throwable) = materializedEngineObjectDataOf(query, listOf(EngineObjectDataEntry.of("alias", itemField, EngineErrorData.of(error))))

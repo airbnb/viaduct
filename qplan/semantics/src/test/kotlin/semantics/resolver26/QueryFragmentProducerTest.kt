@@ -178,20 +178,20 @@ class QueryFragmentProducerTest : Resolver26DispatcherResource {
                     }
                     """.trimIndent(),
                 fieldResolvers = { schema ->
-                    val dependency = schema.requireObjectField("Query", "dependency")
-                    val consumer = schema.requireObjectField("Query", "consumer")
+                    val dependency = schema.loweredSchema.requireObjectField("Query", "dependency")
+                    val consumer = schema.loweredSchema.requireObjectField("Query", "consumer")
                     mapOf(
-                        schema.requireObjectField("Query", "reference") to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
+                        schema.loweredSchema.requireObjectField("Query", "reference") to
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
                                 RootFieldReferenceData.of(listOf(consumer), emptyMap())
                             },
                         dependency to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> 7 },
-                        schema.requireObjectField("Query", "consume") to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> 7 },
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> 7 },
+                        schema.loweredSchema.requireObjectField("Query", "consume") to
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> 7 },
                         consumer to
                             fieldResolverOf(
-                                objectFragment = schema.emptyFragmentOf("Query"),
+                                objectFragment = schema.loweredSchema.emptyFragmentOf("Query"),
                                 queryFragment =
                                     schema.fragmentFrom(
                                         "fragment ConsumerQuery on Query { dependency consume(value: ${'$'}provided, extra: " +
@@ -211,7 +211,7 @@ class QueryFragmentProducerTest : Resolver26DispatcherResource {
                     )
                 },
                 variableProviders = { schema ->
-                    val consumer = schema.requireObjectField("Query", "consumer")
+                    val consumer = schema.loweredSchema.requireObjectField("Query", "consumer")
                     mapOf(
                         Arguments.Variable.of(consumer, "provided") to schema.fromQueryField(
                             queryFragmentSource = "fragment ConsumerQuery on Query { dependency }",
@@ -221,7 +221,7 @@ class QueryFragmentProducerTest : Resolver26DispatcherResource {
                     )
                 },
             )
-        val selections = world.assumptions.operationSelectionsFrom(
+        val selections = world.schemas.operationSelectionsFrom(
             if (useReference) "query { reference }" else "query { consumer }",
         )
         val baseOperation = SharedOperationContext.create(world.assumptions, resolverObserver = observer)

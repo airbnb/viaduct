@@ -29,13 +29,13 @@ class TypeCheckerCorrectResolutionTest {
     @Test
     fun `checked OER requires its type result raw input and matching replayed variant`() {
         var calls = 0
-        val world = TestWorld.fromSDL(
+        val worldFixture = TestWorld.fromSDL(
             schemaSDL = "type Query { item: Item! } type Item { value: Int! policy: Int! }",
             fieldResolvers = { schema ->
                 mapOf(
-                    schema.requireObjectField("Query", "item") to
-                        fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
-                            schema.objectOf("Item") {
+                    schema.loweredSchema.requireObjectField("Query", "item") to
+                        fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
+                            schema.loweredSchema.objectOf("Item") {
                                 "value" setTo 1
                                 "policy" setTo 7
                             }
@@ -43,11 +43,11 @@ class TypeCheckerCorrectResolutionTest {
                 )
             },
             typeCheckers = { schema ->
-                val item = schema.requireType("Item") as ViaductSchema.Object
+                val item = schema.loweredSchema.requireType("Item") as ViaductSchema.Object
                 mapOf(
                     item to TypeCheckerResolver.of(
                         item,
-                        schema.requireQueryTypeDef(),
+                        schema.loweredSchema.requireQueryTypeDef(),
                         mapOf(
                             "input" to ResolverFragmentTemplates(
                                 schema.fragmentFrom("fragment Input on Item { alias: policy }").materializeSelections,
@@ -61,8 +61,9 @@ class TypeCheckerCorrectResolutionTest {
                     }
                 )
             },
-        ).assumptions
-        val itemType = world.schema.requireType("Item") as ViaductSchema.Object
+        )
+        val world = worldFixture.assumptions
+        val itemType = worldFixture.schema.requireType("Item") as ViaductSchema.Object
         val itemKey = ObjectEngineResult.GroundKey.of(world.schema.requireObjectField("Query", "item"), emptyMap())
         val valueKey = ObjectEngineResult.GroundKey.of(world.schema.requireObjectField("Item", "value"), emptyMap())
         val policyKey = ObjectEngineResult.GroundKey.of(world.schema.requireObjectField("Item", "policy"), emptyMap())
@@ -85,7 +86,7 @@ class TypeCheckerCorrectResolutionTest {
                 )
             )
         val operation = SharedOperationContext.create(world)
-        val selections = world.fragmentFrom("fragment Query on Query { item { value } }")
+        val selections = worldFixture.schemas.fragmentFrom("fragment Query on Query { item { value } }")
         assertFalse(result(null).correctResolution(operation, selections))
         assertFalse(result(CheckerResult.Success, includePolicy = false).correctResolution(operation, selections))
         assertFalse(result(OracleTypeDenial()).correctResolution(operation, selections))
@@ -95,22 +96,22 @@ class TypeCheckerCorrectResolutionTest {
 
     @Test
     fun `type checker Query replay rejects missing duplicate and incorrect witnesses`() {
-        val world = TestWorld.fromSDL(
+        val worldFixture = TestWorld.fromSDL(
             schemaSDL = "type Query { item: Item! marker: Int! } type Item { value: Int! }",
             fieldResolvers = { schema ->
                 mapOf(
-                    schema.requireObjectField("Query", "item") to fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
-                        schema.objectOf("Item") { "value" setTo 1 }
+                    schema.loweredSchema.requireObjectField("Query", "item") to fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
+                        schema.loweredSchema.objectOf("Item") { "value" setTo 1 }
                     },
-                    schema.requireObjectField("Query", "marker") to fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> 7 },
+                    schema.loweredSchema.requireObjectField("Query", "marker") to fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> 7 },
                 )
             },
             typeCheckers = { schema ->
-                val item = schema.requireType("Item") as ViaductSchema.Object
+                val item = schema.loweredSchema.requireType("Item") as ViaductSchema.Object
                 mapOf(
                     item to TypeCheckerResolver.of(
                         item,
-                        schema.requireQueryTypeDef(),
+                        schema.loweredSchema.requireQueryTypeDef(),
                         mapOf(
                             "input" to ResolverFragmentTemplates(
                                 materializeSelectionForestOf(),
@@ -123,8 +124,9 @@ class TypeCheckerCorrectResolutionTest {
                     }
                 )
             },
-        ).assumptions
-        val item = world.schema.requireType("Item") as ViaductSchema.Object
+        )
+        val world = worldFixture.assumptions
+        val item = worldFixture.schema.requireType("Item") as ViaductSchema.Object
         val itemKey = ObjectEngineResult.GroundKey.of(world.schema.requireObjectField("Query", "item"), emptyMap())
         val valueKey = ObjectEngineResult.GroundKey.of(world.schema.requireObjectField("Item", "value"), emptyMap())
         val markerKey = ObjectEngineResult.GroundKey.of(world.schema.requireObjectField("Query", "marker"), emptyMap())
@@ -134,7 +136,7 @@ class TypeCheckerCorrectResolutionTest {
                 itemKey to ObjectEngineResult.of(item, values = mapOf(valueKey to 1), typeCheckerResult = Promise.of(CheckerResult.Success)),
             )
         )
-        val selections = world.fragmentFrom("fragment Query on Query { item { value } }")
+        val selections = worldFixture.schemas.fragmentFrom("fragment Query on Query { item { value } }")
 
         fun operation(
             vararg markers: Int,
@@ -159,15 +161,16 @@ class TypeCheckerCorrectResolutionTest {
 
     @Test
     fun `primary Query root is checked even with no selected fields`() {
-        val world = TestWorld.fromSDL(
+        val worldFixture = TestWorld.fromSDL(
             schemaSDL = "type Query { value: Int! }",
-            fieldResolvers = { schema -> mapOf(schema.requireObjectField("Query", "value") to fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> 1 }) },
+            fieldResolvers = { schema -> mapOf(schema.loweredSchema.requireObjectField("Query", "value") to fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> 1 }) },
             typeCheckers = { schema ->
-                val query = schema.requireQueryTypeDef()
+                val query = schema.loweredSchema.requireQueryTypeDef()
                 mapOf(query to TypeCheckerResolver.of(query, query) { _, _ -> CheckerResult.Success })
             },
-        ).assumptions
-        val selections = world.schema.emptyFragmentOf("Query")
+        )
+        val world = worldFixture.assumptions
+        val selections = worldFixture.schema.emptyFragmentOf("Query")
         val operation = SharedOperationContext.create(world)
         assertFalse(ObjectEngineResult.of(world.schema.requireQueryTypeDef()).correctResolution(operation, selections))
         assertTrue(ObjectEngineResult.of(world.schema.requireQueryTypeDef(), typeCheckerResult = Promise.of(CheckerResult.Success)).correctResolution(operation, selections))

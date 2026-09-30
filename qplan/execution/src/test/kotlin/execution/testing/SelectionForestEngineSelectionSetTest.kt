@@ -33,7 +33,7 @@ class SelectionForestEngineSelectionSetTest {
     fun `preserves concrete fields nested demand and resolved arguments`() {
         val fixture = Fixture(CONCRETE_SCHEMA)
         val fragment =
-            fixture.world.schema.fragmentFrom(
+            fixture.world.schemas.fragmentFrom(
                 """
                 fragment _ on Foo {
                   calculated(scale: 3, labels: ["a", "b"])
@@ -66,7 +66,7 @@ class SelectionForestEngineSelectionSetTest {
     fun `canonical concrete fragments preserve abstract applicability`() {
         val fixture = Fixture(ABSTRACT_SCHEMA)
         val fragment =
-            fixture.world.schema.fragmentFrom(
+            fixture.world.schemas.fragmentFrom(
                 """
                 fragment _ on Item {
                   common
@@ -107,7 +107,7 @@ class SelectionForestEngineSelectionSetTest {
     fun `restores lowered typename demand to the source meta field`() {
         val fixture = Fixture(ABSTRACT_SCHEMA)
         val fragment =
-            fixture.world.schema.fragmentFrom(
+            fixture.world.schemas.fragmentFrom(
                 """
                 fragment _ on Item {
                   __typename
@@ -130,7 +130,7 @@ class SelectionForestEngineSelectionSetTest {
     fun `preserves nested Node field demand at source coordinates`() {
         val fixture = Fixture(NODE_SCHEMA, NODE_ENGINE_SCHEMA)
         val fragment =
-            fixture.world.schema.fragmentFrom(
+            fixture.world.schemas.fragmentFrom(
                 "fragment _ on User { friend { name } }",
             )
 

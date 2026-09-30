@@ -32,7 +32,8 @@ import viaduct.graphql.schema.ViaductSchema
 class SiblingDependencyLogicTest {
     @Test
     fun `field demands an applicable top-level sibling selected by its object fragment`() {
-        val world = testWorld().assumptions
+        val worldFixture = testWorld()
+        val world = worldFixture.assumptions
         val schema = world.schema
         val logic = siblingDependencies(world)
         val consumer = schema.key(schema.requireQueryTypeDef(), "consumer")
@@ -59,7 +60,8 @@ class SiblingDependencyLogicTest {
 
     @Test
     fun `field does not demand a sibling hidden by an inapplicable type condition`() {
-        val world = testWorld(includeInapplicableSelection = true).assumptions
+        val worldFixture = testWorld(includeInapplicableSelection = true)
+        val world = worldFixture.assumptions
         val schema = world.schema
 
         assertFalse(
@@ -72,7 +74,8 @@ class SiblingDependencyLogicTest {
 
     @Test
     fun `sibling demand is undefined across object types`() {
-        val world = testWorld().assumptions
+        val worldFixture = testWorld()
+        val world = worldFixture.assumptions
         val schema = world.schema
 
         assertFailsWith<IllegalArgumentException> {
@@ -125,7 +128,8 @@ class SiblingDependencyLogicTest {
 
     @Test
     fun `Query-side ordering keeps different arguments distinct`() {
-        val world = testWorld(queryFragment = true).assumptions
+        val worldFixture = testWorld(queryFragment = true)
+        val world = worldFixture.assumptions
         val schema = world.schema
         val query = schema.requireQueryTypeDef()
         val consumer = schema.key(query, "consumer")
@@ -167,13 +171,13 @@ class SiblingDependencyLogicTest {
             fieldResolvers = { schema ->
                 val consumerFragment =
                     if (includeInapplicableSelection) {
-                        val query = schema.requireQueryTypeDef()
+                        val query = schema.loweredSchema.requireQueryTypeDef()
                         Fragment.of(
                             nominalType = query,
                             subselections =
                                 selectionForestOf(
                                     Selection.of(
-                                        key = schema.key(query, "other"),
+                                        key = schema.loweredSchema.key(query, "other"),
                                         possibleTypes = emptySet(),
                                         subselections = selectionForestOf(),
                                     ),
@@ -190,9 +194,9 @@ class SiblingDependencyLogicTest {
                             """.trimIndent(),
                         )
                     }
-                val emptyFragment = schema.emptyFragmentOf("Query")
+                val emptyFragment = schema.loweredSchema.emptyFragmentOf("Query")
                 mapOf(
-                    schema.requireField("Query", "consumer") to
+                    schema.loweredSchema.requireField("Query", "consumer") to
                         if (queryFragment) {
                             fieldResolverOf(
                                 objectFragment = emptyFragment,
@@ -205,12 +209,12 @@ class SiblingDependencyLogicTest {
                                 function = { _, _ -> "consumer" },
                             )
                         },
-                    schema.requireField("Query", "sibling") to
+                    schema.loweredSchema.requireField("Query", "sibling") to
                         fieldResolverOf(
                             objectFragment = emptyFragment,
-                            function = { _, _ -> schema.objectOf("Payload") },
+                            function = { _, _ -> schema.loweredSchema.objectOf("Payload") },
                         ),
-                    schema.requireField("Query", "other") to
+                    schema.loweredSchema.requireField("Query", "other") to
                         fieldResolverOf(
                             objectFragment = emptyFragment,
                             function = { _, _ -> "other" },
@@ -233,7 +237,7 @@ class SiblingDependencyLogicTest {
                 }
                 """.trimIndent(),
             fieldResolvers = { schema ->
-                val empty = schema.emptyFragmentOf("Query")
+                val empty = schema.loweredSchema.emptyFragmentOf("Query")
                 val firstObjectFragment =
                     firstObjectDependency?.let { dependency ->
                         schema.fragmentFrom("fragment FirstObject on Query { $dependency }")
@@ -243,11 +247,11 @@ class SiblingDependencyLogicTest {
                         "fragment TemplateQuery on Query { $templateQueryDependency }",
                     )
                 mapOf(
-                    schema.requireObjectField("Query", "first") to
+                    schema.loweredSchema.requireObjectField("Query", "first") to
                         fieldResolverOf(firstObjectFragment) { _, _ -> 1 },
-                    schema.requireObjectField("Query", "second") to
+                    schema.loweredSchema.requireObjectField("Query", "second") to
                         fieldResolverOf(empty) { _, _ -> 2 },
-                    schema.requireObjectField("Query", "template") to
+                    schema.loweredSchema.requireObjectField("Query", "template") to
                         fieldResolverOf(
                             objectFragment = empty,
                             queryFragment = templateQueryFragment,

@@ -39,24 +39,24 @@ class ResolverOccurrenceWitnessTest {
                     }
                     """.trimIndent(),
                 fieldResolvers = { schema ->
-                    val source = schema.requireObjectField("Query", "source")
+                    val source = schema.loweredSchema.requireObjectField("Query", "source")
                     val queryFragment =
                         schema.fragmentFrom(
                             "fragment SourceQuery on Query { source }",
                         )
                     mapOf(
                         source to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> 7 },
-                        schema.requireObjectField("Query", "first") to
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> 7 },
+                        schema.loweredSchema.requireObjectField("Query", "first") to
                             fieldResolverOf(
-                                objectFragment = schema.emptyFragmentOf("Query"),
+                                objectFragment = schema.loweredSchema.emptyFragmentOf("Query"),
                                 queryFragment = queryFragment,
                             ) { _, queryValue, _ ->
                                 queryValue.selectionValues().getValue("source")
                             },
-                        schema.requireObjectField("Query", "second") to
+                        schema.loweredSchema.requireObjectField("Query", "second") to
                             fieldResolverOf(
-                                objectFragment = schema.emptyFragmentOf("Query"),
+                                objectFragment = schema.loweredSchema.emptyFragmentOf("Query"),
                                 queryFragment = queryFragment,
                             ) { _, queryValue, _ ->
                                 queryValue.selectionValues().getValue("source")
@@ -67,7 +67,7 @@ class ResolverOccurrenceWitnessTest {
         val world = testWorld.assumptions
 
         val fragment =
-            world.fragmentFrom(
+            testWorld.schemas.fragmentFrom(
                 "fragment QueryResult on Query { first second }",
             )
         val log = ResolutionOccurrenceApplicationLog()
@@ -144,26 +144,26 @@ class ResolverOccurrenceWitnessTest {
                     }
                     """.trimIndent(),
                 fieldResolvers = { schema ->
-                    val items = schema.requireObjectField("Query", "items")
+                    val items = schema.loweredSchema.requireObjectField("Query", "items")
                     checkNotNull(items.type.unwrapList())
                     val baseKey =
                         ObjectEngineResult.GroundKey.of(
-                            schema.requireObjectField("Payload", "base"),
+                            schema.loweredSchema.requireObjectField("Payload", "base"),
                             emptyMap(),
                         )
                     mapOf(
                         items to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
                                 listOf(
-                                    schema.objectOf("Payload") {
+                                    schema.loweredSchema.objectOf("Payload") {
                                         "base" setTo 10
                                     },
-                                    schema.objectOf("Payload") {
+                                    schema.loweredSchema.objectOf("Payload") {
                                         "base" setTo 10
                                     },
                                 )
                             },
-                        schema.requireObjectField("Payload", "computed") to
+                        schema.loweredSchema.requireObjectField("Payload", "computed") to
                             fieldResolverOf(
                                 schema.fragmentFrom(
                                     "fragment PayloadInput on Payload { base }",
@@ -177,7 +177,7 @@ class ResolverOccurrenceWitnessTest {
         val world = testWorld.assumptions
 
         val fragment =
-            world.fragmentFrom(
+            testWorld.schemas.fragmentFrom(
                 "fragment QueryResult on Query { items { computed } }",
             )
         val log = ResolutionOccurrenceApplicationLog()

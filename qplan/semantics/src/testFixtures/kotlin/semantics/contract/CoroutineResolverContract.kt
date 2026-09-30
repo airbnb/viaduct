@@ -106,13 +106,13 @@ interface CoroutineResolverContract {
                 selectiveResolvers = selectiveResolvers,
                 fieldResolvers = { schema ->
                     mapOf(
-                        schema.requireField("Query", "first") to
+                        schema.loweredSchema.requireField("Query", "first") to
                             fieldResolverOf(
-                                schema.emptyFragmentOf("Query"),
+                                schema.loweredSchema.emptyFragmentOf("Query"),
                             ) { _, _ -> 1 },
-                        schema.requireField("Query", "second") to
+                        schema.loweredSchema.requireField("Query", "second") to
                             fieldResolverOf(
-                                schema.emptyFragmentOf("Query"),
+                                schema.loweredSchema.emptyFragmentOf("Query"),
                             ) { _, _ -> 2 },
                     )
                 },
@@ -138,7 +138,7 @@ interface CoroutineResolverContract {
                 ) {}
             }
         val selections =
-            world.fragmentFrom("fragment ignored on Query { first second }").subselections
+            testWorld.schemas.fragmentFrom("fragment ignored on Query { first second }").subselections
 
         resolve(SharedOperationContext.create(world, resolverObserver = invocationObserver), selections, cycleChecker)
 
@@ -158,17 +158,17 @@ interface CoroutineResolverContract {
                 selectiveResolvers = selectiveResolvers,
                 fieldResolvers = { schema ->
                     mapOf(
-                        schema.requireField("Query", "child") to
+                        schema.loweredSchema.requireField("Query", "child") to
                             fieldResolverOf(
-                                schema.emptyFragmentOf("Query"),
-                            ) { _, _ -> schema.objectOf("Child") },
-                        schema.requireField("Child", "first") to
+                                schema.loweredSchema.emptyFragmentOf("Query"),
+                            ) { _, _ -> schema.loweredSchema.objectOf("Child") },
+                        schema.loweredSchema.requireField("Child", "first") to
                             fieldResolverOf(
-                                schema.emptyFragmentOf("Child"),
+                                schema.loweredSchema.emptyFragmentOf("Child"),
                             ) { _, _ -> 1 },
-                        schema.requireField("Child", "second") to
+                        schema.loweredSchema.requireField("Child", "second") to
                             fieldResolverOf(
-                                schema.emptyFragmentOf("Child"),
+                                schema.loweredSchema.emptyFragmentOf("Child"),
                             ) { _, _ -> 2 },
                     )
                 },
@@ -205,8 +205,7 @@ interface CoroutineResolverContract {
                 ) {}
             }
         val selections =
-            world
-                .fragmentFrom("fragment ignored on Query { child { first second } }")
+            testWorld.schemas.fragmentFrom("fragment ignored on Query { child { first second } }")
                 .subselections
 
         val result = resolve(SharedOperationContext.create(world), selections, cycleChecker)
@@ -224,15 +223,15 @@ interface CoroutineResolverContract {
                 selectiveResolvers = selectiveResolvers,
                 fieldResolvers = { schema ->
                     mapOf(
-                        schema.requireField("Query", "first") to
+                        schema.loweredSchema.requireField("Query", "first") to
                             fieldResolverOf(
                                 schema.fragmentFrom(
                                     "fragment ignored on Query { second }",
                                 ),
                             ) { _, _ -> 1 },
-                        schema.requireField("Query", "second") to
+                        schema.loweredSchema.requireField("Query", "second") to
                             fieldResolverOf(
-                                schema.emptyFragmentOf("Query"),
+                                schema.loweredSchema.emptyFragmentOf("Query"),
                             ) { _, _ -> 2 },
                     )
                 },
@@ -273,7 +272,7 @@ interface CoroutineResolverContract {
                 selectiveResolvers = selectiveResolvers,
             )
         val selections =
-            world.fragmentFrom("fragment ignored on Query { first }").subselections
+            testWorld.schemas.fragmentFrom("fragment ignored on Query { first }").subselections
 
         val result = resolve(SharedOperationContext.create(world), selections)
         val error = assertIs<ErrorEngineResult>(result.getCell(second.groundKey()).get())
@@ -292,11 +291,11 @@ interface CoroutineResolverContract {
                 selectiveResolvers = selectiveResolvers,
                 fieldResolvers = { schema ->
                     mapOf(
-                        schema.requireField("Query", "failed") to
+                        schema.loweredSchema.requireField("Query", "failed") to
                             fieldResolverOf(
-                                schema.emptyFragmentOf("Query"),
+                                schema.loweredSchema.emptyFragmentOf("Query"),
                             ) { _, _ -> throw failure },
-                        schema.requireField("Query", "waiting") to
+                        schema.loweredSchema.requireField("Query", "waiting") to
                             fieldResolverOf(
                                 schema.fragmentFrom(
                                     "fragment ignored on Query { failed }",
@@ -309,7 +308,7 @@ interface CoroutineResolverContract {
             )
         val world = testWorld.assumptions
         val selections =
-            world.fragmentFrom("fragment ignored on Query { waiting }").subselections
+            testWorld.schemas.fragmentFrom("fragment ignored on Query { waiting }").subselections
 
         val result = resolve(SharedOperationContext.create(world), selections)
         for (fieldName in listOf("failed", "waiting")) {
@@ -322,8 +321,9 @@ interface CoroutineResolverContract {
     @Test
     fun `field and reference exceptions leave unrelated fields running`() {
         for (failure in listOf(IllegalStateException("resolver failed"), CancellationException("local cancellation"))) {
-            val world = fieldFailureWorld(selectiveResolvers, failure).assumptions
-            val result = resolve(SharedOperationContext.create(world), world.operationSelectionsFrom("{ failed reference items healthy }"))
+            val worldFixture = fieldFailureWorld(selectiveResolvers, failure)
+            val world = worldFixture.assumptions
+            val result = resolve(SharedOperationContext.create(world), worldFixture.schemas.operationSelectionsFrom("{ failed reference items healthy }"))
             for (name in listOf("failed", "reference")) {
                 assertSame(failure, assertIs<ErrorEngineResult>(result.getCell(world.schema.groundKey("Query", name)).get()).errorData.cause)
             }
@@ -341,7 +341,8 @@ interface CoroutineResolverContract {
             for (failedField in listOf("consumer", "dependency")) {
                 val failure = IllegalStateException("Failed to install $failedField")
                 var consumerInvoked = false
-                val world = queryFailureWorld(selectiveResolvers) { consumerInvoked = true }.assumptions
+                val worldFixture = queryFailureWorld(selectiveResolvers) { consumerInvoked = true }
+                val world = worldFixture.assumptions
                 val cycleChecker = object : CycleCheckState {
                     override fun registerWriter(
                         slot: CycleSlot,
@@ -361,7 +362,7 @@ interface CoroutineResolverContract {
                     coroutineContext + requestJob + CoroutineExceptionHandler { _, cause -> observed.complete(cause) },
                 )
                 try {
-                    startResolution(SharedOperationContext.create(world), requestScope, world.operationSelectionsFrom("{ consumer }"), cycleChecker)
+                    startResolution(SharedOperationContext.create(world), requestScope, worldFixture.schemas.operationSelectionsFrom("{ consumer }"), cycleChecker)
                     assertSame(failure, withTimeout(5_000) { observed.await() })
                     assertTrue(requestJob.isCancelled)
                     assertFalse(consumerInvoked)
@@ -375,14 +376,15 @@ interface CoroutineResolverContract {
     fun `JVM Error escapes unchanged`() =
         runBlocking {
             val failure = Error("process-level failure")
-            val world = fieldFailureWorld(selectiveResolvers, failure).assumptions
+            val worldFixture = fieldFailureWorld(selectiveResolvers, failure)
+            val world = worldFixture.assumptions
             val observed = CompletableDeferred<Throwable>()
             val requestJob = Job()
             val requestScope = CoroutineScope(
                 coroutineContext + requestJob + CoroutineExceptionHandler { _, cause -> observed.complete(cause) },
             )
             try {
-                startResolution(SharedOperationContext.create(world), requestScope, world.operationSelectionsFrom("{ failed }"), CycleCheckState.create())
+                startResolution(SharedOperationContext.create(world), requestScope, worldFixture.schemas.operationSelectionsFrom("{ failed }"), CycleCheckState.create())
                 assertSame(failure, withTimeout(5_000) { observed.await() })
                 assertFalse(requestJob.isActive)
             } finally {
@@ -394,15 +396,16 @@ interface CoroutineResolverContract {
     fun `Query producer failures become field errors without stopping unrelated fields`() {
         for (failure in listOf(IllegalStateException("Query producer failed"), CancellationException("local cancellation"))) {
             var consumerInvoked = false
-            val world =
+            val worldFixture =
                 queryFailureWorld(
                     selective = selectiveResolvers,
                     dependencyFailure = failure.takeIf { usesSingularQueryOER },
-                ) { consumerInvoked = true }.assumptions
+                ) { consumerInvoked = true }
+            val world = worldFixture.assumptions
             if (usesSingularQueryOER) {
                 val result = resolve(
                     SharedOperationContext.create(world),
-                    world.operationSelectionsFrom("{ consumer reference healthy }"),
+                    worldFixture.schemas.operationSelectionsFrom("{ consumer reference healthy }"),
                 )
                 for (name in listOf("consumer", "reference")) {
                     assertSame(
@@ -425,7 +428,7 @@ interface CoroutineResolverContract {
             }
             val result = resolve(
                 SharedOperationContext.create(world, resolverObserver = observer),
-                world.operationSelectionsFrom("{ consumer reference healthy }"),
+                worldFixture.schemas.operationSelectionsFrom("{ consumer reference healthy }"),
             )
             for (name in listOf("consumer", "reference")) {
                 assertSame(failure, assertIs<ErrorEngineResult>(result.getCell(world.schema.groundKey("Query", name)).get()).errorData.cause)
@@ -453,14 +456,14 @@ interface CoroutineResolverContract {
                         "type Query { first: Int!, second: Int!, target: Int!, dependency: Int!, healthy: Int! }",
                     selectiveResolvers = selectiveResolvers,
                     fieldResolvers = { schema ->
-                        val empty = schema.emptyFragmentOf("Query")
-                        val target = schema.requireObjectField("Query", "target")
+                        val empty = schema.loweredSchema.emptyFragmentOf("Query")
+                        val target = schema.loweredSchema.requireObjectField("Query", "target")
                         mapOf(
-                            schema.requireObjectField("Query", "first") to
+                            schema.loweredSchema.requireObjectField("Query", "first") to
                                 fieldResolverOf(empty) { _, _ ->
                                     RootFieldReferenceData.of(listOf(target), emptyMap())
                                 },
-                            schema.requireObjectField("Query", "second") to
+                            schema.loweredSchema.requireObjectField("Query", "second") to
                                 fieldResolverOf(empty) { _, _ ->
                                     RootFieldReferenceData.of(listOf(target), emptyMap())
                                 },
@@ -474,12 +477,12 @@ interface CoroutineResolverContract {
                                     targetInvocations += 1
                                     query.outputValue("dependency")
                                 },
-                            schema.requireObjectField("Query", "dependency") to
+                            schema.loweredSchema.requireObjectField("Query", "dependency") to
                                 fieldResolverOf(empty) { _, _ ->
                                     dependencyInvocations += 1
                                     7
                                 },
-                            schema.requireObjectField("Query", "healthy") to
+                            schema.loweredSchema.requireObjectField("Query", "healthy") to
                                 fieldResolverOf(empty) { _, _ -> 42 },
                         )
                     },
@@ -495,7 +498,7 @@ interface CoroutineResolverContract {
             val result =
                 resolve(
                     SharedOperationContext.create(world, resolverObserver = observer),
-                    world.operationSelectionsFrom("{ first second healthy }"),
+                    testWorld.schemas.operationSelectionsFrom("{ first second healthy }"),
                 )
 
             for (name in listOf("first", "second")) {
@@ -525,7 +528,8 @@ interface CoroutineResolverContract {
                 val cancellation = CancellationException("request cancelled")
                 var producerEntered = false
                 var consumerInvoked = false
-                val world = queryFailureWorld(selectiveResolvers) { consumerInvoked = true }.assumptions
+                val worldFixture = queryFailureWorld(selectiveResolvers) { consumerInvoked = true }
+                val world = worldFixture.assumptions
                 val observer = object : ResolverObserver {
                     override fun onQueryFragmentPrepared(
                         resolverOccurrenceId: ResolverOccurrenceId,
@@ -540,7 +544,7 @@ interface CoroutineResolverContract {
                     val result = startResolution(
                         SharedOperationContext.create(world, resolverObserver = observer),
                         requestScope,
-                        world.operationSelectionsFrom("{ consumer }"),
+                        worldFixture.schemas.operationSelectionsFrom("{ consumer }"),
                         CycleCheckState.create(),
                     )
                     if (cancelBeforeEntry) requestJob.cancel(cancellation)
@@ -574,13 +578,13 @@ interface CoroutineResolverContract {
                     schemaSDL =
                         "type Query { dependency: Int!, first: Int!, second: Int! }",
                     fieldResolvers = { schema ->
-                        val empty = schema.emptyFragmentOf("Query")
+                        val empty = schema.loweredSchema.emptyFragmentOf("Query")
                         val ownerQuery =
                             schema.fragmentFrom(
                                 "fragment OwnerQuery on Query { dependency }",
                             )
                         mapOf(
-                            schema.requireObjectField("Query", "dependency") to
+                            schema.loweredSchema.requireObjectField("Query", "dependency") to
                                 fieldResolverOf(empty) { _, _ ->
                                     producerInvocations += 1
                                     producerEntered.complete(Unit)
@@ -590,12 +594,12 @@ interface CoroutineResolverContract {
                                         producerExited.complete(Unit)
                                     }
                                 },
-                            schema.requireObjectField("Query", "first") to
+                            schema.loweredSchema.requireObjectField("Query", "first") to
                                 fieldResolverOf(empty, ownerQuery) { _, _, _ ->
                                     ownerInvocations += 1
                                     1
                                 },
-                            schema.requireObjectField("Query", "second") to
+                            schema.loweredSchema.requireObjectField("Query", "second") to
                                 fieldResolverOf(empty, ownerQuery) { _, _, _ ->
                                     ownerInvocations += 1
                                     2
@@ -609,7 +613,7 @@ interface CoroutineResolverContract {
                     startResolution(
                         SharedOperationContext.create(world),
                         requestScope,
-                        world.operationSelectionsFrom("{ first second }"),
+                        testWorld.schemas.operationSelectionsFrom("{ first second }"),
                         CycleCheckState.create(),
                     )
                 if (cancelBeforeEntry) {
@@ -650,27 +654,27 @@ interface CoroutineResolverContract {
                     """.trimIndent(),
                 selectiveResolvers = selectiveResolvers,
                 fieldResolvers = { schema ->
-                    val items = schema.requireField("Query", "items")
+                    val items = schema.loweredSchema.requireField("Query", "items")
                     mapOf(
                         items to
                             fieldResolverOf(
-                                schema.emptyFragmentOf("Query"),
+                                schema.loweredSchema.emptyFragmentOf("Query"),
                             ) { _, _ ->
                                 listOf(
-                                    schema.objectOf("Item"),
-                                    schema.objectOf("Item"),
+                                    schema.loweredSchema.objectOf("Item"),
+                                    schema.loweredSchema.objectOf("Item"),
                                 )
                             },
-                        schema.requireField("Item", "value") to
+                        schema.loweredSchema.requireField("Item", "value") to
                             fieldResolverOf(
-                                schema.emptyFragmentOf("Item"),
+                                schema.loweredSchema.emptyFragmentOf("Item"),
                             ) { _, _ -> 7 },
                     )
                 },
             )
         val world = testWorld.assumptions
         val selections =
-            world.fragmentFrom("fragment ignored on Query { items { value } }").subselections
+            testWorld.schemas.fragmentFrom("fragment ignored on Query { items { value } }").subselections
 
         val result = resolve(SharedOperationContext.create(world), selections)
 
@@ -759,14 +763,14 @@ private fun fieldFailureWorld(
         selectiveResolvers = selective,
         schemaSDL = "type Query { failed: Int!, reference: Int!, items: [Int!]!, healthy: Int! }",
         fieldResolvers = { schema ->
-            val fragment = schema.emptyFragmentOf("Query")
-            val failed = schema.requireObjectField("Query", "failed")
+            val fragment = schema.loweredSchema.emptyFragmentOf("Query")
+            val failed = schema.loweredSchema.requireObjectField("Query", "failed")
             val reference = RootFieldReferenceData.of(listOf(failed), emptyMap())
             mapOf(
                 failed to fieldResolverOf(fragment) { _, _ -> throw failure },
-                schema.requireObjectField("Query", "reference") to fieldResolverOf(fragment) { _, _ -> reference },
-                schema.requireObjectField("Query", "items") to fieldResolverOf(fragment) { _, _ -> listOf(reference, 7) },
-                schema.requireObjectField("Query", "healthy") to fieldResolverOf(fragment) { _, _ -> 42 },
+                schema.loweredSchema.requireObjectField("Query", "reference") to fieldResolverOf(fragment) { _, _ -> reference },
+                schema.loweredSchema.requireObjectField("Query", "items") to fieldResolverOf(fragment) { _, _ -> listOf(reference, 7) },
+                schema.loweredSchema.requireObjectField("Query", "healthy") to fieldResolverOf(fragment) { _, _ -> 42 },
             )
         },
     )
@@ -780,21 +784,21 @@ private fun queryFailureWorld(
         selectiveResolvers = selective,
         schemaSDL = "type Query { consumer: Int!, reference: Int!, dependency: Int!, healthy: Int! }",
         fieldResolvers = { schema ->
-            val fragment = schema.emptyFragmentOf("Query")
-            val consumer = schema.requireObjectField("Query", "consumer")
+            val fragment = schema.loweredSchema.emptyFragmentOf("Query")
+            val consumer = schema.loweredSchema.requireObjectField("Query", "consumer")
             mapOf(
                 consumer to fieldResolverOf(fragment, schema.fragmentFrom("fragment Input on Query { dependency }")) { _, query, _ ->
                     onConsumer()
                     query.outputValue("dependency")
                 },
-                schema.requireObjectField("Query", "reference") to fieldResolverOf(fragment) { _, _ ->
+                schema.loweredSchema.requireObjectField("Query", "reference") to fieldResolverOf(fragment) { _, _ ->
                     RootFieldReferenceData.of(listOf(consumer), emptyMap())
                 },
-                schema.requireObjectField("Query", "dependency") to fieldResolverOf(fragment) { _, _ ->
+                schema.loweredSchema.requireObjectField("Query", "dependency") to fieldResolverOf(fragment) { _, _ ->
                     dependencyFailure?.let { throw it }
                     7
                 },
-                schema.requireObjectField("Query", "healthy") to fieldResolverOf(fragment) { _, _ -> 42 },
+                schema.loweredSchema.requireObjectField("Query", "healthy") to fieldResolverOf(fragment) { _, _ -> 42 },
             )
         },
     )

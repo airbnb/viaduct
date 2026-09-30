@@ -44,7 +44,7 @@ class TypeCheckerLifecycleTest : Resolver26DispatcherResource {
         val world = providerWorld { throw failure }
         val recorder = CheckerApplicationRecorder()
         val operation = SharedOperationContext.create(world.assumptions, checkerObserver = recorder)
-        val result = operation.resolveWithTestDispatcher(world.assumptions.operationSelectionsFrom("{ checked }"))
+        val result = operation.resolveWithTestDispatcher(world.schemas.operationSelectionsFrom("{ checked }"))
         val key = ObjectEngineResult.GroundKey.of(world.schema.requireObjectField("Query", "checked"), emptyMap())
         assertEquals(1, result.getCell(key).value.get())
         assertSame(failure, assertFailsWith<IllegalStateException> { result.typeCheckerResult.get() })
@@ -65,7 +65,7 @@ class TypeCheckerLifecycleTest : Resolver26DispatcherResource {
             val queued = QueuedDispatcher()
             val job = Job()
             val operation = SharedOperationContext.create(world.assumptions)
-            val result = operation.startResolve(world.assumptions.operationSelectionsFrom("{ checked }"), CoroutineScope(job + queued))
+            val result = operation.startResolve(world.schemas.operationSelectionsFrom("{ checked }"), CoroutineScope(job + queued))
             job.cancel()
             queued.drain()
             withTimeout(2_000) { job.join() }
@@ -82,7 +82,7 @@ class TypeCheckerLifecycleTest : Resolver26DispatcherResource {
             }
             val operation = SharedOperationContext.create(world.assumptions)
             val job = Job()
-            val result = operation.startResolve(world.assumptions.operationSelectionsFrom("{ checked }"), CoroutineScope(job + resolverDispatcher))
+            val result = operation.startResolve(world.schemas.operationSelectionsFrom("{ checked }"), CoroutineScope(job + resolverDispatcher))
             withTimeout(2_000) { entered.await() }
             assertFailsWith<TimeoutCancellationException> { withTimeout(50) { job.join() } }
             withTimeout(2_000) { job.cancelAndJoin() }
@@ -98,11 +98,11 @@ class TypeCheckerLifecycleTest : Resolver26DispatcherResource {
         }
             """.trimIndent(),
             typeCheckers = { schema ->
-                val field = schema.requireQueryTypeDef()
+                val field = schema.loweredSchema.requireQueryTypeDef()
                 mapOf(
                     field to TypeCheckerResolver.of(
                         field,
-                        schema.requireQueryTypeDef(),
+                        schema.loweredSchema.requireQueryTypeDef(),
                         mapOf(
                             "input" to ResolverFragmentTemplates(
                                 objectFragmentTemplate = schema.fragmentFrom(

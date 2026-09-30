@@ -36,7 +36,7 @@ interface FrozenObjectResolutionContract : ResolverContract {
             """.trimIndent(),
         )
         val world = fixture.assumptions
-        val query = resolveAndValidate(world, "{ root { passive { value } items { value } } }")
+        val query = resolveAndValidate(fixture, "{ root { passive { value } items { value } } }")
         val root = assertIs<ObjectEngineResult>(query.getCell(world.schema.contractKey("Query", "root")).get())
         val passive = assertIs<ObjectEngineResult>(root.getCell(world.schema.contractKey("Root", "passive")).get())
         val outer = assertIs<ListEngineResult>(root.getCell(world.schema.contractKey("Root", "items")).get())

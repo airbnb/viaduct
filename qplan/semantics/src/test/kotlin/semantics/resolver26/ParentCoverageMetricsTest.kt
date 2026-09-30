@@ -69,7 +69,7 @@ class ParentCoverageMetricsTest : Resolver26DispatcherResource {
                 resolverObserver = recordingObserver,
             )
         operation.resolveWithTestDispatcher(
-            world.operationSelectionsFrom(
+            testWorld.schemas.operationSelectionsFrom(
                 "query { grand { parentNode { child { result } } } }",
             ),
         )

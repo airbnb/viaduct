@@ -8,7 +8,7 @@ import viaduct.graphql.schema.ViaductSchema
 import viaduct.graphql.utils.GraphQLTypeRelation
 
 class GraphQLTypeRelationsParityTest {
-    private val schema = TestWorld.fromSDL(SCHEMA_SDL).schema as GJSchema
+    private val schema = TestWorld.fromSDL(SCHEMA_SDL).schemas
 
     @Test
     fun `delegates source type relations to shared GraphQL relations`() {
@@ -38,10 +38,10 @@ class GraphQLTypeRelationsParityTest {
 
     @Test
     fun `populates model possible types from shared GraphQL relations`() {
-        val both = schema.requireType("Both") as ViaductSchema.Object
-        val leftOnly = schema.requireType("LeftOnly") as ViaductSchema.Object
-        val other = schema.requireType("Other") as ViaductSchema.Object
-        val deep = schema.requireType("Deep") as ViaductSchema.Object
+        val both = schema.loweredSchema.requireType("Both") as ViaductSchema.Object
+        val leftOnly = schema.loweredSchema.requireType("LeftOnly") as ViaductSchema.Object
+        val other = schema.loweredSchema.requireType("Other") as ViaductSchema.Object
+        val deep = schema.loweredSchema.requireType("Deep") as ViaductSchema.Object
 
         assertEquals(setOf(both, leftOnly), compositeType("Left").possibleObjectTypes)
         assertEquals(setOf(both), compositeType("Right").possibleObjectTypes)
@@ -64,7 +64,7 @@ class GraphQLTypeRelationsParityTest {
 
     private fun sourceType(typeName: String) = schema.sourceCompositeType(compositeType(typeName))
 
-    private fun compositeType(typeName: String): ViaductSchema.CompositeTypeDef = schema.requireType(typeName) as ViaductSchema.CompositeTypeDef
+    private fun compositeType(typeName: String): ViaductSchema.CompositeTypeDef = schema.loweredSchema.requireType(typeName) as ViaductSchema.CompositeTypeDef
 
     private companion object {
         val SCHEMA_SDL =

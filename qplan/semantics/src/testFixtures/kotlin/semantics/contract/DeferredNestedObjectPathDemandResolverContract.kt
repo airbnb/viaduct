@@ -40,7 +40,7 @@ interface DeferredNestedObjectPathDemandResolverContract : ResolverContract {
 
         val resolved =
             resolveAndValidate(
-                world,
+                testWorld,
                 """
                 query {
                   item {

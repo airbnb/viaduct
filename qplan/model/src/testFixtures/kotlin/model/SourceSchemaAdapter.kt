@@ -1,48 +1,221 @@
 package model
 
-import model.testing.GJSchema
+import graphql.schema.GraphQLList
+import graphql.schema.GraphQLNonNull
+import graphql.schema.GraphQLObjectType
+import graphql.schema.GraphQLOutputType
+import model.lowering.loweredFieldFromSourceCoordinate
+import model.lowering.sourceTypeExpr
+import viaduct.engine.api.EngineObjectData
 import viaduct.graphql.schema.ViaductSchema
+import viaduct.graphql.schema.graphqljava.gjDef
+import viaduct.graphql.schema.isNode
 
-/**
- * Explicit source-to-canonical adapter for fixture composition boundaries.
- *
- * Semantic code and tests should use [ViaductSchema.requireField] and [ViaductSchema.requireObjectField] with canonical model
- * coordinates. This adapter is reserved for inputs that are intentionally expressed in the
- * retained GraphQL source schema.
- */
+/** Adapts source coordinates and outputs using a canonical lowered schema's source definitions. */
 class SourceSchemaAdapter(
-    schema: ViaductSchema,
+    private val schema: ViaductSchema,
 ) {
-    private val schema =
-        requireNotNull(schema as? GJSchema) {
-            "SourceSchemaAdapter requires the canonical source/lowered fixture schema pair"
-        }
-
-    /** Resolves a source GraphQL field to its canonical lowered fixture coordinate. */
     fun field(
         typeName: String,
         fieldName: String,
-    ): ViaductSchema.Field = schema.fieldFromSource(typeName, fieldName)
+    ): ViaductSchema.Field = schema.loweredFieldFromSourceCoordinate(typeName, fieldName)
 
-    /** Returns the source GraphQL output type represented by a canonical fixture field. */
     fun typeExpr(field: ViaductSchema.Field): ViaductSchema.TypeExpr<ViaductSchema.OutputTypeDef> = schema.sourceTypeExpr(field)
 
-    /** Lowers a source-shaped output for storage at a canonical fixture field. */
+    private fun isLoweredNodeField(field: ViaductSchema.Field): Boolean = typeExpr(field).baseTypeDef.isNode
+
     fun lowerOutput(
         field: ViaductSchema.Field,
         output: ResolverOutputData?,
-    ): ResolverOutputData? = schema.lowerSourceOutput(field, output)
+    ): ResolverOutputData? {
+        val sourceTypeExpr = typeExpr(field)
+        return if (isLoweredNodeField(field)) {
+            lowerNodeReferences(
+                output = output,
+                sourceTypeExpr = sourceTypeExpr,
+            )
+        } else {
+            lowerOrdinaryOutput(
+                output = output,
+                sourceTypeExpr = sourceTypeExpr,
+                loweredTypeExpr = field.outputType,
+            )
+        }
+    }
 
-    /** Normalizes the materialized result of a concrete node resolver without making another reference. */
     fun lowerNodeResolverOutput(
         type: ViaductSchema.Object,
         output: ResolverOutputData?,
-    ): ResolverOutputData? = schema.lowerNodeResolverOutput(type, output)
+    ): ResolverOutputData? {
+        if (output == null || output is EngineErrorData || output is RootFieldReferenceData) {
+            return output
+        }
+        require(output is EngineObjectData.Sync) {
+            "Node resolver for ${type.name} returned a non-object value"
+        }
+        return lowerOrdinaryObject(
+            output,
+            ViaductSchema.TypeExpr(type),
+        )
+    }
 
-    /** Converts one production source-schema root-field reference to the canonical qplan carrier. */
     fun lowerRootFieldReference(
         rootFieldPath: List<String>,
         sourceTypeName: String,
         arguments: Map<String, Any?>,
-    ): RootFieldReferenceData = schema.lowerRootFieldReference(rootFieldPath, sourceTypeName, arguments)
+    ): RootFieldReferenceData {
+        require(rootFieldPath.isNotEmpty()) { "Root-field-reference path must not be empty" }
+        var sourceParent = schema.requireQueryTypeDef().gjDef
+        val canonicalPath =
+            rootFieldPath.mapIndexed { index, fieldName ->
+                val sourceField =
+                    requireNotNull(sourceParent.getFieldDefinition(fieldName)) {
+                        "Root-field-reference path has no field ${sourceParent.name}/$fieldName"
+                    }
+                val sourceOutput = sourceField.type.unwrapNonNull()
+                require(sourceOutput !is GraphQLList && sourceOutput is GraphQLObjectType) {
+                    "Root-field-reference path field ${sourceParent.name}/$fieldName " +
+                        "must return a singular object"
+                }
+                val canonicalField = field(sourceParent.name, fieldName)
+                require(canonicalField is ViaductSchema.ObjectField) {
+                    "Root-field-reference path field ${sourceParent.name}/$fieldName " +
+                        "does not lower to an object field"
+                }
+                if (index == rootFieldPath.lastIndex) {
+                    require(sourceOutput.name == sourceTypeName) {
+                        "Root-field-reference type $sourceTypeName does not match " +
+                            "${sourceParent.name}/$fieldName type ${sourceOutput.name}"
+                    }
+                } else {
+                    sourceParent = sourceOutput
+                }
+                canonicalField
+            }
+        return RootFieldReferenceData.of(canonicalPath, arguments)
+    }
+
+    private fun lowerNodeReferences(
+        output: ResolverOutputData?,
+        sourceTypeExpr: ViaductSchema.TypeExpr<ViaductSchema.OutputTypeDef>,
+    ): ResolverOutputData? =
+        when {
+            output == null || output is EngineErrorData || output is RootFieldReferenceData -> output
+            sourceTypeExpr.isList -> {
+                require(output is List<*>) {
+                    "Node-list field resolver did not return a list"
+                }
+                val sourceElementType = checkNotNull(sourceTypeExpr.unwrapList())
+                output.map { value ->
+                    lowerNodeReferences(
+                        output = value,
+                        sourceTypeExpr = sourceElementType,
+                    )
+                }
+            }
+            else -> {
+                require(output is EngineObjectData.Sync) {
+                    "Node field resolver did not return a node reference"
+                }
+                val outputType =
+                    schema.requireType(output.type.name) as? ViaductSchema.Object
+                        ?: throw IllegalArgumentException(
+                            "Node field resolver returned unknown object type ${output.type.name}",
+                        )
+                val idField = schema.requireObjectField(outputType.name, "id")
+                val id = output.get(idField.name)
+                require(id !is EngineErrorData && id is String) {
+                    "Node reference ${outputType.name}/id must contain a non-error ID"
+                }
+                val declaredType = sourceTypeExpr.baseTypeDef as ViaductSchema.CompositeTypeDef
+                require(outputType in declaredType.possibleObjectTypes) {
+                    "Node reference ${outputType.name} is not valid for " +
+                        sourceTypeExpr.baseTypeDef.name
+                }
+                nodeRootFieldReferenceOf(
+                    queryNode = schema.requireObjectField("Query", "node"),
+                    type = outputType,
+                    id = id,
+                )
+            }
+        }
+
+    private fun lowerOrdinaryOutput(
+        output: ResolverOutputData?,
+        sourceTypeExpr: ViaductSchema.TypeExpr<ViaductSchema.OutputTypeDef>,
+        loweredTypeExpr: ViaductSchema.TypeExpr<ViaductSchema.OutputTypeDef>,
+    ): ResolverOutputData? =
+        when {
+            output == null || output is EngineErrorData || output is RootFieldReferenceData -> output
+            sourceTypeExpr.isList && loweredTypeExpr.isList -> {
+                require(output is List<*>) {
+                    "Source output for $sourceTypeExpr is not a list"
+                }
+                val sourceElementType = checkNotNull(sourceTypeExpr.unwrapList())
+                val loweredElementType = checkNotNull(loweredTypeExpr.unwrapList())
+                output.map { value ->
+                    lowerOrdinaryOutput(
+                        output = value,
+                        sourceTypeExpr = sourceElementType,
+                        loweredTypeExpr = loweredElementType,
+                    )
+                }
+            }
+            !sourceTypeExpr.isList && !loweredTypeExpr.isList -> {
+                val sourceType = sourceTypeExpr.baseTypeDef
+                if (sourceType !is ViaductSchema.CompositeTypeDef) {
+                    output
+                } else {
+                    require(output is EngineObjectData.Sync) {
+                        "Source output for ${sourceType.name} is not an object"
+                    }
+                    lowerOrdinaryObject(output, loweredTypeExpr)
+                }
+            }
+            else -> error("Source and lowered type expressions have different list shapes")
+        }
+
+    private fun lowerOrdinaryObject(
+        output: EngineObjectData.Sync,
+        loweredTypeExpr: ViaductSchema.TypeExpr<ViaductSchema.OutputTypeDef>,
+    ): EngineObjectData.Sync {
+        output.qplanSchemaTypeOrNull?.let { return output }
+
+        val outputType =
+            schema.requireType(output.type.name) as? ViaductSchema.Object
+                ?: throw IllegalArgumentException(
+                    "Source resolver returned unknown object type ${output.type.name}",
+                )
+        val declaredType = loweredTypeExpr.baseTypeDef as ViaductSchema.CompositeTypeDef
+        require(outputType in declaredType.possibleObjectTypes) {
+            "Source object ${outputType.name} is not valid for ${declaredType.name}"
+        }
+        val sourceObject = outputType.gjDef
+        val fields =
+            output.getSelections().map { selection ->
+                requireNotNull(sourceObject.getFieldDefinition(selection)) {
+                    "Source object ${outputType.name} has no field named $selection"
+                }
+                val loweredField = field(outputType.name, selection)
+                require(loweredField is ViaductSchema.ObjectField) {
+                    "${outputType.name}/$selection does not lower to an object field"
+                }
+                require(loweredField.args.isEmpty()) {
+                    "Passive object field ${outputType.name}/$selection must be argumentless"
+                }
+                EngineObjectDataEntry.of(
+                    selection = loweredField.name,
+                    field = loweredField,
+                    value = lowerOutput(loweredField, output.get(selection)),
+                )
+            }
+        return engineObjectDataOf(outputType, fields)
+    }
 }
+
+private fun GraphQLOutputType.unwrapNonNull(): GraphQLOutputType =
+    if (this is GraphQLNonNull) {
+        wrappedType as GraphQLOutputType
+    } else {
+        this
+    }

@@ -44,7 +44,7 @@ interface GroundedTypeCheckerFragmentContract {
     fun `checked resolver parent input upgrades a checker-only occurrence to type-checked`() {
         listOf(false, true).forEach { checkedParentRead ->
             val typeInvocations = AtomicInteger()
-            val world =
+            val worldFixture =
                 TestWorld.fromDSL(
                     schemaSDL =
                         """
@@ -65,7 +65,7 @@ interface GroundedTypeCheckerFragmentContract {
                         """.trimIndent(),
                     selectiveResolvers = coroutineResolverSubject.selectiveResolvers,
                     fieldCheckers = { schema ->
-                        val checked = schema.requireObjectField("Query", "checked")
+                        val checked = schema.loweredSchema.requireObjectField("Query", "checked")
                         val rawRoot =
                             schema
                                 .fragmentFrom("fragment RawRoot on Query { rawRoot { ${if (checkedParentRead) "active" else "id"} } }")
@@ -74,7 +74,7 @@ interface GroundedTypeCheckerFragmentContract {
                             checked to
                                 FieldCheckerResolver.of(
                                     checked,
-                                    schema.requireQueryTypeDef(),
+                                    schema.loweredSchema.requireQueryTypeDef(),
                                     fragmentTemplates =
                                         mapOf(
                                             "rawRoot" to
@@ -87,20 +87,21 @@ interface GroundedTypeCheckerFragmentContract {
                         )
                     },
                     typeCheckers = { schema ->
-                        val root = schema.requireType("Root") as ViaductSchema.Object
+                        val root = schema.loweredSchema.requireType("Root") as ViaductSchema.Object
                         mapOf(
-                            root to TypeCheckerResolver.of(root, schema.requireQueryTypeDef()) { _, _ ->
+                            root to TypeCheckerResolver.of(root, schema.loweredSchema.requireQueryTypeDef()) { _, _ ->
                                 typeInvocations.incrementAndGet()
                                 CheckerResult.Success
                             },
                         )
                     },
-                ).assumptions
+                )
+            val world = worldFixture.assumptions
 
             val result =
                 coroutineResolverSubject.resolve(
                     SharedOperationContext.create(world),
-                    world.operationSelectionsFrom("{ checked }"),
+                    worldFixture.schemas.operationSelectionsFrom("{ checked }"),
                 )
 
             val rawRoot = assertIs<ObjectEngineResult>(result.t3Value(world, "Query", "rawRoot"))
@@ -113,52 +114,54 @@ interface GroundedTypeCheckerFragmentContract {
     fun `checked parent reads inside a Query fragment do not check its Query root`() {
         val queryChecks = AtomicInteger()
         val wrapperChecks = AtomicInteger()
-        val world = TestWorld.fromSDL(
-            """
+        val worldFixture =
+            TestWorld.fromSDL(
+                """
             directive @parent on FIELD_DEFINITION
             type Query { consume: Int! wrapper: Wrapper! }
             type Wrapper { token: Int! child: Child! }
             type Child { parent: Wrapper! @parent }
-            """.trimIndent(),
-            selectiveResolvers = coroutineResolverSubject.selectiveResolvers,
-            fieldResolvers = { schema ->
-                mapOf(
-                    schema.requireObjectField("Query", "consume") to fieldResolverOf(
-                        schema.emptyFragmentOf("Query"),
-                        schema.fragmentFrom("fragment Input on Query { wrapper { child { parent { token } } } }"),
-                    ) { _, query, _ ->
-                        val wrapper = assertIs<viaduct.engine.api.EngineObjectData.Sync>(query.get("wrapper"))
-                        val child = assertIs<viaduct.engine.api.EngineObjectData.Sync>(wrapper.get("child"))
-                        val parent = assertIs<viaduct.engine.api.EngineObjectData.Sync>(child.get("parent"))
-                        parent.get("token")
-                    },
-                    schema.requireObjectField("Query", "wrapper") to fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
-                        schema.objectOf("Wrapper") {
-                            "token" setTo 7
-                            "child" setTo schema.objectOf("Child")
-                        }
-                    },
-                )
-            },
-            typeCheckers = { schema ->
-                val query = schema.requireQueryTypeDef()
-                val wrapper = schema.requireType("Wrapper") as ViaductSchema.Object
-                mapOf(
-                    query to TypeCheckerResolver.of(query, query) { _, _ ->
-                        queryChecks.incrementAndGet()
-                        CheckerResult.Success
-                    },
-                    wrapper to TypeCheckerResolver.of(wrapper, query) { _, _ ->
-                        wrapperChecks.incrementAndGet()
-                        CheckerResult.Success
-                    },
-                )
-            },
-        ).assumptions
+                """.trimIndent(),
+                selectiveResolvers = coroutineResolverSubject.selectiveResolvers,
+                fieldResolvers = { schema ->
+                    mapOf(
+                        schema.loweredSchema.requireObjectField("Query", "consume") to fieldResolverOf(
+                            schema.loweredSchema.emptyFragmentOf("Query"),
+                            schema.fragmentFrom("fragment Input on Query { wrapper { child { parent { token } } } }"),
+                        ) { _, query, _ ->
+                            val wrapper = assertIs<viaduct.engine.api.EngineObjectData.Sync>(query.get("wrapper"))
+                            val child = assertIs<viaduct.engine.api.EngineObjectData.Sync>(wrapper.get("child"))
+                            val parent = assertIs<viaduct.engine.api.EngineObjectData.Sync>(child.get("parent"))
+                            parent.get("token")
+                        },
+                        schema.loweredSchema.requireObjectField("Query", "wrapper") to fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
+                            schema.loweredSchema.objectOf("Wrapper") {
+                                "token" setTo 7
+                                "child" setTo schema.loweredSchema.objectOf("Child")
+                            }
+                        },
+                    )
+                },
+                typeCheckers = { schema ->
+                    val query = schema.loweredSchema.requireQueryTypeDef()
+                    val wrapper = schema.loweredSchema.requireType("Wrapper") as ViaductSchema.Object
+                    mapOf(
+                        query to TypeCheckerResolver.of(query, query) { _, _ ->
+                            queryChecks.incrementAndGet()
+                            CheckerResult.Success
+                        },
+                        wrapper to TypeCheckerResolver.of(wrapper, query) { _, _ ->
+                            wrapperChecks.incrementAndGet()
+                            CheckerResult.Success
+                        },
+                    )
+                },
+            )
+        val world = worldFixture.assumptions
 
         val result = coroutineResolverSubject.resolve(
             SharedOperationContext.create(world),
-            world.operationSelectionsFrom("{ consume }"),
+            worldFixture.schemas.operationSelectionsFrom("{ consume }"),
         )
 
         assertEquals(7, result.t3Value(world, "Query", "consume"))
@@ -175,7 +178,7 @@ interface GroundedTypeCheckerFragmentContract {
         val activeCheckerCalls = AtomicInteger()
         val protectedCheckerCalls = AtomicInteger()
         val queryCheckerCalls = AtomicInteger()
-        val world =
+        val worldFixture =
             TestWorld.fromSDL(
                 selectiveResolvers = coroutineResolverSubject.selectiveResolvers,
                 schemaSDL =
@@ -195,29 +198,29 @@ interface GroundedTypeCheckerFragmentContract {
                     }
                     """.trimIndent(),
                 fieldResolvers = { schema ->
-                    val first = schema.requireObjectField("Query", "first")
-                    val second = schema.requireObjectField("Query", "second")
-                    val queryDependency = schema.requireObjectField("Query", "queryDependency")
-                    val consume = schema.requireObjectField("Query", "consume")
-                    val active = schema.requireObjectField("Item", "active")
-                    val protected = schema.requireObjectField("Item", "protected")
+                    val first = schema.loweredSchema.requireObjectField("Query", "first")
+                    val second = schema.loweredSchema.requireObjectField("Query", "second")
+                    val queryDependency = schema.loweredSchema.requireObjectField("Query", "queryDependency")
+                    val consume = schema.loweredSchema.requireObjectField("Query", "consume")
+                    val active = schema.loweredSchema.requireObjectField("Item", "active")
+                    val protected = schema.loweredSchema.requireObjectField("Item", "protected")
                     mapOf(
                         first to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
-                                schema.objectOf("Item") {
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
+                                schema.loweredSchema.objectOf("Item") {
                                     "requested" setTo 1
                                     "passive" setTo 2
                                 }
                             },
                         second to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
-                                schema.objectOf("Item") {
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
+                                schema.loweredSchema.objectOf("Item") {
                                     "requested" setTo 11
                                     "passive" setTo 12
                                 }
                             },
                         queryDependency to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> 4 },
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> 4 },
                         consume to
                             fieldResolverOf(
                                 schema.fragmentFrom(
@@ -240,47 +243,47 @@ interface GroundedTypeCheckerFragmentContract {
                                 (input.get("protected") as Int) + 10
                             },
                         protected to
-                            fieldResolverOf(schema.emptyFragmentOf("Item")) { _, _ -> 3 },
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Item")) { _, _ -> 3 },
                     )
                 },
                 fieldCheckers = { schema ->
-                    val query = schema.requireQueryTypeDef()
+                    val query = schema.loweredSchema.requireQueryTypeDef()
                     mapOf(
-                        schema.requireObjectField("Item", "requested") to
+                        schema.loweredSchema.requireObjectField("Item", "requested") to
                             FieldCheckerResolver.of(
-                                schema.requireObjectField("Item", "requested"),
+                                schema.loweredSchema.requireObjectField("Item", "requested"),
                                 query,
                             ) { _, _, _ ->
                                 requestedCheckerCalls.incrementAndGet()
                                 CheckerResult.Success
                             },
-                        schema.requireObjectField("Item", "passive") to
+                        schema.loweredSchema.requireObjectField("Item", "passive") to
                             FieldCheckerResolver.of(
-                                schema.requireObjectField("Item", "passive"),
+                                schema.loweredSchema.requireObjectField("Item", "passive"),
                                 query,
                             ) { _, _, _ ->
                                 passiveCheckerCalls.incrementAndGet()
                                 CheckerResult.Success
                             },
-                        schema.requireObjectField("Item", "active") to
+                        schema.loweredSchema.requireObjectField("Item", "active") to
                             FieldCheckerResolver.of(
-                                schema.requireObjectField("Item", "active"),
+                                schema.loweredSchema.requireObjectField("Item", "active"),
                                 query,
                             ) { _, _, _ ->
                                 activeCheckerCalls.incrementAndGet()
                                 CheckerResult.Success
                             },
-                        schema.requireObjectField("Item", "protected") to
+                        schema.loweredSchema.requireObjectField("Item", "protected") to
                             FieldCheckerResolver.of(
-                                schema.requireObjectField("Item", "protected"),
+                                schema.loweredSchema.requireObjectField("Item", "protected"),
                                 query,
                             ) { _, _, _ ->
                                 protectedCheckerCalls.incrementAndGet()
                                 CheckerResult.Success
                             },
-                        schema.requireObjectField("Query", "queryDependency") to
+                        schema.loweredSchema.requireObjectField("Query", "queryDependency") to
                             FieldCheckerResolver.of(
-                                schema.requireObjectField("Query", "queryDependency"),
+                                schema.loweredSchema.requireObjectField("Query", "queryDependency"),
                                 query,
                             ) { _, _, _ ->
                                 queryCheckerCalls.incrementAndGet()
@@ -289,7 +292,7 @@ interface GroundedTypeCheckerFragmentContract {
                     )
                 },
                 typeCheckers = { schema ->
-                    val item = schema.requireType("Item") as ViaductSchema.Object
+                    val item = schema.loweredSchema.requireType("Item") as ViaductSchema.Object
 
                     fun pair(
                         objectFragment: String? = null,
@@ -309,7 +312,7 @@ interface GroundedTypeCheckerFragmentContract {
                         item to
                             TypeCheckerResolver.of(
                                 item,
-                                schema.requireQueryTypeDef(),
+                                schema.loweredSchema.requireQueryTypeDef(),
                                 fragmentTemplates =
                                     linkedMapOf(
                                         "empty" to pair(),
@@ -344,12 +347,13 @@ interface GroundedTypeCheckerFragmentContract {
                             },
                     )
                 },
-            ).assumptions
+            )
+        val world = worldFixture.assumptions
 
         val result =
             coroutineResolverSubject.resolve(
                 SharedOperationContext.create(world),
-                world.operationSelectionsFrom("{ consume }"),
+                worldFixture.schemas.operationSelectionsFrom("{ consume }"),
             )
 
         val consumeValue = result.t3Value(world, "Query", "consume")
@@ -394,7 +398,7 @@ interface GroundedTypeCheckerFragmentContract {
                     }
                 }
             }
-        val world =
+        val worldFixture =
             TestWorld.fromSDL(
                 selectiveResolvers = coroutineResolverSubject.selectiveResolvers,
                 schemaSDL =
@@ -404,21 +408,21 @@ interface GroundedTypeCheckerFragmentContract {
                     """.trimIndent(),
                 fieldResolvers = { schema ->
                     mapOf(
-                        schema.requireObjectField("Query", "item") to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
-                                schema.objectOf("Item") { "value" setTo 1 }
+                        schema.loweredSchema.requireObjectField("Query", "item") to
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
+                                schema.loweredSchema.objectOf("Item") { "value" setTo 1 }
                             },
-                        schema.requireObjectField("Query", "queryDependency") to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> 2 },
+                        schema.loweredSchema.requireObjectField("Query", "queryDependency") to
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> 2 },
                     )
                 },
                 typeCheckers = { schema ->
-                    val item = schema.requireType("Item") as ViaductSchema.Object
+                    val item = schema.loweredSchema.requireType("Item") as ViaductSchema.Object
                     mapOf(
                         item to
                             TypeCheckerResolver.of(
                                 item,
-                                schema.requireQueryTypeDef(),
+                                schema.loweredSchema.requireQueryTypeDef(),
                                 fragmentTemplates =
                                     mapOf(
                                         "input" to
@@ -437,12 +441,13 @@ interface GroundedTypeCheckerFragmentContract {
                             },
                     )
                 },
-            ).assumptions
+            )
+        val world = worldFixture.assumptions
 
         val result =
             coroutineResolverSubject.resolve(
                 SharedOperationContext.create(world),
-                world.operationSelectionsFrom("{ item { value } }"),
+                worldFixture.schemas.operationSelectionsFrom("{ item { value } }"),
                 cycleChecker,
             )
         val item = assertIs<ObjectEngineResult>(result.t3Value(world, "Query", "item"))

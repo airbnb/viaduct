@@ -34,7 +34,7 @@ interface FieldCheckerCorrectResolutionContract : ResolverContract {
     @Test
     fun `checker receives raw object and Query inputs under correctness contract`() {
         val checkerCalls = AtomicInteger()
-        val world =
+        val worldFixture =
             TestWorld.fromSDL(
                 selectiveResolvers = selectiveResolvers,
                 schemaSDL =
@@ -46,16 +46,16 @@ interface FieldCheckerCorrectResolutionContract : ResolverContract {
                     """.trimIndent(),
                 fieldResolvers = { schema ->
                     mapOf(
-                        schema.requireObjectField("Query", "source") to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> 7 },
-                        schema.requireObjectField("Query", "checked") to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> 11 },
+                        schema.loweredSchema.requireObjectField("Query", "source") to
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> 7 },
+                        schema.loweredSchema.requireObjectField("Query", "checked") to
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> 11 },
                     )
                 },
                 fieldCheckers = { schema ->
-                    val query = schema.requireQueryTypeDef()
-                    val source = schema.requireObjectField("Query", "source")
-                    val checked = schema.requireObjectField("Query", "checked")
+                    val query = schema.loweredSchema.requireQueryTypeDef()
+                    val source = schema.loweredSchema.requireObjectField("Query", "source")
+                    val checked = schema.loweredSchema.requireObjectField("Query", "checked")
                     mapOf(
                         source to
                             FieldCheckerResolver.of(source, query) { _, _, _ ->
@@ -90,9 +90,10 @@ interface FieldCheckerCorrectResolutionContract : ResolverContract {
                             },
                     )
                 },
-            ).assumptions
+            )
+        val world = worldFixture.assumptions
 
-        val fragment = world.fragmentFrom("fragment Query on Query { checked }")
+        val fragment = worldFixture.schemas.fragmentFrom("fragment Query on Query { checked }")
         val observation =
             resolveAndValidateObserved(
                 world = world,
@@ -120,7 +121,7 @@ interface FieldCheckerCorrectResolutionContract : ResolverContract {
     @Test
     fun `checker replay retains nested occurrence arguments and fromArgument bindings`() {
         val checkerCalls = AtomicInteger()
-        val world =
+        val worldFixture =
             TestWorld.fromSDL(
                 selectiveResolvers = selectiveResolvers,
                 schemaSDL =
@@ -135,30 +136,30 @@ interface FieldCheckerCorrectResolutionContract : ResolverContract {
                     }
                     """.trimIndent(),
                 fieldResolvers = { schema ->
-                    val item = schema.requireObjectField("Query", "item")
-                    val dependency = schema.requireObjectField("Item", "dependency")
-                    val checked = schema.requireObjectField("Item", "checked")
+                    val item = schema.loweredSchema.requireObjectField("Query", "item")
+                    val dependency = schema.loweredSchema.requireObjectField("Item", "dependency")
+                    val checked = schema.loweredSchema.requireObjectField("Item", "checked")
                     mapOf(
                         item to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
-                                schema.objectOf("Item")
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
+                                schema.loweredSchema.objectOf("Item")
                             },
                         dependency to
-                            fieldResolverOf(schema.emptyFragmentOf("Item")) { _, arguments ->
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Item")) { _, arguments ->
                                 arguments.fieldValues.getValue("value")
                             },
                         checked to
-                            fieldResolverOf(schema.emptyFragmentOf("Item")) { _, _ -> 11 },
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Item")) { _, _ -> 11 },
                     )
                 },
                 fieldCheckers = { schema ->
-                    val checked = schema.requireObjectField("Item", "checked")
+                    val checked = schema.loweredSchema.requireObjectField("Item", "checked")
                     val value = Arguments.Variable.of(ResolverTarget.FieldCheckerTarget(checked), "value")
                     mapOf(
                         checked to
                             FieldCheckerResolver.of(
                                 field = checked,
-                                queryType = schema.requireQueryTypeDef(),
+                                queryType = schema.loweredSchema.requireQueryTypeDef(),
                                 fragmentTemplates =
                                     mapOf(
                                         "input" to
@@ -169,7 +170,7 @@ interface FieldCheckerCorrectResolutionContract : ResolverContract {
                                                             "fragment Input on Item { dependency(value: ${'$'}value) }",
                                                             variableTarget = ResolverTarget.FieldCheckerTarget(checked),
                                                         ).materializeSelections,
-                                                queryFragmentTemplate = schema.emptyFragmentOf("Query").materializeSelections,
+                                                queryFragmentTemplate = schema.loweredSchema.emptyFragmentOf("Query").materializeSelections,
                                                 variables =
                                                     mapOf(
                                                         value to
@@ -187,8 +188,9 @@ interface FieldCheckerCorrectResolutionContract : ResolverContract {
                             },
                     )
                 },
-            ).assumptions
-        val fragment = world.fragmentFrom("fragment Query on Query { item { checked(value: 7) } }")
+            )
+        val world = worldFixture.assumptions
+        val fragment = worldFixture.schemas.fragmentFrom("fragment Query on Query { item { checked(value: 7) } }")
         val observation =
             resolveAndValidateObserved(
                 world = world,
@@ -203,7 +205,7 @@ interface FieldCheckerCorrectResolutionContract : ResolverContract {
 
     @Test
     fun `checker replay canonicalizes occurrences reached through parent backedges`() {
-        val world =
+        val worldFixture =
             TestWorld.fromSDL(
                 selectiveResolvers = selectiveResolvers,
                 schemaSDL =
@@ -231,21 +233,21 @@ interface FieldCheckerCorrectResolutionContract : ResolverContract {
                     }
                     """.trimIndent(),
                 fieldResolvers = { schema ->
-                    val emptyQuery = schema.emptyFragmentOf("Query")
-                    val emptyRoot = schema.emptyFragmentOf("Root")
-                    val emptyChild = schema.emptyFragmentOf("Child")
+                    val emptyQuery = schema.loweredSchema.emptyFragmentOf("Query")
+                    val emptyRoot = schema.loweredSchema.emptyFragmentOf("Root")
+                    val emptyChild = schema.loweredSchema.emptyFragmentOf("Child")
                     mapOf(
-                        schema.requireObjectField("Query", "root") to
-                            fieldResolverOf(emptyQuery) { _, _ -> schema.objectOf("Root") },
-                        schema.requireObjectField("Query", "marker") to
+                        schema.loweredSchema.requireObjectField("Query", "root") to
+                            fieldResolverOf(emptyQuery) { _, _ -> schema.loweredSchema.objectOf("Root") },
+                        schema.loweredSchema.requireObjectField("Query", "marker") to
                             fieldResolverOf(emptyQuery) { _, _ -> 9 },
-                        schema.requireObjectField("Root", "child") to
-                            fieldResolverOf(emptyRoot) { _, _ -> schema.objectOf("Child") },
-                        schema.requireObjectField("Root", "ancestor") to
+                        schema.loweredSchema.requireObjectField("Root", "child") to
+                            fieldResolverOf(emptyRoot) { _, _ -> schema.loweredSchema.objectOf("Child") },
+                        schema.loweredSchema.requireObjectField("Root", "ancestor") to
                             fieldResolverOf(emptyRoot) { _, _ -> 7 },
-                        schema.requireObjectField("Child", "child") to
-                            fieldResolverOf(emptyChild) { _, _ -> schema.objectOf("Grandchild") },
-                        schema.requireObjectField("Grandchild", "child") to
+                        schema.loweredSchema.requireObjectField("Child", "child") to
+                            fieldResolverOf(emptyChild) { _, _ -> schema.loweredSchema.objectOf("Grandchild") },
+                        schema.loweredSchema.requireObjectField("Grandchild", "child") to
                             fieldResolverOf(
                                 schema.fragmentFrom(
                                     "fragment Input on Grandchild { parent { parent { ancestor } } }",
@@ -258,18 +260,18 @@ interface FieldCheckerCorrectResolutionContract : ResolverContract {
                     )
                 },
                 fieldCheckers = { schema ->
-                    val ancestor = schema.requireObjectField("Root", "ancestor")
+                    val ancestor = schema.loweredSchema.requireObjectField("Root", "ancestor")
                     mapOf(
                         ancestor to
                             FieldCheckerResolver.of(
                                 field = ancestor,
-                                queryType = schema.requireQueryTypeDef(),
+                                queryType = schema.loweredSchema.requireQueryTypeDef(),
                                 fragmentTemplates =
                                     mapOf(
                                         "input" to
                                             ResolverFragmentTemplates(
                                                 objectFragmentTemplate =
-                                                    schema.emptyFragmentOf("Root").materializeSelections,
+                                                    schema.loweredSchema.emptyFragmentOf("Root").materializeSelections,
                                                 queryFragmentTemplate =
                                                     schema
                                                         .fragmentFrom(
@@ -283,9 +285,10 @@ interface FieldCheckerCorrectResolutionContract : ResolverContract {
                             },
                     )
                 },
-            ).assumptions
+            )
+        val world = worldFixture.assumptions
         val fragment =
-            world.fragmentFrom(
+            worldFixture.schemas.fragmentFrom(
                 "fragment Query on Query { root { child { child { child } } } }",
             )
         val observation =
@@ -301,7 +304,7 @@ interface FieldCheckerCorrectResolutionContract : ResolverContract {
     @Test
     fun `correct resolution validates access errors in both resolver inputs`() {
         val denial = CorrectResolutionDenial()
-        val world =
+        val worldFixture =
             TestWorld.fromSDL(
                 selectiveResolvers = selectiveResolvers,
                 schemaSDL =
@@ -313,13 +316,13 @@ interface FieldCheckerCorrectResolutionContract : ResolverContract {
                     }
                     """.trimIndent(),
                 fieldResolvers = { schema ->
-                    val empty = schema.emptyFragmentOf("Query")
+                    val empty = schema.loweredSchema.emptyFragmentOf("Query")
                     mapOf(
-                        schema.requireObjectField("Query", "objectDenied") to
+                        schema.loweredSchema.requireObjectField("Query", "objectDenied") to
                             fieldResolverOf(empty) { _, _ -> 1 },
-                        schema.requireObjectField("Query", "queryDenied") to
+                        schema.loweredSchema.requireObjectField("Query", "queryDenied") to
                             fieldResolverOf(empty) { _, _ -> 2 },
-                        schema.requireObjectField("Query", "consumer") to
+                        schema.loweredSchema.requireObjectField("Query", "consumer") to
                             fieldResolverOf(
                                 objectFragment =
                                     schema.fragmentFrom(
@@ -348,15 +351,16 @@ interface FieldCheckerCorrectResolutionContract : ResolverContract {
                 },
                 fieldCheckers = { schema ->
                     listOf("objectDenied", "queryDenied").associate { name ->
-                        val field = schema.requireObjectField("Query", name)
+                        val field = schema.loweredSchema.requireObjectField("Query", name)
                         field to
-                            FieldCheckerResolver.of(field, schema.requireQueryTypeDef()) { _, _, _ ->
+                            FieldCheckerResolver.of(field, schema.loweredSchema.requireQueryTypeDef()) { _, _, _ ->
                                 denial
                             }
                     }
                 },
-            ).assumptions
-        val fragment = world.fragmentFrom("fragment Query on Query { consumer }")
+            )
+        val world = worldFixture.assumptions
+        val fragment = worldFixture.schemas.fragmentFrom("fragment Query on Query { consumer }")
         val observation =
             resolveAndValidateObserved(
                 world = world,

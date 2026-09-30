@@ -31,14 +31,14 @@ class ParentVariableValidationAdversarialTest {
                     """.trimIndent(),
                 fieldResolvers = { schema ->
                     fun resolver(fragment: model.Fragment) = fieldResolverOf(fragment) { _, _ -> error("not invoked") }
-                    val result = schema.requireObjectField("Root", "result")
+                    val result = schema.loweredSchema.requireObjectField("Root", "result")
                     mapOf(
-                        schema.requireObjectField("Query", "root") to
-                            resolver(schema.emptyFragmentOf("Query")),
-                        schema.requireObjectField("Root", "child") to
-                            resolver(schema.emptyFragmentOf("Root")),
-                        schema.requireObjectField("Root", "localized") to
-                            resolver(schema.emptyFragmentOf("Root")),
+                        schema.loweredSchema.requireObjectField("Query", "root") to
+                            resolver(schema.loweredSchema.emptyFragmentOf("Query")),
+                        schema.loweredSchema.requireObjectField("Root", "child") to
+                            resolver(schema.loweredSchema.emptyFragmentOf("Root")),
+                        schema.loweredSchema.requireObjectField("Root", "localized") to
+                            resolver(schema.loweredSchema.emptyFragmentOf("Root")),
                         result to
                             resolver(
                                 schema.fragmentFrom(
@@ -54,10 +54,10 @@ class ParentVariableValidationAdversarialTest {
                     )
                 },
                 variableProviders = { schema ->
-                    val result = schema.requireObjectField("Root", "result")
+                    val result = schema.loweredSchema.requireObjectField("Root", "result")
                     mapOf(
                         Arguments.Variable.of(result, "locale") to
-                            schema.fromArgument(result, "locale"),
+                            schema.loweredSchema.fromArgument(result, "locale"),
                     )
                 },
             )
@@ -123,13 +123,13 @@ class ParentVariableValidationAdversarialTest {
                 fieldResolvers = { schema ->
                     fun resolver(fragment: model.Fragment) = fieldResolverOf(fragment) { _, _ -> error("not invoked") }
                     mapOf(
-                        schema.requireObjectField("Query", "user") to
-                            resolver(schema.emptyFragmentOf("Query")),
-                        schema.requireObjectField("UserImpl", "child") to
-                            resolver(schema.emptyFragmentOf("UserImpl")),
-                        schema.requireObjectField("UserImpl", "localizedName") to
-                            resolver(schema.emptyFragmentOf("UserImpl")),
-                        schema.requireObjectField("UserImpl", "display") to
+                        schema.loweredSchema.requireObjectField("Query", "user") to
+                            resolver(schema.loweredSchema.emptyFragmentOf("Query")),
+                        schema.loweredSchema.requireObjectField("UserImpl", "child") to
+                            resolver(schema.loweredSchema.emptyFragmentOf("UserImpl")),
+                        schema.loweredSchema.requireObjectField("UserImpl", "localizedName") to
+                            resolver(schema.loweredSchema.emptyFragmentOf("UserImpl")),
+                        schema.loweredSchema.requireObjectField("UserImpl", "display") to
                             resolver(
                                 schema.fragmentFrom(
                                     """
@@ -146,10 +146,10 @@ class ParentVariableValidationAdversarialTest {
                     )
                 },
                 variableProviders = { schema ->
-                    val display = schema.requireObjectField("UserImpl", "display")
+                    val display = schema.loweredSchema.requireObjectField("UserImpl", "display")
                     mapOf(
                         Arguments.Variable.of(display, "locale") to
-                            schema.fromArgument(display, "locale"),
+                            schema.loweredSchema.fromArgument(display, "locale"),
                     )
                 },
             )
@@ -179,11 +179,11 @@ class ParentVariableValidationAdversarialTest {
                 fieldResolvers = { schema ->
                     fun resolver(fragment: model.Fragment) = fieldResolverOf(fragment) { _, _ -> error("not invoked") }
                     mapOf(
-                        schema.requireObjectField("Query", "user") to
-                            resolver(schema.emptyFragmentOf("Query")),
-                        schema.requireObjectField("Query", "result") to
+                        schema.loweredSchema.requireObjectField("Query", "user") to
+                            resolver(schema.loweredSchema.emptyFragmentOf("Query")),
+                        schema.loweredSchema.requireObjectField("Query", "result") to
                             fieldResolverOf(
-                                objectFragment = schema.emptyFragmentOf("Query"),
+                                objectFragment = schema.loweredSchema.emptyFragmentOf("Query"),
                                 queryFragment =
                                     schema.fragmentFrom(
                                         """
@@ -199,17 +199,17 @@ class ParentVariableValidationAdversarialTest {
                                         """.trimIndent(),
                                     ),
                             ) { _, _, _ -> error("not invoked") },
-                        schema.requireObjectField("UserImpl", "child") to
-                            resolver(schema.emptyFragmentOf("UserImpl")),
-                        schema.requireObjectField("UserImpl", "localizedName") to
-                            resolver(schema.emptyFragmentOf("UserImpl")),
+                        schema.loweredSchema.requireObjectField("UserImpl", "child") to
+                            resolver(schema.loweredSchema.emptyFragmentOf("UserImpl")),
+                        schema.loweredSchema.requireObjectField("UserImpl", "localizedName") to
+                            resolver(schema.loweredSchema.emptyFragmentOf("UserImpl")),
                     )
                 },
                 variableProviders = { schema ->
-                    val result = schema.requireObjectField("Query", "result")
+                    val result = schema.loweredSchema.requireObjectField("Query", "result")
                     mapOf(
                         Arguments.Variable.of(result, "locale") to
-                            schema.fromArgument(result, "locale"),
+                            schema.loweredSchema.fromArgument(result, "locale"),
                     )
                 },
             )

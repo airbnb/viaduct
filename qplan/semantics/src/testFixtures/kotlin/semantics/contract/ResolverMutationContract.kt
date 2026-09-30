@@ -55,7 +55,7 @@ interface ResolverMutationContract : ResolverContract {
                 batch.queries.forEach { query ->
                     val ordinaryAssumptions = ordinaryWorld.newAssumptions()
                     val ordinaryFragment =
-                        ordinaryAssumptions.fragmentFrom(query.source)
+                        ordinaryWorld.schemas.fragmentFrom(query.source)
                     registry.clearResolutionWitness()
                     val ordinaryResolution =
                         observeResolution(
@@ -84,7 +84,7 @@ interface ResolverMutationContract : ResolverContract {
                             registry.clearResolutionWitness()
                             val mutantResult =
                                 runCatching {
-                                    val fragment = mutantAssumptions.fragmentFrom(query.source)
+                                    val fragment = mutantWorld.schemas.fragmentFrom(query.source)
                                     observeResolution(
                                         mutantAssumptions,
                                         mutantAssumptions.objectOf("Query"),

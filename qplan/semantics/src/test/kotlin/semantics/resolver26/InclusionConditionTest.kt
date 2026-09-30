@@ -66,7 +66,7 @@ class InclusionConditionTest : Resolver26DispatcherResource {
         }
         val operation = SharedOperationContext.create(world.assumptions, resolverObserver = recordingObserver)
         val result = operation.resolveWithTestDispatcher(
-            world.assumptions.fragmentFrom("fragment Test on Query { controller healthy }").subselections,
+            world.schemas.fragmentFrom("fragment Test on Query { controller healthy }").subselections,
         )
 
         for (name in listOf("controller", "outer")) {
@@ -221,8 +221,8 @@ class InclusionConditionTest : Resolver26DispatcherResource {
                     }
                     """.trimIndent(),
                 fieldResolvers = { schema ->
-                    val outer = schema.requireObjectField("Query", "outer")
-                    val dependency = schema.requireObjectField("Query", "dependency")
+                    val outer = schema.loweredSchema.requireObjectField("Query", "outer")
+                    val dependency = schema.loweredSchema.requireObjectField("Query", "dependency")
                     mapOf(
                         outer to
                             fieldResolverOf(
@@ -243,14 +243,14 @@ class InclusionConditionTest : Resolver26DispatcherResource {
                                 }
                             },
                         dependency to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> 7 },
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> 7 },
                     )
                 },
                 variableProviders = { schema ->
-                    val outer = schema.requireObjectField("Query", "outer")
+                    val outer = schema.loweredSchema.requireObjectField("Query", "outer")
                     mapOf(
-                        Arguments.Variable.of(outer, "a") to schema.fromArgument(outer, "a"),
-                        Arguments.Variable.of(outer, "b") to schema.fromArgument(outer, "b"),
+                        Arguments.Variable.of(outer, "a") to schema.loweredSchema.fromArgument(outer, "a"),
+                        Arguments.Variable.of(outer, "b") to schema.loweredSchema.fromArgument(outer, "b"),
                     )
                 },
             )
@@ -319,8 +319,8 @@ class InclusionConditionTest : Resolver26DispatcherResource {
                         }
                         """.trimIndent(),
                     fieldResolvers = { schema ->
-                        val outer = schema.requireObjectField("Query", "outer")
-                        val dependency = schema.requireObjectField("Query", "dependency")
+                        val outer = schema.loweredSchema.requireObjectField("Query", "outer")
+                        val dependency = schema.loweredSchema.requireObjectField("Query", "dependency")
                         mapOf(
                             outer to
                                 fieldResolverOf(
@@ -334,7 +334,7 @@ class InclusionConditionTest : Resolver26DispatcherResource {
                                         mapOf("enabled" to enabled)
                                     },
                             dependency to
-                                fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> 7 },
+                                fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> 7 },
                         )
                     },
                 )
@@ -364,9 +364,9 @@ class InclusionConditionTest : Resolver26DispatcherResource {
                     }
                     """.trimIndent(),
                 fieldResolvers = { schema ->
-                    val controller = schema.requireObjectField("Query", "controller")
-                    val outer = schema.requireObjectField("Query", "outer")
-                    val dependency = schema.requireObjectField("Query", "dependency")
+                    val controller = schema.loweredSchema.requireObjectField("Query", "controller")
+                    val outer = schema.loweredSchema.requireObjectField("Query", "outer")
+                    val dependency = schema.loweredSchema.requireObjectField("Query", "dependency")
                     mapOf(
                         controller to
                             fieldResolverOf(
@@ -387,14 +387,14 @@ class InclusionConditionTest : Resolver26DispatcherResource {
                                     mapOf("provided" to true)
                                 },
                         dependency to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> 7 },
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> 7 },
                     )
                 },
                 variableProviders = { schema ->
-                    val controller = schema.requireObjectField("Query", "controller")
+                    val controller = schema.loweredSchema.requireObjectField("Query", "controller")
                     mapOf(
                         Arguments.Variable.of(controller, "enabled") to
-                            schema.fromArgument(controller, "enabled"),
+                            schema.loweredSchema.fromArgument(controller, "enabled"),
                     )
                 },
             )
@@ -422,9 +422,9 @@ class InclusionConditionTest : Resolver26DispatcherResource {
                     }
                     """.trimIndent(),
                 fieldResolvers = { schema ->
-                    val controller = schema.requireObjectField("Query", "controller")
-                    val outer = schema.requireObjectField("Query", "outer")
-                    val dependency = schema.requireObjectField("Query", "dependency")
+                    val controller = schema.loweredSchema.requireObjectField("Query", "controller")
+                    val outer = schema.loweredSchema.requireObjectField("Query", "outer")
+                    val dependency = schema.loweredSchema.requireObjectField("Query", "dependency")
                     mapOf(
                         controller to
                             fieldResolverOf(
@@ -445,14 +445,14 @@ class InclusionConditionTest : Resolver26DispatcherResource {
                                     mapOf("provided" to 7)
                                 },
                         dependency to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> 3 },
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> 3 },
                     )
                 },
                 variableProviders = { schema ->
-                    val controller = schema.requireObjectField("Query", "controller")
+                    val controller = schema.loweredSchema.requireObjectField("Query", "controller")
                     mapOf(
                         Arguments.Variable.of(controller, "enabled") to
-                            schema.fromArgument(controller, "enabled"),
+                            schema.loweredSchema.fromArgument(controller, "enabled"),
                     )
                 },
             )
@@ -549,10 +549,10 @@ class InclusionConditionTest : Resolver26DispatcherResource {
                             }
                             """.trimIndent(),
                         fieldResolvers = { schema ->
-                            val outer = schema.requireObjectField("Query", "outer")
-                            val namespace = schema.requireObjectField("Query", "namespace")
-                            val nested = schema.requireObjectField("Namespace", "nested")
-                            val value = schema.requireObjectField("NestedNamespace", "value")
+                            val outer = schema.loweredSchema.requireObjectField("Query", "outer")
+                            val namespace = schema.loweredSchema.requireObjectField("Query", "namespace")
+                            val nested = schema.loweredSchema.requireObjectField("Namespace", "nested")
+                            val value = schema.loweredSchema.requireObjectField("NestedNamespace", "value")
                             val namespaceSelection =
                                 if (conditionNestedNamespace) {
                                     "namespace { nested ${use.directiveSource()} { value } }"
@@ -568,24 +568,24 @@ class InclusionConditionTest : Resolver26DispatcherResource {
                                         ),
                                     ) { _, _ -> 1 },
                                 namespace to
-                                    fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
-                                        schema.objectOf("Namespace")
+                                    fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
+                                        schema.loweredSchema.objectOf("Namespace")
                                     },
                                 nested to
-                                    fieldResolverOf(schema.emptyFragmentOf("Namespace")) { _, _ ->
-                                        schema.objectOf("NestedNamespace")
+                                    fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Namespace")) { _, _ ->
+                                        schema.loweredSchema.objectOf("NestedNamespace")
                                     },
                                 value to
-                                    fieldResolverOf(schema.emptyFragmentOf("NestedNamespace")) { _, _ ->
+                                    fieldResolverOf(schema.loweredSchema.emptyFragmentOf("NestedNamespace")) { _, _ ->
                                         7
                                     },
                             )
                         },
                         variableProviders = { schema ->
-                            val outer = schema.requireObjectField("Query", "outer")
+                            val outer = schema.loweredSchema.requireObjectField("Query", "outer")
                             mapOf(
                                 Arguments.Variable.of(outer, "enabled") to
-                                    schema.fromArgument(outer, "enabled"),
+                                    schema.loweredSchema.fromArgument(outer, "enabled"),
                             )
                         },
                     )
@@ -644,9 +644,9 @@ class InclusionConditionTest : Resolver26DispatcherResource {
                 }
                 """.trimIndent(),
             fieldResolvers = { schema ->
-                val outer = schema.requireObjectField("Query", "outer")
-                val flag = schema.requireObjectField("Query", "flag")
-                val dependency = schema.requireObjectField("Query", "dependency")
+                val outer = schema.loweredSchema.requireObjectField("Query", "outer")
+                val flag = schema.loweredSchema.requireObjectField("Query", "flag")
+                val dependency = schema.loweredSchema.requireObjectField("Query", "dependency")
                 val fragmentSource =
                     "fragment Outer on Query { flag dependency ${use.directiveSource()} }"
                 val fragment = schema.fragmentFrom(fragmentSource, variableField = outer)
@@ -656,20 +656,20 @@ class InclusionConditionTest : Resolver26DispatcherResource {
                             fieldResolverOf(fragment) { _, _ -> 1 }
                         ProviderFragment.QUERY ->
                             fieldResolverOf(
-                                objectFragment = schema.emptyFragmentOf("Query"),
+                                objectFragment = schema.loweredSchema.emptyFragmentOf("Query"),
                                 queryFragment = fragment,
                             ) { _, _, _ -> 1 }
                     }
                 mapOf(
                     outer to outerResolver,
                     flag to
-                        fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> use.value },
+                        fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> use.value },
                     dependency to
-                        fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> 7 },
+                        fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> 7 },
                 )
             },
             variableProviders = { schema ->
-                val outer = schema.requireObjectField("Query", "outer")
+                val outer = schema.loweredSchema.requireObjectField("Query", "outer")
                 val fragmentSource = "fragment Outer on Query { flag }"
                 val provider =
                     when (providerFragment) {
@@ -704,18 +704,18 @@ class InclusionConditionTest : Resolver26DispatcherResource {
                 }
                 """.trimIndent(),
             fieldResolvers = { schema ->
-                val root = schema.requireObjectField("Query", "root")
-                val child = schema.requireObjectField("Root", "child")
-                val result = schema.requireObjectField("Child", "result")
-                val dependency = schema.requireObjectField("Child", "dependency")
+                val root = schema.loweredSchema.requireObjectField("Query", "root")
+                val child = schema.loweredSchema.requireObjectField("Root", "child")
+                val result = schema.loweredSchema.requireObjectField("Child", "result")
+                val dependency = schema.loweredSchema.requireObjectField("Child", "dependency")
                 mapOf(
                     root to
-                        fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
-                            schema.objectOf("Root") { "enabled" setTo enabled }
+                        fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
+                            schema.loweredSchema.objectOf("Root") { "enabled" setTo enabled }
                         },
                     child to
-                        fieldResolverOf(schema.emptyFragmentOf("Root")) { _, _ ->
-                            schema.objectOf("Child")
+                        fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Root")) { _, _ ->
+                            schema.loweredSchema.objectOf("Child")
                         },
                     result to
                         fieldResolverOf(
@@ -730,11 +730,11 @@ class InclusionConditionTest : Resolver26DispatcherResource {
                             ),
                         ) { _, _ -> 1 },
                     dependency to
-                        fieldResolverOf(schema.emptyFragmentOf("Child")) { _, _ -> 7 },
+                        fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Child")) { _, _ -> 7 },
                 )
             },
             variableProviders = { schema ->
-                val result = schema.requireObjectField("Child", "result")
+                val result = schema.loweredSchema.requireObjectField("Child", "result")
                 mapOf(
                     Arguments.Variable.of(result, "enabled") to
                         schema.fromObjectField(
@@ -748,7 +748,7 @@ class InclusionConditionTest : Resolver26DispatcherResource {
         )
 
     private fun TestWorld.resolve(query: String): Resolution {
-        val fragment = assumptions.fragmentFrom(query.replace("query", "fragment Query on Query"))
+        val fragment = schemas.fragmentFrom(query.replace("query", "fragment Query on Query"))
 
         val applications =
             Collections.synchronizedList(mutableListOf<ViaductSchema.ObjectField>())

@@ -35,8 +35,8 @@ import model.requireType
 import model.schemaType
 import model.selectionForestOf
 import model.testing.FieldResolverDefinition
-import model.testing.GJSchema
 import model.testing.TestWorld
+import model.testing.ViaductAndGJSchema
 import model.testing.fieldResolverOf
 import model.testing.nodeResolverOf
 import model.testing.resolverRegistryOf
@@ -57,9 +57,9 @@ class ResolverRegistryTest {
                     type Item { value: Int }
                     """.trimIndent(),
                 typeCheckers = { schema ->
-                    val item = schema.requireType("Item") as ViaductSchema.Object
+                    val item = schema.loweredSchema.requireType("Item") as ViaductSchema.Object
                     suppliedChecker =
-                        TypeCheckerResolver.of(item, schema.requireQueryTypeDef()) { _, _ ->
+                        TypeCheckerResolver.of(item, schema.loweredSchema.requireQueryTypeDef()) { _, _ ->
                             CheckerResult.Success
                         }
                     mapOf(item to suppliedChecker)
@@ -82,11 +82,11 @@ class ResolverRegistryTest {
                     type Other { value: Int }
                     """.trimIndent(),
                 typeCheckers = { schema ->
-                    val item = schema.requireType("Item") as ViaductSchema.Object
-                    val other = schema.requireType("Other") as ViaductSchema.Object
+                    val item = schema.loweredSchema.requireType("Item") as ViaductSchema.Object
+                    val other = schema.loweredSchema.requireType("Other") as ViaductSchema.Object
                     mapOf(
                         item to
-                            TypeCheckerResolver.of(other, schema.requireQueryTypeDef()) { _, _ ->
+                            TypeCheckerResolver.of(other, schema.loweredSchema.requireQueryTypeDef()) { _, _ ->
                                 CheckerResult.Success
                             },
                     )
@@ -112,9 +112,9 @@ class ResolverRegistryTest {
                     }
                         """.trimIndent(),
                 )
-            val schema = world.schema
-            val query = schema.requireQueryTypeDef()
-            val userField = schema.requireObjectField("Query", "user")
+            val schema = world.schemas
+            val query = schema.loweredSchema.requireQueryTypeDef()
+            val userField = schema.loweredSchema.requireObjectField("Query", "user")
             val demand =
                 schema.fragmentFrom(
                     "fragment ignored on User { name }",
@@ -133,7 +133,7 @@ class ResolverRegistryTest {
                     function = { _, _, _, selections, executionContext ->
                         observedDemand = selections
                         observedExecutionContext = executionContext
-                        schema.objectOf("User") {
+                        schema.loweredSchema.objectOf("User") {
                             "name" setTo "Ada"
                             "age" setTo 37
                         }
@@ -171,9 +171,9 @@ class ResolverRegistryTest {
                     }
                         """.trimIndent(),
                 )
-            val schema = world.schema
-            val query = schema.requireQueryTypeDef()
-            val userField = schema.requireObjectField("Query", "user")
+            val schema = world.schemas
+            val query = schema.loweredSchema.requireQueryTypeDef()
+            val userField = schema.loweredSchema.requireObjectField("Query", "user")
             val resolver =
                 FieldValueResolver.of(
                     field = userField,
@@ -184,7 +184,7 @@ class ResolverRegistryTest {
                         ),
                     queryType = query,
                     function = { _, _, _, _ ->
-                        schema.objectOf("User") {
+                        schema.loweredSchema.objectOf("User") {
                             "name" setTo "Ada"
                             "age" setTo 37
                         }
@@ -223,9 +223,9 @@ class ResolverRegistryTest {
                     }
                         """.trimIndent(),
                 )
-            val schema = world.schema
-            val query = schema.requireQueryTypeDef()
-            val userField = schema.requireObjectField("Query", "user")
+            val schema = world.schemas
+            val query = schema.loweredSchema.requireQueryTypeDef()
+            val userField = schema.loweredSchema.requireObjectField("Query", "user")
             val demand =
                 schema.fragmentFrom(
                     "fragment ignored on User { name }",
@@ -242,7 +242,7 @@ class ResolverRegistryTest {
                     queryType = query,
                     function = { _, _, _, selections, _ ->
                         observedDemand = selections
-                        schema.objectOf("User") {
+                        schema.loweredSchema.objectOf("User") {
                             "name" setTo "Ada"
                             "age" setTo 37
                         }
@@ -270,13 +270,13 @@ class ResolverRegistryTest {
                 TestWorld.fromSDL(
                     schemaSDL = SCHEMA_SDL,
                     nodeResolvers = { schema ->
-                        val user = schema.requireType("User") as ViaductSchema.Object
+                        val user = schema.loweredSchema.requireType("User") as ViaductSchema.Object
                         mapOf(
                             user to
                                 nodeResolverOf { id ->
                                     observedFields += "node"
                                     assertEquals("42", id)
-                                    schema.objectOf("User") {
+                                    schema.loweredSchema.objectOf("User") {
                                         "id" setTo "lookup-id"
                                         "name" setTo "Ada"
                                     }
@@ -284,18 +284,18 @@ class ResolverRegistryTest {
                         )
                     },
                     fieldResolvers = { schema ->
-                        val userField = schema.requireField("Query", "user")
-                        val queryFragment = schema.emptyFragmentOf("Query")
+                        val userField = schema.loweredSchema.requireField("Query", "user")
+                        val queryFragment = schema.loweredSchema.emptyFragmentOf("Query")
                         mapOf<ViaductSchema.Field, FieldResolverDefinition>(
                             userField to
                                 fieldResolverOf(
                                     objectFragment = queryFragment,
                                     function = { parent, arguments ->
                                         observedFields += "user"
-                                        assertEquals(schema.requireQueryTypeDef(), parent.schemaType)
+                                        assertEquals(schema.loweredSchema.requireQueryTypeDef(), parent.schemaType)
                                         assertTrue(parent.getSelections().none())
                                         assertTrue(arguments.fieldValues.isEmpty())
-                                        schema.objectOf("User") {
+                                        schema.loweredSchema.objectOf("User") {
                                             "id" setTo "42"
                                         }
                                     },
@@ -303,15 +303,15 @@ class ResolverRegistryTest {
                         )
                     },
                 )
-            val schema = world.schema
-            val query = schema.objectOf("Query")
+            val schema = world.schemas
+            val query = schema.loweredSchema.objectOf("Query")
             val user =
-                schema.objectOf("User") {
+                schema.loweredSchema.objectOf("User") {
                     "id" setTo "42"
                     "name" setTo "Ada"
                 }
-            val userField = schema.requireObjectField("Query", "user")
-            val queryNode = schema.requireObjectField("Query", "node")
+            val userField = schema.loweredSchema.requireObjectField("Query", "user")
+            val queryNode = schema.loweredSchema.requireObjectField("Query", "node")
             val registry = world.resolverRegistry
             val assumptions = world.assumptions
 
@@ -370,15 +370,15 @@ class ResolverRegistryTest {
                     }
                         """.trimIndent(),
                     fieldResolvers = { schema ->
-                        val query = schema.requireQueryTypeDef()
-                        val source = schema.requireObjectField("Query", "source")
-                        val consumer = schema.requireObjectField("Query", "consumer")
+                        val query = schema.loweredSchema.requireQueryTypeDef()
+                        val source = schema.loweredSchema.requireObjectField("Query", "source")
+                        val consumer = schema.loweredSchema.requireObjectField("Query", "consumer")
                         mapOf(
                             source to
-                                fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> 7 },
+                                fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> 7 },
                             consumer to
                                 fieldResolverOf(
-                                    objectFragment = schema.emptyFragmentOf("Query"),
+                                    objectFragment = schema.loweredSchema.emptyFragmentOf("Query"),
                                     queryFragment =
                                         schema.fragmentFrom(
                                             """
@@ -394,10 +394,10 @@ class ResolverRegistryTest {
                         )
                     },
                 )
-            val schema = world.schema
-            val query = schema.requireQueryTypeDef()
-            val source = schema.requireObjectField("Query", "source")
-            val consumer = schema.requireObjectField("Query", "consumer")
+            val schema = world.schemas
+            val query = schema.loweredSchema.requireQueryTypeDef()
+            val source = schema.loweredSchema.requireObjectField("Query", "source")
+            val consumer = schema.loweredSchema.requireObjectField("Query", "consumer")
             val resolver = world.resolverRegistry.resolver(consumer)
             val queryValue =
                 engineObjectDataOf(
@@ -422,7 +422,7 @@ class ResolverRegistryTest {
                 )
 
             assertEquals(7, result)
-            val resolverOccurrenceId = ResolverOccurrenceId.at(schema.testRoot(), emptyList())
+            val resolverOccurrenceId = ResolverOccurrenceId.at(schema.loweredSchema.testRoot(), emptyList())
             assertEquals(
                 "aliased",
                 resolver
@@ -437,7 +437,7 @@ class ResolverRegistryTest {
         val fixture = Fixture()
         val root = fixture.assumptions.resolverRegistry.createRootQueryInput()
 
-        assertEquals(fixture.schema.requireQueryTypeDef(), root.schemaType)
+        assertEquals(fixture.schema.loweredSchema.requireQueryTypeDef(), root.schemaType)
         assertEquals(emptySet(), root.getSelections().toSet())
     }
 
@@ -461,15 +461,15 @@ class ResolverRegistryTest {
                       matrix: [[User!]!]!
                     }
                     """.trimIndent(),
-            ).schema
+            ).schemas
 
-        assertNotNull(schema.requireQueryTypeDef().field("user"))
-        assertNotNull(schema.requireQueryTypeDef().field("users"))
-        assertNotNull(schema.requireQueryTypeDef().field("matrix"))
-        val user = schema.requireType("User") as ViaductSchema.Object
-        val node = schema.requireType("Node") as ViaductSchema.Interface
+        assertNotNull(schema.loweredSchema.requireQueryTypeDef().field("user"))
+        assertNotNull(schema.loweredSchema.requireQueryTypeDef().field("users"))
+        assertNotNull(schema.loweredSchema.requireQueryTypeDef().field("matrix"))
+        val user = schema.loweredSchema.requireType("User") as ViaductSchema.Object
+        val node = schema.loweredSchema.requireType("Node") as ViaductSchema.Interface
         assertEquals(setOf(user), node.possibleObjectTypes)
-        val matrix = schema.requireField("Query", "matrix")
+        val matrix = schema.loweredSchema.requireField("Query", "matrix")
         val inner = checkNotNull(matrix.type.unwrapList())
         val element = checkNotNull(inner.unwrapList())
         assertEquals(user, element.baseTypeDef)
@@ -498,15 +498,15 @@ class ResolverRegistryTest {
                     }
                     """.trimIndent(),
                 nodeResolvers = { schema ->
-                    val user = schema.requireType("User") as ViaductSchema.Object
+                    val user = schema.loweredSchema.requireType("User") as ViaductSchema.Object
                     mapOf(user to nodeResolverOf { _: String -> error("Not invoked") })
                 },
                 fieldResolvers = { schema ->
-                    val user = schema.requireField("Query", "user")
+                    val user = schema.loweredSchema.requireField("Query", "user")
                     mapOf(
-                        schema.requireField("Query", "seed") to
+                        schema.loweredSchema.requireField("Query", "seed") to
                             fieldResolverOf(
-                                objectFragment = schema.emptyFragmentOf("Query"),
+                                objectFragment = schema.loweredSchema.emptyFragmentOf("Query"),
                                 function = { _, _ -> error("Not invoked") },
                             ),
                         user to
@@ -520,9 +520,9 @@ class ResolverRegistryTest {
                     )
                 },
             )
-        val schema = world.schema
-        val producer = schema.requireObjectField("Query", "user")
-        val queryNode = schema.requireObjectField("Query", "node")
+        val schema = world.schemas
+        val producer = schema.loweredSchema.requireObjectField("Query", "user")
+        val queryNode = schema.loweredSchema.requireObjectField("Query", "node")
 
         assertEquals(setOf("id"), producer.args.mapTo(linkedSetOf(), ViaductSchema.FieldArg::name))
         assertTrue(world.resolverRegistry.resolver(producer).variables.isEmpty())
@@ -547,26 +547,26 @@ class ResolverRegistryTest {
                     }
                         """.trimIndent(),
                     fieldResolvers = { schema ->
-                        val fragment = schema.emptyFragmentOf("Query")
+                        val fragment = schema.loweredSchema.emptyFragmentOf("Query")
                         mapOf<ViaductSchema.Field, FieldResolverDefinition>(
-                            schema.requireField("Query", "scalar") to
+                            schema.loweredSchema.requireField("Query", "scalar") to
                                 fieldResolverOf(fragment) { _, _ -> "value" },
-                            schema.requireField("Query", "list") to
+                            schema.loweredSchema.requireField("Query", "list") to
                                 fieldResolverOf(fragment) { _, _ ->
                                     listOf("value", null)
                                 },
-                            schema.requireField("Query", "nullable") to
+                            schema.loweredSchema.requireField("Query", "nullable") to
                                 fieldResolverOf(fragment) { _, _ -> null },
-                            schema.requireField("Query", "failed") to
+                            schema.loweredSchema.requireField("Query", "failed") to
                                 fieldResolverOf(fragment) { _, _ -> EngineErrorData.of() },
                         )
                     },
                 )
-            val schema = world.schema
-            val parent = schema.objectOf("Query")
+            val schema = world.schemas
+            val parent = schema.loweredSchema.objectOf("Query")
             val outputs =
                 listOf("scalar", "list", "nullable", "failed").associateWith { fieldName ->
-                    val field = schema.requireObjectField("Query", fieldName)
+                    val field = schema.loweredSchema.requireObjectField("Query", fieldName)
                     world.resolverRegistry
                         .resolver(field)(
                         input = parent,
@@ -597,9 +597,9 @@ class ResolverRegistryTest {
     @Test
     fun `distinguishes missing executors from foreign schema definitions`() {
         val world = TestWorld.fromSDL(SCHEMA_SDL)
-        val schema = world.schema
+        val schema = world.schemas
         val registry = world.resolverRegistry
-        val userField = schema.requireObjectField("User", "name")
+        val userField = schema.loweredSchema.requireObjectField("User", "name")
 
         val missingField =
             assertFailsWith<MissingResolverException> {
@@ -608,9 +608,9 @@ class ResolverRegistryTest {
         assertEquals("User", missingField.typeName)
         assertEquals("name", missingField.fieldName)
 
-        val foreignSchema = TestWorld.fromSDL(SCHEMA_SDL).schema
+        val foreignSchema = TestWorld.fromSDL(SCHEMA_SDL).schemas
         assertFailsWith<IllegalArgumentException> {
-            registry.resolver(foreignSchema.requireObjectField("User", "name"))
+            registry.resolver(foreignSchema.loweredSchema.requireObjectField("User", "name"))
         }
     }
 
@@ -630,9 +630,9 @@ class ResolverRegistryTest {
 
     @Test
     fun `rejects foreign resolver coordinate definitions`() {
-        val foreignSchema = TestWorld.fromSDL(SCHEMA_SDL).schema
-        val foreignUser = foreignSchema.requireType("User") as ViaductSchema.Object
-        val foreignUserField = foreignSchema.requireField("Query", "user")
+        val foreignSchema = TestWorld.fromSDL(SCHEMA_SDL).schemas
+        val foreignUser = foreignSchema.loweredSchema.requireType("User") as ViaductSchema.Object
+        val foreignUserField = foreignSchema.loweredSchema.requireField("Query", "user")
 
         assertFailsWith<IllegalArgumentException> {
             TestWorld.fromSDL(
@@ -646,7 +646,7 @@ class ResolverRegistryTest {
             TestWorld.fromSDL(
                 schemaSDL = SCHEMA_SDL,
                 fieldResolvers = { schema ->
-                    val queryFragment = schema.emptyFragmentOf("Query")
+                    val queryFragment = schema.loweredSchema.emptyFragmentOf("Query")
                     mapOf(
                         foreignUserField to
                             fieldResolverOf(
@@ -674,7 +674,7 @@ class ResolverRegistryTest {
                     }
                     """.trimIndent(),
                 nodeResolvers = { schema ->
-                    val user = schema.requireType("User") as ViaductSchema.Object
+                    val user = schema.loweredSchema.requireType("User") as ViaductSchema.Object
                     mapOf(user to nodeResolverOf { _: String -> error("Not invoked") })
                 },
             )
@@ -705,7 +705,7 @@ class ResolverRegistryTest {
                     }
                     """.trimIndent(),
                 nodeResolvers = { schema ->
-                    val other = schema.requireType("Other") as ViaductSchema.Object
+                    val other = schema.loweredSchema.requireType("Other") as ViaductSchema.Object
                     mapOf(other to nodeResolverOf { _: String -> error("Not invoked") })
                 },
             )
@@ -718,15 +718,15 @@ class ResolverRegistryTest {
             TestWorld.fromSDL(
                 schemaSDL = SCHEMA_SDL,
                 fieldResolvers = { schema ->
-                    val queryFragment = schema.emptyFragmentOf("Query")
-                    val nodeFragment = schema.emptyFragmentOf("Node")
+                    val queryFragment = schema.loweredSchema.emptyFragmentOf("Query")
+                    val nodeFragment = schema.loweredSchema.emptyFragmentOf("Node")
                     mapOf(
-                        schema.requireField("Query", "user") to
+                        schema.loweredSchema.requireField("Query", "user") to
                             fieldResolverOf(
                                 objectFragment = queryFragment,
                                 function = { _, _ -> error("Not invoked") },
                             ),
-                        schema.requireField("Node", "name") to
+                        schema.loweredSchema.requireField("Node", "name") to
                             fieldResolverOf(
                                 objectFragment = nodeFragment,
                                 function = { _, _ -> error("Not invoked") },
@@ -745,17 +745,17 @@ class ResolverRegistryTest {
                     schemaSDL = "type Query { supplied: Int, nullable: Int, required: Int! }",
                     fieldResolvers = { schema ->
                         mapOf(
-                            schema.requireField("Query", "supplied") to
-                                fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> 7 },
+                            schema.loweredSchema.requireField("Query", "supplied") to
+                                fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> 7 },
                         )
                     },
                 )
-            val schema = world.schema
+            val schema = world.schemas
             val registry = world.resolverRegistry
-            val query = schema.objectOf("Query")
+            val query = schema.loweredSchema.objectOf("Query")
 
             suspend fun resolve(fieldName: String): Any? {
-                val field = schema.requireObjectField("Query", fieldName)
+                val field = schema.loweredSchema.requireObjectField("Query", fieldName)
                 return registry.resolver(field)(
                     input = query,
                     arguments = Arguments.Resolved.of(field, emptyMap()),
@@ -771,7 +771,7 @@ class ResolverRegistryTest {
 
     @Test
     fun `requires a field resolver for every Query field in a canonical registry`() {
-        val schema = GJSchema.fromSDL("type Query { missing: Int }")
+        val schema = ViaductAndGJSchema.fromSDL("type Query { missing: Int }")
         assertFailsWith<IllegalArgumentException> {
             resolverRegistryOf(
                 schema = schema,
@@ -789,13 +789,13 @@ class ResolverRegistryTest {
                 TestWorld.fromSDL(
                     schemaSDL = SCHEMA_SDL,
                     nodeResolvers = { schema ->
-                        val user = schema.requireType("User") as ViaductSchema.Object
+                        val user = schema.loweredSchema.requireType("User") as ViaductSchema.Object
                         mapOf(user to nodeResolverOf { _: String -> error("Not invoked") })
                     },
                     fieldResolvers = { schema ->
-                        val fragment = schema.emptyFragmentOf("User")
+                        val fragment = schema.loweredSchema.emptyFragmentOf("User")
                         mapOf(
-                            schema.requireField("User", fieldName) to
+                            schema.loweredSchema.requireField("User", fieldName) to
                                 fieldResolverOf(
                                     objectFragment = fragment,
                                     function = { _, _ -> error("Not invoked") },
@@ -824,12 +824,12 @@ class ResolverRegistryTest {
                 }
                 """.trimIndent(),
             )
-        val schema = world.schema
-        val record = schema.requireType("Record") as ViaductSchema.Object
+        val schema = world.schemas
+        val record = schema.loweredSchema.requireType("Record") as ViaductSchema.Object
 
         fun key(fieldName: String): ObjectEngineResult.GroundKey =
             ObjectEngineResult.GroundKey.of(
-                schema.requireObjectField("Record", fieldName),
+                schema.loweredSchema.requireObjectField("Record", fieldName),
                 emptyMap(),
             )
 
@@ -843,17 +843,17 @@ class ResolverRegistryTest {
                 subselections = subselections,
             )
         val friend =
-            schema.objectOf("Record") {
+            schema.loweredSchema.objectOf("Record") {
                 "id" setTo "friend"
                 "name" setTo "Friend"
             }
         val peer =
-            schema.objectOf("Record") {
+            schema.loweredSchema.objectOf("Record") {
                 "id" setTo "peer"
                 "name" setTo "Peer"
             }
         val source =
-            schema.objectOf("Record") {
+            schema.loweredSchema.objectOf("Record") {
                 "id" setTo "target"
                 "name" setTo "Target"
                 "friend" setTo friend
@@ -966,7 +966,7 @@ class ResolverRegistryTest {
     @Test
     fun `snipToDemand rejects a present argument-bearing field`() {
         val fixture = Fixture()
-        val search = fixture.schema.requireObjectField("User", "search")
+        val search = fixture.schema.loweredSchema.requireObjectField("User", "search")
         val source =
             engineObjectDataOf(
                 schemaType = fixture.user,
@@ -1018,12 +1018,12 @@ class ResolverRegistryTest {
                     }
                         """.trimIndent(),
                     fieldResolvers = { schema ->
-                        val itemType = schema.requireType("Item") as ViaductSchema.Object
-                        val valueField = schema.requireObjectField("Item", "value")
+                        val itemType = schema.loweredSchema.requireType("Item") as ViaductSchema.Object
+                        val valueField = schema.loweredSchema.requireObjectField("Item", "value")
                         mapOf(
-                            schema.requireObjectField("Query", "item") to
+                            schema.loweredSchema.requireObjectField("Query", "item") to
                                 fieldResolverOf(
-                                    objectFragment = schema.emptyFragmentOf("Query"),
+                                    objectFragment = schema.loweredSchema.emptyFragmentOf("Query"),
                                     function = { _, _ ->
                                         engineObjectDataOf(
                                             schemaType = itemType,
@@ -1079,12 +1079,12 @@ class ResolverRegistryTest {
                     """.trimIndent(),
                 fieldResolvers = { schema ->
                     mapOf(
-                        schema.requireField("Query", "viewer") to
+                        schema.loweredSchema.requireField("Query", "viewer") to
                             fieldResolverOf(
-                                objectFragment = schema.emptyFragmentOf("Query"),
+                                objectFragment = schema.loweredSchema.emptyFragmentOf("Query"),
                                 function = { _, _ -> error("Not invoked") },
                             ),
-                        schema.requireField("User", "greeting") to
+                        schema.loweredSchema.requireField("User", "greeting") to
                             fieldResolverOf(
                                 objectFragment =
                                     schema.fragmentFrom(
@@ -1107,7 +1107,7 @@ class ResolverRegistryTest {
                 "lastName" setTo "Lovelace"
             }
         val demand =
-            world.fragmentFrom(
+            testWorld.schemas.fragmentFrom(
                 """
                 fragment ignored on User {
                   greeting
@@ -1141,9 +1141,9 @@ class ResolverRegistryTest {
                     """.trimIndent(),
                 fieldResolvers = { schema ->
                     listOf("value", "nullValue", "errorValue").associate { fieldName ->
-                        schema.requireField("Item", fieldName) to
+                        schema.loweredSchema.requireField("Item", fieldName) to
                             fieldResolverOf(
-                                objectFragment = schema.emptyFragmentOf("Item"),
+                                objectFragment = schema.loweredSchema.emptyFragmentOf("Item"),
                                 function = { _, _ -> error("Not invoked") },
                             )
                     }
@@ -1158,7 +1158,7 @@ class ResolverRegistryTest {
                 "errorValue" setTo error
             }
         val demand =
-            world.fragmentFrom(
+            testWorld.schemas.fragmentFrom(
                 """
                 fragment ignored on Item {
                   value
@@ -1235,13 +1235,13 @@ class ResolverRegistryTest {
             schemaSDL = SCHEMA_SDL,
             fieldResolvers = { schema ->
                 val fragment =
-                    Fragment.of(fragmentType(schema), selectionForestOf())
-                val userField = schema.requireField("Query", "user")
+                    Fragment.of(fragmentType(schema.loweredSchema), selectionForestOf())
+                val userField = schema.loweredSchema.requireField("Query", "user")
                 mapOf(
                     userField to
                         fieldResolverOf(
                             objectFragment = fragment,
-                            function = { _, _ -> schema.objectOf("User") },
+                            function = { _, _ -> schema.loweredSchema.objectOf("User") },
                         ),
                 )
             },
@@ -1255,22 +1255,22 @@ class ResolverRegistryTest {
                 schemaSDL = SCHEMA_SDL,
                 nodeResolvers = { schema ->
                     if (withNodeResolver) {
-                        val user = schema.requireType("User") as ViaductSchema.Object
+                        val user = schema.loweredSchema.requireType("User") as ViaductSchema.Object
                         mapOf(user to nodeResolverOf { _: String -> error("Not invoked") })
                     } else {
                         emptyMap()
                     }
                 },
                 fieldResolvers = { schema ->
-                    val queryFragment = schema.emptyFragmentOf("Query")
-                    val userFragment = schema.emptyFragmentOf("User")
+                    val queryFragment = schema.loweredSchema.emptyFragmentOf("Query")
+                    val userFragment = schema.loweredSchema.emptyFragmentOf("User")
                     mapOf(
-                        schema.requireField("Query", "user") to
+                        schema.loweredSchema.requireField("Query", "user") to
                             fieldResolverOf(
                                 objectFragment = queryFragment,
                                 function = { _, _ -> error("Not invoked") },
                             ),
-                        schema.requireField("User", "search") to
+                        schema.loweredSchema.requireField("User", "search") to
                             fieldResolverOf(
                                 objectFragment = userFragment,
                                 function = { _, _ -> error("Not invoked") },
@@ -1278,14 +1278,14 @@ class ResolverRegistryTest {
                     )
                 },
             )
-        val schema = world.schema
+        val schema = world.schemas
         val assumptions = world.assumptions
-        val user = schema.requireType("User") as ViaductSchema.Object
-        val userField = schema.requireField("Query", "user")
+        val user = schema.loweredSchema.requireType("User") as ViaductSchema.Object
+        val userField = schema.loweredSchema.requireField("Query", "user")
 
         fun key(fieldName: String): ObjectEngineResult.Key =
             ObjectEngineResult.Key.of(
-                field = schema.requireField(user.name, fieldName),
+                field = schema.loweredSchema.requireField(user.name, fieldName),
                 arguments = emptyMap(),
             )
 
@@ -1293,12 +1293,12 @@ class ResolverRegistryTest {
             typeName: String,
             fieldName: String,
             possibleTypes: Set<ViaductSchema.Object> =
-                (schema.requireType(typeName) as ViaductSchema.CompositeTypeDef).possibleObjectTypes,
+                (schema.loweredSchema.requireType(typeName) as ViaductSchema.CompositeTypeDef).possibleObjectTypes,
         ): Selection {
             return Selection.of(
                 key =
                     ObjectEngineResult.Key.of(
-                        field = schema.requireField(typeName, fieldName),
+                        field = schema.loweredSchema.requireField(typeName, fieldName),
                         arguments = emptyMap(),
                     ),
                 possibleTypes = possibleTypes,

@@ -42,10 +42,11 @@ import model.usedVariables
 import model.variableTemplates
 import viaduct.engine.api.EngineObjectData
 import viaduct.graphql.schema.ViaductSchema
+import viaduct.graphql.schema.isNode
 import viaduct.graphql.utils.GraphQLTypeRelation
 
 internal fun resolverRegistryOf(
-    schema: GJSchema,
+    schema: ViaductAndGJSchema,
     nodeResolvers: Map<ViaductSchema.Object, NodeResolverFunction>,
     fieldResolvers: Map<ViaductSchema.Field, FieldResolverDefinition>,
     fieldCheckers: Map<ViaductSchema.ObjectField, FieldCheckerResolver> = emptyMap(),
@@ -97,7 +98,7 @@ internal fun resolverRegistryOf(
             }
         }
     return TestResolverRegistry(
-        schema = schema,
+        schema = schema.loweredSchema,
         fieldResolverDefinitions = registryResolvers,
         fieldCheckers = fieldCheckers,
         typeCheckers = typeCheckers,
@@ -117,10 +118,11 @@ internal fun resolverRegistryOf(
  * boundary.
  */
 private class NodeResolverLowering(
-    private val schema: GJSchema,
+    private val schemas: ViaductAndGJSchema,
     private val nodeResolvers: Map<ViaductSchema.Object, NodeResolverFunction>,
     rawFieldResolvers: Map<ViaductSchema.Field, FieldResolverDefinition>,
 ) {
+    private val schema = schemas.loweredSchema
     private val sourceSchema = SourceSchemaAdapter(schema)
     private val nodeType: ViaductSchema.Interface? = canonicalNodeType()
     private val nodeFields: Set<ViaductSchema.ObjectField> = loweredNodeFields()
@@ -165,9 +167,9 @@ private class NodeResolverLowering(
         nodeResolvers.forEach { (type, _) ->
             validateCanonicalType(type)
             require(
-                schema.typeRelations.relationUnwrapped(
-                    schema.sourceCompositeType(nodeType!!),
-                    schema.sourceCompositeType(type),
+                schemas.typeRelations.relationUnwrapped(
+                    schemas.sourceCompositeType(nodeType!!),
+                    schemas.sourceCompositeType(type),
                 ) == GraphQLTypeRelation.WiderThan,
             ) {
                 "Node-resolver type ${type.name} does not implement Node"
@@ -175,10 +177,10 @@ private class NodeResolverLowering(
             validateNodeIdField(type)
         }
 
-        return schema.objectTypes
+        return schemas.objectTypes
             .flatMap { it.fields }
             .mapNotNullTo(linkedSetOf()) { field ->
-                if (!schema.isLoweredNodeField(field)) return@mapNotNullTo null
+                if (!sourceSchema.typeExpr(field).baseTypeDef.isNode) return@mapNotNullTo null
                 if (field.containingDef.name == "Query" && field.name == "node") {
                     return@mapNotNullTo null
                 }
@@ -189,9 +191,9 @@ private class NodeResolverLowering(
                 }
                 val isDeclaredNode =
                     nodeType != null &&
-                        schema.typeRelations.relationUnwrapped(
-                            schema.sourceCompositeType(nodeType),
-                            schema.sourceCompositeType(outputType),
+                        schemas.typeRelations.relationUnwrapped(
+                            schemas.sourceCompositeType(nodeType),
+                            schemas.sourceCompositeType(outputType),
                         ) in
                         setOf(
                             GraphQLTypeRelation.Same,

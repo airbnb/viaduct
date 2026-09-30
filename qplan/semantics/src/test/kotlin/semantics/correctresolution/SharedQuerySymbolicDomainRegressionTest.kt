@@ -39,23 +39,24 @@ class SharedQuerySymbolicDomainRegressionTest {
         extraSymbolicCell: Boolean,
         declareExtra: Boolean = false
     ): Boolean {
-        val world = TestWorld.fromSDL(
+        val worldFixture = TestWorld.fromSDL(
             schemaSDL = "type Query { consumer: Int!, source(value: Int!): Int! }",
             fieldResolvers = { schema ->
                 mapOf(
-                    schema.requireObjectField("Query", "consumer") to fieldResolverOf(
-                        objectFragment = schema.emptyFragmentOf("Query"),
+                    schema.loweredSchema.requireObjectField("Query", "consumer") to fieldResolverOf(
+                        objectFragment = schema.loweredSchema.emptyFragmentOf("Query"),
                         queryFragment = schema.fragmentFrom("fragment Input on Query { source(value: 7) }"),
                     ) { _, _, _ -> 7 },
-                    schema.requireObjectField("Query", "source") to fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> 7 },
+                    schema.loweredSchema.requireObjectField("Query", "source") to fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> 7 },
                 )
             },
-        ).assumptions
-        val queryType = world.schema.requireQueryTypeDef()
-        val source = world.schema.requireObjectField("Query", "source")
+        )
+        val world = worldFixture.assumptions
+        val queryType = worldFixture.schema.requireQueryTypeDef()
+        val source = worldFixture.schema.requireObjectField("Query", "source")
         val consumerKey = ObjectEngineResult.GroundKey.of(world.schema.requireObjectField("Query", "consumer"), emptyMap())
         val result = world.engineResultOf("Query") { "consumer" resolvesTo 7 }
-        val closedValueSelections = world.fragmentFrom("fragment Demand on Query { source(value: 7) }").subselections.merge(queryType)
+        val closedValueSelections = worldFixture.schemas.fragmentFrom("fragment Demand on Query { source(value: 7) }").subselections.merge(queryType)
 
         var observedDemand = closedValueSelections
         val query = ObjectEngineResult.of(queryType, mutable = true)

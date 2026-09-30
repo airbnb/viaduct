@@ -68,7 +68,7 @@ interface ResolverWitnessContract : ResolverContract {
                         testCase.registry.features.fromArgumentVariableCount
                     val world = testWorld.newAssumptions()
                     val registry = testCase.registry
-                    val fragment = world.fragmentFrom(testCase.query.source)
+                    val fragment = testWorld.schemas.fragmentFrom(testCase.query.source)
                     registry.clearResolutionWitness()
                     val resolution =
                         observeResolution(
@@ -150,7 +150,7 @@ interface ResolverWitnessContract : ResolverContract {
 
                     val permutedWorld = testWorld.newAssumptions()
                     val permuted =
-                        permutedWorld.fragmentFrom(testCase.query.permutationEquivalentSource)
+                        testWorld.schemas.fragmentFrom(testCase.query.permutationEquivalentSource)
                     registry.clearResolutionWitness()
                     val permutedResult =
                         observeResolution(

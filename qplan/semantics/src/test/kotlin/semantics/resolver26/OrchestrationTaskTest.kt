@@ -37,7 +37,7 @@ class OrchestrationTaskTest : Resolver26DispatcherResource {
     @Test
     fun `factory closes demand without dispatching field work`(): Unit =
         runBlocking {
-            val world = TestWorld
+            val worldFixture = TestWorld
                 .fromDSL(
                     schemaSDL = """
                 extend type Query {
@@ -45,7 +45,8 @@ class OrchestrationTaskTest : Resolver26DispatcherResource {
                   second: Int! @resolver(of: "first", result: "sum(first)")
                 }
                     """.trimIndent(),
-                ).assumptions
+                )
+            val world = worldFixture.assumptions
             val base = SharedOperationContext.create(world)
             val operation = OperationContext.create(
                 base = base,
@@ -56,7 +57,7 @@ class OrchestrationTaskTest : Resolver26DispatcherResource {
                 operation,
                 OEROccurrence(root, emptyList(), root),
                 world.resolverRegistry.createRootQueryInput(),
-                world.operationSelectionsFrom("{ second }"),
+                worldFixture.schemas.operationSelectionsFrom("{ second }"),
             )
             assertEquals(
                 setOf("first", "second"),
@@ -80,28 +81,29 @@ class OrchestrationTaskTest : Resolver26DispatcherResource {
     @Test
     fun `value preparation claims both roots without dispatching or deciding activation`(): Unit =
         runBlocking {
-            val world = TestWorld.fromSDL(
+            val worldFixture = TestWorld.fromSDL(
                 "type Query { consumer: Int!, dependency: Int! }",
                 fieldResolvers = { schema ->
-                    val empty = schema.emptyFragmentOf("Query")
+                    val empty = schema.loweredSchema.emptyFragmentOf("Query")
                     mapOf(
-                        schema.requireObjectField("Query", "consumer") to fieldResolverOf(
+                        schema.loweredSchema.requireObjectField("Query", "consumer") to fieldResolverOf(
                             objectFragment = empty,
                             queryFragment = schema.fragmentFrom("fragment Input on Query { dependency }"),
                         ) { _, _, _ -> error("Preparation must not invoke the consumer") },
-                        schema.requireObjectField("Query", "dependency") to fieldResolverOf(empty) { _, _ ->
+                        schema.loweredSchema.requireObjectField("Query", "dependency") to fieldResolverOf(empty) { _, _ ->
                             error("Preparation must not invoke the dependency")
                         },
                     )
                 },
-            ).assumptions
+            )
+            val world = worldFixture.assumptions
             val operation = OperationContext.create(SharedOperationContext.create(world), this)
             val root = ObjectEngineResult.of(world.schema.requireQueryTypeDef(), mutable = true)
             val task = OrchestrationTask.create(
                 operation,
                 OEROccurrence(root, emptyList(), root),
                 world.resolverRegistry.createRootQueryInput(),
-                world.operationSelectionsFrom("{ consumer }"),
+                worldFixture.schemas.operationSelectionsFrom("{ consumer }"),
             )
             val publications = FieldResolverTask.prepareAll(task)
             try {
@@ -122,7 +124,7 @@ class OrchestrationTaskTest : Resolver26DispatcherResource {
         runBlocking {
             for (enabled in listOf(false, true)) {
                 for (withChecker in listOf(false, true)) {
-                    val world = TestWorld.fromDSL(
+                    val worldFixture = TestWorld.fromDSL(
                         """
                         extend type Query {
                           outer: Int! @resolver(of: "values @include(if: ${'$'}enabled)", providerVars: {enabled: $enabled}, result: 1)
@@ -132,13 +134,14 @@ class OrchestrationTaskTest : Resolver26DispatcherResource {
                         """.trimIndent(),
                         fieldCheckers = { schema ->
                             if (withChecker) {
-                                val values = schema.requireObjectField("Query", "values")
-                                mapOf(values to FieldCheckerResolver.of(values, schema.requireQueryTypeDef()) { _, _, _ -> CheckerResult.Success })
+                                val values = schema.loweredSchema.requireObjectField("Query", "values")
+                                mapOf(values to FieldCheckerResolver.of(values, schema.loweredSchema.requireQueryTypeDef()) { _, _, _ -> CheckerResult.Success })
                             } else {
                                 emptyMap()
                             }
                         },
-                    ).assumptions
+                    )
+                    val world = worldFixture.assumptions
                     val operation = OperationContext.create(SharedOperationContext.create(world), this)
                     val root = ObjectEngineResult.of(world.schema.requireQueryTypeDef(), mutable = true)
                     val reference = RootFieldReferenceData.of(listOf(world.schema.requireObjectField("Query", "target")), emptyMap())
@@ -147,7 +150,7 @@ class OrchestrationTaskTest : Resolver26DispatcherResource {
                         operation,
                         OEROccurrence(root, emptyList(), root),
                         source,
-                        world.operationSelectionsFrom("{ outer }"),
+                        worldFixture.schemas.operationSelectionsFrom("{ outer }"),
                     )
                     PassiveValueResolutionLogic(operation).materializePassiveFields(
                         task,
@@ -175,7 +178,7 @@ class OrchestrationTaskTest : Resolver26DispatcherResource {
     @Test
     fun `checker preparation records every claimed slot and delays absence for pending values`() =
         runBlocking {
-            val world = TestWorld.fromDSL(
+            val worldFixture = TestWorld.fromDSL(
                 """
                 extend type Query {
                   checked: Int! @resolver(result: 1)
@@ -184,10 +187,11 @@ class OrchestrationTaskTest : Resolver26DispatcherResource {
                 }
                 """.trimIndent(),
                 fieldCheckers = { schema ->
-                    val checked = schema.requireObjectField("Query", "checked")
-                    mapOf(checked to FieldCheckerResolver.of(checked, schema.requireQueryTypeDef()) { _, _, _ -> CheckerResult.Success })
+                    val checked = schema.loweredSchema.requireObjectField("Query", "checked")
+                    mapOf(checked to FieldCheckerResolver.of(checked, schema.loweredSchema.requireQueryTypeDef()) { _, _, _ -> CheckerResult.Success })
                 },
-            ).assumptions
+            )
+            val world = worldFixture.assumptions
             val operation = OperationContext.create(SharedOperationContext.create(world), this)
             val root = ObjectEngineResult.of(world.schema.requireQueryTypeDef(), mutable = true)
             val source = world.objectOf("Query") { "passive" setTo 3 }
@@ -195,7 +199,7 @@ class OrchestrationTaskTest : Resolver26DispatcherResource {
                 operation,
                 OEROccurrence(root, emptyList(), root),
                 source,
-                world.operationSelectionsFrom("{ checked pending passive }"),
+                worldFixture.schemas.operationSelectionsFrom("{ checked pending passive }"),
             )
             val preparation = task.checkerPreparation
             assertEquals(3, preparation.claimedSlots.size)
@@ -221,10 +225,9 @@ class OrchestrationTaskTest : Resolver26DispatcherResource {
     fun `object orchestration validates source and target types at construction`(): Unit =
         runBlocking(resolverDispatcher) {
             coroutineScope {
-                val world =
-                    TestWorld
-                        .fromSDL(
-                            """
+                val worldFixture = TestWorld
+                    .fromSDL(
+                        """
                             type Query {
                               item: Item
                             }
@@ -232,8 +235,9 @@ class OrchestrationTaskTest : Resolver26DispatcherResource {
                             type Item {
                               value: Int
                             }
-                            """.trimIndent(),
-                        ).assumptions
+                        """.trimIndent(),
+                    )
+                val world = worldFixture.assumptions
                 val baseOperation = SharedOperationContext.create(world)
                 val operation =
                     OperationContext.create(

@@ -53,11 +53,11 @@ class SymbolicKeyIdentityTest : Resolver26DispatcherResource {
                     }
                     """.trimIndent(),
                 fieldResolvers = { schema ->
-                    val result = schema.requireObjectField("Query", "result")
-                    val items = schema.requireObjectField("Query", "items")
+                    val result = schema.loweredSchema.requireObjectField("Query", "result")
+                    val items = schema.loweredSchema.requireObjectField("Query", "items")
                     val itemsKey = ObjectEngineResult.GroundKey.of(items, emptyMap())
                     checkNotNull(items.type.unwrapList())
-                    val child = schema.requireObjectField("Item", "child")
+                    val child = schema.loweredSchema.requireObjectField("Item", "child")
                     val visibleChildKey = ObjectEngineResult.GroundKey.of(child, mapOf("value" to 7))
                     mapOf(
                         result to
@@ -74,23 +74,23 @@ class SymbolicKeyIdentityTest : Resolver26DispatcherResource {
                                 }
                             },
                         items to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
                                 listOf(
-                                    schema.objectOf("Item"),
-                                    schema.objectOf("Item"),
+                                    schema.loweredSchema.objectOf("Item"),
+                                    schema.loweredSchema.objectOf("Item"),
                                 )
                             },
                         child to
-                            fieldResolverOf(schema.emptyFragmentOf("Item")) { _, arguments ->
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Item")) { _, arguments ->
                                 arguments.fieldValues.getValue("value") as Int
                             },
                     )
                 },
                 variableProviders = { schema ->
-                    val result = schema.requireObjectField("Query", "result")
+                    val result = schema.loweredSchema.requireObjectField("Query", "result")
                     mapOf(
                         Arguments.Variable.of(result, "seed") to
-                            schema.fromArgument(result, "seed"),
+                            schema.loweredSchema.fromArgument(result, "seed"),
                     )
                 },
             )
@@ -107,7 +107,7 @@ class SymbolicKeyIdentityTest : Resolver26DispatcherResource {
                 emptyMap(),
             )
         val fragment =
-            world.fragmentFrom(
+            testWorld.schemas.fragmentFrom(
                 "fragment Query on Query { result(seed: 7) }",
             )
 
@@ -168,19 +168,19 @@ class SymbolicKeyIdentityTest : Resolver26DispatcherResource {
                     }
                     """.trimIndent(),
                 fieldResolvers = { schema ->
-                    val frank = schema.requireObjectField("Query", "frank")
+                    val frank = schema.loweredSchema.requireObjectField("Query", "frank")
                     val oneKey =
                         ObjectEngineResult.GroundKey.of(
-                            schema.requireObjectField("Payload", "one"),
+                            schema.loweredSchema.requireObjectField("Payload", "one"),
                             emptyMap(),
                         )
                     val twoKey =
                         ObjectEngineResult.GroundKey.of(
-                            schema.requireObjectField("Payload", "two"),
+                            schema.loweredSchema.requireObjectField("Payload", "two"),
                             emptyMap(),
                         )
                     mapOf(
-                        schema.requireObjectField("Query", "result") to
+                        schema.loweredSchema.requireObjectField("Query", "result") to
                             fieldResolverOf(schema.fragmentFrom(resultFragment)) { input, _ ->
                                 val ground =
                                     input.selectionValues().getValue("ground") as EngineObjectData.Sync
@@ -193,8 +193,8 @@ class SymbolicKeyIdentityTest : Resolver26DispatcherResource {
                                 one + two
                             },
                         frank to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
-                                schema.objectOf("Payload") {
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
+                                schema.loweredSchema.objectOf("Payload") {
                                     "one" setTo 3
                                     "two" setTo 5
                                 }
@@ -202,12 +202,12 @@ class SymbolicKeyIdentityTest : Resolver26DispatcherResource {
                     )
                 },
                 variableProviders = { schema ->
-                    val result = schema.requireObjectField("Query", "result")
+                    val result = schema.loweredSchema.requireObjectField("Query", "result")
                     mapOf(
                         Arguments.Variable.of(result, "seed") to
-                            schema.fromArgument(result, "seed"),
+                            schema.loweredSchema.fromArgument(result, "seed"),
                         Arguments.Variable.of(result, "other") to
-                            schema.fromArgument(result, "other"),
+                            schema.loweredSchema.fromArgument(result, "other"),
                     )
                 },
             )
@@ -242,7 +242,7 @@ class SymbolicKeyIdentityTest : Resolver26DispatcherResource {
                 ),
             )
         val fragment =
-            world.fragmentFrom(
+            testWorld.schemas.fragmentFrom(
                 """fragment Query on Query { result(seed: "hi", other: "hi") }""",
             )
 
@@ -312,27 +312,27 @@ class SymbolicKeyIdentityTest : Resolver26DispatcherResource {
                     }
                     """.trimIndent(),
                 fieldResolvers = { schema ->
-                    val frank = schema.requireObjectField("Query", "frank")
+                    val frank = schema.loweredSchema.requireObjectField("Query", "frank")
                     val frankKey = ObjectEngineResult.GroundKey.of(frank, mapOf("arg" to "hi"))
                     val oneKey =
                         ObjectEngineResult.GroundKey.of(
-                            schema.requireObjectField("Payload", "one"),
+                            schema.loweredSchema.requireObjectField("Payload", "one"),
                             emptyMap(),
                         )
                     val twoKey =
                         ObjectEngineResult.GroundKey.of(
-                            schema.requireObjectField("Payload", "two"),
+                            schema.loweredSchema.requireObjectField("Payload", "two"),
                             emptyMap(),
                         )
                     mapOf(
-                        schema.requireObjectField("Query", "left") to
+                        schema.loweredSchema.requireObjectField("Query", "left") to
                             fieldResolverOf(schema.fragmentFrom(leftFragment)) { input, _ ->
                                 val payload =
                                     input.selectionValues().getValue(frankKey.field.name)
                                         as EngineObjectData.Sync
                                 payload.selectionValues().getValue(oneKey.field.name)
                             },
-                        schema.requireObjectField("Query", "right") to
+                        schema.loweredSchema.requireObjectField("Query", "right") to
                             fieldResolverOf(schema.fragmentFrom(rightFragment)) { input, _ ->
                                 val payload =
                                     input.selectionValues().getValue(frankKey.field.name)
@@ -340,8 +340,8 @@ class SymbolicKeyIdentityTest : Resolver26DispatcherResource {
                                 payload.selectionValues().getValue(twoKey.field.name)
                             },
                         frank to
-                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
-                                schema.objectOf("Payload") {
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
+                                schema.loweredSchema.objectOf("Payload") {
                                     "one" setTo 3
                                     "two" setTo 5
                                 }
@@ -349,11 +349,11 @@ class SymbolicKeyIdentityTest : Resolver26DispatcherResource {
                     )
                 },
                 variableProviders = { schema ->
-                    val left = schema.requireObjectField("Query", "left")
-                    val right = schema.requireObjectField("Query", "right")
+                    val left = schema.loweredSchema.requireObjectField("Query", "left")
+                    val right = schema.loweredSchema.requireObjectField("Query", "right")
                     mapOf(
-                        Arguments.Variable.of(left, "seed") to schema.fromArgument(left, "seed"),
-                        Arguments.Variable.of(right, "seed") to schema.fromArgument(right, "seed"),
+                        Arguments.Variable.of(left, "seed") to schema.loweredSchema.fromArgument(left, "seed"),
+                        Arguments.Variable.of(right, "seed") to schema.loweredSchema.fromArgument(right, "seed"),
                     )
                 },
             )
@@ -390,7 +390,7 @@ class SymbolicKeyIdentityTest : Resolver26DispatcherResource {
                 mapOf("seed" to "hi"),
             )
         val fragment =
-            world.fragmentFrom(
+            testWorld.schemas.fragmentFrom(
                 """
                 fragment Query on Query {
                   left(seed: "hi")

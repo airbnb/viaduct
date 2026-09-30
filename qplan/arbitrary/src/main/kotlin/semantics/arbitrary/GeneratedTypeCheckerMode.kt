@@ -13,6 +13,7 @@ import model.registry.TypeCheckerResolver
 import model.registry.VariableDefinition
 import model.requireObjectField
 import model.requireQueryTypeDef
+import model.testing.ViaductAndGJSchema
 import model.usedVariables
 import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.CheckerResultContext
@@ -37,13 +38,13 @@ enum class GeneratedTypeCheckerMode(val runtimeVariables: Boolean = false) {
  * demand even when their child forest is empty. Field checkers reuse the same resolver fragments.
  */
 internal fun ArbitraryRegistry.generatedTypeCheckers(
-    schema: ViaductSchema,
+    schema: ViaductAndGJSchema,
     mode: GeneratedTypeCheckerMode,
 ): Map<ViaductSchema.Object, TypeCheckerResolver> {
     if (mode == GeneratedTypeCheckerMode.NONE) return emptyMap()
-    val query = schema.requireQueryTypeDef()
+    val query = schema.loweredSchema.requireQueryTypeDef()
     val dependencies = TypeCheckerResolverDependencies(this, schema)
-    return schema.types.values.filterIsInstance<ViaductSchema.Object>()
+    return schema.loweredSchema.types.values.filterIsInstance<ViaductSchema.Object>()
         .filter { it != query && !it.name.startsWith("__") }
         .sortedBy { it.name }
         .associateWith { type ->
@@ -115,11 +116,11 @@ internal fun ArbitraryRegistry.generatedTypeCheckers(
 }
 
 private fun ArbitraryRegistry.runtimeTypeCheckerPair(
-    schema: ViaductSchema,
+    schema: ViaductAndGJSchema,
     type: ViaductSchema.Object,
     coordinate: FieldCoordinate,
 ): ResolverFragmentTemplates {
-    val field = schema.requireObjectField(coordinate.typeName, coordinate.fieldName)
+    val field = schema.loweredSchema.requireObjectField(coordinate.typeName, coordinate.fieldName)
     val target = ResolverTarget.TypeCheckerTarget(type)
     val objectInput = objectFragments.getValue(coordinate).materialize(schema, field, target).materializeSelections
     val queryInput = queryFragments.getValue(coordinate).materialize(schema, field, target).materializeSelections
@@ -173,7 +174,7 @@ private object GeneratedTypeCheckerDenial : CheckerResult.Error {
 /** Conservative transitive type demand, independent of query selection and execution witnesses. */
 private class TypeCheckerResolverDependencies(
     private val registry: ArbitraryRegistry,
-    private val schema: ViaductSchema,
+    private val schema: ViaductAndGJSchema,
 ) {
     private val cache = mutableMapOf<FieldCoordinate, Set<String>>()
     private val visiting = mutableSetOf<FieldCoordinate>()
@@ -181,7 +182,7 @@ private class TypeCheckerResolverDependencies(
     fun checkedTypes(coordinate: FieldCoordinate): Set<String> {
         cache[coordinate]?.let { return it }
         check(visiting.add(coordinate)) { "Generated resolver dependency cycle at $coordinate" }
-        val field = schema.requireObjectField(coordinate.typeName, coordinate.fieldName)
+        val field = schema.loweredSchema.requireObjectField(coordinate.typeName, coordinate.fieldName)
         val types = linkedSetOf<String>()
 
         fun collect(forest: SelectionForest) {

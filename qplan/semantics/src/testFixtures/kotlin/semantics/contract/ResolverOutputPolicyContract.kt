@@ -94,7 +94,7 @@ private fun ResolverContract.assertRejectsWorldMode(selectiveResolvers: Boolean)
             selectiveResolvers = selectiveResolvers,
         )
     val world = testWorld.assumptions
-    val selections = world.operationSelectionsFrom("query { __typename }")
+    val selections = testWorld.schemas.operationSelectionsFrom("query { __typename }")
 
     assertFailsWith<IllegalArgumentException> {
         resolve(
@@ -123,7 +123,7 @@ private fun ResolverContract.resolvePassiveOutputFixture(): PassiveOutputFixture
         )
     val world = testWorld.assumptions
     val result =
-        resolveAndValidate(world, "query { user { requested } }")
+        resolveAndValidate(testWorld, "query { user { requested } }")
     val user =
         assertIs<ObjectEngineResult>(
             result.getCell(world.schema.contractKey("Query", "user")).get(),
@@ -182,7 +182,7 @@ private fun ResolverContract.resolveRecursiveOutputFixture(): RecursiveOutputFix
         )
     val world = testWorld.assumptions
     val result =
-        resolveAndValidate(world, "query { chain { computed } }", resolverObserver = invocationObserver)
+        resolveAndValidate(testWorld, "query { chain { computed } }", resolverObserver = invocationObserver)
     val chain =
         assertIs<ObjectEngineResult>(
             result.getCell(world.schema.contractKey("Query", "chain")).get(),
