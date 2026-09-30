@@ -526,6 +526,9 @@ val resolverPropertyProfiles =
         "resolver26-field-checker-mixed" to "generated mixed field checker worlds resolve correctly",
         "resolver26-field-checker-passive" to "generated passive field checker worlds resolve correctly",
         "resolver26-field-checker-root-reference" to "generated root-reference field checker worlds resolve correctly",
+        "resolver26-type-checker-success" to "generated successful type checker worlds resolve correctly",
+        "resolver26-type-checker-denial" to "generated denying type checker worlds resolve correctly",
+        "resolver26-type-checker-mixed" to "generated mixed type checker worlds resolve correctly",
         "resolver23-type-checker-success" to
             "generated successful type checker worlds resolve correctly",
         "resolver23-type-checker-denial" to
@@ -967,7 +970,7 @@ val resolver26MultithreadedStressRounds =
 
 tasks.register<org.gradle.api.tasks.testing.Test>("resolver26MultithreadedStress") {
     group = "verification"
-    description = "Runs each Resolver26 request on a fixed multithreaded dispatcher."
+    description = "Runs broad and mixed field/type-checker Resolver26 profiles on a fixed multithreaded dispatcher."
     maxHeapSize = "2g"
     maxParallelForks = 1
     testClassesDirs = sourceSets["test"].output.classesDirs
@@ -982,6 +985,12 @@ tasks.register<org.gradle.api.tasks.testing.Test>("resolver26MultithreadedStress
     }
 
     doFirst {
+        // The inherited checker contracts retain the same seed/size controls as type-checker stress.
+        val checkerSeed = providers.gradleProperty("resolver26TypeCheckerStressSeed").orElse("2026093001").get().toLong()
+        systemProperty("resolver.property.seed", checkerSeed)
+        systemProperty("kotest.proptest.default.seed", checkerSeed)
+        systemProperty("resolver.property.case", "all")
+        systemProperty("resolver.property.size", providers.gradleProperty("resolver26TypeCheckerStressSize").orElse("50:5:10").get())
         systemProperty(
             "resolver26.multithreaded.size",
             resolver26MultithreadedStressSize.get(),
@@ -1015,5 +1024,37 @@ tasks.register<org.gradle.api.tasks.testing.Test>("resolver26FieldCheckerStress"
         systemProperty("resolver.property.seed", seed)
         systemProperty("kotest.proptest.default.seed", seed)
         systemProperty("resolver.property.size", providers.gradleProperty("resolver26FieldCheckerStressSize").orElse("50:5:10").get())
+    }
+}
+
+tasks.register<org.gradle.api.tasks.testing.Test>("resolver26TypeCheckerStress") {
+    group = "verification"
+    description = "Runs generated Resolver26 runtime type checks with exact checker application accounting."
+    maxHeapSize = "2g"
+    maxParallelForks = 1
+    testClassesDirs = sourceSets["test"].output.classesDirs
+    classpath = sourceSets["test"].runtimeClasspath
+    useJUnitPlatform()
+
+    outputs.upToDateWhen { false }
+    testLogging { showStandardStreams = true }
+    doFirst {
+        val seed = providers.gradleProperty("resolver26TypeCheckerStressSeed").get().toLong()
+        val selected = providers.gradleProperty("resolver26TypeCheckerStressProfile").orElse("all").get()
+        val profiles = if (selected == "all") listOf("success", "denial", "mixed") else listOf(selected)
+        profiles.forEach { suffix ->
+            val profile = "resolver26-type-checker-$suffix"
+            val method = resolverPropertyProfiles[profile] ?: throw GradleException("Unknown type-checker profile $profile")
+            filter.includeTestsMatching("semantics.resolver26.TypeCheckerGeneratedTest.$method")
+        }
+        if (selected == "all") {
+            systemProperties.remove("resolver.property.profile")
+        } else {
+            systemProperty("resolver.property.profile", "resolver26-type-checker-$selected")
+        }
+        systemProperty("resolver.property.case", "all")
+        systemProperty("resolver.property.seed", seed)
+        systemProperty("kotest.proptest.default.seed", seed)
+        systemProperty("resolver.property.size", providers.gradleProperty("resolver26TypeCheckerStressSize").orElse("50:5:10").get())
     }
 }

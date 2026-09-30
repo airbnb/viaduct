@@ -219,6 +219,7 @@ internal class FieldCheckerTask private constructor(
                 arguments = arguments,
                 checkedTarget = ResolverTarget.FieldCheckerTarget(key.field),
             ),
+            inputs,
         )
         val result = occurrence.checker(arguments, inputs, this)
         check(publication.publicationCell.fieldCheckerResult.complete(result)) { "Field-checker result was completed twice" }

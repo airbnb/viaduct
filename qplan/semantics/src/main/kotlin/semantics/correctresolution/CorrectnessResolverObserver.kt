@@ -54,6 +54,7 @@ open class CorrectnessResolverObserver(
         ConcurrentHashMap<ObjectEngineResult, SharedOERContext>()
     private val queryOERDepths =
         ConcurrentHashMap<ObjectEngineResult, Int>()
+    private val associatedQueryResults = ConcurrentHashMap<ObjectEngineResult, ObjectEngineResult>()
     private val queryFragmentObservations =
         ConcurrentLinkedQueue<QueryFragmentObservation>()
     private val independentQueryObservations =
@@ -118,6 +119,18 @@ open class CorrectnessResolverObserver(
 
     override fun onQueryOERPrepared(
         queryOER: SharedOERContext,
+        owningOccurrence: OEROccurrence,
+        queryOERDepth: Int?,
+    ) {
+        check(associatedQueryResults.putIfAbsent(owningOccurrence.target, queryOER.occurrence.target) == null) {
+            "Object occurrence was associated with a Query OER twice"
+        }
+        onQueryOERPrepared(queryOER, queryOERDepth)
+        delegate.onQueryOERPrepared(queryOER, owningOccurrence, queryOERDepth)
+    }
+
+    override fun onQueryOERPrepared(
+        queryOER: SharedOERContext,
         queryOERDepth: Int?,
     ) {
         val result = queryOER.occurrence.target
@@ -135,6 +148,8 @@ open class CorrectnessResolverObserver(
     fun queryOER(result: ObjectEngineResult): SharedOERContext? = queryOERs[result]
 
     fun allQueryOERs(): Map<ObjectEngineResult, SharedOERContext> = queryOERs.toMap()
+
+    fun associatedQueryResult(owner: ObjectEngineResult): ObjectEngineResult? = associatedQueryResults[owner] ?: queryOERs[owner]?.occurrence?.target
 
     fun allQueryOERDepths(): Map<ObjectEngineResult, Int> = queryOERDepths.toMap()
 

@@ -20,10 +20,10 @@ import semantics.shared.SharedOperationContext
 import semantics.shared.groundedArguments
 
 /**
- * Reconstructs expected field- and type-checker invocations from completed checker slots instead of the
- * invocation observer, so missing or duplicate invocation observations fail independently of value
- * replay. Pair this with correctResolution to reject missing required slots; deterministic demand
- * witnesses additionally reject unnecessary published checks.
+ * Reconstructs the published field- and type-checker ledger from completed slots independently of
+ * invocation observation. This checks missing/duplicate observations, not whether a slot was needed.
+ * Pair it with correctResolution and demandedTypeCheckerApplications for independent input/value
+ * validation and checked type-demand exactness.
  */
 internal fun EngineResult?.registeredCheckerApplications(operation: SharedOperationContext<*>): List<CheckerInvocationObservation> {
     val primaryRoot = this as? ObjectEngineResult ?: return emptyList()
@@ -84,7 +84,10 @@ private fun ObjectEngineResult.forEachPublishedCheckerApplication(
                     val occurrencePath = path + key
                     val checker = operation.world.resolverRegistry.fieldChecker(key.field)
                     val checkerResult = cell.fieldCheckerResult.get()
-                    if (checker != null && checkerResult != null) {
+                    if (checkerResult != null) {
+                        checkNotNull(checker) {
+                            "Unregistered field checker published a result: $occurrencePath"
+                        }
                         val arguments = key.groundedArguments(operation) as? Arguments.Resolved
                         checkNotNull(arguments) {
                             "Published checker occurrence is not grounded: $occurrencePath"

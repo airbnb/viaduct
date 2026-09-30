@@ -31,7 +31,7 @@ internal class CoroutineOrchestrationTask private constructor(
     val closedConstructionDemand: OrchestrationConstructionDemand<ObjectSelectionForest>,
 ) : CoroutineOrchestrationTaskBase<CoroutineOperationContext>(operation, objectOER, queryOER) {
     companion object {
-        /** Allocates the OER-owned result slot from checked provenance and concrete registry lookup. */
+        /** Reserves a possible type check until parent lookahead settles checked provenance. */
         fun createObjectResult(
             operation: CoroutineOperationContext,
             type: ViaductSchema.Object,
@@ -39,7 +39,7 @@ internal class CoroutineOrchestrationTask private constructor(
         ): ObjectEngineResult {
             val typeCheckerResult =
                 if (
-                    constructionDemand.typeCheckDemanded &&
+                    (constructionDemand.typeCheckDemanded || operation.world.parentFieldRelations.isNotEmpty()) &&
                     operation.world.resolverRegistry.typeChecker(type) != null
                 ) {
                     Promise.ofDeferred<CheckerResult?>()
@@ -78,7 +78,7 @@ internal class CoroutineOrchestrationTask private constructor(
                 "Source type ${source.schemaType.name} does not match result type ${occurrence.target.type.name}"
             }
             val queryType = operation.world.schema.requireQueryTypeDef()
-            val queryResult = createObjectResult(operation, queryType, Demand.EMPTY)
+            val queryResult = ObjectEngineResult.of(queryType, mutable = true)
             val queryOccurrence = OEROccurrence(queryResult, emptyList(), queryResult)
             val closedConstructionDemand =
                 source.closeOrchestrationConstructionDemand(
@@ -91,6 +91,11 @@ internal class CoroutineOrchestrationTask private constructor(
                             queryRooted = Demand.EMPTY,
                         ),
                 )
+            if (!closedConstructionDemand.objectRooted.typeCheckDemanded && !occurrence.target.typeCheckerResult.isCompleted) {
+                check(occurrence.target.typeCheckerResult.complete(null)) {
+                    "Absent type-checker result was completed twice"
+                }
+            }
             val objectOER =
                 SharedOERContext(
                     occurrence = occurrence,
@@ -137,12 +142,8 @@ internal class CoroutineOrchestrationTask private constructor(
             }
 
     private fun hasApplicableTypeChecker(): Boolean =
-        listOf(
-            objectOER to closedConstructionDemand.objectRooted,
-            queryOER to closedConstructionDemand.queryRooted,
-        ).any { (oer, demand) ->
-            demand.typeCheckDemanded && operation.world.resolverRegistry.typeChecker(oer.occurrence.target.type) != null
-        }
+        closedConstructionDemand.objectRooted.typeCheckDemanded &&
+            operation.world.resolverRegistry.typeChecker(objectOER.occurrence.target.type) != null
 
     override fun duplicateDispatchException(): RuntimeException = IllegalStateException("Object orchestrated twice: ${objectOER.occurrence.path}")
 
@@ -176,7 +177,7 @@ internal class CoroutineOrchestrationTask private constructor(
     }
 
     private fun observeQueryOER() {
-        operation.resolverObserver.onQueryOERPrepared(queryOER)
+        operation.resolverObserver.onQueryOERPrepared(queryOER, objectOER.occurrence)
         listOf(objectOER, queryOER).forEach { resolverOER ->
             queryFragmentOwners(resolverOER).forEach { (resolverKey, owner) ->
                 operation.resolverObserver.onQueryFragmentPrepared(

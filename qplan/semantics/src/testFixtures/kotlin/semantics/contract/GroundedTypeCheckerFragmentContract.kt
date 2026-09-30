@@ -41,6 +41,132 @@ interface GroundedTypeCheckerFragmentContract {
     val coroutineResolverSubject: CoroutineResolverTestSubject
 
     @Test
+    fun `checked resolver parent input upgrades a checker-only occurrence to type-checked`() {
+        listOf(false, true).forEach { checkedParentRead ->
+            val typeInvocations = AtomicInteger()
+            val world =
+                TestWorld.fromDSL(
+                    schemaSDL =
+                        """
+                    extend type Query {
+                      checked: Int! @resolver(result: 1)
+                      rawRoot: Root! @resolver(result: {id: 7, child: {}})
+                    }
+
+                    type Root {
+                      id: Int!
+                      active: Int! @resolver(of: "child { parent { id } }", result: 1)
+                      child: Child!
+                    }
+
+                    type Child {
+                      parent: Root! @parent
+                    }
+                        """.trimIndent(),
+                    selectiveResolvers = coroutineResolverSubject.selectiveResolvers,
+                    fieldCheckers = { schema ->
+                        val checked = schema.requireObjectField("Query", "checked")
+                        val rawRoot =
+                            schema
+                                .fragmentFrom("fragment RawRoot on Query { rawRoot { ${if (checkedParentRead) "active" else "id"} } }")
+                                .materializeSelections
+                        mapOf(
+                            checked to
+                                FieldCheckerResolver.of(
+                                    checked,
+                                    schema.requireQueryTypeDef(),
+                                    fragmentTemplates =
+                                        mapOf(
+                                            "rawRoot" to
+                                                ResolverFragmentTemplates(
+                                                    objectFragmentTemplate = rawRoot,
+                                                    queryFragmentTemplate = materializeSelectionForestOf(),
+                                                ),
+                                        ),
+                                ) { _, _, _ -> CheckerResult.Success },
+                        )
+                    },
+                    typeCheckers = { schema ->
+                        val root = schema.requireType("Root") as ViaductSchema.Object
+                        mapOf(
+                            root to TypeCheckerResolver.of(root, schema.requireQueryTypeDef()) { _, _ ->
+                                typeInvocations.incrementAndGet()
+                                CheckerResult.Success
+                            },
+                        )
+                    },
+                ).assumptions
+
+            val result =
+                coroutineResolverSubject.resolve(
+                    SharedOperationContext.create(world),
+                    world.operationSelectionsFrom("{ checked }"),
+                )
+
+            val rawRoot = assertIs<ObjectEngineResult>(result.t3Value(world, "Query", "rawRoot"))
+            assertEquals(if (checkedParentRead) 1 else 0, typeInvocations.get())
+            assertSame(if (checkedParentRead) CheckerResult.Success else null, rawRoot.typeCheckerResult.get())
+        }
+    }
+
+    @Test
+    fun `checked parent reads inside a Query fragment do not check its Query root`() {
+        val queryChecks = AtomicInteger()
+        val wrapperChecks = AtomicInteger()
+        val world = TestWorld.fromSDL(
+            """
+            directive @parent on FIELD_DEFINITION
+            type Query { consume: Int! wrapper: Wrapper! }
+            type Wrapper { token: Int! child: Child! }
+            type Child { parent: Wrapper! @parent }
+            """.trimIndent(),
+            selectiveResolvers = coroutineResolverSubject.selectiveResolvers,
+            fieldResolvers = { schema ->
+                mapOf(
+                    schema.requireObjectField("Query", "consume") to fieldResolverOf(
+                        schema.emptyFragmentOf("Query"),
+                        schema.fragmentFrom("fragment Input on Query { wrapper { child { parent { token } } } }"),
+                    ) { _, query, _ ->
+                        val wrapper = assertIs<viaduct.engine.api.EngineObjectData.Sync>(query.get("wrapper"))
+                        val child = assertIs<viaduct.engine.api.EngineObjectData.Sync>(wrapper.get("child"))
+                        val parent = assertIs<viaduct.engine.api.EngineObjectData.Sync>(child.get("parent"))
+                        parent.get("token")
+                    },
+                    schema.requireObjectField("Query", "wrapper") to fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
+                        schema.objectOf("Wrapper") {
+                            "token" setTo 7
+                            "child" setTo schema.objectOf("Child")
+                        }
+                    },
+                )
+            },
+            typeCheckers = { schema ->
+                val query = schema.requireQueryTypeDef()
+                val wrapper = schema.requireType("Wrapper") as ViaductSchema.Object
+                mapOf(
+                    query to TypeCheckerResolver.of(query, query) { _, _ ->
+                        queryChecks.incrementAndGet()
+                        CheckerResult.Success
+                    },
+                    wrapper to TypeCheckerResolver.of(wrapper, query) { _, _ ->
+                        wrapperChecks.incrementAndGet()
+                        CheckerResult.Success
+                    },
+                )
+            },
+        ).assumptions
+
+        val result = coroutineResolverSubject.resolve(
+            SharedOperationContext.create(world),
+            world.operationSelectionsFrom("{ consume }"),
+        )
+
+        assertEquals(7, result.t3Value(world, "Query", "consume"))
+        assertEquals(1, queryChecks.get(), "Only the primary checked Query root needs a type check")
+        assertEquals(1, wrapperChecks.get(), "The child parent read reuses the wrapper's check")
+    }
+
+    @Test
     fun `materializes empty object Query and paired named inputs raw for every occurrence`() {
         val typeCheckerCalls = AtomicInteger()
         val activeResolverCalls = AtomicInteger()

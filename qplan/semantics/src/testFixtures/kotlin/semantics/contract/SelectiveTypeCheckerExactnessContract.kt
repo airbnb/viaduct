@@ -3,11 +3,13 @@
 package semantics.contract
 
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNotEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertNotSame
 import kotlin.test.assertNull
 import kotlin.test.assertSame
@@ -44,6 +46,7 @@ import semantics.correctresolution.correctResolution
 import semantics.shared.CheckerInvocationObservation
 import semantics.shared.CheckerKind
 import semantics.shared.ResolverInvocationObservation
+import semantics.shared.ResolverObserver
 import semantics.shared.SharedOperationContext
 import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.CheckerResultContext
@@ -52,6 +55,89 @@ import viaduct.graphql.schema.ViaductSchema
 /** Exact producer demand and per-OER applications, independently of completed-value replay. */
 interface SelectiveTypeCheckerExactnessContract {
     val coroutineResolverSubject: CoroutineResolverTestSubject
+
+    @Test
+    fun `selective producer receives object but not Query type-checker demand`() {
+        val producerDemand = AtomicReference<SelectionForest>()
+        val world =
+            TestWorld.fromSDL(
+                selectiveResolvers = true,
+                schemaSDL =
+                    """
+                    type Query {
+                      item: Item!
+                      queryPolicy: Int!
+                    }
+
+                    type Item {
+                      visible: Int!
+                      objectPolicy: Int!
+                      queryPolicy: Int!
+                    }
+                    """.trimIndent(),
+                fieldResolvers = { schema ->
+                    mapOf(
+                        schema.requireObjectField("Query", "item") to
+                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
+                                schema.objectOf("Item") {
+                                    "visible" setTo 1
+                                    "objectPolicy" setTo 2
+                                    "queryPolicy" setTo 999
+                                }
+                            },
+                        schema.requireObjectField("Query", "queryPolicy") to
+                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> 3 },
+                    )
+                },
+                typeCheckers = { schema ->
+                    val item = schema.requireType("Item") as ViaductSchema.Object
+                    mapOf(
+                        item to
+                            TypeCheckerResolver.of(
+                                item,
+                                schema.requireQueryTypeDef(),
+                                fragmentTemplates =
+                                    mapOf(
+                                        "input" to
+                                            ResolverFragmentTemplates(
+                                                objectFragmentTemplate =
+                                                    schema
+                                                        .fragmentFrom(
+                                                            "fragment ObjectInput on Item { objectPolicy }",
+                                                        ).materializeSelections,
+                                                queryFragmentTemplate =
+                                                    schema
+                                                        .fragmentFrom(
+                                                            "fragment QueryInput on Query { queryPolicy }",
+                                                        ).materializeSelections,
+                                            ),
+                                    ),
+                            ) { inputs, _ ->
+                                assertEquals(2, inputs.getValue("input").objectValue.outputValue("objectPolicy"))
+                                assertEquals(3, inputs.getValue("input").queryValue.outputValue("queryPolicy"))
+                                CheckerResult.Success
+                            },
+                    )
+                },
+            ).assumptions
+        val observer =
+            object : ResolverObserver {
+                override fun onResolverInvocation(observation: ResolverInvocationObservation) {
+                    if (observation.field.name == "item") producerDemand.set(observation.suppliedDemand)
+                }
+            }
+
+        coroutineResolverSubject.resolve(
+            SharedOperationContext.create(world, resolverObserver = observer),
+            world.operationSelectionsFrom("{ item { visible } }"),
+        )
+
+        val item = world.schema.requireType("Item") as ViaductSchema.Object
+        assertEquals(
+            setOf("visible", "objectPolicy"),
+            assertNotNull(producerDemand.get()).merge(item).groundKeys().mapTo(linkedSetOf()) { it.field.name },
+        )
+    }
 
     @Test
     fun `type checker raw demand restores checked inputs only beyond active boundaries`() {
@@ -449,6 +535,10 @@ private class TypeExactnessRun(
     fun validate(expected: List<CheckerInvocationObservation>) {
         assertTrue(recorder.hasExactlyCheckerApplications(expected), "Expected $expected, observed ${recorder.checkerApplications()}")
         assertTrue(recorder.hasExactlyCheckerApplications(result.registeredCheckerApplications(operation)))
+        assertEquals(
+            expected.filter { it.checkerKind == CheckerKind.TYPE }.toSet(),
+            result.demandedTypeCheckerApplications(operation, selections),
+        )
         assertFalse(recorder.hasExactlyCheckerApplications(expected.dropLast(1)))
         assertFalse(recorder.hasExactlyCheckerApplications(expected + expected.first()))
         assertTrue(result.correctResolution(operation, selections.merge(operation.world.schema.requireQueryTypeDef())))

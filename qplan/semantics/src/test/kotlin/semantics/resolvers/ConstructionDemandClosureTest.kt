@@ -3,6 +3,7 @@ package semantics.resolvers
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import model.Arguments
 import model.EngineObjectDataEntry
@@ -123,10 +124,11 @@ class ConstructionDemandClosureTest {
         val fixture = parentClosureFixture()
         val schema = fixture.assumptions.schema
         val childResult =
-            schema.fragmentFrom("fragment F on Query { child { result } }").subselections
+            schema.fragmentFrom("fragment F on Root { child { result } }").subselections
         val closed =
             fixture.closeOrchestrationDemand(
                 OrchestrationConstructionDemand.checkedObject(childResult),
+                objectTypeName = "Root",
             )
 
         assertEquals(
@@ -142,11 +144,11 @@ class ConstructionDemandClosureTest {
     }
 
     @Test
-    fun `query rooted parent lifting stays in Query and resumes checked resolver inputs`() {
+    fun `query rooted parent lifting remains below the Query root`() {
         val fixture = parentClosureFixture()
         val schema = fixture.assumptions.schema
         val childResult =
-            schema.fragmentFrom("fragment F on Query { child { result } }").subselections
+            schema.fragmentFrom("fragment F on Query { root { child { result } } }").subselections
         val closed =
             fixture.closeOrchestrationDemand(
                 OrchestrationConstructionDemand(
@@ -157,11 +159,14 @@ class ConstructionDemandClosureTest {
 
         assertTrue(closed.objectRooted.checked.isEmpty())
         assertTrue(closed.objectRooted.unchecked.isEmpty())
+        assertTrue(closed.queryRooted.checked.isEmpty())
+        assertFalse(closed.queryRooted.typeCheckDemanded)
+        assertEquals(setOf("root"), closed.queryRooted.unchecked.fieldNames())
+        val root = closed.queryRooted.unchecked.byGroundKey().values.single()
         assertEquals(
-            setOf("lifted", "local", "queryInput", "transitive"),
-            closed.queryRooted.checked.fieldNames(),
+            setOf("child", "lifted"),
+            root.subselections.merge(schema.requireObjectField("Query", "root").type.baseTypeDef as viaduct.graphql.schema.ViaductSchema.Object).fieldNames(),
         )
-        assertEquals(setOf("child"), closed.queryRooted.unchecked.fieldNames())
     }
 
     @Test
@@ -468,40 +473,41 @@ class ConstructionDemandClosureTest {
                 """
                 directive @parent on FIELD_DEFINITION
 
-                type Query {
+                type Query { root: Root! queryInput: Int! transitive: Int! }
+
+                type Root {
                   child: Child!
                   lifted: Int!
                   local: Int!
-                  queryInput: Int!
-                  transitive: Int!
                 }
 
                 type Child {
-                  parent: Query @parent
+                  parent: Root @parent
                   result: Int!
                 }
                 """.trimIndent(),
             fieldResolvers = { schema ->
                 val emptyQuery = schema.emptyFragmentOf("Query")
-                val child = schema.requireObjectField("Query", "child")
-                val lifted = schema.requireObjectField("Query", "lifted")
-                val local = schema.requireObjectField("Query", "local")
+                val emptyRoot = schema.emptyFragmentOf("Root")
+                val child = schema.requireObjectField("Root", "child")
+                val lifted = schema.requireObjectField("Root", "lifted")
+                val local = schema.requireObjectField("Root", "local")
                 val queryInput = schema.requireObjectField("Query", "queryInput")
                 val transitive = schema.requireObjectField("Query", "transitive")
                 val result = schema.requireObjectField("Child", "result")
                 mapOf(
                     child to
-                        fieldResolverOf(emptyQuery) { _, _ -> schema.objectOf("Child") },
+                        fieldResolverOf(emptyRoot) { _, _ -> schema.objectOf("Child") },
                     lifted to
                         fieldResolverOf(
                             objectFragment =
-                                schema.fragmentFrom("fragment LiftedObject on Query { local }"),
+                                schema.fragmentFrom("fragment LiftedObject on Root { local }"),
                             queryFragment =
                                 schema.fragmentFrom(
                                     "fragment LiftedQuery on Query { queryInput }",
                                 ),
                         ) { _, _, _ -> 1 },
-                    local to fieldResolverOf(emptyQuery) { _, _ -> 1 },
+                    local to fieldResolverOf(emptyRoot) { _, _ -> 1 },
                     queryInput to
                         fieldResolverOf(
                             objectFragment = emptyQuery,
@@ -521,19 +527,21 @@ class ConstructionDemandClosureTest {
             },
         )
 
-    private fun TestWorld.closeOrchestrationDemand(initialDemand: OrchestrationConstructionDemand<SelectionForest>): OrchestrationConstructionDemand<ObjectSelectionForest> {
+    private fun TestWorld.closeOrchestrationDemand(
+        initialDemand: OrchestrationConstructionDemand<SelectionForest>,
+        objectTypeName: String = "Query",
+    ): OrchestrationConstructionDemand<ObjectSelectionForest> {
         val world = assumptions
         val query = world.schema.requireQueryTypeDef()
-        val objectRoot = ObjectEngineResult.of(query, emptyMap())
+        val source = world.schema.objectOf(objectTypeName)
+        val objectRoot = ObjectEngineResult.of(source.schemaType, emptyMap())
         val queryRoot = ObjectEngineResult.of(query, emptyMap())
-        return world.schema
-            .objectOf("Query")
-            .closeOrchestrationConstructionDemand(
-                operation = SharedOperationContext.create(world),
-                objectOccurrence = OEROccurrence(objectRoot, emptyList(), objectRoot),
-                queryOccurrence = OEROccurrence(queryRoot, emptyList(), queryRoot),
-                initialDemand = initialDemand,
-            )
+        return source.closeOrchestrationConstructionDemand(
+            operation = SharedOperationContext.create(world),
+            objectOccurrence = OEROccurrence(objectRoot, emptyList(), objectRoot),
+            queryOccurrence = OEROccurrence(queryRoot, emptyList(), queryRoot),
+            initialDemand = initialDemand,
+        )
     }
 
     private fun EngineObjectData.Sync.closeObjectDemand(

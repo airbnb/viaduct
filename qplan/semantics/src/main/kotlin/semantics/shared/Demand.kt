@@ -28,6 +28,8 @@ internal class Demand<out S : SelectionForest>(
     val unchecked: S,
     /** Whether the concrete OER at the root of this demand must produce a type-check result. */
     val typeCheckDemanded: Boolean,
+    /** Runtime provenance of checked incoming edges, independent of local field activation. */
+    val typeCheckCondition: InclusionCondition = if (typeCheckDemanded) InclusionCondition.Always else InclusionCondition.Never,
 ) {
     /** All values that must be constructed, independent of how their consumers read them. */
     val values: SelectionForest
@@ -69,6 +71,7 @@ internal operator fun Demand<SelectionForest>.plus(other: Demand<SelectionForest
         checked = checked + other.checked,
         unchecked = unchecked + other.unchecked,
         typeCheckDemanded = typeCheckDemanded || other.typeCheckDemanded,
+        typeCheckCondition = typeCheckCondition.or(other.typeCheckCondition),
     )
 
 /** Applies the same inclusion guard without losing demand provenance. */
@@ -77,6 +80,7 @@ internal fun Demand<SelectionForest>.guardedBy(condition: InclusionCondition): D
         checked = checked.guardedBy(condition),
         unchecked = unchecked.guardedBy(condition),
         typeCheckDemanded = typeCheckDemanded,
+        typeCheckCondition = typeCheckCondition.and(condition),
     )
 
 /** Normalizes each demand component independently for one concrete object type. */
@@ -85,6 +89,7 @@ internal fun Demand<SelectionForest>.merge(type: ViaductSchema.Object): Demand<O
         checked = checked.merge(type),
         unchecked = unchecked.merge(type),
         typeCheckDemanded = typeCheckDemanded,
+        typeCheckCondition = typeCheckCondition,
     )
 
 /** Descendant provenance travels through value publication, including lists and references. */
@@ -93,4 +98,5 @@ internal fun Demand<ObjectSelectionForest>.descendants(key: ObjectEngineResult.O
         checked = checked.byKey()[key]?.subselections ?: selectionForestOf(),
         unchecked = unchecked.byKey()[key]?.subselections ?: selectionForestOf(),
         typeCheckDemanded = key in checked.byKey(),
+        typeCheckCondition = checked.byKey()[key]?.inclusionCondition ?: InclusionCondition.Never,
     )

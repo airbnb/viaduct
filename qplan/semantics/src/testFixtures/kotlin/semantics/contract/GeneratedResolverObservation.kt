@@ -5,6 +5,7 @@ import kotlin.test.assertTrue
 import model.Assumptions
 import model.Fragment
 import model.ObjectEngineResult
+import model.ResolverOccurrenceId
 import model.fragmentFrom
 import model.objectOf
 import model.sameCompletedResultAs
@@ -13,12 +14,14 @@ import semantics.arbitrary.Config
 import semantics.arbitrary.ResolverApplicationRecord
 import semantics.arbitrary.ResolverTestCase
 import semantics.arbitrary.SelectiveNodeResolverApplicationRecord
+import semantics.correctresolution.CorrectnessCheckerObserver
 import semantics.correctresolution.conformsToResolvers
 import semantics.correctresolution.conformsToSelections
 import semantics.correctresolution.correctResolution
 import semantics.correctresolution.isClosedUnderResolverDemand
 import semantics.correctresolution.rootedAndWellTyped
 import semantics.shared.CheckerInvocationObservation
+import semantics.shared.CheckerKind
 import semantics.shared.SharedOperationContext
 
 /** One generated resolver execution and the request-local state needed to validate it. */
@@ -135,6 +138,20 @@ object GeneratedCaseAssertions {
     val exactCheckerApplications =
         GeneratedCaseAssertion { observation ->
             observation.executions.forEach { execution ->
+                val inputRecorder = execution.operation.checkerObserver as CorrectnessCheckerObserver
+                execution.checkerApplications.groupingBy { it }.eachCount().forEach { (application, count) ->
+                    assertEquals(
+                        count,
+                        inputRecorder.checkerInputs(
+                            application.checkedTarget,
+                            ResolverOccurrenceId.at(application.logicalQueryRoot, application.occurrencePath),
+                        ).size,
+                        "Every checker invocation must retain its actual named inputs",
+                    )
+                }
+                val demanded = execution.result.demandedTypeCheckerApplications(execution.operation, execution.fragment.subselections).associateWith { 1 }
+                val invoked = execution.checkerApplications.filter { it.checkerKind == CheckerKind.TYPE }.groupingBy { it }.eachCount()
+                assertEquals(demanded, invoked, "Type-check applications must follow checked demand: missing=${demanded.keys - invoked.keys}; extra=${invoked.keys - demanded.keys}")
                 val expected =
                     execution.result.registeredCheckerApplications(execution.operation)
                 assertEquals(

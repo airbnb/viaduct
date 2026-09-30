@@ -61,7 +61,7 @@ Coordinate replay preserves the random stream through schema iteration `S`, exec
 
 Before changing resolver code, identify the failing boundary:
 
-- **Resolver:** wrong result, missing or duplicate writer, invalid binding, wrong application identity, or liveness failure.
+- **Resolver:** wrong result, missing or duplicate writer, invalid binding, wrong application identity, or engine-created liveness failure under the [tenant progress assumptions](./design-principles.md#tenant-failure-isolation-and-progress).
 - **Generator:** invalid world, unreachable promised feature, bad coercion, or missing generation capability.
 - **Oracle:** shared assumptions, lost occurrence identity, result-derived expectations, or instrumentation races.
 - **Campaign:** mismatched distribution, bad case accounting, or probabilistic aggregate guards.
@@ -93,7 +93,9 @@ Silence from Gradle is not evidence of deadlock. Check process CPU, thread stack
 
 Use `jps -lv`, `jstack`, `jcmd <pid> Thread.print`, or a profiler. For an OOMing case, capture the generated world without resolving it, then add bounded launch and depth diagnostics. Distinguish duplicate execution from one-shot exponential growth across distinct occurrences.
 
-An unresolved demanded cell means a missing writer, a dependency cycle, failed task ownership, or invalid quiescence. It is never successful completion.
+Before classifying a timeout as a resolver defect, establish whether tenant resolver, checker, or variables-provider code is still running or deliberately never returns. The operation may wait for that work even if another error has made its output unnecessary and no live consumer still needs it. Prompt cancellation of such work and optimal recovery from multiple errors are not acceptance requirements. Do not fix a local tenant failure by aborting the whole request; preserve its owned error boundary and the specified propagation rules.
+
+An unresolved demanded cell may reflect unfinished tenant work, a missing writer, a dependency cycle, failed task ownership, or invalid quiescence. Waiting on unfinished tenant work is allowed; a stranded required promise after its producer exits or is bypassed is a defect. An unresolved demanded cell is never successful completion.
 
 ## Maintain Independent Evidence
 

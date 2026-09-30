@@ -74,8 +74,9 @@ internal fun EngineObjectData.Sync.closeOrchestrationConstructionDemand(
         linkedSetOf<Pair<ObjectEngineResult.GroundKey, InclusionCondition>>()
     val boundObjectCheckerKeys = linkedSetOf<ObjectEngineResult.GroundKey>()
     val boundQueryCheckerKeys = linkedSetOf<ObjectEngineResult.GroundKey>()
+    // Associated Query fragments demand fields, and schema validation excludes parent backedges
+    // to Query, so only the object side can require a type check.
     var expandedObjectTypeChecker = false
-    var expandedQueryTypeChecker = false
 
     var demandNotClosed: Boolean
     do {
@@ -115,20 +116,13 @@ internal fun EngineObjectData.Sync.closeOrchestrationConstructionDemand(
                 occurrence = objectOccurrence,
                 alreadyExpanded = expandedObjectTypeChecker,
             )
-        val queryTypeCheckerInputs =
-            groundedDemand.queryRooted.typeCheckerInputDemand(
-                operation = operation,
-                occurrence = queryOccurrence,
-                alreadyExpanded = expandedQueryTypeChecker,
-            )
 
         if (
             newObjectResolverKeys.isNotEmpty() ||
             newQueryResolverKeys.isNotEmpty() ||
             newObjectCheckerKeyInclusions.isNotEmpty() ||
             newQueryCheckerKeyInclusions.isNotEmpty() ||
-            objectTypeCheckerInputs != null ||
-            queryTypeCheckerInputs != null
+            objectTypeCheckerInputs != null
         ) {
             demandNotClosed = true
             newObjectResolverKeys.bindFromArguments(
@@ -180,16 +174,13 @@ internal fun EngineObjectData.Sync.closeOrchestrationConstructionDemand(
                                 objectCheckerInputs.queryFragment +
                                     queryCheckerInputs.objectFragment +
                                     queryCheckerInputs.queryFragment +
-                                    (objectTypeCheckerInputs?.queryFragment ?: selectionForestOf()) +
-                                    (queryTypeCheckerInputs?.objectFragment ?: selectionForestOf()) +
-                                    (queryTypeCheckerInputs?.queryFragment ?: selectionForestOf()),
+                                    (objectTypeCheckerInputs?.queryFragment ?: selectionForestOf()),
                             typeCheckDemanded = false,
                         ),
                 )
             expandedObjectResolverKeys += newObjectResolverKeys
             expandedQueryResolverKeys += newQueryResolverKeys
             if (objectTypeCheckerInputs != null) expandedObjectTypeChecker = true
-            if (queryTypeCheckerInputs != null) expandedQueryTypeChecker = true
         }
     } while (demandNotClosed)
 

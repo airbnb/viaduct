@@ -3,6 +3,7 @@ package semantics.resolver26
 import model.Arguments
 import model.InclusionCondition
 import model.ObjectEngineResult
+import model.Promise
 import model.SelectionForest
 import model.VariableBinding
 import model.registry.VariableDefinition
@@ -13,7 +14,9 @@ import semantics.shared.OEROccurrence
 import semantics.shared.OrchestrationConstructionDemand
 import semantics.shared.SharedOERContext
 import semantics.shared.argumentsContainErrorValue
+import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.EngineObjectData
+import viaduct.graphql.schema.ViaductSchema
 
 /**
  * Prepares and dispatches the work associated with one object-result occurrence.
@@ -29,6 +32,8 @@ internal class OrchestrationTask private constructor(
 ) : CoroutineOrchestrationTaskBase<OperationContext>(operation, objectOER, queryOER) {
     private var bindingDeclarationStarted = false
     internal lateinit var checkerPreparation: FieldCheckerPreparation
+        private set
+    internal var typeCheckerPublications = emptyList<SymbolicTypeCheckerPublicationOccurrence>()
         private set
     private val conditionedPassivePublications = mutableListOf<SymbolicFieldPublicationOccurrence>()
 
@@ -47,6 +52,24 @@ internal class OrchestrationTask private constructor(
     }
 
     companion object {
+        fun createObjectResult(
+            operation: OperationContext,
+            type: ViaductSchema.Object,
+            constructionDemand: Demand<SelectionForest>,
+        ): ObjectEngineResult =
+            ObjectEngineResult.of(
+                type = type,
+                mutable = true,
+                // Parent lookahead can introduce a checked incoming backedge during closure.
+                typeCheckerResult = if ((constructionDemand.typeCheckCondition !== InclusionCondition.Never || operation.world.parentFieldRelations.isNotEmpty()) &&
+                    operation.world.resolverRegistry.typeChecker(type) != null
+                ) {
+                    Promise.ofDeferred<CheckerResult?>()
+                } else {
+                    Promise.of<CheckerResult?>(null)
+                },
+            )
+
         /** Creates a fully prepared task without dispatching its active work. */
         fun create(
             operation: OperationContext,
@@ -103,13 +126,15 @@ internal class OrchestrationTask private constructor(
                     operation.bindingsState.markBindingsDeclared(oer.occurrence.target)
                 }
                 checkerPreparation = FieldCheckerTask.prepareAll(this)
+                typeCheckerPublications = TypeCheckerTask.prepareAll(this)
                 observeQueryOER()
             }
         }
     }
 
     override val hasActiveWork: Boolean
-        get() = conditionedPassivePublications.isNotEmpty() || listOf(closedConstructionDemand.objectRooted, closedConstructionDemand.queryRooted).any { closedOER ->
+        get() = typeCheckerPublications.isNotEmpty() || conditionedPassivePublications.isNotEmpty() || listOf(closedConstructionDemand.objectRooted, closedConstructionDemand.queryRooted).any {
+                closedOER ->
             closedOER.fieldCheckerOccurrences.isNotEmpty() ||
                 closedOER.fieldResolverOccurrences.isNotEmpty() ||
                 closedOER.rootFieldReferenceOccurrences.isNotEmpty() ||
@@ -127,6 +152,7 @@ internal class OrchestrationTask private constructor(
         checkerPreparation.executablePublications.forEach { publication ->
             operation.dispatcher.dispatchFieldChecker(publication)
         }
+        typeCheckerPublications.forEach(operation.dispatcher::dispatchTypeChecker)
         checkerPreparation.publishReadyAbsences()
         val checkedCells = checkerPreparation.claimedSlots.mapTo(linkedSetOf()) { it.cell }
         listOf(objectOER, queryOER).forEach { oer ->
@@ -211,6 +237,9 @@ internal class OrchestrationTask private constructor(
                     }
                 }
             }
+            closedOER.typeCheckerOccurrence?.variableDefinitions?.forEach { definition ->
+                operation.variableBindings.declareBinding(requireNotNull(definition.variable.instanceId))
+            }
             val providerVariableIds =
                 closedOER.variableProviderReadsByResolverOccurrence.values
                     .flatten()
@@ -228,7 +257,7 @@ internal class OrchestrationTask private constructor(
     }
 
     private fun observeQueryOER() {
-        operation.resolverObserver.onQueryOERPrepared(queryOER)
+        operation.resolverObserver.onQueryOERPrepared(queryOER, objectOER.occurrence)
         listOf(objectOER to closedConstructionDemand.objectRooted, queryOER to closedConstructionDemand.queryRooted)
             .forEach { (resolverOER, closedOER) ->
                 closedOER.fieldResolverOccurrences.values.forEach { fieldResolverOccurrence ->

@@ -4,6 +4,7 @@ import model.Arguments
 import model.ObjectEngineResult
 import model.PathComponent
 import model.ResolverOccurrenceId
+import model.registry.CheckerInput
 import model.registry.ResolverTarget
 import viaduct.graphql.schema.ViaductSchema
 
@@ -42,6 +43,12 @@ fun interface CheckerObserver {
      * with no suspension or dispatch boundary between this event and the checker function.
      */
     fun onCheckerInvocation(observation: CheckerInvocationObservation)
+
+    /** Retains actual named projections for comparison with independently materialized inputs. */
+    fun onCheckerInvocation(
+        observation: CheckerInvocationObservation,
+        inputs: Map<String, CheckerInput>,
+    ) = onCheckerInvocation(observation)
 
     /** Associates one checker occurrence with its orchestration's shared Query OER. */
     fun onCheckerQueryFragmentPrepared(

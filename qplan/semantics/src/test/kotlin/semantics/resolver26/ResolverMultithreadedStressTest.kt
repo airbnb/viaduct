@@ -12,19 +12,58 @@ import kotlinx.coroutines.runBlocking
 import model.Assumptions
 import model.Fragment
 import model.ObjectEngineResult
+import model.SelectionForest
 import model.ResolverOccurrenceId
 import model.fragmentFrom
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
+import semantics.arbitrary.Config
+import semantics.arbitrary.ResolverVariableSingletonCoercionEnabled
+import semantics.arbitrary.ResolverTestExecution
 import semantics.arbitrary.ResolverTestRun
 import semantics.arbitrary.TestCaseCount
-import semantics.arbitrary.checkResolverTestCases
+import semantics.arbitrary.executeResolverTestCases
+import semantics.contract.GeneratedTypeCheckerContract
 import semantics.contract.validateFromFieldBindings
 import semantics.correctresolution.CorrectnessResolverObserver
 import semantics.correctresolution.correctResolution
 import semantics.shared.ResolverInvocationObservation
 import semantics.shared.SharedOperationContext
+import viaduct.engine.api.EngineObjectData
 
-class ResolverMultithreadedStressTest {
+class ResolverMultithreadedStressTest : GeneratedTypeCheckerContract, Resolver26DispatcherResource {
+    override val typeCheckerProfilePrefix = "resolver26"
+    override val runtimeTypeCheckerVariables = true
+    override val selectiveResolvers = true
+    override val generatedResolverConfigOverrides = Config.default + (ResolverVariableSingletonCoercionEnabled to true)
+    private var checkerDispatcher: RecordingCoroutineDispatcher? = null
+
+    override fun resolve(
+        operation: SharedOperationContext<*>,
+        root: EngineObjectData.Sync,
+        selections: SelectionForest,
+    ): ObjectEngineResult {
+        val dispatcher = checkerDispatcher ?: RecordingCoroutineDispatcher(resolverDispatcher).also { checkerDispatcher = it }
+        return operation.resolve(selections, coroutineContext = dispatcher)
+    }
+
+    @AfterEach
+    fun verifyTypeCheckerConcurrency() {
+        val dispatcher = checkerDispatcher ?: return
+        if (configuredThreadCount() == 1) {
+            assertEquals(1, dispatcher.maximumConcurrentContinuations.get())
+            assertEquals(1, dispatcher.threadNames.size)
+        } else {
+            assertTrue(dispatcher.maximumConcurrentContinuations.get() > 1, "Expected concurrent type-checker profile continuations")
+            assertTrue(dispatcher.threadNames.size > 1, "Expected multiple threads in the type-checker profile")
+        }
+        println(
+            "Resolver26 type-checker concurrency: threads=${configuredThreadCount()}, " +
+                "maximumConcurrentContinuations=${dispatcher.maximumConcurrentContinuations.get()}, " +
+                "observedThreads=${dispatcher.threadNames.size}",
+        )
+    }
+
     @Test
     fun `one request executes Resolver26 coroutines on the configured dispatcher`(): Unit =
         runBlocking {
@@ -167,8 +206,8 @@ private suspend fun runResolver26MultithreadedStress(
     val startedAt: Long = System.nanoTime()
     var completedCases = 0
     val run: ResolverTestRun =
-        checkResolverTestCases(
-            counts = counts,
+        executeResolverTestCases(
+            execution = ResolverTestExecution(counts),
             config = campaignRun.config,
             profile = campaignRun.propertyProfile,
             seed = campaignRun.seed,

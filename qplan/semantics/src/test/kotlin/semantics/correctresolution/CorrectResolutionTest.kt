@@ -745,13 +745,18 @@ class CorrectResolutionTest : Resolver26DispatcherResource {
                 .fromSDL(
                     """
                     directive @parent on FIELD_DEFINITION
-                    type Query { child: Child! }
-                    type Child { parent: Query @parent }
+                    type Query { root: Root! }
+                    type Root { child: Child! }
+                    type Child { parent: Root @parent }
                     """.trimIndent(),
                     fieldResolvers = { schema ->
                         mapOf(
-                            schema.requireObjectField("Query", "child") to
+                            schema.requireObjectField("Query", "root") to
                                 fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
+                                    schema.objectOf("Root")
+                                },
+                            schema.requireObjectField("Root", "child") to
+                                fieldResolverOf(schema.emptyFragmentOf("Root")) { _, _ ->
                                     schema.objectOf("Child")
                                 },
                         )
@@ -763,7 +768,7 @@ class CorrectResolutionTest : Resolver26DispatcherResource {
         fun result(correctParent: Boolean): ObjectEngineResult {
             val root =
                 ObjectEngineResult.of(
-                    world.schema.requireQueryTypeDef(),
+                    world.schema.requireType("Root") as ViaductSchema.Object,
                     mutable = true,
                 )
             val child =
@@ -776,19 +781,19 @@ class CorrectResolutionTest : Resolver26DispatcherResource {
                     world.schema.requireObjectField("Child", "parent"),
                 )
             child.reserveCell(parentKey).apply {
-                value.set(if (correctParent) root else world.engineResultOf("Query"))
+                value.set(if (correctParent) root else world.engineResultOf("Root"))
                 fieldCheckerResult.complete(null)
             }
             child.freeze()
             val childKey =
                 ObjectEngineResult.GroundKey.of(
-                    world.schema.requireObjectField("Query", "child"),
+                    world.schema.requireObjectField("Root", "child"),
                     emptyMap(),
                 )
             root.setCellValue(childKey, child)
             root.getCell(childKey).fieldCheckerResult.complete(null)
             root.freeze()
-            return root
+            return world.engineResultOf("Query") { "root" resolvesTo root }
         }
 
         assertTrue(result(true).correctResolution(operation, query))

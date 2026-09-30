@@ -44,40 +44,38 @@ internal class CoroutineTypeCheckerTask private constructor(
 ) {
     companion object {
         /** Claims the checked concrete OER's type-checker slot before any local producer dispatch. */
-        fun prepareAll(orchestrationTask: CoroutineOrchestrationTask): List<GroundedTypeCheckerPublicationOccurrence> =
-            listOf(
-                orchestrationTask.objectOER to orchestrationTask.closedConstructionDemand.objectRooted,
-                orchestrationTask.queryOER to orchestrationTask.closedConstructionDemand.queryRooted,
-            ).mapNotNull { (oer, constructionDemand) ->
-                if (!constructionDemand.typeCheckDemanded) return@mapNotNull null
-                val checker =
-                    orchestrationTask.operation.world.resolverRegistry.typeChecker(oer.occurrence.target.type)
-                        ?: return@mapNotNull null
-                require(checker.variables.isEmpty()) {
-                    "Grounded type checker ${checker.target.type.name} cannot declare variables"
-                }
-                check(!oer.occurrence.target.typeCheckerResult.isCompleted) {
-                    "Applicable type-checker result was completed before orchestration preparation"
-                }
-                val publication =
-                    GroundedTypeCheckerPublicationOccurrence(
-                        operation = orchestrationTask.operation,
-                        oerOccurrence = oer.occurrence,
-                        publicationResult = oer.occurrence.target,
-                        checker = checker,
-                        checkerFragments =
-                            checker.instantiateFragmentsAt(
-                                oer.occurrence.root,
-                                oer.occurrence.path,
-                            ),
-                        queryOER = orchestrationTask.queryOER,
-                    )
-                orchestrationTask.operation.cycleChecker.registerWriter(
-                    slot = publication.publicationResult.typeCheckerCycleSlot,
-                    writer = publication.oerOccurrence.typeCheckerCycleTask(),
-                )
-                publication
+        fun prepareAll(orchestrationTask: CoroutineOrchestrationTask): List<GroundedTypeCheckerPublicationOccurrence> {
+            val oer = orchestrationTask.objectOER
+            val constructionDemand = orchestrationTask.closedConstructionDemand.objectRooted
+            if (!constructionDemand.typeCheckDemanded) return emptyList()
+            val checker =
+                orchestrationTask.operation.world.resolverRegistry.typeChecker(oer.occurrence.target.type)
+                    ?: return emptyList()
+            require(checker.variables.isEmpty()) {
+                "Grounded type checker ${checker.target.type.name} cannot declare variables"
             }
+            check(!oer.occurrence.target.typeCheckerResult.isCompleted) {
+                "Applicable type-checker result was completed before orchestration preparation"
+            }
+            val publication =
+                GroundedTypeCheckerPublicationOccurrence(
+                    operation = orchestrationTask.operation,
+                    oerOccurrence = oer.occurrence,
+                    publicationResult = oer.occurrence.target,
+                    checker = checker,
+                    checkerFragments =
+                        checker.instantiateFragmentsAt(
+                            oer.occurrence.root,
+                            oer.occurrence.path,
+                        ),
+                    queryOER = orchestrationTask.queryOER,
+                )
+            orchestrationTask.operation.cycleChecker.registerWriter(
+                slot = publication.publicationResult.typeCheckerCycleSlot,
+                writer = publication.oerOccurrence.typeCheckerCycleTask(),
+            )
+            return listOf(publication)
+        }
 
         internal suspend fun execute(
             publication: GroundedTypeCheckerPublicationOccurrence,
@@ -146,6 +144,7 @@ internal class CoroutineTypeCheckerTask private constructor(
                 arguments = null,
                 checkedTarget = ResolverTarget.TypeCheckerTarget(publication.publicationResult.type),
             ),
+            inputs,
         )
         val result = publication.checker(inputs, ResolutionExecutionContext.Unsupported)
         check(publication.publicationResult.typeCheckerResult.complete(result)) {

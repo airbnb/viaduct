@@ -26,8 +26,56 @@ import model.requireField
 import model.requireObjectField
 import model.requireQueryTypeDef
 import semantics.resolvers.resolver01.resolve as resolveObservedField
+import viaduct.graphql.schema.ViaductSchema
 
 class GeneratorTest {
+    @Test
+    fun `runtime type checker generation activates FromProvider`() {
+        val config =
+            Config.default +
+                (SchemaObjectCount to 4..6) +
+                (ObjectFieldCount to 4..6) +
+                (FieldArgumentWeight to 1.0) +
+                (ExplicitFieldResolverWeight to 1.0) +
+                (NodeResolversEnabled to false) +
+                (ResolverFragmentsEnabled to true) +
+                (ResolverFragmentWeight to 1.0) +
+                (ResolverVariableWeight to 1.0) +
+                (ResolverVariablesEnabled to false) +
+                (ResolverFromArgumentVariablesEnabled to false) +
+                (ResolverFromProviderVariablesEnabled to true)
+        val random = RandomSource.seeded(2026093001L)
+        var generatedProviderPlans = 0
+        var generatedTypeCheckerProviderVariables = 0
+
+        repeat(20) {
+            val schema = Arb.schema(config).next(random)
+            val registry = schema.registry(config).next(random)
+            generatedProviderPlans += registry.features.fromProviderVariableCount
+            val world =
+                registry.world(
+                    schema,
+                    typeCheckerMode = GeneratedTypeCheckerMode.RUNTIME_SUCCESS,
+                )
+            generatedTypeCheckerProviderVariables +=
+                world.schema.types.values
+                    .filterIsInstance<ViaductSchema.Object>()
+                    .mapNotNull(world.resolverRegistry::typeChecker)
+                    .sumOf { checker ->
+                        checker.variables.values.count { definition ->
+                            definition == VariableDefinition.FromProvider
+                        }
+                    }
+        }
+
+        assertTrue(generatedProviderPlans > 0, "The sampled registries contained no provider plans")
+        assertTrue(
+            generatedTypeCheckerProviderVariables > 0,
+            "Runtime type-checker profiles generated no FromProvider variables",
+        )
+    }
+
+
     @Test
     fun `root field reference family has nested polymorphic targets and exact output cycles`() {
         val schema =
@@ -329,6 +377,11 @@ class GeneratorTest {
 
             assertTrue(schema.features.randomParentFieldCount > 0)
             assertTrue(schema.features.randomParentFieldCount in 6..8)
+            assertEquals(
+                schema.allObjects.filter { it.name.startsWith(GENERATED_RANDOM_PARENT_TYPE_PREFIX) }
+                    .sumOf { type -> type.fields.count { it.isParentField } },
+                schema.features.randomParentFieldCount,
+            )
             assertTrue(schema.features.maximumParentChainDepth in 3..4)
             assertTrue(
                 schema.query.fields
@@ -337,7 +390,8 @@ class GeneratorTest {
                         field.type.namedType.startsWith(GENERATED_RANDOM_PARENT_TYPE_PREFIX)
                     },
             )
-            registry.world(schema)
+            val world = registry.world(schema)
+            assertTrue(world.assumptions.parentFieldRelations.values.none { it.containingDef == world.schema.requireQueryTypeDef() })
 
             listProducers += schema.features.randomParentListProducerCount
             abstractTargets += schema.features.randomParentAbstractTargetCount

@@ -4,6 +4,7 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedQueue
 import model.ObjectEngineResult
 import model.ResolverOccurrenceId
+import model.registry.CheckerInput
 import model.registry.ResolverTarget
 import semantics.shared.CheckerInvocationObservation
 import semantics.shared.CheckerObserver
@@ -21,6 +22,24 @@ class CorrectnessCheckerObserver(
     override fun onCheckerInvocation(observation: CheckerInvocationObservation) {
         delegate.onCheckerInvocation(observation)
     }
+
+    private val inputsByOwner = ConcurrentHashMap<Pair<ResolverTarget, ResolverOccurrenceId>, ConcurrentLinkedQueue<Map<String, CheckerInput>>>()
+
+    override fun onCheckerInvocation(
+        observation: CheckerInvocationObservation,
+        inputs: Map<String, CheckerInput>,
+    ) {
+        val owner = observation.checkedTarget to ResolverOccurrenceId.at(observation.logicalQueryRoot, observation.occurrencePath)
+        inputsByOwner.computeIfAbsent(owner) { ConcurrentLinkedQueue() }.add(inputs.toMap())
+        delegate.onCheckerInvocation(observation, inputs)
+    }
+
+    fun checkerInputs(
+        target: ResolverTarget,
+        occurrenceId: ResolverOccurrenceId
+    ): List<Map<String, CheckerInput>> = inputsByOwner[target to occurrenceId]?.toList().orEmpty()
+
+    fun hasCheckerInputs(): Boolean = inputsByOwner.isNotEmpty()
 
     override fun onCheckerQueryFragmentPrepared(
         checkerTarget: ResolverTarget,

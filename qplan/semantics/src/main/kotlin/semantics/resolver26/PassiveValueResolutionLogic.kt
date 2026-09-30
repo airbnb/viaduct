@@ -2,6 +2,7 @@ package semantics.resolver26
 
 import model.EngineResultCell
 import model.InclusionCondition
+import model.ObjectEngineResult
 import model.ObjectSelection
 import model.ObjectSelectionForest
 import model.PathComponent
@@ -19,6 +20,11 @@ import viaduct.graphql.schema.ViaductSchema
 internal class PassiveValueResolutionLogic(
     operation: OperationContext,
 ) : SharedPassiveValueResolutionLogic<OrchestrationTask, OperationContext>(operation) {
+    override fun createObjectResult(
+        type: ViaductSchema.Object,
+        constructionDemand: Demand<SelectionForest>,
+    ): ObjectEngineResult = OrchestrationTask.createObjectResult(operation, type, constructionDemand)
+
     override fun createOrchestrationTask(
         occurrence: OEROccurrence,
         source: EngineObjectData.Sync,

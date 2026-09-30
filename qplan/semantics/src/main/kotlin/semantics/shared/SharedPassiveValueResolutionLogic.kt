@@ -240,8 +240,6 @@ internal abstract class SharedPassiveValueResolutionLogic<
         val type = source.schemaType
         val invocationByKey = collect(invocationDemand, type).byKey()
         val passiveByKey = collect(invocationDemand + closedConstructionDemand.values, type).byKey()
-        val checkedByKey = closedConstructionDemand.checked.byKey()
-        val uncheckedByKey = closedConstructionDemand.unchecked.byKey()
         if (operation.world.selectiveResolvers) {
             val selectedNames = invocationByKey.keys.mapTo(linkedSetOf()) { it.field.name }
             val unselectedFields =
@@ -273,11 +271,7 @@ internal abstract class SharedPassiveValueResolutionLogic<
                 }
                 val childInvocation = invocationByKey[key]?.subselections ?: selectionForestOf()
                 val childConstruction =
-                    Demand(
-                        checked = checkedByKey[key]?.subselections ?: selectionForestOf(),
-                        unchecked = uncheckedByKey[key]?.subselections ?: selectionForestOf(),
-                        typeCheckDemanded = key in checkedByKey,
-                    )
+                    closedConstructionDemand.descendants(key)
                 if (
                     containsReference &&
                     deferReferenceList(

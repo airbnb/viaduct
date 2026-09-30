@@ -1,5 +1,6 @@
 package semantics.contract
 
+import model.Arguments
 import model.EngineResult
 import model.ListEngineResult
 import model.ObjectEngineResult
@@ -8,11 +9,16 @@ import model.ResolverOccurrenceId
 import model.SelectionForest
 import model.merge
 import model.objectKey
+import model.registry.ProviderFragment
+import model.registry.VariableDefinition
+import model.usedVariables
 import semantics.arbitrary.GeneratedTypeCheckerMode
 import semantics.arbitrary.ResolverTestRun
 import semantics.correctresolution.CorrectnessCheckerObserver
 import semantics.correctresolution.CorrectnessResolverObserver
 import semantics.shared.CheckerKind
+import semantics.shared.groundedArguments
+import semantics.shared.isContextuallyGrounded
 import viaduct.engine.api.CheckerResult
 
 /** Runtime evidence, qualified by root identity and the entire path (including list indices). */
@@ -32,7 +38,28 @@ internal enum class GeneratedTypeCheckerSignature {
     RESOLVER_INPUT_FIELD_CHECK,
     RESOLVER_INPUT_TYPE_CHECK,
     FIELD_AND_TYPE_SAME_PATH,
+    FROM_PROVIDER_VARIABLE,
+    PROVIDER_VARIABLE_IN_OBJECT_INPUT,
+    PROVIDER_VARIABLE_IN_QUERY_INPUT,
+    FROM_OBJECT_PATH_VARIABLE,
+    FROM_QUERY_PATH_VARIABLE,
+    PATH_VARIABLE_IN_OBJECT_INPUT,
+    PATH_VARIABLE_IN_QUERY_INPUT,
+    NESTED_PATH_VARIABLE,
+    ERROR_ARGUMENT_IN_TYPE_INPUT,
 }
+
+private val runtimeSignatures = setOf(
+    GeneratedTypeCheckerSignature.FROM_PROVIDER_VARIABLE,
+    GeneratedTypeCheckerSignature.PROVIDER_VARIABLE_IN_OBJECT_INPUT,
+    GeneratedTypeCheckerSignature.PROVIDER_VARIABLE_IN_QUERY_INPUT,
+    GeneratedTypeCheckerSignature.FROM_OBJECT_PATH_VARIABLE,
+    GeneratedTypeCheckerSignature.FROM_QUERY_PATH_VARIABLE,
+    GeneratedTypeCheckerSignature.PATH_VARIABLE_IN_OBJECT_INPUT,
+    GeneratedTypeCheckerSignature.PATH_VARIABLE_IN_QUERY_INPUT,
+    GeneratedTypeCheckerSignature.NESTED_PATH_VARIABLE,
+    GeneratedTypeCheckerSignature.ERROR_ARGUMENT_IN_TYPE_INPUT,
+)
 
 internal class GeneratedTypeCheckerCoverage {
     private val counts = GeneratedTypeCheckerSignature.entries.associateWithTo(linkedMapOf()) { 0 }
@@ -46,10 +73,10 @@ internal class GeneratedTypeCheckerCoverage {
         mode: GeneratedTypeCheckerMode
     ) {
         val required = GeneratedTypeCheckerSignature.entries.toSet() - when (mode) {
-            GeneratedTypeCheckerMode.SUCCESS -> setOf(GeneratedTypeCheckerSignature.DENIAL, GeneratedTypeCheckerSignature.DENIAL_WITH_RESOLVER_INPUT)
-            GeneratedTypeCheckerMode.DENIAL -> setOf(GeneratedTypeCheckerSignature.SUCCESS, GeneratedTypeCheckerSignature.SUCCESS_WITH_RESOLVER_INPUT)
+            GeneratedTypeCheckerMode.SUCCESS, GeneratedTypeCheckerMode.RUNTIME_SUCCESS -> setOf(GeneratedTypeCheckerSignature.DENIAL, GeneratedTypeCheckerSignature.DENIAL_WITH_RESOLVER_INPUT)
+            GeneratedTypeCheckerMode.DENIAL, GeneratedTypeCheckerMode.RUNTIME_DENIAL -> setOf(GeneratedTypeCheckerSignature.SUCCESS, GeneratedTypeCheckerSignature.SUCCESS_WITH_RESOLVER_INPUT)
             else -> emptySet()
-        }
+        } - if (mode.runtimeVariables) emptySet() else runtimeSignatures
         val missing = required.filter { counts.getValue(it) == 0 }
         run.assertAggregate(missing.isEmpty(), "Type-checker profile missed activated coverage $missing; ${summary()}")
     }
@@ -80,6 +107,15 @@ internal fun GeneratedResolutionObservation.typeCheckerCoverage(): Set<Generated
                 null -> error("Invoked type checker has no result")
             }
             val definition = requireNotNull(world.resolverRegistry.typeChecker(checker.checkedType))
+            val fragments = definition.instantiateFragmentsAt(checker.logicalQueryRoot, checker.occurrencePath)
+            val providerVariables = definition.fragmentTemplates.flatMap { (name, pair) ->
+                pair.variables.filterValues { it == VariableDefinition.FromProvider }.keys.map { "$name:${it.variableName}" }
+            }.toSet()
+            val pathVariables = definition.fragmentTemplates.flatMap { (name, pair) ->
+                pair.variables.mapNotNull { (variable, provider) ->
+                    (provider as? VariableDefinition.FromField)?.let { "$name:${variable.variableName}" to it }
+                }
+            }.toMap()
 
             fun recordCheckedInputs(
                 root: ObjectEngineResult,
@@ -100,6 +136,43 @@ internal fun GeneratedResolutionObservation.typeCheckerCoverage(): Set<Generated
                 signature: GeneratedTypeCheckerSignature
             ) {
                 root.selectedPaths(path, forest) { selectedPath, _ ->
+                    val key = selectedPath.lastOrNull() as? ObjectEngineResult.ObjectKey
+                    if (key != null && key.isContextuallyGrounded(operation) && key.groundedArguments(operation) === Arguments.Error) {
+                        add(GeneratedTypeCheckerSignature.ERROR_ARGUMENT_IN_TYPE_INPUT)
+                    }
+                    key?.arguments?.usedVariables()?.forEach { variable ->
+                        if (variable.target == checker.checkedTarget && variable.instanceId?.resolverOccurrenceId == ownerId &&
+                            operation.variableBindings.isBound(variable.instanceId!!)
+                        ) {
+                            if (variable.variableName in providerVariables) {
+                                add(GeneratedTypeCheckerSignature.FROM_PROVIDER_VARIABLE)
+                                add(
+                                    if (signature == GeneratedTypeCheckerSignature.OBJECT_INPUT_RESOLVER) {
+                                        GeneratedTypeCheckerSignature.PROVIDER_VARIABLE_IN_OBJECT_INPUT
+                                    } else {
+                                        GeneratedTypeCheckerSignature.PROVIDER_VARIABLE_IN_QUERY_INPUT
+                                    },
+                                )
+                            }
+                            pathVariables[variable.variableName]?.let { provider ->
+                                add(
+                                    if (provider.providerFragment == ProviderFragment.OBJECT) {
+                                        GeneratedTypeCheckerSignature.FROM_OBJECT_PATH_VARIABLE
+                                    } else {
+                                        GeneratedTypeCheckerSignature.FROM_QUERY_PATH_VARIABLE
+                                    },
+                                )
+                                add(
+                                    if (signature == GeneratedTypeCheckerSignature.OBJECT_INPUT_RESOLVER) {
+                                        GeneratedTypeCheckerSignature.PATH_VARIABLE_IN_OBJECT_INPUT
+                                    } else {
+                                        GeneratedTypeCheckerSignature.PATH_VARIABLE_IN_QUERY_INPUT
+                                    },
+                                )
+                                if (provider.path.size > 1) add(GeneratedTypeCheckerSignature.NESTED_PATH_VARIABLE)
+                            }
+                        }
+                    }
                     val id = ResolverOccurrenceId.at(root, selectedPath)
                     resolvers.resolverInvocations(id).filter { !it.field.name.startsWith("__") && it.field.name != "V_A_typename" }.forEach { invocation ->
                         add(signature)
@@ -119,9 +192,9 @@ internal fun GeneratedResolutionObservation.typeCheckerCoverage(): Set<Generated
                     }
                 }
             }
-            recordRawInputs(checker.logicalQueryRoot, checker.occurrencePath, definition.objectFragment, GeneratedTypeCheckerSignature.OBJECT_INPUT_RESOLVER)
+            recordRawInputs(checker.logicalQueryRoot, checker.occurrencePath, fragments.objectFragment.constructionSelections, GeneratedTypeCheckerSignature.OBJECT_INPUT_RESOLVER)
             checkers.queryFragmentResults(checker.checkedTarget, ownerId).forEach { queryRoot ->
-                recordRawInputs(queryRoot, emptyList(), definition.queryFragment, GeneratedTypeCheckerSignature.QUERY_INPUT_RESOLVER)
+                recordRawInputs(queryRoot, emptyList(), fragments.queryFragment.constructionSelections, GeneratedTypeCheckerSignature.QUERY_INPUT_RESOLVER)
             }
         }
     }

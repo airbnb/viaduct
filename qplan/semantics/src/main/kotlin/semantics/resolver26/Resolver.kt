@@ -64,10 +64,7 @@ internal fun OperationContext.startResolve(selections: SelectionForest): ObjectE
 internal fun OperationContext.startResolve(selections: Demand<SelectionForest>): ObjectEngineResult {
     val source = world.resolverRegistry.createRootQueryInput()
     val result: ObjectEngineResult =
-        ObjectEngineResult.of(
-            type = source.schemaType,
-            mutable = true,
-        )
+        OrchestrationTask.createObjectResult(this, source.schemaType, selections)
     val orchestration =
         OrchestrationTask.create(
             operation = this@startResolve,

@@ -92,11 +92,21 @@ Substitution precedes exact-key grouping in Resolver01 through Resolver23. Resol
 
 ## Structured Concurrency Owns Request Lifetime
 
-One request-root scope owns all request coroutines. Successful synchronous return means request quiescence, and failure cancels sibling work through structured ownership.
+One request-root scope owns all request coroutines. Successful synchronous return means request quiescence. Explicit request cancellation propagates through structured ownership; an ordinary local tenant failure must instead be published at its owning result boundary without aborting the request or cancelling unrelated sibling work.
 
 Resolution code MUST treat the request scope as a root-task capability, not as a convenient general-purpose coroutine scope. Only orchestration-task, field-resolver-task, field-checker-task, and type-checker-task roots may launch directly on it. Object orchestration MUST retain its own conditionally launched request-root coroutine whenever an OER has active work, while an OER with no active work freezes synchronously without launching one. Query-fragment producers, provider readers, binding producers, materializers, and every other auxiliary coroutine MUST be children of the nearest owning orchestration, field-resolver, or checker task. Introducing another request-root task kind requires an explicit design change rather than a direct request-scope launch.
 
 Cross-task readiness travels through named promises or value-bearing deferreds, not through another task's call stack or `Job` completion. Independent object and list occurrences should not require a global barrier.
+
+## Tenant Failure Isolation And Progress
+
+Tenant work includes value resolvers, field and type checkers, and variables-provider callbacks. If any such work hangs, the entire operation may hang. If it takes a long time, the operation may wait for it even after another error makes its output unnecessary, including when the failed consumer was its only demander. Execution need not retract demand, cancel the producer, or detach request-owned work to return sooner.
+
+Producing the best possible outcome in the face of multiple errors is not a goal. Beyond the specified error-propagation and access-enforcement rules, there is no requirement to minimize failure latency, discover every error, choose an optimal error ordering, or salvage the largest possible partial result. Existing access checks and error-combination rules still apply; an error or unfinished check cannot be treated as permission to expose a protected value.
+
+An ordinary tenant failure must remain at its owned field, checker, or binding boundary and propagate through the specified dependency and GraphQL completion rules. Aborting or cancelling the whole request is never an acceptable fallback for handling one or more local tenant errors. Ordinary GraphQL non-null propagation can still make the response data null; that is distinct from an engine abort that discards unrelated work.
+
+This permission to wait does not excuse engine-created deadlocks, missing writers, or promises stranded after their producer exits or is bypassed. Required terminal error publication and explicit cancellation cleanup remain obligations. Caller cancellation and externally imposed deadlines are separate controls, not substitutes for local error handling; this policy does not require forcibly terminating uncooperative tenant code.
 
 ## Use Earlier Resolvers To Remove Accidental Complexity
 

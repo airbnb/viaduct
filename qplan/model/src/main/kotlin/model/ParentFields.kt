@@ -12,7 +12,8 @@ fun ViaductSchema.Field.isParentField(): Boolean = hasAppliedDirective(PARENT_DI
  * Derives and validates the parent-field-to-producer-field relation for [schema].
  *
  * Qplan deliberately restricts a child-producing field paired with `@parent` to have no arguments.
- * Singular, list, and nested-list child outputs are all admitted.
+ * Singular, list, and nested-list child outputs are all admitted, but their producer cannot
+ * belong to the Query root or a namespace type.
  */
 internal fun parentFieldRelations(schema: ViaductSchema): Map<ViaductSchema.ObjectField, ViaductSchema.ObjectField> {
     val objectFields =
@@ -48,6 +49,13 @@ internal fun parentFieldRelations(schema: ViaductSchema): Map<ViaductSchema.Obje
                     producers.joinToString { producer -> producer.coordinate() }
             }
             producers.single().also { producer ->
+                require(
+                    producer.containingDef != schema.queryTypeDef &&
+                        !producer.containingDef.hasAppliedDirective("namespaceType"),
+                ) {
+                    "Parent field ${parentField.coordinate()} must not refer back to Query or a " +
+                        "@namespaceType; its child producer is ${producer.coordinate()}"
+                }
                 require(producer.args.isEmpty()) {
                     "Parent-field child producer ${producer.coordinate()} must not have arguments"
                 }

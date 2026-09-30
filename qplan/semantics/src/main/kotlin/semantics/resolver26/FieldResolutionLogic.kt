@@ -122,7 +122,10 @@ internal class FieldResolutionLogic(
         val invocationDemand: SelectionForest =
             when (sourceOccurrence) {
                 is PassiveValueOccurrence -> sourceOccurrence.invocationDemand
-                else -> constructionDemand.successorDemandFromConstructionDemand(publication.operation.world)
+                else -> constructionDemand.successorDemandFromConstructionDemand(
+                    publication.operation.world,
+                    (sourceOccurrence.publicationExpectedType.baseTypeDef as? viaduct.graphql.schema.ViaductSchema.CompositeTypeDef)?.possibleObjectTypes.orEmpty(),
+                )
             }
 
         val activated = activatePublication()

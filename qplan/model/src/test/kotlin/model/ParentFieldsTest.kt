@@ -13,6 +13,79 @@ import viaduct.engine.api.CheckerResult
 
 class ParentFieldsTest {
     @Test
+    fun `parent relation rejects children produced by the Query root`() {
+        for (childType in listOf("Child", "[Child]", "[[Child!]!]!")) {
+            val exception = assertFailsWith<IllegalArgumentException> {
+                TestWorld.fromSDL(
+                    """
+                    directive @parent on FIELD_DEFINITION
+                    type Query { child: $childType }
+                    type Child { parent: Query @parent }
+                    """.trimIndent(),
+                )
+            }
+            assertTrue(exception.message!!.contains("Parent field Child.parent must not refer back to Query"))
+            assertTrue(exception.message!!.contains("Query.child"))
+        }
+    }
+
+    @Test
+    fun `parent relation rejects Query through an abstract parent target`() {
+        val exception = assertFailsWith<IllegalArgumentException> {
+            TestWorld.fromSDL(
+                """
+                directive @parent on FIELD_DEFINITION
+                type Query { child: Child }
+                union Ancestor = Query
+                type Child { parent: Ancestor @parent }
+                """.trimIndent(),
+            )
+        }
+        assertTrue(exception.message!!.contains("Parent field Child.parent must not refer back to Query"))
+        assertTrue(exception.message!!.contains("Query.child"))
+    }
+
+    @Test
+    fun `parent relation rejects children produced by a namespace at any depth`() {
+        for (childType in listOf("Child", "[Child]", "[[Child!]!]!")) {
+            for (namespacePath in listOf("type Query { space: Space }", "type Query { outer: Outer } type Outer @namespaceType { space: Space }")) {
+                val exception = assertFailsWith<IllegalArgumentException> {
+                    TestWorld.fromSDL(
+                        """
+                        directive @parent on FIELD_DEFINITION
+                        directive @namespaceType on OBJECT
+                        $namespacePath
+                        type Space @namespaceType { child: $childType }
+                        union Ancestor = Space
+                        type Child { parent: Ancestor @parent }
+                        """.trimIndent(),
+                    )
+                }
+                assertTrue(exception.message!!.contains("Parent field Child.parent must not refer back to Query or a @namespaceType"))
+                assertTrue(exception.message!!.contains("Space.child"))
+            }
+        }
+    }
+
+    @Test
+    fun `parent relation permits deeper ordinary ancestors beneath a namespace`() {
+        val world = TestWorld.fromSDL(
+            """
+            directive @parent on FIELD_DEFINITION
+            directive @namespaceType on OBJECT
+            type Query { space: Space }
+            type Space @namespaceType { wrapper: Wrapper }
+            type Wrapper { children: [[Child]] }
+            type Child { parent: Wrapper @parent }
+            """.trimIndent(),
+        )
+        assertSame(
+            world.schema.requireObjectField("Wrapper", "children"),
+            world.assumptions.parentFieldRelations[world.schema.requireObjectField("Child", "parent")],
+        )
+    }
+
+    @Test
     fun `parent backedge exposes the ancestor OER type-checker promise`() {
         val assumptions = TestWorld.fromSDL(SINGULAR_PARENT_SCHEMA).assumptions
         val schema = assumptions.schema

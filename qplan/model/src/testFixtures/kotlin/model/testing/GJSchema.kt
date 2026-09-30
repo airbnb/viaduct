@@ -273,6 +273,7 @@ internal class GJSchema private constructor(
                 "specifiedBy",
                 "oneOf",
                 "parent",
+                "namespaceType",
             )
 
         @JvmStatic

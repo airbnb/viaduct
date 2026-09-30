@@ -25,6 +25,8 @@ import semantics.shared.SharedOperationContext
  * [selections] must be rooted at the reasoning world's canonical Query type. Reapplying a resolver
  * with a nonempty Query fragment also requires its containing orchestration's associated Query OER
  * to be a correct resolution and its owner-local projection to conform to that fragment.
+ * A reference target's independent Query execution additionally requires its own root type check.
+ * Checker provider bindings must agree with the independently reapplied provider relation.
  * Each judged result gets one replay cache shared by demand and conformance checks. Nested Query
  * results get their own caches but retain the same reference witness across the whole judgment.
  * Neither the cache nor the witness is retained by [operation] across separate judgments.

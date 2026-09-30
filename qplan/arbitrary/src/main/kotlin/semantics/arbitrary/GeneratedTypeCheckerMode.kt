@@ -1,19 +1,33 @@
 package semantics.arbitrary
 
+import model.Arguments
+import model.MaterializeSelectionForest
 import model.SelectionForest
 import model.fragmentFrom
 import model.materializeSelectionForestOf
 import model.objectKey
+import model.registry.ProviderFragment
 import model.registry.ResolverFragmentTemplates
+import model.registry.ResolverTarget
 import model.registry.TypeCheckerResolver
+import model.registry.VariableDefinition
 import model.requireObjectField
 import model.requireQueryTypeDef
+import model.usedVariables
 import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.CheckerResultContext
 import viaduct.graphql.schema.ViaductSchema
 
 /** Execution-profile input; ordinary generated worlds remain type-checker free. */
-enum class GeneratedTypeCheckerMode { NONE, SUCCESS, DENIAL, MIXED }
+enum class GeneratedTypeCheckerMode(val runtimeVariables: Boolean = false) {
+    NONE,
+    SUCCESS,
+    DENIAL,
+    MIXED,
+    RUNTIME_SUCCESS(true),
+    RUNTIME_DENIAL(true),
+    RUNTIME_MIXED(true),
+}
 
 /**
  * Grounded type checks may demand scalar value resolvers on either root. A resolver is eligible
@@ -53,30 +67,96 @@ internal fun ArbitraryRegistry.generatedTypeCheckers(
                 schema.fragmentFrom("fragment Input on ${type.name} { $objectInput }").materializeSelections,
                 schema.fragmentFrom("fragment Input on Query { $queryInput }").materializeSelections,
             )
+            // Reuse sampled fragment/provider plans, just as field checkers do, but give every
+            // variable the type-checker target. No field argument tuple belongs to this owner.
+            val runtimePairs = if (mode.runtimeVariables) {
+                fieldResolverCoordinates.filter { coordinate ->
+                    val providers = variableProviders.filter { it.owner == coordinate }
+                    coordinate.typeName == type.name && providers.isNotEmpty() &&
+                        providers.none { it is FromArgumentVariableProviderPlan } &&
+                        dependencies.checkedTypes(coordinate).all { it < type.name }
+                }.take(2).map { coordinate -> runtimeTypeCheckerPair(schema, type, coordinate) }
+            } else {
+                emptyList()
+            }
+            val pairs = listOf(pair) + runtimePairs
             TypeCheckerResolver.of(
                 type,
                 query,
-                mapOf(
-                    "left" to pair,
-                    "right" to pair,
-                    "empty" to ResolverFragmentTemplates(materializeSelectionForestOf(), materializeSelectionForestOf()),
-                )
+                buildMap {
+                    pairs.forEachIndexed { index, templates ->
+                        put(if (index == 0) "left" else "left$index", templates)
+                        put(if (index == 0) "right" else "right$index", templates)
+                    }
+                    put("empty", ResolverFragmentTemplates(materializeSelectionForestOf(), materializeSelectionForestOf()))
+                },
             ) { inputs, _ ->
                 val left = inputs.getValue("left")
-                val right = inputs.getValue("right")
                 check(left.objectValue.get("kind") == type.name)
                 check(left.queryValue.get("rootKind") == "Query")
-                check(left.objectValue.resolutionFingerprint() == right.objectValue.resolutionFingerprint())
-                check(left.queryValue.resolutionFingerprint() == right.queryValue.resolutionFingerprint())
+                pairs.indices.forEach { index ->
+                    val first = inputs.getValue(if (index == 0) "left" else "left$index")
+                    val second = inputs.getValue(if (index == 0) "right" else "right$index")
+                    check(first.objectValue.resolutionFingerprint() == second.objectValue.resolutionFingerprint())
+                    check(first.queryValue.resolutionFingerprint() == second.queryValue.resolutionFingerprint())
+                }
                 when (mode) {
-                    GeneratedTypeCheckerMode.SUCCESS -> CheckerResult.Success
-                    GeneratedTypeCheckerMode.DENIAL -> GeneratedTypeCheckerDenial
-                    GeneratedTypeCheckerMode.MIXED ->
+                    GeneratedTypeCheckerMode.SUCCESS, GeneratedTypeCheckerMode.RUNTIME_SUCCESS -> CheckerResult.Success
+                    GeneratedTypeCheckerMode.DENIAL, GeneratedTypeCheckerMode.RUNTIME_DENIAL -> GeneratedTypeCheckerDenial
+                    GeneratedTypeCheckerMode.MIXED, GeneratedTypeCheckerMode.RUNTIME_MIXED ->
                         if (type.name.hashCode() % 2 == 0) CheckerResult.Success else GeneratedTypeCheckerDenial
                     GeneratedTypeCheckerMode.NONE -> error("No generated type checker was requested")
                 }
             }
         }
+}
+
+private fun ArbitraryRegistry.runtimeTypeCheckerPair(
+    schema: ViaductSchema,
+    type: ViaductSchema.Object,
+    coordinate: FieldCoordinate,
+): ResolverFragmentTemplates {
+    val field = schema.requireObjectField(coordinate.typeName, coordinate.fieldName)
+    val target = ResolverTarget.TypeCheckerTarget(type)
+    val objectInput = objectFragments.getValue(coordinate).materialize(schema, field, target).materializeSelections
+    val queryInput = queryFragments.getValue(coordinate).materialize(schema, field, target).materializeSelections
+    val usedNames = (objectInput.constructionSelections().usedVariables() + queryInput.constructionSelections().usedVariables())
+        .mapTo(linkedSetOf(), Arguments.Variable::variableName)
+    val providers = variableProviders.filter { it.owner == coordinate && it.variableName in usedNames }
+    val variables = providers.associate { provider ->
+        val definition = when (provider) {
+            is FromProviderVariableProviderPlan -> VariableDefinition.FromProvider
+            is FromArgumentVariableProviderPlan -> error("Type checkers have no field arguments")
+            is FromFieldVariableProviderPlan -> {
+                var selections: MaterializeSelectionForest = if (provider.providerFragment == ProviderFragment.OBJECT) objectInput else queryInput
+                val path = provider.responsePath().map { responseKey ->
+                    val selected = selections.filter { it.responseKey == responseKey }
+                    val keys = mutableListOf<model.ObjectEngineResult.Key>()
+                    selected.forEach { keys += it.key }
+                    val key = keys.first()
+                    check(selected.all { it.key == key })
+                    selections = selected.flatMap { it.subselections }
+                    key
+                }
+                VariableDefinition.FromField.of(provider.providerFragment, path, provider.responsePath())
+            }
+        }
+        Arguments.Variable.of(target, provider.variableName) to definition
+    }
+    val providerPlans = providers.filterIsInstance<FromProviderVariableProviderPlan>()
+    return ResolverFragmentTemplates(
+        objectFragmentTemplate = objectInput,
+        queryFragmentTemplate = queryInput,
+        variables = variables,
+        variablesProvider = if (providerPlans.isEmpty()) {
+            null
+        } else {
+            { arguments ->
+                // Type-checker callbacks receive the empty tuple, never the sampled field's arguments.
+                providerPlans.associate { it.variableName to it.value(arguments, field) }
+            }
+        },
+    )
 }
 
 private object GeneratedTypeCheckerDenial : CheckerResult.Error {

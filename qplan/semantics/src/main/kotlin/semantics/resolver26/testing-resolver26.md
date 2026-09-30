@@ -100,13 +100,13 @@ Run the dispatcher-instrumented campaign with selected rounds and either each ro
 ../gradlew -p . :semantics:resolver26MultithreadedStress -Presolver26MultithreadedStressRounds=1,46,81,95 -Presolver26MultithreadedStressSize=campaign -Pviaduct.resolution.threadcount=10
 ```
 
-With no overrides, the dedicated task runs round 1 at its recorded campaign dimensions: five profiles of 2,000 cases, for 10,000 cases total, on 100 threads:
+With no overrides, the dedicated task runs round 1 at its recorded campaign dimensions (five checker-free profiles of 2,000 cases) plus the success, denial, and mixed type-checker profiles (2,500 coordinates each, with both query permutations), all on 100 threads. The checker profiles use seed `2026093001` by default; `resolver26TypeCheckerStressSeed` and `resolver26TypeCheckerStressSize` override their seed and dimensions independently of the broad campaign.
 
 ```shell
 ../gradlew -p . :semantics:resolver26MultithreadedStress
 ```
 
-The dedicated multithreaded task records continuation overlap and thread names. Its assertions are useful scheduling evidence, but external OS observation is the stronger check that those threads actually execute on multiple CPUs.
+The dedicated multithreaded task records continuation overlap and thread names for the broad campaign and separately for each checker profile. Every checker profile retains independent correctness replay, exact checker accounting, and all activation guards; an invocation-free or provider-free run cannot pass. Its assertions are useful scheduling evidence, but external OS observation is the stronger check that those threads actually execute on multiple CPUs.
 
 ## Runtime Field-Checker Validation
 
@@ -122,6 +122,25 @@ Run the 2,500-case checker workload with a recorded seed; select 100 resolution 
 ```
 
 Profiles accept `success`, `denial`, `mixed`, `passive`, or `root-reference`; `resolver26FieldCheckerStressSize` overrides the default `50:5:10` product. Replay failures through `resolverPropertyReplay` with class `semantics.resolver26.FieldCheckerGeneratedTest`, the reported profile and seed, the original `resolverPropertySize`, and the selected `resolverPropertyCase=S:R:Q`. The original size is essential because changing registry/query counts changes random-number consumption before the selected coordinate.
+
+## Runtime Type-Checker Campaigns
+
+`TypeCheckerGeneratedTest` runs `resolver26-type-checker-success`, `resolver26-type-checker-denial`, and `resolver26-type-checker-mixed`. Each coordinate executes a randomized schema/registry/query world with mixed runtime field checks and type-owned variables sourced from object paths, Query paths, and callback providers. Type checkers reuse eligible sampled fragment/provider plans with their own target identity; a conservative transitive type order avoids type/value wait cycles. The profiles retain the normal argument-error generation weight and require error-valued arguments in type-checker inputs, actual consumption of completed path bindings from both provider roots and callback-provider bindings on each input root, variable use in both input fragments, and nested provider paths, alongside the existing type-checker activation guards. Both query permutations pass independent correctness replay and duplicate-preserving checker application accounting. `GeneratedTypeCheckerVariableCoverageTest` rejects registration-only and missing-binding evidence. `RuntimeTypeCheckerWitnessTest` separately retains the small deterministic named-provider and conditional-exclusion regression; it is no longer repeated at every stress coordinate.
+
+Run all three profiles at 2,500 coordinates each, or just the checker portion of the instrumented 100-thread task:
+
+```shell
+../gradlew -p . :semantics:resolver26TypeCheckerStress -Presolver26TypeCheckerStressSeed=424242
+../gradlew -p . :semantics:resolver26MultithreadedStress --tests '*generated * type checker worlds resolve correctly' -Presolver26TypeCheckerStressSeed=2026093001
+```
+
+`resolver26TypeCheckerStressProfile` accepts `all` (the default), `success`, `denial`, or `mixed`; `resolver26TypeCheckerStressSize` defaults to `50:5:10`. Replay a random case at its original size and coordinate:
+
+```shell
+../gradlew -p . :semantics:resolverPropertyReplay -PresolverPropertyClass=semantics.resolver26.TypeCheckerGeneratedTest -PresolverPropertyProfile=resolver26-type-checker-mixed -PresolverPropertySeed=424242 -PresolverPropertySize=50:5:10 -PresolverPropertyCase=1:1:1
+```
+
+`SymbolicTypeCheckerTest`, `TypeCheckerLifecycleTest`, and the explicitly composed shared contracts are the deterministic runtime gates. The existing field-checker stress task remains a separate regression gate. Infinite callback suspension is tested with a short external bound and explicit cancellation; declarative cycles must fail through cycle detection, independently of the finite generated workload bounds.
 
 ## CPU Parallelism Probe
 

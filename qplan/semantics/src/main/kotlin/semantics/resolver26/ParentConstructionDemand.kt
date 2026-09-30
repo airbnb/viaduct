@@ -9,6 +9,7 @@ import model.SelectionForest
 import model.guardedBy
 import model.objectKey
 import model.registry.FieldCheckerResolver
+import model.registry.TypeCheckerResolver
 import model.selectionForestOf
 import semantics.shared.Demand
 import semantics.shared.guardedBy
@@ -29,7 +30,7 @@ internal fun SelectionForest.liftParentConstructionDemand(world: Assumptions): S
     } else {
         findParentDemandInSelectionForest(
             world,
-            ParentDemandContext { null },
+            ParentDemandContext(fieldChecker = { null }),
             checked = true,
         ).localDemand.values
     }
@@ -39,7 +40,7 @@ internal fun Demand<SelectionForest>.liftParentConstructionDemand(world: Assumpt
     if (world.parentFieldRelations.isEmpty()) {
         Demand.EMPTY
     } else {
-        val context = ParentDemandContext(world.resolverRegistry::fieldChecker)
+        val context = ParentDemandContext(world.resolverRegistry::fieldChecker, world.resolverRegistry::typeChecker)
         (
             checked.findParentDemandInSelectionForest(world, context, checked = true) +
                 unchecked.findParentDemandInSelectionForest(world, context, checked = false)
@@ -49,7 +50,10 @@ internal fun Demand<SelectionForest>.liftParentConstructionDemand(world: Assumpt
 /** Memoization and cycle detection are local to one parent-demand computation. */
 private class ParentDemandContext(
     val fieldChecker: (ViaductSchema.ObjectField) -> FieldCheckerResolver?,
+    val typeChecker: (ViaductSchema.Object) -> TypeCheckerResolver? = { null },
 ) {
+    val expandingTypes = mutableSetOf<ViaductSchema.Object>()
+    val parentDemandByType = mutableMapOf<ViaductSchema.Object, ParentDemandAnalysis>()
     val parentDemandByObjectFragmentId = mutableMapOf<ObjectFragmentId, ParentDemandAnalysis>()
     val expandingObjectFragmentIds = mutableSetOf<ObjectFragmentId>()
 }
@@ -119,7 +123,7 @@ private fun ObjectSelection.findParentDemandInObjectSelection(
     if (key is ObjectEngineResult.ParentKey) {
         val parentDemand =
             if (checked) {
-                Demand.checked(subselections.guardedBy(inclusionCondition))
+                Demand.checked(subselections).guardedBy(inclusionCondition)
             } else {
                 Demand.unchecked(subselections.guardedBy(inclusionCondition))
             }
@@ -134,12 +138,15 @@ private fun ObjectSelection.findParentDemandInObjectSelection(
         )
     }
 
-    val nested =
-        subselections.findParentDemandInSelectionForest(
-            world,
-            context,
-            checked,
-        )
+    val typeInputs = if (checked && inclusionCondition !== InclusionCondition.Never) {
+        (key.field.type.baseTypeDef as? ViaductSchema.CompositeTypeDef)?.possibleObjectTypes
+            .orEmpty().fold(ParentDemandAnalysis()) { result, type ->
+                result + type.findParentDemandInTypeFragment(world, context)
+            }
+    } else {
+        ParentDemandAnalysis()
+    }
+    val nested = subselections.findParentDemandInSelectionForest(world, context, checked) + typeInputs
 
     fun carryNestedDemand(demand: SelectionForest): SelectionForest =
         if (demand.isEmpty()) {
@@ -262,3 +269,20 @@ internal fun SelectionForest.withoutInclusionConditions(): SelectionForest =
             ),
         )
     }
+
+/** Type-checker inputs cross an unchecked boundary, with a separate recursion cut from fields. */
+private fun ViaductSchema.Object.findParentDemandInTypeFragment(
+    world: Assumptions,
+    context: ParentDemandContext,
+): ParentDemandAnalysis {
+    context.parentDemandByType[this]?.let { return it }
+    val checker = context.typeChecker(this) ?: return ParentDemandAnalysis()
+    if (!context.expandingTypes.add(this)) return ParentDemandAnalysis(reusable = false)
+    val result = try {
+        checker.objectFragment.withoutInclusionConditions().findParentDemandInSelectionForest(world, context, checked = false)
+    } finally {
+        context.expandingTypes.remove(this)
+    }
+    if (result.reusable) context.parentDemandByType[this] = result
+    return result
+}

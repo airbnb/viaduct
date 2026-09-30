@@ -111,7 +111,7 @@ private class ResolverInputConformanceLogic(private val operation: SharedOperati
     }
 }
 
-private fun EngineObjectData.Sync.sameMaterializedValueAs(other: EngineObjectData.Sync): Boolean {
+internal fun EngineObjectData.Sync.sameMaterializedValueAs(other: EngineObjectData.Sync): Boolean {
     if (schemaType != other.schemaType) return false
     val selections = getSelections().toSet()
     if (selections != other.getSelections().toSet()) return false

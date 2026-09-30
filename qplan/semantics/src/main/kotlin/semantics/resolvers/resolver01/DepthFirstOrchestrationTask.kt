@@ -50,6 +50,7 @@ internal class DepthFirstOrchestrationTask private constructor(
     fun run(resolveFringe: () -> Unit = {}) {
         operation.resolverObserver.onQueryOERPrepared(
             queryOER = queryOER,
+            owningOccurrence = objectOER.occurrence,
             queryOERDepth = queryOERDepth + 1,
         )
         listOf(objectOER, queryOER).forEach { resolverOER ->

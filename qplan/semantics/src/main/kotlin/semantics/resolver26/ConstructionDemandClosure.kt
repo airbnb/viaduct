@@ -18,6 +18,7 @@ import model.registry.FieldCheckerResolver
 import model.registry.FieldValueResolver
 import model.registry.InstantiatedFieldPathDefinition
 import model.registry.ResolverFragments
+import model.registry.TypeCheckerResolver
 import model.registry.VariableInstanceDefinition
 import model.requireQueryTypeDef
 import model.satisfiableAlternatives
@@ -36,6 +37,7 @@ import semantics.shared.fieldResolverCycleTask
 import semantics.shared.merge
 import semantics.shared.plus
 import semantics.shared.requiresStandardResolution
+import semantics.shared.typeCheckerCycleTask
 import viaduct.engine.api.EngineObjectData
 import viaduct.graphql.schema.ViaductSchema
 
@@ -52,6 +54,7 @@ internal class ClosedConstructionDemandContext(
 internal class ClosedOERConstructionDemandContext(
     val constructionDemand: Demand<ObjectSelectionForest>,
     val fieldCheckerOccurrences: Map<ObjectEngineResult.ObjectKey, FieldCheckerOccurrence>,
+    val typeCheckerOccurrence: TypeCheckerOccurrence? = null,
     val fieldResolverOccurrences: Map<ObjectEngineResult.ObjectKey, FieldResolverOccurrence>,
     val rootFieldReferenceOccurrences: Map<ObjectEngineResult.ObjectKey, RootFieldReferenceOccurrence>,
     val variableProviderReadsByResolverOccurrence: Map<ResolverOccurrenceId, List<VariableProviderReadOccurrence>>,
@@ -103,6 +106,10 @@ internal fun EngineObjectData.Sync.closeOrchestrationConstructionDemand(
     // The same four forests as grounded closure, retaining symbolic argument identities.
     var accumulatedDemand = initialDemand.withLiftedParentDemand(world)
 
+    // Query fragments demand fields within the associated root. Schema validation prohibits
+    // parent backedges to Query, so this root cannot acquire incoming type-check demand.
+    val objectTypeChecker = objectOccurrence.typeCheckerContext(world)
+
     // Unlike grounded expanded-key sets, these also retain excluded/error reservations for
     // finalization. Only newly discovered satisfiable inclusions contribute fragment demand.
     val objectResolverContexts = linkedMapOf<ObjectEngineResult.ObjectKey, ResolverContext>()
@@ -140,11 +147,13 @@ internal fun EngineObjectData.Sync.closeOrchestrationConstructionDemand(
             queryCheckerContexts,
             expansionState,
         )
+        val newObjectTypeInclusions = objectTypeChecker.newInclusions(accumulatedDemand.objectRooted.typeCheckCondition)
         if (
             newObjectResolverKeyInclusions.isNotEmpty() ||
             newQueryResolverKeyInclusions.isNotEmpty() ||
             newObjectCheckerKeyInclusions.isNotEmpty() ||
-            newQueryCheckerKeyInclusions.isNotEmpty()
+            newQueryCheckerKeyInclusions.isNotEmpty() ||
+            newObjectTypeInclusions.isNotEmpty()
         ) {
             demandNotClosed = true
             val objectResolverInputs = newObjectResolverKeyInclusions.resolverInputDemand(objectResolverContexts)
@@ -155,15 +164,17 @@ internal fun EngineObjectData.Sync.closeOrchestrationConstructionDemand(
                     queryResolverInputs.queryFragment
             val objectCheckerInputs = newObjectCheckerKeyInclusions.checkerInputDemand(objectCheckerContexts)
             val queryCheckerInputs = newQueryCheckerKeyInclusions.checkerInputDemand(queryCheckerContexts)
+            val objectTypeInputs = objectTypeChecker.inputDemand(newObjectTypeInclusions)
             val objectInputs = Demand(
                 checked = objectResolverInputs.objectFragment,
-                unchecked = objectCheckerInputs.objectFragment,
+                unchecked = objectCheckerInputs.objectFragment + objectTypeInputs.objectFragment,
                 typeCheckDemanded = false,
             )
             val queryInputs = Demand(
                 checked = queryInputSelections,
                 unchecked = objectCheckerInputs.queryFragment +
-                    queryCheckerInputs.objectFragment + queryCheckerInputs.queryFragment,
+                    queryCheckerInputs.objectFragment + queryCheckerInputs.queryFragment +
+                    objectTypeInputs.queryFragment,
                 typeCheckDemanded = false,
             )
             // Preserve incremental lifting: only initial demand and new contributions need analysis.
@@ -183,6 +194,7 @@ internal fun EngineObjectData.Sync.closeOrchestrationConstructionDemand(
                 accumulatedDemand = accumulatedDemand.objectRooted,
                 resolverContexts = objectResolverContexts,
                 checkerContexts = objectCheckerContexts,
+                typeCheckerOccurrence = objectTypeChecker?.toOccurrence(objectOccurrence, queryOccurrence),
                 requiresStandardResolution = ::requiresStandardResolution,
                 objectProviderResult = objectOccurrence.target,
                 queryProviderResult = queryOccurrence.target,
@@ -195,6 +207,7 @@ internal fun EngineObjectData.Sync.closeOrchestrationConstructionDemand(
                 accumulatedDemand = accumulatedDemand.queryRooted,
                 resolverContexts = queryResolverContexts,
                 checkerContexts = queryCheckerContexts,
+                typeCheckerOccurrence = null,
                 requiresStandardResolution = { true },
                 objectProviderResult = queryOccurrence.target,
                 queryProviderResult = queryOccurrence.target,
@@ -293,6 +306,7 @@ private fun finalizeClosedOERConstructionDemand(
     occurrence: OEROccurrence,
     accumulatedDemand: Demand<SelectionForest>,
     checkerContexts: Map<ObjectEngineResult.ObjectKey, CheckerContext>,
+    typeCheckerOccurrence: TypeCheckerOccurrence?,
     resolverContexts: Map<ObjectEngineResult.ObjectKey, ResolverContext>,
     requiresStandardResolution: (ObjectEngineResult.ObjectKey) -> Boolean,
     objectProviderResult: ObjectEngineResult,
@@ -324,6 +338,7 @@ private fun finalizeClosedOERConstructionDemand(
     }
     return ClosedOERConstructionDemandContext(
         constructionDemand = constructionDemand,
+        typeCheckerOccurrence = typeCheckerOccurrence,
         fieldCheckerOccurrences = checkerContexts.mapValues { (key, context) ->
             context.toFieldCheckerOccurrence(
                 selection = constructionDemand.checked.byKey().getValue(key),
@@ -526,4 +541,52 @@ private class SymbolicExpansionState {
         val lineage = inherited + site
         variables.forEach { definition -> ancestors[requireNotNull(definition.variable.instanceId)] = lineage }
     }
+}
+
+/** An OER-owned checker context has no field key or field-argument activation dependency. */
+internal class TypeCheckerOccurrence(
+    val checker: TypeCheckerResolver,
+    val fragments: ResolverFragments,
+    val inclusionCondition: InclusionCondition,
+    val providerReads: List<VariableProviderReadOccurrence>,
+) {
+    val variableDefinitions = (fragments.objectFragment.variableDefinitions + fragments.queryFragment.variableDefinitions)
+        .distinctBy { it.variable }
+}
+
+private class TypeCheckerContext(
+    val checker: TypeCheckerResolver,
+    val fragments: ResolverFragments,
+) {
+    val accumulatedInclusions = linkedSetOf<InclusionCondition>()
+
+    fun toOccurrence(
+        occurrence: OEROccurrence,
+        queryOccurrence: OEROccurrence
+    ): TypeCheckerOccurrence? {
+        if (accumulatedInclusions.isEmpty()) return null
+        val condition = InclusionCondition.anyOf(accumulatedInclusions)
+        return TypeCheckerOccurrence(
+            checker,
+            fragments,
+            condition,
+            fragments.variableProviderReads(occurrence.target, queryOccurrence.target, occurrence.typeCheckerCycleTask(), condition),
+        )
+    }
+}
+
+private fun OEROccurrence.typeCheckerContext(world: Assumptions): TypeCheckerContext? =
+    world.resolverRegistry.typeChecker(target.type)?.let { checker ->
+        TypeCheckerContext(checker, checker.instantiateFragmentsAt(root, path))
+    }
+
+private fun TypeCheckerContext?.newInclusions(condition: InclusionCondition): List<InclusionCondition> =
+    if (this == null) emptyList() else condition.satisfiableAlternatives().filter(accumulatedInclusions::add)
+
+private fun TypeCheckerContext?.inputDemand(inclusions: List<InclusionCondition>): ResolverInputConstructionDemand {
+    val condition = InclusionCondition.anyOf(inclusions)
+    return ResolverInputConstructionDemand(
+        if (this == null || inclusions.isEmpty()) selectionForestOf() else fragments.objectFragment.constructionSelections.guardedBy(condition),
+        if (this == null || inclusions.isEmpty()) selectionForestOf() else fragments.queryFragment.constructionSelections.guardedBy(condition),
+    )
 }

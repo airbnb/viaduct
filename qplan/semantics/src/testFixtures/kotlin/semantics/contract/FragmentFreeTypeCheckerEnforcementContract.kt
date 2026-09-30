@@ -6,10 +6,17 @@ import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import model.EngineErrorData
 import model.ErrorEngineResult
 import model.ListEngineResult
@@ -61,6 +68,8 @@ interface FragmentFreeTypeCheckerEnforcementContract {
                 Case("fieldDenied", "consumeFieldDenied", "FieldDenied"),
                 Case("typeDenied", "consumeTypeDenied", "TypeDenied"),
                 Case("bothDenied", "consumeBothDenied", "BothDenied"),
+                Case("fieldDeniedTypeAllowed", "consumeFieldDeniedTypeAllowed", "FieldDeniedTypeAllowed"),
+                Case("fieldAllowedTypeDenied", "consumeFieldAllowedTypeDenied", "FieldAllowedTypeDenied"),
             )
         val fieldDenial = TypeEnforcementError("field denied")
         val typeDenial = TypeEnforcementError("type denied")
@@ -84,6 +93,10 @@ interface FragmentFreeTypeCheckerEnforcementContract {
                       consumeTypeDenied: Int!
                       bothDenied: BothDenied!
                       consumeBothDenied: Int!
+                      fieldDeniedTypeAllowed: FieldDeniedTypeAllowed!
+                      consumeFieldDeniedTypeAllowed: Int!
+                      fieldAllowedTypeDenied: FieldAllowedTypeDenied!
+                      consumeFieldAllowedTypeDenied: Int!
                     }
 
                     type FieldOnly { value: Int! }
@@ -92,6 +105,8 @@ interface FragmentFreeTypeCheckerEnforcementContract {
                     type FieldDenied { value: Int! }
                     type TypeDenied { value: Int! }
                     type BothDenied { value: Int! }
+                    type FieldDeniedTypeAllowed { value: Int! }
+                    type FieldAllowedTypeDenied { value: Int! }
                     """.trimIndent(),
                 fieldResolvers = { schema ->
                     buildMap {
@@ -127,6 +142,8 @@ interface FragmentFreeTypeCheckerEnforcementContract {
                         "bothAllowed" to CheckerResult.Success,
                         "fieldDenied" to fieldDenial,
                         "bothDenied" to fieldDenial,
+                        "fieldDeniedTypeAllowed" to fieldDenial,
+                        "fieldAllowedTypeDenied" to CheckerResult.Success,
                     ).associate { (name, result) ->
                         val field = schema.requireObjectField("Query", name)
                         field to
@@ -141,6 +158,8 @@ interface FragmentFreeTypeCheckerEnforcementContract {
                         "BothAllowed" to CheckerResult.Success,
                         "TypeDenied" to typeDenial,
                         "BothDenied" to combiningTypeDenial,
+                        "FieldDeniedTypeAllowed" to CheckerResult.Success,
+                        "FieldAllowedTypeDenied" to typeDenial,
                     ).associate { (name, result) ->
                         val type = schema.requireType(name) as ViaductSchema.Object
                         type to
@@ -163,6 +182,8 @@ interface FragmentFreeTypeCheckerEnforcementContract {
         assertSame(fieldDenial.error, result.t2Error(world, "consumeFieldDenied").errorData.cause)
         assertSame(typeDenial.error, result.t2Error(world, "consumeTypeDenied").errorData.cause)
         assertSame(combinedDenial.error, result.t2Error(world, "consumeBothDenied").errorData.cause)
+        assertSame(fieldDenial.error, result.t2Error(world, "consumeFieldDeniedTypeAllowed").errorData.cause)
+        assertSame(typeDenial.error, result.t2Error(world, "consumeFieldAllowedTypeDenied").errorData.cause)
     }
 
     @Test
@@ -357,10 +378,12 @@ interface FragmentFreeTypeCheckerEnforcementContract {
     }
 
     @Test
-    fun `raw checker input bypasses the type denial enforced by an ordinary consumer`() {
+    fun `raw checker input bypasses combined field and type denial enforced by an ordinary consumer`() {
         val rawCheckerCalls = AtomicInteger()
         val typeCheckerCalls = AtomicInteger()
-        val denial = TypeEnforcementError("ordinary consumer denied")
+        val fieldDenial = TypeEnforcementError("field denied")
+        val combinedDenial = TypeEnforcementError("combined denial")
+        val typeDenial = CombiningTypeEnforcementError(fieldDenial, combinedDenial)
         val world =
             TestWorld.fromSDL(
                 selectiveResolvers = coroutineResolverSubject.selectiveResolvers,
@@ -386,6 +409,7 @@ interface FragmentFreeTypeCheckerEnforcementContract {
                     )
                 },
                 fieldCheckers = { schema ->
+                    val item = schema.requireObjectField("Query", "item")
                     val trigger = schema.requireObjectField("Query", "trigger")
                     val raw = schema.fragmentFrom("fragment Raw on Query { item { value } }").materializeSelections
                     mapOf(
@@ -402,10 +426,14 @@ interface FragmentFreeTypeCheckerEnforcementContract {
                                             ),
                                     ),
                             ) { _, inputs, _ ->
-                                val item = assertIs<EngineObjectData.Sync>(inputs.getValue("raw").objectValue.outputValue("item"))
-                                assertEquals(7, item.outputValue("value"))
+                                val rawItem = assertIs<EngineObjectData.Sync>(inputs.getValue("raw").objectValue.outputValue("item"))
+                                assertEquals(7, rawItem.outputValue("value"))
                                 rawCheckerCalls.incrementAndGet()
                                 CheckerResult.Success
+                            },
+                        item to
+                            FieldCheckerResolver.of(item, schema.requireQueryTypeDef()) { _, _, _ ->
+                                fieldDenial
                             },
                     )
                 },
@@ -414,7 +442,7 @@ interface FragmentFreeTypeCheckerEnforcementContract {
                     mapOf(
                         item to TypeCheckerResolver.of(item, schema.requireQueryTypeDef()) { _, _ ->
                             typeCheckerCalls.incrementAndGet()
-                            denial
+                            typeDenial
                         },
                     )
                 },
@@ -423,7 +451,7 @@ interface FragmentFreeTypeCheckerEnforcementContract {
         val result = resolveT2(world, "{ trigger consumer }")
 
         assertEquals(1, result.t2Value(world, "trigger"))
-        assertSame(denial.error, result.t2Error(world, "consumer").errorData.cause)
+        assertSame(combinedDenial.error, result.t2Error(world, "consumer").errorData.cause)
         assertEquals(1, rawCheckerCalls.get())
         assertEquals(1, typeCheckerCalls.get())
     }
@@ -591,6 +619,69 @@ interface FragmentFreeTypeCheckerEnforcementContract {
         )
         assertEquals(42, result.t2Value(world, "healthy"))
     }
+
+    @Test
+    fun `request cancellation during type-checker execution terminates the OER-owned result`() =
+        runBlocking {
+            val checkerEntered = CompletableDeferred<Unit>()
+            val world =
+                TestWorld.fromSDL(
+                    selectiveResolvers = coroutineResolverSubject.selectiveResolvers,
+                    schemaSDL =
+                        """
+                        type Query { item: Item!, consumer: Int! }
+                        type Item { value: Int! }
+                        """.trimIndent(),
+                    fieldResolvers = { schema ->
+                        val item = schema.requireObjectField("Query", "item")
+                        val consumer = schema.requireObjectField("Query", "consumer")
+                        mapOf(
+                            item to
+                                fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
+                                    schema.objectOf("Item") { "value" setTo 7 }
+                                },
+                            consumer to
+                                fieldResolverOf(
+                                    schema.fragmentFrom("fragment Input on Query { item { value } }"),
+                                ) { input, _ -> input.outputValue("item") },
+                        )
+                    },
+                    typeCheckers = { schema ->
+                        val item = schema.requireType("Item") as ViaductSchema.Object
+                        mapOf(
+                            item to TypeCheckerResolver.of(item, schema.requireQueryTypeDef()) { _, _ ->
+                                checkerEntered.complete(Unit)
+                                CompletableDeferred<Nothing>().await()
+                            },
+                        )
+                    },
+                ).assumptions
+            val requestJob = Job()
+            val requestScope = CoroutineScope(coroutineContext + requestJob)
+            val cancellation = CancellationException("request cancelled during type checker")
+            try {
+                val result =
+                    coroutineResolverSubject.startResolution(
+                        SharedOperationContext.create(world),
+                        requestScope,
+                        world.operationSelectionsFrom("{ consumer }"),
+                        CycleCheckState.create(),
+                    )
+                withTimeout(5_000) { checkerEntered.await() }
+                val item = assertIs<ObjectEngineResult>(result.t2Value(world, "item"))
+
+                requestJob.cancel(cancellation)
+                withTimeout(5_000) { requestJob.join() }
+
+                val checkerFailure =
+                    assertFailsWith<CancellationException> {
+                        item.typeCheckerResult.await()
+                    }
+                assertEquals(cancellation.message, checkerFailure.message)
+            } finally {
+                requestJob.cancelAndJoin()
+            }
+        }
 
     @Test
     fun `type-checker writer and resolver read use the OER-owned type slot`() {

@@ -45,6 +45,13 @@ interface ResolverObserver {
         queryOERDepth: Int? = null,
     ) = Unit
 
+    /** Records the paired root even when an owner fails before it can materialize Query input. */
+    fun onQueryOERPrepared(
+        queryOER: SharedOERContext,
+        owningOccurrence: OEROccurrence,
+        queryOERDepth: Int? = null,
+    ) = onQueryOERPrepared(queryOER, queryOERDepth)
+
     /**
      * Compatibility callback for a nonempty declared Query fragment and its live root. Both
      * shared-scope and independently rooted preparation delegate here, so observers interested in

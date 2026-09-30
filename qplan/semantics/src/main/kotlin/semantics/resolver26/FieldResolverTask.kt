@@ -362,10 +362,7 @@ private suspend fun FieldValueResolver.resolveQueryFragment(
         queryFragment.constructionSelections.guardedBy(inclusionCondition)
     val source = operation.world.resolverRegistry.createRootQueryInput()
     val queryResult =
-        ObjectEngineResult.of(
-            type = source.schemaType,
-            mutable = true,
-        )
+        OrchestrationTask.createObjectResult(operation, source.schemaType, semantics.shared.Demand.checked(constructionSelections))
     val orchestration =
         OrchestrationTask.create(
             operation = operation,

@@ -24,12 +24,20 @@ internal fun SelectionForest.successorDemand(world: Assumptions): SelectionFores
  * Parent construction lookahead precedes symbolic projection so pruned resolver branches cannot
  * hide ancestor requirements. The resulting forest describes only producer-facing values.
  */
-internal fun Demand<SelectionForest>.successorDemandFromConstructionDemand(world: Assumptions): SelectionForest {
+internal fun Demand<SelectionForest>.successorDemandFromConstructionDemand(
+    world: Assumptions,
+    possibleRootTypes: Set<ViaductSchema.Object> = emptySet(),
+): SelectionForest {
     val constructionDemand = this + liftParentConstructionDemand(world)
     val context = SuccessorDemandContext(world)
     val checkedDemand = constructionDemand.checked.successorDemandWithChecks(context, checked = true)
     val uncheckedDemand = constructionDemand.unchecked.successorDemandWithChecks(context, checked = false)
-    val demand = checkedDemand + uncheckedDemand
+    val typeCheckerDemand = if (constructionDemand.typeCheckCondition !== InclusionCondition.Never) {
+        possibleRootTypes.fixedTypeCheckerInputDemand(context).guardedBy(constructionDemand.typeCheckCondition)
+    } else {
+        selectionForestOf()
+    }
+    val demand = checkedDemand + uncheckedDemand + typeCheckerDemand
     return demand + demand.liftParentSuccessorDemand(world)
 }
 
@@ -69,13 +77,15 @@ private class SuccessorExpansionState {
 
 /** Unlike grounded boundaries, fixed-template boundaries do not depend on argument values. */
 private data class SuccessorBoundary(
-    val field: ViaductSchema.ObjectField,
+    val field: ViaductSchema.ObjectField? = null,
+    val type: ViaductSchema.Object? = null,
     val kind: SuccessorBoundaryKind,
 )
 
 private enum class SuccessorBoundaryKind {
     RESOLVER,
     CHECKER,
+    TYPE_CHECKER,
 }
 
 private fun SelectionForest.successorDemandWithChecks(
@@ -103,7 +113,13 @@ private fun Selection.requestedSuccessorDemand(
         return selectionForestOf()
     }
     check(key is ObjectEngineResult.GroundKey) { "Resolver26 found open arguments on passive key $key" }
-    val nestedDemand = subselections.successorDemandWithChecks(context, checked, producerSuppliableOnly)
+    val typeCheckerInputs = if (checked && inclusionCondition !== InclusionCondition.Never) {
+        (key.field.type.baseTypeDef as? ViaductSchema.CompositeTypeDef)?.possibleObjectTypes
+            ?.fixedTypeCheckerInputDemand(context) ?: selectionForestOf()
+    } else {
+        selectionForestOf()
+    }
+    val nestedDemand = subselections.successorDemandWithChecks(context, checked, producerSuppliableOnly) + typeCheckerInputs
     val rootedSelection = Selection.of(
         key = key,
         possibleTypes = setOf(key.field.containingDef),
@@ -126,16 +142,24 @@ private fun Selection.fixedSuccessorInputDemand(
     return (resolverInputs + checkerInputs).guardedBy(inclusionCondition)
 }
 
-private fun ViaductSchema.ObjectField.fixedResolverInputDemand(context: SuccessorDemandContext): SelectionForest = SuccessorBoundary(this, SuccessorBoundaryKind.RESOLVER).fixedInputDemand(context)
+private fun ViaductSchema.ObjectField.fixedResolverInputDemand(context: SuccessorDemandContext): SelectionForest =
+    SuccessorBoundary(field = this, kind = SuccessorBoundaryKind.RESOLVER).fixedInputDemand(context)
 
-private fun ViaductSchema.ObjectField.fixedCheckerInputDemand(context: SuccessorDemandContext): SelectionForest = SuccessorBoundary(this, SuccessorBoundaryKind.CHECKER).fixedInputDemand(context)
+private fun ViaductSchema.ObjectField.fixedCheckerInputDemand(context: SuccessorDemandContext): SelectionForest =
+    SuccessorBoundary(field = this, kind = SuccessorBoundaryKind.CHECKER).fixedInputDemand(context)
+
+private fun Set<ViaductSchema.Object>.fixedTypeCheckerInputDemand(context: SuccessorDemandContext): SelectionForest =
+    flatMapToSelectionForest { type ->
+        SuccessorBoundary(type = type, kind = SuccessorBoundaryKind.TYPE_CHECKER).fixedInputDemand(context)
+    }
 
 private fun SuccessorBoundary.fixedInputDemand(context: SuccessorDemandContext): SelectionForest {
     context.expansionState.cachedInputDemand(this)?.let { return it }
     val fragment = when (kind) {
         SuccessorBoundaryKind.RESOLVER ->
-            if (field in context.world.resolverRegistry) context.world.resolverRegistry.resolver(field).objectFragment else null
-        SuccessorBoundaryKind.CHECKER -> context.world.resolverRegistry.fieldChecker(field)?.objectFragment
+            if (requireNotNull(field) in context.world.resolverRegistry) context.world.resolverRegistry.resolver(field).objectFragment else null
+        SuccessorBoundaryKind.CHECKER -> context.world.resolverRegistry.fieldChecker(requireNotNull(field))?.objectFragment
+        SuccessorBoundaryKind.TYPE_CHECKER -> context.world.resolverRegistry.typeChecker(requireNotNull(type))?.objectFragment
     } ?: return selectionForestOf()
     val cutsBefore = context.expansionState.beginExpansion(this) ?: return selectionForestOf()
     val result = try {

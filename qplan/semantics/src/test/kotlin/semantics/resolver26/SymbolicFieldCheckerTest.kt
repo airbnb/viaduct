@@ -134,9 +134,10 @@ class SymbolicFieldCheckerTest : Resolver26DispatcherResource {
                 )
             },
         )
-        val resolution = resolveChecked(world, "{ items { a: result(seed: 7) b: result(seed: 9) } }")
+        val resolution = resolveChecked(world, "{ items { a: result(seed: 7) b: result(seed: 9) } }") {
+            assertEquals(8, providerCalls.get())
+        }
         assertEquals(4, resolution.recorder.checkerApplications().size)
-        assertEquals(8, providerCalls.get())
         assertEquals(
             2,
             resolution.checkers
@@ -307,7 +308,8 @@ class SymbolicFieldCheckerTest : Resolver26DispatcherResource {
 
     private fun resolveChecked(
         world: TestWorld,
-        query: String
+        query: String,
+        beforeReplay: () -> Unit = {},
     ): Resolution {
         val recorder = CheckerApplicationRecorder()
         val checkers = CorrectnessCheckerObserver(recorder)
@@ -315,6 +317,7 @@ class SymbolicFieldCheckerTest : Resolver26DispatcherResource {
         val operation = SharedOperationContext.create(world.assumptions, resolverObserver = resolvers, checkerObserver = checkers)
         val selections = world.assumptions.operationSelectionsFrom(query)
         val result = operation.resolveWithTestDispatcher(selections)
+        beforeReplay()
         assertTrue(result.correctResolution(operation, selections.merge(result.type)), "checker-aware correctness")
         assertTrue(recorder.hasExactlyCheckerApplications(result.registeredCheckerApplications(operation)))
         return Resolution(result, recorder, checkers, resolvers, operation)

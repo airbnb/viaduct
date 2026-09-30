@@ -1248,7 +1248,17 @@ private class SchemaGenerator(
         repeat(chainCount) { chainIndex ->
             val chainDepth = Arb.int(3..4).next(random)
             maximumChainDepth = maxOf(maximumChainDepth, chainDepth)
-            var parentOwner = "Query"
+            // Parent backedges stop at an ordinary object below Query.
+            val rootName = "$GENERATED_RANDOM_PARENT_TYPE_PREFIX${chainIndex}Root"
+            fieldsByObject[rootName] = mutableListOf()
+            queryFields +=
+                FieldDefinitionSpec(
+                    ownerName = "Query",
+                    name = "randomParent${chainIndex}Root",
+                    type = objectOutputType(rootName),
+                    arguments = emptyList(),
+                )
+            var parentOwner = rootName
 
             repeat(chainDepth) { level ->
                 val childName =
@@ -1262,17 +1272,13 @@ private class SchemaGenerator(
                         type = producerType,
                         arguments = emptyList(),
                     )
-                if (parentOwner == "Query") {
-                    queryFields += producer
-                } else {
-                    fieldsByObject.getValue(parentOwner) += producer
-                }
+                fieldsByObject.getValue(parentOwner) += producer
 
                 val alternativeTargets =
                     (alternativeParentTypeNames + fieldsByObject.keys)
                         .filterNot { typeName -> typeName == parentOwner }
                 val useAbstractTarget =
-                    parentOwner != "Query" &&
+                    level > 0 &&
                         alternativeTargets.isNotEmpty() &&
                         chance(0.4)
                 val parentTarget =
@@ -1787,7 +1793,7 @@ private class SchemaGenerator(
                     if (config[ParentFieldsEnabled]) 3 else 0,
                     randomParentGraph.maximumChainDepth,
                 ),
-            randomParentFieldCount = randomParentGraph.objects.size,
+            randomParentFieldCount = randomParentGraph.objects.sumOf { type -> type.fields.count { it.isParentField } },
             randomParentListProducerCount = randomParentGraph.listProducerCount,
             randomParentAbstractTargetCount = randomParentGraph.abstractTargetCount,
         )

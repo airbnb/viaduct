@@ -5,6 +5,7 @@ import model.ObjectEngineResult
 import model.SelectionForest
 import semantics.contract.CoroutineResolverContract
 import semantics.contract.CoroutineResolverTestSubject
+import semantics.contract.FragmentFreeCheckerProfileContract
 import semantics.contract.FragmentFreeFieldCheckerEnforcementContract
 import semantics.contract.FragmentFreeFieldCheckerPublicationContract
 import semantics.contract.FragmentFreeTypeCheckerEnforcementContract
@@ -21,6 +22,7 @@ import semantics.shared.SharedOperationContext
 class CoroutineResolveTest :
     CoroutineResolverTestSubject(),
     CoroutineResolverContract,
+    FragmentFreeCheckerProfileContract,
     FragmentFreeFieldCheckerPublicationContract,
     FragmentFreeFieldCheckerEnforcementContract,
     FragmentFreeTypeCheckerEnforcementContract,

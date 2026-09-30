@@ -139,17 +139,19 @@ internal class ResolverApplicationCache(
         result: ObjectEngineResult,
         ownerSelections: ObjectSelectionForest,
         selectionsAreChecked: Boolean = true,
+        rootIsChecked: Boolean = false,
     ): Boolean =
         if (result === root) {
             queryOERValidation.isValidOrValidating(result) &&
                 result.conformsToSelections(operation, ownerSelections) &&
                 (
-                    !selectionsAreChecked ||
+                    (!selectionsAreChecked && !rootIsChecked) ||
                         result.conformsToCheckedSelectionsAt(
                             operation = operation,
-                            selections = ownerSelections,
+                            selections = if (selectionsAreChecked) ownerSelections else selectionForestOf(),
                             path = emptyList(),
                             resolverApplicationCache = this,
+                            typeCheckDemanded = rootIsChecked,
                         )
                 )
         } else {
@@ -159,6 +161,7 @@ internal class ResolverApplicationCache(
                 ownerSelections = ownerSelections,
                 rootFieldReferenceWitness = rootFieldReferenceWitness,
                 selectionsAreChecked = selectionsAreChecked,
+                rootIsChecked = rootIsChecked,
             )
         }
 }
@@ -181,6 +184,7 @@ internal class QueryOERValidationState {
         ownerSelections: ObjectSelectionForest,
         rootFieldReferenceWitness: RootFieldReferenceWitness,
         selectionsAreChecked: Boolean = true,
+        rootIsChecked: Boolean = false,
     ): Boolean {
         if (!result.conformsToSelections(operation, ownerSelections)) return false
         if (!results.containsKey(result)) {
@@ -204,10 +208,12 @@ internal class QueryOERValidationState {
             results[result] = valid
         }
         if (results[result] != true) return false
-        return !selectionsAreChecked ||
+        // Cached structural validation is shared, but each consumer retains its own field and
+        // root obligations. A prior associated/raw read cannot discharge a checked execution root.
+        return (!selectionsAreChecked && !rootIsChecked) ||
             result.conformsToCheckedSelectionsAt(
                 operation = operation,
-                selections = ownerSelections,
+                selections = if (selectionsAreChecked) ownerSelections else selectionForestOf(),
                 path = emptyList(),
                 resolverApplicationCache =
                     resolverApplicationCache(
@@ -215,6 +221,7 @@ internal class QueryOERValidationState {
                         rootFieldReferenceWitness,
                         this,
                     ),
+                typeCheckDemanded = rootIsChecked,
             )
     }
 }
@@ -603,6 +610,8 @@ private class ResolverReplayLogic(
                         operation,
                         queryResult,
                         querySelections,
+                        // This source-replayed reference starts an independent checked execution.
+                        rootIsChecked = true,
                     )
                 ) {
                     return null

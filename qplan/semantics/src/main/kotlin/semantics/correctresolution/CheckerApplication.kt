@@ -5,6 +5,7 @@ package semantics.correctresolution
 import kotlinx.coroutines.runBlocking
 import model.Arguments
 import model.EngineErrorData
+import model.EngineInputData
 import model.ObjectEngineResult
 import model.PathComponent
 import model.VariableBinding
@@ -47,7 +48,7 @@ internal fun ObjectEngineResult.reapplyChecker(
                 resolverApplicationCache.root,
                 coordinate,
             )
-        if (!fragments.bindingsAgreeWith(arguments, operation)) return@getOrPutChecker null
+        if (!fragments.bindingsAgreeWith(arguments, operation) { checker.provideVariables(arguments) }) return@getOrPutChecker null
         val inputs = checker.rawInputs(
             operation,
             resolverApplicationCache,
@@ -72,7 +73,7 @@ internal fun ObjectEngineResult.reapplyTypeChecker(
     resolverApplicationCache.getOrPutTypeChecker(this) {
         val checker = operation.world.resolverRegistry.typeChecker(type) ?: return@getOrPutTypeChecker null
         val fragments = checker.instantiateFragmentsAt(resolverApplicationCache.root, path)
-        if (!fragments.bindingsAgreeWith(null, operation)) return@getOrPutTypeChecker null
+        if (!fragments.bindingsAgreeWith(null, operation) { checker.provideVariables() }) return@getOrPutTypeChecker null
         val inputs = checker.rawInputs(
             operation,
             resolverApplicationCache,
@@ -126,7 +127,18 @@ private fun CheckerResolverBase<*>.rawInputs(
             }
         }
     }
-    return inputs.takeIf { bindingsAgree }
+    val recorder = operation.checkerObserver as? CorrectnessCheckerObserver
+    val actualInputs = recorder?.checkerInputs(target, occurrenceId).orEmpty()
+    // Hand-built judgments may omit execution observations. Once an execution records inputs,
+    // every replayed checker must have them, with the same names, aliases, values and errors.
+    val inputsAgree = (recorder?.hasCheckerInputs() != true || actualInputs.isNotEmpty()) && actualInputs.all { actual ->
+        actual.keys == inputs.keys && inputs.all { (name, expected) ->
+            val supplied = actual.getValue(name)
+            supplied.objectValue.sameMaterializedValueAs(expected.objectValue) &&
+                supplied.queryValue.sameMaterializedValueAs(expected.queryValue)
+        }
+    }
+    return inputs.takeIf { bindingsAgree && inputsAgree }
 }
 
 private fun CheckerResolverBase<*>.checkerQueryInputs(
@@ -175,10 +187,11 @@ private fun CheckerResolverBase<*>.checkerQueryInputs(
 private fun ResolverFragments.bindingsAgreeWith(
     arguments: Arguments.Resolved?,
     operation: SharedOperationContext<*>,
-): Boolean =
-    (objectFragment.variableDefinitions + queryFragment.variableDefinitions)
+    provideVariables: suspend () -> Map<String, EngineInputData?>,
+): Boolean {
+    val definitions = (objectFragment.variableDefinitions + queryFragment.variableDefinitions)
         .distinctBy { definition -> definition.variable }
-        .all { variableDefinition ->
+    if (!definitions.all { variableDefinition ->
             val instanceId = requireNotNull(variableDefinition.variable.instanceId)
             if (!operation.variableBindings.isBound(instanceId)) return@all false
             val definition = variableDefinition.definition
@@ -186,6 +199,20 @@ private fun ResolverFragments.bindingsAgreeWith(
                 operation.variableBindings.getBinding(instanceId) ==
                 VariableBinding.of(definition.read(arguments ?: return@all false))
         }
+    ) {
+        return false
+    }
+    val providerDefinitions = definitions.filter { it.definition == VariableDefinition.FromProvider }
+    if (providerDefinitions.isEmpty()) return true
+
+    // Re-evaluate the provider relation before stored bindings can affect input projection.
+    // The checker API retains the exact argument tuple and pair-qualified variable names.
+    val expected = runBlocking { provideVariables() }
+    return providerDefinitions.all { definition ->
+        operation.variableBindings.getBinding(requireNotNull(definition.variable.instanceId)) ==
+            VariableBinding.of(expected.getValue(definition.variable.variableName))
+    }
+}
 
 /** Checker results have semantic variants but no tenant-independent error equality. */
 internal fun CheckerResult?.sameResultVariantAs(other: CheckerResult?): Boolean =

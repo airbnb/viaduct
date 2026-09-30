@@ -702,7 +702,13 @@ class ArbitraryRegistry internal constructor(
                     coordinate.fieldName,
                 ) as ViaductSchema.ObjectField
             val target = ResolverTarget.FieldCheckerTarget(field)
-            val providers = variableProviders.filter { it.owner == coordinate }
+            val objectTemplate = objectFragments.getValue(coordinate).materialize(schema, field, target)
+            val queryTemplate = queryFragments.getValue(coordinate).materialize(schema, field, target)
+            // Materialization can turn a tuple containing an error into Arguments.Error, erasing
+            // its variable uses. A checker pair must define exactly the variables that survive.
+            val usedNames = (objectTemplate.subselections.usedVariables() + queryTemplate.subselections.usedVariables())
+                .mapTo(linkedSetOf(), Arguments.Variable::variableName)
+            val providers = variableProviders.filter { it.owner == coordinate && it.variableName in usedNames }
             val providerPlans = providers.filterIsInstance<FromProviderVariableProviderPlan>()
             val variables = providers.associate { provider ->
                 Arguments.Variable.of(target, provider.variableName) to when (provider) {
@@ -727,16 +733,8 @@ class ArbitraryRegistry internal constructor(
             }
             val templates =
                 ResolverFragmentTemplates(
-                    objectFragmentTemplate =
-                        objectFragments
-                            .getValue(coordinate)
-                            .materialize(schema, field, target)
-                            .materializeSelections,
-                    queryFragmentTemplate =
-                        queryFragments
-                            .getValue(coordinate)
-                            .materialize(schema, field, target)
-                            .materializeSelections,
+                    objectFragmentTemplate = objectTemplate.materializeSelections,
+                    queryFragmentTemplate = queryTemplate.materializeSelections,
                     variables = variables,
                     variablesProvider = if (providerPlans.isEmpty()) {
                         null
@@ -3136,7 +3134,7 @@ internal data class FragmentPlan(
     fun materialize(
         schema: ViaductSchema,
         variableField: ViaductSchema.ObjectField,
-        variableTarget: ResolverTarget.FieldTarget =
+        variableTarget: ResolverTarget =
             ResolverTarget.FieldValueResolverTarget(variableField),
     ): Fragment =
         if (selections.isEmpty()) {

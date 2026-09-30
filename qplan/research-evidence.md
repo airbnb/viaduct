@@ -48,7 +48,7 @@ Each exact cell and binding has at most one writer and one value, and each resol
 
 ### Termination And Liveness
 
-Demand closure, dependency ordering, and execution terminate over the accepted finite domain. Every claimed unit completes successfully or exceptionally so dependents are released; missing writers and deadlock fail explicitly instead of hanging.
+Demand closure and dependency ordering terminate over the accepted finite domain. Execution progress additionally assumes that invoked tenant resolvers, checkers, and variables-provider callbacks return or throw. Under that assumption, required claimed units complete successfully or exceptionally so dependents are released; missing writers and engine-created deadlocks remain defects. The [tenant failure and progress policy](./design-principles.md#tenant-failure-isolation-and-progress) permits the operation to wait indefinitely on nonterminating tenant work, including work whose output becomes unnecessary after another error. It does not require prompt completion through demand retraction, and request-wide abort is not an acceptable fallback for local tenant errors.
 
 ### Concurrency
 

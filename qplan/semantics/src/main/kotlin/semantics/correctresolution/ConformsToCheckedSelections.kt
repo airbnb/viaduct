@@ -38,8 +38,10 @@ internal fun ObjectEngineResult.conformsToCheckedSelectionsAt(
             val key = findStoredKey(operation, selection.key) ?: return@all false
             val cell = getCell(key)
             val checker = operation.world.resolverRegistry.fieldChecker(key.field)
-            if (checker != null) {
-                val storedResult = cell.fieldCheckerResult.get()
+            val storedResult = cell.fieldCheckerResult.get()
+            if (checker == null) {
+                if (storedResult != null) return@all false
+            } else {
                 if (
                     key is ObjectEngineResult.ParentKey ||
                     key.groundedArguments(operation) !is Arguments.Resolved

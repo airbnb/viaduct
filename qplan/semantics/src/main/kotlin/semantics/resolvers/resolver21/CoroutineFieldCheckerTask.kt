@@ -190,6 +190,7 @@ internal class CoroutineFieldCheckerTask private constructor(
                 arguments = arguments,
                 checkedTarget = ResolverTarget.FieldCheckerTarget(publication.selection.key.field),
             ),
+            inputs,
         )
         val result =
             checker(
