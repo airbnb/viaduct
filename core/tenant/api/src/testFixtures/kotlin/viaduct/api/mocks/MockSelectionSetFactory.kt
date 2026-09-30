@@ -2,6 +2,7 @@
 
 package viaduct.api.mocks
 
+import viaduct.api.internal.InternalSelectionSet
 import viaduct.api.internal.select.SelectionSetFactory
 import viaduct.api.reflect.CompositeField
 import viaduct.api.reflect.Field
@@ -70,7 +71,7 @@ class MockSelectionSetFactory(
     private class MockSelectionSet<T : CompositeOutput>(
         override val type: Type<T>,
         private val selectionsString: String
-    ) : SelectionSet<T> {
+    ) : SelectionSet<T>, InternalSelectionSet<T> {
         companion object {
             /**
              * Regex pattern to tokenize GraphQL selection strings.

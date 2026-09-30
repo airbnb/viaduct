@@ -1,9 +1,9 @@
 package viaduct.api.mapping
 
 import viaduct.api.context.ExecutionContext
+import viaduct.api.internal.EngineSelectionSetProvider
 import viaduct.api.internal.InputLikeBase
 import viaduct.api.internal.InternalContext
-import viaduct.api.internal.InternalSelectionSet
 import viaduct.api.internal.KeyMapping
 import viaduct.api.internal.ObjectBase
 import viaduct.api.internal.internal
@@ -66,7 +66,7 @@ class GRTDomain<T : GRT> private constructor(
         ): Domain<T> =
             GRTDomain(
                 ctx.internal,
-                (selectionSet as InternalSelectionSet).engineSelectionSet,
+                (selectionSet as EngineSelectionSetProvider).engineSelectionSet,
                 keyMapping
             )
 

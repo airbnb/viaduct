@@ -3,10 +3,14 @@
 package viaduct.tenant.runtime.context
 
 import graphql.schema.GraphQLObjectType
+import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
+import kotlinx.coroutines.test.runTest
+import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.api.globalid.GlobalID
@@ -22,9 +26,14 @@ import viaduct.apiannotations.ExperimentalApi
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineSchema
+import viaduct.engine.api.EngineSelectionSet
+import viaduct.engine.api.ResolveSelectionSetOptions
 import viaduct.engine.api.RootFieldReference
 import viaduct.errors.FrameworkException
+import viaduct.tenant.runtime.FakeMutation
 import viaduct.tenant.runtime.FakeObject
+import viaduct.tenant.runtime.FakeQuery
+import viaduct.tenant.runtime.select.SelectionSetImpl
 
 class EngineExecutionContextWrapperImplTest {
     private val graphqlObjectType = GraphQLObjectType.newObject().name("Foo").build()
@@ -60,6 +69,42 @@ class EngineExecutionContextWrapperImplTest {
     private fun mockRootFieldRef(): MockRootFieldRef =
         mockk(relaxed = true) {
             every { type } returns graphqlObjectType
+        }
+
+    @Test
+    fun `query materializes the GRT from internal selection type metadata`() =
+        runTest {
+            val ctx = mockCtx()
+            val engineSelections = mockk<EngineSelectionSet>()
+            val data = mockk<EngineObjectData.Sync>()
+            val eec = mockk<EngineExecutionContext> {
+                coEvery { resolveSelectionSet(engineSelections, ResolveSelectionSetOptions.DEFAULT) } returns data
+            }
+            val selections = SelectionSetImpl(FakeQuery.Reflection, engineSelections)
+
+            val result = EngineExecutionContextWrapperImpl(eec).query(ctx, selections)
+
+            val query = assertInstanceOf(FakeQuery::class.java, result)
+            assertSame(ctx, query.ctx)
+            assertSame(data, query.data)
+        }
+
+    @Test
+    fun `mutation materializes the GRT from internal selection type metadata`() =
+        runTest {
+            val ctx = mockCtx()
+            val engineSelections = mockk<EngineSelectionSet>()
+            val data = mockk<EngineObjectData.Sync>()
+            val eec = mockk<EngineExecutionContext> {
+                coEvery { resolveSelectionSet(engineSelections, ResolveSelectionSetOptions.MUTATION) } returns data
+            }
+            val selections = SelectionSetImpl(FakeMutation.Reflection, engineSelections)
+
+            val result = EngineExecutionContextWrapperImpl(eec).mutation(ctx, selections)
+
+            val mutation = assertInstanceOf(FakeMutation::class.java, result)
+            assertSame(ctx, mutation.ctx)
+            assertSame(data, mutation.data)
         }
 
     @Test

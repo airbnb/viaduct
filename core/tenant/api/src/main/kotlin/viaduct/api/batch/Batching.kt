@@ -1,9 +1,11 @@
-@file:OptIn(ExperimentalApi::class)
+@file:OptIn(ExperimentalApi::class, InternalApi::class)
 
 package viaduct.api.batch
 
 import viaduct.api.FieldValue
 import viaduct.api.context.SelectiveNodeExecutionContext
+import viaduct.api.internal.InternalSelectionSet
+import viaduct.api.internal.internalType
 import viaduct.api.reflect.Field
 import viaduct.api.reflect.Type
 import viaduct.api.select.FieldCoordinate
@@ -11,6 +13,7 @@ import viaduct.api.select.SelectionSet
 import viaduct.api.types.CompositeOutput
 import viaduct.api.types.NodeObject
 import viaduct.apiannotations.ExperimentalApi
+import viaduct.apiannotations.InternalApi
 
 /**
  * Partitions [contexts] by structurally equal complete selection sets and invokes [resolve] once
@@ -129,17 +132,17 @@ private class GroupImpl<
 
 private class AnySelections<T : CompositeOutput>(
     private val members: List<SelectionSet<T>>,
-) : SelectionSet<T> {
+) : InternalSelectionSet<T> {
     init {
         require(members.isNotEmpty()) {
             "Cannot construct a selection view without members"
         }
-        require(members.all { it.type == members.first().type }) {
+        require(members.all { it.internalType() == members.first().internalType() }) {
             "All selections in a batch view must describe the same type"
         }
     }
 
-    override val type: Type<T> = members.first().type
+    override val type: Type<T> = members.first().internalType()
 
     override fun selectedFieldCoordinates(): Set<FieldCoordinate> = members.flatMapTo(linkedSetOf()) { it.selectedFieldCoordinates() }
 

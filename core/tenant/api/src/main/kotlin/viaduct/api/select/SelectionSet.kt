@@ -1,4 +1,4 @@
-@file:OptIn(ExperimentalApi::class)
+@file:OptIn(ExperimentalApi::class, InternalApi::class)
 
 package viaduct.api.select
 
@@ -8,6 +8,7 @@ import viaduct.api.reflect.Field
 import viaduct.api.reflect.Type
 import viaduct.api.types.CompositeOutput
 import viaduct.apiannotations.ExperimentalApi
+import viaduct.apiannotations.InternalApi
 import viaduct.apiannotations.StableApi
 
 /**
@@ -144,24 +145,10 @@ interface SelectionSet<T : CompositeOutput> {
      */
     fun <U : T, R : CompositeOutput> selectionSetFor(field: CompositeField<U, R>): SelectionSet<R>
 
-    /** the type condition of this SelectionSet */
-    val type: Type<T>
-
     @StableApi
     companion object {
         /** Create a [SelectionSet] for a provided [Type] that contains no selections */
-        fun <T : CompositeOutput> empty(type: Type<T>): SelectionSet<T> =
-            object : SelectionSet<T> {
-                override fun selectedFieldCoordinates(): Set<FieldCoordinate> = emptySet()
-
-                override fun <U : T> contains(field: Field<U>): Boolean = false
-
-                override fun <U : T> requestsType(type: Type<U>): Boolean = false
-
-                override fun <U : T, R : CompositeOutput> selectionSetFor(field: CompositeField<U, R>): SelectionSet<R> = empty(field.type)
-
-                override val type: Type<T> = type
-            }
+        fun <T : CompositeOutput> empty(type: Type<T>): SelectionSet<T> = EmptySelectionSet(type)
     }
 
     /**
@@ -179,9 +166,20 @@ interface SelectionSet<T : CompositeOutput> {
         override fun <U : CompositeOutput.NotComposite, R : CompositeOutput> selectionSetFor(field: CompositeField<U, R>): SelectionSet<R> =
             throw UnsupportedOperationException("NoSelections does not support extracting subselections for a field")
 
-        override val type = object : Type<CompositeOutput.NotComposite> {
+        @InternalApi
+        val type = object : Type<CompositeOutput.NotComposite> {
             override val name: String = "__NotComposite"
             override val kcls: KClass<out CompositeOutput.NotComposite> = CompositeOutput.NotComposite::class
         }
     }
+}
+
+internal class EmptySelectionSet<T : CompositeOutput>(val type: Type<T>) : SelectionSet<T> {
+    override fun selectedFieldCoordinates(): Set<FieldCoordinate> = emptySet()
+
+    override fun <U : T> contains(field: Field<U>): Boolean = false
+
+    override fun <U : T> requestsType(type: Type<U>): Boolean = false
+
+    override fun <U : T, R : CompositeOutput> selectionSetFor(field: CompositeField<U, R>): SelectionSet<R> = SelectionSet.empty(field.type)
 }

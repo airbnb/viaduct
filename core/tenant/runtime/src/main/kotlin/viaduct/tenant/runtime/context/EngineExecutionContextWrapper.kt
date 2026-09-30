@@ -4,6 +4,7 @@ import graphql.language.FragmentDefinition
 import viaduct.api.globalid.GlobalID
 import viaduct.api.internal.InputLikeBase
 import viaduct.api.internal.InternalContext
+import viaduct.api.internal.internalType
 import viaduct.api.reflect.RootObjectField
 import viaduct.api.reflect.Type
 import viaduct.api.select.SelectionSet
@@ -86,7 +87,7 @@ class EngineExecutionContextWrapperImpl(
             engineExecutionContext.resolveSelectionSet(
                 selections.getEngineSelectionSet(),
                 ResolveSelectionSetOptions.DEFAULT
-            ).toObjectGRT(ctx, selections.type.kcls)
+            ).toObjectGRT(ctx, selections.internalType().kcls)
         }
 
     override suspend fun <T : Mutation> mutation(
@@ -97,7 +98,7 @@ class EngineExecutionContextWrapperImpl(
             engineExecutionContext.resolveSelectionSet(
                 selections.getEngineSelectionSet(),
                 ResolveSelectionSetOptions.MUTATION
-            ).toObjectGRT(ctx, selections.type.kcls)
+            ).toObjectGRT(ctx, selections.internalType().kcls)
         }
 
     private fun SelectionSet<*>.getEngineSelectionSet() =
