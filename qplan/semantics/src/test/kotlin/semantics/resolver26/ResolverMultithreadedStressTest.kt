@@ -12,15 +12,15 @@ import kotlinx.coroutines.runBlocking
 import model.Assumptions
 import model.Fragment
 import model.ObjectEngineResult
-import model.SelectionForest
 import model.ResolverOccurrenceId
+import model.SelectionForest
 import model.fragmentFrom
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import semantics.arbitrary.Config
-import semantics.arbitrary.ResolverVariableSingletonCoercionEnabled
 import semantics.arbitrary.ResolverTestExecution
 import semantics.arbitrary.ResolverTestRun
+import semantics.arbitrary.ResolverVariableSingletonCoercionEnabled
 import semantics.arbitrary.TestCaseCount
 import semantics.arbitrary.executeResolverTestCases
 import semantics.contract.GeneratedTypeCheckerContract

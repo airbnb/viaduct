@@ -75,7 +75,6 @@ class GeneratorTest {
         )
     }
 
-
     @Test
     fun `root field reference family has nested polymorphic targets and exact output cycles`() {
         val schema =

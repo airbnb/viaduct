@@ -75,6 +75,9 @@ internal fun ArbitraryRegistry.generatedTypeCheckers(
                     coordinate.typeName == type.name && providers.isNotEmpty() &&
                         providers.none { it is FromArgumentVariableProviderPlan } &&
                         dependencies.checkedTypes(coordinate).all { it < type.name }
+                }.sortedByDescending { coordinate ->
+                    // Callback-only plans are plentiful; retain rarer path-bearing sampled plans.
+                    variableProviders.count { it.owner == coordinate && it is FromFieldVariableProviderPlan }
                 }.take(2).map { coordinate -> runtimeTypeCheckerPair(schema, type, coordinate) }
             } else {
                 emptyList()
