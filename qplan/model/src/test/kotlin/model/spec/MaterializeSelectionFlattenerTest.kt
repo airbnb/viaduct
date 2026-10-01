@@ -11,6 +11,7 @@ import model.MaterializeSelectionForest
 import model.ObjectEngineResult
 import model.merge
 import model.parsing.GJSelectionParser
+import model.registry.ResolverTarget
 import model.requireField
 import model.requireObjectField
 import model.requireQueryTypeDef
@@ -55,7 +56,12 @@ class MaterializeSelectionFlattenerTest {
         val world = TestWorld.fromSDL("type Query { value: String }")
         val schema = world.schemas
         val (_, selections) =
-            GJSelectionParser(schema.graphQLSchema, schema.loweredSchema, emptyMap())
+            GJSelectionParser(
+                schema.graphQLSchema,
+                schema.loweredSchema,
+                emptyMap(),
+                variableTarget = ResolverTarget.FieldValueResolverTarget(schema.loweredSchema.requireObjectField("Query", "value")),
+            )
                 .materializeSelectionsFrom(
                     """
                     fragment ResolverInput on Query {

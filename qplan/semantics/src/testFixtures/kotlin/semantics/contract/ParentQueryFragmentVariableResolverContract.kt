@@ -128,6 +128,7 @@ interface ParentQueryFragmentVariableResolverContract : ResolverContract {
                                     schema.fromQueryField(
                                         bridgeQueryFragment,
                                         listOf("providedSource"),
+                                        variableField = bridge,
                                     )
                             },
                     )

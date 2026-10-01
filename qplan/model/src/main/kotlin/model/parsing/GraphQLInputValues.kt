@@ -20,7 +20,6 @@ import graphql.schema.GraphQLNamedType
 import graphql.schema.GraphQLNonNull
 import graphql.schema.GraphQLScalarType
 import graphql.schema.InputValueWithState
-import model.ArgumentResolutionError
 import model.Arguments
 import model.EngineInputData
 import model.EngineInputObjectData
@@ -28,10 +27,9 @@ import model.EngineSimpleData
 import model.coerceArgumentExpression
 import model.registry.ResolverTarget
 import model.requireType
+import model.toEngineInputData
 import viaduct.graphql.schema.ViaductSchema
 import viaduct.utils.collections.BitVector
-
-internal data object ErroneousVariableValue
 
 internal fun decodeInputValue(
     type: GraphQLInputType,
@@ -64,15 +62,10 @@ internal fun decodeLiteral(
 ): Any? {
     if (value is VariableReference) {
         return if (variableValues.containsKey(value.name)) {
-            val bound = variableValues.getValue(value.name)
-            if (bound === ErroneousVariableValue) {
-                ArgumentResolutionError
-            } else {
-                coerceArgumentExpression(decodeModelInputType(type, schema), bound)
-            }
+            toEngineInputData(decodeModelInputType(type, schema), variableValues.getValue(value.name))
         } else {
             requireNotNull(variableTarget) {
-                "Unbound operation variable \$${value.name}"
+                "Unbound fragment variable \$${value.name} requires an explicit resolver target"
             }
             Arguments.Variable.of(variableTarget, value.name)
         }

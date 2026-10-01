@@ -87,6 +87,7 @@ fun ViaductAndGJSchema.operationSelectionsFrom(
     )
 }
 
+/** Unbound fragment variables require an explicit owner; bindings contain only ordinary input data. */
 fun ViaductAndGJSchema.materializeSelectionsFrom(
     source: String,
     bindings: Map<String, EngineInputData?> = emptyMap(),

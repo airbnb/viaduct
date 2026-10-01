@@ -51,8 +51,6 @@ internal class GJSelectionParser(
     private val variableTarget: ResolverTarget? = null,
     private val preserveSourceResponseKeys: Boolean = false,
 ) {
-    private var effectiveVariableTarget = variableTarget
-
     fun selectionsFrom(fragment: String): Pair<ViaductSchema.CompositeTypeDef, SelectionForest> {
         val parsed = specSelectionsFrom(fragment)
         val selections = flatten(schema, parsed.nominalType, parsed.selections)
@@ -107,15 +105,6 @@ internal class GJSelectionParser(
 
         val typeConditionName = definition.typeCondition.name!!
         val typeCondition = schema.requireType(typeConditionName) as ViaductSchema.CompositeTypeDef
-        if (effectiveVariableTarget == null) {
-            effectiveVariableTarget =
-                ResolverTarget.FieldValueResolverTarget(
-                    typeCondition.possibleObjectTypes
-                        .first()
-                        .fields
-                        .first(),
-                )
-        }
         val graphQLTypeCondition =
             sourceSchema.getType(typeConditionName) as GraphQLCompositeType
         val specSelections =
@@ -322,7 +311,7 @@ internal class GJSelectionParser(
                                     value = suppliedArgument.value,
                                     variableValues = variableValues,
                                     schema = schema,
-                                    variableTarget = effectiveVariableTarget,
+                                    variableTarget = variableTarget,
                                 )
                         argumentDefinition.hasSetDefaultValue() ->
                             argumentDefinition.name to
@@ -331,7 +320,7 @@ internal class GJSelectionParser(
                                     argumentDefinition.argumentDefaultValue,
                                     variableValues,
                                     schema,
-                                    effectiveVariableTarget,
+                                    variableTarget,
                                 )
                         else -> null
                     }
@@ -369,7 +358,9 @@ internal class GJSelectionParser(
                                     InclusionCondition.requires(
                                         mapOf(
                                             Arguments.Variable.of(
-                                                requireNotNull(effectiveVariableTarget),
+                                                requireNotNull(variableTarget) {
+                                                    "Unbound fragment variable \$${value.name} requires an explicit resolver target"
+                                                },
                                                 value.name,
                                             ) to required,
                                         ),

@@ -143,7 +143,7 @@ class ResolverVariableInstantiationTest {
                         Arguments.Variable.of(result, "seed") to
                             schema.loweredSchema.fromArgument(result, "seed"),
                         Arguments.Variable.of(result, "value") to
-                            schema.fromObjectField(source, listOf("source")),
+                            schema.fromObjectField(source, listOf("source"), variableField = result),
                     )
                 },
             )

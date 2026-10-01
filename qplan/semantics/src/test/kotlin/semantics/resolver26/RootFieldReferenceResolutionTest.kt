@@ -260,6 +260,7 @@ class RootFieldReferenceResolutionTest : Resolver26DispatcherResource {
                             schema.fromQueryField(
                                 targetQueryFragment,
                                 listOf("providedSource"),
+                                variableField = product,
                             ),
                     )
                 },

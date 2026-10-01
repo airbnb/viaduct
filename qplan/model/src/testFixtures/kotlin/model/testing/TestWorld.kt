@@ -13,9 +13,9 @@ import model.EngineErrorData
 import model.ObjectEngineResult
 import model.SelectionForest
 import model.emptyFragmentOf
+import model.fragmentFrom
 import model.lowering.LOWERED_TYPENAME_FIELD
 import model.lowering.ViaductAndGJSchema
-import model.parsing.selectionsFrom
 import model.registry.FieldCheckerResolver
 import model.registry.FieldResolverDefinition
 import model.registry.NodeResolverFunction
@@ -76,7 +76,7 @@ class TestWorld private constructor(
 
     fun <T : Any> instance(type: Class<T>): T = injector.getInstance(type)
 
-    fun selectionsFrom(fragment: String): Pair<ViaductSchema.CompositeTypeDef, SelectionForest> = schemas.selectionsFrom(fragment)
+    fun selectionsFrom(fragment: String): Pair<ViaductSchema.CompositeTypeDef, SelectionForest> = schemas.fragmentFrom(fragment).let { it.nominalType to it.subselections }
 
     companion object {
         /**

@@ -66,6 +66,7 @@ class ResolverDemandTest {
                                 }
                                 """.trimIndent(),
                                 listOf("z"),
+                                variableField = owner,
                             ),
                         Arguments.Variable.of(owner, "c") to
                             schema.fromObjectField(
@@ -455,12 +456,13 @@ class ResolverDemandTest {
                                 schema.fromObjectField(
                                     objectFragment,
                                     listOf("objectProvider"),
+                                    variableField = owner,
                                 ),
                             Arguments.Variable.of(owner, "queryValue") to
                                 if (mixedFragments) {
-                                    schema.fromQueryField(queryFragment, listOf("queryProvider"))
+                                    schema.fromQueryField(queryFragment, listOf("queryProvider"), variableField = owner)
                                 } else {
-                                    schema.fromObjectField(objectFragment, listOf("queryProvider"))
+                                    schema.fromObjectField(objectFragment, listOf("queryProvider"), variableField = owner)
                                 },
                         )
                     },

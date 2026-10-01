@@ -22,6 +22,7 @@ import graphql.language.VariableReference
 import graphql.parser.Parser
 import java.lang.Math.addExact
 import java.math.BigInteger
+import model.ArgumentResolutionError
 import model.Arguments
 import model.EngineErrorData
 import model.EngineInputData
@@ -29,19 +30,24 @@ import model.EngineOutputData
 import model.Fragment
 import model.arg
 import model.emptyFragmentOf
-import model.fragmentFrom
+import model.fieldExpressions
 import model.lowering.SourceSchemaAdapter
 import model.lowering.ViaductAndGJSchema
 import model.objectOf
-import model.parsing.ErroneousVariableValue
+import model.parsing.GJSelectionParser
+import model.parsing.ParsedSpecFragment
 import model.registry.FieldResolverDefinition
+import model.registry.FromField
 import model.registry.NodeResolverFunction
+import model.registry.ProviderFragment
+import model.registry.ResolverTarget
 import model.registry.VariableDeclaration
 import model.registry.fieldResolverOf
 import model.registry.fromArgument
-import model.registry.fromObjectField
 import model.registry.nodeResolverOf
 import model.requireType
+import model.spec.SpecSelection
+import model.spec.flattenForMaterialization
 import viaduct.engine.api.EngineObjectData
 import viaduct.graphql.schema.ViaductSchema
 
@@ -430,11 +436,11 @@ private class Compiler(
                             put(
                                 variable,
                                 preparedObjectFragment(field, definition.of).let { fragment ->
-                                    schemas.fromObjectField(
-                                        objectFragmentSource = fragment.source,
+                                    FromField.compile(
+                                        schema = schemas,
+                                        parsed = parseObjectFragment(field, fragment),
                                         responsePath = pathVariables.getValue(name).path,
-                                        variableField = field,
-                                        bindings = fragment.bindings,
+                                        providerFragment = ProviderFragment.OBJECT,
                                     )
                                 },
                             )
@@ -458,13 +464,30 @@ private class Compiler(
         if (source.isBlank()) {
             schema.emptyFragmentOf(field.containingDef.name)
         } else {
-            val fragment = preparedObjectFragment(field, source)
-            schemas.fragmentFrom(
-                source = fragment.source,
-                bindings = fragment.bindings,
-                variableField = field,
+            val parsed = parseObjectFragment(field, preparedObjectFragment(field, source))
+            Fragment.of(
+                nominalType = parsed.nominalType,
+                materializeSelections = flattenForMaterialization(schema, parsed.nominalType, parsed.selections),
             )
         }
+
+    private fun parseObjectFragment(
+        field: ViaductSchema.ObjectField,
+        fragment: PreparedObjectFragment,
+    ): ParsedSpecFragment {
+        val parsed =
+            GJSelectionParser(
+                sourceSchema = schemas.graphQLSchema,
+                schema = schema,
+                variableValues = emptyMap(),
+                variableTarget = ResolverTarget.FieldValueResolverTarget(field),
+            ).specSelectionsFrom(fragment.source)
+        return if (fragment.errorVariables.isEmpty()) {
+            parsed
+        } else {
+            parsed.copy(selections = parsed.selections.map { it.withArgumentErrors(fragment.errorVariables) })
+        }
+    }
 
     private fun variablesIn(
         definition: DslFieldResolver,
@@ -476,7 +499,7 @@ private class Compiler(
         Parser.parse(fragment.source).visitRecursively { node ->
             if (node is VariableReference) variables += node.name
         }
-        return variables - fragment.bindings.keys
+        return variables - fragment.errorVariables
     }
 
     private fun objectFragmentSource(
@@ -493,22 +516,27 @@ private class Compiler(
 
         Parser.parse(fragmentSource).visitRecursively { node ->
             if (node is VariableReference) occupiedVariableNames += node.name
+            if (node is Directive && node.name in setOf("skip", "include")) {
+                require(node.arguments.none { (it.value as? StringValue)?.value == ERROR_SENTINEL }) {
+                    "Directive variables must be Boolean, not injected argument errors"
+                }
+            }
         }
 
         var nextBindingIndex = 0
-        val bindings = linkedMapOf<String, EngineInputData?>()
+        val errorVariables = linkedSetOf<String>()
         val preparedSource =
             ERROR_ARGUMENT_LITERAL.replace(fragmentSource) {
                 val name =
                     generateSequence {
                         "${ERROR_VARIABLE_PREFIX}${nextBindingIndex++}"
                     }.first { candidate ->
-                        candidate !in occupiedVariableNames && candidate !in bindings
+                        candidate !in occupiedVariableNames && candidate !in errorVariables
                     }
-                bindings[name] = ErroneousVariableValue
+                errorVariables += name
                 "\$$name"
             }
-        return PreparedObjectFragment(preparedSource, bindings)
+        return PreparedObjectFragment(preparedSource, errorVariables)
     }
 
     private fun nodeType(): ViaductSchema.Interface =
@@ -906,8 +934,36 @@ private data class EvaluationContext(
 
 private data class PreparedObjectFragment(
     val source: String,
-    val bindings: Map<String, EngineInputData?>,
+    val errorVariables: Set<String>,
 )
+
+private fun SpecSelection.withArgumentErrors(errorVariables: Set<String>): SpecSelection {
+    return when (this) {
+        is SpecSelection.Field ->
+            SpecSelection.Field.of(
+                alias = alias,
+                field = schemaField,
+                arguments = arguments.fieldExpressions().mapValues { (_, value) -> value.withArgumentErrors(errorVariables) },
+                subselections = subselections?.map { it.withArgumentErrors(errorVariables) },
+                inclusionCondition = inclusionCondition,
+                fieldDirectives = fieldDirectives,
+            )
+        is SpecSelection.InlineFragment ->
+            SpecSelection.InlineFragment.of(
+                typeCondition = typeCondition,
+                selections = selections.map { it.withArgumentErrors(errorVariables) },
+                inclusionCondition = inclusionCondition,
+            )
+    }
+}
+
+private fun Any?.withArgumentErrors(errorVariables: Set<String>): Any? =
+    when (this) {
+        is Arguments.Variable -> if (variableName in errorVariables) ArgumentResolutionError else this
+        is List<*> -> map { it.withArgumentErrors(errorVariables) }
+        is Map<*, *> -> mapValues { (_, value) -> value.withArgumentErrors(errorVariables) }
+        else -> this
+    }
 
 private data class DslFieldResolver(
     val typeName: String,

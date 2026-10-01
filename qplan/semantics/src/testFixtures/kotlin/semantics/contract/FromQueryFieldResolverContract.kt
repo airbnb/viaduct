@@ -84,6 +84,7 @@ interface FromQueryFieldResolverContract : ResolverContract {
                             schema.fromQueryField(
                                 queryFragmentSource,
                                 listOf("providedSource"),
+                                variableField = consumer,
                             ),
                     )
                 },

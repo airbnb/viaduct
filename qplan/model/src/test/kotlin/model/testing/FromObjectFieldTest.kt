@@ -377,7 +377,7 @@ class FromObjectFieldTest {
                 val owner = schema.loweredSchema.requireField("Query", "result") as ViaductSchema.ObjectField
                 mapOf(
                     Arguments.Variable.of(owner, "value") to
-                        schema.fromObjectField(objectFragment, responsePath),
+                        schema.fromObjectField(objectFragment, responsePath, variableField = owner),
                 )
             },
         )

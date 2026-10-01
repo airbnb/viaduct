@@ -9,6 +9,7 @@ import model.lowering.SourceSchemaAdapter
 import model.lowering.ViaductAndGJSchema
 import model.lowering.sourceCompositeType
 import model.parsing.GJSelectionParser
+import model.parsing.ParsedSpecFragment
 import model.requireField
 import model.requireQueryTypeDef
 import model.spec.SpecSelection
@@ -56,6 +57,25 @@ class FromField private constructor(
             variableField: ViaductSchema.ObjectField?,
             bindings: Map<String, EngineInputData?>,
             providerFragment: ProviderFragment,
+        ): FromField =
+            compile(
+                schema = schema,
+                parsed =
+                    GJSelectionParser(
+                        sourceSchema = schema.graphQLSchema,
+                        schema = schema.loweredSchema,
+                        variableValues = bindings,
+                        variableTarget = variableField?.let(ResolverTarget::FieldValueResolverTarget),
+                    ).specSelectionsFrom(fragmentSource),
+                responsePath = responsePath,
+                providerFragment = providerFragment,
+            )
+
+        internal fun compile(
+            schema: ViaductAndGJSchema,
+            parsed: ParsedSpecFragment,
+            responsePath: List<String>,
+            providerFragment: ProviderFragment,
         ): FromField {
             val sourceName =
                 when (providerFragment) {
@@ -68,14 +88,6 @@ class FromField private constructor(
             require(responsePath.none(String::isBlank)) {
                 "$sourceName path cannot contain a blank response key"
             }
-            val parsed =
-                GJSelectionParser(
-                    sourceSchema = schema.graphQLSchema,
-                    schema = schema.loweredSchema,
-                    variableValues = bindings,
-                    variableTarget =
-                        variableField?.let(ResolverTarget::FieldValueResolverTarget),
-                ).specSelectionsFrom(fragmentSource)
             if (providerFragment == ProviderFragment.QUERY) {
                 require(parsed.nominalType == schema.loweredSchema.requireQueryTypeDef()) {
                     "fromQueryField provider fragment must be rooted at Query"
