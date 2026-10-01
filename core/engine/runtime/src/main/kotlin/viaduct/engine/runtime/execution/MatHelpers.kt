@@ -28,6 +28,8 @@ import viaduct.engine.runtime.mat.MatPath.Segment
 import viaduct.engine.runtime.mat.MatResult
 import viaduct.engine.runtime.result.ObjectEngineResult
 import viaduct.errors.TenantException
+import viaduct.utils.memoize.IdentityPair
+import viaduct.utils.memoize.memoize
 
 /**
  * Converts the current executable selection set to its exact field keys.
@@ -126,24 +128,83 @@ internal fun QueryPlan.keyTree(
     context: QueryPlanFilterCtx,
     selectionSet: QueryPlan.SelectionSet,
     projectionType: GraphQLObjectType? = null,
-): KeyTree {
-    val composite = projectionType ?: selectionSet.parentType
-    val fieldsByType = mutableMapOf<GraphQLObjectType, Map<ObjectEngineResult.Key, KeyTree>>()
-    for (type in schema.rels.possibleObjectTypes(composite)) {
-        val fields = keyTreeForType(
-            schema,
-            context,
-            selectionSet,
-            type,
-        )
-        if (
-            fields.isNotEmpty() ||
-            hasConditionallyExcludedSelectionForType(schema, context, selectionSet, type)
-        ) {
-            fieldsByType[type] = fields
+): KeyTree = KeyTreeBuilder(this, schema, context).build(selectionSet, projectionType)
+
+/** Builds one [KeyTree] DAG, sharing subtrees within a fixed query plan and execution context. */
+private class KeyTreeBuilder(
+    private val plan: QueryPlan,
+    private val schema: EngineSchema,
+    private val context: QueryPlanFilterCtx,
+) {
+    private val mergedSelections = mutableMapOf<SelectionIdentities, QueryPlan.SelectionSet>()
+
+    // The same selections can have different coverage when projected onto different concrete types.
+    val build = ::buildUncached.memoize(HashMap(16), ::IdentityPair)
+
+    private fun buildUncached(
+        selectionSet: QueryPlan.SelectionSet,
+        projectionType: GraphQLObjectType?,
+    ): KeyTree {
+        val composite = projectionType ?: selectionSet.parentType
+        val fieldsByType = mutableMapOf<GraphQLObjectType, Map<ObjectEngineResult.Key, KeyTree>>()
+        for (type in schema.rels.possibleObjectTypes(composite)) {
+            val fields = keyTreeForType(selectionSet, type)
+            if (
+                fields.isNotEmpty() ||
+                plan.hasConditionallyExcludedSelectionForType(schema, context, selectionSet, type)
+            ) {
+                fieldsByType[type] = fields
+            }
         }
+        return KeyTree(fieldsByType)
     }
-    return KeyTree(fieldsByType)
+
+    private fun childSelections(field: CollectedField): QueryPlan.SelectionSet? {
+        if (field.occurrences.size == 1) return field.selectionSet
+        val selections = field.occurrences.mapNotNull { it.field.selectionSet }
+        if (selections.isEmpty()) return null
+        check(selections.size == field.occurrences.size) { "Cannot merge fields with different subselection flavors" }
+        // CollectFields may synthesize a fresh merged selection set each time it sees these occurrences.
+        return mergedSelections.getOrPut(SelectionIdentities(selections)) { checkNotNull(field.selectionSet) }
+    }
+
+    /** Identity key for the immutable query-plan selections behind one merged GraphQL field. */
+    private class SelectionIdentities(private val selections: List<QueryPlan.SelectionSet>) {
+        override fun hashCode(): Int = selections.fold(1) { hash, selection -> 31 * hash + System.identityHashCode(selection) }
+
+        override fun equals(other: Any?): Boolean =
+            other is SelectionIdentities && selections.size == other.selections.size &&
+                selections.indices.all { selections[it] === other.selections[it] }
+    }
+
+    private fun keyTreeForType(
+        selectionSet: QueryPlan.SelectionSet,
+        type: GraphQLObjectType,
+    ): Map<ObjectEngineResult.Key, KeyTree> {
+        val collected = context.collectFields(
+            schema = context.schema,
+            selectionSet = selectionSet,
+            variables = context.variables,
+            parentType = type,
+            fragments = plan.fragments,
+            fieldRssOriginFilteringKillSwitchEnabled = context.fieldRssOriginFilteringKillSwitchEnabled,
+            incrementalExecutionEnabled = context.incrementalExecutionEnabled,
+        )
+        val fields = mutableMapOf<ObjectEngineResult.Key, KeyTree>()
+        for (field in collected.collectedFieldsMap.values) {
+            val resolvedField = field.resolveField(
+                schema = context.schema.schema,
+                parentType = type,
+                variables = context.variables,
+                graphQLContext = context.graphQLContext,
+                locale = context.locale,
+            )
+            val children = childSelections(field)?.let { build(it, null) } ?: KeyTree.empty
+            val key = field.oerKey(resolvedField.arguments)
+            fields[key] = fields[key]?.plus(children) ?: children
+        }
+        return fields
+    }
 }
 
 private fun QueryPlan.hasConditionallyExcludedSelectionForType(
@@ -165,43 +226,6 @@ private fun QueryPlan.hasConditionallyExcludedSelectionForType(
             context.fieldRssOriginFilteringKillSwitchEnabled,
         collectFields = context.collectFields,
     ).conditionallyExcludedResultKeys().isNotEmpty()
-
-private fun QueryPlan.keyTreeForType(
-    schema: EngineSchema,
-    context: QueryPlanFilterCtx,
-    selectionSet: QueryPlan.SelectionSet,
-    type: GraphQLObjectType,
-): Map<ObjectEngineResult.Key, KeyTree> {
-    val collected = context.collectFields(
-        schema = context.schema,
-        selectionSet = selectionSet,
-        variables = context.variables,
-        parentType = type,
-        fragments = fragments,
-        fieldRssOriginFilteringKillSwitchEnabled = context.fieldRssOriginFilteringKillSwitchEnabled,
-        incrementalExecutionEnabled = context.incrementalExecutionEnabled,
-    )
-    val fields = mutableMapOf<ObjectEngineResult.Key, KeyTree>()
-    for (field in collected.collectedFieldsMap.values) {
-        val resolvedField = field.resolveField(
-            schema = context.schema.schema,
-            parentType = type,
-            variables = context.variables,
-            graphQLContext = context.graphQLContext,
-            locale = context.locale,
-        )
-        val children = field.selectionSet?.let {
-            keyTree(
-                schema = schema,
-                context = context,
-                selectionSet = it,
-            )
-        } ?: KeyTree.empty
-        val key = field.oerKey(resolvedField.arguments)
-        fields[key] = fields[key]?.plus(children) ?: children
-    }
-    return fields
-}
 
 /**
  * Returns a [MatSource.Embedded] when Mat resolution is enabled, the current object has a Mat

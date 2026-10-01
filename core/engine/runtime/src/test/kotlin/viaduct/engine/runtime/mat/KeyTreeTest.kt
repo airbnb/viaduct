@@ -56,23 +56,188 @@ class KeyTreeTest {
             }
             assertEquals(a, b)
         }
+
+        @Test
+        fun `sharing does not affect structural identity`() {
+            val shared = KeyTree.build(schema) {
+                field("Bar", key("a"))
+            }
+            val sharedTree = KeyTree(
+                mapOf(
+                    fooType to mapOf(
+                        ObjectEngineResult.Key("b") to shared,
+                        ObjectEngineResult.Key("c") to shared,
+                    )
+                )
+            )
+            val copiedTree = KeyTree.build(schema) {
+                field("Foo", key("b")) {
+                    field("Bar", key("a"))
+                }
+                field("Foo", key("c")) {
+                    field("Bar", key("a"))
+                }
+            }
+
+            assertEquals(copiedTree, sharedTree)
+            assertEquals(copiedTree.hashCode(), sharedTree.hashCode())
+        }
+
+        @Test
+        fun `hash codes are cached across shared descendants and new parents`() {
+            val argument = CountingArgument("value")
+            val leaf = argumentTree(argument)
+            val tree = sharedTree(leaf, depth = 18)
+            argument.hashCalls = 0
+
+            val hash = tree.hashCode()
+            assertEquals(1, argument.hashCalls)
+            repeat(10) { assertEquals(hash, tree.hashCode()) }
+            leaf.hashCode()
+            sharedTree(leaf, depth = 1).hashCode()
+
+            assertEquals(1, argument.hashCalls)
+            assertEquals(tree.keysByType().hashCode(), hash)
+        }
+
+        @Test
+        fun `zero hash code is cached`() {
+            val argumentHash = (fooType.hashCode() - ObjectEngineResult.Key("a").hashCode()) xor "value".hashCode()
+            val argument = CountingArgument("zero", argumentHash)
+            val tree = argumentTree(argument)
+            argument.hashCalls = 0
+
+            repeat(10) { assertEquals(0, tree.hashCode()) }
+
+            assertEquals(1, argument.hashCalls)
+        }
+
+        @Test
+        fun `deep shared trees compare without expanding every path`() {
+            val firstArgument = CountingArgument("value")
+            val secondArgument = CountingArgument("value")
+            val first = sharedTree(argumentTree(firstArgument), depth = 18)
+            val second = sharedTree(argumentTree(secondArgument), depth = 18)
+
+            assertEquals(first, second)
+            assertEquals(second, first)
+            assertTrue(firstArgument.equalsCalls > 0)
+            assertTrue(secondArgument.equalsCalls > 0)
+        }
+
+        @Test
+        fun `hash collisions still compare each peer when sharing differs`() {
+            for (depth in listOf(0, 18)) {
+                val child = sharedTree(argumentTree("FB"), depth)
+                val equalChild = sharedTree(argumentTree("FB"), depth)
+                val differentChild = sharedTree(argumentTree("Ea"), depth)
+                val shared = KeyTree(mapOf(fooType to mapOf(ObjectEngineResult.Key("b") to child, ObjectEngineResult.Key("c") to child)))
+                val equal = KeyTree(mapOf(fooType to mapOf(ObjectEngineResult.Key("b") to equalChild, ObjectEngineResult.Key("c") to child)))
+                val different = KeyTree(mapOf(fooType to mapOf(ObjectEngineResult.Key("b") to equalChild, ObjectEngineResult.Key("c") to differentChild)))
+
+                assertEquals(shared, equal)
+                assertEquals(shared.hashCode(), different.hashCode())
+                assertFalse(shared == different)
+                assertFalse(different == shared)
+            }
+        }
+
+        private fun argumentTree(argument: Any): KeyTree = KeyTree(mapOf(fooType to mapOf(ObjectEngineResult.Key("a", arguments = mapOf("value" to argument)) to KeyTree.empty)))
+    }
+
+    private fun sharedTree(
+        leaf: KeyTree,
+        depth: Int
+    ): KeyTree =
+        (0 until depth).fold(leaf) { child, _ ->
+            KeyTree(mapOf(fooType to mapOf(ObjectEngineResult.Key("b") to child, ObjectEngineResult.Key("c") to child)))
+        }
+
+    private class CountingArgument(
+        private val value: String,
+        private val hash: Int = value.hashCode(),
+    ) {
+        var hashCalls = 0
+        var equalsCalls = 0
+
+        override fun hashCode(): Int {
+            assertTrue(++hashCalls < 1000, "Hashing must not expand shared paths")
+            return hash
+        }
+
+        override fun equals(other: Any?): Boolean {
+            assertTrue(++equalsCalls < 1000, "Equality must not expand shared paths")
+            return other is CountingArgument && value == other.value
+        }
+    }
+
+    @Nested
+    inner class SharedSubtrees {
+        private val bKey = ObjectEngineResult.Key("b")
+        private val cKey = ObjectEngineResult.Key("c")
+
+        @Test
+        fun `binary operations memoize by both operands`() {
+            val shared = KeyTree.build(schema) {
+                field("Bar", key("a"))
+                field("Bar", key("b"))
+            }
+            val left = KeyTree(mapOf(fooType to mapOf(bKey to shared, cKey to shared)))
+            val unionRight = KeyTree.build(schema) {
+                field("Foo", bKey) {
+                    field("Bar", key("c"))
+                }
+                field("Foo", cKey) {
+                    field("Bar", key("a"))
+                }
+            }
+            val comparisonRight = KeyTree.build(schema) {
+                field("Foo", bKey) {
+                    field("Bar", key("a"))
+                }
+                field("Foo", cKey) {
+                    field("Bar", key("b"))
+                }
+            }
+
+            val union = left + unionRight
+            assertEquals(setOf("a", "b", "c"), childKeys(union, bKey))
+            assertEquals(setOf("a", "b"), childKeys(union, cKey))
+
+            val difference = left - comparisonRight
+            assertEquals(setOf("b"), childKeys(difference, bKey))
+            assertEquals(setOf("a"), childKeys(difference, cKey))
+
+            val intersection = left.intersect(comparisonRight)
+            assertEquals(setOf("a"), childKeys(intersection, bKey))
+            assertEquals(setOf("b"), childKeys(intersection, cKey))
+        }
+
+        private fun childKeys(
+            tree: KeyTree,
+            key: ObjectEngineResult.Key
+        ): Set<String> = tree.subtreeForKey(fooType, key).responseKeysForType(barType)
     }
 
     @Nested
     inner class StringRepresentation {
         @Test
-        fun `uses type names and preserves nested keys`() {
+        fun `shows only top-level response keys grouped by type`() {
             val tree = KeyTree.build(schema) {
+                field("Foo", key("a"))
                 field("Foo", key("c", alias = "result", arguments = mapOf("a" to 1))) {
                     field("Bar", key("b"))
                 }
+                field("Bar", key("a"))
             }
 
-            assertEquals(
-                "KeyTree(Foo={Key(name='c', alias='result', arguments=a=1)=" +
-                    "KeyTree(Bar={Key(name='b', alias='null', arguments=)=KeyTree()})})",
-                tree.toString(),
-            )
+            assertEquals("KeyTree(Foo={a, result}, Bar={a})", tree.toString())
+        }
+
+        @Test
+        fun `distinguishes empty trees from empty type branches`() {
+            assertEquals("KeyTree()", KeyTree.empty.toString())
+            assertEquals("KeyTree(Foo={})", KeyTree(mapOf(fooType to emptyMap())).toString())
         }
     }
 
@@ -347,6 +512,71 @@ class KeyTreeTest {
             }
 
             assertSame(tree, tree.intersect(equalTree))
+        }
+
+        @Test
+        fun `intersection reuses equal descendants when parents differ`() {
+            val left = KeyTree.build(schema) {
+                field("Foo", key("a"))
+                field("Foo", key("b")) {
+                    field("Bar", key("a"))
+                }
+                field("Bar", key("a"))
+            }
+            val right = KeyTree.build(schema) {
+                field("Foo", key("b")) {
+                    field("Bar", key("a"))
+                }
+                field("Foo", key("c"))
+            }
+
+            val common = left.intersect(right)
+
+            common.keysByType().keys.shouldContainExactlyInAnyOrder(fooType)
+            common.responseKeysForType(fooType).shouldContainExactlyInAnyOrder("b")
+            val bKey = ObjectEngineResult.Key("b")
+            assertSame(left.subtreeForKey(fooType, bKey), common.subtreeForKey(fooType, bKey))
+            left.keysByType().keys.shouldContainExactlyInAnyOrder(fooType, barType)
+            left.responseKeysForType(fooType).shouldContainExactlyInAnyOrder("a", "b")
+        }
+
+        @Test
+        fun `intersection does not hash nonoverlapping descendants`() {
+            val argument = CountingArgument("value")
+            val child = KeyTree(
+                mapOf(
+                    barType to (0..20).associate { i ->
+                        ObjectEngineResult.Key("a", alias = "a$i", arguments = mapOf("value" to argument)) to KeyTree.empty
+                    }
+                )
+            )
+            val left = KeyTree(mapOf(fooType to mapOf(ObjectEngineResult.Key("b") to child)))
+            val right = KeyTree(mapOf(fooType to mapOf(ObjectEngineResult.Key("c") to child)))
+            argument.hashCalls = 0
+
+            val common = left.intersect(right)
+
+            assertEquals(0, argument.hashCalls)
+            assertEquals(KeyTree(mapOf(fooType to emptyMap())), common)
+        }
+
+        @Test
+        fun `intersection of unequal shared DAGs stays bounded and preserves sharing`() {
+            for (depth in listOf(1, 18)) {
+                val argument = CountingArgument("value")
+                val commonKey = ObjectEngineResult.Key("a", arguments = mapOf("value" to argument))
+                val left = sharedTree(KeyTree(mapOf(fooType to mapOf(commonKey to KeyTree.empty, ObjectEngineResult.Key("b") to KeyTree.empty))), depth)
+                val right = sharedTree(KeyTree(mapOf(fooType to mapOf(commonKey to KeyTree.empty, ObjectEngineResult.Key("c") to KeyTree.empty))), depth)
+
+                var common = left.intersect(right)
+
+                repeat(depth) {
+                    val child = common.subtreeForKey(fooType, ObjectEngineResult.Key("b"))
+                    assertSame(child, common.subtreeForKey(fooType, ObjectEngineResult.Key("c")))
+                    common = child
+                }
+                assertEquals(KeyTree(mapOf(fooType to mapOf(commonKey to KeyTree.empty))), common)
+            }
         }
 
         @Test

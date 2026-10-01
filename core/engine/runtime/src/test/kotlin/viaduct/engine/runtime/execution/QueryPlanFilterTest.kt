@@ -26,11 +26,54 @@ import viaduct.engine.api.mocks.MockVariablesResolver
 import viaduct.engine.api.mocks.createRSS
 import viaduct.engine.runtime.RequiredSelectionSetRegistry
 import viaduct.engine.runtime.execution.ExecutionTestHelpers.runExecutionTest
+import viaduct.engine.runtime.execution.constraints.Constraints
 import viaduct.engine.runtime.mat.KeyTree
 import viaduct.engine.runtime.mat.build
 import viaduct.engine.runtime.result.ObjectEngineResult
+import viaduct.graphql.utils.collectVariableReferences
 
 class QueryPlanFilterTest {
+    @Test
+    fun `active variable collection includes spread directives without requiring fragment definitions`() {
+        Fixture(
+            """
+                type Query { foo: Foo }
+                type Foo { x(arg: String): String, y: String }
+            """.trimIndent()
+        ) {
+            val plan = buildPlan(
+                """
+                    query (${'$'}include: Boolean!, ${'$'}skip: Boolean!, ${'$'}arg: String!, ${'$'}fieldFlag: Boolean!) {
+                      foo {
+                        ...Fields @include(if: ${'$'}include)
+                        ... on Foo @skip(if: ${'$'}skip) {
+                          x(arg: ${'$'}arg) @include(if: ${'$'}fieldFlag)
+                        }
+                      }
+                    }
+                    fragment Fields on Foo { y }
+                """.trimIndent()
+            )
+
+            val names = plan.selectionSet.retainedVariableNames()
+
+            names.shouldContainExactlyInAnyOrder("include", "skip", "arg", "fieldFlag")
+            assertEquals(plan.selectionSet.toAstSelectionSet().collectVariableReferences(), names)
+        }
+    }
+
+    @Test
+    fun `spread without source AST contributes no retained variables`() {
+        Fixture("type Query { foo: Foo } type Foo { x: Int }") {
+            val selections = QueryPlan.SelectionSet(
+                query,
+                QueryPlan.FragmentSpread("Fields", Constraints.Unconstrained),
+            )
+
+            selections.retainedVariableNames().shouldBeEmpty()
+        }
+    }
+
     @Test
     fun `filterTo preserves retained field AST and prunes unused variables`() {
         Fixture(

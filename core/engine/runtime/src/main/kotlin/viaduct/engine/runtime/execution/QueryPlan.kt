@@ -15,6 +15,7 @@ import graphql.schema.GraphQLFieldsContainer
 import graphql.schema.GraphQLObjectType
 import graphql.schema.GraphQLSchema
 import graphql.schema.GraphQLTypeUtil
+import java.util.IdentityHashMap
 import viaduct.engine.api.Coordinate
 import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.ExecutionAttribution
@@ -318,10 +319,18 @@ data class QueryPlan(
  * `... on parentType` so a narrowed selection set keeps its type condition. Only the names are
  * compared, so the wrapper is sometimes redundant (e.g. when it widens), which is harmless.
  */
-internal fun QueryPlan.SelectionSet.toAstSelectionSet(enclosingTypeName: String = parentType.name): GJSelectionSet {
-    val rendered = GJSelectionSet.newSelectionSet()
-        .selections(selections.flatMap { it.toAstSelections(parentType) })
-        .build()
+internal fun QueryPlan.SelectionSet.toAstSelectionSet(enclosingTypeName: String = parentType.name): GJSelectionSet = toAstSelectionSet(enclosingTypeName, IdentityHashMap())
+
+private fun QueryPlan.SelectionSet.toAstSelectionSet(
+    enclosingTypeName: String,
+    memo: IdentityHashMap<QueryPlan.SelectionSet, GJSelectionSet>,
+): GJSelectionSet {
+    // Share the body, but keep the enclosing type's wrapper specific to each use site.
+    val rendered = memo.getOrPut(this) {
+        GJSelectionSet.newSelectionSet()
+            .selections(selections.flatMap { it.toAstSelections(parentType, memo) })
+            .build()
+    }
     if (enclosingTypeName == parentType.name) return rendered
     return GJSelectionSet.newSelectionSet()
         .selection(
@@ -332,19 +341,22 @@ internal fun QueryPlan.SelectionSet.toAstSelectionSet(enclosingTypeName: String 
         ).build()
 }
 
-private fun QueryPlan.Selection.toAstSelections(parentType: GraphQLCompositeType): List<GJSelection<*>> =
+private fun QueryPlan.Selection.toAstSelections(
+    parentType: GraphQLCompositeType,
+    memo: IdentityHashMap<QueryPlan.SelectionSet, GJSelectionSet>,
+): List<GJSelection<*>> =
     when (this) {
         is QueryPlan.Field ->
             listOf(
                 field.withSelectionSet(
-                    selectionSet?.let { it.toAstSelectionSet(parentType.fieldTypeName(field.name) ?: it.parentType.name) }
+                    selectionSet?.let { it.toAstSelectionSet(parentType.fieldTypeName(field.name) ?: it.parentType.name, memo) }
                 )
             )
         is QueryPlan.InlineFragment -> {
             val fragment = inlineFragment ?: GJInlineFragment.newInlineFragment().build()
             listOf(
                 fragment.transform {
-                    it.selectionSet(selectionSet.toAstSelectionSet(fragment.typeCondition?.name ?: parentType.name))
+                    it.selectionSet(selectionSet.toAstSelectionSet(fragment.typeCondition?.name ?: parentType.name, memo))
                 }
             )
         }

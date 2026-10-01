@@ -8,6 +8,7 @@ import graphql.language.AstPrinter
 import graphql.language.Directive as GJDirective
 import graphql.language.Field as GJField
 import graphql.language.FragmentDefinition as GJFragmentDefinition
+import graphql.language.InlineFragment as GJInlineFragment
 import graphql.language.Node
 import graphql.language.SelectionSet as GJSelectionSet
 import graphql.language.SourceLocation
@@ -57,6 +58,49 @@ import viaduct.engine.runtime.execution.constraints.Constraints
 import viaduct.graphql.utils.ParsedSelections
 
 class QueryPlanTest {
+    @Test
+    fun `AST conversion preserves shared field and inline fragment children`() {
+        Fixture("type Query { left: Query, right: Query, value: Int }") {
+            val shared = SelectionSet(query, mkField("value", Constraints.Unconstrained))
+            val selections = SelectionSet(
+                query,
+                mkField("left", Constraints.Unconstrained, selectionSet = shared),
+                mkField("right", Constraints.Unconstrained, selectionSet = shared),
+                InlineFragment(shared, Constraints.Unconstrained),
+            )
+
+            val ast = selections.toAstSelectionSet()
+
+            val children = checkNotNull((ast.selections[0] as GJField).selectionSet)
+            assertSame(children, (ast.selections[1] as GJField).selectionSet)
+            assertSame(children, (ast.selections[2] as GJInlineFragment).selectionSet)
+            assertEquals("value", (children.selections.single() as GJField).name)
+        }
+    }
+
+    @Test
+    fun `AST sharing preserves different enclosing field types in either order`() {
+        Fixture("type Query { abstract: U, concrete: A } union U = A | B type A { x: Int } type B { y: Int }") {
+            val shared = SelectionSet(schema.getObjectType("A"), mkField("x", Constraints.Unconstrained))
+            val fields = listOf(
+                mkField("abstract", Constraints.Unconstrained, selectionSet = shared),
+                mkField("concrete", Constraints.Unconstrained, selectionSet = shared),
+            )
+
+            for (orderedFields in listOf(fields, fields.reversed())) {
+                val ast = SelectionSet(query, orderedFields).toAstSelectionSet()
+                val byName = ast.selections.map { it as GJField }.associateBy { it.name }
+                val abstractSelections = checkNotNull(byName.getValue("abstract").selectionSet)
+                val concreteSelections = checkNotNull(byName.getValue("concrete").selectionSet)
+                val wrapper = abstractSelections.selections.single() as GJInlineFragment
+
+                assertEquals("A", wrapper.typeCondition.name)
+                assertSame(concreteSelections, wrapper.selectionSet)
+                assertEquals("x", (concreteSelections.selections.single() as GJField).name)
+            }
+        }
+    }
+
     @Test
     fun `scalar field`() {
         Fixture("type Query { x:Int }") {

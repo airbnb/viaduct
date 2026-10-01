@@ -111,6 +111,37 @@ class MatHelpersTest {
         }
 
         @Test
+        fun `projection type constrains an abstract selection set`() {
+            val parameters = mkExecutionParameters(
+                """
+                    extend type Query { item:Item }
+                    interface Item { common:Int }
+                    type Foo implements Item { common:Int foo:Int }
+                    type Bar implements Item { common:Int bar:Int }
+                """.trimIndent(),
+                "Query" to "item",
+                "{ item { common ... on Foo { foo } ... on Bar { bar } } }",
+            )
+            val selectionSet = checkNotNull(parameters.field?.selectionSet)
+            val schema = parameters.engineExecutionContext.activeSchema.schema
+
+            assertEquals(
+                KeyTree.build(parameters) {
+                    field("Foo", key("common"))
+                    field("Foo", key("foo"))
+                },
+                parameters.queryPlan.keyTree(parameters, selectionSet, schema.getObjectType("Foo")),
+            )
+            assertEquals(
+                KeyTree.build(parameters) {
+                    field("Bar", key("common"))
+                    field("Bar", key("bar"))
+                },
+                parameters.queryPlan.keyTree(parameters, selectionSet, schema.getObjectType("Bar")),
+            )
+        }
+
+        @Test
         fun `current selection set does not project required selections`() {
             val parameters = mkExecutionParameters(
                 "extend type Query { foo:Foo } type Foo { x:Int y:Int }",
