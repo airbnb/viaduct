@@ -1,50 +1,28 @@
 package execution.testing
 
+import execution.ExecutorRegistryInputs
+import execution.executorRegistryInputs
+import execution.validateExecutorRegistrations
 import graphql.ExecutionResult
-import graphql.GraphQLContext
-import graphql.schema.GraphQLCompositeType
 import graphql.schema.GraphQLList
 import graphql.schema.GraphQLNonNull
 import graphql.schema.GraphQLObjectType
 import graphql.schema.GraphQLOutputType
-import graphql.schema.GraphQLScalarType
-import graphql.schema.GraphQLTypeUtil
 import graphql.schema.idl.SchemaPrinter
 import java.util.IdentityHashMap
-import java.util.Locale
-import model.Arguments
-import model.EngineErrorData
-import model.EngineOutputData
-import model.Fragment
-import model.RootFieldReferenceData
-import model.emptyFragmentOf
 import model.engineObjectDataOf
-import model.fragmentFromDocument
-import model.lowering.SourceSchemaAdapter
 import model.lowering.ViaductAndGJSchema
-import model.registry.FieldResolverDefinition
-import model.registry.NodeResolverFunction
-import model.registry.SelectiveFieldResolverFunction
-import model.registry.VariableDeclaration
-import model.registry.fieldResolverOf
 import model.registry.nodeResolverOf
-import model.registry.selectionAwareFieldResolverOf
-import model.registry.selectiveFieldResolverOf
-import model.registry.selectiveNodeResolverOf
-import model.requireQueryTypeDef
-import model.requireType
 import model.testing.TestWorld
 import viaduct.engine.EngineConfiguration
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineSchema
-import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.NodeReference
 import viaduct.engine.api.ResolvedEngineObjectData
 import viaduct.engine.api.RootFieldReference
 import viaduct.engine.api.mocks.EngineTestModule
 import viaduct.engine.api.mocks.MockTenantModuleBootstrapper
-import viaduct.engine.api.mocks.createEngineObjectData
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.FieldSelectivityProvider
 import viaduct.engine.api.spi.NodeResolverExecutor
@@ -97,39 +75,43 @@ fun EngineTestModule.runQPlanFeatureTest(
     val context = ContextMocks(myFullSchema = fullSchema).engineExecutionContext
     val fieldSelectivityProvider =
         engineConfig?.fieldSelectivityProvider ?: FieldSelectivityProvider.Never
-    val registryInputs = IdentityHashMap<QPlanSchema, QPlanRegistryInputs>()
-    validateSupportedExecutors()
+    val registryInputs = IdentityHashMap<QPlanSchema, ExecutorRegistryInputs>()
+    validateExecutorRegistrations(fieldResolverExecutors.toList(), nodeResolverExecutors.toList())
+    if (checkerExecutors.isNotEmpty() || typeCheckerExecutors.isNotEmpty()) {
+        TODO("Qplan feature tests do not support checker executors yet")
+    }
 
+    fun inputs(schemas: ViaductAndGJSchema): ExecutorRegistryInputs =
+        registryInputs.getOrPut(schemas.loweredSchema) {
+            val adapted = executorRegistryInputs(
+                fullSchema = fullSchema,
+                schemas = schemas,
+                fieldExecutors = fieldResolverExecutors.map { (coordinate, executor) ->
+                    coordinate to fixtureFieldExecutor(coordinate, executor)
+                },
+                nodeExecutors = nodeResolverExecutors.map { (typeName, executor) ->
+                    typeName to fixtureNodeExecutor(typeName, executor)
+                },
+                context = context,
+                fieldSelectivityProvider = fieldSelectivityProvider,
+                includeDefaultQueryNodeResolvers = !withoutDefaultQueryNodeResolvers,
+            )
+            val nodeType = schemas.loweredSchema.types["Node"] as? QPlanSchema.Interface
+            val missing = if (adapted.nodeResolvers.isEmpty()) {
+                emptyMap()
+            } else {
+                nodeType?.possibleObjectTypes.orEmpty()
+                    .filter { it !in adapted.nodeResolvers }
+                    .associateWith { type -> nodeResolverOf { _: String -> engineObjectDataOf(type) } }
+            }
+            ExecutorRegistryInputs(adapted.fieldResolvers, adapted.nodeResolvers + missing, adapted.variableProviders)
+        }
     val world =
         TestWorld.fromSDL(
             schemaSDL = fullSchemaSDL,
-            fieldResolvers = { canonicalSchema ->
-                registryInputs
-                    .getOrPut(canonicalSchema.loweredSchema) {
-                        qplanRegistryInputs(
-                            schemas = canonicalSchema,
-                            context = context,
-                            fieldSelectivityProvider = fieldSelectivityProvider,
-                            includeDefaultQueryNodeResolvers = !withoutDefaultQueryNodeResolvers,
-                        )
-                    }
-                    .fieldResolvers
-            },
-            nodeResolvers = { canonicalSchema ->
-                qplanNodeResolvers(canonicalSchema, context)
-            },
-            variableProviders = { canonicalSchema ->
-                registryInputs
-                    .getOrPut(canonicalSchema.loweredSchema) {
-                        qplanRegistryInputs(
-                            schemas = canonicalSchema,
-                            context = context,
-                            fieldSelectivityProvider = fieldSelectivityProvider,
-                            includeDefaultQueryNodeResolvers = !withoutDefaultQueryNodeResolvers,
-                        )
-                    }
-                    .variableProviders
-            },
+            fieldResolvers = { inputs(it).fieldResolvers },
+            nodeResolvers = { inputs(it).nodeResolvers },
+            variableProviders = { inputs(it).variableProviders },
         )
     ExecutionTestFixture.fromWorld(executableSchemaSDL, world).use { fixture ->
         QPlanFeatureTest(fixture).block()
@@ -156,505 +138,78 @@ fun MockTenantModuleBootstrapper.runQPlanFeatureTest(
     )
 }
 
-private fun EngineTestModule.validateSupportedExecutors() {
-    if (checkerExecutors.isNotEmpty() || typeCheckerExecutors.isNotEmpty()) {
-        TODO("Qplan feature tests do not support checker executors yet")
-    }
-    fieldResolverExecutors.forEach { (coordinate, executor) ->
-        if (executor.isBatching) {
-            TODO("Qplan feature tests do not support batching field executor ${coordinate.render()}")
-        }
-    }
-    nodeResolverExecutors.forEach { (typeName, executor) ->
-        if (executor.isBatching) {
-            TODO("Qplan feature tests do not support batching node executor $typeName")
-        }
-    }
-}
-
-private data class QPlanRegistryInputs(
-    val fieldResolvers: Map<QPlanSchema.Field, FieldResolverDefinition>,
-    val variableProviders: Map<Arguments.Variable, VariableDeclaration>,
-)
-
-private fun EngineTestModule.qplanRegistryInputs(
-    schemas: ViaductAndGJSchema,
-    context: EngineExecutionContext,
-    fieldSelectivityProvider: FieldSelectivityProvider,
-    includeDefaultQueryNodeResolvers: Boolean,
-): QPlanRegistryInputs {
-    val schema = schemas.loweredSchema
-    val sourceSchema = SourceSchemaAdapter(schema)
-    val variableProviders = linkedMapOf<Arguments.Variable, VariableDeclaration>()
-    val supplied =
-        fieldResolverExecutors.associate { (coordinate, executor) ->
-            val field =
-                sourceSchema.field(coordinate.first, coordinate.second)
-                    as? QPlanSchema.ObjectField
-                    ?: throw IllegalArgumentException(
-                        "Field executor ${coordinate.render()} does not map to a concrete object field",
-                    )
-            val sourceField =
-                requireNotNull(fullSchema.schema.getObjectType(coordinate.first))
-                    .getFieldDefinition(coordinate.second)
-            val objectFragment = executor.objectFragment(schemas, field)
-            val queryFragment = executor.queryFragment(schemas, field)
-            val variables =
-                executor.compileVariableDeclarations(
-                    schema = schemas,
-                    field = field,
-                    objectFragment = objectFragment,
-                    queryFragment = queryFragment,
-                    context = context,
-                )
-            variables.declarations
-                .forEach { (variable, declaration) ->
-                    require(variableProviders.put(variable, declaration) == null) {
-                        "Duplicate variable provider \$${variable.variableName} for ${coordinate.render()}"
-                    }
-                }
-
-            suspend fun invokeExecutor(
-                input: EngineObjectData.Sync,
-                queryValue: EngineObjectData.Sync,
-                arguments: Arguments.Resolved,
-                selections: EngineSelectionSet?,
-                executorContext: EngineExecutionContext,
-            ): EngineOutputData? {
-                val selector =
-                    FieldResolverExecutor.Selector(
-                        arguments = arguments.fieldValues,
-                        selections = selections,
-                        syncObjectValueGetter = { input },
-                        syncQueryValueGetter = { queryValue },
-                    )
-                val output =
-                    executor.batchResolve(listOf(selector), executorContext)[selector]
-                        ?: Result.failure(
-                            IllegalStateException(
-                                "Field executor ${coordinate.render()} omitted its selector",
-                            ),
-                        )
-                return output.fold(
-                    onSuccess = { normalizeSourceOutput(sourceField.type, it, sourceSchema) },
-                    onFailure = { EngineErrorData.of(it) },
-                )
-            }
-            val isSelective =
-                executor.isSelective || fieldSelectivityProvider.isSelective(coordinate)
-            val resolverFunction: SelectiveFieldResolverFunction =
-                { input, queryValue, arguments, selections, resolutionContext ->
-                    val selectionSet =
-                        (field.type.baseTypeDef as? QPlanSchema.CompositeTypeDef)?.let {
-                                type ->
-                            type.takeIf { fullSchema.schema.getType(it.name) != null }
-                                ?.let { selections.toEngineSelectionSet(it, fullSchema, sourceSchema) }
-                        }
-                    invokeExecutor(
-                        input,
-                        queryValue,
-                        arguments,
-                        selectionSet,
-                        QPlanEngineExecutionContext(context, schemas, resolutionContext),
-                    )
-                }
-            val resolver =
-                if (isSelective) {
-                    selectiveFieldResolverOf(objectFragment, queryFragment, resolverFunction)
-                } else {
-                    selectionAwareFieldResolverOf(objectFragment, queryFragment, resolverFunction)
-                }
-            val resolverWithVariablesProvider =
-                variables.provider?.let { provider ->
-                    resolver.withVariablesProvider(variables.providerNames, provider)
-                } ?: resolver
-            field to resolverWithVariablesProvider
-        }
-
-    val duplicateCount = fieldResolverExecutors.count() - supplied.size
-    require(duplicateCount == 0) {
-        "Qplan feature tests require unique field executor coordinates"
-    }
-    return QPlanRegistryInputs(
-        fieldResolvers =
-            supplied +
-                namespaceFieldResolvers(schema, sourceSchema, supplied.keys) +
-                if (includeDefaultQueryNodeResolvers) {
-                    builtInNodeFieldResolvers(schema, context, supplied.keys)
-                } else {
-                    emptyMap()
-                },
-        variableProviders = variableProviders,
-    )
-}
-
-private fun EngineTestModule.namespaceFieldResolvers(
-    schema: QPlanSchema,
-    sourceSchema: SourceSchemaAdapter,
-    suppliedFields: Set<QPlanSchema.Field>,
-): Map<QPlanSchema.Field, FieldResolverDefinition> =
-    fullSchema.schema.allTypesAsList
-        .filterIsInstance<GraphQLObjectType>()
-        .flatMap { sourceParent ->
-            sourceParent.fieldDefinitions.mapNotNull { sourceField ->
-                val sourceOutput = GraphQLTypeUtil.unwrapAll(sourceField.type) as? GraphQLObjectType
-                    ?: return@mapNotNull null
-                if (!sourceOutput.hasAppliedDirective("namespaceType")) return@mapNotNull null
-                val field = sourceSchema.field(sourceParent.name, sourceField.name)
-                require(field is QPlanSchema.ObjectField) {
-                    "Namespace field ${sourceParent.name}/${sourceField.name} " +
-                        "does not map to a concrete object field"
-                }
-                if (field in suppliedFields) return@mapNotNull null
-                val outputType = schema.requireType(sourceOutput.name)
-                require(outputType is QPlanSchema.Object) {
-                    "Namespace field ${sourceParent.name}/${sourceField.name} " +
-                        "does not return a canonical object"
-                }
-                field to
-                    fieldResolverOf(schema.emptyFragmentOf(field.containingDef.name)) { _, _ ->
-                        engineObjectDataOf(outputType)
-                    }
-            }
-        }.toMap()
-
-private fun FieldResolverExecutor.objectFragment(
-    schema: ViaductAndGJSchema,
-    field: QPlanSchema.ObjectField,
-): Fragment =
-    objectSelectionSet?.let { required ->
-        schema.fragmentFromDocument(
-            document = required.selections.toDocument(),
-            variableField = field,
-        )
-    } ?: schema.loweredSchema.emptyFragmentOf(field.containingDef.name)
-
-private fun FieldResolverExecutor.queryFragment(
-    schema: ViaductAndGJSchema,
-    field: QPlanSchema.ObjectField,
-): Fragment =
-    querySelectionSet?.let { required ->
-        schema.fragmentFromDocument(
-            document = required.selections.toDocument(),
-            variableField = field,
-        )
-    } ?: schema.loweredSchema.emptyFragmentOf(schema.loweredSchema.requireQueryTypeDef().name)
-
-private fun EngineTestModule.builtInNodeFieldResolvers(
-    schema: QPlanSchema,
-    context: EngineExecutionContext,
-    suppliedFields: Set<QPlanSchema.Field>,
-): Map<QPlanSchema.Field, FieldResolverDefinition> {
-    val sourceSchema = SourceSchemaAdapter(schema)
-    val query = schema.emptyFragmentOf(schema.requireQueryTypeDef().name)
-    return buildMap {
-        fullSchema.schema.queryType.getFieldDefinition("node")?.let { sourceField ->
-            val field = sourceSchema.field(fullSchema.schema.queryType.name, sourceField.name)
-            if (field !in suppliedFields) {
-                put(
-                    field,
-                    fieldResolverOf(query) { _, arguments ->
-                        nodeReference(arguments.fieldValues["id"], context)
-                    },
-                )
-            }
-        }
-        fullSchema.schema.queryType.getFieldDefinition("nodes")?.let { sourceField ->
-            val field = sourceSchema.field(fullSchema.schema.queryType.name, sourceField.name)
-            if (field !in suppliedFields) {
-                put(
-                    field,
-                    fieldResolverOf(query) { _, arguments ->
-                        val ids = arguments.fieldValues["ids"]
-                        if (ids !is List<*>) {
-                            EngineErrorData.of()
-                        } else {
-                            ids.map { nodeReference(it, context) }
-                        }
-                    },
-                )
+private fun EngineTestModule.fixtureFieldExecutor(
+    coordinate: Pair<String, String>,
+    executor: FieldResolverExecutor,
+): FieldResolverExecutor =
+    object : FieldResolverExecutor by executor {
+        override suspend fun batchResolve(
+            selectors: List<FieldResolverExecutor.Selector>,
+            context: EngineExecutionContext,
+        ): Map<FieldResolverExecutor.Selector, Result<Any?>> {
+            val type = fullSchema.schema.getObjectType(coordinate.first).getFieldDefinition(coordinate.second).type
+            return executor.batchResolve(selectors, context).mapValues { (_, result) ->
+                result.map { fixtureNodeIds(type, it) }
             }
         }
     }
-}
 
-private fun nodeReference(
-    globalId: Any?,
-    context: EngineExecutionContext,
-): Any {
-    if (globalId !is String) return EngineErrorData.of()
-    return try {
-        val (typeName) = context.globalIDCodec.deserialize(globalId)
-        val type =
-            context.fullSchema.schema.getObjectType(typeName)
-                ?: return EngineErrorData.of()
-        if (type.interfaces.none { it.name == "Node" }) return EngineErrorData.of()
-        normalizeNodeReference(context.createNodeReference(globalId, type))
-    } catch (_: IllegalArgumentException) {
-        EngineErrorData.of()
-    }
-}
-
-private fun EngineTestModule.qplanNodeResolvers(
-    schemas: ViaductAndGJSchema,
-    context: EngineExecutionContext,
-): Map<QPlanSchema.Object, NodeResolverFunction> {
-    val schema = schemas.loweredSchema
-    val sourceSchema = SourceSchemaAdapter(schema)
-    val supplied =
-        nodeResolverExecutors.associate { (typeName, executor) ->
-            val type = schema.requireType(typeName) as QPlanSchema.Object
-            val fieldResolverOwnedFields =
-                fieldResolverExecutors
-                    .mapNotNullTo(linkedSetOf()) { (coordinate, _) ->
-                        coordinate.second.takeIf { coordinate.first == typeName }
-                    }
-
-            suspend fun invokeExecutor(
-                id: String,
-                selections: EngineSelectionSet,
-                executorContext: EngineExecutionContext,
-            ): EngineOutputData? {
-                if (
-                    executor.isSelective &&
-                    selections.selections().all { selection -> selection.fieldName == "id" }
-                ) {
-                    return ResolvedEngineObjectData(
-                        requireNotNull(fullSchema.schema.getObjectType(typeName)),
-                        emptyMap(),
-                    )
-                }
-                val selector = NodeResolverExecutor.Selector(id, selections)
-                val output =
-                    executor.resolve(listOf(selector), executorContext)[selector]
-                        ?: Result.failure(
-                            IllegalStateException(
-                                "Node executor $typeName omitted its selector",
-                            ),
-                        )
-                return output.fold(
-                    onSuccess = {
-                        when (
-                            val normalized =
-                                normalizeSourceOutput(
-                                    requireNotNull(fullSchema.schema.getObjectType(typeName)),
-                                    it,
-                                    sourceSchema,
-                                )
-                        ) {
-                            is RootFieldReferenceData -> normalized
-                            is EngineObjectData.Sync ->
-                                if (executor.isSelective) {
-                                    normalized.projectTopLevel(
-                                        selections = selections,
-                                        excludedFields = fieldResolverOwnedFields,
-                                    )
-                                } else {
-                                    completeMissingNodeFields(typeName, normalized)
-                                }
-                            else -> error("Node executor $typeName returned a non-object value")
-                        }
-                    },
-                    onFailure = { EngineErrorData.of(it) },
-                )
-            }
-            type to
-                if (executor.isSelective) {
-                    selectiveNodeResolverOf { id, selections, resolutionContext ->
-                        invokeExecutor(
-                            id,
-                            selections.toEngineSelectionSet(type, fullSchema, sourceSchema),
-                            QPlanEngineExecutionContext(context, schemas, resolutionContext),
-                        )
-                    }
-                } else {
-                    nodeResolverOf { id, resolutionContext ->
-                        invokeExecutor(
-                            id,
-                            context.engineSelectionSetFactory.engineSelectionSet(
-                                typeName,
-                                "id",
-                                emptyMap(),
-                            ),
-                            QPlanEngineExecutionContext(context, schemas, resolutionContext),
-                        )
-                    }
-                }
-        }
-    require(nodeResolverExecutors.count() == supplied.size) {
-        "Qplan feature tests require unique node executor types"
-    }
-    if (supplied.isEmpty()) return supplied
-
-    val nodeType = schema.types["Node"] as? QPlanSchema.Interface ?: return supplied
-    val unavailable =
-        nodeType.possibleObjectTypes
-            .filter { type -> type !in supplied }
-            .associateWith { type ->
-                nodeResolverOf { _: String -> model.engineObjectDataOf(type) }
-            }
-    return supplied + unavailable
-}
-
-private fun EngineObjectData.Sync.projectTopLevel(
-    selections: EngineSelectionSet,
-    excludedFields: Set<String>,
-): EngineObjectData.Sync {
-    val demandedFields =
-        selections
-            .selections()
-            .mapTo(linkedSetOf()) { it.fieldName }
-            .minus(excludedFields)
-    val fields =
-        getSelections()
-            .filter { fieldName -> fieldName in demandedFields }
-            .associateWithTo(linkedMapOf(), ::get)
-    demandedFields.forEach { fieldName ->
-        val field = type.getFieldDefinition(fieldName) ?: return@forEach
-        if (fieldName !in fields && field.type !is GraphQLNonNull) {
-            fields[fieldName] = null
-        }
-    }
-    return ResolvedEngineObjectData(
-        type,
-        fields,
-    )
-}
-
-private fun EngineTestModule.completeMissingNodeFields(
+private fun EngineTestModule.fixtureNodeExecutor(
     typeName: String,
-    value: EngineObjectData.Sync,
-): EngineObjectData.Sync {
-    val type = requireNotNull(fullSchema.schema.getObjectType(typeName))
-    val fields = value.getSelections().associateWith(value::get).toMutableMap()
-    type.fieldDefinitions.forEach { field ->
-        if (
-            field.name !in fields &&
-            field.type !is GraphQLNonNull &&
-            fieldResolverExecutors.none { (coordinate, _) ->
-                coordinate == (typeName to field.name)
+    executor: NodeResolverExecutor,
+): NodeResolverExecutor =
+    object : NodeResolverExecutor by executor {
+        override suspend fun resolve(
+            selectors: List<NodeResolverExecutor.Selector>,
+            context: EngineExecutionContext,
+        ): Map<NodeResolverExecutor.Selector, Result<EngineObjectData>> =
+            executor.resolve(selectors, context).mapValues { (selector, result) ->
+                result.map { output ->
+                    val type = requireNotNull(fullSchema.schema.getObjectType(typeName))
+                    val prepared = fixtureNodeIds(type, output) as EngineObjectData
+                    if (prepared !is EngineObjectData.Sync || prepared is RootFieldReference) {
+                        prepared
+                    } else {
+                        val fields = prepared.getSelections().associateWith(prepared::get).toMutableMap()
+                        val demanded = if (executor.isSelective) selector.selections.selections().map { it.fieldName }.toSet() else null
+                        type.fieldDefinitions.forEach { field ->
+                            if (field.name !in fields && field.type !is GraphQLNonNull &&
+                                (demanded == null || field.name in demanded) &&
+                                fieldResolverExecutors.none { it.first == (typeName to field.name) }
+                            ) {
+                                fields[field.name] = null
+                            }
+                        }
+                        ResolvedEngineObjectData(type, fields)
+                    }
+                }
             }
-        ) {
-            fields[field.name] = null
-        }
     }
-    return ResolvedEngineObjectData(type, fields)
-}
 
-private fun normalizeSourceOutput(
+private fun fixtureNodeIds(
     expectedType: GraphQLOutputType,
     value: Any?,
-    sourceSchema: SourceSchemaAdapter,
-): Any? =
-    if (value is EngineErrorData) {
-        value
-    } else if (value is RootFieldReference) {
-        sourceSchema.lowerRootFieldReference(
-            rootFieldPath = value.rootFieldPath,
-            sourceTypeName = value.type.name,
-            arguments = value.args,
-        )
-    } else {
-        when (expectedType) {
-            is GraphQLNonNull ->
-                normalizeSourceOutput(expectedType.wrappedType as GraphQLOutputType, value, sourceSchema)
-            is GraphQLList -> {
-                if (value !is List<*>) {
-                    value
-                } else {
-                    value.map {
-                        normalizeSourceOutput(
-                            expectedType.wrappedType as GraphQLOutputType,
-                            it,
-                            sourceSchema,
-                        )
-                    }
-                }
-            }
-            is GraphQLObjectType ->
-                when (value) {
-                    is NodeReference -> normalizeNodeReference(value)
-                    is EngineObjectData.Sync -> normalizeSourceObject(expectedType, value, sourceSchema)
-                    is Map<*, *> -> normalizeSourceObjectMap(expectedType, value, sourceSchema)
-                    else -> value
-                }
-            is GraphQLCompositeType ->
-                when (value) {
-                    is NodeReference -> normalizeNodeReference(value)
-                    is EngineObjectData.Sync -> normalizeSourceObject(value, sourceSchema)
-                    else -> value
-                }
-            is GraphQLScalarType ->
-                value?.let {
-                    expectedType.coercing.serialize(
-                        it,
-                        GraphQLContext.getDefault(),
-                        Locale.getDefault(),
-                    )
-                }
-            else -> value
+): Any? {
+    if (value is RootFieldReference || value is NodeReference) return value
+    if (expectedType is GraphQLNonNull) return fixtureNodeIds(expectedType.wrappedType as GraphQLOutputType, value)
+    if (expectedType is GraphQLList && value is List<*>) {
+        return value.map { fixtureNodeIds(expectedType.wrappedType as GraphQLOutputType, it) }
+    }
+    val type = (expectedType as? GraphQLObjectType) ?: (value as? EngineObjectData.Sync)?.type ?: return value
+    val fields = when (value) {
+        is EngineObjectData.Sync -> value.getSelections().associateWith(value::get)
+        is Map<*, *> -> {
+            if (value.keys.any { it !is String }) return value
+            value.entries.associate { (key, entry) -> key as String to entry }
         }
-    }
-
-private fun normalizeSourceObjectMap(
-    expectedType: GraphQLObjectType,
-    value: Map<*, *>,
-    sourceSchema: SourceSchemaAdapter,
-): EngineObjectData.Sync {
-    /*
-     * EngineTestModule field executors may return a raw GraphQL object source as a map because
-     * FieldResolverExecutor's output contract is Any?. Production execution accepts that source,
-     * resolves its child fields into an OER, and only then projects required selections as
-     * EngineObjectData. This pre-dispatcher adapter bypasses those steps, so materialize the map
-     * here before it crosses into qplan's stricter EngineOutputData domain. The declared concrete
-     * object type makes this conversion unambiguous; abstract map outputs remain unsupported.
-     */
-    require(value.keys.all { it is String }) {
-        "Qplan feature tests require string keys in map object executor outputs"
-    }
-    @Suppress("UNCHECKED_CAST")
-    return normalizeSourceObject(
-        createEngineObjectData(expectedType, value as Map<String, Any?>),
-        sourceSchema,
-    )
-}
-
-private fun normalizeNodeReference(reference: NodeReference): EngineObjectData.Sync =
-    ResolvedEngineObjectData(
-        reference.type,
-        mapOf("id" to reference.id),
-    )
-
-private fun normalizeSourceObject(
-    value: EngineObjectData,
-    sourceSchema: SourceSchemaAdapter,
-): EngineObjectData.Sync {
-    require(value is EngineObjectData.Sync) {
-        "Qplan feature tests require synchronous EngineObjectData executor outputs"
-    }
-    return normalizeSourceObject(value.type, value, sourceSchema)
-}
-
-private fun normalizeSourceObject(
-    type: GraphQLObjectType,
-    value: EngineObjectData.Sync,
-    sourceSchema: SourceSchemaAdapter,
-): EngineObjectData.Sync {
-    val fields =
-        value.getSelections().associateWith { selection ->
-            val field =
-                requireNotNull(type.getFieldDefinition(selection)) {
-                    "Executor output ${type.name} has no field named $selection"
-                }
-            normalizeSourceOutput(field.type, value.get(selection), sourceSchema)
-        }.toMutableMap()
-    if (
-        type.interfaces.any { it.name == "Node" } &&
-        "id" !in fields
-    ) {
+        else -> return value
+    }.mapValues { (name, entry) ->
+        type.getFieldDefinition(name)?.let { fixtureNodeIds(it.type, entry) } ?: entry
+    }.toMutableMap()
+    if (type.interfaces.any { it.name == "Node" } && "id" !in fields) {
         fields["id"] = "__qplan_inline_node__"
     }
-    return ResolvedEngineObjectData(type, fields)
+    return if (value is Map<*, *>) fields else ResolvedEngineObjectData(type, fields)
 }
 
 private fun qplanSchemaSDL(schema: EngineSchema): String {
@@ -668,5 +223,3 @@ private fun qplanSchemaSDL(schema: EngineSchema): String {
             .includeSchemaDefinition(false)
     return SchemaPrinter(options).print(schema.schema)
 }
-
-private fun Pair<String, String>.render(): String = "$first.$second"

@@ -1,5 +1,6 @@
 package model.parsing
 
+import graphql.parser.Parser
 import graphql.schema.idl.SchemaParser
 import graphql.schema.idl.UnExecutableSchemaGenerator
 import model.ArgumentResolutionError
@@ -21,6 +22,28 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 
 class FragmentSelectionParsingTest {
+    @Test
+    fun `fragment documents require explicit owners for unbound variables in named spreads`() {
+        val document = Parser.parse("fragment Main on Query { ...Input } fragment Input on Query { echo(value: \$value) }")
+        assertThrows<IllegalArgumentException> { schemas.fragmentFromDocument(document) }
+        val owned = schemas.fragmentFromDocument(document, variableField = owner)
+        assertEquals(setOf(Arguments.Variable.of(owner, "value")), owned.subselections.usedVariables())
+        val bound = schemas.fragmentFromDocument(document, bindings = mapOf("value" to "bound"))
+        assertEquals(mapOf("value" to "bound"), bound.subselections.single().key.arguments.fieldExpressions())
+    }
+
+    @Test
+    fun `fragment documents reject missing duplicate and cyclic definitions`() {
+        for (source in listOf(
+            "fragment Main on Query { ...Missing }",
+            "fragment Main on Query { echo } fragment Main on Query { unrelated }",
+            "fragment Main on Query { ...Child } fragment Child on Query { ...Main }",
+            "query { echo }",
+        )) {
+            assertThrows<IllegalArgumentException> { schemas.fragmentFromDocument(Parser.parse(source)) }
+        }
+    }
+
     private val schemas =
         ViaductAndGJSchema.fromGraphQLSchema(
             UnExecutableSchemaGenerator.makeUnExecutableSchema(

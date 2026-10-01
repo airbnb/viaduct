@@ -1,5 +1,6 @@
 package execution.testing
 
+import execution.toEngineSelectionSet
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse

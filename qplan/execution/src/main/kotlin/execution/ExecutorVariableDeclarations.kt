@@ -1,4 +1,4 @@
-package execution.testing
+package execution
 
 import graphql.language.AstPrinter
 import model.Arguments
@@ -18,7 +18,7 @@ import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.runtime.tenantloading.InvalidVariableException
 import viaduct.graphql.schema.ViaductSchema
 
-/** Compiles the executor SPI with the same typed templates and paths used by TestWorld. */
+/** Compiles explicit executor declarations into canonical variable sources. */
 internal class ExecutorVariableDeclarations(
     val declarations: Map<Arguments.Variable, VariableDeclaration>,
     val providerNames: Set<String>,

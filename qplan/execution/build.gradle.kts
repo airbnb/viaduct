@@ -7,6 +7,7 @@ plugins {
 dependencies {
     implementation(project(":model"))
     implementation(project(":semantics"))
+    implementation(libs.viaduct.engine.runtime)
     implementation(libs.graphql.java)
     implementation(libs.kotlinx.coroutines.jdk8)
 

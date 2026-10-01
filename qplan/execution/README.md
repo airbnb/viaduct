@@ -1,16 +1,17 @@
 # Qplan Execution
 
-The execution module is qplan's GraphQL-Java execution harness. It converts a validated query into qplan selections, starts Resolver26, and gives its live promise-backed `ObjectEngineResult` tree back to GraphQL Java for ordinary or incremental response completion. This module's main integration surface is a feature-test adapter that runs real Engine API mock executors against qplan.
+The execution module is qplan's GraphQL-Java execution harness. It converts a validated query into qplan selections, starts Resolver26, and gives its live promise-backed `ObjectEngineResult` tree back to GraphQL Java for ordinary or incremental response completion. Execution main provides executor adaptation independently of the feature-test harness, which runs Engine API mock executors through that same implementation.
 
 ## Architecture
 
-Bootstrap has the following shape:
+The feature-test bootstrap has the following shape:
 
 ```text
 EngineTestModule
   -> source GraphQLSchema rendered as SDL
   -> TestWorld.fromSDL
        -> source GraphQL-Java schema plus canonical lowered ViaductSchema
+       -> executorRegistryInputs (execution main), with fixture-only executor defaults
        -> executor-backed field and node resolver definitions
        -> shared node and typename lowering
        -> ResolverRegistry
@@ -41,6 +42,16 @@ GraphQL Java parsing, validation, and input coercion
 
 Feature tests may provide a scoped executable schema distinct from the full schema used to build the reasoning world and executor registry. GraphQL Java validates and completes the public operation against the scoped schema, while Resolver26 retains private fields from the full schema for resolver-required selections.
 
+## Executor Adaptation
+
+`executorRegistryInputs` accepts an `EngineSchema`, its matching `ViaductAndGJSchema`, explicit field and node executor registrations, an `EngineExecutionContext`, a selectivity provider, and a built-in-node-resolver option. It returns field definitions, node functions, and variable declarations for model main's `resolverRegistryOf`. Duplicate registrations and unsupported batching are rejected before compilation. Namespace and optional Query node built-ins fill only unsupplied coordinates; ordinary missing resolvers are not synthesized.
+
+The returned functions retain the supplied execution context, including function-variable callbacks. These inputs and any registry built from them are context-bound, not a service-wide registry safe for unrelated requests. Separating reusable executor metadata from request-local context binding remains production integration work. The adapter does not create mocks, dispatchers, or another scheduler.
+
+Required-selection decoding uses model main's fragment-document parser. Invocation-local Query execution and demand conversion also live in execution main; demand conversion calls the production `EngineSelectionSetImpl` directly. Output adaptation retains source/reference normalization while canonical lowering stays in model main.
+
+The feature-test wrapper alone supplies missing Query/node resolver defaults, nullable-node-field completion, and synthetic inline Node IDs. Its executor wrappers prepare those test values before invoking the shared adapter. Execution tests still use model and semantics fixtures for their broader harness; removing those dependencies is a separate step.
+
 ## Executor-Backed Feature Tests
 
 `EngineTestModule.runQPlanFeatureTest` is defined in `src/testFixtures/kotlin/execution/testing/QPlanFeatureTest.kt`. It consumes the pre-dispatcher field and node executor maps exposed by `EngineTestModule`.
@@ -55,11 +66,11 @@ The mock field-executor surface returns `Any?`, permits a raw map or source-shap
 
 Production `RootFieldReference` values are normalized recursively into qplan-owned `RootFieldReferenceData`, including direct executor results and references nested in EOD fields or lists. `ResolverOutputData` is the resolver-facing union of ordinary `EngineOutputData` and this symbolic reference carrier; references are not members of the engine-data domain supplied as resolver input. The adapter does not call production root-reference resolution. It supplies dependency-free empty objects for unsupplied namespace fields so ordinary Query fragments may traverse namespace paths. Resolver26 gives every reference occurrence and direct-result tail hop its own fresh empty Query-rooted identity OER; those roots contain no namespace execution, are distinct from resolver Query-fragment roots, and are not shared across equivalent descriptors. A referenced target with object RSS is rejected; tenant code must express the corresponding dependency as Query RSS with its namespace path prefixed.
 
-In keeping with qplan's root-field-reference architecture, Node-valued fields retain their source coordinates and their `NodeReference` outputs normalize to root-field references targeting the built-in `Query.node`. The reference's internal ID encoding preserves both the concrete object type and the original authoritative resolver ID. `Query.node` recognizes that encoding and dispatches directly to the corresponding node executor; ordinary client calls to `Query.node` continue through its normal field resolver. `Query.nodes` returns a list of `Query.node` references, so Resolver26 resolves each non-null element as an independent occurrence. Selective node executors receive Resolver26's one-shot node-owned demand. Before entering qplan, selective node output is projected to demanded top-level fields, fields owned by registered field resolvers are removed, and omitted demanded nullable fields are represented explicitly as null. This preserves production's ownership and nullable-coverage boundary without weakening qplan's surplus- or missing-output rejection. A raw node-executor payload may omit the repeated `id`; the originating reference ID remains authoritative and is restored only when `id` is demanded. If converted demand contains only that engine-managed `id`, the adapter returns an empty source payload without invoking the selective node executor; `__typename` is likewise completed by qplan's generated resolver. The adapter supplies local equivalents of built-in `Query.node` and `Query.nodes` when the module does not provide those executors.
+In keeping with qplan's root-field-reference architecture, Node-valued fields retain their source coordinates and their `NodeReference` outputs normalize to root-field references targeting the built-in `Query.node`. The reference's internal ID encoding preserves both the concrete object type and the original authoritative resolver ID. `Query.node` recognizes that encoding and dispatches directly to the corresponding node executor; ordinary client calls to `Query.node` continue through its normal field resolver. `Query.nodes` returns a list of `Query.node` references, so Resolver26 resolves each non-null element as an independent occurrence. Selective node executors receive Resolver26's one-shot node-owned demand. Before entering qplan, selective node output is projected to demanded top-level fields and fields owned by registered field resolvers are removed. The fixture wrapper represents omitted demanded nullable fields explicitly as null; production adaptation preserves their absence. This preserves production's ownership and nullable-coverage boundary without weakening qplan's surplus- or missing-output rejection. A raw node-executor payload may omit the repeated `id`; the originating reference ID remains authoritative and is restored only when `id` is demanded. If converted demand contains only that engine-managed `id`, the adapter returns an empty source payload without invoking the selective node executor; `__typename` is likewise completed by qplan's generated resolver. The adapter supplies local equivalents of built-in `Query.node` and `Query.nodes` when the module does not provide those executors.
 
 ### Required-Selection Variables
 
-`ExecutorVariableDeclarations` consumes `FieldResolverExecutor.argumentVariables`, `objectFieldVariables`, `queryFieldVariables`, and `variablesFromFunctionProvider`. It associates names with the typed variable templates decoded across both required-selection fragments and uses the existing schema path compilers to produce `VariableDefinition.FromArgument` and `VariableDefinition.FromField` through fixture composition. Field sources retain their declared `ProviderFragment.OBJECT` or `ProviderFragment.QUERY`, even when both fragments contain identical paths. Required-selection fragments remain intact, including aliases, arguments, guards, and dependencies within variable-source paths.
+`ExecutorVariableDeclarations` consumes `FieldResolverExecutor.argumentVariables`, `objectFieldVariables`, `queryFieldVariables`, and `variablesFromFunctionProvider`. It associates names with the typed variable templates decoded across both required-selection fragments and uses the existing schema path compilers to produce `VariableDefinition.FromArgument` and `VariableDefinition.FromField` through main-source registry construction. Field sources retain their declared `ProviderFragment.OBJECT` or `ProviderFragment.QUERY`, even when both fragments contain identical paths. Required-selection fragments remain intact, including aliases, arguments, guards, and dependencies within variable-source paths.
 
 The optional function provider is attached through `withVariablesProvider`, which supplies `VariableDefinition.FromProvider` for its declared names. The shared callback calls `provideVariables` directly and validates exact output names. Qplan retains ownership of invoking it once per field occurrence across both fragments. Modern Kotlin bootstrap already provides argument conversion, tenant invocation, and normalization through this direct entry point; its legacy `resolve` delegates to the same implementation.
 
@@ -116,7 +127,7 @@ The adapter rejects or does not yet model:
 - Checker and type-checker executors, including their object- and Query-rooted required selections.
 - Mutations, including `ctx.mutation()`, subscriptions, and custom scalars, which remain outside the current qplan scope.
 
-The test-only adapter preserves the suspend executor SPI through the qplan resolver function. Resolver21-23 and Resolver26 invoke the adapted executor without introducing a blocking boundary.
+The shared adapter preserves the suspend executor SPI through the qplan resolver function. Resolver21-23 and Resolver26 invoke the adapted executor without introducing a blocking boundary.
 
 ## Testing
 

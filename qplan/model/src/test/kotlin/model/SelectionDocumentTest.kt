@@ -5,6 +5,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
+import model.parsing.fragmentFromDocument
 import model.testing.TestWorld
 
 class SelectionDocumentTest {

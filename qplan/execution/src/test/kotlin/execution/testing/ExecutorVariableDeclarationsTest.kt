@@ -2,6 +2,8 @@
 
 package execution.testing
 
+import execution.ExecutorVariableDeclarations
+import execution.compileVariableDeclarations
 import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.runBlocking
 import model.Arguments

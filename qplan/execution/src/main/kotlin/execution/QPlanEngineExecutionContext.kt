@@ -1,7 +1,7 @@
-package execution.testing
+package execution
 
-import model.fragmentFromDocument
 import model.lowering.ViaductAndGJSchema
+import model.parsing.fragmentFromDocument
 import model.registry.ResolutionExecutionContext
 import model.requireQueryTypeDef
 import viaduct.engine.api.Engine

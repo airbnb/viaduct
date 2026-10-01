@@ -1,4 +1,4 @@
-package model
+package model.parsing
 
 import graphql.language.AstPrinter
 import graphql.language.Document
@@ -7,18 +7,13 @@ import graphql.language.FragmentDefinition
 import graphql.language.FragmentSpread
 import graphql.language.InlineFragment
 import graphql.language.SelectionSet
+import model.EngineInputData
+import model.Fragment
 import model.lowering.ViaductAndGJSchema
 import viaduct.graphql.schema.ViaductSchema
 import viaduct.graphql.utils.SelectionsParserUtils
 
-/**
- * Converts one post-validation fragment document into the normalized model fragment.
- *
- * Named fragment definitions remain visible at this boundary. The current selection carrier has no
- * named-spread representation, so this conversion lowers each spread to an inline fragment. Keeping
- * that policy in model fixture preparation allows a future carrier to preserve and share named
- * fragments without changing execution adapters.
- */
+/** Decodes a fragment document with source response keys and explicit ownership for unbound variables. */
 fun ViaductAndGJSchema.fragmentFromDocument(
     document: Document,
     bindings: Map<String, EngineInputData?> = emptyMap(),
@@ -42,12 +37,13 @@ fun ViaductAndGJSchema.fragmentFromDocument(
                 ),
             )
         }
-    return fragmentFrom(
+    val (nominalType, selections) = materializeSelectionsFrom(
         source = AstPrinter.printAst(inlinedEntry),
         bindings = bindings,
         variableField = variableField,
         preserveSourceResponseKeys = true,
     )
+    return Fragment.of(nominalType, selections)
 }
 
 private fun SelectionSet.inlineNamedFragments(

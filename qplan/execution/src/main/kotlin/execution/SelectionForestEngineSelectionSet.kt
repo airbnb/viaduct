@@ -1,4 +1,4 @@
-package execution.testing
+package execution
 
 import graphql.GraphQLContext
 import graphql.execution.ValuesResolver
@@ -20,7 +20,7 @@ import model.lowering.SourceSchemaAdapter
 import model.objectKey
 import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.EngineSelectionSet
-import viaduct.engine.api.mocks.createEngineSelectionSet
+import viaduct.engine.runtime.select.EngineSelectionSetImpl
 import viaduct.graphql.schema.ViaductSchema as QPlanSchema
 import viaduct.graphql.utils.ParsedSelections
 
@@ -45,14 +45,14 @@ internal fun SelectionForest.toEngineSelectionSet(
     require(schema.schema.getType(type.name) != null) {
         "Qplan selection type ${type.name} is absent from the Engine schema"
     }
-    return createEngineSelectionSet(
+    return EngineSelectionSetImpl.create(
         parsedSelections =
             ParsedSelections(
                 typeName = type.name,
                 selections = toConcreteSelectionSet(schema, sourceSchema),
                 fragmentMap = emptyMap(),
             ),
-        viaductSchema = schema,
+        schema = schema,
         variables = emptyMap(),
     )
 }
