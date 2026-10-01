@@ -1,6 +1,7 @@
 package viaduct.engine.runtime.execution
 
 import graphql.execution.CoercedVariables
+import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Nested
@@ -282,6 +283,35 @@ class MatHelpersTest {
                 )
             }
         }
+    }
+
+    @Nested
+    inner class MaterializationPlan {
+        @Test
+        fun `plan resolves operation variables from the reading selection`() =
+            runTest {
+                val parameters = mkExecutionParameters(
+                    "extend type Query { x:Int, y:Int }",
+                    "Query" to "x",
+                    "query (${'$'}include:Boolean! = true) { x y @include(if: ${'$'}include) }",
+                )
+                val plan = materializationPlan(
+                    parameters,
+                    KeyTree.build(parameters) { field("Query", key("y")) },
+                )
+
+                val variables = FieldExecutionHelpers.resolveQueryPlanVariables(
+                    plan,
+                    parameters.executionStepInfo.arguments,
+                    parameters.currentObjectEngineResult,
+                    parameters.queryEngineResult,
+                    parameters.engineExecutionContext,
+                    parameters.executionContext.graphQLContext,
+                    parameters.executionContext.locale,
+                )
+
+                assertEquals(mapOf("include" to true), variables.toMap())
+            }
     }
 
     @Nested

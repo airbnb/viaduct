@@ -12,6 +12,7 @@ import java.util.Locale
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.ResolutionPolicy
+import viaduct.engine.api.VariablesResolver
 import viaduct.engine.runtime.EngineExecutionContextExtensions.dispatcherRegistry
 import viaduct.engine.runtime.EngineExecutionContextExtensions.fieldRssOriginFilteringKillSwitchEnabled
 import viaduct.engine.runtime.EngineExecutionContextExtensions.isResolverSelective
@@ -308,7 +309,17 @@ internal fun materializationPlan(
     check(missing.isEmpty()) {
         "Materialization plan omitted requested selections $missing"
     }
-    return plan
+    return plan.withUnresolvedVariablesFrom(selectionParameters.coercedVariables)
+}
+
+/** Binds variables that no plan resolver produces, such as operation variables, to [variables]. */
+private fun QueryPlan.withUnresolvedVariablesFrom(variables: CoercedVariables): QueryPlan {
+    val resolvedNames = variablesResolvers.flatMapTo(mutableSetOf()) { it.variableNames }
+    val unresolvedNames = variableDefinitions.map { it.name }.filterNot { it in resolvedNames }.toSet()
+    if (unresolvedNames.isEmpty()) return this
+
+    val values = variables.toMap().filterKeys { it in unresolvedNames }
+    return copy(variablesResolvers = variablesResolvers + VariablesResolver.const(values))
 }
 
 internal fun <T : Any> requireMaterializedNotNull(
