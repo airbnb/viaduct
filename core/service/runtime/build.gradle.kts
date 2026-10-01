@@ -1,5 +1,6 @@
 plugins {
     id("conventions.kotlin")
+    id("conventions.kotlin-static-analysis")
 }
 
 tasks.named<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>("compileKotlin") {
@@ -12,7 +13,6 @@ dependencies {
     implementation(libs.viaduct.service.api)
     implementation(libs.graphql.java)
     implementation(libs.guice)
-
 
     implementation(libs.viaduct.engine.api)
     implementation(libs.viaduct.shared.bootstrap)
