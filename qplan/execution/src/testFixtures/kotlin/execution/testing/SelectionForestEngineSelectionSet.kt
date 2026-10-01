@@ -16,7 +16,7 @@ import model.Arguments
 import model.InclusionCondition
 import model.Selection
 import model.SelectionForest
-import model.SourceSchemaAdapter
+import model.lowering.SourceSchemaAdapter
 import model.objectKey
 import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.EngineSelectionSet

@@ -1,13 +1,9 @@
-package model.testing
+package model.registry
 
 import model.Arguments
 import model.InclusionCondition
 import model.Selection
 import model.SelectionForest
-import model.registry.FieldValueResolver
-import model.registry.ProviderFragment
-import model.registry.ResolverTarget
-import model.registry.VariableDefinition
 import model.requireField
 import model.variables
 import viaduct.graphql.schema.ViaductSchema

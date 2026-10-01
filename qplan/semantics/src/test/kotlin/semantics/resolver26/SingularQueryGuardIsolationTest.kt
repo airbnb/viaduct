@@ -20,11 +20,11 @@ import model.emptyFragmentOf
 import model.fragmentFrom
 import model.outputValue
 import model.parsing.operationSelectionsFrom
+import model.registry.fieldResolverOf
+import model.registry.fromObjectField
+import model.registry.fromQueryField
 import model.requireObjectField
 import model.testing.TestWorld
-import model.testing.fieldResolverOf
-import model.testing.fromObjectField
-import model.testing.fromQueryField
 import org.junit.jupiter.api.DynamicTest
 import org.junit.jupiter.api.TestFactory
 import semantics.correctresolution.CorrectnessResolverObserver

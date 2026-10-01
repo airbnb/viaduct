@@ -14,11 +14,11 @@ import model.emptyFragmentOf
 import model.fragmentFrom
 import model.parsing.operationSelectionsFrom
 import model.registry.FieldCheckerResolver
+import model.registry.fieldResolverOf
+import model.registry.fromArgument
 import model.requireObjectField
 import model.requireQueryTypeDef
 import model.testing.TestWorld
-import model.testing.fieldResolverOf
-import model.testing.fromArgument
 import semantics.shared.ResolverObserver
 import semantics.shared.SharedOperationContext
 import viaduct.engine.api.CheckerResult

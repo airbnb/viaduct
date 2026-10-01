@@ -22,12 +22,12 @@ import model.fragmentFrom
 import model.objectOf
 import model.parsing.operationSelectionsFrom
 import model.registry.FieldCheckerResolver
+import model.registry.fieldResolverOf
 import model.requireObjectField
 import model.requireQueryTypeDef
 import model.requireType
 import model.selectionForestOf
 import model.testing.TestWorld
-import model.testing.fieldResolverOf
 import semantics.shared.OEROccurrence
 import semantics.shared.SharedOperationContext
 import viaduct.engine.api.CheckerResult

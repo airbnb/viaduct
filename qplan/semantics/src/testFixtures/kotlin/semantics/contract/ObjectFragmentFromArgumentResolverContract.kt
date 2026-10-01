@@ -7,11 +7,11 @@ import model.ResolverOccurrenceId
 import model.VariableBinding
 import model.emptyFragmentOf
 import model.fragmentFrom
+import model.registry.fieldResolverOf
+import model.registry.fromArgument
 import model.requireField
 import model.requireObjectField
 import model.testing.TestWorld
-import model.testing.fieldResolverOf
-import model.testing.fromArgument
 import org.junit.jupiter.api.Test
 
 /**

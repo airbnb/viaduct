@@ -6,11 +6,11 @@ import model.Fragment
 import model.engineObjectDataOf
 import model.lowering.ViaductAndGJSchema
 import model.registry.ResolverTarget
+import model.registry.VariableDeclaration
 import model.registry.VariablesProviderFunction
-import model.testing.VariableDeclaration
-import model.testing.fromArgument
-import model.testing.fromObjectField
-import model.testing.fromQueryField
+import model.registry.fromArgument
+import model.registry.fromObjectField
+import model.registry.fromQueryField
 import model.usedVariables
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.RequiredSelectionSet

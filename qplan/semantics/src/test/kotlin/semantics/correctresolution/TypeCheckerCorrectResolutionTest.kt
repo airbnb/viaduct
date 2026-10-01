@@ -14,11 +14,11 @@ import model.objectOf
 import model.registry.ResolverFragmentTemplates
 import model.registry.ResolverTarget
 import model.registry.TypeCheckerResolver
+import model.registry.fieldResolverOf
 import model.requireObjectField
 import model.requireQueryTypeDef
 import model.requireType
 import model.testing.TestWorld
-import model.testing.fieldResolverOf
 import semantics.shared.SharedOperationContext
 import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.CheckerResultContext

@@ -1,11 +1,11 @@
-package model.testing
+package model.registry
 
 import model.arg
 import model.inputType
 import model.requireObjectField
 import viaduct.graphql.schema.ViaductSchema
 
-/** One external `fromArgument` declaration accepted by test-fixture composition. */
+/** One external `fromArgument` declaration compiled for canonical registry construction. */
 class FromArgument private constructor(
     internal val argument: ViaductSchema.FieldArg,
     internal val inputPath: List<ViaductSchema.Field>,

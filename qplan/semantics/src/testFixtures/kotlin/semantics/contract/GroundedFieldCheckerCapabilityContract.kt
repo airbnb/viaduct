@@ -17,10 +17,10 @@ import model.objectOf
 import model.parsing.operationSelectionsFrom
 import model.registry.FieldCheckerResolver
 import model.registry.ResolverFragmentTemplates
+import model.registry.fieldResolverOf
 import model.requireObjectField
 import model.requireQueryTypeDef
 import model.testing.TestWorld
-import model.testing.fieldResolverOf
 import semantics.shared.SharedOperationContext
 import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.CheckerResultContext

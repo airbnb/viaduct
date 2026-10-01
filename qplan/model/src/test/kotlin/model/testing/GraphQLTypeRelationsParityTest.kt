@@ -3,6 +3,7 @@ package model.testing
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import model.lowering.sourceCompositeType
 import model.requireType
 import viaduct.graphql.schema.ViaductSchema
 import viaduct.graphql.utils.GraphQLTypeRelation

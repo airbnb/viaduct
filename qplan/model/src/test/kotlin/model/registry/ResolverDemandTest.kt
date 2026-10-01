@@ -19,13 +19,7 @@ import model.requireObjectField
 import model.requireQueryTypeDef
 import model.requireType
 import model.selectionForestOf
-import model.testing.FieldResolverDefinition
 import model.testing.TestWorld
-import model.testing.fieldResolverOf
-import model.testing.fromArgument
-import model.testing.fromObjectField
-import model.testing.fromQueryField
-import model.testing.nodeResolverOf
 import viaduct.graphql.schema.ViaductSchema
 
 class ResolverDemandTest {

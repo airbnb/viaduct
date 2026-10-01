@@ -10,12 +10,7 @@ import model.fragmentFrom
 import model.lowering.ViaductAndGJSchema
 import model.requireField
 import model.requireType
-import model.testing.FieldResolverDefinition
-import model.testing.FromField
 import model.testing.TestWorld
-import model.testing.fieldResolverOf
-import model.testing.fromObjectField
-import model.testing.nodeResolverOf
 import viaduct.graphql.schema.ViaductSchema
 
 class BranchOrderInvariantTest {

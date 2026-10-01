@@ -8,8 +8,8 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import kotlinx.coroutines.runBlocking
 import model.Assumptions
-import model.SourceSchemaAdapter
 import model.fragmentFrom
+import model.lowering.SourceSchemaAdapter
 import model.nodeReferenceIdentityOrNull
 import model.objectOf
 import model.requireField

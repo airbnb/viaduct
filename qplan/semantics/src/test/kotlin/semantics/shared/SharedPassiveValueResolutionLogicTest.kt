@@ -25,12 +25,12 @@ import model.engineObjectDataOf
 import model.fragmentFrom
 import model.objectOf
 import model.outputType
+import model.registry.fieldResolverOf
 import model.requireField
 import model.requireObjectField
 import model.requireQueryTypeDef
 import model.requireType
 import model.testing.TestWorld
-import model.testing.fieldResolverOf
 import viaduct.engine.api.EngineObjectData
 import viaduct.graphql.schema.ViaductSchema
 

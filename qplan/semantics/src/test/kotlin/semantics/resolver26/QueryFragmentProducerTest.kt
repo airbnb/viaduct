@@ -30,11 +30,11 @@ import model.fragmentFrom
 import model.merge
 import model.parsing.operationSelectionsFrom
 import model.registry.ResolverTarget
+import model.registry.fieldResolverOf
+import model.registry.fromQueryField
 import model.requireObjectField
 import model.schemaType
 import model.testing.TestWorld
-import model.testing.fieldResolverOf
-import model.testing.fromQueryField
 import semantics.contract.selectionValues
 import semantics.shared.OEROccurrence
 import semantics.shared.ResolverObserver

@@ -35,12 +35,8 @@ import model.requireQueryTypeDef
 import model.requireType
 import model.schemaType
 import model.selectionForestOf
-import model.testing.FieldResolverDefinition
 import model.testing.TestWorld
-import model.testing.fieldResolverOf
 import model.testing.fromSDL
-import model.testing.nodeResolverOf
-import model.testing.resolverRegistryOf
 import model.testing.testRoot
 import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.EngineObjectData

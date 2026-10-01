@@ -8,10 +8,10 @@ import model.emptyFragmentOf
 import model.fragmentFrom
 import model.merge
 import model.objectOf
+import model.registry.fieldResolverOf
 import model.requireField
 import model.requireType
 import model.testing.TestWorld
-import model.testing.fieldResolverOf
 import semantics.correctresolution.correctResolution
 import semantics.shared.instantiateBindings
 import viaduct.graphql.schema.ViaductSchema

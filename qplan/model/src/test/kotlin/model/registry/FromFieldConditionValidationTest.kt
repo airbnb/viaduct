@@ -8,9 +8,6 @@ import model.emptyFragmentOf
 import model.fragmentFrom
 import model.requireObjectField
 import model.testing.TestWorld
-import model.testing.fieldResolverOf
-import model.testing.fromObjectField
-import model.testing.fromQueryField
 
 class FromFieldConditionValidationTest {
     @Test

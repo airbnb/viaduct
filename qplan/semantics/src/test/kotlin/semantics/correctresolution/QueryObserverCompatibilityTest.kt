@@ -7,9 +7,9 @@ import model.ResolverOccurrenceId
 import model.SelectionForest
 import model.emptyFragmentOf
 import model.fragmentFrom
+import model.registry.fieldResolverOf
 import model.requireObjectField
 import model.testing.TestWorld
-import model.testing.fieldResolverOf
 import org.junit.jupiter.api.DynamicTest.dynamicTest
 import org.junit.jupiter.api.TestFactory
 import semantics.contract.selectionValues

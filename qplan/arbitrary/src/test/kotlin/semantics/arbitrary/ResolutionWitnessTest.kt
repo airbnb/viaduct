@@ -16,11 +16,11 @@ import model.emptyFragmentOf
 import model.engineResultOf
 import model.fragmentFrom
 import model.objectOf
+import model.registry.fieldResolverOf
 import model.requireField
 import model.requireObjectField
 import model.requireQueryTypeDef
 import model.testing.TestWorld
-import model.testing.fieldResolverOf
 import semantics.contract.RegisteredResolverOccurrence
 import semantics.contract.forEachRegisteredResolverOccurrence
 import semantics.contract.registeredResolverOccurrenceCounts

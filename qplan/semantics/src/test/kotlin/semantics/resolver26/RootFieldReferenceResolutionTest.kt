@@ -30,13 +30,13 @@ import model.fragmentFrom
 import model.merge
 import model.objectOf
 import model.registry.FieldCheckerResolver
+import model.registry.fieldResolverOf
+import model.registry.fromArgument
+import model.registry.fromObjectField
+import model.registry.fromQueryField
 import model.requireObjectField
 import model.requireQueryTypeDef
 import model.testing.TestWorld
-import model.testing.fieldResolverOf
-import model.testing.fromArgument
-import model.testing.fromObjectField
-import model.testing.fromQueryField
 import semantics.contract.contractKey
 import semantics.contract.registeredResolverOccurrenceApplicationIdentityCounts
 import semantics.correctresolution.CorrectnessResolverObserver

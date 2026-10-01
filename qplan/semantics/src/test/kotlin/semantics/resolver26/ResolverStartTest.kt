@@ -34,10 +34,10 @@ import model.ResolverOccurrenceId
 import model.emptyFragmentOf
 import model.fragmentFrom
 import model.parsing.operationSelectionsFrom
+import model.registry.fieldResolverOf
 import model.requireField
 import model.requireObjectField
 import model.testing.TestWorld
-import model.testing.fieldResolverOf
 import semantics.contract.get
 import semantics.shared.CycleCheckState
 import semantics.shared.ResolverInvocationObservation

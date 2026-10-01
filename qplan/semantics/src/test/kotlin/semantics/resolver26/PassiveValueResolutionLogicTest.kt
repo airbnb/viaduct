@@ -21,12 +21,12 @@ import model.emptyFragmentOf
 import model.fragmentFrom
 import model.objectOf
 import model.outputType
+import model.registry.fieldResolverOf
 import model.requireObjectField
 import model.requireQueryTypeDef
 import model.requireType
 import model.selectionForestOf
 import model.testing.TestWorld
-import model.testing.fieldResolverOf
 import semantics.shared.SharedOperationContext
 import viaduct.graphql.schema.ViaductSchema
 

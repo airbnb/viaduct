@@ -14,10 +14,10 @@ import model.registry.CheckerInput
 import model.registry.ResolverFragmentTemplates
 import model.registry.ResolverTarget
 import model.registry.TypeCheckerResolver
+import model.registry.fieldResolverOf
 import model.requireObjectField
 import model.requireQueryTypeDef
 import model.testing.TestWorld
-import model.testing.fieldResolverOf
 import semantics.shared.CheckerInvocationObservation
 import semantics.shared.CheckerKind
 import semantics.shared.SharedOperationContext

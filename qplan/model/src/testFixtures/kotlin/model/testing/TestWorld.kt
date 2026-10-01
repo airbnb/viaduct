@@ -17,8 +17,13 @@ import model.lowering.LOWERED_TYPENAME_FIELD
 import model.lowering.ViaductAndGJSchema
 import model.parsing.selectionsFrom
 import model.registry.FieldCheckerResolver
+import model.registry.FieldResolverDefinition
+import model.registry.NodeResolverFunction
 import model.registry.ResolverRegistry
 import model.registry.TypeCheckerResolver
+import model.registry.VariableDeclaration
+import model.registry.fieldResolverOf
+import model.registry.resolverRegistryOf
 import model.requireQueryTypeDef
 import viaduct.graphql.schema.ViaductSchema
 

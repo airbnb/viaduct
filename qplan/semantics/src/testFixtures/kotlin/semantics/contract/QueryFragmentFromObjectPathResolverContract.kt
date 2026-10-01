@@ -4,10 +4,10 @@ import kotlin.test.assertEquals
 import model.Arguments
 import model.emptyFragmentOf
 import model.fragmentFrom
+import model.registry.fieldResolverOf
+import model.registry.fromObjectField
 import model.requireObjectField
 import model.testing.TestWorld
-import model.testing.fieldResolverOf
-import model.testing.fromObjectField
 import org.junit.jupiter.api.Test
 
 /** Contract for consuming an object-fragment provider binding from a Query fragment. */

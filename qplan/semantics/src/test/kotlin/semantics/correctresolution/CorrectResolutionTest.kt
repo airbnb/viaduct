@@ -27,13 +27,13 @@ import model.registry.FieldCheckerResolver
 import model.registry.ResolutionExecutionContext
 import model.registry.ResolverFragmentTemplates
 import model.registry.ResolverTarget
+import model.registry.fieldResolverOf
+import model.registry.selectiveFieldResolverOf
 import model.requireObjectField
 import model.requireQueryTypeDef
 import model.requireType
 import model.selectionForestOf
 import model.testing.TestWorld
-import model.testing.fieldResolverOf
-import model.testing.selectiveFieldResolverOf
 import semantics.resolver26.Resolver26DispatcherResource
 import semantics.shared.OEROccurrence
 import semantics.shared.ResolverInvocationObservation

@@ -1,15 +1,14 @@
-package model.testing
+package model.registry
 
 import model.Arguments
 import model.EngineInputData
 import model.Fragment
 import model.ObjectEngineResult
-import model.SourceSchemaAdapter
 import model.isParentField
+import model.lowering.SourceSchemaAdapter
 import model.lowering.ViaductAndGJSchema
+import model.lowering.sourceCompositeType
 import model.parsing.GJSelectionParser
-import model.registry.ProviderFragment
-import model.registry.ResolverTarget
 import model.requireField
 import model.requireQueryTypeDef
 import model.spec.SpecSelection

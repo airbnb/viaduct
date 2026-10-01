@@ -7,8 +7,6 @@ import model.emptyFragmentOf
 import model.fragmentFrom
 import model.requireObjectField
 import model.testing.TestWorld
-import model.testing.fieldResolverOf
-import model.testing.fromArgument
 
 class ParentVariableValidationAdversarialTest {
     @Test

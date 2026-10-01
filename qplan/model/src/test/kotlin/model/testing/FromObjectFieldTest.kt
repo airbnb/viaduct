@@ -9,6 +9,8 @@ import model.EngineErrorData
 import model.ObjectEngineResult
 import model.emptyFragmentOf
 import model.fragmentFrom
+import model.registry.fieldResolverOf
+import model.registry.fromObjectField
 import model.requireField
 import model.requireQueryTypeDef
 import viaduct.graphql.schema.ViaductSchema

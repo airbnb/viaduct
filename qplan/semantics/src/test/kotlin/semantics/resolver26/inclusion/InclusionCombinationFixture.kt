@@ -4,9 +4,9 @@ import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 import model.emptyFragmentOf
 import model.fragmentFrom
+import model.registry.fieldResolverOf
 import model.requireObjectField
 import model.testing.TestWorld
-import model.testing.fieldResolverOf
 
 internal fun seedAndT3World(vector: T3Vector): SeedAndT3Fixture {
     val seedApplications = AtomicInteger()

@@ -14,9 +14,9 @@ import kotlinx.coroutines.withTimeoutOrNull
 import model.ObjectEngineResult
 import model.emptyFragmentOf
 import model.fragmentFrom
+import model.registry.fieldResolverOf
 import model.requireObjectField
 import model.testing.TestWorld
-import model.testing.fieldResolverOf
 import semantics.contract.selectionValues
 import semantics.shared.SharedOperationContext
 

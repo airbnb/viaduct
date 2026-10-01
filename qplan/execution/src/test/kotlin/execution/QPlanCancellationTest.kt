@@ -25,9 +25,9 @@ import kotlinx.coroutines.withTimeout
 import model.RootFieldReferenceData
 import model.emptyFragmentOf
 import model.fragmentFrom
+import model.registry.fieldResolverOf
 import model.requireObjectField
 import model.testing.TestWorld
-import model.testing.fieldResolverOf
 import org.reactivestreams.Publisher
 import org.reactivestreams.Subscriber
 import org.reactivestreams.Subscription

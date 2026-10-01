@@ -31,11 +31,11 @@ import model.parsing.operationSelectionsFrom
 import model.registry.FieldCheckerResolver
 import model.registry.ResolverFragmentTemplates
 import model.registry.TypeCheckerResolver
+import model.registry.fieldResolverOf
 import model.requireObjectField
 import model.requireQueryTypeDef
 import model.requireType
 import model.testing.TestWorld
-import model.testing.fieldResolverOf
 import semantics.shared.CheckerKind
 import semantics.shared.CycleCheckState
 import semantics.shared.CycleSlot

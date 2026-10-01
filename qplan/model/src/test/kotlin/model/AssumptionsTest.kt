@@ -9,6 +9,7 @@ import kotlin.test.assertIs
 import kotlin.test.assertNotEquals
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
+import model.lowering.SourceSchemaAdapter
 import model.registry.ResolverTarget
 import model.testing.TestWorld
 import model.testing.testRoot

@@ -7,10 +7,10 @@ import kotlin.test.assertTrue
 import model.ObjectEngineResult
 import model.emptyFragmentOf
 import model.fragmentFrom
+import model.registry.fieldResolverOf
 import model.requireObjectField
 import model.requireQueryTypeDef
 import model.testing.TestWorld
-import model.testing.fieldResolverOf
 import semantics.correctresolution.CorrectnessCheckerObserver
 import semantics.correctresolution.CorrectnessResolverObserver
 import semantics.correctresolution.correctResolution

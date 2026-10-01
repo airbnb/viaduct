@@ -3,16 +3,12 @@ package model.testing
 import graphql.language.NamedNode
 import graphql.language.Node
 import graphql.parser.Parser
-import graphql.schema.GraphQLCompositeType
-import graphql.schema.GraphQLObjectType
 import graphql.schema.GraphQLSchema
 import graphql.schema.idl.SchemaParser
 import graphql.schema.idl.UnExecutableSchemaGenerator
 import model.lowering.LOWERING_SYNTHETIC_NAME_TOKEN
 import model.lowering.VIADUCT_IGNORE_SYMBOL
 import model.lowering.ViaductAndGJSchema
-import model.requireType
-import viaduct.graphql.schema.ViaductSchema
 import viaduct.graphql.schema.graphqljava.toGraphQLSchema
 
 private val STANDARD_SCALAR_NAMES = setOf("Int", "Float", "String", "Boolean", "ID")
@@ -102,19 +98,3 @@ private fun validateReservedNames(schemaSDL: String) {
         "Source schema names cannot use reserved symbol $VIADUCT_IGNORE_SYMBOL"
     }
 }
-
-internal fun ViaductAndGJSchema.sourceCompositeType(type: ViaductSchema.CompositeTypeDef): GraphQLCompositeType {
-    require(loweredSchema.requireType(type.name) == type) {
-        "${type.name} is not canonical in this schema"
-    }
-    return graphQLSchema.getType(type.name) as? GraphQLCompositeType
-        ?: throw IllegalArgumentException("${type.name} is not a source composite type")
-}
-
-/** The canonical concrete object types available to fixture registry lowering. */
-internal val ViaductAndGJSchema.objectTypes: List<ViaductSchema.Object>
-    get() =
-        graphQLSchema.allTypesAsList
-            .filterIsInstance<GraphQLObjectType>()
-            .filterNot { it.name.startsWith("__") }
-            .map { loweredSchema.requireType(it.name) as ViaductSchema.Object }

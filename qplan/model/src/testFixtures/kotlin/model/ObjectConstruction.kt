@@ -1,5 +1,6 @@
 package model
 
+import model.lowering.SourceSchemaAdapter
 import viaduct.engine.api.EngineObjectData
 import viaduct.graphql.schema.ViaductSchema
 

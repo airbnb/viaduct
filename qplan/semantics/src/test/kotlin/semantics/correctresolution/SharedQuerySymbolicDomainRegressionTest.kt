@@ -13,11 +13,11 @@ import model.engineObjectDataOf
 import model.engineResultOf
 import model.fragmentFrom
 import model.merge
+import model.registry.fieldResolverOf
 import model.requireObjectField
 import model.requireQueryTypeDef
 import model.selectionForestOf
 import model.testing.TestWorld
-import model.testing.fieldResolverOf
 import semantics.shared.OEROccurrence
 import semantics.shared.SharedOERContext
 import semantics.shared.SharedOperationContext

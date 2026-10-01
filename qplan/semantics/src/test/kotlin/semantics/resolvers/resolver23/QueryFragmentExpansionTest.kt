@@ -12,10 +12,10 @@ import model.materializeSelectionForestOf
 import model.parsing.operationSelectionsFrom
 import model.registry.FieldCheckerResolver
 import model.registry.ResolverFragmentTemplates
+import model.registry.fieldResolverOf
 import model.requireObjectField
 import model.requireQueryTypeDef
 import model.testing.TestWorld
-import model.testing.fieldResolverOf
 import semantics.contract.CoroutineResolverTestSubject
 import semantics.resolvers.resolver21.startCoroutineResolution
 import semantics.resolvers.successorDemandFromConstructionDemand

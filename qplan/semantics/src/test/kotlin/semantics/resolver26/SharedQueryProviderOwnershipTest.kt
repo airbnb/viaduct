@@ -12,12 +12,12 @@ import model.fragmentFrom
 import model.merge
 import model.objectOf
 import model.outputValue
+import model.registry.fieldResolverOf
+import model.registry.fromObjectField
+import model.registry.fromQueryField
 import model.requireObjectField
 import model.requireQueryTypeDef
 import model.testing.TestWorld
-import model.testing.fieldResolverOf
-import model.testing.fromObjectField
-import model.testing.fromQueryField
 import semantics.correctresolution.CorrectnessResolverObserver
 import semantics.correctresolution.correctResolution
 import semantics.shared.SharedOperationContext

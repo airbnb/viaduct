@@ -14,8 +14,6 @@ import model.fragmentFrom
 import model.requireArg
 import model.requireObjectField
 import model.testing.TestWorld
-import model.testing.fieldResolverOf
-import model.testing.fromArgument
 import model.testing.testRoot
 import model.usedVariables
 

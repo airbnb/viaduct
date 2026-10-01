@@ -1,4 +1,4 @@
-package model.testing
+package model.registry
 
 import model.Arguments
 import model.EngineErrorData
@@ -11,7 +11,6 @@ import model.ResolverOutputData
 import model.RootFieldReferenceData
 import model.Selection
 import model.SelectionForest
-import model.SourceSchemaAdapter
 import model.decodeNodeReferenceId
 import model.emptyFragmentOf
 import model.engineObjectDataOf
@@ -19,19 +18,12 @@ import model.fieldExpressions
 import model.inputType
 import model.lowering.ALL_SOURCE_OBJECTS_TYPE
 import model.lowering.LOWERED_TYPENAME_FIELD
+import model.lowering.SourceSchemaAdapter
 import model.lowering.ViaductAndGJSchema
+import model.lowering.objectTypes
+import model.lowering.sourceCompositeType
 import model.matchingVariableTypes
 import model.merge
-import model.registry.FieldCheckerResolver
-import model.registry.FieldValueResolver
-import model.registry.MissingResolverException
-import model.registry.ProviderFragment
-import model.registry.ResolutionExecutionContext
-import model.registry.ResolverRegistry
-import model.registry.ResolverTarget
-import model.registry.TypeCheckerResolver
-import model.registry.VariableDefinition
-import model.registry.snipToDemand
 import model.requireArg
 import model.requireField
 import model.requireObjectField
@@ -46,7 +38,7 @@ import viaduct.graphql.schema.ViaductSchema
 import viaduct.graphql.schema.isNode
 import viaduct.graphql.utils.GraphQLTypeRelation
 
-internal fun resolverRegistryOf(
+fun resolverRegistryOf(
     schema: ViaductAndGJSchema,
     nodeResolvers: Map<ViaductSchema.Object, NodeResolverFunction>,
     fieldResolvers: Map<ViaductSchema.Field, FieldResolverDefinition>,
@@ -98,7 +90,7 @@ internal fun resolverRegistryOf(
                 else -> declaration
             }
         }
-    return TestResolverRegistry(
+    return ResolverRegistryImpl(
         schema = schema.loweredSchema,
         fieldResolverDefinitions = registryResolvers,
         fieldCheckers = fieldCheckers,
@@ -271,7 +263,7 @@ private class NodeResolverLowering(
         val (type, id) = identity
         val resolver =
             nodeResolvers[type]
-                ?: throw IllegalArgumentException("No fixture node resolver for ${type.name}")
+                ?: throw IllegalArgumentException("No node resolver for ${type.name}")
         val idField = validateNodeIdField(type)
         val nodeOwnedDemand =
             selections.filter { selection -> selection.key.field.name != idField.name }
@@ -374,7 +366,7 @@ private sealed interface DependencyVertex {
     ) : DependencyVertex
 }
 
-private class TestResolverRegistry(
+private class ResolverRegistryImpl(
     private val schema: ViaductSchema,
     fieldResolverDefinitions: Map<ViaductSchema.Field, FieldResolverDefinition>,
     private val fieldCheckers: Map<ViaductSchema.ObjectField, FieldCheckerResolver>,

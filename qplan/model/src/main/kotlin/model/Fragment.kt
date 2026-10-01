@@ -16,7 +16,7 @@ import viaduct.graphql.schema.ViaductSchema
  * A fragment and its [materializeSelections] form a finite, well-founded value. The selections may
  * be empty.
  *
- * Test-fixture field-resolver definitions use fragments while fixture preparation preserves source
+ * Source field-resolver definitions use fragments while registry preparation preserves source
  * guards and occurrence shape. Canonical registry assembly specializes the root to its concrete
  * resolver owner and exposes the result as an [ObjectSelectionForest].
  */
@@ -52,3 +52,10 @@ private class FragmentImpl(
     override val nominalType: ViaductSchema.CompositeTypeDef,
     override val materializeSelections: MaterializeSelectionForest,
 ) : Fragment
+
+/** Constructs an empty requirement that GraphQL fragment text cannot express. */
+fun ViaductSchema.emptyFragmentOf(typeName: String): Fragment =
+    Fragment.of(
+        nominalType = requireType(typeName) as ViaductSchema.CompositeTypeDef,
+        subselections = selectionForestOf(),
+    )

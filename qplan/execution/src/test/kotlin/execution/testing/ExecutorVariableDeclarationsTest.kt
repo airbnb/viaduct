@@ -8,9 +8,9 @@ import model.Arguments
 import model.fragmentFrom
 import model.registry.ProviderFragment
 import model.registry.VariableDefinition
+import model.registry.fieldResolverOf
 import model.requireObjectField
 import model.testing.TestWorld
-import model.testing.fieldResolverOf
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.Assertions.assertTrue

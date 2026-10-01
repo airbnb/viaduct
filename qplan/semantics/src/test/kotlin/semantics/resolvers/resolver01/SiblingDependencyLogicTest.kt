@@ -16,13 +16,13 @@ import model.objectOf
 import model.registry.FieldValueResolver
 import model.registry.ResolverFragmentTemplates
 import model.registry.ResolverRegistry
+import model.registry.fieldResolverOf
 import model.requireField
 import model.requireObjectField
 import model.requireQueryTypeDef
 import model.requireType
 import model.selectionForestOf
 import model.testing.TestWorld
-import model.testing.fieldResolverOf
 import model.testing.testRoot
 import model.toCanonicalMaterializeSelectionForest
 import semantics.shared.OEROccurrence

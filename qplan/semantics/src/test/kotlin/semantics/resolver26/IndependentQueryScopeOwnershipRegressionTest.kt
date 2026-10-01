@@ -9,10 +9,10 @@ import model.emptyFragmentOf
 import model.fragmentFrom
 import model.merge
 import model.outputValue
+import model.registry.fieldResolverOf
 import model.requireObjectField
 import model.requireQueryTypeDef
 import model.testing.TestWorld
-import model.testing.fieldResolverOf
 import semantics.contract.registeredResolverOccurrenceApplicationIdentityCounts
 import semantics.correctresolution.CorrectnessResolverObserver
 import semantics.correctresolution.correctResolution

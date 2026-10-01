@@ -3,6 +3,7 @@ package model
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import model.lowering.SourceSchemaAdapter
 import model.testing.TestWorld
 
 class SourceSchemaAdapterRootFieldReferenceTest {

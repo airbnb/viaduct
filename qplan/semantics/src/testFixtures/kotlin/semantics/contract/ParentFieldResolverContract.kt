@@ -11,9 +11,9 @@ import model.fragmentFrom
 import model.objectOf
 import model.outputValue
 import model.parsing.operationSelectionsFrom
+import model.registry.fieldResolverOf
 import model.requireObjectField
 import model.testing.TestWorld
-import model.testing.fieldResolverOf
 import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.Test
 import semantics.correctresolution.CorrectnessResolverObserver

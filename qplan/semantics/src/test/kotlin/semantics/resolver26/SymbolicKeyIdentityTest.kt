@@ -13,11 +13,11 @@ import model.emptyFragmentOf
 import model.fragmentFrom
 import model.merge
 import model.objectOf
+import model.registry.fieldResolverOf
+import model.registry.fromArgument
 import model.requireObjectField
 import model.requireType
 import model.testing.TestWorld
-import model.testing.fieldResolverOf
-import model.testing.fromArgument
 import model.usedVariables
 import semantics.contract.selectionValues
 import semantics.correctresolution.CorrectnessResolverObserver

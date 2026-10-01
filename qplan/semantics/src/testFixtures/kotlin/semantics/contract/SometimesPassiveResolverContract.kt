@@ -6,9 +6,9 @@ import model.ObjectEngineResult
 import model.emptyFragmentOf
 import model.fragmentFrom
 import model.objectOf
+import model.registry.fieldResolverOf
 import model.requireField
 import model.testing.TestWorld
-import model.testing.fieldResolverOf
 import org.junit.jupiter.api.Test
 import semantics.correctresolution.CorrectnessResolverObserver
 import semantics.shared.ResolverInvocationObservation

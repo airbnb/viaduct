@@ -25,11 +25,11 @@ import model.engineObjectDataOf
 import model.fragmentFrom
 import model.merge
 import model.outputValue
+import model.registry.fieldResolverOf
+import model.registry.selectiveFieldResolverOf
 import model.requireObjectField
 import model.requireType
 import model.testing.TestWorld
-import model.testing.fieldResolverOf
-import model.testing.selectiveFieldResolverOf
 import org.reactivestreams.Publisher
 import org.reactivestreams.Subscriber
 import org.reactivestreams.Subscription

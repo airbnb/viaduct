@@ -18,11 +18,11 @@ import model.registry.ResolverFragmentTemplates
 import model.registry.ResolverTarget
 import model.registry.TypeCheckerResolver
 import model.registry.VariableDefinition
+import model.registry.fieldResolverOf
 import model.requireObjectField
 import model.requireQueryTypeDef
 import model.requireType
 import model.testing.TestWorld
-import model.testing.fieldResolverOf
 import semantics.contract.CheckerApplicationRecorder
 import semantics.contract.demandedTypeCheckerApplications
 import semantics.contract.registeredCheckerApplications

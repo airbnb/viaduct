@@ -15,11 +15,11 @@ import model.emptyFragmentOf
 import model.fragmentFrom
 import model.objectOf
 import model.parsing.operationSelectionsFrom
+import model.registry.fieldResolverOf
 import model.requireField
 import model.requireObjectField
 import model.sameCompletedResultAs
 import model.testing.TestWorld
-import model.testing.fieldResolverOf
 import org.junit.jupiter.api.Test
 import semantics.correctresolution.CorrectnessResolverObserver
 import semantics.resolvers.resolver01.resolve as resolveWithResolver01

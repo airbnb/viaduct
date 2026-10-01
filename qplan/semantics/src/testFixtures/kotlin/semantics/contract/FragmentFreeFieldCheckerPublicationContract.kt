@@ -24,10 +24,10 @@ import model.SelectionForest
 import model.emptyFragmentOf
 import model.parsing.operationSelectionsFrom
 import model.registry.FieldCheckerResolver
+import model.registry.fieldResolverOf
 import model.requireObjectField
 import model.requireQueryTypeDef
 import model.testing.TestWorld
-import model.testing.fieldResolverOf
 import semantics.shared.CycleCheckState
 import semantics.shared.CycleSlot
 import semantics.shared.CycleTask

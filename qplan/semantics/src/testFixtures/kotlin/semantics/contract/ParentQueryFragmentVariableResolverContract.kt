@@ -7,12 +7,12 @@ import model.emptyFragmentOf
 import model.fragmentFrom
 import model.objectOf
 import model.outputValue
+import model.registry.fieldResolverOf
+import model.registry.fromArgument
+import model.registry.fromObjectField
+import model.registry.fromQueryField
 import model.requireObjectField
 import model.testing.TestWorld
-import model.testing.fieldResolverOf
-import model.testing.fromArgument
-import model.testing.fromObjectField
-import model.testing.fromQueryField
 import org.junit.jupiter.api.DynamicTest.dynamicTest
 import org.junit.jupiter.api.TestFactory
 import viaduct.engine.api.EngineObjectData

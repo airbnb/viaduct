@@ -1,4 +1,4 @@
-package model.testing
+package model.registry
 
 import model.Arguments
 import model.Fragment

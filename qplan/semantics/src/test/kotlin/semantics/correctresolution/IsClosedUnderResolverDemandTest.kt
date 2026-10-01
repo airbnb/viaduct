@@ -8,10 +8,10 @@ import model.ResolverOccurrenceId
 import model.emptyFragmentOf
 import model.engineResultOf
 import model.fragmentFrom
+import model.registry.fieldResolverOf
+import model.registry.fromArgument
 import model.requireObjectField
 import model.testing.TestWorld
-import model.testing.fieldResolverOf
-import model.testing.fromArgument
 import semantics.shared.SharedOperationContext
 
 class IsClosedUnderResolverDemandTest {

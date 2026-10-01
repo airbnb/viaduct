@@ -19,11 +19,11 @@ import model.materializeSelectionForestOf
 import model.merge
 import model.outputValue
 import model.registry.ResolutionExecutionContext
+import model.registry.fieldResolverOf
 import model.requireObjectField
 import model.requireQueryTypeDef
 import model.selectionForestOf
 import model.testing.TestWorld
-import model.testing.fieldResolverOf
 import semantics.arbitrary.FieldCoordinate
 import semantics.arbitrary.ResolutionOccurrenceApplicationLog
 import semantics.contract.registeredResolverOccurrenceApplicationIdentityCounts

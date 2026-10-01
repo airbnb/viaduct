@@ -30,11 +30,11 @@ import model.emptyFragmentOf
 import model.fragmentFrom
 import model.merge
 import model.parsing.operationSelectionsFrom
+import model.registry.fieldResolverOf
 import model.requireObjectField
 import model.requireQueryTypeDef
 import model.selectionForestOf
 import model.testing.TestWorld
-import model.testing.fieldResolverOf
 import org.junit.jupiter.api.DynamicTest.dynamicTest
 import org.junit.jupiter.api.TestFactory
 import semantics.contract.get

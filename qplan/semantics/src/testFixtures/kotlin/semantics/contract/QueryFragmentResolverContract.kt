@@ -18,12 +18,12 @@ import model.fragmentFrom
 import model.merge
 import model.objectOf
 import model.outputValue
+import model.registry.fieldResolverOf
+import model.registry.fromArgument
+import model.registry.selectiveFieldResolverOf
 import model.requireObjectField
 import model.requireType
 import model.testing.TestWorld
-import model.testing.fieldResolverOf
-import model.testing.fromArgument
-import model.testing.selectiveFieldResolverOf
 import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.Test
 import semantics.correctresolution.CorrectnessResolverObserver

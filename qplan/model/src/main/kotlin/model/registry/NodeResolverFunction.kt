@@ -1,14 +1,12 @@
-package model.testing
+package model.registry
 
 import model.ResolverOutputData
 import model.SelectionForest
-import model.registry.ResolutionExecutionContext
-import model.registry.ResolverRegistry
 
 /**
- * A raw external node lookup accepted only by test-fixture composition.
+ * A raw external node lookup accepted by registry construction.
  *
- * The returned object is partial and need not repeat the input ID. Fixture lowering retains the
+ * The returned object is partial and need not repeat the input ID. Node lowering retains the
  * authoritative ID supplied by the node-valued producer, matching production's node-reference
  * behavior. A node lookup may instead return a symbolic root-field reference; Resolver26 resolves
  * that instruction at the synthetic payload field just as it does for an ordinary field resolver.
@@ -37,7 +35,7 @@ class NodeResolverFunction internal constructor(
     ): ResolverOutputData? = function(id, selections, executionContext)
 }
 
-/** Marks a raw external node lookup for fixture composition. */
+/** Marks a raw external node lookup for registry construction. */
 fun nodeResolverOf(function: suspend (String) -> ResolverOutputData?): NodeResolverFunction = NodeResolverFunction(NodeResolverFunction.Mode.NONSELECTIVE) { id, _, _ -> function(id) }
 
 fun nodeResolverOf(function: suspend (String, ResolutionExecutionContext) -> ResolverOutputData?): NodeResolverFunction =
@@ -59,7 +57,7 @@ fun selectionAwareNodeResolverOf(
     ) -> ResolverOutputData?,
 ): NodeResolverFunction = NodeResolverFunction(NodeResolverFunction.Mode.SELECTION_AWARE_NONSELECTIVE, function)
 
-/** Marks a selection-sensitive raw external node lookup for fixture composition. */
+/** Marks a selection-sensitive raw external node lookup for registry construction. */
 fun selectiveNodeResolverOf(function: suspend (String, SelectionForest) -> ResolverOutputData?): NodeResolverFunction =
     NodeResolverFunction(NodeResolverFunction.Mode.SELECTIVE) { id, selections, _ ->
         function(id, selections)

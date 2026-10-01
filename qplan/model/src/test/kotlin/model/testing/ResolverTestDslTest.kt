@@ -13,10 +13,12 @@ import model.EngineErrorData
 import model.EngineOutputData
 import model.RootFieldReferenceData
 import model.SelectionForest
-import model.SourceSchemaAdapter
 import model.fragmentFrom
+import model.lowering.SourceSchemaAdapter
 import model.objectOf
 import model.outputValue
+import model.registry.FromArgument
+import model.registry.FromField
 import model.registry.ProviderFragment
 import model.registry.ResolutionExecutionContext
 import model.registry.VariableDefinition

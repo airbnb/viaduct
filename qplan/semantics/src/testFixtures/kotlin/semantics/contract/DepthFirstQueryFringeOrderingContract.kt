@@ -6,9 +6,9 @@ import model.RootFieldReferenceData
 import model.emptyFragmentOf
 import model.fragmentFrom
 import model.objectOf
+import model.registry.fieldResolverOf
 import model.requireObjectField
 import model.testing.TestWorld
-import model.testing.fieldResolverOf
 import semantics.correctresolution.CorrectnessResolverObserver
 import semantics.shared.ResolverInvocationObservation
 import viaduct.engine.api.EngineObjectData

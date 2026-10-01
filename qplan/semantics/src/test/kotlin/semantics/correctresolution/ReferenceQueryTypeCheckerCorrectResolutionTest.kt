@@ -15,11 +15,11 @@ import model.merge
 import model.parsing.operationSelectionsFrom
 import model.registry.ResolverFragmentTemplates
 import model.registry.TypeCheckerResolver
+import model.registry.fieldResolverOf
 import model.requireObjectField
 import model.requireQueryTypeDef
 import model.selectionForestOf
 import model.testing.TestWorld
-import model.testing.fieldResolverOf
 import semantics.shared.OEROccurrence
 import semantics.shared.RootFieldReferenceInvocationObservation
 import semantics.shared.SharedOperationContext

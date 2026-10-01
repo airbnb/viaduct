@@ -14,9 +14,6 @@ import model.merge
 import model.requireObjectField
 import model.requireQueryTypeDef
 import model.testing.TestWorld
-import model.testing.fieldResolverOf
-import model.testing.fromArgument
-import model.testing.fromObjectField
 import model.testing.testRoot
 
 class ResolverVariableInstantiationTest {

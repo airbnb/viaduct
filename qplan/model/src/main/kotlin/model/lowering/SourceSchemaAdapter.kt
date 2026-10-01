@@ -1,11 +1,20 @@
-package model
+package model.lowering
 
 import graphql.schema.GraphQLList
 import graphql.schema.GraphQLNonNull
 import graphql.schema.GraphQLObjectType
 import graphql.schema.GraphQLOutputType
-import model.lowering.loweredFieldFromSourceCoordinate
-import model.lowering.sourceTypeExpr
+import model.EngineErrorData
+import model.EngineObjectDataEntry
+import model.ResolverOutputData
+import model.RootFieldReferenceData
+import model.engineObjectDataOf
+import model.nodeRootFieldReferenceOf
+import model.outputType
+import model.qplanSchemaTypeOrNull
+import model.requireObjectField
+import model.requireQueryTypeDef
+import model.requireType
 import viaduct.engine.api.EngineObjectData
 import viaduct.graphql.schema.ViaductSchema
 import viaduct.graphql.schema.graphqljava.gjDef

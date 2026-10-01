@@ -4,9 +4,9 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
-import model.SourceSchemaAdapter
 import model.emptyFragmentOf
 import model.fragmentFrom
+import model.lowering.SourceSchemaAdapter
 import model.testing.TestWorld
 import viaduct.engine.api.EngineSelection
 import viaduct.engine.api.mocks.createSchema

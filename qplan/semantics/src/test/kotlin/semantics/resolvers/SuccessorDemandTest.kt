@@ -7,12 +7,12 @@ import model.ObjectEngineResult
 import model.emptyFragmentOf
 import model.fragmentFrom
 import model.merge
+import model.registry.fieldResolverOf
 import model.requireField
 import model.requireObjectField
 import model.requireQueryTypeDef
 import model.requireType
 import model.testing.TestWorld
-import model.testing.fieldResolverOf
 import semantics.shared.SharedOperationContext
 import semantics.shared.instantiateBindings
 import viaduct.graphql.schema.ViaductSchema

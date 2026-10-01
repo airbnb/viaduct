@@ -1,4 +1,4 @@
-package model.testing
+package model.registry
 
 import model.Arguments
 import model.Fragment
@@ -8,19 +8,12 @@ import model.ResolverOutputData
 import model.SelectionForest
 import model.materializeSelectionForestOf
 import model.objectKey
-import model.registry.FieldValueResolver
-import model.registry.NonselectiveFieldResolverFunction
-import model.registry.ResolutionExecutionContext
-import model.registry.ResolverFragmentTemplates
-import model.registry.SelectiveFieldResolverFunction
-import model.registry.VariableDefinition
-import model.registry.VariablesProviderFunction
 import model.selectionForestOf
 import viaduct.engine.api.EngineObjectData
 import viaduct.graphql.schema.ViaductSchema
 
 /**
- * A raw field-resolver definition accepted only by test-fixture composition.
+ * A source field-resolver definition prepared for canonical registry construction.
  *
  * Definitions may be transformed while external coordinates are lowered. Registry assembly
  * consumes them and exposes only fully assembled canonical [FieldValueResolver] values.

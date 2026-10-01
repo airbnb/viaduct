@@ -17,12 +17,12 @@ import model.emptyFragmentOf
 import model.fragmentFrom
 import model.objectOf
 import model.outputValue
+import model.registry.fieldResolverOf
+import model.registry.nodeResolverOf
 import model.requireField
 import model.requireObjectField
 import model.requireType
 import model.testing.TestWorld
-import model.testing.fieldResolverOf
-import model.testing.nodeResolverOf
 import org.junit.jupiter.api.Test
 import semantics.correctresolution.CorrectnessResolverObserver
 import semantics.shared.ResolverInvocationObservation

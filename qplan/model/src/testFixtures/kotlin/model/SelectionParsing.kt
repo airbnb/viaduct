@@ -27,11 +27,4 @@ fun ViaductAndGJSchema.fragmentFrom(
 }
 
 /** Constructs the model-only empty fragment that GraphQL text cannot express. */
-fun ViaductSchema.emptyFragmentOf(typeName: String): Fragment =
-    Fragment.of(
-        nominalType = requireType(typeName) as ViaductSchema.CompositeTypeDef,
-        subselections = selectionForestOf(),
-    )
-
-/** Constructs the model-only empty fragment that GraphQL text cannot express. */
 fun Assumptions.emptyFragmentOf(typeName: String): Fragment = schema.emptyFragmentOf(typeName)

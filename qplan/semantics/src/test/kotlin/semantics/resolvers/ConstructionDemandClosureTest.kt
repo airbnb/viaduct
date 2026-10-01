@@ -19,12 +19,12 @@ import model.engineObjectDataOf
 import model.fragmentFrom
 import model.merge
 import model.objectOf
+import model.registry.fieldResolverOf
 import model.requireObjectField
 import model.requireQueryTypeDef
 import model.schemaType
 import model.selectionForestOf
 import model.testing.TestWorld
-import model.testing.fieldResolverOf
 import semantics.resolvers.resolver01.SiblingDependencyLogic
 import semantics.shared.Demand
 import semantics.shared.OEROccurrence
