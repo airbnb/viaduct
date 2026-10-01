@@ -14,6 +14,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import org.junit.jupiter.api.Test;
+import viaduct.api.testing.TestSchema;
+import viaduct.engine.SchemaFactory;
 import viaduct.engine.api.EngineSchema;
 import viaduct.engine.api.ResolvedEngineObjectData;
 import viaduct.engine.api.spi.FieldResolverExecutor;
@@ -22,6 +24,8 @@ import viaduct.java.api.context.ExecutionContext;
 import viaduct.java.api.globalid.GlobalID;
 import viaduct.java.api.internal.InternalContext;
 import viaduct.java.api.reflect.Type;
+import viaduct.java.api.testing.ResolverTestBase;
+import viaduct.java.api.types.Arguments;
 import viaduct.java.api.types.NodeCompositeOutput;
 import viaduct.service.api.spi.GlobalIDCodec;
 import viaduct.tenant.runtime.execution.objectresolver.resolverbases.FooResolvers;
@@ -30,6 +34,33 @@ import viaduct.tenant.runtime.execution.objectresolver.resolverbases.PersonResol
 import viaduct.tenant.runtime.execution.objectresolver.resolverbases.QueryResolvers;
 
 public class JavaObjectContractTest extends ObjectContractTest {
+
+  @Test
+  void isolatedResolverUsesTheContractSchemaAndGeneratedAdapter() {
+    var schema =
+        new SchemaFactory()
+            .fromSdl(JavaObjectContractTest.class.getAnnotation(TestSchema.class).value());
+    var test = new ResolverTestBase(schema);
+    Foo parent = Foo.builder(test.context()).baz("world").build();
+
+    String result =
+        test.runFieldResolver(
+                new ShorthandBarResolver(),
+                new ResolverTestBase.FieldInputs<Foo, Query, Arguments.NoArguments>()
+                    .objectValue(parent))
+            .join();
+
+    assertEquals("world", result);
+
+    var arguments = Query_PersonByName_Arguments.builder(test.context()).name("Ada").build();
+    Person person =
+        test.runFieldResolver(
+                new PersonByNameResolver(),
+                new ResolverTestBase.FieldInputs<Query, Query, Query_PersonByName_Arguments>()
+                    .arguments(arguments))
+            .join();
+    assertEquals("Ada", person.getNameOrThrow());
+  }
 
   // --- Resolvers ---
 

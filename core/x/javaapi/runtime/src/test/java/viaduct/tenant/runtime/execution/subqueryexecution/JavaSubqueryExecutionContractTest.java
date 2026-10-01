@@ -1,9 +1,16 @@
 package viaduct.tenant.runtime.execution.subqueryexecution;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import viaduct.api.testing.TestSchema;
+import viaduct.engine.SchemaFactory;
 import viaduct.java.api.annotations.Resolver;
+import viaduct.java.api.testing.ResolverTestBase;
+import viaduct.java.api.types.Arguments;
 import viaduct.tenant.runtime.execution.subqueryexecution.resolverbases.CalculatorResolvers;
 import viaduct.tenant.runtime.execution.subqueryexecution.resolverbases.ContainerResolvers;
 import viaduct.tenant.runtime.execution.subqueryexecution.resolverbases.Level1Resolvers;
@@ -15,6 +22,23 @@ import viaduct.tenant.runtime.execution.subqueryexecution.resolverbases.UserReso
 public class JavaSubqueryExecutionContractTest extends SubqueryExecutionContractTest {
 
   private static int counter = 0;
+
+  @Test
+  void isolatedMutationUsesGeneratedAdapter() {
+    var schema =
+        new SchemaFactory()
+            .fromSdl(
+                JavaSubqueryExecutionContractTest.class.getAnnotation(TestSchema.class).value());
+    var test = new ResolverTestBase(schema);
+
+    Integer result =
+        test.runMutationFieldResolver(
+                new IncrementCounterResolver(),
+                new ResolverTestBase.FieldInputs<Mutation, Query, Arguments.NoArguments>())
+            .join();
+
+    assertEquals(1, result);
+  }
 
   @BeforeEach
   public void resetCounterBeforeTest() {
