@@ -72,13 +72,17 @@ class TestExtractFailedTasks(unittest.TestCase):
         log = "> Task :build-logic:build-common:detekt FAILED\n"
         self.assertEqual([":build-logic:build-common:detekt"], extract_failed_tasks(log))
 
-    def test_dotted_name(self):
+    def test_dot_is_allowed_in_a_task_name(self):
         log = "> Task :core:x:javaapi:api:test.integration FAILED\n"
         self.assertEqual([":core:x:javaapi:api:test.integration"], extract_failed_tasks(log))
 
     def test_path_carrying_markdown_is_skipped(self):
         log = "> Task :a`@everyone`[docs](https://example.com) FAILED\n> Task :b:test FAILED\n"
         self.assertEqual([":b:test"], extract_failed_tasks(log))
+
+    def test_non_ascii_lookalike_is_skipped(self):
+        log = "> Task :\u0430ttack:test FAILED\n"
+        self.assertEqual([], extract_failed_tasks(log))
 
     def test_path_without_leading_colon_is_skipped(self):
         log = "> Task @everyone FAILED\n"
