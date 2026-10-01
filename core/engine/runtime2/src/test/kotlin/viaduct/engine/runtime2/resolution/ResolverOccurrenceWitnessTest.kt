@@ -5,9 +5,10 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
 import kotlin.test.assertSame
+import viaduct.engine.runtime2.arbitrary.BoundedRecorder
 import viaduct.engine.runtime2.arbitrary.FieldCoordinate
-import viaduct.engine.runtime2.arbitrary.ResolutionOccurrenceApplicationLog
 import viaduct.engine.runtime2.arbitrary.ResolutionOccurrenceWitness
+import viaduct.engine.runtime2.arbitrary.ResolverOccurrenceApplicationRecord
 import viaduct.engine.runtime2.contract.registeredResolverApplicationIdentityCounts
 import viaduct.engine.runtime2.contract.registeredResolverOccurrenceApplicationIdentityCounts
 import viaduct.engine.runtime2.contract.selectionValues
@@ -71,22 +72,24 @@ class ResolverOccurrenceWitnessTest {
             testWorld.schemas.fragmentFrom(
                 "fragment QueryResult on Query { first second }",
             )
-        val log = ResolutionOccurrenceApplicationLog()
+        val log = BoundedRecorder<ResolverOccurrenceApplicationRecord>()
 
         val recordingObserver = object : CorrectnessResolverObserver() {
             override fun onResolverInvocation(observation: ResolverInvocationObservation) {
                 super.onResolverInvocation(observation)
                 log.record(
-                    resolverOccurrenceId = observation.resolverOccurrenceId,
-                    occurrencePath = observation.occurrencePath,
-                    field =
-                        FieldCoordinate(
-                            observation.field.containingDef.name,
-                            observation.field.name,
-                        ),
-                    arguments = observation.arguments,
-                    input = observation.input,
-                    suppliedDemand = observation.suppliedDemand,
+                    ResolverOccurrenceApplicationRecord.capture(
+                        resolverOccurrenceId = observation.resolverOccurrenceId,
+                        occurrencePath = observation.occurrencePath,
+                        field =
+                            FieldCoordinate(
+                                observation.field.containingDef.name,
+                                observation.field.name,
+                            ),
+                        arguments = observation.arguments,
+                        input = observation.input,
+                        suppliedDemand = observation.suppliedDemand,
+                    ),
                 )
             }
         }
@@ -97,7 +100,7 @@ class ResolverOccurrenceWitnessTest {
                 selections = fragment.subselections,
                 coroutineContext = EmptyCoroutineContext,
             )
-        val witness = log.snapshot()
+        val witness = ResolutionOccurrenceWitness(log.snapshot())
         val expected =
             result.registeredResolverOccurrenceApplicationIdentityCounts(operation)
 
@@ -181,22 +184,24 @@ class ResolverOccurrenceWitnessTest {
             testWorld.schemas.fragmentFrom(
                 "fragment QueryResult on Query { items { computed } }",
             )
-        val log = ResolutionOccurrenceApplicationLog()
+        val log = BoundedRecorder<ResolverOccurrenceApplicationRecord>()
 
         val recordingObserver = object : CorrectnessResolverObserver() {
             override fun onResolverInvocation(observation: ResolverInvocationObservation) {
                 super.onResolverInvocation(observation)
                 log.record(
-                    resolverOccurrenceId = observation.resolverOccurrenceId,
-                    occurrencePath = observation.occurrencePath,
-                    field =
-                        FieldCoordinate(
-                            observation.field.containingDef.name,
-                            observation.field.name,
-                        ),
-                    arguments = observation.arguments,
-                    input = observation.input,
-                    suppliedDemand = observation.suppliedDemand,
+                    ResolverOccurrenceApplicationRecord.capture(
+                        resolverOccurrenceId = observation.resolverOccurrenceId,
+                        occurrencePath = observation.occurrencePath,
+                        field =
+                            FieldCoordinate(
+                                observation.field.containingDef.name,
+                                observation.field.name,
+                            ),
+                        arguments = observation.arguments,
+                        input = observation.input,
+                        suppliedDemand = observation.suppliedDemand,
+                    ),
                 )
             }
         }
@@ -207,7 +212,7 @@ class ResolverOccurrenceWitnessTest {
                 selections = fragment.subselections,
                 coroutineContext = EmptyCoroutineContext,
             )
-        val witness = log.snapshot()
+        val witness = ResolutionOccurrenceWitness(log.snapshot())
         val expected =
             result.registeredResolverOccurrenceApplicationIdentityCounts(operation)
 

@@ -60,6 +60,10 @@ Configuration controls argument count and shape, resolver object and query fragm
 
 Generated witnesses identify applications by canonical post-lowering field, exact arguments, materialized-input fingerprint, and, where required, result occurrence. Focused selective-demand profiles may capture supplied-demand detail; ordinary stress profiles avoid unnecessary witness cost.
 
+`BoundedRecorder<Entry>` stores those observations for Qplan. `Entry` is the record type: `ResolverApplicationRecord` for field calls, `ResolverOccurrenceApplicationRecord` for exact occurrences, or `SelectiveNodeResolverApplicationRecord` for node calls. Each recorder keeps duplicates, rejects writes beyond its limit, and returns a copy of its list. Record construction and witness assertions stay with the caller.
+
+Snapshot or clear after resolution completes. `withoutRecording` excludes comparison runs and restores recording after exceptions; nested pauses are supported, but overlapping pause blocks on different threads are not. Field recording checks `isRecording` before constructing fingerprints and checks again when storing the record.
+
 ## Failure Replay
 
 Every semantic failure reports the profile, seed, one-based `S:R:Q` coordinate, schema, registry, and query. Replay the exact coordinate through `:engine:runtime2:resolverPropertyReplay` before changing generator or resolver code. [`../semantics/testing-contracts.md`](../semantics/testing-contracts.md) defines the stable profile IDs and replay interface.

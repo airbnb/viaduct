@@ -8,8 +8,10 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import kotlinx.coroutines.runBlocking
+import viaduct.engine.runtime2.arbitrary.BoundedRecorder
 import viaduct.engine.runtime2.arbitrary.FieldCoordinate
-import viaduct.engine.runtime2.arbitrary.ResolutionOccurrenceApplicationLog
+import viaduct.engine.runtime2.arbitrary.ResolutionOccurrenceWitness
+import viaduct.engine.runtime2.arbitrary.ResolverOccurrenceApplicationRecord
 import viaduct.engine.runtime2.contract.registeredResolverOccurrenceApplicationIdentityCounts
 import viaduct.engine.runtime2.model.Arguments
 import viaduct.engine.runtime2.model.ObjectEngineResult
@@ -48,10 +50,10 @@ class IndependentRoleAdversarialReviewTest {
         val selections = world.schemas.fragmentFrom("fragment Result on Query { left right }").subselections
         val result = operation.resolve(selections)
         assertEquals(1, calls.get())
-        assertEquals(3, observer.log.snapshot().applications.size)
+        assertEquals(3, observer.log.snapshot().size)
         assertTrue(observer.rootFieldReferenceInvocations().isEmpty())
         assertTrue(result.correctResolution(operation, selections.merge(world.schema.requireQueryTypeDef())))
-        assertEquals(observer.log.snapshot().applicationIdentityCounts(), result.registeredResolverOccurrenceApplicationIdentityCounts(operation))
+        assertEquals(ResolutionOccurrenceWitness(observer.log.snapshot()).applicationIdentityCounts(), result.registeredResolverOccurrenceApplicationIdentityCounts(operation))
     }
 
     @Test
@@ -63,10 +65,10 @@ class IndependentRoleAdversarialReviewTest {
         val selections = world.schemas.fragmentFrom("fragment Result on Query { left right }").subselections
         val result = operation.resolve(selections)
         assertEquals(2, calls.get())
-        assertEquals(6, observer.log.snapshot().applications.size)
+        assertEquals(6, observer.log.snapshot().size)
         assertEquals(2, observer.rootFieldReferenceInvocations().size)
         assertTrue(result.correctResolution(operation, selections.merge(world.schema.requireQueryTypeDef())))
-        assertEquals(observer.log.snapshot().applicationIdentityCounts(), result.registeredResolverOccurrenceApplicationIdentityCounts(operation))
+        assertEquals(ResolutionOccurrenceWitness(observer.log.snapshot()).applicationIdentityCounts(), result.registeredResolverOccurrenceApplicationIdentityCounts(operation))
     }
 
     @Test
@@ -138,14 +140,14 @@ class IndependentRoleAdversarialReviewTest {
         }
         result.freeze()
         assertEquals(2, calls.get(), "The mutant really executes two source bodies")
-        assertEquals(4, observer.log.snapshot().applications.size)
+        assertEquals(4, observer.log.snapshot().size)
         assertTrue(observer.rootFieldReferenceInvocations().isEmpty(), "No source result contains a reference")
         assertEquals(2, observer.allQueryFragmentResults().values.map { it.single() }.toSet().size)
         val requested = world.schemas.fragmentFrom("fragment Result on Query { left right }").subselections.merge(queryType)
         assertTrue(result.correctResolution(operation, requested), "All actual values and owner projections remain correct")
         val accepted = try {
             result.registeredResolverOccurrenceApplicationIdentityCounts(operation) ==
-                observer.log.snapshot().applicationIdentityCounts()
+                ResolutionOccurrenceWitness(observer.log.snapshot()).applicationIdentityCounts()
         } catch (_: IllegalStateException) {
             false
         }
@@ -187,17 +189,19 @@ class IndependentRoleAdversarialReviewTest {
         )
 
     private class RecordingObserver : CorrectnessResolverObserver() {
-        val log = ResolutionOccurrenceApplicationLog()
+        val log = BoundedRecorder<ResolverOccurrenceApplicationRecord>()
 
         override fun onResolverInvocation(observation: ResolverInvocationObservation) {
             super.onResolverInvocation(observation)
             log.record(
-                resolverOccurrenceId = observation.resolverOccurrenceId,
-                occurrencePath = observation.occurrencePath,
-                field = FieldCoordinate(observation.field.containingDef.name, observation.field.name),
-                arguments = observation.arguments,
-                input = observation.input,
-                suppliedDemand = observation.suppliedDemand,
+                ResolverOccurrenceApplicationRecord.capture(
+                    resolverOccurrenceId = observation.resolverOccurrenceId,
+                    occurrencePath = observation.occurrencePath,
+                    field = FieldCoordinate(observation.field.containingDef.name, observation.field.name),
+                    arguments = observation.arguments,
+                    input = observation.input,
+                    suppliedDemand = observation.suppliedDemand,
+                ),
             )
         }
     }

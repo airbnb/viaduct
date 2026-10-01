@@ -139,8 +139,8 @@ class ArbitraryRegistry internal constructor(
     internal val schemaRootFieldReferenceFamily: RootFieldReferenceFamily? = null,
     val features: RegistryFeatures,
 ) {
-    private val applicationLog = ResolutionApplicationLog()
-    private val selectiveNodeApplicationLog = SelectiveNodeResolverApplicationLog()
+    private val applicationLog = BoundedRecorder<ResolverApplicationRecord>()
+    private val selectiveNodeApplicationLog = BoundedRecorder<SelectiveNodeResolverApplicationRecord>(boundName = "selective-node application")
     private val applicationCounts = ConcurrentHashMap<FieldCoordinate, Long>()
 
     /** Source resolver fields whose generated fragments consume a `FromArgument` variable. */
@@ -336,7 +336,7 @@ class ArbitraryRegistry internal constructor(
         selectiveNodeApplicationLog.clear()
     }
 
-    fun resolutionWitness(): ResolutionWitness = applicationLog.snapshot()
+    fun resolutionWitness(): ResolutionWitness = ResolutionWitness(applicationLog.snapshot())
 
     fun selectiveNodeResolverApplications(): List<SelectiveNodeResolverApplicationRecord> = selectiveNodeApplicationLog.snapshot()
 
@@ -418,11 +418,14 @@ class ArbitraryRegistry internal constructor(
             suppliedDemand: SelectionForest?,
         ) {
             if (captureResolutionWitness) {
+                if (!applicationLog.isRecording) return
                 applicationLog.record(
-                    field = coordinate,
-                    arguments = arguments,
-                    input = input,
-                    suppliedDemand = suppliedDemand.takeIf { captureSuppliedDemand },
+                    ResolverApplicationRecord.capture(
+                        field = coordinate,
+                        arguments = arguments,
+                        input = input,
+                        suppliedDemand = suppliedDemand.takeIf { captureSuppliedDemand },
+                    ),
                 )
             } else if (captureResolutionApplicationCounts) {
                 applicationCounts.compute(coordinate) { _, previous ->
@@ -488,7 +491,7 @@ class ArbitraryRegistry internal constructor(
                         type to
                             if (selectiveNodeResolvers) {
                                 selectionAwareNodeResolverOf { id, demand ->
-                                    selectiveNodeApplicationLog.record(typeName, id, demand)
+                                    selectiveNodeApplicationLog.record(SelectiveNodeResolverApplicationRecord(typeName, id, demand.resolutionDigest()))
                                     materialize(id)
                                 }
                             } else {

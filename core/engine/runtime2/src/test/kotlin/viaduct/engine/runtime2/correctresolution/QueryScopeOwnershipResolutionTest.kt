@@ -6,8 +6,10 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotSame
 import kotlin.test.assertTrue
+import viaduct.engine.runtime2.arbitrary.BoundedRecorder
 import viaduct.engine.runtime2.arbitrary.FieldCoordinate
-import viaduct.engine.runtime2.arbitrary.ResolutionOccurrenceApplicationLog
+import viaduct.engine.runtime2.arbitrary.ResolutionOccurrenceWitness
+import viaduct.engine.runtime2.arbitrary.ResolverOccurrenceApplicationRecord
 import viaduct.engine.runtime2.contract.registeredResolverOccurrenceApplicationIdentityCounts
 import viaduct.engine.runtime2.contract.selectionValues
 import viaduct.engine.runtime2.model.ObjectEngineResult
@@ -101,24 +103,26 @@ class QueryScopeOwnershipResolutionTest : ResolutionDispatcherResource {
             )
         }
         val omittedOwner = ResolverOccurrenceId.at(second.result, listOf(second.result.keys.single()))
-        val mutantLog = ResolutionOccurrenceApplicationLog()
+        val mutantLog = BoundedRecorder<ResolverOccurrenceApplicationRecord>()
         events.filter { it.resolverOccurrenceId != omittedOwner }.forEach { event ->
             malformed.onResolverInvocation(event)
             mutantLog.record(
-                resolverOccurrenceId = event.resolverOccurrenceId,
-                occurrencePath = event.occurrencePath,
-                field = FieldCoordinate(event.field.containingDef.name, event.field.name),
-                arguments = event.arguments,
-                input = event.input,
-                suppliedDemand = event.suppliedDemand,
+                ResolverOccurrenceApplicationRecord.capture(
+                    resolverOccurrenceId = event.resolverOccurrenceId,
+                    occurrencePath = event.occurrencePath,
+                    field = FieldCoordinate(event.field.containingDef.name, event.field.name),
+                    arguments = event.arguments,
+                    input = event.input,
+                    suppliedDemand = event.suppliedDemand,
+                ),
             )
         }
-        assertEquals(4, mutantLog.snapshot().applications.size)
+        assertEquals(4, mutantLog.snapshot().size)
         val mutantOperation = SharedOperationContext.create(world, resolverObserver = malformed)
         val accepted = try {
             result.correctResolution(mutantOperation, selection.merge(world.schema.requireQueryTypeDef())) &&
                 result.registeredResolverOccurrenceApplicationIdentityCounts(mutantOperation) ==
-                mutantLog.snapshot().applicationIdentityCounts()
+                ResolutionOccurrenceWitness(mutantLog.snapshot()).applicationIdentityCounts()
         } catch (rejected: IllegalStateException) {
             false
         }

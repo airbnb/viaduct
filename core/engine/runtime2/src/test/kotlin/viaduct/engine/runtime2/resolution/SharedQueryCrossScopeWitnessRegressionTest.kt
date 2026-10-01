@@ -6,9 +6,10 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
+import viaduct.engine.runtime2.arbitrary.BoundedRecorder
 import viaduct.engine.runtime2.arbitrary.FieldCoordinate
-import viaduct.engine.runtime2.arbitrary.ResolutionOccurrenceApplicationLog
 import viaduct.engine.runtime2.arbitrary.ResolutionOccurrenceWitness
+import viaduct.engine.runtime2.arbitrary.ResolverOccurrenceApplicationRecord
 import viaduct.engine.runtime2.contract.registeredResolverOccurrenceApplicationIdentityCounts
 import viaduct.engine.runtime2.correctresolution.CorrectnessResolverObserver
 import viaduct.engine.runtime2.correctresolution.correctResolution
@@ -121,19 +122,21 @@ class SharedQueryCrossScopeWitnessRegressionTest : ResolutionDispatcherResource 
                 )
             },
         )
-        val log = ResolutionOccurrenceApplicationLog()
+        val log = BoundedRecorder<ResolverOccurrenceApplicationRecord>()
         val events = ConcurrentLinkedQueue<ResolverInvocationObservation>()
         val observer = object : CorrectnessResolverObserver() {
             override fun onResolverInvocation(observation: ResolverInvocationObservation) {
                 super.onResolverInvocation(observation)
                 events.add(observation)
                 log.record(
-                    resolverOccurrenceId = observation.resolverOccurrenceId,
-                    occurrencePath = observation.occurrencePath,
-                    field = FieldCoordinate(observation.field.containingDef.name, observation.field.name),
-                    arguments = observation.arguments,
-                    input = observation.input,
-                    suppliedDemand = observation.suppliedDemand,
+                    ResolverOccurrenceApplicationRecord.capture(
+                        resolverOccurrenceId = observation.resolverOccurrenceId,
+                        occurrencePath = observation.occurrencePath,
+                        field = FieldCoordinate(observation.field.containingDef.name, observation.field.name),
+                        arguments = observation.arguments,
+                        input = observation.input,
+                        suppliedDemand = observation.suppliedDemand,
+                    ),
                 )
             }
         }
@@ -146,7 +149,7 @@ class SharedQueryCrossScopeWitnessRegressionTest : ResolutionDispatcherResource 
             },
         ).subselections.merge(world.assumptions.schema.requireQueryTypeDef())
         val result = operation.resolveWithTestDispatcher(selections)
-        return Run(operation, observer, result, selections, log.snapshot(), events.toList())
+        return Run(operation, observer, result, selections, ResolutionOccurrenceWitness(log.snapshot()), events.toList())
     }
 
     private data class Run(

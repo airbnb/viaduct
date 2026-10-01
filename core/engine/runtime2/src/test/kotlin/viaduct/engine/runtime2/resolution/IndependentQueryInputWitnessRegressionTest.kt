@@ -5,9 +5,10 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import viaduct.engine.runtime2.arbitrary.BoundedRecorder
 import viaduct.engine.runtime2.arbitrary.FieldCoordinate
-import viaduct.engine.runtime2.arbitrary.ResolutionOccurrenceApplicationLog
 import viaduct.engine.runtime2.arbitrary.ResolutionOccurrenceWitness
+import viaduct.engine.runtime2.arbitrary.ResolverOccurrenceApplicationRecord
 import viaduct.engine.runtime2.contract.registeredResolverOccurrenceApplicationIdentityCounts
 import viaduct.engine.runtime2.correctresolution.CorrectnessResolverObserver
 import viaduct.engine.runtime2.correctresolution.correctResolution
@@ -58,19 +59,21 @@ class IndependentQueryInputWitnessRegressionTest : ResolutionDispatcherResource 
                 )
             },
         )
-        val log = ResolutionOccurrenceApplicationLog()
+        val log = BoundedRecorder<ResolverOccurrenceApplicationRecord>()
         val events = ConcurrentLinkedQueue<ResolverInvocationObservation>()
         val observer = object : CorrectnessResolverObserver() {
             override fun onResolverInvocation(observation: ResolverInvocationObservation) {
                 super.onResolverInvocation(observation)
                 events.add(observation)
                 log.record(
-                    resolverOccurrenceId = observation.resolverOccurrenceId,
-                    occurrencePath = observation.occurrencePath,
-                    field = FieldCoordinate(observation.field.containingDef.name, observation.field.name),
-                    arguments = observation.arguments,
-                    input = observation.input,
-                    suppliedDemand = observation.suppliedDemand,
+                    ResolverOccurrenceApplicationRecord.capture(
+                        resolverOccurrenceId = observation.resolverOccurrenceId,
+                        occurrencePath = observation.occurrencePath,
+                        field = FieldCoordinate(observation.field.containingDef.name, observation.field.name),
+                        arguments = observation.arguments,
+                        input = observation.input,
+                        suppliedDemand = observation.suppliedDemand,
+                    ),
                 )
             }
         }
@@ -82,7 +85,7 @@ class IndependentQueryInputWitnessRegressionTest : ResolutionDispatcherResource 
             else -> operation.resolveWithTestDispatcher(selections)
         }
         val requested = selections.merge(world.schema.requireQueryTypeDef())
-        val witness = log.snapshot()
+        val witness = ResolutionOccurrenceWitness(log.snapshot())
         assertEquals(6, witness.applications.size)
         assertTrue(result.correctResolution(operation, requested))
         assertEquals(result.registeredResolverOccurrenceApplicationIdentityCounts(operation), witness.applicationIdentityCounts())

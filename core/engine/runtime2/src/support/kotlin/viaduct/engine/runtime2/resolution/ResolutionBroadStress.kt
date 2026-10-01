@@ -6,14 +6,16 @@ import kotlin.coroutines.CoroutineContext
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import viaduct.engine.api.EngineObjectData
+import viaduct.engine.runtime2.arbitrary.BoundedRecorder
 import viaduct.engine.runtime2.arbitrary.Config
 import viaduct.engine.runtime2.arbitrary.FieldCoordinate
 import viaduct.engine.runtime2.arbitrary.NodeResolversEnabled
 import viaduct.engine.runtime2.arbitrary.ParentFieldsEnabled
 import viaduct.engine.runtime2.arbitrary.RandomParentFieldsEnabled
-import viaduct.engine.runtime2.arbitrary.ResolutionOccurrenceApplicationLog
+import viaduct.engine.runtime2.arbitrary.ResolutionOccurrenceWitness
 import viaduct.engine.runtime2.arbitrary.ResolutionWitness
 import viaduct.engine.runtime2.arbitrary.ResolverFromQueryFieldVariablesEnabled
+import viaduct.engine.runtime2.arbitrary.ResolverOccurrenceApplicationRecord
 import viaduct.engine.runtime2.arbitrary.ResolverQueryFragmentsEnabled
 import viaduct.engine.runtime2.arbitrary.ResolverTestExecution
 import viaduct.engine.runtime2.arbitrary.ResolverTestRun
@@ -174,7 +176,7 @@ internal suspend fun runResolutionBroadStress(
                 val fragment: Fragment = testWorld.schemas.fragmentFrom(testCase.query.source)
 
                 testCase.registry.clearResolutionWitness()
-                val occurrenceLog = ResolutionOccurrenceApplicationLog()
+                val occurrenceLog = BoundedRecorder<ResolverOccurrenceApplicationRecord>()
                 resolutionCalls += 1
 
                 val witnessObserver = testCase.registry.resolverObserver()
@@ -295,15 +297,17 @@ internal suspend fun runResolutionBroadStress(
                             }
                         }
                         occurrenceLog.record(
-                            resolverOccurrenceId = observation.resolverOccurrenceId,
-                            occurrencePath = observation.occurrencePath,
-                            field =
-                                FieldCoordinate(
-                                    observation.field.containingDef.name,
-                                    observation.field.name,
-                                ),
-                            arguments = observation.arguments,
-                            input = observation.input,
+                            ResolverOccurrenceApplicationRecord.capture(
+                                resolverOccurrenceId = observation.resolverOccurrenceId,
+                                occurrencePath = observation.occurrencePath,
+                                field =
+                                    FieldCoordinate(
+                                        observation.field.containingDef.name,
+                                        observation.field.name,
+                                    ),
+                                arguments = observation.arguments,
+                                input = observation.input,
+                            ),
                         )
                     }
                 }
@@ -384,7 +388,7 @@ internal suspend fun runResolutionBroadStress(
                             .values
                             .maxOrNull() ?: 0,
                     )
-                val occurrenceWitness = occurrenceLog.snapshot()
+                val occurrenceWitness = ResolutionOccurrenceWitness(occurrenceLog.snapshot())
                 assertEquals(
                     witness.applicationIdentityCounts(),
                     occurrenceWitness.applications

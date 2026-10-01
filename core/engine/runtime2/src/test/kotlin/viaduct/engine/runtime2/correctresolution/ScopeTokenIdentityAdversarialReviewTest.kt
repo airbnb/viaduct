@@ -7,8 +7,10 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import kotlinx.coroutines.runBlocking
+import viaduct.engine.runtime2.arbitrary.BoundedRecorder
 import viaduct.engine.runtime2.arbitrary.FieldCoordinate
-import viaduct.engine.runtime2.arbitrary.ResolutionOccurrenceApplicationLog
+import viaduct.engine.runtime2.arbitrary.ResolutionOccurrenceWitness
+import viaduct.engine.runtime2.arbitrary.ResolverOccurrenceApplicationRecord
 import viaduct.engine.runtime2.contract.registeredResolverOccurrenceApplicationIdentityCounts
 import viaduct.engine.runtime2.contract.selectionValues
 import viaduct.engine.runtime2.model.Arguments
@@ -89,14 +91,14 @@ class ScopeTokenIdentityAdversarialReviewTest {
             observe(reuseScopeWrapper = true).queryFragmentOwnershipIsConsistent(emptySet()),
         )
         val observer = observe(reuseScopeWrapper = false)
-        val log = recordApplications(world, observer, listOf(result) + queries)
+        val witness = recordApplications(world, observer, listOf(result) + queries)
         val operation = SharedOperationContext.create(world, resolverObserver = observer)
         assertTrue(result.correctResolution(operation, resultDemand), "The mutation preserves all values and declared input projections")
         val accepted = runCatching {
             // A per-owner execution runs source twice; reconstruction currently blesses all four
             // ordinary occurrences, even though singular ownership requires three applications.
             assertEquals(4, result.registeredResolverOccurrenceApplicationIdentityCounts(operation).values.sum())
-            result.registeredResolverOccurrenceApplicationIdentityCounts(operation) == log.snapshot().applicationIdentityCounts()
+            result.registeredResolverOccurrenceApplicationIdentityCounts(operation) == witness.applicationIdentityCounts()
         }.getOrElse { false }
         assertFalse(accepted, "Two structurally identical containing occurrences must own one shared Query result regardless of carrier allocation")
     }
@@ -146,10 +148,10 @@ class ScopeTokenIdentityAdversarialReviewTest {
             control.onQueryFragmentPrepared(owner, sharedQuery, controlScope)
             control.onQueryFragmentOwnerAddress(owner, OEROccurrence(root, emptyList(), root), key)
         }
-        val controlLog = recordApplications(world, control, listOf(result, sharedQuery))
+        val controlWitness = recordApplications(world, control, listOf(result, sharedQuery))
         val controlOperation = SharedOperationContext.create(world, resolverObserver = control)
         assertTrue(result.correctResolution(controlOperation, resultDemand))
-        assertEquals(controlLog.snapshot().applicationIdentityCounts(), result.registeredResolverOccurrenceApplicationIdentityCounts(controlOperation))
+        assertEquals(controlWitness.applicationIdentityCounts(), result.registeredResolverOccurrenceApplicationIdentityCounts(controlOperation))
 
         val observer = CorrectnessResolverObserver()
         listOf(Triple(result, "answer", firstQuery), Triple(firstQuery, "middle", secondQuery)).forEach { (root, name, query) ->
@@ -168,12 +170,12 @@ class ScopeTokenIdentityAdversarialReviewTest {
             observer.onQueryFragmentPrepared(owner, query, containing)
             observer.onQueryFragmentOwnerAddress(owner, containing, key)
         }
-        val log = recordApplications(world, observer, listOf(result, firstQuery, secondQuery))
-        assertEquals(3, log.snapshot().applications.size)
+        val witness = recordApplications(world, observer, listOf(result, firstQuery, secondQuery))
+        assertEquals(3, witness.applications.size)
         val operation = SharedOperationContext.create(world, resolverObserver = observer)
         assertTrue(result.correctResolution(operation, resultDemand), "This misplaced root boundary preserves values")
         val accepted = runCatching {
-            result.registeredResolverOccurrenceApplicationIdentityCounts(operation) == log.snapshot().applicationIdentityCounts()
+            result.registeredResolverOccurrenceApplicationIdentityCounts(operation) == witness.applicationIdentityCounts()
         }.getOrElse { false }
         assertFalse(accepted, "Query-side ordinary resolvers must read the already associated Query root, not introduce another scope")
     }
@@ -182,8 +184,8 @@ class ScopeTokenIdentityAdversarialReviewTest {
         world: Assumptions,
         observer: CorrectnessResolverObserver,
         roots: List<ObjectEngineResult>,
-    ): ResolutionOccurrenceApplicationLog {
-        val log = ResolutionOccurrenceApplicationLog()
+    ): ResolutionOccurrenceWitness {
+        val log = BoundedRecorder<ResolverOccurrenceApplicationRecord>()
         roots.forEach { root ->
             root.keys.forEach { key ->
                 val owner = ResolverOccurrenceId.at(root, listOf(key))
@@ -219,15 +221,17 @@ class ScopeTokenIdentityAdversarialReviewTest {
                     ),
                 )
                 log.record(
-                    resolverOccurrenceId = owner,
-                    occurrencePath = listOf(key),
-                    field = FieldCoordinate(key.field.containingDef.name, key.field.name),
-                    arguments = arguments,
-                    input = input,
-                    suppliedDemand = null,
+                    ResolverOccurrenceApplicationRecord.capture(
+                        resolverOccurrenceId = owner,
+                        occurrencePath = listOf(key),
+                        field = FieldCoordinate(key.field.containingDef.name, key.field.name),
+                        arguments = arguments,
+                        input = input,
+                        suppliedDemand = null,
+                    ),
                 )
             }
         }
-        return log
+        return ResolutionOccurrenceWitness(log.snapshot())
     }
 }
