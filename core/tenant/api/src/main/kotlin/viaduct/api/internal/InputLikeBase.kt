@@ -1,13 +1,19 @@
 package viaduct.api.internal
 
+import graphql.GraphQLContext
+import graphql.execution.ValuesResolver
 import graphql.language.Value
 import graphql.schema.GraphQLInputObjectType
+import graphql.schema.GraphQLInputType
 import graphql.schema.GraphQLTypeUtil
+import graphql.schema.InputValueWithState
+import java.util.Locale
 import viaduct.api.types.FieldPresenceProbe
 import viaduct.api.types.InputLike
 import viaduct.apiannotations.Attribution
 import viaduct.apiannotations.AttributionContext
 import viaduct.apiannotations.InternalApi
+import viaduct.engine.api.EngineSchema
 import viaduct.errors.FrameworkException
 import viaduct.errors.TenantUsageException
 import viaduct.errors.handleFrameworkErrors
@@ -55,12 +61,7 @@ abstract class InputLikeBase : InputLike, FieldPresenceProbe {
             val conv = EngineValueConv(context.schema, fieldDefinition.type, null)
             conv(inputData[fieldName])
         } else if (fieldDefinition.hasSetDefaultValue()) {
-            require(fieldDefinition.inputFieldDefaultValue.isLiteral) {
-                "Cannot get the default value for a field without a GJ value literal"
-            }
-            val gjValue = fieldDefinition.inputFieldDefaultValue.value as Value<*>
-            val conv = GJValueConv(fieldDefinition.type)
-            conv(gjValue)
+            defaultValueToIR(fieldDefinition.inputFieldDefaultValue, fieldDefinition.type, context.schema)
         } else {
             IR.Value.Null
         }
@@ -117,6 +118,18 @@ abstract class InputLikeBase : InputLike, FieldPresenceProbe {
         }
     }
 }
+
+internal fun defaultValueToIR(
+    default: InputValueWithState,
+    type: GraphQLInputType,
+    schema: EngineSchema
+): IR.Value =
+    if (default.isLiteral) {
+        GJValueConv(type)(default.value as Value<*>)
+    } else {
+        val value = ValuesResolver.valueToInternalValue(default, type, GraphQLContext.getDefault(), Locale.getDefault())
+        EngineValueConv(schema, type, null)(value)
+    }
 
 private fun validateInputData(
     graphQLInputObjectType: GraphQLInputObjectType,
