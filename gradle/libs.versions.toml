@@ -78,6 +78,7 @@ test-retry = { id = "org.gradle.test-retry", version.ref = "test-retry" }
 # Project
 viaduct-engine-api = { module = "com.airbnb.viaduct.engine:api", version.ref = "project" }
 viaduct-engine-runtime = { module = "com.airbnb.viaduct.engine:runtime", version.ref = "project" }
+viaduct-engine-runtime2 = { module = "com.airbnb.viaduct.engine:runtime2", version.ref = "project" }
 viaduct-engine-wiring = { module = "com.airbnb.viaduct.engine:wiring", version.ref = "project" }
 viaduct-tenant-api = { module = "com.airbnb.viaduct.tenant:api", version.ref = "project" }
 viaduct-tenant-runtime = { module = "com.airbnb.viaduct.tenant:runtime", version.ref = "project" }
@@ -149,6 +150,7 @@ jackson-databind = { module = "com.fasterxml.jackson.core:jackson-databind", ver
 jackson-module = { module = "com.fasterxml.jackson.module:jackson-module-kotlin", version.ref = "jackson" }
 javassist = { module = "org.javassist:javassist", version.ref = "javassist" }
 javax-inject = { module = "javax.inject:javax.inject", version.ref = "javax-inject" }
+jakarta-inject = { module = "jakarta.inject:jakarta.inject-api", version = "2.0.1" }
 slf4j-api = { module = "org.slf4j:slf4j-api", version.ref = "slf4j" }
 jspecify = { module = "org.jspecify:jspecify", version.ref = "jspecify" }
 ktor-server-core = { module = "io.ktor:ktor-server-core", version.ref = "ktor" }

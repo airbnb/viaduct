@@ -12,7 +12,7 @@ Viaduct's Gradle build is organized as a **composite build** — a set of indepe
 
 - **Eliminate manual dependency wiring.** Gradle's composite auto-substitution should handle the mapping from Maven coordinates to local source. No hand-maintained substitution rules.
 
-- **Keep each build independently viable.** `core`, `qplan`, `gradle-plugins`, and `publications` should each be able to build and test on their own, so that changes to one build's configuration don't break another.
+- **Keep each build independently viable.** `core`, `gradle-plugins`, and `publications` should each be able to build and test on their own, so that changes to one build's configuration don't break another.
 
 ## Build Map
 
@@ -20,14 +20,12 @@ Viaduct's Gradle build is organized as a **composite build** — a set of indepe
 viaduct/                         ← root project (orchestration only)
 ├── build-logic/                 ← shared build conventions and plugins
 ├── core/                        ← included build: library source code
-│   ├── engine/                  (api, runtime, wiring)
+│   ├── engine/                  (api, runtime, runtime2, wiring)
 │   ├── service/                 (api, runtime, wiring, serve)
 │   ├── tenant/                  (api, codegen, ksp, validation, runtime, wiring, tutorials)
 │   ├── shared/                  (apiannotations, arbitrary, codegen, dataloader, deferred,
 │   │                             errors, graphql, invariants, mapping, utils, viaductschema)
 │   └── x/javaapi/              (api, codegen, runtime)
-├── qplan/                       ← included build: unpublished query-planning model
-│   └── arbitrary, execution, model, semantics
 ├── publications/                ← included build: published facade artifacts
 │   ├── api                      (single-dependency entry point for tenant developers)
 │   ├── buildtime                (compile-only dependencies)
@@ -50,7 +48,7 @@ viaduct/                         ← root project (orchestration only)
 
 ## The Root Project
 
-The root `build.gradle.kts` owns no source code. It applies the `buildroot.orchestration` plugin, which creates lifecycle tasks (`check`, `test`, `build`, `detekt`, `ktlintCheck`, `spotlessCheck`, etc.) that delegate into the **participating included builds**: `core`, `gradle-plugins`, `gradletestapps`, `publications`, and `qplan`. When you run `./gradlew check` at the root, Gradle fans out into those builds.
+The root `build.gradle.kts` owns no source code. It applies the `buildroot.orchestration` plugin, which creates lifecycle tasks (`check`, `test`, `build`, `detekt`, `ktlintCheck`, `spotlessCheck`, etc.) that delegate into the **participating included builds**: `core`, `gradle-plugins`, `gradletestapps`, and `publications`. When you run `./gradlew check` at the root, Gradle fans out into those builds.
 
 Demoapps are not part of this composite build. `check` runs them by shelling out to a standalone build per demoapp via the `demoappsStandaloneTest` task — see demoapps/AGENTS.md.
 
@@ -62,9 +60,9 @@ Demoapps are not part of this composite build. `check` runs them by shelling out
 
 `core` also hosts JaCoCo aggregation and coverage thresholds, keeping CI verification commands scoped: `./gradlew -p core jacocoTestCoverageVerification`.
 
-## The `qplan` Build
+## Runtime2 and Qplan
 
-`qplan` contains the unpublished query-planning model and uses the same Kotlin and static-analysis conventions as `core`. It participates in root build/test/check orchestration and IDE import, but is not a production runtime dependency. Use the root wrapper for focused work: `./gradlew -p qplan check`. Qplan tasks opt out of configuration caching even in root invocations; builds that do not run qplan tasks retain the root's cache policy. Specification rendering, stress campaigns, and benchmark execution remain opt-in. See [qplan's README](../qplan/README.md#build-and-ide-setup).
+The former qplan projects now live entirely in `core/engine/runtime2`, using core's Kotlin 1.9.25 and static-analysis conventions. Run `./gradlew -p core :engine:runtime2:check`. Production `main` output participates in the runtime publication; unpublished `support`, including the arbitrary generators, is shared by `test` and `jmh`, with JUnit harnesses in the extra `src/test/fixtures` directory. Runtime2 tasks retain qplan's configuration-cache opt-out. Design documentation and profiling evidence live in runtime2's `impldocs/`; its `spec/` renderer and `tla/` verification tools remain opt-in. There is no top-level qplan directory. See [runtime2's README](../core/engine/runtime2/README.md#build-and-ide-setup).
 
 ## Maven Coordinate Scheme
 

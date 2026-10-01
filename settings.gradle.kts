@@ -37,7 +37,6 @@ run {
 // Included builds participate in composite auto-substitution:
 // Gradle matches group:name of external dependencies to included build projects.
 includeBuild("core")
-includeBuild("qplan")
 includeBuild("publications")
 includeBuild("gradle-plugins")
 includeBuild("gradle-plugins/gradletestapps")

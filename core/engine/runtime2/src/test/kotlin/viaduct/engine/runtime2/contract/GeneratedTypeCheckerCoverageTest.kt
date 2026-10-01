@@ -1,0 +1,147 @@
+package viaduct.engine.runtime2.contract
+
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
+import org.junit.jupiter.api.Test
+import viaduct.engine.api.CheckerResult
+import viaduct.engine.api.CheckerResultContext
+import viaduct.engine.runtime2.correctresolution.CorrectnessResolverObserver
+import viaduct.engine.runtime2.model.ListEngineResult
+import viaduct.engine.runtime2.model.ResolverOccurrenceId
+import viaduct.engine.runtime2.model.emptyFragmentOf
+import viaduct.engine.runtime2.model.registry.FieldCheckerResolver
+import viaduct.engine.runtime2.model.registry.ResolverFragmentTemplates
+import viaduct.engine.runtime2.model.registry.TypeCheckerResolver
+import viaduct.engine.runtime2.model.registry.fieldResolverOf
+import viaduct.engine.runtime2.model.requireObjectField
+import viaduct.engine.runtime2.model.requireQueryTypeDef
+import viaduct.engine.runtime2.model.requireType
+import viaduct.engine.runtime2.model.testing.TestWorld
+import viaduct.engine.runtime2.model.testing.emptyFragmentOf
+import viaduct.engine.runtime2.model.testing.fragmentFrom
+import viaduct.engine.runtime2.model.testing.objectOf
+import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
+import viaduct.engine.runtime2.resolvers.resolver23.ResolverGeneratedTest
+import viaduct.graphql.schema.ViaductSchema
+
+class GeneratedTypeCheckerCoverageTest {
+    @Test
+    fun `counts resolver backed inputs on both roots and checked dependencies beyond them`() {
+        val observation = observation()
+        val coverage = observation.typeCheckerCoverage()
+        assertTrue(GeneratedTypeCheckerSignature.OBJECT_INPUT_RESOLVER in coverage)
+        assertTrue(GeneratedTypeCheckerSignature.QUERY_INPUT_RESOLVER in coverage)
+        assertTrue(GeneratedTypeCheckerSignature.RESOLVER_INPUT_FIELD_CHECK in coverage)
+        assertTrue(GeneratedTypeCheckerSignature.RESOLVER_INPUT_TYPE_CHECK in coverage)
+        assertTrue(GeneratedTypeCheckerSignature.SUCCESS in coverage)
+        assertTrue(GeneratedTypeCheckerSignature.DENIAL in coverage)
+        assertTrue(GeneratedTypeCheckerSignature.SUCCESS_WITH_RESOLVER_INPUT in coverage)
+        assertFalse(GeneratedTypeCheckerSignature.DENIAL_WITH_RESOLVER_INPUT in coverage)
+        assertTrue(GeneratedTypeCheckerSignature.FIELD_AND_TYPE_SAME_PATH in coverage)
+    }
+
+    @Test
+    fun `registered dependencies without runtime invocations do not count as activation`() {
+        val observation = observation().withResolverObserver(CorrectnessResolverObserver())
+        assertNoResolverCoverage(observation)
+    }
+
+    @Test
+    fun `same resolver paths on another Query root do not count as activation`() {
+        val observation = observation()
+        val recorder = CorrectnessResolverObserver()
+        val original = observation.operation.resolverObserver as CorrectnessResolverObserver
+        val anotherRoot = observation().result
+        original.allResolverInvocations().forEach { invocation ->
+            recorder.onResolverInvocation(invocation.copy(resolverOccurrenceId = ResolverOccurrenceId.at(anotherRoot, invocation.occurrencePath)))
+        }
+        assertNoResolverCoverage(observation.withResolverObserver(recorder))
+    }
+
+    @Test
+    fun `resolver evidence at another path does not count as activation`() {
+        val observation = observation()
+        val recorder = CorrectnessResolverObserver()
+        val original = observation.operation.resolverObserver as CorrectnessResolverObserver
+        original.allResolverInvocations().forEach { invocation ->
+            recorder.onResolverInvocation(
+                invocation.copy(
+                    resolverOccurrenceId = ResolverOccurrenceId.at(observation.result, invocation.occurrencePath + ListEngineResult.Index.of(7)),
+                )
+            )
+        }
+        assertNoResolverCoverage(observation.withResolverObserver(recorder))
+    }
+
+    private fun assertNoResolverCoverage(observation: GeneratedResolutionObservation) {
+        val coverage = observation.typeCheckerCoverage()
+        assertTrue(GeneratedTypeCheckerSignature.TYPE_CHECKER in coverage)
+        assertFalse(GeneratedTypeCheckerSignature.OBJECT_INPUT_RESOLVER in coverage)
+        assertFalse(GeneratedTypeCheckerSignature.QUERY_INPUT_RESOLVER in coverage)
+        assertFalse(GeneratedTypeCheckerSignature.RESOLVER_INPUT_FIELD_CHECK in coverage)
+        assertFalse(GeneratedTypeCheckerSignature.RESOLVER_INPUT_TYPE_CHECK in coverage)
+    }
+
+    private fun GeneratedResolutionObservation.withResolverObserver(observer: CorrectnessResolverObserver): GeneratedResolutionObservation =
+        copy(operation = SharedOperationContext.create(world, resolverObserver = observer, checkerObserver = operation.checkerObserver))
+
+    private fun observation(): GeneratedResolutionObservation {
+        val world = TestWorld.fromSDL(
+            schemaSDL = """
+                type Query { item: Item! source: Dependency! probe: Int! }
+                type Item { value: Int! active: Int! dependency: Dependency! }
+                type Dependency { value: Int! }
+            """.trimIndent(),
+            fieldResolvers = { schema ->
+                mapOf(
+                    schema.loweredSchema.requireObjectField("Query", "item") to fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
+                        schema.loweredSchema.objectOf("Item") {
+                            "value" setTo 1
+                            "dependency" setTo schema.loweredSchema.objectOf("Dependency") { "value" setTo 2 }
+                        }
+                    },
+                    schema.loweredSchema.requireObjectField("Query", "source") to fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
+                        schema.loweredSchema.objectOf("Dependency") { "value" setTo 3 }
+                    },
+                    schema.loweredSchema.requireObjectField("Item", "active") to fieldResolverOf(schema.fragmentFrom("fragment Input on Item { dependency { value } }")) { _, _ -> 4 },
+                    schema.loweredSchema.requireObjectField("Query", "probe") to fieldResolverOf(schema.fragmentFrom("fragment Input on Query { source { value } }")) { _, _ -> 5 },
+                )
+            },
+            typeCheckers = { schema ->
+                val item = schema.loweredSchema.requireType("Item") as ViaductSchema.Object
+                val dependency = schema.loweredSchema.requireType("Dependency") as ViaductSchema.Object
+                mapOf(
+                    item to TypeCheckerResolver.of(
+                        item,
+                        schema.loweredSchema.requireQueryTypeDef(),
+                        mapOf(
+                            "input" to ResolverFragmentTemplates(
+                                schema.fragmentFrom("fragment Input on Item { active }").materializeSelections,
+                                schema.fragmentFrom("fragment Input on Query { probe }").materializeSelections,
+                            ),
+                        )
+                    ) { _, _ -> CheckerResult.Success },
+                    dependency to TypeCheckerResolver.of(dependency, schema.loweredSchema.requireQueryTypeDef()) { _, _ -> Denial },
+                )
+            },
+            fieldCheckers = { schema ->
+                listOf("Query" to "item", "Dependency" to "value").associate { (type, name) ->
+                    val field = schema.loweredSchema.requireObjectField(type, name)
+                    field to FieldCheckerResolver.of(field, schema.loweredSchema.requireQueryTypeDef()) { _, _, _ -> CheckerResult.Success }
+                }
+            },
+        )
+        val fragment = world.schemas.fragmentFrom("fragment Test on Query { item { value } }")
+        val recorder = CheckerApplicationRecorder()
+        val subject = ResolverGeneratedTest().observeResolution(world.newAssumptions(selectiveResolvers = true), world.schema.objectOf("Query"), fragment.subselections, checkerObserver = recorder)
+        return GeneratedResolutionObservation(subject.operation, fragment, subject, recorder.checkerApplications())
+    }
+
+    private object Denial : CheckerResult.Error {
+        override val error = IllegalStateException("denied")
+
+        override fun isErrorForResolver(ctx: CheckerResultContext): Boolean = true
+
+        override fun combine(fieldResult: CheckerResult.Error): CheckerResult.Error = this
+    }
+}

@@ -1,0 +1,254 @@
+package viaduct.engine.runtime2.execution.viaductfeaturetests
+
+// core/engine/runtime/src/test/kotlin/viaduct/engine/runtime/execution/SubquerySchemaTest.kt
+// Copied 3 out of 3 tests as of 2026-09-18
+
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Disabled
+import org.junit.jupiter.api.Test
+import viaduct.engine.api.mocks.EngineTestModule
+import viaduct.engine.api.mocks.createEngineObjectData
+import viaduct.engine.api.mocks.createSchemaWithWiring
+import viaduct.engine.api.mocks.fetchAs
+import viaduct.engine.runtime.execution.mutation
+import viaduct.engine.runtime.execution.query
+import viaduct.engine.runtime2.execution.testing.runQPlanFeatureTest
+
+/**
+ * Tests that verify subquery execution uses the correct schema.
+ *
+ * ## Background
+ *
+ * Viaduct has two schema variants:
+ * - **fullSchema**: The complete schema with all fields, used for execution
+ * - **scopedSchema**: A potentially subset schema used for introspection queries
+ *
+ * The `activeSchema` switches between these based on whether the query is introspective.
+ * `ScopeInstrumentation` handles this swap.
+ *
+ * ## The Problem
+ *
+ * Subqueries executed via `ctx.query()` and `ctx.mutation()` were incorrectly using
+ * `activeSchema` for QueryPlan building. This caused subqueries to fail during
+ * introspective operations because they were planned against the scoped schema
+ * instead of the full schema.
+ *
+ * ## Expected Behavior
+ *
+ * Subqueries should ALWAYS execute against `fullSchema`, regardless of whether
+ * the outer operation is introspective. This is because:
+ * 1. `EngineSelectionSetFactoryImpl` builds EngineSelectionSets with `fullSchema`
+ * 2. `EngineExecutionContextImpl.query/mutation` uses `fullSchema.schema.queryType/mutationType`
+ * 3. Subqueries are internal server-side calls that shouldn't be constrained by
+ *    the client-visible schema scope
+ */
+class SubquerySchemaTest {
+    /**
+     * Tests that subqueries can access fields from fullSchema even when the outer
+     * operation is executed with a scopedSchema that doesn't contain those fields.
+     *
+     * This simulates the scenario where:
+     * 1. The scopedSchema is a subset that doesn't include certain fields
+     * 2. A resolver executes a subquery requesting a field from fullSchema
+     * 3. The subquery should succeed because it uses fullSchema, not scopedSchema
+     */
+    @Test
+    fun `subquery uses fullSchema even when outer query uses scopedSchema`() {
+        val fullSchemaSDL = """
+            extend type Query {
+                publicField: String
+                internalField: String
+                container: Container
+            }
+
+            type Container {
+                derivedFromInternal: String
+            }
+        """.trimIndent()
+
+        val scopedSchemaSDL = """
+            extend type Query {
+                publicField: String
+                container: Container
+            }
+
+            type Container {
+                derivedFromInternal: String
+            }
+        """.trimIndent()
+
+        val fullSchema = createSchemaWithWiring(fullSchemaSDL)
+        val scopedSchema = createSchemaWithWiring(scopedSchemaSDL)
+
+        EngineTestModule(fullSchema) {
+            fieldWithValue("Query" to "publicField", "public value")
+            fieldWithValue("Query" to "internalField", "internal value")
+
+            field("Query" to "container") {
+                resolver {
+                    fn { _, _, _, _, _ ->
+                        createEngineObjectData(
+                            schema.schema.getObjectType("Container"),
+                            mapOf()
+                        )
+                    }
+                }
+            }
+
+            field("Container" to "derivedFromInternal") {
+                resolver {
+                    fn { _, _, _, _, ctx ->
+                        val rss = ctx.engineSelectionSetFactory
+                            .engineSelectionSet("Query", "internalField", emptyMap())
+
+                        val queryResult = ctx.query(
+                            selectionSet = rss
+                        )
+
+                        val internalValue = queryResult.fetchAs<String>("internalField")
+                        "derived: $internalValue"
+                    }
+                }
+            }
+        }.runQPlanFeatureTest(schema = scopedSchema) {
+            runQuery("{ container { derivedFromInternal } }")
+                .assertJson("""{"data": {"container": {"derivedFromInternal": "derived: internal value"}}}""")
+        }
+    }
+
+    /**
+     * Tests that ctx.mutation() subqueries use fullSchema even when executing
+     * with a scopedSchema that has a different mutation type.
+     */
+    @Disabled("TODO: Mutation")
+    @Test
+    fun `mutation subquery uses fullSchema even when outer query uses scopedSchema`() {
+        val fullSchemaSDL = """
+            extend type Query {
+                container: Container
+            }
+
+            extend type Mutation {
+                publicMutation: Int
+                internalMutation: Int
+            }
+
+            type Container {
+                triggerInternalMutation: Int
+            }
+        """.trimIndent()
+
+        val scopedSchemaSDL = """
+            extend type Query {
+                container: Container
+            }
+
+            extend type Mutation {
+                publicMutation: Int
+            }
+
+            type Container {
+                triggerInternalMutation: Int
+            }
+        """.trimIndent()
+
+        val fullSchema = createSchemaWithWiring(fullSchemaSDL)
+        val scopedSchema = createSchemaWithWiring(scopedSchemaSDL)
+
+        var internalCounter = 0
+
+        EngineTestModule(fullSchema) {
+            fieldWithValue("Mutation" to "publicMutation", 0)
+
+            field("Mutation" to "internalMutation") {
+                resolver {
+                    fn { _, _, _, _, _ ->
+                        ++internalCounter
+                    }
+                }
+            }
+
+            field("Query" to "container") {
+                resolver {
+                    fn { _, _, _, _, _ ->
+                        createEngineObjectData(
+                            schema.schema.getObjectType("Container"),
+                            mapOf()
+                        )
+                    }
+                }
+            }
+
+            field("Container" to "triggerInternalMutation") {
+                resolver {
+                    fn { _, _, _, _, ctx ->
+                        val rss = ctx.engineSelectionSetFactory
+                            .engineSelectionSet("Mutation", "internalMutation", emptyMap())
+
+                        val mutationResult = ctx.mutation(
+                            selectionSet = rss
+                        )
+
+                        mutationResult.fetchAs<Int>("internalMutation")
+                    }
+                }
+            }
+        }.runQPlanFeatureTest(schema = scopedSchema) {
+            runQuery("{ container { triggerInternalMutation } }")
+                .assertJson("""{"data": {"container": {"triggerInternalMutation": 1}}}""")
+
+            assertEquals(1, internalCounter, "Internal mutation should have been called")
+        }
+    }
+
+    /**
+     * Regression test: Ensure non-scoped queries still work correctly.
+     * When fullSchema == scopedSchema (the common case), subqueries should work as before.
+     */
+    @Test
+    fun `subquery works normally when fullSchema equals scopedSchema`() {
+        EngineTestModule(
+            """
+            extend type Query {
+                rootValue: Int
+                container: Container
+            }
+
+            type Container {
+                derivedFromQuery: Int
+            }
+            """.trimIndent()
+        ) {
+            fieldWithValue("Query" to "rootValue", 42)
+
+            field("Query" to "container") {
+                resolver {
+                    fn { _, _, _, _, _ ->
+                        createEngineObjectData(
+                            schema.schema.getObjectType("Container"),
+                            mapOf()
+                        )
+                    }
+                }
+            }
+
+            field("Container" to "derivedFromQuery") {
+                resolver {
+                    fn { _, _, _, _, ctx ->
+                        val rss = ctx.engineSelectionSetFactory
+                            .engineSelectionSet("Query", "rootValue", emptyMap())
+
+                        val queryResult = ctx.query(
+                            selectionSet = rss
+                        )
+
+                        queryResult.fetchAs<Int>("rootValue") * 2
+                    }
+                }
+            }
+        }.runQPlanFeatureTest {
+            runQuery("{ container { derivedFromQuery } }")
+                .assertJson("""{"data": {"container": {"derivedFromQuery": 84}}}""")
+        }
+    }
+}
