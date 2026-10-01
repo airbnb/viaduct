@@ -2,6 +2,7 @@ package viaduct.utils.memoize
 
 import java.util.concurrent.ConcurrentHashMap
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
@@ -352,4 +353,129 @@ class MemoizeTest {
         assert(cache.containsKey(Septuple(0, 1, 0, 0, 0, 0, 0)))
         assert(cache.containsKey(Septuple(1, 0, 0, 0, 0, 0, 0)))
     }
+
+    @Test
+    fun `plain maps support default keys at every arity`() {
+        val counter = CounterFn()
+        val one = counter.asFn1().memoize(HashMap())
+        val two = counter.asFn2().memoize(HashMap())
+        val three = counter.asFn3().memoize(HashMap())
+        val four = counter.asFn4().memoize(HashMap())
+        val five = counter.asFn5().memoize(HashMap())
+        val six = counter.asFn6().memoize(HashMap())
+        val seven = counter.asFn7().memoize(HashMap())
+
+        repeat(2) {
+            one(0)
+            two(0, 0)
+            three(0, 0, 0)
+            four(0, 0, 0, 0)
+            five(0, 0, 0, 0, 0)
+            six(0, 0, 0, 0, 0, 0)
+            seven(0, 0, 0, 0, 0, 0, 0)
+        }
+
+        assertEquals(7, counter.count)
+    }
+
+    @Test
+    fun `custom keys work with plain and concurrent caches at every arity`() {
+        for (arity in 1..7) {
+            for (cache in listOf(HashMap<String, Any>(), ConcurrentHashMap<String, Any>())) {
+                var calls = 0
+                val memoized = memoizeCustomKey(arity, cache) {
+                    calls++
+                    Any()
+                }
+                val zeroes = List(arity) { 0 }
+                val cached = Any()
+                cache["0"] = cached
+                assertSame(cached, memoized(zeroes))
+                assertEquals(0, calls)
+
+                val first = memoized(zeroes.mapIndexed { index, value -> if (index == 0) 1 else value })
+                val last = memoized(zeroes.mapIndexed { index, value -> if (index == arity - 1) 1 else value })
+                assertSame(first, last)
+                assertSame(first, cache["1"])
+                assertEquals(1, calls)
+            }
+        }
+    }
+
+    @Test
+    fun `concurrent caches preserve entries inserted during computation at every arity`() {
+        for (arity in 1..7) {
+            val cache = ConcurrentHashMap<String, Any>()
+            val winner = Any()
+            var calls = 0
+            val memoized = memoizeCustomKey(arity, cache) {
+                calls++
+                cache["0"] = winner
+                Any()
+            }
+
+            assertSame(winner, memoized(List(arity) { 0 }))
+            assertSame(winner, cache["0"])
+            assertSame(winner, memoized(List(arity) { 0 }))
+            assertEquals(1, calls)
+        }
+    }
+
+    private fun memoizeCustomKey(
+        arity: Int,
+        cache: MutableMap<String, Any>,
+        compute: () -> Any,
+    ): (List<Int>) -> Any =
+        when (arity) {
+            1 -> {
+                val function: (Int) -> Any = { _ -> compute() }
+                val keyMapper: (Int) -> String = { a -> a.toString() }
+                val memoized = function.memoize(cache, keyMapper)
+                val invoke: (List<Int>) -> Any = { args -> memoized(args[0]) }
+                invoke
+            }
+            2 -> {
+                val function: (Int, Int) -> Any = { _, _ -> compute() }
+                val keyMapper: (Int, Int) -> String = { a, b -> (a + b).toString() }
+                val memoized = function.memoize(cache, keyMapper)
+                val invoke: (List<Int>) -> Any = { args -> memoized(args[0], args[1]) }
+                invoke
+            }
+            3 -> {
+                val function: (Int, Int, Int) -> Any = { _, _, _ -> compute() }
+                val keyMapper: (Int, Int, Int) -> String = { a, b, c -> (a + b + c).toString() }
+                val memoized = function.memoize(cache, keyMapper)
+                val invoke: (List<Int>) -> Any = { args -> memoized(args[0], args[1], args[2]) }
+                invoke
+            }
+            4 -> {
+                val function: (Int, Int, Int, Int) -> Any = { _, _, _, _ -> compute() }
+                val keyMapper: (Int, Int, Int, Int) -> String = { a, b, c, d -> (a + b + c + d).toString() }
+                val memoized = function.memoize(cache, keyMapper)
+                val invoke: (List<Int>) -> Any = { args -> memoized(args[0], args[1], args[2], args[3]) }
+                invoke
+            }
+            5 -> {
+                val function: (Int, Int, Int, Int, Int) -> Any = { _, _, _, _, _ -> compute() }
+                val keyMapper: (Int, Int, Int, Int, Int) -> String = { a, b, c, d, e -> (a + b + c + d + e).toString() }
+                val memoized = function.memoize(cache, keyMapper)
+                val invoke: (List<Int>) -> Any = { args -> memoized(args[0], args[1], args[2], args[3], args[4]) }
+                invoke
+            }
+            6 -> {
+                val function: (Int, Int, Int, Int, Int, Int) -> Any = { _, _, _, _, _, _ -> compute() }
+                val keyMapper: (Int, Int, Int, Int, Int, Int) -> String = { a, b, c, d, e, f -> (a + b + c + d + e + f).toString() }
+                val memoized = function.memoize(cache, keyMapper)
+                val invoke: (List<Int>) -> Any = { args -> memoized(args[0], args[1], args[2], args[3], args[4], args[5]) }
+                invoke
+            }
+            7 -> {
+                val function: (Int, Int, Int, Int, Int, Int, Int) -> Any = { _, _, _, _, _, _, _ -> compute() }
+                val keyMapper: (Int, Int, Int, Int, Int, Int, Int) -> String = { a, b, c, d, e, f, g -> (a + b + c + d + e + f + g).toString() }
+                val memoized = function.memoize(cache, keyMapper)
+                val invoke: (List<Int>) -> Any = { args -> memoized(args[0], args[1], args[2], args[3], args[4], args[5], args[6]) }
+                invoke
+            }
+            else -> error("Unsupported arity: $arity")
+        }
 }
