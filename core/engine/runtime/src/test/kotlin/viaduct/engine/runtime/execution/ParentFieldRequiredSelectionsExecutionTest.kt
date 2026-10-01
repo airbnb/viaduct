@@ -12,12 +12,60 @@ import org.junit.jupiter.api.Test
 import viaduct.engine.EngineConfiguration
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.mocks.EngineTestModule
+import viaduct.engine.api.mocks.MockTenantModuleDSL
 import viaduct.engine.api.mocks.createEngineObjectData
 import viaduct.engine.api.mocks.featureTestDefault
 import viaduct.engine.api.mocks.fetchAs
 import viaduct.engine.api.mocks.runFeatureTest
 
 class ParentFieldRequiredSelectionsExecutionTest {
+    @Test
+    fun `each child field can read its own parent's name`() {
+        EngineTestModule(
+            """
+            extend type Query { parents: [Parent] }
+            type Parent { name: String, firstChild: Child, secondChild: Child }
+            type Child { parent: Parent @parent }
+            """.trimIndent(),
+        ) {
+            fieldWithValue(
+                "Query" to "parents",
+                listOf(
+                    objectValue("Parent", "name" to "Alice"),
+                    objectValue("Parent", "name" to "Bob")
+                )
+            )
+            // Leave the children empty: the engine must supply their @parent links.
+            fieldWithValue("Parent" to "firstChild", objectValue("Child"))
+            fieldWithValue("Parent" to "secondChild", objectValue("Child"))
+        }.runFeatureTest {
+            val result = runQuery(
+                """
+                {
+                  parents {
+                    firstChild { parent { name } }
+                    secondChild { parent { name } }
+                  }
+                }
+                """.trimIndent()
+            )
+
+            result.assertJson(
+                """
+                {data: {parents: [
+                  {firstChild: {parent: {name: "Alice"}}, secondChild: {parent: {name: "Alice"}}},
+                  {firstChild: {parent: {name: "Bob"}}, secondChild: {parent: {name: "Bob"}}}
+                ]}}
+                """.trimIndent()
+            )
+        }
+    }
+
+    private fun MockTenantModuleDSL<Unit>.objectValue(
+        type: String,
+        vararg fields: Pair<String, Any?>
+    ): EngineObjectData = createEngineObjectData(schema.schema.getObjectType(type), fields.toMap())
+
     @Test
     fun `type checker required selections resolve the returned object's parent`() {
         val checkedParentName = AtomicReference<String>()
