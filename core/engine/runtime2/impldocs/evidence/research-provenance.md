@@ -1,12 +1,10 @@
-# Qplan Research Evidence
+# Runtime2 Research Provenance
 
-## Purpose
-
-This document preserves durable evidence, correctness obligations, known hard cases, and source provenance that inform qplan resolver design. It is not an implementation-status document: use [runtime2’s overview](../README.md) for current state and resolver-local design documents for current behavior. Completed chronology belongs in Git history.
+> **Historical evidence.** This document preserves the findings, rejected alternatives, validation records, and source lineage that informed Runtime2. It does not describe current implementation status or current test commands. Use the [Runtime2 overview](../../README.md) and the linked architecture and testing documents for maintained guidance.
 
 ## Established Findings
 
-These findings come from production investigation, focused counterexamples, or failed model designs:
+Production investigation, focused counterexamples, and failed prototype designs established the following constraints:
 
 1. Demand rooted at one `QueryPlan` occurrence can miss a sibling contribution that later converges on the same memoized producer.
 2. Unioning all predictions eventually associated with an OER can hide an under-supplied producing application.
@@ -20,11 +18,31 @@ These findings come from production investigation, focused counterexamples, or f
 10. Variable identity belongs to its defining resolver occurrence; nested variables must be instantiated one activated demand layer at a time.
 11. Production engine input data, resolver output data, OER leaf values, and `EngineObjectData.Sync` overload Kotlin `String` for GraphQL String, ID, and enum values; tenant boundaries temporarily project IDs and enums to `GlobalID<T>` or generated Kotlin enum classes and lower them back to strings before returning to the engine.
 
-The central consequence is producer-specific: every producer-owned value later consumed from one resolver-bearing occurrence must be covered by the demand supplied to that occurrence's producing application. A correct final union, cache hit, widened result, or second materialization is weaker evidence.
+The central consequence is producer-specific: every producer-owned value later consumed from one resolver-bearing occurrence must be covered by the demand supplied to that occurrence's producing application. A correct final union, cache hit, widened result, or second materialization is weaker evidence. The maintained form of this conclusion is [One-Shot Correctness Is Producer-Specific](../architecture/principles.md#one-shot-correctness-is-producer-specific).
 
-Ungrounded argument-bearing fields force one of three policies. Execution can wait for every potentially coalescing key to ground, which provides true one-shot behavior but requires cycle exclusion strong enough to prevent deadlock. Execution can speculatively widen successor demand for keys that may later coalesce, but this makes supplied demand timing-sensitive and was rejected as a poor developer experience. Or execution can coalesce by symbolic values and variable-instance identity, accepting that distinct symbolic keys may later ground equally and invoke the same resolver more than once. Resolution uses the third policy; the first remains a possible design only if its progress rule can be made tractable.
+## Alternatives Considered
 
-## Correctness Obligations
+### Final-Result Or Global-Union Validation
+
+Validating only the final OER, or unioning every demand prediction that eventually reaches it, can show extensional completeness while hiding that a selective producer ran before one contribution arrived. These approaches were rejected as the primary one-shot correctness argument. Final-result validation remains useful when paired with exact application and producer-input witnesses.
+
+### Registration Barriers
+
+A barrier over currently registered consumers does not establish that registration is complete: executing a producer can discover another concrete type, provider value, reference target, or resolver occurrence. A barrier is sound only when the accepted feature domain supplies a separate closed-world argument.
+
+### Ungrounded-Key Policies
+
+Argument-bearing fields admit three broad policies. Execution can wait for every potentially coalescing key to ground, which gives true one-shot coalescing but requires a tractable progress rule and sufficiently strong cycle exclusion. It can speculatively widen successor demand for keys that might later coalesce, but then supplied demand depends on timing and over-selection. Or it can preserve symbolic values and variable-instance identity, accepting that distinct symbolic keys may later ground equally and invoke the same field resolver more than once. Production Resolution uses the third policy; the [architectural principles](../architecture/principles.md#choose-ungrounded-key-semantics-explicitly) record its maintained semantics.
+
+### Coverage Trees
+
+The MAT and `KeyTree` work represented runtime demand and coverage as typed trees of exact OER keys. Union combines demand, difference exposes missing coverage, and paths preserve concrete types, arguments, and list positions. Those ideas remain useful for coverage and diagnostics, but a coverage tree does not by itself encode consumer provenance, producer ownership, scheduling prerequisites, raw-versus-checked reads, target scope, guarded alternatives, or producing-application identity. MAT could fetch missing coverage after demand arrived; one-shot Resolution must justify complete in-scope demand before the selective application.
+
+### Broad Random Testing Alone
+
+Large generated campaigns found important interaction failures, but their distributions also missed decisive structural witnesses. Runtime2 therefore combines focused counterexamples, feature contracts, independent correctness judgments, exact application witnesses, mutation tests, and directed generated campaigns. The maintained evidence model is in the [testing strategy](../testing/strategy.md).
+
+## Correctness Obligations Derived From The Research
 
 ### Producer Completeness
 
@@ -44,60 +62,50 @@ Demand supplied to a producer remains within that producer's output ownership ap
 
 ### Monotonic Safety
 
-Each exact cell and binding has at most one writer and one value, and each resolver-bearing occurrence has at most one producing application. Published parent structure remains stable while descendants gain cells.
+Each exact cell and binding has at most one writer and one value, and each resolver-bearing occurrence has at most one producing application under the resolver family's declared key semantics. Published parent structure remains stable while descendants gain cells.
 
 ### Termination And Liveness
 
-Demand closure and dependency ordering terminate over the accepted finite domain. Execution progress additionally assumes that invoked tenant resolvers, checkers, and variables-provider callbacks return or throw. Under that assumption, required claimed units complete successfully or exceptionally so dependents are released; missing writers and engine-created deadlocks remain defects. The [tenant failure and progress policy](design-principles.md#tenant-failure-isolation-and-progress) permits the operation to wait indefinitely on nonterminating tenant work, including work whose output becomes unnecessary after another error. It does not require prompt completion through demand retraction, and request-wide abort is not an acceptable fallback for local tenant errors.
+Demand closure and dependency ordering terminate over the accepted finite domain. Execution progress additionally assumes that invoked tenant resolvers, checkers, and variable-provider callbacks return or throw. Under that assumption, required claimed units complete successfully or exceptionally so dependents are released; missing writers and engine-created deadlocks remain defects. The [failure-isolation principle](../architecture/principles.md#isolate-tenant-failure-without-stranding-work) permits an operation to wait indefinitely on nonterminating tenant work, including work whose output becomes unnecessary after another error. It does not require prompt completion through demand retraction, and request-wide abort is not an acceptable fallback for local tenant errors.
 
 ### Concurrency
 
 Correct aggregation does not require global barriers across unrelated object or list occurrences. Independent ready work remains concurrent, and compatible underlying work may still be batched beneath distinct semantic occurrence identities.
 
-## Hard-Case Inventory
+## Hard-Case Evidence
 
-| Area | Current status | Durable concern |
+| Area | Evidence retained | Maintained treatment |
 | --- | --- | --- |
-| Converging demand | Modeled and tested in qplan | Independently reached selections can require unequal demand from one producer. |
-| Runtime `FromObjectField` providers | Modeled by Resolution; active qplan compatibility constraint | Structural paths are known before execution, but values and exact consumer keys appear only after provider cells complete. |
-| Query re-entry and ancestor or `@parent` targets | Backlogged compatibility constraint | Targets outside ordinary descendant traversal require occurrence-specific scope and ancestry identity. |
-| Abstract recursion and cycle backedges | Partly modeled; broader production compatibility remains backlogged | Concrete alternatives can be lazy, and legal recursion requires guarded dependencies plus exact ancestor context. |
-| Lists and repeated IDs | Modeled and active | Every list position is an independent result occurrence even when IDs, coordinates, or values repeat. |
-| Aliases, directives, and fragments | Response aliases are preserved for resolver-input materialization; named spreads are lowered at the semantic document boundary; Query-rooted resolver fragments are modeled by Resolver02/03, Resolver07/08, Resolver22/23, and Resolution but remain excluded from the stated future `execution2` scope; directives remain mostly pre-reasoning or out of scope | Internal normalized demand must not be confused with response identity, an independently resolved query value, or tenant-visible syntax. |
-| Checkers and execution epochs | Backlogged; mutations, subscriptions, and incremental epochs are outside the stated future scope | Raw and checked reads can differ, and work must not be coalesced across ordering or epoch boundaries. |
+| Converging demand | Independently reached selections can require unequal demand from one producer, and final union can mask an early application. | [Architectural principles](../architecture/principles.md#one-shot-correctness-is-producer-specific) and [testing strategy](../testing/strategy.md#observations-and-exact-witnesses) |
+| Runtime `FromObjectField` providers | Structural paths are known before execution, but values and exact consumer keys appear only after provider cells complete. The [production census](./from-object-field-census.md) records observed source shapes. | [Semantic model](../architecture/model.md#variables-and-keys) and [Resolution design](../architecture/resolution.md#binding-declaration) |
+| Query re-entry and ancestor or `@parent` targets | Targets outside ordinary descendant traversal require occurrence-specific scope, root identity, and ancestry. | [Resolution design](../architecture/resolution.md) and [Engine API integration](../integration/engine-api.md#nested-query-execution) |
+| Abstract recursion and cycle backedges | Concrete alternatives can be lazy, and legal recursion requires guarded dependencies plus exact ancestor context. | [Resolution design](../architecture/resolution.md#construction-demand-closure) and [testing Resolution](../testing/resolution.md) |
+| Lists and repeated IDs | Every list position is a separate result occurrence even when IDs, coordinates, or values repeat. | [Result Occurrence Is Identity](../architecture/principles.md#result-occurrence-is-identity) |
+| Aliases, directives, and fragments | Internal normalized demand, response identity, independently resolved Query values, and tenant-visible syntax are different domains. | [Keep Semantic Domains Distinct](../architecture/principles.md#keep-semantic-domains-distinct) and [inclusion validation](../correctness/inclusion-validation.md) |
+| Checkers and execution epochs | Raw and checked reads differ; work must not be coalesced across checker ownership or ordering boundaries. | [Access checks](../architecture/access-checks.md) and [Resolution design](../architecture/resolution.md#field-checks) |
 
-Scope labels describe current qplan and stated integration boundaries, not claims that the harder cases are permanently irrelevant. Carrier changes must preserve their identities or explicit exclusions without silently broadening qplan's supported domain.
+These hard cases constrain carrier and algorithm changes without implying that every feature is part of the current alpha surface. Current support and exclusions belong to the [Runtime2 overview](../../README.md) and [Engine API integration](../integration/engine-api.md#supported-alpha-surface).
 
 ## Production Scalar Carrier Evidence
 
-Production Viaduct has no engine-level nominal value type for GraphQL ID or enum members. GraphQL Java coercion produces strings, tenant argument conversion projects those strings to tenant-facing `GlobalID<T>` or generated enum values when required, tenant resolver return conversion lowers those values back to strings, `FieldResolutionResult.engineResult` stores the resulting leaf unchanged, and `EngineObjectData.Sync` exposes the same string. Consequently an ID, GraphQL String, and enum member with the same spelling are indistinguishable inside current production engine input and output data without schema context.
+Production Viaduct has no engine-level nominal value type for GraphQL ID or enum members. GraphQL Java coercion produces strings, tenant argument conversion projects those strings to tenant-facing `GlobalID<T>` or generated enum values when required, tenant resolver return conversion lowers those values back to strings, `FieldResolutionResult.engineResult` stores the resulting leaf unchanged, and `EngineObjectData.Sync` exposes the same string. Consequently an ID, GraphQL String, and enum member with the same spelling are indistinguishable inside production engine input and output data without schema context.
 
-Qplan's carrier model deliberately follows this production representation for `EngineInputData` and `EngineOutputData`, but not for `EngineResult`. The result domain uses structural `EngineIDResult` values and canonical `ViaductSchema.EnumValue` definitions so IDs, strings, enum types, and same-named members of distinct enum types remain distinguishable. Schema-directed adapters wrap output strings when publishing results and unwrap result values when materializing resolver-visible data. This is a compatibility conversion, not an assertion that production's overloaded representation is the desired endpoint.
+Runtime2's carrier model follows this production representation for `EngineInputData` and `EngineOutputData`, but not for `EngineResult`. The result domain uses structural `EngineIDResult` values and canonical `ViaductSchema.EnumValue` definitions so IDs, strings, enum types, and same-named members of distinct enum types remain distinguishable. Schema-directed adapters wrap output strings when publishing results and unwrap result values when materializing resolver-visible data. This is a compatibility conversion, not an assertion that production's overloaded representation is the desired endpoint. The maintained carrier boundary is documented in the [semantic model](../architecture/model.md#carrier-boundary).
 
-## Multiple-Materialization Prior Art
+## Selected Historical Validation Records
 
-The MAT and `KeyTree` work represent runtime demand and coverage as typed trees of exact OER keys. Union combines demand, difference exposes missing coverage, and paths preserve concrete types, arguments, and list positions. These are useful ideas for coverage and diagnostics.
+These records demonstrate the scale and shape of completed investigations. They are not current acceptance commands, minimum coverage promises, or substitutes for the maintained [testing guide](../testing/guide.md).
 
-A coverage tree is not by itself a producer-attribution or dependency model. `KeyTree` does not encode consumer provenance, producer ownership, scheduling prerequisites, raw-versus-checked reads, target scope, guarded alternatives, or whether two paths share one producing application. MAT may fetch missing coverage after demand arrives; one-shot resolution must instead justify complete in-scope demand before the first selective application.
+| Investigation | Recorded evidence | Durable lesson |
+| --- | --- | --- |
+| Singular associated Query OER | Seeded 10,000-case campaigns passed for Resolver03, Resolver08, Resolver23, and production Resolution when it was still named Resolver26; the final tree also passed its seeded full check with 1,910 regular tests and 226 skips. | Query-root sharing requires exact scope and owner-local projection witnesses across every fragment-capable family. |
+| Cross-family generated stress | Thirteen suite/profile runs completed 111,250 generated cases, including four 10,000-case deep-stress suites, five standalone 10,000-case profiles, directed parent and root-reference campaigns, and a 100-worker production Resolution run that observed all workers and 71 concurrent continuations. | Aggregate case counts matter only when paired with per-case correctness, exact application accounting, and required activation signatures. |
+| Runtime field checks | Five bounded profiles, 2,500 success cases, 2,500 denial cases, and the unchanged 10,000-case deep stress passed at the recorded seeds; the investigation retained the depth-two denial scaling limit separately from implementation repairs. | Input reductions must remain distinct from semantic repairs and must not weaken exactness or coverage requirements. See the [F5 profile archive](./profiles/2026-09-27-f5-field-checks/README.md). |
+| Runtime type checks | Six success, denial, and mixed field/type profiles passed 15,000 cases at seed `424242`; a mixed profile also passed 2,500 cases at seed `20260929` on 100 Resolution threads with explicit list, associated-Query, owner-outcome, and checked-dependency witnesses. | Generated checker campaigns must join declarations to root- and path-qualified applications and reject coverage observed at the wrong occurrence. |
 
-## Focused Acceptance Cases
+## Research Evaluation Questions
 
-Broad generated campaigns do not replace small cases that directly exercise the obligations above. Retain or introduce focused coverage for:
-
-- split-prediction rejection and sibling convergence on one producer;
-- Node-valued source production plus per-occurrence `Query.node` reference dispatch, including independent list elements;
-- lazy concrete-type dependencies and legal cycle backedges;
-- abstract concrete recursion and independent list-item occurrences;
-- raw checker reads when checkers enter scope;
-- the distinctions among response alias, canonical field, and exact `GroundKey` identity;
-- null and error ancestry;
-- explicit missing-writer failure;
-- variable late equality, either rejected or conservatively covered; and
-- a selective producer that returns only requested coverage, so complete output cannot mask missing demand.
-
-Every acceptance claim must identify whether it is a current resolver contract, an integration constraint, or backlog. Excluded cases should remain visible without becoming implied requirements of the current carrier model.
-
-## Future Design Questions
+The research used the following questions to distinguish semantic claims from attractive implementation sketches. They remain useful when evaluating a substantial change, but they are not an unowned feature backlog:
 
 1. What exact feature scope receives a one-shot producer-completeness guarantee?
 2. How is out-of-scope demand rejected, conservatively covered, or isolated?
@@ -108,7 +116,7 @@ Every acceptance claim must identify whether it is a current resolver contract, 
 7. How are cycles classified and diagnosed?
 8. Why must every unfinished valid state have ready work?
 9. How does every failure complete or cancel its dependents?
-10. What schedule-independence result justifies concurrent execution?
+10. What schedule-independence evidence justifies concurrent execution?
 11. What evidence compares the model with actual Viaduct execution?
 12. Which measurements expose over-selection, repeated work, missing writers, and fallback behavior?
 
@@ -140,10 +148,10 @@ These sources preserve the research trail. Proposals and implementation reviews 
 - [#1061282: Preserve type constraints](https://git.musta.ch/airbnb/treehouse/pull/1061282)
 - [#1064433: Normalized child plans](https://git.musta.ch/airbnb/treehouse/pull/1064433)
 - [#1079007: Retain skipped fragments](https://git.musta.ch/airbnb/treehouse/pull/1079007)
-- [`FieldResolutionResult.engineResult`](../../runtime/src/main/kotlin/viaduct/engine/runtime/FieldResolutionResult.kt)
-- [Tenant resolver output lowering](../../../tenant/runtime/src/main/kotlin/viaduct/tenant/runtime/execution/FieldUnbatchedResolverExecutorImpl.kt)
-- [`EngineObjectData.Sync` materialization](../../runtime/src/main/kotlin/viaduct/engine/runtime/SyncEngineObjectDataFactory.kt)
-- [`ViaductSchema.EnumValue`](../../../shared/viaductschema/src/main/kotlin/viaduct/graphql/schema/ViaductSchema.kt)
+- [`FieldResolutionResult.engineResult`](../../../runtime/src/main/kotlin/viaduct/engine/runtime/FieldResolutionResult.kt)
+- [Tenant resolver output lowering](../../../../tenant/runtime/src/main/kotlin/viaduct/tenant/runtime/execution/FieldUnbatchedResolverExecutorImpl.kt)
+- [`EngineObjectData.Sync` materialization](../../../runtime/src/main/kotlin/viaduct/engine/runtime/SyncEngineObjectDataFactory.kt)
+- [`ViaductSchema.EnumValue`](../../../../shared/viaductschema/src/main/kotlin/viaduct/graphql/schema/ViaductSchema.kt)
 
 ### Specifications
 

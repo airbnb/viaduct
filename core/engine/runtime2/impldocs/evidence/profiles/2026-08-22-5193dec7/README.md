@@ -1,8 +1,10 @@
 # 2026-08-22 Performance Recovery
 
+> **Historical snapshot.** Commands, paths, source names, and measurements below describe this recorded round and are not current operating guidance.
+
 Runtime revision: `5193dec7ba656b6c748d8a39bd28a431b31d60e2`
 
-The runtime tree was clean at this revision while the final tests, benchmarks, and profiles ran. This README and the performance-log documentation were added afterward. Host details, benchmark iterations, workload statistics, controlled intermediate results, and interpretation are recorded in the [corresponding performance-log entry](../../resolver-profiling.md#2026-08-22-174908-utc).
+The runtime tree was clean at this revision while the final tests, benchmarks, and profiles ran. This README and the performance-log documentation were added afterward. Host details, benchmark iterations, workload statistics, controlled intermediate results, and interpretation are recorded in the [corresponding performance-history entry](../performance-history.md#2026-08-22-174908-utc).
 
 Final validation and default benchmark controls ran serially:
 

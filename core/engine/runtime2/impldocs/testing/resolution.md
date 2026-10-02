@@ -1,5 +1,9 @@
 # Testing Resolution
 
+## Purpose
+
+Production Resolution is tested through deterministic feature and lifecycle contracts, generated worlds, independent correctness replay, exact resolver and checker application witnesses, variable-binding validation, mutation tests, and directed stress campaigns. This document defines the production-specific concurrency boundary, commands, campaign expectations, and limits of the resulting evidence. The shared evidence layers and oracle boundaries are defined in [Testing Strategy](strategy.md).
+
 ## Thread Count
 
 Every Resolution test uses one externally configurable resolution thread count, including static contracts, generated properties, coordinate replays, deep stress, broad stress, and multithreaded campaigns. Ordinary tests default to one; the dedicated `resolutionMultithreadedStress` task defaults to 100.
@@ -25,31 +29,31 @@ Keep this division strict when adding instrumentation: capture concurrent events
 Run all non-stress Resolution tests on the default single thread:
 
 ```shell
-../../../gradlew -p ../.. :engine:runtime2:test --tests 'viaduct.engine.runtime2.resolution.*'
+./gradlew :core:engine:runtime2:test --tests 'viaduct.engine.runtime2.resolution.*'
 ```
 
 Run the same static, generated, witness, and mutation suite with five resolution threads:
 
 ```shell
-../../../gradlew -p ../.. :engine:runtime2:test --tests 'viaduct.engine.runtime2.resolution.*' -Pviaduct.resolution.threadcount=5
+./gradlew :core:engine:runtime2:test --tests 'viaduct.engine.runtime2.resolution.*' -Pviaduct.resolution.threadcount=5
 ```
 
 Run one class or test method by using the normal Gradle test filter and the same thread-count property:
 
 ```shell
-../../../gradlew -p ../.. :engine:runtime2:test --tests 'viaduct.engine.runtime2.resolution.SymbolicKeyIdentityTest' -Pviaduct.resolution.threadcount=2
+./gradlew :core:engine:runtime2:test --tests 'viaduct.engine.runtime2.resolution.SymbolicKeyIdentityTest' -Pviaduct.resolution.threadcount=2
 ```
 
 Run the generated Resolution contracts under a fixed property seed:
 
 ```shell
-../../../gradlew -p ../.. :engine:runtime2:test --tests 'viaduct.engine.runtime2.resolution.ResolverGeneratedTest' -PresolverPropertySeed=424242 -Pviaduct.resolution.threadcount=5
+./gradlew :core:engine:runtime2:test --tests 'viaduct.engine.runtime2.resolution.ResolverGeneratedTest' -PresolverPropertySeed=424242 -Pviaduct.resolution.threadcount=5
 ```
 
 Replay one exact generated coordinate with the same concurrency:
 
 ```shell
-../../../gradlew -p ../.. :engine:runtime2:resolverPropertyReplay -PresolverPropertyClass=viaduct.engine.runtime2.resolution.ResolverGeneratedTest -PresolverPropertyProfile=feature-interaction -PresolverPropertySeed=424242 -PresolverPropertyCase=2:2:1 -Pviaduct.resolution.threadcount=5
+./gradlew :core:engine:runtime2:resolverPropertyReplay -PresolverPropertyClass=viaduct.engine.runtime2.resolution.ResolverGeneratedTest -PresolverPropertyProfile=feature-interaction -PresolverPropertySeed=424242 -PresolverPropertyCase=2:2:1 -Pviaduct.resolution.threadcount=5
 ```
 
 ## Stress Runs
@@ -57,16 +61,16 @@ Replay one exact generated coordinate with the same concurrency:
 Run the recursive deep stress property with a fixed seed and optional case count:
 
 ```shell
-RESOLUTION_STRESS_CASES=100000 ../../../gradlew -p ../.. :engine:runtime2:resolutionStress -PresolutionStressSeed=424242 -Pviaduct.resolution.threadcount=5
+RESOLUTION_STRESS_CASES=100000 ./gradlew :core:engine:runtime2:resolutionStress -PresolutionStressSeed=424242 -Pviaduct.resolution.threadcount=5
 ```
 
 Resolution deep stress enables root-field references and fails unless it both generates and invokes at least one, so the usual `resolutionStress` command cannot pass after exercising only the older feature set. Run the focused 250-case product when the root-reference interactions themselves are the subject:
 
 ```shell
-../../../gradlew -p ../.. :engine:runtime2:resolutionRootFieldReferenceFocused
+./gradlew :core:engine:runtime2:resolutionRootFieldReferenceFocused
 
 # Optional seed override
-../../../gradlew -p ../.. :engine:runtime2:resolutionRootFieldReferenceFocused -PresolutionRootFieldReferenceFocusedSeed=2026091001
+./gradlew :core:engine:runtime2:resolutionRootFieldReferenceFocused -PresolutionRootFieldReferenceFocusedSeed=2026091001
 ```
 
 The focused task hard-requires observed namespace depths two, three, and four; zero-, one-, and four-argument targets; scalar, enum, concrete-object, interface, and union targets; list-element references; a three-hop reference tail; active fallback; registered-resolver override; extension resolver applications below published referenced results; and target Query-fragment applications using `FromArgument` and `FromQueryField`. Every ordinary Resolution broad profile also enables the fixed family and requires generated and activated references, so persisted broad campaigns retain a second mandatory coverage path.
@@ -74,22 +78,22 @@ The focused task hard-requires observed namespace depths two, three, and four; z
 Run one unfiltered broad product by choosing a directed profile, seed, and `S:R:Q` dimensions:
 
 ```shell
-../../../gradlew -p ../.. :engine:runtime2:resolutionBroadStress -PresolutionBroadStressProfile=multiple-owners -PresolutionBroadStressSeed=424242 -PresolutionBroadStressSize=20:10:50 -Pviaduct.resolution.threadcount=5
+./gradlew :core:engine:runtime2:resolutionBroadStress -PresolutionBroadStressProfile=multiple-owners -PresolutionBroadStressSeed=424242 -PresolutionBroadStressSize=20:10:50 -Pviaduct.resolution.threadcount=5
 ```
 
 Every Resolution broad profile includes a forced great-grandparent path: its deepest resolver input selects `parent.parent.parent`, queries activate that resolver, and generated variables are never inserted directly beneath a parent selection. Generated resolver value plans also retain `@parent` fields, and the parent-enabled harness requires evidence that at least one resolver output supplies one. The dedicated parent-focused stress generates a `40:5:5` product and reports it as four consecutive 250-case, 10-schema slices. It supplements the fixed spine with independently shaped parent chains and records parent fields actually present in materialized resolver inputs, separating fixed-spine and random activations and reporting a consecutive parent-depth histogram. Its coverage analyzer attributes selected resolvers to every enclosing materialized parent selection set; reports exact variable-bearing argument selections in those resolvers' object and Query inputs by depth, fragment, and `FromArgument`/`FromObjectField`/`FromQueryField` source combination; and measures diagonal demand when a resolver selected beneath one parent independently starts another top-level parent chain. Exact registered-occurrence accounting also identifies source-supplied active fields whose skipped standard resolver has parent input demand, records their maximum parent depths, and hard-requires at least one such speculative-demand occurrence. Each slice prints an unambiguous `HIT` or `MISS` for nine criteria, and the combined report summarizes both how many slices completely hit each criterion and how many generated cases contributed any evidence, including per-slice instance counts: parent topology, resolver placement, variable sources, mixed source pairs, input locations, argument-selection depths, diagonal depths, variable-source/input-fragment combinations on diagonals, and sometimes-passive parent demand. Individual-slice misses remain diagnostic, but a miss in the combined four-slice coverage fails the test; resolution, binding, occurrence-accounting, the combined sometimes-passive-parent activation requirement, and forbidden direct-variable invariants remain independent assertions. `ParentQueryFragmentVariableResolverContract` deterministically covers Query-fragment variable use on diagonal parent demand for all three binding sources, independent of whether a random run reports a hit. Run the randomized profile with:
 
 ```shell
-../../../gradlew -p ../.. :engine:runtime2:resolutionParentFocused
+./gradlew :core:engine:runtime2:resolutionParentFocused
 
 # Optional seed override
-../../../gradlew -p ../.. :engine:runtime2:resolutionParentFocused -PresolutionParentFocusedSeed=2026090403
+./gradlew :core:engine:runtime2:resolutionParentFocused -PresolutionParentFocusedSeed=2026090403
 ```
 
 Run one persisted five-profile campaign round:
 
 ```shell
-env 'viaduct.resolution.threadcount=5' ./run-property-test-campaign.sh \
+env 'viaduct.resolution.threadcount=5' core/engine/runtime2/run-property-test-campaign.sh \
   classpath:/viaduct/engine/runtime2/property-tests/campaigns/resolution-broad-campaign-v1.json \
   81
 ```
@@ -97,13 +101,13 @@ env 'viaduct.resolution.threadcount=5' ./run-property-test-campaign.sh \
 Run the dispatcher-instrumented campaign with selected rounds and either each round's recorded dimensions or one overriding size:
 
 ```shell
-../../../gradlew -p ../.. :engine:runtime2:resolutionMultithreadedStress -PresolutionMultithreadedStressRounds=1,46,81,95 -PresolutionMultithreadedStressSize=campaign -Pviaduct.resolution.threadcount=10
+./gradlew :core:engine:runtime2:resolutionMultithreadedStress -PresolutionMultithreadedStressRounds=1,46,81,95 -PresolutionMultithreadedStressSize=campaign -Pviaduct.resolution.threadcount=10
 ```
 
 With no overrides, the dedicated task runs round 1 at its recorded campaign dimensions (five checker-free profiles of 2,000 cases) plus the success, denial, and mixed type-checker profiles (2,500 coordinates each, with both query permutations), all on 100 threads. The checker profiles use seed `2026093001` by default; `resolutionTypeCheckerStressSeed` and `resolutionTypeCheckerStressSize` override their seed and dimensions independently of the broad campaign.
 
 ```shell
-../../../gradlew -p ../.. :engine:runtime2:resolutionMultithreadedStress
+./gradlew :core:engine:runtime2:resolutionMultithreadedStress
 ```
 
 The dedicated multithreaded task records continuation overlap and thread names for the broad campaign and separately for each checker profile. Every checker profile retains independent correctness replay, exact checker accounting, and all activation guards; an invocation-free or provider-free run cannot pass. Its assertions are useful scheduling evidence, but external OS observation is the stronger check that those threads actually execute on multiple CPUs.
@@ -117,8 +121,8 @@ The runtime checker distributions use `ResolverFragmentDepth=1`: two independent
 Run the 2,500-case checker workload with a recorded seed; select 100 resolution threads for concurrent accounting:
 
 ```shell
-../../../gradlew -p ../.. :engine:runtime2:resolutionFieldCheckerStress -PresolutionFieldCheckerStressSeed=424242
-../../../gradlew -p ../.. :engine:runtime2:resolutionFieldCheckerStress -PresolutionFieldCheckerStressSeed=424242 -PresolutionFieldCheckerStressProfile=denial -Pviaduct.resolution.threadcount=100
+./gradlew :core:engine:runtime2:resolutionFieldCheckerStress -PresolutionFieldCheckerStressSeed=424242
+./gradlew :core:engine:runtime2:resolutionFieldCheckerStress -PresolutionFieldCheckerStressSeed=424242 -PresolutionFieldCheckerStressProfile=denial -Pviaduct.resolution.threadcount=100
 ```
 
 Profiles accept `success`, `denial`, `mixed`, `passive`, or `root-reference`; `resolutionFieldCheckerStressSize` overrides the default `50:5:10` product. Replay failures through `resolverPropertyReplay` with class `viaduct.engine.runtime2.resolution.FieldCheckerGeneratedTest`, the reported profile and seed, the original `resolverPropertySize`, and the selected `resolverPropertyCase=S:R:Q`. The original size is essential because changing registry/query counts changes random-number consumption before the selected coordinate.
@@ -130,14 +134,14 @@ Profiles accept `success`, `denial`, `mixed`, `passive`, or `root-reference`; `r
 Run all three profiles at 2,500 coordinates each, or just the checker portion of the instrumented 100-thread task:
 
 ```shell
-../../../gradlew -p ../.. :engine:runtime2:resolutionTypeCheckerStress -PresolutionTypeCheckerStressSeed=424242
-../../../gradlew -p ../.. :engine:runtime2:resolutionMultithreadedStress --tests '*generated * type checker worlds resolve correctly' -PresolutionTypeCheckerStressSeed=2026093001
+./gradlew :core:engine:runtime2:resolutionTypeCheckerStress -PresolutionTypeCheckerStressSeed=424242
+./gradlew :core:engine:runtime2:resolutionMultithreadedStress --tests '*generated * type checker worlds resolve correctly' -PresolutionTypeCheckerStressSeed=2026093001
 ```
 
 `resolutionTypeCheckerStressProfile` accepts `all` (the default), `success`, `denial`, or `mixed`; `resolutionTypeCheckerStressSize` defaults to `50:5:10`. Replay a random case at its original size and coordinate:
 
 ```shell
-../../../gradlew -p ../.. :engine:runtime2:resolverPropertyReplay -PresolverPropertyClass=viaduct.engine.runtime2.resolution.TypeCheckerGeneratedTest -PresolverPropertyProfile=resolution-type-checker-mixed -PresolverPropertySeed=424242 -PresolverPropertySize=50:5:10 -PresolverPropertyCase=1:1:1
+./gradlew :core:engine:runtime2:resolverPropertyReplay -PresolverPropertyClass=viaduct.engine.runtime2.resolution.TypeCheckerGeneratedTest -PresolverPropertyProfile=resolution-type-checker-mixed -PresolverPropertySeed=424242 -PresolverPropertySize=50:5:10 -PresolverPropertyCase=1:1:1
 ```
 
 `SymbolicTypeCheckerTest`, `TypeCheckerLifecycleTest`, and the explicitly composed shared contracts are the deterministic runtime gates. The existing field-checker stress task remains a separate regression gate. Infinite callback suspension is tested with a short external bound and explicit cancellation; declarative cycles must fail through cycle detection, independently of the finite generated workload bounds.
@@ -147,11 +151,11 @@ Run all three profiles at 2,500 coordinates each, or just the checker portion of
 Use a sufficiently deep run and at least two Resolution threads; very small cases can finish before sampling or offer too little runnable work. Run Gradle in the background, wait for its test worker, and sample that JVM from a second shell:
 
 ```shell
-mkdir -p build/reports/resolution-cpu-probe
-../../../gradlew -p ../.. :engine:runtime2:resolutionMultithreadedStress -PresolutionMultithreadedStressRounds=81 -PresolutionMultithreadedStressSize=20:10:10 -Pviaduct.resolution.threadcount=10 --rerun-tasks --console=plain >build/reports/resolution-cpu-probe/run.log 2>&1 &
+mkdir -p core/engine/runtime2/build/reports/resolution-cpu-probe
+./gradlew :core:engine:runtime2:resolutionMultithreadedStress -PresolutionMultithreadedStressRounds=81 -PresolutionMultithreadedStressSize=20:10:10 -Pviaduct.resolution.threadcount=10 --rerun-tasks --console=plain >core/engine/runtime2/build/reports/resolution-cpu-probe/run.log 2>&1 &
 gradle_pid=$!
 while ! worker_pid=$(jps -lv | awk '/GradleWorkerMain/ { print $1; exit }') || [[ -z $worker_pid ]]; do sleep 1; done
-pidstat -t -p "$worker_pid" 1 8 | tee build/reports/resolution-cpu-probe/pidstat.log
+pidstat -t -p "$worker_pid" 1 8 | tee core/engine/runtime2/build/reports/resolution-cpu-probe/pidstat.log
 wait "$gradle_pid"
 ```
 
@@ -163,22 +167,22 @@ Avoid selecting an unrelated Gradle worker when other builds are active. Stop ot
 
 ## Canonical Million-Case Campaign
 
-When a request says to run the Resolution one-million-query test, it means the complete checked-in `resolution-broad-campaign-v1` campaign at one Resolution thread. From the `core/engine/runtime2` directory, run exactly:
+When a request says to run the Resolution one-million-query test, it means the complete checked-in `resolution-broad-campaign-v1` campaign at one Resolution thread. From the repository root, run exactly:
 
 ```shell
-env 'viaduct.resolution.threadcount=1' ./run-property-test-campaign.sh \
+env 'viaduct.resolution.threadcount=1' core/engine/runtime2/run-property-test-campaign.sh \
   classpath:/viaduct/engine/runtime2/property-tests/campaigns/resolution-broad-campaign-v1.json
 ```
 
 The versioned campaign fixes all corpus inputs: rounds 1 through 100, five directed profiles per round, 2,000 cases per profile, each run's `S:R:Q` dimensions, and every seed. The result is exactly 10,000 cases per round and 1,000,000 cases total. The driver performs one incremental Gradle launcher install, lets Gradle exit, and then starts one fresh launcher JVM for each round. Do not add `clean`, regenerate resources, choose rounds, change the thread count, or otherwise alter this recipe unless the request explicitly asks for a different experiment.
 
-Success means that the command exits zero after printing `Completed 100 round(s)`, every round reports `runs=5, completedCases=10000`, and `build/reports/resolution-broad-campaign-v1` contains logs for all 100 rounds. Each run checks attempted, resolved, and completed accounting, resolution correctness, exact resolver-application identities, from-field bindings, and its required structural coverage. The driver stops at the first failed run or round and prints its replay command.
+Success means that the command exits zero after printing `Completed 100 round(s)`, every round reports `runs=5, completedCases=10000`, and `core/engine/runtime2/build/reports/resolution-broad-campaign-v1` contains logs for all 100 rounds. Each run checks attempted, resolved, and completed accounting, resolution correctness, exact resolver-application identities, from-field bindings, and its required structural coverage. The driver stops at the first failed run or round and prints its replay command.
 
 The driver's final wall-clock total covers the 100 launcher JVMs but excludes the initial Gradle install. To measure the complete command, including that one incremental install, use:
 
 ```shell
 /usr/bin/time -p env 'viaduct.resolution.threadcount=1' \
-  ./run-property-test-campaign.sh \
+  core/engine/runtime2/run-property-test-campaign.sh \
   classpath:/viaduct/engine/runtime2/property-tests/campaigns/resolution-broad-campaign-v1.json
 ```
 
@@ -187,7 +191,7 @@ The driver's final wall-clock total covers the 100 launcher JVMs but excludes th
 When a request says to run the Resolution 100,000-case or ten-round performance sample, use this fixed phase-weighted subset:
 
 ```shell
-env 'viaduct.resolution.threadcount=1' ./run-property-test-campaign.sh \
+env 'viaduct.resolution.threadcount=1' core/engine/runtime2/run-property-test-campaign.sh \
   classpath:/viaduct/engine/runtime2/property-tests/campaigns/resolution-broad-campaign-v1.json \
   1 20 21 33 45 46 63 80 90 98
 ```
@@ -220,35 +224,22 @@ Record generated and activated feature vectors separately, then retain seeds tha
 
 Scheduling perturbations such as deliberate yields may eventually expose additional races, but add them only with a reproducible seed and a reliable coordinate replay. A corpus whose failures cannot be localized is less useful than a slightly smaller one with exact forensic evidence.
 
-## Open Testing Gaps
+## Limits Of Current Evidence
 
-This appendix records known weaknesses in Resolution's test infrastructure. They are not established Resolution implementation defects, but they limit what the current green suites prove and should be addressed before treating a large campaign as strong concurrency or interaction evidence.
+These limits describe what the alpha suite does not yet prove. They are not established Resolution defects.
 
-### Restore Witness Coverage In Multithreaded Stress
+### Multithreaded Witness Coverage
 
-- [ ] Run multithreaded stress with resolution-witness capture, plus a separate pass with count-only capture because those modes are intentionally mutually exclusive. Both recorders are already thread-safe, but `runResolutionMultithreadedStress` currently disables both, so the instrumented campaign checks only extensional correctness and from-field bindings.
-- [ ] Audit and replace unsynchronized mutable application counters and lists throughout deterministic resolver contracts, including `EmptyObjectFragmentResolverContract.kt`, `ObjectFragmentResolverContract.kt`, `VariableSelectionIdentityResolverContract.kt`, `ObjectFragmentFromArgumentResolverContract.kt`, and `NodeResolverContract.kt`; multiple Resolution threads may invoke fixture resolvers concurrently, and assertions that depend on append order or ordinary integer increments are harness races rather than valid resolver checks.
-- [ ] Add a focused concurrency regression for the fixture instrumentation itself, then rerun representative deterministic contracts at several thread counts to prove that recorded counts and observations are stable without imposing execution order.
+`runResolutionMultithreadedStress` currently disables both full resolution-witness capture and count-only capture, which are intentionally mutually exclusive modes. The instrumented multithreaded campaign therefore establishes extensional correctness, from-field bindings, continuation overlap, and worker-thread use, but not the same exact ordinary resolver-application witness used by the single-threaded broad profiles.
 
-### Make Structural Coverage Interaction-Local
+Some deterministic feature fixtures also retain ordinary mutable counters or lists. Those tests are reliable in their normal single-threaded contract configuration but cannot be treated as concurrency evidence until their recorders are made thread-safe without imposing event order and the instrumentation itself has focused concurrency coverage.
 
-This interaction-local accounting work is deliberately deferred to a follow-up PR. Until that lands, reviews should cite it as known accepted backlog rather than a newly discovered Resolution weakness.
+### Interaction-Local Structural Coverage
 
-- [ ] Make each structural signature application-local where its name claims an interaction; for example, `MIXED_BINDING_SOURCES` in `ResolutionStructuralCoverage.kt` can currently combine `FromArgument` and `FromObjectField` evidence from unrelated applications in one case.
-- [ ] Replace the corpus-wide union in `ResolverBroadStressTest.kt` with per-case interaction records or explicit activation counts, so required signatures cannot be satisfied by unrelated cases distributed across the generated product.
-- [ ] Give each directed profile an activation predicate tied to the exact resolver application, occurrence path, binding source, and result structure that constitute the intended interaction; retain aggregate signature counts only as diagnostics.
+Some broad structural signatures are aggregated more coarsely than their names imply. For example, `MIXED_BINDING_SOURCES` can combine `FromArgument` and `FromObjectField` evidence from different applications in one case, and corpus-wide required-signature unions can be satisfied by different cases. Directed deterministic contracts remain the stronger evidence for the exact interaction. A broad profile proves that its component behaviors occurred in the corpus unless its activation predicate explicitly joins the resolver application, occurrence path, binding source, and result structure.
 
 ### Preserve Occurrence Identity In The Exact-Application Oracle
 
-- [ ] Reconstruct expected demanded occurrences independently of the completed Resolution result. `registeredResolverApplicationIdentityCounts` currently discovers expected applications from resolver-bearing cells already present in that result, so an extra valid cell accompanied by an extra matching invocation can increase both expected and actual counts together and pass.
-- [ ] Restore an independent supplied-demand oracle or replace the disabled `ResolverWitnessContract.generated supplied demand matches independently reconstructed successor demand` check with a narrower reconstruction that handles list-transparent continuation paths.
+`registeredResolverApplicationIdentityCounts` reconstructs expected applications from resolver-bearing cells already present in the completed result. An extra valid cell accompanied by an extra matching invocation can therefore enlarge both expected and actual counts together. The oracle strongly detects missing, duplicate, and wrong-root/path applications for the occurrences it reconstructs, but it does not independently establish absolute minimality of the demanded occurrence set.
 
-### Recently Closed Generator Reachability Gaps
-
-- [x] Resolution profiles opt into list-target variables that admit scalar and shallower-list providers through singleton coercion across nested input-list layers, with directed generator and grounding evidence; earlier resolver profiles remain gated off.
-- [x] Generated fields admit multiple arguments through the configurable `FieldArgumentCount` range.
-- [x] Variable input plans retain their targets, and generation deliberately reuses one variable across multiple selections in the same fragment as well as across object and Query fragments.
-- [x] `FromObjectField` variables generate literal/symbolic convergence and report it independently from `FromArgument` convergence.
-- [x] Resolution's default deep-stress configuration enables from-field variables and requires both generated and activated evidence.
-- [x] Broad structural coverage records `ABSTRACT_PROVIDER_PATH` only from an activated owner and requires it in the balanced Resolution profile.
-- [x] Resolution stress profiles generate and activate a variable-free great-grandparent `@parent` demand spine; a dedicated 1,000-case parent-focused run divides its 40 schemas into four reported 250-case slices, supplements the spine with randomized parent chains, records actual materialized-input activations by topology and consecutive parent depth, classifies variable-bearing resolver inputs beneath parents by exact argument occurrence and binding source, reports ordinary and recursively composed diagonal parent demand, and identifies exact source-supplied occurrences whose skipped standard resolver has parent demand against nine explicit combined-required coverage criteria.
+Supplied-demand witnesses cover selected contracts and profiles but are not a complete independent reconstruction across list-transparent continuation paths. Claims about minimal selective demand require a focused supplied-demand assertion in addition to completed-result correctness and exact observed applications.

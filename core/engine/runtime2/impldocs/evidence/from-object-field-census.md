@@ -1,8 +1,10 @@
 # `FromObjectField` Production Census
 
+> **Historical evidence.** This census describes application source at commit `36cf5db45cd8c`. It informed representative Runtime2 fixtures and early contract alternatives; it is not a current production inventory or the Runtime2 support contract.
+
 ## Scope
 
-This is a dated source census captured from Viaduct application code at commit `36cf5db45cd8c`. It is evidence about the shapes that existed in that snapshot, not a current production inventory or a record of qplan implementation priorities. Modern usage is an exact search for `fromObjectField`; classic usage is a source census of DFP and component delegation. Framework tests and examples are excluded from production counts.
+Modern usage is an exact search for `fromObjectField`; classic usage is a source census of DFP and component delegation. Framework tests and examples are excluded from production counts.
 
 The modern sample is exhaustive but narrow: all 11 declarations belong to four resolver classes in one PDP Stays migration cohort. Classic evidence is broader but is not the same abstraction.
 
@@ -67,26 +69,25 @@ Classic sources remain inside the owning DFP/component fragment. Classic therefo
 
 The classic counts are source-based lower bounds where fragments, aliases, or helpers can conceal the exact source shape.
 
-## Recommended Restricted Contract
+## Restricted Contract Considered
 
-If changing the small modern cohort is acceptable, restrict `FromObjectField` to a direct sibling field:
+The smallest contract supported by this census would restrict `FromObjectField` to a direct sibling field:
 
-1. The path has exactly one component and is an unconditional selection in
-   the owner's fixed object fragment.
+1. The path has exactly one component and is an unconditional selection in the owner's fixed object fragment.
 2. The provider terminates in a scalar, enum, or nested list of simple values.
 3. A provider field may have arguments only when every argument is already ground from a literal, schema default, or the defining occurrence's `FromArgument`. A `FromObjectField` may not ground a provider key.
 4. Provider chains are rejected.
 5. A `FromObjectField` variable may not be used below a list-valued field.
 6. Aliases and narrowing type conditions are rejected for provider paths.
 
-This admits 8 of the 11 declarations unchanged. The remaining three declarations represent only two unique nested values: `listing.location.countryCode` and `stayListing.supplyListing.location.defaultAddress.market`. Two direct helper fields on `DemandStayListingPdpPresentationContainer` would bring the entire modern production sample into the restricted contract.
+That alternative would admit 8 of the 11 declarations unchanged. The remaining three declarations represent only two unique nested values: `listing.location.countryCode` and `stayListing.supplyListing.location.defaultAddress.market`. Two direct helper fields on `DemandStayListingPdpPresentationContainer` would bring the entire observed modern sample into the restricted contract.
 
 This is a materially smaller problem than generalized runtime path traversal. The provider resolver occurrence is known at the owner OER, so resolution does not need to discover descendant provider instances through a dynamically published subtree. Resolution retains symbolic consumer keys through grounding, so distinct symbolic keys may invoke the same grounded arguments separately.
 
-If application changes are not acceptable, the next-smallest contract adds argument-free traversal through singular concrete node-backed objects. That covers all 11 declarations, but preserves the dynamic descendant-provider problem and its runtime occurrence-specific traversal.
+The next-smallest alternative adds argument-free traversal through singular concrete node-backed objects. That covers all 11 observed declarations, but preserves the dynamic descendant-provider problem and its runtime occurrence-specific traversal. Neither alternative is the current contract; current semantics are documented in the [semantic model](../architecture/model.md#variables-and-keys) and [Resolution design](../architecture/resolution.md#binding-declaration).
 
-## Relevance To Qplan
+## Relevance To Runtime2
 
-The census supports keeping direct sibling providers, singular nested object paths, scalar-list terminals, and already-ground provider arguments visible in model tests. It provides no evidence that list traversal, provider chains, alias-sensitive identity, or late-bound provider arguments are required by the observed modern cohort.
+The census supports keeping direct sibling providers, singular nested object paths, scalar-list terminals, and already-ground provider arguments visible in representative fixtures. It provides no evidence that list traversal, provider chains, alias-sensitive identity, or late-bound provider arguments were required by the observed modern cohort. Absence from this dated sample is not evidence that a shape is invalid or unused now.
 
-These observations constrain representative fixtures; they do not define Resolution architecture. Current resolver behavior is documented in [`semantics/resolution/design.md`](../src/main/kotlin/viaduct/engine/runtime2/resolution/design.md), and the aligned carrier boundary is recorded in [the model guidelines](model/guidelines.md).
+These observations constrain fixture selection; they do not define Resolution architecture or the alpha feature surface.

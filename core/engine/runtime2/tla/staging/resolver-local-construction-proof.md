@@ -1,5 +1,0 @@
-# Argument for [resolver-local-construction-proof]
-
-`tla/ResolverCore.tla` models one concrete OER object occurrence after runtime-type specialization and exact argument instantiation. `ClosedDemand` is the intersection-defined least fixed point of direct resolver demand, while `ConstructionOrder` is the duplicate-free dependency-first result characterized by the DFS `SiblingDependencyLogic.order` contract. `tla/ResolverCoreProof.tla` has TLAPS proofs that closure contains the initial demand and every activated resolver's exact dependencies, that every dependency precedes its consumer, that each applied resolver key has one unique sequence position, and that the finite fold terminates.
-
-The theorem is conditional on finite exact-key reachability, sound exact dependency discovery, and a valid construction order. It is per concrete OER occurrence and concerns mathematical function-application rules, not JVM invocation effects or cross-occurrence deduplication. TLC's `Resolver02MC` model supplies finite counterexample-finding evidence in addition to, but distinct from, the symbolic TLAPS proof.

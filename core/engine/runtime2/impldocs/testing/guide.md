@@ -1,114 +1,118 @@
-# Qplan Maintainer Guide
+# Testing Guide
 
-## Working Context
+## Purpose
 
-Follow the current explicit prompt before this guide. Resolution is the primary algorithm and eventual production implementation; the [runtime2 direction](resolver-versions.md#production-direction-and-package-ownership) keeps earlier families as development support. Treat runtime2 integration as longer-term context unless it is explicitly requested.
+Runtime2 testing combines contract tests, cross-family comparison, generated tests, correctness-oracle tests, exact-witness tests, mutation tests, and directed stress tests. No one kind is sufficient by itself. Use the smallest kind that can establish the claim under investigation, then broaden validation in proportion to the change.
 
-## Read Before Changing Code
+- **Contract tests** establish deterministic feature behavior, result shape, lifecycle, and policy claims shared by every implementation that adopts a contract; find the reusable interfaces under `src/test/fixtures/viaduct/engine/runtime2/contract` and their concrete adopters under `src/test/kotlin/viaduct/engine/runtime2/resolvers` and `src/test/kotlin/viaduct/engine/runtime2/resolution`.
+- **Cross-family comparison** establishes that Resolver01–03, Resolver06–08, Resolver21–23, and production Resolution preserve the same claim at successive architectural boundaries; compare which concrete suites adopt the same inherited contracts using the support matrix in [Contract Tests](strategy.md#contract-tests).
+- **Generated tests** establish semantic correctness and exactness over many replayable combinations of schemas, registries, queries, and feature interactions; find shared `Generated*Contract.kt` fixtures under `src/test/fixtures/viaduct/engine/runtime2/contract`, concrete `*GeneratedTest.kt` suites under `src/test/kotlin/viaduct/engine/runtime2`, and campaign mechanics in [Property Testing](property-tests.md).
+- **Correctness-oracle tests** establish that completed results independently agree with modeled resolver and checker relations rather than merely with the algorithm's own trace; find direct tests under `src/test/kotlin/viaduct/engine/runtime2/correctresolution`, oracle support under `src/support/kotlin/viaduct/engine/runtime2/correctresolution`, and the boundary definition in [Correctness Oracles](strategy.md#correctness-oracles).
+- **Exact-witness tests** establish that the precise semantic occurrences, resolver and checker applications, inputs, bindings, and supplied demands actually occurred, including duplicate-sensitive identities that extensional result correctness cannot prove; find `*WitnessContract.kt` fixtures under `src/test/fixtures/viaduct/engine/runtime2/contract`, concrete `*WitnessTest.kt` suites under `src/test/kotlin/viaduct/engine/runtime2`, and observer semantics in [Observations And Exact Witnesses](strategy.md#observations-and-exact-witnesses).
+- **Mutation tests** establish oracle sensitivity by deliberately corrupting resolver programs, completed results, or observations and requiring an independent judgment to reject the corruption; find `ResolverMutationContract.kt` under `src/test/fixtures/viaduct/engine/runtime2/contract` and its concrete `ResolverMutationTest.kt` adopters in the Resolver03 and production Resolution test packages.
+- **Directed stress tests** establish behavior under deliberately amplified feature distributions, depth, concurrency, or scheduling pressure beyond the ordinary check; find the opt-in Gradle tasks, profile scopes, and replay commands in [Testing Resolution](resolution.md).
 
-1. [`README.md`](../README.md) for the project map and integration state.
-2. The [runtime2 integration plan](https://slate.airbnb.tools/hSFpbNvtAN) for integration scope and milestones.
-3. [`design-principles.md`](design-principles.md) for durable semantic constraints.
-4. [`resolver-versions.md`](resolver-versions.md) for cross-family alignment policy, code naming preferences, and comparison and reduction roles.
-5. [`semantics/testing-contracts.md`](semantics/testing-contracts.md) for test capabilities and replay.
-6. The local Resolution design document when changing Resolution.
+Production Resolution is the final feature target. Resolver01–23 remain active testing infrastructure: they isolate architectural questions and provide the development ladder from compact semantics through explicit work scheduling and structured suspension before a feature reaches production.
 
-## Use The Resolver Grid
+Read [architectural principles](../architecture/principles.md), [resolver families](../architecture/resolver-families.md), and the [testing strategy](strategy.md) before changing resolver behavior. Use [Testing Resolution](resolution.md) for production concurrency and stress commands, [property testing](property-tests.md) for generated-campaign mechanics, [performance testing](performance.md) for measurement, and the [resolver DSL](resolver-dsl.md) for small deterministic worlds.
 
-The maintained older resolvers are a reduction and comparison grid. Start with Resolver03 when a failure concerns demand closure, exact application count, passive deepening, argument grounding, or completed-result correctness without `FromObjectField`. Move to Resolver08 when explicit work ordering or publication may matter, then to Resolver23 when promise installation, suspension, or structured scope ownership may matter.
+## Validation From The Repository Root
 
-Use Resolver01/06/21 to remove nonempty object fragments and Resolver02/07/22 to retain object fragments and `FromArgument` without selective-output pressure. Use Resolution when behavior depends on runtime from-field variables or symbolic resolver-instance identity.
-
-Resolver10 is a source of warnings, not a debugging baseline: readiness rescanning, persistent late-demand acceptance, and complete-output retention can obscure the producer-completeness question.
-
-## Fast Validation Loop
-
-Run commands from `core/engine/runtime2/`.
+The ordinary full check is:
 
 ```shell
-../../../gradlew -p ../.. :engine:runtime2:check
+./gradlew :core:engine:runtime2:check
 ```
 
-`check` covers ordinary model, arbitrary, semantics, execution, and documentation checks. It excludes deep stress, broad campaigns, and multithreaded stress.
+This covers ordinary model, resolver, correctness, execution, documentation, and generated tests. It does not run opt-in deep stress, broad campaigns, or multithreaded stress tasks.
 
-Use the narrowest relevant module or test class before broadening:
+Start with the narrowest surgical test and broaden only after it passes:
 
 ```shell
-../../../gradlew -p ../.. :engine:runtime2:test
-../../../gradlew -p ../.. :engine:runtime2:test --tests 'viaduct.engine.runtime2.resolution.SymbolicKeyIdentityTest'
-../../../gradlew -p ../.. :engine:runtime2:test --tests 'viaduct.engine.runtime2.resolution.*'
+./gradlew :core:engine:runtime2:test \
+  --tests 'viaduct.engine.runtime2.resolution.SymbolicKeyIdentityTest'
+
+./gradlew :core:engine:runtime2:test \
+  --tests 'viaduct.engine.runtime2.resolution.*'
+
+./gradlew :core:engine:runtime2:test
 ```
 
-Resolution concurrency, stress, and CPU-probe commands live in [`testing-resolution.md`](../src/main/kotlin/viaduct/engine/runtime2/resolution/testing-resolution.md). Benchmark commands and reporting requirements live in [`resolver-benchmarks.md`](semantics/resolver-benchmarks.md).
+Run the full check after a cross-cutting semantic, fixture, execution, build, or documentation change. Use the dedicated tasks in [Testing Resolution](resolution.md) only when the change or requested validation warrants their additional cost.
+
+## Use The Resolver-Family Ladder
+
+Choose the earliest family that can express the behavior:
+
+- Resolver01–03 isolate demand closure, exact producer applications, passive deepening, argument grounding, and completed-result correctness.
+- Resolver06–08 expose explicit depth-first work ordering and publication without coroutine scheduling.
+- Resolver21–23 expose promise installation, suspension, structured request ownership, and checker execution.
+- Production Resolution adds symbolic resolver-instance identity, runtime from-field variables, full parent handling, and the complete alpha feature set.
+
+Within each tier, use Resolver01/06/21 for empty object fragments, Resolver02/07/22 for nonempty fragments and `FromArgument`, and Resolver03/08/23 for selective output. A new production feature should normally acquire the relevant earlier-family contracts before it is implemented in Resolution.
 
 ## Replay Before Debugging
 
-Generated failures report a profile, seed, one-based `S:R:Q` coordinate, schema, registry, and query. Replay that exact coordinate before rerunning a class or campaign:
+Generated failures report a stable profile ID, seed, one-based `S:R:Q` coordinate, schema, registry, and query. Replay the exact coordinate before rerunning a class or campaign:
 
 ```shell
-../../../gradlew -p ../.. :engine:runtime2:resolverPropertyReplay \
+./gradlew :core:engine:runtime2:resolverPropertyReplay \
   -PresolverPropertyClass=viaduct.engine.runtime2.resolution.ResolverGeneratedTest \
   -PresolverPropertyProfile=feature-interaction \
   -PresolverPropertySeed=424242 \
   -PresolverPropertyCase=2:2:1
 ```
 
-Coordinate replay preserves the random stream through schema iteration `S`, executes only the selected case, and suppresses aggregate activation guards. Use `Case=all` only for aggregate guard failures.
+Coordinate replay regenerates preceding schema state so the random stream remains identical, executes only the selected case, and suppresses aggregate activation guards. Preserve `-PresolverPropertySize=S:R:Q` when the failure came from a stress task because registry and query counts affect generation before the selected coordinate. Use `-PresolverPropertyCase=all` only for aggregate guard failures.
 
 ## Classify The Failure
 
-Before changing resolver code, identify the failing boundary:
+Identify the failing boundary before changing production code:
 
-- **Resolver:** wrong result, missing or duplicate writer, invalid binding, wrong application identity, or engine-created liveness failure under the [tenant progress assumptions](design-principles.md#tenant-failure-isolation-and-progress).
-- **Generator:** invalid world, unreachable promised feature, bad coercion, or missing generation capability.
-- **Oracle:** shared assumptions, lost occurrence identity, result-derived expectations, or instrumentation races.
-- **Campaign:** mismatched distribution, bad case accounting, or probabilistic aggregate guards.
-- **Resource envelope:** finite but explosive worlds, witness limits, heap exhaustion, or pathological oracle complexity.
+- **Resolver defect:** wrong value, missing or duplicate writer, invalid binding, wrong occurrence or application identity, stranded required promise, or incorrect lifecycle ownership.
+- **Generator defect:** invalid world, unreachable promised feature, bad coercion, or a distribution that cannot construct its advertised interaction.
+- **Oracle defect:** circular expectations, lost occurrence identity, result-derived expected demand, incorrect replay, or instrumentation races.
+- **Campaign defect:** mismatched distribution, bad coordinate accounting, or an aggregate guard unrelated to the selected profile.
+- **Resource-envelope limit:** finite but explosive worlds, heap exhaustion, witness limits, or pathological post-resolution analysis.
 
-For concurrency failures, replay at one worker and several workers. Audit fixture counters, mutable lists, and observers before attributing a multithread-only failure to Resolution.
+For a concurrency-only failure, replay the same coordinate at one thread and several threads. Audit fixture counters, mutable collections, observers, and cleanup before attributing the difference to Resolution.
 
 ## Preserve A Useful Counterexample
 
-The preferred investigation sequence is:
+For a genuine defect:
 
-1. Require evidence that the target interaction actually executed.
-2. Preserve the profile, seed, coordinate, thread count, schema, registry, and query.
+1. Confirm that the target interaction actually executed.
+2. Preserve the profile, seed, coordinate, product size, thread count, schema, registry, and query.
 3. Replay only the failing coordinate.
-4. Reduce it to a deterministic schema, registry, query, and assertion.
-5. Preserve the red regression before changing production logic.
+4. Reduce it to a deterministic schema, registry, query, and assertion when possible.
+5. Preserve a red regression test before changing production logic.
 6. Fix the narrow semantic boundary.
-7. Replay the original coordinate.
-8. Run neighboring contracts and an appropriately directed stress profile.
-9. Improve generation or activation checks so the bug class remains discoverable.
+7. Replay the original generated coordinate.
+8. Run neighboring family contracts and an appropriately directed production profile.
+9. Strengthen generation or activation evidence if the bug class was difficult to reach.
 
-## Fixture Composition Contracts
+The resolver DSL is preferred for compact counterexamples whose behavior can be represented as a deterministic schema-embedded world. Keep scheduling, observer, bootstrap, and GraphQL-adapter defects in focused Kotlin fixtures at their owning layer.
 
-`TestWorld` makes incomplete test registries deterministic by supplying a null-producing resolver for each missing nullable Query field and an error-producing resolver for each missing non-null Query field before overlaying the resolvers declared by the test. A missing non-null declaration therefore remains an explicit error if execution reaches it, while incomplete feature-test modules can omit unrelated nullable roots. This is a test-fixture composition contract, not permission for a production resolver registry to omit required entries.
+## Failure And Liveness Policy
 
-## Diagnose Liveness And Scale
+Tenant resolvers, checkers, and variables providers may suspend or run slowly. An operation may continue waiting for tenant work after another error makes that work unnecessary. A bounded test around intentionally nonterminating tenant code is a fixture cleanup mechanism, not an engine completion guarantee.
 
-Silence from Gradle is not evidence of deadlock. Check process CPU, thread stacks, resolver timeouts, generated-world construction, and post-resolution oracle cost before adding synchronization.
+Runtime2 must isolate ordinary tenant failures, publish terminal outcomes for required promises whose producers have exited or been bypassed, enforce access decisions, and honor explicit cancellation. It need not minimize failure latency, maximize partial data after multiple failures, or cancel every producer whose result has become unnecessary. Never repair a local tenant failure by aborting the entire request.
 
-Use `jps -lv`, `jstack`, `jcmd <pid> Thread.print`, or a profiler. For an OOMing case, capture the generated world without resolving it, then add bounded launch and depth diagnostics. Distinguish duplicate execution from one-shot exponential growth across distinct occurrences.
+An unfinished demanded cell may mean tenant work is still running, a dependency cycle is being resolved, or a producer has not yet published. That is distinct from a stranded cell after its owning producer and cleanup boundary have finished; the latter is an engine defect. An unresolved demanded cell is never successful completion.
 
-Before classifying a timeout as a resolver defect, establish whether tenant resolver, checker, or variables-provider code is still running or deliberately never returns. The operation may wait for that work even if another error has made its output unnecessary and no live consumer still needs it. Prompt cancellation of such work and optimal recovery from multiple errors are not acceptance requirements. Do not fix a local tenant failure by aborting the whole request; preserve its owned error boundary and the specified propagation rules.
+Silence from Gradle is not evidence of deadlock. Inspect CPU, thread stacks, generated-world construction, request timeouts, and post-resolution oracle cost. Distinguish duplicate execution from one-shot exponential growth across distinct occurrences before changing synchronization.
 
-An unresolved demanded cell may reflect unfinished tenant work, a missing writer, a dependency cycle, failed task ownership, or invalid quiescence. Waiting on unfinished tenant work is allowed; a stranded required promise after its producer exits or is bypassed is a defect. An unresolved demanded cell is never successful completion.
+## Fixture And Observation Discipline
 
-## Maintain Independent Evidence
+`TestWorld` makes intentionally incomplete test registries deterministic by installing null producers for missing nullable Query fields and error producers for missing non-null Query fields before overlaying test declarations. This is a fixture-composition rule, not permission for production bootstrap to omit required entries.
 
-Keep extensional correctness, application identities, occurrence identities, from-field bindings, lifecycle invariants, mutation tests, metamorphic variants, and structural activation as separate evidence sources.
+Record runtime events cheaply and thread-safely, snapshot them after request quiescence, and perform expensive correctness analysis serially. Observers must not impose scheduler order. Keep extensional result correctness, exact resolver and checker applications, occurrence identity, variable bindings, lifecycle ownership, supplied demand, mutation evidence, and activation coverage as independent judgments.
 
-An oracle derived from returned cells can miss an omitted occurrence or accept an extra cell paired with an extra invocation. State such limitations explicitly and preserve independent reconstruction work as an open testing task.
+An oracle reconstructed from completed result cells can miss an omitted occurrence or accept an extra cell paired with an extra invocation. State such limits explicitly and retain independent witnesses for the properties that matter. In particular, a timeout is not a substitute for an exact producer-application assertion, and wrapper object identity is not a substitute for semantic OER, Query-root, path, and occurrence identity.
 
-During resolution, instrumentation must be thread-safe and cheap. Snapshot after request quiescence, then perform expensive witness and correctness analysis serially. Test instrumentation must not impose scheduler order.
+## Adding Tests
 
-## Documentation Maintenance
+Add a scenario to the narrowest existing feature contract when every implementation claiming that feature must satisfy it. Create a new feature contract when the scenario defines a distinct capability with a different family support matrix. Create a policy mixin only for an implementation choice that cuts across capability scopes.
 
-`README.md` files own stable module explanations. `AGENTS.md` files are annotated indexes that point to those explanations and say when they matter. `design-principles.md` owns durable principles. `resolver-versions.md` owns cross-family alignment policy and code naming preferences, linking to canonical semantic definitions in `semantics/README.md`. Resolver-local design and testing files own implementation-specific protocols. Git history owns completed chronology.
-
-Keep each prose paragraph and list item on one physical line. Document factory-established carrier invariants on the factory with an `### Invariant: kebab-case-label` heading. Invariant labels and claim labels share one namespace checked by `checkDocumentationLabels`.
-
-Record stable propositions in [`claims.md`](claims.md) with one-sentence statements and put their scoped reasoning in `arguments/<claim-label>.md`. Keep the claim and argument synchronized.
-
-Concrete resolver examples should present a complete top-down GraphQL schema followed by the triggering query. Annotate passive and resolver fields, resolver object fragments, variable sources, and returned values before explaining execution.
+Keep production-specific mutation, witness, concurrency, and stress tests separate when their claims intentionally exceed shared family behavior. Preserve exact result shapes, resolver inputs, application counts, null and error positions, and other regression-sensitive assertions in the shared contract rather than duplicating them in each family.

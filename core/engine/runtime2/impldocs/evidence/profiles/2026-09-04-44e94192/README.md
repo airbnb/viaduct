@@ -1,8 +1,10 @@
 # 2026-09-04 Resolver Output Construction Recovery
 
+> **Historical snapshot.** Commands, paths, source names, and measurements below describe this recorded round and are not current operating guidance.
+
 Runtime revision: `44e941921f6372ddb6a415c826ce35af4d8abbbc`; final test-only revision: `6bb476427b4858a8f3d4a33db429e91f9ebfd64b`
 
-The runtime tree was clean at `44e941921` while the final benchmarks and profiles ran. The final revision only marks the deliberately disabled argument-bearing resolver-output rejection test as ignored. This README and the performance-log documentation were added afterward. Host details, benchmark iterations, workload statistics, controlled intermediate results, and interpretation are recorded in the [corresponding performance-log entry](../../resolver-profiling.md#2026-09-04-002258-utc).
+The runtime tree was clean at `44e941921` while the final benchmarks and profiles ran. The final revision only marks the deliberately disabled argument-bearing resolver-output rejection test as ignored. This README and the performance-log documentation were added afterward. Host details, benchmark iterations, workload statistics, controlled intermediate results, and interpretation are recorded in the [corresponding performance-history entry](../performance-history.md#2026-09-04-002258-utc).
 
 Final validation and default benchmark controls ran serially:
 

@@ -1,44 +1,76 @@
 # Runtime2
 
-Runtime2 contains the Kotlin field-resolution model and execution implementation developed in qplan. It is used to state resolver algorithms precisely, compare execution structures, test their behavior over generated worlds, and support formal arguments about selected parts of query execution.
+Runtime2 is the alpha implementation of Viaduct's new engine. Its public contract is [`viaduct.engine.api.Engine`](../api/src/main/kotlin/viaduct/engine/api/Engine.kt): Runtime2 supplies the production resolution algorithm, schema and executor adaptation, and GraphQL Java execution components needed to implement that contract. Runtime2 is not yet selected by `StandardViaduct`, so the existing engine remains the service default while this alpha implementation is integrated and completed.
 
-Every maintained resolver uses the aligned engine carrier model, including runtime2's validating `EngineObjectData.Sync` implementation. Resolution is the primary algorithm and eventual implementation blueprint.
+The production field-resolution implementation is [`Resolution`](src/main/kotlin/viaduct/engine/runtime2/resolution/Resolver.kt), in `src/main/kotlin/viaduct/engine/runtime2/resolution`. Its shared production framework is in the adjacent `resolution/framework` package.
 
-Maintaining Resolver01–23 helps preserve Resolution's architectural integrity. Expressing related algorithms through different execution structures forces us to examine how Resolution decomposes and encapsulates its concerns. Shared contracts can deliberately enforce those architectural relationships even when no caller currently consumes them polymorphically; [`resolver-versions.md`](impldocs/resolver-versions.md) explains this role alongside the semantic comparison grid.
+## Alpha Scope
 
-Qplan models resolver object fragments and independently resolved Query-rooted fragments. It also models source-sensitive ownership for argumentless fields: a field with a standard resolver is dynamically passive when an ancestor resolver output supplies it and otherwise remains active. Support for these capabilities varies by resolver version; [`resolver-versions.md`](impldocs/resolver-versions.md) and [`semantics/testing-contracts.md`](impldocs/semantics/testing-contracts.md) contain the maintained capability matrix.
+Runtime2 currently provides a query-focused execution path for selective and non-selective field and node resolvers, object- and Query-rooted required selections, resolver variables, root-field references, nested query execution, GraphQL completion, and incremental `@defer` delivery. The detailed supported and rejected surface is maintained in [Engine API integration](impldocs/integration/engine-api.md).
 
-The longer-term [runtime2 integration plan](https://slate.airbnb.tools/hSFpbNvtAN) centers Resolution as the production algorithm and retains earlier families in unpublished development support outside `main`. [`resolver-versions.md`](impldocs/resolver-versions.md#production-direction-and-package-ownership) explains how that direction guides today's package ownership. The plan owns the integration milestones and supported subset; implementing runtime2 remains separate from an ordinary qplan refactor.
+Major exclusions from the current Engine API integration include batching, mutations, subscriptions, custom scalars, `@stream`, and some resolver combinations documented with the integration boundary. Alpha status also means that bootstrap and service wiring are not yet the default production path.
 
-## Build and IDE Setup
+## Source Layout
 
-Open the repository root in IntelliJ and import its Gradle build. The former model, semantics, and execution modules are consolidated in `core/engine/runtime2`. Its production `main` source set contains the model, schema adaptation, bootstrap, resolution framework, algorithm, and execution integration. Unpublished `support` contains earlier resolvers, correctness machinery, and neutral fixtures. Concrete tests and JUnit contracts are in `test/kotlin` and `test/fixtures`; benchmarks are in `jmh`.
+- [`src/main`](src/main) contains the production model, schema lowering, bootstrap, execution integration, Resolution, and the shared production resolution framework. The `viaduct.engine.runtime2.model` package deliberately uses stylized Kotlin as an executable semantic model rather than as a conventional object-oriented domain model. Only this source set is published.
+- [`src/support`](src/support) contains Resolver01–23, correctness machinery, generators, contracts, benchmark support, and neutral development fixtures. It is development support and is not published.
+- [`src/test/kotlin`](src/test/kotlin) contains the tests, while [`src/test/fixtures`](src/test/fixtures) contains reusable JUnit contracts and fixtures.
+- [`src/jmh`](src/jmh) contains benchmarks and benchmark resources.
 
-Use the repository's Gradle wrapper. From the repository root, run `./gradlew -p core :engine:runtime2:check`. Commands elsewhere in this documentation run from `core/engine/runtime2/` and use `../../../gradlew -p ../.. :engine:runtime2:<task>`. Generators live in `src/support/kotlin/viaduct/engine/runtime2/arbitrary`, with their tests in `src/test/kotlin/viaduct/engine/runtime2/arbitrary`. There is no separate qplan project or directory.
+## Resolver Families
 
-Configuration caching remains disabled for runtime2 tasks. Kotlin, static analysis, and coverage use core conventions. Only main output is included in runtime2's JAR and the runtime publication; support and JUnit fixtures are not exported. This layout does not switch StandardViaduct to the new execution strategy. Design documentation and profiling evidence live in `impldocs/`, the vendored GraphQL specification in `spec/`, and formal models in `tla/`. Development scripts and the TLA tool configuration live in this directory. Specification rendering, formal verification, stress campaigns, and benchmark execution remain opt-in.
+Resolver01–23 are maintained development implementations, not superseded historical snapshots. They serve two purposes:
 
-## Documentation Map
+1. They impose architectural integrity on production Resolution by expressing the same semantic roles and boundaries across increasingly sophisticated execution structures while keeping essential differences explicit.
+2. They provide a feature-development ladder: establish a feature in Resolver01–03, extend it through Resolver06–08, carry it into Resolver21–23, and then implement it in production Resolution.
 
-- [`design-principles.md`](impldocs/design-principles.md) states durable modeling and resolver-design principles.
-- [`research-evidence.md`](impldocs/research-evidence.md) preserves findings, correctness obligations, hard cases, acceptance cases, prior art, and source provenance behind those principles.
-- [`resolver-versions.md`](impldocs/resolver-versions.md) defines cross-family alignment goals and code naming preferences, explains why every maintained resolver exists, and shows how earlier versions help simplify or debug Resolution work.
-- [`model/guidelines.md`](impldocs/model/guidelines.md) defines model-world boundaries, including the role of `Assumptions` and the mathematical-signature rules for model dependencies.
-- [`semantics/README.md`](impldocs/semantics/README.md) defines semantic contexts, state and task roles, dependency ownership, and the shared resolver boundaries built around `SharedOperationContext`.
-- [`viaduct-execution.md`](impldocs/viaduct-execution.md) describes the idealized source-world execution model that qplan represents.
-- [`examples.md`](impldocs/examples.md) gives concrete examples of demand closure, output projection, exponential expansion across fresh Query OERs, and the cross-occurrence ordering that prevents the depth-first resolvers from supporting `@parent`.
-- [`resolver-test-dsl.md`](impldocs/resolver-test-dsl.md) defines the schema-embedded deterministic resolver-world DSL.
-- [`execution/README.md`](impldocs/execution/README.md) describes GraphQL execution, executor-backed feature tests, current limitations, and the next integration slices.
-- [`from-object-field-census.md`](impldocs/from-object-field-census.md) preserves a dated production-shape census used to choose representative provider-path fixtures.
-- [`maintainer-guide.md`](impldocs/maintainer-guide.md) contains the practical testing, replay, debugging, and investigation workflow.
-- [`claims.md`](impldocs/claims.md) indexes scoped propositions; `impldocs/arguments/` contains their supporting reasoning.
-- [`tla/README.md`](tla/README.md) defines the machine-checked TLA+ baseline and its refinement boundary.
+See [Resolver families and alignment](impldocs/architecture/resolver-families.md) for the family comparison and maintenance rules.
 
-## Areas
+## Build and Verification
 
-- [`model`](impldocs/model/guidelines.md) defines semantic carriers, construction rules, equality, and factory-established invariants.
-- [`semantics`](impldocs/semantics/README.md) defines transformations, correctness judgments, resolver implementations, and test contracts.
-- [`arbitrary`](impldocs/arbitrary/README.md) generates canonical schemas, resolver registries, and operations for property testing.
-- [`execution`](impldocs/execution/README.md) executes queries through Resolution and provides the Engine API executor feature-test adapter.
+Open the repository root in IntelliJ and import the repository Gradle build. From the repository root, run the complete Runtime2 check with:
 
-The nearest `AGENTS.md` is an annotated index to the documents relevant to work in that directory.
+```sh
+./gradlew :core:engine:runtime2:check
+```
+
+Runtime2 tasks do not support Gradle configuration caching. Kotlin compilation, static analysis, and coverage use repository conventions. Tests and benchmarks can see the unpublished `support` source set; the Runtime2 JAR and runtime publication contain only `main` output.
+
+The vendored GraphQL specification and its rendering build are in [`impldocs/graphql-spec`](impldocs/graphql-spec).
+
+## Documentation
+
+Architecture:
+
+- [Principles](impldocs/architecture/principles.md) records the durable modeling and resolver-design principles.
+- [Execution model](impldocs/architecture/execution-model.md) describes the source-world execution model represented by Runtime2.
+- [Model](impldocs/architecture/model.md) defines semantic carriers, construction rules, equality, and factory-established invariants.
+- [Resolution](impldocs/architecture/resolution.md) describes the production resolution algorithm and its protocols.
+- [Resolver families](impldocs/architecture/resolver-families.md) explains the maintained Resolver01–23 families and their relationship to production Resolution.
+- [Access checks](impldocs/architecture/access-checks.md) describes access-check semantics and integration.
+- [Examples](impldocs/architecture/examples.md) illustrates demand closure, output projection, expansion, and ordering constraints.
+
+Integration:
+
+- [Engine API](impldocs/integration/engine-api.md) describes the execution adapter, current supported surface, and known exclusions.
+- [Feature tests](impldocs/integration/feature-tests.md) describes how Runtime2 uses production-derived feature tests to establish compatible behavior and record intentional differences from the old engine.
+
+Testing:
+
+- [Testing guide](impldocs/testing/guide.md) gives the practical testing, replay, debugging, and investigation workflow.
+- [Testing strategy](impldocs/testing/strategy.md) explains how contract tests, correctness oracles, generated profiles, exact witnesses, and checker profiles provide independent evidence.
+- [Resolution testing](impldocs/testing/resolution.md) documents tests specific to production Resolution.
+- [Property tests](impldocs/testing/property-tests.md) describes generated worlds, campaigns, replay, and shrinking.
+- [Resolver DSL](impldocs/testing/resolver-dsl.md) defines the deterministic schema-embedded resolver-world DSL.
+- [Performance](impldocs/testing/performance.md) documents benchmark and profiling practice.
+
+Correctness and evidence:
+
+- [Claims](impldocs/correctness/claims.md) indexes scoped correctness propositions.
+- [Inclusion validation](impldocs/correctness/inclusion-validation.md) describes validation of conditional selection inclusion.
+- [`correctness/arguments`](impldocs/correctness/arguments) contains the supporting correctness arguments.
+- [Research provenance](impldocs/evidence/research-provenance.md) preserves durable findings and their source provenance.
+- [From-object-field census](impldocs/evidence/from-object-field-census.md) records the production-shape census used to choose representative provider-path fixtures.
+- [`evidence/profiles`](impldocs/evidence/profiles) contains retained profiling evidence.
+
+The nearest `AGENTS.md` provides an annotated index to the documents relevant to work in its directory.

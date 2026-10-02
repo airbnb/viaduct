@@ -1,118 +1,18 @@
-# Resolver Profiling
+# Performance History
 
-This document is the profiling companion to [`resolver-benchmarks.md`](resolver-benchmarks.md). That document defines the workloads, benchmark controls, and reporting requirements; this document describes the narrow JFR targets used to explain where those workloads spend their time.
+This document preserves dated Runtime2 benchmark and profiling investigations. It is evidence, not current operating guidance: commands, paths, names, source layouts, and conclusions below describe the recorded revision and must not be silently modernized. Use [Performance Testing](../../testing/performance.md) for maintained benchmark and profiling instructions.
 
-## Choosing A Target
+Compare measurements only when their recorded host, JVM, benchmark parameters, corpus, and semantic workload permit it. The linked round directories retain exported JFR summaries, hot methods, allocation sites, stacks, checksums, and supporting artifacts where available.
 
-Use the narrowest target that still contains the behavior under investigation:
-
-| Target | Use it to investigate | Deliberately excluded |
-| --- | --- | --- |
-| `resolutionOverheadProfile` | Resolution itself over the fixed current-profile corpus | Query-resource loading and parsing, request preparation, correctness oracles, and statistics reporting |
-| `correctResolutionProfile` | The `correctResolution` judgment over 50 prepared, diverse inputs | Resolution execution, query generation and parsing, witness preparation, fragment merging, and binding instantiation |
-| `propertyTestProfile` | One frozen end-to-end Resolution property case, including its correctness oracles | Resource decoding and `TestWorld` assembly |
-
-The full Resolution benchmark intentionally has no dedicated profiling task. It includes generation and validation and is useful as an end-to-end performance indicator, but it is usually too broad to explain a hotspot. Start with the property-test profile when the expensive phase is not yet known, then move to the Resolution-overhead or `correctResolution` profile when its phase events identify one of those components.
-
-## Resolution Overhead
-
-Run:
-
-```shell
-../../../gradlew -p ../.. :engine:runtime2:resolutionOverheadProfile --console=plain
-```
-
-The task prepares the fixed query corpus before each invocation, runs one unrecorded warmup iteration, and records one measured iteration. Recording begins after invocation setup and ends immediately after the measured Resolution body. The default recording is `build/reports/resolver-benchmarks/resolution-overhead.jfr`.
-
-The profile uses the same controls as the overhead benchmark:
-
-```shell
-../../../gradlew -p ../.. :engine:runtime2:resolutionOverheadProfile \
-  -PresolverBenchmarkLoopCount=3 \
-  --console=plain
-```
-
-Increasing `resolverBenchmarkLoopCount` repeats the already prepared corpus inside the recording and is the preferred way to obtain more samples without admitting setup noise.
-
-## Correct Resolution
-
-Run:
-
-```shell
-../../../gradlew -p ../.. :engine:runtime2:correctResolutionProfile --console=plain
-```
-
-Trial setup creates the prepared corpus and verifies every judgment. The task then runs one unrecorded warmup iteration and records one measured iteration containing only calls to `correctResolution`. The default recording is `build/reports/resolver-benchmarks/correct-resolution.jfr`.
-
-The profile uses the same controls as the benchmark:
-
-```shell
-../../../gradlew -p ../.. :engine:runtime2:correctResolutionProfile \
-  -PcorrectResolutionBenchmarkInputCount=50 \
-  -PcorrectResolutionBenchmarkQuerySeed=1 \
-  -PcorrectResolutionBenchmarkLoopCount=3 \
-  --console=plain
-```
-
-Resolver and object-materialization frames are legitimate in this recording because `conformsToResolvers` invokes activated field resolvers as part of the correctness judgment.
-
-## Property Test
-
-Run:
-
-```shell
-../../../gradlew -p ../.. :engine:runtime2:propertyTestProfile --console=plain
-```
-
-The task loads the frozen Resolution broad-campaign case, runs one unrecorded warmup case, and records one measured case. The recording includes request preparation, Resolution, witness snapshotting, application-identity reconstruction and comparison, `correctResolution`, and from-field binding validation. Resource decoding and `TestWorld` assembly occur during trial setup and are excluded. The default recording is `build/reports/resolver-benchmarks/property-test.jfr`.
-
-Repeat the frozen case inside the recording with:
-
-```shell
-../../../gradlew -p ../.. :engine:runtime2:propertyTestProfile \
-  -PpropertyTestBenchmarkLoopCount=3 \
-  --console=plain
-```
-
-This recording contains `qplan.PropertyTestPhase` duration events for each major phase. Use those events first to decide whether the next investigation belongs in Resolution, `correctResolution`, or one of the property-test oracles.
-
-## Inspecting Recordings
-
-The JDK `jfr` command provides useful first-pass reports:
-
-```shell
-jfr summary build/reports/resolver-benchmarks/property-test.jfr
-jfr view hot-methods build/reports/resolver-benchmarks/property-test.jfr
-jfr view allocation-by-site build/reports/resolver-benchmarks/property-test.jfr
-jfr view gc-pauses build/reports/resolver-benchmarks/property-test.jfr
-jfr print --events qplan.PropertyTestPhase build/reports/resolver-benchmarks/property-test.jfr
-```
-
-Replace the path with the Resolution-overhead or `correctResolution` recording as appropriate. Java Mission Control can be used when call-tree, allocation, or timeline exploration needs more context than the command-line views provide.
-
-Each profiling task deletes its configured output before recording. Set the corresponding output property to a unique path before a comparison run when the previous recording must be retained. Profile timings include JFR overhead and use only one measured iteration, so use the matching JMH benchmark rather than the profile duration to report an improvement.
-
-## Preserving A Profiling Round
-
-Run performance benchmarks and profiles from a clean committed runtime tree. Record the exact commit SHA and confirm that `git status --short` is empty before the first run. Documentation and generated profile reports may be added after measurement, but runtime, benchmark, and corpus changes must be committed first. If exceptional circumstances require profiling a dirty tree, preserve its complete patch and state explicitly that the recorded commit is not sufficient to reproduce the run.
-
-Create one checked-in directory under [`profiles`](profiles) for each profiling round and link it from the performance-log entry. Its README must record the commands, tested revision, host and JVM, benchmark parameters, corpus hashes, and raw benchmark iterations or point to the log entry containing them. Export each JFR with [`../export-resolver-profile.sh`](../../export-resolver-profile.sh) so the bundle retains phase events, hot methods, allocation sites, GC pauses, aggregated execution and allocation stacks, and the raw recording checksum. Raw JFR files are optional; retain them outside Git until the investigation closes in case additional views are needed.
-
-Workload changes caused by legitimate semantic corrections are valid performance changes. Preserve all emitted workload statistics and identify the responsible semantic commit when known so timing discontinuities can be interpreted without requiring an old recording.
-
-## Performance Log
-
-Update this log whenever a resolver performance investigation concludes. Add the newest entry immediately below these instructions so entries remain in reverse chronological order.
-
-Each entry must record the UTC date and time, host name and relevant hardware or instance configuration, Codex session ID, tested revision, profiling targets added or used, findings, changes made, and any controlled before/after result. At closeout, run the profiling-related benchmarks serially on an otherwise idle host with default parameters unless the entry explicitly records its overrides: Resolution overhead, `correctResolution`, and the frozen property test. The full generated-workflow benchmark is deliberately excluded because it exercises a different workload and is not a control for the profiling targets. Report every measured iteration, JMH score and error, units, work per operation, and mean time per resolution, property case, or correctness judgment. Include all emitted fixed-corpus statistics with their actual percentile labels. Do not compare results across different hosts, JVMs, benchmark parameters, or corpus revisions without calling out that difference.
+## Recorded Investigations
 
 ### 2026-09-27 07:57:14 UTC
 
 Host: `raymie-stata-codex`; one Intel Xeon Platinum 8375C socket, 32 physical cores / 64 logical CPUs, 495 GiB RAM, no swap, one NUMA node, and cgroup `cpu.max=max 100000` (no quota).
 
-Session: `01a0e18b-2eca-7b02-9ff1-60262b09597f`. Clean runtime revision: `a1057d3f1c8b76da638e1b50dbcc329fea3eefaf`. `git status --short` was empty before the serial benchmark controls and remained empty afterward. Profile evidence, exact commands, corpus checksums, raw JMH output, stress coverage, and historical reproduction patches are in [`profiles/2026-09-27-f5-field-checks`](profiles/2026-09-27-f5-field-checks).
+Session: `01a0e18b-2eca-7b02-9ff1-60262b09597f`. Clean runtime revision: `a1057d3f1c8b76da638e1b50dbcc329fea3eefaf`. `git status --short` was empty before the serial benchmark controls and remained empty afterward. Profile evidence, exact commands, corpus checksums, raw JMH output, stress coverage, and historical reproduction patches are in [`2026-09-27-f5-field-checks`](2026-09-27-f5-field-checks).
 
-F5 adds symbolic/runtime field checks to Resolution. Its generated stress investigation used a narrow JFR recording of the failing denial case, exposing construction/parent closure, argument rebuilding, forest merging, and cycle-graph work. The delivered implementation restores cycle-aware successor memoization, compacts duplicate producer demand by concrete key while preserving inclusion correlation, caches immutable occurrence hashes, shares correctness-replay caches per result identity within one judgment, and reuses already-canonical concrete keys. The original depth-two success reproducer passes. The original depth-two denial reproducer remains limited by symbolic dependency-tree amplification: the counting probe observed 129,788 resolver invocations and 52,321 associated Query OERs over 15,379 ms including timeout cancellation. Broad runtime checker generators now use fragment depth one; the [scalability catalog](profiles/2026-09-27-f5-field-checks/scalability-catalog.md) records this input reduction separately from repairs. Timeouts, product sizes, exactness oracles, and activated coverage requirements remain unchanged.
+F5 adds symbolic/runtime field checks to Resolution. Its generated stress investigation used a narrow JFR recording of the failing denial case, exposing construction/parent closure, argument rebuilding, forest merging, and cycle-graph work. The delivered implementation restores cycle-aware successor memoization, compacts duplicate producer demand by concrete key while preserving inclusion correlation, caches immutable occurrence hashes, shares correctness-replay caches per result identity within one judgment, and reuses already-canonical concrete keys. The original depth-two success reproducer passes. The original depth-two denial reproducer remains limited by symbolic dependency-tree amplification: the counting probe observed 129,788 resolver invocations and 52,321 associated Query OERs over 15,379 ms including timeout cancellation. Broad runtime checker generators now use fragment depth one; the [scalability catalog](2026-09-27-f5-field-checks/scalability-catalog.md) records this input reduction separately from repairs. Timeouts, product sizes, exactness oracles, and activated coverage requirements remain unchanged.
 
 All three closeout controls passed serially on the otherwise idle host using Corretto 21.0.4+7-LTS and JMH 1.36 with default benchmark parameters: one fork, one JMH thread, single-shot timing, `loopCount=1`; overhead and correctness use one warmup and three measurements, while the frozen property case uses two warmups and five measurements. Correctness uses `inputCount=50` and `querySeed=1`. The build used in-process Kotlin compilation, a 3 GiB Gradle heap, 1 GiB metaspace, and two Gradle workers; these are build-process settings, not benchmark JVM heap overrides. These fixed controls contain no field checkers and do not characterize the denial workload. No controlled before/after benchmark was captured, so no measured speedup is claimed or inferred from older log entries.
 
@@ -152,7 +52,7 @@ Session: `01a06931-8c5a-7253-812b-fcba74510836`
 
 Runtime revision: `44e941921f6372ddb6a415c826ce35af4d8abbbc`; final test-only revision: `6bb476427b4858a8f3d4a33db429e91f9ebfd64b`
 
-Profile evidence: [`profiles/2026-09-04-44e94192`](profiles/2026-09-04-44e94192)
+Profile evidence: [`2026-09-04-44e94192`](2026-09-04-44e94192)
 
 This investigation retained the requested disabling of `FieldValueResolver.evaluateRelation`'s recursive `requireArgumentlessObjectFields()` validation, then profiled Resolution overhead and `correctResolution` with three prepared-workload repetitions on Corretto 21.0.4 and JMH 1.36. All benchmarks ran serially with default parameters. The initial no-check controls at `2caa03b7a` scored 2.213 +/- 0.554 s/op for Resolution from iterations 2.199, 2.192, and 2.248, and 0.955 +/- 0.137 s/op for `correctResolution` from 0.960, 0.959, and 0.946. Against the checked `9ff5f96f7` controls of 2.573 and 1.119 s/op, commenting out the validation improved the two cases by 14.0% and 14.7%.
 
@@ -180,7 +80,7 @@ selections per object fragment: average=4.48, p90=18, max=39
 object fragment depth: average=1.63, p90=5, max=9
 ```
 
-The initial no-check profiles exposed three low-risk fixture-construction redundancies. `5d6754a61` skips the `distinct()` allocation when an `ObjectValueScope.field` call has fewer than two arguments; its immediate controls improved Resolution from 2.213 to 2.085 s/op (5.8%) and `correctResolution` from 0.955 to 0.934 s/op (2.2%). `please advance the qplan branch to the current HEAD, push the qplan branch to origin, then rebase the other worktrees to our current HEAD if they are clean2618bf2e3` adds a canonical-field overload and reuses the field that generated `ObjectPlan` materialization had already lowered instead of repeating source-coordinate recovery; its controls improved Resolution from 2.085 to 2.012 s/op (3.5%) and correctness from 0.934 to 0.884 s/op (5.4%). `44e941921` transfers the private factory-owned EOD value map into its private immutable implementation instead of immediately copying it; its controls improved Resolution from 2.012 to 1.890 s/op (6.1%) and correctness from 0.884 to 0.850 s/op (3.8%). Together, these three changes improve the no-check controls by 14.6% and 11.0%.
+The initial no-check profiles exposed three low-risk fixture-construction redundancies. `5d6754a61` skips the `distinct()` allocation when an `ObjectValueScope.field` call has fewer than two arguments; its immediate controls improved Resolution from 2.213 to 2.085 s/op (5.8%) and `correctResolution` from 0.955 to 0.934 s/op (2.2%). `2618bf2e3` adds a canonical-field overload and reuses the field that generated `ObjectPlan` materialization had already lowered instead of repeating source-coordinate recovery; its controls improved Resolution from 2.085 to 2.012 s/op (3.5%) and correctness from 0.934 to 0.884 s/op (5.4%). `44e941921` transfers the private factory-owned EOD value map into its private immutable implementation instead of immediately copying it; its controls improved Resolution from 2.012 to 1.890 s/op (6.1%) and correctness from 0.884 to 0.850 s/op (3.8%). Together, these three changes improve the no-check controls by 14.6% and 11.0%.
 
 The final profiles are again dominated by schema-directed fixture-output work. Resolution CPU samples are led by `conformsToOutputSchemaType` at 19.26%, `GJSchema.lowerOrdinaryOutput` at 11.68%, and source-coordinate lowering at 7.38%; correctness reports 17.60%, 12.40%, and 7.20% respectively. Those operations enforce real type and source/lowered-schema boundaries, so no further validation traversal was removed. Final recorded GC pause totals were 63.3 ms for Resolution and 32.3 ms for correctness and do not dominate either workload.
 
@@ -252,7 +152,7 @@ Session: `01a02a6b-c8a2-75c3-a427-76c799e8d325`
 
 Tested revision: `5193dec7ba656b6c748d8a39bd28a431b31d60e2`
 
-Profile evidence: [`profiles/2026-08-22-5193dec7`](profiles/2026-08-22-5193dec7)
+Profile evidence: [`2026-08-22-5193dec7`](2026-08-22-5193dec7)
 
 The runtime tree was clean and committed before the final test, benchmark, and profile sequence. The final default benchmarks ran serially on an otherwise idle host with Corretto 21.0.4 and JMH 1.36. The evidence README records exact commands and corpus hashes. The final JFR profiles repeated each prepared workload three times and retain phase events, hot methods, allocation sites, GC pauses, aggregated execution and allocation stacks, and raw-recording checksums; the raw recordings remain outside Git and can be regenerated from the tested SHA.
 
@@ -302,7 +202,7 @@ Session: `01a02a6b-c8a2-75c3-a427-76c799e8d325`
 
 Tested revision: `91303870b87fe08cbb030ac4f28f4f7b0edbbe24`
 
-Profile evidence: [`profiles/2026-08-22-91303870`](profiles/2026-08-22-91303870)
+Profile evidence: [`2026-08-22-91303870`](2026-08-22-91303870)
 
 This investigation used the existing frozen property-test and Resolution-overhead JMH benchmarks and the `propertyTestProfile`, `resolutionOverheadProfile`, and diagnostic `correctResolutionProfile` JFR targets. Profiles repeated their prepared workload three times with `propertyTestBenchmarkLoopCount=3`, `resolverBenchmarkLoopCount=3`, or `correctResolutionBenchmarkLoopCount=3`. The requested JMH benchmarks ran serially on an otherwise idle host with their default parameters on Corretto 21.0.4 and JMH 1.36. The property benchmark was repeated because its first result had wider iteration variance. The full four-benchmark closeout suite was not run because this investigation was scoped to the requested frozen property and Resolution benchmarks; `correctResolution` was added only as a diagnostic target.
 
@@ -353,7 +253,7 @@ Session: `01a0221d-5b61-76d2-9afc-13a06668c652`
 
 Base revision: `568dbc95d6b93342ed94b770814c95624d5fd291`; the profiling documentation and query-corpus changes described here were in the worktree.
 
-Profile evidence: [`profiles/2026-08-21-568dbc95`](profiles/2026-08-21-568dbc95)
+Profile evidence: [`2026-08-21-568dbc95`](2026-08-21-568dbc95)
 
 This session added the three narrow JFR targets documented above and the isolated `correctResolution` and frozen property-test JMH benchmarks. The frozen property workload serializes Resolution broad-campaign round 46's `symbolic-identity` case at historical coordinate `S=10 R=4 Q=3`, so its 12,763 expected resolver applications remain stable as generators evolve. The property profile's phase events made Resolution, application-identity reconstruction, `correctResolution`, and from-field binding validation independently visible.
 

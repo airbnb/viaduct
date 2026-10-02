@@ -1,8 +1,10 @@
 # 2026-08-22 Regression Investigation
 
+> **Historical snapshot.** Commands, paths, source names, and measurements below describe this recorded round and are not current operating guidance.
+
 Runtime revision: `91303870b87fe08cbb030ac4f28f4f7b0edbbe24`
 
-The runtime tree was clean at this revision while the benchmarks and profiles ran. The performance-log documentation was added afterward. Host, JVM, benchmark iterations, workload statistics, interpretation, and controlled historical runs are recorded in the [corresponding performance-log entry](../../resolver-profiling.md#2026-08-22-171204-utc).
+The runtime tree was clean at this revision while the benchmarks and profiles ran. The performance-log documentation was added afterward. Host, JVM, benchmark iterations, workload statistics, interpretation, and controlled historical runs are recorded in the [corresponding performance-history entry](../performance-history.md#2026-08-22-171204-utc).
 
 Profiles used three prepared-workload repetitions. Equivalent commands using the default output paths:
 

@@ -1,6 +1,8 @@
 # F5 Scalability Catalog
 
-This catalog distinguishes unresolved workload limits handled by reducing generated inputs from implementation costs repaired without shrinking the reproducer. All runs used the qplan Gradle project in `/home/raymie_stata/repos/1rv/qplan`; the request timeout remained 15 seconds. Counts below describe observed work before cancellation, not a completed graph or a supported-size limit.
+> **Historical snapshot.** Reproduction instructions and task paths below apply to the preserved qplan source snapshot, not the current Runtime2 build.
+
+This catalog distinguishes unresolved workload limits handled by reducing generated inputs from implementation costs repaired without shrinking the reproducer. All runs used the qplan Gradle project; the request timeout remained 15 seconds. Counts below describe observed work before cancellation, not a completed graph or a supported-size limit.
 
 ## Input reductions
 

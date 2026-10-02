@@ -1,180 +1,115 @@
-# Qplan Execution
+# Engine API Integration
 
-The execution package in runtime2's `main` source set is its GraphQL-Java execution harness. It converts a validated query into model selections, starts Resolution, and gives its live promise-backed `ObjectEngineResult` tree back to GraphQL Java for ordinary or incremental response completion. Production execution provides executor adaptation independently of the feature-test harness, which runs Engine API mock executors through that same implementation.
+## Role And Boundary
 
-## Architecture
+Runtime2's main-source execution layer adapts validated GraphQL Java query execution and Engine API field and node executors to production Resolution. It decodes source operations into the canonical model, constructs the request-local operation state, starts Resolution, and exposes the live promise-backed result graph to GraphQL Java for ordinary and incremental completion.
 
-The feature-test bootstrap has the following shape:
+The `QPlanExecutionStrategy`, `QPlanWiringFactory`, `QPlanInstrumentation`, and `runQPlanFeatureTest` names are current code identifiers inherited from the earlier project; they do not mean that Runtime2 is a separate build or that production Resolution is prospective.
 
-```text
-EngineTestModule
-  -> source GraphQLSchema rendered as SDL
-  -> TestWorld.fromSDL
-       -> source GraphQL-Java schema plus canonical lowered ViaductSchema
-       -> executorRegistryInputs (execution main), with fixture-only executor defaults
-       -> executor-backed field and node resolver definitions
-       -> shared node and typename lowering
-       -> ResolverRegistry
-       -> Assumptions
-  -> ExecutionTestFixture
-       -> QPlanWiringFactory
-       -> QPlanExecutionStrategy
-```
+This layer is an alpha integration boundary, not yet an implementation of all three `viaduct.engine.api.Engine` methods or a backend selected by `StandardViaduct`. Its main-source executor adapter invokes the executor SPI directly, retains a supplied `EngineExecutionContext`, and rejects batching and checker executors. Service integration must replace that request-bound direct invocation with production dispatcher metadata and request-owned dispatcher support rather than expose a second executor-map bootstrap path.
 
-Per-request execution has the following shape:
+## Schema And Bootstrap Boundaries
+
+Runtime2 retains two related schemas:
+
+- The unchanged source `GraphQLSchema` owns public parsing, validation, field collection, input coercion, and response completion.
+- The canonical lowered `ViaductSchema` owns Resolution fields, selections, registry entries, conformance, and subtype reasoning.
+
+`ViaductAndGJSchema` pairs those schemas, and `SourceSchemaAdapter` performs explicit source-to-lowered translation. A request may use a scoped executable source schema while Resolution and resolver-required selections use the full source/lowered pair. Private fields required by resolvers therefore remain available to Resolution without becoming public operation fields.
+
+`executorRegistryInputs` accepts an `EngineSchema`, its matching schema pair, explicit field and node executor registrations, an `EngineExecutionContext`, a field-selectivity provider, and the built-in-node option. It returns canonical field definitions, node functions, and variable declarations for `resolverRegistryOf`. Duplicate registrations, unsupported batching, malformed fragments, and invalid variable declarations fail before semantic reasoning. Namespace and optional Query-node built-ins fill only unsupplied coordinates; ordinary missing resolvers are not synthesized by the main-source adapter.
+
+The returned resolver functions retain the supplied execution context. Neither those functions nor a registry built from them is service-wide metadata safe for unrelated request contexts. The final production bootstrap boundary must retain reusable declarations and dispatcher metadata independently from request-local invocation state.
+
+## Request Execution
+
+The GraphQL execution path is:
 
 ```text
 GraphQL Java parsing, validation, and input coercion
-  -> QPlanExecutionStrategy
-  -> operation decoding into SelectionForest
-  -> SharedOperationContext backed by Assumptions
-  -> Resolution.startResolve with a request-owned coroutine scope
-  -> live ObjectEngineResult tree with a frozen key shape and possibly pending values
-  -> QPlanWiringFactory immediate values or request-owned CompletionStage bridges
-  -> GraphQL Java output completion and @defer payload splitting
-  -> QPlanInstrumentation incremental publisher lifetime cleanup
-  -> ExecutionResult or IncrementalExecutionResult
+  → QPlanExecutionStrategy
+  → source operation decoding into canonical selections
+  → SharedOperationContext backed by immutable Assumptions
+  → Resolution.startResolve in a request-owned coroutine scope
+  → live ObjectEngineResult graph with frozen cell shape and possibly pending values
+  → QPlanWiringFactory immediate values or CompletionStage bridges
+  → GraphQL Java completion and @defer payload delivery
+  → QPlanInstrumentation request-lifetime cleanup
+  → ExecutionResult or IncrementalExecutionResult
 ```
 
-`QPlanExecutionStrategy` constructs a request's `SharedOperationContext` from the immutable `Assumptions` reasoning world and the request's resolver observer, then invokes Resolution once for the complete query demand, including selections inside deferred fragments. The operation context owns request-local state references; `Assumptions` contains canonical configuration such as the schema and resolver registry. `QPlanWiringFactory` does not resolve tenant fields. Checked completion reads the field result from the containing cell, recursively follows raw list values, reads one type result from each reached OER occurrence, and combines the applicable results at enforcement. A completed checked value is projected immediately; unfinished value or checker promises are exposed through a request-owned completion-stage bridge. Each completion bridge is coupled to its coroutine job's terminal state and prefers a slot promise's recorded terminal failure over the parent-job cancellation that failure initiates, so cancellation before coroutine entry cannot strand a future and deferred errors retain their originating cause. List elements are awaited concurrently, and a terminal non-cancellation element failure takes precedence over sibling cancellations regardless of list order. `QPlanInstrumentation` must be installed with the strategy because graphql-java adds its incremental publisher after the query strategy returns; the instrumentation keeps the Resolution request alive until that publisher completes, fails, or is cancelled.
+`QPlanExecutionStrategy` creates one request job from a caller-owned Resolution coroutine context. The strategy borrows that context across requests and never closes it. `ExecutionTestFixture` owns and closes its default dispatcher or borrows an explicitly supplied context; fixture construction also closes a newly created dispatcher if setup fails.
 
-`QPlanExecutionStrategy` requires a caller-supplied Resolution coroutine context, retains it across requests, and never closes it. An embedding service should create and own that dispatcher for the service lifetime. `ExecutionTestFixture` creates and owns one configured dispatcher by default, reuses it across all queries issued through that fixture, and closes it when the fixture closes. A fixture constructed with an explicit context borrows it and does not close it. Fixture construction also closes a newly created owned dispatcher if schema or GraphQL setup fails. Execution test classes use `ExecutionTestFixtureResource`, which extends the semantics test resource and constructs borrowed fixtures against its one class-owned dispatcher; this avoids per-test fixture cleanup lists.
+The strategy places a `QPlanRequestLifetime` in the GraphQL context and starts Resolution once for the complete query demand, including deferred selections. The operation context owns request-local bindings, cycle state, binding declarations, observer, and dispatcher references; immutable schema and registry configuration remains in `Assumptions`.
 
-Feature tests may provide a scoped executable schema distinct from the full schema used to build the reasoning world and executor registry. GraphQL Java validates and completes the public operation against the scoped schema, while Resolution retains private fields from the full schema for resolver-required selections.
+`QPlanWiringFactory` performs GraphQL completion rather than tenant resolution. Checked completion reads the containing field-checker result, follows raw list and object values, reads each reached OER's type-checker result, and combines applicable results at the consumer boundary. Completed values project immediately; pending value or checker promises use request-owned completion-stage bridges. List elements wait concurrently, and a terminal non-cancellation failure takes precedence over sibling cancellations.
+
+`QPlanInstrumentation` is required because GraphQL Java creates the incremental publisher after the query strategy returns. The instrumentation keeps the Resolution request alive until the publisher completes, fails, or is cancelled. Cancelling the strategy's result future cancels GraphQL completion and the Resolution request job. Cancellation of the downstream public future returned by `GraphQL.executeAsync` is not yet guaranteed to propagate back through GraphQL Java to that strategy future; this remains an explicit alpha lifetime gap.
 
 ## Executor Adaptation
 
-`executorRegistryInputs` accepts an `EngineSchema`, its matching `ViaductAndGJSchema`, explicit field and node executor registrations, an `EngineExecutionContext`, a selectivity provider, and a built-in-node-resolver option. It returns field definitions, node functions, and variable declarations for model main's `resolverRegistryOf`. Duplicate registrations and unsupported batching are rejected before compilation. Namespace and optional Query node built-ins fill only unsupplied coordinates; ordinary missing resolvers are not synthesized.
+The adapter converts each field executor into a canonical `FieldResolverDefinition`, maps source coordinates through `SourceSchemaAdapter`, decodes object and Query required selections, compiles declared resolver variables, and invokes the executor through a one-selector `FieldResolverExecutor.batchResolve` call. Selective executors receive Resolution's closed successor demand converted to an `EngineSelectionSet`; simple outputs receive no selection set. `EngineConfiguration.fieldSelectivityProvider` supplies selectivity when executor metadata does not.
 
-The returned functions retain the supplied execution context, including function-variable callbacks. These inputs and any registry built from them are context-bound, not a service-wide registry safe for unrelated requests. Separating reusable executor metadata from request-local context binding remains production integration work. The adapter does not create mocks, dispatchers, or another scheduler.
+Runtime2's semantic output domain is stricter than the mock feature-test surface. The adapter normalizes source-shaped EODs, concrete-object maps, built-in scalar values, nested `EngineErrorData`, node references, and root-field references before they enter Resolution. A raw map cannot represent an interface or union output because it lacks an unambiguous concrete runtime type. Ingress normalization must not weaken Runtime2 carrier invariants or hide a value produced incorrectly inside Resolution.
 
-Required-selection decoding uses model main's fragment-document parser. Invocation-local Query execution and demand conversion also live in execution main; demand conversion calls the production `EngineSelectionSetImpl` directly. Output adaptation retains source/reference normalization while canonical lowering stays in model main.
-
-The feature-test wrapper alone supplies missing Query/node resolver defaults, nullable-node-field completion, and synthetic inline Node IDs. Its executor wrappers prepare those test values before invoking the shared adapter. Execution tests still use model and semantics fixtures for their broader harness; removing those dependencies is a separate step.
-
-## Executor-Backed Feature Tests
-
-`EngineTestModule.runQPlanFeatureTest` is defined in runtime2's `src/test/fixtures/viaduct/engine/runtime2/execution/testing/QPlanFeatureTest.kt`. It consumes the pre-dispatcher field and node executor maps exposed by `EngineTestModule`.
-
-The adapter translates field executors into qplan `FieldResolverDefinition` values. It maps source field coordinates through `SourceSchemaAdapter`, decodes object and Query required selections into the canonical schema, compiles explicit executor variable declarations across both fragments, passes resolved arguments plus synchronous object and occurrence-specific Query data through a one-element `FieldResolverExecutor.Selector`, and normalizes source-shaped executor outputs before they enter qplan. Selective field executors are assembled with `selectiveFieldResolverOf`; their Resolution successor demand is converted to an `EngineSelectionSet` for composite outputs, while scalar outputs receive no selection set. The conversion restores qplan's lowered typename field to source `__typename` before crossing the Engine API boundary.
-
-The adapter also honors `EngineConfiguration.fieldSelectivityProvider` when executor metadata itself does not declare a field selective. Other engine configuration remains production-runtime input and is ignored unless a supported adapter behavior explicitly consumes it.
-
-Resolution passes its concrete `FieldResolverTask` to each suspending registry function as its `ResolutionExecutionContext`. The adapter constructs an invocation-local `EngineExecutionContext` from that explicit capability; `EngineExecutionContext.resolveSelectionSet` converts a Query selection set into canonical qplan selections and delegates directly to the task. The task creates a fresh Query-rooted OER, derives a dispatcher from its own field-resolver-task scope, and materializes the requested response-key shape as structured child work. The nested execution retains the parent operation's world, variable bindings, cycle checker, binding-declaration state, and observer; it does not create another top-level request.
-
-The mock field-executor surface returns `Any?`, permits a raw map or source-shaped EOD as the source for a concrete GraphQL object field, and relies on GraphQL completion to serialize built-in scalar results. Qplan's `EngineOutputData` contract is stricter: object output must be a conforming `EngineObjectData.Sync`, and scalar output must already inhabit its canonical runtime domain. The adapter therefore uses the declared concrete object type to recursively materialize those object sources and applies the source scalar's GraphQL-Java serialization before values cross into qplan. Nested `EngineErrorData` values are preserved during this normalization so Resolution can attribute dependency failures at their consumers. The adapter does not accept raw maps for interface or union outputs because those values do not provide the concrete runtime type needed for an unambiguous conversion.
-
-Production `RootFieldReference` values are normalized recursively into qplan-owned `RootFieldReferenceData`, including direct executor results and references nested in EOD fields or lists. `ResolverOutputData` is the resolver-facing union of ordinary `EngineOutputData` and this symbolic reference carrier; references are not members of the engine-data domain supplied as resolver input. The adapter does not call production root-reference resolution. It supplies dependency-free empty objects for unsupplied namespace fields so ordinary Query fragments may traverse namespace paths. Resolution gives every reference occurrence and direct-result tail hop its own fresh empty Query-rooted identity OER; those roots contain no namespace execution, are distinct from resolver Query-fragment roots, and are not shared across equivalent descriptors. A referenced target with object RSS is rejected; tenant code must express the corresponding dependency as Query RSS with its namespace path prefixed.
-
-In keeping with qplan's root-field-reference architecture, Node-valued fields retain their source coordinates and their `NodeReference` outputs normalize to root-field references targeting the built-in `Query.node`. The reference's internal ID encoding preserves both the concrete object type and the original authoritative resolver ID. `Query.node` recognizes that encoding and dispatches directly to the corresponding node executor; ordinary client calls to `Query.node` continue through its normal field resolver. `Query.nodes` returns a list of `Query.node` references, so Resolution resolves each non-null element as an independent occurrence. Selective node executors receive Resolution's one-shot node-owned demand. Before entering qplan, selective node output is projected to demanded top-level fields and fields owned by registered field resolvers are removed. The fixture wrapper represents omitted demanded nullable fields explicitly as null; production adaptation preserves their absence. This preserves production's ownership and nullable-coverage boundary without weakening qplan's surplus- or missing-output rejection. A raw node-executor payload may omit the repeated `id`; the originating reference ID remains authoritative and is restored only when `id` is demanded. If converted demand contains only that engine-managed `id`, the adapter returns an empty source payload without invoking the selective node executor; `__typename` is likewise completed by qplan's generated resolver. The adapter supplies local equivalents of built-in `Query.node` and `Query.nodes` when the module does not provide those executors.
+The main-source adapter does not construct production dispatchers, data loaders, or another dependency scheduler. Resolution remains the sole owner of semantic occurrence scheduling. Physical batching, completed-result caching, and instrumentation may be layered at the dispatcher boundary only when they preserve Runtime2 occurrence identity, owner-local projection, and checker state.
 
 ### Required-Selection Variables
 
-`ExecutorVariableDeclarations` consumes `FieldResolverExecutor.argumentVariables`, `objectFieldVariables`, `queryFieldVariables`, and `variablesFromFunctionProvider`. It associates names with the typed variable templates decoded across both required-selection fragments and uses the existing schema path compilers to produce `VariableDefinition.FromArgument` and `VariableDefinition.FromField` through main-source registry construction. Field sources retain their declared `ProviderFragment.OBJECT` or `ProviderFragment.QUERY`, even when both fragments contain identical paths. Required-selection fragments remain intact, including aliases, arguments, guards, and dependencies within variable-source paths.
+`ExecutorVariableDeclarations` consumes argument, object-field, Query-field, and function-provider declarations from a field executor. It compiles `FromArgument`, `FromObjectField`, `FromQueryField`, and `FromProvider` definitions through the same main-source fragment and path construction used by Runtime2 registries. Object and Query provider identity remains explicit even when both fragments contain identical paths.
 
-The optional function provider is attached through `withVariablesProvider`, which supplies `VariableDefinition.FromProvider` for its declared names. The shared callback calls `provideVariables` directly and validates exact output names. Qplan retains ownership of invoking it once per field occurrence across both fragments. Modern Kotlin bootstrap already provides argument conversion, tenant invocation, and normalization through this direct entry point; its legacy `resolve` delegates to the same implementation.
+Every variable used by either fragment requires exactly one declaration. Missing, unused, overlapping, or duplicate declarations fail registry construction. A function variables provider runs once per active resolver occurrence, must return exactly its declared names, and may supply variables consumed by either fragment. Function providers with their own additional required selections remain outside the supported declarative SPI.
 
-Explicit declarations are required for every variable used by either fragment. The adapter rejects missing, unused, or duplicate declarations and never inspects nested `VariablesResolver` objects. Mock executors publish the same declaration properties as modern Kotlin executors; the mock DSL collects callback declarations when selection blocks are configured. Executors from other APIs must supply the complete declaration contract before they can run through qplan.
+Lossy abstract-type traversal in a provider path is rejected through the production-facing `InvalidVariableException`. Runtime inclusion conditions remain attached to compiled path elements so an excluded path binds null without reading its OER cell.
 
-Canonical path compilation preserves the production-facing `InvalidVariableException` when a source path traverses a lossy type condition. Function providers with their own required selections remain unsupported by the declarative SPI.
+### Nested Query Execution
 
-A nested `ctx.query` call is distinct from a resolver's declared Query fragment. A nested call executes a selection requested by resolver code through the owning field-resolver task, then uses `viaduct.engine.runtime2.resolution.framework.materializeResult` to return response-keyed values from installed result cells, awaiting unfinished values or bindings as needed. This result projection supplies the child operation's checker so the caller's reads participate in runtime cycle rejection; runtime resolver inputs within the nested query use the same checker. A declared Query fragment supplies resolver input through Resolution's distinct runtime `materializeResolverInput`, which can reserve symbolic cells and value promises before producers install them. Correctness replay uses shared `materializeResult` with its default no-op checker for object and Query-fragment inputs reconstructed from existing results, including Resolution results that retain symbolic keys.
+Resolution passes the concrete `FieldResolverTask` to each registry function as its `ResolutionExecutionContext`. The adapter wraps that explicit capability in an invocation-local `QPlanEngineExecutionContext`; it does not discover the current task through coroutine context.
 
-## Feature Test Guidelines
+`EngineExecutionContext.resolveSelectionSet` and `ctx.query()` convert the requested Query selection into canonical selections and delegate to the owning field-resolver task. The task creates a fresh Query-rooted OER under a child dispatcher scope while sharing the logical operation's immutable world, variable bindings, cycle checker, binding declarations, and observer. Nested work is therefore a structured child of the invoking field task rather than another top-level request.
 
-A failing production feature-test port is evidence of a disagreement, but not by itself evidence of an engine bug. Before changing code, identify the value or behavior under dispute, who produces it, who consumes it, and which boundary owns the governing contract.
+A nested query is distinct from a declared Query required selection. Nested execution owns an independent Query root and returns response-keyed projected values. A declared Query fragment contributes to the containing orchestration's singular associated Query OER and supplies an owner-local resolver-input projection from that shared scope.
 
-Classify the disagreement before choosing a repair:
+### Root References And Nodes
 
-1. A normative engine contract should be enforced by the model and semantics -- **DO NOT FIX THESE**.
-2. A feature-test convenience that falls outside that contract should be normalized by the test adapter before it enters qplan.
-3. A documented qplan restriction should remain an unchanged, disabled production test until that restriction is deliberately lifted.
-4. An implementation that violates its claimed contract should be fixed at the narrowest owning boundary.
+Source `RootFieldReference` values normalize recursively into `RootFieldReferenceData`, including references inside objects and lists. The adapter does not ask the old engine to resolve them. Resolution gives every reference occurrence and direct-result tail hop a fresh empty Query-rooted invocation identity while retaining publication at the original consumer occurrence. Equivalent descriptors are not semantically deduplicated.
 
-When you find resolver (engine contract) errors, do not fix them.  Instead report them to the User.
+Reference targets must have empty object required selections and no `FromObjectField` variables. Namespace-relative dependencies are expressed as Query required selections with the Query-to-namespace path prefixed. Target Query fragments and `FromQueryField` variables retain their ordinary independently rooted lifecycle.
 
-Compatibility belongs at ingress. Do not make qplan's engine accept a representation excluded by its contract merely because a production fixture or mock executor can produce it. Conversely, an ingress adapter must not conceal a contract violation produced inside qplan.
+Node-valued fields retain their source coordinates. A source `NodeReference` becomes a reference to the built-in `Query.node`; its internal identity preserves the concrete type and authoritative original ID. `Query.node` dispatches to the corresponding node executor, while `Query.nodes` returns a list of independent `Query.node` references. Selective node executors receive one-shot node-owned demand. Their output is normalized to demanded top-level fields with registered field-resolver fields removed; an omitted demanded nullable field is represented as null by the feature-test wrapper. The authoritative ID is restored when demanded even if the executor payload omits or contradicts it.
 
-Keep production test fixtures, behavior, and assertions intact so failures continue to describe the real disagreement. Generated tests are useful for finding invariant failures and interactions; once understood, add focused deterministic regressions that state the contract directly. Validate semantic changes across nested object and list occurrences rather than only against the first failing example.
+## Supported Alpha Surface
 
-## Current Support
+The execution layer supports:
 
-The feature-test adapter currently supports:
+- query operations with selective and non-selective field and node executors;
+- object- and Query-rooted required selections, aliases, arguments, fragments, transitive demand, and occurrence-local variables;
+- `FromArgument`, supported singular `FromObjectField` and `FromQueryField` paths, and no-RSS function providers;
+- synchronous scalar, enum, list, object, error, node-reference, and root-field-reference outputs;
+- namespace traversal, built-in `Query.node` and `Query.nodes`, and canonical `__typename` lowering;
+- scoped public schemas with full-schema resolver inputs;
+- nested `ctx.query()` execution;
+- GraphQL Java 26 `@defer`, conditional defer, nested deferred values, deferred errors, and incremental publisher lifetime ownership;
+- generic field-directive context for checker applicability, without built-in policy-specific directive meaning.
 
-- Selective and non-selective field and node resolvers.
-- Field selectivity supplied through `EngineConfiguration.fieldSelectivityProvider`.
-- Resolver-demand conversion to `EngineSelectionSet`, including concrete applicability, nested demand, resolved arguments, and lowered `__typename` restoration.
-- Field arguments, including values supplied by GraphQL operation variables.
-- Object required selections, including aliases, arguments, transitive requirements, repeated argumented fields, shared requirements, and multiple requirements.
-- Query required selections, including aliases, arguments, fragments, transitive requirements, nested object access, null values, and combinations with object required selections.
-- From-argument variables in object or Query required selections, including nested input-object paths, nullable traversal, and variable names that differ from their source argument names.
-- From-object-field and from-Query-field paths through singular objects to scalar, enum, or scalar-list terminals, including aliases, nullable traversal, multiple variables, non-root resolver owners, cross-fragment consumption, and argument-bearing provider keys grounded from literals, defaults, owner arguments, or other acyclic from-field bindings.
-- Synchronous scalar, enum, list, object, and `NodeReference` outputs, including raw map sources for concrete object fields.
-- Direct and recursively nested `RootFieldReference` outputs, including namespace paths, arguments, lists, and referenced resolvers with Query required selections.
-- Partially populated Query executor maps, with missing nullable fields resolving to null and missing non-null fields resolving to an error.
-- Node-valued fields and built-in `Query.node` and `Query.nodes`.
-- `__typename` through canonical qplan lowering and GraphQL-Java completion.
-- GraphQL Java 26 `@defer` delivery for qplan-backed fields, including conditional defer, nested objects, deferred errors, and downstream cancellation. `@stream` remains outside this scope; lists are conservatively bridged as whole values.
-- Distinct scoped executable schemas whose resolver-required selections read private fields from the full schema.
-- Query selection execution through `ctx.query()`/`EngineExecutionContext.resolveSelectionSet`, including nested calls, aliases, arguments, variables, and field- or node-executor callers.
+The execution layer rejects or does not provide:
 
-The adapter rejects or does not yet model:
+- batching executors, cross-occurrence coalescing, and old-engine data-loader cache policy;
+- field- and type-checker executor adaptation, even though Resolution itself implements checker semantics;
+- inline object materialization for Node-valued fields;
+- object required selections or `FromObjectField` variables on reference targets;
+- function variables providers with their own required selections;
+- mutations, `ctx.mutation()`, subscriptions, custom scalars, `@stream`, EOD aliases, and asynchronous EOD variants;
+- the complete `Engine` implementation, generated tenant-module dispatcher bootstrap, `StandardViaduct` selection, and guaranteed cancellation propagation from GraphQL Java's downstream public future.
 
-- Missing or duplicate explicit variable declarations. Callbacks with their own required selections are outside the target executor SPI.
-- Batching field and node executors, including cross-occurrence coalescing and production batch scheduling.
-- Inline object values from a Node-valued field; qplan currently requires every Node value to be resolved by its node resolver.
-- Object required selections and `FromObjectField` variables on resolvers invoked as root-field-reference targets; use Query required selections with the namespace path prefixed.
-- Checker and type-checker executors, including their object- and Query-rooted required selections.
-- Mutations, including `ctx.mutation()`, subscriptions, and custom scalars, which remain outside the current qplan scope.
+Unsupported input fails explicitly during registry construction, operation decoding, or execution. Runtime2 does not retry an operation on the old engine after Resolution begins.
 
-The shared adapter preserves the suspend executor SPI through the qplan resolver function. Resolver21-23 and Resolution invoke the adapted executor without introducing a blocking boundary.
+## Feature-Test Boundary
 
-## Testing
+`EngineTestModule.runQPlanFeatureTest` is a test-only pre-dispatcher adapter in `src/test/fixtures`. It consumes the mock module's field and node executor maps, constructs the full Runtime2 reasoning world, and runs an optionally scoped GraphQL schema through the same main-source execution classes. The wrapper alone supplies fixture conveniences such as missing Query defaults, nullable-node completion, and synthetic inline Node IDs.
 
-Tests under `src/test/kotlin/execution` exercise the GraphQL boundary, resolver semantics, completion, and the executor adapter. `EngineTestModuleQPlanFeatureTest` covers adapter-specific behavior and rejection boundaries. `ExecutorVariableDeclarationsTest` covers direct declaration compilation, source identity, path dependencies and guards, shared callback execution, and rejection of missing explicit declarations. Ports of production Viaduct runtime feature tests live separately under `src/test/kotlin/execution/viaductfeaturetests` in the `execution.viaductfeaturetests` package.
-
-### Source-Faithful Feature-Test Migration
-
-The migration unit is an entire production feature-test file. Once a source file is brought into qplan, copy every test in source order together with its fixture structure, local helpers, behavior, and assertions; do not select only the tests expected to pass. Preserve the source filename and test names. The only permitted changes inside the migrated source are the package/import plumbing required by qplan, replacement of each production `runFeatureTest` call with `runQPlanFeatureTest`, source-path/count metadata, and coded `@Disabled` annotations. In particular, do not substitute `EngineTestModule` for `MockTenantModuleBootstrapper`, add null assertions such as `!!`, alter a resolver or assertion, replace an unsupported call with `error(...)`, or delete a source helper to make the port compile.
-
-If an untouched source-faithful test does not compile or cannot execute through qplan, fix the migration fixture or runner boundary, or leave the migration blocked; do not rewrite the test body to fit qplan. No copied test in this package, enabled or disabled, may execute through the production feature-test harness. A file with omitted source tests is an unfinished migration, not a partial port that may be treated as complete.
-
-Production helpers are copied only when the migrated tests actually use them. Tests that require production `KeyTree` or `KeyTreeBuilder` utilities are outside this migration surface and remain file- or test-level N/A until that infrastructure is deliberately brought into scope.
-
-A copied production test that does not pass under qplan must remain in the port with its fixture, behavior, and assertions unchanged and be marked `@Disabled` with a short investigation reason. This applies whether the blocker is an implementation bug, an adapter gap, or a documented qplan restriction. Never omit or rewrite an unsupported production behavior into a different passing test.
-
-When the reason is a deliberate incompatibility with qplan's assumptions, add an enabled test immediately after the disabled production test whose name is exactly `ALTERNATIVE ` followed by the production test name. The alternative preserves the same scenario and makes the smallest possible adjustment needed to state the corresponding qplan behavior. It is qplan-specific coverage rather than a copied production test, so it does not contribute to the copied/source count in the file header.
-
-Immediately after the package declaration, every migrated file records its source path from the repository root and its copied/source test count as of the review date:
-
-```kotlin
-package execution.viaductfeaturetests
-
-// core/engine/runtime/src/test/kotlin/viaduct/engine/runtime/execution/RequiredSelectionsTest.kt
-// Copied 60 out of 60 tests as of 2026-08-20
-```
-
-Update both metadata lines whenever source location or test counts change. Count source-level test declarations consistently, including disabled tests, and use an ISO date. A completed migration always records equal copied and source counts; unequal counts expose unfinished legacy migration work and must not be normalized as the steady state. The current inventory and next whole-file migrations are tracked in [`viaduct-feature-test-inventory.md`](viaduct-feature-test-inventory.md).
-
-Run the adapter, declaration tests, and every ported production feature-test file with:
-
-```shell
-../../../gradlew -p ../.. :engine:runtime2:test \
-  --tests execution.EngineTestModuleQPlanFeatureTest \
-  --tests 'execution.viaductfeaturetests.*' \
-  --tests execution.testing.ExecutorVariableDeclarationsTest
-```
-
-Run the complete execution suite with `../../../gradlew -p ../.. :engine:runtime2:test`, and run every qplan validation gate with `../../../gradlew -p ../.. :engine:runtime2:check`.
-
-## Next Steps
-
-Callback resolvers with their own RSS remain explicit rejection cases until qplan models their additional object-data dependency.
-
-After variables, useful incremental steps are structured executor error metadata beyond the retained causal throwable, asynchronous EOD support, and a deliberate batching design. Selective integration still has distinct follow-up work around production/rematerialization policy, custom selection-directive preservation, custom engine configuration, empty node-payload elision, and Resolution demand-shape differences; these are recorded as specific feature-test blockers rather than part of basic requested-selection plumbing. Dispatcher and data-loader integration should remain a separate decision because Resolution already owns dependency scheduling and should not accidentally inherit a second scheduler.
-
-[Future work: From Qplan Execution Harness to an Engine Implementation](https://slate.airbnb.tools/zGyuI7hCin) analyzes the gap between the current execution harness and a production implementation of the three `Engine` API methods, including the recommended implementation sequence.
+Copied old-engine tests live under `src/test/kotlin/viaduct/engine/runtime2/execution/viaductfeaturetests`. [Feature tests](feature-tests.md) defines how those tests are preserved and how intentional differences are recorded. Adapter-specific tests cover execution strategy, completion, cancellation, defer, schema scoping, registry construction, selection conversion, and variable declaration compilation.
 
 ## Resolver Observation
 
-`QPlanExecutionStrategy` accepts an optional `ResolverObserver` under the `ResolverObserver::class.java` GraphQL-context key and carries it into the operation; the default is a no-op. Execution fixtures expose the same choice through `runQuery` and `runQueryAsync`. This observes resolver invocations and declared Query-fragment preparation through the common semantics API, including resolver work nested under `ctx.query()`, without attaching callbacks to model resolvers.
+`QPlanExecutionStrategy` accepts an optional `ResolverObserver` under the `ResolverObserver::class.java` GraphQL-context key; the default is a no-op. The observer follows resolver invocation and declared Query-fragment preparation through nested execution without attaching callbacks to model resolver values. Observation is diagnostics and test evidence, not part of the resolver relation or a source of demand.

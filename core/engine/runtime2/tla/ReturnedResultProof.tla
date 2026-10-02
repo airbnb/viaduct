@@ -56,8 +56,8 @@ LEMMA ReturnedConformsToResolvers ==
                     RawExpectedObservation, Project
 
 LEMMA ReturnedConformsToTypename ==
-    ReturnedTree!ConformsToTypename
-BY ReturnedResultAssumptions
+    AllFoldsCompleted => ReturnedTree!ConformsToTypename
+BY ReturnedCellsAreFinal, ReturnedResultAssumptions
    DEF ReturnedResultBaseWorld, ReturnedTree!ConformsToTypename,
        ConformsToTypename
 

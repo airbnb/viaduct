@@ -1,0 +1,73 @@
+# Feature Tests
+
+## Purpose
+
+The old engine is Runtime2's principal behavioral comparison surface. Its feature tests contain years of executable expectations about the Engine API, GraphQL completion, resolver inputs, nodes, selective execution, and failures. Runtime2 copies applicable tests so that aligned behavior remains visible and regressions are caught at the integration boundary.
+
+The old engine is not the semantic authority for Runtime2. Runtime2's contracts are defined by its [execution model](../architecture/execution-model.md), [canonical model](../architecture/model.md), and [production Resolution](../architecture/resolution.md). A disagreement may expose a Runtime2 defect, an alpha integration gap, or an intentional difference between occurrence-oriented one-shot resolution and the old engine's materialization and cache behavior. The copied tests distinguish those cases instead of treating every disagreement as a migration TODO.
+
+## Comparison Method
+
+Production-derived tests live under `src/test/kotlin/viaduct/engine/runtime2/execution/viaductfeaturetests`. Each copied file identifies its old-engine source path and synchronization point in a header comment. The copy remains source-faithful apart from package and import plumbing, the change from `runFeatureTest` to `runQPlanFeatureTest`, source metadata, and coded `@Disabled` annotations.
+
+An unchanged passing test establishes aligned behavior through the test's public response and any executor observations it asserts. Disabled tests use one of three classifications:
+
+- `TODO: <capability>` identifies an alpha capability or adapter gap that should eventually allow the old-engine test to run unchanged.
+- `N/A: <reason>` identifies a test whose subject is outside this comparison abstraction, such as old-engine cache internals, an instrumentation-only assertion, or a harness that cannot run through `EngineTestModule`.
+- `ALT: <difference>` preserves the old-engine expectation when Runtime2 intentionally has a different contract. A nearby test whose name begins with `ALTERNATIVE` exercises the corresponding Runtime2 behavior and preserves the comparable response, error, or resolver-input claim where that claim still applies.
+
+The annotations in the copied source are the authoritative per-test compatibility record. This document describes the stable rules behind those annotations; it does not duplicate changing test counts, line-number inventories, or enablement history.
+
+## Aligned Behavior
+
+The copied tests establish substantial alignment for query execution, GraphQL response completion, ordinary and selective field and node executors, required selections, aliases, arguments, fragments, conditional directives, namespaces, built-in node lookup, root-field references, and synchronous success and error outputs. They also cover object- and Query-rooted resolver inputs, supported variable providers, nested `ctx.query()` calls, scoped executable schemas backed by full-schema resolver inputs, and preservation of meaningful GraphQL error paths.
+
+Alignment is a claim about the behavior observed by a particular test, not about identical implementation machinery. Runtime2 may reach the same response through one closed producer application where the old engine uses materialization retries, or through distinct result occurrences where the old engine uses a request cache. Tests that depend on those internal differences are classified explicitly rather than counted as aligned merely because their final data happens to match.
+
+## Intentional Semantic Differences
+
+| Subject | Runtime2 contract | Old-engine comparison |
+| --- | --- | --- |
+| Producer execution | Each resolver occurrence receives its statically closed demand and applies its producer once. | Selective sources may be materialized or refetched repeatedly as demand and runtime types become known. |
+| Variable identity | Each resolver variable name has one symbolic, occurrence-local binding shared by that occurrence's object and Query inputs. | Callback-owned object and Query inputs may bind the same name independently. |
+| Associated Query input | Owners in one containing orchestration use its singular associated Query OER; an explicit nested query or reference target has a fresh Query root. Runtime2 does not memoize declared Query work across independent roots. | Query work may be reused through materialization and request-cache machinery. |
+| Root references | Every reference occurrence, including each direct-result tail hop, receives a fresh invocation identity even when two descriptors are equal. | Equivalent references may be physically deduplicated. |
+| Reference inputs | A reference target has an empty object required-selection set and no `FromObjectField` variables. Its dependencies are Query-rooted. | The old engine's representation does not impose the same semantic boundary. |
+| Node values | Every Node value crosses the built-in `Query.node` boundary; a tenant resolver cannot inline-materialize a Node-valued field. | A resolver may directly materialize some Node-valued objects while using references for others. |
+| Equal node IDs | Equal IDs in distinct result positions remain distinct occurrences with separately closed demand and results. | Node data-loader and cache policy may merge or accumulate work for a shared identity. |
+| Parent dependencies | Variables are prohibited anywhere beneath `@parent`; child-produced information cannot parameterize ancestor work. | Callback-based required-selection machinery can express some of these dependency directions. |
+| Passive field ownership | Ownership is source-sensitive for argumentless registered fields: an ancestor that actually supplies the field owns that occurrence; otherwise its standard resolver owns it. Argument-bearing fields are always active. | Materialization may route argument-bearing or consumer-shaped values through a producer's passive output. |
+| Selective output | A selective producer must conform to its closed output selection. Surplus fields are a producer-contract violation, and registered descendant fields retain their own ownership. | Materialization can ignore, reconcile, or reuse surplus output from covering results. |
+| Directives and checks | Source occurrences retain generic field-directive context. Runtime2 assigns no built-in meaning to a policy-specific directive spelling. | Production policy integrations may interpret particular directives directly. |
+| Error evidence | Compatibility establishes corresponding error outcomes and meaningful consumer paths. Runtime2's correctness oracle does not yet prove exact `EngineErrorData` carrier identity or metadata equality at every derived boundary. | Tests may inspect old-engine wrapper, materialization-source, or carrier details that are not part of Runtime2's semantic claim. |
+
+The `ALT` plus `ALTERNATIVE` pairing is especially important for these differences. The disabled source form keeps the old-engine expectation reviewable, while the alternative prevents an intentional difference from becoming an untested exemption.
+
+## Alpha Integration Gaps
+
+The following differences are gaps in the present Engine API integration rather than permanent semantic incompatibilities:
+
+- generated tenant-module bootstrap and production dispatcher integration;
+- physical batching, data loaders, and any compatible completed-result cache layered outside semantic occurrence scheduling;
+- adaptation of field- and type-checker executors to Resolution's existing checker model;
+- mutation and subscription operations, `ctx.mutation()`, custom scalars, `@stream`, and asynchronous EOD variants;
+- guaranteed cancellation propagation from GraphQL Java's public `executeAsync` future to the Runtime2 request job; and
+- a complete `viaduct.engine.api.Engine` implementation selected by `StandardViaduct`.
+
+[Engine API integration](engine-api.md) defines the current adapter surface and its rejection boundaries. A copied test blocked only by one of these gaps should retain its old-engine form with a specific `TODO` classification so that closing the gap means enabling the original test rather than inventing a Runtime2-specific substitute.
+
+## Old-Engine Tests Outside This Comparison
+
+Not every old-engine feature test belongs in the copied suite. Tests centered on production-only helper APIs, query-plan or execution-selection-set representation, tenant bootstrap validation, data-loader cache policy, batching mechanics, shadow execution, or old-engine instrumentation internals do not directly test Runtime2's resolver and GraphQL integration boundary. Likewise, inherited arbitrary suites that construct a production `Viaduct` without exposing an `EngineTestModule` cannot be run through this adapter.
+
+Excluding such a test is not evidence that its user-visible behavior is unimportant. If the behavior belongs to Runtime2, it should be covered at the layer that owns it: canonical model and resolver contracts for semantics, adapter tests for Engine API conversion, GraphQL execution tests for response completion, generated property tests for broad resolver coverage, or eventual dispatcher and service integration tests for physical execution policy.
+
+Operation-validation tests are also normally outside this suite because GraphQL Java rejects invalid source operations before `QPlanExecutionStrategy` starts Resolution. Runtime2-specific decoding and registry validation remain covered by focused adapter tests.
+
+## Maintaining The Port
+
+When an old-engine source file changes, synchronize the whole copied file and update its source metadata. Do not silently cherry-pick only the newly passing cases. Keep fixtures, helpers, assertions, and test names unchanged unless adapter plumbing requires a mechanical edit.
+
+Classify every divergence by its durable cause. Use `TODO` only when implementing a supported capability should make the original test pass; use `N/A` only when the test observes machinery outside the comparison; and use `ALT` only for a deliberate Runtime2 contract. An `ALT` must retain the source expectation and have an `ALTERNATIVE` that directly demonstrates the Runtime2 rule.
+
+New Engine API features should first be established through Runtime2's resolver-family ladder and focused integration tests, then compared with the corresponding old-engine tests. Passing an old-engine test is valuable compatibility evidence, but it does not replace the architectural-integrity contracts maintained by Resolver01–03, Resolver06–08, and Resolver21–23 before the feature reaches production Resolution.

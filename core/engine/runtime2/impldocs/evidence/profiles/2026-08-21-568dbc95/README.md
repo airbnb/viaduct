@@ -1,8 +1,10 @@
 # 2026-08-21 Closing Profiles
 
+> **Historical snapshot.** Commands, paths, source names, and measurements below describe this recorded round and are not current operating guidance.
+
 Recorded base revision: `568dbc95d6b93342ed94b770814c95624d5fd291`
 
-This round predated the clean-tree protocol. Its performance-log entry records profiling and corpus changes in the worktree, including a query snapshot absent from the base revision, so the commit alone does not reproduce the exact runtime tree. The preserved reports are authoritative evidence for the recorded profiles. Host, JVM, benchmark iterations, workload statistics, and interpretation are recorded in the [corresponding performance-log entry](../../resolver-profiling.md#2026-08-21-143331-utc).
+This round predated the clean-tree protocol. Its performance-log entry records profiling and corpus changes in the worktree, including a query snapshot absent from the base revision, so the commit alone does not reproduce the exact runtime tree. The preserved reports are authoritative evidence for the recorded profiles. Host, JVM, benchmark iterations, workload statistics, and interpretation are recorded in the [corresponding performance-history entry](../performance-history.md#2026-08-21-143331-utc).
 
 The recordings used three prepared-workload repetitions. The raw JFR files were recovered from `qplan/../core/engine/runtime2/build/reports/resolver-benchmarks` in a sibling worktree.
 
