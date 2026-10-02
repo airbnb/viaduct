@@ -50,17 +50,7 @@ interface EngineExecutionContextWrapper {
         globalID: GlobalID<T>
     ): T
 
-    fun <T : CompositeOutput> selectionsFor(
-        type: Type<T>,
-        selections: String,
-        variables: Map<String, Any?>
-    ): SelectionSet<T>
-
-    /**
-     * Like [selectionsFor], but for a `@GraphQLOperation` document: the operation text is normalized
-     * into a self-contained fragment document (inlining reachable named fragments) before it is
-     * turned into a [SelectionSet]. Plain string [selectionsFor] does no such translation.
-     */
+    /** Builds a selection set from a named operation, including its reachable fragments. */
     fun <T : CompositeOutput> selectionsForOperation(
         type: Type<T>,
         operationText: String,
@@ -103,22 +93,6 @@ class EngineExecutionContextWrapperImpl(
     private fun SelectionSet<*>.getEngineSelectionSet() =
         (this as? SelectionSetImpl)?.engineSelectionSet
             ?: throw FrameworkException("Unexpected implementation of SelectionSet: $this")
-
-    override fun <T : CompositeOutput> selectionsFor(
-        type: Type<T>,
-        selections: String,
-        variables: Map<String, Any?>
-    ): SelectionSet<T> =
-        handleFrameworkErrors("selectionsFor") {
-            SelectionSetImpl(
-                type,
-                engineExecutionContext.engineSelectionSetFactory.engineSelectionSet(
-                    typeName = type.name,
-                    selections,
-                    normalizeVariablesForEngine(variables, engineExecutionContext.globalIDCodec)
-                )
-            )
-        }
 
     override fun <T : CompositeOutput> selectionsForOperation(
         type: Type<T>,

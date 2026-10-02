@@ -197,25 +197,25 @@ class OperationSelectionsParityTest {
     }
 
     @Test
-    fun `plain selections stay distinct from annotated operations`() {
+    fun `Java plain selections stay distinct from annotated operations`() {
         Facades("query").use { facades ->
             val fields = "echo(value: \$value)"
             val variables = mapOf("value" to "plain")
-            val kotlin = facades.kotlin.selectionsFor(facades.type, fields, variables) as EngineSelectionSetProvider
             facades.javaSelections(fields, variables).join()
-            assertEquals(kotlin.engineSelectionSet.printAsFieldSet(), facades.resolvedSelections.captured.printAsFieldSet())
-            assertEquals(mapOf("value" to "plain"), facades.resolvedSelections.captured.argumentsOfSelection("ReadRoot", "echo"))
+            val plainSelections = facades.resolvedSelections.captured
+            assertEquals("ReadRoot", plainSelections.type)
+            assertEquals(listOf("echo"), plainSelections.selections().map { it.fieldName })
+            assertEquals(mapOf("value" to "plain"), plainSelections.argumentsOfSelection("ReadRoot", "echo"))
 
             val document = "query { echo }"
-            val plainKotlin = facades.kotlin.selectionsFor(facades.type, document, emptyMap()) as EngineSelectionSetProvider
             facades.javaSelections(document).join()
-            assertEquals(listOf("query"), plainKotlin.engineSelectionSet.selections().map { it.fieldName })
-            assertEquals(plainKotlin.engineSelectionSet.printAsFieldSet(), facades.resolvedSelections.captured.printAsFieldSet())
+            val plainDocument = facades.resolvedSelections.captured
+            assertEquals(listOf("query"), plainDocument.selections().map { it.fieldName })
+            assertEquals(listOf("echo"), plainDocument.selectionSetForField("ReadRoot", "query").selections().map { it.fieldName })
 
             facades.javaOperation(document).join()
             assertEquals(listOf("echo"), facades.resolvedSelections.captured.selections().map { it.fieldName })
 
-            assertThrows<FrameworkException> { facades.kotlin.selectionsFor(facades.type, "...External", emptyMap()) }
             assertInstanceOf(FrameworkException::class.java, assertThrows<CompletionException> { facades.javaSelections("...External").join() }.cause)
         }
     }

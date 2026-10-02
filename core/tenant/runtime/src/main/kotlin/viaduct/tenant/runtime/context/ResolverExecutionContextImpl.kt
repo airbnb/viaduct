@@ -7,7 +7,6 @@ import viaduct.api.globalid.GlobalID
 import viaduct.api.internal.InternalContext
 import viaduct.api.reflect.Type
 import viaduct.api.select.SelectionSet
-import viaduct.api.types.CompositeOutput
 import viaduct.api.types.NodeObject
 import viaduct.api.types.Object
 import viaduct.api.types.Query
@@ -26,12 +25,6 @@ sealed class ResolverExecutionContextImpl<Q : Query>(
     private fun queryType(): Type<Q> = reflectionLoader.reflectionFor(schema.schema.queryType.name) as Type<Q>
 
     private suspend fun <T : Query> query(selections: SelectionSet<T>) = engineExecutionContextWrapper.query(this, selections)
-
-    override fun <T : CompositeOutput> selectionsFor(
-        type: Type<T>,
-        selections: String,
-        variables: Map<String, Any?>
-    ) = engineExecutionContextWrapper.selectionsFor(type, selections, variables)
 
     override fun <T : NodeObject> ref(id: GlobalID<T>) = engineExecutionContextWrapper.nodeRef(this, id)
 

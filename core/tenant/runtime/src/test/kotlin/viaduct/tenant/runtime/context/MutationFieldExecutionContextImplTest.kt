@@ -59,11 +59,4 @@ class MutationFieldExecutionContextImplTest : ContextTestBase() {
         assertEquals(Args, ctx.arguments)
         assertEquals(SelectionSet.NoSelections, ctx.selections())
     }
-
-    @Test
-    fun selectionsFor() {
-        val ctx = mk()
-        // Test that selectionsFor works for mutations (no exception thrown)
-        ctx.selectionsFor(Mutation.Reflection, "__typename")
-    }
 }

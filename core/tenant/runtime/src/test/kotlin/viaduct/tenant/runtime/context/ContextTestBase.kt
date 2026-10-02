@@ -98,12 +98,6 @@ abstract class ContextTestBase {
                 globalID: GlobalID<T>
             ): T = realWrapper.nodeRef(ctx, globalID)
 
-            override fun <T : CompositeOutput> selectionsFor(
-                type: Type<T>,
-                selections: String,
-                variables: Map<String, Any?>
-            ): SelectionSet<T> = realWrapper.selectionsFor(type, selections, variables)
-
             override fun <T : CompositeOutput> selectionsForOperation(
                 type: Type<T>,
                 operationText: String,

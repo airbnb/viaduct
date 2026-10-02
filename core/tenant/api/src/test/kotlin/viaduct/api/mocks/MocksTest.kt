@@ -43,12 +43,6 @@ class MocksTest {
         val ic = MockInternalContext(MockSchema.minimal)
         val ec = ic.resolverExecutionContext
         assertSame(ec, ec.internal)
-        assertThrows<UnsupportedOperationException> {
-            ec.selectionsFor(
-                Type.ofClass(Query::class),
-                ""
-            )
-        }
     }
 
     @Test
