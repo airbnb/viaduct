@@ -7,6 +7,7 @@ import io.mockk.every
 import io.mockk.mockk
 import java.util.function.Consumer
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -57,7 +58,7 @@ internal class ScopeInstrumentationTest {
 
         ScopeInstrumentation().instrumentExecutionContext(mockExecutionContext, mockk(), null).let {
             val engineExecutionContext = it.findLocalContextForType<EngineExecutionContextImpl>()
-            assertEquals(fullSchema, engineExecutionContext.activeSchema)
+            assertSame(contextMocks.fullSchema, engineExecutionContext.activeSchema)
         }
     }
 

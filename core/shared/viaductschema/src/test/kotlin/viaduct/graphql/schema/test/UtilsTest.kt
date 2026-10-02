@@ -28,30 +28,27 @@ internal class UtilsTest {
     }
 
     @Test
-    fun `loading schema should fail with invalid pkg provided`() {
-        val exception: Exception = assertThrows(
-            IllegalStateException::class.java
-        ) {
-            loadGraphQLSchema()
+    fun `loads only explicitly supplied schema resources`() {
+        val schema = loadGraphQLSchema(listOf("graphql/first.graphqls", "graphql/second.graphqls"))
+
+        assertTrue(schema.types.keys.containsAll(listOf("Query", "First", "Second")))
+        assertEquals(setOf("first", "second"), (schema.types["Query"] as ViaductSchema.Object).fields.map { it.name }.toSet())
+        assertTrue("Unlisted" !in schema.types)
+    }
+
+    @Test
+    fun `rejects empty schema inputs`() {
+        val exception = assertThrows(IllegalArgumentException::class.java) {
+            loadGraphQLSchema(emptyList())
         }
-        // invalidschemapkg defined in bazel as env variable.
-        assertEquals("Could not find any graphqls files in the classpath (invalidschemapkg)", exception.message)
+        assertEquals("schemaResourcePaths must not be empty", exception.message)
     }
 
     @Test
-    fun `schema resource discovery finds graphqls resources under graphql path`() {
-        val resources = findGraphQLSchemaResources("graphql").map { it.path }
-
-        assertTrue(resources.any { it.contains("graphql/classgraph-included.graphqls") })
-    }
-
-    @Test
-    fun `schema resource discovery excludes non-production schema module paths`() {
-        val resources = findGraphQLSchemaResources("graphql").map { it.path }
-
-        assertTrue(resources.any { it.contains("graphql/classgraph-included.graphqls") })
-        assertTrue(resources.none { it.contains("graphql/testfixtures/classgraph-excluded.graphqls") })
-        assertTrue(resources.none { it.contains("graphql/data/codelab/classgraph-excluded.graphqls") })
-        assertTrue(resources.none { it.contains("graphql/presentation/codelab/classgraph-excluded.graphqls") })
+    fun `rejects a missing resource even when other inputs exist`() {
+        val exception = assertThrows(IllegalArgumentException::class.java) {
+            loadGraphQLSchema(listOf("graphql/first.graphqls", "graphql/missing.graphqls"))
+        }
+        assertTrue(exception.message!!.contains("graphql/missing.graphqls"))
     }
 }

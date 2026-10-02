@@ -14,8 +14,8 @@ import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.ResolverMetadata
 import viaduct.engine.api.ResolverType
 import viaduct.engine.api.TenantModuleMetadata
+import viaduct.engine.api.invocationContextFor
 import viaduct.engine.api.spi.NodeResolverExecutor
-import viaduct.engine.runtime.invocationContextFor
 import viaduct.errors.ErroneousFieldException
 import viaduct.errors.PassthroughException
 import viaduct.errors.TenantResolverException

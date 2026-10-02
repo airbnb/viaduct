@@ -3,6 +3,7 @@
 package viaduct.tenant.runtime.select
 
 import graphql.schema.GraphQLCompositeType
+import viaduct.api.internal.EngineSelectionSetProvider
 import viaduct.api.internal.InternalSelectionSet
 import viaduct.api.reflect.CompositeField
 import viaduct.api.reflect.Field
@@ -19,7 +20,7 @@ import viaduct.engine.api.EngineSelectionSet
 class SelectionSetImpl<T : CompositeOutput>(
     override val type: Type<T>,
     override val engineSelectionSet: EngineSelectionSet
-) : SelectionSet<T>, InternalSelectionSet {
+) : SelectionSet<T>, EngineSelectionSetProvider, InternalSelectionSet<T> {
     private val structure by lazy(LazyThreadSafetyMode.PUBLICATION) {
         engineSelectionSet.structure()
     }

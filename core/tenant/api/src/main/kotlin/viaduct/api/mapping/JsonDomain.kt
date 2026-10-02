@@ -5,8 +5,8 @@ import graphql.schema.GraphQLInputObjectType
 import graphql.schema.GraphQLObjectType
 import graphql.schema.GraphQLType
 import viaduct.api.context.ExecutionContext
+import viaduct.api.internal.EngineSelectionSetProvider
 import viaduct.api.internal.InternalContext
-import viaduct.api.internal.InternalSelectionSet
 import viaduct.api.internal.JsonConv
 import viaduct.api.internal.internal
 import viaduct.api.mapping.JsonDomain.forSelectionSet
@@ -134,7 +134,7 @@ object JsonDomain {
         ctx: ExecutionContext,
         selectionSet: SelectionSet<T>
     ): Domain<String> {
-        selectionSet as InternalSelectionSet
+        selectionSet as EngineSelectionSetProvider
         val type = selectionSet.engineSelectionSet.type
         return Impl(
             ctx.internal,

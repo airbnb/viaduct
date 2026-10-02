@@ -148,6 +148,7 @@ jackson-core = { module = "com.fasterxml.jackson.core:jackson-core", version.ref
 jackson-annotations = { module = "com.fasterxml.jackson.core:jackson-annotations", version.ref = "jackson" }
 jackson-databind = { module = "com.fasterxml.jackson.core:jackson-databind", version.ref = "jackson" }
 jackson-module = { module = "com.fasterxml.jackson.module:jackson-module-kotlin", version.ref = "jackson" }
+jackson-dataformat-yaml = { module = "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml", version.ref = "jackson" }
 javassist = { module = "org.javassist:javassist", version.ref = "javassist" }
 javax-inject = { module = "javax.inject:javax.inject", version.ref = "javax-inject" }
 jakarta-inject = { module = "jakarta.inject:jakarta.inject-api", version = "2.0.1" }

@@ -48,6 +48,7 @@ import viaduct.engine.api.ResolvedEngineObjectData
 import viaduct.engine.api.instrumentation.InstrumentNodeFetchingParameters
 import viaduct.engine.api.instrumentation.resolver.ResolverFunction
 import viaduct.engine.api.instrumentation.resolver.ViaductResolverInstrumentation
+import viaduct.engine.api.invocationContextFor
 import viaduct.engine.api.mocks.MockFieldUnbatchedResolverExecutor
 import viaduct.engine.api.mocks.MockTenantModuleBootstrapper
 import viaduct.engine.api.mocks.createEngineObjectData
@@ -57,7 +58,6 @@ import viaduct.engine.api.mocks.fetchAs
 import viaduct.engine.api.mocks.getAs
 import viaduct.engine.api.mocks.runFeatureTest
 import viaduct.engine.api.spi.MaterializedFieldValueReader
-import viaduct.engine.runtime.invocationContextFor
 import viaduct.graphql.test.assertMatches
 import viaduct.service.api.ExecutionInput
 import viaduct.service.api.Viaduct

@@ -10,12 +10,15 @@ import graphql.schema.GraphQLFieldDefinition
 import graphql.schema.GraphQLObjectType
 import graphql.schema.GraphQLSchema
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import viaduct.apiannotations.InternalApi
+import viaduct.engine.api.Caller
 import viaduct.engine.api.Engine
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.ExecutionInput
+import viaduct.engine.api.FullSchema
 import viaduct.engine.api.ResolveRootFieldReferenceOptions
 import viaduct.engine.api.ResolveSelectionSetOptions
 import viaduct.engine.api.spi.MaterializedFieldValueReader
@@ -42,7 +45,7 @@ class ContextMocks(
     myScopedSchema: EngineSchema? = myFullSchema,
     private val myRequestContext: Any? = null,
 ) {
-    val fullSchema: EngineSchema = myFullSchema ?: EngineSchema(
+    val fullSchema: FullSchema = myFullSchema?.let { if (it is FullSchema) it else FullSchema(it) } ?: FullSchema(
         GraphQLSchema.newSchema()
             .query(
                 GraphQLObjectType.newObject().name("Query")
@@ -52,7 +55,7 @@ class ContextMocks(
             .build()
     )
     val scopedSchema: EngineSchema = myScopedSchema ?: fullSchema
-    val viaductSchema: EngineSchema = myFullSchema ?: fullSchema
+    val viaductSchema: FullSchema = fullSchema
 
     val dispatcherRegistry: DispatcherRegistry = myDispatcherRegistry ?: DispatcherRegistry.Empty
     val resolverInstrumentation: Instrumentation = myResolverInstrumentation ?: SimplePerformantInstrumentation()
@@ -68,6 +71,18 @@ class ContextMocks(
 
     val engineExecutionContextImpl: EngineExecutionContextImpl get() =
         engineExecutionContext as EngineExecutionContextImpl
+
+    @OptIn(InternalApi::class)
+    fun invocationContext(
+        fieldScope: EngineExecutionContext.FieldExecutionScope,
+        currentResolver: Caller?,
+        executionHandle: EngineExecutionContext.ExecutionHandle,
+    ): EngineExecutionContext =
+        engineExecutionContextImpl.copy(
+            fieldScopeSupplier = { fieldScope },
+            currentResolver = currentResolver,
+            executionHandle = executionHandle,
+        )
 
     val engineExecutionContextFactory =
         myEngineExecutionContextFactory ?: EngineExecutionContextFactory(

@@ -12,7 +12,7 @@ import viaduct.graphql.utils.DefaultSchemaFactory.DefaultDirective
  *
  * Parent fields are resolved by the engine from execution ancestry. They must be declared directly
  * on object types because field directives are not inherited from interfaces, and they cannot have
- * explicit resolver semantics, argument/list shapes that imply normal data fetching, or ambiguous
+ * explicit resolver semantics, argument/list shapes that imply normal data fetching, or incompatible
  * schema parentage.
  */
 class ParentFieldConstraintsRule(
@@ -20,7 +20,7 @@ class ParentFieldConstraintsRule(
     private val resolverDirectiveName: String = DefaultDirective.RESOLVER.directiveName,
 ) : ValidationRule(
         id = "ParentFieldConstraints",
-        description = "@$DIRECTIVE_NAME fields must be declared on object types and be no-arg, non-list composite fields without resolver directives, selective parent producers, or ambiguous parent producers"
+        description = "@$DIRECTIVE_NAME fields must be declared on object types and be no-arg, non-list composite fields without resolver directives, selective parent producers, or incompatible parent producers"
     ) {
     override fun visitField(
         ctx: ValidationContext,
@@ -114,15 +114,14 @@ class ParentFieldConstraintsRule(
                 ctx = ctx,
                 childType = parentType,
             )
-            if (!hasUniqueCompatibleParentProducer(parentProducerFields, fieldBaseType)) {
+            if (!hasCompatibleParentProducers(parentProducerFields, fieldBaseType)) {
                 val producerFields = parentProducerFields.joinToString(", ") { it.coordinate() }.ifEmpty { "<none>" }
                 ctx.reportError(
                     code = ValidationErrorCodes.PARENT_FIELD_CHILD_HAS_AMBIGUOUS_PARENT,
                     message = "Field $parentTypeName.$fieldName is marked @$DIRECTIVE_NAME and returns '${fieldBaseType.name}', " +
-                        "but '$parentTypeName' does not have exactly one schema field that can produce it from that declared parent type. " +
-                        "Producer field(s): $producerFields. " +
-                        "@$DIRECTIVE_NAME fields require a unique non-@$DIRECTIVE_NAME producer field for '$parentTypeName', " +
-                        "and that producer field must come from '${fieldBaseType.name}' or one of its possible object types.",
+                        "but '$parentTypeName' must have at least one non-@$DIRECTIVE_NAME producer field, " +
+                        "and every producer's containing type must be compatible with '${fieldBaseType.name}'. " +
+                        "Producer field(s): $producerFields.",
                     location = SchemaLocation.ofField(parentTypeName, fieldName).withSourceLocation(field.sourceLocation)
                 )
             }
@@ -145,13 +144,13 @@ class ParentFieldConstraintsRule(
             .toList()
     }
 
-    private fun hasUniqueCompatibleParentProducer(
+    private fun hasCompatibleParentProducers(
         producerFields: List<ViaductSchema.Field>,
         parentTargetType: ViaductSchema.TypeDef,
     ): Boolean =
-        producerFields.singleOrNull()
-            ?.let { parentProducerTypeFitsTarget(it.containingDef as ViaductSchema.OutputRecord, parentTargetType.possibleObjectTypes) }
-            ?: false
+        producerFields.isNotEmpty() && producerFields.all {
+            parentProducerTypeFitsTarget(it.containingDef as ViaductSchema.OutputRecord, parentTargetType.possibleObjectTypes)
+        }
 
     private fun parentProducerTypeFitsTarget(
         producerType: ViaductSchema.OutputRecord,

@@ -18,6 +18,7 @@ import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.ExecutionAttribution
+import viaduct.engine.api.FullSchema
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.ResolutionPolicy
 import viaduct.engine.api.ResolveRootFieldReferenceOptions
@@ -51,7 +52,7 @@ interface SelectionSetCompletionEngine {
  * Basically holds version-scoped state.
  */
 class EngineExecutionContextFactory(
-    private val fullSchema: EngineSchema,
+    private val fullSchema: FullSchema,
     private val dispatcherRegistry: DispatcherRegistry,
     private val resolverInstrumentation: Instrumentation,
     private val flagManager: FlagManager,
@@ -122,7 +123,7 @@ class EngineExecutionContextFactory(
  * @see EngineExecutionContextExtensions for extension functions
  */
 class EngineExecutionContextImpl internal constructor(
-    override val fullSchema: EngineSchema,
+    override val fullSchema: FullSchema,
     override val scopedSchema: EngineSchema,
     override val requestContext: Any?,
     override val engineSelectionSetFactory: EngineSelectionSet.Factory,

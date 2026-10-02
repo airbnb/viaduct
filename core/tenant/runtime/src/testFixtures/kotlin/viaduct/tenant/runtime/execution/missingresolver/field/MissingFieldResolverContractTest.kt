@@ -1,11 +1,12 @@
 package viaduct.tenant.runtime.execution.missingresolver.field
 
-import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.api.testing.TestSchema
 import viaduct.api.testing.featureapp.KotlinFeatureAppTestContractBase
-import viaduct.api.testing.featureapp.MissingResolverImplementationException
+import viaduct.engine.runtime.tenantloading.MissingResolversException
 
 /**
  * Contract test that verifies a clear error message is produced when a
@@ -25,10 +26,11 @@ import viaduct.api.testing.featureapp.MissingResolverImplementationException
 abstract class MissingFieldResolverContractTest : KotlinFeatureAppTestContractBase() {
     @Test
     fun `missing field resolver produces a clear error message`() {
-        val exception = assertThrows<MissingResolverImplementationException> {
+        val failure = assertThrows<RuntimeException> {
             tryBuildViaductService()
         }
-        assertTrue(exception.message!!.contains("Query.forgotten"))
-        assertTrue(exception.message!!.contains("@Resolver"))
+        val exception = assertInstanceOf(MissingResolversException::class.java, failure.cause?.cause)
+        assertEquals(listOf("Query.forgotten"), exception.missingFieldResolvers)
+        assertEquals(emptyList<String>(), exception.missingNodeResolvers)
     }
 }

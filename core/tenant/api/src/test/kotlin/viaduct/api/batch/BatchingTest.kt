@@ -1,4 +1,4 @@
-@file:OptIn(ExperimentalApi::class)
+@file:OptIn(ExperimentalApi::class, InternalApi::class)
 
 package viaduct.api.batch
 
@@ -12,6 +12,9 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.api.FieldValue
 import viaduct.api.context.SelectiveNodeExecutionContext
+import viaduct.api.internal.InternalSelectionSet
+import viaduct.api.internal.internalType
+import viaduct.api.mocks.MockSelectionSetFactory
 import viaduct.api.reflect.CompositeField
 import viaduct.api.reflect.Field
 import viaduct.api.reflect.Type
@@ -21,6 +24,7 @@ import viaduct.api.types.CompositeOutput
 import viaduct.api.types.GRT
 import viaduct.api.types.NodeObject
 import viaduct.apiannotations.ExperimentalApi
+import viaduct.apiannotations.InternalApi
 
 class BatchingTest {
     private val nodeType = Type.ofClass(TestNode::class)
@@ -176,12 +180,71 @@ class BatchingTest {
 
         val selections = listOf(first, second).selections()
 
-        assertSame(nodeType, selections.type)
+        assertSame(nodeType, selections.internalType())
         assertTrue(selections.contains(nameField))
         assertTrue(selections.contains(priceField))
         assertTrue(selections.selectedFieldCoordinates().contains(detailsField.coordinate()))
         assertTrue(selections.requestsType(specializedNodeType))
         assertTrue(selections.selectionSetFor(detailsField).contains(summaryField))
+    }
+
+    @Test
+    fun `batch selection view combines empty and non-engine selections with matching root types`() {
+        val contexts = listOf(
+            TestContext("empty", SelectionSet.empty(nodeType)),
+            TestContext("selected", TestSelectionSet(nodeType, setOf(nameField))),
+        )
+
+        val selections = contexts.selections()
+
+        assertSame(nodeType, selections.internalType())
+        assertTrue(selections.contains(nameField))
+        assertFalse(selections.contains(priceField))
+    }
+
+    @Test
+    fun `batch selection view accepts selections from the mock factory`() {
+        val factory = MockSelectionSetFactory(mockk())
+        val contexts = listOf(
+            TestContext("mock", factory.selectionsOn(nodeType, "name", emptyMap())),
+            TestContext("empty", SelectionSet.empty(nodeType)),
+        )
+
+        val selections = contexts.selections()
+
+        assertSame(nodeType, selections.internalType())
+        assertTrue(selections.contains(nameField))
+    }
+
+    @Test
+    fun `batch selection view rejects mismatched root types`() {
+        val otherType = object : Type<TestNode> {
+            override val name = "OtherNode"
+            override val kcls = TestNode::class
+        }
+        val contexts = listOf(
+            TestContext("first", TestSelectionSet(nodeType)),
+            TestContext("second", TestSelectionSet(otherType)),
+        )
+
+        val failure = assertThrows<IllegalArgumentException> { contexts.selections() }
+
+        assertEquals("All selections in a batch view must describe the same type", failure.message)
+    }
+
+    @Test
+    fun `custom selections without metadata remain inspectable but cannot be batched`() {
+        val selections = object : SelectionSet<TestNode> by TestSelectionSet(nodeType, setOf(nameField)) {}
+        assertTrue(selections.contains(nameField))
+
+        val failure = assertThrows<IllegalArgumentException> {
+            listOf(TestContext("custom", selections)).selections()
+        }
+
+        assertEquals(
+            "Custom SelectionSet implementations used by the framework must implement InternalSelectionSet",
+            failure.message,
+        )
     }
 
     @Test
@@ -228,7 +291,7 @@ class BatchingTest {
         private val fields: Set<Field<out T>> = emptySet(),
         private val requestedTypes: Set<String> = setOf(type.name),
         private val fieldSelections: Map<Field<*>, SelectionSet<*>> = emptyMap(),
-    ) : SelectionSet<T> {
+    ) : SelectionSet<T>, InternalSelectionSet<T> {
         override fun selectedFieldCoordinates(): Set<FieldCoordinate> = fields.mapTo(linkedSetOf()) { FieldCoordinate(it.containingType.name, it.name) }
 
         override fun <U : T> contains(field: Field<U>): Boolean = fields.contains(field)

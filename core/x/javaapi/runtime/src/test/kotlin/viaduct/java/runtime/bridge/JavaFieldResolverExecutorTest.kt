@@ -19,13 +19,14 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
-import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.ExecutionAttribution
+import viaduct.engine.api.FullSchema
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.select.SelectionsParser
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.errors.TenantResolverException
 import viaduct.java.api.internal.BaseUnbatchedFieldResolver
+import viaduct.java.api.types.NodeCompositeOutput
 import viaduct.service.api.spi.GlobalIDCodec
 
 class JavaFieldResolverExecutorTest {
@@ -60,6 +61,30 @@ class JavaFieldResolverExecutorTest {
             assertNotNull(result)
             assertTrue(result!!.isSuccess)
             assertEquals("Hello, World!", result.getOrNull())
+        }
+
+    @Test
+    fun `typed ID resolver uses the execution codec`(): Unit =
+        runBlocking {
+            val codec = mockk<GlobalIDCodec> {
+                every { serialize("User", "42") } returns "custom:user:42"
+            }
+            val id = GlobalIDImpl(typeFromName<NodeCompositeOutput>("User"), "42")
+            val executor = JavaFieldResolverExecutorImpl(
+                resolver = fieldResolver { CompletableFuture.completedFuture(id) },
+                resolverId = "Query.userID",
+                resolverName = "UserIDResolver",
+            )
+            val selector = FieldResolverExecutor.Selector(
+                arguments = emptyMap(),
+                selections = null,
+                syncObjectValueGetter = { mockk() },
+                syncQueryValueGetter = { mockk() },
+            )
+
+            val result = executor.batchResolve(listOf(selector), mockEngineContext(codec))[selector]
+
+            assertEquals("custom:user:42", result?.getOrNull())
         }
 
     @Test
@@ -225,10 +250,10 @@ class JavaFieldResolverExecutorTest {
             BaseUnbatchedFieldResolver { resolve() }
         }
 
-    private fun mockEngineContext(): EngineExecutionContext =
+    private fun mockEngineContext(codec: GlobalIDCodec = mockk()): EngineExecutionContext =
         mockk {
             every { requestContext } returns null
-            every { fullSchema } returns mockk<EngineSchema>()
-            every { globalIDCodec } returns mockk<GlobalIDCodec>()
+            every { fullSchema } returns mockk<FullSchema>()
+            every { globalIDCodec } returns codec
         }
 }

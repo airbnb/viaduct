@@ -120,7 +120,7 @@ class ExecutionParametersTest {
 
         assertEquals(false, disabledParameters.engineExecutionContext.incrementalExecutionEnabled)
         assertEquals(true, enabledParameters.engineExecutionContext.incrementalExecutionEnabled)
-        assertSame(viaductSchema, QueryPlanFilterCtx(enabledParameters).schema)
+        assertSame(enabledParameters.engineExecutionContext.fullSchema, QueryPlanFilterCtx(enabledParameters).schema)
         assertEquals(true, QueryPlanFilterCtx(enabledParameters).incrementalExecutionEnabled)
         assertEquals(false, QueryPlanFilterCtx(disabledParameters).incrementalExecutionEnabled)
         val disabledResult = FieldExecutionHelpers.collectFields(queryType, disabledParameters)

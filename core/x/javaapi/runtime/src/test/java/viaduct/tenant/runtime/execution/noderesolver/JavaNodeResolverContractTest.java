@@ -1,13 +1,31 @@
 package viaduct.tenant.runtime.execution.noderesolver;
 
 import java.util.concurrent.CompletableFuture;
+import org.junit.jupiter.api.Test;
+import viaduct.api.testing.TestSchema;
+import viaduct.engine.SchemaFactory;
 import viaduct.java.api.annotations.Resolver;
 import viaduct.java.api.globalid.GlobalID;
 import viaduct.java.api.reflect.Type;
+import viaduct.java.api.testing.ResolverTestBase;
 import viaduct.tenant.runtime.execution.noderesolver.resolverbases.NodeResolvers;
 import viaduct.tenant.runtime.execution.noderesolver.resolverbases.QueryResolvers;
 
 public class JavaNodeResolverContractTest extends NodeResolverContractTest {
+
+  @Test
+  void isolatedNodeUsesGeneratedContextTranslation() {
+    var schema =
+        new SchemaFactory()
+            .fromSdl(JavaNodeResolverContractTest.class.getAnnotation(TestSchema.class).value());
+    var test = new ResolverTestBase(schema);
+    var id = test.globalIDFor(Type.ofClass(NodeObj.class), "tenant1");
+
+    var value =
+        test.runNodeResolver(new NodeObjResolver(), new ResolverTestBase.NodeInputs<>(id)).join();
+
+    org.junit.jupiter.api.Assertions.assertEquals("foo", value.getValueOrThrow());
+  }
 
   // --- Resolvers ---
 

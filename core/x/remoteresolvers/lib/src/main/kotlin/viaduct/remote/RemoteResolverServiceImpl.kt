@@ -35,7 +35,7 @@ import viaduct.remote.registry.SelectionsRegistry
  * Looks up the executor by handle, wraps the context so re-entrant queries route back
  * to the caller over gRPC, invokes the resolver, and serializes the result. When a
  * handle is absent from the local registry, the service falls back to a stub context
- * fed by [SchemaRegistry] and an empty selection set.
+ * fed by the configured schema and an empty selection set.
  */
 open class RemoteResolverServiceImpl(
     private val contextApplier: RemoteResolverContextApplier = RemoteResolverContextApplier.NO_OP,
@@ -43,6 +43,7 @@ open class RemoteResolverServiceImpl(
         RemoteResolverResponseContextCapturer.NO_OP,
     private val executionInstrumentation: RemoteResolverExecutionInstrumentation =
         RemoteResolverExecutionInstrumentation.NO_OP,
+    private val runtimeProvider: RemoteResolverRuntimeProvider? = null,
 ) : RemoteResolverServiceGrpcKt.RemoteResolverServiceCoroutineImplBase() {
     private val log = LoggerFactory.getLogger(RemoteResolverServiceImpl::class.java)
 
@@ -61,9 +62,11 @@ open class RemoteResolverServiceImpl(
         // Fail fast on a missing executor before building the remote context: buildRemoteContext
         // may dial a callback channel (createCallbackChannel), which throws on a malformed
         // endpoint -- that shouldn't mask a NOT_FOUND for an executor that was never registered.
-        if (NodeExecutorRegistry.get(request.executorId) == null) throw notFound("executor", request.executorId)
-        val remoteContext = buildRemoteContext(request.contextHandle, request.callbackEndpoint)
-        val results = resolveNodeExecutorBatch(request.executorId, request.selectorsList, remoteContext, executionInstrumentation)
+        val runtime = runtimeProvider?.get()
+        val executor = findNodeExecutor(runtime, request.executorId)
+            ?: throw notFound("executor", request.executorId)
+        val remoteContext = buildRemoteContext(request.contextHandle, request.callbackEndpoint, runtime)
+        val results = resolveNodeExecutorBatch(executor, request.selectorsList, remoteContext, executionInstrumentation)
 
         log.debug("Returning {} result(s) for executor '{}'", results.size, request.executorId)
         return BatchResolveNodeResponse.newBuilder()
@@ -79,9 +82,10 @@ open class RemoteResolverServiceImpl(
     private suspend fun batchResolveFieldInternal(request: BatchResolveFieldRequest): BatchResolveFieldResponse {
         log.debug("Received batchResolveField request (executorId={}, contextHandle={})", request.executorId, request.contextHandle)
 
-        val executor = FieldExecutorRegistry.get(request.executorId)
+        val runtime = runtimeProvider?.get()
+        val executor = findFieldExecutor(runtime, request.executorId)
             ?: throw notFound("field executor", request.executorId)
-        val remoteContext = buildRemoteContext(request.contextHandle, request.callbackEndpoint)
+        val remoteContext = buildRemoteContext(request.contextHandle, request.callbackEndpoint, runtime)
 
         // The resolver id is the field coordinate, "Type.field".
         val parentTypeName = request.executorId.substringBefore(".")
@@ -100,10 +104,13 @@ open class RemoteResolverServiceImpl(
                 val objectValue = EngineObjectDataSerializer.deserialize(proto.objectValueJson.toByteArray(), schema, objectType.name)
                 val queryValue = EngineObjectDataSerializer.deserialize(proto.queryValueJson.toByteArray(), schema, queryType.name)
                 val arguments = FieldValueSerializer.deserializeArguments(proto.argumentsJson.toByteArray())
-                // Prefer a resolvable registry handle, which preserves object identity; otherwise
-                // reconstruct the selection set shipped by the caller.
-                val selections = proto.selectionsHandle.takeIf { it.isNotEmpty() }?.let { SelectionsRegistry.get(it) }
-                    ?: if (proto.hasSelections()) reconstructSelections(proto.selections, remoteContext) else null
+                val selections =
+                    if (runtime != null) {
+                        if (proto.hasSelections()) reconstructSelections(proto.selections, remoteContext) else null
+                    } else {
+                        proto.selectionsHandle.takeIf { it.isNotEmpty() }?.let { SelectionsRegistry.get(it) }
+                            ?: if (proto.hasSelections()) reconstructSelections(proto.selections, remoteContext) else null
+                    }
                 keyedSelectors.add(
                     proto.selectorKey to FieldResolverExecutor.Selector(
                         arguments = arguments,
@@ -205,11 +212,12 @@ open class RemoteResolverServiceImpl(
         }
 
     // Builds the context for an incoming resolve. Re-entrant queries route back to the caller over
-    // the cached callback channel; when the caller's context isn't registered locally, the locally
-    // registered schema is used instead.
+    // the cached callback channel. A supplied runtime owns schema access; the compatibility path
+    // uses the registered schema only when no caller context is available.
     private fun buildRemoteContext(
         contextHandle: String,
-        callbackEndpoint: String
+        callbackEndpoint: String,
+        runtime: RemoteResolverRuntime?,
     ): RemoteEngineExecutionContext {
         val originalContext = ContextRegistry.get(contextHandle)
         val callbackChannel = callbackChannelCache.computeIfAbsent(callbackEndpoint) { createCallbackChannel(it) }
@@ -217,9 +225,26 @@ open class RemoteResolverServiceImpl(
             delegate = originalContext,
             callbackChannel = callbackChannel,
             contextHandle = contextHandle,
-            localSchema = if (originalContext == null) SchemaRegistry.get() else null
+            localSchema =
+                if (runtime != null) {
+                    runtime.schema
+                } else if (originalContext == null) {
+                    SchemaRegistry.get()
+                } else {
+                    null
+                }
         )
     }
+
+    private fun findNodeExecutor(
+        runtime: RemoteResolverRuntime?,
+        executorId: String,
+    ) = if (runtime == null) NodeExecutorRegistry.get(executorId) else runtime.nodeExecutors[executorId]
+
+    private fun findFieldExecutor(
+        runtime: RemoteResolverRuntime?,
+        executorId: String,
+    ) = if (runtime == null) FieldExecutorRegistry.get(executorId) else runtime.fieldExecutors[executorId]
 
     private fun fieldError(
         selectorKey: String,

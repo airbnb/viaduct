@@ -10,15 +10,15 @@ plugins {
 dependencies {
     api(gradleApi())
 
-    // service-api hosts SchemaScoping and its validator, both of which cross module
-    // boundaries: the application plugin in :application reads schemaScoping (for validation
-    // and as a typed task input — see AssembleCentralSchemaTask), and the runtime engine
-    // deserializes the manifest JSON back into SchemaScoping. Exposed via `api` so :application
-    // can reference the types directly; @InternalApi on each member keeps BCV's public-surface
-    // listing unchanged.
+    // service-api hosts the schema scope definition model and its rules, which cross module
+    // boundaries: ViaductScopesYaml here decodes scopes.yaml against them, and :application reads the
+    // result inside AssembleCentralSchemaTask. Exposed via `api` so :application can name the types
+    // directly; @InternalApi and @ExperimentalApi on each member keep BCV's public-surface listing
+    // unchanged.
     api(libs.viaduct.service.api)
 
     implementation(libs.jackson.module)
+    implementation(libs.jackson.dataformat.yaml)
 
     implementation(libs.idea.gradle.plugin)
 

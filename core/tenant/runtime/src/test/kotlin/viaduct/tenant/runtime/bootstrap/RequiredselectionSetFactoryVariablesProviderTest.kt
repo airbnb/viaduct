@@ -14,6 +14,7 @@ import viaduct.api.mocks.mockReflectionLoader
 import viaduct.api.resolver.VariablesProvider
 import viaduct.api.types.Arguments
 import viaduct.engine.api.EngineExecutionContext
+import viaduct.engine.api.FullSchema
 import viaduct.engine.api.VariablesResolver
 import viaduct.engine.api.mocks.MockSchema
 import viaduct.engine.api.mocks.createEngineObjectData
@@ -57,7 +58,7 @@ class RequiredselectionSetFactoryVariablesProviderTest {
 
     private val objectData = createEngineObjectData(defaultSchema.schema.queryType, emptyMap())
     private val mockEngineExecutionContext: EngineExecutionContext = mockk {
-        every { fullSchema } returns defaultSchema
+        every { fullSchema } returns FullSchema(defaultSchema)
         every { requestContext } returns null
     }
     private val vresolveCtx = VariablesResolver.ResolveCtx(

@@ -5,12 +5,37 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.IntStream;
+import org.junit.jupiter.api.Test;
+import viaduct.api.testing.TestSchema;
+import viaduct.engine.SchemaFactory;
 import viaduct.java.api.annotations.Resolver;
 import viaduct.java.api.resolvers.FieldValue;
+import viaduct.java.api.testing.ResolverTestBase;
+import viaduct.java.api.types.Arguments;
 import viaduct.tenant.runtime.execution.fieldbatch.resolverbases.ItemResolvers;
 import viaduct.tenant.runtime.execution.fieldbatch.resolverbases.QueryResolvers;
 
 public class JavaFieldBatchResolverContractTest extends FieldBatchResolverContractTest {
+
+  @Test
+  void isolatedFieldBatchUsesGeneratedContextTranslation() {
+    var schema =
+        new SchemaFactory()
+            .fromSdl(
+                JavaFieldBatchResolverContractTest.class.getAnnotation(TestSchema.class).value());
+    var test = new ResolverTestBase(schema);
+    var inputs =
+        List.of(
+            new ResolverTestBase.FieldInputs<Item, Query, Arguments.NoArguments>()
+                .objectValue(Item.builder(test.context()).id("item-1").build()),
+            new ResolverTestBase.FieldInputs<Item, Query, Arguments.NoArguments>()
+                .objectValue(Item.builder(test.context()).id("item-2").build()));
+
+    var values = test.runFieldBatchResolver(new BatchedFieldResolver(), inputs).join();
+
+    org.junit.jupiter.api.Assertions.assertEquals("batched-item-1-size-2", values.get(0).get());
+    org.junit.jupiter.api.Assertions.assertEquals("batched-item-2-size-2", values.get(1).get());
+  }
 
   @Resolver(objectValueFragment = "fragment _ on Item { id }")
   public static class OutcomeFieldResolver extends ItemResolvers.OutcomeField {

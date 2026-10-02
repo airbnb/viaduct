@@ -1,17 +1,23 @@
 package viaduct.codegen.ct
 
 import javassist.CtClass
+import javassist.CtMethod
 import javassist.CtNewConstructor
 import javassist.CtNewMethod
 import javassist.bytecode.AccessFlag
+import javassist.bytecode.Bytecode
 import javassist.bytecode.Descriptor
 import javassist.bytecode.FieldInfo
+import javassist.bytecode.MethodInfo
+import javassist.bytecode.Opcode
 
 private const val ENUM_VALUE_ACCESS_FLAGS =
     AccessFlag.PUBLIC or AccessFlag.STATIC or AccessFlag.FINAL or AccessFlag.ENUM
 
 private const val ENUM_SYNTHETIC_VALUES_ACCESS_FLAGS =
     AccessFlag.PRIVATE or AccessFlag.STATIC or AccessFlag.FINAL or AccessFlag.SYNTHETIC
+
+private const val ENUM_CONSTRUCTOR_DESCRIPTOR = "(Ljava/lang/String;I)V"
 
 /**
  * For a kotlin enum class:
@@ -67,6 +73,9 @@ internal fun CtGenContext.kmToCtEnum(
     val result = getClass(javaBinaryName)
     result.applySupers(this, kmClassWrapper)
     val enumArrayCtClass = getClass(CtName("$javaBinaryName[]")) // Must _follow_ creation of result!
+    val entryDescriptor = Descriptor.of(jvmName)
+    val valuesArrayDescriptor = Descriptor.of(enumArrayCtClass)
+    val valuesDescriptor = "()$valuesArrayDescriptor"
     result.classFile.apply {
         val cp = constPool
         accessFlags = kmClassWrapper.kmClass.jvmAccessFlags or AccessFlag.ENUM
@@ -75,7 +84,7 @@ internal fun CtGenContext.kmToCtEnum(
         kmClassWrapper.kmClass.enumEntries.forEach { valueName ->
             withContext(valueName) {
                 addField(
-                    FieldInfo(cp, valueName, Descriptor.of(jvmName)).apply {
+                    FieldInfo(cp, valueName, entryDescriptor).apply {
                         accessFlags = ENUM_VALUE_ACCESS_FLAGS
                     }
                 )
@@ -85,31 +94,33 @@ internal fun CtGenContext.kmToCtEnum(
         // Add $VALUES
         withContext("\$VALUES") {
             addField(
-                FieldInfo(cp, "\$VALUES", Descriptor.of(enumArrayCtClass)).apply {
+                FieldInfo(cp, "\$VALUES", valuesArrayDescriptor).apply {
                     accessFlags = ENUM_SYNTHETIC_VALUES_ACCESS_FLAGS
                 }
             )
         }
     }
-    // Add $values()
+    // Add $values(), as bytecode: entry names are legal JVM field names but may be Java keywords
+    // (e.g. `if`) that Javassist's source compiler cannot parse.
     withContext("\$values") {
-        val valuesList = kmClassWrapper.kmClass.enumEntries.joinToString(",")
-        val body = when (valuesList) {
-            "" -> "{ return new $javaName[0]; }"
-            else -> "{ return new $javaName[]{ $valuesList }; }"
+        val cp = result.classFile.constPool
+        val bc = Bytecode(cp)
+        bc.addIconst(kmClassWrapper.kmClass.enumEntries.size)
+        bc.addAnewarray(jvmName)
+        kmClassWrapper.kmClass.enumEntries.forEachIndexed { index, valueName ->
+            bc.addOpcode(Opcode.DUP)
+            bc.addIconst(index)
+            bc.addGetstatic(jvmName, valueName, entryDescriptor)
+            bc.addOpcode(Opcode.AASTORE)
         }
-        val syntheticValuesMethod =
-            CtNewMethod.make(
-                ENUM_SYNTHETIC_VALUES_ACCESS_FLAGS,
-                enumArrayCtClass,
-                "\$values",
-                null,
-                null,
-                null,
-                result
-            )
-        addCompilable(body, syntheticValuesMethod)
-        result.addMethod(syntheticValuesMethod)
+        bc.addOpcode(Opcode.ARETURN)
+        bc.maxLocals = 0
+        val minfo =
+            MethodInfo(cp, "\$values", valuesDescriptor).apply {
+                accessFlags = ENUM_SYNTHETIC_VALUES_ACCESS_FLAGS
+                codeAttribute = bc.toCodeAttribute()
+            }
+        result.addMethod(CtMethod.make(minfo, result))
     }
 
     // Add values()
@@ -149,15 +160,21 @@ internal fun CtGenContext.kmToCtEnum(
 
     // Add the static initializer
     withContext("clinit") {
-        val staticInit = result.makeClassInitializer()
-        val initValues =
-            kmClassWrapper.kmClass.enumEntries
-                .mapIndexed { index, enumValue ->
-                    "$enumValue = new $javaName(\"${enumValue}\", $index);"
-                }.joinToString(" ")
-        staticInit.setBody(
-            "{ $initValues \$VALUES = \$values(); }"
-        )
+        val cp = result.classFile.constPool
+        val bc = Bytecode(cp)
+        kmClassWrapper.kmClass.enumEntries.forEachIndexed { index, valueName ->
+            bc.addNew(jvmName)
+            bc.addOpcode(Opcode.DUP)
+            bc.addLdc(valueName)
+            bc.addIconst(index)
+            bc.addInvokespecial(jvmName, MethodInfo.nameInit, ENUM_CONSTRUCTOR_DESCRIPTOR)
+            bc.addPutstatic(jvmName, valueName, entryDescriptor)
+        }
+        bc.addInvokestatic(jvmName, "\$values", valuesDescriptor)
+        bc.addPutstatic(jvmName, "\$VALUES", valuesArrayDescriptor)
+        bc.addReturn(CtClass.voidType)
+        bc.maxLocals = 0
+        result.makeClassInitializer().methodInfo.codeAttribute = bc.toCodeAttribute()
     }
 
     return result

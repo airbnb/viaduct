@@ -2,6 +2,7 @@
 
 package viaduct.remote
 
+import com.google.protobuf.ByteString
 import io.grpc.Status
 import io.grpc.inprocess.InProcessChannelBuilder
 import io.grpc.inprocess.InProcessServerBuilder
@@ -17,7 +18,12 @@ import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Test
+import viaduct.engine.api.EngineExecutionContext
+import viaduct.engine.api.EngineObjectData
+import viaduct.engine.api.EngineSchema
+import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.ResolvedEngineObjectData
 import viaduct.engine.api.mocks.MockSchema
 import viaduct.engine.api.spi.FieldResolverExecutor
@@ -38,12 +44,14 @@ import viaduct.remote.grpc.BatchResolveNodeRequest
 import viaduct.remote.grpc.BatchResolveNodeResponse
 import viaduct.remote.grpc.EncodedRemoteContext
 import viaduct.remote.grpc.ErrorInfo
+import viaduct.remote.grpc.FieldSelector
 import viaduct.remote.grpc.RemoteResolverServiceGrpcKt
 import viaduct.remote.grpc.RemoteResolverServiceMessage
 import viaduct.remote.grpc.RemoteResolverStreamServiceGrpcKt
 import viaduct.remote.grpc.ResolvedField
 import viaduct.remote.grpc.ResolvedNode
 import viaduct.remote.grpc.Selector
+import viaduct.remote.grpc.SerializedSelectionSet
 import viaduct.remote.grpc.ViaductServiceMessage
 import viaduct.remote.registry.ContextRegistry
 import viaduct.remote.registry.NodeExecutorRegistry
@@ -65,6 +73,183 @@ class RemoteResolverContextIntegrationTest {
             }
             """.trimIndent(),
         )
+
+    @Test
+    fun `runtime schema overrides a registered caller context`() =
+        runBlocking {
+            val callerSchema =
+                MockSchema.mk(
+                    """
+                    extend type Query { caller: String }
+                    type User { id: ID!, callerOnly: String }
+                    """.trimIndent()
+                )
+            val runtimeSchema =
+                MockSchema.mk(
+                    """
+                    extend type Query { runtime: String }
+                    type User { id: ID!, runtimeOnly: String }
+                    """.trimIndent()
+                )
+            val observedFullSchema = AtomicReference<EngineSchema>()
+            val observedSelectionSchema = AtomicReference<EngineSchema>()
+            val delegate =
+                SimpleNodeResolverExecutor(
+                    typeName = "User",
+                    nodeData = mapOf("user:1" to mapOf("id" to "user:1", "runtimeOnly" to "runtime")),
+                )
+            val executor =
+                object : NodeResolverExecutor by delegate {
+                    override suspend fun resolve(
+                        selectors: List<NodeResolverExecutor.Selector>,
+                        context: EngineExecutionContext,
+                    ): Map<NodeResolverExecutor.Selector, Result<EngineObjectData>> {
+                        observedFullSchema.set(context.fullSchema)
+                        observedSelectionSchema.set(
+                            context.engineSelectionSetFactory
+                                .engineSelectionSet("User", "runtimeOnly", emptyMap())
+                                .schema
+                        )
+                        return delegate.resolve(selectors, context)
+                    }
+                }
+            val runtime = RemoteResolverRuntime(runtimeSchema, nodeExecutors = listOf(executor))
+            val service =
+                InProcessCallbackRemoteResolverService(
+                    runtimeProvider = RemoteResolverRuntimeProvider { runtime },
+                )
+            val contextHandle =
+                ContextRegistry.register(
+                    ContextMocks(callerSchema).engineExecutionContext,
+                    currentCoroutineContext(),
+                )
+
+            try {
+                val response =
+                    service.batchResolveNode(
+                        BatchResolveNodeRequest.newBuilder()
+                            .setExecutorId("User")
+                            .setContextHandle(contextHandle)
+                            .setCallbackEndpoint("runtime-schema-test")
+                            .addSelectors(Selector.newBuilder().setId("user:1"))
+                            .build()
+                    )
+
+                assertFalse(response.resultsList.single().hasError())
+                assertSame(runtimeSchema.schema, observedFullSchema.get().schema)
+                assertSame(runtimeSchema.rels, observedFullSchema.get().rels)
+                assertSame(runtimeSchema, observedSelectionSchema.get())
+                val data =
+                    EngineObjectDataSerializer.deserialize(
+                        response.resultsList.single().dataJson.toByteArray(),
+                        runtimeSchema.schema,
+                        "User",
+                    )
+                assertEquals("runtime", data.fetch("runtimeOnly"))
+            } finally {
+                service.shutdownChannels()
+                ContextRegistry.unregister(contextHandle)
+            }
+        }
+
+    @Test
+    fun `runtime schema overrides a registered caller selection`() =
+        runBlocking {
+            val callerSchema =
+                MockSchema.mk(
+                    """
+                    extend type Query { caller: String }
+                    type CallerNode implements Node { id: ID! }
+                    type Character { id: ID }
+                    """.trimIndent()
+                )
+            val runtimeSchema =
+                MockSchema.mk(
+                    """
+                    extend type Query { runtime: String }
+                    type RuntimeNode implements Node { id: ID! }
+                    type Character { id: ID }
+                    """.trimIndent()
+                )
+            val receivedSelections = AtomicReference<EngineSelectionSet>()
+            val delegate = SimpleFieldResolverExecutor(resolverId = "Character.runtimeTypeRequested")
+            val executor =
+                object : FieldResolverExecutor by delegate {
+                    override suspend fun batchResolve(
+                        selectors: List<FieldResolverExecutor.Selector>,
+                        context: EngineExecutionContext,
+                    ): Map<FieldResolverExecutor.Selector, Result<Any?>> =
+                        selectors.associateWith { selector ->
+                            val selections = checkNotNull(selector.selections)
+                            receivedSelections.set(selections)
+                            Result.success(selections.requestsType("RuntimeNode"))
+                        }
+                }
+            val runtime = RemoteResolverRuntime(runtimeSchema, fieldExecutors = listOf(executor))
+            val service =
+                InProcessCallbackRemoteResolverService(
+                    runtimeProvider = RemoteResolverRuntimeProvider { runtime },
+                )
+            val callerContext = ContextMocks(callerSchema).engineExecutionContext
+            val contextHandle = ContextRegistry.register(callerContext, currentCoroutineContext())
+            val callerSelections =
+                callerContext.engineSelectionSetFactory.engineSelectionSet("Node", "id", emptyMap())
+            val selectionsHandle = SelectionsRegistry.register(callerSelections)
+            val fragment = callerSelections.toFragment()
+            val objectValue =
+                ResolvedEngineObjectData.Builder(callerSchema.schema.getObjectType("Character")).build()
+            val queryValue = ResolvedEngineObjectData.Builder(callerSchema.schema.queryType).build()
+
+            try {
+                val response =
+                    service.batchResolveField(
+                        BatchResolveFieldRequest.newBuilder()
+                            .setExecutorId(executor.resolverId)
+                            .setContextHandle(contextHandle)
+                            .setCallbackEndpoint("runtime-selection-test")
+                            .addSelectors(
+                                FieldSelector.newBuilder()
+                                    .setSelectorKey("0")
+                                    .setArgumentsJson(
+                                        ByteString.copyFrom(
+                                            FieldValueSerializer.serializeArguments(emptyMap())
+                                        )
+                                    )
+                                    .setSelectionsHandle(selectionsHandle)
+                                    .setSelections(
+                                        SerializedSelectionSet.newBuilder()
+                                            .setType(callerSelections.type)
+                                            .setDocument(fragment.document)
+                                            .setVariablesJson(
+                                                ByteString.copyFrom(
+                                                    FieldValueSerializer.serializeArguments(
+                                                        fragment.variables.asMap()
+                                                    )
+                                                )
+                                            )
+                                    )
+                                    .setObjectValueJson(
+                                        ByteString.copyFrom(
+                                            EngineObjectDataSerializer.serialize(objectValue)
+                                        )
+                                    )
+                                    .setQueryValueJson(
+                                        ByteString.copyFrom(
+                                            EngineObjectDataSerializer.serialize(queryValue)
+                                        )
+                                    )
+                            )
+                            .build()
+                    )
+
+                assertFalse(response.resultsList.single().hasError())
+                assertSame(runtimeSchema, receivedSelections.get().schema)
+            } finally {
+                service.shutdownChannels()
+                ContextRegistry.unregister(contextHandle)
+                SelectionsRegistry.unregister(selectionsHandle)
+            }
+        }
 
     @Test
     fun `node and field proxies exchange request and response context`() =

@@ -55,7 +55,6 @@ dependencies {
     implementation(libs.viaduct.tenant.shared)
     implementation(libs.viaduct.shared.apiannotations)
     implementation(libs.viaduct.shared.utils)
-    implementation(libs.classgraph)
     implementation(libs.guava)
     implementation(libs.slf4j.api)
     implementation(libs.kotlin.reflect)

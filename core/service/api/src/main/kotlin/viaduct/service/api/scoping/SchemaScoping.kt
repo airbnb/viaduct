@@ -1,29 +1,26 @@
 package viaduct.service.api.scoping
 
-import java.io.Serializable
 import viaduct.apiannotations.ExperimentalApi
 
 /**
- * Build-to-runtime contract describing the schema-scoping declarations of a Viaduct application.
+ * Build-to-runtime contract describing the schema scope definitions of a Viaduct application.
  *
- * Emitted by the `viaduct-application` Gradle plugin from the application's `declareScoping { ... }`
- * DSL block, and consumed at runtime when a Viaduct instance resolves which scoped schemas to
- * register. The canonical cross-process exchange format is the JSON manifest written
- * into the application JAR; the [Serializable] implementation supports in-process Gradle plumbing
- * (e.g. configuration-cache state) and is not the wire format for runtime consumption.
+ * Decoded from the application's `scopes.yaml` by [SchemaScopeDefinitions], which every build tool
+ * shares. These definitions declare which scope IDs exist and which scoped schemas are derivable from
+ * them; choosing which of those a given deployment serves happens at runtime, not here.
  *
  * @property scopeUniverse the complete set of scope IDs declared as valid for this application;
  *  empty when the application does not opt into scoping.
- * @property scopedSchemas mapping from declared scoped-schema ID to its scope set; an empty scope
- *  set is an alias for the base schema.
- * @property version manifest schema version, used to evolve the on-disk JSON format.
+ * @property scopedSchemas mapping from declared scoped-schema ID to its non-empty scope set. The
+ *  unscoped schema is not declarable — it is requested at runtime by its reserved id.
+ * @property version definition format version, used to evolve the file.
  */
 @ExperimentalApi
 data class SchemaScoping(
     val scopeUniverse: Set<String>,
     val scopedSchemas: Map<String, Set<String>>,
     val version: String = CURRENT_VERSION,
-) : Serializable {
+) {
     /**
      * Whether this application opts into scope-based filtering. The presence of a declared
      * universe — not the contents of [scopedSchemas] — is the source of truth.

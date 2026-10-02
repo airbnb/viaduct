@@ -12,6 +12,7 @@ import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.ResolverMetadata
 import viaduct.engine.api.ResolverType
+import viaduct.engine.api.invocationContextFor
 import viaduct.engine.api.spi.NodeResolverExecutor
 import viaduct.errors.ErroneousFieldException
 import viaduct.errors.FrameworkException
@@ -69,13 +70,14 @@ class NodeBatchResolverExecutorImpl(
     ): Map<NodeResolverExecutor.Selector, Result<EngineObjectData>> {
         val scope = CoroutineScope(currentCoroutineContext())
         val inputs = selectors.map { selector ->
+            val invocationContext = context.invocationContextFor(selector)
             ResolverInput(
                 selector = selector,
                 context = SimpleNodeExecutionContext(
                     serializedId = selector.id,
                     typeName = typeName,
-                    requestContext = context.requestContext,
-                    engineExecutionContext = context,
+                    requestContext = invocationContext.requestContext,
+                    engineExecutionContext = invocationContext,
                     coroutineScope = scope,
                     grtPackagePrefix = grtPackagePrefix,
                     knownFragments = knownFragments,
@@ -85,7 +87,7 @@ class NodeBatchResolverExecutorImpl(
         }
         val resolvedGroups = coroutineScope {
             partitionByUniqueKey(inputs) { it.internalID }
-                .map { group -> async { resolveGroup(resolver, group) } }
+                .map { group -> async { resolveGroup(resolver, group, context) } }
                 .awaitAll()
         }
 
@@ -97,6 +99,7 @@ class NodeBatchResolverExecutorImpl(
     private suspend fun <R : NodeObject> resolveGroup(
         resolver: BaseBatchedNodeResolver<R>,
         group: List<ResolverInput>,
+        context: EngineExecutionContext,
     ): Map<NodeResolverExecutor.Selector, Result<EngineObjectData>> =
         handleTenantErrorsResultSuspend(typeName) {
             val javaContexts = group.map { it.context }
@@ -115,7 +118,7 @@ class NodeBatchResolverExecutorImpl(
                     ?: throw TenantUsageException(
                         "batchResolve for node $typeName returned a context that was not in the input context list: $returnedContext"
                     )
-                resolved[selector] = unwrap(fieldValue)
+                resolved[selector] = unwrap(fieldValue, context)
             }
 
             resolved
@@ -131,7 +134,10 @@ class NodeBatchResolverExecutorImpl(
         val internalID: String,
     )
 
-    private suspend fun unwrap(fieldValue: FieldValue<*>): Result<EngineObjectData> {
+    private suspend fun unwrap(
+        fieldValue: FieldValue<*>,
+        context: EngineExecutionContext
+    ): Result<EngineObjectData> {
         return resultOfSuspend(
             mapException = { e ->
                 if (e is PassthroughException || e is ErroneousFieldException) {
@@ -150,7 +156,7 @@ class NodeBatchResolverExecutorImpl(
                     "NodeReference returned from node resolver. Use a GRT builder instead of ctx.ref to construct your node object."
                 )
             }
-            convertResult(raw, graphqlSchema) as? EngineObjectData
+            convertResult(raw, graphqlSchema, context.globalIDCodec) as? EngineObjectData
                 ?: throw FrameworkException(
                     "Node batch resolver for $typeName failed to convert result to EngineObjectData: ${raw.javaClass.name}"
                 )

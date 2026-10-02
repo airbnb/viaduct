@@ -8,6 +8,7 @@ import graphql.language.TypeName as GJTypeName
 import graphql.schema.GraphQLCompositeType
 import graphql.schema.GraphQLObjectType
 import graphql.schema.GraphQLTypeUtil
+import java.util.IdentityHashMap
 import java.util.Locale
 import viaduct.engine.api.EngineSchema
 import viaduct.engine.runtime.EngineExecutionContextExtensions.fieldRssOriginFilteringKillSwitchEnabled
@@ -17,6 +18,8 @@ import viaduct.engine.runtime.mat.KeyTree
 import viaduct.engine.runtime.result.ObjectEngineResult
 import viaduct.graphql.utils.collectVariableReferences
 import viaduct.utils.collections.MaskedSet
+import viaduct.utils.memoize.IdentityTriple
+import viaduct.utils.memoize.memoize
 
 /**
  * Builds a plan from an existing plan after keeping only fields present in [shape].
@@ -84,14 +87,16 @@ private class QueryPlanFilter(
     private val shape: KeyTree,
     private val context: QueryPlanFilterCtx,
 ) {
+    // KeyTree is represented as a DAG whose parents may share child subtrees. Memoize each
+    // source/shape/type projection because those shared children can be reached more than once.
+    private val projectSelectionSet = ::projectSelectionSetUncached.memoize(HashMap(16), ::IdentityTriple)
+
     fun filter(
         source: QueryPlan.SelectionSet,
         projectionType: GraphQLObjectType?,
     ): FilteredQueryPlan {
         val filtered = projectSelectionSet(source, shape, projectionType)
-        val activeVariableNames = filtered.selectionSet
-            .toAstSelectionSet()
-            .collectVariableReferences()
+        val activeVariableNames = filtered.selectionSet.retainedVariableNames()
         return FilteredQueryPlan(
             selectionSet = filtered.selectionSet,
             activeVariableNames = activeVariableNames,
@@ -100,10 +105,10 @@ private class QueryPlanFilter(
         )
     }
 
-    private fun projectSelectionSet(
+    private fun projectSelectionSetUncached(
         source: QueryPlan.SelectionSet,
         shape: KeyTree,
-        projectionType: GraphQLObjectType? = null,
+        projectionType: GraphQLObjectType?,
     ): FilteredSelectionSet {
         val selections = mutableListOf<QueryPlan.Selection>()
         val fieldsByType = shape.keysByType()
@@ -215,7 +220,7 @@ private class QueryPlanFilter(
                 null
             } else {
                 sourceField.selectionSet
-                    ?.let { projectSelectionSet(it, childShape) }
+                    ?.let { projectSelectionSet(it, childShape, null) }
                     ?.takeUnless {
                         !childShape.isEmpty() && it.selectionSet.selections.isEmpty()
                     }
@@ -223,6 +228,9 @@ private class QueryPlanFilter(
             }
             selections += sourceField.copy(
                 constraints = Constraints.Unconstrained.withDirectives(sourceField.field.directives),
+                field = sourceField.field.transform {
+                    it.selectionSet(childProjection?.selectionSet?.toAstSelectionSet())
+                },
                 selectionSet = childProjection?.selectionSet,
                 childPlans = field.childPlans,
                 fieldTypeChildPlans = field.fieldTypeChildPlans,
@@ -289,6 +297,33 @@ private class QueryPlanFilter(
 
         return result
     }
+}
+
+/** Returns the names of variables still referenced by arguments or directives in the filtered query. */
+internal fun QueryPlan.SelectionSet.retainedVariableNames(): Set<String> {
+    val visited = IdentityHashMap<QueryPlan.SelectionSet, Boolean>()
+    val names = mutableSetOf<String>()
+
+    fun visit(selectionSet: QueryPlan.SelectionSet) {
+        if (visited.put(selectionSet, true) != null) return
+        for (selection in selectionSet.selections) {
+            when (selection) {
+                is QueryPlan.Field -> {
+                    selection.field.arguments.forEach { names += it.collectVariableReferences() }
+                    selection.field.directives.forEach { names += it.collectVariableReferences() }
+                    selection.selectionSet?.let(::visit)
+                }
+                is QueryPlan.InlineFragment -> {
+                    selection.inlineFragment?.directives?.forEach { names += it.collectVariableReferences() }
+                    visit(selection.selectionSet)
+                }
+                is QueryPlan.FragmentSpread ->
+                    selection.fragmentSpread?.directives?.forEach { names += it.collectVariableReferences() }
+            }
+        }
+    }
+    visit(this)
+    return names
 }
 
 private data class FilteredQueryPlan(

@@ -1,6 +1,7 @@
 package viaduct.service.api.scoping
 
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -9,16 +10,50 @@ import viaduct.apiannotations.ExperimentalApi
 
 @OptIn(ExperimentalApi::class)
 class SchemaScopingValidatorTest {
+    /** One ID per shape the grammar has to admit; every other ID in use repeats one of these. */
+    private val scopeIdShapes = listOf(
+        "viaduct", // no separator
+        "viaduct:public", // namespace segment
+        "viaduct:internal-tools", // hyphen in the second segment
+        "viaduct:__generated-types", // leading underscores after the colon
+        "listing-block", // hyphen in the first segment
+        "listing-block:private", // hyphen plus namespace segment
+        "multi-hyphen-scope", // repeated hyphens
+    )
+
+    @Test
+    fun `validateScopeId accepts every shape the grammar must admit`() {
+        scopeIdShapes.forEach { id ->
+            assertNull(SchemaScopingValidator.validateScopeId(id), "expected '$id' to be accepted")
+        }
+    }
+
     @Test
     fun `validateScopeId accepts identifier shapes`() {
-        listOf("public", "internal_v2", "admin", "a", "a0", "scope_with_underscores").forEach { id ->
+        // Uppercase and hyphenated IDs are accepted: real @scope(to: [...]) values take both, and the
+        // OSS tree's own published test fixtures use ADMIN / SCOPE1 / publicScope.
+        val accepted = listOf(
+            "public",
+            "internal_v2",
+            "admin",
+            "a",
+            "a0",
+            "scope_with_underscores",
+            "Public",
+            "INTERNAL",
+            "publicScope",
+            "SCOPE1",
+            "with-hyphen",
+            "tail-",
+        )
+        accepted.forEach { id ->
             assertNull(SchemaScopingValidator.validateScopeId(id), "expected '$id' to be accepted")
         }
     }
 
     @Test
     fun `validateScopeId rejects malformed identifiers`() {
-        val rejected = listOf("", "Public", "INTERNAL", "1scope", "_leading", "with-hyphen", "with space", "tail-")
+        val rejected = listOf("", "1scope", "_leading", "with space", "a:b:c", "trailing:", ":leading")
         rejected.forEach { id ->
             val err = SchemaScopingValidator.validateScopeId(id)
             assertNotNull(err, "expected '$id' to be rejected")
@@ -78,27 +113,24 @@ class SchemaScopingValidatorTest {
     }
 
     @Test
-    fun `validate accepts a sole base-alias entry when a universe is declared`() {
-        // An entry like `"BASE_ALIAS" to emptySet()` is a documented base-schema alias:
-        // the scoped schema exposes the base schema without additional scope filtering.
-        // Distinct from the no-universe case below: the universe declaration is what flips
-        // an empty-set entry from "invalid scoping intent" to "base-schema alias".
+    fun `validate does not check whether a scope set is empty`() {
+        // Subtracting the universe from an empty set leaves nothing to report, so this passes here.
+        // An empty scope set is invalid, and SchemaScopeDefinitions is what rejects it — pinned so a
+        // future change to move the rule down here is a deliberate one.
         val scoping = SchemaScoping(
             scopeUniverse = setOf("public", "internal"),
-            scopedSchemas = mapOf("BASE_ALIAS" to emptySet()),
+            scopedSchemas = mapOf("EMPTY_SET" to emptySet()),
         )
         assertEquals(emptyList<SchemaScopingValidationError>(), SchemaScopingValidator.validate(scoping))
     }
 
     @Test
-    fun `validate accepts a base-alias entry alongside a normal scoped schema`() {
-        // Pins that the empty-set "base-schema alias" entry does not taint validation of its
-        // siblings — the loop body's empty-unknown short-circuit must not interfere with
-        // subset-checking the next entry.
+    fun `validate subset-checks every entry regardless of its siblings`() {
+        // The loop body's empty-unknown short-circuit must not interfere with the next entry.
         val scoping = SchemaScoping(
             scopeUniverse = setOf("public", "internal"),
             scopedSchemas = mapOf(
-                "BASE_ALIAS" to emptySet(),
+                "EMPTY_SET" to emptySet(),
                 "PUBLIC_ONLY" to setOf("public"),
             ),
         )
@@ -142,6 +174,30 @@ class SchemaScopingValidatorTest {
         assertTrue(err.message.contains("'API'"))
         assertTrue(err.message.contains("missing"))
         assertTrue(err.message.contains("secret"))
+    }
+
+    @Test
+    fun `validate does not expand a namespace into its private scope, and says so`() {
+        // ScopeDirectivesRule treats @scope(to: ["listing-block"]) as also granting
+        // "listing-block:private"; schemaScopes requires it to be declared in its own right.
+        val scoping = SchemaScoping(
+            scopeUniverse = setOf("listing-block"),
+            scopedSchemas = mapOf("PRIVATE_API" to setOf("listing-block:private")),
+        )
+        val err = SchemaScopingValidator.validate(scoping).single()
+        assertEquals(ScopingErrorCodes.SCOPED_SCHEMA_UNKNOWN_SCOPE, err.code)
+        assertTrue(err.message.contains(":private"), err.message)
+        assertTrue(err.message.contains("@scope"), err.message)
+    }
+
+    @Test
+    fun `validate omits the private-scope hint for an ordinary unknown scope`() {
+        val scoping = SchemaScoping(
+            scopeUniverse = setOf("public"),
+            scopedSchemas = mapOf("API" to setOf("typo")),
+        )
+        val err = SchemaScopingValidator.validate(scoping).single()
+        assertFalse(err.message.contains("@scope"), err.message)
     }
 
     @Test

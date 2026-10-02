@@ -9,8 +9,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import graphql.Scalars;
 import graphql.language.StringValue;
+import graphql.schema.GraphQLEnumType;
 import graphql.schema.GraphQLInputObjectField;
 import graphql.schema.GraphQLInputObjectType;
+import graphql.schema.GraphQLList;
+import graphql.schema.GraphQLNonNull;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -212,6 +215,71 @@ class InputBaseTest {
     TestInput explicitNull = new TestInput(null, map("defaulted", null), inputType);
     assertTrue(explicitNull.fieldPresent(Field.of("defaulted", Type.ofClass(TestInput.class))));
     assertNull(explicitNull.scalar("defaulted"));
+  }
+
+  @Test
+  void programmaticDefaultsResolveNestedInputsListsEnumsAndTemporalScalars() {
+    GraphQLEnumType colorType =
+        GraphQLEnumType.newEnum().name("Color").value("RED", "RED").value("GREEN", "GREEN").build();
+    GraphQLInputObjectType nestedType =
+        GraphQLInputObjectType.newInputObject()
+            .name("Nested")
+            .field(
+                GraphQLInputObjectField.newInputObjectField()
+                    .name("name")
+                    .type(Scalars.GraphQLString)
+                    .defaultValueProgrammatic("nested"))
+            .build();
+    GraphQLInputObjectType inputType =
+        GraphQLInputObjectType.newInputObject()
+            .name("TestInput")
+            .field(
+                GraphQLInputObjectField.newInputObjectField()
+                    .name("nested")
+                    .type(nestedType)
+                    .defaultValueProgrammatic(map()))
+            .field(
+                GraphQLInputObjectField.newInputObjectField()
+                    .name("colors")
+                    .type(GraphQLList.list(colorType))
+                    .defaultValueProgrammatic(Arrays.asList("RED", "GREEN")))
+            .field(
+                GraphQLInputObjectField.newInputObjectField()
+                    .name("createdAt")
+                    .type(viaduct.graphql.Scalars.INSTANCE.getDateTimeScalar())
+                    .defaultValueProgrammatic("2024-01-15T10:30:00Z"))
+            .field(
+                GraphQLInputObjectField.newInputObjectField()
+                    .name("dates")
+                    .type(GraphQLList.list(viaduct.graphql.Scalars.INSTANCE.getDateTimeScalar()))
+                    .defaultValueProgrammatic(Arrays.asList("2024-01-15T10:30:00Z")))
+            .field(
+                GraphQLInputObjectField.newInputObjectField()
+                    .name("requiredWithDefault")
+                    .type(GraphQLNonNull.nonNull(Scalars.GraphQLString))
+                    .defaultValueProgrammatic("fallback"))
+            .field(
+                GraphQLInputObjectField.newInputObjectField()
+                    .name("requiredWithoutDefault")
+                    .type(GraphQLNonNull.nonNull(Scalars.GraphQLString)))
+            .build();
+    TestInput input = new TestInput(null, map(), inputType);
+
+    assertEquals("nested", input.input("nested", TestInput::new).scalar("name"));
+    assertEquals(Arrays.asList(Color.RED, Color.GREEN), input.enumList("colors", Color.class));
+    assertEquals(Instant.parse("2024-01-15T10:30:00Z"), input.scalar("createdAt", "DateTime"));
+    assertEquals(
+        Arrays.asList(Instant.parse("2024-01-15T10:30:00Z")),
+        input.scalarList("dates", "DateTime"));
+    assertEquals("fallback", input.scalar("requiredWithDefault"));
+    assertNull(input.scalar("requiredWithoutDefault"));
+    assertFalse(
+        input.fieldPresent(Field.of("requiredWithoutDefault", Type.ofClass(TestInput.class))));
+    assertTrue(input.getInputData().isEmpty());
+
+    TestInput explicitNull = new TestInput(null, map("nested", null), inputType);
+    assertNull(explicitNull.input("nested", TestInput::new));
+    assertTrue(explicitNull.fieldPresent(Field.of("nested", Type.ofClass(TestInput.class))));
   }
 
   // ===== get (scalar) =====

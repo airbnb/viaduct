@@ -1,10 +1,12 @@
 package viaduct.api.internal
 
 import graphql.introspection.Introspection
+import graphql.language.Value
 import graphql.schema.GraphQLFieldDefinition
 import graphql.schema.GraphQLInputObjectField
 import graphql.schema.GraphQLInputObjectType
 import graphql.schema.GraphQLObjectType
+import graphql.schema.InputValueWithState
 import viaduct.apiannotations.InternalApi
 import viaduct.engine.api.EngineSchema
 
@@ -41,11 +43,12 @@ object InputTypeFactory {
         val field = requireNotNull(type.getField(fieldName)) {
             "Field $typeName.$fieldName not found."
         }
-        return buildArgumentsInputType(name, field, schema)
+        return buildArgumentsInputType(name, typeName, field, schema)
     }
 
     private fun buildArgumentsInputType(
         name: String,
+        typeName: String,
         field: GraphQLFieldDefinition,
         schema: EngineSchema
     ): GraphQLInputObjectType {
@@ -59,9 +62,8 @@ object InputTypeFactory {
                         Introspection.DirectiveLocation.INPUT_FIELD_DEFINITION in def.validLocations()
                     }
                 )
-            if (it.hasSetDefaultValue() && it.argumentDefaultValue.isLiteral) {
-                val v = it.argumentDefaultValue.value as graphql.language.Value<*>
-                builder.defaultValueLiteral(v)
+            if (it.hasSetDefaultValue()) {
+                copyDefaultValue(it.argumentDefaultValue, builder, "$typeName.${field.name}(${it.name})")
             }
             builder.build()
         }
@@ -72,6 +74,21 @@ object InputTypeFactory {
             .name(name)
             .fields(fields)
             .build()
+    }
+
+    internal fun copyDefaultValue(
+        defaultValue: InputValueWithState,
+        builder: GraphQLInputObjectField.Builder,
+        argumentName: String
+    ) {
+        when {
+            defaultValue.isLiteral -> builder.defaultValueLiteral(defaultValue.value as Value<*>)
+            defaultValue.isExternal -> builder.defaultValueProgrammatic(defaultValue.value)
+            defaultValue.isInternal -> throw IllegalArgumentException(
+                "Cannot represent internally coerced default for argument $argumentName in a synthetic input field"
+            )
+            else -> throw IllegalArgumentException("Unsupported default state for argument $argumentName")
+        }
     }
 
     /**

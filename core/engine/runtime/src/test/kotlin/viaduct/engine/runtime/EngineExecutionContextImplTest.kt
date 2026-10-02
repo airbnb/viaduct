@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test
 import viaduct.engine.api.Coordinate
 import viaduct.engine.api.Engine
 import viaduct.engine.api.EngineSchema
+import viaduct.engine.api.FullSchema
 import viaduct.engine.api.mocks.MockFieldUnbatchedResolverExecutor
 import viaduct.engine.api.mocks.MockSchema
 import viaduct.engine.api.spi.FieldSelectivityProvider
@@ -133,7 +134,7 @@ class EngineExecutionContextImplTest {
     ): EngineExecutionContextImpl {
         val factory =
             EngineExecutionContextFactory(
-                fullSchema,
+                FullSchema(fullSchema),
                 dispatcherRegistry,
                 SimplePerformantInstrumentation(),
                 flagManager,

@@ -3,6 +3,7 @@
 package viaduct.engine.runtime.execution
 
 import graphql.execution.CoercedVariables
+import graphql.language.AstPrinter
 import io.kotest.matchers.collections.shouldBeEmpty
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertSame
@@ -279,6 +280,42 @@ class MatParametersTest {
             rebuiltField.field.arguments.single().value.rawValue(),
         )
         rebuiltField.field.collectVariableReferences().shouldBeEmpty()
+    }
+
+    @Test
+    fun `embedded source through a union field keeps the member type condition`() {
+        val parameters = mkExecutionParameters(
+            schemaSDL = "extend type Query { f:U } union U = A | B type A { g:G } type B { y:Int } type G { x:Int }",
+            coordinate = "G" to "x",
+            query = "{ f { ... on A { g { x } } } }",
+        ) {
+            fieldWithValue(
+                "Query" to "f",
+                ResolvedEngineObjectData(
+                    checkNotNull(schema.schema.getObjectType("A")),
+                    emptyMap(),
+                ),
+            )
+            fieldWithValue(
+                "A" to "g",
+                ResolvedEngineObjectData(
+                    checkNotNull(schema.schema.getObjectType("G")),
+                    emptyMap(),
+                ),
+            )
+        }
+        val schema = parameters.engineExecutionContext.activeSchema.schema
+
+        val result = createEmbedded(
+            parameters,
+            MatPath.Segment(checkNotNull(schema.getObjectType("A")), ObjectEngineResult.Key("f")),
+            MatPath.Segment(checkNotNull(schema.getObjectType("G")), ObjectEngineResult.Key("g")),
+        )
+
+        assertEquals(
+            "{f{...on A{g{x}}}}",
+            AstPrinter.printAstCompact(result.parameters.selectionSet.toAstSelectionSet()),
+        )
     }
 
     private fun createAtRoot(

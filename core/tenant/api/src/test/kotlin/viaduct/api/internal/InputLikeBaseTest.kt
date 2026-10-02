@@ -1,14 +1,28 @@
 package viaduct.api.internal
 
+import graphql.GraphQLContext
 import graphql.language.FloatValue
+import graphql.language.IntValue
 import graphql.language.StringValue
 import graphql.scalars.ExtendedScalars
+import graphql.schema.Coercing
+import graphql.schema.GraphQLArgument
+import graphql.schema.GraphQLEnumType
+import graphql.schema.GraphQLFieldDefinition
 import graphql.schema.GraphQLInputObjectField
 import graphql.schema.GraphQLInputObjectType
+import graphql.schema.GraphQLList
+import graphql.schema.GraphQLNonNull
+import graphql.schema.GraphQLObjectType
+import graphql.schema.GraphQLScalarType
+import graphql.schema.GraphQLSchema
+import graphql.schema.InputValueWithState
 import java.lang.reflect.InvocationTargetException
 import java.math.BigDecimal
 import java.math.BigInteger
 import java.time.Instant
+import java.util.Locale
+import java.util.concurrent.atomic.AtomicInteger
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotNull
@@ -32,9 +46,11 @@ import viaduct.api.testschema.O1
 import viaduct.api.testschema.O2
 import viaduct.api.testschema.O2_ArgumentedField_Arguments
 import viaduct.api.testschema.TestUser
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.gj
 import viaduct.errors.FrameworkException
 import viaduct.errors.TenantUsageException
+import viaduct.mapping.graphql.IR
 
 class InputLikeBaseTest {
     private val gqlSchema = ApiTestSchema.schema
@@ -85,12 +101,14 @@ class InputLikeBaseTest {
     }
 
     private inner class DefaultValueTestInput(
-        override val graphQLInputObjectType: GraphQLInputObjectType
+        override val graphQLInputObjectType: GraphQLInputObjectType,
+        override val inputData: Map<String, Any?> = emptyMap()
     ) : InputLikeBase() {
         override val context: InternalContext = internalContext
-        override val inputData: Map<String, Any?> = emptyMap()
 
         fun <T> field(name: String): T = get(name)
+
+        fun validate() = validateInputDataAndThrowAsFrameworkError()
     }
 
     @Test
@@ -256,6 +274,117 @@ class InputLikeBaseTest {
         assertEquals(decimal, input.field<BigDecimal>("decimal"))
         assertEquals(integer, input.field<BigInteger>("integerFromString"))
         assertEquals(BigInteger.valueOf(42), input.field<BigInteger>("integerFromFloat"))
+    }
+
+    @Test
+    fun `programmatic defaults resolve nested inputs lists enums and temporal scalars`() {
+        val enumType = gqlSchema.schema.getTypeAs<GraphQLEnumType>("E1")
+        val input2Type = GraphQLInputObjectType.newInputObject().name("Input2")
+            .field(
+                GraphQLInputObjectField.newInputObjectField().name("stringField")
+                    .type(graphql.Scalars.GraphQLString).defaultValueProgrammatic("nested")
+            )
+            .build()
+        val parseCount = AtomicInteger()
+        val dateTimeType = GraphQLScalarType.newScalar().name("DateTime")
+            .coercing(object : Coercing<Instant, String> {
+                override fun parseValue(
+                    input: Any,
+                    graphQLContext: GraphQLContext,
+                    locale: Locale
+                ): Instant {
+                    parseCount.incrementAndGet()
+                    return Instant.parse(input as String)
+                }
+            }).build()
+        val instant = Instant.parse("2024-01-15T10:30:00Z")
+        val inputType = GraphQLInputObjectType.newInputObject()
+            .name("ProgrammaticDefaults")
+            .field(
+                GraphQLInputObjectField.newInputObjectField().name("nested").type(input2Type)
+                    .defaultValueProgrammatic(emptyMap<String, Any?>())
+            )
+            .field(
+                GraphQLInputObjectField.newInputObjectField().name("enums").type(GraphQLList.list(enumType))
+                    .defaultValueProgrammatic(listOf("A", "B"))
+            )
+            .field(
+                GraphQLInputObjectField.newInputObjectField().name("dateTime").type(dateTimeType)
+                    .defaultValueProgrammatic(instant.toString())
+            )
+            .field(
+                GraphQLInputObjectField.newInputObjectField().name("realDateTime").type(ExtendedScalars.DateTime)
+                    .defaultValueProgrammatic(instant.toString())
+            )
+            .field(
+                GraphQLInputObjectField.newInputObjectField().name("required")
+                    .type(GraphQLNonNull.nonNull(graphql.Scalars.GraphQLString))
+                    .defaultValueProgrammatic("fallback")
+            )
+            .build()
+        val input = DefaultValueTestInput(inputType)
+
+        input.validate()
+        assertTrue(input.isFieldPresent("nested"))
+        assertEquals("nested", input.field<Input2>("nested").stringField)
+        assertEquals(listOf(E1.A, E1.B), input.field<List<E1>>("enums"))
+        assertEquals(instant, input.field<Instant>("dateTime"))
+        assertEquals(1, parseCount.get())
+        assertEquals(instant, input.field<Instant>("realDateTime"))
+        assertEquals("fallback", input.field<String>("required"))
+        assertTrue(input.inputData.isEmpty())
+
+        val explicitNull = DefaultValueTestInput(inputType, mapOf("nested" to null, "required" to null))
+        assertTrue(explicitNull.isFieldPresent("nested"))
+        assertNull(explicitNull.field<Input2?>("nested"))
+        assertThrows<FrameworkException> { explicitNull.validate() }
+    }
+
+    @Test
+    fun `internally coerced defaults bypass scalar parsing`() {
+        val parseCount = AtomicInteger()
+        val dateTimeType = GraphQLScalarType.newScalar().name("DateTime")
+            .coercing(object : Coercing<Instant, String> {
+                override fun parseValue(
+                    input: Any,
+                    graphQLContext: GraphQLContext,
+                    locale: Locale
+                ): Instant {
+                    parseCount.incrementAndGet()
+                    error("Internal values must not be parsed again")
+                }
+            }).build()
+        val instant = Instant.parse("2024-01-15T10:30:00Z")
+
+        val value = defaultValueToIR(InputValueWithState.newInternalValue(instant), dateTimeType, gqlSchema)
+
+        assertEquals(instant, (value as IR.Value.Time).instant)
+        assertEquals(0, parseCount.get())
+    }
+
+    @Test
+    fun `synthetic argument type materializes programmatic and literal defaults`() {
+        val field = GraphQLFieldDefinition.newFieldDefinition().name("field")
+            .type(graphql.Scalars.GraphQLString)
+            .argument(
+                GraphQLArgument.newArgument().name("programmatic").type(graphql.Scalars.GraphQLString)
+                    .defaultValueProgrammatic("external")
+            )
+            .argument(
+                GraphQLArgument.newArgument().name("literal").type(graphql.Scalars.GraphQLInt)
+                    .defaultValueLiteral(IntValue(BigInteger.valueOf(7)))
+            )
+            .build()
+        val schema = EngineSchema(
+            GraphQLSchema.newSchema().query(GraphQLObjectType.newObject().name("Query").field(field)).build()
+        )
+        val inputType = InputTypeFactory.argumentsInputType("Query_Field_Arguments", "Query", "field", schema)
+        val input = DefaultValueTestInput(inputType)
+
+        assertTrue(input.isFieldPresent("programmatic"))
+        assertEquals("external", input.field<String>("programmatic"))
+        assertEquals(7, input.field<Int>("literal"))
+        assertNull(DefaultValueTestInput(inputType, mapOf("programmatic" to null)).field<String?>("programmatic"))
     }
 
     @Test

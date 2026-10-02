@@ -1,5 +1,6 @@
 package viaduct.engine.runtime.execution
 
+import graphql.analysis.QueryTraverser
 import graphql.execution.CoercedVariables
 import graphql.language.Field as GJField
 import graphql.language.InlineFragment as GJInlineFragment
@@ -25,11 +26,54 @@ import viaduct.engine.api.mocks.MockVariablesResolver
 import viaduct.engine.api.mocks.createRSS
 import viaduct.engine.runtime.RequiredSelectionSetRegistry
 import viaduct.engine.runtime.execution.ExecutionTestHelpers.runExecutionTest
+import viaduct.engine.runtime.execution.constraints.Constraints
 import viaduct.engine.runtime.mat.KeyTree
 import viaduct.engine.runtime.mat.build
 import viaduct.engine.runtime.result.ObjectEngineResult
+import viaduct.graphql.utils.collectVariableReferences
 
 class QueryPlanFilterTest {
+    @Test
+    fun `active variable collection includes spread directives without requiring fragment definitions`() {
+        Fixture(
+            """
+                type Query { foo: Foo }
+                type Foo { x(arg: String): String, y: String }
+            """.trimIndent()
+        ) {
+            val plan = buildPlan(
+                """
+                    query (${'$'}include: Boolean!, ${'$'}skip: Boolean!, ${'$'}arg: String!, ${'$'}fieldFlag: Boolean!) {
+                      foo {
+                        ...Fields @include(if: ${'$'}include)
+                        ... on Foo @skip(if: ${'$'}skip) {
+                          x(arg: ${'$'}arg) @include(if: ${'$'}fieldFlag)
+                        }
+                      }
+                    }
+                    fragment Fields on Foo { y }
+                """.trimIndent()
+            )
+
+            val names = plan.selectionSet.retainedVariableNames()
+
+            names.shouldContainExactlyInAnyOrder("include", "skip", "arg", "fieldFlag")
+            assertEquals(plan.selectionSet.toAstSelectionSet().collectVariableReferences(), names)
+        }
+    }
+
+    @Test
+    fun `spread without source AST contributes no retained variables`() {
+        Fixture("type Query { foo: Foo } type Foo { x: Int }") {
+            val selections = QueryPlan.SelectionSet(
+                query,
+                QueryPlan.FragmentSpread("Fields", Constraints.Unconstrained),
+            )
+
+            selections.retainedVariableNames().shouldBeEmpty()
+        }
+    }
+
     @Test
     fun `filterTo preserves retained field AST and prunes unused variables`() {
         Fixture(
@@ -63,7 +107,7 @@ class QueryPlanFilterTest {
             )
 
             filtered.variableDefinitions.map { it.name }.shouldContainExactlyInAnyOrder("includeY", "yArg")
-            val fooAst = filtered.selectionSet.toAstSelectionSet().selections.single() as GJField
+            val fooAst = (filtered.selectionSet.selections.single() as QueryPlan.Field).field
             val yAst = fooAst.selectionSet.selections.single() as GJField
             assertEquals("aliasY", yAst.alias)
             yAst.arguments.map { it.name }.shouldContainExactly("arg")
@@ -98,8 +142,9 @@ class QueryPlanFilterTest {
                 }
             )
 
-            filtered.selectionSet.toAstSelectionSet().selections
-                .filterIsInstance<GJField>()
+            filtered.selectionSet.selections
+                .filterIsInstance<QueryPlan.Field>()
+                .map { it.field }
                 .associate { field ->
                     val tagValue = (field.directives.single().arguments.single().value as IntValue)
                         .value
@@ -639,6 +684,56 @@ class QueryPlanFilterTest {
             filtered.selectionSet.fieldSelectionSet("foo")!!.fieldResultKeys().shouldContainExactly("x")
             val fooAst = filtered.selectionSet.toAstSelectionSet().selections.single() as GJField
             fooAst.selectionSet.fieldNames().shouldContainExactly("x")
+        }
+    }
+
+    @Test
+    fun `filtered fields expose only planned selections to AST consumers`() {
+        Fixture(
+            """
+                type Query { foo: Foo }
+                type Foo { x: String, y: String, z: String }
+            """.trimIndent()
+        ) {
+            val plan = buildPlan(
+                """
+                    { foo { ...Outer ...Skipped @skip(if: true) } }
+                    fragment Outer on Foo { ...Inner }
+                    fragment Inner on Foo { x y }
+                    fragment Skipped on Foo { z }
+                """.trimIndent()
+            )
+            val filtered = plan.filterTo(
+                KeyTree.build(viaductSchema) {
+                    field("Query", key("foo")) {
+                        field("Foo", key("x"))
+                    }
+                }
+            )
+
+            filtered.fragments.keys.shouldBeEmpty()
+            filtered.fragments.source.keys.shouldBeEmpty()
+            filtered.selectionSet.fieldSelectionSet("foo")!!.fieldResultKeys().shouldContainExactly("x")
+
+            val retainedField = CollectFields.default(
+                schema = viaductSchema,
+                selectionSet = filtered.selectionSet,
+                variables = CoercedVariables.emptyVariables(),
+                parentType = query,
+                fragments = filtered.fragments,
+                fieldRssOriginFilteringKillSwitchEnabled = true,
+                incrementalExecutionEnabled = false,
+            ).collectedFieldsMap.getValue("foo")
+            val fieldNames = QueryTraverser.newQueryTraverser()
+                .schema(schema)
+                .root(retainedField.mergedField.singleField.selectionSet)
+                .rootParentType(foo)
+                .fragmentsByName(filtered.fragments.source)
+                .variables(emptyMap())
+                .build()
+                .reducePreOrder<List<String>>({ field, names -> names + field.field.name }, emptyList())
+
+            fieldNames.shouldContainExactly("x")
         }
     }
 

@@ -245,6 +245,51 @@ class GraphQLSchemaParserTest {
   }
 
   @Test
+  void typedIdResolverResultsAgreeWithAccessorsAndPlainIdsStayStrings() throws IOException {
+    ViaductSchema schema =
+        parser.parse(
+            new StringReader(
+                """
+                directive @idOf(type: String!) on FIELD_DEFINITION
+                directive @resolver on FIELD_DEFINITION
+                interface Node { id: ID! }
+                type User implements Node { id: ID! }
+                type Query { placeholder: String }
+                extend type Query {
+                  userID: ID @idOf(type: "User") @resolver
+                  userIDs: [ID] @idOf(type: "User") @resolver
+                  plainID: ID @resolver
+                }
+                """));
+
+    Map<String, ResolverModel> resolvers =
+        parser.extractResolvers(schema, "com.example.types").get("Query").stream()
+            .collect(Collectors.toMap(ResolverModel::gqlFieldName, model -> model));
+    ObjectModel query =
+        parser.extractObjects(schema, "com.example.types", true).stream()
+            .filter(object -> object.className().equals("Query"))
+            .findFirst()
+            .orElseThrow();
+    Map<String, FieldModel> accessors =
+        query.fields().stream().collect(Collectors.toMap(FieldModel::name, field -> field));
+
+    assertThat(resolvers.get("userID").returnType()).isEqualTo("GlobalID<com.example.types.User>");
+    assertThat(resolvers.get("userIDs").returnType())
+        .isEqualTo("List<GlobalID<com.example.types.User>>");
+    assertThat(resolvers.get("plainID").returnType()).isEqualTo("String");
+    assertThat(accessors.get("userID").javaType()).isEqualTo("GlobalID<User>");
+    assertThat(accessors.get("userIDs").javaType()).isEqualTo("List<GlobalID<User>>");
+    assertThat(accessors.get("plainID").javaType()).isEqualTo("String");
+
+    ObjectModel user =
+        parser.extractObjects(schema, "com.example.types").stream()
+            .filter(object -> object.className().equals("User"))
+            .findFirst()
+            .orElseThrow();
+    assertThat(user.fields().get(0).javaType()).isEqualTo("GlobalID<User>");
+  }
+
+  @Test
   void keepsSyntheticConnectionGettersOutOfArgumentReflection() throws IOException {
     ViaductSchema schema =
         parser.parse(

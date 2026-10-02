@@ -2,6 +2,7 @@ package viaduct.engine.runtime.mat
 
 import graphql.schema.GraphQLObjectType
 import java.util.Collections
+import java.util.IdentityHashMap
 import viaduct.engine.runtime.mat.KeyTreeFilter.Result.DROP
 import viaduct.engine.runtime.mat.KeyTreeFilter.Result.KEEP_AND_RECURSE
 import viaduct.engine.runtime.mat.KeyTreeFilter.Result.KEEP_WITHOUT_CHILDREN
@@ -9,6 +10,7 @@ import viaduct.engine.runtime.result.ObjectEngineResult
 
 /**
  * A [KeyTree] represents the shape of a selection set using a normalized tree.
+ * Repeated subtrees may share an instance, making the in-memory representation a DAG.
  *
  * A concrete type may have no fields. Such an entry represents an empty type branch and is
  * distinct from a tree with no type branches.
@@ -18,6 +20,9 @@ class KeyTree(
 ) {
     private val byType: Map<GraphQLObjectType, Map<ObjectEngineResult.Key, KeyTree>> = snapshotByType(byType)
 
+    @Volatile
+    private var cachedHashCode: Int? = null
+
     /** Returns true when this tree has no concrete type branches. */
     fun isEmpty(): Boolean = byType.isEmpty()
 
@@ -25,7 +30,21 @@ class KeyTree(
     internal fun keysByType(): Map<GraphQLObjectType, Map<ObjectEngineResult.Key, KeyTree>> = byType
 
     /** Returns the selections in this [KeyTree] that are not covered by [other] */
-    operator fun minus(other: KeyTree): KeyTree {
+    operator fun minus(other: KeyTree): KeyTree = minus(other, PairMemo())
+
+    private fun minus(
+        other: KeyTree,
+        memo: PairMemo<KeyTree>
+    ): KeyTree {
+        if (this === other) return empty
+        if (isEmpty() || other.isEmpty()) return this
+        return memo.get(this, other) { minusUncached(other, memo) }
+    }
+
+    private fun minusUncached(
+        other: KeyTree,
+        memo: PairMemo<KeyTree>
+    ): KeyTree {
         val result = mutableMapOf<GraphQLObjectType, Map<ObjectEngineResult.Key, KeyTree>>()
         for ((type, fields) in byType) {
             val otherFields = other.byType[type]
@@ -40,7 +59,7 @@ class KeyTree(
                     continue
                 }
                 if (sub.isEmpty()) continue // leaf, covered
-                val neededSub = sub - otherFields.getValue(key)
+                val neededSub = sub.minus(otherFields.getValue(key), memo)
                 if (!neededSub.isEmpty()) needed[key] = neededSub
             }
             if (needed.isNotEmpty()) result[type] = needed
@@ -49,9 +68,22 @@ class KeyTree(
     }
 
     /** Returns the union of this [KeyTree] and [other] */
-    operator fun plus(other: KeyTree): KeyTree {
+    operator fun plus(other: KeyTree): KeyTree = plus(other, PairMemo())
+
+    private fun plus(
+        other: KeyTree,
+        memo: PairMemo<KeyTree>
+    ): KeyTree {
+        if (this === other) return this
         if (other.isEmpty()) return this
         if (isEmpty()) return other
+        return memo.get(this, other) { plusUncached(other, memo) }
+    }
+
+    private fun plusUncached(
+        other: KeyTree,
+        memo: PairMemo<KeyTree>
+    ): KeyTree {
         val result = mutableMapOf<GraphQLObjectType, Map<ObjectEngineResult.Key, KeyTree>>()
         for (type in byType.keys + other.byType.keys) {
             val a = byType[type] ?: emptyMap()
@@ -63,7 +95,7 @@ class KeyTree(
                     extant == null -> sub
                     extant.isEmpty() -> sub
                     sub.isEmpty() -> extant
-                    else -> extant + sub
+                    else -> extant.plus(sub, memo)
                 }
             }
             result[type] = merged
@@ -72,25 +104,51 @@ class KeyTree(
     }
 
     /** Returns the selections shared by this [KeyTree] and [other]. */
-    fun intersect(other: KeyTree): KeyTree {
-        if (this === other) return this
-        if (isEmpty() || other.isEmpty()) return empty
-        if (this == other) return this
-        val result = mutableMapOf<GraphQLObjectType, Map<ObjectEngineResult.Key, KeyTree>>()
+    fun intersect(other: KeyTree): KeyTree = intersect(other, null)
+
+    private fun intersect(
+        other: KeyTree,
+        memo: PairMemo<KeyTree>?
+    ): KeyTree {
+        if (this === other || isEmpty()) return this
+        if (other.isEmpty()) return other
+        val pairs = memo ?: PairMemo<KeyTree>()
+        return pairs.get(this, other) { intersectUncached(other, pairs) }
+    }
+
+    private fun intersectUncached(
+        other: KeyTree,
+        memo: PairMemo<KeyTree>
+    ): KeyTree {
+        // Copy only changed branches; the intersection traversal also detects reusable subtrees.
+        var result: MutableMap<GraphQLObjectType, Map<ObjectEngineResult.Key, KeyTree>>? = null
         for ((type, fields) in byType) {
-            val otherFields = other.byType[type] ?: continue
-            val commonFields = mutableMapOf<ObjectEngineResult.Key, KeyTree>()
+            val otherFields = other.byType[type]
+            if (otherFields == null) {
+                if (result == null) result = byType.toMutableMap()
+                result.remove(type)
+                continue
+            }
+            var commonFields: MutableMap<ObjectEngineResult.Key, KeyTree>? = null
             for ((key, children) in fields) {
-                val otherChildren = otherFields[key] ?: continue
-                commonFields[key] = if (children.isEmpty() || otherChildren.isEmpty()) {
-                    empty
+                val otherChildren = otherFields[key]
+                if (otherChildren == null) {
+                    if (commonFields == null) commonFields = fields.toMutableMap()
+                    commonFields.remove(key)
                 } else {
-                    children.intersect(otherChildren)
+                    val commonChildren = children.intersect(otherChildren, memo)
+                    if (commonChildren !== children) {
+                        if (commonFields == null) commonFields = fields.toMutableMap()
+                        commonFields[key] = commonChildren
+                    }
                 }
             }
-            result[type] = commonFields
+            if (commonFields != null) {
+                if (result == null) result = byType.toMutableMap()
+                result[type] = commonFields
+            }
         }
-        return KeyTree(result)
+        return result?.let(::KeyTree) ?: this
     }
 
     /** Returns the child subtree under the exact field [key]. */
@@ -133,13 +191,17 @@ class KeyTree(
     fun filter(filter: KeyTreeFilter): KeyTree =
         when (filter) {
             KeyTreeFilter.KeepAll -> this
-            else -> filterInternal(filter, true)
+            else -> filterInternal(filter, true, IdentityHashMap())
         }
 
     private fun filterInternal(
         filter: KeyTreeFilter,
-        topLevel: Boolean
+        topLevel: Boolean,
+        memo: IdentityHashMap<KeyTree, KeyTree>,
     ): KeyTree {
+        // A filter may treat the root differently, so only nested results are safe to reuse.
+        if (!topLevel) memo[this]?.let { return it }
+        if (isEmpty()) return this
         val result = mutableMapOf<GraphQLObjectType, Map<ObjectEngineResult.Key, KeyTree>>()
         for ((type, fields) in byType) {
             val kept = mutableMapOf<ObjectEngineResult.Key, KeyTree>()
@@ -147,45 +209,77 @@ class KeyTree(
                 when (filter(type, key, topLevel)) {
                     DROP -> continue
                     KEEP_WITHOUT_CHILDREN -> kept[key] = empty
-                    KEEP_AND_RECURSE -> kept[key] = sub.filterInternal(filter, false)
+                    KEEP_AND_RECURSE -> kept[key] = sub.filterInternal(filter, false, memo)
                 }
             }
             result[type] = kept
         }
-        return KeyTree(result)
+        return KeyTree(result).also { if (!topLevel) memo[this] = it }
     }
 
     /** Recursively removes concrete type branches that contain no fields. */
-    internal fun withoutEmptyTypeBranches(): KeyTree {
+    internal fun withoutEmptyTypeBranches(): KeyTree = withoutEmptyTypeBranches(IdentityHashMap())
+
+    private fun withoutEmptyTypeBranches(memo: IdentityHashMap<KeyTree, KeyTree>): KeyTree {
+        memo[this]?.let { return it }
+        if (isEmpty()) return this
         val result = mutableMapOf<GraphQLObjectType, Map<ObjectEngineResult.Key, KeyTree>>()
         for ((type, fields) in byType) {
             if (fields.isEmpty()) continue
             result[type] = fields.mapValues { (_, children) ->
-                children.withoutEmptyTypeBranches()
+                children.withoutEmptyTypeBranches(memo)
             }
         }
-        return KeyTree(result)
+        return KeyTree(result).also { memo[this] = it }
     }
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is KeyTree) return false
-        return byType == other.byType
+        return equalTo(other)
     }
 
-    override fun hashCode(): Int = byType.hashCode()
+    private fun equalTo(
+        other: KeyTree,
+        memo: PairMemo<Boolean>? = null,
+    ): Boolean {
+        if (this === other) return true
+        if (hashCode() != other.hashCode()) return false
+        val pairs = memo ?: PairMemo<Boolean>()
+        return pairs.get(this, other) {
+            byType.size == other.byType.size && byType.all { (type, fields) ->
+                val otherFields = other.byType[type]
+                otherFields != null && fields.size == otherFields.size && fields.all { (key, child) ->
+                    otherFields[key]?.let { child.equalTo(it, pairs) } == true
+                }
+            }
+        }
+    }
 
+    // Each immutable node caches its hash, so shared descendants are hashed only once.
+    override fun hashCode(): Int = cachedHashCode ?: byType.hashCode().also { cachedHashCode = it }
+
+    /** Binary recursion must key both identities because one shared node can meet many peers. */
+    private class PairMemo<T> {
+        private val values = IdentityHashMap<KeyTree, IdentityHashMap<KeyTree, T>>()
+
+        fun get(
+            left: KeyTree,
+            right: KeyTree,
+            compute: () -> T
+        ): T = values.getOrPut(left) { IdentityHashMap() }.getOrPut(right, compute)
+    }
+
+    // Keep diagnostics shallow: traversing and printing large trees can be expensive.
     override fun toString(): String =
         byType.entries.joinToString(
             prefix = "KeyTree(",
             postfix = ")",
         ) { (type, fields) ->
-            fields.entries.joinToString(
+            fields.keys.joinToString(
                 prefix = "${type.name}={",
                 postfix = "}",
-            ) { (key, children) ->
-                "$key=$children"
-            }
+            ) { it.responseKey }
         }
 
     companion object {

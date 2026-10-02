@@ -169,4 +169,24 @@ class KotlinIdOfContractTest : IdOfContractTest() {
             return ctx.ref(id as GlobalID<User>)
         }
     }
+
+    @Resolver
+    class Query_UserIDResolver : QueryResolvers.UserID() {
+        override suspend fun resolve(ctx: Context): GlobalID<User> = ctx.globalIDFor(User.Reflection, "alice@yahoo.com")
+    }
+
+    @Resolver
+    class Query_UserIDsResolver : QueryResolvers.UserIDs() {
+        override suspend fun resolve(ctx: Context): List<GlobalID<User>?> = listOf(ctx.globalIDFor(User.Reflection, "alice@yahoo.com"), null, ctx.globalIDFor(User.Reflection, "bob@hotmail.com"))
+    }
+
+    @Resolver
+    class Query_NullableUserIDResolver : QueryResolvers.NullableUserID() {
+        override suspend fun resolve(ctx: Context): GlobalID<User>? = null
+    }
+
+    @Resolver
+    class Query_PlainIDResolver : QueryResolvers.PlainID() {
+        override suspend fun resolve(ctx: Context): String = "plain-id"
+    }
 }

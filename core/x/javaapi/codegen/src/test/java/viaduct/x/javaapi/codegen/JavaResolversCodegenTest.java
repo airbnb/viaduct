@@ -121,6 +121,31 @@ class JavaResolversCodegenTest {
   }
 
   @Test
+  void generatesTypedIdResolverSignatures() throws IOException {
+    Path typedIdSchema =
+        writeSchemaWithDefaults(
+            "typed-ids.graphqls",
+            """
+            type User implements Node { id: ID! }
+            extend type Query {
+              userID: ID @idOf(type: "User") @resolver
+              userIDs: [ID] @idOf(type: "User") @resolver
+              plainID: ID @resolver
+            }
+            """);
+    Path output = tempDir.resolve("typed-id-resolvers");
+
+    codegen.generate(
+        List.of(typedIdSchema.toFile()), output.toFile(), "com.example.grt", "com.example.tenant");
+    String generated =
+        Files.readString(output.resolve("com/example/tenant/resolverbases/QueryResolvers.java"));
+
+    assertTrue(generated.contains("CompletableFuture<GlobalID<com.example.grt.User>>"));
+    assertTrue(generated.contains("CompletableFuture<List<GlobalID<com.example.grt.User>>>"));
+    assertTrue(generated.contains("CompletableFuture<String>"));
+  }
+
+  @Test
   void createsOutputDirectoryIfNotExists() throws IOException {
     File resolverOutputDir = tempDir.resolve("nested/resolver/dir").toFile();
     assertFalse(resolverOutputDir.exists());

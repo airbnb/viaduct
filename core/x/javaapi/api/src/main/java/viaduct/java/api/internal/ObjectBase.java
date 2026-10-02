@@ -871,11 +871,14 @@ public abstract class ObjectBase implements GraphQLObject {
 
   /**
    * Coerces a value to {@link Instant}. Mirrors Kotlin ObjectBase.wrapScalar() for DateTime:
-   * Instant pass-through, String parsed as ISO_OFFSET_DATE_TIME and converted to Instant.
+   * Instant pass-through, OffsetDateTime conversion, or ISO_OFFSET_DATE_TIME String parsing.
    */
   private static Instant coerceToInstant(Object value) throws FrameworkException {
     if (value instanceof Instant instant) {
       return instant;
+    }
+    if (value instanceof OffsetDateTime dateTime) {
+      return dateTime.toInstant();
     }
     if (value instanceof String s) {
       return OffsetDateTime.parse(s, DateTimeFormatter.ISO_OFFSET_DATE_TIME).toInstant();

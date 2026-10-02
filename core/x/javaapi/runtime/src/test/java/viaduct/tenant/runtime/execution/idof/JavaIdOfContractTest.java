@@ -1,5 +1,7 @@
 package viaduct.tenant.runtime.execution.idof;
 
+import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import viaduct.java.api.annotations.Resolver;
 import viaduct.java.api.globalid.GlobalID;
@@ -76,6 +78,43 @@ public class JavaIdOfContractTest extends IdOfContractTest {
       }
       GlobalID<User> userId = ctx.globalIDFor(Type.ofClass(User.class), id.getInternalID());
       return CompletableFuture.completedFuture(ctx.ref(userId));
+    }
+  }
+
+  @Resolver
+  public static class QueryUserIDResolver extends QueryResolvers.UserID {
+    @Override
+    public CompletableFuture<GlobalID<User>> resolve(QueryResolvers.UserID.Context ctx) {
+      return CompletableFuture.completedFuture(
+          ctx.globalIDFor(Type.ofClass(User.class), "alice@yahoo.com"));
+    }
+  }
+
+  @Resolver
+  public static class QueryUserIDsResolver extends QueryResolvers.UserIDs {
+    @Override
+    public CompletableFuture<List<GlobalID<User>>> resolve(QueryResolvers.UserIDs.Context ctx) {
+      return CompletableFuture.completedFuture(
+          Arrays.asList(
+              ctx.globalIDFor(Type.ofClass(User.class), "alice@yahoo.com"),
+              null,
+              ctx.globalIDFor(Type.ofClass(User.class), "bob@hotmail.com")));
+    }
+  }
+
+  @Resolver
+  public static class QueryNullableUserIDResolver extends QueryResolvers.NullableUserID {
+    @Override
+    public CompletableFuture<GlobalID<User>> resolve(QueryResolvers.NullableUserID.Context ctx) {
+      return CompletableFuture.completedFuture(null);
+    }
+  }
+
+  @Resolver
+  public static class QueryPlainIDResolver extends QueryResolvers.PlainID {
+    @Override
+    public CompletableFuture<String> resolve(QueryResolvers.PlainID.Context ctx) {
+      return CompletableFuture.completedFuture("plain-id");
     }
   }
 }

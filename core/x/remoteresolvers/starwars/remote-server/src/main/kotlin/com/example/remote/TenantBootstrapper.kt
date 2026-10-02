@@ -9,35 +9,23 @@ import org.slf4j.LoggerFactory
 import viaduct.engine.SchemaFactory
 import viaduct.engine.runtime.tenantloading.ExecutionRegistryConfigSourceCollector
 import viaduct.engine.runtime.tenantloading.ModuleConfigBootstrapper
-import viaduct.remote.registry.FieldExecutorRegistry
-import viaduct.remote.registry.NodeExecutorRegistry
-import viaduct.remote.registry.SchemaRegistry
+import viaduct.remote.RemoteResolverRuntime
 import viaduct.service.api.spi.CodeInjector
 import viaduct.service.api.spi.SharedTenantModuleInjectorFactory
 import viaduct.service.runtime.builtinresolvers.builtinModuleConfigSources
 
 /**
- * Builds node- and field-resolver executors from the tenant-module manifests on the classpath
- * (`META-INF/viaduct/modules/<pkg>.json`) and registers them in [NodeExecutorRegistry] (by type name)
- * and [FieldExecutorRegistry] (by field coordinate) so the remote gRPC service can dispatch resolves.
- * Wiring comes from the manifest entries rather than from parsing SDL, so no full `Viaduct` engine
- * instance is needed just to enumerate resolvers.
- *
- * The schema is loaded from `.graphqls` ([SchemaFactory.fromResources]) and published to
- * [SchemaRegistry] for schema-only remote contexts; it also filters which manifest entries are realized.
+ * Builds the schema and resolver executors used by the remote gRPC service from the tenant-module
+ * manifests on the classpath (`META-INF/viaduct/modules/<pkg>.json`).
  */
 class TenantBootstrapper(private val tenantCodeInjector: CodeInjector) {
     private val log = LoggerFactory.getLogger(TenantBootstrapper::class.java)
 
-    /** Returns the total number of resolvers registered (nodes + fields). */
-    fun bootstrap(): Int {
+    fun bootstrap(): RemoteResolverRuntime {
         log.info("Bootstrapping tenant modules")
 
-        // Schema backs schema-only remote contexts (via SchemaRegistry) and filters which manifest
-        // entries are realized below.
+        // Schema backs schema-only remote contexts and filters which manifest entries are realized.
         val schema = SchemaFactory().fromResources()
-        SchemaRegistry.register(schema)
-
         // Build executors straight from the tenant manifests — no Viaduct engine instance needed.
         val (nodeExecutors, fieldExecutors) = runBlocking {
             // Register both the tenant manifests and the engine's built-in resolvers (Query.node /
@@ -54,21 +42,17 @@ class TenantBootstrapper(private val tenantCodeInjector: CodeInjector) {
             nodes to fields
         }
 
-        nodeExecutors.forEach { (typeName, executor) ->
-            NodeExecutorRegistry.register(executor)
-            log.info("Registered node resolver for type: {}", typeName)
-        }
-
-        fieldExecutors.forEach { (_, executor) ->
-            FieldExecutorRegistry.register(executor)
-            log.info("Registered field resolver for: {}", executor.resolverId)
-        }
+        val runtime = RemoteResolverRuntime(
+            schema,
+            nodeExecutors.map { it.second },
+            fieldExecutors.map { it.second },
+        )
 
         log.info(
-            "Tenant bootstrap complete; registered {} node resolver(s) and {} field resolver(s)",
-            nodeExecutors.size,
-            fieldExecutors.size
+            "Tenant bootstrap complete; built {} node resolver(s) and {} field resolver(s)",
+            runtime.nodeExecutors.size,
+            runtime.fieldExecutors.size
         )
-        return nodeExecutors.size + fieldExecutors.size
+        return runtime
     }
 }

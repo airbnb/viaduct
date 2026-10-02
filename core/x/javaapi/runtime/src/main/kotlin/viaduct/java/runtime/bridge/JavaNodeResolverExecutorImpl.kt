@@ -70,10 +70,13 @@ class JavaNodeResolverExecutorImpl(
             resolver.get().invokeNodeResolver(javaContext).await()
         }
 
-        return unwrapNodeResult(result)
+        return unwrapNodeResult(result, context)
     }
 
-    private fun unwrapNodeResult(result: Any?): EngineObjectData {
+    private fun unwrapNodeResult(
+        result: Any?,
+        context: EngineExecutionContext
+    ): EngineObjectData {
         if (result !is ObjectBase) {
             throw TenantUsageException("Unexpected result type that is not a GRT for a node object: $result")
         }
@@ -82,7 +85,7 @@ class JavaNodeResolverExecutorImpl(
                 "NodeReference returned from node resolver. Use a GRT builder instead of ctx.ref to construct your node object."
             )
         }
-        return convertResult(result, graphqlSchema) as? EngineObjectData
+        return convertResult(result, graphqlSchema, context.globalIDCodec) as? EngineObjectData
             ?: throw FrameworkException(
                 "Node resolver for $typeName failed to convert result to EngineObjectData: ${result.javaClass.name}"
             )

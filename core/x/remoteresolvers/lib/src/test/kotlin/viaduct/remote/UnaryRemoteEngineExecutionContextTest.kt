@@ -3,9 +3,11 @@
 package viaduct.remote
 
 import io.grpc.inprocess.InProcessChannelBuilder
+import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import viaduct.engine.api.FullSchema
 import viaduct.engine.api.mocks.MockSchema
 import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 
@@ -21,7 +23,9 @@ class UnaryRemoteEngineExecutionContextTest {
             contextHandle = "h",
             localSchema = schema,
         )
-        assertSame(schema, ctx.fullSchema)
+        assertInstanceOf(FullSchema::class.java, ctx.fullSchema)
+        assertSame(schema.schema, ctx.fullSchema.schema)
+        assertSame(schema.rels, ctx.fullSchema.rels)
         assertSame(GlobalIDCodecDefault, ctx.globalIDCodec)
     }
 

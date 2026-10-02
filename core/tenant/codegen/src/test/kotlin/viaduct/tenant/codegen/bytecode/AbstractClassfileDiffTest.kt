@@ -45,7 +45,7 @@ import viaduct.tenant.codegen.bytecode.config.cfg
 import viaduct.tenant.codegen.bytecode.config.isEligible
 
 /** A base class for Classfile diff testing. */
-abstract class AbstractClassfileDiffTest(val args: Args = Args.fromEnv()) {
+abstract class AbstractClassfileDiffTest(val args: Args) {
     @Test
     protected fun classFileDiffTester() {
         val diffs = compareAll()
@@ -100,11 +100,6 @@ object ClassNames {
         baseTypeMapper: BaseTypeMapper,
         schema: ViaductSchema
     ): Predicate<TypeDef> = Predicate { (it as? Object)?.isEligible(baseTypeMapper, schema) ?: true }
-
-    fun fromSchema(
-        packages: Packages,
-        typePredicate: Predicate<TypeDef> = NoScalars
-    ): Sequence<Names> = fromSchema(loadGraphQLSchema(), packages, typePredicate)
 
     fun fromSchema(
         schema: ViaductSchema,
@@ -187,10 +182,10 @@ data class Args(
 ) {
     companion object {
         /** create Args configured using environment variables */
-        fun fromEnv(): Args =
+        fun fromEnv(schemaResourcePaths: List<String>): Args =
             when (val version = System.getenv("DIFF_TEST_VERSION")) {
-                "v0_9" -> v0_9(Packages.v0_9, ClassNames.NoScalars.and(ClassNames.IsEligible))
-                "v2_0" -> v2_0(Packages.v2_0, ClassNames.NoScalars)
+                "v0_9" -> v0_9(Packages.v0_9, ClassNames.NoScalars.and(ClassNames.IsEligible), schemaResourcePaths)
+                "v2_0" -> v2_0(Packages.v2_0, ClassNames.NoScalars, schemaResourcePaths)
                 else -> throw IllegalArgumentException("unexpected DIFF_TEST_VERSION: $version")
             }
 
@@ -211,11 +206,12 @@ data class Args(
         fun v0_9(
             packages: Packages = Packages.v0_9,
             typePredicate: Predicate<TypeDef> = ClassNames.NoScalars.and(ClassNames.IsEligible),
+            schemaResourcePaths: List<String>,
         ): Args =
             packages.classDiff(requireInterfaceDefaults = true).let { diff ->
                 Args(
                     diff,
-                    ClassNames.fromSchema(packages, typePredicate)
+                    ClassNames.fromSchema(loadGraphQLSchema(schemaResourcePaths), packages, typePredicate)
                         .mapNotNull(Resolvers.v0_9(diff))
                 )
             }
@@ -224,14 +220,10 @@ data class Args(
         fun v2_0(
             packages: Packages = Packages.v2_0,
             typePredicate: Predicate<TypeDef> = ClassNames.NoScalars,
-            schemaResourcePaths: List<String> = emptyList(),
+            schemaResourcePaths: List<String>,
         ): Args =
             packages.classDiff().let { diff ->
-                val schema = if (schemaResourcePaths.isNotEmpty()) {
-                    loadGraphQLSchema(schemaResourcePaths)
-                } else {
-                    loadGraphQLSchema()
-                }
+                val schema = loadGraphQLSchema(schemaResourcePaths)
                 Args(
                     diff,
                     ClassNames.fromSchema(schema, packages, typePredicate)

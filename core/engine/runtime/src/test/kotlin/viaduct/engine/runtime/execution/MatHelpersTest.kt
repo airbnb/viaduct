@@ -1,6 +1,7 @@
 package viaduct.engine.runtime.execution
 
 import graphql.execution.CoercedVariables
+import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Nested
@@ -107,6 +108,37 @@ class MatHelpersTest {
                     parameters,
                     checkNotNull(parameters.field),
                 ),
+            )
+        }
+
+        @Test
+        fun `projection type constrains an abstract selection set`() {
+            val parameters = mkExecutionParameters(
+                """
+                    extend type Query { item:Item }
+                    interface Item { common:Int }
+                    type Foo implements Item { common:Int foo:Int }
+                    type Bar implements Item { common:Int bar:Int }
+                """.trimIndent(),
+                "Query" to "item",
+                "{ item { common ... on Foo { foo } ... on Bar { bar } } }",
+            )
+            val selectionSet = checkNotNull(parameters.field?.selectionSet)
+            val schema = parameters.engineExecutionContext.activeSchema.schema
+
+            assertEquals(
+                KeyTree.build(parameters) {
+                    field("Foo", key("common"))
+                    field("Foo", key("foo"))
+                },
+                parameters.queryPlan.keyTree(parameters, selectionSet, schema.getObjectType("Foo")),
+            )
+            assertEquals(
+                KeyTree.build(parameters) {
+                    field("Bar", key("common"))
+                    field("Bar", key("bar"))
+                },
+                parameters.queryPlan.keyTree(parameters, selectionSet, schema.getObjectType("Bar")),
             )
         }
 
@@ -251,6 +283,35 @@ class MatHelpersTest {
                 )
             }
         }
+    }
+
+    @Nested
+    inner class MaterializationPlan {
+        @Test
+        fun `plan resolves operation variables from the reading selection`() =
+            runTest {
+                val parameters = mkExecutionParameters(
+                    "extend type Query { x:Int, y:Int }",
+                    "Query" to "x",
+                    "query (${'$'}include:Boolean! = true) { x y @include(if: ${'$'}include) }",
+                )
+                val plan = materializationPlan(
+                    parameters,
+                    KeyTree.build(parameters) { field("Query", key("y")) },
+                )
+
+                val variables = FieldExecutionHelpers.resolveQueryPlanVariables(
+                    plan,
+                    parameters.executionStepInfo.arguments,
+                    parameters.currentObjectEngineResult,
+                    parameters.queryEngineResult,
+                    parameters.engineExecutionContext,
+                    parameters.executionContext.graphQLContext,
+                    parameters.executionContext.locale,
+                )
+
+                assertEquals(mapOf("include" to true), variables.toMap())
+            }
     }
 
     @Nested

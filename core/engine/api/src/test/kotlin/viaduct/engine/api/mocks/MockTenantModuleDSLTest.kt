@@ -500,14 +500,15 @@ class MockTenantModuleDSLTest {
     }
 
     @Test
-    fun `schema is copied to ContextMocks`() {
+    fun `schema metadata is reused by ContextMocks`() {
         val sdl = "extend type Query {x:Int}"
         val schema = createSchema(sdl)
 
         MockTenantModuleBootstrapper(schema) {}
             .contextMocks
             .let { mocks ->
-                assertSame(schema, mocks.fullSchema)
+                assertSame(schema.schema, mocks.fullSchema.schema)
+                assertSame(schema.rels, mocks.fullSchema.rels)
             }
     }
 }

@@ -283,7 +283,7 @@ class ParentFieldConstraintsRuleTest {
     }
 
     @Test
-    fun `invalid - parent field child can be reached through multiple fields on declared parent type`() {
+    fun `valid - parent field child can be reached through multiple fields on declared parent type`() {
         val errors = validate(
             """
             type Query { foo: Foo @resolver }
@@ -295,11 +295,69 @@ class ParentFieldConstraintsRuleTest {
             """.trimIndent()
         )
 
-        errors shouldHaveSize 1
-        errors[0].code shouldBe ValidationErrorCodes.PARENT_FIELD_CHILD_HAS_AMBIGUOUS_PARENT
-        errors[0].message shouldContain "Bar.parent"
-        errors[0].message shouldContain "Foo.firstBar"
-        errors[0].message shouldContain "Foo.secondBar"
+        errors.shouldBeEmpty()
+    }
+
+    @Test
+    fun `valid - fields returning the same child type can mix singular list and nested list shapes`() {
+        val errors = validate(
+            """
+            type Query { parent: Parent @resolver }
+            type Parent {
+              child: Child!
+              children: [Child!]
+              childGroups: [[Child]]
+            }
+            type Child { parent: Parent @parent }
+            """.trimIndent()
+        )
+
+        errors.shouldBeEmpty()
+    }
+
+    @Test
+    fun `valid - types containing child fields all implement the parent interface`() {
+        val errors = validate(
+            """
+            type Query { container: Container @resolver }
+            interface Container { child: Child }
+            type Folder implements Container { child: Child }
+            type Archive implements Container { child: Child }
+            type Child { parent: Container @parent }
+            """.trimIndent()
+        )
+
+        errors.shouldBeEmpty()
+    }
+
+    @Test
+    fun `valid - types containing child fields all belong to the parent union`() {
+        val errors = validate(
+            """
+            type Query { container: Container @resolver }
+            union Container = Folder | Archive
+            type Folder { child: Child }
+            type Archive { child: Child }
+            type Child { parent: Container @parent }
+            """.trimIndent()
+        )
+
+        errors.shouldBeEmpty()
+    }
+
+    @Test
+    fun `invalid - interface field can return child from an incompatible parent type`() {
+        val errors = validate(
+            """
+            type Query { container: Container @resolver }
+            interface Container { child: Child }
+            type Folder implements Container { child: Child }
+            type Archive implements Container { child: Child }
+            type Child { parent: Folder @parent }
+            """.trimIndent()
+        )
+
+        errors.map { it.code } shouldBe listOf(ValidationErrorCodes.PARENT_FIELD_CHILD_HAS_AMBIGUOUS_PARENT)
     }
 
     @Test

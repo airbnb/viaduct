@@ -30,6 +30,10 @@ import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
       userFromArgument(id: ID! @idOf(type: "User")): User @resolver
       "Polymorphic: for aliceID return User(name=\"Alice\", cohost=Bob); for BadType ID throw \"Non-entity\"; for BadEntityType ID throw \"user entities\""
       entityFromID(id: ID! @idOf(type: "Entity")): Entity @resolver
+      userID: ID @idOf(type: "User") @resolver
+      userIDs: [ID] @idOf(type: "User") @resolver
+      nullableUserID: ID @idOf(type: "User") @resolver
+      plainID: ID @resolver
     }
 
     input HostID {
@@ -85,6 +89,18 @@ abstract class IdOfContractTest : KotlinFeatureAppTestContractBase() {
                     "id" to aliceID
                     "name" to "Alice"
                 }
+            }
+        }
+    }
+
+    @Test
+    fun `typed ID resolver outputs serialize and plain IDs stay strings`() {
+        execute(query = "{ userID userIDs nullableUserID plainID }").assertEquals {
+            "data" to {
+                "userID" to aliceID
+                "userIDs" to listOf(aliceID, null, bobID)
+                "nullableUserID" to null
+                "plainID" to "plain-id"
             }
         }
     }

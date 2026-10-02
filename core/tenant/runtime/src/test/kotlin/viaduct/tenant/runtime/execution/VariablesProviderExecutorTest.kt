@@ -22,6 +22,7 @@ import viaduct.api.mocks.testGlobalId
 import viaduct.api.resolver.VariablesProvider
 import viaduct.api.types.Arguments
 import viaduct.engine.api.EngineExecutionContext
+import viaduct.engine.api.FullSchema
 import viaduct.engine.api.VariablesResolver
 import viaduct.engine.api.mocks.MockSchema
 import viaduct.engine.api.mocks.createEngineObjectData
@@ -33,6 +34,8 @@ import viaduct.tenant.runtime.internal.InternalContextImpl
 import viaduct.tenant.runtime.internal.VariablesProviderInfo
 
 class VariablesProviderExecutorTest {
+    private val completeSchema = FullSchema(MockSchema.minimal)
+
     private data class MockArgs(val args: Map<String, Any?>) : Arguments {
         val a: Int = args["a"] as Int
         val b: Int = args["b"] as Int
@@ -83,7 +86,7 @@ class VariablesProviderExecutorTest {
                         mapOf("a" to 5, "b" to 7),
                     ),
                     mockk {
-                        every { fullSchema } returns MockSchema.minimal
+                        every { fullSchema } returns completeSchema
                         every { requestContext } returns null
                     }
                 )
@@ -147,7 +150,7 @@ class VariablesProviderExecutorTest {
                     objectData,
                     mapOf("a" to 5, "b" to 7),
                     mockk {
-                        every { fullSchema } returns MockSchema.minimal
+                        every { fullSchema } returns completeSchema
                         every { requestContext } returns null
                     }
                 )
@@ -158,7 +161,7 @@ class VariablesProviderExecutorTest {
     fun provideVariablesValidatesDeclaredNames(): Unit =
         runBlocking {
             val context = mockk<EngineExecutionContext> {
-                every { fullSchema } returns MockSchema.minimal
+                every { fullSchema } returns completeSchema
                 every { requestContext } returns null
             }
             val arguments = mapOf("a" to 5, "b" to 7)

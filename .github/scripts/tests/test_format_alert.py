@@ -6,7 +6,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from format_alert import format_alert, format_attempt_label, format_task_lines, main
+from format_alert import MAX_ALERT_CHARS, format_alert, format_attempt_label, format_summary, format_task_lines, main
 
 
 BASE = {
@@ -182,13 +182,16 @@ class TestOutcome(unittest.TestCase):
 
     def test_retry_success_single_job(self):
         result = format_alert({**BASE, "outcome": "retry_success"})
-        self.assertIn(":large_yellow_circle:", result)
-        self.assertIn("Build and Test needed a retry on `main`", result)
+        self.assertIn(":green_circle:", result)
+        self.assertIn("Build and Test passed on retry on `main`", result)
         self.assertNotIn("failed", result)
 
     def test_retry_success_multi_job_header(self):
         lines = format_alert({**self.MULTI, "outcome": "retry_success"}).splitlines()
-        self.assertEqual(":large_yellow_circle: CI needed a retry on `main`", lines[0])
+        self.assertEqual(":green_circle: CI passed on retry on `main`", lines[0])
+
+    def test_retrying_is_accepted(self):
+        self.assertIn("Build and Test is being retried on `main`", format_alert({**BASE, "outcome": "retrying"}))
 
     def test_unknown_outcome_is_rejected(self):
         sys.stdin = StringIO(json.dumps({**BASE, "outcome": "flaky"}))
@@ -255,7 +258,7 @@ class TestFailingTasks(unittest.TestCase):
 
     def test_retry_success_with_tasks(self):
         lines = format_alert({**self.WITH_TASKS, "outcome": "retry_success"}).splitlines()
-        self.assertEqual(":large_yellow_circle: CI needed a retry on `main`", lines[0])
+        self.assertEqual(":green_circle: CI passed on retry on `main`", lines[0])
         self.assertEqual("  `:core:x:javaapi:runtime:compileTestKotlin`", lines[2])
 
     def test_tasks_must_be_an_array(self):
@@ -270,6 +273,120 @@ class TestFailingTasks(unittest.TestCase):
 
     def test_task_lines_helper_on_empty_input(self):
         self.assertEqual([], format_task_lines([]))
+
+
+class TestJobLinksAndCauses(unittest.TestCase):
+
+    JOB_URL = "https://github.com/example/repo/actions/runs/123/job/456"
+
+    def test_job_id_links_to_the_job(self):
+        data = {**BASE, "jobs": [{"name": "Build and Test", "run_id": "123", "job_id": "456"}]}
+        self.assertIn(f"({self.JOB_URL})", format_alert(data))
+
+    def test_missing_job_id_links_to_the_run(self):
+        self.assertIn(f"({EXPECTED_URL})", format_alert(BASE))
+
+    def test_cause_precedes_the_url_on_a_single_line(self):
+        data = {**BASE, "sha": "abc1234567", "outcome": "retry_success",
+                "jobs": [{"name": "Build and Test", "run_id": "123", "cause": "HTTP 429 from repo.example.org"}]}
+        self.assertEqual(
+            ":green_circle: Build and Test passed on retry on `main` — commit `abc1234`"
+            f" — HTTP 429 from repo.example.org ({EXPECTED_URL})",
+            format_alert(data),
+        )
+
+    def test_cause_follows_an_inline_bullet_name(self):
+        data = {**BASE, "jobs": [{"name": "A", "run_id": "1", "cause": "DNS lookup failed for x.org"},
+                                 {"name": "B", "run_id": "2"}]}
+        lines = format_alert(data).splitlines()
+        self.assertEqual("• A — DNS lookup failed for x.org: https://github.com/example/repo/actions/runs/1", lines[1])
+        self.assertEqual("• B: https://github.com/example/repo/actions/runs/2", lines[2])
+
+    def test_cause_follows_the_name_above_tasks(self):
+        data = {**BASE, "jobs": [{"name": "A", "run_id": "1", "tasks": [":a:test"], "cause": "no known infrastructure cause"}]}
+        self.assertEqual("• A — no known infrastructure cause", format_alert(data).splitlines()[1])
+
+
+class TestAlertLength(unittest.TestCase):
+
+    SUMMARY_URL = "https://github.com/example/repo/actions/runs/999"
+
+    def jobs(self, count, tasks=None):
+        return [{"name": f"ci-check / build-and-test / Test (Java {n}) macos-latest", "run_id": "36145963812",
+                 "job_id": str(108107150063 + n), "cause": "DNS lookup failed for services.gradle.org",
+                 **({"tasks": tasks} if tasks else {})} for n in range(count)]
+
+    def alert(self, jobs):
+        return format_alert({**BASE, "sha": "c7ea22020976", "actor": "viaductbot", "attempt": "2",
+                             "outcome": "retry_success", "summary_url": self.SUMMARY_URL, "jobs": jobs})
+
+    def test_twelve_labeled_jobs_fit_the_limit(self):
+        self.assertLessEqual(len(self.alert(self.jobs(12))), MAX_ALERT_CHARS)
+
+    def test_jobs_that_do_not_fit_are_counted_and_linked(self):
+        lines = self.alert(self.jobs(12)).splitlines()
+        self.assertRegex(lines[-1], rf"^\+\d+ more jobs: {self.SUMMARY_URL}$")
+        hidden = int(lines[-1].split()[0][1:])
+        self.assertEqual(12, len(lines) - 2 + hidden)
+
+    def test_blocks_with_tasks_are_kept_whole(self):
+        text = self.alert(self.jobs(12, tasks=[":core:engine:runtime:test", ":core:tenant:api:test", ":a:b:check", ":c:d:e"]))
+        self.assertLessEqual(len(text), MAX_ALERT_CHARS)
+        lines = text.splitlines()
+        self.assertEqual(0, (len(lines) - 2) % 5)
+
+    def test_one_hidden_job_is_singular(self):
+        jobs = self.jobs(9)
+        full = self.alert(jobs)
+        self.assertNotIn("more job", full)
+        long_name = {**jobs[0], "name": "x" * (MAX_ALERT_CHARS - len(full) + 20)}
+        self.assertTrue(self.alert(jobs + [long_name]).endswith(f"+1 more job: {self.SUMMARY_URL}"))
+
+    def test_without_a_summary_url_the_count_stands_alone(self):
+        data = {**BASE, "jobs": self.jobs(12)}
+        self.assertRegex(format_alert(data).splitlines()[-1], r"^\+\d+ more jobs?$")
+
+    def test_an_overlong_single_job_line_falls_back_to_the_capped_form(self):
+        text = self.alert([{**self.jobs(1)[0], "cause": "x" * 2500}])
+        self.assertLessEqual(len(text), MAX_ALERT_CHARS)
+        self.assertTrue(text.endswith(f"+1 more job: {self.SUMMARY_URL}"))
+
+    def test_short_alerts_are_unchanged(self):
+        self.assertNotIn("more job", self.alert(self.jobs(2)))
+
+
+class TestFormatSummary(unittest.TestCase):
+
+    DATA = {**BASE, "sha": "abc1234567", "attempt": "2", "outcome": "retry_success",
+            "jobs": [{"name": "Test | macOS", "run_id": "123", "job_id": "456",
+                      "tasks": [":a:test", ":b:check", ":c:test", ":d:check"],
+                      "cause": "HTTP 429 from repo.example.org"},
+                     {"name": "Bare", "run_id": "123"}]}
+
+    def test_heading_names_the_outcome_commit_and_attempt(self):
+        self.assertEqual("### CI passed on retry on `main` — commit `abc1234`, attempt 2",
+                         format_summary(self.DATA).splitlines()[0])
+
+    def test_row_links_the_job_and_lists_cause_and_tasks(self):
+        self.assertIn(
+            "| [Test \\| macOS](https://github.com/example/repo/actions/runs/123/job/456)"
+            " | HTTP 429 from repo.example.org | `:a:test`, `:b:check`, `:c:test`, `:d:check` |",
+            format_summary(self.DATA),
+        )
+
+    def test_missing_cause_and_tasks_render_as_dashes(self):
+        self.assertIn("| [Bare](https://github.com/example/repo/actions/runs/123) | — | — |", format_summary(self.DATA))
+
+    def test_main_prints_the_summary_with_the_flag(self):
+        sys.stdin = StringIO(json.dumps(self.DATA))
+        out = StringIO()
+        sys.stdout = out
+        try:
+            self.assertEqual(main(["--summary"]), 0)
+        finally:
+            sys.stdout = sys.__stdout__
+            sys.stdin = sys.__stdin__
+        self.assertTrue(out.getvalue().startswith("### CI passed on retry"))
 
 
 class TestMainErrorHandling(unittest.TestCase):

@@ -49,13 +49,29 @@ public class TypeMapper {
     return toJavaType(typeExpr, true);
   }
 
+  public String toGlobalIDJavaType(
+      ViaductSchema.TypeExpr<?> typeExpr, String targetTypeName, boolean covariant) {
+    String targetType = grtPackage == null ? targetTypeName : grtPackage + "." + targetTypeName;
+    String globalIDType = "GlobalID<" + (covariant ? "? extends " : "") + targetType + ">";
+    return toJavaType(typeExpr, true, globalIDType);
+  }
+
   private String toJavaType(ViaductSchema.TypeExpr<?> typeExpr, boolean insideGeneric) {
+    return toJavaType(typeExpr, insideGeneric, null);
+  }
+
+  private String toJavaType(
+      ViaductSchema.TypeExpr<?> typeExpr, boolean insideGeneric, String globalIDType) {
     if (typeExpr.isList()) {
       // Unwrap one level of list and get the inner type
       ViaductSchema.TypeExpr<?> innerType = typeExpr.unwrapList();
       // Elements inside List<> must use boxed types, not primitives
-      String elementType = toJavaType(innerType, true);
+      String elementType = toJavaType(innerType, true, globalIDType);
       return "List<" + elementType + ">";
+    }
+
+    if (globalIDType != null) {
+      return globalIDType;
     }
 
     // Base type (not a list)

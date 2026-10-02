@@ -3,8 +3,8 @@ package viaduct.service.api.scoping
 import viaduct.apiannotations.ExperimentalApi
 
 /**
- * One validation finding produced by [SchemaScopingValidator]. Pure value object — callers (the
- * Gradle extension or plugin) translate it into a `GradleException` rendered as `[code] message`.
+ * One validation finding produced by [SchemaScopingValidator] or [SchemaScopeDefinitions]. Pure value
+ * object — callers translate it into their own build-tool failure, rendered as `[code] message`.
  */
 @ExperimentalApi
 data class SchemaScopingValidationError(
@@ -13,29 +13,39 @@ data class SchemaScopingValidationError(
 )
 
 /**
- * Pure validation logic for the schema-scoping DSL declarations. Lives in the same package as
- * [SchemaScoping] so configuration-time and runtime consumers share the same rules. Has no
- * dependency on the Gradle API — callers are responsible for throwing the build-tool exception.
+ * Pure validation logic for schema scope definitions. Lives in the same package as [SchemaScoping] so
+ * build-time and runtime consumers share the same rules. Has no dependency on any build tool — callers
+ * are responsible for throwing their own exception.
  *
- * The validator splits checks into two buckets:
+ * The validator splits checks into two buckets, and [SchemaScopeDefinitions] drives both:
  *
- * - **Per-ID syntax** ([validateScopeId], [validateSchemaId]) fires synchronously inside DSL
- *   methods (`scopes`, `scopedSchema`). A failure points at the offending line in
- *   `build.gradle.kts`.
- * - **Cross-property invariants** ([validate]) fires at the end of `declareScoping { ... }` from
- *   `SchemaScopingBuilder.build()`, once both `scopes(...)` and `scopedSchema(...)` calls have
- *   settled inside the single block.
+ * - **Per-ID syntax** ([validateScopeId], [validateSchemaId]) applies to one identifier at a time.
+ * - **Cross-property invariants** ([validate]) apply to an assembled [SchemaScoping]: that named
+ *   entries require a declared universe, and that their scope sets stay inside it. Nothing else.
+ *   In particular an empty scope set passes here, because subtracting the universe from an empty set
+ *   leaves nothing to report; [SchemaScopeDefinitions] rejects it.
  */
 @ExperimentalApi
 object SchemaScopingValidator {
-    /** SDL identifier shape — matches scope names that appear in `@scope(to: [...])`. */
-    const val SCOPE_ID_PATTERN = "^[a-z][a-z0-9_]*$"
+    /**
+     * Shape of a scope name as it appears in `@scope(to: [...])` — a string argument, not a GraphQL identifier.
+     *
+     * Admits the colon-namespaced, hyphenated IDs already in production: `viaduct:public`,
+     * `listing-block:private`, and `viaduct:__generated-types`, which is why the segment after the colon
+     * cannot require a leading letter.
+     */
+    const val SCOPE_ID_PATTERN = "^[A-Za-z][A-Za-z0-9_-]*(:[A-Za-z0-9_-]+)?$"
 
     /** API-name shape — allows the `PUBLIC_API` / `publicApi` styles used for scoped-schema IDs. */
     const val SCHEMA_ID_PATTERN = "^[A-Za-z][A-Za-z0-9_]*$"
 
+    /** Reserved id of the unscoped schema, requested at runtime rather than declared. */
+    const val BASE_SCHEMA_ID: String = "BASE"
+
+    private const val PRIVATE_SCOPE_SUFFIX = ":private"
+
     /** Scoped-schema IDs reserved by Viaduct for internal sentinels. */
-    val RESERVED_SCHEMA_IDS: Set<String> = setOf("BASE", "NONE")
+    val RESERVED_SCHEMA_IDS: Set<String> = setOf(BASE_SCHEMA_ID, "NONE")
 
     private val scopeIdRegex = Regex(SCOPE_ID_PATTERN)
     private val schemaIdRegex = Regex(SCHEMA_ID_PATTERN)
@@ -43,9 +53,8 @@ object SchemaScopingValidator {
     /**
      * Returns an error if [id] is not a valid scope ID, or `null` if it is.
      *
-     * The SDL identifier shape intentionally rejects the `*` wildcard at the DSL layer; `*` is a
-     * sentinel that may appear inside `@scope(to: [...])` in SDL but is not a value the DSL
-     * accepts as a declared scope name.
+     * The shape rejects the `*` wildcard: `*` may appear inside `@scope(to: [...])` in SDL to mean "all
+     * scopes", but it is not itself a declarable scope.
      */
     fun validateScopeId(id: String): SchemaScopingValidationError? =
         if (scopeIdRegex.matches(id)) {
@@ -54,8 +63,9 @@ object SchemaScopingValidator {
             SchemaScopingValidationError(
                 code = ScopingErrorCodes.SCOPE_ID_FORMAT_INVALID,
                 message = "Scope id '$id' does not match required pattern $SCOPE_ID_PATTERN. " +
-                    "Scope ids appear in @scope(to: [...]) and follow GraphQL identifier conventions: " +
-                    "lowercase letters, digits, and underscores, starting with a letter.",
+                    "Scope ids appear in @scope(to: [...]): letters, digits, underscores and hyphens, " +
+                    "starting with a letter, optionally with one ':'-separated namespace segment. " +
+                    "Examples: viaduct:public, listing-block:private.",
             )
         }
 
@@ -79,9 +89,8 @@ object SchemaScopingValidator {
         }
 
     /**
-     * Returns the list of cross-property violations in [scoping] (empty when valid). Intended to
-     * run once at the end of the `declareScoping { ... }` block; the caller batches all findings
-     * into a single `GradleException`.
+     * Returns the list of cross-property violations in [scoping] (empty when valid). Runs once against
+     * assembled definitions; the caller batches all findings into a single failure.
      */
     fun validate(scoping: SchemaScoping): List<SchemaScopingValidationError> {
         val errors = mutableListOf<SchemaScopingValidationError>()
@@ -89,9 +98,9 @@ object SchemaScopingValidator {
         if (!scoping.isScoped && scoping.scopedSchemas.isNotEmpty()) {
             errors += SchemaScopingValidationError(
                 code = ScopingErrorCodes.SCOPED_SCHEMAS_WITHOUT_UNIVERSE,
-                message = "declareScoping declares ${scoping.scopedSchemas.size} scopedSchema entry/entries but " +
-                    "scopes(...) was not called. Declare the scope universe via scopes(...), or remove the " +
-                    "scopedSchema entries entirely.",
+                message = "${scoping.scopedSchemas.size} scopedSchemas entry/entries are declared but " +
+                    "schemaScopes is omitted. Declare the scope universe under schemaScopes, or remove the " +
+                    "scopedSchemas entries entirely.",
             )
         }
 
@@ -102,10 +111,17 @@ object SchemaScopingValidator {
         scoping.scopedSchemas.toSortedMap().forEach { (id, scopes) ->
             val unknown = (scopes - scoping.scopeUniverse).sorted()
             if (unknown.isNotEmpty()) {
+                // SDL treats @scope on "ns" or "ns:x" as also granting "ns:private"; schemaScopes does not expand.
+                val privateHint = if (unknown.any { it.endsWith(PRIVATE_SCOPE_SUFFIX) }) {
+                    " A '$PRIVATE_SCOPE_SUFFIX' scope must be declared under schemaScopes in its own " +
+                        "right, even though @scope(to: [...]) in SDL grants it implicitly."
+                } else {
+                    ""
+                }
                 errors += SchemaScopingValidationError(
                     code = ScopingErrorCodes.SCOPED_SCHEMA_UNKNOWN_SCOPE,
-                    message = "Scoped schema '$id' references scope id(s) not declared via scopes(...): " +
-                        "$unknown. Declared scopes: ${scoping.scopeUniverse.sorted()}.",
+                    message = "Scoped schema '$id' references scope id(s) not declared under schemaScopes: " +
+                        "$unknown. Declared scopes: ${scoping.scopeUniverse.sorted()}.$privateHint",
                 )
             }
         }

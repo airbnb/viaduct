@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import viaduct.api.internal.internalType
 import viaduct.api.reflect.Type
 import viaduct.api.select.FieldCoordinate
 import viaduct.api.select.SelectionSet
@@ -369,11 +370,11 @@ class SelectionSetImplTest {
     private fun SelectionSet<*>.engineSelections() = (this as SelectionSetImpl<*>).engineSelectionSet
 
     @Test
-    fun type() {
+    fun `internal type metadata follows field navigation`() {
         mk(Node.Reflection, "__typename").also { it ->
-            assertEquals(Node.Reflection, it.type)
-            assertEquals(Node.Reflection, it.selectionSetFor(Foo.Fields.nodeSelf).type)
-            assertEquals(Foo.Reflection, it.selectionSetFor(Foo.Fields.fooSelf).type)
+            assertEquals(Node.Reflection, it.internalType())
+            assertEquals(Node.Reflection, it.selectionSetFor(Foo.Fields.nodeSelf).internalType())
+            assertEquals(Foo.Reflection, it.selectionSetFor(Foo.Fields.fooSelf).internalType())
         }
     }
 }

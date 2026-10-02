@@ -17,15 +17,19 @@ import org.junit.jupiter.api.assertThrows
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineSchema
+import viaduct.engine.api.FullSchema
 import viaduct.engine.api.ResolvedEngineObjectData
 import viaduct.engine.api.RootFieldReference
 import viaduct.java.api.internal.InternalContext
 import viaduct.java.api.internal.ObjectBase
 import viaduct.java.api.types.Arguments
 import viaduct.java.api.types.GraphQLObject
+import viaduct.java.api.types.NodeCompositeOutput
 import viaduct.service.api.spi.GlobalIDCodec
 
 class GRTConverterTest {
+    private val codec = mockk<GlobalIDCodec>()
+
     private class RootReferenceObject(ref: RootFieldReference) :
         ObjectBase(null, ref),
         GraphQLObject
@@ -34,7 +38,7 @@ class GRTConverterTest {
     fun `convertResult passes root field references directly to the engine`() {
         val reference = mockk<RootFieldReference>()
 
-        val result = convertResult(RootReferenceObject(reference), null)
+        val result = convertResult(RootReferenceObject(reference), null, codec)
 
         assertSame(reference, result)
     }
@@ -65,7 +69,7 @@ class GRTConverterTest {
         val original = CopyableObject(lazyData)
         val copy = original.copy(mapOf("overridden" to null)).copy(mapOf("added" to "new"))
 
-        val result = convertResult(copy, null) as EngineObjectData.Sync
+        val result = convertResult(copy, null, codec) as EngineObjectData.Sync
 
         assertSame(type, result.type)
         assertEquals("Alice", result.getOrNull("name"))
@@ -88,7 +92,7 @@ class GRTConverterTest {
         val original = CopyableObject(mapOf("name" to "Alice", "nullable" to null))
         val copy = original.copy(mapOf("items" to listOf(nested, RootReferenceObject(reference), null)))
 
-        val result = convertResult(copy, schema) as EngineObjectData.Sync
+        val result = convertResult(copy, schema, codec) as EngineObjectData.Sync
         val items = result.get("items") as List<*>
 
         assertEquals(setOf("name", "nullable", "items"), result.getSelections().toSet())
@@ -102,8 +106,26 @@ class GRTConverterTest {
     }
 
     @Test
+    fun `convertResult serializes typed IDs with the execution codec and preserves plain IDs`() {
+        every { codec.serialize("User", "123") } returns "custom:user:123"
+        every { codec.serialize("User", "456") } returns "custom:user:456"
+        val first = GlobalIDImpl(typeFromName<NodeCompositeOutput>("User"), "123")
+        val second = GlobalIDImpl(typeFromName<NodeCompositeOutput>("User"), "456")
+
+        val result = convertResult(
+            listOf(first, null, listOf(second, "plain-id")),
+            null,
+            codec,
+        )
+
+        assertEquals(listOf("custom:user:123", null, listOf("custom:user:456", "plain-id")), result)
+        assertEquals("plain-id", convertResult("plain-id", null, codec))
+        assertNull(convertResult(null, null, codec))
+    }
+
+    @Test
     fun `buildInternalContext creates InternalContextImpl from engine context`() {
-        val schema = mockk<EngineSchema>()
+        val schema = mockk<FullSchema>()
         val codec = mockk<GlobalIDCodec>()
         val engineCtx = mockk<EngineExecutionContext> {
             every { fullSchema } returns schema

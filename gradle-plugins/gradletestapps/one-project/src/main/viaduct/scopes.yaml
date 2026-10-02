@@ -1,0 +1,8 @@
+version: 1
+
+schemaScopes:
+  - public
+
+scopedSchemas:
+  - id: PUBLIC_API
+    scopes: [public]

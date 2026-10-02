@@ -63,6 +63,7 @@ dependencies {
     testImplementation(libs.io.mockk.jvm)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.viaduct.engine.runtime)
+    testImplementation(testFixtures(libs.viaduct.engine.runtime))
     testImplementation(libs.viaduct.engine.wiring)
     testImplementation(testFixtures(libs.viaduct.engine.api))
     testImplementation(testFixtures(libs.viaduct.shared.graphql))

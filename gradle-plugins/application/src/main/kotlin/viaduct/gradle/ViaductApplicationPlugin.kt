@@ -20,7 +20,6 @@ import org.gradle.api.tasks.bundling.Jar
 import org.gradle.api.tasks.compile.JavaCompile
 import org.gradle.jvm.toolchain.JavaToolchainService
 import org.gradle.kotlin.dsl.register
-import viaduct.apiannotations.ExperimentalApi
 import viaduct.apiannotations.InternalApi
 import viaduct.gradle.ViaductPluginCommon.configureIdeaIntegration
 import viaduct.gradle.ViaductPluginCommon.createOrGetCodegenClasspath
@@ -34,13 +33,14 @@ import viaduct.gradle.task.AssembleSchemaPartitionTask
 import viaduct.gradle.task.GenerateGRTClassFilesTask
 import viaduct.gradle.task.GenerateJavaGRTSourcesTask
 import viaduct.gradle.task.ValidateSchemaExtensionsTask
+import viaduct.service.api.scoping.SchemaScopeDefinitions
 
 abstract class ViaductApplicationPlugin : Plugin<Project> {
     override fun apply(project: Project): Unit =
         with(project) {
             val topology = validateApplicationProjectPlacement()
 
-            val appExt = extensions.create(
+            extensions.create(
                 "viaductApplication",
                 ViaductApplicationExtension::class.java,
                 objects,
@@ -48,7 +48,7 @@ abstract class ViaductApplicationPlugin : Plugin<Project> {
 
             val viaductModules = setupViaductModulesConfiguration()
             val schemaContributions = setupSchemaContributionsConfiguration(viaductModules)
-            val assembleCentralSchemaTask = setupAssembleCentralSchemaTask(viaductModules, schemaContributions, appExt)
+            val assembleCentralSchemaTask = setupAssembleCentralSchemaTask(viaductModules, schemaContributions)
             setupValidateSchemaExtensionsTask(schemaContributions)
             setupOutgoingConfigurationForCentralSchema(assembleCentralSchemaTask)
             setupIncomingDependenciesFromTopology(topology, viaductModules)
@@ -180,11 +180,10 @@ abstract class ViaductApplicationPlugin : Plugin<Project> {
             }
         }
 
-    @OptIn(ExperimentalApi::class, InternalApi::class)
+    @OptIn(InternalApi::class)
     private fun Project.setupAssembleCentralSchemaTask(
         viaductModules: Configuration,
         schemaContributions: Configuration,
-        appExt: ViaductApplicationExtension,
     ): TaskProvider<AssembleCentralSchemaTask> {
         val allPartitions = configurations.create(ViaductPluginCommon.Configs.ALL_SCHEMA_PARTITIONS_INCOMING).apply {
             description = "Resolvable configuration where all viaduct-module plugins send their schema partitions."
@@ -213,7 +212,12 @@ abstract class ViaductApplicationPlugin : Plugin<Project> {
             )
 
             outputDirectory.set(centralSchemaDirectory())
-            schemaScoping.set(appExt.schemaScoping)
+
+            scopesFile.setFrom(
+                project.fileTree(ViaductScopesYaml.SOURCE_DIRECTORY) {
+                    include(SchemaScopeDefinitions.SOURCE_FILE_NAME)
+                }
+            )
         }
 
         return assembleCentralSchemaTask

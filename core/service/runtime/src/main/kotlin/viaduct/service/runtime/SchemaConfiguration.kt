@@ -3,6 +3,7 @@ package viaduct.service.runtime
 import java.util.concurrent.ConcurrentHashMap
 import viaduct.engine.SchemaFactory
 import viaduct.engine.api.EngineSchema
+import viaduct.engine.api.FullSchema
 import viaduct.graphql.scopes.SchemaScopingMode
 import viaduct.graphql.scopes.SchemaView
 import viaduct.graphql.scopes.ScopedSchemaBuilder
@@ -53,13 +54,13 @@ class SchemaConfiguration private constructor(
      * - [FromSchema]: Wrap an existing schema
      */
     internal sealed interface FullSchemaConfig {
-        fun build(schemaFactory: SchemaFactory): EngineSchema
+        fun build(schemaFactory: SchemaFactory): FullSchema
 
         class FromSdl(
             private val sdl: String,
         ) : FullSchemaConfig {
-            override fun build(schemaFactory: SchemaFactory): EngineSchema {
-                return schemaFactory.fromSdl(sdl)
+            override fun build(schemaFactory: SchemaFactory): FullSchema {
+                return FullSchema(schemaFactory.fromSdl(sdl))
             }
         }
 
@@ -67,15 +68,15 @@ class SchemaConfiguration private constructor(
             private val grtPackagePrefix: String?,
             private val filesIncluded: Regex?,
         ) : FullSchemaConfig {
-            override fun build(schemaFactory: SchemaFactory): EngineSchema {
-                return schemaFactory.fromResources(grtPackagePrefix, filesIncluded)
+            override fun build(schemaFactory: SchemaFactory): FullSchema {
+                return FullSchema(schemaFactory.fromResources(grtPackagePrefix, filesIncluded))
             }
         }
 
         class FromSchema(
-            private val schema: EngineSchema,
+            private val schema: FullSchema,
         ) : FullSchemaConfig {
-            override fun build(schemaFactory: SchemaFactory): EngineSchema {
+            override fun build(schemaFactory: SchemaFactory): FullSchema {
                 return schema
             }
         }
@@ -105,7 +106,7 @@ class SchemaConfiguration private constructor(
         val schemaId: SchemaId
         val lazy: Boolean
 
-        fun build(fullSchema: EngineSchema): EngineSchema
+        fun build(fullSchema: FullSchema): EngineSchema
 
         class Derived(
             private val scopeConfig: ScopeConfig,
@@ -113,7 +114,7 @@ class SchemaConfiguration private constructor(
         ) : ScopedSchemaConfig {
             override val schemaId: SchemaId = scopeConfig.schemaId()
 
-            override fun build(fullSchema: EngineSchema): EngineSchema {
+            override fun build(fullSchema: FullSchema): EngineSchema {
                 val scopedSchema = ScopedSchemaBuilder(
                     inputSchema = fullSchema.schema,
                     additionalVisitorConstructors = emptyList(),
@@ -205,7 +206,7 @@ class SchemaConfiguration private constructor(
             lazyScopedSchemas: Boolean = false,
         ): SchemaConfiguration {
             return SchemaConfiguration(
-                FullSchemaConfig.FromSchema(schema),
+                FullSchemaConfig.FromSchema(if (schema is FullSchema) schema else FullSchema(schema)),
                 scopes.associate {
                     it.schemaId() to ScopedSchemaConfig.Derived(it, lazyScopedSchemas)
                 }
@@ -222,8 +223,9 @@ class SchemaConfiguration private constructor(
     private class FromPrebuiltFullSchema(
         private val computeBlock: () -> EngineSchema
     ) : FullSchemaConfig {
-        override fun build(schemaFactory: SchemaFactory): EngineSchema {
-            return computeBlock()
+        override fun build(schemaFactory: SchemaFactory): FullSchema {
+            val schema = computeBlock()
+            return if (schema is FullSchema) schema else FullSchema(schema)
         }
     }
 
@@ -236,7 +238,7 @@ class SchemaConfiguration private constructor(
         private val computeBlock: () -> EngineSchema,
         override val lazy: Boolean
     ) : ScopedSchemaConfig {
-        override fun build(fullSchema: EngineSchema): EngineSchema {
+        override fun build(fullSchema: FullSchema): EngineSchema {
             return computeBlock()
         }
     }

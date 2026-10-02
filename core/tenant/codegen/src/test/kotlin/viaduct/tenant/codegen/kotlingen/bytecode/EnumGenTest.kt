@@ -28,4 +28,20 @@ class EnumGenTest {
         assertTrue(result.contains("object Reflection : viaduct.api.reflect.Type<pkg.Enum>"))
         assertFalse(result.contains("object Fields"))
     }
+
+    @Test
+    fun `escapes values that are Kotlin keywords`() {
+        val result = genEnum(
+            """
+                type Query { empty: Int }
+                enum Enum { if class new NORMAL }
+            """.trimIndent(),
+            "Enum"
+        ).toString()
+        assertTrue(result.contains("`if`,"))
+        assertTrue(result.contains("`class`,"))
+        // "new" is a Java keyword but not a Kotlin one, so it needs no escaping here.
+        assertTrue(result.contains("new,"))
+        assertFalse(result.contains("`new`"))
+    }
 }
