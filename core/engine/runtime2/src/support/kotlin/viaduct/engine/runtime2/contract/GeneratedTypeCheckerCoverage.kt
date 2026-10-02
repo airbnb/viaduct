@@ -61,6 +61,25 @@ private val runtimeSignatures = setOf(
     GeneratedTypeCheckerSignature.ERROR_ARGUMENT_IN_TYPE_INPUT,
 )
 
+private val stressOnlySignatures = setOf(GeneratedTypeCheckerSignature.NESTED_PATH_VARIABLE)
+
+internal fun requiredGeneratedTypeCheckerSignatures(
+    mode: GeneratedTypeCheckerMode,
+    sizeOverridden: Boolean,
+): Set<GeneratedTypeCheckerSignature> {
+    val outcomeExclusions =
+        when (mode) {
+            GeneratedTypeCheckerMode.SUCCESS, GeneratedTypeCheckerMode.RUNTIME_SUCCESS ->
+                setOf(GeneratedTypeCheckerSignature.DENIAL, GeneratedTypeCheckerSignature.DENIAL_WITH_RESOLVER_INPUT)
+            GeneratedTypeCheckerMode.DENIAL, GeneratedTypeCheckerMode.RUNTIME_DENIAL ->
+                setOf(GeneratedTypeCheckerSignature.SUCCESS, GeneratedTypeCheckerSignature.SUCCESS_WITH_RESOLVER_INPUT)
+            else -> emptySet()
+        }
+    val runtimeExclusions = if (mode.runtimeVariables) emptySet() else runtimeSignatures
+    val stressExclusions = if (sizeOverridden) emptySet() else stressOnlySignatures
+    return GeneratedTypeCheckerSignature.entries.toSet() - outcomeExclusions - runtimeExclusions - stressExclusions
+}
+
 internal class GeneratedTypeCheckerCoverage {
     private val counts = GeneratedTypeCheckerSignature.entries.associateWithTo(linkedMapOf()) { 0 }
 
@@ -72,11 +91,7 @@ internal class GeneratedTypeCheckerCoverage {
         run: ResolverTestRun,
         mode: GeneratedTypeCheckerMode
     ) {
-        val required = GeneratedTypeCheckerSignature.entries.toSet() - when (mode) {
-            GeneratedTypeCheckerMode.SUCCESS, GeneratedTypeCheckerMode.RUNTIME_SUCCESS -> setOf(GeneratedTypeCheckerSignature.DENIAL, GeneratedTypeCheckerSignature.DENIAL_WITH_RESOLVER_INPUT)
-            GeneratedTypeCheckerMode.DENIAL, GeneratedTypeCheckerMode.RUNTIME_DENIAL -> setOf(GeneratedTypeCheckerSignature.SUCCESS, GeneratedTypeCheckerSignature.SUCCESS_WITH_RESOLVER_INPUT)
-            else -> emptySet()
-        } - if (mode.runtimeVariables) emptySet() else runtimeSignatures
+        val required = requiredGeneratedTypeCheckerSignatures(mode, run.sizeOverridden)
         val missing = required.filter { counts.getValue(it) == 0 }
         run.assertAggregate(missing.isEmpty(), "Type-checker profile missed activated coverage $missing; ${summary()}")
     }

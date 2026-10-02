@@ -5,6 +5,7 @@ import kotlin.test.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.CheckerResultContext
+import viaduct.engine.runtime2.arbitrary.GeneratedTypeCheckerMode
 import viaduct.engine.runtime2.correctresolution.CorrectnessResolverObserver
 import viaduct.engine.runtime2.model.ListEngineResult
 import viaduct.engine.runtime2.model.ResolverOccurrenceId
@@ -25,6 +26,20 @@ import viaduct.engine.runtime2.resolvers.resolver23.ResolverGeneratedTest
 import viaduct.graphql.schema.ViaductSchema
 
 class GeneratedTypeCheckerCoverageTest {
+    @Test
+    fun `ordinary runtime profiles leave nested path activation to directed tests`() {
+        val required = requiredGeneratedTypeCheckerSignatures(GeneratedTypeCheckerMode.RUNTIME_MIXED, sizeOverridden = false)
+        assertFalse(GeneratedTypeCheckerSignature.NESTED_PATH_VARIABLE in required)
+        assertTrue(GeneratedTypeCheckerSignature.PATH_VARIABLE_IN_OBJECT_INPUT in required)
+        assertTrue(GeneratedTypeCheckerSignature.PATH_VARIABLE_IN_QUERY_INPUT in required)
+    }
+
+    @Test
+    fun `size-overridden runtime profiles require nested path activation`() {
+        val required = requiredGeneratedTypeCheckerSignatures(GeneratedTypeCheckerMode.RUNTIME_MIXED, sizeOverridden = true)
+        assertTrue(GeneratedTypeCheckerSignature.NESTED_PATH_VARIABLE in required)
+    }
+
     @Test
     fun `counts resolver backed inputs on both roots and checked dependencies beyond them`() {
         val observation = observation()
