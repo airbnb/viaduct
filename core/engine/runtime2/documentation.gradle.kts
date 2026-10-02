@@ -12,7 +12,7 @@ val checkDocumentationLabels =
 
         val documentationFiles =
             fileTree(projectDir) {
-                include("impldocs/claims.md")
+                include("impldocs/correctness/claims.md")
                 include("**/*.kt")
                 exclude("**/build/**")
                 exclude("**/.gradle/**")
@@ -26,7 +26,7 @@ val checkDocumentationLabels =
 
         doLast {
             val labelPattern = "[a-z0-9]+(?:-[a-z0-9]+)*"
-            val claimPattern = Regex("""^\*\*\[($labelPattern)]\*\* .+""")
+            val claimPattern = Regex("""^\*\*\[($labelPattern)]\([^)]+\)\.\*\* .+""")
             val invariantPattern =
                 Regex("""^\s*\*\s+### Invariant: ($labelPattern)\s*$""")
             val invariantHeadingPattern = Regex("""### Invariants?\b""")
@@ -35,7 +35,7 @@ val checkDocumentationLabels =
             val labels = mutableListOf<DocumentationLabel>()
             val errors = mutableListOf<String>()
 
-            val claimsFile = file("impldocs/claims.md")
+            val claimsFile = file("impldocs/correctness/claims.md")
             claimsFile.readLines().forEachIndexed { index, line ->
                 val match = claimPattern.matchEntire(line)
                 if (match != null) {
