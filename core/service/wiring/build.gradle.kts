@@ -4,6 +4,7 @@ import viaduct.graphiql.GraphiQLHtmlCustomizer
 
 plugins {
     id("conventions.kotlin")
+    id("conventions.kotlin-static-analysis")
     id("conventions.dokka")
     id("conventions.bcv-api")
 }
@@ -17,7 +18,6 @@ tasks.named<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>("compileKotlin") {
 dependencies {
     implementation(libs.viaduct.service.api)
     implementation(libs.graphql.java)
-
 
     implementation(libs.viaduct.engine.api)
     implementation(libs.viaduct.engine.wiring)

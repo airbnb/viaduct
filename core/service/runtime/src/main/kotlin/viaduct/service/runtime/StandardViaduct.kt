@@ -136,7 +136,7 @@ class StandardViaduct
             private var proxyResolverFactory: ProxyResolverFactory? = null
             private var lenientResolverValidation: Boolean = false
 
-            fun enableAirbnbBypassDoNotUse(tenantNameResolver: TenantNameResolver,): Builder =
+            fun enableAirbnbBypassDoNotUse(tenantNameResolver: TenantNameResolver): Builder =
                 apply {
                     this.tenantNameResolver = tenantNameResolver
                     this.airbnbModeEnabled = true
