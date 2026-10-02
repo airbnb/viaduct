@@ -19,4 +19,4 @@ When a new GraphQL specification is formally published, refresh Chapter 6 and `L
 
 ## Building
 
-Run `./gradlew -p core/engine/runtime2/spec clean check` from the repository root to install the locked renderer and produce `core/engine/runtime2/spec/build/spec/index.html`. The specification build is intentionally opt-in and is not part of qplan's standard `check` task.
+Run `./gradlew -p core/engine/runtime2/impldocs/graphql-spec clean check` from the repository root to install the locked renderer and produce `core/engine/runtime2/impldocs/graphql-spec/build/spec/index.html`. The specification build is intentionally opt-in and is not part of Runtime2's standard `check` task.
