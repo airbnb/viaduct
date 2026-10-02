@@ -68,6 +68,26 @@ class TestExtractFailedTasks(unittest.TestCase):
         log = "> Task \x1b[1m:core:tenant:api:compileKotlin\x1b[0m FAILED\n"
         self.assertEqual([":core:tenant:api:compileKotlin"], extract_failed_tasks(log))
 
+    def test_included_build_path_with_dashes(self):
+        log = "> Task :build-logic:build-common:detekt FAILED\n"
+        self.assertEqual([":build-logic:build-common:detekt"], extract_failed_tasks(log))
+
+    def test_dot_is_allowed_in_a_task_name(self):
+        log = "> Task :core:x:javaapi:api:test.integration FAILED\n"
+        self.assertEqual([":core:x:javaapi:api:test.integration"], extract_failed_tasks(log))
+
+    def test_path_carrying_markdown_is_skipped(self):
+        log = "> Task :a`@everyone`[docs](https://example.com) FAILED\n> Task :b:test FAILED\n"
+        self.assertEqual([":b:test"], extract_failed_tasks(log))
+
+    def test_non_ascii_lookalike_is_skipped(self):
+        log = "> Task :\u0430ttack:test FAILED\n"
+        self.assertEqual([], extract_failed_tasks(log))
+
+    def test_path_without_leading_colon_is_skipped(self):
+        log = "> Task @everyone FAILED\n"
+        self.assertEqual([], extract_failed_tasks(log))
+
 
 class BinaryStdin:
     def __init__(self, data: bytes):
