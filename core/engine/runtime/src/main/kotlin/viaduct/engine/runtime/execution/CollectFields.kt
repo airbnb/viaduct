@@ -54,10 +54,10 @@ class CollectedField(
         check(occurrences.all { (it.field.selectionSet == null) == (first == null) }) {
             "Cannot merge fields with different subselection flavors"
         }
-        if (first == null) {
-            null
+        if (first == null || occurrences.size == 1) {
+            first
         } else {
-            occurrences.drop(1).fold(first) { acc, details -> acc.merge(details.field.selectionSet!!, schema) }
+            SelectionSet.merge(occurrences.map { it.field.selectionSet!! }, schema)
         }
     }
 
