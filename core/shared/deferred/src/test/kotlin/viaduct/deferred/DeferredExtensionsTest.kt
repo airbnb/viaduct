@@ -21,6 +21,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.InternalCoroutinesApi
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
@@ -33,7 +34,9 @@ import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.yield
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.RepeatedTest
@@ -46,11 +49,10 @@ class DeferredExtensionsTest {
     @Nested
     inner class ParentingCompletableDeferredTests {
         @Test
-        fun `active parent - deferred is parented via SupervisorJob and supervisor completes on child completion`() =
+        fun `active parent - deferred is a direct child of the request parent`() =
             runBlocking {
-                val parent = Job()
+                val parent = SupervisorJob()
                 lateinit var child: CompletableDeferred<Int>
-                lateinit var supervisor: Job
 
                 withRequestParent(parent) {
                     val before = parent.children.toSet()
@@ -58,63 +60,41 @@ class DeferredExtensionsTest {
                     child = completableDeferred()
                     yield()
 
-                    val after = parent.children.toSet()
-                    val newChildren = after - before
-                    assertEquals(1, newChildren.size, "Exactly one new child (the supervisor) should be added")
-                    supervisor = newChildren.single()
+                    val newChildren = parent.children.toSet() - before
+                    assertEquals(1, newChildren.size, "Exactly one new child should be added")
+                    assertSame(child, newChildren.single())
 
-                    // The supervisor should have the completable deferred as its child
-                    assertTrue(
-                        supervisor.children.any { it === child },
-                        "Supervisor should have the returned deferred as its child"
-                    )
-
-                    // Complete the child; supervisor should complete (not cancel)
                     child.complete(42)
                 }
 
                 yield()
-                assertTrue(supervisor.isCompleted, "Supervisor should be completed after child completes")
-                assertFalse(supervisor.isCancelled, "Supervisor should complete normally, not be cancelled")
+                assertTrue(parent.children.none { it === child }, "Completed child should detach from parent")
                 assertTrue(parent.isActive, "Parent should remain active")
             }
 
         @Test
-        fun `active parent - cancelling child cancels result but completes supervisor (not cancelled)`() =
+        fun `active parent - cancelling child does not cancel parent`() =
             runBlocking {
-                val parent = Job()
+                val parent = SupervisorJob()
                 lateinit var child: CompletableDeferred<Unit>
-                lateinit var supervisor: Job
 
                 withRequestParent(parent) {
-                    val before = parent.children.toSet()
-
                     child = completableDeferred()
-                    yield()
-
-                    val after = parent.children.toSet()
-                    val newChildren = after - before
-                    supervisor = newChildren.single()
-
-                    val cancel = CancellationException("test-cancel")
-                    child.cancel(cancel)
+                    child.cancel(CancellationException("test-cancel"))
                 }
 
                 yield()
                 assertTrue(child.isCancelled, "Child should be cancelled")
-                assertTrue(supervisor.isCompleted, "Supervisor should complete on child cancellation")
-                assertFalse(supervisor.isCancelled, "Supervisor should NOT be cancelled")
                 assertTrue(parent.isActive, "Parent remains active")
             }
 
         @Test
         fun `deferred is parented to request parent context element`() =
             runBlocking {
-                val requestParent = Job()
+                val requestParent = SupervisorJob()
                 val threadLocalJob = Job()
 
                 lateinit var child: CompletableDeferred<Int>
-                lateinit var supervisor: Job
 
                 withContext(
                     threadLocalJob +
@@ -130,42 +110,25 @@ class DeferredExtensionsTest {
                     val newRequestChildren = requestParent.children.toSet() - requestParentBefore
                     val newThreadLocalChildren = threadLocalJob.children.toSet() - threadLocalBefore
 
-                    assertEquals(1, newRequestChildren.size, "Request parent should receive the supervisor child")
+                    assertEquals(1, newRequestChildren.size, "Request parent should receive the child")
+                    assertSame(child, newRequestChildren.single())
                     assertTrue(newThreadLocalChildren.isEmpty(), "Thread-local job should not receive any child")
-
-                    supervisor = newRequestChildren.single()
-                    assertTrue(supervisor.children.any { it === child }, "Request parent supervisor should own the child deferred")
                 }
 
                 child.complete(1)
                 assertEquals(1, child.await())
-                assertTrue(supervisor.isCompleted)
             }
 
         @Test
         fun `parent cancellation cascades to deferred`() =
             runTest {
-                val parent = Job()
+                val parent = SupervisorJob()
                 lateinit var d: CompletableDeferred<Int>
 
                 launch {
-                    // Create and link under the TL parent, then exit the scope
                     withRequestParent(parent) {
-                        val before = parent.children.toSet()
-
                         d = completableDeferred()
-
-                        // best-effort: ensure linkage happened
-                        yield()
-
-                        val after = parent.children.toSet()
-                        val newChildren = after - before
-
-                        // Optional sanity (don’t hard-fail if you don’t want flakiness):
-                        assertTrue(
-                            newChildren.any { sup -> sup.children.any { it === d } },
-                            "Supervisor should parent the deferred"
-                        )
+                        assertTrue(parent.children.any { it === d }, "Parent should own the deferred")
                     }
                 }
 
@@ -174,7 +137,6 @@ class DeferredExtensionsTest {
                 val ce = CancellationException("parent-cancel")
                 parent.cancel(ce)
 
-                // Observe cancellation of d
                 val observed = CompletableDeferred<CancellationException>()
                 d.invokeOnCompletion { cause ->
                     if (cause is CancellationException) observed.complete(cause)
@@ -188,7 +150,7 @@ class DeferredExtensionsTest {
         @Test
         fun `inactive request parent - deferred is NOT parented`() =
             runBlocking {
-                val inactiveParent = Job().apply { cancel(CancellationException("inactive")) }
+                val inactiveParent = SupervisorJob().apply { cancel(CancellationException("inactive")) }
                 lateinit var d: CompletableDeferred<Int>
 
                 withContext(
@@ -201,7 +163,7 @@ class DeferredExtensionsTest {
                     // Because parent.isActive == false, completableDeferred() should have returned an unparented deferred.
                     assertTrue(
                         inactiveParent.children.toList().isEmpty(),
-                        "No supervisor should be created when request parent is inactive"
+                        "No child should be attached when request parent is inactive"
                     )
 
                     d.complete(1)
@@ -227,39 +189,33 @@ class DeferredExtensionsTest {
             }
 
         @Test
-        fun `parenting chain remains stable across success and failure`() =
+        fun `failed deferred does not cancel request parent or siblings`() =
             runBlocking {
-                val parent = Job()
+                val parent = SupervisorJob()
                 lateinit var ok: CompletableDeferred<String>
                 lateinit var bad: CompletableDeferred<String>
-                lateinit var supOk: Job
-                lateinit var supBad: Job
+                lateinit var pending: CompletableDeferred<String>
 
                 withRequestParent(parent) {
                     val before = parent.children.toSet()
 
                     ok = completableDeferred()
                     bad = completableDeferred()
-                    yield()
+                    pending = completableDeferred()
 
-                    val after = parent.children.toSet()
-                    val newChildren = after - before
-                    // We created exactly two supervisors for ok & bad
-                    assertEquals(2, newChildren.size, "Parent should have two new supervisor children")
-
-                    // Identify which supervisor owns which child
-                    val byChild = newChildren.associateWith { sup -> sup.children.single() }
-                    supOk = byChild.entries.first { it.value === ok }.key
-                    supBad = byChild.entries.first { it.value === bad }.key
+                    val newChildren = parent.children.toSet() - before
+                    assertEquals(setOf<Job>(ok, bad, pending), newChildren)
 
                     ok.complete("yay")
                     bad.completeExceptionally(IllegalStateException("boom"))
                 }
 
                 yield()
-                assertTrue(supOk.isCompleted && !supOk.isCancelled, "supOk should be completed, not cancelled")
-                assertTrue(supBad.isCompleted && !supBad.isCancelled, "supBad should be completed, not cancelled")
+                assertEquals("yay", ok.await())
+                assertInstanceOf(IllegalStateException::class.java, bad.getCompletionExceptionOrNull())
+                assertTrue(pending.isActive, "Sibling should be unaffected by the failure")
                 assertTrue(parent.isActive)
+                pending.complete("done")
             }
 
         /**
