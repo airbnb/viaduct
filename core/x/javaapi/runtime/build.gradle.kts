@@ -75,6 +75,7 @@ dependencies {
     testImplementation(libs.viaduct.service.wiring)
     testImplementation(testFixtures(libs.viaduct.service.api))
     testImplementation(testFixtures(libs.viaduct.tenant.runtime))
+    testImplementation(libs.viaduct.tenant.runtime)
     testFixturesImplementation(testFixtures(project(":x:javaapi:api")))
     testFixturesImplementation(testFixtures(libs.viaduct.tenant.api))
     testFixturesImplementation(testFixtures(libs.viaduct.tenant.runtime))

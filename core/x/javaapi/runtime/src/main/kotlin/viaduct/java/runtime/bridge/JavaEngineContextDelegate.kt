@@ -15,7 +15,6 @@ import viaduct.engine.api.parse.CachedDocumentParser
 import viaduct.errors.FrameworkException
 import viaduct.errors.TenantUsageException
 import viaduct.errors.handleFrameworkErrorsSuspend
-import viaduct.graphql.utils.ParsedSelections
 import viaduct.graphql.utils.SelectionsParserUtils
 import viaduct.java.api.globalid.GlobalID
 import viaduct.java.api.internal.InputBase
@@ -230,7 +229,7 @@ internal class JavaEngineContextDelegate(
                 val normalizedVariables = JavaTenantApiInputValueNormalizer.normalizeVariablesForEngine(variables, engineCtx)
                 val selectionSet = if (isOperation) {
                     engineCtx.engineSelectionSetFactory.engineSelectionSet(
-                        parseSelfContained(typeName, selections),
+                        SelectionsParserUtils.parseOperationSelections(typeName, selections, knownFragments, CachedDocumentParser::parseDocument),
                         normalizedVariables,
                     )
                 } else {
@@ -244,18 +243,5 @@ internal class JavaEngineContextDelegate(
                 ) as T
             }
         }
-    }
-
-    private fun parseSelfContained(
-        typeName: String,
-        operationText: String,
-    ): ParsedSelections {
-        val normalized = SelectionsParserUtils.normalizeToFragmentDocument(
-            operationText,
-            typeName,
-            CachedDocumentParser::parseDocument,
-        )
-        val selfContained = SelectionsParserUtils.inlineReachableFragments(normalized, knownFragments)
-        return ParsedSelections.fromDocument(typeName, selfContained)
     }
 }

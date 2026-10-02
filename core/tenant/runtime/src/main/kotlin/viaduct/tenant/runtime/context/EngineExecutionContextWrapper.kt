@@ -21,7 +21,6 @@ import viaduct.engine.api.parse.CachedDocumentParser
 import viaduct.errors.FrameworkException
 import viaduct.errors.handleFrameworkErrors
 import viaduct.errors.handleFrameworkErrorsSuspend
-import viaduct.graphql.utils.ParsedSelections
 import viaduct.graphql.utils.SelectionsParserUtils
 import viaduct.tenant.runtime.TenantApiInputValueNormalizer.normalizeVariablesForEngine
 import viaduct.tenant.runtime.select.SelectionSetImpl
@@ -130,24 +129,11 @@ class EngineExecutionContextWrapperImpl(
             SelectionSetImpl(
                 type,
                 engineExecutionContext.engineSelectionSetFactory.engineSelectionSet(
-                    parseSelfContained(type.name, operationText),
+                    SelectionsParserUtils.parseOperationSelections(type.name, operationText, knownFragments, CachedDocumentParser::parseDocument),
                     normalizeVariablesForEngine(variables, engineExecutionContext.globalIDCodec)
                 )
             )
         }
-
-    /**
-     * Resolves an operation document into a self-contained [ParsedSelections]: normalize any form to
-     * a fragment document, then inline reachable [knownFragments] so no external spreads remain.
-     */
-    private fun parseSelfContained(
-        typeName: String,
-        selections: String
-    ): ParsedSelections {
-        val normalized = SelectionsParserUtils.normalizeToFragmentDocument(selections, typeName, CachedDocumentParser::parseDocument)
-        val selfContained = SelectionsParserUtils.inlineReachableFragments(normalized, knownFragments)
-        return ParsedSelections.fromDocument(typeName, selfContained)
-    }
 
     override fun <T : NodeObject> nodeRef(
         ctx: InternalContext,

@@ -77,6 +77,17 @@ object SelectionsParserUtils {
             SelectionsForm.OPERATION -> operationDocumentAsFragmentDocument(parse(selections), typeName)
         }
 
+    fun parseOperationSelections(
+        typeName: String,
+        operationText: String,
+        knownFragments: Map<String, FragmentDefinition>,
+        parse: (String) -> Document,
+    ): ParsedSelections {
+        val normalized = normalizeToFragmentDocument(operationText, typeName, parse)
+        val selfContained = inlineReachableFragments(normalized, knownFragments)
+        return ParsedSelections.fromDocument(typeName, selfContained)
+    }
+
     /** @throws IllegalArgumentException if [document] does not contain exactly one operation. */
     private fun operationDocumentAsFragmentDocument(
         document: Document,
