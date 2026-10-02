@@ -7,6 +7,7 @@ plugins {
 
 val checkRuntime2Publication = tasks.register("checkRuntime2Publication") {
     group = "verification"
+    notCompatibleWithConfigurationCache("Runtime2 publication verification retains runtime2's configuration-cache opt-out.")
     val runtimeJar = tasks.named<ShadowJar>("shadowJar")
     val supportInventory = file("../../core/engine/runtime2/build/reports/support-output-inventory.txt")
     dependsOn(runtimeJar, gradle.includedBuild("core").task(":engine:runtime2:checkProductionBoundary"))
