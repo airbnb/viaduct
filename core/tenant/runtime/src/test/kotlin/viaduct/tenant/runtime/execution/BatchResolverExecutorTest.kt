@@ -5,10 +5,15 @@ package viaduct.tenant.runtime.execution
 import io.mockk.every
 import io.mockk.mockk
 import javax.inject.Provider
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertInstanceOf
+import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -17,22 +22,27 @@ import viaduct.api.context.BaseFieldExecutionContext
 import viaduct.api.context.NodeExecutionContext
 import viaduct.api.internal.BaseBatchedFieldResolver
 import viaduct.api.internal.BaseBatchedNodeResolver
+import viaduct.api.internal.ObjectBase
 import viaduct.api.types.NodeObject
 import viaduct.engine.api.EngineExecutionContext
+import viaduct.engine.api.EngineObject
+import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineSelectionSet
+import viaduct.engine.api.NodeReference
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.NodeResolverExecutor
 import viaduct.engine.runtime.mocks.ContextMocks
 import viaduct.engine.runtime.withInvocationContexts
 import viaduct.errors.FrameworkException
 import viaduct.errors.TenantResolverException
+import viaduct.errors.TenantUsageException
 import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 import viaduct.tenant.runtime.context.factory.FieldExecutionContextFactory
 import viaduct.tenant.runtime.context.factory.NodeExecutionContextFactory
 
 @Suppress("UNUSED_PARAMETER")
 class BatchResolverExecutorTest {
-    interface TestNodeObject : NodeObject
+    class TestNodeGRT(data: EngineObject) : ObjectBase(mockk(relaxed = true), data), NodeObject
 
     class NonListFieldBatchResolver : BaseBatchedFieldResolver {
         override suspend fun invokeFieldBatchResolver(contexts: List<BaseFieldExecutionContext<*, *, *>>): Any = "not a list"
@@ -42,10 +52,10 @@ class BatchResolverExecutorTest {
         BaseBatchedNodeResolver {
         val invocations = mutableListOf<List<NodeExecutionContext<*>>>()
         var resultFactory:
-            suspend (List<NodeExecutionContext<*>>) -> Map<NodeExecutionContext<*>, FieldValue<TestNodeObject>> =
+            suspend (List<NodeExecutionContext<*>>) -> Map<NodeExecutionContext<*>, FieldValue<*>> =
             { emptyMap() }
 
-        override suspend fun invokeNodeBatchResolver(contexts: List<NodeExecutionContext<*>>): Map<NodeExecutionContext<*>, FieldValue<TestNodeObject>> {
+        override suspend fun invokeNodeBatchResolver(contexts: List<NodeExecutionContext<*>>): Map<NodeExecutionContext<*>, FieldValue<*>> {
             invocations.add(contexts)
             return resultFactory(contexts)
         }
@@ -241,6 +251,97 @@ class BatchResolverExecutorTest {
 
         assertEquals(listOf(firstContext, secondContext), capturedContexts)
     }
+
+    @Test
+    fun `node batch executor keeps success and error values on their selectors`() {
+        val contexts = listOf(mockk<NodeExecutionContext<*>>(), mockk<NodeExecutionContext<*>>())
+        val data = mockk<EngineObjectData.Sync>()
+        val failure = IllegalStateException("second failed")
+        val resolver = ConfigurableNodeBatchResolver().apply {
+            resultFactory = {
+                linkedMapOf(
+                    contexts[1] to FieldValue.ofError(failure),
+                    contexts[0] to FieldValue.ofValue(TestNodeGRT(data)),
+                )
+            }
+        }
+        val selectors = listOf(createNodeSelector("1"), createNodeSelector("2"))
+
+        val result = runBlocking {
+            createNodeExecutor(resolver, contexts).resolve(selectors, createExecutionContext())
+        }
+
+        assertSame(data, result.getValue(selectors[0]).getOrThrow())
+        val error = assertInstanceOf(TenantResolverException::class.java, result.getValue(selectors[1]).exceptionOrNull())
+        assertSame(failure, error.cause)
+    }
+
+    @Test
+    fun `node batch executor attributes null invalid and unresolved reference results`() {
+        val contexts = List(3) { mockk<NodeExecutionContext<*>>() }
+        val resolver = ConfigurableNodeBatchResolver().apply {
+            resultFactory = {
+                mapOf(
+                    contexts[0] to FieldValue.ofValue(null),
+                    contexts[1] to FieldValue.ofValue("not a GRT"),
+                    contexts[2] to FieldValue.ofValue(TestNodeGRT(mockk<NodeReference>())),
+                )
+            }
+        }
+        val selectors = listOf(createNodeSelector("1"), createNodeSelector("2"), createNodeSelector("3"))
+
+        val result = runBlocking {
+            createNodeExecutor(resolver, contexts).resolve(selectors, createExecutionContext())
+        }
+
+        selectors.forEach { selected ->
+            val error = assertInstanceOf(TenantResolverException::class.java, result.getValue(selected).exceptionOrNull())
+            assertInstanceOf(TenantUsageException::class.java, error.cause)
+        }
+    }
+
+    @Test
+    fun `node batch executor attributes independent resolver cancellation`() {
+        val cancellation = CancellationException("resolver cancelled")
+        val resolver = ConfigurableNodeBatchResolver().apply {
+            resultFactory = { throw cancellation }
+        }
+        val selector = createNodeSelector("1")
+
+        val result = runBlocking {
+            createNodeExecutor(resolver, listOf(mockk())).resolve(listOf(selector), createExecutionContext())
+        }
+
+        val error = assertInstanceOf(TenantResolverException::class.java, result.getValue(selector).exceptionOrNull())
+        assertSame(cancellation, error.cause)
+    }
+
+    @Test
+    fun `request cancellation stops a pending node batch invocation`() =
+        runBlocking {
+            val started = CompletableDeferred<Unit>()
+            val stopped = CompletableDeferred<Unit>()
+            val pending = CompletableDeferred<Unit>()
+            val resolver = ConfigurableNodeBatchResolver().apply {
+                resultFactory = {
+                    started.complete(Unit)
+                    try {
+                        pending.await()
+                    } finally {
+                        stopped.complete(Unit)
+                    }
+                    emptyMap()
+                }
+            }
+            val request = async(start = CoroutineStart.UNDISPATCHED) {
+                createNodeExecutor(resolver, listOf(mockk())).resolve(listOf(createNodeSelector("1")), createExecutionContext())
+            }
+            started.await()
+            request.cancel()
+
+            assertThrows<CancellationException> { request.await() }
+            withTimeout(5_000) { stopped.await() }
+        }
 
     private fun createFieldSelector(): FieldResolverExecutor.Selector =
         FieldResolverExecutor.Selector(

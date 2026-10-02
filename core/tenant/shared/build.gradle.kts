@@ -7,4 +7,5 @@ dependencies {
     api(libs.viaduct.shared.apiannotations)
     api(libs.viaduct.service.api)
     implementation(libs.viaduct.errors)
+    implementation(libs.kotlinx.coroutines.core)
 }

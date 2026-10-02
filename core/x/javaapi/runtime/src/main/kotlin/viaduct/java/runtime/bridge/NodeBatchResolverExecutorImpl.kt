@@ -3,9 +3,6 @@ package viaduct.java.runtime.bridge
 import graphql.language.FragmentDefinition
 import javax.inject.Provider
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.future.await
 import viaduct.engine.api.EngineExecutionContext
@@ -19,14 +16,14 @@ import viaduct.errors.FrameworkException
 import viaduct.errors.PassthroughException
 import viaduct.errors.TenantResolverException
 import viaduct.errors.TenantUsageException
-import viaduct.errors.handleTenantErrorsResultSuspend
 import viaduct.errors.resultOfSuspend
 import viaduct.java.api.context.NodeExecutionContext
 import viaduct.java.api.internal.BaseBatchedNodeResolver
 import viaduct.java.api.internal.ObjectBase
 import viaduct.java.api.resolvers.FieldValue
 import viaduct.java.api.types.NodeObject
-import viaduct.tenant.runtime.support.partitionByUniqueKey
+import viaduct.tenant.runtime.support.NodeBatchContext
+import viaduct.tenant.runtime.support.executeNodeBatch
 
 /**
  * Kotlin bridge that wraps a batch Java node resolver and implements [NodeResolverExecutor].
@@ -69,70 +66,30 @@ class NodeBatchResolverExecutorImpl(
         context: EngineExecutionContext,
     ): Map<NodeResolverExecutor.Selector, Result<EngineObjectData>> {
         val scope = CoroutineScope(currentCoroutineContext())
-        val inputs = selectors.map { selector ->
-            val invocationContext = context.invocationContextFor(selector)
-            ResolverInput(
-                selector = selector,
-                context = SimpleNodeExecutionContext(
-                    serializedId = selector.id,
-                    typeName = typeName,
-                    requestContext = invocationContext.requestContext,
-                    engineExecutionContext = invocationContext,
-                    coroutineScope = scope,
-                    grtPackagePrefix = grtPackagePrefix,
-                    knownFragments = knownFragments,
-                ),
-                internalID = context.globalIDCodec.deserialize(selector.id).localID,
-            )
-        }
-        val resolvedGroups = coroutineScope {
-            partitionByUniqueKey(inputs) { it.internalID }
-                .map { group -> async { resolveGroup(resolver, group, context) } }
-                .awaitAll()
-        }
-
-        return linkedMapOf<NodeResolverExecutor.Selector, Result<EngineObjectData>>().apply {
-            resolvedGroups.forEach { putAll(it) }
-        }
-    }
-
-    private suspend fun <R : NodeObject> resolveGroup(
-        resolver: BaseBatchedNodeResolver<R>,
-        group: List<ResolverInput>,
-        context: EngineExecutionContext,
-    ): Map<NodeResolverExecutor.Selector, Result<EngineObjectData>> =
-        handleTenantErrorsResultSuspend(typeName) {
-            val javaContexts = group.map { it.context }
-            val results: Map<NodeExecutionContext<*>, FieldValue<R>> =
-                resolver.invokeNodeBatchResolver(javaContexts).await()
-            if (javaContexts.size != results.size) {
-                throw TenantUsageException(
-                    "batchResolve for node $typeName was given ${javaContexts.size} contexts but returned ${results.size} entries"
+        return executeNodeBatch(
+            selectors = selectors,
+            typeName = typeName,
+            inputFor = { selector ->
+                val invocationContext = context.invocationContextFor(selector)
+                NodeBatchContext<NodeExecutionContext<*>>(
+                    context = SimpleNodeExecutionContext(
+                        serializedId = selector.id,
+                        typeName = typeName,
+                        requestContext = invocationContext.requestContext,
+                        engineExecutionContext = invocationContext,
+                        coroutineScope = scope,
+                        grtPackagePrefix = grtPackagePrefix,
+                        knownFragments = knownFragments,
+                    ),
+                    internalID = invocationContext.globalIDCodec.deserialize(selector.id).localID,
                 )
-            }
-            val contextToSelector = group.associate { it.context to it.selector }
-            val resolved = linkedMapOf<NodeResolverExecutor.Selector, Result<EngineObjectData>>()
-
-            results.forEach { (returnedContext, fieldValue) ->
-                val selector = contextToSelector[returnedContext]
-                    ?: throw TenantUsageException(
-                        "batchResolve for node $typeName returned a context that was not in the input context list: $returnedContext"
-                    )
-                resolved[selector] = unwrap(fieldValue, context)
-            }
-
-            resolved
-        }.getOrElse { failure ->
-            group.associate { input ->
-                input.selector to Result.failure(failure)
-            }
-        }
-
-    private data class ResolverInput(
-        val selector: NodeResolverExecutor.Selector,
-        val context: NodeExecutionContext<*>,
-        val internalID: String,
-    )
+            },
+            invoke = { contexts -> resolver.invokeNodeBatchResolver(contexts).await() },
+            unwrap = { selector, fieldValue ->
+                unwrap(fieldValue, context.invocationContextFor(selector))
+            },
+        )
+    }
 
     private suspend fun unwrap(
         fieldValue: FieldValue<*>,
