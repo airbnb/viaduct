@@ -372,6 +372,7 @@ object CheckerDispatchers {
     fun success(requiredSelectionSets: Map<String, RequiredSelectionSet?> = emptyMap()): CheckerDispatcher {
         val dispatcher = object : CheckerDispatcher {
             override val requiredSelectionSets = requiredSelectionSets
+            override val variableDefinitions = emptyMap<String, viaduct.engine.runtime.ResolverVariableDefinitions>()
             override lateinit var executor: CheckerExecutor
 
             override suspend fun execute(

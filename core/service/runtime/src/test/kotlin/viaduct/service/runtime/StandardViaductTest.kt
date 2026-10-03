@@ -18,6 +18,7 @@ import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertDoesNotThrow
@@ -27,6 +28,7 @@ import org.junit.jupiter.params.provider.ValueSource
 import viaduct.bootstrap.ExecutionRegistryConfigFile
 import viaduct.bootstrap.FieldEntryConfig
 import viaduct.bootstrap.NodeEntryConfig
+import viaduct.engine.EngineImpl
 import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.GraphQLBuildError
 import viaduct.engine.api.bootstrap.executionregistry.ModuleConfigSource
@@ -57,6 +59,7 @@ class StandardViaductTest {
     @BeforeEach
     fun setUp() {
         flagManager = mockk()
+        every { flagManager.isEnabled(any()) } returns false
         dataFetcherExceptionHandler = mockk()
     }
 
@@ -98,6 +101,35 @@ class StandardViaductTest {
         override fun getExtensions(): MutableMap<Any, Any> = mutableMapOf()
 
         override fun toSpecification(): MutableMap<String, Any> = mutableMapOf()
+    }
+
+    @Test
+    fun `engine selection uses construction-time flags when engines are created lazily`() {
+        val sdl = "extend type Query { value: String @resolver }"
+        val suppliedModule = EngineTestModule(sdl) { fieldWithValue("Query" to "value", "value") }
+
+        fun buildWithMutableFlag(initiallyEnabled: Boolean): Pair<StandardViaduct, MutableEngine2FlagManager> {
+            val mutableFlagManager = MutableEngine2FlagManager(initiallyEnabled)
+            val viaduct =
+                StandardViaduct.Builder()
+                    .withTenantModuleInjectorFactory(
+                        MockExecutorCodeInjector(suppliedModule.mockExecutorRegistry),
+                    ).withExecutorRegistryConfigSources(listOf(suppliedModule.toModuleConfigSource()))
+                    .withSchemaConfiguration(SchemaConfiguration.fromSdl(sdl))
+                    .withFlagManager(mutableFlagManager)
+                    .build()
+            return viaduct to mutableFlagManager
+        }
+
+        val (engine2Viaduct, engine2Flags) = buildWithMutableFlag(initiallyEnabled = true)
+        engine2Flags.engine2Enabled = false
+        assertThrows<IllegalArgumentException> {
+            engine2Viaduct.engineRegistry.getEngine(SchemaId.Base)
+        }
+
+        val (legacyViaduct, legacyFlags) = buildWithMutableFlag(initiallyEnabled = false)
+        legacyFlags.engine2Enabled = true
+        assertTrue(legacyViaduct.engineRegistry.getEngine(SchemaId.Base) is EngineImpl)
     }
 
     @Test
@@ -494,6 +526,12 @@ class StandardViaductTest {
         assertEquals(emptyList<GraphQLError>(), result.errors)
         assertEquals(mapOf("generatedRegistryTestField" to "new-registry"), result.getData())
     }
+}
+
+private class MutableEngine2FlagManager(
+    var engine2Enabled: Boolean,
+) : FlagManager {
+    override fun isEnabled(flag: FlagManager.Flag): Boolean = flag == FlagManager.Flags.ENGINE2_ENABLED && engine2Enabled
 }
 
 private fun makeSchema(schema: String): EngineSchema {

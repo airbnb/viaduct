@@ -23,7 +23,12 @@ interface FlagManager {
         override fun isEnabled(flag: Flag): Boolean = false
     }
 
-    /** A [FlagManager] that uses the framework-default state for each flag. */
+    /**
+     * A [FlagManager] that uses the framework-default state for each flag.
+     *
+     * Framework flags default to disabled. Name each flag for the behavior produced when
+     * [isEnabled] returns `true`; related rollout flags may share a namespace prefix.
+     */
     @StableApi
     object Default : FlagManager {
         override fun isEnabled(flag: Flag): Boolean = false
@@ -44,6 +49,16 @@ interface FlagManager {
     enum class Flags(
         override val flagName: String
     ) : Flag {
+        /** Selects the engine implementation based on `core/engine/runtime2`. */
+        ENGINE2_ENABLED("engine2_enabled"),
+
+        /**
+         * Reserved gate for engine2 dispatcher batching.
+         *
+         * Enabling this flag is an invalid configuration until engine2 supports batching.
+         */
+        ENGINE2_BATCHING("engine2_batching"),
+
         /** Enables the Mat-based resolver workflow, which differentially executes resolvers */
         ENABLE_MAT_RESOLUTION("enable_mat_resolution"),
 

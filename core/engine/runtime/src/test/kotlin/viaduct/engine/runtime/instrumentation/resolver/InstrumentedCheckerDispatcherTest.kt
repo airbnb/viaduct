@@ -18,6 +18,7 @@ import viaduct.engine.api.instrumentation.resolver.ResolverInstrumentationContex
 import viaduct.engine.api.spi.CheckerExecutor
 import viaduct.engine.runtime.CheckerDispatcher
 import viaduct.engine.runtime.EngineObjectDataFactory
+import viaduct.engine.runtime.ResolverVariableDefinitions
 
 internal class InstrumentedCheckerDispatcherTest {
     private val testGraphQLObjectType = GraphQLObjectType.newObject().name("TestType").build()
@@ -25,8 +26,10 @@ internal class InstrumentedCheckerDispatcherTest {
     @Test
     fun `executor delegates to underlying dispatcher executor`() {
         val mockExecutor: CheckerExecutor = mockk()
+        val variableDefinitions = mapOf("input" to ResolverVariableDefinitions.EMPTY)
         val dispatcher = object : CheckerDispatcher {
             override val requiredSelectionSets = emptyMap<String, viaduct.engine.api.RequiredSelectionSet?>()
+            override val variableDefinitions = variableDefinitions
             override val executor = mockExecutor
 
             override suspend fun execute(
@@ -40,6 +43,7 @@ internal class InstrumentedCheckerDispatcherTest {
         val testClass = InstrumentedCheckerDispatcher(dispatcher, RecordingResolverInstrumentation())
 
         assertSame(mockExecutor, testClass.executor)
+        assertSame(variableDefinitions, testClass.variableDefinitions)
     }
 
     @Test
@@ -56,6 +60,7 @@ internal class InstrumentedCheckerDispatcherTest {
             }
             val dispatcher = object : CheckerDispatcher {
                 override val requiredSelectionSets = emptyMap<String, viaduct.engine.api.RequiredSelectionSet?>()
+                override val variableDefinitions = emptyMap<String, viaduct.engine.runtime.ResolverVariableDefinitions>()
                 override val executor: CheckerExecutor = mockk()
 
                 override suspend fun execute(

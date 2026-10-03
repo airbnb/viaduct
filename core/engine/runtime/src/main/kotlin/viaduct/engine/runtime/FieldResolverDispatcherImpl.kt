@@ -9,7 +9,6 @@ import viaduct.engine.api.ResolverMetadata
 import viaduct.engine.api.VariablesResolver
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.VariableFromArgumentDefinitions
-import viaduct.engine.runtime.EngineExecutionContextExtensions.asImpl
 
 /**
  * Initialized via DispathcerRegistry and resolves a single node for a node type whose
@@ -24,6 +23,8 @@ import viaduct.engine.runtime.EngineExecutionContextExtensions.asImpl
 class FieldResolverDispatcherImpl(
     private val resolver: FieldResolverExecutor
 ) : FieldResolverDispatcher {
+    internal val isBatching: Boolean = resolver.isBatching
+
     override val objectSelectionSet: RequiredSelectionSet? = resolver.objectSelectionSet?.withArgumentVariables(
         resolver.argumentVariables,
     )
@@ -33,6 +34,14 @@ class FieldResolverDispatcherImpl(
     )
 
     override val isSelective: Boolean = resolver.isSelective
+
+    override val variableDefinitions =
+        ResolverVariableDefinitions(
+            fromArguments = resolver.argumentVariables,
+            fromObjectFields = resolver.objectFieldVariables,
+            fromQueryFields = resolver.queryFieldVariables,
+            fromFunction = resolver.variablesFromFunctionProvider,
+        )
 
     override val hasRequiredSelectionSets: Boolean = resolver.hasRequiredSelectionSets()
 
@@ -45,8 +54,7 @@ class FieldResolverDispatcherImpl(
         selections: EngineSelectionSet?,
         context: EngineExecutionContext,
     ): Any? {
-        val impl = context.asImpl()
-        val loader = impl.fieldDataLoader(resolver)
+        val loader = (context as DispatcherExecutionContext).fieldDataLoader(resolver)
 
         val syncObjectValueGetter: suspend () -> EngineObjectData.Sync = {
             objectValueFactory.create(null)

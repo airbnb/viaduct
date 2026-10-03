@@ -26,6 +26,7 @@ dependencies {
 
     implementation(libs.viaduct.service.runtime)
     testImplementation(testFixtures(libs.viaduct.engine.api))
+    testImplementation(testFixtures(libs.viaduct.service.api))
     testImplementation(libs.javax.inject)
 }
 

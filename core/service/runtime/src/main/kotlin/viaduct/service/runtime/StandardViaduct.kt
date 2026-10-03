@@ -319,9 +319,15 @@ class StandardViaduct
                     val builder = this@Builder
                     val finalResolverErrorReporter = builder.resolverErrorReporter ?: resolverErrorReporter
                     val finalResolverErrorBuilder = builder.resolverErrorBuilder ?: resolverErrorBuilder
+                    val constructionFlagManager =
+                        FrozenFlagManager(
+                            builder.flagManager ?: flagManager,
+                            FlagManager.Flags.ENGINE2_ENABLED,
+                            FlagManager.Flags.ENGINE2_BATCHING,
+                        )
                     copy(
                         coroutineInterop = builder.coroutineInterop ?: coroutineInterop,
-                        flagManager = builder.flagManager ?: flagManager,
+                        flagManager = constructionFlagManager,
                         airbnbBypassPolicyCheckDuringCompletion = builder.airbnbModeEnabled,
                         resolverErrorReporter = finalResolverErrorReporter,
                         resolverErrorBuilder = finalResolverErrorBuilder,

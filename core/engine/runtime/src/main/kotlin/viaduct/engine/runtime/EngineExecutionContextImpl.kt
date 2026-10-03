@@ -148,7 +148,8 @@ class EngineExecutionContextImpl internal constructor(
     internal val matBatchDepth: Int = 0,
     internal val currentResolver: Caller? = null,
     val incrementalExecutionEnabled: Boolean = false,
-) : InternalEngineExecutionContext {
+) : InternalEngineExecutionContext,
+    DispatcherExecutionContext {
     public override val impl: EngineExecutionContextImpl get() = this
 
     companion object {
@@ -318,7 +319,7 @@ class EngineExecutionContextImpl internal constructor(
      * creates and returns a new one. The loader is request-scoped since it has the same
      * lifecycle as the [EngineExecutionContext].
      */
-    internal fun fieldDataLoader(resolver: FieldResolverExecutor): FieldDataLoader =
+    override fun fieldDataLoader(resolver: FieldResolverExecutor): FieldDataLoader =
         fieldDataLoaders.computeIfAbsent(FieldDataLoaderKey(resolver.resolverId, matBatchDepth)) {
             FieldDataLoader(resolver)
         }
@@ -328,7 +329,7 @@ class EngineExecutionContextImpl internal constructor(
      * creates and returns a new one. The loader is request-scoped since it has the same
      * lifecycle as the [EngineExecutionContext].
      */
-    internal fun nodeDataLoader(resolver: NodeResolverExecutor): NodeDataLoader =
+    override fun nodeDataLoader(resolver: NodeResolverExecutor): NodeDataLoader =
         nodeDataLoaders.computeIfAbsent(resolver.typeName) {
             NodeDataLoader(resolver)
         }

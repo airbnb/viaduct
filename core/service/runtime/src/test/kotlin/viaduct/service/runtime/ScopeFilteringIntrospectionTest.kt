@@ -11,8 +11,7 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import viaduct.service.api.ExecutionInput
 import viaduct.service.api.SchemaId
-import viaduct.service.api.spi.FlagManager
-import viaduct.service.api.spi.FlagManager.Flag
+import viaduct.service.api.spi.mocks.MockFlagManager
 
 /**
  * Tests that introspection results are properly filtered by scope.
@@ -26,9 +25,7 @@ class ScopeFilteringIntrospectionTest {
     private lateinit var schemaId: SchemaId.Scoped
     private lateinit var schemaConfiguration: SchemaConfiguration
 
-    private val flagManager = object : FlagManager {
-        override fun isEnabled(flag: Flag) = true
-    }
+    private val flagManager = MockFlagManager.RuntimeFlagsEnabled
 
     private val sdl =
         """

@@ -18,6 +18,9 @@ interface FieldResolverDispatcher {
     /** Whether the resolver's result varies based on the requested field selections. */
     val isSelective: Boolean
 
+    /** Explicit variable declarations consumed by required-selection compilation. */
+    val variableDefinitions: ResolverVariableDefinitions
+
     val hasRequiredSelectionSets: Boolean
 
     /** The metadata associated with this resolver **/

@@ -61,6 +61,7 @@ import viaduct.engine.runtime.validation.Validator
 import viaduct.graphql.utils.DefaultSchemaFactory
 import viaduct.graphql.utils.ParsedSelections
 import viaduct.service.api.spi.CodeInjector
+import viaduct.service.api.spi.FlagManager
 import viaduct.service.api.spi.TenantModuleInjectorFactory
 
 typealias CheckerFn = suspend (arguments: Map<String, Any?>, objectDataMap: Map<String, EngineObjectData.Sync>) -> Unit
@@ -336,6 +337,7 @@ fun List<MockTenantModuleBootstrapper>.toDispatcherRegistryFactory(
     validator: Validator<ExecutorValidatorContext>,
     checkerExecutorFactory: CheckerExecutorFactory,
     proxyResolverFactory: ProxyResolverFactory = ProxyResolverFactory.NO_OP,
+    flagManager: FlagManager = FlagManager.Default,
 ): StandardDispatcherRegistryFactory {
     val registriesByTenant =
         mapIndexed { i, module ->
@@ -358,6 +360,7 @@ fun List<MockTenantModuleBootstrapper>.toDispatcherRegistryFactory(
         validator = validator,
         checkerExecutorFactory = checkerExecutorFactory,
         proxyResolverFactory = proxyResolverFactory,
+        flagManager = flagManager,
     )
 }
 

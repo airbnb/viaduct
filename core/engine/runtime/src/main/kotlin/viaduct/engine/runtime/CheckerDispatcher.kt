@@ -12,6 +12,9 @@ import viaduct.engine.api.spi.CheckerExecutor
 interface CheckerDispatcher {
     val requiredSelectionSets: Map<String, RequiredSelectionSet?>
 
+    /** Explicit variable declarations for each named checker input. */
+    val variableDefinitions: Map<String, ResolverVariableDefinitions>
+
     val checkerMetadata: CheckerMetadata?
         get() = null
 

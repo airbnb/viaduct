@@ -26,6 +26,7 @@ import viaduct.engine.runtime.NodeResolverDispatcherImpl
 import viaduct.engine.runtime.instrumentation.resolver.InstrumentedCheckerDispatcher
 import viaduct.engine.runtime.instrumentation.resolver.InstrumentedNodeResolverDispatcher
 import viaduct.engine.runtime.validation.Validator
+import viaduct.service.api.spi.FlagManager
 import viaduct.service.api.spi.NaiveTenantModuleInjectorFactory
 import viaduct.service.api.spi.TenantModuleInjectorFactory
 
@@ -42,6 +43,7 @@ abstract class AbstractDispatcherRegistryFactory(
     private val resolverInstrumentation: ViaductResolverInstrumentation = ViaductResolverInstrumentation.DEFAULT,
     private val proxyResolverFactory: ProxyResolverFactory = ProxyResolverFactory.NO_OP,
     private val missingResolverValidator: Validator<MissingResolverValidationCtx> = Validator.Unvalidated,
+    private val flagManager: FlagManager = FlagManager.Default,
 ) : DispatcherRegistryFactory {
     companion object {
         private fun log() = getLogger(this::class.java.name.substringBefore("\$Companion"))
@@ -51,6 +53,11 @@ abstract class AbstractDispatcherRegistryFactory(
     protected abstract suspend fun moduleResolvers(): List<ModuleResolvers>
 
     final override fun create(schema: EngineSchema): DispatcherRegistry {
+        require(!flagManager.isEnabled(FlagManager.Flags.ENGINE2_BATCHING)) {
+            "ENGINE2_BATCHING is not supported until engine2 batching is implemented"
+        }
+        val disableBatchingForEngine2 = flagManager.isEnabled(FlagManager.Flags.ENGINE2_ENABLED)
+
         val fieldResolverDispatchers = mutableMapOf<Coordinate, FieldResolverDispatcher>()
         val nodeResolverDispatchers = mutableMapOf<String, NodeResolverDispatcher>()
         val fieldCheckerDispatchers = mutableMapOf<Coordinate, CheckerDispatcher>()
@@ -79,7 +86,9 @@ abstract class AbstractDispatcherRegistryFactory(
                 val finalExecutor = proxyResolverFactory.proxyField(executor) ?: executor
                 // Resolver coordinates are globally keyed. Duplicate registrations are deduped
                 // silently here, with the later registration winning.
-                fieldResolverDispatchers[fieldCoord] = FieldResolverDispatcherImpl(finalExecutor)
+                fieldResolverDispatchers[fieldCoord] = FieldResolverDispatcherImpl(
+                    finalExecutor.withBatchingDisabledWhen(disableBatchingForEngine2)
+                )
                 // The proxy executor is validated because the engine uses the proxy's RSS and type
                 // contract at runtime. Validating the original would check RSS that is no longer
                 // in effect when a proxy overrides it.
@@ -88,7 +97,10 @@ abstract class AbstractDispatcherRegistryFactory(
             }
             for ((typeName, executor) in moduleNodeResolverExecutors) {
                 val finalExecutor = proxyResolverFactory.proxyNode(executor) ?: executor
-                nodeResolverDispatchers[typeName] = InstrumentedNodeResolverDispatcher(NodeResolverDispatcherImpl(finalExecutor), resolverInstrumentation)
+                nodeResolverDispatchers[typeName] = InstrumentedNodeResolverDispatcher(
+                    NodeResolverDispatcherImpl(finalExecutor.withBatchingDisabledWhen(disableBatchingForEngine2)),
+                    resolverInstrumentation,
+                )
                 // Same reasoning as field executors above: the proxy is validated.
                 nodeResolverExecutorsToValidate[typeName] = finalExecutor
                 moduleContributesExecutors = true
@@ -110,12 +122,30 @@ abstract class AbstractDispatcherRegistryFactory(
                     }
                     checkerExecutorFactory.checkerExecutorForField(schema, typeName, field.name)?.let {
                         val fieldCoord = typeName to field.name
-                        fieldCheckerDispatchers[fieldCoord] = InstrumentedCheckerDispatcher(CheckerDispatcherImpl(it), resolverInstrumentation)
+                        fieldCheckerDispatchers[fieldCoord] =
+                            InstrumentedCheckerDispatcher(
+                                CheckerDispatcherImpl(
+                                    checkerExecutor = it,
+                                    objectTypeName = typeName,
+                                    queryTypeName = schema.schema.queryType.name,
+                                    checkerType = CheckerExecutor.CheckerType.FIELD,
+                                ),
+                                resolverInstrumentation,
+                            )
                         fieldCheckerExecutorsToValidate[fieldCoord] = it
                     }
                 }
                 checkerExecutorFactory.checkerExecutorForType(schema, typeName)?.let {
-                    typeCheckerDispatchers[typeName] = InstrumentedCheckerDispatcher(CheckerDispatcherImpl(it), resolverInstrumentation)
+                    typeCheckerDispatchers[typeName] =
+                        InstrumentedCheckerDispatcher(
+                            CheckerDispatcherImpl(
+                                checkerExecutor = it,
+                                objectTypeName = typeName,
+                                queryTypeName = schema.schema.queryType.name,
+                                checkerType = CheckerExecutor.CheckerType.TYPE,
+                            ),
+                            resolverInstrumentation,
+                        )
                     typeCheckerExecutorsToValidate[typeName] = it
                 }
             }
@@ -168,12 +198,14 @@ class StandardDispatcherRegistryFactory(
     resolverInstrumentation: ViaductResolverInstrumentation = ViaductResolverInstrumentation.DEFAULT,
     proxyResolverFactory: ProxyResolverFactory = ProxyResolverFactory.NO_OP,
     missingResolverValidator: Validator<MissingResolverValidationCtx> = Validator.Unvalidated,
+    flagManager: FlagManager = FlagManager.Default,
 ) : AbstractDispatcherRegistryFactory(
         validator = validator,
         checkerExecutorFactory = checkerExecutorFactory,
         resolverInstrumentation = resolverInstrumentation,
         proxyResolverFactory = proxyResolverFactory,
         missingResolverValidator = missingResolverValidator,
+        flagManager = flagManager,
     ) {
     override suspend fun moduleResolvers(): List<ModuleResolvers> {
         val fromConfigSources: List<ModuleResolvers> =
@@ -191,3 +223,26 @@ class StandardDispatcherRegistryFactory(
         return fromConfigSources + fromBuiltins
     }
 }
+
+/**
+ * Makes a batching-capable executor dispatch each selector immediately while preserving the
+ * original executor for validation and metadata inspection.
+ */
+private fun FieldResolverExecutor.withBatchingDisabledWhen(disabled: Boolean): FieldResolverExecutor =
+    if (!disabled || !isBatching) {
+        this
+    } else {
+        object : FieldResolverExecutor by this {
+            override val isBatching: Boolean = false
+        }
+    }
+
+/** Node-resolver counterpart to [FieldResolverExecutor.withBatchingDisabledWhen]. */
+private fun NodeResolverExecutor.withBatchingDisabledWhen(disabled: Boolean): NodeResolverExecutor =
+    if (!disabled || !isBatching) {
+        this
+    } else {
+        object : NodeResolverExecutor by this {
+            override val isBatching: Boolean = false
+        }
+    }

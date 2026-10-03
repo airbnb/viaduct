@@ -1685,6 +1685,7 @@ class ViaductExecutionStrategyTest {
     private fun failingChecker(error: Exception): CheckerDispatcher {
         val dispatcher = object : CheckerDispatcher {
             override val requiredSelectionSets: Map<String, RequiredSelectionSet?> = emptyMap()
+            override val variableDefinitions = emptyMap<String, viaduct.engine.runtime.ResolverVariableDefinitions>()
             override lateinit var executor: CheckerExecutor
 
             override suspend fun execute(
@@ -1722,6 +1723,7 @@ class ViaductExecutionStrategyTest {
     ): CheckerDispatcher {
         val dispatcher = object : CheckerDispatcher {
             override val requiredSelectionSets: Map<String, RequiredSelectionSet?> = mapOf(rssName to rss)
+            override val variableDefinitions = emptyMap<String, viaduct.engine.runtime.ResolverVariableDefinitions>()
             override lateinit var executor: CheckerExecutor
 
             override suspend fun execute(
@@ -2120,6 +2122,8 @@ class ViaductExecutionStrategyTest {
 
                 val failingChecker = object : viaduct.engine.runtime.CheckerDispatcher {
                     override val requiredSelectionSets: Map<String, viaduct.engine.api.RequiredSelectionSet?> = emptyMap()
+                    override val variableDefinitions =
+                        emptyMap<String, viaduct.engine.runtime.ResolverVariableDefinitions>()
                     override lateinit var executor: viaduct.engine.api.spi.CheckerExecutor
 
                     override suspend fun execute(

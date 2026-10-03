@@ -127,10 +127,12 @@ private class ViaductGen(private val env: ViaductGenEnv) {
             .withTenantModuleInjectorFactory(ArbitraryExecutorCodeInjector(executors))
             .withExecutorRegistryConfigSources(listOf(executors.moduleConfigSource(GENERATED_TENANT_NAME)))
             .withCheckerExecutorFactory(genCheckerExecutorFactory(fieldCheckerExecutors, typeCheckerExecutors))
-            // Framework flags on, matching FeatureTest's MockFlagManager.Enabled — in particular
-            // selective resolver execution, which the generated resolvers exercise.
+            // Supported framework flags on — in particular selective resolver execution, which
+            // the generated resolvers exercise. Engine2 rollout flags require dedicated tests.
             .withFlagManager(object : FlagManager {
-                override fun isEnabled(flag: FlagManager.Flag): Boolean = true
+                override fun isEnabled(flag: FlagManager.Flag): Boolean =
+                    flag != FlagManager.Flags.ENGINE2_ENABLED &&
+                        flag != FlagManager.Flags.ENGINE2_BATCHING
             })
             .build()
 
