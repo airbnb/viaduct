@@ -31,6 +31,7 @@ on:
 permissions:
   contents: read
   actions: read
+  id-token: write
 
 concurrency:
   group: nightly-check-${{ inputs.ref }}

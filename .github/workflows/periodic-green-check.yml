@@ -24,6 +24,7 @@ on:
 permissions:
   contents: read
   actions: read
+  id-token: write
 
 concurrency:
   group: periodic-green-check-${{ github.ref }}

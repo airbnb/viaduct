@@ -12,6 +12,7 @@ on:
 permissions:
   contents: read
   actions: read
+  id-token: write
 
 jobs:
   build-and-test:

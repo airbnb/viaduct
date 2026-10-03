@@ -73,10 +73,14 @@ on:
 
 permissions:
   contents: read
+  id-token: write
 
 concurrency:
   group: publish-${{ inputs.ref }}-${{ inputs.mode }}
   cancel-in-progress: false
+
+env:
+  VIADUCT_DEPENDENCY_MIRROR_ROLE_ARN: ${{ vars.VIADUCT_DEPENDENCY_MIRROR_ROLE_ARN }}
 
 jobs:
   validate:

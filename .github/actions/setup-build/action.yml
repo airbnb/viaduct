@@ -26,6 +26,10 @@ runs:
         distribution: 'temurin'
         java-version: ${{ inputs.java-version }}
 
+    - name: Configure dependency mirror
+      shell: bash
+      run: bash "${GITHUB_ACTION_PATH}/../../scripts/configure-dependency-mirror.sh"
+
     - name: Setup Gradle
       uses: gradle/actions/setup-gradle@0723195856401067f7a2779048b490ace7a47d7c  # v5
       with:
