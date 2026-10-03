@@ -7,6 +7,7 @@ import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.FullSchema
 import viaduct.engine.runtime.DispatcherRegistry
 import viaduct.engine.runtime.execution.QueryPlanFactory
+import viaduct.engine.runtime2.Engine2
 import viaduct.service.api.spi.FlagManager
 
 /**
@@ -30,8 +31,18 @@ class EngineFactory(
         documentProvider: PreparsedDocumentProvider = NoOpPreparsedDocumentProvider(),
         fullSchema: FullSchema,
     ): Engine {
-        require(!config.flagManager.isEnabled(FlagManager.Flags.ENGINE2_ENABLED)) {
-            "ENGINE2_ENABLED requires the runtime2 engine integration"
+        if (config.flagManager.isEnabled(FlagManager.Flags.ENGINE2_ENABLED)) {
+            return Engine2(
+                schema = schema,
+                fullSchema = fullSchema,
+                dispatcherRegistry = dispatcherRegistry,
+                documentProvider = documentProvider,
+                globalIDCodec = config.globalIDCodec,
+                fieldSelectivityProvider = config.fieldSelectivityProvider,
+                resolverInstrumentation = config.resolverInstrumentation,
+                dataFetcherExceptionHandler = config.dataFetcherExceptionHandler,
+                additionalInstrumentation = config.additionalInstrumentation,
+            )
         }
         return EngineImpl(
             config,

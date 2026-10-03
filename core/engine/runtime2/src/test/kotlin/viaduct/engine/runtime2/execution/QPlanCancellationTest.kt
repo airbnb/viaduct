@@ -36,6 +36,33 @@ import viaduct.engine.runtime2.resolution.ResolutionDispatcherFactory
 
 class QPlanCancellationTest {
     @Test
+    fun `caller cancellation bridge handles cancellation before request startup`() {
+        val cancellation = CancellationException("caller cancelled before request startup")
+        val bridge = QPlanCallerCancellation()
+        val requestJob = Job()
+
+        bridge.cancel(cancellation)
+        bridge.attach(requestJob)
+
+        assertTrue(requestJob.isCancelled)
+    }
+
+    @Test
+    fun `caller cancellation bridge releases a completed request job`() {
+        val bridge = QPlanCallerCancellation()
+        val completedRequest = Job()
+        bridge.attach(completedRequest)
+
+        completedRequest.complete()
+        val laterRequest = Job()
+        bridge.attach(laterRequest)
+
+        assertTrue(completedRequest.isCompleted)
+        assertTrue(laterRequest.isActive)
+        laterRequest.cancel()
+    }
+
+    @Test
     fun `future bridge terminates when cancellation prevents coroutine entry`() {
         val requestJob = Job()
         val requestScope = CoroutineScope(requestJob)

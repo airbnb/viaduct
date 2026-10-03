@@ -1,33 +1,47 @@
 package viaduct.engine
 
-import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
+import org.junit.jupiter.api.assertInstanceOf
 import viaduct.engine.api.FullSchema
+import viaduct.engine.api.mocks.MockFieldUnbatchedResolverExecutor
 import viaduct.engine.api.mocks.createSchemaWithWiring
 import viaduct.engine.runtime.DispatcherRegistry
+import viaduct.engine.runtime.FieldResolverDispatcherImpl
+import viaduct.engine.runtime2.Engine2
 import viaduct.service.api.spi.FlagManager
 
 class EngineFactoryTest {
     @Test
-    fun `engine2 flag fails before the runtime2 integration is installed`() {
+    fun `engine2 flag selects the runtime2 engine`() {
         val schema = createSchemaWithWiring("extend type Query { value: String }")
         val config =
             EngineConfiguration.default.copy(
                 flagManager =
                     object : FlagManager {
-                        override fun isEnabled(flag: FlagManager.Flag): Boolean = flag == FlagManager.Flags.ENGINE2_ENABLED
+                        override fun isEnabled(flag: FlagManager.Flag): Boolean =
+                            flag == FlagManager.Flags.ENGINE2_ENABLED
                     },
             )
+        val dispatcherRegistry =
+            DispatcherRegistry.Impl(
+                fieldResolverDispatchers =
+                    mapOf(
+                        ("Query" to "value") to
+                            FieldResolverDispatcherImpl(
+                                MockFieldUnbatchedResolverExecutor(resolverId = "Query.value") { _, _, _, _, _ -> "value" },
+                            ),
+                    ),
+                nodeResolverDispatchers = emptyMap(),
+                fieldCheckerDispatchers = emptyMap(),
+                typeCheckerDispatchers = emptyMap(),
+            )
 
-        val failure =
-            assertThrows<IllegalArgumentException> {
-                EngineFactory(config, DispatcherRegistry.Empty).create(
-                    schema = schema,
-                    fullSchema = FullSchema(schema),
-                )
-            }
+        val engine =
+            EngineFactory(config, dispatcherRegistry).create(
+                schema = schema,
+                fullSchema = FullSchema(schema),
+            )
 
-        assertEquals("ENGINE2_ENABLED requires the runtime2 engine integration", failure.message)
+        assertInstanceOf<Engine2>(engine)
     }
 }

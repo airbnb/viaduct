@@ -1,6 +1,6 @@
 # Runtime2
 
-Runtime2 is the alpha implementation of Viaduct's new engine. Its public contract is [`viaduct.engine.api.Engine`](../api/src/main/kotlin/viaduct/engine/api/Engine.kt): Runtime2 supplies the production resolution algorithm, schema and executor adaptation, and GraphQL Java execution components needed to implement that contract. Runtime2 is not yet selected by `StandardViaduct`, so the existing engine remains the service default while this alpha implementation is integrated and completed.
+Runtime2 is the alpha implementation of Viaduct's new engine. Its public contract is [`viaduct.engine.api.Engine`](../api/src/main/kotlin/viaduct/engine/api/Engine.kt): Runtime2 supplies the production resolution algorithm, schema and dispatcher adaptation, and GraphQL Java execution components that implement that contract. `StandardViaduct` selects Runtime2 when `ENGINE2_ENABLED` is enabled; the existing engine remains the default.
 
 The production field-resolution implementation is [`Resolution`](src/main/kotlin/viaduct/engine/runtime2/resolution/Resolver.kt), in `src/main/kotlin/viaduct/engine/runtime2/resolution`. Its shared production framework is in the adjacent `resolution/framework` package.
 
@@ -8,7 +8,7 @@ The production field-resolution implementation is [`Resolution`](src/main/kotlin
 
 Runtime2 currently provides a query-focused execution path for selective and non-selective field and node resolvers, object- and Query-rooted required selections, resolver variables, root-field references, nested query execution, GraphQL completion, and incremental `@defer` delivery. The detailed supported and rejected surface is maintained in [Engine API integration](impldocs/integration/engine-api.md).
 
-Major exclusions from the current Engine API integration include batching, mutations, subscriptions, custom scalars, `@stream`, and some resolver combinations documented with the integration boundary. Alpha status also means that bootstrap and service wiring are not yet the default production path.
+Major exclusions from the current Engine API integration include batching, mutations, subscriptions, custom scalars, `@stream`, and some resolver combinations documented with the integration boundary. Runtime2 reuses the production dispatcher bootstrap and service wiring behind an opt-in feature flag; that path is not yet the default.
 
 ## Source Layout
 

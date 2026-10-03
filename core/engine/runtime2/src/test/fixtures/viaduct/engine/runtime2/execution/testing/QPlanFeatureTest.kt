@@ -72,7 +72,7 @@ fun EngineTestModule.runQPlanFeatureTest(
 ) {
     val fullSchemaSDL = qplanSchemaSDL(fullSchema)
     val executableSchemaSDL = qplanSchemaSDL(schema ?: fullSchema)
-    val context = ContextMocks(myFullSchema = fullSchema).engineExecutionContext
+    val context = ContextMocks(myFullSchema = fullSchema).engineExecutionContextImpl
     val fieldSelectivityProvider =
         engineConfig?.fieldSelectivityProvider ?: FieldSelectivityProvider.Never
     val registryInputs = IdentityHashMap<QPlanSchema, ExecutorRegistryInputs>()

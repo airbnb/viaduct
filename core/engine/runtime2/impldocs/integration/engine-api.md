@@ -6,7 +6,9 @@ Runtime2's main-source execution layer adapts validated GraphQL Java query execu
 
 The `QPlanExecutionStrategy`, `QPlanWiringFactory`, `QPlanInstrumentation`, and `runQPlanFeatureTest` names are current code identifiers inherited from the earlier project; they do not mean that Runtime2 is a separate build or that production Resolution is prospective.
 
-This layer is an alpha integration boundary, not yet an implementation of all three `viaduct.engine.api.Engine` methods or a backend selected by `StandardViaduct`. Its main-source executor adapter invokes the executor SPI directly, retains a supplied `EngineExecutionContext`, and rejects batching and checker executors. Service integration must replace that request-bound direct invocation with production dispatcher metadata and request-owned dispatcher support rather than expose a second executor-map bootstrap path.
+`Engine2` implements `Engine.execute` and handle-based `Engine.resolveSelectionSet` and is selected by `StandardViaduct` when `ENGINE2_ENABLED` is enabled. The existing engine remains the default. Direct `Engine.resolveRootFieldReference` calls are intentionally unsupported: Runtime2 instead interprets `RootFieldReference` values returned by resolvers inside Resolution. Production integration reuses the service-built `DispatcherRegistry`; field, node, and checker invocation remains dispatcher-backed and receives a request-owned `EngineExecutionContext`. The direct executor adapter remains for feature-test and focused integration fixtures.
+
+Interoperability between engine selections across `StandardViaduct.Builder.buildWithReusedSchemas` rebuilds is not part of the Runtime2 integration contract. A deployment must not rely on rebuilding an old-engine `StandardViaduct` as an engine2 instance, or the reverse, merely because the new instance reuses the previous instance's schema objects.
 
 ## Schema And Bootstrap Boundaries
 
@@ -17,9 +19,9 @@ Runtime2 retains two related schemas:
 
 `ViaductAndGJSchema` pairs those schemas, and `SourceSchemaAdapter` performs explicit source-to-lowered translation. A request may use a scoped executable source schema while Resolution and resolver-required selections use the full source/lowered pair. Private fields required by resolvers therefore remain available to Resolution without becoming public operation fields.
 
-`executorRegistryInputs` accepts an `EngineSchema`, its matching schema pair, explicit field and node executor registrations, an `EngineExecutionContext`, a field-selectivity provider, and the built-in-node option. It returns canonical field definitions, node functions, and variable declarations for `resolverRegistryOf`. Duplicate registrations, unsupported batching, malformed fragments, and invalid variable declarations fail before semantic reasoning. Namespace and optional Query-node built-ins fill only unsupplied coordinates; ordinary missing resolvers are not synthesized by the main-source adapter.
+`executorRegistryInputs` accepts an `EngineSchema`, its matching schema pair, explicit field and node executor registrations, an `EngineExecutionContext`, a field-selectivity provider, and the built-in-node option. It returns canonical field definitions, node functions, and variable declarations for `resolverRegistryOf`. Duplicate registrations, unsupported batching, malformed fragments, and invalid variable declarations fail before semantic reasoning. Namespace and optional Query-node built-ins fill only unsupplied coordinates; ordinary missing resolvers are not synthesized by the main-source adapter. This direct adapter remains useful for tests.
 
-The returned resolver functions retain the supplied execution context. Neither those functions nor a registry built from them is service-wide metadata safe for unrelated request contexts. The final production bootstrap boundary must retain reusable declarations and dispatcher metadata independently from request-local invocation state.
+The returned direct-adapter resolver functions retain the supplied execution context. Neither those functions nor a registry built from them is service-wide metadata safe for unrelated request contexts. The production `dispatcherRegistryInputs` path instead compiles reusable dispatcher metadata and obtains the request context from each active `ResolutionExecutionContext`, so `Engine2` can safely retain its compiled world across requests.
 
 ## Request Execution
 
@@ -27,6 +29,7 @@ The GraphQL execution path is:
 
 ```text
 GraphQL Java parsing, validation, and input coercion
+  → StandardViaduct-selected Engine2
   → QPlanExecutionStrategy
   → source operation decoding into canonical selections
   → SharedOperationContext backed by immutable Assumptions
@@ -44,15 +47,15 @@ The strategy places a `QPlanRequestLifetime` in the GraphQL context and starts R
 
 `QPlanWiringFactory` performs GraphQL completion rather than tenant resolution. Checked completion reads the containing field-checker result, follows raw list and object values, reads each reached OER's type-checker result, and combines applicable results at the consumer boundary. Completed values project immediately; pending value or checker promises use request-owned completion-stage bridges. List elements wait concurrently, and a terminal non-cancellation failure takes precedence over sibling cancellations.
 
-`QPlanInstrumentation` is required because GraphQL Java creates the incremental publisher after the query strategy returns. The instrumentation keeps the Resolution request alive until the publisher completes, fails, or is cancelled. Cancelling the strategy's result future cancels GraphQL completion and the Resolution request job. Cancellation of the downstream public future returned by `GraphQL.executeAsync` is not yet guaranteed to propagate back through GraphQL Java to that strategy future; this remains an explicit alpha lifetime gap.
+`QPlanInstrumentation` is required because GraphQL Java creates the incremental publisher after the query strategy returns. The instrumentation keeps the Resolution request alive until the publisher completes, fails, or is cancelled. Cancelling either `StandardViaduct.executeAsync`'s public future or a coroutine running suspending `StandardViaduct.execute` cancels GraphQL completion, nested resolution, and the owning Resolution request job without cancelling concurrent requests.
 
 ## Executor Adaptation
 
-The adapter converts each field executor into a canonical `FieldResolverDefinition`, maps source coordinates through `SourceSchemaAdapter`, decodes object and Query required selections, compiles declared resolver variables, and invokes the executor through a one-selector `FieldResolverExecutor.batchResolve` call. Selective executors receive Resolution's closed successor demand converted to an `EngineSelectionSet`; simple outputs receive no selection set. `EngineConfiguration.fieldSelectivityProvider` supplies selectivity when executor metadata does not.
+The production adapter discovers field, node, field-checker, and type-checker dispatchers by schema coordinate and converts their declarations into the canonical registry. Field and node calls remain dispatcher-backed; selective dispatchers receive Resolution's closed successor demand converted to an `EngineSelectionSet`, while simple outputs receive no selection set. `EngineConfiguration.fieldSelectivityProvider` supplies selectivity when dispatcher metadata does not.
 
 Runtime2's semantic output domain is stricter than the mock feature-test surface. The adapter normalizes source-shaped EODs, concrete-object maps, built-in scalar values, nested `EngineErrorData`, node references, and root-field references before they enter Resolution. A raw map cannot represent an interface or union output because it lacks an unambiguous concrete runtime type. Ingress normalization must not weaken Runtime2 carrier invariants or hide a value produced incorrectly inside Resolution.
 
-The main-source adapter does not construct production dispatchers, data loaders, or another dependency scheduler. Resolution remains the sole owner of semantic occurrence scheduling. Physical batching, completed-result caching, and instrumentation may be layered at the dispatcher boundary only when they preserve Runtime2 occurrence identity, owner-local projection, and checker state.
+The existing service bootstrap constructs the production dispatcher registry. When `ENGINE2_ENABLED` is enabled, registry construction presents batching-capable field and node executors as immediate non-batching dispatchers; enabling `ENGINE2_BATCHING` is rejected until batching is implemented. Runtime2 currently creates a fresh production data loader for each dispatcher invocation, so neither completed results nor in-flight work are shared across semantic occurrences and every invocation is a singleton physical call. This is a transitional physical-dispatch policy rather than a permanent semantic prohibition on reuse. Future physical batching and loader reuse must preserve Runtime2 occurrence identity, owner-local projection, and checker state.
 
 ### Required-Selection Variables
 
@@ -61,6 +64,8 @@ The main-source adapter does not construct production dispatchers, data loaders,
 Every variable used by either fragment requires exactly one declaration. Missing, unused, overlapping, or duplicate declarations fail registry construction. A function variables provider runs once per active resolver occurrence, must return exactly its declared names, and may supply variables consumed by either fragment. Function providers with their own additional required selections remain outside the supported declarative SPI.
 
 Lossy abstract-type traversal in a provider path is rejected through the production-facing `InvalidVariableException`. Runtime inclusion conditions remain attached to compiled path elements so an excluded path binds null without reading its OER cell.
+
+Production checker dispatchers expose the same normalized variable-definition categories. Runtime2 compiles each named checker input into paired object and Query fragments, preserving dispatcher execution conditions as provider-backed inclusion guards. Legacy opaque variables resolvers that carry their own required selection set cannot be represented by this conversion and fail when the dispatcher definitions are compiled.
 
 ### Nested Query Execution
 
@@ -82,7 +87,10 @@ Node-valued fields retain their source coordinates. A source `NodeReference` bec
 
 The execution layer supports:
 
-- query operations with selective and non-selective field and node executors;
+- `StandardViaduct` selection through `ENGINE2_ENABLED`, using its production dispatcher registry and generated tenant-module bootstrap;
+- `Engine.execute` and handle-based `Engine.resolveSelectionSet`, with handles confined to their owning `Engine2` instance;
+- query operations with selective and non-selective field and node dispatchers;
+- field- and type-checker dispatchers, including named inputs, supported variable definitions, execution conditions, denial, and errors;
 - object- and Query-rooted required selections, aliases, arguments, fragments, transitive demand, and occurrence-local variables;
 - `FromArgument`, supported singular `FromObjectField` and `FromQueryField` paths, and no-RSS function providers;
 - synchronous scalar, enum, list, object, error, node-reference, and root-field-reference outputs;
@@ -94,13 +102,12 @@ The execution layer supports:
 
 The execution layer rejects or does not provide:
 
-- batching executors, cross-occurrence coalescing, and old-engine data-loader cache policy;
-- field- and type-checker executor adaptation, even though Resolution itself implements checker semantics;
+- physically batched dispatch; `ENGINE2_BATCHING` is invalid until this support exists;
+- checker variables resolvers with their own required selection sets and other legacy checker input graphs that cannot be losslessly converted to Runtime2's variable definitions;
 - inline object materialization for Node-valued fields;
 - object required selections or `FromObjectField` variables on reference targets;
 - function variables providers with their own required selections;
-- mutations, `ctx.mutation()`, subscriptions, custom scalars, `@stream`, EOD aliases, and asynchronous EOD variants;
-- the complete `Engine` implementation, generated tenant-module dispatcher bootstrap, `StandardViaduct` selection, and guaranteed cancellation propagation from GraphQL Java's downstream public future.
+- mutations, `ctx.mutation()`, subscriptions, custom scalars, `@stream`, EOD aliases, asynchronous EOD variants, `EngineExecutionContext.completeSelectionSet`, and direct `Engine.resolveRootFieldReference` calls.
 
 Unsupported input fails explicitly during registry construction, operation decoding, or execution. Runtime2 does not retry an operation on the old engine after Resolution begins.
 

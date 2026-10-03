@@ -4,10 +4,12 @@ import graphql.language.AstPrinter
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.spi.FieldResolverExecutor
+import viaduct.engine.api.spi.VariableFromFunctionDefinitions
 import viaduct.engine.runtime.tenantloading.InvalidVariableException
 import viaduct.engine.runtime2.model.Arguments
 import viaduct.engine.runtime2.model.Fragment
 import viaduct.engine.runtime2.model.engineObjectDataOf
+import viaduct.engine.runtime2.model.registry.ResolutionExecutionContext
 import viaduct.engine.runtime2.model.registry.ResolverTarget
 import viaduct.engine.runtime2.model.registry.VariableDeclaration
 import viaduct.engine.runtime2.model.registry.VariablesProviderFunction
@@ -15,6 +17,7 @@ import viaduct.engine.runtime2.model.registry.fromArgument
 import viaduct.engine.runtime2.model.registry.fromObjectField
 import viaduct.engine.runtime2.model.registry.fromQueryField
 import viaduct.engine.runtime2.model.usedVariables
+import viaduct.engine.runtime2.resolution.currentVariablesProviderResolutionContext
 import viaduct.engine.runtime2.schema.ViaductAndGJSchema
 import viaduct.graphql.schema.ViaductSchema
 
@@ -30,7 +33,8 @@ internal fun FieldResolverExecutor.compileVariableDeclarations(
     field: ViaductSchema.ObjectField,
     objectFragment: Fragment,
     queryFragment: Fragment?,
-    context: EngineExecutionContext,
+    context: EngineExecutionContext?,
+    contextForInvocation: ((ResolutionExecutionContext) -> EngineExecutionContext)? = null,
 ): ExecutorVariableDeclarations {
     val coordinate = "${field.containingDef.name}.${field.name}"
     val templates = listOfNotNull(objectFragment, queryFragment)
@@ -45,6 +49,9 @@ internal fun FieldResolverExecutor.compileVariableDeclarations(
     ) { "Required selections for $coordinate contain ambiguous or foreign variable templates" }
 
     val functionProvider = variablesFromFunctionProvider
+    require(functionProvider == null || (context != null) != (contextForInvocation != null)) {
+        "Function variable providers for $coordinate require exactly one execution-context source"
+    }
     val names = listOf(
         argumentVariables.variableNames,
         objectFieldVariables.variableNames,
@@ -98,17 +105,33 @@ internal fun FieldResolverExecutor.compileVariableDeclarations(
     }
 
     val providerNames = functionProvider?.variableNames.orEmpty()
+
+    suspend fun provideVariables(
+        declaredProvider: VariableFromFunctionDefinitions,
+        arguments: Arguments.Resolved,
+        engineContext: EngineExecutionContext,
+    ): Map<String, viaduct.engine.runtime2.model.EngineInputData?> {
+        val values = declaredProvider.provideVariables(
+            engineObjectDataOf(field.containingDef),
+            arguments.fieldValues,
+            engineContext,
+        )
+        check(values.keys == providerNames) {
+            "Variables provider for $coordinate must return exactly its declared names"
+        }
+        return values
+    }
+
     val provider: VariablesProviderFunction? = functionProvider?.let { declaredProvider ->
         { arguments ->
-            val values = declaredProvider.provideVariables(
-                engineObjectDataOf(field.containingDef),
-                arguments.fieldValues,
-                context,
+            provideVariables(
+                declaredProvider,
+                arguments,
+                context
+                    ?: requireNotNull(contextForInvocation)(
+                        currentVariablesProviderResolutionContext(),
+                    ),
             )
-            check(values.keys == providerNames) {
-                "Variables provider for $coordinate must return exactly its declared names"
-            }
-            values
         }
     }
     return ExecutorVariableDeclarations(declarations, providerNames, provider)

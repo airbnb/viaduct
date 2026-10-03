@@ -6,7 +6,12 @@ import graphql.execution.DataFetcherResult
 import graphql.execution.ResultPath
 import graphql.schema.DataFetcher
 import graphql.schema.DataFetchingEnvironment
+import graphql.schema.FieldCoordinates
+import graphql.schema.GraphQLCodeRegistry
+import graphql.schema.GraphQLInterfaceType
 import graphql.schema.GraphQLObjectType
+import graphql.schema.GraphQLSchema
+import graphql.schema.GraphQLUnionType
 import graphql.schema.TypeResolver
 import graphql.schema.idl.FieldWiringEnvironment
 import graphql.schema.idl.InterfaceWiringEnvironment
@@ -47,6 +52,27 @@ class QPlanWiringFactory(
     schema: ViaductSchema,
 ) : WiringFactory {
     private val dataFetcher = ObjectEngineResultDataFetcher(schema)
+
+    /** Replaces executable-schema field and abstract-type wiring with qplan completion wiring. */
+    fun wire(sourceSchema: GraphQLSchema): GraphQLSchema {
+        val codeRegistry = GraphQLCodeRegistry.newCodeRegistry(sourceSchema.codeRegistry)
+        sourceSchema.allTypesAsList.forEach { type ->
+            when (type) {
+                is GraphQLObjectType ->
+                    if (!type.name.startsWith("__")) {
+                        type.fieldDefinitions.forEach { field ->
+                            codeRegistry.dataFetcher(
+                                FieldCoordinates.coordinates(type.name, field.name),
+                                dataFetcher,
+                            )
+                        }
+                    }
+                is GraphQLInterfaceType -> codeRegistry.typeResolver(type, TypeResolver(::resolveType))
+                is GraphQLUnionType -> codeRegistry.typeResolver(type, TypeResolver(::resolveType))
+            }
+        }
+        return sourceSchema.transform { builder -> builder.codeRegistry(codeRegistry.build()) }
+    }
 
     override fun getDefaultDataFetcher(environment: FieldWiringEnvironment): DataFetcher<*> = dataFetcher
 

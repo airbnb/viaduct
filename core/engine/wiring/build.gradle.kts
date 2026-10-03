@@ -15,6 +15,7 @@ dependencies {
 
     implementation(libs.viaduct.engine.api)
     implementation(libs.viaduct.engine.runtime)
+    implementation(libs.viaduct.engine.runtime2)
     implementation(libs.viaduct.service.api)
     implementation(libs.viaduct.shared.apiannotations)
     implementation(libs.viaduct.shared.deferred)

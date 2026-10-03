@@ -47,12 +47,10 @@ The `ALT` plus `ALTERNATIVE` pairing is especially important for these differenc
 
 The following differences are gaps in the present Engine API integration rather than permanent semantic incompatibilities:
 
-- generated tenant-module bootstrap and production dispatcher integration;
-- physical batching, data loaders, and any compatible completed-result cache layered outside semantic occurrence scheduling;
-- adaptation of field- and type-checker executors to Resolution's existing checker model;
+- physical batching and any compatible expansion of production data-loader reuse outside semantic occurrence scheduling;
 - mutation and subscription operations, `ctx.mutation()`, custom scalars, `@stream`, and asynchronous EOD variants;
-- guaranteed cancellation propagation from GraphQL Java's public `executeAsync` future to the Runtime2 request job; and
-- a complete `viaduct.engine.api.Engine` implementation selected by `StandardViaduct`.
+- direct `Engine.resolveRootFieldReference` calls and `EngineExecutionContext.completeSelectionSet`; and
+- resolver and checker combinations listed as unsupported by [Engine API integration](engine-api.md).
 
 [Engine API integration](engine-api.md) defines the current adapter surface and its rejection boundaries. A copied test blocked only by one of these gaps should retain its old-engine form with a specific `TODO` classification so that closing the gap means enabling the original test rather than inventing a Runtime2-specific substitute.
 

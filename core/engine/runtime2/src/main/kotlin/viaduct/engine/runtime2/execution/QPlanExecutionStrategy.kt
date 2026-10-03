@@ -13,6 +13,7 @@ import graphql.incremental.IncrementalExecutionResultImpl
 import graphql.schema.GraphQLSchema
 import java.util.concurrent.CancellationException
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.coroutines.CoroutineContext
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
@@ -20,6 +21,7 @@ import kotlinx.coroutines.Job
 import org.reactivestreams.Publisher
 import org.reactivestreams.Subscriber
 import org.reactivestreams.Subscription
+import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.runtime2.model.Assumptions
 import viaduct.engine.runtime2.resolution.framework.ResolverObserver
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
@@ -40,6 +42,7 @@ class QPlanExecutionStrategy(
     private val world: Assumptions,
     private val sourceSchema: GraphQLSchema,
     private val resolverCoroutineContext: CoroutineContext,
+    private val engineExecutionContextFactory: (ExecutionContext) -> EngineExecutionContext? = { null },
     dataFetcherExceptionHandler: DataFetcherExceptionHandler =
         SimpleDataFetcherExceptionHandler(),
 ) : AsyncExecutionStrategy(dataFetcherExceptionHandler) {
@@ -59,6 +62,9 @@ class QPlanExecutionStrategy(
             )
 
         val requestJob = Job()
+        executionContext.graphQLContext
+            .get<QPlanCallerCancellation>(QPlanCallerCancellationKey)
+            ?.attach(requestJob)
         val requestFailure = CompletableFuture<Throwable>()
         val requestScope =
             CoroutineScope(
@@ -78,7 +84,8 @@ class QPlanExecutionStrategy(
             try {
                 SharedOperationContext.create(
                     world,
-                    resolverObserver = executionContext.graphQLContext.getOrDefault(
+                    engineExecutionContext = engineExecutionContextFactory(executionContext),
+                    resolverObserver = executionContext.graphQLContext.getOrDefault<ResolverObserver>(
                         ResolverObserver::class.java,
                         ResolverObserver.NOP,
                     ),
@@ -218,3 +225,27 @@ internal data class QPlanRequestLifetime(
 internal data class QPlanRequestLifetimeKey(
     val executionId: ExecutionId,
 )
+
+/**
+ * Propagates caller cancellation into an independently owned request job.
+ *
+ * The request job cannot be a structured child of the caller: an incremental result must outlive
+ * the initial [Engine.execute][viaduct.engine.api.Engine.execute] call until its publisher ends.
+ */
+internal class QPlanCallerCancellation {
+    private val requestJob = AtomicReference<Job?>()
+    private val cancellation = AtomicReference<CancellationException?>()
+
+    fun attach(job: Job) {
+        check(requestJob.compareAndSet(null, job)) { "QPlan caller cancellation already has an active request job" }
+        job.invokeOnCompletion { requestJob.compareAndSet(job, null) }
+        cancellation.get()?.let(job::cancel)
+    }
+
+    fun cancel(cause: CancellationException) {
+        cancellation.compareAndSet(null, cause)
+        requestJob.get()?.cancel(requireNotNull(cancellation.get()))
+    }
+}
+
+internal data object QPlanCallerCancellationKey

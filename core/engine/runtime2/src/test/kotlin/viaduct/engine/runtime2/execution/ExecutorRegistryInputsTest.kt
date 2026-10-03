@@ -1,11 +1,16 @@
 package viaduct.engine.runtime2.execution
 
 import graphql.ExecutionInput
+import graphql.ExecutionResult
 import graphql.GraphQL
+import graphql.schema.GraphQLObjectType
 import graphql.schema.idl.RuntimeWiring
 import graphql.schema.idl.SchemaGenerator
 import graphql.schema.idl.SchemaParser
 import graphql.schema.idl.UnExecutableSchemaGenerator
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicInteger
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.future.await
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -15,32 +20,639 @@ import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineSchema
+import viaduct.engine.api.FromArgument
+import viaduct.engine.api.FromFieldVariablesResolver
 import viaduct.engine.api.ResolvedEngineObjectData
+import viaduct.engine.api.mocks.MockCheckerErrorResult
+import viaduct.engine.api.mocks.MockCheckerExecutor
 import viaduct.engine.api.mocks.MockFieldBatchResolverExecutor
 import viaduct.engine.api.mocks.MockFieldUnbatchedResolverExecutor
 import viaduct.engine.api.mocks.MockNodeBatchResolverExecutor
 import viaduct.engine.api.mocks.MockNodeUnbatchedResolverExecutor
+import viaduct.engine.api.mocks.MockVariablesResolver
+import viaduct.engine.api.mocks.createRSS
+import viaduct.engine.api.spi.CheckerExecutor
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.NodeResolverExecutor
+import viaduct.engine.runtime.CheckerDispatcherImpl
+import viaduct.engine.runtime.DispatcherExecutionContext
+import viaduct.engine.runtime.DispatcherRegistry
+import viaduct.engine.runtime.FieldDataLoader
+import viaduct.engine.runtime.FieldResolverDispatcherImpl
+import viaduct.engine.runtime.NodeDataLoader
+import viaduct.engine.runtime.QueryPlanExecutionCondition
 import viaduct.engine.runtime.mocks.ContextMocks
 import viaduct.engine.runtime2.bootstrap.ExecutorRegistryInputs
+import viaduct.engine.runtime2.bootstrap.dispatcherRegistryInputs
 import viaduct.engine.runtime2.bootstrap.executorRegistryInputs
 import viaduct.engine.runtime2.bootstrap.resolverRegistryOf
 import viaduct.engine.runtime2.model.Arguments
 import viaduct.engine.runtime2.model.Assumptions
 import viaduct.engine.runtime2.model.EngineErrorData
 import viaduct.engine.runtime2.model.RootFieldReferenceData
+import viaduct.engine.runtime2.model.registry.CheckerInput
+import viaduct.engine.runtime2.model.registry.ProviderFragment
 import viaduct.engine.runtime2.model.registry.ResolutionExecutionContext
 import viaduct.engine.runtime2.model.registry.ResolverRegistry
+import viaduct.engine.runtime2.model.registry.VariableDefinition
 import viaduct.engine.runtime2.model.requireObjectField
+import viaduct.engine.runtime2.model.requireType
 import viaduct.engine.runtime2.model.selectionForestOf
 import viaduct.engine.runtime2.schema.ViaductAndGJSchema
 import viaduct.engine.runtime2.schema.selectionsFrom
+import viaduct.graphql.schema.ViaductSchema
 
 class ExecutorRegistryInputsTest {
+    @Test
+    fun `production field dispatchers receive the runtime2 invocation context`() =
+        runTest {
+            val fixture = Fixture("type Query { value: Int! }")
+            val executor =
+                MockFieldUnbatchedResolverExecutor(resolverId = "Query.value") { _, _, _, _, context ->
+                    assertInstanceOf(QPlanEngineExecutionContext::class.java, context)
+                    assertSame(fixture.context.requestContext, context.requestContext)
+                    7L
+                }
+            val dispatcherRegistry =
+                DispatcherRegistry.Impl(
+                    fieldResolverDispatchers = mapOf(("Query" to "value") to FieldResolverDispatcherImpl(executor)),
+                    nodeResolverDispatchers = emptyMap(),
+                    fieldCheckerDispatchers = emptyMap(),
+                    typeCheckerDispatchers = emptyMap(),
+                )
+            val inputs =
+                dispatcherRegistryInputs(
+                    fullSchema = fixture.engineSchema,
+                    schemas = fixture.schemas,
+                    dispatcherRegistry = dispatcherRegistry,
+                )
+
+            assertEquals(7, fixture.invoke(fixture.registry(inputs), "value"))
+        }
+
+    @Test
+    fun `production field dispatchers use immediate data loaders for batching executors`() =
+        runTest {
+            val fixture = Fixture("type Query { value: Int! }")
+            val batchingExecutor =
+                MockFieldBatchResolverExecutor(
+                    resolverId = "Query.value",
+                    batchResolveFn = { selectors, _ ->
+                        assertEquals(1, selectors.size)
+                        mapOf(selectors.single() to Result.success(7L))
+                    },
+                )
+            val effectiveExecutor =
+                object : FieldResolverExecutor by batchingExecutor {
+                    override val isBatching: Boolean = false
+                }
+            val dispatcherRegistry =
+                DispatcherRegistry.Impl(
+                    fieldResolverDispatchers =
+                        mapOf(
+                            ("Query" to "value") to
+                                FieldResolverDispatcherImpl(effectiveExecutor),
+                        ),
+                    nodeResolverDispatchers = emptyMap(),
+                    fieldCheckerDispatchers = emptyMap(),
+                    typeCheckerDispatchers = emptyMap(),
+                )
+
+            val inputs =
+                dispatcherRegistryInputs(
+                    fullSchema = fixture.engineSchema,
+                    schemas = fixture.schemas,
+                    dispatcherRegistry = dispatcherRegistry,
+                )
+
+            assertEquals(7, fixture.invoke(fixture.registry(inputs), "value"))
+        }
+
+    @Test
+    fun `production field and type checker dispatchers receive runtime2 invocation context`() =
+        runTest {
+            val fixture = Fixture("type Query { value: Int } type Item { value: Int }")
+            val fieldCalls = AtomicInteger()
+            val typeCalls = AtomicInteger()
+
+            fun checker(
+                expectedType: CheckerExecutor.CheckerType,
+                calls: AtomicInteger,
+            ) = CheckerDispatcherImpl(
+                object : CheckerExecutor {
+                    override suspend fun execute(
+                        arguments: Map<String, Any?>,
+                        objectDataMap: Map<String, EngineObjectData.Sync>,
+                        context: EngineExecutionContext,
+                        checkerType: CheckerExecutor.CheckerType,
+                    ): CheckerResult {
+                        assertEquals(expectedType, checkerType)
+                        assertInstanceOf(QPlanEngineExecutionContext::class.java, context)
+                        assertSame(fixture.context.requestContext, context.requestContext)
+                        calls.incrementAndGet()
+                        return CheckerResult.Success
+                    }
+                },
+            )
+            val dispatcherRegistry =
+                DispatcherRegistry.Impl(
+                    fieldResolverDispatchers = emptyMap(),
+                    nodeResolverDispatchers = emptyMap(),
+                    fieldCheckerDispatchers =
+                        mapOf(("Query" to "value") to checker(CheckerExecutor.CheckerType.FIELD, fieldCalls)),
+                    typeCheckerDispatchers =
+                        mapOf("Item" to checker(CheckerExecutor.CheckerType.TYPE, typeCalls)),
+                )
+            val inputs =
+                dispatcherRegistryInputs(
+                    fullSchema = fixture.engineSchema,
+                    schemas = fixture.schemas,
+                    dispatcherRegistry = dispatcherRegistry,
+                )
+            val field = fixture.schemas.loweredSchema.requireObjectField("Query", "value")
+            val type = fixture.schemas.loweredSchema.requireType("Item") as ViaductSchema.Object
+
+            assertEquals(
+                CheckerResult.Success,
+                inputs.fieldCheckers.getValue(field)(
+                    Arguments.Resolved.of(field, emptyMap()),
+                    emptyMap(),
+                    fixture.resolutionContext,
+                ),
+            )
+            assertEquals(
+                CheckerResult.Success,
+                inputs.typeCheckers.getValue(type)(emptyMap(), fixture.resolutionContext),
+            )
+            assertEquals(1, fieldCalls.get())
+            assertEquals(1, typeCalls.get())
+        }
+
+    @Test
+    fun `production checker inputs preserve object and Query roots`() =
+        runTest {
+            val fixture =
+                Fixture(
+                    "type Query { item: Item policy: String } " +
+                        "type Item { checked: Int owner: String }",
+                )
+            val objectRss = createRSS("Item", "owner", forChecker = true)
+            val queryRss = createRSS("Query", "policy", forChecker = true)
+            val dispatcher =
+                CheckerDispatcherImpl(
+                    MockCheckerExecutor(
+                        requiredSelectionSets =
+                            linkedMapOf(
+                                "object" to objectRss,
+                                "query" to queryRss,
+                                "empty" to null,
+                            ),
+                        executeFn = { _, values ->
+                            assertEquals("object", values.getValue("object").get("marker"))
+                            assertEquals("query", values.getValue("query").get("marker"))
+                            assertEquals("empty-object", values.getValue("empty").get("marker"))
+                        },
+                    ),
+                )
+            val inputs =
+                dispatcherRegistryInputs(
+                    fullSchema = fixture.engineSchema,
+                    schemas = fixture.schemas,
+                    dispatcherRegistry =
+                        DispatcherRegistry.Impl(
+                            fieldResolverDispatchers = emptyMap(),
+                            nodeResolverDispatchers = emptyMap(),
+                            fieldCheckerDispatchers = mapOf(("Item" to "checked") to dispatcher),
+                            typeCheckerDispatchers = emptyMap(),
+                        ),
+                )
+            val field = fixture.schemas.loweredSchema.requireObjectField("Item", "checked")
+            val checker = inputs.fieldCheckers.getValue(field)
+            assertEquals(1, checker.fragmentTemplates.getValue("object").objectFragmentTemplate.size)
+            assertEquals(0, checker.fragmentTemplates.getValue("object").queryFragmentTemplate.size)
+            assertEquals(0, checker.fragmentTemplates.getValue("query").objectFragmentTemplate.size)
+            assertEquals(1, checker.fragmentTemplates.getValue("query").queryFragmentTemplate.size)
+
+            val itemType = fixture.engineSchema.schema.getObjectType("Item")
+            val queryType = fixture.engineSchema.schema.queryType
+
+            fun value(
+                type: GraphQLObjectType,
+                marker: String
+            ) = ResolvedEngineObjectData(type, mapOf("marker" to marker))
+            checker(
+                Arguments.Resolved.of(field, emptyMap()),
+                mapOf(
+                    "object" to CheckerInput(value(itemType, "object"), value(queryType, "wrong")),
+                    "query" to CheckerInput(value(itemType, "wrong"), value(queryType, "query")),
+                    "empty" to CheckerInput(value(itemType, "empty-object"), value(queryType, "wrong")),
+                ),
+                fixture.resolutionContext,
+            )
+        }
+
+    @Test
+    fun `production checker inputs lower canonical argument and field variables`() {
+        val fixture =
+            Fixture(
+                "type Query { item: Item } " +
+                    "type Item { checked(arg: Int!): Int owner: String policy(arg: Int, owner: String): Boolean }",
+            )
+        val dependency = createRSS("Item", "owner", forChecker = true)
+        val required =
+            createRSS(
+                typeName = "Item",
+                selectionString = "policy(arg: \$argument, owner: \$owner)",
+                variableProviders =
+                    listOf(
+                        FromArgument("argument", listOf("arg")),
+                        FromFieldVariablesResolver("owner", listOf("owner"), dependency),
+                    ),
+                forChecker = true,
+            )
+        val dispatcherRegistry =
+            DispatcherRegistry.Impl(
+                fieldResolverDispatchers = emptyMap(),
+                nodeResolverDispatchers = emptyMap(),
+                fieldCheckerDispatchers =
+                    mapOf(
+                        ("Item" to "checked") to
+                            CheckerDispatcherImpl(
+                                MockCheckerExecutor(requiredSelectionSets = mapOf("input" to required)),
+                            ),
+                    ),
+                typeCheckerDispatchers = emptyMap(),
+            )
+
+        val inputs =
+            dispatcherRegistryInputs(
+                fullSchema = fixture.engineSchema,
+                schemas = fixture.schemas,
+                dispatcherRegistry = dispatcherRegistry,
+            )
+        val checked = fixture.schemas.loweredSchema.requireObjectField("Item", "checked")
+        val templates = inputs.fieldCheckers.getValue(checked).fragmentTemplates.getValue("input")
+        assertEquals(2, templates.objectFragmentTemplate.size)
+        assertEquals(2, templates.variables.size)
+        assertInstanceOf(
+            VariableDefinition.FromArgument::class.java,
+            templates.variables.entries.single { it.key.variableName == "argument" }.value,
+        )
+        val fromField =
+            assertInstanceOf(
+                VariableDefinition.FromField::class.java,
+                templates.variables.entries.single { it.key.variableName == "owner" }.value,
+            )
+        assertEquals(ProviderFragment.OBJECT, fromField.providerFragment)
+        assertEquals(listOf("owner"), fromField.responsePath)
+    }
+
+    @Test
+    fun `production checker inputs execute supported variable sources`() =
+        runTest {
+            val fixture =
+                Fixture(
+                    "type Query { item: Item viewer: String } " +
+                        "type Item { " +
+                        "checked(arg: Int!): String owner: String " +
+                        "policy(argument: Int, owner: String, root: String, provided: String): String " +
+                        "}",
+                )
+            val providerCalls = AtomicInteger()
+            val checkerCalls = AtomicInteger()
+            val objectOwner = createRSS("Item", "owner", forChecker = true)
+            val queryViewer = createRSS("Query", "viewer", forChecker = true)
+            val provider =
+                MockVariablesResolver("provided") { invocation, context ->
+                    assertEquals(7, invocation.arguments.getValue("arg"))
+                    assertSame(fixture.context.requestContext, context.requestContext)
+                    providerCalls.incrementAndGet()
+                    mapOf("provided" to "provider-7")
+                }
+            val checkerInput =
+                createRSS(
+                    typeName = "Item",
+                    selectionString =
+                        "policy(" +
+                            "argument: \$argument, " +
+                            "owner: \$owner, " +
+                            "root: \$root, " +
+                            "provided: \$provided" +
+                            ")",
+                    variableProviders =
+                        listOf(
+                            FromArgument("argument", listOf("arg")),
+                            FromFieldVariablesResolver("owner", listOf("owner"), objectOwner),
+                            FromFieldVariablesResolver("root", listOf("viewer"), queryViewer),
+                            provider,
+                        ),
+                    forChecker = true,
+                )
+            val dispatcherRegistry =
+                DispatcherRegistry.Impl(
+                    fieldResolverDispatchers =
+                        mapOf(
+                            ("Query" to "item") to
+                                FieldResolverDispatcherImpl(
+                                    MockFieldUnbatchedResolverExecutor(resolverId = "Query.item") { _, _, _, _, _ ->
+                                        mapOf("owner" to "object-owner")
+                                    },
+                                ),
+                            ("Query" to "viewer") to
+                                FieldResolverDispatcherImpl(
+                                    MockFieldUnbatchedResolverExecutor(resolverId = "Query.viewer") { _, _, _, _, _ ->
+                                        "query-viewer"
+                                    },
+                                ),
+                            ("Item" to "checked") to
+                                FieldResolverDispatcherImpl(
+                                    MockFieldUnbatchedResolverExecutor(resolverId = "Item.checked") { _, _, _, _, _ ->
+                                        "checked"
+                                    },
+                                ),
+                            ("Item" to "policy") to
+                                FieldResolverDispatcherImpl(
+                                    MockFieldUnbatchedResolverExecutor(resolverId = "Item.policy") { arguments, _, _, _, _ ->
+                                        listOf("argument", "owner", "root", "provided")
+                                            .joinToString("|") { arguments.getValue(it).toString() }
+                                    },
+                                ),
+                        ),
+                    nodeResolverDispatchers = emptyMap(),
+                    fieldCheckerDispatchers =
+                        mapOf(
+                            ("Item" to "checked") to
+                                CheckerDispatcherImpl(
+                                    MockCheckerExecutor(
+                                        requiredSelectionSets = mapOf("policy" to checkerInput),
+                                    ) { arguments, inputs ->
+                                        assertEquals(mapOf("arg" to 7), arguments)
+                                        assertEquals(
+                                            "7|object-owner|query-viewer|provider-7",
+                                            inputs.getValue("policy").get("policy"),
+                                        )
+                                        checkerCalls.incrementAndGet()
+                                    },
+                                ),
+                        ),
+                    typeCheckerDispatchers = emptyMap(),
+                )
+
+            val result =
+                fixture.execute(
+                    dispatcherRegistryInputs(
+                        fullSchema = fixture.engineSchema,
+                        schemas = fixture.schemas,
+                        dispatcherRegistry = dispatcherRegistry,
+                    ),
+                    "{ item { checked(arg: 7) } }",
+                )
+
+            assertTrue(result.errors.isEmpty(), result.errors.toString())
+            assertEquals(mapOf("item" to mapOf("checked" to "checked")), result.getData())
+            assertEquals(1, providerCalls.get())
+            assertEquals(1, checkerCalls.get())
+        }
+
+    @Test
+    fun `production checker input conditions control selection work but not the checker`() =
+        runTest {
+            val fixture = Fixture("type Query { value: Int skippedPolicy: String includedPolicy: String }")
+            val conditionCalls = AtomicInteger()
+            val skippedPolicyCalls = AtomicInteger()
+            val includedPolicyCalls = AtomicInteger()
+            val checkerCalls = AtomicInteger()
+            val skippedInput =
+                createRSS(
+                    typeName = "Query",
+                    selectionString = "skippedPolicy",
+                    forChecker = true,
+                    executionCondition =
+                        QueryPlanExecutionCondition {
+                            conditionCalls.incrementAndGet()
+                            false
+                        },
+                )
+            val includedInput =
+                createRSS(
+                    typeName = "Query",
+                    selectionString = "includedPolicy",
+                    forChecker = true,
+                    executionCondition =
+                        QueryPlanExecutionCondition {
+                            conditionCalls.incrementAndGet()
+                            true
+                        },
+                )
+            val dispatcherRegistry =
+                DispatcherRegistry.Impl(
+                    fieldResolverDispatchers =
+                        mapOf(
+                            ("Query" to "value") to
+                                FieldResolverDispatcherImpl(
+                                    MockFieldUnbatchedResolverExecutor(resolverId = "Query.value") { _, _, _, _, _ -> 7L },
+                                ),
+                            ("Query" to "skippedPolicy") to
+                                FieldResolverDispatcherImpl(
+                                    MockFieldUnbatchedResolverExecutor(resolverId = "Query.skippedPolicy") { _, _, _, _, _ ->
+                                        skippedPolicyCalls.incrementAndGet()
+                                        "must not execute"
+                                    },
+                                ),
+                            ("Query" to "includedPolicy") to
+                                FieldResolverDispatcherImpl(
+                                    MockFieldUnbatchedResolverExecutor(resolverId = "Query.includedPolicy") { _, _, _, _, _ ->
+                                        includedPolicyCalls.incrementAndGet()
+                                        "did execute"
+                                    },
+                                ),
+                        ),
+                    nodeResolverDispatchers = emptyMap(),
+                    fieldCheckerDispatchers =
+                        mapOf(
+                            ("Query" to "value") to
+                                CheckerDispatcherImpl(
+                                    MockCheckerExecutor(
+                                        requiredSelectionSets =
+                                            mapOf(
+                                                "skipped" to skippedInput,
+                                                "included" to includedInput,
+                                            ),
+                                    ) { _, inputs ->
+                                        assertTrue(inputs.getValue("skipped").getSelections().none())
+                                        assertEquals("did execute", inputs.getValue("included").get("includedPolicy"))
+                                        checkerCalls.incrementAndGet()
+                                    },
+                                ),
+                        ),
+                    typeCheckerDispatchers = emptyMap(),
+                )
+
+            val result =
+                fixture.execute(
+                    dispatcherRegistryInputs(
+                        fullSchema = fixture.engineSchema,
+                        schemas = fixture.schemas,
+                        dispatcherRegistry = dispatcherRegistry,
+                    ),
+                    "{ value }",
+                )
+
+            assertTrue(result.errors.isEmpty(), result.errors.toString())
+            assertEquals(mapOf("value" to 7), result.getData())
+            assertEquals(2, conditionCalls.get())
+            assertEquals(0, skippedPolicyCalls.get())
+            assertEquals(1, includedPolicyCalls.get())
+            assertEquals(1, checkerCalls.get())
+        }
+
+    @Test
+    fun `production checker inputs reject opaque providers with required selections`() {
+        val fixture =
+            Fixture(
+                "type Query { item: Item } " +
+                    "type Item { checked: Int owner: String policy(value: String): Boolean }",
+            )
+        val provider =
+            MockVariablesResolver(
+                "provided",
+                requiredSelectionSet = createRSS("Item", "owner", forChecker = true),
+            ) { _, _ -> mapOf("provided" to "value") }
+        val required =
+            createRSS(
+                typeName = "Item",
+                selectionString = "policy(value: \$provided)",
+                variableProviders = listOf(provider),
+                forChecker = true,
+            )
+        val dispatcherRegistry =
+            DispatcherRegistry.Impl(
+                fieldResolverDispatchers = emptyMap(),
+                nodeResolverDispatchers = emptyMap(),
+                fieldCheckerDispatchers =
+                    mapOf(
+                        ("Item" to "checked") to
+                            CheckerDispatcherImpl(
+                                MockCheckerExecutor(requiredSelectionSets = mapOf("input" to required)),
+                            ),
+                    ),
+                typeCheckerDispatchers = emptyMap(),
+            )
+
+        val failure =
+            assertThrows<IllegalArgumentException> {
+                dispatcherRegistryInputs(
+                    fullSchema = fixture.engineSchema,
+                    schemas = fixture.schemas,
+                    dispatcherRegistry = dispatcherRegistry,
+                )
+            }
+
+        assertTrue(failure.message.orEmpty().contains("opaque variables resolver with its own required selection set"))
+    }
+
+    @Test
+    fun `production field checker denials are enforced by runtime2 execution`() =
+        runTest {
+            val fixture = Fixture("type Query { value: Int }")
+            val checkerCalls = AtomicInteger()
+            val dispatcherRegistry =
+                DispatcherRegistry.Impl(
+                    fieldResolverDispatchers =
+                        mapOf(
+                            ("Query" to "value") to
+                                FieldResolverDispatcherImpl(
+                                    MockFieldUnbatchedResolverExecutor(resolverId = "Query.value") { _, _, _, _, _ -> 7L },
+                                ),
+                        ),
+                    nodeResolverDispatchers = emptyMap(),
+                    fieldCheckerDispatchers =
+                        mapOf(
+                            ("Query" to "value") to
+                                CheckerDispatcherImpl(
+                                    MockCheckerExecutor { _, _ ->
+                                        checkerCalls.incrementAndGet()
+                                        throw IllegalAccessException("denied")
+                                    },
+                                ),
+                        ),
+                    typeCheckerDispatchers = emptyMap(),
+                )
+            val result =
+                fixture.execute(
+                    dispatcherRegistryInputs(
+                        fullSchema = fixture.engineSchema,
+                        schemas = fixture.schemas,
+                        dispatcherRegistry = dispatcherRegistry,
+                    ),
+                    "{ value }",
+                )
+
+            assertEquals(1, checkerCalls.get(), result.toSpecification().toString())
+            assertEquals(mapOf("value" to null), result.getData())
+            assertEquals(1, result.errors.size)
+        }
+
+    @Test
+    fun `production type checker error results are enforced by runtime2 execution`() =
+        runTest {
+            val fixture = Fixture("type Query { item: Item } type Item { value: Int }")
+            val checkerCalls = AtomicInteger()
+            val dispatcherRegistry =
+                DispatcherRegistry.Impl(
+                    fieldResolverDispatchers =
+                        mapOf(
+                            ("Query" to "item") to
+                                FieldResolverDispatcherImpl(
+                                    MockFieldUnbatchedResolverExecutor(resolverId = "Query.item") { _, _, _, _, _ ->
+                                        mapOf("value" to 7L)
+                                    },
+                                ),
+                        ),
+                    nodeResolverDispatchers = emptyMap(),
+                    fieldCheckerDispatchers = emptyMap(),
+                    typeCheckerDispatchers =
+                        mapOf(
+                            "Item" to
+                                CheckerDispatcherImpl(
+                                    object : CheckerExecutor {
+                                        override suspend fun execute(
+                                            arguments: Map<String, Any?>,
+                                            objectDataMap: Map<String, EngineObjectData.Sync>,
+                                            context: EngineExecutionContext,
+                                            checkerType: CheckerExecutor.CheckerType,
+                                        ): CheckerResult {
+                                            assertTrue(arguments.isEmpty())
+                                            assertTrue(objectDataMap.isEmpty())
+                                            assertEquals(CheckerExecutor.CheckerType.TYPE, checkerType)
+                                            assertInstanceOf(QPlanEngineExecutionContext::class.java, context)
+                                            checkerCalls.incrementAndGet()
+                                            return MockCheckerErrorResult(SecurityException("type denied"))
+                                        }
+                                    },
+                                ),
+                        ),
+                )
+            val result =
+                fixture.execute(
+                    dispatcherRegistryInputs(
+                        fullSchema = fixture.engineSchema,
+                        schemas = fixture.schemas,
+                        dispatcherRegistry = dispatcherRegistry,
+                    ),
+                    "{ item { value } }",
+                )
+
+            assertEquals(1, checkerCalls.get(), result.toSpecification().toString())
+            assertEquals(mapOf("item" to null), result.getData())
+            assertEquals(1, result.errors.size)
+            assertTrue(result.errors.single().message.contains("type denied"))
+        }
+
     @Test
     fun `builds and executes using main schema registry and GraphQL APIs`() =
         runTest {
@@ -132,7 +744,7 @@ class ExecutorRegistryInputsTest {
                     arguments = reference.arguments,
                     selections = fixture.schemas.selectionsFrom("fragment Demand on User { id name }").second,
                     selectiveResolvers = true,
-                    executionContext = ResolutionExecutionContext.Unsupported,
+                    executionContext = fixture.resolutionContext,
                 ),
             )
             assertEquals("authoritative-id", output.get("id"))
@@ -163,7 +775,7 @@ class ExecutorRegistryInputsTest {
                     arguments = reference.arguments,
                     selections = fixture.schemas.selectionsFrom("fragment Demand on User { name }").second,
                     selectiveResolvers = true,
-                    executionContext = ResolutionExecutionContext.Unsupported,
+                    executionContext = fixture.resolutionContext,
                 ),
             )
             assertEquals("Node executor User omitted its selector", error.cause?.message)
@@ -184,7 +796,20 @@ class ExecutorRegistryInputsTest {
     private class Fixture(val sdl: String) {
         val engineSchema = EngineSchema(UnExecutableSchemaGenerator.makeUnExecutableSchema(SchemaParser().parse(sdl)))
         val schemas = ViaductAndGJSchema.fromGraphQLSchema(engineSchema.schema)
-        val context = ContextMocks(myFullSchema = engineSchema, myRequestContext = Any()).engineExecutionContext
+        val context = ContextMocks(myFullSchema = engineSchema, myRequestContext = Any()).engineExecutionContextImpl
+        val dispatcherContext: DispatcherExecutionContext =
+            object : DispatcherExecutionContext, EngineExecutionContext by context {
+                private val fieldLoaders = ConcurrentHashMap<String, FieldDataLoader>()
+                private val nodeLoaders = ConcurrentHashMap<String, NodeDataLoader>()
+
+                override fun fieldDataLoader(resolver: FieldResolverExecutor): FieldDataLoader = fieldLoaders.computeIfAbsent(resolver.resolverId) { FieldDataLoader(resolver) }
+
+                override fun nodeDataLoader(resolver: NodeResolverExecutor): NodeDataLoader = nodeLoaders.computeIfAbsent(resolver.typeName) { NodeDataLoader(resolver) }
+            }
+        val resolutionContext =
+            object : ResolutionExecutionContext by ResolutionExecutionContext.Unsupported {
+                override val engineExecutionContext: EngineExecutionContext = dispatcherContext
+            }
 
         fun adapt(
             fields: List<Pair<Pair<String, String>, FieldResolverExecutor>> = emptyList(),
@@ -205,8 +830,35 @@ class ExecutorRegistryInputsTest {
                 schema = schemas,
                 fieldResolvers = inputs.fieldResolvers,
                 nodeResolvers = inputs.nodeResolvers,
+                fieldCheckers = inputs.fieldCheckers,
+                typeCheckers = inputs.typeCheckers,
                 variableProviders = inputs.variableProviders,
             )
+
+        suspend fun execute(
+            inputs: ExecutorRegistryInputs,
+            query: String,
+        ): ExecutionResult {
+            val graphQLSchema =
+                SchemaGenerator().makeExecutableSchema(
+                    SchemaParser().parse(sdl),
+                    RuntimeWiring.newRuntimeWiring()
+                        .wiringFactory(QPlanWiringFactory(schemas.loweredSchema))
+                        .build(),
+                )
+            return GraphQL.newGraphQL(graphQLSchema)
+                .queryExecutionStrategy(
+                    QPlanExecutionStrategy(
+                        world = Assumptions.of(schemas.loweredSchema, registry(inputs)),
+                        sourceSchema = schemas.graphQLSchema,
+                        resolverCoroutineContext = Dispatchers.Unconfined,
+                        engineExecutionContextFactory = { dispatcherContext },
+                    ),
+                ).instrumentation(QPlanInstrumentation())
+                .build()
+                .executeAsync(ExecutionInput.newExecutionInput().query(query).build())
+                .await()
+        }
 
         suspend fun invoke(
             registry: ResolverRegistry,
@@ -220,7 +872,7 @@ class ExecutorRegistryInputsTest {
                 arguments = Arguments.Resolved.of(field, emptyMap()),
                 selections = selectionForestOf(),
                 selectiveResolvers = true,
-                executionContext = ResolutionExecutionContext.Unsupported,
+                executionContext = resolutionContext,
             )
         }
     }
