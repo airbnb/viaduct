@@ -1,0 +1,179 @@
+qplan.PropertyTestPhase {
+  startTime = 12:52:28.127 (2026-08-21)
+  duration = 35.3 ms
+  phase = "request preparation"
+  eventThread = "semantics.resolver26.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 36)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 12:52:28.162 (2026-08-21)
+  duration = 579 ms
+  phase = "Resolver26"
+  eventThread = "semantics.resolver26.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 36)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 12:52:28.742 (2026-08-21)
+  duration = 0.0107 ms
+  phase = "witness snapshot"
+  eventThread = "semantics.resolver26.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 36)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 12:52:28.742 (2026-08-21)
+  duration = 214 ms
+  phase = "application identity oracle"
+  eventThread = "semantics.resolver26.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 36)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 12:52:28.956 (2026-08-21)
+  duration = 237 ms
+  phase = "correctResolution"
+  eventThread = "semantics.resolver26.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 36)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 12:52:29.193 (2026-08-21)
+  duration = 16.3 ms
+  phase = "object-path binding oracle"
+  eventThread = "semantics.resolver26.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 36)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 12:52:29.209 (2026-08-21)
+  duration = 7.85 ms
+  phase = "request preparation"
+  eventThread = "semantics.resolver26.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 36)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 12:52:29.217 (2026-08-21)
+  duration = 323 ms
+  phase = "Resolver26"
+  eventThread = "semantics.resolver26.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 36)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 12:52:29.540 (2026-08-21)
+  duration = 0.0129 ms
+  phase = "witness snapshot"
+  eventThread = "semantics.resolver26.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 36)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 12:52:29.540 (2026-08-21)
+  duration = 106 ms
+  phase = "application identity oracle"
+  eventThread = "semantics.resolver26.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 36)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 12:52:29.646 (2026-08-21)
+  duration = 191 ms
+  phase = "correctResolution"
+  eventThread = "semantics.resolver26.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 36)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 12:52:29.837 (2026-08-21)
+  duration = 10.1 ms
+  phase = "object-path binding oracle"
+  eventThread = "semantics.resolver26.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 36)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 12:52:29.847 (2026-08-21)
+  duration = 5.84 ms
+  phase = "request preparation"
+  eventThread = "semantics.resolver26.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 36)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 12:52:29.853 (2026-08-21)
+  duration = 282 ms
+  phase = "Resolver26"
+  eventThread = "semantics.resolver26.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 36)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 12:52:30.135 (2026-08-21)
+  duration = 0.0111 ms
+  phase = "witness snapshot"
+  eventThread = "semantics.resolver26.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 36)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 12:52:30.135 (2026-08-21)
+  duration = 116 ms
+  phase = "application identity oracle"
+  eventThread = "semantics.resolver26.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 36)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 12:52:30.251 (2026-08-21)
+  duration = 191 ms
+  phase = "correctResolution"
+  eventThread = "semantics.resolver26.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 36)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 12:52:30.442 (2026-08-21)
+  duration = 11.1 ms
+  phase = "object-path binding oracle"
+  eventThread = "semantics.resolver26.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 36)
+  stackTrace = [
+    ...
+  ]
+}

@@ -1,0 +1,118 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080">
+  <defs>
+    <marker id="arrow" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="12" markerHeight="12" orient="auto-start-reverse">
+      <path d="M 0 0 L 12 6 L 0 12 z" fill="#24272c"/>
+    </marker>
+    <style>
+      .title { font: 38px Arial, sans-serif; fill: #25272b; }
+      .task { font: 25px Arial, sans-serif; fill: #25272b; }
+      .small-task { font: 21px Arial, sans-serif; fill: #25272b; }
+      .label { font: 21px Arial, sans-serif; fill: #676d77; }
+      .legend { font: 17px Arial, sans-serif; fill: #676d77; }
+      .tree-edge { stroke: #aeb4bc; stroke-width: 3; fill: none; }
+      .tree-node { fill: #e4e7eb; stroke: #8e959e; stroke-width: 2; }
+      .launch-edge { stroke: #24272c; stroke-width: 3.5; fill: none; marker-end: url(#arrow); }
+      .continuation { stroke: #24272c; stroke-width: 3; fill: none; marker-end: url(#arrow); }
+      .resolver-box { fill: #ffffff; stroke: #1686f8; stroke-width: 5; rx: 10; }
+      .orchestrator-box { fill: #ffffff; stroke: #f55d00; stroke-width: 5; rx: 10; }
+      .tree-region { fill: #f1f2f4; stroke: #d1d5db; stroke-width: 2.5; }
+    </style>
+  </defs>
+
+  <rect width="1920" height="1080" fill="#ffffff"/>
+  <text x="960" y="54" text-anchor="middle" class="title">Resolver tasks grow passive OER trees</text>
+
+  <!-- The root orchestration starts the first active field resolver. -->
+  <rect x="720" y="82" width="480" height="68" class="orchestrator-box"/>
+  <text x="960" y="125" text-anchor="middle" class="task">Root ObjectOrchestrationTask</text>
+  <path d="M 960 150 L 960 184" class="launch-edge"/>
+
+  <!-- A resolver creates one rooted passive OER tree. -->
+  <path d="M 960 236 L 230 625 L 1690 625 Z" class="tree-region"/>
+  <rect x="745" y="188" width="430" height="70" class="resolver-box"/>
+  <text x="960" y="232" text-anchor="middle" class="task">FieldResolverTask</text>
+  <text x="960" y="292" text-anchor="middle" class="label">passive OER tree</text>
+
+  <!-- Main general tree: every node has one parent and zero or more children. -->
+  <g>
+    <path d="M 960 330 L 700 398 M 960 330 L 960 402 M 960 330 L 1220 398" class="tree-edge"/>
+    <path d="M 700 398 L 510 468 M 700 398 L 680 478 M 700 398 L 820 470" class="tree-edge"/>
+    <path d="M 960 402 L 900 478 M 960 402 L 1045 472" class="tree-edge"/>
+    <path d="M 1220 398 L 1135 472 M 1220 398 L 1320 468" class="tree-edge"/>
+    <path d="M 680 478 L 600 542 M 680 478 L 720 545" class="tree-edge"/>
+    <path d="M 1045 472 L 1015 542 M 1320 468 L 1260 540 M 1320 468 L 1400 540" class="tree-edge"/>
+
+    <circle cx="960" cy="330" r="13" class="tree-node"/>
+    <circle cx="700" cy="398" r="13" class="tree-node"/>
+    <circle cx="960" cy="402" r="13" class="tree-node"/>
+    <circle cx="1220" cy="398" r="13" class="tree-node"/>
+    <circle cx="510" cy="468" r="13" class="tree-node"/>
+    <circle cx="680" cy="478" r="13" class="tree-node"/>
+    <circle cx="820" cy="470" r="13" class="tree-node"/>
+    <circle cx="900" cy="478" r="13" class="tree-node"/>
+    <circle cx="1045" cy="472" r="13" class="tree-node"/>
+    <circle cx="1135" cy="472" r="13" class="tree-node"/>
+    <circle cx="1320" cy="468" r="13" class="tree-node"/>
+    <circle cx="600" cy="542" r="13" class="tree-node"/>
+    <circle cx="720" cy="545" r="13" class="tree-node"/>
+    <circle cx="1015" cy="542" r="13" class="tree-node"/>
+    <circle cx="1260" cy="540" r="13" class="tree-node"/>
+    <circle cx="1400" cy="540" r="13" class="tree-node"/>
+  </g>
+
+  <!-- Orchestrators sit at active-field nodes on the tree's fringe. -->
+  <path d="M 600 555 L 600 570 M 1015 555 L 1015 570 M 1400 553 L 1400 570" class="tree-edge"/>
+  <rect x="390" y="568" width="400" height="66" class="orchestrator-box"/>
+  <text x="590" y="610" text-anchor="middle" class="task">ObjectOrchestrationTask</text>
+  <rect x="815" y="568" width="400" height="66" class="orchestrator-box"/>
+  <text x="1015" y="610" text-anchor="middle" class="task">ObjectOrchestrationTask</text>
+  <rect x="1240" y="568" width="400" height="66" class="orchestrator-box"/>
+  <text x="1440" y="610" text-anchor="middle" class="task">ObjectOrchestrationTask</text>
+
+  <!-- Active fields launch the next generation of resolver tasks. The middle
+       orchestrator launches two resolvers to make the greater-than-one fan-out explicit. -->
+  <path d="M 590 634 C 565 666, 370 676, 250 718" class="launch-edge"/>
+  <path d="M 1015 634 C 980 664, 810 678, 720 718" class="launch-edge"/>
+  <path d="M 1015 634 C 1055 664, 1140 680, 1200 718" class="launch-edge"/>
+  <path d="M 1440 634 C 1470 666, 1590 678, 1670 718" class="launch-edge"/>
+  <text x="960" y="694" text-anchor="middle" class="label">launch active field resolvers</text>
+
+  <!-- Compact next-generation triangles leave their internal passive trees implicit. -->
+  <g>
+    <path d="M 250 752 L 40 938 L 460 938 Z" class="tree-region"/>
+    <rect x="100" y="716" width="300" height="58" class="resolver-box"/>
+    <text x="250" y="754" text-anchor="middle" class="small-task">FieldResolverTask</text>
+    <rect x="75" y="910" width="350" height="58" class="orchestrator-box"/>
+    <text x="250" y="947" text-anchor="middle" class="small-task">ObjectOrchestrationTask</text>
+    <path d="M 250 968 L 250 1018" class="continuation"/>
+  </g>
+
+  <g>
+    <path d="M 720 752 L 510 938 L 930 938 Z" class="tree-region"/>
+    <rect x="570" y="716" width="300" height="58" class="resolver-box"/>
+    <text x="720" y="754" text-anchor="middle" class="small-task">FieldResolverTask</text>
+    <rect x="545" y="910" width="350" height="58" class="orchestrator-box"/>
+    <text x="720" y="947" text-anchor="middle" class="small-task">ObjectOrchestrationTask</text>
+    <path d="M 720 968 L 720 1018" class="continuation"/>
+  </g>
+
+  <g>
+    <path d="M 1200 752 L 990 938 L 1410 938 Z" class="tree-region"/>
+    <rect x="1050" y="716" width="300" height="58" class="resolver-box"/>
+    <text x="1200" y="754" text-anchor="middle" class="small-task">FieldResolverTask</text>
+    <rect x="1025" y="910" width="350" height="58" class="orchestrator-box"/>
+    <text x="1200" y="947" text-anchor="middle" class="small-task">ObjectOrchestrationTask</text>
+    <path d="M 1200 968 L 1200 1018" class="continuation"/>
+  </g>
+
+  <g>
+    <path d="M 1670 752 L 1460 938 L 1880 938 Z" class="tree-region"/>
+    <rect x="1520" y="716" width="300" height="58" class="resolver-box"/>
+    <text x="1670" y="754" text-anchor="middle" class="small-task">FieldResolverTask</text>
+    <rect x="1495" y="910" width="350" height="58" class="orchestrator-box"/>
+    <text x="1670" y="947" text-anchor="middle" class="small-task">ObjectOrchestrationTask</text>
+    <path d="M 1670 968 L 1670 1018" class="continuation"/>
+  </g>
+
+  <text x="960" y="1060" text-anchor="middle" class="label">the same relationship repeats</text>
+</svg>

@@ -48,6 +48,8 @@ import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.NodeResolverExecutor
 import viaduct.engine.api.spi.ProxyResolverFactory
 import viaduct.engine.api.spi.VariableFromArgumentDefinitions
+import viaduct.engine.api.spi.VariableFromFieldDefinitions
+import viaduct.engine.api.spi.VariableFromFunctionDefinitions
 import viaduct.engine.runtime.DispatcherRegistry
 import viaduct.engine.runtime.QueryPlanExecutionCondition
 import viaduct.engine.runtime.execution.DefaultCoroutineInterop
@@ -183,6 +185,9 @@ open class MockFieldUnbatchedResolverExecutor(
     val resolverName: String = "mock-field-unbatched-resolver",
     override val argumentVariables: VariableFromArgumentDefinitions = VariableFromArgumentDefinitions.EMPTY,
     override val resolverId: String,
+    override val objectFieldVariables: VariableFromFieldDefinitions = VariableFromFieldDefinitions.EMPTY,
+    override val queryFieldVariables: VariableFromFieldDefinitions = VariableFromFieldDefinitions.EMPTY,
+    override val variablesFromFunctionProvider: VariableFromFunctionDefinitions? = null,
     open val unbatchedResolveFn: FieldUnbatchedResolverFn = { _, _, _, _, _ -> null }
 ) : FieldResolverExecutor {
     override val isBatching: Boolean = false
@@ -211,6 +216,9 @@ open class MockFieldBatchResolverExecutor(
     val resolverName: String = "mock-field-batch-resolver",
     override val argumentVariables: VariableFromArgumentDefinitions = VariableFromArgumentDefinitions.EMPTY,
     override val resolverId: String,
+    override val objectFieldVariables: VariableFromFieldDefinitions = VariableFromFieldDefinitions.EMPTY,
+    override val queryFieldVariables: VariableFromFieldDefinitions = VariableFromFieldDefinitions.EMPTY,
+    override val variablesFromFunctionProvider: VariableFromFunctionDefinitions? = null,
     open val batchResolveFn: FieldBatchResolverFn = { _, _ -> throw NotImplementedError() }
 ) : FieldResolverExecutor {
     override val isBatching: Boolean = true

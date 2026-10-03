@@ -20,7 +20,7 @@ Viaduct's Gradle build is organized as a **composite build** — a set of indepe
 viaduct/                         ← root project (orchestration only)
 ├── build-logic/                 ← shared build conventions and plugins
 ├── core/                        ← included build: library source code
-│   ├── engine/                  (api, runtime, wiring)
+│   ├── engine/                  (api, runtime, runtime2, wiring)
 │   ├── service/                 (api, runtime, wiring, serve)
 │   ├── tenant/                  (api, codegen, ksp, validation, runtime, wiring, tutorials)
 │   ├── shared/                  (apiannotations, arbitrary, codegen, dataloader, deferred,
@@ -48,7 +48,7 @@ viaduct/                         ← root project (orchestration only)
 
 ## The Root Project
 
-The root `build.gradle.kts` owns no source code. It applies the `buildroot.orchestration` plugin, which creates lifecycle tasks (`check`, `test`, `build`, `detekt`, `ktlintCheck`, `spotlessCheck`, etc.) that delegate into the **participating included builds**: `core`, `gradle-plugins`, and `publications`. When you run `./gradlew check` at the root, Gradle fans out into those three builds.
+The root `build.gradle.kts` owns no source code. It applies the `buildroot.orchestration` plugin, which creates lifecycle tasks (`check`, `test`, `build`, `detekt`, `ktlintCheck`, `spotlessCheck`, etc.) that delegate into the **participating included builds**: `core`, `gradle-plugins`, `gradletestapps`, and `publications`. When you run `./gradlew check` at the root, Gradle fans out into those builds.
 
 Demoapps are not part of this composite build. `check` runs them by shelling out to a standalone build per demoapp via the `demoappsStandaloneTest` task — see demoapps/AGENTS.md.
 
@@ -59,6 +59,10 @@ Demoapps are not part of this composite build. `check` runs them by shelling out
 `core` assigns **path-based Maven groups** at settings time so that composite auto-substitution registers the correct coordinates for each project. For example, projects under `core/tenant/` get group `com.airbnb.viaduct.tenant`, so `:tenant:api` publishes as `com.airbnb.viaduct.tenant:api`. This means each project's Gradle name matches its directory name — no need for synthetic project names to avoid collisions.
 
 `core` also hosts JaCoCo aggregation and coverage thresholds, keeping CI verification commands scoped: `./gradlew -p core jacocoTestCoverageVerification`.
+
+## Runtime2 and Qplan
+
+The former qplan projects now live entirely in `core/engine/runtime2`, using core's Kotlin 1.9.25 and static-analysis conventions. Run `./gradlew -p core :engine:runtime2:check`. Production `main` output participates in the runtime publication; unpublished `support`, including the arbitrary generators, is shared by `test` and `jmh`, with JUnit harnesses in the extra `src/test/fixtures` directory. Runtime2 tasks retain qplan's configuration-cache opt-out. Design documentation and profiling evidence live in runtime2's `impldocs/`; its `spec/` renderer and `tla/` verification tools remain opt-in. There is no top-level qplan directory. See [runtime2's README](../core/engine/runtime2/README.md#build-and-ide-setup).
 
 ## Maven Coordinate Scheme
 

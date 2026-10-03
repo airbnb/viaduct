@@ -35,6 +35,7 @@ includeBuild("x/remoteresolvers/lib") { name = "remoteresolvers" }
 // Include core modules
 include(":engine:api")
 include(":engine:runtime")
+include(":engine:runtime2")
 include(":engine:wiring")
 include(":service")
 include(":service:api")
