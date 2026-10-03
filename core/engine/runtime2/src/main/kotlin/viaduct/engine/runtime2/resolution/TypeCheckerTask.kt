@@ -46,6 +46,8 @@ internal class TypeCheckerTask private constructor(
     private val occurrence = publication.checkerOccurrence
     private val reader = publication.oerOccurrence.typeCheckerCycleTask()
 
+    override val engineExecutionContext get() = operation.engineExecutionContext
+
     companion object {
         /** Installs exact OER writer ownership before passive descent or local dispatch. */
         fun prepareAll(orchestrationTask: OrchestrationTask): List<SymbolicTypeCheckerPublicationOccurrence> {
@@ -109,7 +111,10 @@ internal class TypeCheckerTask private constructor(
         if (occurrence.providerReads.isNotEmpty()) {
             scope.launch { completeProviderBindings(operation, occurrence.providerReads) }
         }
-        val variables = occurrence.checker.provideVariables()
+        val variables =
+            withVariablesProviderResolutionContext(this) {
+                occurrence.checker.provideVariables()
+            }
         occurrence.variableDefinitions.filter { it.definition == VariableDefinition.FromProvider }.forEach { definition ->
             check(
                 operation.variableBindings.completeBinding(

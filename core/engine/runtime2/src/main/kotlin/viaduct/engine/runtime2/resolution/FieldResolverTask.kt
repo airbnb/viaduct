@@ -66,6 +66,8 @@ internal class FieldResolverTask private constructor(
     fieldTaskScope: CoroutineScope,
 ) : CoroutineFieldResolverTaskBase<SymbolicFieldPublicationOccurrence>(publication, fieldTaskScope),
     ResolutionExecutionContext {
+    override val engineExecutionContext get() = publication.operation.engineExecutionContext
+
     private val resolutionLogic = FieldResolutionLogic(this)
 
     companion object {

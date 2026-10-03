@@ -1,5 +1,6 @@
 package viaduct.engine.runtime2.resolution.framework
 
+import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.runtime2.model.Assumptions
 
 /**
@@ -12,6 +13,7 @@ interface SharedOperationContext<out D : SharedTaskDispatcher<Nothing, Nothing>>
     val variableBindings: VariableBindingsState
     val resolverObserver: ResolverObserver
     val checkerObserver: CheckerObserver
+    val engineExecutionContext: EngineExecutionContext?
     val dispatcher: D
 
     companion object {
@@ -22,12 +24,14 @@ interface SharedOperationContext<out D : SharedTaskDispatcher<Nothing, Nothing>>
             variableBindings: VariableBindingsState = VariableBindingsState(),
             resolverObserver: ResolverObserver = ResolverObserver.NOP,
             checkerObserver: CheckerObserver = CheckerObserver.NOP,
+            engineExecutionContext: EngineExecutionContext? = null,
         ): SharedOperationContext<Nothing> =
             object : SharedOperationContext<Nothing> {
                 override val world = world
                 override val variableBindings = variableBindings
                 override val resolverObserver = resolverObserver
                 override val checkerObserver = checkerObserver
+                override val engineExecutionContext = engineExecutionContext
                 override val dispatcher: Nothing
                     get() = error("This operation does not dispatch resolver tasks")
             }
@@ -40,12 +44,14 @@ interface SharedOperationContext<out D : SharedTaskDispatcher<Nothing, Nothing>>
             variableBindings: VariableBindingsState = VariableBindingsState(),
             resolverObserver: ResolverObserver = ResolverObserver.NOP,
             checkerObserver: CheckerObserver = CheckerObserver.NOP,
+            engineExecutionContext: EngineExecutionContext? = null,
         ): SharedOperationContext<D> =
             object : SharedOperationContext<D> {
                 override val world = world
                 override val variableBindings = variableBindings
                 override val resolverObserver = resolverObserver
                 override val checkerObserver = checkerObserver
+                override val engineExecutionContext = engineExecutionContext
                 override val dispatcher = dispatcher
             }
     }

@@ -77,6 +77,8 @@ internal class FieldCheckerTask private constructor(
     private val key = occurrence.selection.key
     private val reader = publication.oerOccurrence.fieldCheckerCycleTask(key)
 
+    override val engineExecutionContext get() = operation.engineExecutionContext
+
     companion object {
         /** Claims all checked slots before passive descent can expose cells to readers. */
         fun prepareAll(orchestrationTask: OrchestrationTask): FieldCheckerPreparation =
@@ -176,7 +178,10 @@ internal class FieldCheckerTask private constructor(
         if (occurrence.providerReads.isNotEmpty()) {
             scope.launch { completeProviderBindings(operation, occurrence.providerReads) }
         }
-        val variables = occurrence.checker.provideVariables(arguments)
+        val variables =
+            withVariablesProviderResolutionContext(this) {
+                occurrence.checker.provideVariables(arguments)
+            }
         occurrence.variableDefinitions.filter { it.definition == VariableDefinition.FromProvider }.forEach { definition ->
             check(
                 operation.variableBindings.completeBinding(

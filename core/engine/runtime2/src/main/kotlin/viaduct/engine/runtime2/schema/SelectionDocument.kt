@@ -9,6 +9,7 @@ import graphql.language.InlineFragment
 import graphql.language.SelectionSet
 import viaduct.engine.runtime2.model.EngineInputData
 import viaduct.engine.runtime2.model.Fragment
+import viaduct.engine.runtime2.model.registry.ResolverTarget
 import viaduct.graphql.schema.ViaductSchema
 import viaduct.graphql.utils.SelectionsParserUtils
 
@@ -17,6 +18,7 @@ fun ViaductAndGJSchema.fragmentFromDocument(
     document: Document,
     bindings: Map<String, EngineInputData?> = emptyMap(),
     variableField: ViaductSchema.ObjectField? = null,
+    variableTarget: ResolverTarget? = null,
 ): Fragment {
     val fragments = document.getDefinitionsOfType(FragmentDefinition::class.java)
     require(fragments.size == document.definitions.size) {
@@ -40,6 +42,7 @@ fun ViaductAndGJSchema.fragmentFromDocument(
         source = AstPrinter.printAst(inlinedEntry),
         bindings = bindings,
         variableField = variableField,
+        variableTarget = variableTarget,
         preserveSourceResponseKeys = true,
     )
     return Fragment.of(nominalType, selections)

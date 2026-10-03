@@ -32,6 +32,16 @@ class FragmentSelectionParsingTest {
     }
 
     @Test
+    fun `fragment documents preserve explicit resolver variable ownership`() {
+        val document = Parser.parse("fragment Main on Query { ...Input } fragment Input on Query { echo(value: \$value) }")
+        val target = ResolverTarget.FieldCheckerTarget(owner)
+
+        val fragment = schemas.fragmentFromDocument(document, variableTarget = target)
+
+        assertSame(target, fragment.subselections.usedVariables().single().target)
+    }
+
+    @Test
     fun `fragment documents reject missing duplicate and cyclic definitions`() {
         for (source in listOf(
             "fragment Main on Query { ...Missing }",

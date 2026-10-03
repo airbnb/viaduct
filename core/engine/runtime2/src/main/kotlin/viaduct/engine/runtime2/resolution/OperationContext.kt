@@ -28,6 +28,7 @@ internal interface OperationContext : SharedOperationContext<CoroutineTaskDispat
                 variableBindings = base.variableBindings,
                 resolverObserver = base.resolverObserver,
                 checkerObserver = base.checkerObserver,
+                engineExecutionContext = base.engineExecutionContext,
                 dispatcher = CoroutineTaskDispatcher(
                     requestScope = requestScope,
                 ),

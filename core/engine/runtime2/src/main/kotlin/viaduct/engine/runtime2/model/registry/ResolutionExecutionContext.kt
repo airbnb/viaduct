@@ -1,10 +1,15 @@
 package viaduct.engine.runtime2.model.registry
 
+import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.runtime2.model.MaterializeSelectionForest
 
 /** Execution capabilities available to one resolver invocation. */
 interface ResolutionExecutionContext {
+    /** Request-owned Engine API context, when execution was entered through an engine adapter. */
+    val engineExecutionContext: EngineExecutionContext?
+        get() = null
+
     /** Resolves a response-key-preserving selection set from the Query root. */
     suspend fun resolveSelectionSet(selections: MaterializeSelectionForest): EngineObjectData.Sync
 

@@ -478,7 +478,9 @@ internal class FieldResolutionLogic(
             }
         val values =
             try {
-                provider(arguments)
+                withVariablesProviderResolutionContext(fieldResolverTask) {
+                    provider(arguments)
+                }
             } catch (exception: Exception) {
                 currentCoroutineContext().ensureActive()
                 completeVariablesProviderBindingsWithError(fieldResolverOccurrence)
