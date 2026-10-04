@@ -22,8 +22,7 @@ import viaduct.graphql.scopes.errors.SchemaScopeValidationError
 import viaduct.graphql.utils.DefaultSchemaFactory
 import viaduct.service.api.ExecutionInput
 import viaduct.service.api.SchemaId
-import viaduct.service.api.spi.FlagManager
-import viaduct.service.api.spi.FlagManager.Flag
+import viaduct.service.api.spi.mocks.MockFlagManager
 
 /**
  * Integration tests for Viaduct scoped schema functionality.
@@ -40,9 +39,7 @@ import viaduct.service.api.spi.FlagManager.Flag
 class ViaductScopedSchemaIntegrationTest {
     private lateinit var subject: StandardViaduct
 
-    private val flagManager = object : FlagManager {
-        override fun isEnabled(flag: Flag) = true
-    }
+    private val flagManager = MockFlagManager.RuntimeFlagsEnabled
 
     enum class SchemaConfigMethod {
         FROM_SDL,

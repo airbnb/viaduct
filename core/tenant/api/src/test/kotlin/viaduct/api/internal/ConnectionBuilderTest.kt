@@ -22,7 +22,6 @@ import viaduct.api.mocks.MockInternalContext
 import viaduct.api.reflect.Type
 import viaduct.api.select.SelectionSet
 import viaduct.api.types.BackwardConnectionArguments
-import viaduct.api.types.CompositeOutput
 import viaduct.api.types.Connection
 import viaduct.api.types.ConnectionArguments
 import viaduct.api.types.Edge
@@ -137,12 +136,6 @@ class ConnectionBuilderTest {
             operation: QueryFromAnnotation,
             variables: Map<String, Any?>
         ): Query = throw NotImplementedError("Not needed for tests")
-
-        override fun <T : CompositeOutput> selectionsFor(
-            type: Type<T>,
-            selections: String,
-            variables: Map<String, Any?>
-        ): SelectionSet<T> = throw NotImplementedError("Not needed for tests")
 
         override fun <T : NodeObject> ref(id: GlobalID<T>): T = throw NotImplementedError("Not needed for tests")
 

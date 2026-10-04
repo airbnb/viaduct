@@ -77,7 +77,7 @@ object FieldExecutionHelpers {
         field: CollectedField
     ): FieldCoordinates {
         val objectType = parameters.executionStepInfo.objectType
-        val fieldName = field.mergedField.name
+        val fieldName = field.fieldName
         return (objectType.name to fieldName).gj
     }
 

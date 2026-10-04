@@ -22,6 +22,7 @@ import viaduct.deferred.asDeferred
 import viaduct.deferred.waitAllDeferreds
 import viaduct.engine.api.CheckerResult
 import viaduct.engine.runtime.Cell
+import viaduct.engine.runtime.EngineExecutionContextExtensions.incrementalExecutionEnabled
 import viaduct.engine.runtime.FieldResolutionResult
 import viaduct.engine.runtime.ObjectEngineResultImpl
 import viaduct.engine.runtime.ObjectEngineResultImpl.Companion.ACCESS_CHECK_SLOT
@@ -144,7 +145,13 @@ class FieldCompleter(
                     ctxCompleteObject.onCompletedNullable(null, null)
                     completeValueForNull(parameters)
                 } else {
-                    objectFieldMap(parameters).map { resolvedData ->
+                    val collectedFields = collectFields(currentOER.type, parameters).collectedFieldsMap
+                    val completed = if (parameters.engineExecutionContext.incrementalExecutionEnabled) {
+                        completeExecutionPlan(parameters, collectedFields, BuildExecutionPlan(collectedFields))
+                    } else {
+                        objectFieldMap(parameters, collectedFields)
+                    }
+                    completed.map { resolvedData ->
                         ctxCompleteObject.onCompleted(resolvedData, null)
                         FieldCompletionResult.obj(resolvedData, parameters)
                     }
@@ -152,10 +159,28 @@ class FieldCompleter(
             }
     }
 
-    @Suppress("UNCHECKED_CAST")
-    private fun objectFieldMap(parameters: ExecutionParameters): Value<Map<String, Any?>> {
+    private fun completeExecutionPlan(
+        parameters: ExecutionParameters,
+        collectedFields: CollectedFieldsMap,
+        plan: ExecutionPlan,
+    ): Value<Map<String, Any?>> {
+        val currentGroup = objectFieldMap(parameters, plan.collectedFieldsMap)
+        if (plan.newCollectedFieldsMaps.isEmpty()) return currentGroup
+
+        // Complete all groups eagerly until incremental result delivery is supported.
+        val groups = listOf(currentGroup) + plan.newCollectedFieldsMaps.values.map { objectFieldMap(parameters, it) }
+        return Value.waitAll(groups).map {
+            val completedFields = groups.flatMap { it.getCompleted().entries }.associate { it.toPair() }
+            collectedFields.mapValues { (responseName, _) -> completedFields.getValue(responseName) }
+        }
+    }
+
+    private fun objectFieldMap(
+        parameters: ExecutionParameters,
+        collectedFields: CollectedFieldsMap,
+    ): Value<Map<String, Any?>> {
         val currentOER = parameters.currentObjectEngineResult
-        val fields = collectFields(currentOER.type, parameters).collectedFieldsMap.values
+        val fields = collectedFields.values
         val fieldValues = fields.map { field ->
             val newParams = parameters.forField(currentOER.type, field)
             val fieldKey = buildOERKeyForField(newParams, field)

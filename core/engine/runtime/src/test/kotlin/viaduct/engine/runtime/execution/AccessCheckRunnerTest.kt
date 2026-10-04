@@ -142,6 +142,7 @@ class AccessCheckRunnerTest {
                 var materializedInsideAccessCheck = false
                 val dispatcher = object : CheckerDispatcher {
                     override val requiredSelectionSets: Map<String, RequiredSelectionSet?> = mapOf("checker" to null)
+                    override val variableDefinitions = emptyMap<String, viaduct.engine.runtime.ResolverVariableDefinitions>()
                     override val executor: CheckerExecutor = object : CheckerExecutor {
                         override val requiredSelectionSets = mapOf("checker" to null)
 

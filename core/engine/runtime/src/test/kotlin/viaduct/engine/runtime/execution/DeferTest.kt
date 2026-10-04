@@ -18,8 +18,8 @@ class DeferTest {
 
     @Test
     fun `distinct directives with the same label`() {
-        val first = Defer("same", Directive.newDirective().name("defer").build())
-        val second = Defer("same", Directive.newDirective().name("defer").build())
+        val first = mkDefer("same")
+        val second = mkDefer("same")
 
         assertNotEquals(first, second)
         assertEquals(2, setOf(first, second).size)
@@ -27,8 +27,8 @@ class DeferTest {
 
     @Test
     fun `distinct unlabeled directives`() {
-        val first = Defer(null, Directive.newDirective().name("defer").build())
-        val second = Defer(null, Directive.newDirective().name("defer").build())
+        val first = mkDefer(null)
+        val second = mkDefer(null)
 
         assertNotEquals(first, second)
     }
@@ -52,8 +52,8 @@ class DeferTest {
 
     @Test
     fun `defer usages distinguish parent contexts`() {
-        val defer = Defer("child", Directive.newDirective().name("defer").build())
-        val parent = DeferUsage(Defer("parent", Directive.newDirective().name("defer").build()), null)
+        val defer = mkDefer("child")
+        val parent = DeferUsage(mkDefer("parent"), null)
 
         assertNotEquals(DeferUsage(defer, null), DeferUsage(defer, parent))
     }

@@ -4,6 +4,9 @@
 Reads a job log on stdin and prints one task path per line, deduplicated, in the
 order they appear.
 
+Task paths are posted publicly, so a line whose path falls outside TASK_FAILED
+is skipped.
+
 Prints nothing when no Gradle task failed. A job can fail without one, as
 happens when a dependency repository returns HTTP 429 or a runner step dies
 before Gradle starts.
@@ -15,7 +18,7 @@ Exit codes:
 import re
 import sys
 
-TASK_FAILED = re.compile(r"> Task (\S+) FAILED")
+TASK_FAILED = re.compile(r"> Task (:[A-Za-z0-9_.:-]+) FAILED")
 
 # Job logs are coloured, and Windows runners emit CRLF. Both are stripped before matching.
 ANSI = re.compile(r"\x1b\[[0-9;]*[a-zA-Z]")

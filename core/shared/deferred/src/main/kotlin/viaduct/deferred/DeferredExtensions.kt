@@ -15,10 +15,12 @@ import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.InternalCoroutinesApi
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.SupervisorJob
 
 /**
- * Create a CompletableDeferred with the parent job set to the current threadLocalCoroutineContext's Job
+ * Create a CompletableDeferred parented to the current request parent job.
+ *
+ * The request parent job is a supervisor (see [RequestParentJobContextElement]), so a failed
+ * deferred does not cancel the request or its siblings.
  */
 fun <T> completableDeferred(): CompletableDeferred<T> {
     val parentJob = currentRequestParentJobOrNull()
@@ -26,12 +28,7 @@ fun <T> completableDeferred(): CompletableDeferred<T> {
     if (!parentJob.isActive) {
         return CompletableDeferred()
     }
-    val supervisor = SupervisorJob(parentJob)
-    return CompletableDeferred<T>(parent = supervisor).apply {
-        invokeOnCompletion {
-            supervisor.complete()
-        }
-    }
+    return CompletableDeferred(parent = parentJob)
 }
 
 fun <T> completedDeferred(value: T): CompletableDeferred<T> {

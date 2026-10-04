@@ -7,17 +7,25 @@ import io.mockk.every
 import io.mockk.mockk
 import java.util.concurrent.CompletableFuture
 import javax.inject.Provider
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.NodeReference
 import viaduct.engine.api.spi.NodeResolverExecutor
+import viaduct.engine.runtime.mocks.ContextMocks
+import viaduct.engine.runtime.withInvocationContexts
 import viaduct.errors.TenantResolverException
 import viaduct.errors.TenantUsageException
 import viaduct.java.api.context.NodeExecutionContext
@@ -26,6 +34,8 @@ import viaduct.java.api.internal.BaseUnbatchedNodeResolver
 import viaduct.java.api.internal.ObjectBase
 import viaduct.java.api.resolvers.FieldValue
 import viaduct.java.api.types.NodeObject
+import viaduct.service.api.spi.DecodedGlobalID
+import viaduct.service.api.spi.GlobalIDCodec
 import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 
 private class TestNodeGRT : ObjectBase, NodeObject {
@@ -201,7 +211,8 @@ class JavaNodeResolverExecutorTest {
 
             val result = executor.resolve(listOf(selector()), mockEngineContext())
 
-            result.values.single().exceptionOrNull().shouldBeInstanceOf<TenantUsageException>()
+            val error = result.values.single().exceptionOrNull().shouldBeInstanceOf<TenantResolverException>()
+            error.cause.shouldBeInstanceOf<TenantUsageException>()
         }
 
     @Test
@@ -275,7 +286,8 @@ class JavaNodeResolverExecutorTest {
 
             val result = executor.resolve(listOf(selector()), mockEngineContext())
 
-            assertTrue(result.values.single().exceptionOrNull() is TenantUsageException)
+            val error = result.values.single().exceptionOrNull().shouldBeInstanceOf<TenantResolverException>()
+            error.cause.shouldBeInstanceOf<TenantUsageException>()
         }
 
     @Test
@@ -337,7 +349,8 @@ class JavaNodeResolverExecutorTest {
 
             val result = executor.resolve(listOf(selector(id), selector(id)), mockEngineContext())
 
-            assertTrue(result.values.any { it.exceptionOrNull() is TenantUsageException })
+            assertEquals(2, result.size)
+            assertEquals(1, result.values.count { it.exceptionOrNull() is TenantResolverException && it.exceptionOrNull()!!.cause is TenantUsageException })
         }
 
     @Test
@@ -375,6 +388,106 @@ class JavaNodeResolverExecutorTest {
                 "second invocation failed",
                 generateSequence(result.getValue(selectors.last()).exceptionOrNull()) { it.cause }.last().message,
             )
+        }
+
+    @Test
+    fun `batch executor decodes grouping IDs with each selector invocation codec`(): Unit =
+        runBlocking {
+            val selectors = listOf(selector(GlobalIDCodecDefault.serialize("TestType", "1")), selector(GlobalIDCodecDefault.serialize("TestType", "2")))
+            val codec = mockk<GlobalIDCodec> {
+                every { deserialize(any()) } returns DecodedGlobalID("TestType", "same-id")
+            }
+            val firstInvocation = mockk<EngineExecutionContext> {
+                every { requestContext } returns "first"
+                every { globalIDCodec } returns codec
+            }
+            val secondInvocation = mockk<EngineExecutionContext> {
+                every { requestContext } returns "second"
+                every { globalIDCodec } returns codec
+            }
+            val context = ContextMocks().engineExecutionContext.withInvocationContexts(
+                selectors.zip(listOf(firstInvocation, secondInvocation)).toMap()
+            )
+            val invocations = mutableListOf<List<NodeExecutionContext<*>>>()
+            val executor = NodeBatchResolverExecutorImpl(
+                resolver = batchResolver { contexts ->
+                    invocations += contexts
+                    CompletableFuture.completedFuture(
+                        contexts.associateWith { FieldValue.ofError<TestNodeGRT>(IllegalStateException("expected")) }
+                    )
+                },
+                typeName = "TestType",
+                resolverName = "TestBatchNodeResolver",
+            )
+
+            val result = executor.resolve(selectors, context)
+
+            assertEquals(listOf(1, 1), invocations.map { it.size })
+            assertEquals(listOf("first", "second"), invocations.map { it.single().requestContext })
+            assertEquals(2, result.size)
+        }
+
+    @Test
+    fun `batch executor attributes an independently cancelled future`(): Unit =
+        runBlocking {
+            val future = CompletableFuture<Map<NodeExecutionContext<*>, FieldValue<TestNodeGRT>>>().apply { cancel(false) }
+            val executor = NodeBatchResolverExecutorImpl(
+                resolver = batchResolver { future },
+                typeName = "TestType",
+                resolverName = "TestBatchNodeResolver",
+            )
+
+            val result = executor.resolve(listOf(selector()), mockEngineContext())
+
+            val error = result.values.single().exceptionOrNull().shouldBeInstanceOf<TenantResolverException>()
+            assertInstanceOf(CancellationException::class.java, error.cause)
+        }
+
+    @Test
+    fun `request cancellation cancels a pending batch future`(): Unit =
+        runBlocking {
+            val future = CompletableFuture<Map<NodeExecutionContext<*>, FieldValue<TestNodeGRT>>>()
+            val started = CompletableDeferred<Unit>()
+            val executor = NodeBatchResolverExecutorImpl(
+                resolver = batchResolver {
+                    started.complete(Unit)
+                    future
+                },
+                typeName = "TestType",
+                resolverName = "TestBatchNodeResolver",
+            )
+            val request = async(start = CoroutineStart.UNDISPATCHED) {
+                executor.resolve(listOf(selector()), mockEngineContext())
+            }
+            started.await()
+            request.cancel()
+
+            assertThrows<CancellationException> { request.await() }
+            assertTrue(future.isCancelled)
+        }
+
+    @Test
+    fun `batch executor attributes null and invalid node values per selector`(): Unit =
+        runBlocking {
+            val selectors = listOf(selector(GlobalIDCodecDefault.serialize("TestType", "1")), selector(GlobalIDCodecDefault.serialize("TestType", "2")))
+            @Suppress("UNCHECKED_CAST")
+            val nullValue = FieldValue.ofValue(null) as FieldValue<TestNodeGRT>
+            @Suppress("UNCHECKED_CAST")
+            val invalidValue = FieldValue.ofValue("not a GRT") as FieldValue<TestNodeGRT>
+            val executor = NodeBatchResolverExecutorImpl(
+                resolver = batchResolver { contexts ->
+                    CompletableFuture.completedFuture(mapOf(contexts[0] to nullValue, contexts[1] to invalidValue))
+                },
+                typeName = "TestType",
+                resolverName = "TestBatchNodeResolver",
+            )
+
+            val result = executor.resolve(selectors, mockEngineContext())
+
+            selectors.forEach { selected ->
+                val error = result.getValue(selected).exceptionOrNull().shouldBeInstanceOf<TenantResolverException>()
+                assertInstanceOf(TenantUsageException::class.java, error.cause)
+            }
         }
 
     private fun batchResolver(

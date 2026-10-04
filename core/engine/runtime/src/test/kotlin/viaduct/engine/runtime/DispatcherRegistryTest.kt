@@ -8,8 +8,10 @@ import kotlin.collections.count
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -46,8 +48,10 @@ import viaduct.engine.runtime.tenantloading.ExecutorValidatorContext
 import viaduct.engine.runtime.tenantloading.StandardDispatcherRegistryFactory
 import viaduct.engine.runtime.validation.Validator
 import viaduct.service.api.spi.CodeInjector
+import viaduct.service.api.spi.FlagManager
 import viaduct.service.api.spi.InputStreamSource
 import viaduct.service.api.spi.TenantModuleInjectorFactory
+import viaduct.service.api.spi.mocks.MockFlagManager
 
 @ExperimentalCoroutinesApi
 class DispatcherRegistryTest {
@@ -94,7 +98,8 @@ class DispatcherRegistryTest {
             validator: Validator<ExecutorValidatorContext>,
             checkerExecutorFactory: CheckerExecutorFactory,
             proxyResolverFactory: ProxyResolverFactory = ProxyResolverFactory.NO_OP,
-        ) = modules.toDispatcherRegistryFactory(validator, checkerExecutorFactory, proxyResolverFactory)
+            flagManager: FlagManager = FlagManager.Default,
+        ) = modules.toDispatcherRegistryFactory(validator, checkerExecutorFactory, proxyResolverFactory, flagManager)
     }
 
     @Test
@@ -354,7 +359,58 @@ class DispatcherRegistryTest {
 
         batchResolver.shouldBeInstanceOf<InstrumentedNodeResolverDispatcher>()
         val instrumentedDispatcher = batchResolver
-        instrumentedDispatcher.dispatcher.shouldBeInstanceOf<NodeResolverDispatcherImpl>()
+        val nodeDispatcher = instrumentedDispatcher.dispatcher.shouldBeInstanceOf<NodeResolverDispatcherImpl>()
+        assertTrue(nodeDispatcher.isBatching)
+    }
+
+    @Test
+    fun `engine2 disables batching when constructing field and node dispatchers`() {
+        val validator = MockValidator()
+        val registry = dispatcherRegistryFactory(
+            listOf(Samples.mockTenantModule),
+            validator,
+            MockCheckerExecutorFactory(),
+            flagManager = MockFlagManager.create(FlagManager.Flags.ENGINE2_ENABLED),
+        ).create(Samples.testSchema)
+
+        val fieldDispatcher = registry.getFieldResolverDispatcher("TestType", "batchField")
+        fieldDispatcher.shouldBeInstanceOf<FieldResolverDispatcherImpl>()
+        assertFalse(fieldDispatcher.isBatching)
+
+        val nodeDispatcher = registry.getNodeResolverDispatcher("TestBatchNode")
+        nodeDispatcher.shouldBeInstanceOf<InstrumentedNodeResolverDispatcher>()
+        val nodeDispatcherImpl = nodeDispatcher.dispatcher.shouldBeInstanceOf<NodeResolverDispatcherImpl>()
+        assertFalse(nodeDispatcherImpl.isBatching)
+
+        assertTrue(validator.arg!!.fieldResolverExecutors.getValue("TestType" to "batchField").isBatching)
+        assertTrue(validator.arg!!.nodeResolverExecutors.getValue("TestBatchNode").isBatching)
+    }
+
+    @Test
+    fun `engine2 batching flag is rejected during dispatcher registry construction`() {
+        listOf(
+            MockFlagManager.create(FlagManager.Flags.ENGINE2_BATCHING),
+            MockFlagManager.create(
+                FlagManager.Flags.ENGINE2_ENABLED,
+                FlagManager.Flags.ENGINE2_BATCHING,
+            ),
+        ).forEach { flagManager ->
+            val factory = dispatcherRegistryFactory(
+                listOf(Samples.mockTenantModule),
+                Validator.Unvalidated,
+                MockCheckerExecutorFactory(),
+                flagManager = flagManager,
+            )
+
+            val exception = assertThrows(IllegalArgumentException::class.java) {
+                factory.create(Samples.testSchema)
+            }
+
+            assertEquals(
+                "ENGINE2_BATCHING is not supported until engine2 batching is implemented",
+                exception.message,
+            )
+        }
     }
 
     @Test

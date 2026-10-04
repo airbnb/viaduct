@@ -2,6 +2,7 @@
 
 package viaduct.engine.runtime.execution
 
+import graphql.language.Directive
 import graphql.schema.GraphQLObjectType
 import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.future.await
@@ -119,6 +120,8 @@ internal fun mkExecutionParameters(
 
     return parameters
 }
+
+internal fun mkDefer(label: String?): Defer = Defer(label, Directive.newDirective().name("defer").build())
 
 /** Build a [KeyTree] using the schema in an [ExecutionParameters]. */
 internal fun KeyTree.Companion.build(

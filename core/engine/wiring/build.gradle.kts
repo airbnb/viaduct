@@ -2,6 +2,7 @@ import viaduct.gradle.resetCoverageThresholds
 
 plugins {
     id("conventions.kotlin")
+    id("conventions.kotlin-static-analysis")
 }
 
 resetCoverageThresholds(instructionMinimum = "0.25", branchMinimum = "0.25")

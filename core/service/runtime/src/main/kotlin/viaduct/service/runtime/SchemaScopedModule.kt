@@ -23,6 +23,7 @@ import viaduct.engine.runtime.tenantloading.MissingResolverValidationCtx
 import viaduct.engine.runtime.tenantloading.MissingResolverValidator
 import viaduct.engine.runtime.tenantloading.StandardDispatcherRegistryFactory
 import viaduct.engine.runtime.validation.Validator
+import viaduct.service.api.spi.FlagManager
 import viaduct.service.runtime.builtinresolvers.builtinModuleConfigSources
 import viaduct.utils.slf4j.logger
 
@@ -110,6 +111,7 @@ internal class SchemaScopedModule(
         moduleBootstrapConfiguration: ModuleBootstrapConfiguration,
         proxyResolverFactory: ProxyResolverFactory,
         resolverInstrumentation: ViaductResolverInstrumentation,
+        flagManager: FlagManager,
         @Named("lenientResolverValidation") lenientResolverValidation: Boolean,
     ): DispatcherRegistry {
         log.info("Creating DispatcherRegistry for Viaduct Modern")
@@ -143,6 +145,7 @@ internal class SchemaScopedModule(
             resolverInstrumentation = resolverInstrumentation,
             proxyResolverFactory = proxyResolverFactory,
             missingResolverValidator = missingResolverValidator,
+            flagManager = flagManager,
         ).create(schema)
         val elapsedTime = System.currentTimeMillis() - startTime
         log.info("Created DispatcherRegistry for Viaduct Modern after [{}] ms", elapsedTime)

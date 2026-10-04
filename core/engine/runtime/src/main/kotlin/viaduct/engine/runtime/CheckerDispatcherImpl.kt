@@ -8,9 +8,20 @@ import viaduct.engine.api.spi.CheckerExecutor
  * Dispatch the access checker execution to the appropriate executor.
  */
 class CheckerDispatcherImpl(
-    private val checkerExecutor: CheckerExecutor
+    private val checkerExecutor: CheckerExecutor,
+    objectTypeName: String? = null,
+    queryTypeName: String? = null,
+    checkerType: CheckerExecutor.CheckerType? = null,
 ) : CheckerDispatcher {
     override val requiredSelectionSets = checkerExecutor.requiredSelectionSets
+    override val variableDefinitions: Map<String, ResolverVariableDefinitions> by lazy {
+        extractCheckerVariableDefinitions(
+            requiredSelectionSets = requiredSelectionSets,
+            objectTypeName = objectTypeName,
+            queryTypeName = queryTypeName,
+            checkerType = checkerType,
+        )
+    }
     override val checkerMetadata = checkerExecutor.checkerMetadata
     override val executor = checkerExecutor
 

@@ -53,6 +53,9 @@ fun currentRequestParentJobOrNull(): Job? = ThreadLocalCoroutineContextManager.I
  * The request job represents the top-level job for an incoming request, as opposed to the
  * default job which is the root of the coroutine hierarchy created by
  * `withThreadLocalCoroutineContext`.
+ *
+ * [requestJob] must be a [kotlinx.coroutines.SupervisorJob]: [completableDeferred] parents
+ * directly to it and relies on it to isolate child failures.
  */
 class RequestParentJobContextElement(
     val requestJob: Job

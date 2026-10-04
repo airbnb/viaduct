@@ -32,22 +32,29 @@ import org.junit.jupiter.api.Assertions.assertNotSame
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.DynamicTest.dynamicTest
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.RepeatedTest
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.TestFactory
 import org.junit.jupiter.api.assertThrows
 import viaduct.dataloader.BatchLoaderEnvironment
 import viaduct.dataloader.InternalDataLoader
 import viaduct.dataloader.MappedBatchLoadFn
 import viaduct.dataloader.NextTickDispatcher
+import viaduct.engine.EngineConfiguration
 import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.CheckerResultContext
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.instrumentation.ViaductModernGJInstrumentation
+import viaduct.engine.api.mocks.EngineTestModule
 import viaduct.engine.api.mocks.MockRequiredSelectionSetRegistry
+import viaduct.engine.api.mocks.createEngineObjectData
 import viaduct.engine.api.mocks.createRSS
+import viaduct.engine.api.mocks.featureTestDefault
+import viaduct.engine.api.mocks.runFeatureTest
 import viaduct.engine.api.spi.CheckerExecutor
 import viaduct.engine.runtime.CheckerDispatcher
 import viaduct.engine.runtime.EngineObjectDataFactory
@@ -102,6 +109,97 @@ class ViaductExecutionStrategyTest {
         wrappedDispatcher = kotlinx.coroutines.newSingleThreadContext("test-dispatcher"),
         flagManager = FlagManager.Disabled
     )
+
+    // JMB TODO: what is this even testing?
+    @Nested
+    inner class ExecutionGroups {
+        @TestFactory
+        fun `overlapping groups complete eagerly in response order including list subfields`() =
+            withIncrementalExecutionModes { config ->
+                val calls = AtomicInteger()
+                EngineTestModule("extend type Query { a: Int, b: Int, c: Int, d: Int, items: [Obj] } type Obj { x: Int, y: Int }") {
+                    fieldWithValue("Query" to "a", 1)
+                    fieldWithValue("Query" to "b", 2)
+                    fieldWithValue("Query" to "d", 4)
+                    field("Query" to "c") {
+                        resolver {
+                            fn { _, _, _, _, _ ->
+                                calls.incrementAndGet()
+                                3
+                            }
+                        }
+                    }
+                    field("Query" to "items") {
+                        resolver {
+                            fn { _, _, _, _, _ ->
+                                listOf(
+                                    createEngineObjectData(schema.schema.getObjectType("Obj"), mapOf("x" to 1, "y" to 2)),
+                                    createEngineObjectData(schema.schema.getObjectType("Obj"), mapOf("x" to 3, "y" to 4)),
+                                )
+                            }
+                        }
+                    }
+                }.runFeatureTest(engineConfig = config) {
+                    val result = runQuery(
+                        """
+                    {
+                        ... @defer(label: "A") { first: a shared: c }
+                        d
+                        ... @defer(label: "B") { b shared: c }
+                        items { ... @defer { y } x }
+                    }
+                        """.trimIndent()
+                    )
+                    result.assertJson("""{"data":{"first":1,"shared":3,"d":4,"b":2,"items":[{"y":2,"x":1},{"y":4,"x":3}]}}""")
+                    val data = result.getData<Map<String, Any?>>()
+                    assertEquals(listOf("first", "shared", "d", "b", "items"), data.keys.toList())
+                    @Suppress("UNCHECKED_CAST")
+                    val items = data["items"] as List<Map<String, Any?>>
+                    items.forEach { assertEquals(listOf("y", "x"), it.keys.toList()) }
+                    assertEquals(1, calls.get())
+                }
+            }
+
+        @TestFactory
+        fun `a deferred nullable field error is included in the single response`() =
+            withIncrementalExecutionModes { config ->
+                EngineTestModule("extend type Query { a: Int, b: Int }") {
+                    fieldWithValue("Query" to "a", 1)
+                    field("Query" to "b") { resolver { fn { _, _, _, _, _ -> throw IllegalStateException("failed") } } }
+                }.runFeatureTest(engineConfig = config) {
+                    val result = runQuery("{ a ... @defer { broken: b } }")
+                    assertEquals(mapOf("a" to 1, "broken" to null), result.getData<Map<String, Any?>>())
+                    assertEquals(listOf("broken"), result.errors.single().path)
+                }
+            }
+
+        @TestFactory
+        fun `a deferred non-null field error still nulls its containing object`() =
+            withIncrementalExecutionModes { config ->
+                EngineTestModule("extend type Query { a: Int, obj: Obj } type Obj { good: Int, broken: Int! }") {
+                    fieldWithValue("Query" to "a", 1)
+                    field("Query" to "obj") {
+                        resolver { fn { _, _, _, _, _ -> createEngineObjectData(schema.schema.getObjectType("Obj"), mapOf("good" to 2)) } }
+                    }
+                    field("Obj" to "broken") { resolver { fn { _, _, _, _, _ -> throw IllegalStateException("failed") } } }
+                }.runFeatureTest(engineConfig = config) {
+                    val result = runQuery("{ a obj { good ... @defer { broken } } }")
+                    assertEquals(mapOf("a" to 1, "obj" to null), result.getData<Map<String, Any?>>())
+                    assertEquals(listOf("obj", "broken"), result.errors.single().path)
+                }
+            }
+
+        private fun withIncrementalExecutionModes(test: (EngineConfiguration) -> Unit) =
+            listOf(false, true).map { enabled ->
+                dynamicTest("incrementalExecutionEnabled=$enabled") {
+                    val defaults = EngineConfiguration.featureTestDefault
+                    val flags = object : FlagManager {
+                        override fun isEnabled(flag: FlagManager.Flag): Boolean = if (flag == FlagManager.Flags.ENABLE_INCREMENTAL_EXECUTION) enabled else defaults.flagManager.isEnabled(flag)
+                    }
+                    test(defaults.copy(flagManager = flags))
+                }
+            }
+    }
 
     @Test
     fun `fatal error in data fetcher crashes request`() =
@@ -1587,6 +1685,7 @@ class ViaductExecutionStrategyTest {
     private fun failingChecker(error: Exception): CheckerDispatcher {
         val dispatcher = object : CheckerDispatcher {
             override val requiredSelectionSets: Map<String, RequiredSelectionSet?> = emptyMap()
+            override val variableDefinitions = emptyMap<String, viaduct.engine.runtime.ResolverVariableDefinitions>()
             override lateinit var executor: CheckerExecutor
 
             override suspend fun execute(
@@ -1624,6 +1723,7 @@ class ViaductExecutionStrategyTest {
     ): CheckerDispatcher {
         val dispatcher = object : CheckerDispatcher {
             override val requiredSelectionSets: Map<String, RequiredSelectionSet?> = mapOf(rssName to rss)
+            override val variableDefinitions = emptyMap<String, viaduct.engine.runtime.ResolverVariableDefinitions>()
             override lateinit var executor: CheckerExecutor
 
             override suspend fun execute(
@@ -2022,6 +2122,8 @@ class ViaductExecutionStrategyTest {
 
                 val failingChecker = object : viaduct.engine.runtime.CheckerDispatcher {
                     override val requiredSelectionSets: Map<String, viaduct.engine.api.RequiredSelectionSet?> = emptyMap()
+                    override val variableDefinitions =
+                        emptyMap<String, viaduct.engine.runtime.ResolverVariableDefinitions>()
                     override lateinit var executor: viaduct.engine.api.spi.CheckerExecutor
 
                     override suspend fun execute(

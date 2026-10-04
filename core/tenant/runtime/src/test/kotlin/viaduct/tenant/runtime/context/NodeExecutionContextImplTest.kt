@@ -4,19 +4,16 @@ import io.mockk.mockk
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.api.globalid.GlobalID
 import viaduct.api.mocks.MockInternalContext
 import viaduct.api.mocks.MockReflectionLoader
 import viaduct.api.select.SelectionSet
 import viaduct.api.types.NodeObject
-import viaduct.engine.api.mocks.variables
 import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 import viaduct.tenant.runtime.globalid.GlobalIdTestSchema
 import viaduct.tenant.runtime.globalid.Query
 import viaduct.tenant.runtime.globalid.User
-import viaduct.tenant.runtime.select.SelectionSetImpl
 
 @ExperimentalCoroutinesApi
 @Suppress("USELESS_CAST")
@@ -52,15 +49,6 @@ class NodeExecutionContextImplTest : ContextTestBase() {
     fun properties() {
         val ctx = mk()
         assertEquals(userId, ctx.id)
-    }
-
-    @Test
-    fun selectionsFor() {
-        val ctx = mk()
-        val ss = ctx.selectionsFor(Query.Reflection, "__typename", mapOf("var" to true))
-        assertTrue(ss.contains(Query.Fields.__typename))
-        val inner = (ss as SelectionSetImpl<*>).engineSelectionSet
-        assertEquals(mapOf("var" to true), inner.variables())
     }
 
     @Test

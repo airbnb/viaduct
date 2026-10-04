@@ -207,6 +207,8 @@ public final class viaduct/service/api/spi/FlagManager$Flags : java/lang/Enum, v
 	public static final field ENABLE_INCREMENTAL_EXECUTION Lviaduct/service/api/spi/FlagManager$Flags;
 	public static final field ENABLE_MAT_RESOLUTION Lviaduct/service/api/spi/FlagManager$Flags;
 	public static final field ENABLE_RESOLVER_OUTPUT_MISSING_FIELD_ERRORS Lviaduct/service/api/spi/FlagManager$Flags;
+	public static final field ENGINE2_BATCHING Lviaduct/service/api/spi/FlagManager$Flags;
+	public static final field ENGINE2_ENABLED Lviaduct/service/api/spi/FlagManager$Flags;
 	public static final field KILLSWITCH_FIELD_RSS_ORIGIN_FILTERING Lviaduct/service/api/spi/FlagManager$Flags;
 	public static final field KILLSWITCH_NON_BLOCKING_ENQUEUE_FLUSH Lviaduct/service/api/spi/FlagManager$Flags;
 	public static fun getEntries ()Lkotlin/enums/EnumEntries;

@@ -16,6 +16,7 @@ import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import viaduct.arbitrary.graphql.asSchema
 import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.mocks.MockRequiredSelectionSetRegistry
@@ -25,6 +26,63 @@ import viaduct.engine.runtime.execution.QueryPlan.SelectionSet
 
 class CollectFieldsTest {
     private val emptyVars = CoercedVariables.emptyVariables()
+
+    @Nested
+    inner class MergedSelectionSetTests {
+        @Test
+        fun `many occurrences preserve every selection in order and share descendants`() {
+            val schema = "type Query { obj: Obj } type Obj { x: Int, child: Obj }".asEngineSchema
+            val plan = buildPlan(
+                "{ obj { alias: x ...F ... on Obj { child { x } } } } fragment F on Obj { x }",
+                schema,
+            )
+            val field = plan.selectionSet.selections.single() as Field
+            val original = field.selectionSet!!
+            val occurrences = List(4096) { FieldDetails(field, null) }
+            val collected = CollectedField(occurrences, schema.schema)
+
+            val merged = collected.selectionSet!!
+
+            assertSame(original.parentType, merged.parentType)
+            assertEquals(occurrences.size * original.selections.size, merged.selections.size)
+            merged.selections.forEachIndexed { index, selection ->
+                assertSame(original.selections[index % original.selections.size], selection)
+            }
+            assertSame(merged, collected.selectionSet)
+            assertEquals(3, original.selections.size)
+            assertSame(original, field.selectionSet)
+        }
+
+        @Test
+        fun `single occurrence reuses its selection set`() {
+            val schema = "type Query { obj: Query }".asEngineSchema
+            val field = buildPlan("{ obj { __typename } }", schema).selectionSet.selections.single() as Field
+
+            assertSame(field.selectionSet, CollectedField(listOf(FieldDetails(field, null)), schema.schema).selectionSet)
+        }
+
+        @Test
+        fun `scalar occurrences have no selection set`() {
+            val schema = "type Query { x: Int }".asEngineSchema
+            val field = buildPlan("{ x }", schema).selectionSet.selections.single() as Field
+
+            assertNull(CollectedField(List(3) { FieldDetails(field, null) }, schema.schema).selectionSet)
+        }
+
+        @Test
+        fun `rejects mixed subselection flavors in either order`() {
+            val schema = "type Query { obj: Query }".asEngineSchema
+            val field = buildPlan("{ obj { __typename } }", schema).selectionSet.selections.single() as Field
+            val occurrences = listOf(FieldDetails(field, null), FieldDetails(field.copy(selectionSet = null), null))
+
+            for (ordered in listOf(occurrences, occurrences.reversed())) {
+                val exception = assertThrows<IllegalStateException> {
+                    CollectedField(ordered, schema.schema).selectionSet
+                }
+                assertEquals("Cannot merge fields with different subselection flavors", exception.message)
+            }
+        }
+    }
 
     @Nested
     inner class DefaultTests {

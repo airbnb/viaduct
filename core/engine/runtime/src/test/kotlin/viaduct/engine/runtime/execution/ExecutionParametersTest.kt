@@ -12,7 +12,6 @@ import graphql.execution.ResultPath
 import graphql.execution.values.InputInterceptor
 import graphql.execution.values.legacycoercing.LegacyCoercingInputInterceptor
 import graphql.language.Argument as GJArgument
-import graphql.language.Directive
 import graphql.language.Field as GJField
 import graphql.language.InlineFragment as GJInlineFragment
 import graphql.language.SelectionSet as GJSelectionSet
@@ -651,8 +650,8 @@ class ExecutionParametersTest {
 
         val originalParameters = parameters("originalX", 1, "x")
         val selectionParameters = parameters("laterX", 2, "y")
-        val parentDefer = Defer("parent", Directive.newDirective().name("defer").build())
-        val childDefer = Defer("child", Directive.newDirective().name("defer").build())
+        val parentDefer = mkDefer("parent")
+        val childDefer = mkDefer("child")
         val usage = DeferUsage(childDefer, DeferUsage(parentDefer, null))
         val originalField = checkNotNull(originalParameters.field).let { field ->
             field.withOccurrences(field.occurrences.map { it.copy(deferUsage = usage) })

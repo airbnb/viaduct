@@ -99,7 +99,7 @@ From a Kotlin resolver, subquery execution starts with `ctx.query(operation, var
 
 Runtime-dependent fields are handled by choosing among predefined operation objects, not by constructing GraphQL strings. Variable values come from the map passed to `query()` or `mutation()`, not from the parent request's variables. See the [Kotlin operation examples](../docs/docs/docs/developers/resolvers/graphql_operations.md#runtime-branching).
 
-The public Kotlin execution methods accept neither strings nor `SelectionSet<T>`. `ctx.selectionsFor(...)` remains available for APIs that consume selection sets, but its result cannot be passed to `ctx.query()` or `ctx.mutation()`.
+The public Kotlin execution methods accept named operations. Selection construction and operation normalization remain internal to the framework.
 
 `ctx.mutation()` works the same way but is only available in mutation resolvers — the generated tenant API doesn't expose `mutation()` on query resolver contexts, so attempting to call it is a compile-time error.
 

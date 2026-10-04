@@ -81,6 +81,7 @@ class FieldResolverInstrumentationTest {
         private fun checkerDispatcher(block: suspend () -> CheckerResult): CheckerDispatcher {
             val dispatcher = object : CheckerDispatcher {
                 override val requiredSelectionSets: Map<String, RequiredSelectionSet?> = emptyMap()
+                override val variableDefinitions = emptyMap<String, viaduct.engine.runtime.ResolverVariableDefinitions>()
                 override lateinit var executor: CheckerExecutor
 
                 override suspend fun execute(

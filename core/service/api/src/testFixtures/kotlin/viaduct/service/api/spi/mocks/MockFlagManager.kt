@@ -18,6 +18,12 @@ class MockFlagManager(
     override fun isEnabled(flag: Flag): Boolean = enabled.contains(flag)
 
     companion object {
+        private val constructionTimeFlags =
+            setOf(
+                FlagManager.Flags.ENGINE2_ENABLED,
+                FlagManager.Flags.ENGINE2_BATCHING,
+            )
+
         /** Returns a [MockFlagManager] that enables exactly the specified [flag] values. */
         fun create(vararg flag: Flag): MockFlagManager = MockFlagManager(flag.toSet())
 
@@ -35,5 +41,11 @@ class MockFlagManager(
 
         /** A [FlagManager] that reports every flag as disabled. */
         val Disabled: FlagManager = const(false)
+
+        /** Enables ordinary runtime behavior flags while leaving construction-time gates disabled. */
+        val RuntimeFlagsEnabled: FlagManager =
+            object : FlagManager {
+                override fun isEnabled(flag: Flag): Boolean = flag !in constructionTimeFlags
+            }
     }
 }

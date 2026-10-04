@@ -7,12 +7,45 @@ import graphql.language.TypeName
 import graphql.parser.Parser
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 
 class SelectionsParserUtilsTest {
     private val parse: (String) -> graphql.language.Document = { Parser().parseDocument(it) }
+
+    @Test
+    fun `parseOperationSelections composes normalization and reachable fragment preparation`() {
+        val parsed = SelectionsParserUtils.parseOperationSelections(
+            "ReadRoot",
+            "query Q(\$id: ID!) { user(id: \$id) { ...A } }",
+            knownFragments(
+                "fragment A on User { ...B }",
+                "fragment B on User { id }",
+                "fragment Unused on User { ...Missing }",
+            ),
+            parse,
+        )
+
+        assertEquals("ReadRoot", parsed.typeName)
+        assertEquals(setOf("Main", "A", "B"), parsed.fragmentMap.keys)
+        assertEquals("{user(id:\$id){...A}}", AstPrinter.printAstCompact(parsed.selections))
+        assertEquals(
+            "fragment Main on ReadRoot {user(id:\$id){...A}} fragment A on User {...B} fragment B on User {id}",
+            AstPrinter.printAstCompact(parsed.toDocument()),
+        )
+    }
+
+    @Test
+    fun `parseOperationSelections preserves parser failures`() {
+        val failure = IllegalStateException("parser failure")
+        val thrown = assertThrows<IllegalStateException> {
+            SelectionsParserUtils.parseOperationSelections("ReadRoot", "query {", emptyMap()) { throw failure }
+        }
+
+        assertSame(failure, thrown)
+    }
 
     private fun normalized(
         selections: String,

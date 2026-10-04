@@ -97,6 +97,7 @@ fun EngineTestModule.runFeatureTest(
             )
         },
         resolverInstrumentation = config.resolverInstrumentation,
+        flagManager = config.flagManager,
     ).create(fullSchema)
     val engine = EngineFactory(config, dispatcherRegistry).create(executableSchema, fullSchema = FullSchema(fullSchema))
     FeatureTest(engine).block()
@@ -104,7 +105,7 @@ fun EngineTestModule.runFeatureTest(
 
 val EngineConfiguration.Companion.featureTestDefault: EngineConfiguration
     get() = EngineConfiguration.default.copy(
-        flagManager = MockFlagManager.Enabled,
+        flagManager = MockFlagManager.RuntimeFlagsEnabled,
         chainInstrumentationWithDefaults = true,
     )
 

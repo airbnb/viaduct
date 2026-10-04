@@ -6,6 +6,7 @@ import io.kotest.property.Arb
 import io.kotest.property.arbitrary.of
 import io.kotest.property.forAll
 import kotlinx.coroutines.runBlocking
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import viaduct.service.api.spi.FlagManager.Flag
 import viaduct.service.api.spi.FlagManager.Flags
@@ -37,6 +38,22 @@ class MockFlagManagerTest {
                 assert(flagMgr.isEnabled(flag) == enabledFlags.contains(flag))
             }
         }
+
+    @Test
+    fun `runtime flags exclude construction-time gates`() {
+        val constructionTimeFlags =
+            setOf(
+                Flags.ENGINE2_ENABLED,
+                Flags.ENGINE2_BATCHING,
+            )
+
+        Flags.values().forEach { flag ->
+            assertEquals(
+                flag !in constructionTimeFlags,
+                MockFlagManager.RuntimeFlagsEnabled.isEnabled(flag),
+            )
+        }
+    }
 
     private fun Arb.Companion.flag(): Arb<Flag> = Arb.of(Flags.values().toList())
 }

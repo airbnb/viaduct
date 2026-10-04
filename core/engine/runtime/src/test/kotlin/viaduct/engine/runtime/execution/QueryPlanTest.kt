@@ -29,6 +29,7 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import viaduct.arbitrary.graphql.asDocument
 import viaduct.arbitrary.graphql.asSchema
 import viaduct.engine.SchemaFactory
@@ -58,6 +59,70 @@ import viaduct.engine.runtime.execution.constraints.Constraints
 import viaduct.graphql.utils.ParsedSelections
 
 class QueryPlanTest {
+    @Test
+    fun `merge preserves metadata from selection sets without fields`() {
+        Fixture("type Query { x: Int, y: Int }") {
+            val selection = mkField("x", Constraints.Unconstrained)
+            val reference = SelectionVariableReference("show", Kind.CONDITIONAL_DIRECTIVE)
+            val fields = SelectionSet(query, selection)
+            val variablesOnly = SelectionSet(query, emptyList(), listOf(reference))
+            val exclusionsOnly = SelectionSet(query, emptyList(), conditionallyExcludedCoordinates = setOf("Query" to "y"))
+
+            val merged = SelectionSet.merge(
+                listOf(SelectionSet.empty(query), variablesOnly, fields, exclusionsOnly, variablesOnly, fields, exclusionsOnly),
+                schema,
+            )
+
+            assertEquals(listOf(selection, selection), merged.selections)
+            assertEquals(listOf(reference, reference), merged.enclosingVariableReferences)
+            assertEquals(setOf("Query" to "y"), merged.conditionallyExcludedCoordinates)
+            assertEquals(listOf(selection), fields.selections)
+            assertEquals(listOf(reference), variablesOnly.enclosingVariableReferences)
+            assertTrue(exclusionsOnly.selections.isEmpty())
+        }
+    }
+
+    @Test
+    fun `merge narrows abstract parent types in either order including empty selections`() {
+        Fixture("type Query { node: Node, union: U } interface Node { id: ID } type A implements Node { id: ID } union U = A") {
+            val objectType = schema.getObjectType("A")
+            val selection = mkField("id", Constraints.Unconstrained)
+            val concrete = SelectionSet.empty(objectType)
+
+            for (typeName in listOf("Node", "U")) {
+                val abstract = SelectionSet(schema.getType(typeName) as GraphQLCompositeType, selection)
+                for (sets in listOf(listOf(abstract, concrete, abstract), listOf(concrete, abstract, concrete))) {
+                    val merged = SelectionSet.merge(sets, schema)
+                    assertSame(objectType, merged.parentType)
+                    assertEquals(sets.sumOf { it.selections.size }, merged.selections.size)
+                    merged.selections.forEach { assertSame(selection, it) }
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `merge rejects incompatible parent types even when selections are empty`() {
+        Fixture("type Query { node: Node, union: U } interface Node { id: ID } type A implements Node { id: ID } union U = A") {
+            val a = SelectionSet.empty(schema.getType("Node") as GraphQLCompositeType)
+            val b = SelectionSet.empty(schema.getType("U") as GraphQLCompositeType)
+
+            val exception = assertThrows<IllegalArgumentException> { SelectionSet.merge(listOf(a, a, b), schema) }
+
+            assertEquals("Cannot merge selection sets on `Node` and `U`", exception.message)
+        }
+    }
+
+    @Test
+    fun `merge retains the parent type when all selections are empty`() {
+        Fixture("type Query { x: Int }") {
+            val empty = SelectionSet.empty(query)
+
+            assertSame(empty, SelectionSet.merge(listOf(empty), schema))
+            assertEquals(empty, SelectionSet.merge(listOf(empty, empty), schema))
+        }
+    }
+
     @Test
     fun `AST conversion preserves shared field and inline fragment children`() {
         Fixture("type Query { left: Query, right: Query, value: Int }") {

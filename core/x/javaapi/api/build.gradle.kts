@@ -5,6 +5,7 @@ plugins {
     id("conventions.java")
     id("conventions.dokka")
     id("conventions.kotlin")
+    id("conventions.kotlin-static-analysis")
     `java-test-fixtures`
 }
 
@@ -34,5 +35,4 @@ dependencies {
     testFixturesImplementation(libs.viaduct.javaapi.runtime)
     // BootstrapperFactory (file-based bootstrap entry point) lives in engine:wiring.
     testFixturesImplementation(libs.viaduct.engine.wiring)
-
 }

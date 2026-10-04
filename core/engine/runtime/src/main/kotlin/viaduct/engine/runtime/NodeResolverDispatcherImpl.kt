@@ -5,7 +5,6 @@ import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.ResolverMetadata
 import viaduct.engine.api.spi.NodeResolverExecutor
-import viaduct.engine.runtime.EngineExecutionContextExtensions.asImpl
 
 /**
  * Initialized via DispatcherRegistry and resolves a single node for a node type whose
@@ -20,6 +19,8 @@ import viaduct.engine.runtime.EngineExecutionContextExtensions.asImpl
 class NodeResolverDispatcherImpl(
     private val resolver: NodeResolverExecutor
 ) : NodeResolverDispatcher {
+    internal val isBatching: Boolean = resolver.isBatching
+
     override val resolverMetadata: ResolverMetadata = resolver.metadata
 
     override val isSelective: Boolean = resolver.isSelective
@@ -29,8 +30,7 @@ class NodeResolverDispatcherImpl(
         selections: EngineSelectionSet,
         context: EngineExecutionContext
     ): EngineObjectData {
-        val impl = context.asImpl()
-        val loader = impl.nodeDataLoader(resolver)
+        val loader = (context as DispatcherExecutionContext).nodeDataLoader(resolver)
         return loader.loadByKey(NodeResolverExecutor.Selector(id, selections), context).getOrThrow()
     }
 }

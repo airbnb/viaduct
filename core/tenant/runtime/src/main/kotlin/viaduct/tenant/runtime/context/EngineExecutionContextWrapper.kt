@@ -21,7 +21,6 @@ import viaduct.engine.api.parse.CachedDocumentParser
 import viaduct.errors.FrameworkException
 import viaduct.errors.handleFrameworkErrors
 import viaduct.errors.handleFrameworkErrorsSuspend
-import viaduct.graphql.utils.ParsedSelections
 import viaduct.graphql.utils.SelectionsParserUtils
 import viaduct.tenant.runtime.TenantApiInputValueNormalizer.normalizeVariablesForEngine
 import viaduct.tenant.runtime.select.SelectionSetImpl
@@ -51,17 +50,7 @@ interface EngineExecutionContextWrapper {
         globalID: GlobalID<T>
     ): T
 
-    fun <T : CompositeOutput> selectionsFor(
-        type: Type<T>,
-        selections: String,
-        variables: Map<String, Any?>
-    ): SelectionSet<T>
-
-    /**
-     * Like [selectionsFor], but for a `@GraphQLOperation` document: the operation text is normalized
-     * into a self-contained fragment document (inlining reachable named fragments) before it is
-     * turned into a [SelectionSet]. Plain string [selectionsFor] does no such translation.
-     */
+    /** Builds a selection set from a named operation, including its reachable fragments. */
     fun <T : CompositeOutput> selectionsForOperation(
         type: Type<T>,
         operationText: String,
@@ -105,22 +94,6 @@ class EngineExecutionContextWrapperImpl(
         (this as? SelectionSetImpl)?.engineSelectionSet
             ?: throw FrameworkException("Unexpected implementation of SelectionSet: $this")
 
-    override fun <T : CompositeOutput> selectionsFor(
-        type: Type<T>,
-        selections: String,
-        variables: Map<String, Any?>
-    ): SelectionSet<T> =
-        handleFrameworkErrors("selectionsFor") {
-            SelectionSetImpl(
-                type,
-                engineExecutionContext.engineSelectionSetFactory.engineSelectionSet(
-                    typeName = type.name,
-                    selections,
-                    normalizeVariablesForEngine(variables, engineExecutionContext.globalIDCodec)
-                )
-            )
-        }
-
     override fun <T : CompositeOutput> selectionsForOperation(
         type: Type<T>,
         operationText: String,
@@ -130,24 +103,11 @@ class EngineExecutionContextWrapperImpl(
             SelectionSetImpl(
                 type,
                 engineExecutionContext.engineSelectionSetFactory.engineSelectionSet(
-                    parseSelfContained(type.name, operationText),
+                    SelectionsParserUtils.parseOperationSelections(type.name, operationText, knownFragments, CachedDocumentParser::parseDocument),
                     normalizeVariablesForEngine(variables, engineExecutionContext.globalIDCodec)
                 )
             )
         }
-
-    /**
-     * Resolves an operation document into a self-contained [ParsedSelections]: normalize any form to
-     * a fragment document, then inline reachable [knownFragments] so no external spreads remain.
-     */
-    private fun parseSelfContained(
-        typeName: String,
-        selections: String
-    ): ParsedSelections {
-        val normalized = SelectionsParserUtils.normalizeToFragmentDocument(selections, typeName, CachedDocumentParser::parseDocument)
-        val selfContained = SelectionsParserUtils.inlineReachableFragments(normalized, knownFragments)
-        return ParsedSelections.fromDocument(typeName, selfContained)
-    }
 
     override fun <T : NodeObject> nodeRef(
         ctx: InternalContext,

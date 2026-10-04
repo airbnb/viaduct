@@ -23,6 +23,16 @@ class FlagManagerTest {
     }
 
     @Test
+    fun `FlagManager_default does not enable engine2`() {
+        assertFalse(FlagManager.Default.isEnabled(Flags.ENGINE2_ENABLED))
+    }
+
+    @Test
+    fun `FlagManager_default does not enable engine2 batching`() {
+        assertFalse(FlagManager.Default.isEnabled(Flags.ENGINE2_BATCHING))
+    }
+
+    @Test
     fun `FlagManager_default does not enable field RSS origin filtering killswitch`() {
         assertFalse(FlagManager.Default.isEnabled(Flags.KILLSWITCH_FIELD_RSS_ORIGIN_FILTERING))
     }

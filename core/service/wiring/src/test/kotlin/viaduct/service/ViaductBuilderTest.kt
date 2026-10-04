@@ -16,12 +16,11 @@ import viaduct.service.api.SchemaId
 import viaduct.service.api.spi.CodeInjector
 import viaduct.service.api.spi.DecodedGlobalID
 import viaduct.service.api.spi.ErrorReporter
-import viaduct.service.api.spi.FlagManager
-import viaduct.service.api.spi.FlagManager.Flag
 import viaduct.service.api.spi.GlobalIDCodec
 import viaduct.service.api.spi.NaiveTenantModuleInjectorFactory
 import viaduct.service.api.spi.ResolverErrorBuilder
 import viaduct.service.api.spi.TenantModuleInjectorFactory
+import viaduct.service.api.spi.mocks.MockFlagManager
 import viaduct.service.runtime.SchemaConfiguration
 import viaduct.service.runtime.StandardViaduct
 
@@ -30,9 +29,7 @@ class ViaductBuilderTest {
     // no registered resolver, so strict validation rejects it unless withLenientResolverValidation() is set.
     val scopedSchemas = listOf(SchemaScopeInfo.Scoped("public", setOf("publicScope")))
 
-    val flagManager = object : FlagManager {
-        override fun isEnabled(flag: Flag) = true
-    }
+    val flagManager = MockFlagManager.RuntimeFlagsEnabled
 
     @Test
     fun testBuilderProxy() {

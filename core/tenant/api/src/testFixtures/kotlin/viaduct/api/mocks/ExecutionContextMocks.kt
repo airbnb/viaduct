@@ -71,6 +71,16 @@ fun operationTextAsFragmentSelections(
     return AstPrinter.printAst(document)
 }
 
+@OptIn(InternalApi::class)
+private fun <T : CompositeOutput> SelectionSetFactory?.selectionsForOperation(
+    type: Type<T>,
+    operationText: String,
+    variables: Map<String, Any?>,
+): SelectionSet<T> {
+    val factory = this ?: throw UnsupportedOperationException("Named operations require a selectionSetFactory to be provided")
+    return factory.selectionsOn(type, operationTextAsFragmentSelections(operationText, type.name), variables)
+}
+
 private class EmptyPrebakedResults<T : CompositeOutput> : PrebakedResults<T> {
     override fun get(selections: SelectionSet<T>): T {
         throw UnsupportedOperationException("No pre-baked results were provided.")
@@ -203,18 +213,6 @@ open class MockResolverExecutionContext<Q : Query>(
         referenceSpy?.attachTo(internalContext)
     }
 
-    override fun <T : CompositeOutput> selectionsFor(
-        type: Type<T>,
-        selections: String,
-        variables: Map<String, Any?>
-    ): SelectionSet<T> {
-        return if (selectionSetFactory != null) {
-            selectionSetFactory.selectionsOn(type, selections, variables)
-        } else {
-            throw UnsupportedOperationException("selectionsFor() requires a selectionSetFactory to be provided")
-        }
-    }
-
     private fun <T : Query> query(selections: SelectionSet<T>): T {
         @Suppress("UNCHECKED_CAST")
         return queryResults.get(selections as SelectionSet<Query>) as T
@@ -227,9 +225,9 @@ open class MockResolverExecutionContext<Q : Query>(
         variables: Map<String, Any?>
     ): Q {
         val queryTypeName = schema.schema.queryType.name
-        val selectionSet = selectionsFor(
+        val selectionSet = selectionSetFactory.selectionsForOperation(
             reflectionLoader.reflectionFor(queryTypeName) as Type<Query>,
-            operationTextAsFragmentSelections(operation.operationText, queryTypeName),
+            operation.operationText,
             variables
         )
         return query(selectionSet) as Q
@@ -354,7 +352,7 @@ class MockMutationFieldExecutionContext<Q : Query, M : Mutation, A : Arguments, 
     internalContext: InternalContext,
     queryResults: PrebakedResults<Query> = EmptyPrebakedResults<Query>(),
     private val mutationResults: PrebakedResults<Mutation> = EmptyPrebakedResults<Mutation>(),
-    selectionSetFactory: SelectionSetFactory? = null,
+    private val selectionSetFactory: SelectionSetFactory? = null,
     referenceSpy: ReferenceSpy? = null,
     private val ownedSelectionsValue: SelectionSet<R> = selectionsValue,
     override val caller: Caller? = null,
@@ -383,9 +381,9 @@ class MockMutationFieldExecutionContext<Q : Query, M : Mutation, A : Arguments, 
         val mutationTypeName = schema.schema.mutationType.name
         val mutationType = reflectionLoader.reflectionFor(mutationTypeName) as Type<M>
         return mutation(
-            selectionsFor(
+            selectionSetFactory.selectionsForOperation(
                 mutationType,
-                operationTextAsFragmentSelections(operation.operationText, mutationTypeName),
+                operation.operationText,
                 variables
             )
         )

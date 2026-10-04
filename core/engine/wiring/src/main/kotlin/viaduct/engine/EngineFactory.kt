@@ -7,6 +7,7 @@ import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.FullSchema
 import viaduct.engine.runtime.DispatcherRegistry
 import viaduct.engine.runtime.execution.QueryPlanFactory
+import viaduct.service.api.spi.FlagManager
 
 /**
  * Factory for creating Engine instances with specific schema and document caching configurations.
@@ -29,6 +30,9 @@ class EngineFactory(
         documentProvider: PreparsedDocumentProvider = NoOpPreparsedDocumentProvider(),
         fullSchema: FullSchema,
     ): Engine {
+        require(!config.flagManager.isEnabled(FlagManager.Flags.ENGINE2_ENABLED)) {
+            "ENGINE2_ENABLED requires the runtime2 engine integration"
+        }
         return EngineImpl(
             config,
             dispatcherRegistry,
