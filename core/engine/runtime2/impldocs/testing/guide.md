@@ -26,6 +26,8 @@ The ordinary full check is:
 
 This covers ordinary model, resolver, correctness, execution, documentation, and generated tests. It does not run opt-in deep stress, broad campaigns, or multithreaded stress tasks.
 
+Ordinary tests run in up to four JVMs by default. The automatic limit uses half the JVM-visible processors and the reported physical/container memory budget, reserving the Gradle maximum heap and allowing 3 GiB per test JVM (2 GiB heap plus native overhead), with a minimum of one fork. Set `-Pruntime2TestForks=N` to override that limit with a positive integer; use `-Pruntime2TestForks=1` for a serial run or a constrained host. Gradle also limits concurrent forks by its worker count. This setting applies only to ordinary tests; opt-in stress tasks keep their own process and Resolution dispatcher settings.
+
 Start with the narrowest surgical test and broaden only after it passes:
 
 ```shell

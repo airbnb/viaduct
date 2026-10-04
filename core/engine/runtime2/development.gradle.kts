@@ -375,6 +375,25 @@ tasks.withType<org.gradle.api.tasks.testing.Test>().configureEach {
 
 tasks.named<Test>("test") {
     maxHeapSize = "2g"
+    maxParallelForks =
+        providers.gradleProperty("runtime2TestForks")
+            .map { configured ->
+                requireNotNull(configured.toIntOrNull()?.takeIf { it > 0 }) {
+                    "runtime2TestForks must be a positive integer: $configured"
+                }
+            }
+            .orElse(
+                provider {
+                    val runtime = Runtime.getRuntime()
+                    val cpuLimit = (runtime.availableProcessors() / 2).coerceAtLeast(1)
+                    val totalMemory =
+                        (java.lang.management.ManagementFactory.getOperatingSystemMXBean() as? com.sun.management.OperatingSystemMXBean)
+                            ?.totalMemorySize ?: Long.MAX_VALUE
+                    // Reserve the Gradle heap and budget 2 GiB heap plus 1 GiB native memory per fork.
+                    val memoryLimit = ((totalMemory - runtime.maxMemory()).coerceAtLeast(0L) / (3L shl 30)).coerceIn(1L, 4L).toInt()
+                    minOf(4, cpuLimit, memoryLimit)
+                },
+            ).get()
     filter {
         stressResolverNames.forEach { resolverName ->
             excludeTestsMatching(resolverStressTestClass(resolverName))

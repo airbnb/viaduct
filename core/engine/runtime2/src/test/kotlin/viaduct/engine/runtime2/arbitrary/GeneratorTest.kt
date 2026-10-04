@@ -1723,7 +1723,7 @@ class GeneratorTest {
             val schema = Arb.schema(config).next(random)
             val registry = schema.registry(config).next(random)
             val query = schema.query(config).next(random)
-            try {
+            val world = try {
                 registry.world(schema)
             } catch (failure: Throwable) {
                 throw AssertionError("Generated invalid schema:\n${schema.sdl}", failure)
@@ -1768,7 +1768,6 @@ class GeneratorTest {
                 }
             }
 
-            val world = registry.world(schema)
             world.selectionsFrom(query.source)
             world.selectionsFrom(query.permutationEquivalentSource)
         }
