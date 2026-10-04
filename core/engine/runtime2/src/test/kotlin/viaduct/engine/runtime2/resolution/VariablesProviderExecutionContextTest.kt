@@ -57,7 +57,6 @@ class VariablesProviderExecutionContextTest {
 
     private val resolutionContext =
         object : ResolutionExecutionContext {
-            override suspend fun resolveSelectionSet(selections: MaterializeSelectionForest): EngineObjectData.Sync =
-                error("Selection execution is not used by this test")
+            override suspend fun resolveSelectionSet(selections: MaterializeSelectionForest): EngineObjectData.Sync = error("Selection execution is not used by this test")
         }
 }

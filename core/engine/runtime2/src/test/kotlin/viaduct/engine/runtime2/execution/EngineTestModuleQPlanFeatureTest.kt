@@ -3,7 +3,6 @@ package viaduct.engine.runtime2.execution
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 import viaduct.engine.api.mocks.EngineTestModule
 import viaduct.engine.api.mocks.MockFieldBatchResolverExecutor
@@ -497,7 +496,7 @@ class EngineTestModuleQPlanFeatureTest {
     }
 
     @Test
-    fun `rejects batching before constructing qplan`() {
+    fun `adapts batching executors through the production immediate dispatcher`() {
         val module =
             EngineTestModule(
                 """
@@ -508,15 +507,18 @@ class EngineTestModuleQPlanFeatureTest {
             ) {
                 field("Query" to "value") {
                     resolverExecutor {
-                        MockFieldBatchResolverExecutor(resolverId = resolverId)
+                        MockFieldBatchResolverExecutor(
+                            resolverId = resolverId,
+                            batchResolveFn = { selectors, _ ->
+                                selectors.associateWith { Result.success(7) }
+                            },
+                        )
                     }
                 }
             }
 
-        val error =
-            assertFailsWith<NotImplementedError> {
-                module.runQPlanFeatureTest {}
-            }
-        assertTrue(error.message.orEmpty().contains("batching field executor Query.value"))
+        module.runQPlanFeatureTest {
+            runQuery("{ value }").assertJson("{data: {value: 7}}")
+        }
     }
 }

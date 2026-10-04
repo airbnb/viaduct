@@ -208,12 +208,10 @@ class Engine2(
          * production loader cache cannot merge distinct semantic occurrences. This is a
          * transitional physical-dispatch policy, not a permanent prohibition on safe reuse.
          */
-        override fun fieldDataLoader(resolver: FieldResolverExecutor): FieldDataLoader =
-            FieldDataLoader(resolver)
+        override fun fieldDataLoader(resolver: FieldResolverExecutor): FieldDataLoader = FieldDataLoader(resolver)
 
         /** See [fieldDataLoader] for the transitional per-invocation loader policy. */
-        override fun nodeDataLoader(resolver: NodeResolverExecutor): NodeDataLoader =
-            NodeDataLoader(resolver)
+        override fun nodeDataLoader(resolver: NodeResolverExecutor): NodeDataLoader = NodeDataLoader(resolver)
     }
 }
 

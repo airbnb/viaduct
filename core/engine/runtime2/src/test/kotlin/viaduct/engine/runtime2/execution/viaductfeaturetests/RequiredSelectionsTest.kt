@@ -6,7 +6,6 @@ package viaduct.engine.runtime2.execution.viaductfeaturetests
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.future.await
 import kotlinx.coroutines.withTimeout
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
@@ -17,12 +16,10 @@ import org.junit.jupiter.api.assertThrows
 import viaduct.engine.EngineConfiguration
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineSchema
-import viaduct.engine.api.ExecutionInput
 import viaduct.engine.api.FromObjectFieldVariable
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.VariablesResolver
 import viaduct.engine.api.mocks.EngineTestModule
-import viaduct.engine.api.mocks.FeatureTest
 import viaduct.engine.api.mocks.MockFieldUnbatchedResolverExecutor
 import viaduct.engine.api.mocks.MockVariablesResolver
 import viaduct.engine.api.mocks.createEngineObjectData
@@ -32,7 +29,6 @@ import viaduct.engine.api.mocks.fetchAs
 import viaduct.engine.api.mocks.getAs
 import viaduct.engine.api.select.SelectionsParser
 import viaduct.engine.api.spi.VariableFromFieldDefinitions
-import viaduct.engine.runtime.execution.DefaultCoroutineInterop
 import viaduct.engine.runtime.execution.ExecutionParameters
 import viaduct.engine.runtime.execution.FieldChildPlan
 import viaduct.engine.runtime.execution.QueryPlan
@@ -3294,23 +3290,4 @@ class RequiredSelectionsTest {
         checkNotNull(index.find(childPlan.requiredSelectionSetId)) {
             "Missing QueryPlan for RequiredSelectionSet ${childPlan.requiredSelectionSetId}"
         }
-
-    private fun FeatureTest.runQueryWithTimeout(
-        query: String,
-        variables: Map<String, Any?> = emptyMap(),
-        timeoutMillis: Long = 1_000,
-    ): graphql.ExecutionResult {
-        val input = ExecutionInput(
-            operationText = query,
-            variables = variables,
-            requestContext = Any(),
-        )
-        return kotlinx.coroutines.runBlocking {
-            withTimeout(timeoutMillis) {
-                DefaultCoroutineInterop.enterThreadLocalCoroutineContext(coroutineContext) {
-                    engine.execute(input)
-                }.await()
-            }
-        }
-    }
 }

@@ -1,12 +1,13 @@
+@file:Suppress("DEPRECATION")
+
 package viaduct.engine.runtime2.execution.testing
 
 import graphql.ExecutionResult
+import graphql.schema.GraphQLInterfaceType
 import graphql.schema.GraphQLList
 import graphql.schema.GraphQLNonNull
 import graphql.schema.GraphQLObjectType
 import graphql.schema.GraphQLOutputType
-import graphql.schema.idl.SchemaPrinter
-import java.util.IdentityHashMap
 import viaduct.engine.EngineConfiguration
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
@@ -15,54 +16,43 @@ import viaduct.engine.api.NodeReference
 import viaduct.engine.api.ResolvedEngineObjectData
 import viaduct.engine.api.RootFieldReference
 import viaduct.engine.api.mocks.EngineTestModule
+import viaduct.engine.api.mocks.FeatureTest
+import viaduct.engine.api.mocks.MockFieldUnbatchedResolverExecutor
+import viaduct.engine.api.mocks.MockNodeUnbatchedResolverExecutor
 import viaduct.engine.api.mocks.MockTenantModuleBootstrapper
+import viaduct.engine.api.mocks.runStandardViaductFeatureTest
 import viaduct.engine.api.spi.FieldResolverExecutor
-import viaduct.engine.api.spi.FieldSelectivityProvider
 import viaduct.engine.api.spi.NodeResolverExecutor
-import viaduct.engine.runtime.mocks.ContextMocks
-import viaduct.engine.runtime2.bootstrap.ExecutorRegistryInputs
-import viaduct.engine.runtime2.bootstrap.executorRegistryInputs
-import viaduct.engine.runtime2.bootstrap.validateExecutorRegistrations
-import viaduct.engine.runtime2.model.engineObjectDataOf
-import viaduct.engine.runtime2.model.registry.nodeResolverOf
-import viaduct.engine.runtime2.model.testing.TestWorld
-import viaduct.engine.runtime2.schema.ViaductAndGJSchema
-import viaduct.graphql.schema.ViaductSchema as QPlanSchema
-import viaduct.graphql.test.assertJson as realAssertJson
+import viaduct.engine.runtime.tenantloading.InvalidVariableException
+import viaduct.engine.runtime.tenantloading.RequiredSelectionsAreInvalid
+import viaduct.engine.runtime.tenantloading.RequiredSelectionsCycleException
+import viaduct.service.runtime.StandardViaduct
 
-/**
- * GraphQL feature-test surface backed directly by qplan and an [EngineTestModule]'s executors.
- *
- * This is intentionally a pre-dispatcher integration: it does not construct a DispatcherRegistry
- * or data loaders. The current integration accepts synchronous, unbatched field executors,
- * including selective ones.
- */
+/** GraphQL feature-test surface backed by engine2 through production [StandardViaduct] wiring. */
 class QPlanFeatureTest internal constructor(
-    private val fixture: ExecutionTestFixture,
+    private val delegate: FeatureTest,
 ) {
     fun runQuery(
         query: String,
         variables: Map<String, Any?> = emptyMap(),
-    ): ExecutionResult = fixture.runQuery(query, variables)
+    ): ExecutionResult = delegate.runQuery(query, variables)
 
     fun runQueryWithTimeout(
         query: String,
         variables: Map<String, Any?> = emptyMap(),
         timeoutMillis: Long = 1_000,
-    ): ExecutionResult {
-        require(timeoutMillis > 0) { "Timeout must be positive" }
-        return runQuery(query, variables)
-    }
+    ): ExecutionResult = delegate.runQueryWithin(query, variables, timeoutMillis)
 
-    fun ExecutionResult.assertJson(expectedJson: String): Unit = realAssertJson(expectedJson)
+    fun ExecutionResult.assertJson(expectedJson: String): Unit = with(delegate) { assertJson(expectedJson) }
 }
 
 /**
- * Runs qplan against the executor registry represented by this in-memory engine module.
+ * Runs engine2 through [StandardViaduct] against this in-memory engine module.
  *
- * Source executor values are adapted before qplan's existing fixture lowering. Consequently,
- * `__typename` remains GraphQL-Java completion over qplan's generated typename resolvers, while
- * Node references and Node resolver outputs use the canonical qplan node-bridge lowering.
+ * This follows the old engine's production-derived feature harness by bootstrapping module configs,
+ * dispatchers, data loaders, and checkers. Unlike that harness, requests enter through the service
+ * API so feature tests also cover engine selection and the rest of [StandardViaduct]'s execution
+ * boundary.
  */
 fun EngineTestModule.runQPlanFeatureTest(
     withoutDefaultQueryNodeResolvers: Boolean = false,
@@ -70,53 +60,95 @@ fun EngineTestModule.runQPlanFeatureTest(
     engineConfig: EngineConfiguration? = null,
     block: QPlanFeatureTest.() -> Unit,
 ) {
-    val fullSchemaSDL = qplanSchemaSDL(fullSchema)
-    val executableSchemaSDL = qplanSchemaSDL(schema ?: fullSchema)
-    val context = ContextMocks(myFullSchema = fullSchema).engineExecutionContextImpl
-    val fieldSelectivityProvider =
-        engineConfig?.fieldSelectivityProvider ?: FieldSelectivityProvider.Never
-    val registryInputs = IdentityHashMap<QPlanSchema, ExecutorRegistryInputs>()
-    validateExecutorRegistrations(fieldResolverExecutors.toList(), nodeResolverExecutors.toList())
-    if (checkerExecutors.isNotEmpty() || typeCheckerExecutors.isNotEmpty()) {
-        TODO("Qplan feature tests do not support checker executors yet")
-    }
-
-    fun inputs(schemas: ViaductAndGJSchema): ExecutorRegistryInputs =
-        registryInputs.getOrPut(schemas.loweredSchema) {
-            val adapted = executorRegistryInputs(
-                fullSchema = fullSchema,
-                schemas = schemas,
-                fieldExecutors = fieldResolverExecutors.map { (coordinate, executor) ->
-                    coordinate to fixtureFieldExecutor(coordinate, executor)
-                },
-                nodeExecutors = nodeResolverExecutors.map { (typeName, executor) ->
-                    typeName to fixtureNodeExecutor(typeName, executor)
-                },
-                context = context,
-                fieldSelectivityProvider = fieldSelectivityProvider,
-                includeDefaultQueryNodeResolvers = !withoutDefaultQueryNodeResolvers,
-            )
-            val nodeType = schemas.loweredSchema.types["Node"] as? QPlanSchema.Interface
-            val missing = if (adapted.nodeResolvers.isEmpty()) {
-                emptyMap()
-            } else {
-                nodeType?.possibleObjectTypes.orEmpty()
-                    .filter { it !in adapted.nodeResolvers }
-                    .associateWith { type -> nodeResolverOf { _: String -> engineObjectDataOf(type) } }
+    val suppliedFieldExecutors = fieldResolverExecutors.toList()
+    val suppliedFieldCoordinates = suppliedFieldExecutors.mapTo(mutableSetOf()) { it.first }
+    val missingQueryExecutors =
+        fullSchema.schema.queryType.fieldDefinitions
+            .filter { ("Query" to it.name) !in suppliedFieldCoordinates }
+            .map { field ->
+                ("Query" to field.name) to
+                    MockFieldUnbatchedResolverExecutor(
+                        resolverId = "runtime2-feature-test-default:Query.${field.name}",
+                        unbatchedResolveFn = { _, _, _, _, _ -> fixtureDefaultValue(field.type) },
+                    )
             }
-            ExecutorRegistryInputs(adapted.fieldResolvers, adapted.nodeResolvers + missing, adapted.variableProviders)
+    val suppliedNodeExecutors = nodeResolverExecutors.toList()
+    val missingNodeExecutors =
+        if (suppliedNodeExecutors.isEmpty()) {
+            emptyList()
+        } else {
+            val suppliedTypes = suppliedNodeExecutors.mapTo(mutableSetOf()) { it.first }
+            val nodeType = fullSchema.schema.getType("Node") as? GraphQLInterfaceType
+            nodeType
+                ?.let(fullSchema.schema::getImplementations)
+                .orEmpty()
+                .filter { it.name !in suppliedTypes }
+                .map { type ->
+                    type.name to
+                        MockNodeUnbatchedResolverExecutor(typeName = type.name) { _, _, _ ->
+                            ResolvedEngineObjectData(type, emptyMap())
+                        }
+                }
         }
-    val world =
-        TestWorld.fromSDL(
-            schemaSDL = fullSchemaSDL,
-            fieldResolvers = { inputs(it).fieldResolvers },
-            nodeResolvers = { inputs(it).nodeResolvers },
-            variableProviders = { inputs(it).variableProviders },
+    val adaptedModule =
+        EngineTestModule(
+            fullSchema = fullSchema,
+            fieldResolverExecutors = (suppliedFieldExecutors + missingQueryExecutors).map { (coordinate, executor) ->
+                coordinate to fixtureFieldExecutor(coordinate, executor)
+            },
+            nodeResolverExecutors = (suppliedNodeExecutors + missingNodeExecutors).map { (typeName, executor) ->
+                typeName to fixtureNodeExecutor(typeName, executor)
+            },
+            checkerExecutors = checkerExecutors,
+            typeCheckerExecutors = typeCheckerExecutors,
         )
-    ExecutionTestFixture.fromWorld(executableSchemaSDL, world).use { fixture ->
-        QPlanFeatureTest(fixture).block()
+    try {
+        adaptedModule.runStandardViaductFeatureTest(
+            engine2Enabled = true,
+            withoutDefaultQueryNodeResolvers =
+                withoutDefaultQueryNodeResolvers ||
+                    suppliedFieldCoordinates.any { (typeName, fieldName) ->
+                        typeName == "Query" && fieldName in setOf("node", "nodes")
+                    },
+            schema = schema,
+            engineConfig = engineConfig,
+        ) {
+            QPlanFeatureTest(this).block()
+        }
+    } catch (failure: RequiredSelectionsAreInvalid) {
+        throw IllegalArgumentException("Invalid GraphQL fragment: ${failure.message}", failure)
+    } catch (failure: InvalidVariableException) {
+        throw failure.asFeatureTestFailure()
+    } catch (failure: RequiredSelectionsCycleException) {
+        throw IllegalArgumentException("Resolver object fragments contain a demand cycle", failure)
     }
 }
+
+/** Preserves the source feature harness's public validation vocabulary. */
+private fun InvalidVariableException.asFeatureTestFailure(): IllegalArgumentException {
+    val compatibleMessage =
+        when {
+            reason.startsWith("Types not compatible") -> {
+                val path = reason.substringAfter(" at location [").substringBefore(']')
+                "Variable $variableName object provider path $path is incompatible with one of its argument locations"
+            }
+
+            reason.contains("must terminate on a scalar or enum type") -> {
+                val path = reason.substringAfter("Path [").substringBefore(']')
+                "from-field path $path must terminate at a scalar or enum"
+            }
+
+            else -> message
+        }
+    return IllegalArgumentException(compatibleMessage, this)
+}
+
+private fun fixtureDefaultValue(type: GraphQLOutputType): Any? =
+    when (type) {
+        is GraphQLNonNull -> fixtureDefaultValue(type.wrappedType as GraphQLOutputType)
+        is GraphQLList -> emptyList<Any?>()
+        else -> null
+    }
 
 fun MockTenantModuleBootstrapper.runQPlanFeatureTest(
     withoutDefaultQueryNodeResolvers: Boolean = false,
@@ -210,16 +242,4 @@ private fun fixtureNodeIds(
         fields["id"] = "__qplan_inline_node__"
     }
     return if (value is Map<*, *>) fields else ResolvedEngineObjectData(type, fields)
-}
-
-private fun qplanSchemaSDL(schema: EngineSchema): String {
-    val options =
-        SchemaPrinter.Options
-            .defaultOptions()
-            .includeIntrospectionTypes(false)
-            .includeScalarTypes(false)
-            .includeDirectiveDefinition { directiveName -> directiveName == "parent" }
-            .includeDirectives { directiveName -> directiveName == "parent" }
-            .includeSchemaDefinition(false)
-    return SchemaPrinter(options).print(schema.schema)
 }

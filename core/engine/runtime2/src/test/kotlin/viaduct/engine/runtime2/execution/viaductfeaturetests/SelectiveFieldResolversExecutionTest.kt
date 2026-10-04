@@ -1985,6 +1985,7 @@ class SelectiveFieldResolversExecutionTest {
             }
         }
 
+        @Disabled("ALT: Runtime2 closes selective demand before its one producer invocation instead of rematerializing the producer")
         @Test
         fun `selective field inputs survive rematerialization`() {
             var initialRequestContext: Any? = null
@@ -2024,6 +2025,54 @@ class SelectiveFieldResolversExecutionTest {
                                             )
                                         }
                                     },
+                                )
+                            }
+                        )
+                    }
+                }
+
+                field("Foo" to "x") {
+                    resolver {
+                        objectSelections("y")
+                        fn { _, obj, _, _, _ -> obj.fetchAs<Int>("y") * 5 }
+                    }
+                }
+            }.runQPlanFeatureTest {
+                runQueryWithTimeout(
+                    "query(\$y: Int!) { foo(y: \$y) { x } }",
+                    variables = mapOf("y" to 3),
+                ).assertJson("{data: {foo: {x: 30}}}")
+            }
+        }
+
+        @Test
+        fun `ALTERNATIVE selective field inputs receive closed demand`() {
+            MockTenantModuleBootstrapper(
+                """
+                    extend type Query { x: Int, foo(y: Int!): Foo }
+                    type Foo { x: Int, y: Int }
+                """.trimIndent()
+            ) {
+                field("Query" to "x") {
+                    resolver {
+                        fn { _, _, _, _, _ -> 2 }
+                    }
+                }
+
+                field("Query" to "foo") {
+                    resolverExecutor {
+                        MockFieldUnbatchedResolverExecutor(
+                            isSelective = true,
+                            objectSelectionSet = createRSS("Query", "x"),
+                            resolverId = resolverId,
+                            unbatchedResolveFn = { arguments, obj, _, sels, context ->
+                                check(sels!!.containsField("Foo", "y"))
+                                checkNotNull(context.requestContext)
+                                createEngineObjectData(
+                                    "Foo",
+                                    mapOf(
+                                        "y" to obj.fetchAs<Int>("x") * arguments.getAs<Int>("y"),
+                                    ),
                                 )
                             }
                         )
