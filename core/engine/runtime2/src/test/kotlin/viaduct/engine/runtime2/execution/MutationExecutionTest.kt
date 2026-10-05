@@ -5,13 +5,167 @@ import kotlinx.coroutines.yield
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
+import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.mocks.EngineTestModule
 import viaduct.engine.api.mocks.fetchAs
+import viaduct.engine.runtime.execution.mutation
 import viaduct.engine.runtime.execution.query
 import viaduct.engine.runtime2.execution.testing.runQPlanFeatureTest
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class MutationExecutionTest {
+    @Test
+    fun `ctx mutation preserves namespace order aliases conditions and independent calls`() {
+        var count = 0
+        val events = mutableListOf<String>()
+        EngineTestModule(
+            """
+            extend type Query { trigger: String @resolver }
+            extend type Mutation { group: MutationGroup, update(amount: Int!): Int @resolver }
+            type MutationGroup @namespaceType { update(amount: Int!): Int @resolver, nested: NestedMutations }
+            type NestedMutations @namespaceType { update(amount: Int!): Int @resolver }
+            """.trimIndent(),
+        ) {
+            for (type in listOf("Mutation", "MutationGroup", "NestedMutations")) {
+                field(type to "update") {
+                    resolver {
+                        fn { arguments, _, _, _, _ ->
+                            events += "start:$type"
+                            yield()
+                            count += arguments["amount"] as Int
+                            events += "end:$type"
+                            count
+                        }
+                    }
+                }
+            }
+            field("Query" to "trigger") {
+                resolver {
+                    fn { _, _, _, _, ctx ->
+                        val selections = ctx.engineSelectionSetFactory.engineSelectionSet(
+                            "Mutation",
+                            """
+                            group {
+                                first: update(amount: ${'$'}amount)
+                                nested {
+                                    skipped: update(amount: 99) @include(if: ${'$'}include)
+                                    middle: update(amount: ${'$'}amount)
+                                }
+                                last: update(amount: ${'$'}amount)
+                                first: update(amount: ${'$'}amount)
+                            }
+                            tail: update(amount: ${'$'}amount)
+                            """.trimIndent(),
+                            mapOf("amount" to 1, "include" to false),
+                        )
+                        (1..2).map {
+                            val result = ctx.mutation(selections)
+                            val group = result.fetchAs<EngineObjectData>("group")
+                            val nested = group.fetchAs<EngineObjectData>("nested")
+                            listOf(
+                                group.fetchAs<Int>("first"),
+                                nested.fetchAs<Int>("middle"),
+                                group.fetchAs<Int>("last"),
+                                result.fetchAs<Int>("tail"),
+                            ).joinToString(":")
+                        }.joinToString("|")
+                    }
+                }
+            }
+        }.runQPlanFeatureTest {
+            runQuery("{ trigger }").assertJson("""{"data":{"trigger":"1:2:3:4|5:6:7:8"}}""")
+        }
+        val types = listOf("MutationGroup", "NestedMutations", "MutationGroup", "Mutation")
+        assertEquals((types + types).flatMap { listOf("start:$it", "end:$it") }, events)
+        assertEquals(8, count)
+    }
+
+    @Test
+    fun `ctx mutation finishes payloads before advancing nested and outer mutations`() {
+        var count = 0
+        val events = mutableListOf<String>()
+        EngineTestModule(
+            """
+            extend type Mutation { outer: String @resolver, update: Payload @resolver, later: Int @resolver }
+            type Payload { observed: Int @resolver }
+            """.trimIndent(),
+        ) {
+            field("Mutation" to "outer") {
+                resolver {
+                    fn { _, _, _, _, ctx ->
+                        events += "outer:start"
+                        val selections = ctx.engineSelectionSetFactory.engineSelectionSet("Mutation", "first: update { observed } second: update { observed }", emptyMap())
+                        val result = ctx.mutation(selections)
+                        events += "outer:end"
+                        val first = result.fetchAs<EngineObjectData>("first").fetchAs<Int>("observed")
+                        val second = result.fetchAs<EngineObjectData>("second").fetchAs<Int>("observed")
+                        "$first:$second"
+                    }
+                }
+            }
+            field("Mutation" to "update") {
+                resolver {
+                    fn { _, _, _, _, _ ->
+                        events += "update:${++count}"
+                        mapOf<String, Any?>()
+                    }
+                }
+            }
+            field("Payload" to "observed") {
+                resolver {
+                    fn { _, _, _, _, _ ->
+                        yield()
+                        events += "payload:$count"
+                        count
+                    }
+                }
+            }
+            field("Mutation" to "later") {
+                resolver {
+                    fn { _, _, _, _, _ ->
+                        events += "later"
+                        ++count
+                    }
+                }
+            }
+        }.runQPlanFeatureTest {
+            runQuery("mutation { outer later }").assertJson("""{"data":{"outer":"1:2","later":3}}""")
+        }
+        assertEquals(listOf("outer:start", "update:1", "payload:1", "update:2", "payload:2", "outer:end", "later"), events)
+    }
+
+    @Test
+    fun `ctx mutation finishes later effects after nonnull failures`() {
+        for (nullResult in listOf(false, true)) {
+            var count = 0
+            EngineTestModule("extend type Query { trigger: Int @resolver } extend type Mutation { update: Int! @resolver }") {
+                field("Mutation" to "update") {
+                    resolver {
+                        fn { _, _, _, _, _ ->
+                            if (++count == 1) {
+                                if (nullResult) null else error("nested mutation failed")
+                            } else {
+                                yield()
+                                count
+                            }
+                        }
+                    }
+                }
+                field("Query" to "trigger") {
+                    resolver {
+                        fn { _, _, _, _, ctx ->
+                            val selections = ctx.engineSelectionSetFactory.engineSelectionSet("Mutation", "failed: update middle: update last: update", emptyMap())
+                            ctx.mutation(selections).fetchAs<Int>("last")
+                        }
+                    }
+                }
+            }.runQPlanFeatureTest {
+                runQuery("{ trigger }").assertJson("""{"data":{"trigger":3}}""")
+            }
+            assertEquals(3, count, "nullResult=$nullResult")
+        }
+    }
+
     @Test
     fun `a nonnull mutation failure preserves later mutation effects`() {
         for (nullResult in listOf(false, true)) {

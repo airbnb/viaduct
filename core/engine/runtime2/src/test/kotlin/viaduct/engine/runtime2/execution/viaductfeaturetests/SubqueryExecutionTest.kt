@@ -10,6 +10,8 @@ import java.time.Duration
 import java.util.Collections
 import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeout
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -328,7 +330,6 @@ abstract class SubqueryExecutionTestCases(
         }
     }
 
-    @Disabled("TODO: Mutation")
     @Test
     fun `ctx mutation with GraphQL variables`() {
         EngineTestModule(
@@ -394,7 +395,6 @@ abstract class SubqueryExecutionTestCases(
         }
     }
 
-    @Disabled("TODO: Mutation")
     @Test
     fun `ctx mutation executes subquery against Mutation root`() {
         EngineTestModule(
@@ -459,7 +459,6 @@ abstract class SubqueryExecutionTestCases(
         }
     }
 
-    @Disabled("TODO: Mutation")
     @Test
     fun `query resolver can execute mutation subquery at engine level`() {
         // This tests an edge case: a Query field resolver calling ctx.mutation().
@@ -641,7 +640,6 @@ abstract class SubqueryExecutionTestCases(
         }
     }
 
-    @Disabled("TODO: Mutation")
     @Test
     fun `ctx mutation returns error when schema has no mutation type`() {
         EngineTestModule(
@@ -813,7 +811,7 @@ abstract class SubqueryExecutionTestCases(
         }
     }
 
-    @Disabled("TODO: Mutation")
+    @Disabled("ALT: Mutation resolvers use ctx.query() instead of Query required selections; alternative uses structured Kotlin coroutines")
     @Test
     fun `parallel ctx mutations with disjoint query selections on same node complete`() {
         val variableResolversStarted = AtomicInteger()
@@ -921,7 +919,105 @@ abstract class SubqueryExecutionTestCases(
         }
     }
 
-    @Disabled("TODO: Mutation")
+    @Test
+    fun `ALTERNATIVE parallel ctx mutations with disjoint query selections on same node complete`() {
+        val nodeCalls = AtomicInteger()
+        val bothNodesStarted = CompletableDeferred<Unit>()
+        val nodeSelections = Collections.synchronizedList(mutableListOf<Set<String>>())
+
+        EngineTestModule(
+            """
+            extend type Mutation {
+                runBoth: String
+                readFoo(kind: String!): String
+            }
+
+            type Foo implements Node {
+                id: ID!
+                a: String
+                b: String
+            }
+            """.trimIndent()
+        ) {
+            field("Query" to "node") {
+                resolver {
+                    fn { _, _, _, _, ctx ->
+                        ctx.createNodeReference("foo-1", schema.schema.getObjectType("Foo"))
+                    }
+                }
+            }
+
+            type("Foo") {
+                nodeUnbatchedExecutor(selective = true) { id, selections, _ ->
+                    val requested = setOf("a", "b").filterTo(mutableSetOf()) {
+                        selections?.containsSelection("Foo", it) == true
+                    }
+                    nodeSelections.add(requested)
+                    if (nodeCalls.incrementAndGet() == 2) bothNodesStarted.complete(Unit)
+                    withTimeout(5_000) { bothNodesStarted.await() }
+                    createEngineObjectData(
+                        objectType,
+                        buildMap<String, Any?> {
+                            put("id", id)
+                            requested.forEach { put(it, it) }
+                        }
+                    )
+                }
+            }
+
+            field("Mutation" to "readFoo") {
+                resolver {
+                    fn { args, _, _, _, ctx ->
+                        val kind = args.getAs<String>("kind")
+                        val selections = ctx.engineSelectionSetFactory.engineSelectionSet(
+                            "Query",
+                            """
+                            node(id: ${'$'}fooId) {
+                                ... on Foo {
+                                    a @include(if: ${'$'}includeA)
+                                    b @include(if: ${'$'}includeB)
+                                }
+                            }
+                            """.trimIndent(),
+                            mapOf("fooId" to "foo-1", "includeA" to (kind == "A"), "includeB" to (kind == "B"))
+                        )
+                        val node = ctx.query(selections).fetchAs<EngineObjectData>("node")
+                        when (kind) {
+                            "A" -> node.fetchAs<String>("a")
+                            "B" -> node.fetchAs<String>("b")
+                            else -> error("Unexpected kind")
+                        }
+                    }
+                }
+            }
+
+            field("Mutation" to "runBoth") {
+                resolver {
+                    fn { _, _, _, _, ctx ->
+                        coroutineScope {
+                            val first = async {
+                                val selections = ctx.engineSelectionSetFactory
+                                    .engineSelectionSet("Mutation", """readFoo(kind: "A")""", emptyMap())
+                                ctx.mutation(selections).fetchAs<String>("readFoo")
+                            }
+                            val second = async {
+                                val selections = ctx.engineSelectionSetFactory
+                                    .engineSelectionSet("Mutation", """readFoo(kind: "B")""", emptyMap())
+                                ctx.mutation(selections).fetchAs<String>("readFoo")
+                            }
+                            "${first.await()}${second.await()}"
+                        }
+                    }
+                }
+            }
+        }.runFeatureTest(withoutDefaultQueryNodeResolvers = true) {
+            runQueryWithTimeout("mutation { runBoth }", timeoutMillis = 10_000)
+                .assertJson("""{"data": {"runBoth": "ab"}}""")
+        }
+        assertEquals(2, nodeCalls.get())
+        assertEquals(setOf(setOf("a"), setOf("b")), nodeSelections.toSet())
+    }
+
     @Test
     fun `ctx mutation executes fields serially`() {
         val events = Collections.synchronizedList(mutableListOf<String>())
@@ -1010,7 +1106,7 @@ abstract class SubqueryExecutionTestCases(
         }
     }
 
-    @Disabled("TODO: Mutation")
+    @Disabled("ALT: scopedAsync requires thread-local coroutine context support; alternative uses structured Kotlin coroutines")
     @Test
     fun `ctx query from mutation resolver does not serialize namespaced query fields`() {
         val q1Started = CompletableDeferred<Unit>()
@@ -1083,6 +1179,95 @@ abstract class SubqueryExecutionTestCases(
 
                         val namespace = queryResult.await().fetchAs<EngineObjectData>("namespace")
                         "${namespace.fetchAs<Int>("q1")}:${namespace.fetchAs<Int>("q2")}"
+                    }
+                }
+            }
+        }.runFeatureTest {
+            runQuery("mutation { triggerQuery }")
+                .assertJson("""{"data": {"triggerQuery": "1:2"}}""")
+
+            assertEquals(
+                listOf("q2 started before q1 completed"),
+                parallelObservations,
+                "Query namespace fields should stay parallel when selected by ctx.query from a mutation resolver"
+            )
+        }
+    }
+
+    @Test
+    fun `ALTERNATIVE ctx query from mutation resolver does not serialize namespaced query fields`() {
+        val q1Started = CompletableDeferred<Unit>()
+        val q2Started = CompletableDeferred<Unit>()
+        val q1CanFinish = CompletableDeferred<Unit>()
+        val parallelObservations = Collections.synchronizedList(mutableListOf<String>())
+
+        EngineTestModule(
+            """
+            extend type Query {
+                namespace: QueryNamespace
+            }
+
+            extend type Mutation {
+                triggerQuery: String
+            }
+
+            type QueryNamespace @namespaceType {
+                q1: Int
+                q2: Int
+            }
+            """.trimIndent()
+        ) {
+            field("Query" to "namespace") {
+                resolver {
+                    fn { _, _, _, _, _ ->
+                        createEngineObjectData(
+                            schema.schema.getObjectType("QueryNamespace"),
+                            mapOf()
+                        )
+                    }
+                }
+            }
+
+            field("QueryNamespace" to "q1") {
+                resolver {
+                    fn { _, _, _, _, _ ->
+                        q1Started.complete(Unit)
+                        q1CanFinish.await()
+                        1
+                    }
+                }
+            }
+
+            field("QueryNamespace" to "q2") {
+                resolver {
+                    fn { _, _, _, _, _ ->
+                        if (!q1CanFinish.isCompleted) {
+                            parallelObservations.add("q2 started before q1 completed")
+                        }
+                        q2Started.complete(Unit)
+                        2
+                    }
+                }
+            }
+
+            field("Mutation" to "triggerQuery") {
+                resolver {
+                    fn { _, _, _, _, ctx ->
+                        coroutineScope {
+                            val rss = ctx.engineSelectionSetFactory
+                                .engineSelectionSet("Query", "namespace { q1 q2 }", emptyMap())
+
+                            val queryResult = async {
+                                ctx.query(selectionSet = rss)
+                            }
+
+                            withTimeout(1000) { q1Started.await() }
+                            withTimeout(1000) { q2Started.await() }
+                            q1CanFinish.complete(Unit)
+
+                            val namespace = queryResult.await().fetchAs<EngineObjectData>("namespace")
+                            "${namespace.fetchAs<Int>("q1")}:${namespace.fetchAs<Int>("q2")}"
+                        }
                     }
                 }
             }

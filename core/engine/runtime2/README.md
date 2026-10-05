@@ -8,7 +8,7 @@ The production field-resolution implementation is [`Resolution`](src/main/kotlin
 
 Runtime2 currently provides a query-focused execution path for selective and non-selective field and node resolvers, object- and Query-rooted required selections, resolver variables, root-field references, nested query execution, GraphQL completion, and incremental `@defer` delivery. The detailed supported and rejected surface is maintained in [Engine API integration](impldocs/integration/engine-api.md).
 
-Major exclusions from the current Engine API integration include batching, mutation namespace checkers, `ctx.mutation()`, subscriptions, custom scalars, `@stream`, and some resolver combinations documented with the integration boundary. Runtime2 reuses the production dispatcher bootstrap and service wiring behind an opt-in feature flag; that path is not yet the default.
+Major exclusions from the current Engine API integration include batching, mutation namespace checkers, subscriptions, custom scalars, `@stream`, and some resolver combinations documented with the integration boundary. Runtime2 reuses the production dispatcher bootstrap and service wiring behind an opt-in feature flag; that path is not yet the default.
 
 ## Source Layout
 

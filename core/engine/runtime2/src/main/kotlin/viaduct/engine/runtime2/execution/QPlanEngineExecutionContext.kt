@@ -14,6 +14,7 @@ import viaduct.engine.runtime2.model.registry.ResolutionExecutionContext
 import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.schema.ViaductAndGJSchema
 import viaduct.engine.runtime2.schema.fragmentFromDocument
+import viaduct.engine.runtime2.schema.mutationSelections
 
 /** Engine API facade whose selection execution is owned by the active Resolution field task. */
 internal class QPlanEngineExecutionContext(
@@ -54,17 +55,27 @@ internal class Runtime2ExecutionHandle(
         selectionSet: EngineSelectionSet,
         options: ResolveSelectionSetOptions,
     ): EngineObjectData.Sync {
-        require(options.operationType == Engine.OperationType.QUERY) {
-            "Qplan selection execution currently supports Query only"
+        val rootType = when (options.operationType) {
+            Engine.OperationType.QUERY -> schemas.loweredSchema.requireQueryTypeDef()
+            Engine.OperationType.MUTATION -> requireNotNull(schemas.loweredSchema.mutationTypeDef) {
+                "Cannot execute mutation selections without a Mutation root"
+            }
         }
-        require(selectionSet.type == schemas.loweredSchema.requireQueryTypeDef().name) {
-            "Cannot execute selections with type ${selectionSet.type} on schema root type ${schemas.loweredSchema.requireQueryTypeDef().name}"
+        require(selectionSet.type == rootType.name) {
+            "Cannot execute selections with type ${selectionSet.type} on schema root type ${rootType.name}"
         }
         val fragment =
             schemas.fragmentFromDocument(
                 document = selectionSet.toFragment().parsedDocument,
                 bindings = selectionSet.variables,
             )
-        return resolutionContext.resolveSelectionSet(fragment.materializeSelections)
+        val selections = fragment.materializeSelections
+        return when (options.operationType) {
+            Engine.OperationType.QUERY -> resolutionContext.resolveSelectionSet(selections)
+            Engine.OperationType.MUTATION -> resolutionContext.resolveMutationSelectionSet(
+                selections,
+                selections.mutationSelections(schemas.loweredSchema, rootType),
+            )
+        }
     }
 }

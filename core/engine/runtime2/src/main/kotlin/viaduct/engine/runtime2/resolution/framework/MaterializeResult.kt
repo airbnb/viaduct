@@ -11,7 +11,9 @@ import viaduct.engine.runtime2.model.EngineResultCell
 import viaduct.engine.runtime2.model.EngineResultIsPending
 import viaduct.engine.runtime2.model.ErrorEngineResult
 import viaduct.engine.runtime2.model.ListEngineResult
+import viaduct.engine.runtime2.model.MaterializeSelection
 import viaduct.engine.runtime2.model.MaterializeSelectionForest
+import viaduct.engine.runtime2.model.MutationObjectEngineResult
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.ObjectMaterializeSelection
 import viaduct.engine.runtime2.model.PathComponent
@@ -82,7 +84,12 @@ private class MaterializationLogic(
         val selectedValues =
             linkedMapOf<String, Pair<ViaductSchema.ObjectField, EngineOutputData?>>()
         selections.fetchIncluded().collect(type).byResponseKey().forEach { (responseKey, selection) ->
-            val candidateKey = selection.materializedSymbolicKey()
+            val selectedKey = selection.materializedSymbolicKey()
+            val candidateKey = if (this is MutationObjectEngineResult) {
+                ObjectEngineResult.MutationKey.of(selectedKey as ObjectEngineResult.GroundKey, responseKey)
+            } else {
+                selectedKey
+            }
             val storedKey = findStoredKey(operation, candidateKey) ?: candidateKey
             val cell = getCell(storedKey)
             val value =
@@ -116,7 +123,7 @@ private class MaterializationLogic(
 
     private suspend fun MaterializeSelectionForest.fetchIncluded(): MaterializeSelectionForest {
         var included = materializeSelectionForestOf()
-        val selections = mutableListOf<viaduct.engine.runtime2.model.MaterializeSelection>()
+        val selections = mutableListOf<MaterializeSelection>()
         forEach(selections::add)
         for (selection in selections) {
             if (selection.inclusionCondition.fetchIncluded(operation)) {

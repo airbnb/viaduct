@@ -13,6 +13,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
+import viaduct.engine.api.Engine
 import viaduct.engine.api.ResolveSelectionSetOptions
 import viaduct.engine.api.mocks.EngineTestModule
 import viaduct.engine.api.mocks.MockExecutorCodeInjector
@@ -24,6 +25,38 @@ import viaduct.service.runtime.SchemaConfiguration
 import viaduct.service.runtime.StandardViaduct
 
 class Engine2RequestLifetimeTest {
+    @Test
+    fun `caller cancellation reaches nested mutations without cancelling another request`() =
+        runBlocking {
+            val viaduct = requestLifetimeViaduct()
+            val cancelled = RequestControl("cancelled", ResolveSelectionSetOptions.MUTATION)
+            val survivor = RequestControl("survivor", ResolveSelectionSetOptions.MUTATION)
+            val execution = async { viaduct.execute(input(cancelled), SchemaId.Base) }
+            val survivingExecution = async { viaduct.execute(input(survivor), SchemaId.Base) }
+            try {
+                withTimeout(TIMEOUT_MILLIS) {
+                    cancelled.nestedStarted.await()
+                    survivor.nestedStarted.await()
+                }
+                execution.cancel(CancellationException("caller cancelled nested mutation"))
+                withTimeout(TIMEOUT_MILLIS) {
+                    cancelled.nestedCancelled.await()
+                    cancelled.outerCancelled.await()
+                    execution.join()
+                }
+                assertFalse(survivor.nestedCancelled.isCompleted)
+                assertFalse(survivingExecution.isCompleted)
+                survivor.allowNestedResult.complete(Unit)
+                val result = withTimeout(TIMEOUT_MILLIS) { survivingExecution.await() }
+                assertEquals(emptyList(), result.errors)
+                assertEquals(mapOf("outer" to "survivor"), result.getData())
+                assertTrue(execution.isCancelled)
+            } finally {
+                execution.cancel()
+                survivingExecution.cancel()
+            }
+        }
+
     @Test
     fun `caller cancellation interrupts mutations while response completion waits`() =
         runBlocking {
@@ -129,10 +162,14 @@ class Engine2RequestLifetimeTest {
                     resolver {
                         fn { _, _, _, _, context ->
                             val control = context.requestContext as RequestControl
+                            val (type, field) = when (control.nestedOptions.operationType) {
+                                Engine.OperationType.QUERY -> "Query" to "nested"
+                                Engine.OperationType.MUTATION -> "Mutation" to "later"
+                            }
                             val selections =
                                 context.engineSelectionSetFactory.engineSelectionSet(
-                                    "Query",
-                                    "nested",
+                                    type,
+                                    field,
                                     emptyMap(),
                                 )
                             try {
@@ -140,9 +177,9 @@ class Engine2RequestLifetimeTest {
                                     context.engine.resolveSelectionSet(
                                         requireNotNull(context.executionHandle),
                                         selections,
-                                        ResolveSelectionSetOptions.DEFAULT,
+                                        control.nestedOptions,
                                     )
-                                result.get("nested")
+                                result.get(field)
                             } catch (cancellation: CancellationException) {
                                 control.outerCancelled.complete(Unit)
                                 throw cancellation
@@ -186,6 +223,7 @@ class Engine2RequestLifetimeTest {
 
     private class RequestControl(
         val value: String,
+        val nestedOptions: ResolveSelectionSetOptions = ResolveSelectionSetOptions.DEFAULT,
     ) {
         val nestedStarted = CompletableDeferred<Unit>()
         val allowNestedResult = CompletableDeferred<Unit>()

@@ -4,6 +4,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.job
@@ -14,6 +15,7 @@ import viaduct.engine.runtime2.model.EngineObjectOrErrorData
 import viaduct.engine.runtime2.model.EngineResultCell
 import viaduct.engine.runtime2.model.InclusionCondition
 import viaduct.engine.runtime2.model.MaterializeSelectionForest
+import viaduct.engine.runtime2.model.MutationSelectionForest
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.ObjectSelection
 import viaduct.engine.runtime2.model.ResolverOccurrenceId
@@ -305,6 +307,22 @@ internal class FieldResolverTask private constructor(
                 publication.oerOccurrence.root
                     .fieldResolverCycleTask(publication.sourceOccurrence.publicationPath),
             cycleChecker = childOperation.cycleChecker,
+        )
+    }
+
+    /** Finishes every nested mutation before materialization can fail or return to the caller. */
+    override suspend fun resolveMutationSelectionSet(
+        selections: MaterializeSelectionForest,
+        mutations: MutationSelectionForest,
+    ): EngineObjectData.Sync {
+        val result = coroutineScope {
+            publication.operation.forChildScope(this).startResolve(mutations)
+        }
+        return result.materializeResult(
+            operation = publication.operation,
+            selections = selections,
+            reader = publication.oerOccurrence.root.fieldResolverCycleTask(publication.sourceOccurrence.publicationPath),
+            cycleChecker = publication.operation.cycleChecker,
         )
     }
 

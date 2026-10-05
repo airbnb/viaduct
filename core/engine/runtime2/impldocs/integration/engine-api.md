@@ -71,11 +71,13 @@ Production checker dispatchers expose the same normalized variable-definition ca
 
 `Engine2` installs `QPlanExecutionStrategy` for both query and mutation operations. Mutation operation decoding grounds arguments and conditions, collects fields by response key in source order, and constructs ordered mutation forests through structural namespace edges. Completion reads response-key-qualified mutation cells from `MutationObjectEngineResult`; payload completion uses ordinary OERs and wiring. Every selected mutation executes regardless of earlier failures or nullability. The strategy calls `StartedResolution.await()` for mutation operations before ordinary asynchronous GraphQL completion; null propagation changes response shape without suppressing later effects. Mutation resolvers cannot declare object or Query required selections and use `ctx.query()` for dependent reads. Mutation namespace field and type checkers are excluded; payload checkers retain ordinary semantics.
 
-### Nested Query Execution
+### Nested Query And Mutation Execution
 
 Resolution passes the concrete `FieldResolverTask` to each registry function as its `ResolutionExecutionContext`. The adapter wraps that explicit capability in an invocation-local `QPlanEngineExecutionContext`; it does not discover the current task through coroutine context.
 
-`EngineExecutionContext.resolveSelectionSet` and `ctx.query()` convert the requested Query selection into canonical selections and delegate to the owning field-resolver task. The task creates a fresh Query-rooted OER under a child dispatcher scope while sharing the logical operation's immutable world, variable bindings, cycle checker, binding declarations, and observer. Nested work is therefore a structured child of the invoking field task rather than another top-level request.
+`EngineExecutionContext.resolveSelectionSet`, `ctx.query()`, and `ctx.mutation()` convert the requested root selection into canonical selections and delegate to the owning field-resolver task. The task creates a fresh root OER under a child dispatcher scope while sharing the logical operation's immutable world, variable bindings, cycle checker, binding declarations, and observer. Nested work is therefore a structured child of the invoking field task rather than another top-level request.
+
+Nested mutation execution uses the same ordered, depth-first namespace traversal as a primary mutation operation. Each call waits for its task children and payload resolution before materializing response-key-qualified cells. Later effects still execute after earlier errors or null values. Explicitly concurrent calls own independent roots and may overlap; each call preserves its own selection order. Nested execution shares request cancellation and is available through handles owned by the active field task.
 
 A nested query is distinct from a declared Query required selection. Nested execution owns an independent Query root and returns response-keyed projected values. A declared Query fragment contributes to the containing orchestration's singular associated Query OER and supplies an owner-local resolver-input projection from that shared scope.
 
@@ -100,7 +102,7 @@ The execution layer supports:
 - synchronous scalar, enum, list, object, error, node-reference, and root-field-reference outputs;
 - namespace traversal, built-in `Query.node` and `Query.nodes`, and canonical `__typename` lowering;
 - scoped public schemas with full-schema resolver inputs;
-- nested `ctx.query()` execution;
+- nested `ctx.query()` and `ctx.mutation()` execution;
 - GraphQL Java 26 `@defer`, conditional defer, nested deferred values, deferred errors, and incremental publisher lifetime ownership;
 - generic field-directive context for checker applicability, without built-in policy-specific directive meaning.
 
@@ -111,7 +113,7 @@ The execution layer rejects or does not provide:
 - inline object materialization for Node-valued fields;
 - object required selections or `FromObjectField` variables on reference targets;
 - function variables providers with their own required selections;
-- `ctx.mutation()`, subscriptions, custom scalars, `@stream`, EOD aliases, asynchronous EOD variants, `EngineExecutionContext.completeSelectionSet`, and direct `Engine.resolveRootFieldReference` calls.
+- subscriptions, custom scalars, `@stream`, EOD aliases, asynchronous EOD variants, `EngineExecutionContext.completeSelectionSet`, and direct `Engine.resolveRootFieldReference` calls.
 
 Unsupported input fails explicitly during registry construction, operation decoding, or execution. Runtime2 does not retry an operation on the old engine after Resolution begins.
 
