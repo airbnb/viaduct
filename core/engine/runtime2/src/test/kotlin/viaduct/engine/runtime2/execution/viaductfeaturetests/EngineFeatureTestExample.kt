@@ -4,7 +4,6 @@ package viaduct.engine.runtime2.execution.viaductfeaturetests
 // Copied 8 out of 8 tests as of 2026-08-21
 
 import org.junit.jupiter.api.Assertions.assertTrue
-import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.engine.api.mocks.EngineTestModule
@@ -74,7 +73,6 @@ class EngineFeatureTestExample {
         }
     }
 
-    @Disabled("TODO: AccessChk")
     @Test
     fun `resolver with checker test`() {
         var checkerExecuted = false
@@ -102,7 +100,6 @@ class EngineFeatureTestExample {
         assertTrue(checkerExecuted)
     }
 
-    @Disabled("TODO: AccessChk")
     @Test
     fun `resolver with checker test copy`() {
         var checkerExecuted = false
@@ -164,7 +161,6 @@ class EngineFeatureTestExample {
         }
     }
 
-    @Disabled("TODO: AccessChk")
     @Test
     fun `test from kdoc`() {
         EngineTestModule(

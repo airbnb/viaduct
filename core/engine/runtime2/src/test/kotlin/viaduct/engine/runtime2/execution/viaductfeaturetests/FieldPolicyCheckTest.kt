@@ -8,7 +8,6 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
-import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import viaduct.engine.api.mocks.EngineTestModule
 import viaduct.engine.api.mocks.MockSchema
@@ -47,7 +46,6 @@ class FieldPolicyCheckTest {
         private val canNotAccessPersonType = schema.schema.getObjectType("CanNotAccessPerson")
     }
 
-    @Disabled("TODO: AccessChk")
     @Test
     fun `type returns if policy check passes on referenced node`() {
         val internalId = "person1"
@@ -97,7 +95,6 @@ class FieldPolicyCheckTest {
         assertTrue(canAccessPersonCheckerWasCalled)
     }
 
-    @Disabled("TODO: AccessChk")
     @Test
     fun `throws if type is not accessible on referenced node`() {
         EngineTestModule(SDL) {
@@ -136,7 +133,6 @@ class FieldPolicyCheckTest {
         }
     }
 
-    @Disabled("TODO: AccessChk")
     @Test
     fun `field should fail even if node passes`() {
         var canAccessPersonCheckerWasCalled = false
@@ -186,7 +182,6 @@ class FieldPolicyCheckTest {
         assertFalse(canAccessPersonCheckerWasCalled)
     }
 
-    @Disabled("TODO: AccessChk")
     @Test
     fun `field returns if policy check passes`() {
         var canAccessFieldCheckerWasCalled = false
@@ -213,7 +208,6 @@ class FieldPolicyCheckTest {
         assertTrue(canAccessFieldCheckerWasCalled)
     }
 
-    @Disabled("TODO: AccessChk")
     @Test
     fun `field does not return if policy check fails`() {
         EngineTestModule(SDL) {

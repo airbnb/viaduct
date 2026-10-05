@@ -95,7 +95,7 @@ The execution layer supports:
 
 - `StandardViaduct` selection through `ENGINE2_ENABLED`, using its production dispatcher registry and generated tenant-module bootstrap;
 - `Engine.execute` and handle-based `Engine.resolveSelectionSet`, with handles confined to their owning `Engine2` instance;
-- query operations with selective and non-selective field and node dispatchers;
+- query operations with selective and non-selective field and node dispatchers, and ordered mutation operations through structural namespaces;
 - field- and type-checker dispatchers, including named inputs, supported variable definitions, execution conditions, denial, and errors;
 - object- and Query-rooted required selections, aliases, arguments, fragments, transitive demand, and occurrence-local variables;
 - `FromArgument`, supported singular `FromObjectField` and `FromQueryField` paths, and no-RSS function providers;
@@ -110,6 +110,7 @@ The execution layer rejects or does not provide:
 
 - physically batched dispatch; `ENGINE2_BATCHING` is invalid until this support exists;
 - checker variables resolvers with their own required selection sets and other legacy checker input graphs that cannot be losslessly converted to Runtime2's variable definitions;
+- field-checker enforcement on `@parent` backedges and along `RootFieldReference` target paths;
 - inline object materialization for Node-valued fields;
 - object required selections or `FromObjectField` variables on reference targets;
 - function variables providers with their own required selections;
@@ -119,7 +120,7 @@ Unsupported input fails explicitly during registry construction, operation decod
 
 ## Feature-Test Boundary
 
-`EngineTestModule.runQPlanFeatureTest` is a test-only pre-dispatcher adapter in `src/test/fixtures`. It consumes the mock module's field and node executor maps, constructs the full Runtime2 reasoning world, and runs an optionally scoped GraphQL schema through the same main-source execution classes. The wrapper alone supplies fixture conveniences such as missing Query defaults, nullable-node completion, and synthetic inline Node IDs.
+`EngineTestModule.runQPlanFeatureTest` is a test-only wrapper in `src/test/fixtures` that runs through production `StandardViaduct` wiring with `ENGINE2_ENABLED`. It bootstraps the mock module's field, node, and checker executors through module configs and the production dispatcher registry, and executes against an optionally scoped GraphQL schema. The wrapper alone supplies fixture conveniences such as missing Query defaults, nullable-node completion, and synthetic inline Node IDs.
 
 Copied old-engine tests live under `src/test/kotlin/viaduct/engine/runtime2/execution/viaductfeaturetests`. [Feature tests](feature-tests.md) defines how those tests are preserved and how intentional differences are recorded. Adapter-specific tests cover execution strategy, completion, cancellation, defer, schema scoping, registry construction, selection conversion, and variable declaration compilation.
 

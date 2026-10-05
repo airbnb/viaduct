@@ -3923,7 +3923,6 @@ class SelectiveFieldResolversExecutionTest {
             assertEquals(2, fooResolverCalls.get())
         }
 
-        @Disabled("TODO: AccessChk")
         @Test
         fun `selective field resolver materialization does not repeat type checker`() {
             val fooCheckerCalls = AtomicInteger()
@@ -3975,7 +3974,6 @@ class SelectiveFieldResolversExecutionTest {
             assertEquals(1, fooCheckerCalls.get())
         }
 
-        @Disabled("TODO: AccessChk")
         @Test
         fun `type checker failure after selective materialization is reported`() {
             MockTenantModuleBootstrapper(
@@ -4069,7 +4067,6 @@ class SelectiveFieldResolversExecutionTest {
             assertEquals(1, fooCheckerCalls.get())
         }
 
-        @Disabled("TODO: AccessChk")
         @Test
         fun `type checker aliases field from selective list`() {
             val barCheckerCalls = AtomicInteger()
@@ -4174,7 +4171,7 @@ class SelectiveFieldResolversExecutionTest {
             assertEquals(2, fooResolverCalls.get())
         }
 
-        @Disabled("TODO: AccessChk")
+        @Disabled("TODO: ProviderRSS: Function variables providers with their own required selections are unsupported")
         @Test
         fun `type checker reads conditional field from selective source`() {
             MockTenantModuleBootstrapper(
@@ -4236,7 +4233,6 @@ class SelectiveFieldResolversExecutionTest {
             }
         }
 
-        @Disabled("TODO: AccessChk")
         @Test
         fun `type checker query rss does not rematerialize selective field recursively`() {
             MockTenantModuleBootstrapper(
@@ -4282,7 +4278,6 @@ class SelectiveFieldResolversExecutionTest {
         }
 
         @Nested
-        @Disabled("TODO: AccessChk MechAdapt")
         inner class ArbitraryTests :
             SelectiveFieldArbTest(
                 """

@@ -774,7 +774,6 @@ class RequiredSelectionsTest {
         assertEquals(setOf("de"), resolvedNameLocales)
     }
 
-    @Disabled("TODO: AccessChk")
     @Test
     fun `parent field in checker required selection is available to checker`() {
         val checkedCompanyNames = ConcurrentHashMap.newKeySet<String>()
@@ -1624,7 +1623,7 @@ class RequiredSelectionsTest {
         }
     }
 
-    @Disabled("TODO: AccessChk MechAdapt")
+    @Disabled("N/A: Inspects old-engine ExecutionParameters and QueryPlan child plans from the execution handle")
     @Test
     fun `sibling cyclic required selections keep direct materializations during execution`() {
         val bInAPlanChildPlanCount = AtomicInteger(-1)
@@ -3232,7 +3231,6 @@ class RequiredSelectionsTest {
      * must not fire when the runtime type is Foo, not Bar. Before the fix, Bar.value's checker
      * could leak into resolution of Foo.value because isRootType permitted any root-type parent.
      */
-    @Disabled("TODO: AccessChk Abstract")
     @Test
     fun `field-level checker RSS rooted on Query does not leak into sibling interface implementor`() {
         val sdl = """

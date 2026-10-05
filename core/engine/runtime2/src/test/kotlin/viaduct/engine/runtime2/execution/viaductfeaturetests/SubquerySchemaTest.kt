@@ -4,7 +4,6 @@ package viaduct.engine.runtime2.execution.viaductfeaturetests
 // Copied 3 out of 3 tests as of 2026-09-18
 
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import viaduct.engine.api.mocks.EngineTestModule
 import viaduct.engine.api.mocks.createEngineObjectData
@@ -120,7 +119,6 @@ class SubquerySchemaTest {
      * Tests that ctx.mutation() subqueries use fullSchema even when executing
      * with a scopedSchema that has a different mutation type.
      */
-    @Disabled("TODO: Mutation")
     @Test
     fun `mutation subquery uses fullSchema even when outer query uses scopedSchema`() {
         val fullSchemaSDL = """

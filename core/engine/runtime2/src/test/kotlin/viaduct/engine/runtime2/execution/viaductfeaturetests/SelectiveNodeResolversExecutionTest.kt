@@ -3289,7 +3289,6 @@ class SelectiveNodeResolversExecutionTest {
 
     @Nested
     inner class InstrumentationTests {
-        @Disabled("N/A: Production resolver instrumentation is outside the qplan resolver-correctness boundary")
         @Test
         fun `initial selective node materialization instruments resolver once`() {
             val nodeExecutions = AtomicInteger()
@@ -3508,7 +3507,6 @@ class SelectiveNodeResolversExecutionTest {
 
     @Nested
     inner class CheckerTests {
-        @Disabled("TODO: AccessChk")
         @Test
         fun `type checker reads multiple node fields`() {
             MockTenantModuleBootstrapper(
@@ -3550,7 +3548,6 @@ class SelectiveNodeResolversExecutionTest {
             }
         }
 
-        @Disabled("TODO: AccessChk")
         @Test
         fun `selective node materialization does not repeat type checker`() {
             val fooCheckerCalls = AtomicInteger()
@@ -3599,7 +3596,6 @@ class SelectiveNodeResolversExecutionTest {
             assertEquals(1, fooCheckerCalls.get())
         }
 
-        @Disabled("TODO: AccessChk")
         @Test
         fun `type checker failure after selective node materialization is reported`() {
             MockTenantModuleBootstrapper(
@@ -3644,7 +3640,6 @@ class SelectiveNodeResolversExecutionTest {
             }
         }
 
-        @Disabled("TODO: AccessChk")
         @Test
         fun `field checker denial after selective node materialization is reported`() {
             val checkerCalls = AtomicInteger()
@@ -3698,7 +3693,6 @@ class SelectiveNodeResolversExecutionTest {
             assertEquals(1, checkerCalls.get())
         }
 
-        @Disabled("TODO: AccessChk")
         @Test
         fun `query node type checker materializes checker field`() {
             val fooId = GlobalIDCodecDefault.serialize("Foo", "id")
@@ -3726,7 +3720,6 @@ class SelectiveNodeResolversExecutionTest {
             }
         }
 
-        @Disabled("TODO: AccessChk")
         @Test
         fun `type checker query rss does not rematerialize node recursively`() {
             MockTenantModuleBootstrapper(
@@ -3757,7 +3750,6 @@ class SelectiveNodeResolversExecutionTest {
             }
         }
 
-        @Disabled("TODO: AccessChk")
         @Test
         fun `type checker aliases field from selective node list`() {
             MockTenantModuleBootstrapper(
@@ -3894,7 +3886,6 @@ class SelectiveNodeResolversExecutionTest {
             )
         }
 
-        @Disabled("TODO: Batching")
         @Test
         fun `batched selective node cache distinguishes nested selections across query paths`() {
             val barResolverSelections = mutableSetOf<Set<String>>()

@@ -69,7 +69,6 @@ class AccessCheckExecutionTest {
         private val barType = schema.schema.getObjectType("Bar")
     }
 
-    @Disabled("TODO: AccessChk")
     @Test
     fun `no checkers`() {
         EngineTestModule(schema) {
@@ -80,7 +79,6 @@ class AccessCheckExecutionTest {
         }
     }
 
-    @Disabled("TODO: AccessChk")
     @Test
     fun `checkers are executed for both sync and async fields`() {
         var asyncFieldCheckerRan = false
@@ -107,7 +105,6 @@ class AccessCheckExecutionTest {
         assertTrue(syncFieldCheckerRan)
     }
 
-    @Disabled("TODO: AccessChk")
     @Test
     fun `async field successful, checker throws`() {
         EngineTestModule(schema) {
@@ -127,7 +124,6 @@ class AccessCheckExecutionTest {
         }
     }
 
-    @Disabled("TODO: AccessChk")
     @Test
     fun `sync field successful, checker throws`() {
         EngineTestModule(SDL) {
@@ -147,7 +143,7 @@ class AccessCheckExecutionTest {
         }
     }
 
-    @Disabled("TODO: AccessChk")
+    @Disabled("TODO: ErrorData: Preserve resolver-error precedence when the field checker also fails")
     @Test
     fun `async field throws, checker throws`() {
         EngineTestModule(schema) {
@@ -170,7 +166,7 @@ class AccessCheckExecutionTest {
         }
     }
 
-    @Disabled("TODO: AccessChk")
+    @Disabled("TODO: AsyncEOD: Asynchronous object ingress fails before leaf completion")
     @Test
     fun `sync field throws, checker throws`() {
         EngineTestModule(schema) {
@@ -210,7 +206,6 @@ class AccessCheckExecutionTest {
         }
     }
 
-    @Disabled("TODO: AccessChk")
     @Test
     fun `objectValueFragment field - field and checker successful`() {
         EngineTestModule(schema) {
@@ -235,7 +230,6 @@ class AccessCheckExecutionTest {
         }
     }
 
-    @Disabled("TODO: AccessChk")
     @Test
     fun `objectValueFragment field - field successful, checker throws`() {
         EngineTestModule(schema) {
@@ -264,7 +258,7 @@ class AccessCheckExecutionTest {
         }
     }
 
-    @Disabled("TODO: AccessChk")
+    @Disabled("TODO: ErrorData: Preserve resolver-error precedence for checked required selections")
     @Test
     fun `objectValueFragment field - field throws, checker throws`() {
         EngineTestModule(schema) {
@@ -296,7 +290,6 @@ class AccessCheckExecutionTest {
         }
     }
 
-    @Disabled("TODO: AccessChk")
     @Test
     fun `objectValueFragment field - field throws, checker successful`() {
         EngineTestModule(schema) {
@@ -327,7 +320,7 @@ class AccessCheckExecutionTest {
         }
     }
 
-    @Disabled("TODO: AccessChk")
+    @Disabled("TODO: CheckerVarsRSS: Checker variables resolvers with their own required selections are unsupported")
     @Test
     fun `checker with rss - access checks skipped`() {
         EngineTestModule(schema) {
@@ -376,7 +369,7 @@ class AccessCheckExecutionTest {
         }
     }
 
-    @Disabled("TODO: AccessChk")
+    @Disabled("TODO: MutationChk: Mutation namespace field checkers are unsupported")
     @Test
     fun `mutation field with checker`() {
         var mutationResolverRan = false
@@ -405,7 +398,6 @@ class AccessCheckExecutionTest {
         assertFalse(mutationResolverRan)
     }
 
-    @Disabled("TODO: AccessChk")
     @Test
     fun `field and type checks fail`() {
         EngineTestModule(schema) {
@@ -435,7 +427,6 @@ class AccessCheckExecutionTest {
         }
     }
 
-    @Disabled("TODO: AccessChk")
     @Test
     fun `field check succeeds type check fails`() {
         EngineTestModule(schema) {
@@ -462,7 +453,6 @@ class AccessCheckExecutionTest {
         }
     }
 
-    @Disabled("TODO: AccessChk")
     @Test
     fun `field check succeeds, type check succeeds`() {
         EngineTestModule(schema) {
@@ -489,7 +479,6 @@ class AccessCheckExecutionTest {
         }
     }
 
-    @Disabled("TODO: AccessChk")
     @Test
     fun `no field check, type check fails`() {
         EngineTestModule(schema) {
@@ -516,7 +505,6 @@ class AccessCheckExecutionTest {
         }
     }
 
-    @Disabled("TODO: AccessChk")
     @Test
     fun `no field check, type check fails on non-null field`() {
         EngineTestModule(schema) {
@@ -543,7 +531,6 @@ class AccessCheckExecutionTest {
         }
     }
 
-    @Disabled("TODO: AccessChk")
     @Test
     fun `type check fail on interface field`() {
         EngineTestModule(schema) {
@@ -570,7 +557,6 @@ class AccessCheckExecutionTest {
         }
     }
 
-    @Disabled("TODO: AccessChk")
     @Test
     fun `type check succeed on interface field`() {
         EngineTestModule(schema) {
@@ -595,7 +581,6 @@ class AccessCheckExecutionTest {
         }
     }
 
-    @Disabled("TODO: AccessChk")
     @Test
     fun `type check with rss`() {
         EngineTestModule(schema) {
@@ -635,7 +620,6 @@ class AccessCheckExecutionTest {
         }
     }
 
-    @Disabled("TODO: AccessChk")
     @Test
     fun `type check with rss - access checks skipped`() {
         EngineTestModule(schema) {
@@ -676,7 +660,6 @@ class AccessCheckExecutionTest {
         }
     }
 
-    @Disabled("TODO: AccessChk")
     @Test
     fun `type checks with rss for list of objects - fail one of them`() {
         EngineTestModule(schema) {
@@ -732,7 +715,6 @@ class AccessCheckExecutionTest {
         }
     }
 
-    @Disabled("TODO: AccessChk")
     @Test
     fun `type checks with rss for list of objects - all succeed`() {
         EngineTestModule(schema) {
@@ -785,7 +767,6 @@ class AccessCheckExecutionTest {
         }
     }
 
-    @Disabled("TODO: AccessChk")
     @Test
     fun `type checks with rss for list of polymorphic objects - fail one of them`() {
         EngineTestModule(schema) {
@@ -856,7 +837,6 @@ class AccessCheckExecutionTest {
         }
     }
 
-    @Disabled("TODO: AccessChk")
     @Test
     fun `field checker with query selections`() {
         // Test that field checkers can use querySelections to access other Query fields
@@ -884,7 +864,6 @@ class AccessCheckExecutionTest {
         }
     }
 
-    @Disabled("TODO: AccessChk")
     @Test
     fun `type checker with query selections`() {
         // Test that type checkers can use querySelections to access Query fields
@@ -919,7 +898,6 @@ class AccessCheckExecutionTest {
         }
     }
 
-    @Disabled("TODO: AccessChk")
     @Test
     fun `checker EOD variables are coerced`() {
         // Regression test for coercing variables
@@ -950,7 +928,6 @@ class AccessCheckExecutionTest {
         }
     }
 
-    @Disabled("TODO: AccessChk")
     @Test
     fun `type checker child plan variables are coerced`() {
         // Regression test for coercing variables in type checker child plans
@@ -988,7 +965,7 @@ class AccessCheckExecutionTest {
         }
     }
 
-    @Disabled("TODO: AccessChk")
+    @Disabled("TODO: CheckerErrorData: Checker errors do not reach the configured error builder")
     @Test
     fun `field access check errors are handled`() {
         var reported: Boolean = false
@@ -1014,7 +991,7 @@ class AccessCheckExecutionTest {
         }
     }
 
-    @Disabled("TODO: AccessChk")
+    @Disabled("TODO: CheckerErrorData: Preserve list item results and custom error metadata on checker failure")
     @Test
     fun `list item access check errors are handled`() {
         var reported: Boolean = false
@@ -1061,7 +1038,7 @@ class AccessCheckExecutionTest {
         }
     }
 
-    @Disabled("TODO: AccessChk")
+    @Disabled("TODO: CheckerVarsRSS: Checker variables resolvers with their own required selections are unsupported")
     @Test
     fun `type checker RSS variable resolver can fetch from current object`() {
         MockTenantModuleBootstrapper(

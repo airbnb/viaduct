@@ -377,7 +377,7 @@ class RootFieldReferenceResolutionTest {
         }
     }
 
-    @Disabled("TODO: AccessChk")
+    @Disabled("TODO: ReferenceChk: Access checks on the reference target path are not enforced")
     @Test
     fun `factory field access check failure is propagated`() {
         EngineTestModule(
@@ -429,7 +429,7 @@ class RootFieldReferenceResolutionTest {
         }
     }
 
-    @Disabled("TODO: AccessChk")
+    @Disabled("TODO: ReferenceChk: Access checks on the reference namespace path are not enforced")
     @Test
     fun `namespace access check failure prevents factory field execution`() {
         val factoryCalls = AtomicInteger()
@@ -1188,7 +1188,7 @@ class RootFieldReferenceResolutionTest {
         }
     }
 
-    @Disabled("TODO: NodeLower")
+    @Disabled("TODO: NodeLower: A node executor reference to an inline Node result repeats Query.node resolution")
     @Test
     fun `node resolver returns a root field reference`() {
         EngineTestModule(
@@ -1418,7 +1418,6 @@ class RootFieldReferenceResolutionTest {
         }
     }
 
-    @Disabled("TODO: AccessChk")
     @Test
     fun `root field reference resolves to null`() {
         EngineTestModule(
@@ -1470,7 +1469,6 @@ class RootFieldReferenceResolutionTest {
         }
     }
 
-    @Disabled("TODO: AccessChk")
     @Test
     fun `root field reference to non-null field resolves to null propagates field error`() {
         EngineTestModule(
