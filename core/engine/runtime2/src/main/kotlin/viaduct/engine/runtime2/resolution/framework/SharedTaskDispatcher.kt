@@ -26,7 +26,7 @@ interface SharedOrchestrationTask<out O : SharedOperationContext<*>> {
  */
 interface SharedFieldPublicationOccurrence<
     out O : SharedOperationContext<D>,
-    out D : SharedTaskDispatcher<Nothing, Nothing>,
+    out D : SharedTaskDispatcher<Nothing, Nothing, Nothing>,
 > : SharedOperationContext<D> {
     /** The owning operation; implementations may specialize its type for their resolver. */
     val operation: O
@@ -37,12 +37,19 @@ interface SharedFieldPublicationOccurrence<
 /**
  * Schedules the two resolver task kinds. Implementations own coroutine launch, queue ordering, or
  * recursive execution; task contexts retain the inputs needed by the corresponding task bodies.
- * [O] preserves the concrete orchestration-task type and [F] the field-publication occurrence type.
+ * [O] preserves the concrete orchestration-task type, [F] the field-publication occurrence type,
+ * and [M] the prepared mutation-field type.
  */
-interface SharedTaskDispatcher<in O : SharedOrchestrationTask<*>, in F> {
+interface SharedTaskDispatcher<in O : SharedOrchestrationTask<*>, in F, in M> {
     /** Dispatches prepared object work after its passive fields have been resolved. */
     fun dispatchOrchestration(task: O)
 
     /** Dispatches field work according to this resolver's dependency-ordering policy. */
     fun dispatchFieldResolver(publication: F)
+
+    /** Dispatches a prepared mutation field and waits for its task and complete payload. */
+    suspend fun dispatchMutationField(
+        publication: M,
+        cell: EngineResultCell,
+    )
 }

@@ -25,6 +25,32 @@ import viaduct.service.runtime.StandardViaduct
 
 class Engine2RequestLifetimeTest {
     @Test
+    fun `caller cancellation interrupts mutations while response completion waits`() =
+        runBlocking {
+            val viaduct = requestLifetimeViaduct()
+            val control = RequestControl("mutation")
+            val execution = async {
+                viaduct.execute(
+                    ExecutionInput.create(operationText = "mutation { failed later }", requestContext = control),
+                    SchemaId.Base,
+                )
+            }
+            try {
+                withTimeout(TIMEOUT_MILLIS) { control.nestedStarted.await() }
+                assertFalse(execution.isCompleted)
+                execution.cancel(CancellationException("caller cancelled"))
+                withTimeout(TIMEOUT_MILLIS) {
+                    control.nestedCancelled.await()
+                    execution.join()
+                }
+                assertTrue(execution.isCancelled)
+                assertFalse(control.allowNestedResult.isCompleted)
+            } finally {
+                execution.cancel()
+            }
+        }
+
+    @Test
     fun `executeAsync cancellation reaches nested resolution and is isolated by request`() =
         runBlocking {
             val viaduct = requestLifetimeViaduct()
@@ -81,6 +107,24 @@ class Engine2RequestLifetimeTest {
     private fun requestLifetimeViaduct(): Viaduct {
         val suppliedModule =
             EngineTestModule(SCHEMA) {
+                field("Mutation" to "failed") {
+                    resolver { fn { _, _, _, _, _ -> error("mutation failed") } }
+                }
+                field("Mutation" to "later") {
+                    resolver {
+                        fn { _, _, _, _, context ->
+                            val control = context.requestContext as RequestControl
+                            control.nestedStarted.complete(Unit)
+                            try {
+                                control.allowNestedResult.await()
+                                control.value
+                            } catch (cancellation: CancellationException) {
+                                control.nestedCancelled.complete(Unit)
+                                throw cancellation
+                            }
+                        }
+                    }
+                }
                 field("Query" to "outer") {
                     resolver {
                         fn { _, _, _, _, context ->
@@ -156,6 +200,10 @@ class Engine2RequestLifetimeTest {
             extend type Query {
                 outer: String @resolver
                 nested: String @resolver
+            }
+            extend type Mutation {
+                failed: Int! @resolver
+                later: String! @resolver
             }
             """.trimIndent()
     }

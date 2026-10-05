@@ -8,7 +8,7 @@ import viaduct.engine.runtime2.model.Assumptions
  * More specific contexts implement this contract by delegating to their owning operation.
  * [D] preserves the dispatcher type. Nothing terminates the recursive task/context bounds.
  */
-interface SharedOperationContext<out D : SharedTaskDispatcher<Nothing, Nothing>> {
+interface SharedOperationContext<out D : SharedTaskDispatcher<Nothing, Nothing, Nothing>> {
     val world: Assumptions
     val variableBindings: VariableBindingsState
     val resolverObserver: ResolverObserver
@@ -38,7 +38,7 @@ interface SharedOperationContext<out D : SharedTaskDispatcher<Nothing, Nothing>>
 
         /** Creates an operation with a concretely typed dispatcher and stable shared state references. */
         @JvmStatic
-        fun <D : SharedTaskDispatcher<Nothing, Nothing>> create(
+        fun <D : SharedTaskDispatcher<Nothing, Nothing, Nothing>> create(
             world: Assumptions,
             dispatcher: D,
             variableBindings: VariableBindingsState = VariableBindingsState(),

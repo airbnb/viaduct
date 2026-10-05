@@ -15,6 +15,8 @@ import viaduct.engine.runtime2.model.EngineResultCell
 import viaduct.engine.runtime2.model.InclusionCondition
 import viaduct.engine.runtime2.model.MaterializeSelectionForest
 import viaduct.engine.runtime2.model.ObjectEngineResult
+import viaduct.engine.runtime2.model.ObjectSelection
+import viaduct.engine.runtime2.model.ResolverOccurrenceId
 import viaduct.engine.runtime2.model.VariableBinding
 import viaduct.engine.runtime2.model.engineObjectDataOf
 import viaduct.engine.runtime2.model.guardedBy
@@ -26,6 +28,7 @@ import viaduct.engine.runtime2.model.registry.VariableDefinition
 import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.schemaType
 import viaduct.engine.runtime2.resolution.framework.CycleTask
+import viaduct.engine.runtime2.resolution.framework.Demand
 import viaduct.engine.runtime2.resolution.framework.OEROccurrence
 import viaduct.engine.runtime2.resolution.framework.SharedFieldPublicationOccurrence
 import viaduct.engine.runtime2.resolution.framework.SharedOERContext
@@ -44,7 +47,8 @@ internal class SymbolicFieldPublicationOccurrence(
     override val oerOccurrence: OEROccurrence,
     val sourceOccurrence: ValueSourceOccurrence,
     override val publicationCell: EngineResultCell,
-    val queryOER: SharedOERContext,
+    /** Associated Query context for ordinary fragments; absent for mutation and list-reference publications. */
+    val queryOER: SharedOERContext?,
     /** Variable-provider reads rooted in the publication's object or associated Query OER. */
     val variableProviderReads: List<VariableProviderReadOccurrence>,
     val checkerScheduled: Boolean = false,
@@ -71,6 +75,22 @@ internal class FieldResolverTask private constructor(
     private val resolutionLogic = FieldResolutionLogic(this)
 
     companion object {
+        fun prepareMutation(
+            operation: OperationContext,
+            occurrence: OEROccurrence,
+            selection: ObjectSelection,
+        ): SymbolicFieldPublicationOccurrence {
+            val path = occurrence.coordinate(selection.key)
+            val id = ResolverOccurrenceId.at(occurrence.root, path)
+            val resolver = operation.world.resolverRegistry.resolver(selection.key.field)
+            return prepare(
+                operation,
+                occurrence,
+                FieldResolverOccurrence(selection, occurrence.root, path, id, resolver, emptyList(), resolver.instantiateFragments(id)),
+                providerReads = emptyList(),
+            )
+        }
+
         /** Installs all local value promises and writers before orchestration dispatches any producer. */
         fun prepareAll(orchestrationTask: OrchestrationTask): List<SymbolicFieldPublicationOccurrence> {
             val operation = orchestrationTask.operation
@@ -141,7 +161,7 @@ internal class FieldResolverTask private constructor(
                     oerOccurrence,
                     sourceOccurrence,
                     publicationCell,
-                    SharedOERContext.undemandedQuery(operation.world.schema.requireQueryTypeDef()),
+                    null,
                     emptyList(),
                 ),
             )
@@ -166,7 +186,7 @@ internal class FieldResolverTask private constructor(
             operation: OperationContext,
             oerOccurrence: OEROccurrence,
             sourceOccurrence: ValueSourceOccurrence,
-            queryOER: SharedOERContext,
+            queryOER: SharedOERContext? = null,
             providerReads: List<VariableProviderReadOccurrence>,
             checkerScheduled: Boolean = false,
         ): SymbolicFieldPublicationOccurrence {
@@ -364,7 +384,7 @@ private suspend fun FieldValueResolver.resolveQueryFragment(
         queryFragment.constructionSelections.guardedBy(inclusionCondition)
     val source = operation.world.resolverRegistry.createRootQueryInput()
     val queryResult =
-        OrchestrationTask.createObjectResult(operation, source.schemaType, viaduct.engine.runtime2.resolution.framework.Demand.checked(constructionSelections))
+        OrchestrationTask.createObjectResult(operation, source.schemaType, Demand.checked(constructionSelections))
     val orchestration =
         OrchestrationTask.create(
             operation = operation,

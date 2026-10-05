@@ -2,12 +2,16 @@ package viaduct.engine.runtime2.resolvers.resolver21
 
 import kotlinx.coroutines.coroutineScope
 import viaduct.engine.api.EngineObjectData
+import viaduct.engine.runtime2.model.MutationObjectEngineResult
+import viaduct.engine.runtime2.model.MutationSelectionForest
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.ResolverOccurrenceId
 import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.model.schemaType
 import viaduct.engine.runtime2.resolution.framework.CycleCheckState
 import viaduct.engine.runtime2.resolution.framework.Demand
+import viaduct.engine.runtime2.resolution.framework.MutationNamespaceOccurrence
+import viaduct.engine.runtime2.resolution.framework.MutationOrchestrationTask
 import viaduct.engine.runtime2.resolution.framework.OEROccurrence
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 import viaduct.graphql.schema.ViaductSchema
@@ -41,6 +45,18 @@ internal fun CoroutineOperationContext.startResolve(
     demand: Demand<SelectionForest>,
     queryFragmentOwner: ResolverOccurrenceId? = null,
 ): ObjectEngineResult {
+    val selections = demand.values
+    if (selections is MutationSelectionForest) {
+        require(selections.type == world.schema.mutationTypeDef) { "Mutations must start at their root" }
+        val result = MutationObjectEngineResult.of(selections)
+        val task = MutationOrchestrationTask.create(
+            operation = this,
+            namespace = MutationNamespaceOccurrence(OEROccurrence(result, emptyList(), result), selections),
+            prepareField = { occurrence, selection -> CoroutineFieldResolverTask.prepareMutation(this, occurrence, selection) },
+        )
+        dispatcher.dispatchMutationOrchestration(task)
+        return result
+    }
     val result = CoroutineOrchestrationTask.createObjectResult(this, source.schemaType, demand)
     val orchestration =
         CoroutineOrchestrationTask.create(

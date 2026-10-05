@@ -243,3 +243,13 @@ Some broad structural signatures are aggregated more coarsely than their names i
 `registeredResolverApplicationIdentityCounts` reconstructs expected applications from resolver-bearing cells already present in the completed result. An extra valid cell accompanied by an extra matching invocation can therefore enlarge both expected and actual counts together. The oracle strongly detects missing, duplicate, and wrong-root/path applications for the occurrences it reconstructs, but it does not independently establish absolute minimality of the demanded occurrence set.
 
 Supplied-demand witnesses cover selected contracts and profiles but are not a complete independent reconstruction across list-transparent continuation paths. Claims about minimal selective demand require a focused supplied-demand assertion in addition to completed-result correctness and exact observed applications.
+
+## Mutation Tests
+
+The focused mutation gate covers response-key collection, the full maintained-family ladder, engine/service integration, independent `ctx.query()`, continued effects after nullable and non-null failures, response null propagation through namespaces and payloads, inactive payload dependencies, cancellation before task entry and during suspended mutations, and sequencing of suspended work:
+
+```shell
+./gradlew :core:engine:runtime2:test --tests '*MutationSelectionParsingTest' --tests '*MutationObjectEngineResultTest' --tests '*MutationRegistryTest' --tests '*MutationResolutionTest' --tests '*MutationOrchestrationTaskTest' --tests '*MutationExecutionTest' --tests '*ResolverStartTest' --tests '*RequestScopeOwnershipTest'
+```
+
+`MutationResolutionTest` asserts effect traces and completed payload values independently of Query replay. Its delayed payload resolver checks that an active mutation's output finishes before the next mutation changes shared state. Mutation lifecycle tests use controlled scheduling to verify that later mutations remain undispatched while the preceding task is suspended and that cancellation terminates all synchronously prepared cells.

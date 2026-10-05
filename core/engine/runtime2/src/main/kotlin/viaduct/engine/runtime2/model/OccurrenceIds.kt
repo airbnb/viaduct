@@ -6,14 +6,14 @@ import viaduct.engine.runtime2.model.registry.render
 /**
  * Opaque identity of one concrete resolver application.
  *
- * Equality is structural over the identity of the Query-rooted [root] result and the exact result
+ * Equality is structural over the identity of the operation-rooted [root] result and the exact result
  * tree [path]. Runtime code may carry, compare, hash, and print this value, but cannot decompose
  * its address.
  */
 sealed interface ResolverOccurrenceId {
     companion object {
         /**
-         * Returns the resolver occurrence identified by its Query-rooted result and exact path.
+         * Returns the resolver occurrence identified by its operation-rooted result and exact path.
          */
         fun at(
             root: ObjectEngineResult,
@@ -73,7 +73,7 @@ private data class ResolverOccurrenceIdImpl(
 /**
  * Returns a hash of this occurrence's root-relative address.
  *
- * This deliberately omits the Query-rooted result identity and recursively treats symbolic object
+ * This deliberately omits the operation-rooted result identity and recursively treats symbolic object
  * keys the same way. It is suitable only for comparisons between otherwise equivalent executions
  * rooted at different OERs. Runtime identity and ordinary [Any.hashCode] remain root-qualified.
  */
@@ -84,6 +84,7 @@ internal fun ResolverOccurrenceId.rootRelativeHashCode(): Int =
                 is ObjectEngineResult.ObjectKey -> {
                     var keyHash = component.field.hashCode()
                     keyHash = 31 * keyHash + component.arguments.rootRelativeHashCode()
+                    if (component is ObjectEngineResult.MutationKey) keyHash = 31 * keyHash + component.responseKey.hashCode()
                     keyHash
                 }
                 is ListEngineResult.Index -> component.hashCode()
@@ -98,8 +99,7 @@ internal fun ResolverOccurrenceId.hasSameRootRelativeAddressAs(other: ResolverOc
         leftPath.zip(rightPath).all { (left, right) ->
             when {
                 left is ObjectEngineResult.ObjectKey && right is ObjectEngineResult.ObjectKey ->
-                    left.field == right.field &&
-                        left.arguments.hasSameRootRelativeStructureAs(right.arguments)
+                    left.hasSameRootRelativeStructureAs(right)
                 left is ListEngineResult.Index && right is ListEngineResult.Index -> left == right
                 else -> false
             }

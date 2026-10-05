@@ -19,6 +19,7 @@ import viaduct.engine.runtime2.model.fieldExpressions
 import viaduct.engine.runtime2.model.inputType
 import viaduct.engine.runtime2.model.matchingVariableTypes
 import viaduct.engine.runtime2.model.merge
+import viaduct.engine.runtime2.model.mutationNamespaceTypes
 import viaduct.engine.runtime2.model.registry.BranchOrderValidator
 import viaduct.engine.runtime2.model.registry.FieldCheckerResolver
 import viaduct.engine.runtime2.model.registry.FieldResolverDefinition
@@ -433,8 +434,14 @@ private class ResolverRegistryImpl(
                 "Type checker ${checker.target.type.name} does not belong to ${type.name}"
             }
         }
+        val mutationNamespaces = schema.mutationNamespaceTypes()
         fieldResolverDefinitions.forEach { (field, resolver) ->
             validateCanonicalField(field, "field-resolver field")
+            if (field.containingDef in mutationNamespaces) {
+                require(resolver.objectFragment.subselections.isEmpty() && resolver.queryFragment?.subselections?.isEmpty() != false) {
+                    "Mutation resolver ${field.containingDef.name}/${field.name} cannot declare object or Query fragments; use ctx.query()"
+                }
+            }
             val typeName = field.containingDef.name
             require(field.containingDef is ViaductSchema.Object) {
                 "Field resolver $typeName/${field.name} must belong to a concrete object type"

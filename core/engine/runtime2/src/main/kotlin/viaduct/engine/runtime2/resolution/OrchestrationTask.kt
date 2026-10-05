@@ -40,8 +40,8 @@ internal class OrchestrationTask private constructor(
     init {
         val occurrence = objectOER.occurrence
         val source = objectOER.source
-        require(occurrence.root.type == operation.world.schema.requireQueryTypeDef()) {
-            "Resolution occurrence root must have Query type"
+        require(occurrence.root.type == operation.world.schema.requireQueryTypeDef() || occurrence.root.type == operation.world.schema.mutationTypeDef) {
+            "Resolution occurrence root must have Query or Mutation type"
         }
         require(occurrence.path.isEmpty() == (occurrence.root === occurrence.target)) {
             "Only a root Resolution occurrence may use its root as its target"

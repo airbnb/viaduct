@@ -22,7 +22,7 @@ import viaduct.engine.runtime2.resolution.framework.descendants
 import viaduct.engine.runtime2.resolvers.GroundedFieldPublicationOccurrence
 import viaduct.engine.runtime2.resolvers.closeOrchestrationConstructionDemand
 
-/** The two executable task kinds accepted by either depth-first dispatcher. */
+/** The executable task kinds accepted by either depth-first dispatcher. */
 internal sealed interface DepthFirstTask {
     /** Scheduling depth: the containing path for fields, and the object's own path for orchestration. */
     val path: List<PathComponent>

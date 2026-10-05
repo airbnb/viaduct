@@ -2,15 +2,20 @@ package viaduct.engine.runtime2.resolvers.resolver06
 
 import java.util.PriorityQueue
 import viaduct.engine.api.EngineObjectData
+import viaduct.engine.runtime2.model.EngineResultCell
+import viaduct.engine.runtime2.model.MutationObjectEngineResult
+import viaduct.engine.runtime2.model.MutationSelectionForest
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.model.schemaType
 import viaduct.engine.runtime2.resolution.framework.Demand
+import viaduct.engine.runtime2.resolution.framework.MutationNamespaceOccurrence
 import viaduct.engine.runtime2.resolution.framework.OEROccurrence
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 import viaduct.engine.runtime2.resolvers.GroundedFieldPublicationOccurrence
 import viaduct.engine.runtime2.resolvers.resolver01.DepthFirstDispatcher
 import viaduct.engine.runtime2.resolvers.resolver01.DepthFirstFieldResolverTask
+import viaduct.engine.runtime2.resolvers.resolver01.DepthFirstMutationTask
 import viaduct.engine.runtime2.resolvers.resolver01.DepthFirstOperationContext
 import viaduct.engine.runtime2.resolvers.resolver01.DepthFirstOrchestrationTask
 import viaduct.engine.runtime2.resolvers.resolver01.DepthFirstTask
@@ -36,29 +41,22 @@ internal class DepthFirstReactor(
     fun resolve(): ObjectEngineResult {
         check(!started) { "DepthFirstReactor.resolve() may only be called once" }
         started = true
-        val result = ObjectEngineResult.of(source.schemaType, mutable = true)
-        operation.passiveValues(queryOERDepth = 0).resolvePassiveObjectValues(
-            source,
-            OEROccurrence(result, emptyList(), result),
-            Demand.checked(selections),
-        )
-        while (tasks.isNotEmpty()) {
-            val task = tasks.remove().task
-            onTaskStarted(task)
-            when (task) {
-                is DepthFirstOrchestrationTask -> {
-                    task.run()
-                    check(orchestrated.add(task.objectOER.occurrence)) { "Object orchestrated twice: ${task.path}" }
-                    children.remove(task.objectOER.occurrence)?.forEach(::enqueue)
-                    check(orchestrated.add(task.queryOER.occurrence)) {
-                        "Query orchestrated twice: ${task.path}"
-                    }
-                    children.remove(task.queryOER.occurrence)?.forEach(::enqueue)
-                }
-                is DepthFirstFieldResolverTask -> task.run()
-            }
-            check(finished.add(task)) { "Task finished twice: ${task.path}" }
+        val result: ObjectEngineResult
+        if (selections is MutationSelectionForest) {
+            require(selections.type == operation.world.schema.mutationTypeDef) { "Mutations must start at their root" }
+            result = MutationObjectEngineResult.of(selections)
+            val task = DepthFirstMutationTask(operation, MutationNamespaceOccurrence(OEROccurrence(result, emptyList(), result), selections))
+            dispatchedTasks += task
+            enqueue(task)
+        } else {
+            result = ObjectEngineResult.of(source.schemaType, mutable = true)
+            operation.passiveValues(queryOERDepth = 0).resolvePassiveObjectValues(
+                source,
+                OEROccurrence(result, emptyList(), result),
+                Demand.checked(selections),
+            )
         }
+        drainTasks()
         check(children.isEmpty() && finished == dispatchedTasks) { "Reactor returned with unfinished tasks" }
         dispatchedTasks.filterIsInstance<DepthFirstOrchestrationTask>().forEach { task ->
             val target = task.objectOER.occurrence.target
@@ -75,6 +73,27 @@ internal class DepthFirstReactor(
             }
         }
         return result
+    }
+
+    private fun drainTasks() {
+        while (tasks.isNotEmpty()) {
+            val task = tasks.remove().task
+            onTaskStarted(task)
+            when (task) {
+                is DepthFirstOrchestrationTask -> {
+                    task.run()
+                    check(orchestrated.add(task.objectOER.occurrence)) { "Object orchestrated twice: ${task.path}" }
+                    children.remove(task.objectOER.occurrence)?.forEach(::enqueue)
+                    check(orchestrated.add(task.queryOER.occurrence)) {
+                        "Query orchestrated twice: ${task.path}"
+                    }
+                    children.remove(task.queryOER.occurrence)?.forEach(::enqueue)
+                }
+                is DepthFirstFieldResolverTask -> task.run()
+                is DepthFirstMutationTask -> task.run()
+            }
+            check(finished.add(task)) { "Task finished twice: ${task.path}" }
+        }
     }
 
     /**
@@ -102,6 +121,20 @@ internal class DepthFirstReactor(
         enqueue(task)
     }
 
+    override suspend fun dispatchMutationField(
+        publication: DepthFirstFieldResolverTask,
+        cell: EngineResultCell,
+    ) {
+        check(dispatchedTasks.add(publication)) { "Mutation field task dispatched twice" }
+        enqueue(publication)
+        drainTasks()
+    }
+
+    override fun mutationNamespacePrepared(occurrence: OEROccurrence) {
+        check(orchestrated.add(occurrence)) { "Mutation namespace orchestrated twice" }
+        children.remove(occurrence)?.forEach(::enqueue)
+    }
+
     private fun enqueue(task: DepthFirstTask) {
         tasks += ScheduledTask(task, nextSequence++)
     }
@@ -118,7 +151,7 @@ internal val depthFirstTaskComparator =
         .thenBy {
             when (it.task) {
                 is DepthFirstFieldResolverTask -> 0
-                is DepthFirstOrchestrationTask -> 1
+                is DepthFirstOrchestrationTask, is DepthFirstMutationTask -> 1
             }
         }
         .thenBy { it.sequence }

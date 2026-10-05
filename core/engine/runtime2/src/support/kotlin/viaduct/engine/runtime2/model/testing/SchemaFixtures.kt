@@ -22,13 +22,11 @@ private val STANDARD_DIRECTIVE_NAMES =
         "oneOf",
         "parent",
         "namespaceType",
+        "resolver",
     )
 
 fun ViaductAndGJSchema.Companion.fromSDL(schemaSDL: String): ViaductAndGJSchema {
     val graphQLSchema = parseSchema(schemaSDL)
-    require(graphQLSchema.mutationType == null) {
-        "Mutation roots are outside the model"
-    }
     require(graphQLSchema.subscriptionType == null) {
         "Subscription roots are outside the model"
     }

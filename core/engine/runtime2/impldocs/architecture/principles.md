@@ -36,7 +36,7 @@ Errors belong to domains rather than to every pre-domain type. Engine results, e
 
 ## Result Occurrence Is Identity
 
-The semantic identity of work is an occurrence in a rooted result tree. A resolver occurrence combines the reference identity of its Query-rooted OER with its exact path. The primary operation result roots primary occurrences. Ordinary declared Query fragments use the associated Query OER owned by their containing orchestration, so equal exact keys in that scope share production while every owner retains its own projection. Independently rooted operations such as `ctx.query()` and root-field-reference targets receive fresh roots.
+The semantic identity of work is an occurrence in a rooted result tree. A resolver occurrence combines the reference identity of its operation-rooted OER with its exact path. The primary operation result roots primary occurrences. Ordinary declared Query fragments use the associated Query OER owned by their containing orchestration, so equal exact keys in that scope share production while every owner retains its own projection. Independently rooted operations such as `ctx.query()` and root-field-reference targets receive fresh roots.
 
 Equal node IDs, schema coordinates, arguments, paths in different roots, or values do not merge separate object or list occurrences. List indices and concrete containing paths remain part of occurrence identity. Caching, batching, and request deduplication are separate physical execution layers and must not redefine semantic identity.
 
@@ -145,3 +145,7 @@ Runtime2-owned engine object data retains canonical lowered `ViaductSchema.Objec
 Engine object data is a policy-neutral value boundary. Reading a present erroneous selection exposes its `EngineErrorData`; the Tenant API layer decides how tenant code observes that error, including whether a generated accessor throws. Compatibility with an implementation that throws while reading an erroneous selection must not move Tenant API error policy into Runtime2's result model.
 
 Alignment with the Engine API does not require preserving every external representation inside the result tree. In particular, Runtime2 distinguishes result-domain ID and enum values even though engine input and output data currently represent both as strings. Explicit adapters own that conversion so a carrier migration can remove it without changing Resolution semantics.
+
+## Mutation Ordering
+
+Mutation namespace demand is ordered and collected by response key. One orchestration traversal follows namespace edges depth first and preserves the order at each forest level. Distinct aliases identify distinct mutation applications and result cells. Each active mutation's field task and payload completion precede the next mutation; ordinary payload and independent Query work retain their existing concurrency. Mutation resolver input fragments are excluded because closing sibling demand would introduce effects outside this prescribed order. Every selected mutation executes regardless of earlier failures or nullability; explicit request cancellation still interrupts execution. Response completion begins after the mutation traversal finishes, so response null propagation cannot cancel remaining mutation effects.

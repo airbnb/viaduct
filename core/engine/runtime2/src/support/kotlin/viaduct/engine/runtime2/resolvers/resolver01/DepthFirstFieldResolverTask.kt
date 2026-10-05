@@ -10,6 +10,7 @@ import viaduct.engine.runtime2.model.ErrorEngineResult
 import viaduct.engine.runtime2.model.MaterializeSelectionForest
 import viaduct.engine.runtime2.model.NodeReferenceIdentity
 import viaduct.engine.runtime2.model.ObjectEngineResult
+import viaduct.engine.runtime2.model.ObjectSelection
 import viaduct.engine.runtime2.model.PathComponent
 import viaduct.engine.runtime2.model.ResolverOutputData
 import viaduct.engine.runtime2.model.RootFieldReferenceData
@@ -25,6 +26,7 @@ import viaduct.engine.runtime2.model.registry.ResolverFragment
 import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.resolution.framework.CycleCheckState
 import viaduct.engine.runtime2.resolution.framework.CycleTask
+import viaduct.engine.runtime2.resolution.framework.OEROccurrence
 import viaduct.engine.runtime2.resolution.framework.ResolverInvocationObservation
 import viaduct.engine.runtime2.resolution.framework.RootFieldReferenceInvocationObservation
 import viaduct.engine.runtime2.resolution.framework.SharedFieldResolverTask
@@ -42,15 +44,28 @@ import viaduct.engine.runtime2.resolvers.prepareRootFieldReferenceInvocation
 internal class DepthFirstFieldResolverTask private constructor(
     override val publication: GroundedFieldPublicationOccurrence<DepthFirstOperationContext>,
     override val queryOERDepth: Int,
+    private val activateOnDispatch: Boolean,
 ) : SharedFieldResolverTask<GroundedFieldPublicationOccurrence<DepthFirstOperationContext>>, DepthFirstTask {
     // List-element references sit deeper than the field whose output contains them.
     override val path get() = publication.publicationPath.dropLast(1)
 
     companion object {
+        fun prepareMutation(
+            operation: DepthFirstOperationContext,
+            occurrence: OEROccurrence,
+            selection: ObjectSelection,
+        ): DepthFirstFieldResolverTask =
+            prepare(
+                GroundedFieldPublicationOccurrence(operation, occurrence, selection, occurrence.target.getCell(selection.key)),
+                queryOERDepth = 0,
+                activateOnDispatch = true,
+            )
+
         /** Claims the publication synchronously before either execution or reactor enqueue. */
         fun prepare(
             publication: GroundedFieldPublicationOccurrence<DepthFirstOperationContext>,
             queryOERDepth: Int,
+            activateOnDispatch: Boolean = false,
         ): DepthFirstFieldResolverTask {
             require(queryOERDepth >= 0) { "Query-OER depth must be nonnegative" }
             require(publication.selection.key.field.containingDef == publication.oerOccurrence.target.type) {
@@ -58,19 +73,24 @@ internal class DepthFirstFieldResolverTask private constructor(
             }
             // The reactor may freeze the OER before this task runs.
             publication.publicationCell.value.claim()
+            if (!activateOnDispatch) activatePublication(publication)
+            return DepthFirstFieldResolverTask(publication, queryOERDepth, activateOnDispatch)
+        }
+
+        private fun activatePublication(publication: GroundedFieldPublicationOccurrence<DepthFirstOperationContext>) {
             publication.publicationCell.setActivated(true)
             if (!publication.publicationCell.fieldCheckerResult.isCompleted) {
                 check(publication.publicationCell.fieldCheckerResult.complete(null)) {
                     "Field-checker result was completed twice"
                 }
             }
-            return DepthFirstFieldResolverTask(publication, queryOERDepth)
         }
     }
 
     /** Invokes one field, follows reference tails, and publishes its passively resolved output. */
     fun run(): Unit =
         with(publication) {
+            if (activateOnDispatch) activatePublication(publication)
             val key = selection.groundKey()
             val invocationDemand = this.invocationDemand ?: operation.complete(selection.subselections)
             var fieldValue: ResolverOutputData? = reference ?: when (val arguments = key.arguments) {
@@ -90,15 +110,19 @@ internal class DepthFirstFieldResolverTask private constructor(
                         )
                     check(
                         fragments.queryFragment.constructionSelections.isEmpty() ||
-                            queryOER.isDemanded(),
+                            queryOER?.isDemanded() == true,
                     ) {
                         "Nonempty resolver Query fragment has no demanded shared Query OER"
                     }
                     val queryValue =
-                        queryOER.occurrence.target.materializeInput(
-                            queryMaterializationSelections,
-                            oerOccurrence.root.fieldResolverCycleTask(publicationPath),
-                        )
+                        if (queryOER == null) {
+                            engineObjectDataOf(operation.world.schema.requireQueryTypeDef())
+                        } else {
+                            queryOER.occurrence.target.materializeInput(
+                                queryMaterializationSelections,
+                                oerOccurrence.root.fieldResolverCycleTask(publicationPath),
+                            )
+                        }
 
                     val objectMaterializationSelections =
                         resolver.instantiateObjectMaterializationSelections(

@@ -1,21 +1,22 @@
 package viaduct.engine.runtime2.model
 
 import viaduct.engine.api.EngineObjectData
+import viaduct.engine.runtime2.model.spec.flatten
 import viaduct.graphql.schema.ViaductSchema
 
 /**
- * A free commutative collection of opaque [Selection] members.
+ * A collection of opaque [Selection] members, commutative except for [MutationSelectionForest].
  *
  * ### Member Count
  *
  * [size] observes the number of current members. A forest returned directly by
- * [viaduct.engine.runtime2.model.spec.flatten] has one member for each flattened GraphQL field occurrence, but that is a
+ * [flatten] has one member for each flattened GraphQL field occurrence, but that is a
  * postcondition of flattening rather than an invariant of every forest.
  *
  * ### Equality And Observation
  *
  * Selection and forest equality are undefined, and no operation compares whole [Selection] values
- * or exposes member order. [merge] is the explicit normalization boundary that compares structural
+ * or exposes member order except for [MutationSelectionForest]. [merge] is the explicit normalization boundary that compares structural
  * object keys and coalesces forest members.
  */
 sealed interface SelectionForest {
@@ -138,6 +139,7 @@ fun Iterable<SelectionForest>.concatenateSelectionForests(): SelectionForest = f
  * concrete runtime parent type is not yet known.
  */
 fun SelectionForest.merge(type: ViaductSchema.Object): ObjectSelectionForest {
+    require(this !is MutationSelectionForest) { "Mutation forests must retain response-key collection and source order" }
     val occurrencesByKey =
         buildMap<ObjectEngineResult.ObjectKey, MutableList<Selection>> {
             occurrences().forEach { selection ->
@@ -236,8 +238,9 @@ internal fun ObjectEngineResult.Key.objectKey(type: ViaductSchema.Object): Objec
 /**
  * A post-validation field-selection occurrence used for Viaduct field resolution.
  *
- * This is not a GraphQL AST selection or a description of field completion. Aliases, response
- * keys, source order, named fragments, inline-fragment nodes, and raw directives are absent. Inline
+ * This is not a GraphQL AST selection or a description of field completion. Ordinary selections
+ * omit aliases, response keys, source order, named fragments, inline-fragment nodes, and raw directives.
+ * [MutationSelection] retains its response key, and [MutationSelectionForest] stipulates execution order. Inline
  * fragments have already been flattened into the field coordinate in [key], the applicability
  * guard in [possibleTypes], and [inclusionCondition].
  *
@@ -441,6 +444,12 @@ fun SelectionForest.guardedBy(condition: InclusionCondition): SelectionForest =
 private abstract class AbstractSelectionForest(
     val occurrences: List<Selection>,
 ) : SelectionForest {
+    init {
+        require(occurrences.none { it is MutationSelection || it.subselections is MutationSelectionForest }) {
+            "An ordinary selection forest cannot contain mutation selections or mutation subselections"
+        }
+    }
+
     override val size: Int
         get() = occurrences.size
 
@@ -492,4 +501,8 @@ private class ObjectSelectionForestImpl(
     override fun get(key: ObjectEngineResult.ObjectKey): ObjectSelection = selectionsByKey.getValue(key)
 }
 
-private fun SelectionForest.occurrences(): List<Selection> = (this as AbstractSelectionForest).occurrences
+private fun SelectionForest.occurrences(): List<Selection> =
+    when (this) {
+        is MutationSelectionForest -> orderedSelections()
+        else -> (this as AbstractSelectionForest).occurrences
+    }

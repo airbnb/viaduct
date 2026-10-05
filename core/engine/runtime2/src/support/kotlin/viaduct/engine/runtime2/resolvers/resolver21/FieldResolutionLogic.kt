@@ -10,6 +10,7 @@ import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.ResolverOutputData
 import viaduct.engine.runtime2.model.RootFieldReferenceData
 import viaduct.engine.runtime2.model.SelectionForest
+import viaduct.engine.runtime2.model.engineObjectDataOf
 import viaduct.engine.runtime2.model.groundKey
 import viaduct.engine.runtime2.model.invariants.conformsToResolverOutputSchemaType
 import viaduct.engine.runtime2.model.materializeSelectionForestOf
@@ -17,6 +18,7 @@ import viaduct.engine.runtime2.model.nodeReferenceIdentityOrNull
 import viaduct.engine.runtime2.model.registry.FieldValueResolver
 import viaduct.engine.runtime2.model.registry.ResolutionExecutionContext
 import viaduct.engine.runtime2.model.registry.ResolverFragment
+import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.resolution.framework.CycleTask
 import viaduct.engine.runtime2.resolution.framework.ResolverInvocationObservation
 import viaduct.engine.runtime2.resolution.framework.RootFieldReferenceInvocationObservation
@@ -155,14 +157,16 @@ internal class FieldResolutionLogic(
         reader: CycleTask,
     ): EngineObjectData.Sync {
         val publication = fieldResolverTask.publication
-        check(queryFragment.constructionSelections.isEmpty() || publication.queryOER.isDemanded()) {
+        val queryOER = publication.queryOER
+            ?: return engineObjectDataOf(publication.operation.world.schema.requireQueryTypeDef())
+        check(queryFragment.constructionSelections.isEmpty() || queryOER.isDemanded()) {
             "Nonempty resolver Query fragment has no demanded shared Query OER"
         }
         val materializationSelections =
             resolver.instantiateQueryMaterializationSelections(
                 queryFragment.resolverOccurrenceId,
             )
-        return publication.queryOER.occurrence.target.materializeResolverInput(
+        return queryOER.occurrence.target.materializeResolverInput(
             operation = publication.operation,
             cycleChecker = publication.operation.cycleChecker,
             selections = materializationSelections,

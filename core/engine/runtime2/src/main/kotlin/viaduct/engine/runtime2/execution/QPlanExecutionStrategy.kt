@@ -10,6 +10,7 @@ import graphql.execution.SimpleDataFetcherExceptionHandler
 import graphql.incremental.DelayedIncrementalPartialResult
 import graphql.incremental.IncrementalExecutionResult
 import graphql.incremental.IncrementalExecutionResultImpl
+import graphql.language.OperationDefinition
 import graphql.schema.GraphQLSchema
 import java.util.concurrent.CancellationException
 import java.util.concurrent.CompletableFuture
@@ -18,18 +19,20 @@ import kotlin.coroutines.CoroutineContext
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.future.future
 import org.reactivestreams.Publisher
 import org.reactivestreams.Subscriber
 import org.reactivestreams.Subscription
+import viaduct.engine.api.Engine
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.runtime2.model.Assumptions
 import viaduct.engine.runtime2.resolution.framework.ResolverObserver
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
-import viaduct.engine.runtime2.resolution.startResolve
+import viaduct.engine.runtime2.resolution.startResolution
 import viaduct.engine.runtime2.schema.selectionsFrom
 
 /**
- * Query execution boundary for the qplan GraphQL-Java harness.
+ * Query and mutation execution boundary for the qplan GraphQL-Java harness.
  *
  * Each request decodes its validated operation into qplan selections, starts Resolution, and
  * delegates GraphQL completion with a live promise-backed OER as the root source.
@@ -80,7 +83,7 @@ class QPlanExecutionStrategy(
             QPlanRequestLifetime(requestJob),
         )
 
-        val root =
+        val resolution =
             try {
                 SharedOperationContext.create(
                     world,
@@ -89,7 +92,7 @@ class QPlanExecutionStrategy(
                         ResolverObserver::class.java,
                         ResolverObserver.NOP,
                     ),
-                ).startResolve(selections, requestScope)
+                ).startResolution(selections, requestScope)
             } catch (throwable: Exception) {
                 executionContext.graphQLContext.delete(lifetimeKey)
                 requestJob.cancel(requestCancellation("QPlan request failed to start", throwable))
@@ -98,12 +101,18 @@ class QPlanExecutionStrategy(
 
         val graphqlFuture =
             try {
-                super.execute(
-                    executionContext,
+                val completionParameters =
                     parameters.transform { builder ->
-                        builder.source(QPlanExecutionSource(root, requestScope))
-                    },
-                )
+                        builder.source(QPlanExecutionSource(resolution.root, requestScope))
+                    }
+                if (executionContext.operationDefinition.operation == OperationDefinition.Operation.MUTATION) {
+                    // Null propagation can finish GraphQL completion early. Every mutation must
+                    // finish before that completion is allowed to terminate the request.
+                    requestScope.future { resolution.await() }
+                        .thenCompose { super.execute(executionContext, completionParameters) }
+                } else {
+                    super.execute(executionContext, completionParameters)
+                }
             } catch (throwable: Exception) {
                 executionContext.graphQLContext.delete(lifetimeKey)
                 requestJob.cancel(requestCancellation("GraphQL completion failed", throwable))
@@ -230,7 +239,7 @@ internal data class QPlanRequestLifetimeKey(
  * Propagates caller cancellation into an independently owned request job.
  *
  * The request job cannot be a structured child of the caller: an incremental result must outlive
- * the initial [Engine.execute][viaduct.engine.api.Engine.execute] call until its publisher ends.
+ * the initial [Engine.execute] call until its publisher ends.
  */
 internal class QPlanCallerCancellation {
     private val requestJob = AtomicReference<Job?>()

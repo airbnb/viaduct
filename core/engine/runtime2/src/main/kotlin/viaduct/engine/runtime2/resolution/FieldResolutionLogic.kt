@@ -13,6 +13,7 @@ import viaduct.engine.runtime2.model.EngineErrorData
 import viaduct.engine.runtime2.model.EngineObjectOrErrorData
 import viaduct.engine.runtime2.model.EngineResult
 import viaduct.engine.runtime2.model.ErrorEngineResult
+import viaduct.engine.runtime2.model.InclusionCondition
 import viaduct.engine.runtime2.model.NodeReferenceIdentity
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.ObjectSelection
@@ -40,6 +41,7 @@ import viaduct.engine.runtime2.resolution.framework.argumentsContainErrorValue
 import viaduct.engine.runtime2.resolution.framework.fetchGroundedArguments
 import viaduct.engine.runtime2.resolution.framework.fieldResolverCycleTask
 import viaduct.engine.runtime2.resolution.framework.withAuthoritativeNodeId
+import viaduct.graphql.schema.ViaductSchema
 
 /** Invokes and publishes one already-installed field resolver or root-field reference. */
 internal class FieldResolutionLogic(
@@ -124,7 +126,7 @@ internal class FieldResolutionLogic(
                 is PassiveValueOccurrence -> sourceOccurrence.invocationDemand
                 else -> constructionDemand.successorDemandFromConstructionDemand(
                     publication.operation.world,
-                    (sourceOccurrence.publicationExpectedType.baseTypeDef as? viaduct.graphql.schema.ViaductSchema.CompositeTypeDef)?.possibleObjectTypes.orEmpty(),
+                    (sourceOccurrence.publicationExpectedType.baseTypeDef as? ViaductSchema.CompositeTypeDef)?.possibleObjectTypes.orEmpty(),
                 )
             }
 
@@ -321,7 +323,9 @@ internal class FieldResolutionLogic(
     private suspend fun materializeQueryFragment(fieldResolverOccurrence: FieldResolverOccurrence): EngineObjectData.Sync {
         val publication = fieldResolverTask.publication
         val queryFragment = fieldResolverOccurrence.fragments.queryFragment
-        check(queryFragment.constructionSelections.isEmpty() || publication.queryOER.isDemanded()) {
+        val queryOER = publication.queryOER
+            ?: return engineObjectDataOf(publication.operation.world.schema.requireQueryTypeDef())
+        check(queryFragment.constructionSelections.isEmpty() || queryOER.isDemanded()) {
             "Nonempty resolver Query fragment has no demanded shared Query OER"
         }
         val materializationSelections =
@@ -329,7 +333,7 @@ internal class FieldResolutionLogic(
                 .instantiateQueryMaterializationSelections(
                     queryFragment.resolverOccurrenceId,
                 )
-        return publication.queryOER.occurrence.target.materializeResolverInput(
+        return queryOER.occurrence.target.materializeResolverInput(
             operation = publication.operation,
             cycleChecker = publication.operation.cycleChecker,
             selections = materializationSelections,
@@ -542,7 +546,7 @@ internal class FieldResolutionLogic(
 }
 
 /** Shared cells activate from any independently ready true demand alternative. */
-internal suspend fun viaduct.engine.runtime2.model.InclusionCondition.includeAnyReadyAlternative(binding: suspend (Arguments.Variable) -> Boolean): Boolean =
+internal suspend fun InclusionCondition.includeAnyReadyAlternative(binding: suspend (Arguments.Variable) -> Boolean): Boolean =
     supervisorScope {
         val alternatives = satisfiableAlternatives()
         if (alternatives.size <= 1) {

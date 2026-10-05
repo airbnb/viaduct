@@ -67,6 +67,10 @@ Lossy abstract-type traversal in a provider path is rejected through the product
 
 Production checker dispatchers expose the same normalized variable-definition categories. Runtime2 compiles each named checker input into paired object and Query fragments, preserving dispatcher execution conditions as provider-backed inclusion guards. Legacy opaque variables resolvers that carry their own required selection set cannot be represented by this conversion and fail when the dispatcher definitions are compiled.
 
+### Mutation Execution
+
+`Engine2` installs `QPlanExecutionStrategy` for both query and mutation operations. Mutation operation decoding grounds arguments and conditions, collects fields by response key in source order, and constructs ordered mutation forests through structural namespace edges. Completion reads response-key-qualified mutation cells from `MutationObjectEngineResult`; payload completion uses ordinary OERs and wiring. Every selected mutation executes regardless of earlier failures or nullability. The strategy calls `StartedResolution.await()` for mutation operations before ordinary asynchronous GraphQL completion; null propagation changes response shape without suppressing later effects. Mutation resolvers cannot declare object or Query required selections and use `ctx.query()` for dependent reads. Mutation namespace field and type checkers are excluded; payload checkers retain ordinary semantics.
+
 ### Nested Query Execution
 
 Resolution passes the concrete `FieldResolverTask` to each registry function as its `ResolutionExecutionContext`. The adapter wraps that explicit capability in an invocation-local `QPlanEngineExecutionContext`; it does not discover the current task through coroutine context.
@@ -107,7 +111,7 @@ The execution layer rejects or does not provide:
 - inline object materialization for Node-valued fields;
 - object required selections or `FromObjectField` variables on reference targets;
 - function variables providers with their own required selections;
-- mutations, `ctx.mutation()`, subscriptions, custom scalars, `@stream`, EOD aliases, asynchronous EOD variants, `EngineExecutionContext.completeSelectionSet`, and direct `Engine.resolveRootFieldReference` calls.
+- `ctx.mutation()`, subscriptions, custom scalars, `@stream`, EOD aliases, asynchronous EOD variants, `EngineExecutionContext.completeSelectionSet`, and direct `Engine.resolveRootFieldReference` calls.
 
 Unsupported input fails explicitly during registry construction, operation decoding, or execution. Runtime2 does not retry an operation on the old engine after Resolution begins.
 

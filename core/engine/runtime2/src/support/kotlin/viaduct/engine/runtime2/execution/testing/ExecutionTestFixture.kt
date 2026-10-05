@@ -187,6 +187,13 @@ class ExecutionTestFixture private constructor(
                             resolverCoroutineContext = resolverCoroutineContext,
                         ),
                     )
+                    .mutationExecutionStrategy(
+                        QPlanExecutionStrategy(
+                            world = world.assumptions,
+                            sourceSchema = world.schemas.graphQLSchema,
+                            resolverCoroutineContext = resolverCoroutineContext,
+                        ),
+                    )
                     .instrumentation(QPlanInstrumentation())
                     .build()
             return ExecutionTestFixture(

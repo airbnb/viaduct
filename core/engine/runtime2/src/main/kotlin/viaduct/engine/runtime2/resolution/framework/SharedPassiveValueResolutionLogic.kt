@@ -34,7 +34,7 @@ import viaduct.graphql.schema.ViaductSchema
  */
 internal abstract class SharedPassiveValueResolutionLogic<
     T : SharedOrchestrationTask<*>,
-    O : SharedOperationContext<SharedTaskDispatcher<T, *>>,
+    O : SharedOperationContext<SharedTaskDispatcher<T, *, *>>,
 >(
     protected val operation: O,
 ) {

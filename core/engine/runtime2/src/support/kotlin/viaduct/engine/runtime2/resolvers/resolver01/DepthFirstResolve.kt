@@ -1,9 +1,12 @@
 package viaduct.engine.runtime2.resolvers.resolver01
 
+import viaduct.engine.runtime2.model.MutationObjectEngineResult
+import viaduct.engine.runtime2.model.MutationSelectionForest
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.ResolverOccurrenceId
 import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.model.requireQueryTypeDef
+import viaduct.engine.runtime2.resolution.framework.MutationNamespaceOccurrence
 import viaduct.engine.runtime2.resolution.framework.OEROccurrence
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 
@@ -20,6 +23,13 @@ internal class DepthFirstResolve(
         selections: SelectionForest,
         queryFragmentOwner: ResolverOccurrenceId? = null,
     ): ObjectEngineResult {
+        if (selections is MutationSelectionForest) {
+            require(selections.type == operation.world.schema.mutationTypeDef) { "Mutations must start at their root" }
+            val result = MutationObjectEngineResult.of(selections)
+            DepthFirstMutationTask(operation, MutationNamespaceOccurrence(OEROccurrence(result, emptyList(), result), selections))
+                .run()
+            return result
+        }
         val source = operation.world.resolverRegistry.createRootQueryInput()
         val result = ObjectEngineResult.of(operation.world.schema.requireQueryTypeDef(), mutable = true)
         val orchestration =

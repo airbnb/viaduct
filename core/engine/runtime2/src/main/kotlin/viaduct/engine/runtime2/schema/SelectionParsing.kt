@@ -20,7 +20,7 @@ import viaduct.graphql.schema.ViaductSchema
 fun ViaductAndGJSchema.selectionsFrom(fragment: String): Pair<ViaductSchema.CompositeTypeDef, SelectionForest> = selectionParser().selectionsFrom(fragment)
 
 /**
- * Decodes one post-validation query operation with already-coerced operation variables.
+ * Decodes one post-validation query or mutation operation with already-coerced operation variables.
  *
  * Delivery-only `@defer` directives are transparent to qplan so deferred selections remain part of
  * full-operation demand. Named fragment spreads are inlined while decoding.
@@ -36,7 +36,7 @@ fun Assumptions.selectionsFrom(
     GJSelectionParser(sourceSchema, schema, emptyMap())
         .selectionsFrom(operation, variables, graphQLContext, locale, fragmentsByName)
 
-/** Parses and decodes one validated query operation with raw request variables. */
+/** Parses and decodes one validated query or mutation operation with raw request variables. */
 fun ViaductAndGJSchema.operationSelectionsFrom(
     documentSource: String,
     variables: Map<String, Any?> = emptyMap(),

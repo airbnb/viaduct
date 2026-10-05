@@ -20,17 +20,22 @@ import kotlin.test.assertSame
 import kotlin.test.assertTrue
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.job
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import viaduct.engine.runtime2.contract.get
 import viaduct.engine.runtime2.model.ErrorEngineResult
 import viaduct.engine.runtime2.model.ObjectEngineResult
+import viaduct.engine.runtime2.model.Promise
 import viaduct.engine.runtime2.model.ResolverOccurrenceId
 import viaduct.engine.runtime2.model.emptyFragmentOf
 import viaduct.engine.runtime2.model.registry.fieldResolverOf
@@ -49,6 +54,112 @@ import viaduct.engine.runtime2.resolution.framework.valueCycleSlot
 import viaduct.engine.runtime2.schema.operationSelectionsFrom
 
 class ResolverStartTest : ResolutionDispatcherResource {
+    @Test
+    fun `await waits for query and mutation task children without waiting for unrelated request work`() =
+        runBlocking {
+            for (type in listOf("Query", "Mutation")) {
+                val childStarted = CompletableDeferred<Unit>()
+                val release = CompletableDeferred<Unit>()
+                val childFinished = CompletableDeferred<Unit>()
+                val world = TestWorld.fromSDL(
+                    "type Query { value: Int } type Mutation { value: Int }",
+                    fieldResolvers = { schemas ->
+                        val schema = schemas.loweredSchema
+                        mapOf(
+                            schema.requireObjectField(type, "value") to fieldResolverOf(schema.emptyFragmentOf(type)) { _, _, context ->
+                                assertIs<FieldResolverTask>(context).fieldTaskScope.launch {
+                                    childStarted.complete(Unit)
+                                    release.await()
+                                    childFinished.complete(Unit)
+                                }
+                                1
+                            },
+                        )
+                    },
+                )
+                val requestJob = Job()
+                val requestScope = CoroutineScope(resolverDispatcher + requestJob)
+                try {
+                    val unrelated = requestScope.launch { awaitCancellation() }
+                    val operation = if (type == "Mutation") "mutation { value }" else "{ value }"
+                    val resolution = SharedOperationContext.create(world.assumptions).startResolution(
+                        world.schemas.operationSelectionsFrom(operation),
+                        requestScope,
+                    )
+                    withTimeout(5_000) { childStarted.await() }
+                    assertEquals(1, withTimeout(5_000) { resolution.root.getCell(resolution.root.keys.single()).value.await() })
+                    val waiter = async(start = CoroutineStart.UNDISPATCHED) { resolution.await() }
+                    assertFalse(waiter.isCompleted, type)
+                    release.complete(Unit)
+                    withTimeout(5_000) { waiter.await() }
+                    assertTrue(childFinished.isCompleted, type)
+                    assertTrue(unrelated.isActive, type)
+                    assertTrue(requestJob.isActive, type)
+                } finally {
+                    requestJob.cancelAndJoin()
+                }
+            }
+        }
+
+    @Test
+    fun `await propagates request cancellation for queries and mutations`() =
+        runBlocking {
+            for (type in listOf("Query", "Mutation")) {
+                val started = CompletableDeferred<Unit>()
+                val world = TestWorld.fromSDL(
+                    "type Query { value: Int } type Mutation { value: Int }",
+                    fieldResolvers = { schemas ->
+                        val schema = schemas.loweredSchema
+                        mapOf(
+                            schema.requireObjectField(type, "value") to fieldResolverOf(schema.emptyFragmentOf(type)) { _, _ ->
+                                started.complete(Unit)
+                                awaitCancellation()
+                            },
+                        )
+                    },
+                )
+                val requestJob = Job()
+                try {
+                    val operation = if (type == "Mutation") "mutation { value }" else "{ value }"
+                    val resolution = SharedOperationContext.create(world.assumptions).startResolution(
+                        world.schemas.operationSelectionsFrom(operation),
+                        CoroutineScope(resolverDispatcher + requestJob),
+                    )
+                    withTimeout(5_000) { started.await() }
+                    requestJob.cancelAndJoin()
+                    assertFailsWith<CancellationException> { withTimeout(5_000) { resolution.await() } }
+                } finally {
+                    requestJob.cancelAndJoin()
+                }
+            }
+        }
+
+    @Test
+    fun `await propagates fatal failures without swallowing the request exception handler`() =
+        runBlocking {
+            val failure = AssertionError("fatal resolver failure")
+            val reported = CompletableDeferred<Throwable>()
+            val world = TestWorld.fromSDL(
+                "type Query { value: Int }",
+                fieldResolvers = { schemas ->
+                    val schema = schemas.loweredSchema
+                    mapOf(schema.requireObjectField("Query", "value") to fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> throw failure })
+                },
+            )
+            val requestJob = Job()
+            try {
+                val resolution = SharedOperationContext.create(world.assumptions).startResolution(
+                    world.schemas.operationSelectionsFrom("{ value }"),
+                    CoroutineScope(resolverDispatcher + requestJob + CoroutineExceptionHandler { _, cause -> reported.complete(cause) }),
+                )
+                val observed = assertFailsWith<AssertionError> { withTimeout(5_000) { resolution.await() } }
+                assertSame(failure, observed.cause ?: observed)
+                assertSame(failure, withTimeout(5_000) { reported.await() })
+            } finally {
+                requestJob.cancelAndJoin()
+            }
+        }
+
     @Test
     fun `nested execution retains observer but only query fragment emits preparation`() {
         val observer = InvocationRecordingObserver()
@@ -664,7 +775,7 @@ class ResolverStartTest : ResolutionDispatcherResource {
             ),
         )
 
-    private suspend fun <T> viaduct.engine.runtime2.model.Promise<T>.awaitFailure(): Exception =
+    private suspend fun <T> Promise<T>.awaitFailure(): Exception =
         try {
             await()
             error("Promise completed successfully")

@@ -64,16 +64,18 @@ internal class GJSelectionParser(
         locale: Locale,
         fragmentsByName: Map<String, FragmentDefinition> = emptyMap(),
     ): SelectionForest {
-        require(operation.operation == OperationDefinition.Operation.QUERY) {
-            "Qplan operation decoding supports query operations only"
+        require(operation.operation != OperationDefinition.Operation.SUBSCRIPTION) {
+            "Qplan operation decoding does not support subscriptions"
         }
+        val mutation = operation.operation == OperationDefinition.Operation.MUTATION
+        val sourceRoot = if (mutation) requireNotNull(sourceSchema.mutationType) else sourceSchema.queryType
         require(operation.directives.isEmpty()) {
             "Applied operation directives are unsupported"
         }
         val selections =
             decodeSelectionSet(
                 selectionSet = operation.selectionSet,
-                typeInScope = sourceSchema.queryType,
+                typeInScope = sourceRoot,
                 argumentDecoder =
                     CoercedArgumentDecoder(
                         variables = variables,
@@ -83,7 +85,12 @@ internal class GJSelectionParser(
                 mode = TranslationMode.EXTERNAL_OPERATION,
                 fragmentsByName = fragmentsByName,
             )
-        return flatten(schema, schema.requireQueryTypeDef(), selections)
+        return if (mutation) {
+            val type = requireNotNull(schema.mutationTypeDef)
+            flattenForMaterialization(schema, type, selections).mutationSelections(schema, type)
+        } else {
+            flatten(schema, schema.requireQueryTypeDef(), selections)
+        }
     }
 
     fun materializeSelectionsFrom(fragment: String): Pair<ViaductSchema.CompositeTypeDef, MaterializeSelectionForest> {

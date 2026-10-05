@@ -573,7 +573,7 @@ private fun ResolverOutputData?.recordPassiveResolution(
         world = operation.world,
         variableBindings = operation.variableBindings,
         resolverObserver = operation.resolverObserver,
-        dispatcher = object : SharedTaskDispatcher<SharedOrchestrationTask<*>, SharedFieldPublicationOccurrence<*, *>> {
+        dispatcher = object : SharedTaskDispatcher<SharedOrchestrationTask<*>, SharedFieldPublicationOccurrence<*, *>, SharedFieldPublicationOccurrence<*, *>> {
             override fun dispatchOrchestration(task: SharedOrchestrationTask<*>) {
                 val objectOER = task.objectOER
                 if (objectOER.closedValueSelections.groundKeys().any { it !in objectOER.occurrence.target.keys }) {
@@ -582,12 +582,17 @@ private fun ResolverOutputData?.recordPassiveResolution(
             }
 
             override fun dispatchFieldResolver(publication: SharedFieldPublicationOccurrence<*, *>) = error("Executable references are covered by the resolver contracts")
+
+            override suspend fun dispatchMutationField(
+                publication: SharedFieldPublicationOccurrence<*, *>,
+                cell: EngineResultCell,
+            ) = error("Mutation fields are covered by the resolver contracts")
         },
     )
     val constructionDemandByTask = mutableMapOf<SharedOrchestrationTask<*>, Demand<ObjectSelectionForest>>()
     val resolution = object : SharedPassiveValueResolutionLogic<
         SharedOrchestrationTask<*>,
-        SharedOperationContext<SharedTaskDispatcher<SharedOrchestrationTask<*>, *>>,
+        SharedOperationContext<SharedTaskDispatcher<SharedOrchestrationTask<*>, *, *>>,
     >(taskOperation) {
         override fun collect(
             selections: SelectionForest,

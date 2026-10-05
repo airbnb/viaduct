@@ -1,6 +1,7 @@
 package viaduct.engine.runtime2.resolvers.resolver01
 
 import viaduct.engine.runtime2.model.SelectionForest
+import viaduct.engine.runtime2.resolution.framework.OEROccurrence
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 import viaduct.engine.runtime2.resolution.framework.SharedTaskDispatcher
 import viaduct.engine.runtime2.resolvers.GroundedFieldPublicationOccurrence
@@ -26,12 +27,16 @@ internal interface DepthFirstDispatcher :
     SharedTaskDispatcher<
         DepthFirstOrchestrationTask,
         GroundedFieldPublicationOccurrence<DepthFirstOperationContext>,
+        DepthFirstFieldResolverTask,
     > {
     /** Dispatches a field in the Query-OER scope identified by [queryOERDepth]. */
     fun dispatchFieldResolver(
         publication: GroundedFieldPublicationOccurrence<DepthFirstOperationContext>,
         queryOERDepth: Int,
     )
+
+    /** Makes a prepared mutation namespace eligible to receive ordinary payload children. */
+    fun mutationNamespacePrepared(occurrence: OEROccurrence) {}
 
     /** The shared dispatcher entry point starts at an independently rooted execution's depth. */
     override fun dispatchFieldResolver(publication: GroundedFieldPublicationOccurrence<DepthFirstOperationContext>) = dispatchFieldResolver(publication, queryOERDepth = 0)

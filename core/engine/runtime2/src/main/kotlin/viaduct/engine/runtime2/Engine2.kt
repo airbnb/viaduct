@@ -4,12 +4,15 @@ import graphql.ExecutionInput as GraphQLExecutionInput
 import graphql.ExecutionResult
 import graphql.GraphQL
 import graphql.execution.AbortExecutionException
+import graphql.execution.DataFetcherExceptionHandler
 import graphql.execution.ExecutionContext
 import graphql.execution.ExecutionStrategy
 import graphql.execution.ExecutionStrategyParameters
 import graphql.execution.instrumentation.ChainedInstrumentation
 import graphql.execution.instrumentation.Instrumentation
 import graphql.execution.preparsed.PreparsedDocumentProvider
+import graphql.language.FragmentDefinition
+import graphql.schema.GraphQLObjectType
 import java.util.concurrent.CompletableFuture
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -63,7 +66,7 @@ class Engine2(
     private val globalIDCodec: GlobalIDCodec,
     fieldSelectivityProvider: FieldSelectivityProvider = FieldSelectivityProvider.Never,
     resolverInstrumentation: ViaductResolverInstrumentation = ViaductResolverInstrumentation.DEFAULT,
-    dataFetcherExceptionHandler: graphql.execution.DataFetcherExceptionHandler,
+    dataFetcherExceptionHandler: DataFetcherExceptionHandler,
     additionalInstrumentation: Instrumentation? = null,
 ) : Engine {
     private val schemas = ViaductAndGJSchema.fromGraphQLSchema(fullSchema.schema)
@@ -96,6 +99,16 @@ class Engine2(
             .newGraphQL(QPlanWiringFactory(schemas.loweredSchema).wire(schema.schema))
             .preparsedDocumentProvider(documentProvider)
             .queryExecutionStrategy(
+                QPlanExecutionStrategy(
+                    world = world,
+                    sourceSchema = schemas.graphQLSchema,
+                    resolverCoroutineContext = Dispatchers.Default,
+                    engineExecutionContextFactory = { executionContext ->
+                        executionContext.graphQLContext.get<RequestContext>(requestContextKey).engineExecutionContext
+                    },
+                    dataFetcherExceptionHandler = dataFetcherExceptionHandler,
+                ),
+            ).mutationExecutionStrategy(
                 QPlanExecutionStrategy(
                     world = world,
                     sourceSchema = schemas.graphQLSchema,
@@ -192,12 +205,12 @@ class Engine2(
 
         override fun createNodeReference(
             id: String,
-            graphQLObjectType: graphql.schema.GraphQLObjectType,
+            graphQLObjectType: GraphQLObjectType,
         ): NodeReference = NodeEngineObjectDataImpl(id, graphQLObjectType, dispatcherRegistry, fieldScope.caller)
 
         override fun createRootFieldReference(
             rootFieldPath: List<String>,
-            type: graphql.schema.GraphQLObjectType,
+            type: GraphQLObjectType,
             args: Map<String, Any?>,
         ): RootFieldReference = ObjectRootFieldReference(rootFieldPath, type, args, fieldScope.caller)
 
@@ -234,7 +247,7 @@ private object UnsupportedSubscriptionExecutionStrategy : ExecutionStrategy() {
 }
 
 private object RootFieldExecutionScope : EngineExecutionContext.FieldExecutionScope {
-    override val fragments = emptyMap<String, graphql.language.FragmentDefinition>()
+    override val fragments = emptyMap<String, FragmentDefinition>()
     override val variables = emptyMap<String, Any?>()
     override val resolutionPolicy = ResolutionPolicy.STANDARD
     override val attribution = ExecutionAttribution.DEFAULT

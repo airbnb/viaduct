@@ -1,11 +1,75 @@
+@file:Suppress("ForbiddenImport")
+
 package viaduct.engine.runtime2.execution
 
+import java.util.concurrent.TimeUnit
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
+import viaduct.engine.runtime2.execution.testing.ExecutionTestFixture
 import viaduct.engine.runtime2.execution.testing.ExecutionTestFixtureResource
+import viaduct.engine.runtime2.model.EngineErrorData
+import viaduct.engine.runtime2.model.emptyFragmentOf
+import viaduct.engine.runtime2.model.registry.fieldResolverOf
+import viaduct.engine.runtime2.model.requireObjectField
+import viaduct.engine.runtime2.model.testing.TestWorld
 
 class QPlanExecutionStrategyTest : ExecutionTestFixtureResource {
+    @Test
+    fun `nonnull response failure waits for every mutation to finish`() =
+        runBlocking {
+            val started = CompletableDeferred<Unit>()
+            val release = CompletableDeferred<Unit>()
+            val finished = CompletableDeferred<Unit>()
+            val result = suspendedMutationFixture(started, release, finished).runQueryAsync("mutation { failed later }")
+            try {
+                withTimeout(5_000) { started.await() }
+                assertFalse(result.isDone)
+                release.complete(Unit)
+                val response = result.get(5, TimeUnit.SECONDS)
+                assertTrue(finished.isCompleted)
+                assertNull(response.getData<Any?>())
+                assertEquals(listOf("failed"), response.errors.single().path)
+            } finally {
+                release.complete(Unit)
+                result.cancel(true)
+            }
+        }
+
+    private fun suspendedMutationFixture(
+        started: CompletableDeferred<Unit>,
+        release: CompletableDeferred<Unit>,
+        finished: CompletableDeferred<Unit>,
+    ): ExecutionTestFixture {
+        val sdl = "type Query { idle: Int } type Mutation { failed: Int! later: Int! }"
+        val world = TestWorld.fromSDL(
+            sdl,
+            fieldResolvers = { schemas ->
+                val schema = schemas.loweredSchema
+                mapOf(
+                    schema.requireObjectField("Mutation", "failed") to fieldResolverOf(schema.emptyFragmentOf("Mutation")) { _, _ ->
+                        EngineErrorData.of(IllegalStateException("mutation failed"))
+                    },
+                    schema.requireObjectField("Mutation", "later") to fieldResolverOf(schema.emptyFragmentOf("Mutation")) { _, _ ->
+                        started.complete(Unit)
+                        try {
+                            release.await()
+                            2
+                        } finally {
+                            finished.complete(Unit)
+                        }
+                    },
+                )
+            },
+        )
+        return fixtureFromWorld(sdl, world)
+    }
+
     @Test
     fun `resolves an operation with variables objects and lists`() {
         val fixture =

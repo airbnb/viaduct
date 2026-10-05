@@ -124,7 +124,8 @@ sealed interface ObjectEngineResult {
     val typeCheckerResult: Promise<CheckerResult?>
 
     /**
-     * One alias-free output-field coordinate consisting of a canonical field and its arguments.
+     * An output-field coordinate consisting of a canonical field and its arguments.
+     * Ordinary keys are alias-free; [MutationKey] additionally distinguishes the response key.
      *
      * ### Invariant: key-argument-definition
      *
@@ -134,7 +135,8 @@ sealed interface ObjectEngineResult {
      *
      * A key's [field] is a [ViaductSchema.ObjectField] exactly when the key is an [ObjectKey].
      *
-     * Key equality is structural over [field] and [arguments], using canonical schema equality.
+     * Key equality is structural over [field] and [arguments], using canonical schema equality;
+     * [MutationKey] also compares its response key.
      * Variable-instance identity is carried by variables recursively contained in [arguments].
      */
     sealed interface Key {
@@ -253,6 +255,21 @@ sealed interface ObjectEngineResult {
                 } else {
                     GroundKeyImpl(field, arguments)
                 }
+            }
+        }
+    }
+
+    /** A mutation publication key, distinguished by its collected response key. */
+    sealed interface MutationKey : GroundKey {
+        val responseKey: String
+
+        companion object {
+            fun of(
+                key: GroundKey,
+                responseKey: String
+            ): MutationKey {
+                require(responseKey.isNotEmpty()) { "Mutation response keys must be nonempty" }
+                return MutationKeyImpl(key.field, key.arguments, responseKey)
             }
         }
     }
@@ -818,7 +835,7 @@ private class CellImpl(
     }
 }
 
-private class ObjectResultImpl(
+private open class ObjectResultImpl(
     override val type: ViaductSchema.Object,
     cells: Map<ObjectEngineResult.ObjectKey, EngineResultCell>,
     override val typeCheckerResult: Promise<CheckerResult?>,
@@ -1073,8 +1090,7 @@ private fun ObjectEngineResult.sameCompletedObjectResultAs(
     return leftCells.all { (leftKey, leftCell) ->
         val matchIndex =
             unmatchedRightCells.indexOfFirst { (rightKey, _) ->
-                leftKey.field == rightKey.field &&
-                    leftKey.arguments.hasSameRootRelativeStructureAs(rightKey.arguments)
+                leftKey.hasSameRootRelativeStructureAs(rightKey)
             }
         if (matchIndex < 0) {
             false
@@ -1253,3 +1269,39 @@ private fun EngineResult.isScalarResultMember(): Boolean =
         this is String ||
         this is EngineIDResult ||
         this is ViaductSchema.EnumValue
+
+private data class MutationKeyImpl(
+    override val field: ViaductSchema.ObjectField,
+    override val arguments: Arguments.Ground,
+    override val responseKey: String,
+) : ObjectEngineResult.MutationKey
+
+/** Compares fields and arguments modulo occurrence-root identity, retaining mutation response keys. */
+internal fun ObjectEngineResult.ObjectKey.hasSameRootRelativeStructureAs(other: ObjectEngineResult.ObjectKey): Boolean =
+    if (this is ObjectEngineResult.MutationKey || other is ObjectEngineResult.MutationKey) {
+        // Mutation arguments are grounded, so ordinary equality already has these semantics.
+        this == other
+    } else {
+        field == other.field && arguments.hasSameRootRelativeStructureAs(other.arguments)
+    }
+
+internal fun mutationObjectEngineResultOf(selections: MutationSelectionForest): MutationObjectEngineResult = MutationObjectEngineResultImpl(selections.type)
+
+private class MutationObjectEngineResultImpl(type: ViaductSchema.Object) :
+    ObjectResultImpl(type, emptyMap(), Promise.of(null), mutable = true), MutationObjectEngineResult {
+    override val keys: Set<ObjectEngineResult.MutationKey>
+        get() = super.keys.mapTo(linkedSetOf()) { it as ObjectEngineResult.MutationKey }
+
+    override fun reserveCell(field: ObjectEngineResult.ObjectKey): EngineResultCell {
+        require(field is ObjectEngineResult.MutationKey) { "Mutation objects require mutation publication keys" }
+        return super.reserveCell(field)
+    }
+
+    override fun setCellValue(
+        field: ObjectEngineResult.ObjectKey,
+        value: EngineResult?
+    ): EngineResultCell {
+        require(field is ObjectEngineResult.MutationKey) { "Mutation objects require mutation publication keys" }
+        return super.setCellValue(field, value)
+    }
+}

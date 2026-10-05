@@ -35,6 +35,7 @@ import viaduct.engine.runtime2.model.EngineResultCell
 import viaduct.engine.runtime2.model.EngineResultIsPending
 import viaduct.engine.runtime2.model.ErrorEngineResult
 import viaduct.engine.runtime2.model.ListEngineResult
+import viaduct.engine.runtime2.model.MutationObjectEngineResult
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.Promise
 import viaduct.engine.runtime2.model.awaitCheckedValue
@@ -108,9 +109,14 @@ private class ObjectEngineResultDataFetcher(
                 field = field,
                 arguments = environment.arguments,
             )
+        val publicationKey = if (objectResult is MutationObjectEngineResult) {
+            ObjectEngineResult.MutationKey.of(key, environment.field.resultKey)
+        } else {
+            key
+        }
         val value =
             objectResult
-                .getCell(key)
+                .getCell(publicationKey)
         return value.toGraphQLJavaValue(source, environment)
     }
 }

@@ -28,7 +28,8 @@ internal open class GroundedFieldPublicationOccurrence<out O : SharedOperationCo
     val invocationDemand: SelectionForest? = null,
     val publicationPath: List<PathComponent> = oerOccurrence.coordinate(selection.key),
     val publicationExpectedType: ViaductSchema.TypeExpr<ViaductSchema.OutputTypeDef> = selection.key.field.outputType,
-    val queryOER: SharedOERContext,
+    /** Associated Query context for ordinary fragments; absent for mutation and list-reference publications. */
+    val queryOER: SharedOERContext? = null,
     val constructionDemand: Demand<SelectionForest> = Demand.checked(selection.subselections),
-) : SharedFieldPublicationOccurrence<O, SharedTaskDispatcher<Nothing, Nothing>>,
-    SharedOperationContext<SharedTaskDispatcher<Nothing, Nothing>> by operation
+) : SharedFieldPublicationOccurrence<O, SharedTaskDispatcher<Nothing, Nothing, Nothing>>,
+    SharedOperationContext<SharedTaskDispatcher<Nothing, Nothing, Nothing>> by operation

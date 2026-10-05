@@ -7,10 +7,8 @@ import viaduct.engine.runtime2.model.ObjectSelectionForest
 import viaduct.engine.runtime2.model.PathComponent
 import viaduct.engine.runtime2.model.RootFieldReferenceData
 import viaduct.engine.runtime2.model.SelectionForest
-import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.resolution.framework.Demand
 import viaduct.engine.runtime2.resolution.framework.OEROccurrence
-import viaduct.engine.runtime2.resolution.framework.SharedOERContext
 import viaduct.engine.runtime2.resolution.framework.SharedPassiveValueResolutionLogic
 import viaduct.engine.runtime2.resolvers.GroundedFieldPublicationOccurrence
 import viaduct.engine.runtime2.resolvers.applicableGroundSelections
@@ -66,7 +64,6 @@ internal class DepthFirstPassiveValueResolutionLogic(
                     invocationDemand = invocationDemand,
                     publicationPath = path,
                     publicationExpectedType = expectedType,
-                    queryOER = SharedOERContext.undemandedQuery(operation.world.schema.requireQueryTypeDef()),
                     constructionDemand = constructionDemand,
                 ),
             queryOERDepth = queryOERDepth,

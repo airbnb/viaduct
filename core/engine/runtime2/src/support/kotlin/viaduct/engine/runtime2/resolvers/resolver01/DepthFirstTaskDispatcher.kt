@@ -1,5 +1,6 @@
 package viaduct.engine.runtime2.resolvers.resolver01
 
+import viaduct.engine.runtime2.model.EngineResultCell
 import viaduct.engine.runtime2.resolvers.GroundedFieldPublicationOccurrence
 
 /** Defers object orchestration and executes fields immediately in their caller's dependency order. */
@@ -15,6 +16,14 @@ internal class DepthFirstTaskDispatcher : DepthFirstDispatcher {
         queryOERDepth: Int,
     ) {
         DepthFirstFieldResolverTask.prepare(publication, queryOERDepth).run()
+    }
+
+    override suspend fun dispatchMutationField(
+        publication: DepthFirstFieldResolverTask,
+        cell: EngineResultCell,
+    ) {
+        publication.run()
+        resolveOrchestrationFringe()
     }
 
     /**

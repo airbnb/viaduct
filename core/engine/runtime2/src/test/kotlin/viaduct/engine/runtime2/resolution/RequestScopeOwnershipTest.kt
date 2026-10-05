@@ -10,7 +10,7 @@ import org.junit.jupiter.api.Test
 
 class RequestScopeOwnershipTest {
     @Test
-    fun `only orchestration field value and checker task roots can launch on the request scope`() {
+    fun `only task roots and the mutation completion waiter can launch on the request scope`() {
         val sourceDirectory = Path.of("src/main/kotlin/viaduct/engine/runtime2/resolution")
         assertTrue(Files.isDirectory(sourceDirectory), "Resolution source directory is missing")
         val sources =
@@ -26,9 +26,10 @@ class RequestScopeOwnershipTest {
         }
 
         fun relativePath(source: Path): String = sourceRoots.first { source.startsWith(it) }.relativize(source).toString()
-        val rawRequestScopeLaunch = Regex("""requestScope\s*\.\s*(?:launch|async)\s*(?:\(|\{)""")
+        val rawRequestScopeLaunch = Regex("""requestScope\s*\.\s*(?:launch|async|future)\s*(?:\(|\{)""")
         assertEquals(
             listOf(
+                "execution/QPlanExecutionStrategy.kt",
                 "resolution/CoroutineTaskDispatcher.kt",
                 "resolution/FieldCheckerTask.kt",
                 "resolution/FieldResolverTask.kt",
@@ -49,6 +50,17 @@ class RequestScopeOwnershipTest {
                 orchestrationDispatch.containsMatchIn(source.readText())
             }.map(Path::name)
                 .sorted(),
+        )
+
+        val mutationDispatch = Regex("""\.\s*dispatchMutationOrchestration\s*\(""")
+        assertEquals(
+            listOf("resolution/Resolver.kt", "resolvers/resolver21/CoroutineResolve.kt"),
+            allSources.filter { mutationDispatch.containsMatchIn(it.readText()) }.map(::relativePath).sorted(),
+        )
+        val orderedFieldDispatch = checkerDispatch("dispatchMutationField")
+        assertEquals(
+            listOf("resolution/framework/MutationOrchestrationTask.kt"),
+            allSources.filter { orderedFieldDispatch.containsMatchIn(it.readText()) }.map(::relativePath).sorted(),
         )
 
         val fieldDispatch = Regex("""(?:\.\s*|::)dispatchFieldResolver(?:\s*\(|\b)""")
