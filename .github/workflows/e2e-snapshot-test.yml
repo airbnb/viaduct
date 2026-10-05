@@ -16,6 +16,7 @@ on:
 permissions:
   contents: read
   actions: read
+  id-token: write
 
 concurrency:
   group: e2e-snapshot-test-${{ inputs.ref }}
