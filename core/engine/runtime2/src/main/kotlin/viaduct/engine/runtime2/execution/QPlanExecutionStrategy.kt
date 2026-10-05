@@ -16,6 +16,7 @@ import java.util.concurrent.CancellationException
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.coroutines.CoroutineContext
+import kotlin.coroutines.EmptyCoroutineContext
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -69,9 +70,15 @@ class QPlanExecutionStrategy(
             .get<QPlanCallerCancellation>(QPlanCallerCancellationKey)
             ?.attach(requestJob)
         val requestFailure = CompletableFuture<Throwable>()
+        val callerCoroutineContext = executionContext.graphQLContext.getOrDefault<CoroutineContext>(
+            QPlanCallerCoroutineContextKey,
+            EmptyCoroutineContext,
+        )
+        // Preserve request-context elements while retaining the borrowed resolver dispatcher
+        // and independent request job needed to outlive initial incremental completion.
         val requestScope =
             CoroutineScope(
-                resolverCoroutineContext +
+                callerCoroutineContext + resolverCoroutineContext +
                     requestJob +
                     CoroutineExceptionHandler { _, throwable ->
                         requestFailure.complete(throwable)
@@ -258,3 +265,6 @@ internal class QPlanCallerCancellation {
 }
 
 internal data object QPlanCallerCancellationKey
+
+/** Caller context captured by the configured CoroutineInterop at the Engine API boundary. */
+internal data object QPlanCallerCoroutineContextKey

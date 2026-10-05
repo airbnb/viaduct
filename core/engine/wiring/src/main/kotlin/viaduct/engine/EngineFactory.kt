@@ -42,6 +42,7 @@ class EngineFactory(
                 resolverInstrumentation = config.resolverInstrumentation,
                 dataFetcherExceptionHandler = config.dataFetcherExceptionHandler,
                 additionalInstrumentation = config.additionalInstrumentation,
+                coroutineInterop = config.coroutineInterop,
             )
         }
         return EngineImpl(

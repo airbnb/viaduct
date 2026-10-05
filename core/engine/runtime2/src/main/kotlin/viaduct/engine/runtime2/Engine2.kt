@@ -1,3 +1,5 @@
+@file:Suppress("DEPRECATION") // CoroutineInterop bridges the configured service's coroutine context.
+
 package viaduct.engine.runtime2
 
 import graphql.ExecutionInput as GraphQLExecutionInput
@@ -34,6 +36,7 @@ import viaduct.engine.api.ResolveSelectionSetOptions
 import viaduct.engine.api.ResolverType
 import viaduct.engine.api.RootFieldReference
 import viaduct.engine.api.instrumentation.resolver.ViaductResolverInstrumentation
+import viaduct.engine.api.spi.CoroutineInterop
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.FieldSelectivityProvider
 import viaduct.engine.api.spi.NodeResolverExecutor
@@ -43,11 +46,13 @@ import viaduct.engine.runtime.FieldDataLoader
 import viaduct.engine.runtime.NodeDataLoader
 import viaduct.engine.runtime.NodeEngineObjectDataImpl
 import viaduct.engine.runtime.ObjectRootFieldReference
+import viaduct.engine.runtime.execution.DefaultCoroutineInterop
 import viaduct.engine.runtime.select.EngineSelectionSetFactoryImpl
 import viaduct.engine.runtime2.bootstrap.dispatcherRegistryInputs
 import viaduct.engine.runtime2.bootstrap.resolverRegistryOf
 import viaduct.engine.runtime2.execution.QPlanCallerCancellation
 import viaduct.engine.runtime2.execution.QPlanCallerCancellationKey
+import viaduct.engine.runtime2.execution.QPlanCallerCoroutineContextKey
 import viaduct.engine.runtime2.execution.QPlanExecutionStrategy
 import viaduct.engine.runtime2.execution.QPlanInstrumentation
 import viaduct.engine.runtime2.execution.QPlanWiringFactory
@@ -68,6 +73,7 @@ class Engine2(
     resolverInstrumentation: ViaductResolverInstrumentation = ViaductResolverInstrumentation.DEFAULT,
     dataFetcherExceptionHandler: DataFetcherExceptionHandler,
     additionalInstrumentation: Instrumentation? = null,
+    private val coroutineInterop: CoroutineInterop = DefaultCoroutineInterop,
 ) : Engine {
     private val schemas = ViaductAndGJSchema.fromGraphQLSchema(fullSchema.schema)
     private val engineSelectionSetFactory = EngineSelectionSetFactoryImpl(fullSchema)
@@ -128,20 +134,24 @@ class Engine2(
     override suspend fun execute(executionInput: ExecutionInput): ExecutionResult {
         val engineContext = RequestEngineExecutionContext(executionInput.requestContext)
         val callerCancellation = QPlanCallerCancellation()
-        val builder =
-            GraphQLExecutionInput
-                .newExecutionInput()
-                .query(executionInput.operationText)
-                .variables(executionInput.variables)
-                .graphQLContext { context ->
-                    context.put(requestContextKey, RequestContext(engineContext))
-                    context.put(QPlanCallerCancellationKey, callerCancellation)
-                }
-        executionInput.operationName?.let(builder::operationName)
-        @Suppress("DEPRECATION")
-        executionInput.requestContext?.let(builder::context)
         return try {
-            graphql.executeAsync(builder.build()).await()
+            // Capture context through the service's Java/coroutine bridge, including any
+            // framework-specific request context installed by its CoroutineInterop.
+            coroutineInterop.scopedFuture {
+                val builder =
+                    GraphQLExecutionInput
+                        .newExecutionInput()
+                        .query(executionInput.operationText)
+                        .variables(executionInput.variables)
+                        .graphQLContext { context ->
+                            context.put(requestContextKey, RequestContext(engineContext))
+                            context.put(QPlanCallerCancellationKey, callerCancellation)
+                            context.put(QPlanCallerCoroutineContextKey, coroutineContext)
+                        }
+                executionInput.operationName?.let(builder::operationName)
+                executionInput.requestContext?.let(builder::context)
+                graphql.executeAsync(builder.build()).await()
+            }.await()
         } catch (cancellation: CancellationException) {
             callerCancellation.cancel(cancellation)
             throw cancellation
