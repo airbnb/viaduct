@@ -8,7 +8,7 @@ The old engine is not the semantic authority for Runtime2. Runtime2's contracts 
 
 ## Comparison Method
 
-Production-derived tests live under `src/test/kotlin/viaduct/engine/runtime2/execution/viaductfeaturetests`. Each copied file identifies its old-engine source path and synchronization point in a header comment. The copy remains source-faithful apart from package and import plumbing, the change from `runFeatureTest` to `runQPlanFeatureTest`, source metadata, and coded `@Disabled` annotations.
+Production-derived tests live under `src/test/kotlin/viaduct/engine/runtime2/execution/viaductfeaturetests`. Each copied file identifies its old-engine source path and synchronization point in a header comment. The copy remains source-faithful apart from package and import plumbing, the change from `runFeatureTest` to `runQPlanFeatureTest`, source metadata, coded `@Disabled` annotations, and explicit `ALTERNATIVE` cases. `runQPlanFeatureTest` builds `StandardViaduct` with `ENGINE2_ENABLED` and exercises module-config bootstrap and production dispatcher wiring, including access checkers and scoped schemas. It does not use the direct executor adapter.
 
 An unchanged passing test establishes aligned behavior through the test's public response and any executor observations it asserts. Disabled tests use one of three classifications:
 
@@ -20,7 +20,9 @@ The annotations in the copied source are the authoritative per-test compatibilit
 
 ## Aligned Behavior
 
-The copied tests establish substantial alignment for query execution, GraphQL response completion, ordinary and selective field and node executors, field and type access checks, required selections, aliases, arguments, fragments, conditional directives, namespaces, built-in node lookup, root-field references, and synchronous success and error outputs. They also cover object- and Query-rooted resolver and checker inputs, supported variable providers, nested `ctx.query()` and `ctx.mutation()` calls, scoped executable schemas backed by full-schema resolver inputs, and preservation of meaningful GraphQL error paths.
+The copied tests establish substantial alignment for query and ordered mutation execution, GraphQL response completion, ordinary and selective field and node executors, field and type access checks, required selections, aliases, arguments, fragments, conditional directives, namespaces, built-in node lookup, root-field references, and synchronous success and error outputs. They also cover object- and Query-rooted resolver and checker inputs, supported variable providers, nested `ctx.query()` and `ctx.mutation()` calls, scoped executable schemas backed by full-schema resolver inputs, and preservation of meaningful GraphQL error paths.
+
+Selective node execution preserves nested demand for equal node IDs reached through distinct query paths. The enabled `batched selective node cache distinguishes nested selections across query paths` case in [SelectiveNodeResolversExecutionTest](../../src/test/kotlin/viaduct/engine/runtime2/execution/viaductfeaturetests/SelectiveNodeResolversExecutionTest.kt) requests `bar { nested { x } }` and `foo { bar { nested { y } } }` for the same `Bar` ID and verifies both projected responses and the separate observed selections `{x}` and `{y}`. Its batching-capable executors run through singleton dispatcher adaptation; physical batching and cache reuse remain separate integration gaps.
 
 Alignment is a claim about the behavior observed by a particular test, not about identical implementation machinery. Runtime2 may reach the same response through one closed producer application where the old engine uses materialization retries, or through distinct result occurrences where the old engine uses a request cache. Tests that depend on those internal differences are classified explicitly rather than counted as aligned merely because their final data happens to match.
 
@@ -39,6 +41,8 @@ Alignment is a claim about the behavior observed by a particular test, not about
 | Passive field ownership | Ownership is source-sensitive for argumentless registered fields: an ancestor that actually supplies the field owns that occurrence; otherwise its standard resolver owns it. Argument-bearing fields are always active. | Materialization may route argument-bearing or consumer-shaped values through a producer's passive output. |
 | Selective output | A selective producer must conform to its closed output selection. Surplus fields are a producer-contract violation, and registered descendant fields retain their own ownership. | Materialization can ignore, reconcile, or reuse surplus output from covering results. |
 | Directives and checks | Source occurrences retain generic field-directive context. Runtime2 assigns no built-in meaning to a policy-specific directive spelling. | Production policy integrations may interpret particular directives directly. |
+| Mutation dependencies | Mutation resolvers use `ctx.query()` for dependent reads; each nested `ctx.mutation()` preserves its own order while independent calls may overlap. | Mutation resolvers may declare Query required selections. |
+| Coroutine capability | Invocation-local execution handles support structured Kotlin coroutines. | `scopedAsync` depends on the old engine's thread-local coroutine context. |
 | Error evidence | Compatibility establishes corresponding error outcomes and meaningful consumer paths. Runtime2's correctness oracle does not yet prove exact `EngineErrorData` carrier identity or metadata equality at every derived boundary. | Tests may inspect old-engine wrapper, materialization-source, or carrier details that are not part of Runtime2's semantic claim. |
 
 The `ALT` plus `ALTERNATIVE` pairing is especially important for these differences. The disabled source form keeps the old-engine expectation reviewable, while the alternative prevents an intentional difference from becoming an untested exemption.
@@ -50,7 +54,7 @@ The following differences are gaps in the present Engine API integration rather 
 - physical batching and any compatible expansion of production data-loader reuse outside semantic occurrence scheduling;
 - mutation namespace checkers, subscriptions, custom scalars, `@stream`, and asynchronous EOD variants;
 - direct `Engine.resolveRootFieldReference` calls and `EngineExecutionContext.completeSelectionSet`; and
-- resolver and checker combinations listed as unsupported by [Engine API integration](engine-api.md).
+- opaque checker variables providers with their own required selections, checker enforcement on `@parent` backedges and reference target paths, and other resolver and checker combinations listed as unsupported by [Engine API integration](engine-api.md).
 
 [Engine API integration](engine-api.md) defines the current adapter surface and its rejection boundaries. A copied test blocked only by one of these gaps should retain its old-engine form with a specific `TODO` classification so that closing the gap means enabling the original test rather than inventing a Runtime2-specific substitute.
 
@@ -58,7 +62,7 @@ The following differences are gaps in the present Engine API integration rather 
 
 Not every old-engine feature test belongs in the copied suite. Tests centered on production-only helper APIs, query-plan or execution-selection-set representation, tenant bootstrap validation, data-loader cache policy, batching mechanics, shadow execution, or old-engine instrumentation internals do not directly test Runtime2's resolver and GraphQL integration boundary. Likewise, inherited arbitrary suites that construct a production `Viaduct` without exposing an `EngineTestModule` cannot be run through this adapter.
 
-Excluding such a test is not evidence that its user-visible behavior is unimportant. If the behavior belongs to Runtime2, it should be covered at the layer that owns it: canonical model and resolver contracts for semantics, adapter tests for Engine API conversion, GraphQL execution tests for response completion, generated property tests for broad resolver coverage, or eventual dispatcher and service integration tests for physical execution policy.
+Excluding such a test is not evidence that its user-visible behavior is unimportant. If the behavior belongs to Runtime2, it should be covered at the layer that owns it: canonical model and resolver contracts for semantics, adapter tests for Engine API conversion, GraphQL execution tests for response completion, generated property tests for broad resolver coverage, or dispatcher and service integration tests for physical execution policy.
 
 Operation-validation tests are also normally outside this suite because GraphQL Java rejects invalid source operations before `QPlanExecutionStrategy` starts Resolution. Runtime2-specific decoding and registry validation remain covered by focused adapter tests.
 

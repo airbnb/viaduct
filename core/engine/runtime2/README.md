@@ -6,14 +6,14 @@ The production field-resolution implementation is [`Resolution`](src/main/kotlin
 
 ## Alpha Scope
 
-Runtime2 currently provides a query-focused execution path for selective and non-selective field and node resolvers, object- and Query-rooted required selections, resolver variables, root-field references, nested query execution, GraphQL completion, and incremental `@defer` delivery. The detailed supported and rejected surface is maintained in [Engine API integration](impldocs/integration/engine-api.md).
+Runtime2 executes queries and ordered mutations with selective and non-selective field and node resolvers, field and type access checks, object- and Query-rooted required selections, resolver variables, root-field references, nested `ctx.query()` and `ctx.mutation()` execution, GraphQL completion, and incremental `@defer` delivery. Mutation namespace checkers and mutation resolver required selections remain excluded. The detailed supported and rejected surface is maintained in [Engine API integration](impldocs/integration/engine-api.md).
 
 Major exclusions from the current Engine API integration include batching, mutation namespace checkers, subscriptions, custom scalars, `@stream`, and some resolver combinations documented with the integration boundary. Runtime2 reuses the production dispatcher bootstrap and service wiring behind an opt-in feature flag; that path is not yet the default.
 
 ## Source Layout
 
 - [`src/main`](src/main) contains the production model, schema lowering, bootstrap, execution integration, Resolution, and the shared production resolution framework. The `viaduct.engine.runtime2.model` package deliberately uses stylized Kotlin as an executable semantic model rather than as a conventional object-oriented domain model. Only this source set is published.
-- [`src/support`](src/support) contains Resolver01–23, correctness machinery, generators, contracts, benchmark support, and neutral development fixtures. It is development support and is not published.
+- [`src/support`](src/support) contains Resolver01–23, correctness machinery, generators, benchmark support, and neutral development fixtures. It is development support and is not published.
 - [`src/test/kotlin`](src/test/kotlin) contains the tests, while [`src/test/fixtures`](src/test/fixtures) contains reusable JUnit contracts and fixtures.
 - [`src/jmh`](src/jmh) contains benchmarks and benchmark resources.
 

@@ -6,7 +6,7 @@ Production Resolution is tested through deterministic feature and lifecycle cont
 
 ## Thread Count
 
-Every Resolution test uses one externally configurable resolution thread count, including static contracts, generated properties, coordinate replays, deep stress, broad stress, and multithreaded campaigns. Ordinary tests default to one; the dedicated `resolutionMultithreadedStress` task defaults to 100.
+Model-level Resolution fixtures use one externally configurable resolution thread count, including static contracts, generated properties, coordinate replays, deep stress, broad stress, and multithreaded campaigns. These fixtures default to one; the dedicated `resolutionMultithreadedStress` task defaults to 100. Focused `ExecutionTestFixture` tests use the same dispatcher factory unless they supply their own coroutine context. Service-backed `Engine2` tests and copied feature tests execute on `Dispatchers.Default`; this thread-count property does not control them.
 
 The Gradle property, JVM property, and environment entry all use the durable configuration name `viaduct.resolution.threadcount`; the Gradle property is preferred in commands in this guide. The value must be a positive integer.
 
@@ -26,7 +26,7 @@ Keep this division strict when adding instrumentation: capture concurrent events
 
 ## Ordinary Runs
 
-Run all non-stress Resolution tests on the default single thread:
+Run all non-stress model-level Resolution tests with the default single-thread dispatcher:
 
 ```shell
 ./gradlew :core:engine:runtime2:test --tests 'viaduct.engine.runtime2.resolution.*'
@@ -244,12 +244,20 @@ Some broad structural signatures are aggregated more coarsely than their names i
 
 Supplied-demand witnesses cover selected contracts and profiles but are not a complete independent reconstruction across list-transparent continuation paths. Claims about minimal selective demand require a focused supplied-demand assertion in addition to completed-result correctness and exact observed applications.
 
-## Mutation Tests
+## GraphQL Mutation And Nested Execution Tests
 
-The focused mutation gate covers response-key collection, the full maintained-family ladder, engine/service integration, independent `ctx.query()`, continued effects after nullable and non-null failures, response null propagation through namespaces and payloads, inactive payload dependencies, cancellation before task entry and during suspended mutations, and sequencing of suspended work:
+The focused mutation gate covers response-key collection, the full maintained-family ladder, engine/service integration, independent `ctx.query()` and `ctx.mutation()`, continued effects after nullable and non-null failures, response null propagation through namespaces and payloads, inactive payload dependencies, cancellation before task entry and during suspended mutations, and sequencing of suspended work. These are tests of GraphQL mutation execution; the deliberate corruption tests described in [Testing Strategy](strategy.md#correctness-oracles) serve a different purpose.
 
 ```shell
 ./gradlew :core:engine:runtime2:test --tests '*MutationSelectionParsingTest' --tests '*MutationObjectEngineResultTest' --tests '*MutationRegistryTest' --tests '*MutationResolutionTest' --tests '*MutationOrchestrationTaskTest' --tests '*MutationExecutionTest' --tests '*ResolverStartTest' --tests '*RequestScopeOwnershipTest'
 ```
 
 `MutationResolutionTest` asserts effect traces and completed payload values independently of Query replay. Its delayed payload resolver checks that an active mutation's output finishes before the next mutation changes shared state. Mutation lifecycle tests use controlled scheduling to verify that later mutations remain undispatched while the preceding task is suspended and that cancellation terminates all synchronously prepared cells.
+
+Run the service-backed nested execution and lifetime gate with:
+
+```shell
+./gradlew :core:engine:runtime2:test --tests 'viaduct.engine.runtime2.execution.viaductfeaturetests.SubqueryExecutionTest*' --tests 'viaduct.engine.runtime2.execution.viaductfeaturetests.SubquerySchemaTest' --tests 'viaduct.engine.runtime2.execution.Engine2RequestLifetimeTest'
+```
+
+The subquery suites exercise nested Query and Mutation results, serial effects within each mutation call, concurrent independent mutation calls, parallel Query namespace work from a mutation resolver, variable isolation, selective materialization, and scoped schemas with full-schema resolver inputs. `Engine2RequestLifetimeTest` checks public-future and suspending-call cancellation, nested execution cancellation, mutation completion waiting, and concurrent request isolation. `QPlanDeferTest` separately checks incremental publisher lifetime. The `ALTERNATIVE` coroutine cases use structured Kotlin coroutines because Runtime2 supplies explicit invocation-local execution capabilities rather than the thread-local context required by the old engine's `scopedAsync` helper.

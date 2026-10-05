@@ -62,7 +62,7 @@ Demoapps are not part of this composite build. `check` runs them by shelling out
 
 ## Runtime2 and Qplan
 
-The former qplan projects now live entirely in `core/engine/runtime2`, using core's Kotlin 1.9.25 and static-analysis conventions. Run `./gradlew -p core :engine:runtime2:check`. Production `main` output participates in the runtime publication; unpublished `support`, including the arbitrary generators, is shared by `test` and `jmh`, with JUnit harnesses in the extra `src/test/fixtures` directory. Runtime2 tasks retain qplan's configuration-cache opt-out. Design documentation and profiling evidence live in runtime2's `impldocs/`; its `spec/` renderer and `tla/` verification tools remain opt-in. There is no top-level qplan directory. See [runtime2's README](../core/engine/runtime2/README.md#build-and-ide-setup).
+The former qplan projects now live entirely in `core/engine/runtime2`, using core's Kotlin 1.9.25 and static-analysis conventions. From the repository root, run `./gradlew :core:engine:runtime2:check`. Production `main` output participates in the runtime publication; unpublished `support`, including the arbitrary generators, is shared by `test` and `jmh`, with JUnit harnesses in the extra `src/test/fixtures` directory. Runtime2 tasks retain the configuration-cache opt-out. Design documentation and profiling evidence live in Runtime2's `impldocs/`; the independent specification renderer under `impldocs/graphql-spec/` remains opt-in. There is no top-level qplan directory. See [Runtime2's README](../core/engine/runtime2/README.md#build-and-verification).
 
 ## Maven Coordinate Scheme
 

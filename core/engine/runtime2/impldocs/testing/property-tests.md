@@ -2,6 +2,8 @@
 
 Runtime2 property testing combines valid generated GraphQL worlds, replayable test-input profiles, independent correctness and exactness judgments, and directed multi-round campaigns. The arbitrary package in the `support` source set generates schemas, resolver registries, and Query selections for property tests, benchmarks, and standalone campaigns. It is pre-reasoning infrastructure: generated recipes may use ordinary implementation state, but every emitted world crosses the same canonical schema, registry, lowering, and validation boundaries used by static fixtures.
 
+These generators and correctness replays exercise Query resolution, not stateful mutation effects. Query selection permutations cannot establish mutation ordering or alias identity. Deterministic cross-family effect traces, payload assertions, and service-backed nested execution tests supply the [mutation evidence](resolution.md#graphql-mutation-and-nested-execution-tests).
+
 ## Composition
 
 ```kotlin

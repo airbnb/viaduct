@@ -11,7 +11,8 @@ Runtime2 establishes confidence through several independent kinds of tests and j
 | Generated tests | Do many replayable schemas, registries, queries, and feature interactions satisfy the same semantic and exactness judgments? | [Generated Tests](#generated-tests) |
 | Correctness-oracle tests | Does a completed result agree extensionally with the modeled resolver and checker relations? | [Correctness Oracles](#correctness-oracles) |
 | Exact-witness tests | Did the expected semantic occurrences, inputs, applications, bindings, and demands actually execute? | [Observations And Exact Witnesses](#observations-and-exact-witnesses) |
-| Mutation tests | Do independent judgments reject deliberately corrupted programs, results, and observations? | [Correctness Oracles](#correctness-oracles) |
+| Oracle mutation tests | Do independent judgments reject deliberately corrupted programs, results, and observations? | [Correctness Oracles](#correctness-oracles) |
+| GraphQL mutation tests | Do ordered effects, alias identity, payload completion, nested calls, and cancellation satisfy the mutation contract? | [GraphQL Mutation And Nested Execution Tests](resolution.md#graphql-mutation-and-nested-execution-tests) |
 | Directed stress tests | Do targeted feature distributions, depth, concurrency, and scheduling pressure preserve the relevant claims beyond the ordinary check? | [Production Broad Campaign](#production-broad-campaign) and [Testing Resolution](resolution.md) |
 
 This document defines what those evidence layers mean and how they compose. Checker profiles are specialized generated tests and directed stress tests, not an additional evidence kind; [Checker Profiles](#checker-profiles) defines their feature-specific correctness, exactness, and activation obligations. [Testing Guide](guide.md) owns day-to-day validation and investigation workflow, [Testing Resolution](resolution.md) owns production concurrency and stress commands, [Property Testing](property-tests.md) owns generator and campaign mechanics, and [Feature Tests](../integration/feature-tests.md) owns behavioral comparison with the old engine.
@@ -81,7 +82,7 @@ Current support is:
 | Contract | Resolver01/06/21 | Resolver02/07/22 | Resolver03/08/23 | Resolution |
 | --- | --- | --- | --- | --- |
 | Empty object fragments | yes | yes | yes | yes |
-| Source-level node resolution | no | no | no | yes |
+| Source-level node resolution | yes | yes | yes | yes |
 | Nonempty object fragments | no | yes | yes | yes |
 | Nonempty fragments with `FromArgument` | no | yes | yes | yes |
 | Schema with `@parent` fields | outside input domain | Resolver22 only | Resolver23 only | yes |
@@ -97,6 +98,8 @@ Current support is:
 | Advanced `FromObjectField` demand | no | no | no | yes |
 | Late symbolic object-path demand | no | no | no | yes |
 | List-passive deepening generated coverage | no | no | yes | yes |
+| Primary ordered mutation execution | yes | yes | yes | yes |
+| Nested `ctx.query()` and `ctx.mutation()` | no | no | no | yes |
 
 Runtime `FromObjectField`, `FromQueryField`, and `FromProvider` binding is supported by Resolution. Every resolver that claims a base feature contract inherits its advanced deterministic regressions. Resolution additionally implements provider-function, late symbolic-demand, and symbolic-key-identity contracts.
 
@@ -119,6 +122,8 @@ Extended mutation, witness, list-deepening, selective-demand, and stress tests s
 ## Correctness Oracles
 
 Correctness oracles validate completed results independently from the algorithm's runtime control flow. They are deliberately narrower than a proof of scheduling, lifecycle, or supplied demand, so the suite pairs them with exact observations and mutation tests.
+
+Here, oracle mutation tests deliberately corrupt an input, result, binding, or observation and require a judgment to reject it. GraphQL mutation execution has separate deterministic tests of effects and completed payloads across every maintained family. `correctResolution` and generated Query permutation properties do not reapply stateful mutation effects or justify reordering mutation selections. [Testing Resolution](resolution.md#graphql-mutation-and-nested-execution-tests) owns the focused mutation and nested-execution gates.
 
 ### Resolver Fixture And Oracle Boundary
 

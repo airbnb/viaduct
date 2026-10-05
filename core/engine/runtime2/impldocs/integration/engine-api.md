@@ -2,11 +2,11 @@
 
 ## Role And Boundary
 
-Runtime2's main-source execution layer adapts validated GraphQL Java query execution and Engine API field and node executors to production Resolution. It decodes source operations into the canonical model, constructs the request-local operation state, starts Resolution, and exposes the live promise-backed result graph to GraphQL Java for ordinary and incremental completion.
+Runtime2's main-source execution layer adapts validated GraphQL Java query and mutation execution and Engine API field, node, and checker dispatchers to production Resolution. It decodes source operations into the canonical model, constructs the request-local operation state, starts Resolution, and exposes the promise-backed result graph to GraphQL Java for ordinary and incremental completion.
 
 The `QPlanExecutionStrategy`, `QPlanWiringFactory`, `QPlanInstrumentation`, and `runQPlanFeatureTest` names are current code identifiers inherited from the earlier project; they do not mean that Runtime2 is a separate build or that production Resolution is prospective.
 
-`Engine2` implements `Engine.execute` and handle-based `Engine.resolveSelectionSet` and is selected by `StandardViaduct` when `ENGINE2_ENABLED` is enabled. The existing engine remains the default. Direct `Engine.resolveRootFieldReference` calls are intentionally unsupported: Runtime2 instead interprets `RootFieldReference` values returned by resolvers inside Resolution. Production integration reuses the service-built `DispatcherRegistry`; field, node, and checker invocation remains dispatcher-backed and receives a request-owned `EngineExecutionContext`. The direct executor adapter remains for feature-test and focused integration fixtures.
+`Engine2` implements `Engine.execute` and handle-based `Engine.resolveSelectionSet` and is selected by `StandardViaduct` when `ENGINE2_ENABLED` is enabled. The existing engine remains the default. Direct `Engine.resolveRootFieldReference` calls are intentionally unsupported: Runtime2 instead interprets `RootFieldReference` values returned by resolvers inside Resolution. Production integration reuses the service-built `DispatcherRegistry`; field, node, and checker invocation remains dispatcher-backed and receives a request-owned `EngineExecutionContext`. The direct executor adapter remains for focused integration fixtures; copied feature tests use production service wiring.
 
 Interoperability between engine selections across `StandardViaduct.Builder.buildWithReusedSchemas` rebuilds is not part of the Runtime2 integration contract. A deployment must not rely on rebuilding an old-engine `StandardViaduct` as an engine2 instance, or the reverse, merely because the new instance reuses the previous instance's schema objects.
 
@@ -43,7 +43,7 @@ GraphQL Java parsing, validation, and input coercion
 
 `QPlanExecutionStrategy` creates one request job from a caller-owned Resolution coroutine context. The strategy borrows that context across requests and never closes it. `ExecutionTestFixture` owns and closes its default dispatcher or borrows an explicitly supplied context; fixture construction also closes a newly created dispatcher if setup fails.
 
-The strategy places a `QPlanRequestLifetime` in the GraphQL context and starts Resolution once for the complete query demand, including deferred selections. The operation context owns request-local bindings, cycle state, binding declarations, observer, and dispatcher references; immutable schema and registry configuration remains in `Assumptions`.
+The strategy places a `QPlanRequestLifetime` in the GraphQL context and starts Resolution once for the complete operation demand, including deferred selections. Query completion consumes the live result graph; mutation completion waits for ordered effects and payload resolution first. The operation context owns request-local bindings, cycle state, binding declarations, observer, and dispatcher references; immutable schema and registry configuration remains in `Assumptions`. `Engine2` supplies `Dispatchers.Default` to both strategies; the configurable fixed dispatcher used by focused test fixtures is not the service dispatcher.
 
 `QPlanWiringFactory` performs GraphQL completion rather than tenant resolution. Checked completion reads the containing field-checker result, follows raw list and object values, reads each reached OER's type-checker result, and combines applicable results at the consumer boundary. Completed values project immediately; pending value or checker promises use request-owned completion-stage bridges. List elements wait concurrently, and a terminal non-cancellation failure takes precedence over sibling cancellations.
 
@@ -73,7 +73,7 @@ Production checker dispatchers expose the same normalized variable-definition ca
 
 ### Nested Query And Mutation Execution
 
-Resolution passes the concrete `FieldResolverTask` to each registry function as its `ResolutionExecutionContext`. The adapter wraps that explicit capability in an invocation-local `QPlanEngineExecutionContext`; it does not discover the current task through coroutine context.
+Resolution passes the concrete `FieldResolverTask` to each registry function as its `ResolutionExecutionContext`. The adapter wraps that explicit capability in an invocation-local `QPlanEngineExecutionContext`; it does not discover the current task through coroutine context. Concurrent tenant work uses structured Kotlin coroutines. The old engine's `scopedAsync` helper requires thread-local coroutine context support that Runtime2 does not provide.
 
 `EngineExecutionContext.resolveSelectionSet`, `ctx.query()`, and `ctx.mutation()` convert the requested root selection into canonical selections and delegate to the owning field-resolver task. The task creates a fresh root OER under a child dispatcher scope while sharing the logical operation's immutable world, variable bindings, cycle checker, binding declarations, and observer. Nested work is therefore a structured child of the invoking field task rather than another top-level request.
 
@@ -111,6 +111,7 @@ The execution layer rejects or does not provide:
 - physically batched dispatch; `ENGINE2_BATCHING` is invalid until this support exists;
 - checker variables resolvers with their own required selection sets and other legacy checker input graphs that cannot be losslessly converted to Runtime2's variable definitions;
 - field-checker enforcement on `@parent` backedges and along `RootFieldReference` target paths;
+- mutation namespace field and type checkers, and object or Query required selections on mutation resolvers;
 - inline object materialization for Node-valued fields;
 - object required selections or `FromObjectField` variables on reference targets;
 - function variables providers with their own required selections;

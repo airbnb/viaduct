@@ -1,6 +1,6 @@
 # Performance Testing
 
-Runtime2 performance testing separates stable JMH measurements from diagnostic JFR profiles. Production Resolution implements the current benchmark profile: selective node and field resolvers, resolver object fragments, `FromArgument` and `FromObjectField` variables, and no Query fragments.
+Runtime2 performance testing separates stable JMH measurements from diagnostic JFR profiles. The full Resolution benchmark and fixed current-profile corpus exercise selective node and field resolvers, resolver object fragments, and `FromArgument` and `FromObjectField` variables. Their generation configurations disable named GraphQL fragments and leave resolver Query fragments and `FromQueryField` variables disabled. These Query workloads do not measure access-check overhead, ordered mutation effects, nested execution, or production dispatcher/service integration. The property-test benchmark uses its own frozen case; inspect that recipe before attributing a feature cost to its timings.
 
 This document owns maintained benchmark, profiling, corpus, and reporting practice. Dated measurements and investigation findings live in the [performance history](../evidence/profiles/performance-history.md) beside their exported profile evidence.
 
