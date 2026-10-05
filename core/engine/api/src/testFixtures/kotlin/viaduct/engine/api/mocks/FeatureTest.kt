@@ -1,23 +1,24 @@
-@file:Suppress("ForbiddenImport")
+@file:Suppress("DEPRECATION", "ForbiddenImport")
+@file:OptIn(viaduct.apiannotations.InternalApi::class, viaduct.apiannotations.VisibleForTest::class)
 
 package viaduct.engine.api.mocks
 
+import com.google.inject.ProvisionException
 import graphql.ExecutionResult
-import kotlinx.coroutines.future.await
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import viaduct.engine.EngineConfiguration
-import viaduct.engine.EngineFactory
 import viaduct.engine.api.Engine
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineSchema
-import viaduct.engine.api.ExecutionInput
-import viaduct.engine.api.FullSchema
-import viaduct.engine.runtime.execution.DefaultCoroutineInterop
-import viaduct.engine.runtime.tenantloading.ExecutorValidator
-import viaduct.engine.runtime.tenantloading.StandardDispatcherRegistryFactory
+import viaduct.engine.api.GraphQLBuildError
 import viaduct.graphql.test.assertJson as realAssertJson
+import viaduct.service.api.ExecutionInput
+import viaduct.service.api.SchemaId
+import viaduct.service.api.spi.FlagManager
 import viaduct.service.api.spi.mocks.MockFlagManager
-import viaduct.service.runtime.builtinresolvers.builtinModuleConfigSources
+import viaduct.service.runtime.SchemaConfiguration
+import viaduct.service.runtime.StandardViaduct
 
 /**
  * Test harness for the Viaduct engine configured with in-memory resolvers.
@@ -71,36 +72,85 @@ fun MockTenantModuleBootstrapper.runFeatureTest(
 /**
  * Run a feature test through the module-config bootstrap path using in-memory executors.
  */
-@Suppress("OPT_IN_USAGE") // DispatcherRegistryFactory is experimental
 fun EngineTestModule.runFeatureTest(
     withoutDefaultQueryNodeResolvers: Boolean = false,
     schema: EngineSchema? = null,
     engineConfig: EngineConfiguration? = null,
     block: FeatureTest.() -> Unit,
+) = runStandardViaductFeatureTest(
+    engine2Enabled = false,
+    withoutDefaultQueryNodeResolvers = withoutDefaultQueryNodeResolvers,
+    schema = schema,
+    engineConfig = engineConfig,
+    block = block,
+)
+
+/**
+ * Runs a feature test through the production [StandardViaduct] boundary.
+ *
+ * Both engine feature suites use this construction path. [engine2Enabled] is the only engine
+ * selection input; schema registration, module bootstrap, dispatcher construction, and request
+ * execution are otherwise identical.
+ */
+fun EngineTestModule.runStandardViaductFeatureTest(
+    engine2Enabled: Boolean,
+    withoutDefaultQueryNodeResolvers: Boolean = false,
+    schema: EngineSchema? = null,
+    engineConfig: EngineConfiguration? = null,
+    block: FeatureTest.() -> Unit,
 ) {
-    val executableSchema = schema ?: fullSchema
     val config = engineConfig ?: EngineConfiguration.featureTestDefault
-    val checkerExecutorFactory = MockCheckerExecutorFactory(
-        checkerExecutors = checkerExecutors,
-        typeCheckerExecutors = typeCheckerExecutors,
-    )
-    val validator = ExecutorValidator(fullSchema)
-    val dispatcherRegistry = StandardDispatcherRegistryFactory(
-        moduleConfigSources = listOf(toModuleConfigSource()),
-        tenantModuleInjectorFactory = MockExecutorCodeInjector(mockExecutorRegistry),
-        validator = validator,
-        checkerExecutorFactory = checkerExecutorFactory,
-        builtinModuleConfigSourcesProvider = {
-            builtinModuleConfigSources(
-                schema = fullSchema,
-                defaultQueryNodeResolversEnabled = !withoutDefaultQueryNodeResolvers,
-            )
-        },
-        resolverInstrumentation = config.resolverInstrumentation,
-        flagManager = config.flagManager,
-    ).create(fullSchema)
-    val engine = EngineFactory(config, dispatcherRegistry).create(executableSchema, fullSchema = FullSchema(fullSchema))
-    FeatureTest(engine).block()
+    val schemaId = SchemaId.Scoped("engine-feature-test", setOf("engine-feature-test"))
+    val schemaConfiguration = SchemaConfiguration.fromSchema(fullSchema, scopes = emptySet())
+    schemaConfiguration.registerSchema(schemaId, { schema ?: fullSchema })
+    val builder =
+        StandardViaduct.Builder()
+            .withTenantModuleInjectorFactory(MockExecutorCodeInjector(mockExecutorRegistry))
+            .withExecutorRegistryConfigSources(listOf(toModuleConfigSource()))
+            .withCheckerExecutorFactory(
+                MockCheckerExecutorFactory(
+                    checkerExecutors = checkerExecutors,
+                    typeCheckerExecutors = typeCheckerExecutors,
+                ),
+            ).withSchemaConfiguration(schemaConfiguration)
+            .withLenientResolverValidation()
+            .allowSubscriptions(true)
+            .withFlagManager(
+                object : FlagManager {
+                    override fun isEnabled(flag: FlagManager.Flag): Boolean =
+                        when (flag) {
+                            FlagManager.Flags.ENGINE2_ENABLED -> engine2Enabled
+                            FlagManager.Flags.ENGINE2_BATCHING -> false
+                            else -> config.flagManager.isEnabled(flag)
+                        }
+                },
+            ).withDataFetcherExceptionHandler(config.dataFetcherExceptionHandler)
+            .withResolverErrorReporter(config.resolverErrorReporter)
+            .withDataFetcherErrorBuilder(config.resolverErrorBuilder)
+            .withInstrumentation(config.additionalInstrumentation, config.chainInstrumentationWithDefaults)
+            .withCoroutineInterop(config.coroutineInterop)
+            .withResolverInstrumentation(config.resolverInstrumentation)
+            .withFieldSelectivityProvider(config.fieldSelectivityProvider)
+            .withMaterializedFieldValueReader(config.materializedFieldValueReader)
+            .withGlobalIDCodec(config.globalIDCodec)
+
+    config.meterRegistry?.let(builder::withMeterRegistry)
+    if (config.airbnbBypassPolicyCheckDuringCompletion) {
+        builder.enableAirbnbBypassDoNotUse(config.tenantNameResolver)
+    }
+    if (withoutDefaultQueryNodeResolvers) {
+        builder.withoutDefaultQueryNodeResolvers()
+    }
+
+    val viaduct =
+        try {
+            builder.build()
+        } catch (error: GraphQLBuildError) {
+            throw unwrapBuildFailure(error)
+        } catch (error: ProvisionException) {
+            throw unwrapBuildFailure(error)
+        }
+    FeatureTest(viaduct, schemaId).block()
 }
 
 val EngineConfiguration.Companion.featureTestDefault: EngineConfiguration
@@ -110,8 +160,13 @@ val EngineConfiguration.Companion.featureTestDefault: EngineConfiguration
     )
 
 class FeatureTest(
-    val engine: Engine
+    private val viaduct: StandardViaduct,
+    private val schemaId: SchemaId,
 ) {
+    /** The selected engine, retained for focused legacy-engine test helpers. */
+    val engine: Engine
+        get() = viaduct.engineRegistry.getEngine(schemaId)
+
     /**
      * Runs a query on the underlying engine with the given query and optional variables.
      *
@@ -122,17 +177,15 @@ class FeatureTest(
     fun runQuery(
         query: String,
         variables: Map<String, Any?> = emptyMap(),
+    ): ExecutionResult = execute(query, variables)
+
+    fun runQueryWithin(
+        query: String,
+        variables: Map<String, Any?> = emptyMap(),
+        timeoutMillis: Long = 1_000,
     ): ExecutionResult {
-        val input = ExecutionInput(
-            operationText = query,
-            variables = variables,
-            requestContext = Any(),
-        )
-        return runBlocking {
-            DefaultCoroutineInterop.enterThreadLocalCoroutineContext(coroutineContext) {
-                engine.execute(input)
-            }.await()
-        }
+        require(timeoutMillis > 0) { "Timeout must be positive" }
+        return execute(query, variables, timeoutMillis)
     }
 
     /**
@@ -142,7 +195,36 @@ class FeatureTest(
      *  including unquoted object keys, trailing commas, and comments
      */
     fun ExecutionResult.assertJson(expectedJson: String): Unit = this.realAssertJson(expectedJson)
+
+    private fun execute(
+        query: String,
+        variables: Map<String, Any?>,
+        timeoutMillis: Long? = null,
+    ): ExecutionResult {
+        val input =
+            ExecutionInput.create(
+                operationText = query,
+                variables = variables,
+                requestContext = Any(),
+            )
+        val result =
+            runBlocking {
+                if (timeoutMillis == null) {
+                    viaduct.execute(input, schemaId)
+                } else {
+                    withTimeout(timeoutMillis) { viaduct.execute(input, schemaId) }
+                }
+            }
+        @Suppress("UNCHECKED_CAST")
+        return ExecutionResult.fromSpecification(result.toSpecification() as Map<String, Any>)
+    }
 }
+
+private fun unwrapBuildFailure(error: Throwable): Throwable =
+    when (error) {
+        is GraphQLBuildError, is ProvisionException -> error.cause?.let(::unwrapBuildFailure) ?: error
+        else -> error
+    }
 
 suspend inline fun <reified T : Any?> EngineObjectData.fetchAs(selection: String) = this.fetch(selection) as T
 
