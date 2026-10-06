@@ -18,6 +18,7 @@ import viaduct.api.mocks.mockReflectionLoader
 import viaduct.api.resolver.Variables
 import viaduct.api.resolver.VariablesProvider
 import viaduct.api.types.Arguments
+import viaduct.engine.api.ExecutionAttribution
 import viaduct.engine.api.FromArgumentVariable
 import viaduct.engine.api.FromObjectFieldVariable
 import viaduct.engine.api.FromQueryFieldVariable
@@ -163,6 +164,41 @@ class RequiredSelectionSetFactoryTest {
     // ============================================================================
     // Public API Tests (core functionality without injector)
     // ============================================================================
+
+    @Test
+    fun `createRequiredSelectionSets -- no selections returns empty despite declarations`() {
+        val result = mkFactory().createRequiredSelectionSets(
+            variablesProvider = VariablesProviderInfo(setOf("unused")) { MockVariablesProvider() },
+            objectSelections = null,
+            querySelections = null,
+            variablesProviderContextFactory = variablesProviderContextFactory,
+            variables = listOf(FromArgumentVariable("alsoUnused", "arg")),
+        )
+
+        assertNull(result.first)
+        assertNull(result.second)
+    }
+
+    @Test
+    fun `createRequiredSelectionSets -- named fragment variables use both producer sources and retain attribution`() {
+        val selections = SelectionsParser.parse(
+            "Query",
+            "fragment Main on Query { ...Part } fragment Part on Query { foo(x: \$provided, y: \$declared) }",
+        )
+        val attribution = ExecutionAttribution.fromResolver("KotlinResolver")
+
+        val result = mkFactory().createRequiredSelectionSets(
+            variablesProvider = VariablesProviderInfo(setOf("provided")) { MockVariablesProvider(mapOf("provided" to 2)) },
+            objectSelections = selections,
+            querySelections = null,
+            variablesProviderContextFactory = variablesProviderContextFactory,
+            variables = listOf(FromArgumentVariable("declared", "arg")),
+            attribution = attribution,
+        )
+
+        assertEquals(setOf("provided", "declared"), result.first?.variablesResolvers?.variableNames)
+        assertEquals(attribution, result.first?.attribution)
+    }
 
     @Test
     fun `createRequiredSelectionSets -- no variables`() {

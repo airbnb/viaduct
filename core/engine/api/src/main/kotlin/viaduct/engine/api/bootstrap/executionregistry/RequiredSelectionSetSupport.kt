@@ -2,23 +2,64 @@ package viaduct.engine.api.bootstrap.executionregistry
 
 import viaduct.bootstrap.ProviderVariablesAPIData
 import viaduct.bootstrap.SelectionsBlockConfig
+import viaduct.engine.api.ExecutionAttribution
 import viaduct.engine.api.FromArgumentVariable
 import viaduct.engine.api.FromObjectFieldVariable
 import viaduct.engine.api.FromQueryFieldVariable
+import viaduct.engine.api.RequiredSelectionSet
+import viaduct.engine.api.RequiredSelectionSets
 import viaduct.engine.api.SelectionSetVariable
+import viaduct.engine.api.VariablesResolver
+import viaduct.engine.api.checkDisjoint
+import viaduct.graphql.utils.ParsedSelections
+import viaduct.graphql.utils.collectVariableReferences
 
-/**
- * Language-neutral helpers for decoding the build-time execution-registry variable model into the
- * engine's [SelectionSetVariable] declarations.
- *
- * Both tenant runtimes — the Kotlin
- * [viaduct.tenant.runtime.bootstrap.ViaductModernExecutorFactory] and the Java
- * [viaduct.java.runtime.bridge.RequiredSelectionSetFactory] — read the same registry JSON
- * ([ProviderVariablesAPIData] / [SelectionsBlockConfig]) and produced byte-identical copies of this
- * decoding logic. The behavior is purely a function of the registry model (no `suspend`, no
- * GRT/reflection differences), so it is single-sourced here rather than per language.
- */
 object RequiredSelectionSetSupport {
+    data class AssemblyInput(
+        val objectSelections: ParsedSelections?,
+        val querySelections: ParsedSelections?,
+        val variables: List<SelectionSetVariable>,
+        val providerResolvers: List<VariablesResolver>,
+        val attribution: ExecutionAttribution?,
+    )
+
+    fun buildRequiredSelectionSets(input: AssemblyInput): RequiredSelectionSets {
+        val (objectSelections, querySelections, variables, providerResolvers, attribution) = input
+        if (objectSelections == null && querySelections == null) {
+            return RequiredSelectionSets.empty()
+        }
+
+        val variableConsumers = buildSet {
+            objectSelections?.let { addAll(it.collectVariableReferences()) }
+            querySelections?.let { addAll(it.collectVariableReferences()) }
+        }
+        val variableProducers = buildSet {
+            variables.forEach { add(it.name) }
+            providerResolvers.forEach { addAll(it.variableNames) }
+        }
+        val unusedVariables = variableProducers - variableConsumers
+        require(unusedVariables.isEmpty()) {
+            "Cannot build required selection sets: found declarations for unused variables: ${unusedVariables.joinToString(", ")}"
+        }
+
+        val variableResolvers = (
+            providerResolvers + VariablesResolver.fromSelectionSetVariables(
+                objectSelections,
+                querySelections,
+                variables,
+                forChecker = false,
+                attribution,
+            )
+        ).also { it.checkDisjoint() }.map { it.validated() }
+
+        fun build(selections: ParsedSelections): RequiredSelectionSet = RequiredSelectionSet(selections, variableResolvers, forChecker = false, attribution)
+
+        return RequiredSelectionSets(
+            objectSelections = objectSelections?.let(::build),
+            querySelections = querySelections?.let(::build),
+        )
+    }
+
     /**
      * Decode a single registry [ProviderVariablesAPIData] entry into a [SelectionSetVariable] for the
      * named variable.

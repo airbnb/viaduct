@@ -8,18 +8,75 @@ import org.junit.jupiter.api.assertThrows
 import viaduct.bootstrap.ProviderVariablesAPIData
 import viaduct.bootstrap.SelectionsBlockConfig
 import viaduct.bootstrap.VariableProviderEntryConfig
+import viaduct.engine.api.ExecutionAttribution
 import viaduct.engine.api.FromArgumentVariable
 import viaduct.engine.api.FromObjectFieldVariable
 import viaduct.engine.api.FromQueryFieldVariable
+import viaduct.engine.api.RequiredSelectionSets
+import viaduct.engine.api.select.SelectionsParser
+import viaduct.engine.api.variableNames
 
-/**
- * Tests for [RequiredSelectionSetSupport] — the language-neutral helper that decodes the build-time
- * execution-registry variable model into engine [viaduct.engine.api.SelectionSetVariable] declarations.
- *
- * The helper is a pure function of its inputs (no schema, no reflection, no suspend), so these tests
- * assert directly on the decoded values rather than on any downstream wiring.
- */
 class RequiredSelectionSetSupportTest {
+    @Test
+    fun `assembly with no selections is empty even when variables are declared`() {
+        val result = RequiredSelectionSetSupport.buildRequiredSelectionSets(
+            RequiredSelectionSetSupport.AssemblyInput(
+                objectSelections = null,
+                querySelections = null,
+                variables = listOf(FromArgumentVariable("unused", "arg")),
+                providerResolvers = emptyList(),
+                attribution = null,
+            )
+        )
+
+        assertEquals(RequiredSelectionSets.empty(), result)
+    }
+
+    @Test
+    fun `assembly recognizes a variable referenced by a named fragment`() {
+        val selections = SelectionsParser.parse(
+            "Query",
+            "fragment Main on Query { ...Part } fragment Part on Query { ...Nested } " +
+                "fragment Nested on Query { foo(x: \$used) } fragment Unused on Query { foo(x: \$ignored) }",
+        )
+        val attribution = ExecutionAttribution.fromResolver("ExampleResolver")
+
+        val result = RequiredSelectionSetSupport.buildRequiredSelectionSets(
+            RequiredSelectionSetSupport.AssemblyInput(
+                objectSelections = selections,
+                querySelections = null,
+                variables = listOf(FromArgumentVariable("used", "arg")),
+                providerResolvers = emptyList(),
+                attribution = attribution,
+            )
+        )
+
+        assertEquals(setOf("used"), result.objectSelections?.variablesResolvers?.variableNames)
+        assertEquals(attribution, result.objectSelections?.attribution)
+    }
+
+    @Test
+    fun `assembly retains attribution on field variable dependencies`() {
+        val selections = SelectionsParser.parse("Query", "foo(x: \$fromField) baz")
+        val attribution = ExecutionAttribution.fromResolver("ExampleResolver")
+
+        val result = RequiredSelectionSetSupport.buildRequiredSelectionSets(
+            RequiredSelectionSetSupport.AssemblyInput(
+                objectSelections = selections,
+                querySelections = null,
+                variables = listOf(FromObjectFieldVariable("fromField", "baz")),
+                providerResolvers = emptyList(),
+                attribution = attribution,
+            )
+        )
+
+        assertEquals(attribution, result.objectSelections?.attribution)
+        assertEquals(
+            ExecutionAttribution.fromVariablesResolver("RESOLVER:ExampleResolver"),
+            result.objectSelections?.variablesResolvers?.single()?.requiredSelectionSet?.attribution,
+        )
+    }
+
     // ============================================================================
     // toSelectionSetVariable
     // ============================================================================

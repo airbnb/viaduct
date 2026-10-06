@@ -8,15 +8,22 @@ import io.mockk.mockk
 import java.util.concurrent.CompletableFuture
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.bootstrap.FieldEntryConfig
+import viaduct.bootstrap.ProviderVariablesAPIData
 import viaduct.bootstrap.SelectionsBlockConfig
+import viaduct.bootstrap.VariableProviderEntryConfig
 import viaduct.engine.api.EngineExecutionContext
+import viaduct.engine.api.ExecutionAttribution
 import viaduct.engine.api.FullSchema
+import viaduct.engine.api.UnboundVariablesException
 import viaduct.engine.api.VariablesResolver
 import viaduct.engine.api.mocks.MockSchema
+import viaduct.engine.api.resolve
+import viaduct.engine.api.variableNames
 import viaduct.errors.FrameworkException
 import viaduct.java.api.annotations.Variables
 import viaduct.java.api.context.VariablesProviderContext
@@ -48,6 +55,151 @@ class VariablesProviderExecutorImplTest {
         every { globalIDCodec } returns GlobalIDCodecDefault
         every { requestContext } returns "request"
     }
+
+    @Test
+    fun `no selections return empty sets`() {
+        val result = RequiredSelectionSetFactory().mkRequiredSelectionSets(
+            schema,
+            fieldEntry(),
+            TypedArgumentsResolver::class.java,
+            CodeInjector.Naive
+        )
+
+        assertNull(result.objectSelections)
+        assertNull(result.querySelections)
+    }
+
+    @Test
+    fun `object selections use registry variables and resolver attribution`() {
+        val result = RequiredSelectionSetFactory().mkRequiredSelectionSets(
+            schema,
+            fieldEntry(objectSelections = selectionsWithArgumentVariable("foo(value: \$arg)")),
+            PlainResolver::class.java,
+            CodeInjector.Naive,
+        )
+
+        assertEquals(setOf("arg"), result.objectSelections?.variablesResolvers?.variableNames)
+        assertEquals(ExecutionAttribution.fromResolver(PlainResolver::class.java.name), result.objectSelections?.attribution)
+        assertNull(result.querySelections)
+    }
+
+    @Test
+    fun `query selections use registry variables`() {
+        val result = RequiredSelectionSetFactory().mkRequiredSelectionSets(
+            schema,
+            fieldEntry(querySelections = selectionsWithArgumentVariable("intermediary(value: \$arg)")),
+            PlainResolver::class.java,
+            CodeInjector.Naive,
+        )
+
+        assertNull(result.objectSelections)
+        assertEquals(setOf("arg"), result.querySelections?.variablesResolvers?.variableNames)
+    }
+
+    @Test
+    fun `combined selections resolve provider and registry variables from named fragments`() =
+        runBlocking {
+            val result = RequiredSelectionSetFactory().mkRequiredSelectionSets(
+                schema,
+                fieldEntry(
+                    objectSelections = SelectionsBlockConfig(
+                        "fragment Main on Query { ...Part } fragment Part on Query { foo(value: \$value) }"
+                    ),
+                    querySelections = selectionsWithArgumentVariable(
+                        "first: intermediary(value: \$nested) second: intermediary(value: \$arg)"
+                    ),
+                ),
+                TypedArgumentsResolver::class.java,
+                CodeInjector.Naive,
+                Query_Foo_bar_Arguments::class.java,
+            )
+
+            val expectedNames = setOf("value", "nested", "arg")
+            val expectedAttribution = ExecutionAttribution.fromResolver(TypedArgumentsResolver::class.java.name)
+            val context = VariablesResolver.ResolveCtx(mockk(), mapOf("value" to 5, "input" to mapOf("value" to 7)))
+            for (selectionSet in listOf(result.objectSelections!!, result.querySelections!!)) {
+                assertEquals(expectedNames, selectionSet.variablesResolvers.variableNames)
+                assertEquals(expectedAttribution, selectionSet.attribution)
+                assertEquals(mapOf("value" to 5, "nested" to 7, "arg" to 5), selectionSet.variablesResolvers.resolve(context, engineContext))
+            }
+        }
+
+    @Test
+    fun `unused provider declarations are rejected`() {
+        assertThrows<IllegalArgumentException> {
+            RequiredSelectionSetFactory().mkRequiredSelectionSets(
+                schema,
+                fieldEntry(querySelections = SelectionsBlockConfig("intermediary(value: \$value)")),
+                TypedArgumentsResolver::class.java,
+                CodeInjector.Naive,
+            )
+        }
+    }
+
+    @Test
+    fun `unbound named fragment variables are rejected`() {
+        assertThrows<UnboundVariablesException> {
+            RequiredSelectionSetFactory().mkRequiredSelectionSets(
+                schema,
+                fieldEntry(
+                    objectSelections = SelectionsBlockConfig(
+                        "fragment Main on Query { ...Part } fragment Part on Query { foo(value: \$missing) }"
+                    )
+                ),
+                PlainResolver::class.java,
+                CodeInjector.Naive,
+            )
+        }
+    }
+
+    @Test
+    fun `overlapping registry and provider declarations are rejected`() {
+        assertThrows<IllegalStateException> {
+            RequiredSelectionSetFactory().mkRequiredSelectionSets(
+                schema,
+                fieldEntry(
+                    querySelections = SelectionsBlockConfig(
+                        selections = "first: intermediary(value: \$value) second: intermediary(value: \$nested)",
+                        variablesProviders = listOf(
+                            VariableProviderEntryConfig(
+                                providedVariables = mapOf("value" to "Int"),
+                                providerVariablesAPIData = ProviderVariablesAPIData("fromArgument", "value"),
+                            )
+                        ),
+                    )
+                ),
+                TypedArgumentsResolver::class.java,
+                CodeInjector.Naive,
+            )
+        }
+    }
+
+    private fun fieldEntry(
+        objectSelections: SelectionsBlockConfig? = null,
+        querySelections: SelectionsBlockConfig? = null,
+    ) = FieldEntryConfig(
+        typeName = "Query",
+        fieldName = "foo",
+        isBatching = false,
+        isSelective = false,
+        attribution = PlainResolver::class.java.name,
+        objectSelections = objectSelections,
+        querySelections = querySelections,
+        tenantAPIData = emptyMap(),
+    )
+
+    private fun selectionsWithArgumentVariable(selections: String) =
+        SelectionsBlockConfig(
+            selections = selections,
+            variablesProviders = listOf(
+                VariableProviderEntryConfig(
+                    providedVariables = mapOf("arg" to "Int"),
+                    providerVariablesAPIData = ProviderVariablesAPIData("fromArgument", "value"),
+                )
+            ),
+        )
+
+    class PlainResolver
 
     @Test
     fun `provider arguments use ordinary coordinates`() {

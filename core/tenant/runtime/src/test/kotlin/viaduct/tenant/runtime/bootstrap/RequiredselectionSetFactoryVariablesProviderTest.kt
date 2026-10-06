@@ -14,6 +14,8 @@ import viaduct.api.mocks.mockReflectionLoader
 import viaduct.api.resolver.VariablesProvider
 import viaduct.api.types.Arguments
 import viaduct.engine.api.EngineExecutionContext
+import viaduct.engine.api.ExecutionAttribution
+import viaduct.engine.api.FromArgumentVariable
 import viaduct.engine.api.FullSchema
 import viaduct.engine.api.VariablesResolver
 import viaduct.engine.api.mocks.MockSchema
@@ -99,6 +101,31 @@ class RequiredselectionSetFactoryVariablesProviderTest {
             return VariablesProviderContextImpl(ic, requestContext, MockArguments())
         }
     }
+
+    @Test
+    fun `mkRequiredSelectionSets -- combined selections preserve provider and argument values and attribution`(): Unit =
+        runBlocking {
+            val attribution = ExecutionAttribution.fromResolver("KotlinResolver")
+            val selections = mkFactory().createRequiredSelectionSets(
+                variablesProvider = VariablesProviderInfo(setOf("provided")) {
+                    MockVariablesProvider(mapOf("provided" to 3))
+                },
+                objectSelections = SelectionsParser.parse("Query", "foo(x: \$provided)"),
+                querySelections = SelectionsParser.parse("Query", "foo(x: \$arg)"),
+                variablesProviderContextFactory = variablesProviderContextFactory,
+                variables = listOf(FromArgumentVariable("arg", "input")),
+                attribution = attribution,
+            )
+            val context = VariablesResolver.ResolveCtx(objectData, mapOf("input" to 8))
+
+            for (selectionSet in listOf(selections.first!!, selections.second!!)) {
+                assertEquals(attribution, selectionSet.attribution)
+                assertEquals(
+                    mapOf("provided" to 3, "arg" to 8),
+                    selectionSet.variablesResolvers.resolve(context, mockEngineExecutionContext),
+                )
+            }
+        }
 
     @Test
     fun `mkRequiredSelectionSets -- VariablesProvider that does not return declared variable should throw at request time`(): Unit =

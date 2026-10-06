@@ -7,6 +7,7 @@ import graphql.language.BooleanValue
 import graphql.language.EnumValue
 import graphql.language.FloatValue
 import graphql.language.FragmentDefinition
+import graphql.language.FragmentSpread
 import graphql.language.IntValue
 import graphql.language.ListType
 import graphql.language.Node
@@ -64,6 +65,24 @@ fun AbstractNode<*>.collectVariableReferences(): Set<String> {
         .depthFirst { n: Node<*> -> n.children }
         .traverse(this, visitor)
     return visitor.variableReferences
+}
+
+fun ParsedSelections.collectVariableReferences(): Set<String> {
+    val references = mutableSetOf<String>()
+    val visitedFragments = mutableSetOf<String>()
+
+    fun visit(node: Node<*>) {
+        when (node) {
+            is VariableReference -> references += node.name
+            is FragmentSpread -> if (visitedFragments.add(node.name)) {
+                fragmentMap[node.name]?.let(::visit)
+            }
+        }
+        node.children.forEach(::visit)
+    }
+
+    visit(selections)
+    return references
 }
 
 class UnrecognizedValueTypeException(

@@ -11,11 +11,8 @@ import viaduct.api.types.Arguments
 import viaduct.engine.api.ExecutionAttribution
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.SelectionSetVariable
-import viaduct.engine.api.VariablesResolver
 import viaduct.engine.api.bootstrap.executionregistry.RequiredSelectionSetSupport
-import viaduct.engine.api.checkDisjoint
 import viaduct.graphql.utils.ParsedSelections
-import viaduct.graphql.utils.collectVariableReferences
 import viaduct.service.api.spi.CodeInjector
 import viaduct.tenant.runtime.context.factory.VariablesProviderContextFactory
 import viaduct.tenant.runtime.execution.VariablesProviderExecutor
@@ -40,76 +37,19 @@ object RequiredSelectionSetFactory {
             return Pair(null, null)
         }
 
-        // Perform cross-selection-set validation for all variables
-        val variableConsumers = buildSet {
-            objectSelections?.selections?.collectVariableReferences()?.let(::addAll)
-            querySelections?.selections?.collectVariableReferences()?.let(::addAll)
-        }
-        val variableProducers = buildSet {
-            variables.forEach { add(it.name) }
-            variablesProvider?.variables?.let(::addAll)
-        }
-        val unusedVariables = variableProducers - variableConsumers
-        require(unusedVariables.isEmpty()) {
-            "Cannot build required selection sets: found declarations for unused variables: ${unusedVariables.joinToString(", ")}"
-        }
-
-        val allVariableResolvers = listOf(
-            mkVariablesProviderVariablesResolvers(variablesProvider, variablesProviderContextFactory),
-            mkFromAnnotationVariablesResolvers(
-                objectSelections,
-                querySelections,
-                variables,
-                attribution = attribution
-            ),
-        ).flatten()
-            .also { it.checkDisjoint() }
-            .map { it.validated() }
-
-        return Pair(
-            objectSelections?.let {
-                RequiredSelectionSet(
-                    it,
-                    allVariableResolvers,
-                    forChecker = false,
-                    attribution,
-                )
-            },
-            querySelections?.let {
-                RequiredSelectionSet(
-                    it,
-                    allVariableResolvers,
-                    forChecker = false,
-                    attribution
-                )
-            }
+        val selectionSets = RequiredSelectionSetSupport.buildRequiredSelectionSets(
+            RequiredSelectionSetSupport.AssemblyInput(
+                objectSelections = objectSelections,
+                querySelections = querySelections,
+                variables = variables,
+                providerResolvers = listOfNotNull(
+                    variablesProvider?.let { VariablesProviderExecutor(it, variablesProviderContextFactory) }
+                ),
+                attribution = attribution,
+            )
         )
+        return Pair(selectionSets.objectSelections, selectionSets.querySelections)
     }
-
-    private fun mkVariablesProviderVariablesResolvers(
-        variablesProvider: VariablesProviderInfo?,
-        variablesProviderContextFactory: VariablesProviderContextFactory,
-    ): List<VariablesResolver> =
-        listOfNotNull(
-            variablesProvider
-                ?.let {
-                    VariablesProviderExecutor(it, variablesProviderContextFactory)
-                }
-        )
-
-    private fun mkFromAnnotationVariablesResolvers(
-        resolverSelections: ParsedSelections?,
-        querySelections: ParsedSelections?,
-        vars: List<SelectionSetVariable>,
-        attribution: ExecutionAttribution?
-    ): List<VariablesResolver> =
-        VariablesResolver.fromSelectionSetVariables(
-            resolverSelections,
-            querySelections,
-            vars,
-            forChecker = false,
-            attribution
-        )
 }
 
 /**

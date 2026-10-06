@@ -24,7 +24,7 @@ class RequiredSelectionSet(
     val id: Id = Id()
 
     init {
-        val refs = selections.selections.collectVariableReferences()
+        val refs = selections.collectVariableReferences()
         val resolvers = variablesResolvers.flatMap { it.variableNames }
         val missing = refs - resolvers
         if (missing.isNotEmpty()) {

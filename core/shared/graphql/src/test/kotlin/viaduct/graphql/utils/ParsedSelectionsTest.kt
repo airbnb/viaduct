@@ -22,7 +22,41 @@ class ParsedSelectionsTest {
         assertEquals(0, ps.selections.selections.size)
         assertEquals(0, ps.fragmentMap.size)
         assertEquals(0, ps.toDocument().definitions.size)
+        assertEquals(emptySet<String>(), ps.collectVariableReferences())
         assertNull(ps.filterToPath(emptyList()))
+    }
+
+    @Test
+    fun `collectVariableReferences follows reachable fragments and all spread directives`() {
+        val selections = parse(
+            "Query",
+            "fragment Main on Query { ...Part @include(if: \$include) ...Part @skip(if: \$skip) } " +
+                "fragment Part on Query { field(value: \$value) } fragment Unused on Query { field(value: \$ignored) }",
+        )
+
+        assertEquals(setOf("include", "skip", "value"), selections.collectVariableReferences())
+    }
+
+    @Test
+    fun `collectVariableReferences terminates on cyclic fragments`() {
+        val selections = parse(
+            "Query",
+            "fragment Main on Query { ...First } fragment First on Query { field(value: \$first) ...Second } " +
+                "fragment Second on Query { field(value: \$second) ...First }",
+        )
+
+        assertEquals(setOf("first", "second"), selections.collectVariableReferences())
+    }
+
+    @Test
+    fun `collectVariableReferences leaves undefined fragments for schema validation`() {
+        val selections = parse(
+            "Query",
+            "fragment Main on Query { ...Missing @include(if: \$include) ...Known } " +
+                "fragment Known on Query { field(value: \$value) }",
+        )
+
+        assertEquals(setOf("include", "value"), selections.collectVariableReferences())
     }
 
     @Test
