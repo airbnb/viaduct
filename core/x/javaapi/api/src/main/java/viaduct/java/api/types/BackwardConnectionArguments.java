@@ -1,6 +1,6 @@
 package viaduct.java.api.types;
 
-import viaduct.tenant.runtime.support.ConnectionArgumentsSupport;
+import viaduct.tenant.runtime.jvm.ConnectionArgumentsSupport;
 
 /**
  * Arguments for backward pagination through a connection.

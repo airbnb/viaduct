@@ -1,11 +1,11 @@
-package viaduct.tenant.runtime.support
+package viaduct.tenant.runtime.jvm
 
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import viaduct.tenant.runtime.support.ConnectionArgumentsSupport.OffsetBounds
+import viaduct.tenant.runtime.jvm.ConnectionArgumentsSupport.OffsetBounds
 
 /**
  * Single source of truth for connection pagination offset/limit math. The Kotlin and Java

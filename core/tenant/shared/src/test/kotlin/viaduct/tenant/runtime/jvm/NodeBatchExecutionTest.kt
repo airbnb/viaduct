@@ -1,6 +1,6 @@
 @file:Suppress("ForbiddenImport")
 
-package viaduct.tenant.runtime.support
+package viaduct.tenant.runtime.jvm
 
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred

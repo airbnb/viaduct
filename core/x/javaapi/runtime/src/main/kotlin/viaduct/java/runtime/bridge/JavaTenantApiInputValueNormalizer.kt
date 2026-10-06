@@ -4,8 +4,8 @@ import viaduct.engine.api.EngineExecutionContext
 import viaduct.java.api.globalid.GlobalID
 import viaduct.java.api.internal.InputBase
 import viaduct.java.api.types.GRT
-import viaduct.tenant.runtime.support.InputValueNormalizerCore
-import viaduct.tenant.runtime.support.InputValueNormalizerCore.InputValueAdapter
+import viaduct.tenant.runtime.jvm.InputValueNormalizerCore
+import viaduct.tenant.runtime.jvm.InputValueNormalizerCore.InputValueAdapter
 
 /**
  * Normalizes Java Tenant API input values before they cross back into the Viaduct engine.
@@ -13,7 +13,7 @@ import viaduct.tenant.runtime.support.InputValueNormalizerCore.InputValueAdapter
  * This keeps Java ctx.query/ctx.mutation and Java VariablesProvider behavior aligned with the
  * Kotlin Tenant API. It is not GraphQL variable coercion; it only unwraps generated Tenant API
  * input objects into values the engine and GraphQL Java can subsequently coerce against the schema.
- * Unlike modern Kotlin [viaduct.api.internal.InputLikeBase.inputData], Java [InputBase.inputData]
+ * Unlike modern Kotlin input builders, Java [InputBase.inputData]
  * stores values directly from generated builders, so it can still contain nested Tenant API
  * wrappers and must be normalized recursively. The shared traversal lives in
  * [InputValueNormalizerCore]; the Java-specific leaf handling is supplied by [JavaInputValueAdapter].

@@ -1,4 +1,4 @@
-package viaduct.tenant.runtime.support
+package viaduct.tenant.runtime.jvm
 
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
@@ -9,7 +9,7 @@ import org.junit.jupiter.api.assertThrows
 import viaduct.errors.TenantUsageException
 import viaduct.service.api.spi.DecodedGlobalID
 import viaduct.service.api.spi.GlobalIDCodec
-import viaduct.tenant.runtime.support.InputValueNormalizerCore.InputValueAdapter
+import viaduct.tenant.runtime.jvm.InputValueNormalizerCore.InputValueAdapter
 
 class InputValueNormalizerCoreTest {
     /**

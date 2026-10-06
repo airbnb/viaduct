@@ -22,8 +22,8 @@ import viaduct.java.api.internal.BaseBatchedNodeResolver
 import viaduct.java.api.internal.ObjectBase
 import viaduct.java.api.resolvers.FieldValue
 import viaduct.java.api.types.NodeObject
-import viaduct.tenant.runtime.support.NodeBatchContext
-import viaduct.tenant.runtime.support.executeNodeBatch
+import viaduct.tenant.runtime.jvm.NodeBatchContext
+import viaduct.tenant.runtime.jvm.executeNodeBatch
 
 /**
  * Kotlin bridge that wraps a batch Java node resolver and implements [NodeResolverExecutor].

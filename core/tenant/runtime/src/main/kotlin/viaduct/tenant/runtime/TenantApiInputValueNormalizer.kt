@@ -4,8 +4,8 @@ import viaduct.api.globalid.GlobalID
 import viaduct.api.internal.InputLikeBase
 import viaduct.api.types.GRT
 import viaduct.service.api.spi.GlobalIDCodec
-import viaduct.tenant.runtime.support.InputValueNormalizerCore
-import viaduct.tenant.runtime.support.InputValueNormalizerCore.InputValueAdapter
+import viaduct.tenant.runtime.jvm.InputValueNormalizerCore
+import viaduct.tenant.runtime.jvm.InputValueNormalizerCore.InputValueAdapter
 
 /**
  * Normalizes Tenant API input values before they cross back into the Viaduct engine.

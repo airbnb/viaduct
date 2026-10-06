@@ -1,7 +1,7 @@
 package viaduct.api.types
 
 import viaduct.apiannotations.ExperimentalApi
-import viaduct.tenant.runtime.support.ConnectionArgumentsSupport
+import viaduct.tenant.runtime.jvm.ConnectionArgumentsSupport
 
 /**
  * Arguments for connections that expose all four pagination args (`[first]`, `[after]`, `[last]`, `[before]`).

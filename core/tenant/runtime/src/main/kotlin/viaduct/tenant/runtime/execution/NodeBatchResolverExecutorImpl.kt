@@ -18,8 +18,8 @@ import viaduct.errors.PassthroughException
 import viaduct.errors.TenantResolverException
 import viaduct.errors.resultOfSuspend
 import viaduct.tenant.runtime.context.factory.NodeExecutionContextFactory
-import viaduct.tenant.runtime.support.NodeBatchContext
-import viaduct.tenant.runtime.support.executeNodeBatch
+import viaduct.tenant.runtime.jvm.NodeBatchContext
+import viaduct.tenant.runtime.jvm.executeNodeBatch
 
 class NodeBatchResolverExecutorImpl(
     val resolver: Provider<out BaseBatchedNodeResolver>,

@@ -1,13 +1,13 @@
 package viaduct.java.runtime.bridge
 
 import graphql.schema.GraphQLInputObjectType
-import viaduct.api.internal.InputTypeFactory
 import viaduct.engine.api.EngineSchema
 import viaduct.errors.TenantUsageException
 import viaduct.java.api.globalid.GlobalID
 import viaduct.java.api.internal.InternalContext
 import viaduct.java.api.types.NodeCompositeOutput
 import viaduct.service.api.spi.GlobalIDCodec
+import viaduct.tenant.runtime.jvm.InputTypeFactory
 
 /**
  * Runtime implementation of the Java [InternalContext].

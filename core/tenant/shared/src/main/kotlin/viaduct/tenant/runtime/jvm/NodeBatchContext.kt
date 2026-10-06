@@ -1,4 +1,4 @@
-package viaduct.tenant.runtime.support
+package viaduct.tenant.runtime.jvm
 
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll

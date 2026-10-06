@@ -32,6 +32,7 @@ import viaduct.errors.UnsetFieldException
 import viaduct.errors.handleAccessorErrors
 import viaduct.errors.handleFrameworkErrors
 import viaduct.errors.nullOnDataFailure
+import viaduct.tenant.runtime.jvm.OverlayEngineObjectData as SharedOverlayEngineObjectData
 
 /**
  * Base class for object type GRTs.
@@ -268,7 +269,7 @@ abstract class ObjectBase(
             handleFrameworkErrors("ObjectBase.Builder.buildEngineObjectData failed") {
                 val overlay = wrapper.getEngineObjectData()
                 baseEngineObjectData?.let { base ->
-                    OverlayEngineObjectData(overlay, base)
+                    SharedOverlayEngineObjectData(overlay, base)
                 } ?: overlay
             }
 

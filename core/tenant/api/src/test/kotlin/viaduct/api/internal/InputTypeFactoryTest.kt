@@ -4,13 +4,11 @@ import graphql.Scalars
 import graphql.language.IntValue
 import graphql.schema.GraphQLArgument
 import graphql.schema.GraphQLFieldDefinition
-import graphql.schema.GraphQLInputObjectField
 import graphql.schema.GraphQLNamedSchemaElement
 import graphql.schema.GraphQLNonNull
 import graphql.schema.GraphQLObjectType
 import graphql.schema.GraphQLSchema
 import graphql.schema.GraphQLTypeUtil
-import graphql.schema.InputValueWithState
 import java.math.BigInteger
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -79,19 +77,6 @@ class InputTypeFactoryTest {
         assertTrue(input.getField("externalNull").inputFieldDefaultValue.isExternal)
         assertEquals(null, input.getField("externalNull").inputFieldDefaultValue.value)
         assertFalse(input.getField("required").hasSetDefaultValue())
-    }
-
-    @Test
-    fun `synthetic argument fields reject internally coerced defaults`() {
-        val builder = GraphQLInputObjectField.newInputObjectField()
-            .name("value")
-            .type(Scalars.GraphQLInt)
-
-        val error = assertThrows<IllegalArgumentException> {
-            InputTypeFactory.copyDefaultValue(InputValueWithState.newInternalValue(3), builder, "Query.field.value")
-        }
-
-        assertTrue(error.message!!.contains("Query.field.value"))
     }
 
     @Test

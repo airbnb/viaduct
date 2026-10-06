@@ -3,8 +3,6 @@ package viaduct.java.runtime.bridge
 import graphql.schema.GraphQLInputObjectType
 import graphql.schema.GraphQLSchema
 import org.slf4j.LoggerFactory
-import viaduct.api.internal.InputTypeFactory
-import viaduct.api.internal.OverlayEngineObjectData
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.ResolvedEngineObjectData
@@ -15,6 +13,8 @@ import viaduct.java.api.internal.ObjectBase
 import viaduct.java.api.types.Arguments
 import viaduct.java.api.types.GraphQLObject
 import viaduct.service.api.spi.GlobalIDCodec
+import viaduct.tenant.runtime.jvm.InputTypeFactory
+import viaduct.tenant.runtime.jvm.OverlayEngineObjectData
 
 /**
  * Utility functions for converting between Java GRT (GraphQL Representational Type) objects

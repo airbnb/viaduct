@@ -5,7 +5,6 @@ import graphql.schema.GraphQLInputObjectType
 import java.util.concurrent.CompletableFuture
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.future.future
-import viaduct.api.internal.InputTypeFactory
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.NodeReference
@@ -26,6 +25,7 @@ import viaduct.java.api.types.GraphQLObject
 import viaduct.java.api.types.NodeCompositeOutput
 import viaduct.java.api.types.NodeObject
 import viaduct.service.api.spi.GlobalIDCodec
+import viaduct.tenant.runtime.jvm.InputTypeFactory
 
 /**
  * Shared implementation of the engine-context operations that every Java bridge execution context

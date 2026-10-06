@@ -1,7 +1,7 @@
 package viaduct.api.types
 
 import viaduct.apiannotations.ExperimentalApi
-import viaduct.tenant.runtime.support.OffsetCursorCodec
+import viaduct.tenant.runtime.jvm.OffsetCursorCodec
 
 /**
  * A cursor for offset-based pagination.

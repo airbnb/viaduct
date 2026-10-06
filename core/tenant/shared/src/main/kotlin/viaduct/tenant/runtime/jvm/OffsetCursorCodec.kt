@@ -1,4 +1,4 @@
-package viaduct.tenant.runtime.support
+package viaduct.tenant.runtime.jvm
 
 import java.util.Base64
 import viaduct.apiannotations.InternalApi
