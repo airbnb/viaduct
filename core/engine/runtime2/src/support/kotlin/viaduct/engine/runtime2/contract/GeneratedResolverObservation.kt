@@ -1,0 +1,248 @@
+package viaduct.engine.runtime2.contract
+
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
+import viaduct.engine.runtime2.arbitrary.Config
+import viaduct.engine.runtime2.arbitrary.ResolverApplicationRecord
+import viaduct.engine.runtime2.arbitrary.ResolverTestCase
+import viaduct.engine.runtime2.arbitrary.SelectiveNodeResolverApplicationRecord
+import viaduct.engine.runtime2.correctresolution.CorrectnessCheckerObserver
+import viaduct.engine.runtime2.correctresolution.conformsToResolvers
+import viaduct.engine.runtime2.correctresolution.conformsToSelections
+import viaduct.engine.runtime2.correctresolution.correctResolution
+import viaduct.engine.runtime2.correctresolution.isClosedUnderResolverDemand
+import viaduct.engine.runtime2.correctresolution.rootedAndWellTyped
+import viaduct.engine.runtime2.model.Assumptions
+import viaduct.engine.runtime2.model.Fragment
+import viaduct.engine.runtime2.model.ObjectEngineResult
+import viaduct.engine.runtime2.model.ResolverOccurrenceId
+import viaduct.engine.runtime2.model.sameCompletedResultAs
+import viaduct.engine.runtime2.model.testing.TestWorld
+import viaduct.engine.runtime2.model.testing.fragmentFrom
+import viaduct.engine.runtime2.model.testing.objectOf
+import viaduct.engine.runtime2.resolution.framework.CheckerInvocationObservation
+import viaduct.engine.runtime2.resolution.framework.CheckerKind
+import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
+
+/** One generated resolver execution and the request-local state needed to validate it. */
+data class GeneratedResolutionObservation(
+    val operation: SharedOperationContext<*>,
+    val fragment: Fragment,
+    val subject: ResolverResolutionObservation,
+    val checkerApplications: List<CheckerInvocationObservation>,
+) {
+    val world: Assumptions
+        get() = operation.world
+
+    val result: ObjectEngineResult
+        get() = subject.result
+}
+
+/** Both executions of one generated case and the ordinary execution's application witness. */
+data class GeneratedCaseObservation(
+    val testCase: ResolverTestCase,
+    val ordinary: GeneratedResolutionObservation,
+    val permutationEquivalent: GeneratedResolutionObservation,
+    val ordinaryApplications: List<ResolverApplicationRecord>,
+    val selectiveNodeResolverApplications: List<SelectiveNodeResolverApplicationRecord>,
+) {
+    val executions: List<GeneratedResolutionObservation>
+        get() = listOf(ordinary, permutationEquivalent)
+}
+
+/** One independently selectable judgment over a completed generated case. */
+fun interface GeneratedCaseAssertion {
+    fun assertThat(observation: GeneratedCaseObservation)
+}
+
+/** Reusable generated-case judgments, composed by each contract according to its claims. */
+object GeneratedCaseAssertions {
+    val correctResolution =
+        GeneratedCaseAssertion { observation ->
+            observation.executions.forEach { execution ->
+                val correct = execution.result.correctResolution(execution.operation, execution.fragment)
+                if (!correct) {
+                    fun diagnostic(
+                        name: String,
+                        value: () -> Any?,
+                    ): String =
+                        "$name=" +
+                            runCatching(value).fold(
+                                onSuccess = Any?::toString,
+                                onFailure = { failure ->
+                                    "${failure::class.simpleName}: ${failure.message}"
+                                },
+                            )
+
+                    listOf(
+                        diagnostic("rootedAndWellTyped") {
+                            execution.result.rootedAndWellTyped(execution.world)
+                        },
+                        diagnostic("conformsToSelections") {
+                            execution.result.conformsToSelections(
+                                execution.operation,
+                                execution.fragment.subselections,
+                            )
+                        },
+                        diagnostic("isClosedUnderResolverDemand") {
+                            execution.result.isClosedUnderResolverDemand(execution.operation)
+                        },
+                        diagnostic("unclosedResolverOccurrences") {
+                            execution.result.unclosedRegisteredResolverOccurrences(execution.operation)
+                        },
+                        diagnostic("conformsToResolvers") {
+                            execution.result.conformsToResolvers(execution.operation)
+                        },
+                    ).joinToString(separator = "\n")
+                        .let { diagnostics ->
+                            assertTrue(actual = false, message = diagnostics)
+                        }
+                }
+            }
+        }
+
+    val permutationEquivalentResult =
+        GeneratedCaseAssertion { observation ->
+            assertTrue(
+                observation.ordinary.result.sameCompletedResultAs(
+                    observation.permutationEquivalent.result,
+                ),
+            )
+        }
+
+    val exactOrdinaryApplicationCounts =
+        GeneratedCaseAssertion { observation ->
+            val expected =
+                observation.ordinary.result.registeredResolverApplicationIdentityCounts(observation.ordinary.operation)
+            assertEquals(
+                expected,
+                observation.ordinaryApplications
+                    .groupingBy(ResolverApplicationRecord::identity)
+                    .eachCount(),
+            )
+        }
+
+    val fromFieldBindings =
+        GeneratedCaseAssertion { observation ->
+            observation.executions.forEach { execution ->
+                execution.result.validateFromFieldBindings(
+                    execution.operation,
+                    requireNotNull(execution.subject.appliedResolverOccurrences) {
+                        "From-field binding validation requires exact application " +
+                            "occurrences"
+                    },
+                )
+            }
+        }
+
+    val exactCheckerApplications =
+        GeneratedCaseAssertion { observation ->
+            observation.executions.forEach { execution ->
+                val inputRecorder = execution.operation.checkerObserver as CorrectnessCheckerObserver
+                execution.checkerApplications.groupingBy { it }.eachCount().forEach { (application, count) ->
+                    assertEquals(
+                        count,
+                        inputRecorder.checkerInputs(
+                            application.checkedTarget,
+                            ResolverOccurrenceId.at(application.logicalQueryRoot, application.occurrencePath),
+                        ).size,
+                        "Every checker invocation must retain its actual named inputs",
+                    )
+                }
+                val demanded = execution.result.demandedTypeCheckerApplications(execution.operation, execution.fragment.subselections).associateWith { 1 }
+                val invoked = execution.checkerApplications.filter { it.checkerKind == CheckerKind.TYPE }.groupingBy { it }.eachCount()
+                assertEquals(demanded, invoked, "Type-check applications must follow checked demand: missing=${demanded.keys - invoked.keys}; extra=${invoked.keys - demanded.keys}")
+                val expected =
+                    execution.result.registeredCheckerApplications(execution.operation)
+                assertEquals(
+                    expected.groupingBy { application -> application }.eachCount(),
+                    execution.checkerApplications
+                        .groupingBy { application -> application }
+                        .eachCount(),
+                )
+            }
+        }
+
+    val defaultGeneratedContract =
+        listOf(
+            correctResolution,
+            permutationEquivalentResult,
+        )
+}
+
+/** Assertion policy independently extended by each generated resolver test subject. */
+interface GeneratedCaseAssertionPolicy : ResolverContract {
+    val nodeRootFieldReferencesEnabled: Boolean
+        get() = true
+
+    val generatedResolverConfigOverrides: Config
+        get() = Config.default
+
+    val generatedCaseAssertions: List<GeneratedCaseAssertion>
+        get() = GeneratedCaseAssertions.defaultGeneratedContract
+}
+
+fun GeneratedCaseObservation.assertAll(assertions: Iterable<GeneratedCaseAssertion>): GeneratedCaseObservation =
+    apply {
+        assertions.forEach { assertion -> assertion.assertThat(this) }
+    }
+
+/** Executes an ordinary and permutation-equivalent generated query with fresh assumptions. */
+fun ResolverContract.observeGeneratedCase(
+    testWorld: TestWorld,
+    testCase: ResolverTestCase,
+    captureSuppliedDemand: Boolean = false,
+): GeneratedCaseObservation {
+    testCase.registry.clearResolutionWitness()
+    val ordinaryCheckerRecorder = CheckerApplicationRecorder()
+    val ordinary =
+        observeGeneratedResolution(
+            testWorld = testWorld,
+            resolverObserver = testCase.registry.resolverObserver(captureSuppliedDemand = captureSuppliedDemand),
+            checkerRecorder = ordinaryCheckerRecorder,
+            querySource = testCase.query.source,
+        )
+    val ordinaryApplications = testCase.registry.resolutionWitness().applications
+    val selectiveNodeResolverApplications = testCase.registry.selectiveNodeResolverApplications()
+    val permutationEquivalent =
+        testCase.registry.withoutResolutionWitnessCapture {
+            val checkerRecorder = CheckerApplicationRecorder()
+            observeGeneratedResolution(
+                testWorld = testWorld,
+                resolverObserver = testCase.registry.resolverObserver(captureResolutionWitness = false, captureResolutionApplicationCounts = false),
+                checkerRecorder = checkerRecorder,
+                querySource = testCase.query.permutationEquivalentSource,
+            )
+        }
+    return GeneratedCaseObservation(
+        testCase = testCase,
+        ordinary = ordinary,
+        permutationEquivalent = permutationEquivalent,
+        ordinaryApplications = ordinaryApplications,
+        selectiveNodeResolverApplications = selectiveNodeResolverApplications,
+    )
+}
+
+private fun ResolverContract.observeGeneratedResolution(
+    testWorld: TestWorld,
+    resolverObserver: viaduct.engine.runtime2.resolution.framework.ResolverObserver,
+    checkerRecorder: CheckerApplicationRecorder,
+    querySource: String,
+): GeneratedResolutionObservation {
+    val world = testWorld.newAssumptions(selectiveResolvers)
+    val fragment = testWorld.schemas.fragmentFrom(querySource)
+    val subject =
+        observeResolution(
+            world,
+            world.objectOf("Query"),
+            fragment.subselections,
+            resolverObserver = resolverObserver,
+            checkerObserver = checkerRecorder,
+        )
+    return GeneratedResolutionObservation(
+        operation = subject.operation,
+        fragment = fragment,
+        subject = subject,
+        checkerApplications = checkerRecorder.checkerApplications(),
+    )
+}

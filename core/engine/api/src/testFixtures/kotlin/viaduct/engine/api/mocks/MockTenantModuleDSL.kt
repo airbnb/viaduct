@@ -5,6 +5,7 @@ import graphql.schema.GraphQLOutputType
 import viaduct.engine.api.CheckerMetadata
 import viaduct.engine.api.Coordinate
 import viaduct.engine.api.EngineExecutionContext
+import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.ExecutionAttribution
 import viaduct.engine.api.FromArgumentVariable
@@ -15,6 +16,7 @@ import viaduct.engine.api.spi.CheckerExecutor
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.NodeResolverExecutor
 import viaduct.engine.api.spi.VariableFromArgumentDefinitions
+import viaduct.engine.api.spi.VariableFromFunctionDefinitions
 
 @DslMarker
 /**
@@ -229,6 +231,7 @@ class MockTenantModuleDSL<F : Any>(
                             objectSelectionSet = r.objectSelections?.toRSS(attribution, r.argumentVariableDefinitions),
                             querySelectionSet = r.querySelections?.toRSS(attribution, r.argumentVariableDefinitions),
                             argumentVariables = r.argumentVariablesProvider(),
+                            variablesFromFunctionProvider = r.functionVariablesProvider(),
                             resolverName = r.resolverName,
                             resolverId = resolverId,
                             unbatchedResolveFn = r.unbatchedResolveFn!!
@@ -239,6 +242,7 @@ class MockTenantModuleDSL<F : Any>(
                             objectSelectionSet = r.objectSelections?.toRSS(attribution, r.argumentVariableDefinitions),
                             querySelectionSet = r.querySelections?.toRSS(attribution, r.argumentVariableDefinitions),
                             argumentVariables = r.argumentVariablesProvider(),
+                            variablesFromFunctionProvider = r.functionVariablesProvider(),
                             resolverName = r.resolverName,
                             resolverId = resolverId,
                             batchResolveFn = r.batchResolveFn!!
@@ -275,6 +279,7 @@ class MockTenantModuleDSL<F : Any>(
 
         @TenantModuleBootstrapperDsl
         inner class SelectionsScope(private val typeName: String, val objectSelectionsText: String, val forChecker: Boolean) {
+            internal val functionProviders = mutableListOf<VariableFromFunctionDefinitions>()
             private var variableProviders: MutableList<VariablesResolver> = mutableListOf()
 
             // DSL marker hides these -- reintroduce them
@@ -291,6 +296,17 @@ class MockTenantModuleDSL<F : Any>(
                 resolveFn: VariablesResolverFn
             ) {
                 variableProviders.add(MockVariablesResolver(*names, requiredSelectionSet = rss, resolveFn = resolveFn))
+                if (rss == null) {
+                    functionProviders.add(object : VariableFromFunctionDefinitions {
+                        override val variableNames = names.toSet()
+
+                        override suspend fun provideVariables(
+                            objectData: EngineObjectData.Sync,
+                            arguments: Map<String, Any?>,
+                            context: EngineExecutionContext,
+                        ): Map<String, Any?> = resolveFn(VariablesResolver.ResolveCtx(objectData, arguments), context)
+                    })
+                }
             }
 
             internal fun toRSS(
@@ -329,6 +345,36 @@ class MockTenantModuleDSL<F : Any>(
             }
 
             internal fun argumentVariablesProvider() = VariableFromArgumentDefinitions(argumentVariableDefinitions)
+
+            internal fun functionVariablesProvider(): VariableFromFunctionDefinitions? {
+                val providers = listOfNotNull(objectSelections, querySelections).flatMap { it.functionProviders }
+                if (providers.isEmpty()) return null
+                return object : VariableFromFunctionDefinitions {
+                    override val variableNames = providers.flatMap { it.variableNames }.toSet()
+
+                    override suspend fun provideVariables(
+                        objectData: EngineObjectData.Sync,
+                        arguments: Map<String, Any?>,
+                        context: EngineExecutionContext,
+                    ): Map<String, Any?> {
+                        val values = mutableMapOf<String, Any?>()
+                        providers.forEach { provider ->
+                            check(values.keys.intersect(provider.variableNames).isEmpty()) { "Overlapping variable provider names" }
+                            val provided = provider.provideVariables(objectData, arguments, context)
+                            check(provided.keys == provider.variableNames) {
+                                val extra = (provided.keys - provider.variableNames).takeIf { it.isNotEmpty() }
+                                val missing = (provider.variableNames - provided.keys).takeIf { it.isNotEmpty() }
+                                "VariablesProvider returned invalid variables. " + listOfNotNull(
+                                    extra?.let { "Extra keys: ${it.joinToString(",")}" },
+                                    missing?.let { "Missing keys: ${it.joinToString(",")}" },
+                                ).joinToString(" ")
+                            }
+                            values.putAll(provided)
+                        }
+                        return values
+                    }
+                }
+            }
 
             // DSL marker hides these -- reintroduce them
             val coord: Coordinate get() = this@FieldScope.coord

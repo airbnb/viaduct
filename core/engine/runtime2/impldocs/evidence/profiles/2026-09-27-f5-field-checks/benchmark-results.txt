@@ -1,0 +1,233 @@
+Task: :semantics:resolver26OverheadBenchmark
+# JMH version: 1.36
+# VM version: JDK 21.0.4, OpenJDK 64-Bit Server VM, 21.0.4+7-LTS
+# VM invoker: /opt/mise/installs/java/corretto-21.0.4.7.1/bin/java
+# VM options: -Dfile.encoding=UTF-8 -Duser.country -Duser.language=en -Duser.variant -DresolverBenchmarkReportFile=/home/raymie_stata/repos/1rv/qplan/semantics/build/reports/resolver-benchmarks/resolver26OverheadBenchmark-statistics.txt
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 1 iterations, single-shot each
+# Measurement: 3 iterations, single-shot each
+# Timeout: 10 min per iteration
+# Threads: 1 thread
+# Benchmark mode: Single shot invocation time
+# Benchmark: semantics.resolver26.ResolverBenchmark.overhead
+# Parameters: (loopCount = 1)
+
+# Run progress: 0.00% complete, ETA 00:00:00
+# Fork: 1 of 1
+# Warmup Iteration   1: 4.032 s/op
+Iteration   1: 3.022 s/op
+Iteration   2: 2.977 s/op
+Iteration   3: 2.960 s/op
+
+
+Result "semantics.resolver26.ResolverBenchmark.overhead":
+  N = 3
+  mean =      2.986 ±(99.9%) 0.582 s/op
+
+  Histogram, s/op:
+    [2.960, 2.965) = 1
+    [2.965, 2.970) = 0
+    [2.970, 2.975) = 0
+    [2.975, 2.980) = 1
+    [2.980, 2.985) = 0
+    [2.985, 2.990) = 0
+    [2.990, 2.995) = 0
+    [2.995, 3.000) = 0
+    [3.000, 3.005) = 0
+    [3.005, 3.010) = 0
+    [3.010, 3.015) = 0
+    [3.015, 3.020) = 0
+    [3.020, 3.025) = 1
+    [3.025, 3.030) = 0
+
+  Percentiles, s/op:
+      p(0.0000) =      2.960 s/op
+     p(50.0000) =      2.977 s/op
+     p(90.0000) =      3.022 s/op
+     p(95.0000) =      3.022 s/op
+     p(99.0000) =      3.022 s/op
+     p(99.9000) =      3.022 s/op
+     p(99.9900) =      3.022 s/op
+     p(99.9990) =      3.022 s/op
+     p(99.9999) =      3.022 s/op
+    p(100.0000) =      3.022 s/op
+
+
+# Run complete. Total time: 00:00:18
+
+REMEMBER: The numbers below are just data. To gain reusable insights, you need to follow up on
+why the numbers are the way they are. Use profilers (see -prof, -lprof), design factorial
+experiments, perform baseline and negative tests that provide experimental control, make sure
+the benchmarking environment is safe on JVM/OS/HW level, ask for reviews from the domain experts.
+Do not assume the numbers tell you what you want them to tell.
+
+NOTE: Current JVM experimentally supports Compiler Blackholes, and they are in use. Please exercise
+extra caution when trusting the results, look into the generated code to check the benchmark still
+works, and factor in a small probability of new VM bugs. Additionally, while comparisons between
+different JVMs are already problematic, the performance difference caused by different Blackhole
+modes can be very significant. Please make sure you use the consistent Blackhole mode for comparisons.
+
+Benchmark                   (loopCount)  Mode  Cnt  Score   Error  Units
+ResolverBenchmark.overhead            1    ss    3  2.986 ± 0.582   s/op
+
+Resolver overhead corpus statistics (100 queries):
+  fields returned: average=244.24, p90=347, max=570
+  active fields returned: average=71.60, p90=113, max=214
+  passive fields returned: average=172.64, p90=241, max=356
+  passive fields per active field: average=2.71, p90=3.68, max=5.76
+  resolvers executed: average=68.73, p90=107, max=165
+  resolver executions with variable-bearing arguments: average=5.72, p50=9, max=20
+  variable-bearing arguments per such resolver execution: average=1.00, p90=1, max=1
+  maximum variable stack depth: average=0.81, p50=1, max=1
+  result depth: average=5.85, p90=6, max=6
+Resolver benchmark registry statistics:
+  active fields per non-Query object: average=1.88, p90=4, max=5
+  passive fields per non-Query object: average=14.31, p90=18, max=18
+  selections per object fragment: average=4.48, p90=18, max=39
+  object fragment depth: average=1.63, p90=5, max=9
+
+Task: :semantics:correctResolutionBenchmark
+# JMH version: 1.36
+# VM version: JDK 21.0.4, OpenJDK 64-Bit Server VM, 21.0.4+7-LTS
+# VM invoker: /opt/mise/installs/java/corretto-21.0.4.7.1/bin/java
+# VM options: -Dfile.encoding=UTF-8 -Duser.country -Duser.language=en -Duser.variant
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 1 iterations, single-shot each
+# Measurement: 3 iterations, single-shot each
+# Timeout: 10 min per iteration
+# Threads: 1 thread
+# Benchmark mode: Single shot invocation time
+# Benchmark: semantics.correctresolution.CorrectResolutionBenchmark.correctResolution
+# Parameters: (inputCount = 50, loopCount = 1, querySeed = 1)
+
+# Run progress: 0.00% complete, ETA 00:00:00
+# Fork: 1 of 1
+# Warmup Iteration   1: 1.053 s/op
+Iteration   1: 1.171 s/op
+Iteration   2: 1.147 s/op
+Iteration   3: 1.004 s/op
+
+
+Result "semantics.correctresolution.CorrectResolutionBenchmark.correctResolution":
+  N = 3
+  mean =      1.107 ±(99.9%) 1.651 s/op
+
+  Histogram, s/op:
+    [1.000, 1.013) = 1
+    [1.013, 1.025) = 0
+    [1.025, 1.038) = 0
+    [1.038, 1.050) = 0
+    [1.050, 1.063) = 0
+    [1.063, 1.075) = 0
+    [1.075, 1.088) = 0
+    [1.088, 1.100) = 0
+    [1.100, 1.113) = 0
+    [1.113, 1.125) = 0
+    [1.125, 1.138) = 0
+    [1.138, 1.150) = 1
+    [1.150, 1.163) = 0
+    [1.163, 1.175) = 1
+    [1.175, 1.188) = 0
+    [1.188, 1.200) = 0
+
+  Percentiles, s/op:
+      p(0.0000) =      1.004 s/op
+     p(50.0000) =      1.147 s/op
+     p(90.0000) =      1.171 s/op
+     p(95.0000) =      1.171 s/op
+     p(99.0000) =      1.171 s/op
+     p(99.9000) =      1.171 s/op
+     p(99.9900) =      1.171 s/op
+     p(99.9990) =      1.171 s/op
+     p(99.9999) =      1.171 s/op
+    p(100.0000) =      1.171 s/op
+
+
+# Run complete. Total time: 00:00:10
+
+REMEMBER: The numbers below are just data. To gain reusable insights, you need to follow up on
+why the numbers are the way they are. Use profilers (see -prof, -lprof), design factorial
+experiments, perform baseline and negative tests that provide experimental control, make sure
+the benchmarking environment is safe on JVM/OS/HW level, ask for reviews from the domain experts.
+Do not assume the numbers tell you what you want them to tell.
+
+NOTE: Current JVM experimentally supports Compiler Blackholes, and they are in use. Please exercise
+extra caution when trusting the results, look into the generated code to check the benchmark still
+works, and factor in a small probability of new VM bugs. Additionally, while comparisons between
+different JVMs are already problematic, the performance difference caused by different Blackhole
+modes can be very significant. Please make sure you use the consistent Blackhole mode for comparisons.
+
+Benchmark                                     (inputCount)  (loopCount)  (querySeed)  Mode  Cnt  Score   Error  Units
+CorrectResolutionBenchmark.correctResolution            50            1            1    ss    3  1.107 ± 1.651   s/op
+
+Task: :semantics:propertyTestBenchmark
+# JMH version: 1.36
+# VM version: JDK 21.0.4, OpenJDK 64-Bit Server VM, 21.0.4+7-LTS
+# VM invoker: /opt/mise/installs/java/corretto-21.0.4.7.1/bin/java
+# VM options: -Dfile.encoding=UTF-8 -Duser.country -Duser.language=en -Duser.variant
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 2 iterations, single-shot each
+# Measurement: 5 iterations, single-shot each
+# Timeout: 10 min per iteration
+# Threads: 1 thread
+# Benchmark mode: Single shot invocation time
+# Benchmark: semantics.resolver26.PropertyTestBenchmark.propertyTest
+# Parameters: (loopCount = 1)
+
+# Run progress: 0.00% complete, ETA 00:00:00
+# Fork: 1 of 1
+# Warmup Iteration   1: 2.798 s/op
+# Warmup Iteration   2: 1.689 s/op
+Iteration   1: 1.405 s/op
+Iteration   2: 1.400 s/op
+Iteration   3: 1.412 s/op
+Iteration   4: 1.403 s/op
+Iteration   5: 1.396 s/op
+
+
+Result "semantics.resolver26.PropertyTestBenchmark.propertyTest":
+  N = 5
+  mean =      1.403 ±(99.9%) 0.022 s/op
+
+  Histogram, s/op:
+    [1.390, 1.393) = 0
+    [1.393, 1.395) = 0
+    [1.395, 1.398) = 1
+    [1.398, 1.400) = 0
+    [1.400, 1.403) = 1
+    [1.403, 1.405) = 1
+    [1.405, 1.408) = 1
+    [1.408, 1.410) = 0
+    [1.410, 1.413) = 1
+    [1.413, 1.415) = 0
+    [1.415, 1.418) = 0
+
+  Percentiles, s/op:
+      p(0.0000) =      1.396 s/op
+     p(50.0000) =      1.403 s/op
+     p(90.0000) =      1.412 s/op
+     p(95.0000) =      1.412 s/op
+     p(99.0000) =      1.412 s/op
+     p(99.9000) =      1.412 s/op
+     p(99.9900) =      1.412 s/op
+     p(99.9990) =      1.412 s/op
+     p(99.9999) =      1.412 s/op
+    p(100.0000) =      1.412 s/op
+
+
+# Run complete. Total time: 00:00:13
+
+REMEMBER: The numbers below are just data. To gain reusable insights, you need to follow up on
+why the numbers are the way they are. Use profilers (see -prof, -lprof), design factorial
+experiments, perform baseline and negative tests that provide experimental control, make sure
+the benchmarking environment is safe on JVM/OS/HW level, ask for reviews from the domain experts.
+Do not assume the numbers tell you what you want them to tell.
+
+NOTE: Current JVM experimentally supports Compiler Blackholes, and they are in use. Please exercise
+extra caution when trusting the results, look into the generated code to check the benchmark still
+works, and factor in a small probability of new VM bugs. Additionally, while comparisons between
+different JVMs are already problematic, the performance difference caused by different Blackhole
+modes can be very significant. Please make sure you use the consistent Blackhole mode for comparisons.
+
+Benchmark                           (loopCount)  Mode  Cnt  Score   Error  Units
+PropertyTestBenchmark.propertyTest            1    ss    5  1.403 ± 0.022   s/op

@@ -1,8 +1,29 @@
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+import java.util.zip.ZipFile
 
 plugins {
     id("conventions.viaduct-fat-jar")
 }
+
+val checkRuntime2Publication = tasks.register("checkRuntime2Publication") {
+    group = "verification"
+    notCompatibleWithConfigurationCache("Runtime2 publication verification retains runtime2's configuration-cache opt-out.")
+    val runtimeJar = tasks.named<ShadowJar>("shadowJar")
+    val supportInventory = file("../../core/engine/runtime2/build/reports/support-output-inventory.txt")
+    dependsOn(runtimeJar, gradle.includedBuild("core").task(":engine:runtime2:checkProductionBoundary"))
+    inputs.file(runtimeJar.flatMap { it.archiveFile })
+    inputs.file(supportInventory)
+    doLast {
+        val excluded = supportInventory.readLines().toSet()
+        ZipFile(runtimeJar.get().archiveFile.get().asFile).use { archive ->
+            val entries = archive.entries().asSequence().map { it.name }.toSet()
+            check("viaduct/engine/runtime2/execution/QPlanExecutionStrategy.class" in entries)
+            check(entries.intersect(excluded).isEmpty()) { "Runtime fat JAR contains runtime2 support output" }
+        }
+    }
+}
+
+tasks.named("check") { dependsOn(checkRuntime2Publication) }
 
 viaductPublishing {
     name.set("Runtime")
@@ -14,6 +35,7 @@ dependencies {
     // In the published shadow jar, these are bundled and transitive deps are suppressed below.
     api(libs.viaduct.engine.api)
     api(libs.viaduct.engine.runtime)
+    api(libs.viaduct.engine.runtime2)
     api(libs.viaduct.engine.wiring)
     api(libs.viaduct.service.runtime)
     api(libs.viaduct.service.wiring)

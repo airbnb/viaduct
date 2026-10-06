@@ -1,0 +1,25 @@
+{
+  "biblio": {
+    "https://spec.graphql.org/September2025/": {
+      "Document": "#Document",
+      "Field": "#Field",
+      "FragmentDefinition": "#FragmentDefinition",
+      "FragmentSpread": "#FragmentSpread",
+      "InlineFragment": "#InlineFragment",
+      "IsInputType()": "#IsInputType()",
+      "OperationDefinition": "#OperationDefinition",
+      "Value": "#Value",
+      "Variable": "#Variable",
+      "execution-error": "#execution-error",
+      "execution-result": "#execution-result",
+      "request-error": "#request-error",
+      "request-error-result": "#request-error-result",
+      "response": "#response",
+      "response-name": "#response-name",
+      "response-position": "#response-position",
+      "response-stream": "#response-stream",
+      "root-operation-type": "#root-operation-type",
+      "selection-set": "#selection-set"
+    }
+  }
+}

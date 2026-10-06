@@ -36,6 +36,42 @@ class MockTenantModuleDSLTest {
     }
 
     @Test
+    fun `publishes direct callback declarations from both selection blocks in both executor modes`(): Unit =
+        runBlocking {
+            for (batching in listOf(false, true)) {
+                val module = MockTenantModuleBootstrapper("extend type Query { result(x: Int!): Int source(x: Int): Int }") {
+                    field("Query" to "result") {
+                        resolver {
+                            objectSelections("source(x: \$objectVar)") {
+                                variables("objectVar") { ctx, _ -> mapOf("objectVar" to ctx.arguments.getValue("x")) }
+                            }
+                            querySelections("source(x: \$queryVar)") {
+                                variables("queryVar") { ctx, _ -> mapOf("queryVar" to (ctx.arguments.getValue("x") as Int) + 1) }
+                            }
+                            if (batching) {
+                                fn { selectors, _ -> selectors.associateWith { Result.success(null) } }
+                            } else {
+                                fn { _, _, _, _, _ -> null }
+                            }
+                        }
+                    }
+                }
+                val executor = module.fieldResolverExecutors.single().second
+                assertEquals(batching, executor.isBatching)
+                val provider = requireNotNull(executor.variablesFromFunctionProvider)
+                assertEquals(setOf("objectVar", "queryVar"), provider.variableNames)
+                assertEquals(
+                    mapOf("objectVar" to 3, "queryVar" to 4),
+                    provider.provideVariables(
+                        createEngineObjectData(module.fullSchema.schema.queryType, emptyMap()),
+                        mapOf("x" to 3),
+                        module.contextMocks.engineExecutionContext,
+                    ),
+                )
+            }
+        }
+
+    @Test
     fun `field with value without fieldWithValue`() {
         val coord = "Test" to "k"
         val module = MockTenantModuleBootstrapper(SCHEMA_SDL) {

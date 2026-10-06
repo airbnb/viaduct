@@ -1,0 +1,270 @@
+package viaduct.engine.runtime2.execution
+
+import graphql.ExecutionResult
+import graphql.execution.AsyncExecutionStrategy
+import graphql.execution.DataFetcherExceptionHandler
+import graphql.execution.ExecutionContext
+import graphql.execution.ExecutionId
+import graphql.execution.ExecutionStrategyParameters
+import graphql.execution.SimpleDataFetcherExceptionHandler
+import graphql.incremental.DelayedIncrementalPartialResult
+import graphql.incremental.IncrementalExecutionResult
+import graphql.incremental.IncrementalExecutionResultImpl
+import graphql.language.OperationDefinition
+import graphql.schema.GraphQLSchema
+import java.util.concurrent.CancellationException
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.atomic.AtomicReference
+import kotlin.coroutines.CoroutineContext
+import kotlin.coroutines.EmptyCoroutineContext
+import kotlinx.coroutines.CoroutineExceptionHandler
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.future.future
+import org.reactivestreams.Publisher
+import org.reactivestreams.Subscriber
+import org.reactivestreams.Subscription
+import viaduct.engine.api.Engine
+import viaduct.engine.api.EngineExecutionContext
+import viaduct.engine.runtime2.model.Assumptions
+import viaduct.engine.runtime2.resolution.framework.ResolverObserver
+import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
+import viaduct.engine.runtime2.resolution.startResolution
+import viaduct.engine.runtime2.schema.selectionsFrom
+
+/**
+ * Query and mutation execution boundary for the qplan GraphQL-Java harness.
+ *
+ * Each request decodes its validated operation into qplan selections, starts Resolution, and
+ * delegates GraphQL completion with a live promise-backed OER as the root source.
+ * The embedding service owns [resolverCoroutineContext] for its service lifetime; this strategy
+ * borrows and retains the context across requests without closing it.
+ * [QPlanInstrumentation] must be installed on the enclosing `GraphQL` instance so incremental
+ * publisher termination owns final request cleanup.
+ */
+class QPlanExecutionStrategy(
+    private val world: Assumptions,
+    private val sourceSchema: GraphQLSchema,
+    private val resolverCoroutineContext: CoroutineContext,
+    private val engineExecutionContextFactory: (ExecutionContext) -> EngineExecutionContext? = { null },
+    dataFetcherExceptionHandler: DataFetcherExceptionHandler =
+        SimpleDataFetcherExceptionHandler(),
+) : AsyncExecutionStrategy(dataFetcherExceptionHandler) {
+    override fun execute(
+        executionContext: ExecutionContext,
+        parameters: ExecutionStrategyParameters,
+    ): CompletableFuture<ExecutionResult> {
+        // Query Planniing: Convert operation to be executed into a [SelectionForest]
+        val selections =
+            world.selectionsFrom(
+                sourceSchema = sourceSchema,
+                operation = executionContext.operationDefinition,
+                variables = executionContext.coercedVariables,
+                graphQLContext = executionContext.graphQLContext,
+                locale = executionContext.locale,
+                fragmentsByName = executionContext.fragmentsByName,
+            )
+
+        val requestJob = Job()
+        executionContext.graphQLContext
+            .get<QPlanCallerCancellation>(QPlanCallerCancellationKey)
+            ?.attach(requestJob)
+        val requestFailure = CompletableFuture<Throwable>()
+        val callerCoroutineContext = executionContext.graphQLContext.getOrDefault<CoroutineContext>(
+            QPlanCallerCoroutineContextKey,
+            EmptyCoroutineContext,
+        )
+        // Preserve request-context elements while retaining the borrowed resolver dispatcher
+        // and independent request job needed to outlive initial incremental completion.
+        val requestScope =
+            CoroutineScope(
+                callerCoroutineContext + resolverCoroutineContext +
+                    requestJob +
+                    CoroutineExceptionHandler { _, throwable ->
+                        requestFailure.complete(throwable)
+                    },
+            )
+        val lifetimeKey = QPlanRequestLifetimeKey(executionContext.executionId)
+        executionContext.graphQLContext.put(
+            lifetimeKey,
+            QPlanRequestLifetime(requestJob),
+        )
+
+        val resolution =
+            try {
+                SharedOperationContext.create(
+                    world,
+                    engineExecutionContext = engineExecutionContextFactory(executionContext),
+                    resolverObserver = executionContext.graphQLContext.getOrDefault<ResolverObserver>(
+                        ResolverObserver::class.java,
+                        ResolverObserver.NOP,
+                    ),
+                ).startResolution(selections, requestScope)
+            } catch (throwable: Exception) {
+                executionContext.graphQLContext.delete(lifetimeKey)
+                requestJob.cancel(requestCancellation("QPlan request failed to start", throwable))
+                throw throwable
+            }
+
+        val graphqlFuture =
+            try {
+                val completionParameters =
+                    parameters.transform { builder ->
+                        builder.source(QPlanExecutionSource(resolution.root, requestScope))
+                    }
+                if (executionContext.operationDefinition.operation == OperationDefinition.Operation.MUTATION) {
+                    // Null propagation can finish GraphQL completion early. Every mutation must
+                    // finish before that completion is allowed to terminate the request.
+                    requestScope.future { resolution.await() }
+                        .thenCompose { super.execute(executionContext, completionParameters) }
+                } else {
+                    super.execute(executionContext, completionParameters)
+                }
+            } catch (throwable: Exception) {
+                executionContext.graphQLContext.delete(lifetimeKey)
+                requestJob.cancel(requestCancellation("GraphQL completion failed", throwable))
+                throw throwable
+            }
+        val resultFuture = CompletableFuture<ExecutionResult>()
+        graphqlFuture.whenComplete { result, throwable ->
+            val resolverFailure = requestFailure.getNow(null)
+            if (resolverFailure != null) {
+                executionContext.graphQLContext.delete(lifetimeKey)
+                resultFuture.completeExceptionally(resolverFailure)
+            } else if (throwable != null) {
+                executionContext.graphQLContext.delete(lifetimeKey)
+                requestJob.cancel(requestCancellation("GraphQL completion failed", throwable))
+                resultFuture.completeExceptionally(throwable)
+            } else if (result is IncrementalExecutionResult) {
+                executionContext.graphQLContext.delete(lifetimeKey)
+                resultFuture.complete(result.withRequestLifetime(requestJob))
+            } else {
+                resultFuture.complete(result)
+                if (!executionContext.incrementalCallState.incrementalCallsDetected) {
+                    executionContext.graphQLContext.delete(lifetimeKey)
+                    requestJob.cancel(requestCancellation("GraphQL request completed"))
+                }
+            }
+        }
+        requestFailure.thenAccept { throwable ->
+            executionContext.graphQLContext.delete(lifetimeKey)
+            resultFuture.completeExceptionally(throwable)
+        }
+        resultFuture.whenComplete { _, _ ->
+            if (resultFuture.isCancelled) {
+                graphqlFuture.cancel(true)
+                requestJob.cancel(requestCancellation("GraphQL execution future cancelled"))
+            }
+        }
+        return resultFuture
+    }
+}
+
+internal fun IncrementalExecutionResult.withRequestLifetime(requestJob: Job): IncrementalExecutionResult {
+    val original = incrementalItemPublisher
+    val wrapped =
+        Publisher<DelayedIncrementalPartialResult> { downstream ->
+            try {
+                original.subscribe(
+                    object : Subscriber<DelayedIncrementalPartialResult> {
+                        override fun onSubscribe(subscription: Subscription) {
+                            downstream.onSubscribe(
+                                object : Subscription {
+                                    override fun request(count: Long) = subscription.request(count)
+
+                                    override fun cancel() {
+                                        try {
+                                            subscription.cancel()
+                                        } finally {
+                                            requestJob.cancel(
+                                                requestCancellation(
+                                                    "Incremental subscriber cancelled",
+                                                ),
+                                            )
+                                        }
+                                    }
+                                },
+                            )
+                        }
+
+                        override fun onNext(item: DelayedIncrementalPartialResult) = downstream.onNext(item)
+
+                        override fun onError(throwable: Throwable) {
+                            try {
+                                downstream.onError(throwable)
+                            } finally {
+                                requestJob.cancel(
+                                    requestCancellation(
+                                        "Incremental publisher failed",
+                                        throwable,
+                                    ),
+                                )
+                            }
+                        }
+
+                        override fun onComplete() {
+                            try {
+                                downstream.onComplete()
+                            } finally {
+                                requestJob.cancel(
+                                    requestCancellation("Incremental publisher completed"),
+                                )
+                            }
+                        }
+                    },
+                )
+            } catch (throwable: Exception) {
+                requestJob.cancel(
+                    requestCancellation("Incremental publisher subscription failed", throwable),
+                )
+                throw throwable
+            }
+        }
+    return IncrementalExecutionResultImpl
+        .fromIncrementalExecutionResult(this)
+        .incrementalItemPublisher(wrapped)
+        .build()
+}
+
+internal fun requestCancellation(
+    message: String,
+    cause: Throwable? = null,
+): CancellationException =
+    CancellationException(message).also { cancellation ->
+        if (cause != null) cancellation.initCause(cause)
+    }
+
+internal data class QPlanRequestLifetime(
+    val requestJob: Job,
+)
+
+internal data class QPlanRequestLifetimeKey(
+    val executionId: ExecutionId,
+)
+
+/**
+ * Propagates caller cancellation into an independently owned request job.
+ *
+ * The request job cannot be a structured child of the caller: an incremental result must outlive
+ * the initial [Engine.execute] call until its publisher ends.
+ */
+internal class QPlanCallerCancellation {
+    private val requestJob = AtomicReference<Job?>()
+    private val cancellation = AtomicReference<CancellationException?>()
+
+    fun attach(job: Job) {
+        check(requestJob.compareAndSet(null, job)) { "QPlan caller cancellation already has an active request job" }
+        job.invokeOnCompletion { requestJob.compareAndSet(job, null) }
+        cancellation.get()?.let(job::cancel)
+    }
+
+    fun cancel(cause: CancellationException) {
+        cancellation.compareAndSet(null, cause)
+        requestJob.get()?.cancel(requireNotNull(cancellation.get()))
+    }
+}
+
+internal data object QPlanCallerCancellationKey
+
+/** Caller context captured by the configured CoroutineInterop at the Engine API boundary. */
+internal data object QPlanCallerCoroutineContextKey

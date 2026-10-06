@@ -391,8 +391,9 @@ class StandardViaductTest {
         assertEquals(true, recording.finalized, "finalize() must be called via the file-based bootstrap path")
     }
 
-    @Test
-    fun `caller supplied module config sources contribute resolvers`() {
+    @ParameterizedTest
+    @ValueSource(booleans = [false, true])
+    fun `caller supplied module config sources contribute resolvers`(engine2Enabled: Boolean) {
         val sdl = """
             extend type Query {
                 generatedRegistryTestField: String @resolver
@@ -406,6 +407,12 @@ class StandardViaductTest {
             .withTenantModuleInjectorFactory(MockExecutorCodeInjector(suppliedModule.mockExecutorRegistry))
             .withExecutorRegistryConfigSources(listOf(suppliedModule.toModuleConfigSource()))
             .withSchemaConfiguration(SchemaConfiguration.fromSdl(sdl))
+            .withFlagManager(
+                object : FlagManager {
+                    override fun isEnabled(flag: FlagManager.Flag): Boolean =
+                        engine2Enabled && flag == FlagManager.Flags.ENGINE2_ENABLED
+                },
+            )
             .build()
 
         val result = runBlocking {
