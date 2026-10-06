@@ -1084,6 +1084,9 @@ class FieldResolver(
                     .filter(nodeInitialResolutionFilter)
                     .withoutEmptyTypeBranches()
                 if (materializationKeyTree.isEmpty()) {
+                    // Classic resolvers read fields straight off the node reference and wait until it is resolved,
+                    // so resolve it even when no selected field needs the node resolver.
+                    resolveLazyData(parameters, fieldType, lazyReference)
                     engineResult.resolveToValue()
                     deferred.complete(engineResult)
                     return@launchOnRootScope
@@ -1217,15 +1220,7 @@ class FieldResolver(
         val engineResult = ObjectEngineResultImpl.newPendingForType(fieldType)
         parameters.launchOnRootScope {
             try {
-                val result = resolveWithNodeFetchingInstrumentation(
-                    parameters = parameters,
-                    fieldType = fieldType,
-                ) {
-                    lazyData.resolveData(
-                        checkNotNull(FieldExecutionHelpers.engineSelectionSet(parameters)),
-                        parameters.engineExecutionContext,
-                    )
-                }
+                val result = resolveLazyData(parameters, fieldType, lazyData)
                 if (result != null) {
                     engineResult.resolveToValue()
                 } else {
@@ -1238,6 +1233,22 @@ class FieldResolver(
         }
         return Value.fromValue(engineResult)
     }
+
+    /** Resolves [lazyData] with the selections of the field that returned it. */
+    private suspend fun resolveLazyData(
+        parameters: ExecutionParameters,
+        fieldType: GraphQLObjectType,
+        lazyData: LazyEngineObjectData,
+    ): EngineObjectData? =
+        resolveWithNodeFetchingInstrumentation(
+            parameters = parameters,
+            fieldType = fieldType,
+        ) {
+            lazyData.resolveData(
+                checkNotNull(FieldExecutionHelpers.engineSelectionSet(parameters)),
+                parameters.engineExecutionContext,
+            )
+        }
 
     private suspend fun <T> resolveWithNodeFetchingInstrumentation(
         parameters: ExecutionParameters,

@@ -113,22 +113,35 @@ class SelectiveNodeResolversExecutionTest {
         }
 
         @Test
-        fun `engine-managed node fields do not invoke selective resolver`() {
+        fun `engine-managed node fields still resolve the node reference`() {
+            val nodeCalls = AtomicInteger(0)
+            lateinit var nodeReference: NodeEngineObjectData
             MockTenantModuleBootstrapper(
                 """
                     extend type Query { foo: Foo }
-                    type Foo implements Node { id: ID! }
+                    type Foo implements Node { id: ID!, x: Int }
                 """.trimIndent()
             ) {
                 field("Query" to "foo") {
-                    valueFromContext { it.createNodeReference("Foo:1", objectType("Foo")) }
+                    valueFromContext {
+                        it.createNodeReference("Foo:1", objectType("Foo"))
+                            .also { reference -> nodeReference = reference as NodeEngineObjectData }
+                    }
                 }
                 type("Foo") {
-                    nodeUnbatchedExecutor(selective = true) { _, _, _ -> error("Node resolver should not run") }
+                    nodeUnbatchedExecutor(selective = true) { _, _, _ ->
+                        nodeCalls.incrementAndGet()
+                        createEngineObjectData(objectType, mapOf("x" to 2))
+                    }
                 }
             }.runFeatureTest {
-                runQuery("{ foo { id __typename } }")
+                runQueryWithTimeout("{ foo { id __typename } }")
                     .assertJson("{data: {foo: {id: \"Foo:1\", __typename: \"Foo\"}}}")
+            }
+            assertEquals(1, nodeCalls.get())
+
+            runTest {
+                assertEquals(2, withTimeout(1.seconds) { nodeReference.fetchAs<Int>("x") })
             }
         }
 
@@ -689,6 +702,37 @@ class SelectiveNodeResolversExecutionTest {
 
             runTest {
                 assertEquals("foo", nodeReference.fetchAs<String>("id"))
+                assertEquals(2, withTimeout(1.seconds) { nodeReference.fetchAs<Int>("x") })
+            }
+        }
+
+        @Test
+        fun `fully skipped selection still resolves node reference`() {
+            lateinit var nodeReference: NodeEngineObjectData
+
+            MockTenantModuleBootstrapper(
+                """
+                    | extend type Query { foo: Foo }
+                    | type Foo implements Node { id: ID!, x: Int }
+                """.trimMargin()
+            ) {
+                field("Query" to "foo") {
+                    valueFromContext {
+                        it.createNodeReference("foo", objectType("Foo"))
+                            .also { reference -> nodeReference = reference as NodeEngineObjectData }
+                    }
+                }
+                type("Foo") {
+                    nodeUnbatchedExecutor(selective = true) { _, _, _ ->
+                        createEngineObjectData(objectType, mapOf("x" to 2))
+                    }
+                }
+            }.runFeatureTest {
+                runQueryWithTimeout("{ foo { id @skip(if: true) } }")
+                    .assertJson("{data: {foo: {}}}")
+            }
+
+            runTest {
                 assertEquals(2, withTimeout(1.seconds) { nodeReference.fetchAs<Int>("x") })
             }
         }
