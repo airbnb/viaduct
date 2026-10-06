@@ -472,16 +472,16 @@ class AssumptionsTest {
                 TestWorld.fromSDL(
                     schemaSDL =
                         """
-                        scalar Date
+                        scalar UnknownScalar
 
                         type Query {
-                          today: Date
+                          today: UnknownScalar
                         }
                         """.trimIndent(),
                 )
             }
 
-        assertContains(exception.message.orEmpty(), "Date")
+        assertContains(exception.message.orEmpty(), "UnknownScalar")
     }
 
     @Test

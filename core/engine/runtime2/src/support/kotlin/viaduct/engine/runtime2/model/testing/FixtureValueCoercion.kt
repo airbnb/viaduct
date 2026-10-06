@@ -1,6 +1,7 @@
 package viaduct.engine.runtime2.model.testing
 
 import viaduct.engine.runtime2.model.EngineOutputData
+import viaduct.engine.runtime2.model.conformsToScalarOutput
 import viaduct.engine.runtime2.model.requireType
 import viaduct.graphql.schema.ViaductSchema
 
@@ -10,16 +11,8 @@ internal fun coerceSimpleValue(
 ): EngineOutputData =
     when (type) {
         is ViaductSchema.Scalar ->
-            when (type.name) {
-                "Int" -> requireType<Int>(value, type)
-                "Float" ->
-                    requireType<Double>(value, type).also {
-                        require(it.isFinite()) { "GraphQL Float values must be finite" }
-                    }
-                "String" -> requireType<String>(value, type)
-                "Boolean" -> requireType<Boolean>(value, type)
-                "ID" -> requireType<String>(value, type)
-                else -> error("Unsupported scalar: ${type.name}")
+            value.also {
+                require(it.conformsToScalarOutput(type.name)) { "Value does not conform to scalar ${type.name}" }
             }
         is ViaductSchema.Enum ->
             requireType<String>(value, type).also {

@@ -21,8 +21,8 @@ import viaduct.engine.api.EngineObjectData
 import viaduct.engine.runtime2.contract.selectionValues
 import viaduct.engine.runtime2.model.Arguments
 import viaduct.engine.runtime2.model.EngineErrorData
-import viaduct.engine.runtime2.model.EngineIDResult
 import viaduct.engine.runtime2.model.ErrorEngineResult
+import viaduct.engine.runtime2.model.IDEngineResult
 import viaduct.engine.runtime2.model.InclusionCondition
 import viaduct.engine.runtime2.model.ListEngineResult
 import viaduct.engine.runtime2.model.MaterializeSelection
@@ -320,7 +320,7 @@ class MaterializeTest {
             val userResult =
                 ObjectEngineResult.of(
                     type = user,
-                    values = mapOf(id to EngineIDResult.of("user-1")),
+                    values = mapOf(id to IDEngineResult.of("user-1")),
                 )
             val errorData = EngineErrorData.of()
             val parentResult =

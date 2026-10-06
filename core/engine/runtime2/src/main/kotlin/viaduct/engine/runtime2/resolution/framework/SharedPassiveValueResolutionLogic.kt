@@ -136,66 +136,71 @@ internal abstract class SharedPassiveValueResolutionLogic<
         require(value.conformsToResolverOutputSchemaType(expectedType)) {
             "Resolver output does not conform to $expectedType"
         }
-        return when (value) {
-            null -> null
-            is EngineErrorData -> ErrorEngineResult.of(value)
-            is RootFieldReferenceData ->
-                error("A direct root-field reference must be resolved before passive resolution")
-            is EngineObjectData.Sync -> {
-                val target = createObjectResult(value.schemaType, constructionDemand)
+        if (value == null) return null
+        if (value is EngineErrorData) return ErrorEngineResult.of(value)
+        check(value !is RootFieldReferenceData) {
+            "A direct root-field reference must be resolved before passive resolution"
+        }
+
+        val elementType = expectedType.unwrapList()
+        if (elementType != null) {
+            val values = value as List<*>
+            val containingOccurrence = requireNotNull(parent)
+            val result = ListEngineResult.ofPendingValues(elementType, values.size)
+            values.forEachIndexed { index, element ->
+                val elementPath = path + ListEngineResult.Index.of(index)
+                val cell = result[index]
+                if (element is RootFieldReferenceData) {
+                    val key = elementPath.filterIsInstance<ObjectEngineResult.ObjectKey>().last()
+                    val selection = selectionForestOf(
+                        Selection.of(
+                            key,
+                            setOf(containingOccurrence.target.type),
+                            constructionDemand.values,
+                        ),
+                    ).merge(containingOccurrence.target.type).byKey().getValue(key)
+                    resolveListReference(
+                        reference = element,
+                        cell = cell,
+                        path = elementPath,
+                        expectedType = elementType,
+                        selection = selection,
+                        constructionDemand = constructionDemand,
+                        invocationDemand = invocationDemand,
+                        parent = containingOccurrence,
+                    )
+                } else {
+                    check(
+                        cell.value.set(
+                            resolvePassiveValues(
+                                value = element,
+                                root = root,
+                                expectedType = elementType,
+                                path = elementPath,
+                                constructionDemand = constructionDemand,
+                                invocationDemand = invocationDemand,
+                                parent = parent,
+                            ),
+                        ),
+                    ) { "List element value was completed twice" }
+                }
+            }
+            return result
+        }
+        return when (val type = expectedType.baseTypeDef) {
+            is ViaductSchema.SimpleTypeDef -> value.toEngineResult(type)
+            is ViaductSchema.CompositeTypeDef -> {
+                val source = value as EngineObjectData.Sync
+                val target = createObjectResult(source.schemaType, constructionDemand)
                 resolvePassiveObjectValues(
-                    source = value,
+                    source = source,
                     occurrence = OEROccurrence(root, path, target, parent),
                     constructionDemand = constructionDemand,
                     invocationDemand = invocationDemand,
                 )
                 target
             }
-            is List<*> -> {
-                val containingOccurrence = requireNotNull(parent)
-                val elementType = checkNotNull(expectedType.unwrapList())
-                val result = ListEngineResult.ofPendingValues(elementType, value.size)
-                value.forEachIndexed { index, element ->
-                    val elementPath = path + ListEngineResult.Index.of(index)
-                    val cell = result[index]
-                    if (element is RootFieldReferenceData) {
-                        val key = elementPath.filterIsInstance<ObjectEngineResult.ObjectKey>().last()
-                        val selection = selectionForestOf(
-                            Selection.of(
-                                key,
-                                setOf(containingOccurrence.target.type),
-                                constructionDemand.values,
-                            ),
-                        ).merge(containingOccurrence.target.type).byKey().getValue(key)
-                        resolveListReference(
-                            reference = element,
-                            cell = cell,
-                            path = elementPath,
-                            expectedType = elementType,
-                            selection = selection,
-                            constructionDemand = constructionDemand,
-                            invocationDemand = invocationDemand,
-                            parent = containingOccurrence,
-                        )
-                    } else {
-                        check(
-                            cell.value.set(
-                                resolvePassiveValues(
-                                    value = element,
-                                    root = root,
-                                    expectedType = elementType,
-                                    path = elementPath,
-                                    constructionDemand = constructionDemand,
-                                    invocationDemand = invocationDemand,
-                                    parent = parent,
-                                ),
-                            ),
-                        ) { "List element value was completed twice" }
-                    }
-                }
-                result
-            }
-            else -> value.toEngineResult(expectedType.baseTypeDef as ViaductSchema.SimpleTypeDef)
+            else -> error("Unsupported output type: ${type.name}")
         }
     }
 

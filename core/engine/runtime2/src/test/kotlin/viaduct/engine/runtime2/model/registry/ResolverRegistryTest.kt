@@ -28,6 +28,7 @@ import viaduct.engine.runtime2.model.emptyFragmentOf
 import viaduct.engine.runtime2.model.engineObjectDataOf
 import viaduct.engine.runtime2.model.materializeSelectionForestOf
 import viaduct.engine.runtime2.model.nodeReferenceIdentityOrNull
+import viaduct.engine.runtime2.model.outputType
 import viaduct.engine.runtime2.model.outputValue
 import viaduct.engine.runtime2.model.requireField
 import viaduct.engine.runtime2.model.requireObjectField
@@ -584,10 +585,10 @@ class ResolverRegistryTest {
             assertEquals(null, outputs.getValue("nullable"))
             assertIs<EngineErrorData>(outputs.getValue("failed"))
 
-            outputs.forEach { (_, output) ->
+            outputs.forEach { (fieldName, output) ->
                 val projection =
                     with(world.assumptions) {
-                        output.snipToDemand(selectionForestOf())
+                        output.snipToDemand(selectionForestOf(), schema.loweredSchema.requireObjectField("Query", fieldName).outputType)
                     }
                 assertEquals(output, projection)
             }

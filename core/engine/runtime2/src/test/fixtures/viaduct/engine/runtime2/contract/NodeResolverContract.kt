@@ -10,9 +10,9 @@ import org.junit.jupiter.api.Test
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.runtime2.correctresolution.CorrectnessResolverObserver
 import viaduct.engine.runtime2.model.EngineErrorData
-import viaduct.engine.runtime2.model.EngineIDResult
 import viaduct.engine.runtime2.model.EngineOutputListData
 import viaduct.engine.runtime2.model.ErrorEngineResult
+import viaduct.engine.runtime2.model.IDEngineResult
 import viaduct.engine.runtime2.model.ListEngineResult
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.RootFieldReferenceData
@@ -164,7 +164,7 @@ interface NodeResolverContract : ResolverContract {
             resolvedFoo.getCell(world.schema.contractKey("Foo", "value")).get(),
         )
         assertEquals(
-            EngineIDResult.of("source-id"),
+            IDEngineResult.of("source-id"),
             resolvedFoo.getCell(world.schema.contractKey("Foo", "id")).get(),
         )
         assertEquals(1, nodeApplications.get())
@@ -376,7 +376,7 @@ interface NodeResolverContract : ResolverContract {
 
         assertEquals(expectedPassiveResultKeys(card.type, setOf(profileKey)), card.keys)
         assertEquals(
-            EngineIDResult.of("profile-1"),
+            IDEngineResult.of("profile-1"),
             profile.getCell(schema.contractKey("Profile", "id")).get(),
         )
         assertEquals(

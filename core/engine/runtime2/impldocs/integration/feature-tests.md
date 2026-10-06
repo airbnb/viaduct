@@ -51,7 +51,7 @@ The `ALT` plus `ALTERNATIVE` pairing is especially important for these differenc
 The following differences are gaps in the present Engine API integration rather than permanent semantic incompatibilities:
 
 - physical batching and any compatible expansion of production data-loader reuse outside semantic occurrence scheduling;
-- mutation namespace checkers, subscriptions, custom scalars, `@stream`, and asynchronous EOD variants;
+- mutation namespace checkers, subscriptions, application-defined custom scalars, `@stream`, and asynchronous EOD variants;
 - direct `Engine.resolveRootFieldReference` calls and `EngineExecutionContext.completeSelectionSet`; and
 - opaque checker variables providers with their own required selections, checker enforcement on `@parent` backedges and reference target paths, and other resolver and checker combinations listed as unsupported by [Engine API integration](engine-api.md).
 

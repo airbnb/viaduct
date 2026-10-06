@@ -53,7 +53,7 @@ The strategy places a `QPlanRequestLifetime` in the GraphQL context and starts R
 
 The production adapter discovers field, node, field-checker, and type-checker dispatchers by schema coordinate and converts their declarations into the canonical registry. Field and node calls remain dispatcher-backed; selective dispatchers receive Resolution's closed successor demand converted to an `EngineSelectionSet`, while simple outputs receive no selection set. `EngineConfiguration.fieldSelectivityProvider` supplies selectivity when dispatcher metadata does not.
 
-Runtime2's semantic output domain is stricter than the mock feature-test surface. The adapter normalizes source-shaped EODs, concrete-object maps, built-in scalar values, nested `EngineErrorData`, node references, and root-field references before they enter Resolution. A raw map cannot represent an interface or union output because it lacks an unambiguous concrete runtime type. Ingress normalization must not weaken Runtime2 carrier invariants or hide a value produced incorrectly inside Resolution.
+Runtime2's semantic output domain is stricter than the mock feature-test surface. The adapter normalizes source-shaped EODs, concrete-object maps, scalar values, nested `EngineErrorData`, node references, and root-field references before they enter Resolution. A raw map cannot represent an interface or union output because it lacks an unambiguous concrete runtime type. Ingress normalization must not weaken Runtime2 carrier invariants or hide a value produced incorrectly inside Resolution.
 
 The existing service bootstrap constructs the production dispatcher registry. When `ENGINE2_ENABLED` is enabled, registry construction presents batching-capable field and node executors as immediate non-batching dispatchers; enabling `ENGINE2_BATCHING` is rejected until batching is implemented. Runtime2 currently creates a fresh production data loader for each dispatcher invocation, so neither completed results nor in-flight work are shared across semantic occurrences and every invocation is a singleton physical call. This is a transitional physical-dispatch policy rather than a permanent semantic prohibition on reuse. Future physical batching and loader reuse must preserve Runtime2 occurrence identity, owner-local projection, and checker state.
 
@@ -99,7 +99,7 @@ The execution layer supports:
 - field- and type-checker dispatchers, including named inputs, supported variable definitions, execution conditions, denial, and errors;
 - object- and Query-rooted required selections, aliases, arguments, fragments, transitive demand, and occurrence-local variables;
 - `FromArgument`, supported singular `FromObjectField` and `FromQueryField` paths, and no-RSS function providers;
-- synchronous scalar, enum, list, object, error, node-reference, and root-field-reference outputs;
+- synchronous scalar, enum, list, object, error, node-reference, and root-field-reference outputs, including `Byte`, `Short`, `Long`, `BigInteger`, `BigDecimal`, `Date`, `DateTime`, `JSON`, and opaque internal `BackingData`;
 - namespace traversal, built-in `Query.node` and `Query.nodes`, and canonical `__typename` lowering;
 - scoped public schemas with full-schema resolver inputs;
 - nested `ctx.query()` and `ctx.mutation()` execution;
@@ -115,7 +115,7 @@ The execution layer rejects or does not provide:
 - inline object materialization for Node-valued fields;
 - object required selections or `FromObjectField` variables on reference targets;
 - function variables providers with their own required selections;
-- subscriptions, custom scalars, `@stream`, EOD aliases, asynchronous EOD variants, `EngineExecutionContext.completeSelectionSet`, and direct `Engine.resolveRootFieldReference` calls.
+- subscriptions, application-defined custom scalars, `@stream`, EOD aliases, asynchronous EOD variants, `EngineExecutionContext.completeSelectionSet`, and direct `Engine.resolveRootFieldReference` calls.
 
 Unsupported input fails explicitly during registry construction, operation decoding, or execution. Runtime2 does not retry an operation on the old engine after Resolution begins.
 

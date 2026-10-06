@@ -40,6 +40,7 @@ import viaduct.engine.runtime2.model.MaterializeSelectionForest
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.ResolverOutputData
 import viaduct.engine.runtime2.model.RootFieldReferenceData
+import viaduct.engine.runtime2.model.conformsToScalarOutput
 import viaduct.engine.runtime2.model.emptyFragmentOf
 import viaduct.engine.runtime2.model.engineObjectDataOf
 import viaduct.engine.runtime2.model.guardedBy
@@ -66,6 +67,7 @@ import viaduct.engine.runtime2.model.requireArg
 import viaduct.engine.runtime2.model.requireField
 import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.requireType
+import viaduct.engine.runtime2.model.toScalarInput
 import viaduct.engine.runtime2.resolution.currentVariablesProviderResolutionContext
 import viaduct.engine.runtime2.schema.SourceSchemaAdapter
 import viaduct.engine.runtime2.schema.ViaductAndGJSchema
@@ -1060,11 +1062,17 @@ private fun normalizeSourceOutput(
                 }
             is GraphQLScalarType ->
                 value?.let {
-                    expectedType.coercing.serialize(
-                        it,
-                        GraphQLContext.getDefault(),
-                        Locale.getDefault(),
-                    )
+                    if (it.conformsToScalarOutput(expectedType.name)) {
+                        it
+                    } else {
+                        requireNotNull(
+                            expectedType.coercing.parseValue(
+                                requireNotNull(expectedType.coercing.serialize(it, GraphQLContext.getDefault(), Locale.getDefault())),
+                                GraphQLContext.getDefault(),
+                                Locale.getDefault(),
+                            ),
+                        ).toScalarInput(expectedType.name)
+                    }
                 }
             else -> value
         }

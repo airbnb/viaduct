@@ -2,6 +2,7 @@ package viaduct.engine.runtime2.correctresolution
 
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.runtime2.model.Arguments
+import viaduct.engine.runtime2.model.BackingDataEngineResult
 import viaduct.engine.runtime2.model.EngineErrorData
 import viaduct.engine.runtime2.model.EngineResult
 import viaduct.engine.runtime2.model.ErrorEngineResult
@@ -223,6 +224,8 @@ private class ResolverConformanceLogic(
                             producerField,
                         )
                     }
+
+            is BackingDataEngineResult -> value === resolverValue
 
             else ->
                 toEngineOutputData(expectedType.baseTypeDef as ViaductSchema.SimpleTypeDef) ==

@@ -9,6 +9,7 @@ import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.model.engineObjectDataOf
 import viaduct.engine.runtime2.model.merge
 import viaduct.engine.runtime2.model.objectKey
+import viaduct.engine.runtime2.model.outputType
 import viaduct.engine.runtime2.model.outputValue
 import viaduct.engine.runtime2.model.schemaType
 import viaduct.graphql.schema.ViaductSchema
@@ -37,33 +38,29 @@ import viaduct.graphql.schema.ViaductSchema
  *
  * @throws IllegalArgumentException when a precondition is not met
  */
-internal fun ResolverOutputData?.snipToDemand(demand: SelectionForest): ResolverOutputData? =
-    when (this) {
-        null,
-        is EngineErrorData,
-        is RootFieldReferenceData,
-        -> this
+internal fun ResolverOutputData?.snipToDemand(
+    demand: SelectionForest,
+    expectedType: ViaductSchema.TypeExpr<ViaductSchema.OutputTypeDef>,
+): ResolverOutputData? {
+    if (this == null || this is EngineErrorData || this is RootFieldReferenceData) return this
 
-        is EngineObjectData.Sync -> snipObjectToDemand(demand)
-        is List<*> -> {
-            val values: List<ResolverOutputData?> = map { value -> value.snipToDemand(demand) }
-            values
-        }
-
-        is Int,
-        is Double,
-        is String,
-        is Boolean,
-        -> {
+    val elementType = expectedType.unwrapList()
+    if (elementType != null) {
+        return (this as List<*>).map { value -> value.snipToDemand(demand, elementType) }
+    }
+    return when (val type = expectedType.baseTypeDef) {
+        is ViaductSchema.SimpleTypeDef -> {
             require(demand.isEmpty()) {
                 "Cannot apply subselections to a simple value $this"
             }
             this
         }
-        else -> throw ClassCastException("Unsupported engine output data: $this")
+        is ViaductSchema.CompositeTypeDef -> (this as EngineObjectData.Sync).snipToDemand(demand)
+        else -> error("Unsupported output type: ${type.name}")
     }
+}
 
-private fun EngineObjectData.Sync.snipObjectToDemand(demand: SelectionForest): EngineObjectData.Sync {
+internal fun EngineObjectData.Sync.snipToDemand(demand: SelectionForest): EngineObjectData.Sync {
     val schemaType = this.schemaType
     val selectedFields =
         demand
@@ -89,12 +86,7 @@ private fun EngineObjectData.Sync.snipObjectToDemand(demand: SelectionForest): E
                         "must be argumentless"
                 }
                 val value = outputValue(concreteField.name)
-                val selectedValue =
-                    if (concreteField.type.baseTypeDef is ViaductSchema.SimpleTypeDef) {
-                        value
-                    } else {
-                        value.snipToDemand(selection.subselections)
-                    }
+                val selectedValue = value.snipToDemand(selection.subselections, concreteField.outputType)
                 concreteField.name to selectedValue
             }
             .toMap()

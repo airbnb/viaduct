@@ -13,6 +13,7 @@ import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.model.arg
 import viaduct.engine.runtime2.model.engineObjectDataOf
 import viaduct.engine.runtime2.model.instantiateVariables
+import viaduct.engine.runtime2.model.outputType
 import viaduct.engine.runtime2.model.outputValue
 import viaduct.engine.runtime2.model.schemaType
 import viaduct.engine.runtime2.model.selectionForestOf
@@ -284,7 +285,7 @@ class FieldValueResolver private constructor(
         // output.requireArgumentlessObjectFields()
         val selectedOutput =
             if (projectNonselectiveOutput && selectiveResolvers) {
-                output.snipToDemand(projectionDemand(selections))
+                output.snipToDemand(projectionDemand(selections), target.field.outputType)
             } else {
                 output
             }

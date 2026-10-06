@@ -1,11 +1,16 @@
 package viaduct.engine.runtime2.model
 
-import java.math.BigDecimal
+import graphql.GraphQLContext
+import graphql.execution.CoercedVariables
+import graphql.schema.idl.ScalarInfo
+import java.util.Locale
 import viaduct.engine.api.EngineObjectData
+import viaduct.graphql.Scalars
 import viaduct.graphql.schema.ViaductSchema
+import viaduct.graphql.schema.graphqljava.toGraphQLJavaValue
 
 /**
- * Int, finite Double, Boolean, or String. String represents GraphQL String, ID, and enum values;
+ * A canonical scalar input value (including Viaduct scalars), or an enum name. String represents GraphQL String, ID, and enum values;
  * the expected schema type disambiguates them.
  */
 typealias EngineSimpleData = Any
@@ -43,7 +48,8 @@ private data class PresentCoercedDefaultValueImpl(
 ) : CoercedDefaultValue.Present
 
 /**
- * Int, finite Double, Boolean, String, [EngineObjectData.Sync], or [EngineOutputListData].
+ * A schema-directed scalar value, [EngineObjectData.Sync], or [EngineOutputListData].
+ * JSON objects and arrays are scalar values; BackingData retains its opaque JVM value.
  *
  * String represents GraphQL String, ID, and enum values; the expected schema type disambiguates
  * them. [EngineErrorData] is additionally admitted to the broad output domain. This union is
@@ -117,23 +123,11 @@ private class EngineErrorDataImpl(
 
 /** Converts a simple engine result to production-compatible engine input data. */
 fun EngineResult.toEngineSimpleData(expectedType: ViaductSchema.SimpleTypeDef): EngineSimpleData =
-    when (expectedType) {
-        is ViaductSchema.Scalar ->
-            when (expectedType.name) {
-                "Int" -> cast<Int>()
-                "Float" ->
-                    cast<Double>().also { if (!it.isFinite()) throw ClassCastException() }
-                "String" -> cast<String>()
-                "Boolean" -> cast<Boolean>()
-                "ID" -> cast<EngineIDResult>().value
-                else -> error("Unsupported scalar: ${expectedType.name}")
-            }
-        is ViaductSchema.Enum -> {
-            val value = cast<ViaductSchema.EnumValue>()
-            if (value.containingDef != expectedType) throw ClassCastException()
-            value.name
+    toEngineOutputData(expectedType).let { value ->
+        when (expectedType) {
+            is ViaductSchema.Scalar -> value.toScalarInput(expectedType.name)
+            else -> value
         }
-        else -> error("Unsupported simple type: ${expectedType.name}")
     }
 
 /** Recursively copies [value] as [EngineInputData] conforming to [expectedType]. */
@@ -203,18 +197,7 @@ private fun toEngineSimpleData(
     value: EngineSimpleData,
 ): EngineSimpleData =
     when (expectedType) {
-        is ViaductSchema.Scalar ->
-            when (expectedType.name) {
-                "Int" -> value.cast<Int>()
-                "Float" ->
-                    value.cast<Double>().also {
-                        if (!it.isFinite()) throw ClassCastException()
-                    }
-                "String" -> value.cast<String>()
-                "Boolean" -> value.cast<Boolean>()
-                "ID" -> value.cast<String>()
-                else -> error("Unsupported scalar: ${expectedType.name}")
-            }
+        is ViaductSchema.Scalar -> value.toScalarInput(expectedType.name)
         is ViaductSchema.Enum ->
             value.cast<String>().also {
                 if (expectedType.value(it) == null) throw ClassCastException()
@@ -229,13 +212,10 @@ fun EngineOutputData.toEngineResult(expectedType: ViaductSchema.SimpleTypeDef): 
     when (expectedType) {
         is ViaductSchema.Scalar ->
             when (expectedType.name) {
-                "Int" -> cast<Int>()
-                "Float" ->
-                    cast<Double>().also { if (!it.isFinite()) throw ClassCastException() }
-                "String" -> cast<String>()
-                "Boolean" -> cast<Boolean>()
-                "ID" -> EngineIDResult.of(cast())
-                else -> error("Unsupported scalar: ${expectedType.name}")
+                "ID" -> IDEngineResult.of(cast())
+                "JSON" -> JSONEngineResult.of(this)
+                "BackingData" -> BackingDataEngineResult.of(this)
+                else -> toScalarInput(expectedType.name)
             }
         is ViaductSchema.Enum -> expectedType.requireValue(cast())
         else -> error("Unsupported simple type: ${expectedType.name}")
@@ -244,16 +224,10 @@ fun EngineOutputData.toEngineResult(expectedType: ViaductSchema.SimpleTypeDef): 
 /** Converts a simple engine result to production-compatible resolver output. */
 fun EngineResult.toEngineOutputData(expectedType: ViaductSchema.SimpleTypeDef): EngineOutputData =
     when (expectedType) {
-        is ViaductSchema.Scalar ->
-            when (expectedType.name) {
-                "Int" -> cast<Int>()
-                "Float" ->
-                    cast<Double>().also { if (!it.isFinite()) throw ClassCastException() }
-                "String" -> cast<String>()
-                "Boolean" -> cast<Boolean>()
-                "ID" -> cast<EngineIDResult>().value
-                else -> error("Unsupported scalar: ${expectedType.name}")
-            }
+        is ViaductSchema.Scalar -> {
+            if (scalarResultTypeNameOrNull() != expectedType.name) throw ClassCastException()
+            scalarResultValue()
+        }
         is ViaductSchema.Enum -> {
             val value = cast<ViaductSchema.EnumValue>()
             if (value.containingDef != expectedType) throw ClassCastException()
@@ -323,24 +297,14 @@ private fun ViaductSchema.Literal.toEngineInputData(expectedType: ViaductSchema.
 
     return when (val type = expectedType.baseTypeDef) {
         is ViaductSchema.Scalar ->
-            when (type.name) {
-                "Int" -> (this as ViaductSchema.IntLiteral).value.intValueExact()
-                "Float" ->
-                    when (this) {
-                        is ViaductSchema.FloatLiteral -> value
-                        is ViaductSchema.IntLiteral -> value.toBigDecimal()
-                        else -> throw ClassCastException()
-                    }.toFiniteDouble()
-                "String" -> (this as ViaductSchema.StringLiteral).value
-                "Boolean" -> (this as ViaductSchema.BooleanLiteral).value
-                "ID" ->
-                    when (this) {
-                        is ViaductSchema.StringLiteral -> value
-                        is ViaductSchema.IntLiteral -> value.toString()
-                        else -> throw ClassCastException()
-                    }
-                else -> error("Unsupported scalar: ${type.name}")
-            }
+            requireNotNull(
+                scalarCoercers.getValue(type.name).coercing.parseLiteral(
+                    toGraphQLJavaValue(),
+                    CoercedVariables.emptyVariables(),
+                    GraphQLContext.getDefault(),
+                    Locale.getDefault(),
+                ),
+            ).toScalarInput(type.name)
         is ViaductSchema.Enum ->
             (this as ViaductSchema.EnumLit).value.also(type::requireValue)
         is ViaductSchema.Input -> {
@@ -363,7 +327,8 @@ private fun ViaductSchema.Literal.toEngineInputData(expectedType: ViaductSchema.
     }
 }
 
-private fun BigDecimal.toFiniteDouble(): Double = toDouble().also { require(it.isFinite()) }
+private val scalarCoercers =
+    (ScalarInfo.GRAPHQL_SPECIFICATION_SCALARS + Scalars.viaductStandardScalars).associateBy { it.name }
 
 private fun Map<*, *>.toStringKeyedMap(): EngineInputObjectData =
     entries.associate { (key, value) ->

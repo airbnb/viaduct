@@ -3,7 +3,6 @@ package viaduct.engine.runtime2.model.invariants
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.runtime2.model.Arguments
 import viaduct.engine.runtime2.model.EngineErrorData
-import viaduct.engine.runtime2.model.EngineIDResult
 import viaduct.engine.runtime2.model.EngineInputData
 import viaduct.engine.runtime2.model.EngineInputListData
 import viaduct.engine.runtime2.model.EngineInputObjectData
@@ -13,22 +12,26 @@ import viaduct.engine.runtime2.model.EngineResultCell
 import viaduct.engine.runtime2.model.ErrorEngineResult
 import viaduct.engine.runtime2.model.ListEngineResult
 import viaduct.engine.runtime2.model.ObjectEngineResult
+import viaduct.engine.runtime2.model.QPlanEngineObjectData
 import viaduct.engine.runtime2.model.ResolverOutputData
 import viaduct.engine.runtime2.model.RootFieldReferenceData
 import viaduct.engine.runtime2.model.canContainPure
 import viaduct.engine.runtime2.model.conformsToArgumentDefinition
+import viaduct.engine.runtime2.model.conformsToScalarInput
+import viaduct.engine.runtime2.model.conformsToScalarOutput
 import viaduct.engine.runtime2.model.inputType
+import viaduct.engine.runtime2.model.isNativeScalarResult
 import viaduct.engine.runtime2.model.nodeReferenceIdentityOrNull
 import viaduct.engine.runtime2.model.outputType
 import viaduct.engine.runtime2.model.qplanSchemaTypeOrNull
+import viaduct.engine.runtime2.model.scalarResultTypeNameOrNull
 import viaduct.graphql.schema.ViaductSchema
 
 /**
  * Whether this EOD recursively contains only engine output data.
  *
- * Qplan's factory validates each selection against its canonical schema field before forgetting
- * that field metadata. This relation checks the retained values without reconstructing field
- * identity from response-key strings.
+ * Qplan's factory retains each selection's canonical schema field. This relation uses that
+ * metadata to validate opaque scalar values without inferring field identity from response keys.
  */
 internal fun EngineObjectData.Sync.conformsToSchema(): Boolean = this.conformsToOutputData()
 
@@ -120,13 +123,7 @@ private fun EngineResult.conformsToSchema(
             }
         is ViaductSchema.EnumValue ->
             result.containingDef.value(result.name) == result
-        is Double -> result.isFinite()
-        is Int,
-        is Boolean,
-        is String,
-        is EngineIDResult,
-        -> true
-        else -> false
+        else -> result.scalarResultTypeNameOrNull() != null
     }
 }
 
@@ -159,14 +156,7 @@ internal fun EngineInputData?.conformsToInputSchemaType(typeExpr: ViaductSchema.
 
     return when (val expectedType = typeExpr.baseTypeDef) {
         is ViaductSchema.Scalar ->
-            when (expectedType.name) {
-                "Int" -> this is Int
-                "Float" -> this is Double && isFinite()
-                "String" -> this is String
-                "Boolean" -> this is Boolean
-                "ID" -> this is String
-                else -> false
-            }
+            conformsToScalarInput(expectedType.name)
         is ViaductSchema.Enum ->
             this is String &&
                 expectedType.value(this) != null
@@ -198,83 +188,65 @@ fun ResolverOutputData?.conformsToResolverOutputSchemaType(typeExpr: ViaductSche
 private fun Any?.conformsToOutputSchemaType(
     typeExpr: ViaductSchema.TypeExpr<ViaductSchema.OutputTypeDef>,
     rootFieldReferencesAllowed: Boolean,
-): Boolean =
-    when (this) {
-        null -> typeExpr.isNullable
-        is EngineErrorData -> true
-        is List<*> ->
-            typeExpr.unwrapList()
-                ?.let { elementType ->
-                    all { value ->
-                        value.conformsToOutputSchemaType(
-                            elementType,
-                            rootFieldReferencesAllowed,
-                        )
-                    }
-                } ?: false
-        is RootFieldReferenceData ->
-            rootFieldReferencesAllowed &&
-                !typeExpr.isList &&
-                when (val expectedType = typeExpr.baseTypeDef) {
-                    is ViaductSchema.CompositeTypeDef ->
-                        nodeReferenceIdentityOrNull()?.let { identity ->
-                            identity.type in expectedType.possibleObjectTypes
-                        } ?: (
-                            type is ViaductSchema.CompositeTypeDef &&
-                                type.possibleObjectTypes.all(
-                                    expectedType.possibleObjectTypes::contains,
-                                )
-                        )
-                    is ViaductSchema.SimpleTypeDef -> type == expectedType
-                    else -> false
-                }
-        is EngineObjectData.Sync ->
-            if (typeExpr.isList) {
-                false
-            } else {
-                (typeExpr.baseTypeDef as? ViaductSchema.CompositeTypeDef)
-                    ?.possibleObjectTypes
-                    ?.let { possibleTypes ->
-                        // Ensure the resolved object's runtime type is one of the expected output
-                        // type's possible concrete types.
-                        val qplanType = qplanSchemaTypeOrNull
-                        if (qplanType != null) {
-                            qplanType in possibleTypes
-                        } else {
-                            possibleTypes.any { possibleType ->
-                                possibleType.name == type.name
-                            }
-                        }
-                    } ?: false
+): Boolean {
+    if (this == null) return typeExpr.isNullable
+    if (this is EngineErrorData) return true
+
+    val elementType = typeExpr.unwrapList()
+    if (elementType != null) {
+        return this is List<*> &&
+            all { value ->
+                value.conformsToOutputSchemaType(elementType, rootFieldReferencesAllowed)
             }
-        is Int -> typeExpr.hasScalarType("Int")
-        is Double ->
-            isFinite() &&
-                typeExpr.hasScalarType("Float")
-        is String ->
-            !typeExpr.isList &&
-                when (val expected = typeExpr.baseTypeDef) {
-                    is ViaductSchema.Scalar -> expected.name == "String" || expected.name == "ID"
-                    is ViaductSchema.Enum -> expected.value(this) != null
-                    else -> false
+    }
+    if (this is RootFieldReferenceData) {
+        return rootFieldReferencesAllowed &&
+            when (val expectedType = typeExpr.baseTypeDef) {
+                is ViaductSchema.CompositeTypeDef ->
+                    nodeReferenceIdentityOrNull()?.let { identity ->
+                        identity.type in expectedType.possibleObjectTypes
+                    } ?: (
+                        type is ViaductSchema.CompositeTypeDef &&
+                            type.possibleObjectTypes.all(
+                                expectedType.possibleObjectTypes::contains,
+                            )
+                    )
+                is ViaductSchema.SimpleTypeDef -> type == expectedType
+                else -> false
+            }
+    }
+    return when (val expectedType = typeExpr.baseTypeDef) {
+        is ViaductSchema.Scalar -> conformsToScalarOutput(expectedType.name)
+        is ViaductSchema.Enum -> this is String && expectedType.value(this) != null
+        is ViaductSchema.CompositeTypeDef -> {
+            if (this !is EngineObjectData.Sync) return false
+            // Validate the concrete runtime type against the declared output type.
+            val qplanType = qplanSchemaTypeOrNull
+            if (qplanType != null) {
+                qplanType in expectedType.possibleObjectTypes
+            } else {
+                expectedType.possibleObjectTypes.any { possibleType ->
+                    possibleType.name == type.name
                 }
-        is Boolean -> typeExpr.hasScalarType("Boolean")
+            }
+        }
         else -> false
     }
+}
 
 private fun EngineOutputData?.conformsToOutputData(): Boolean =
     when (this) {
         null,
         is EngineErrorData,
-        is Int,
-        is Boolean,
-        is String,
         -> true
-        is Double -> isFinite()
         is List<*> -> all { value -> value.conformsToOutputData() }
+        is QPlanEngineObjectData ->
+            selectionFields.all { (selection, field) ->
+                outputValue(selection).conformsToOutputSchema(field.outputType)
+            }
         is EngineObjectData.Sync ->
             getSelections().all { selection -> get(selection).conformsToOutputData() }
-        else -> false
+        else -> isNativeScalarResult()
     }
 
 internal fun EngineResult?.conformsToResultSchemaType(typeExpr: ViaductSchema.TypeExpr<ViaductSchema.OutputTypeDef>): Boolean =
@@ -290,23 +262,16 @@ internal fun EngineResult?.conformsToResultSchemaType(typeExpr: ViaductSchema.Ty
             }
         is ListEngineResult ->
             typeExpr.unwrapList()?.canContainPure(this.typeExpr) == true
-        is Int -> typeExpr.hasScalarType("Int")
-        is Double ->
-            isFinite() &&
-                typeExpr.hasScalarType("Float")
-        is String -> typeExpr.hasScalarType("String")
-        is Boolean -> typeExpr.hasScalarType("Boolean")
-        is EngineIDResult -> typeExpr.hasScalarType("ID")
         is ViaductSchema.EnumValue ->
             !typeExpr.isList &&
                 typeExpr.baseTypeDef == containingDef &&
                 containingDef.value(name) == this
-        else -> false
+        else ->
+            !typeExpr.isList &&
+                (typeExpr.baseTypeDef as? ViaductSchema.Scalar)?.let { scalar ->
+                    scalarResultTypeNameOrNull() == scalar.name
+                } == true
     }
-
-private fun ViaductSchema.TypeExpr<*>.hasScalarType(expectedName: String): Boolean =
-    !isList &&
-        (baseTypeDef as? ViaductSchema.Scalar)?.name == expectedName
 
 private fun EngineResultCell.hasCompletedCheckerResults(): Boolean {
     fieldCheckerResult.get()

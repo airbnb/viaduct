@@ -252,33 +252,34 @@ fun Arguments.substituteTemplates(
 private fun ArgumentExpression?.substituteTemplates(
     bindings: Map<Arguments.Variable, EngineInputData?>,
     expectedType: ViaductSchema.TypeExpr<ViaductSchema.InputTypeDef>,
-): ArgumentExpression? =
-    when (this) {
-        is Arguments.Variable ->
-            if (isTemplate && this in bindings) {
-                coerceArgumentExpression(expectedType, bindings[this])
-            } else {
-                this
-            }
-        is List<*> -> {
-            val elementType = checkNotNull(expectedType.unwrapList())
-            map { value ->
-                value.substituteTemplates(bindings, elementType)
-            }
+): ArgumentExpression? {
+    if (this == null || this == ArgumentResolutionError) return this
+    if (this is Arguments.Variable) {
+        return if (isTemplate && this in bindings) {
+            coerceArgumentExpression(expectedType, bindings[this])
+        } else {
+            this
         }
-        is Map<*, *> -> {
-            check(!expectedType.isList)
-            val expectedObjectType = expectedType.baseTypeDef
-            check(expectedObjectType is ViaductSchema.Input)
+    }
+
+    val elementType = expectedType.unwrapList()
+    if (elementType != null) {
+        return (this as List<*>).map { value ->
+            value.substituteTemplates(bindings, elementType)
+        }
+    }
+    return when (val type = expectedType.baseTypeDef) {
+        is ViaductSchema.SimpleTypeDef -> this
+        is ViaductSchema.Input ->
             toStringKeyedArgumentMap().mapValues { (name, value) ->
                 value.substituteTemplates(
                     bindings,
-                    expectedObjectType.requireField(name).inputType,
+                    type.requireField(name).inputType,
                 )
             }
-        }
-        else -> this
+        else -> error("Unsupported input type: ${type.name}")
     }
+}
 
 internal fun Arguments.mapVariableTemplates(
     expectedField: ViaductSchema.Field,
