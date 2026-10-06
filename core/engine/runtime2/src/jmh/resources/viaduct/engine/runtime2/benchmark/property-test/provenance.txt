@@ -1,0 +1,6 @@
+campaignRound=46
+profile=resolution-broad-campaign-v1-r046-symbolic-identity
+propertySeed=2026081300464
+campaignSize=10:4:50
+selectedCase=10:4:3
+resolverApplications=12763

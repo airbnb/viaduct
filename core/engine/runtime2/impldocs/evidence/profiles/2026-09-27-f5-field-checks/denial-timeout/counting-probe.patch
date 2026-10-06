@@ -1,0 +1,29 @@
+--- a/qplan/model/src/main/kotlin/model/Selection.kt
++++ b/qplan/model/src/main/kotlin/model/Selection.kt
+@@ -233,6 +233,9 @@
+ internal fun ObjectEngineResult.Key.objectKey(
+     type: ViaductSchema.Object,
+ ): ObjectEngineResult.ObjectKey {
++    // Concrete keys already carry this canonical field's coerced arguments and defaults.
++    // Repeated closure/merge passes need not rebuild and revalidate the same argument tree.
++    if (this is ObjectEngineResult.ObjectKey && field.containingDef == type) return this
+     val concreteField = type.requireField(field.name)
+     return ObjectEngineResult.ObjectKey.of(
+         field = concreteField,
+--- a/qplan/semantics/src/test/kotlin/semantics/resolver26/FieldCheckerGeneratedTest.kt
++++ b/qplan/semantics/src/test/kotlin/semantics/resolver26/FieldCheckerGeneratedTest.kt
+@@ -20,5 +20,13 @@
+         operation: SharedOperationContext<*>,
+         root: EngineObjectData.Sync,
+         selections: SelectionForest
+-    ): ObjectEngineResult = operation.resolveWithTestDispatcher(selections)
++    ): ObjectEngineResult {
++        val started = System.nanoTime()
++        try {
++            return operation.resolveWithTestDispatcher(selections)
++        } finally {
++            val observer = operation.resolverObserver as semantics.correctresolution.CorrectnessResolverObserver
++            System.err.println("F5_DIAGNOSTIC ms=${(System.nanoTime() - started) / 1_000_000} resolvers=${observer.allResolverInvocations().size} queryOERs=${observer.allQueryOERs().size}")
++        }
++    }
+ }

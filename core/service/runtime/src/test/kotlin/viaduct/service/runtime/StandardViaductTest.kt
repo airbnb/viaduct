@@ -41,6 +41,7 @@ import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.MaterializedFieldValueReader
 import viaduct.engine.api.spi.NodeResolverExecutor
 import viaduct.engine.runtime.execution.TenantNameResolver
+import viaduct.engine.runtime2.Engine2
 import viaduct.graphql.utils.DefaultSchemaFactory
 import viaduct.service.api.ExecutionInput
 import viaduct.service.api.SchemaId
@@ -123,9 +124,7 @@ class StandardViaductTest {
 
         val (engine2Viaduct, engine2Flags) = buildWithMutableFlag(initiallyEnabled = true)
         engine2Flags.engine2Enabled = false
-        assertThrows<IllegalArgumentException> {
-            engine2Viaduct.engineRegistry.getEngine(SchemaId.Base)
-        }
+        assertTrue(engine2Viaduct.engineRegistry.getEngine(SchemaId.Base) is Engine2)
 
         val (legacyViaduct, legacyFlags) = buildWithMutableFlag(initiallyEnabled = false)
         legacyFlags.engine2Enabled = true
@@ -391,8 +390,9 @@ class StandardViaductTest {
         assertEquals(true, recording.finalized, "finalize() must be called via the file-based bootstrap path")
     }
 
-    @Test
-    fun `caller supplied module config sources contribute resolvers`() {
+    @ParameterizedTest
+    @ValueSource(booleans = [false, true])
+    fun `caller supplied module config sources contribute resolvers`(engine2Enabled: Boolean) {
         val sdl = """
             extend type Query {
                 generatedRegistryTestField: String @resolver
@@ -406,6 +406,11 @@ class StandardViaductTest {
             .withTenantModuleInjectorFactory(MockExecutorCodeInjector(suppliedModule.mockExecutorRegistry))
             .withExecutorRegistryConfigSources(listOf(suppliedModule.toModuleConfigSource()))
             .withSchemaConfiguration(SchemaConfiguration.fromSdl(sdl))
+            .withFlagManager(
+                object : FlagManager {
+                    override fun isEnabled(flag: FlagManager.Flag): Boolean = engine2Enabled && flag == FlagManager.Flags.ENGINE2_ENABLED
+                },
+            )
             .build()
 
         val result = runBlocking {

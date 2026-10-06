@@ -1,0 +1,70 @@
+interface GeneratedInterface {
+  common: String!
+}
+
+type Hash {
+  nested: Hash
+  hash: Int!
+}
+
+type Object0 implements GeneratedInterface {
+  field0: Object1!
+  field1(arg: ID!): Float
+  field2(arg: ID): Float
+  field3: Object1
+  field4: Object2!
+  common: String!
+  hash: Hash!
+}
+
+type Object1 {
+  field0: Object3
+  field1(arg: Boolean!): [ID]!
+  field2(arg: [Boolean!]!): String
+  field3(arg: Float): Object4!
+  field4(arg: String!): Int!
+  hash: Hash!
+}
+
+type Object2 {
+  field0(arg: Float): [Object3!]!
+  field1(arg: [String!]!): [Object0]
+  field2(arg: Int!): ID
+  field3(arg: Int!): [Object2!]!
+  field4(arg: Float!): Object3
+  hash: Hash!
+}
+
+type Object3 implements GeneratedInterface {
+  field0: [Object1!]
+  field1(arg: Boolean!): Object4!
+  field2(arg: Float): [Object4!]
+  field3(arg: ID!): [Object3!]
+  field4(arg: Int!): [String!]
+  common: String!
+  hash: Hash!
+}
+
+type Object4 implements GeneratedInterface {
+  field0(arg: Boolean!): Boolean!
+  field1(arg: String!): Float!
+  field2(arg: [Int!]!): String!
+  field3(arg: [String]!): String!
+  field4(arg: Int!): String!
+  field5(arg: Boolean!): Int!
+  common: String!
+  hash: Hash!
+}
+
+union GeneratedUnion = Object4
+
+type Query {
+  query0: Object0!
+  query1(arg: Float): [Object2]!
+  query2(arg: Float!): Int
+  query3(arg: Float): [GeneratedInterface!]
+  query4: [GeneratedInterface!]!
+  query5(arg: ID!): Object3
+  query6: GeneratedUnion
+  query7(arg: Float!): Object3
+}

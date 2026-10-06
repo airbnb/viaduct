@@ -1,0 +1,550 @@
+fragment Generated on Query {
+  alias0: query0 {
+    ... on Object0 {
+      field0 {
+        field2(arg: [true, true])
+        field2(arg: [true, true])
+        field1(arg: false)
+        alias1: field1(arg: true)
+        hash {
+          hash
+        }
+      }
+    }
+    ... on Object0 {
+      field0 {
+        field2(arg: [true, true])
+        field2(arg: [true, true])
+        field1(arg: false)
+        alias1: field1(arg: true)
+        hash {
+          hash
+        }
+      }
+    }
+    alias2: field0 {
+      __typename
+    }
+    alias3: field0 {
+      __typename
+      field4(arg: "value-0")
+    }
+    field4 {
+      field0(arg: 1.5) {
+        __typename
+      }
+      field0(arg: 1.5) {
+        __typename
+      }
+      alias4: field0(arg: 2.5) {
+        __typename
+      }
+      alias5: field0(arg: 1.5) {
+        __typename
+      }
+      alias6: field0(arg: 1.5) {
+        __typename
+        ... on Object3 {
+          field3(arg: "id-0") {
+            __typename
+          }
+        }
+      }
+      field1(arg: ["value-1", "value-1"]) {
+        __typename
+      }
+      field1(arg: ["value-1", "value-1"]) {
+        __typename
+      }
+      alias7: field1(arg: ["value-1", "value-1"]) {
+        __typename
+      }
+      alias8: field1(arg: ["value-1", "value-1"]) {
+        __typename
+        ... on Object0 {
+          field3 {
+            __typename
+          }
+        }
+      }
+      ... on Object2 {
+        alias9: __typename
+      }
+      ... on Object2 {
+        alias9: __typename
+      }
+      hash {
+        hash
+      }
+    }
+    field4 {
+      field0(arg: 1.5) {
+        __typename
+      }
+      field0(arg: 1.5) {
+        __typename
+      }
+      alias4: field0(arg: 2.5) {
+        __typename
+      }
+      alias5: field0(arg: 1.5) {
+        __typename
+      }
+      alias6: field0(arg: 1.5) {
+        __typename
+        ... on Object3 {
+          field3(arg: "id-0") {
+            __typename
+          }
+        }
+      }
+      field1(arg: ["value-1", "value-1"]) {
+        __typename
+      }
+      field1(arg: ["value-1", "value-1"]) {
+        __typename
+      }
+      alias7: field1(arg: ["value-1", "value-1"]) {
+        __typename
+      }
+      alias8: field1(arg: ["value-1", "value-1"]) {
+        __typename
+        ... on Object0 {
+          field3 {
+            __typename
+          }
+        }
+      }
+      ... on Object2 {
+        alias9: __typename
+      }
+      ... on Object2 {
+        alias9: __typename
+      }
+      hash {
+        hash
+      }
+    }
+    alias10: field4 {
+      __typename
+    }
+    alias11: field4 {
+      __typename
+      ... on Object2 {
+        field4(arg: 1.5) {
+          __typename
+        }
+      }
+    }
+    ... on Object0 {
+      field3 {
+        __typename
+        __typename
+        alias12: field4(arg: "value-1")
+        alias12: field4(arg: "value-1")
+        alias13: field4(arg: "value-1-distinct")
+        ... on Object1 {
+          field2(arg: [])
+        }
+        ... on Object1 {
+          field2(arg: [])
+        }
+        hash {
+          hash
+        }
+      }
+    }
+    alias15: field3 {
+      __typename
+    }
+    alias16: field3 {
+      __typename
+      alias14: field2(arg: [])
+    }
+    hash {
+      hash
+    }
+  }
+  alias18: query0 {
+    __typename
+  }
+  alias19: query0 {
+    __typename
+    field4 {
+      field2(arg: 1)
+      field2(arg: 1)
+      alias17: field2(arg: 2)
+      hash {
+        hash
+      }
+    }
+  }
+  alias20: query6 {
+    __typename
+    __typename
+    ... on Object4 {
+      field5(arg: true)
+      field5(arg: true)
+      alias21: field5(arg: false)
+      hash {
+        hash
+      }
+    }
+  }
+  alias22: query6 {
+    __typename
+  }
+  alias23: query6 {
+    __typename
+    ... on Object4 {
+      field2(arg: [0])
+    }
+  }
+  query1(arg: 0.5) {
+    field1(arg: ["value-0"]) {
+      ... on Object0 {
+        __typename
+      }
+      ... on Object0 {
+        field1(arg: "id-1")
+      }
+      ... on Object0 {
+        field1(arg: "id-1")
+      }
+      alias24: field3 {
+        __typename
+      }
+      alias25: field3 {
+        __typename
+      }
+      alias26: field3 {
+        __typename
+        ... on Object1 {
+          field2(arg: [true, true])
+        }
+      }
+      hash {
+        hash
+      }
+    }
+    ... on Object2 {
+      alias27: field1(arg: []) {
+        ... on Object0 {
+          alias28: field2(arg: "id-0")
+        }
+        ... on Object0 {
+          field4 {
+            __typename
+          }
+        }
+        hash {
+          hash
+        }
+      }
+    }
+    alias30: field1(arg: ["value-0"]) {
+      __typename
+    }
+    alias31: field1(arg: ["value-0"]) {
+      __typename
+      alias29: field4 {
+        __typename
+      }
+    }
+    field2(arg: 0)
+    alias32: field2(arg: 1)
+    field3(arg: 1) {
+      field0(arg: 0.5) {
+        __typename
+      }
+      field0(arg: 0.5) {
+        __typename
+      }
+      ... on Object2 {
+        alias33: field0(arg: 1.5) {
+          __typename
+        }
+      }
+      alias35: field0(arg: 0.5) {
+        __typename
+      }
+      alias36: field0(arg: 0.5) {
+        __typename
+        alias34: field3(arg: "id-1") {
+          __typename
+        }
+      }
+      field3(arg: 1) {
+        __typename
+      }
+      ... on Object2 {
+        alias37: field3(arg: 2) {
+          __typename
+        }
+      }
+      field1(arg: []) {
+        __typename
+      }
+      field1(arg: []) {
+        __typename
+      }
+      alias38: field1(arg: ["value-1"]) {
+        __typename
+      }
+      alias40: field1(arg: []) {
+        __typename
+      }
+      alias41: field1(arg: []) {
+        __typename
+        ... on Object0 {
+          alias39: field0 {
+            __typename
+          }
+        }
+      }
+      hash {
+        hash
+      }
+    }
+    field3(arg: 1) {
+      field0(arg: 0.5) {
+        __typename
+      }
+      field0(arg: 0.5) {
+        __typename
+      }
+      ... on Object2 {
+        alias33: field0(arg: 1.5) {
+          __typename
+        }
+      }
+      alias35: field0(arg: 0.5) {
+        __typename
+      }
+      alias36: field0(arg: 0.5) {
+        __typename
+        alias34: field3(arg: "id-1") {
+          __typename
+        }
+      }
+      field3(arg: 1) {
+        __typename
+      }
+      ... on Object2 {
+        alias37: field3(arg: 2) {
+          __typename
+        }
+      }
+      field1(arg: []) {
+        __typename
+      }
+      field1(arg: []) {
+        __typename
+      }
+      alias38: field1(arg: ["value-1"]) {
+        __typename
+      }
+      alias40: field1(arg: []) {
+        __typename
+      }
+      alias41: field1(arg: []) {
+        __typename
+        ... on Object0 {
+          alias39: field0 {
+            __typename
+          }
+        }
+      }
+      hash {
+        hash
+      }
+    }
+    alias42: field3(arg: 2) {
+      ... on Object2 {
+        field4(arg: 0.5) {
+          __typename
+        }
+      }
+      ... on Object2 {
+        field4(arg: 0.5) {
+          __typename
+        }
+      }
+      field0(arg: null) {
+        __typename
+      }
+      field0(arg: null) {
+        __typename
+      }
+      ... on Object2 {
+        field3(arg: 1) {
+          __typename
+        }
+      }
+      ... on Object2 {
+        field3(arg: 1) {
+          __typename
+        }
+      }
+      alias43: field3(arg: 2) {
+        __typename
+      }
+      alias45: field3(arg: 1) {
+        __typename
+      }
+      alias46: field3(arg: 1) {
+        __typename
+        ... on Object2 {
+          alias44: field3(arg: 0) {
+            __typename
+          }
+        }
+      }
+      hash {
+        hash
+      }
+    }
+    alias47: field3(arg: 1) {
+      __typename
+    }
+    alias48: field3(arg: 1) {
+      __typename
+      field1(arg: ["value-0"]) {
+        __typename
+      }
+    }
+    hash {
+      hash
+    }
+  }
+  alias49: query1(arg: 1.5) {
+    ... on Object2 {
+      field0(arg: null) {
+        alias50: field1(arg: false) {
+          __typename
+        }
+        alias51: field3(arg: "id-1") {
+          __typename
+        }
+        alias52: field3(arg: "id-1") {
+          __typename
+        }
+        alias53: field3(arg: "id-1") {
+          __typename
+          ... on Object3 {
+            field0 {
+              __typename
+            }
+          }
+        }
+        hash {
+          hash
+        }
+      }
+    }
+    ... on Object2 {
+      field0(arg: null) {
+        alias50: field1(arg: false) {
+          __typename
+        }
+        alias51: field3(arg: "id-1") {
+          __typename
+        }
+        alias52: field3(arg: "id-1") {
+          __typename
+        }
+        alias53: field3(arg: "id-1") {
+          __typename
+          ... on Object3 {
+            field0 {
+              __typename
+            }
+          }
+        }
+        hash {
+          hash
+        }
+      }
+    }
+    alias54: field0(arg: null) {
+      __typename
+    }
+    alias55: field0(arg: null) {
+      __typename
+      field3(arg: "id-0") {
+        __typename
+      }
+    }
+    hash {
+      hash
+    }
+  }
+  alias59: query1(arg: 0.5) {
+    __typename
+  }
+  alias60: query1(arg: 0.5) {
+    __typename
+    field3(arg: 1) {
+      field4(arg: 1.5) {
+        __typename
+      }
+      field4(arg: 1.5) {
+        __typename
+      }
+      ... on Object2 {
+        alias56: field4(arg: 2.5) {
+          __typename
+        }
+      }
+      alias57: field3(arg: 0) {
+        __typename
+      }
+      alias58: field3(arg: 1) {
+        __typename
+      }
+      hash {
+        hash
+      }
+    }
+  }
+  query4 {
+    alias61: __typename
+    alias61: __typename
+    ... on Object3 {
+      ... on Object3 {
+        alias62: common
+      }
+      __typename
+      __typename
+      hash {
+        hash
+      }
+    }
+    ... on Object4 {
+      field5(arg: true)
+      field5(arg: true)
+      alias63: field5(arg: false)
+      hash {
+        hash
+      }
+    }
+    ... on Object0 {
+      ... on Object0 {
+        common
+      }
+      ... on Object0 {
+        common
+      }
+      field3 {
+        __typename
+      }
+      field2(arg: "id-1")
+      ... on Object0 {
+        alias64: field2(arg: "id-1-distinct")
+      }
+      hash {
+        hash
+      }
+    }
+  }
+}

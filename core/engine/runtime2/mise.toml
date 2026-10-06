@@ -1,0 +1,27 @@
+[tools]
+java = "corretto-21.0.4.7.1"
+"github:tlaplus/tlaplus" = { version = "1.7.4", asset_pattern = "tla2tools.jar", bin = "tla2tools.jar" }
+"github:tlaplus/tlapm" = { version = "202210041448", os = ["linux/x64"], asset_pattern = "tlaps-1.5.0-x86_64-linux-gnu-inst.bin", bin_path = "bin", postinstall = '"$MISE_TOOL_INSTALL_PATH/bin/tlaps-1.5.0-x86_64-linux-gnu-inst.bin" -d "$MISE_TOOL_INSTALL_PATH"' }
+
+[tasks."tla:parse"]
+description = "Parse and semantically check a TLA+ module"
+dir = "{{cwd}}"
+run = '''
+jar="$(mise where github:tlaplus/tlaplus)/tla2tools.jar"
+library="$(mise where github:tlaplus/tlapm)/lib/tlaps"
+java "-DTLA-Library=$(pwd):$(pwd)/tla:$library" -cp "$jar" tla2sany.SANY "$@"
+'''
+
+[tasks."tla:check"]
+description = "Model-check a TLA+ specification with TLC"
+dir = "{{cwd}}"
+run = '''
+bash "$(pwd)/tla/check-tlc.sh" "$@"
+'''
+
+[tasks."tla:prove"]
+description = "Check a TLA+ proof with TLAPS"
+dir = "{{cwd}}"
+run = '''
+tlapm -I "$(pwd)" -I "$(pwd)/tla" "$@"
+'''

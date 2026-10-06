@@ -1,0 +1,3799 @@
+{
+  "metrics" : {
+    "campaignBaseSeed" : 202608130046,
+    "campaignRound" : 46,
+    "propertySeed" : 2026081300464,
+    "queryIndex" : 3,
+    "registryIndex" : 4,
+    "resolverApplications" : 12763,
+    "schemaIndex" : 10
+  },
+  "registry" : {
+    "features" : {
+      "argumentSensitiveResolvers" : 23,
+      "fromArgumentVariableCount" : 9,
+      "fromObjectFieldVariableCount" : 0,
+      "hasAbstractProviderPath" : false,
+      "hasAbstractResolverFragment" : true,
+      "hasListVariable" : false,
+      "hasNestedInputVariable" : true,
+      "hasNullableProvider" : false,
+      "inputAndArgumentSensitiveResolvers" : 19,
+      "inputSensitiveResolvers" : 26,
+      "literalVariableConvergenceCount" : 1,
+      "maximumFromObjectFieldPathLength" : 0,
+      "maximumFromObjectFieldVariableUseDepth" : 0,
+      "maximumVariablesPerOwner" : 2,
+      "passiveTopLevelFromObjectFieldVariableUseCount" : 0,
+      "resolverErrorArgumentCount" : 3,
+      "variableCount" : 9
+    },
+    "fieldResolvers" : [ {
+      "coordinate" : {
+        "fieldName" : "common",
+        "typeName" : "Object0"
+      },
+      "fragment" : {
+        "ownerName" : "Object0",
+        "selections" : [ {
+          "alias" : null,
+          "arguments" : [ ],
+          "fieldName" : "field4",
+          "subselections" : [ {
+            "alias" : null,
+            "arguments" : [ {
+              "name" : "arg",
+              "value" : {
+                "elements" : [ {
+                  "elements" : [ ],
+                  "fields" : [ ],
+                  "kind" : "literal",
+                  "literal" : "value-0",
+                  "placeholder" : null,
+                  "type" : {
+                    "element" : null,
+                    "kind" : "scalar",
+                    "name" : null,
+                    "nullable" : false,
+                    "scalar" : "STRING"
+                  },
+                  "variableName" : null
+                } ],
+                "fields" : [ ],
+                "kind" : "list",
+                "literal" : null,
+                "placeholder" : null,
+                "type" : {
+                  "element" : {
+                    "element" : null,
+                    "kind" : "scalar",
+                    "name" : null,
+                    "nullable" : false,
+                    "scalar" : "STRING"
+                  },
+                  "kind" : "list",
+                  "name" : null,
+                  "nullable" : false,
+                  "scalar" : null
+                },
+                "variableName" : null
+              }
+            } ],
+            "fieldName" : "field1",
+            "subselections" : [ {
+              "alias" : null,
+              "arguments" : [ ],
+              "fieldName" : "field3",
+              "subselections" : [ {
+                "alias" : null,
+                "arguments" : [ ],
+                "fieldName" : "__typename",
+                "subselections" : [ ],
+                "typeCondition" : null
+              } ],
+              "typeCondition" : null
+            }, {
+              "alias" : null,
+              "arguments" : [ ],
+              "fieldName" : "field4",
+              "subselections" : [ {
+                "alias" : null,
+                "arguments" : [ ],
+                "fieldName" : "__typename",
+                "subselections" : [ ],
+                "typeCondition" : null
+              } ],
+              "typeCondition" : null
+            } ],
+            "typeCondition" : null
+          } ],
+          "typeCondition" : null
+        }, {
+          "alias" : null,
+          "arguments" : [ {
+            "name" : "arg",
+            "value" : {
+              "elements" : [ ],
+              "fields" : [ ],
+              "kind" : "literal",
+              "literal" : "id-0",
+              "placeholder" : null,
+              "type" : {
+                "element" : null,
+                "kind" : "scalar",
+                "name" : null,
+                "nullable" : false,
+                "scalar" : "ID"
+              },
+              "variableName" : null
+            }
+          } ],
+          "fieldName" : "field1",
+          "subselections" : [ ],
+          "typeCondition" : null
+        } ]
+      },
+      "program" : "INPUT_SENSITIVE",
+      "value" : {
+        "elements" : [ ],
+        "fields" : [ ],
+        "kind" : "scalar",
+        "literal" : "Object0.common-788",
+        "salt" : null,
+        "scalar" : "STRING",
+        "typeName" : null
+      }
+    }, {
+      "coordinate" : {
+        "fieldName" : "field0",
+        "typeName" : "Object0"
+      },
+      "fragment" : {
+        "ownerName" : "Object0",
+        "selections" : [ {
+          "alias" : null,
+          "arguments" : [ {
+            "name" : "arg",
+            "value" : {
+              "elements" : [ ],
+              "fields" : [ ],
+              "kind" : "literal",
+              "literal" : "id-0",
+              "placeholder" : null,
+              "type" : {
+                "element" : null,
+                "kind" : "scalar",
+                "name" : null,
+                "nullable" : true,
+                "scalar" : "ID"
+              },
+              "variableName" : null
+            }
+          } ],
+          "fieldName" : "field2",
+          "subselections" : [ ],
+          "typeCondition" : null
+        }, {
+          "alias" : null,
+          "arguments" : [ ],
+          "fieldName" : "common",
+          "subselections" : [ ],
+          "typeCondition" : null
+        } ]
+      },
+      "program" : "INPUT_SENSITIVE",
+      "value" : {
+        "elements" : [ ],
+        "fields" : [ {
+          "coordinate" : {
+            "fieldName" : "hash",
+            "typeName" : "Object1"
+          },
+          "value" : {
+            "elements" : [ ],
+            "fields" : [ ],
+            "kind" : "generated-hash",
+            "literal" : null,
+            "salt" : 619947977,
+            "scalar" : null,
+            "typeName" : null
+          }
+        } ],
+        "kind" : "object",
+        "literal" : null,
+        "salt" : null,
+        "scalar" : null,
+        "typeName" : "Object1"
+      }
+    }, {
+      "coordinate" : {
+        "fieldName" : "field1",
+        "typeName" : "Object0"
+      },
+      "fragment" : {
+        "ownerName" : "Object0",
+        "selections" : [ {
+          "alias" : null,
+          "arguments" : [ ],
+          "fieldName" : "field4",
+          "subselections" : [ {
+            "alias" : null,
+            "arguments" : [ {
+              "name" : "arg",
+              "value" : {
+                "elements" : [ ],
+                "fields" : [ ],
+                "kind" : "literal",
+                "literal" : "1.5",
+                "placeholder" : null,
+                "type" : {
+                  "element" : null,
+                  "kind" : "scalar",
+                  "name" : null,
+                  "nullable" : false,
+                  "scalar" : "FLOAT"
+                },
+                "variableName" : null
+              }
+            } ],
+            "fieldName" : "field4",
+            "subselections" : [ {
+              "alias" : null,
+              "arguments" : [ ],
+              "fieldName" : "field0",
+              "subselections" : [ {
+                "alias" : null,
+                "arguments" : [ ],
+                "fieldName" : "__typename",
+                "subselections" : [ ],
+                "typeCondition" : null
+              } ],
+              "typeCondition" : null
+            } ],
+            "typeCondition" : null
+          }, {
+            "alias" : null,
+            "arguments" : [ {
+              "name" : "arg",
+              "value" : {
+                "elements" : [ ],
+                "fields" : [ ],
+                "kind" : "literal",
+                "literal" : "1",
+                "placeholder" : null,
+                "type" : {
+                  "element" : null,
+                  "kind" : "scalar",
+                  "name" : null,
+                  "nullable" : false,
+                  "scalar" : "INT"
+                },
+                "variableName" : null
+              }
+            } ],
+            "fieldName" : "field3",
+            "subselections" : [ {
+              "alias" : null,
+              "arguments" : [ {
+                "name" : "arg",
+                "value" : {
+                  "elements" : [ ],
+                  "fields" : [ ],
+                  "kind" : "literal",
+                  "literal" : "0",
+                  "placeholder" : null,
+                  "type" : {
+                    "element" : null,
+                    "kind" : "scalar",
+                    "name" : null,
+                    "nullable" : false,
+                    "scalar" : "INT"
+                  },
+                  "variableName" : null
+                }
+              } ],
+              "fieldName" : "field3",
+              "subselections" : [ {
+                "alias" : null,
+                "arguments" : [ ],
+                "fieldName" : "__typename",
+                "subselections" : [ ],
+                "typeCondition" : null
+              } ],
+              "typeCondition" : null
+            }, {
+              "alias" : null,
+              "arguments" : [ {
+                "name" : "arg",
+                "value" : {
+                  "elements" : [ ],
+                  "fields" : [ ],
+                  "kind" : "literal",
+                  "literal" : "0.5",
+                  "placeholder" : null,
+                  "type" : {
+                    "element" : null,
+                    "kind" : "scalar",
+                    "name" : null,
+                    "nullable" : false,
+                    "scalar" : "FLOAT"
+                  },
+                  "variableName" : null
+                }
+              } ],
+              "fieldName" : "field4",
+              "subselections" : [ {
+                "alias" : null,
+                "arguments" : [ ],
+                "fieldName" : "__typename",
+                "subselections" : [ ],
+                "typeCondition" : null
+              } ],
+              "typeCondition" : null
+            } ],
+            "typeCondition" : null
+          } ],
+          "typeCondition" : null
+        } ]
+      },
+      "program" : "INPUT_AND_ARGUMENT_SENSITIVE",
+      "value" : {
+        "elements" : [ ],
+        "fields" : [ ],
+        "kind" : "scalar",
+        "literal" : "249.0",
+        "salt" : null,
+        "scalar" : "FLOAT",
+        "typeName" : null
+      }
+    }, {
+      "coordinate" : {
+        "fieldName" : "field2",
+        "typeName" : "Object0"
+      },
+      "fragment" : {
+        "ownerName" : "Object0",
+        "selections" : [ {
+          "alias" : null,
+          "arguments" : [ ],
+          "fieldName" : "field3",
+          "subselections" : [ {
+            "alias" : null,
+            "arguments" : [ ],
+            "fieldName" : "field0",
+            "subselections" : [ {
+              "alias" : null,
+              "arguments" : [ {
+                "name" : "arg",
+                "value" : {
+                  "elements" : [ ],
+                  "fields" : [ ],
+                  "kind" : "literal",
+                  "literal" : "id-0",
+                  "placeholder" : null,
+                  "type" : {
+                    "element" : null,
+                    "kind" : "scalar",
+                    "name" : null,
+                    "nullable" : false,
+                    "scalar" : "ID"
+                  },
+                  "variableName" : null
+                }
+              } ],
+              "fieldName" : "field3",
+              "subselections" : [ {
+                "alias" : null,
+                "arguments" : [ ],
+                "fieldName" : "__typename",
+                "subselections" : [ ],
+                "typeCondition" : null
+              } ],
+              "typeCondition" : null
+            }, {
+              "alias" : null,
+              "arguments" : [ {
+                "name" : "arg",
+                "value" : {
+                  "elements" : [ ],
+                  "fields" : [ ],
+                  "kind" : "literal",
+                  "literal" : "1",
+                  "placeholder" : null,
+                  "type" : {
+                    "element" : null,
+                    "kind" : "scalar",
+                    "name" : null,
+                    "nullable" : false,
+                    "scalar" : "INT"
+                  },
+                  "variableName" : null
+                }
+              } ],
+              "fieldName" : "field4",
+              "subselections" : [ ],
+              "typeCondition" : null
+            } ],
+            "typeCondition" : null
+          }, {
+            "alias" : null,
+            "arguments" : [ {
+              "name" : "arg",
+              "value" : {
+                "elements" : [ ],
+                "fields" : [ ],
+                "kind" : "literal",
+                "literal" : "value-1",
+                "placeholder" : null,
+                "type" : {
+                  "element" : null,
+                  "kind" : "scalar",
+                  "name" : null,
+                  "nullable" : false,
+                  "scalar" : "STRING"
+                },
+                "variableName" : null
+              }
+            } ],
+            "fieldName" : "field4",
+            "subselections" : [ ],
+            "typeCondition" : null
+          } ],
+          "typeCondition" : null
+        } ]
+      },
+      "program" : "INPUT_AND_ARGUMENT_SENSITIVE",
+      "value" : {
+        "elements" : [ ],
+        "fields" : [ ],
+        "kind" : "null",
+        "literal" : null,
+        "salt" : null,
+        "scalar" : null,
+        "typeName" : null
+      }
+    }, {
+      "coordinate" : {
+        "fieldName" : "field3",
+        "typeName" : "Object0"
+      },
+      "fragment" : {
+        "ownerName" : "Object0",
+        "selections" : [ {
+          "alias" : null,
+          "arguments" : [ {
+            "name" : "arg",
+            "value" : {
+              "elements" : [ ],
+              "fields" : [ ],
+              "kind" : "literal",
+              "literal" : "id-1",
+              "placeholder" : null,
+              "type" : {
+                "element" : null,
+                "kind" : "scalar",
+                "name" : null,
+                "nullable" : false,
+                "scalar" : "ID"
+              },
+              "variableName" : null
+            }
+          } ],
+          "fieldName" : "field1",
+          "subselections" : [ ],
+          "typeCondition" : null
+        } ]
+      },
+      "program" : "INPUT_SENSITIVE",
+      "value" : {
+        "elements" : [ ],
+        "fields" : [ {
+          "coordinate" : {
+            "fieldName" : "hash",
+            "typeName" : "Object1"
+          },
+          "value" : {
+            "elements" : [ ],
+            "fields" : [ ],
+            "kind" : "generated-hash",
+            "literal" : null,
+            "salt" : 705835430,
+            "scalar" : null,
+            "typeName" : null
+          }
+        } ],
+        "kind" : "object",
+        "literal" : null,
+        "salt" : null,
+        "scalar" : null,
+        "typeName" : "Object1"
+      }
+    }, {
+      "coordinate" : {
+        "fieldName" : "field0",
+        "typeName" : "Object1"
+      },
+      "fragment" : {
+        "ownerName" : "Object1",
+        "selections" : [ {
+          "alias" : null,
+          "arguments" : [ {
+            "name" : "arg",
+            "value" : {
+              "elements" : [ ],
+              "fields" : [ ],
+              "kind" : "literal",
+              "literal" : "true",
+              "placeholder" : null,
+              "type" : {
+                "element" : null,
+                "kind" : "scalar",
+                "name" : null,
+                "nullable" : false,
+                "scalar" : "BOOLEAN"
+              },
+              "variableName" : null
+            }
+          } ],
+          "fieldName" : "field1",
+          "subselections" : [ ],
+          "typeCondition" : null
+        } ]
+      },
+      "program" : "INPUT_SENSITIVE",
+      "value" : {
+        "elements" : [ ],
+        "fields" : [ {
+          "coordinate" : {
+            "fieldName" : "field0",
+            "typeName" : "Object3"
+          },
+          "value" : {
+            "elements" : [ {
+              "elements" : [ ],
+              "fields" : [ {
+                "coordinate" : {
+                  "fieldName" : "hash",
+                  "typeName" : "Object1"
+                },
+                "value" : {
+                  "elements" : [ ],
+                  "fields" : [ ],
+                  "kind" : "generated-hash",
+                  "literal" : null,
+                  "salt" : 2129655334,
+                  "scalar" : null,
+                  "typeName" : null
+                }
+              } ],
+              "kind" : "object",
+              "literal" : null,
+              "salt" : null,
+              "scalar" : null,
+              "typeName" : "Object1"
+            }, {
+              "elements" : [ ],
+              "fields" : [ {
+                "coordinate" : {
+                  "fieldName" : "hash",
+                  "typeName" : "Object1"
+                },
+                "value" : {
+                  "elements" : [ ],
+                  "fields" : [ ],
+                  "kind" : "generated-hash",
+                  "literal" : null,
+                  "salt" : -1277808281,
+                  "scalar" : null,
+                  "typeName" : null
+                }
+              } ],
+              "kind" : "object",
+              "literal" : null,
+              "salt" : null,
+              "scalar" : null,
+              "typeName" : "Object1"
+            } ],
+            "fields" : [ ],
+            "kind" : "list",
+            "literal" : null,
+            "salt" : null,
+            "scalar" : null,
+            "typeName" : null
+          }
+        }, {
+          "coordinate" : {
+            "fieldName" : "hash",
+            "typeName" : "Object3"
+          },
+          "value" : {
+            "elements" : [ ],
+            "fields" : [ ],
+            "kind" : "generated-hash",
+            "literal" : null,
+            "salt" : 326544970,
+            "scalar" : null,
+            "typeName" : null
+          }
+        } ],
+        "kind" : "object",
+        "literal" : null,
+        "salt" : null,
+        "scalar" : null,
+        "typeName" : "Object3"
+      }
+    }, {
+      "coordinate" : {
+        "fieldName" : "field1",
+        "typeName" : "Object1"
+      },
+      "fragment" : {
+        "ownerName" : "Object1",
+        "selections" : [ {
+          "alias" : null,
+          "arguments" : [ {
+            "name" : "arg",
+            "value" : {
+              "elements" : [ ],
+              "fields" : [ ],
+              "kind" : "list",
+              "literal" : null,
+              "placeholder" : null,
+              "type" : {
+                "element" : {
+                  "element" : null,
+                  "kind" : "scalar",
+                  "name" : null,
+                  "nullable" : false,
+                  "scalar" : "BOOLEAN"
+                },
+                "kind" : "list",
+                "name" : null,
+                "nullable" : false,
+                "scalar" : null
+              },
+              "variableName" : null
+            }
+          } ],
+          "fieldName" : "field2",
+          "subselections" : [ ],
+          "typeCondition" : null
+        } ]
+      },
+      "program" : "CONSTANT",
+      "value" : {
+        "elements" : [ {
+          "elements" : [ ],
+          "fields" : [ ],
+          "kind" : "scalar",
+          "literal" : "Object1.field1[0]-2311",
+          "salt" : null,
+          "scalar" : "ID",
+          "typeName" : null
+        }, {
+          "elements" : [ ],
+          "fields" : [ ],
+          "kind" : "null",
+          "literal" : null,
+          "salt" : null,
+          "scalar" : null,
+          "typeName" : null
+        } ],
+        "fields" : [ ],
+        "kind" : "list",
+        "literal" : null,
+        "salt" : null,
+        "scalar" : null,
+        "typeName" : null
+      }
+    }, {
+      "coordinate" : {
+        "fieldName" : "field2",
+        "typeName" : "Object1"
+      },
+      "fragment" : {
+        "ownerName" : "Object1",
+        "selections" : [ {
+          "alias" : null,
+          "arguments" : [ ],
+          "fieldName" : "__typename",
+          "subselections" : [ ],
+          "typeCondition" : null
+        } ]
+      },
+      "program" : "INPUT_AND_ARGUMENT_SENSITIVE",
+      "value" : {
+        "elements" : [ ],
+        "fields" : [ ],
+        "kind" : "scalar",
+        "literal" : "Object1.field2-6783",
+        "salt" : null,
+        "scalar" : "STRING",
+        "typeName" : null
+      }
+    }, {
+      "coordinate" : {
+        "fieldName" : "field3",
+        "typeName" : "Object1"
+      },
+      "fragment" : {
+        "ownerName" : "Object1",
+        "selections" : [ {
+          "alias" : null,
+          "arguments" : [ {
+            "name" : "arg",
+            "value" : {
+              "elements" : [ ],
+              "fields" : [ ],
+              "kind" : "literal",
+              "literal" : "value-1",
+              "placeholder" : null,
+              "type" : {
+                "element" : null,
+                "kind" : "scalar",
+                "name" : null,
+                "nullable" : false,
+                "scalar" : "STRING"
+              },
+              "variableName" : null
+            }
+          } ],
+          "fieldName" : "field4",
+          "subselections" : [ ],
+          "typeCondition" : null
+        }, {
+          "alias" : null,
+          "arguments" : [ {
+            "name" : "arg",
+            "value" : {
+              "elements" : [ {
+                "elements" : [ ],
+                "fields" : [ ],
+                "kind" : "literal",
+                "literal" : "true",
+                "placeholder" : null,
+                "type" : {
+                  "element" : null,
+                  "kind" : "scalar",
+                  "name" : null,
+                  "nullable" : false,
+                  "scalar" : "BOOLEAN"
+                },
+                "variableName" : null
+              } ],
+              "fields" : [ ],
+              "kind" : "list",
+              "literal" : null,
+              "placeholder" : null,
+              "type" : {
+                "element" : {
+                  "element" : null,
+                  "kind" : "scalar",
+                  "name" : null,
+                  "nullable" : false,
+                  "scalar" : "BOOLEAN"
+                },
+                "kind" : "list",
+                "name" : null,
+                "nullable" : false,
+                "scalar" : null
+              },
+              "variableName" : null
+            }
+          } ],
+          "fieldName" : "field2",
+          "subselections" : [ ],
+          "typeCondition" : null
+        } ]
+      },
+      "program" : "INPUT_AND_ARGUMENT_SENSITIVE",
+      "value" : {
+        "elements" : [ ],
+        "fields" : [ {
+          "coordinate" : {
+            "fieldName" : "hash",
+            "typeName" : "Object4"
+          },
+          "value" : {
+            "elements" : [ ],
+            "fields" : [ ],
+            "kind" : "generated-hash",
+            "literal" : null,
+            "salt" : 412432423,
+            "scalar" : null,
+            "typeName" : null
+          }
+        } ],
+        "kind" : "object",
+        "literal" : null,
+        "salt" : null,
+        "scalar" : null,
+        "typeName" : "Object4"
+      }
+    }, {
+      "coordinate" : {
+        "fieldName" : "field4",
+        "typeName" : "Object1"
+      },
+      "fragment" : {
+        "ownerName" : "Object1",
+        "selections" : [ {
+          "alias" : null,
+          "arguments" : [ {
+            "name" : "arg",
+            "value" : {
+              "elements" : [ ],
+              "fields" : [ ],
+              "kind" : "error",
+              "literal" : null,
+              "placeholder" : {
+                "elements" : [ {
+                  "elements" : [ ],
+                  "fields" : [ ],
+                  "kind" : "literal",
+                  "literal" : "true",
+                  "placeholder" : null,
+                  "type" : {
+                    "element" : null,
+                    "kind" : "scalar",
+                    "name" : null,
+                    "nullable" : false,
+                    "scalar" : "BOOLEAN"
+                  },
+                  "variableName" : null
+                } ],
+                "fields" : [ ],
+                "kind" : "list",
+                "literal" : null,
+                "placeholder" : null,
+                "type" : {
+                  "element" : {
+                    "element" : null,
+                    "kind" : "scalar",
+                    "name" : null,
+                    "nullable" : false,
+                    "scalar" : "BOOLEAN"
+                  },
+                  "kind" : "list",
+                  "name" : null,
+                  "nullable" : false,
+                  "scalar" : null
+                },
+                "variableName" : null
+              },
+              "type" : null,
+              "variableName" : null
+            }
+          } ],
+          "fieldName" : "field2",
+          "subselections" : [ ],
+          "typeCondition" : null
+        }, {
+          "alias" : null,
+          "arguments" : [ {
+            "name" : "arg",
+            "value" : {
+              "elements" : [ ],
+              "fields" : [ ],
+              "kind" : "error",
+              "literal" : null,
+              "placeholder" : {
+                "elements" : [ ],
+                "fields" : [ ],
+                "kind" : "literal",
+                "literal" : "false",
+                "placeholder" : null,
+                "type" : {
+                  "element" : null,
+                  "kind" : "scalar",
+                  "name" : null,
+                  "nullable" : false,
+                  "scalar" : "BOOLEAN"
+                },
+                "variableName" : null
+              },
+              "type" : null,
+              "variableName" : null
+            }
+          } ],
+          "fieldName" : "field1",
+          "subselections" : [ ],
+          "typeCondition" : null
+        } ]
+      },
+      "program" : "INPUT_AND_ARGUMENT_SENSITIVE",
+      "value" : {
+        "elements" : [ ],
+        "fields" : [ ],
+        "kind" : "error",
+        "literal" : null,
+        "salt" : null,
+        "scalar" : null,
+        "typeName" : null
+      }
+    }, {
+      "coordinate" : {
+        "fieldName" : "field0",
+        "typeName" : "Object2"
+      },
+      "fragment" : {
+        "ownerName" : "Object2",
+        "selections" : [ {
+          "alias" : null,
+          "arguments" : [ {
+            "name" : "arg",
+            "value" : {
+              "elements" : [ ],
+              "fields" : [ ],
+              "kind" : "literal",
+              "literal" : "1",
+              "placeholder" : null,
+              "type" : {
+                "element" : null,
+                "kind" : "scalar",
+                "name" : null,
+                "nullable" : false,
+                "scalar" : "INT"
+              },
+              "variableName" : null
+            }
+          } ],
+          "fieldName" : "field3",
+          "subselections" : [ {
+            "alias" : null,
+            "arguments" : [ {
+              "name" : "arg",
+              "value" : {
+                "elements" : [ ],
+                "fields" : [ ],
+                "kind" : "literal",
+                "literal" : "1",
+                "placeholder" : null,
+                "type" : {
+                  "element" : null,
+                  "kind" : "scalar",
+                  "name" : null,
+                  "nullable" : false,
+                  "scalar" : "INT"
+                },
+                "variableName" : null
+              }
+            } ],
+            "fieldName" : "field3",
+            "subselections" : [ {
+              "alias" : null,
+              "arguments" : [ {
+                "name" : "arg",
+                "value" : {
+                  "elements" : [ ],
+                  "fields" : [ ],
+                  "kind" : "literal",
+                  "literal" : "1",
+                  "placeholder" : null,
+                  "type" : {
+                    "element" : null,
+                    "kind" : "scalar",
+                    "name" : null,
+                    "nullable" : false,
+                    "scalar" : "INT"
+                  },
+                  "variableName" : null
+                }
+              } ],
+              "fieldName" : "field3",
+              "subselections" : [ {
+                "alias" : null,
+                "arguments" : [ ],
+                "fieldName" : "__typename",
+                "subselections" : [ ],
+                "typeCondition" : null
+              } ],
+              "typeCondition" : null
+            } ],
+            "typeCondition" : null
+          } ],
+          "typeCondition" : null
+        } ]
+      },
+      "program" : "INPUT_AND_ARGUMENT_SENSITIVE",
+      "value" : {
+        "elements" : [ {
+          "elements" : [ ],
+          "fields" : [ {
+            "coordinate" : {
+              "fieldName" : "field0",
+              "typeName" : "Object3"
+            },
+            "value" : {
+              "elements" : [ ],
+              "fields" : [ ],
+              "kind" : "null",
+              "literal" : null,
+              "salt" : null,
+              "scalar" : null,
+              "typeName" : null
+            }
+          }, {
+            "coordinate" : {
+              "fieldName" : "hash",
+              "typeName" : "Object3"
+            },
+            "value" : {
+              "elements" : [ ],
+              "fields" : [ ],
+              "kind" : "generated-hash",
+              "literal" : null,
+              "salt" : -2026913147,
+              "scalar" : null,
+              "typeName" : null
+            }
+          } ],
+          "kind" : "object",
+          "literal" : null,
+          "salt" : null,
+          "scalar" : null,
+          "typeName" : "Object3"
+        } ],
+        "fields" : [ ],
+        "kind" : "list",
+        "literal" : null,
+        "salt" : null,
+        "scalar" : null,
+        "typeName" : null
+      }
+    }, {
+      "coordinate" : {
+        "fieldName" : "field1",
+        "typeName" : "Object2"
+      },
+      "fragment" : {
+        "ownerName" : "Object2",
+        "selections" : [ ]
+      },
+      "program" : "ARGUMENT_SENSITIVE",
+      "value" : {
+        "elements" : [ {
+          "elements" : [ ],
+          "fields" : [ {
+            "coordinate" : {
+              "fieldName" : "field4",
+              "typeName" : "Object0"
+            },
+            "value" : {
+              "elements" : [ ],
+              "fields" : [ {
+                "coordinate" : {
+                  "fieldName" : "hash",
+                  "typeName" : "Object2"
+                },
+                "value" : {
+                  "elements" : [ ],
+                  "fields" : [ ],
+                  "kind" : "generated-hash",
+                  "literal" : null,
+                  "salt" : 1429016714,
+                  "scalar" : null,
+                  "typeName" : null
+                }
+              } ],
+              "kind" : "object",
+              "literal" : null,
+              "salt" : null,
+              "scalar" : null,
+              "typeName" : "Object2"
+            }
+          }, {
+            "coordinate" : {
+              "fieldName" : "hash",
+              "typeName" : "Object0"
+            },
+            "value" : {
+              "elements" : [ ],
+              "fields" : [ ],
+              "kind" : "generated-hash",
+              "literal" : null,
+              "salt" : 460599686,
+              "scalar" : null,
+              "typeName" : null
+            }
+          } ],
+          "kind" : "object",
+          "literal" : null,
+          "salt" : null,
+          "scalar" : null,
+          "typeName" : "Object0"
+        } ],
+        "fields" : [ ],
+        "kind" : "list",
+        "literal" : null,
+        "salt" : null,
+        "scalar" : null,
+        "typeName" : null
+      }
+    }, {
+      "coordinate" : {
+        "fieldName" : "field2",
+        "typeName" : "Object2"
+      },
+      "fragment" : {
+        "ownerName" : "Object2",
+        "selections" : [ {
+          "alias" : null,
+          "arguments" : [ {
+            "name" : "arg",
+            "value" : {
+              "elements" : [ ],
+              "fields" : [ ],
+              "kind" : "variable",
+              "literal" : null,
+              "placeholder" : null,
+              "type" : null,
+              "variableName" : "resolverArgVar8_1"
+            }
+          } ],
+          "fieldName" : "field3",
+          "subselections" : [ {
+            "alias" : null,
+            "arguments" : [ {
+              "name" : "arg",
+              "value" : {
+                "elements" : [ ],
+                "fields" : [ ],
+                "kind" : "literal",
+                "literal" : "1.5",
+                "placeholder" : null,
+                "type" : {
+                  "element" : null,
+                  "kind" : "scalar",
+                  "name" : null,
+                  "nullable" : true,
+                  "scalar" : "FLOAT"
+                },
+                "variableName" : null
+              }
+            } ],
+            "fieldName" : "field0",
+            "subselections" : [ {
+              "alias" : null,
+              "arguments" : [ {
+                "name" : "arg",
+                "value" : {
+                  "elements" : [ ],
+                  "fields" : [ ],
+                  "kind" : "variable",
+                  "literal" : null,
+                  "placeholder" : null,
+                  "type" : null,
+                  "variableName" : "resolverArgVar8_0"
+                }
+              } ],
+              "fieldName" : "field4",
+              "subselections" : [ ],
+              "typeCondition" : null
+            } ],
+            "typeCondition" : null
+          } ],
+          "typeCondition" : null
+        } ]
+      },
+      "program" : "INPUT_AND_ARGUMENT_SENSITIVE",
+      "value" : {
+        "elements" : [ ],
+        "fields" : [ ],
+        "kind" : "scalar",
+        "literal" : "Object2.field2-3055",
+        "salt" : null,
+        "scalar" : "ID",
+        "typeName" : null
+      }
+    }, {
+      "coordinate" : {
+        "fieldName" : "field3",
+        "typeName" : "Object2"
+      },
+      "fragment" : {
+        "ownerName" : "Object2",
+        "selections" : [ {
+          "alias" : null,
+          "arguments" : [ ],
+          "fieldName" : "__typename",
+          "subselections" : [ ],
+          "typeCondition" : null
+        } ]
+      },
+      "program" : "INPUT_AND_ARGUMENT_SENSITIVE",
+      "value" : {
+        "elements" : [ {
+          "elements" : [ ],
+          "fields" : [ {
+            "coordinate" : {
+              "fieldName" : "hash",
+              "typeName" : "Object2"
+            },
+            "value" : {
+              "elements" : [ ],
+              "fields" : [ ],
+              "kind" : "generated-hash",
+              "literal" : null,
+              "salt" : 1140658056,
+              "scalar" : null,
+              "typeName" : null
+            }
+          } ],
+          "kind" : "object",
+          "literal" : null,
+          "salt" : null,
+          "scalar" : null,
+          "typeName" : "Object2"
+        }, {
+          "elements" : [ ],
+          "fields" : [ {
+            "coordinate" : {
+              "fieldName" : "hash",
+              "typeName" : "Object2"
+            },
+            "value" : {
+              "elements" : [ ],
+              "fields" : [ ],
+              "kind" : "generated-hash",
+              "literal" : null,
+              "salt" : 2028161737,
+              "scalar" : null,
+              "typeName" : null
+            }
+          } ],
+          "kind" : "object",
+          "literal" : null,
+          "salt" : null,
+          "scalar" : null,
+          "typeName" : "Object2"
+        } ],
+        "fields" : [ ],
+        "kind" : "list",
+        "literal" : null,
+        "salt" : null,
+        "scalar" : null,
+        "typeName" : null
+      }
+    }, {
+      "coordinate" : {
+        "fieldName" : "field4",
+        "typeName" : "Object2"
+      },
+      "fragment" : {
+        "ownerName" : "Object2",
+        "selections" : [ {
+          "alias" : null,
+          "arguments" : [ {
+            "name" : "arg",
+            "value" : {
+              "elements" : [ ],
+              "fields" : [ ],
+              "kind" : "literal",
+              "literal" : "1",
+              "placeholder" : null,
+              "type" : {
+                "element" : null,
+                "kind" : "scalar",
+                "name" : null,
+                "nullable" : false,
+                "scalar" : "INT"
+              },
+              "variableName" : null
+            }
+          } ],
+          "fieldName" : "field3",
+          "subselections" : [ {
+            "alias" : null,
+            "arguments" : [ {
+              "name" : "arg",
+              "value" : {
+                "elements" : [ ],
+                "fields" : [ ],
+                "kind" : "literal",
+                "literal" : "0",
+                "placeholder" : null,
+                "type" : {
+                  "element" : null,
+                  "kind" : "scalar",
+                  "name" : null,
+                  "nullable" : false,
+                  "scalar" : "INT"
+                },
+                "variableName" : null
+              }
+            } ],
+            "fieldName" : "field3",
+            "subselections" : [ {
+              "alias" : null,
+              "arguments" : [ {
+                "name" : "arg",
+                "value" : {
+                  "elements" : [ ],
+                  "fields" : [ ],
+                  "kind" : "literal",
+                  "literal" : "1",
+                  "placeholder" : null,
+                  "type" : {
+                    "element" : null,
+                    "kind" : "scalar",
+                    "name" : null,
+                    "nullable" : false,
+                    "scalar" : "INT"
+                  },
+                  "variableName" : null
+                }
+              } ],
+              "fieldName" : "field2",
+              "subselections" : [ ],
+              "typeCondition" : null
+            } ],
+            "typeCondition" : null
+          }, {
+            "alias" : null,
+            "arguments" : [ {
+              "name" : "arg",
+              "value" : {
+                "elements" : [ ],
+                "fields" : [ ],
+                "kind" : "literal",
+                "literal" : "1",
+                "placeholder" : null,
+                "type" : {
+                  "element" : null,
+                  "kind" : "scalar",
+                  "name" : null,
+                  "nullable" : false,
+                  "scalar" : "INT"
+                },
+                "variableName" : null
+              }
+            } ],
+            "fieldName" : "field2",
+            "subselections" : [ ],
+            "typeCondition" : null
+          } ],
+          "typeCondition" : null
+        }, {
+          "alias" : "resolverArgVar9_0Literal",
+          "arguments" : [ {
+            "name" : "arg",
+            "value" : {
+              "elements" : [ ],
+              "fields" : [ ],
+              "kind" : "variable",
+              "literal" : null,
+              "placeholder" : null,
+              "type" : null,
+              "variableName" : "resolverArgVar9_1"
+            }
+          } ],
+          "fieldName" : "field0",
+          "subselections" : [ {
+            "alias" : null,
+            "arguments" : [ {
+              "name" : "arg",
+              "value" : {
+                "elements" : [ ],
+                "fields" : [ ],
+                "kind" : "literal",
+                "literal" : "1",
+                "placeholder" : null,
+                "type" : {
+                  "element" : null,
+                  "kind" : "scalar",
+                  "name" : null,
+                  "nullable" : false,
+                  "scalar" : "INT"
+                },
+                "variableName" : null
+              }
+            } ],
+            "fieldName" : "field4",
+            "subselections" : [ ],
+            "typeCondition" : null
+          } ],
+          "typeCondition" : null
+        }, {
+          "alias" : "resolverArgVar9_0Symbolic",
+          "arguments" : [ {
+            "name" : "arg",
+            "value" : {
+              "elements" : [ ],
+              "fields" : [ ],
+              "kind" : "variable",
+              "literal" : null,
+              "placeholder" : null,
+              "type" : null,
+              "variableName" : "resolverArgVar9_0"
+            }
+          } ],
+          "fieldName" : "field0",
+          "subselections" : [ {
+            "alias" : null,
+            "arguments" : [ {
+              "name" : "arg",
+              "value" : {
+                "elements" : [ ],
+                "fields" : [ ],
+                "kind" : "literal",
+                "literal" : "id-1",
+                "placeholder" : null,
+                "type" : {
+                  "element" : null,
+                  "kind" : "scalar",
+                  "name" : null,
+                  "nullable" : false,
+                  "scalar" : "ID"
+                },
+                "variableName" : null
+              }
+            } ],
+            "fieldName" : "field3",
+            "subselections" : [ {
+              "alias" : null,
+              "arguments" : [ {
+                "name" : "arg",
+                "value" : {
+                  "elements" : [ ],
+                  "fields" : [ ],
+                  "kind" : "literal",
+                  "literal" : "1",
+                  "placeholder" : null,
+                  "type" : {
+                    "element" : null,
+                    "kind" : "scalar",
+                    "name" : null,
+                    "nullable" : false,
+                    "scalar" : "INT"
+                  },
+                  "variableName" : null
+                }
+              } ],
+              "fieldName" : "field4",
+              "subselections" : [ ],
+              "typeCondition" : null
+            }, {
+              "alias" : null,
+              "arguments" : [ {
+                "name" : "arg",
+                "value" : {
+                  "elements" : [ ],
+                  "fields" : [ ],
+                  "kind" : "literal",
+                  "literal" : "id-0",
+                  "placeholder" : null,
+                  "type" : {
+                    "element" : null,
+                    "kind" : "scalar",
+                    "name" : null,
+                    "nullable" : false,
+                    "scalar" : "ID"
+                  },
+                  "variableName" : null
+                }
+              } ],
+              "fieldName" : "field3",
+              "subselections" : [ {
+                "alias" : null,
+                "arguments" : [ ],
+                "fieldName" : "__typename",
+                "subselections" : [ ],
+                "typeCondition" : null
+              } ],
+              "typeCondition" : null
+            } ],
+            "typeCondition" : null
+          } ],
+          "typeCondition" : null
+        } ]
+      },
+      "program" : "INPUT_AND_ARGUMENT_SENSITIVE",
+      "value" : {
+        "elements" : [ ],
+        "fields" : [ {
+          "coordinate" : {
+            "fieldName" : "field0",
+            "typeName" : "Object3"
+          },
+          "value" : {
+            "elements" : [ {
+              "elements" : [ ],
+              "fields" : [ {
+                "coordinate" : {
+                  "fieldName" : "hash",
+                  "typeName" : "Object1"
+                },
+                "value" : {
+                  "elements" : [ ],
+                  "fields" : [ ],
+                  "kind" : "generated-hash",
+                  "literal" : null,
+                  "salt" : 1332283107,
+                  "scalar" : null,
+                  "typeName" : null
+                }
+              } ],
+              "kind" : "object",
+              "literal" : null,
+              "salt" : null,
+              "scalar" : null,
+              "typeName" : "Object1"
+            } ],
+            "fields" : [ ],
+            "kind" : "list",
+            "literal" : null,
+            "salt" : null,
+            "scalar" : null,
+            "typeName" : null
+          }
+        }, {
+          "coordinate" : {
+            "fieldName" : "hash",
+            "typeName" : "Object3"
+          },
+          "value" : {
+            "elements" : [ ],
+            "fields" : [ ],
+            "kind" : "generated-hash",
+            "literal" : null,
+            "salt" : 147658567,
+            "scalar" : null,
+            "typeName" : null
+          }
+        } ],
+        "kind" : "object",
+        "literal" : null,
+        "salt" : null,
+        "scalar" : null,
+        "typeName" : "Object3"
+      }
+    }, {
+      "coordinate" : {
+        "fieldName" : "common",
+        "typeName" : "Object3"
+      },
+      "fragment" : {
+        "ownerName" : "Object3",
+        "selections" : [ ]
+      },
+      "program" : "CONSTANT",
+      "value" : {
+        "elements" : [ ],
+        "fields" : [ ],
+        "kind" : "scalar",
+        "literal" : "Object3.common-4673",
+        "salt" : null,
+        "scalar" : "STRING",
+        "typeName" : null
+      }
+    }, {
+      "coordinate" : {
+        "fieldName" : "field1",
+        "typeName" : "Object3"
+      },
+      "fragment" : {
+        "ownerName" : "Object3",
+        "selections" : [ {
+          "alias" : null,
+          "arguments" : [ ],
+          "fieldName" : "field0",
+          "subselections" : [ {
+            "alias" : null,
+            "arguments" : [ {
+              "name" : "arg",
+              "value" : {
+                "elements" : [ {
+                  "elements" : [ ],
+                  "fields" : [ ],
+                  "kind" : "variable",
+                  "literal" : null,
+                  "placeholder" : null,
+                  "type" : null,
+                  "variableName" : "resolverArgVar10_0"
+                }, {
+                  "elements" : [ ],
+                  "fields" : [ ],
+                  "kind" : "variable",
+                  "literal" : null,
+                  "placeholder" : null,
+                  "type" : null,
+                  "variableName" : "resolverArgVar10_1"
+                } ],
+                "fields" : [ ],
+                "kind" : "list",
+                "literal" : null,
+                "placeholder" : null,
+                "type" : {
+                  "element" : {
+                    "element" : null,
+                    "kind" : "scalar",
+                    "name" : null,
+                    "nullable" : false,
+                    "scalar" : "BOOLEAN"
+                  },
+                  "kind" : "list",
+                  "name" : null,
+                  "nullable" : false,
+                  "scalar" : null
+                },
+                "variableName" : null
+              }
+            } ],
+            "fieldName" : "field2",
+            "subselections" : [ ],
+            "typeCondition" : null
+          } ],
+          "typeCondition" : null
+        }, {
+          "alias" : null,
+          "arguments" : [ {
+            "name" : "arg",
+            "value" : {
+              "elements" : [ ],
+              "fields" : [ ],
+              "kind" : "literal",
+              "literal" : "id-1",
+              "placeholder" : null,
+              "type" : {
+                "element" : null,
+                "kind" : "scalar",
+                "name" : null,
+                "nullable" : false,
+                "scalar" : "ID"
+              },
+              "variableName" : null
+            }
+          } ],
+          "fieldName" : "field3",
+          "subselections" : [ {
+            "alias" : null,
+            "arguments" : [ {
+              "name" : "arg",
+              "value" : {
+                "elements" : [ ],
+                "fields" : [ ],
+                "kind" : "literal",
+                "literal" : "0",
+                "placeholder" : null,
+                "type" : {
+                  "element" : null,
+                  "kind" : "scalar",
+                  "name" : null,
+                  "nullable" : false,
+                  "scalar" : "INT"
+                },
+                "variableName" : null
+              }
+            } ],
+            "fieldName" : "field4",
+            "subselections" : [ ],
+            "typeCondition" : null
+          } ],
+          "typeCondition" : null
+        } ]
+      },
+      "program" : "INPUT_AND_ARGUMENT_SENSITIVE",
+      "value" : {
+        "elements" : [ ],
+        "fields" : [ {
+          "coordinate" : {
+            "fieldName" : "hash",
+            "typeName" : "Object4"
+          },
+          "value" : {
+            "elements" : [ ],
+            "fields" : [ ],
+            "kind" : "generated-hash",
+            "literal" : null,
+            "salt" : -231631893,
+            "scalar" : null,
+            "typeName" : null
+          }
+        } ],
+        "kind" : "object",
+        "literal" : null,
+        "salt" : null,
+        "scalar" : null,
+        "typeName" : "Object4"
+      }
+    }, {
+      "coordinate" : {
+        "fieldName" : "field2",
+        "typeName" : "Object3"
+      },
+      "fragment" : {
+        "ownerName" : "Object3",
+        "selections" : [ {
+          "alias" : null,
+          "arguments" : [ {
+            "name" : "arg",
+            "value" : {
+              "elements" : [ ],
+              "fields" : [ ],
+              "kind" : "literal",
+              "literal" : "1",
+              "placeholder" : null,
+              "type" : {
+                "element" : null,
+                "kind" : "scalar",
+                "name" : null,
+                "nullable" : false,
+                "scalar" : "INT"
+              },
+              "variableName" : null
+            }
+          } ],
+          "fieldName" : "field4",
+          "subselections" : [ ],
+          "typeCondition" : null
+        } ]
+      },
+      "program" : "INPUT_AND_ARGUMENT_SENSITIVE",
+      "value" : {
+        "elements" : [ {
+          "elements" : [ ],
+          "fields" : [ {
+            "coordinate" : {
+              "fieldName" : "hash",
+              "typeName" : "Object4"
+            },
+            "value" : {
+              "elements" : [ ],
+              "fields" : [ ],
+              "kind" : "generated-hash",
+              "literal" : null,
+              "salt" : -1857388954,
+              "scalar" : null,
+              "typeName" : null
+            }
+          } ],
+          "kind" : "object",
+          "literal" : null,
+          "salt" : null,
+          "scalar" : null,
+          "typeName" : "Object4"
+        } ],
+        "fields" : [ ],
+        "kind" : "list",
+        "literal" : null,
+        "salt" : null,
+        "scalar" : null,
+        "typeName" : null
+      }
+    }, {
+      "coordinate" : {
+        "fieldName" : "field3",
+        "typeName" : "Object3"
+      },
+      "fragment" : {
+        "ownerName" : "Object3",
+        "selections" : [ {
+          "alias" : null,
+          "arguments" : [ ],
+          "fieldName" : "field0",
+          "subselections" : [ {
+            "alias" : null,
+            "arguments" : [ ],
+            "fieldName" : "__typename",
+            "subselections" : [ ],
+            "typeCondition" : null
+          } ],
+          "typeCondition" : null
+        } ]
+      },
+      "program" : "INPUT_AND_ARGUMENT_SENSITIVE",
+      "value" : {
+        "elements" : [ {
+          "elements" : [ ],
+          "fields" : [ {
+            "coordinate" : {
+              "fieldName" : "field0",
+              "typeName" : "Object3"
+            },
+            "value" : {
+              "elements" : [ {
+                "elements" : [ ],
+                "fields" : [ {
+                  "coordinate" : {
+                    "fieldName" : "hash",
+                    "typeName" : "Object1"
+                  },
+                  "value" : {
+                    "elements" : [ ],
+                    "fields" : [ ],
+                    "kind" : "generated-hash",
+                    "literal" : null,
+                    "salt" : -118639357,
+                    "scalar" : null,
+                    "typeName" : null
+                  }
+                } ],
+                "kind" : "object",
+                "literal" : null,
+                "salt" : null,
+                "scalar" : null,
+                "typeName" : "Object1"
+              }, {
+                "elements" : [ ],
+                "fields" : [ {
+                  "coordinate" : {
+                    "fieldName" : "hash",
+                    "typeName" : "Object1"
+                  },
+                  "value" : {
+                    "elements" : [ ],
+                    "fields" : [ ],
+                    "kind" : "generated-hash",
+                    "literal" : null,
+                    "salt" : 768864324,
+                    "scalar" : null,
+                    "typeName" : null
+                  }
+                } ],
+                "kind" : "object",
+                "literal" : null,
+                "salt" : null,
+                "scalar" : null,
+                "typeName" : "Object1"
+              } ],
+              "fields" : [ ],
+              "kind" : "list",
+              "literal" : null,
+              "salt" : null,
+              "scalar" : null,
+              "typeName" : null
+            }
+          }, {
+            "coordinate" : {
+              "fieldName" : "hash",
+              "typeName" : "Object3"
+            },
+            "value" : {
+              "elements" : [ ],
+              "fields" : [ ],
+              "kind" : "generated-hash",
+              "literal" : null,
+              "salt" : 630123879,
+              "scalar" : null,
+              "typeName" : null
+            }
+          } ],
+          "kind" : "object",
+          "literal" : null,
+          "salt" : null,
+          "scalar" : null,
+          "typeName" : "Object3"
+        } ],
+        "fields" : [ ],
+        "kind" : "list",
+        "literal" : null,
+        "salt" : null,
+        "scalar" : null,
+        "typeName" : null
+      }
+    }, {
+      "coordinate" : {
+        "fieldName" : "field4",
+        "typeName" : "Object3"
+      },
+      "fragment" : {
+        "ownerName" : "Object3",
+        "selections" : [ {
+          "alias" : null,
+          "arguments" : [ ],
+          "fieldName" : "field0",
+          "subselections" : [ {
+            "alias" : null,
+            "arguments" : [ ],
+            "fieldName" : "__typename",
+            "subselections" : [ ],
+            "typeCondition" : null
+          } ],
+          "typeCondition" : null
+        } ]
+      },
+      "program" : "CONSTANT",
+      "value" : {
+        "elements" : [ {
+          "elements" : [ ],
+          "fields" : [ ],
+          "kind" : "scalar",
+          "literal" : "Object3.field4[0]-8703",
+          "salt" : null,
+          "scalar" : "STRING",
+          "typeName" : null
+        } ],
+        "fields" : [ ],
+        "kind" : "list",
+        "literal" : null,
+        "salt" : null,
+        "scalar" : null,
+        "typeName" : null
+      }
+    }, {
+      "coordinate" : {
+        "fieldName" : "common",
+        "typeName" : "Object4"
+      },
+      "fragment" : {
+        "ownerName" : "Object4",
+        "selections" : [ {
+          "alias" : null,
+          "arguments" : [ {
+            "name" : "arg",
+            "value" : {
+              "elements" : [ ],
+              "fields" : [ ],
+              "kind" : "list",
+              "literal" : null,
+              "placeholder" : null,
+              "type" : {
+                "element" : {
+                  "element" : null,
+                  "kind" : "scalar",
+                  "name" : null,
+                  "nullable" : true,
+                  "scalar" : "STRING"
+                },
+                "kind" : "list",
+                "name" : null,
+                "nullable" : false,
+                "scalar" : null
+              },
+              "variableName" : null
+            }
+          } ],
+          "fieldName" : "field3",
+          "subselections" : [ ],
+          "typeCondition" : null
+        }, {
+          "alias" : null,
+          "arguments" : [ {
+            "name" : "arg",
+            "value" : {
+              "elements" : [ {
+                "elements" : [ ],
+                "fields" : [ ],
+                "kind" : "literal",
+                "literal" : "0",
+                "placeholder" : null,
+                "type" : {
+                  "element" : null,
+                  "kind" : "scalar",
+                  "name" : null,
+                  "nullable" : false,
+                  "scalar" : "INT"
+                },
+                "variableName" : null
+              }, {
+                "elements" : [ ],
+                "fields" : [ ],
+                "kind" : "literal",
+                "literal" : "1",
+                "placeholder" : null,
+                "type" : {
+                  "element" : null,
+                  "kind" : "scalar",
+                  "name" : null,
+                  "nullable" : false,
+                  "scalar" : "INT"
+                },
+                "variableName" : null
+              } ],
+              "fields" : [ ],
+              "kind" : "list",
+              "literal" : null,
+              "placeholder" : null,
+              "type" : {
+                "element" : {
+                  "element" : null,
+                  "kind" : "scalar",
+                  "name" : null,
+                  "nullable" : false,
+                  "scalar" : "INT"
+                },
+                "kind" : "list",
+                "name" : null,
+                "nullable" : false,
+                "scalar" : null
+              },
+              "variableName" : null
+            }
+          } ],
+          "fieldName" : "field2",
+          "subselections" : [ ],
+          "typeCondition" : null
+        } ]
+      },
+      "program" : "INPUT_SENSITIVE",
+      "value" : {
+        "elements" : [ ],
+        "fields" : [ ],
+        "kind" : "scalar",
+        "literal" : "Object4.common-1254",
+        "salt" : null,
+        "scalar" : "STRING",
+        "typeName" : null
+      }
+    }, {
+      "coordinate" : {
+        "fieldName" : "field0",
+        "typeName" : "Object4"
+      },
+      "fragment" : {
+        "ownerName" : "Object4",
+        "selections" : [ ]
+      },
+      "program" : "ARGUMENT_SENSITIVE",
+      "value" : {
+        "elements" : [ ],
+        "fields" : [ ],
+        "kind" : "scalar",
+        "literal" : "false",
+        "salt" : null,
+        "scalar" : "BOOLEAN",
+        "typeName" : null
+      }
+    }, {
+      "coordinate" : {
+        "fieldName" : "field1",
+        "typeName" : "Object4"
+      },
+      "fragment" : {
+        "ownerName" : "Object4",
+        "selections" : [ {
+          "alias" : null,
+          "arguments" : [ {
+            "name" : "arg",
+            "value" : {
+              "elements" : [ {
+                "elements" : [ ],
+                "fields" : [ ],
+                "kind" : "variable",
+                "literal" : null,
+                "placeholder" : null,
+                "type" : null,
+                "variableName" : "resolverArgVar20_0"
+              }, {
+                "elements" : [ ],
+                "fields" : [ ],
+                "kind" : "variable",
+                "literal" : null,
+                "placeholder" : null,
+                "type" : null,
+                "variableName" : "resolverArgVar20_1"
+              } ],
+              "fields" : [ ],
+              "kind" : "list",
+              "literal" : null,
+              "placeholder" : null,
+              "type" : {
+                "element" : {
+                  "element" : null,
+                  "kind" : "scalar",
+                  "name" : null,
+                  "nullable" : true,
+                  "scalar" : "STRING"
+                },
+                "kind" : "list",
+                "name" : null,
+                "nullable" : false,
+                "scalar" : null
+              },
+              "variableName" : null
+            }
+          } ],
+          "fieldName" : "field3",
+          "subselections" : [ ],
+          "typeCondition" : null
+        }, {
+          "alias" : null,
+          "arguments" : [ {
+            "name" : "arg",
+            "value" : {
+              "elements" : [ ],
+              "fields" : [ ],
+              "kind" : "literal",
+              "literal" : "true",
+              "placeholder" : null,
+              "type" : {
+                "element" : null,
+                "kind" : "scalar",
+                "name" : null,
+                "nullable" : false,
+                "scalar" : "BOOLEAN"
+              },
+              "variableName" : null
+            }
+          } ],
+          "fieldName" : "field0",
+          "subselections" : [ ],
+          "typeCondition" : null
+        } ]
+      },
+      "program" : "INPUT_AND_ARGUMENT_SENSITIVE",
+      "value" : {
+        "elements" : [ ],
+        "fields" : [ ],
+        "kind" : "scalar",
+        "literal" : "920.2",
+        "salt" : null,
+        "scalar" : "FLOAT",
+        "typeName" : null
+      }
+    }, {
+      "coordinate" : {
+        "fieldName" : "field2",
+        "typeName" : "Object4"
+      },
+      "fragment" : {
+        "ownerName" : "Object4",
+        "selections" : [ {
+          "alias" : null,
+          "arguments" : [ ],
+          "fieldName" : "__typename",
+          "subselections" : [ ],
+          "typeCondition" : null
+        } ]
+      },
+      "program" : "INPUT_AND_ARGUMENT_SENSITIVE",
+      "value" : {
+        "elements" : [ ],
+        "fields" : [ ],
+        "kind" : "scalar",
+        "literal" : "Object4.field2-6206",
+        "salt" : null,
+        "scalar" : "STRING",
+        "typeName" : null
+      }
+    }, {
+      "coordinate" : {
+        "fieldName" : "field3",
+        "typeName" : "Object4"
+      },
+      "fragment" : {
+        "ownerName" : "Object4",
+        "selections" : [ ]
+      },
+      "program" : "ARGUMENT_SENSITIVE",
+      "value" : {
+        "elements" : [ ],
+        "fields" : [ ],
+        "kind" : "scalar",
+        "literal" : "Object4.field3-2720",
+        "salt" : null,
+        "scalar" : "STRING",
+        "typeName" : null
+      }
+    }, {
+      "coordinate" : {
+        "fieldName" : "field4",
+        "typeName" : "Object4"
+      },
+      "fragment" : {
+        "ownerName" : "Object4",
+        "selections" : [ {
+          "alias" : null,
+          "arguments" : [ {
+            "name" : "arg",
+            "value" : {
+              "elements" : [ ],
+              "fields" : [ ],
+              "kind" : "error",
+              "literal" : null,
+              "placeholder" : {
+                "elements" : [ ],
+                "fields" : [ ],
+                "kind" : "literal",
+                "literal" : "value-1",
+                "placeholder" : null,
+                "type" : {
+                  "element" : null,
+                  "kind" : "scalar",
+                  "name" : null,
+                  "nullable" : false,
+                  "scalar" : "STRING"
+                },
+                "variableName" : null
+              },
+              "type" : null,
+              "variableName" : null
+            }
+          } ],
+          "fieldName" : "field1",
+          "subselections" : [ ],
+          "typeCondition" : null
+        }, {
+          "alias" : null,
+          "arguments" : [ {
+            "name" : "arg",
+            "value" : {
+              "elements" : [ {
+                "elements" : [ ],
+                "fields" : [ ],
+                "kind" : "variable",
+                "literal" : null,
+                "placeholder" : null,
+                "type" : null,
+                "variableName" : "resolverArgVar27_0"
+              } ],
+              "fields" : [ ],
+              "kind" : "list",
+              "literal" : null,
+              "placeholder" : null,
+              "type" : {
+                "element" : {
+                  "element" : null,
+                  "kind" : "scalar",
+                  "name" : null,
+                  "nullable" : false,
+                  "scalar" : "INT"
+                },
+                "kind" : "list",
+                "name" : null,
+                "nullable" : false,
+                "scalar" : null
+              },
+              "variableName" : null
+            }
+          } ],
+          "fieldName" : "field2",
+          "subselections" : [ ],
+          "typeCondition" : null
+        } ]
+      },
+      "program" : "INPUT_AND_ARGUMENT_SENSITIVE",
+      "value" : {
+        "elements" : [ ],
+        "fields" : [ ],
+        "kind" : "scalar",
+        "literal" : "Object4.field4-3579",
+        "salt" : null,
+        "scalar" : "STRING",
+        "typeName" : null
+      }
+    }, {
+      "coordinate" : {
+        "fieldName" : "field5",
+        "typeName" : "Object4"
+      },
+      "fragment" : {
+        "ownerName" : "Object4",
+        "selections" : [ {
+          "alias" : null,
+          "arguments" : [ {
+            "name" : "arg",
+            "value" : {
+              "elements" : [ ],
+              "fields" : [ ],
+              "kind" : "literal",
+              "literal" : "0",
+              "placeholder" : null,
+              "type" : {
+                "element" : null,
+                "kind" : "scalar",
+                "name" : null,
+                "nullable" : false,
+                "scalar" : "INT"
+              },
+              "variableName" : null
+            }
+          } ],
+          "fieldName" : "field4",
+          "subselections" : [ ],
+          "typeCondition" : null
+        } ]
+      },
+      "program" : "INPUT_AND_ARGUMENT_SENSITIVE",
+      "value" : {
+        "elements" : [ ],
+        "fields" : [ ],
+        "kind" : "scalar",
+        "literal" : "91",
+        "salt" : null,
+        "scalar" : "INT",
+        "typeName" : null
+      }
+    }, {
+      "coordinate" : {
+        "fieldName" : "query0",
+        "typeName" : "Query"
+      },
+      "fragment" : {
+        "ownerName" : "Query",
+        "selections" : [ ]
+      },
+      "program" : "CONSTANT",
+      "value" : {
+        "elements" : [ ],
+        "fields" : [ {
+          "coordinate" : {
+            "fieldName" : "field4",
+            "typeName" : "Object0"
+          },
+          "value" : {
+            "elements" : [ ],
+            "fields" : [ {
+              "coordinate" : {
+                "fieldName" : "hash",
+                "typeName" : "Object2"
+              },
+              "value" : {
+                "elements" : [ ],
+                "fields" : [ ],
+                "kind" : "generated-hash",
+                "literal" : null,
+                "salt" : 559999618,
+                "scalar" : null,
+                "typeName" : null
+              }
+            } ],
+            "kind" : "object",
+            "literal" : null,
+            "salt" : null,
+            "scalar" : null,
+            "typeName" : "Object2"
+          }
+        }, {
+          "coordinate" : {
+            "fieldName" : "hash",
+            "typeName" : "Object0"
+          },
+          "value" : {
+            "elements" : [ ],
+            "fields" : [ ],
+            "kind" : "generated-hash",
+            "literal" : null,
+            "salt" : 953491086,
+            "scalar" : null,
+            "typeName" : null
+          }
+        } ],
+        "kind" : "object",
+        "literal" : null,
+        "salt" : null,
+        "scalar" : null,
+        "typeName" : "Object0"
+      }
+    }, {
+      "coordinate" : {
+        "fieldName" : "query1",
+        "typeName" : "Query"
+      },
+      "fragment" : {
+        "ownerName" : "Query",
+        "selections" : [ {
+          "alias" : null,
+          "arguments" : [ ],
+          "fieldName" : "query4",
+          "subselections" : [ {
+            "alias" : null,
+            "arguments" : [ ],
+            "fieldName" : "common",
+            "subselections" : [ ],
+            "typeCondition" : null
+          } ],
+          "typeCondition" : null
+        }, {
+          "alias" : null,
+          "arguments" : [ {
+            "name" : "arg",
+            "value" : {
+              "elements" : [ ],
+              "fields" : [ ],
+              "kind" : "literal",
+              "literal" : "1.5",
+              "placeholder" : null,
+              "type" : {
+                "element" : null,
+                "kind" : "scalar",
+                "name" : null,
+                "nullable" : false,
+                "scalar" : "FLOAT"
+              },
+              "variableName" : null
+            }
+          } ],
+          "fieldName" : "query2",
+          "subselections" : [ ],
+          "typeCondition" : null
+        } ]
+      },
+      "program" : "INPUT_AND_ARGUMENT_SENSITIVE",
+      "value" : {
+        "elements" : [ {
+          "elements" : [ ],
+          "fields" : [ ],
+          "kind" : "null",
+          "literal" : null,
+          "salt" : null,
+          "scalar" : null,
+          "typeName" : null
+        }, {
+          "elements" : [ ],
+          "fields" : [ {
+            "coordinate" : {
+              "fieldName" : "hash",
+              "typeName" : "Object2"
+            },
+            "value" : {
+              "elements" : [ ],
+              "fields" : [ ],
+              "kind" : "generated-hash",
+              "literal" : null,
+              "salt" : 397608996,
+              "scalar" : null,
+              "typeName" : null
+            }
+          } ],
+          "kind" : "object",
+          "literal" : null,
+          "salt" : null,
+          "scalar" : null,
+          "typeName" : "Object2"
+        } ],
+        "fields" : [ ],
+        "kind" : "list",
+        "literal" : null,
+        "salt" : null,
+        "scalar" : null,
+        "typeName" : null
+      }
+    }, {
+      "coordinate" : {
+        "fieldName" : "query2",
+        "typeName" : "Query"
+      },
+      "fragment" : {
+        "ownerName" : "Query",
+        "selections" : [ ]
+      },
+      "program" : "ARGUMENT_SENSITIVE",
+      "value" : {
+        "elements" : [ ],
+        "fields" : [ ],
+        "kind" : "scalar",
+        "literal" : "3505",
+        "salt" : null,
+        "scalar" : "INT",
+        "typeName" : null
+      }
+    }, {
+      "coordinate" : {
+        "fieldName" : "query3",
+        "typeName" : "Query"
+      },
+      "fragment" : {
+        "ownerName" : "Query",
+        "selections" : [ {
+          "alias" : null,
+          "arguments" : [ ],
+          "fieldName" : "query4",
+          "subselections" : [ {
+            "alias" : null,
+            "arguments" : [ ],
+            "fieldName" : "common",
+            "subselections" : [ ],
+            "typeCondition" : null
+          } ],
+          "typeCondition" : null
+        } ]
+      },
+      "program" : "CONSTANT",
+      "value" : {
+        "elements" : [ ],
+        "fields" : [ ],
+        "kind" : "null",
+        "literal" : null,
+        "salt" : null,
+        "scalar" : null,
+        "typeName" : null
+      }
+    }, {
+      "coordinate" : {
+        "fieldName" : "query4",
+        "typeName" : "Query"
+      },
+      "fragment" : {
+        "ownerName" : "Query",
+        "selections" : [ {
+          "alias" : null,
+          "arguments" : [ ],
+          "fieldName" : "__typename",
+          "subselections" : [ ],
+          "typeCondition" : null
+        } ]
+      },
+      "program" : "INPUT_SENSITIVE",
+      "value" : {
+        "elements" : [ {
+          "elements" : [ ],
+          "fields" : [ {
+            "coordinate" : {
+              "fieldName" : "field4",
+              "typeName" : "Object0"
+            },
+            "value" : {
+              "elements" : [ ],
+              "fields" : [ {
+                "coordinate" : {
+                  "fieldName" : "hash",
+                  "typeName" : "Object2"
+                },
+                "value" : {
+                  "elements" : [ ],
+                  "fields" : [ ],
+                  "kind" : "generated-hash",
+                  "literal" : null,
+                  "salt" : -763167702,
+                  "scalar" : null,
+                  "typeName" : null
+                }
+              } ],
+              "kind" : "object",
+              "literal" : null,
+              "salt" : null,
+              "scalar" : null,
+              "typeName" : "Object2"
+            }
+          }, {
+            "coordinate" : {
+              "fieldName" : "hash",
+              "typeName" : "Object0"
+            },
+            "value" : {
+              "elements" : [ ],
+              "fields" : [ ],
+              "kind" : "generated-hash",
+              "literal" : null,
+              "salt" : -1617290778,
+              "scalar" : null,
+              "typeName" : null
+            }
+          } ],
+          "kind" : "object",
+          "literal" : null,
+          "salt" : null,
+          "scalar" : null,
+          "typeName" : "Object0"
+        } ],
+        "fields" : [ ],
+        "kind" : "list",
+        "literal" : null,
+        "salt" : null,
+        "scalar" : null,
+        "typeName" : null
+      }
+    }, {
+      "coordinate" : {
+        "fieldName" : "query5",
+        "typeName" : "Query"
+      },
+      "fragment" : {
+        "ownerName" : "Query",
+        "selections" : [ {
+          "alias" : null,
+          "arguments" : [ ],
+          "fieldName" : "query4",
+          "subselections" : [ {
+            "alias" : null,
+            "arguments" : [ ],
+            "fieldName" : "common",
+            "subselections" : [ ],
+            "typeCondition" : null
+          } ],
+          "typeCondition" : null
+        }, {
+          "alias" : null,
+          "arguments" : [ {
+            "name" : "arg",
+            "value" : {
+              "elements" : [ ],
+              "fields" : [ ],
+              "kind" : "literal",
+              "literal" : "0.5",
+              "placeholder" : null,
+              "type" : {
+                "element" : null,
+                "kind" : "scalar",
+                "name" : null,
+                "nullable" : false,
+                "scalar" : "FLOAT"
+              },
+              "variableName" : null
+            }
+          } ],
+          "fieldName" : "query2",
+          "subselections" : [ ],
+          "typeCondition" : null
+        } ]
+      },
+      "program" : "INPUT_AND_ARGUMENT_SENSITIVE",
+      "value" : {
+        "elements" : [ ],
+        "fields" : [ {
+          "coordinate" : {
+            "fieldName" : "field0",
+            "typeName" : "Object3"
+          },
+          "value" : {
+            "elements" : [ ],
+            "fields" : [ ],
+            "kind" : "list",
+            "literal" : null,
+            "salt" : null,
+            "scalar" : null,
+            "typeName" : null
+          }
+        }, {
+          "coordinate" : {
+            "fieldName" : "hash",
+            "typeName" : "Object3"
+          },
+          "value" : {
+            "elements" : [ ],
+            "fields" : [ ],
+            "kind" : "generated-hash",
+            "literal" : null,
+            "salt" : 1096636841,
+            "scalar" : null,
+            "typeName" : null
+          }
+        } ],
+        "kind" : "object",
+        "literal" : null,
+        "salt" : null,
+        "scalar" : null,
+        "typeName" : "Object3"
+      }
+    }, {
+      "coordinate" : {
+        "fieldName" : "query6",
+        "typeName" : "Query"
+      },
+      "fragment" : {
+        "ownerName" : "Query",
+        "selections" : [ {
+          "alias" : null,
+          "arguments" : [ {
+            "name" : "arg",
+            "value" : {
+              "elements" : [ ],
+              "fields" : [ ],
+              "kind" : "literal",
+              "literal" : "1.5",
+              "placeholder" : null,
+              "type" : {
+                "element" : null,
+                "kind" : "scalar",
+                "name" : null,
+                "nullable" : false,
+                "scalar" : "FLOAT"
+              },
+              "variableName" : null
+            }
+          } ],
+          "fieldName" : "query2",
+          "subselections" : [ ],
+          "typeCondition" : null
+        }, {
+          "alias" : null,
+          "arguments" : [ ],
+          "fieldName" : "query4",
+          "subselections" : [ {
+            "alias" : null,
+            "arguments" : [ ],
+            "fieldName" : "common",
+            "subselections" : [ ],
+            "typeCondition" : null
+          } ],
+          "typeCondition" : null
+        } ]
+      },
+      "program" : "INPUT_SENSITIVE",
+      "value" : {
+        "elements" : [ ],
+        "fields" : [ {
+          "coordinate" : {
+            "fieldName" : "hash",
+            "typeName" : "Object4"
+          },
+          "value" : {
+            "elements" : [ ],
+            "fields" : [ ],
+            "kind" : "generated-hash",
+            "literal" : null,
+            "salt" : 1125265992,
+            "scalar" : null,
+            "typeName" : null
+          }
+        } ],
+        "kind" : "object",
+        "literal" : null,
+        "salt" : null,
+        "scalar" : null,
+        "typeName" : "Object4"
+      }
+    }, {
+      "coordinate" : {
+        "fieldName" : "query7",
+        "typeName" : "Query"
+      },
+      "fragment" : {
+        "ownerName" : "Query",
+        "selections" : [ {
+          "alias" : null,
+          "arguments" : [ ],
+          "fieldName" : "query6",
+          "subselections" : [ {
+            "alias" : null,
+            "arguments" : [ {
+              "name" : "arg",
+              "value" : {
+                "elements" : [ ],
+                "fields" : [ ],
+                "kind" : "list",
+                "literal" : null,
+                "placeholder" : null,
+                "type" : {
+                  "element" : {
+                    "element" : null,
+                    "kind" : "scalar",
+                    "name" : null,
+                    "nullable" : true,
+                    "scalar" : "STRING"
+                  },
+                  "kind" : "list",
+                  "name" : null,
+                  "nullable" : false,
+                  "scalar" : null
+                },
+                "variableName" : null
+              }
+            } ],
+            "fieldName" : "field3",
+            "subselections" : [ ],
+            "typeCondition" : "Object4"
+          } ],
+          "typeCondition" : null
+        } ]
+      },
+      "program" : "INPUT_AND_ARGUMENT_SENSITIVE",
+      "value" : {
+        "elements" : [ ],
+        "fields" : [ {
+          "coordinate" : {
+            "fieldName" : "field0",
+            "typeName" : "Object3"
+          },
+          "value" : {
+            "elements" : [ ],
+            "fields" : [ ],
+            "kind" : "list",
+            "literal" : null,
+            "salt" : null,
+            "scalar" : null,
+            "typeName" : null
+          }
+        }, {
+          "coordinate" : {
+            "fieldName" : "hash",
+            "typeName" : "Object3"
+          },
+          "value" : {
+            "elements" : [ ],
+            "fields" : [ ],
+            "kind" : "generated-hash",
+            "literal" : null,
+            "salt" : 1153895143,
+            "scalar" : null,
+            "typeName" : null
+          }
+        } ],
+        "kind" : "object",
+        "literal" : null,
+        "salt" : null,
+        "scalar" : null,
+        "typeName" : "Object3"
+      }
+    } ],
+    "nodeResolvers" : [ ],
+    "variables" : [ {
+      "abstractPath" : null,
+      "argumentName" : "arg",
+      "kind" : "from-argument",
+      "listValue" : false,
+      "literalConvergence" : false,
+      "nestedInput" : false,
+      "nullable" : false,
+      "owner" : {
+        "fieldName" : "field2",
+        "typeName" : "Object2"
+      },
+      "selection" : null,
+      "topLevelUseField" : null,
+      "useDepth" : null,
+      "variableName" : "resolverArgVar8_0"
+    }, {
+      "abstractPath" : null,
+      "argumentName" : "arg",
+      "kind" : "from-argument",
+      "listValue" : false,
+      "literalConvergence" : false,
+      "nestedInput" : false,
+      "nullable" : false,
+      "owner" : {
+        "fieldName" : "field2",
+        "typeName" : "Object2"
+      },
+      "selection" : null,
+      "topLevelUseField" : null,
+      "useDepth" : null,
+      "variableName" : "resolverArgVar8_1"
+    }, {
+      "abstractPath" : null,
+      "argumentName" : "arg",
+      "kind" : "from-argument",
+      "listValue" : false,
+      "literalConvergence" : true,
+      "nestedInput" : false,
+      "nullable" : false,
+      "owner" : {
+        "fieldName" : "field4",
+        "typeName" : "Object2"
+      },
+      "selection" : null,
+      "topLevelUseField" : null,
+      "useDepth" : null,
+      "variableName" : "resolverArgVar9_0"
+    }, {
+      "abstractPath" : null,
+      "argumentName" : "arg",
+      "kind" : "from-argument",
+      "listValue" : false,
+      "literalConvergence" : false,
+      "nestedInput" : false,
+      "nullable" : false,
+      "owner" : {
+        "fieldName" : "field4",
+        "typeName" : "Object2"
+      },
+      "selection" : null,
+      "topLevelUseField" : null,
+      "useDepth" : null,
+      "variableName" : "resolverArgVar9_1"
+    }, {
+      "abstractPath" : null,
+      "argumentName" : "arg",
+      "kind" : "from-argument",
+      "listValue" : false,
+      "literalConvergence" : false,
+      "nestedInput" : true,
+      "nullable" : false,
+      "owner" : {
+        "fieldName" : "field1",
+        "typeName" : "Object3"
+      },
+      "selection" : null,
+      "topLevelUseField" : null,
+      "useDepth" : null,
+      "variableName" : "resolverArgVar10_0"
+    }, {
+      "abstractPath" : null,
+      "argumentName" : "arg",
+      "kind" : "from-argument",
+      "listValue" : false,
+      "literalConvergence" : false,
+      "nestedInput" : true,
+      "nullable" : false,
+      "owner" : {
+        "fieldName" : "field1",
+        "typeName" : "Object3"
+      },
+      "selection" : null,
+      "topLevelUseField" : null,
+      "useDepth" : null,
+      "variableName" : "resolverArgVar10_1"
+    }, {
+      "abstractPath" : null,
+      "argumentName" : "arg",
+      "kind" : "from-argument",
+      "listValue" : false,
+      "literalConvergence" : false,
+      "nestedInput" : true,
+      "nullable" : false,
+      "owner" : {
+        "fieldName" : "field1",
+        "typeName" : "Object4"
+      },
+      "selection" : null,
+      "topLevelUseField" : null,
+      "useDepth" : null,
+      "variableName" : "resolverArgVar20_0"
+    }, {
+      "abstractPath" : null,
+      "argumentName" : "arg",
+      "kind" : "from-argument",
+      "listValue" : false,
+      "literalConvergence" : false,
+      "nestedInput" : true,
+      "nullable" : false,
+      "owner" : {
+        "fieldName" : "field1",
+        "typeName" : "Object4"
+      },
+      "selection" : null,
+      "topLevelUseField" : null,
+      "useDepth" : null,
+      "variableName" : "resolverArgVar20_1"
+    }, {
+      "abstractPath" : null,
+      "argumentName" : "arg",
+      "kind" : "from-argument",
+      "listValue" : false,
+      "literalConvergence" : false,
+      "nestedInput" : true,
+      "nullable" : false,
+      "owner" : {
+        "fieldName" : "field4",
+        "typeName" : "Object4"
+      },
+      "selection" : null,
+      "topLevelUseField" : null,
+      "useDepth" : null,
+      "variableName" : "resolverArgVar27_0"
+    } ]
+  },
+  "schema" : {
+    "deepFields" : {
+      "Object0" : "field0",
+      "Query" : "query0"
+    },
+    "features" : {
+      "hasArguments" : true,
+      "hasImplementationArgumentDefaults" : false,
+      "hasInputObjectArguments" : false,
+      "hasInputObjectListArguments" : false,
+      "hasInputObjects" : false,
+      "hasInterfaces" : true,
+      "hasListArguments" : true,
+      "hasListRecursiveOutputEdges" : true,
+      "hasNullableRecursiveOutputEdges" : true,
+      "hasOutputLists" : true,
+      "hasRecursiveInputTypes" : false,
+      "hasRecursiveOutputEdges" : true,
+      "hasScalarArguments" : true,
+      "hasUnions" : true
+    },
+    "hashType" : {
+      "fields" : [ {
+        "arguments" : [ ],
+        "name" : "nested",
+        "ownerName" : "Hash",
+        "type" : {
+          "elementNullable" : false,
+          "list" : false,
+          "namedType" : "Hash",
+          "nestedElementNullabilities" : [ ],
+          "nullable" : true
+        }
+      }, {
+        "arguments" : [ ],
+        "name" : "hash",
+        "ownerName" : "Hash",
+        "type" : {
+          "elementNullable" : false,
+          "list" : false,
+          "namedType" : "Int",
+          "nestedElementNullabilities" : [ ],
+          "nullable" : false
+        }
+      } ],
+      "implementsNode" : false,
+      "interfaces" : [ ],
+      "name" : "Hash"
+    },
+    "inputObjects" : [ ],
+    "interfaces" : [ {
+      "fields" : [ {
+        "arguments" : [ ],
+        "name" : "common",
+        "ownerName" : "GeneratedInterface",
+        "type" : {
+          "elementNullable" : true,
+          "list" : false,
+          "namedType" : "String",
+          "nestedElementNullabilities" : [ ],
+          "nullable" : false
+        }
+      } ],
+      "members" : [ "Object0", "Object3", "Object4" ],
+      "name" : "GeneratedInterface"
+    } ],
+    "objects" : [ {
+      "fields" : [ {
+        "arguments" : [ ],
+        "name" : "field0",
+        "ownerName" : "Object0",
+        "type" : {
+          "elementNullable" : false,
+          "list" : false,
+          "namedType" : "Object1",
+          "nestedElementNullabilities" : [ ],
+          "nullable" : false
+        }
+      }, {
+        "arguments" : [ {
+          "hasDefaultValue" : false,
+          "name" : "arg",
+          "type" : {
+            "element" : null,
+            "kind" : "scalar",
+            "name" : null,
+            "nullable" : false,
+            "scalar" : "ID"
+          }
+        } ],
+        "name" : "field1",
+        "ownerName" : "Object0",
+        "type" : {
+          "elementNullable" : true,
+          "list" : false,
+          "namedType" : "Float",
+          "nestedElementNullabilities" : [ ],
+          "nullable" : true
+        }
+      }, {
+        "arguments" : [ {
+          "hasDefaultValue" : false,
+          "name" : "arg",
+          "type" : {
+            "element" : null,
+            "kind" : "scalar",
+            "name" : null,
+            "nullable" : true,
+            "scalar" : "ID"
+          }
+        } ],
+        "name" : "field2",
+        "ownerName" : "Object0",
+        "type" : {
+          "elementNullable" : false,
+          "list" : false,
+          "namedType" : "Float",
+          "nestedElementNullabilities" : [ ],
+          "nullable" : true
+        }
+      }, {
+        "arguments" : [ ],
+        "name" : "field3",
+        "ownerName" : "Object0",
+        "type" : {
+          "elementNullable" : false,
+          "list" : false,
+          "namedType" : "Object1",
+          "nestedElementNullabilities" : [ ],
+          "nullable" : true
+        }
+      }, {
+        "arguments" : [ ],
+        "name" : "field4",
+        "ownerName" : "Object0",
+        "type" : {
+          "elementNullable" : false,
+          "list" : false,
+          "namedType" : "Object2",
+          "nestedElementNullabilities" : [ ],
+          "nullable" : false
+        }
+      }, {
+        "arguments" : [ ],
+        "name" : "common",
+        "ownerName" : "Object0",
+        "type" : {
+          "elementNullable" : true,
+          "list" : false,
+          "namedType" : "String",
+          "nestedElementNullabilities" : [ ],
+          "nullable" : false
+        }
+      }, {
+        "arguments" : [ ],
+        "name" : "hash",
+        "ownerName" : "Object0",
+        "type" : {
+          "elementNullable" : false,
+          "list" : false,
+          "namedType" : "Hash",
+          "nestedElementNullabilities" : [ ],
+          "nullable" : false
+        }
+      } ],
+      "implementsNode" : false,
+      "interfaces" : [ "GeneratedInterface" ],
+      "name" : "Object0"
+    }, {
+      "fields" : [ {
+        "arguments" : [ ],
+        "name" : "field0",
+        "ownerName" : "Object1",
+        "type" : {
+          "elementNullable" : false,
+          "list" : false,
+          "namedType" : "Object3",
+          "nestedElementNullabilities" : [ ],
+          "nullable" : true
+        }
+      }, {
+        "arguments" : [ {
+          "hasDefaultValue" : false,
+          "name" : "arg",
+          "type" : {
+            "element" : null,
+            "kind" : "scalar",
+            "name" : null,
+            "nullable" : false,
+            "scalar" : "BOOLEAN"
+          }
+        } ],
+        "name" : "field1",
+        "ownerName" : "Object1",
+        "type" : {
+          "elementNullable" : true,
+          "list" : true,
+          "namedType" : "ID",
+          "nestedElementNullabilities" : [ ],
+          "nullable" : false
+        }
+      }, {
+        "arguments" : [ {
+          "hasDefaultValue" : false,
+          "name" : "arg",
+          "type" : {
+            "element" : {
+              "element" : null,
+              "kind" : "scalar",
+              "name" : null,
+              "nullable" : false,
+              "scalar" : "BOOLEAN"
+            },
+            "kind" : "list",
+            "name" : null,
+            "nullable" : false,
+            "scalar" : null
+          }
+        } ],
+        "name" : "field2",
+        "ownerName" : "Object1",
+        "type" : {
+          "elementNullable" : true,
+          "list" : false,
+          "namedType" : "String",
+          "nestedElementNullabilities" : [ ],
+          "nullable" : true
+        }
+      }, {
+        "arguments" : [ {
+          "hasDefaultValue" : false,
+          "name" : "arg",
+          "type" : {
+            "element" : null,
+            "kind" : "scalar",
+            "name" : null,
+            "nullable" : true,
+            "scalar" : "FLOAT"
+          }
+        } ],
+        "name" : "field3",
+        "ownerName" : "Object1",
+        "type" : {
+          "elementNullable" : false,
+          "list" : false,
+          "namedType" : "Object4",
+          "nestedElementNullabilities" : [ ],
+          "nullable" : false
+        }
+      }, {
+        "arguments" : [ {
+          "hasDefaultValue" : false,
+          "name" : "arg",
+          "type" : {
+            "element" : null,
+            "kind" : "scalar",
+            "name" : null,
+            "nullable" : false,
+            "scalar" : "STRING"
+          }
+        } ],
+        "name" : "field4",
+        "ownerName" : "Object1",
+        "type" : {
+          "elementNullable" : false,
+          "list" : false,
+          "namedType" : "Int",
+          "nestedElementNullabilities" : [ ],
+          "nullable" : false
+        }
+      }, {
+        "arguments" : [ ],
+        "name" : "hash",
+        "ownerName" : "Object1",
+        "type" : {
+          "elementNullable" : false,
+          "list" : false,
+          "namedType" : "Hash",
+          "nestedElementNullabilities" : [ ],
+          "nullable" : false
+        }
+      } ],
+      "implementsNode" : false,
+      "interfaces" : [ ],
+      "name" : "Object1"
+    }, {
+      "fields" : [ {
+        "arguments" : [ {
+          "hasDefaultValue" : false,
+          "name" : "arg",
+          "type" : {
+            "element" : null,
+            "kind" : "scalar",
+            "name" : null,
+            "nullable" : true,
+            "scalar" : "FLOAT"
+          }
+        } ],
+        "name" : "field0",
+        "ownerName" : "Object2",
+        "type" : {
+          "elementNullable" : false,
+          "list" : true,
+          "namedType" : "Object3",
+          "nestedElementNullabilities" : [ ],
+          "nullable" : false
+        }
+      }, {
+        "arguments" : [ {
+          "hasDefaultValue" : false,
+          "name" : "arg",
+          "type" : {
+            "element" : {
+              "element" : null,
+              "kind" : "scalar",
+              "name" : null,
+              "nullable" : false,
+              "scalar" : "STRING"
+            },
+            "kind" : "list",
+            "name" : null,
+            "nullable" : false,
+            "scalar" : null
+          }
+        } ],
+        "name" : "field1",
+        "ownerName" : "Object2",
+        "type" : {
+          "elementNullable" : true,
+          "list" : true,
+          "namedType" : "Object0",
+          "nestedElementNullabilities" : [ ],
+          "nullable" : true
+        }
+      }, {
+        "arguments" : [ {
+          "hasDefaultValue" : false,
+          "name" : "arg",
+          "type" : {
+            "element" : null,
+            "kind" : "scalar",
+            "name" : null,
+            "nullable" : false,
+            "scalar" : "INT"
+          }
+        } ],
+        "name" : "field2",
+        "ownerName" : "Object2",
+        "type" : {
+          "elementNullable" : false,
+          "list" : false,
+          "namedType" : "ID",
+          "nestedElementNullabilities" : [ ],
+          "nullable" : true
+        }
+      }, {
+        "arguments" : [ {
+          "hasDefaultValue" : false,
+          "name" : "arg",
+          "type" : {
+            "element" : null,
+            "kind" : "scalar",
+            "name" : null,
+            "nullable" : false,
+            "scalar" : "INT"
+          }
+        } ],
+        "name" : "field3",
+        "ownerName" : "Object2",
+        "type" : {
+          "elementNullable" : false,
+          "list" : true,
+          "namedType" : "Object2",
+          "nestedElementNullabilities" : [ ],
+          "nullable" : false
+        }
+      }, {
+        "arguments" : [ {
+          "hasDefaultValue" : false,
+          "name" : "arg",
+          "type" : {
+            "element" : null,
+            "kind" : "scalar",
+            "name" : null,
+            "nullable" : false,
+            "scalar" : "FLOAT"
+          }
+        } ],
+        "name" : "field4",
+        "ownerName" : "Object2",
+        "type" : {
+          "elementNullable" : true,
+          "list" : false,
+          "namedType" : "Object3",
+          "nestedElementNullabilities" : [ ],
+          "nullable" : true
+        }
+      }, {
+        "arguments" : [ ],
+        "name" : "hash",
+        "ownerName" : "Object2",
+        "type" : {
+          "elementNullable" : false,
+          "list" : false,
+          "namedType" : "Hash",
+          "nestedElementNullabilities" : [ ],
+          "nullable" : false
+        }
+      } ],
+      "implementsNode" : false,
+      "interfaces" : [ ],
+      "name" : "Object2"
+    }, {
+      "fields" : [ {
+        "arguments" : [ ],
+        "name" : "field0",
+        "ownerName" : "Object3",
+        "type" : {
+          "elementNullable" : false,
+          "list" : true,
+          "namedType" : "Object1",
+          "nestedElementNullabilities" : [ ],
+          "nullable" : true
+        }
+      }, {
+        "arguments" : [ {
+          "hasDefaultValue" : false,
+          "name" : "arg",
+          "type" : {
+            "element" : null,
+            "kind" : "scalar",
+            "name" : null,
+            "nullable" : false,
+            "scalar" : "BOOLEAN"
+          }
+        } ],
+        "name" : "field1",
+        "ownerName" : "Object3",
+        "type" : {
+          "elementNullable" : true,
+          "list" : false,
+          "namedType" : "Object4",
+          "nestedElementNullabilities" : [ ],
+          "nullable" : false
+        }
+      }, {
+        "arguments" : [ {
+          "hasDefaultValue" : false,
+          "name" : "arg",
+          "type" : {
+            "element" : null,
+            "kind" : "scalar",
+            "name" : null,
+            "nullable" : true,
+            "scalar" : "FLOAT"
+          }
+        } ],
+        "name" : "field2",
+        "ownerName" : "Object3",
+        "type" : {
+          "elementNullable" : false,
+          "list" : true,
+          "namedType" : "Object4",
+          "nestedElementNullabilities" : [ ],
+          "nullable" : true
+        }
+      }, {
+        "arguments" : [ {
+          "hasDefaultValue" : false,
+          "name" : "arg",
+          "type" : {
+            "element" : null,
+            "kind" : "scalar",
+            "name" : null,
+            "nullable" : false,
+            "scalar" : "ID"
+          }
+        } ],
+        "name" : "field3",
+        "ownerName" : "Object3",
+        "type" : {
+          "elementNullable" : false,
+          "list" : true,
+          "namedType" : "Object3",
+          "nestedElementNullabilities" : [ ],
+          "nullable" : true
+        }
+      }, {
+        "arguments" : [ {
+          "hasDefaultValue" : false,
+          "name" : "arg",
+          "type" : {
+            "element" : null,
+            "kind" : "scalar",
+            "name" : null,
+            "nullable" : false,
+            "scalar" : "INT"
+          }
+        } ],
+        "name" : "field4",
+        "ownerName" : "Object3",
+        "type" : {
+          "elementNullable" : false,
+          "list" : true,
+          "namedType" : "String",
+          "nestedElementNullabilities" : [ ],
+          "nullable" : true
+        }
+      }, {
+        "arguments" : [ ],
+        "name" : "common",
+        "ownerName" : "Object3",
+        "type" : {
+          "elementNullable" : true,
+          "list" : false,
+          "namedType" : "String",
+          "nestedElementNullabilities" : [ ],
+          "nullable" : false
+        }
+      }, {
+        "arguments" : [ ],
+        "name" : "hash",
+        "ownerName" : "Object3",
+        "type" : {
+          "elementNullable" : false,
+          "list" : false,
+          "namedType" : "Hash",
+          "nestedElementNullabilities" : [ ],
+          "nullable" : false
+        }
+      } ],
+      "implementsNode" : false,
+      "interfaces" : [ "GeneratedInterface" ],
+      "name" : "Object3"
+    }, {
+      "fields" : [ {
+        "arguments" : [ {
+          "hasDefaultValue" : false,
+          "name" : "arg",
+          "type" : {
+            "element" : null,
+            "kind" : "scalar",
+            "name" : null,
+            "nullable" : false,
+            "scalar" : "BOOLEAN"
+          }
+        } ],
+        "name" : "field0",
+        "ownerName" : "Object4",
+        "type" : {
+          "elementNullable" : false,
+          "list" : false,
+          "namedType" : "Boolean",
+          "nestedElementNullabilities" : [ ],
+          "nullable" : false
+        }
+      }, {
+        "arguments" : [ {
+          "hasDefaultValue" : false,
+          "name" : "arg",
+          "type" : {
+            "element" : null,
+            "kind" : "scalar",
+            "name" : null,
+            "nullable" : false,
+            "scalar" : "STRING"
+          }
+        } ],
+        "name" : "field1",
+        "ownerName" : "Object4",
+        "type" : {
+          "elementNullable" : true,
+          "list" : false,
+          "namedType" : "Float",
+          "nestedElementNullabilities" : [ ],
+          "nullable" : false
+        }
+      }, {
+        "arguments" : [ {
+          "hasDefaultValue" : false,
+          "name" : "arg",
+          "type" : {
+            "element" : {
+              "element" : null,
+              "kind" : "scalar",
+              "name" : null,
+              "nullable" : false,
+              "scalar" : "INT"
+            },
+            "kind" : "list",
+            "name" : null,
+            "nullable" : false,
+            "scalar" : null
+          }
+        } ],
+        "name" : "field2",
+        "ownerName" : "Object4",
+        "type" : {
+          "elementNullable" : false,
+          "list" : false,
+          "namedType" : "String",
+          "nestedElementNullabilities" : [ ],
+          "nullable" : false
+        }
+      }, {
+        "arguments" : [ {
+          "hasDefaultValue" : false,
+          "name" : "arg",
+          "type" : {
+            "element" : {
+              "element" : null,
+              "kind" : "scalar",
+              "name" : null,
+              "nullable" : true,
+              "scalar" : "STRING"
+            },
+            "kind" : "list",
+            "name" : null,
+            "nullable" : false,
+            "scalar" : null
+          }
+        } ],
+        "name" : "field3",
+        "ownerName" : "Object4",
+        "type" : {
+          "elementNullable" : true,
+          "list" : false,
+          "namedType" : "String",
+          "nestedElementNullabilities" : [ ],
+          "nullable" : false
+        }
+      }, {
+        "arguments" : [ {
+          "hasDefaultValue" : false,
+          "name" : "arg",
+          "type" : {
+            "element" : null,
+            "kind" : "scalar",
+            "name" : null,
+            "nullable" : false,
+            "scalar" : "INT"
+          }
+        } ],
+        "name" : "field4",
+        "ownerName" : "Object4",
+        "type" : {
+          "elementNullable" : false,
+          "list" : false,
+          "namedType" : "String",
+          "nestedElementNullabilities" : [ ],
+          "nullable" : false
+        }
+      }, {
+        "arguments" : [ {
+          "hasDefaultValue" : false,
+          "name" : "arg",
+          "type" : {
+            "element" : null,
+            "kind" : "scalar",
+            "name" : null,
+            "nullable" : false,
+            "scalar" : "BOOLEAN"
+          }
+        } ],
+        "name" : "field5",
+        "ownerName" : "Object4",
+        "type" : {
+          "elementNullable" : false,
+          "list" : false,
+          "namedType" : "Int",
+          "nestedElementNullabilities" : [ ],
+          "nullable" : false
+        }
+      }, {
+        "arguments" : [ ],
+        "name" : "common",
+        "ownerName" : "Object4",
+        "type" : {
+          "elementNullable" : true,
+          "list" : false,
+          "namedType" : "String",
+          "nestedElementNullabilities" : [ ],
+          "nullable" : false
+        }
+      }, {
+        "arguments" : [ ],
+        "name" : "hash",
+        "ownerName" : "Object4",
+        "type" : {
+          "elementNullable" : false,
+          "list" : false,
+          "namedType" : "Hash",
+          "nestedElementNullabilities" : [ ],
+          "nullable" : false
+        }
+      } ],
+      "implementsNode" : false,
+      "interfaces" : [ "GeneratedInterface" ],
+      "name" : "Object4"
+    } ],
+    "query" : {
+      "fields" : [ {
+        "arguments" : [ ],
+        "name" : "query0",
+        "ownerName" : "Query",
+        "type" : {
+          "elementNullable" : false,
+          "list" : false,
+          "namedType" : "Object0",
+          "nestedElementNullabilities" : [ ],
+          "nullable" : false
+        }
+      }, {
+        "arguments" : [ {
+          "hasDefaultValue" : false,
+          "name" : "arg",
+          "type" : {
+            "element" : null,
+            "kind" : "scalar",
+            "name" : null,
+            "nullable" : true,
+            "scalar" : "FLOAT"
+          }
+        } ],
+        "name" : "query1",
+        "ownerName" : "Query",
+        "type" : {
+          "elementNullable" : true,
+          "list" : true,
+          "namedType" : "Object2",
+          "nestedElementNullabilities" : [ ],
+          "nullable" : false
+        }
+      }, {
+        "arguments" : [ {
+          "hasDefaultValue" : false,
+          "name" : "arg",
+          "type" : {
+            "element" : null,
+            "kind" : "scalar",
+            "name" : null,
+            "nullable" : false,
+            "scalar" : "FLOAT"
+          }
+        } ],
+        "name" : "query2",
+        "ownerName" : "Query",
+        "type" : {
+          "elementNullable" : false,
+          "list" : false,
+          "namedType" : "Int",
+          "nestedElementNullabilities" : [ ],
+          "nullable" : true
+        }
+      }, {
+        "arguments" : [ {
+          "hasDefaultValue" : false,
+          "name" : "arg",
+          "type" : {
+            "element" : null,
+            "kind" : "scalar",
+            "name" : null,
+            "nullable" : true,
+            "scalar" : "FLOAT"
+          }
+        } ],
+        "name" : "query3",
+        "ownerName" : "Query",
+        "type" : {
+          "elementNullable" : false,
+          "list" : true,
+          "namedType" : "GeneratedInterface",
+          "nestedElementNullabilities" : [ ],
+          "nullable" : true
+        }
+      }, {
+        "arguments" : [ ],
+        "name" : "query4",
+        "ownerName" : "Query",
+        "type" : {
+          "elementNullable" : false,
+          "list" : true,
+          "namedType" : "GeneratedInterface",
+          "nestedElementNullabilities" : [ ],
+          "nullable" : false
+        }
+      }, {
+        "arguments" : [ {
+          "hasDefaultValue" : false,
+          "name" : "arg",
+          "type" : {
+            "element" : null,
+            "kind" : "scalar",
+            "name" : null,
+            "nullable" : false,
+            "scalar" : "ID"
+          }
+        } ],
+        "name" : "query5",
+        "ownerName" : "Query",
+        "type" : {
+          "elementNullable" : true,
+          "list" : false,
+          "namedType" : "Object3",
+          "nestedElementNullabilities" : [ ],
+          "nullable" : true
+        }
+      }, {
+        "arguments" : [ ],
+        "name" : "query6",
+        "ownerName" : "Query",
+        "type" : {
+          "elementNullable" : true,
+          "list" : false,
+          "namedType" : "GeneratedUnion",
+          "nestedElementNullabilities" : [ ],
+          "nullable" : true
+        }
+      }, {
+        "arguments" : [ {
+          "hasDefaultValue" : false,
+          "name" : "arg",
+          "type" : {
+            "element" : null,
+            "kind" : "scalar",
+            "name" : null,
+            "nullable" : false,
+            "scalar" : "FLOAT"
+          }
+        } ],
+        "name" : "query7",
+        "ownerName" : "Query",
+        "type" : {
+          "elementNullable" : false,
+          "list" : false,
+          "namedType" : "Object3",
+          "nestedElementNullabilities" : [ ],
+          "nullable" : true
+        }
+      } ],
+      "implementsNode" : false,
+      "interfaces" : [ ],
+      "name" : "Query"
+    },
+    "sdl" : "interface GeneratedInterface {\n  common: String!\n}\n\ntype Hash {\n  nested: Hash\n  hash: Int!\n}\n\ntype Object0 implements GeneratedInterface {\n  field0: Object1!\n  field1(arg: ID!): Float\n  field2(arg: ID): Float\n  field3: Object1\n  field4: Object2!\n  common: String!\n  hash: Hash!\n}\n\ntype Object1 {\n  field0: Object3\n  field1(arg: Boolean!): [ID]!\n  field2(arg: [Boolean!]!): String\n  field3(arg: Float): Object4!\n  field4(arg: String!): Int!\n  hash: Hash!\n}\n\ntype Object2 {\n  field0(arg: Float): [Object3!]!\n  field1(arg: [String!]!): [Object0]\n  field2(arg: Int!): ID\n  field3(arg: Int!): [Object2!]!\n  field4(arg: Float!): Object3\n  hash: Hash!\n}\n\ntype Object3 implements GeneratedInterface {\n  field0: [Object1!]\n  field1(arg: Boolean!): Object4!\n  field2(arg: Float): [Object4!]\n  field3(arg: ID!): [Object3!]\n  field4(arg: Int!): [String!]\n  common: String!\n  hash: Hash!\n}\n\ntype Object4 implements GeneratedInterface {\n  field0(arg: Boolean!): Boolean!\n  field1(arg: String!): Float!\n  field2(arg: [Int!]!): String!\n  field3(arg: [String]!): String!\n  field4(arg: Int!): String!\n  field5(arg: Boolean!): Int!\n  common: String!\n  hash: Hash!\n}\n\nunion GeneratedUnion = Object4\n\ntype Query {\n  query0: Object0!\n  query1(arg: Float): [Object2]!\n  query2(arg: Float!): Int\n  query3(arg: Float): [GeneratedInterface!]\n  query4: [GeneratedInterface!]!\n  query5(arg: ID!): Object3\n  query6: GeneratedUnion\n  query7(arg: Float!): Object3\n}",
+    "unions" : [ {
+      "members" : [ "Object4" ],
+      "name" : "GeneratedUnion"
+    } ]
+  },
+  "version" : 1
+}
