@@ -147,9 +147,9 @@ class FieldCompleter(
                 } else {
                     val collectedFields = collectFields(currentOER.type, parameters).collectedFieldsMap
                     val completed = if (parameters.engineExecutionContext.incrementalExecutionEnabled) {
-                        completeExecutionPlan(parameters, collectedFields, BuildExecutionPlan(collectedFields))
+                        executeExecutionPlan(parameters, collectedFields, BuildExecutionPlan(collectedFields))
                     } else {
-                        objectFieldMap(parameters, collectedFields)
+                        completeCollectedFields(parameters, collectedFields)
                     }
                     completed.map { resolvedData ->
                         ctxCompleteObject.onCompleted(resolvedData, null)
@@ -159,54 +159,60 @@ class FieldCompleter(
             }
     }
 
-    private fun completeExecutionPlan(
-        parameters: ExecutionParameters,
+    /**
+     * Adapts Section 6.5, Executing an Execution Plan, using [completeCollectedFields].
+     */
+    internal fun executeExecutionPlan(
+        ctx: ExecutionParameters,
         collectedFields: CollectedFieldsMap,
-        plan: ExecutionPlan,
+        executionPlan: ExecutionPlan,
     ): Value<Map<String, Any?>> {
-        val currentGroup = objectFieldMap(parameters, plan.collectedFieldsMap)
-        if (plan.newCollectedFieldsMaps.isEmpty()) return currentGroup
+        val currentGroup = completeCollectedFields(ctx, executionPlan.collectedFieldsMap)
+        if (executionPlan.newCollectedFieldsMaps.isEmpty()) return currentGroup
 
-        // Complete all groups eagerly until incremental result delivery is supported.
-        val groups = listOf(currentGroup) + plan.newCollectedFieldsMaps.values.map { objectFieldMap(parameters, it) }
+        val groups = listOf(currentGroup) + executionPlan.newCollectedFieldsMaps.values.map {
+            completeCollectedFields(ctx, it)
+        }
+        // A group contains fields of this object that share the same DeferUsage set.
+        // This includes the current group and deferred groups; overlapping defers can produce a group with multiple usages.
+        // Merge completed group maps in original field order.
         return Value.waitAll(groups).map {
             val completedFields = groups.flatMap { it.getCompleted().entries }.associate { it.toPair() }
             collectedFields.mapValues { (responseName, _) -> completedFields.getValue(responseName) }
         }
     }
 
-    private fun objectFieldMap(
-        parameters: ExecutionParameters,
-        collectedFields: CollectedFieldsMap,
+    /**
+     * Adapts Section 6.3.3, Executing Collected Fields: [FieldResolver] starts resolver calls separately,
+     * so this returns their completed values in collection order, regardless of completion order.
+     */
+    internal fun completeCollectedFields(
+        ctx: ExecutionParameters,
+        collectedFieldsMap: CollectedFieldsMap,
     ): Value<Map<String, Any?>> {
-        val currentOER = parameters.currentObjectEngineResult
-        val fields = collectedFields.values
-        val fieldValues = fields.map { field ->
-            val newParams = parameters.forField(currentOER.type, field)
-            val fieldKey = buildOERKeyForField(newParams, field)
-            val bypassChecker = shouldBypassChecker(field, parameters)
-
-            // Obtain a result for this field
-            val unhandledFieldValue = combineValues(
-                currentOER.getValue(fieldKey, RAW_VALUE_SLOT),
-                currentOER.getValue(fieldKey, ACCESS_CHECK_SLOT),
-                bypassChecker,
-                field.fieldName,
-                newParams.path
-            )
-
-            field.responseKey to completeField(field, newParams, unhandledFieldValue).map { it.value }
+        val fieldValues = collectedFieldsMap.map { (responseName, field) ->
+            responseName to completeField(ctx, field)
         }
+        return Value.waitAll(fieldValues.map { it.second }).map {
+            fieldValues.associate { (key, value) -> key to value.getCompleted().value }
+        }
+    }
 
-        return Value.waitAll(fieldValues.map { it.second })
-            .thenCompose { _, throwable ->
-                if (throwable != null) {
-                    Value.fromThrowable(throwable)
-                } else {
-                    val resolvedData = fieldValues.associate { (key, value) -> key to value.getCompleted() }
-                    Value.fromValue(resolvedData)
-                }
-            }
+    private fun completeField(
+        ctx: ExecutionParameters,
+        field: CollectedField,
+    ): Value<FieldCompletionResult> {
+        val currentOER = ctx.currentObjectEngineResult
+        val fieldParameters = ctx.forField(currentOER.type, field)
+        val fieldKey = buildOERKeyForField(fieldParameters, field)
+        val unhandledFieldValue = combineValues(
+            currentOER.getValue(fieldKey, RAW_VALUE_SLOT),
+            currentOER.getValue(fieldKey, ACCESS_CHECK_SLOT),
+            shouldBypassChecker(field, ctx),
+            field.fieldName,
+            fieldParameters.path,
+        )
+        return completeField(field, fieldParameters, unhandledFieldValue)
     }
 
     /**

@@ -5,6 +5,7 @@ package viaduct.engine.runtime.execution
 import graphql.language.Directive
 import graphql.schema.GraphQLObjectType
 import kotlin.time.Duration.Companion.seconds
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.future.await
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
@@ -16,6 +17,11 @@ import viaduct.engine.api.mocks.FeatureTest
 import viaduct.engine.api.mocks.MockTenantModuleDSL
 import viaduct.engine.api.mocks.createEngineObjectData
 import viaduct.engine.api.mocks.runFeatureTest
+import viaduct.engine.runtime.FieldResolutionResult
+import viaduct.engine.runtime.ObjectEngineResultImpl
+import viaduct.engine.runtime.ObjectEngineResultImpl.Companion.setCheckerValue
+import viaduct.engine.runtime.ObjectEngineResultImpl.Companion.setRawValue
+import viaduct.engine.runtime.Value
 import viaduct.engine.runtime.mat.KeyTree
 import viaduct.engine.runtime.mat.KeyTreeBuilder
 import viaduct.engine.runtime.mat.build
@@ -119,6 +125,37 @@ internal fun mkExecutionParameters(
     }
 
     return parameters
+}
+
+internal fun CoroutineScope.mkObjectCompletionParameters(
+    schemaSDL: String,
+    coordinate: Coordinate,
+    query: String,
+): ExecutionParameters {
+    val captured = mkExecutionParameters(schemaSDL, coordinate, query)
+    val objectType = captured.executionStepInfo.unwrappedNonNullType as GraphQLObjectType
+    return captured.forObjectTraversal(
+        checkNotNull(captured.field),
+        ObjectEngineResultImpl.newForType(objectType),
+        captured.localContext,
+        null,
+    ).copy(
+        // The captured request has finished; completion work belongs to this test's scope.
+        constants = captured.constants.copy(supervisorScopeFactory = { CoroutineScope(it) }, rootCoroutineContext = coroutineContext),
+        errorAccumulator = ErrorAccumulator(),
+    )
+}
+
+internal fun setRawFieldValue(
+    ctx: ExecutionParameters,
+    field: CollectedField,
+    value: Value<FieldResolutionResult>
+) {
+    val fieldCtx = ctx.forField(ctx.currentObjectEngineResult.type, field)
+    ctx.currentObjectEngineResult.computeIfAbsent(FieldExecutionHelpers.buildOERKeyForField(fieldCtx, field)) {
+        it.setRawValue(value)
+        it.setCheckerValue(Value.fromValue(null))
+    }
 }
 
 internal fun mkDefer(label: String?): Defer = Defer(label, Directive.newDirective().name("defer").build())
