@@ -149,7 +149,7 @@ jobs:
         id: run_tests
         run: |
           echo "🧪 Running tests..."
-          if ./gradlew test --scan --continue; then
+          if ./gradlew test --scan --continue -PtestJavaVersion=${{ matrix.java }}; then
             echo "✅ Test execution completed"
           else
             echo "⚠️ Some tests failed"
@@ -191,7 +191,7 @@ jobs:
           java-version: ${{ matrix.java }}
 
       - name: Check core
-        run: ./gradlew -p core check --scan --continue
+        run: ./gradlew -p core check --scan --continue -PtestJavaVersion=${{ matrix.java }}
         shell: bash
 
   verify-publication-classpaths:

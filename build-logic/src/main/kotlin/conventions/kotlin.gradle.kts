@@ -7,6 +7,7 @@ plugins {
     id("conventions.kotlin-without-tests")
     id("conventions.jacoco")
     id("conventions.test-retry")
+    id("conventions.test-jvm")
 }
 
 val libs = extensions.getByType(VersionCatalogsExtension::class.java).named("libs")
@@ -17,6 +18,11 @@ dependencies {
 
     testRuntimeOnly(libs.findLibrary("junit-engine").get())
     testRuntimeOnly(libs.findLibrary("junit-launcher").get())
+
+    constraints {
+        testImplementation(libs.findLibrary("byte-buddy").get())
+        testImplementation(libs.findLibrary("byte-buddy-agent").get())
+    }
 }
 
 tasks.named<Test>("test") {
