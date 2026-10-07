@@ -10,6 +10,7 @@ import graphql.language.VariableReference
 import graphql.schema.GraphQLCompositeType
 import graphql.schema.GraphQLObjectType
 import graphql.schema.GraphQLSchema
+import java.util.IdentityHashMap
 import java.util.concurrent.ConcurrentHashMap
 import viaduct.engine.api.EngineSchema
 import viaduct.engine.runtime.execution.QueryPlan.Field
@@ -54,10 +55,16 @@ class CollectedField(
         check(occurrences.all { (it.field.selectionSet == null) == (first == null) }) {
             "Cannot merge fields with different subselection flavors"
         }
-        if (first == null || occurrences.size == 1) {
+        if (occurrences.all { it.field.selectionSet === first }) {
             first
         } else {
-            SelectionSet.merge(occurrences.map { it.field.selectionSet!! }, schema)
+            // Rewritten occurrences can share complete child sets; combining them again multiplies descendants.
+            val seen = IdentityHashMap<SelectionSet, Boolean>()
+            val children = occurrences.mapNotNull {
+                val child = it.field.selectionSet!!
+                if (seen.put(child, true) == null) child else null
+            }
+            SelectionSet.merge(children, schema)
         }
     }
 

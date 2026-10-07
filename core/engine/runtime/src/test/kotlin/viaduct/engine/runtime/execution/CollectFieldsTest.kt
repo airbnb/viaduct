@@ -5,6 +5,7 @@ import graphql.execution.ResultPath
 import graphql.schema.GraphQLObjectType
 import graphql.schema.GraphQLSchema
 import io.kotest.matchers.collections.shouldContain
+import io.kotest.matchers.collections.shouldContainExactly
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.collections.shouldNotContain
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -30,7 +31,7 @@ class CollectFieldsTest {
     @Nested
     inner class MergedSelectionSetTests {
         @Test
-        fun `many occurrences preserve every selection in order and share descendants`() {
+        fun `many occurrences reuse shared children without dropping occurrences`() {
             val schema = "type Query { obj: Obj } type Obj { x: Int, child: Obj }".asEngineSchema
             val plan = buildPlan(
                 "{ obj { alias: x ...F ... on Obj { child { x } } } } fragment F on Obj { x }",
@@ -43,14 +44,31 @@ class CollectFieldsTest {
 
             val merged = collected.selectionSet!!
 
-            assertSame(original.parentType, merged.parentType)
-            assertEquals(occurrences.size * original.selections.size, merged.selections.size)
-            merged.selections.forEachIndexed { index, selection ->
-                assertSame(original.selections[index % original.selections.size], selection)
-            }
+            assertSame(original, merged)
+            assertSame(occurrences, collected.occurrences)
             assertSame(merged, collected.selectionSet)
             assertEquals(3, original.selections.size)
             assertSame(original, field.selectionSet)
+        }
+
+        @Test
+        fun `distinct child identities are merged once in encounter order`() {
+            val schema = "type Query { obj: Obj } type Obj { x: Int, child: Obj }".asEngineSchema
+            val fields = buildPlan("{ obj { x } obj { child { x } } }", schema)
+                .selectionSet.selections.map { it as Field }
+            val first = fields[0].selectionSet!!
+            val second = fields[1].selectionSet!!
+            val equalButDistinct = first.copy()
+            val occurrences = listOf(fields[0], fields[1], fields[0], fields[0].copy(selectionSet = equalButDistinct), fields[1])
+                .map { FieldDetails(it, null) }
+            val collected = CollectedField(occurrences, schema.schema)
+
+            val merged = collected.selectionSet!!
+            val expected = first.selections + second.selections + equalButDistinct.selections
+
+            assertEquals(expected.size, merged.selections.size)
+            expected.forEachIndexed { index, selection -> assertSame(selection, merged.selections[index]) }
+            assertSame(occurrences, collected.occurrences)
         }
 
         @Test
@@ -1237,6 +1255,29 @@ class CollectFieldsTest {
             occurrences.shouldHaveSize(2)
             assertSame(result.newDeferUsages.single(), occurrences[0].deferUsage)
             assertNull(occurrences[1].deferUsage)
+        }
+
+        @Test
+        fun `deferred fragment spreads reuse shared children alongside distinct selections`() {
+            val collected = collectDefers(
+                sdl = "type Query { foo: Foo } type Foo { x: Int, y: Int }",
+                query = """
+                    {
+                      ...F @defer(label: "first")
+                      foo { y }
+                      ...F @defer(label: "second")
+                    }
+                    fragment F on Query { foo { x } }
+                """.trimIndent(),
+            ).collectedFieldsMap.getValue("foo")
+
+            collected.occurrences.shouldHaveSize(3)
+            val (first, middle, last) = collected.occurrences
+            assertSame(first.field.selectionSet, last.field.selectionSet)
+            assertNotSame(first.field.selectionSet, middle.field.selectionSet)
+            collected.occurrences.map { it.deferUsage?.defer?.label }.shouldContainExactly("first", null, "second")
+
+            collected.selectionSet!!.selections.map { (it as Field).field.name }.shouldContainExactly("x", "y")
         }
 
         @Test

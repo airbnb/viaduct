@@ -85,6 +85,62 @@ class SelectiveFieldResolversExecutionTest {
     @Nested
     inner class BasicExecutionTests {
         @Test
+        fun `selective reruns reuse replacement children while resolving nested data`() {
+            val depth = 6
+            val providerCalls = AtomicInteger()
+            val rerunSelectionSizes = ConcurrentLinkedQueue<Pair<Int, Int>>()
+            var selections = "value"
+            repeat(depth) { selections = "next { $selections }" }
+
+            MockTenantModuleBootstrapper(
+                """
+                    extend type Query { foo: Foo }
+                    type Foo { next: Foo, value: Int, summary: Int }
+                """.trimIndent(),
+            ) {
+                field("Query" to "foo") {
+                    resolverExecutor {
+                        MockFieldUnbatchedResolverExecutor(
+                            isSelective = true,
+                            resolverId = resolverId,
+                            unbatchedResolveFn = { _, _, _, sels, context ->
+                                providerCalls.incrementAndGet()
+                                if (sels!!.containsField("Foo", "next")) {
+                                    val parameters = context.executionHandle as ExecutionParameters
+                                    val field = checkNotNull(parameters.field)
+                                    rerunSelectionSizes += checkNotNull(field.occurrences.first().field.selectionSet).selections.size to
+                                        checkNotNull(field.selectionSet).selections.size
+                                    var data = createEngineObjectData("Foo", mapOf("value" to 42))
+                                    repeat(depth) { data = createEngineObjectData("Foo", mapOf("next" to data)) }
+                                    data
+                                } else {
+                                    createEngineObjectData("Foo")
+                                }
+                            },
+                        )
+                    }
+                }
+                field("Foo" to "summary") {
+                    resolver {
+                        objectSelections(selections)
+                        fn { _, obj, _, _, _ ->
+                            var current: EngineObjectData = obj
+                            repeat(depth) { current = current.fetchAs<EngineObjectData>("next") }
+                            current.fetchAs<Int>("value")
+                        }
+                    }
+                }
+            }.runFeatureTest {
+                runQueryWithTimeout("{ foo { summary } foo { summary } }")
+                    .assertJson("{data: {foo: {summary: 42}}}")
+            }
+
+            assertEquals(2, providerCalls.get())
+            assertTrue(rerunSelectionSizes.isNotEmpty())
+            rerunSelectionSizes.forEach { (requested, combined) -> assertEquals(requested, combined) }
+        }
+
+        @Test
         fun `selective resolver is run once for simple queries`() {
             val fooCalls = AtomicInteger()
 
