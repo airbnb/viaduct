@@ -386,7 +386,7 @@ def parse_commit(commit: CommitInfo, parser: ConventionalCommitParser) -> Change
             scope=parsed.scope,
             description=strip_conventional_prefix(cleaned_message),
             is_breaking=bool(parsed.breaking_descriptions) or parsed.bump == LevelBump.MAJOR,
-            breaking_description=parsed.breaking_descriptions[0] if parsed.breaking_descriptions else None,
+            breaking_description=" ".join(parsed.breaking_descriptions) or None,
             bump=parsed.bump,
         )
     else:
@@ -461,8 +461,10 @@ def render_breaking_changes(entries: list[ChangelogEntry]) -> str:
     """
     lines = ["## Breaking Changes", ""]
     for entry in entries:
-        desc = capitalize_first(entry.description)
-        lines.append(f"- {desc} by {entry.formatted_authors}")
+        line = f"- {capitalize_first(entry.description)} by {entry.formatted_authors}"
+        if entry.breaking_description:
+            line += f" — {entry.breaking_description}"
+        lines.append(line)
     lines.append("")
 
     return '\n'.join(lines)

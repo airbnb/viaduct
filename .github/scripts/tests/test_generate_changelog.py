@@ -377,6 +377,17 @@ class TestParseCommit(unittest.TestCase):
         self.assertTrue(entry.is_breaking)
         self.assertEqual(entry.breaking_description, "This change breaks the thing.")
 
+    def test_breaking_change_keeps_every_footer(self):
+        commit = CommitInfo(
+            sha="abc123",
+            message="fix!: breaking change",
+            body="BREAKING CHANGE: Use bar instead of foo.\n\nBREAKING CHANGE: Regenerate the configs.",
+            author_email="john.doe@example.com",
+            co_authors_raw=""
+        )
+        entry = parse_commit(commit, self.parser)
+        self.assertEqual(entry.breaking_description, "Use bar instead of foo. Regenerate the configs.")
+
     def test_ignored_commit_returns_none(self):
         commit = CommitInfo(
             sha="abc123",
@@ -670,18 +681,30 @@ class TestRenderBreakingChanges(unittest.TestCase):
         ]
         result = render_breaking_changes(entries)
         self.assertIn("## Breaking Changes", result)
-        self.assertIn("Subject description", result)
-        self.assertNotIn("body trailer description", result)
-        self.assertIn("@john", result)
+        self.assertIn("- Subject description by @john — body trailer description", result)
 
-    def test_breaking_change_uses_subject_with_sha(self):
+    def test_breaking_change_keeps_subject_with_sha(self):
         # subject description already has SHA from (AIRBNB) substitution — body trailer does not
         entries = [
             ChangelogEntry("abc1234", "m1", ["@alice"], "refactor", None, "rename SomeClass (abc1234)", True, "SomeClass renamed to OtherClass.", LevelBump.MAJOR),
         ]
         result = render_breaking_changes(entries)
-        self.assertIn("Rename SomeClass (abc1234)", result)
-        self.assertNotIn("SomeClass renamed to OtherClass.", result)
+        self.assertIn("- Rename SomeClass (abc1234) by @alice — SomeClass renamed to OtherClass.", result)
+
+    def test_breaking_change_keeps_footer_case(self):
+        entries = [
+            ChangelogEntry("abc1234", "m1", ["@alice"], "refactor", None, "remove nodeRef (abc1234)", True, "nodeRef is removed; use ref instead.", LevelBump.MAJOR),
+        ]
+        result = render_breaking_changes(entries)
+        self.assertIn("- Remove nodeRef (abc1234) by @alice — nodeRef is removed; use ref instead.", result)
+
+    def test_breaking_change_without_footer_renders_subject_only(self):
+        entries = [
+            ChangelogEntry("abc1234", "m1", ["@alice"], "feat", None, "remove foo (abc1234)", True, None, LevelBump.MAJOR),
+        ]
+        result = render_breaking_changes(entries)
+        self.assertIn("- Remove foo (abc1234) by @alice\n", result)
+        self.assertNotIn("—", result)
 
 
 if __name__ == '__main__':
