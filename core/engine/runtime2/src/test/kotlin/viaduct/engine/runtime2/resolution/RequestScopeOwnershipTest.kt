@@ -2,6 +2,7 @@ package viaduct.engine.runtime2.resolution
 
 import java.nio.file.Files
 import java.nio.file.Path
+import kotlin.io.path.invariantSeparatorsPathString
 import kotlin.io.path.name
 import kotlin.io.path.readText
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -26,7 +27,7 @@ class RequestScopeOwnershipTest {
             }
         }
 
-        fun relativePath(source: Path): String = sourceRoots.first { source.startsWith(it) }.relativize(source).toString()
+        fun relativePath(source: Path): String = sourceRoots.first { source.startsWith(it) }.relativize(source).invariantSeparatorsPathString
         val rawRequestScopeLaunch = Regex("""requestScope\s*\.\s*(?:launch|async|future)\s*(?:\(|\{)""")
         assertEquals(
             listOf(
