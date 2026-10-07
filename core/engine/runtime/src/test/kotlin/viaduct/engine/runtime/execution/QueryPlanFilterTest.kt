@@ -336,6 +336,7 @@ class QueryPlanFilterTest {
                 fragments = filtered.fragments,
                 fieldRssOriginFilteringKillSwitchEnabled = true,
                 incrementalExecutionEnabled = false,
+                deferUsage = null,
             )
 
             collected.collectedFieldsMap.keys.shouldContainExactly("foo")
@@ -378,6 +379,7 @@ class QueryPlanFilterTest {
                 fragments = filtered.fragments,
                 fieldRssOriginFilteringKillSwitchEnabled = true,
                 incrementalExecutionEnabled = false,
+                deferUsage = null,
             )
 
             collected.collectedFieldsMap.keys.shouldContainExactly("foo")
@@ -420,6 +422,7 @@ class QueryPlanFilterTest {
                 fragments = filtered.fragments,
                 fieldRssOriginFilteringKillSwitchEnabled = true,
                 incrementalExecutionEnabled = false,
+                deferUsage = null,
             )
             val excluded = CollectFields.default(
                 schema = viaductSchema,
@@ -429,6 +432,7 @@ class QueryPlanFilterTest {
                 fragments = filtered.fragments,
                 fieldRssOriginFilteringKillSwitchEnabled = true,
                 incrementalExecutionEnabled = false,
+                deferUsage = null,
             )
 
             included.collectedFieldsMap.keys.shouldContainExactly("foo")
@@ -477,6 +481,7 @@ class QueryPlanFilterTest {
                 fragments = filtered.fragments,
                 fieldRssOriginFilteringKillSwitchEnabled = true,
                 incrementalExecutionEnabled = false,
+                deferUsage = null,
             )
 
             collected.collectedFieldsMap.keys.shouldContainExactly("x")
@@ -723,6 +728,7 @@ class QueryPlanFilterTest {
                 fragments = filtered.fragments,
                 fieldRssOriginFilteringKillSwitchEnabled = true,
                 incrementalExecutionEnabled = false,
+                deferUsage = null,
             ).collectedFieldsMap.getValue("foo")
             val fieldNames = QueryTraverser.newQueryTraverser()
                 .schema(schema)
@@ -858,6 +864,7 @@ class QueryPlanFilterTest {
                 fragments = plan.fragments,
                 fieldRssOriginFilteringKillSwitchEnabled = true,
                 incrementalExecutionEnabled = false,
+                deferUsage = null,
             )
 
             val filtered = plan.filterTo(

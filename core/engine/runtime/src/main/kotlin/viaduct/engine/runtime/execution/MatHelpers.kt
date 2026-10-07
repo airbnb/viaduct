@@ -190,6 +190,7 @@ private class KeyTreeBuilder(
             fragments = plan.fragments,
             fieldRssOriginFilteringKillSwitchEnabled = context.fieldRssOriginFilteringKillSwitchEnabled,
             incrementalExecutionEnabled = context.incrementalExecutionEnabled,
+            deferUsage = null,
         )
         val fields = mutableMapOf<ObjectEngineResult.Key, KeyTree>()
         for (field in collected.collectedFieldsMap.values) {

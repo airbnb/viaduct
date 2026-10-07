@@ -544,7 +544,7 @@ object FieldExecutionHelpers {
     }
 
     /**
-     * Run [CollectFields] for the given state
+     * Run [CollectFields] or [CollectSubfields] for the current object scope.
      * @param objectType the current concrete object
      * @param parameters the ExecutionParameters that contains the selection set and
      * variables to be collected
@@ -552,17 +552,34 @@ object FieldExecutionHelpers {
     fun collectFields(
         objectType: GraphQLObjectType,
         parameters: ExecutionParameters
-    ): CollectFields.Result =
-        parameters.constants.collectFields(
-            parameters.engineExecutionContext.activeSchema,
-            parameters.selectionSet,
-            parameters.coercedVariables,
-            objectType,
-            parameters.queryPlan.fragments,
-            fieldRssOriginFilteringKillSwitchEnabled =
-                parameters.engineExecutionContext.fieldRssOriginFilteringKillSwitchEnabled,
-            incrementalExecutionEnabled = parameters.engineExecutionContext.incrementalExecutionEnabled,
-        )
+    ): CollectFields.Result {
+        val incrementalExecutionEnabled = parameters.engineExecutionContext.incrementalExecutionEnabled
+        // The current field owns these selections even when @parent restores an ancestor's origin.
+        val parentField = parameters.field
+        return if (incrementalExecutionEnabled && parameters.executionOrigin is ExecutionOrigin.ObjectTraversal && parentField != null) {
+            CollectSubfields(
+                schema = parameters.engineExecutionContext.activeSchema,
+                objectType = objectType,
+                fields = parentField.occurrences,
+                variables = parameters.coercedVariables,
+                fragments = parameters.queryPlan.fragments,
+                fieldRssOriginFilteringKillSwitchEnabled = parameters.engineExecutionContext.fieldRssOriginFilteringKillSwitchEnabled,
+                incrementalExecutionEnabled = incrementalExecutionEnabled,
+                collectFields = parameters.constants.collectFields,
+            )
+        } else {
+            parameters.constants.collectFields(
+                parameters.engineExecutionContext.activeSchema,
+                parameters.selectionSet,
+                parameters.coercedVariables,
+                objectType,
+                parameters.queryPlan.fragments,
+                fieldRssOriginFilteringKillSwitchEnabled = parameters.engineExecutionContext.fieldRssOriginFilteringKillSwitchEnabled,
+                incrementalExecutionEnabled = incrementalExecutionEnabled,
+                deferUsage = null,
+            )
+        }
+    }
 
     /**
      * Resolves variables for a [QueryPlan].

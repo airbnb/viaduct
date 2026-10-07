@@ -70,6 +70,8 @@ import viaduct.service.api.spi.mocks.MockFlagManager
 class ExecutionParametersTest {
     private val viaductSchema = createSchema(
         """
+        directive @parent on FIELD_DEFINITION
+
         interface Node {
             id: ID!
         }
@@ -85,6 +87,7 @@ class ExecutionParametersTest {
             foo: String
             fooSpecific: String
             child: Foo
+            parent: Foo @parent
         }
         """.trimIndent(),
         resolvers = emptyMap(),
@@ -131,6 +134,180 @@ class ExecutionParametersTest {
         assertNotSame(disabledResult, enabledResult)
         assertSame(enabledResult, FieldExecutionHelpers.collectFields(queryType, enabledParameters.copy()))
         assertSame(disabledResult, FieldExecutionHelpers.collectFields(queryType, disabledParameters.copy()))
+    }
+
+    @Test
+    fun `object collection preserves parent defers and child plans start a fresh collection`() {
+        val plan = buildPlan(
+            """
+                {
+                    foo(id: "foo-id") { ...F }
+                    ... @defer(label: "A") {
+                        foo(id: "foo-id") {
+                            ...F
+                            name
+                            ... @defer(label: "B") { foo }
+                            child { ... @defer(label: "C") { fooSpecific } }
+                        }
+                    }
+                }
+                fragment F on Foo { id }
+            """.trimIndent(),
+            viaductSchema,
+        )
+        val root = createExecutionParameters(
+            source = defaultRootValue,
+            executionStepInfo = ExecutionStepInfo.newExecutionStepInfo().type(queryType).path(ResultPath.rootPath()).build(),
+            queryPlan = plan,
+            engineExecutionContext = ContextMocks(
+                myFullSchema = viaductSchema,
+                myFlagManager = MockFlagManager.create(FlagManager.Flags.ENABLE_INCREMENTAL_EXECUTION),
+            ).engineExecutionContext,
+        )
+        val rootFields = FieldExecutionHelpers.collectFields(queryType, root)
+        val a = rootFields.newDeferUsages.single()
+        val field = rootFields.collectedFieldsMap.getValue("foo")
+        val fieldParameters = root.forField(queryType, field)
+        val objectParameters = fieldParameters.forObjectTraversal(field, ObjectEngineResultImpl.newForType(fooType), root.localContext, emptyMap<String, Any?>())
+
+        val subfields = FieldExecutionHelpers.collectFields(fooType, objectParameters)
+
+        assertEquals(listOf("id", "name", "foo", "child"), subfields.collectedFieldsMap.keys.toList())
+        assertEquals(listOf(null, a), subfields.collectedFieldsMap.getValue("id").occurrences.map { it.deferUsage })
+        assertSame(a, subfields.collectedFieldsMap.getValue("name").occurrences.single().deferUsage)
+        val b = subfields.newDeferUsages.single()
+        assertEquals("B", b.defer.label)
+        assertSame(a, b.parent)
+        assertSame(b, subfields.collectedFieldsMap.getValue("foo").occurrences.single().deferUsage)
+        val childField = subfields.collectedFieldsMap.getValue("child")
+        assertSame(a, childField.occurrences.single().deferUsage)
+
+        val executionPlan = BuildExecutionPlan(subfields.collectedFieldsMap)
+        assertEquals(listOf("id"), executionPlan.collectedFieldsMap.keys.toList())
+        assertEquals(listOf("name", "child"), executionPlan.newCollectedFieldsMaps.getValue(setOf(a)).keys.toList())
+        assertEquals(listOf("foo"), executionPlan.newCollectedFieldsMaps.getValue(setOf(b)).keys.toList())
+
+        val childObjectParameters = objectParameters.forField(fooType, childField).forObjectTraversal(
+            childField,
+            ObjectEngineResultImpl.newForType(fooType),
+            objectParameters.localContext,
+            emptyMap<String, Any?>(),
+        )
+        val childSubfields = FieldExecutionHelpers.collectFields(fooType, childObjectParameters)
+        val c = childSubfields.newDeferUsages.single()
+        assertEquals("C", c.defer.label)
+        assertSame(a, c.parent)
+        assertSame(c, childSubfields.collectedFieldsMap.getValue("fooSpecific").occurrences.single().deferUsage)
+
+        val childParameters = objectParameters.forChildPlan(queryPlanFor(fooType), emptyVariables, ChildQueryPlanTarget.CurrentObjectResult)
+        assertEquals(emptyMap<String, CollectedField>(), FieldExecutionHelpers.collectFields(fooType, childParameters).collectedFieldsMap)
+
+        val disabledParameters = objectParameters.copy(
+            _engineExecutionContext = ContextMocks(
+                myFullSchema = viaductSchema,
+                myFlagManager = MockFlagManager.Disabled,
+            ).engineExecutionContext,
+        )
+        val disabledSubfields = FieldExecutionHelpers.collectFields(fooType, disabledParameters)
+        assertEquals(listOf("id", "name", "foo", "child"), disabledSubfields.collectedFieldsMap.keys.toList())
+        assertEquals(1, disabledSubfields.collectedFieldsMap.getValue("id").occurrences.size)
+        disabledSubfields.collectedFieldsMap.values.forEach { collected ->
+            collected.occurrences.forEach { assertNull(it.deferUsage) }
+        }
+        assertEquals(emptyList<DeferUsage>(), disabledSubfields.newDeferUsages)
+        val repeatedDisabled = FieldExecutionHelpers.collectFields(fooType, disabledParameters.copy())
+        assertSame(disabledSubfields, repeatedDisabled)
+    }
+
+    @Test
+    fun `object collection separates inherited defer contexts and reuses cached usages`() {
+        val plan = buildPlan(
+            """
+                {
+                    ...F @defer(label: "A")
+                    ...F @defer(label: "B")
+                }
+                fragment F on Query { foo(id: "foo-id") { id ... @defer { name } } }
+            """.trimIndent(),
+            viaductSchema,
+        )
+        val root = rootCollectionParameters(plan)
+        val rootFields = FieldExecutionHelpers.collectFields(queryType, root)
+        val (a, b) = rootFields.newDeferUsages
+        val field = rootFields.collectedFieldsMap.getValue("foo")
+        val parameters = root.forField(queryType, field).forObjectTraversal(
+            field,
+            ObjectEngineResultImpl.newForType(fooType),
+            root.localContext,
+            emptyMap<String, Any?>(),
+        )
+
+        val result = FieldExecutionHelpers.collectFields(fooType, parameters)
+
+        val parents = result.collectedFieldsMap.getValue("id").occurrences.map { it.deferUsage }
+        assertEquals(2, parents.size)
+        assertSame(a, parents.first())
+        assertSame(b, parents.last())
+        assertEquals(2, result.newDeferUsages.size)
+        assertSame(a, result.newDeferUsages.first().parent)
+        assertSame(b, result.newDeferUsages.last().parent)
+        assertEquals(result.newDeferUsages.first().defer, result.newDeferUsages.last().defer)
+        val names = result.collectedFieldsMap.getValue("name").occurrences
+        assertSame(result.newDeferUsages.first(), names.first().deferUsage)
+        assertSame(result.newDeferUsages.last(), names.last().deferUsage)
+
+        val repeated = FieldExecutionHelpers.collectFields(fooType, parameters.copy())
+        assertEquals(result.collectedFieldsMap.keys, repeated.collectedFieldsMap.keys)
+        assertSame(result.newDeferUsages.first(), repeated.newDeferUsages.first())
+        assertSame(result.newDeferUsages.last(), repeated.newDeferUsages.last())
+    }
+
+    @Test
+    fun `parent traversal collects RSS selections without inheriting client defers`() {
+        val plan = buildPlan(
+            "{ ... @defer(label: \"client\") { foo(id: \"foo-id\") { id child { id } } } }",
+            viaductSchema,
+        )
+        val root = createExecutionParameters(
+            source = defaultRootValue,
+            executionStepInfo = ExecutionStepInfo.newExecutionStepInfo().type(queryType).path(ResultPath.rootPath()).build(),
+            queryPlan = plan,
+            engineExecutionContext = ContextMocks(
+                myFullSchema = viaductSchema,
+                myFlagManager = MockFlagManager.create(FlagManager.Flags.ENABLE_INCREMENTAL_EXECUTION),
+            ).engineExecutionContext,
+        )
+        val fooField = FieldExecutionHelpers.collectFields(queryType, root).collectedFieldsMap.getValue("foo")
+        val fooParameters = root.forField(queryType, fooField).forObjectTraversal(
+            fooField,
+            ObjectEngineResultImpl.newForType(fooType),
+            root.localContext,
+            emptyMap<String, Any?>(),
+        )
+        val childField = FieldExecutionHelpers.collectFields(fooType, fooParameters).collectedFieldsMap.getValue("child")
+        val childParameters = fooParameters.forField(fooType, childField).forObjectTraversal(
+            childField,
+            ObjectEngineResultImpl.newForType(fooType),
+            fooParameters.localContext,
+            emptyMap<String, Any?>(),
+        )
+        val parentField = collectedFooField(
+            mergedField("parent", selectionSet("fooSpecific")),
+            queryPlanSelectionSet(fooType, "fooSpecific"),
+        )
+        val rssPlan = queryPlanFor(fooType, QueryPlan.SelectionSet(fooType, parentField.toQueryPlanFields()))
+        val rssParameters = childParameters.forChildPlan(rssPlan, emptyVariables, ChildQueryPlanTarget.CurrentObjectResult)
+        val parentFieldParameters = rssParameters.forField(fooType, parentField)
+        val ancestor = requireNotNull(parentFieldParameters.nearestObjectAncestor())
+
+        val parentParameters = parentFieldParameters.forParentFieldTraversal(parentField, ancestor, rssParameters.localContext)
+        val result = FieldExecutionHelpers.collectFields(fooType, parentParameters)
+
+        assertSame(fooParameters, ancestor)
+        assertSame(ancestor.executionOrigin, parentParameters.executionOrigin)
+        assertEquals(listOf("fooSpecific"), result.collectedFieldsMap.keys.toList())
+        assertNull(result.collectedFieldsMap.getValue("fooSpecific").occurrences.single().deferUsage)
+        assertEquals(emptyList<DeferUsage>(), result.newDeferUsages)
     }
 
     @Test
@@ -1133,6 +1310,25 @@ class ExecutionParametersTest {
             )
         }
     }
+
+    private fun rootCollectionParameters(
+        plan: QueryPlan,
+        incrementalExecutionEnabled: Boolean = true,
+    ): ExecutionParameters =
+        createExecutionParameters(
+            source = defaultRootValue,
+            executionStepInfo = ExecutionStepInfo.newExecutionStepInfo().type(queryType).path(ResultPath.rootPath()).build(),
+            queryPlan = plan,
+            engineExecutionContext = ContextMocks(
+                myFullSchema = viaductSchema,
+                myFlagManager =
+                    if (incrementalExecutionEnabled) {
+                        MockFlagManager.create(FlagManager.Flags.ENABLE_INCREMENTAL_EXECUTION)
+                    } else {
+                        MockFlagManager.Disabled
+                    },
+            ).engineExecutionContext,
+        )
 
     private fun createExecutionParameters(
         source: Any?,

@@ -73,6 +73,7 @@ class CollectedField(
  *
  * Collects a selection set, applying conditional directives and type conditions.
  * Groups unmerged field occurrences by response key, preserving encounter order.
+ * With incremental execution enabled, fields inherit the supplied defer context.
  */
 fun interface CollectFields {
     data class Result(
@@ -88,6 +89,7 @@ fun interface CollectFields {
         fragments: Fragments,
         fieldRssOriginFilteringKillSwitchEnabled: Boolean,
         incrementalExecutionEnabled: Boolean,
+        deferUsage: DeferUsage?,
     ): Result
 
     companion object {
@@ -108,6 +110,7 @@ private object DefaultCollectFields : CollectFields {
         fragments: Fragments,
         fieldRssOriginFilteringKillSwitchEnabled: Boolean,
         incrementalExecutionEnabled: Boolean,
+        deferUsage: DeferUsage?,
     ): CollectFields.Result {
         val result = collect(
             State(
@@ -118,6 +121,7 @@ private object DefaultCollectFields : CollectFields {
                 fragments = fragments,
                 constraintsCtx = Constraints.Ctx(variables, MaskedSet(listOf(parentType))),
                 parentType = parentType,
+                deferUsage = if (incrementalExecutionEnabled) deferUsage else null,
             ),
             variables = variables,
             fieldRssOriginFilteringKillSwitchEnabled = fieldRssOriginFilteringKillSwitchEnabled,
@@ -135,6 +139,7 @@ private object DefaultCollectFields : CollectFields {
         val fragments: Fragments,
         val constraintsCtx: Constraints.Ctx,
         val parentType: GraphQLObjectType,
+        val deferUsage: DeferUsage?,
         val newDeferUsages: List<DeferUsage> = emptyList(),
     ) {
         fun fragmentDef(name: String): FragmentDefinition = requireNotNull(fragments[name]) { "Fragment `$name` is not defined" }
@@ -166,7 +171,7 @@ private object DefaultCollectFields : CollectFields {
         // selection, and then pushing on the field selections of that fragment.
         // An ArrayDeque is a good data structure for this job, as it has constant-time reads/writes
         // when working at the front, and is more memory-efficient than a LinkedList
-        val queue = ArrayDeque(state.pending.map { PendingSelection(it, null) })
+        val queue = ArrayDeque(state.pending.map { PendingSelection(it, state.deferUsage) })
 
         while (queue.isNotEmpty()) {
             val (sel, deferUsage) = queue.removeFirst()
@@ -293,7 +298,7 @@ private fun Directive.argumentValue(
  * Without caching, this work would be duplicated for every object in the response.
  *
  * The cache uses a specialized key that relies on **identity equality** for
- * its stable components ([GraphQLObjectType] and [QueryPlan.SelectionSet]). This is safe because:
+ * its stable components ([GraphQLObjectType], [QueryPlan.SelectionSet], and [DeferUsage]). This is safe because:
  * 1. The [QueryPlan] (and its [QueryPlan.SelectionSet] nodes) is immutable and shared.
  * 2. Runtime variables that participate in field collection are included structurally because
  *    different child executions in the same request can run the same plan with different
@@ -308,6 +313,7 @@ private class CachedCollectFields(private val underlying: CollectFields) : Colle
         val selectionSet: SelectionSet,
         val variables: Map<String, Any?>,
         val incrementalExecutionEnabled: Boolean,
+        val deferUsage: DeferUsage?,
     ) {
         override fun equals(other: Any?): Boolean {
             if (this === other) return true
@@ -315,13 +321,14 @@ private class CachedCollectFields(private val underlying: CollectFields) : Colle
             return parentType === other.parentType &&
                 selectionSet === other.selectionSet &&
                 variables == other.variables &&
-                incrementalExecutionEnabled == other.incrementalExecutionEnabled
+                incrementalExecutionEnabled == other.incrementalExecutionEnabled &&
+                deferUsage === other.deferUsage
         }
 
         override fun hashCode(): Int {
             val a = System.identityHashCode(parentType)
             val b = System.identityHashCode(selectionSet)
-            return ((31 * a + b) * 31 + variables.hashCode()) * 31 + incrementalExecutionEnabled.hashCode()
+            return (((31 * a + b) * 31 + variables.hashCode()) * 31 + incrementalExecutionEnabled.hashCode()) * 31 + System.identityHashCode(deferUsage)
         }
     }
 
@@ -340,12 +347,14 @@ private class CachedCollectFields(private val underlying: CollectFields) : Colle
         fragments: Fragments,
         fieldRssOriginFilteringKillSwitchEnabled: Boolean,
         incrementalExecutionEnabled: Boolean,
+        deferUsage: DeferUsage?,
     ): CollectFields.Result {
         val key = CollectKey(
             parentType,
             selectionSet,
             collectionVariableValues(selectionSet, variables, parentType, fragments),
             incrementalExecutionEnabled,
+            if (incrementalExecutionEnabled) deferUsage else null,
         )
         return map.computeIfAbsent(key) {
             underlying(
@@ -356,6 +365,7 @@ private class CachedCollectFields(private val underlying: CollectFields) : Colle
                 fragments,
                 fieldRssOriginFilteringKillSwitchEnabled,
                 incrementalExecutionEnabled,
+                deferUsage,
             )
         }
     }

@@ -162,6 +162,7 @@ private class QueryPlanFilter(
             fragments = sourcePlan.fragments,
             fieldRssOriginFilteringKillSwitchEnabled = context.fieldRssOriginFilteringKillSwitchEnabled,
             incrementalExecutionEnabled = context.incrementalExecutionEnabled,
+            deferUsage = null,
         )
         val selections = mutableListOf<QueryPlan.Selection>()
 

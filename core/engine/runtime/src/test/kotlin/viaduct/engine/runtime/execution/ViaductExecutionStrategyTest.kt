@@ -161,6 +161,29 @@ class ViaductExecutionStrategyTest {
             }
 
         @TestFactory
+        fun `merged object occurrences retain eager nested defer results`() =
+            withIncrementalExecutionModes { config ->
+                EngineTestModule("extend type Query { obj: Obj } type Obj { x: Int, y: Int, z: Int }") {
+                    field("Query" to "obj") {
+                        resolver { fn { _, _, _, _, _ -> createEngineObjectData(schema.schema.getObjectType("Obj"), mapOf("x" to 1, "y" to 2, "z" to 3)) } }
+                    }
+                }.runFeatureTest(engineConfig = config) {
+                    val result = runQuery(
+                        """
+                            {
+                                obj { first: x }
+                                ... @defer(label: "A") { obj { y ... @defer(label: "B") { last: z } } }
+                                ... @defer(label: "C") { obj { first: x } }
+                            }
+                        """.trimIndent()
+                    )
+
+                    result.assertJson("""{"data":{"obj":{"first":1,"y":2,"last":3}}}""")
+                    assertEquals(listOf("first", "y", "last"), result.getData<Map<String, Map<String, Any?>>>().getValue("obj").keys.toList())
+                }
+            }
+
+        @TestFactory
         fun `a deferred nullable field error is included in the single response`() =
             withIncrementalExecutionModes { config ->
                 EngineTestModule("extend type Query { a: Int, b: Int }") {

@@ -107,6 +107,7 @@ class CollectFieldsTest {
                 plan.fragments,
                 fieldRssOriginFilteringKillSwitchEnabled = false,
                 incrementalExecutionEnabled = false,
+                deferUsage = null,
             )
 
             val fields = result.collectedFieldsMap
@@ -138,6 +139,7 @@ class CollectFieldsTest {
                 plan.fragments,
                 fieldRssOriginFilteringKillSwitchEnabled = false,
                 incrementalExecutionEnabled = false,
+                deferUsage = null,
             )
 
             checkEquals(
@@ -161,6 +163,7 @@ class CollectFieldsTest {
                 plan.fragments,
                 fieldRssOriginFilteringKillSwitchEnabled = false,
                 incrementalExecutionEnabled = false,
+                deferUsage = null,
             )
 
             checkEquals(
@@ -185,6 +188,7 @@ class CollectFieldsTest {
                 plan.fragments,
                 fieldRssOriginFilteringKillSwitchEnabled = false,
                 incrementalExecutionEnabled = false,
+                deferUsage = null,
             )
 
             assertEquals(listOf(x0.field, x1.field), collected.collectedFieldsMap.values.single().occurrences.map { it.field.field })
@@ -212,6 +216,7 @@ class CollectFieldsTest {
                 plan.fragments,
                 fieldRssOriginFilteringKillSwitchEnabled = false,
                 incrementalExecutionEnabled = false,
+                deferUsage = null,
             )
 
             checkEquals(
@@ -242,6 +247,7 @@ class CollectFieldsTest {
                 plan.fragments,
                 fieldRssOriginFilteringKillSwitchEnabled = false,
                 incrementalExecutionEnabled = false,
+                deferUsage = null,
             )
 
             checkEquals(
@@ -297,6 +303,7 @@ class CollectFieldsTest {
                 plan.fragments,
                 fieldRssOriginFilteringKillSwitchEnabled = false,
                 incrementalExecutionEnabled = false,
+                deferUsage = null,
             )
 
             val collectedRestricted = collected.collectedFieldsMap.getValue("restricted")
@@ -326,6 +333,7 @@ class CollectFieldsTest {
                 fx.fragments,
                 fieldRssOriginFilteringKillSwitchEnabled = false,
                 incrementalExecutionEnabled = false,
+                deferUsage = null,
             )
 
             val collectedId = collected.collectedFieldsMap.values.single { it.fieldName == "id" }
@@ -348,6 +356,7 @@ class CollectFieldsTest {
                 fx.fragments,
                 fieldRssOriginFilteringKillSwitchEnabled = true,
                 incrementalExecutionEnabled = false,
+                deferUsage = null,
             )
 
             val collectedId = collected.collectedFieldsMap.values.single { it.fieldName == "id" }
@@ -372,6 +381,7 @@ class CollectFieldsTest {
                 fx.fragments,
                 fieldRssOriginFilteringKillSwitchEnabled = false,
                 incrementalExecutionEnabled = false,
+                deferUsage = null,
             )
 
             val collectedId = collected.collectedFieldsMap.values.single { it.fieldName == "id" }
@@ -402,6 +412,7 @@ class CollectFieldsTest {
                 plan.fragments,
                 fieldRssOriginFilteringKillSwitchEnabled = false,
                 incrementalExecutionEnabled = false,
+                deferUsage = null,
             )
 
             val collectedX = collected.collectedFieldsMap.values.single { it.fieldName == "x" }
@@ -454,6 +465,7 @@ class CollectFieldsTest {
                 plan.fragments,
                 fieldRssOriginFilteringKillSwitchEnabled = false,
                 incrementalExecutionEnabled = false,
+                deferUsage = null,
             )
 
             val collectedMetadata = collected.collectedFieldsMap.values.single { it.responseKey == "sectionMetadata" }
@@ -469,14 +481,154 @@ class CollectFieldsTest {
     @Nested
     inner class CachedTests {
         @Test
+        fun `cache distinguishes inherited contexts by identity`() {
+            val schema = "type Query { obj: Query, x: Int, y: Int }".asEngineSchema
+            val plan = buildPlan("{ obj { x ... @defer(label: \"nested\") { y } } }", schema)
+            val field = plan.selectionSet.selections.single() as Field
+            val selectionSet = checkNotNull(field.selectionSet)
+            val suppliedContexts = mutableListOf<DeferUsage?>()
+            val cache = CollectFields.cached { engineSchema, selections, variables, parentType, fragments, killSwitchEnabled, enabled, deferUsage ->
+                suppliedContexts += deferUsage
+                CollectFields.default(engineSchema, selections, variables, parentType, fragments, killSwitchEnabled, enabled, deferUsage)
+            }
+            val a = DeferUsage(mkDefer("A"), null)
+            val b = a.copy()
+
+            fun collect(
+                usage: DeferUsage?,
+                enabled: Boolean = true
+            ) = cache(
+                schema,
+                selectionSet,
+                emptyVars,
+                schema.schema.queryType,
+                plan.fragments,
+                false,
+                enabled,
+                usage,
+            )
+
+            val immediate = collect(null)
+            val inA = collect(a)
+            val inB = collect(b)
+
+            assertEquals(a, b)
+            assertNull(immediate.collectedFieldsMap.getValue("x").occurrences.single().deferUsage)
+            assertSame(a, inA.collectedFieldsMap.getValue("x").occurrences.single().deferUsage)
+            assertSame(b, inB.collectedFieldsMap.getValue("x").occurrences.single().deferUsage)
+            assertNull(immediate.newDeferUsages.single().parent)
+            assertSame(a, inA.newDeferUsages.single().parent)
+            assertSame(b, inB.newDeferUsages.single().parent)
+            assertSame(inA.newDeferUsages.single(), inA.collectedFieldsMap.getValue("y").occurrences.single().deferUsage)
+            assertSame(inB.newDeferUsages.single(), inB.collectedFieldsMap.getValue("y").occurrences.single().deferUsage)
+            assertNotSame(immediate, inA)
+            assertNotSame(inA, inB)
+            assertSame(inA, collect(a))
+            assertSame(inB, collect(b))
+
+            val disabled = collect(a, enabled = false)
+            assertSame(disabled, collect(b, enabled = false))
+            assertSame(disabled, collect(null, enabled = false))
+            assertNull(disabled.collectedFieldsMap.getValue("x").occurrences.single().deferUsage)
+            assertTrue(disabled.newDeferUsages.isEmpty())
+            assertSame(a, suppliedContexts.last())
+            assertEquals(4, suppliedContexts.size)
+        }
+
+        @Test
+        fun `subfield collection reuses cached parent selections in encounter order`() {
+            val schema = "type Query { obj: Obj } type Obj { x: Int, y: Int }".asEngineSchema
+            val plan = buildPlan("{ obj { x } obj { y } }", schema)
+            val fields = plan.selectionSet.selections.filterIsInstance<Field>().map { FieldDetails(it, null) }
+            var collections = 0
+            val cache = CollectFields.cached { engineSchema, selectionSet, variables, parentType, fragments, killSwitchEnabled, enabled, deferUsage ->
+                collections++
+                CollectFields.default(engineSchema, selectionSet, variables, parentType, fragments, killSwitchEnabled, enabled, deferUsage)
+            }
+
+            fun collect(fields: List<FieldDetails>) =
+                cache.collectSubfieldsForTest(
+                    schema.schema,
+                    fields,
+                    emptyVars,
+                    schema.schema.getObjectType("Obj"),
+                    plan.fragments,
+                )
+
+            val first = collect(fields.take(1))
+            val second = collect(fields.takeLast(1))
+            val forward = collect(fields)
+            val reverse = collect(fields.reversed())
+
+            assertEquals(listOf("x"), first.collectedFieldsMap.keys.toList())
+            assertEquals(listOf("y"), second.collectedFieldsMap.keys.toList())
+            assertEquals(listOf("x", "y"), forward.collectedFieldsMap.keys.toList())
+            assertEquals(listOf("y", "x"), reverse.collectedFieldsMap.keys.toList())
+            assertSame(first.collectedFieldsMap.getValue("x").occurrences.single(), collect(fields.take(1)).collectedFieldsMap.getValue("x").occurrences.single())
+            assertSame(second.collectedFieldsMap.getValue("y").occurrences.single(), collect(fields.takeLast(1)).collectedFieldsMap.getValue("y").occurrences.single())
+            assertEquals(forward.collectedFieldsMap.keys, collect(fields.map { it.copy(field = it.field.copy()) }).collectedFieldsMap.keys)
+            assertEquals(reverse.collectedFieldsMap.keys, collect(fields.reversed()).collectedFieldsMap.keys)
+            assertEquals(2, collections)
+        }
+
+        @Test
+        fun `subfield collection cache follows directive variables and ignores field arguments`() {
+            val schema = "type Query { obj: Obj } type Obj { id(value: Int): Int, name: String }".asEngineSchema
+            val plan = buildPlan(
+                """
+                    { obj { id(value: ${'$'}value) } obj { ...F } }
+                    fragment F on Obj {
+                        ... @defer(label: ${'$'}label, if: ${'$'}defer) { name @include(if: ${'$'}includeName) }
+                    }
+                """.trimIndent(),
+                schema,
+            )
+            val fields = plan.selectionSet.selections.filterIsInstance<Field>().map { FieldDetails(it, null) }
+            val cache = CollectFields.cached()
+
+            fun collect(
+                label: String,
+                defer: Boolean,
+                includeName: Boolean,
+                value: Int = 1
+            ) = cache.collectSubfieldsForTest(
+                schema.schema,
+                fields,
+                CoercedVariables.of(mapOf("label" to label, "defer" to defer, "includeName" to includeName, "value" to value)),
+                schema.schema.getObjectType("Obj"),
+                plan.fragments,
+                incrementalExecutionEnabled = true,
+            )
+
+            val included = collect("first", true, true)
+            val excluded = collect("first", true, false)
+            val relabeled = collect("second", true, true)
+            val immediate = collect("first", false, true)
+
+            assertEquals(listOf("id", "name"), included.collectedFieldsMap.keys.toList())
+            assertEquals(listOf("id"), excluded.collectedFieldsMap.keys.toList())
+            assertEquals("first", included.newDeferUsages.single().defer.label)
+            assertEquals("second", relabeled.newDeferUsages.single().defer.label)
+            assertSame(relabeled.newDeferUsages.single(), relabeled.collectedFieldsMap.getValue("name").occurrences.single().deferUsage)
+            assertTrue(immediate.newDeferUsages.isEmpty())
+            assertNull(immediate.collectedFieldsMap.getValue("name").occurrences.single().deferUsage)
+            val repeated = collect("first", true, true, value = 2)
+            assertSame(included.newDeferUsages.single(), repeated.newDeferUsages.single())
+            assertSame(included.collectedFieldsMap.getValue("id").occurrences.single(), repeated.collectedFieldsMap.getValue("id").occurrences.single())
+            assertEquals(excluded.collectedFieldsMap.keys, collect("first", true, false).collectedFieldsMap.keys)
+            assertSame(relabeled.newDeferUsages.single(), collect("second", true, true).newDeferUsages.single())
+            assertSame(immediate.collectedFieldsMap.getValue("name").occurrences.single(), collect("first", false, true).collectedFieldsMap.getValue("name").occurrences.single())
+        }
+
+        @Test
         fun `collect returns cached result for same parentType and selectionSet`() {
             val schema = "type Query { x: Int, y: String }".asSchema
             val plan = buildPlan("{ x y }", EngineSchema(schema))
 
             var collections = 0
-            val cache = CollectFields.cached { engineSchema, selectionSet, variables, parentType, fragments, killSwitchEnabled, incrementalExecutionEnabled ->
+            val cache = CollectFields.cached { engineSchema, selectionSet, variables, parentType, fragments, killSwitchEnabled, incrementalExecutionEnabled, deferUsage ->
                 collections++
-                CollectFields.default(engineSchema, selectionSet, variables, parentType, fragments, killSwitchEnabled, incrementalExecutionEnabled)
+                CollectFields.default(engineSchema, selectionSet, variables, parentType, fragments, killSwitchEnabled, incrementalExecutionEnabled, deferUsage)
             }
 
             val result1 = cache.collectForTest(schema, plan.selectionSet, emptyVars, schema.queryType, plan.fragments)
@@ -494,9 +646,9 @@ class CollectFieldsTest {
             val schema = "type Query { x: Int }".asSchema
             val plan = buildPlan("{ ... @defer(label: \"later\") { x } }", EngineSchema(schema))
             val collectedFlags = mutableListOf<Boolean>()
-            val cache = CollectFields.cached { engineSchema, selectionSet, variables, parentType, fragments, killSwitchEnabled, incrementalExecutionEnabled ->
+            val cache = CollectFields.cached { engineSchema, selectionSet, variables, parentType, fragments, killSwitchEnabled, incrementalExecutionEnabled, deferUsage ->
                 collectedFlags += incrementalExecutionEnabled
-                CollectFields.default(engineSchema, selectionSet, variables, parentType, fragments, killSwitchEnabled, incrementalExecutionEnabled)
+                CollectFields.default(engineSchema, selectionSet, variables, parentType, fragments, killSwitchEnabled, incrementalExecutionEnabled, deferUsage)
             }
 
             fun collect(enabled: Boolean) = cache.collectForTest(schema, plan.selectionSet, emptyVars, schema.queryType, plan.fragments, enabled)
@@ -613,6 +765,7 @@ class CollectFieldsTest {
                 plan.fragments,
                 fieldRssOriginFilteringKillSwitchEnabled = false,
                 incrementalExecutionEnabled = true,
+                deferUsage = null,
             )
 
             val root = collect(plan.selectionSet, schema.schema.queryType, true)
@@ -813,6 +966,125 @@ class CollectFieldsTest {
 
     @Nested
     inner class DeferTests {
+        @Test
+        fun `fields inherit the supplied defer context through fragments`() {
+            val schema = "type Query { obj: Query, x: Int, y: Int, z: Int }".asEngineSchema
+            val plan = buildPlan("{ obj { x ...F ... on Query { z } } } fragment F on Query { y }", schema)
+            val field = plan.selectionSet.selections.single() as Field
+            val inherited = DeferUsage(mkDefer("parent"), null)
+
+            for (collector in listOf(CollectFields.default, CollectFields.cached())) {
+                val result = collector.collectForTest(
+                    schema.schema,
+                    checkNotNull(field.selectionSet),
+                    emptyVars,
+                    schema.schema.queryType,
+                    plan.fragments,
+                    incrementalExecutionEnabled = true,
+                    deferUsage = inherited,
+                )
+
+                assertEquals(listOf("x", "y", "z"), result.collectedFieldsMap.keys.toList())
+                result.collectedFieldsMap.values.forEach { collected ->
+                    assertSame(inherited, collected.occurrences.single().deferUsage)
+                }
+                assertTrue(result.newDeferUsages.isEmpty())
+            }
+        }
+
+        @Test
+        fun `new defers retain the supplied parent context`() {
+            val schema = "type Query { obj: Query, x: Int, y: Int, z: Int }".asEngineSchema
+            val plan = buildPlan(
+                """
+                    { obj { x ... @defer(label: "inline") { y } ...F @defer(label: "spread") } }
+                    fragment F on Query { z }
+                """.trimIndent(),
+                schema,
+            )
+            val field = plan.selectionSet.selections.single() as Field
+            val ancestor = DeferUsage(mkDefer("ancestor"), null)
+            val inherited = DeferUsage(mkDefer("parent"), ancestor)
+
+            for (collector in listOf(CollectFields.default, CollectFields.cached())) {
+                val result = collector.collectForTest(
+                    schema.schema,
+                    checkNotNull(field.selectionSet),
+                    emptyVars,
+                    schema.schema.queryType,
+                    plan.fragments,
+                    incrementalExecutionEnabled = true,
+                    deferUsage = inherited,
+                )
+
+                assertEquals(listOf("inline", "spread"), result.newDeferUsages.map { it.defer.label })
+                val (inline, spread) = result.newDeferUsages
+                assertSame(inherited, inline.parent)
+                assertSame(inherited, spread.parent)
+                assertSame(inherited, result.collectedFieldsMap.getValue("x").occurrences.single().deferUsage)
+                assertSame(inline, result.collectedFieldsMap.getValue("y").occurrences.single().deferUsage)
+                assertSame(spread, result.collectedFieldsMap.getValue("z").occurrences.single().deferUsage)
+            }
+        }
+
+        @Test
+        fun `disabled defer directives retain the supplied parent context`() {
+            val schema = "type Query { obj: Query, x: Int, y: Int }".asEngineSchema
+            val plan = buildPlan(
+                "{ obj { ... @defer(if: false) { x } ...F @defer(if: false) } } fragment F on Query { y }",
+                schema,
+            )
+            val field = plan.selectionSet.selections.single() as Field
+            val inherited = DeferUsage(mkDefer("parent"), null)
+
+            for (collector in listOf(CollectFields.default, CollectFields.cached())) {
+                val result = collector.collectForTest(
+                    schema.schema,
+                    checkNotNull(field.selectionSet),
+                    emptyVars,
+                    schema.schema.queryType,
+                    plan.fragments,
+                    incrementalExecutionEnabled = true,
+                    deferUsage = inherited,
+                )
+
+                assertEquals(listOf("x", "y"), result.collectedFieldsMap.keys.toList())
+                result.collectedFieldsMap.values.forEach { collected ->
+                    assertSame(inherited, collected.occurrences.single().deferUsage)
+                }
+                assertTrue(result.newDeferUsages.isEmpty())
+            }
+        }
+
+        @Test
+        fun `disabled incremental execution ignores supplied and nested defer contexts`() {
+            val schema = "type Query { obj: Query, x: Int, y: Int, z: Int }".asEngineSchema
+            val plan = buildPlan(
+                "{ obj { x ... @defer { y } ...F @defer } } fragment F on Query { z }",
+                schema,
+            )
+            val field = plan.selectionSet.selections.single() as Field
+            val inherited = DeferUsage(mkDefer("parent"), null)
+
+            for (collector in listOf(CollectFields.default, CollectFields.cached())) {
+                val result = collector.collectForTest(
+                    schema.schema,
+                    checkNotNull(field.selectionSet),
+                    emptyVars,
+                    schema.schema.queryType,
+                    plan.fragments,
+                    incrementalExecutionEnabled = false,
+                    deferUsage = inherited,
+                )
+
+                assertEquals(listOf("x", "y", "z"), result.collectedFieldsMap.keys.toList())
+                result.collectedFieldsMap.values.forEach { collected ->
+                    assertNull(collected.occurrences.single().deferUsage)
+                }
+                assertTrue(result.newDeferUsages.isEmpty())
+            }
+        }
+
         @Test
         fun `separate field collections have equal nested defer usages`() {
             val schema = "type Query { obj: Obj } type Obj { id: ID, name: String }".asEngineSchema
@@ -1104,6 +1376,7 @@ class CollectFieldsTest {
                 plan.fragments,
                 fieldRssOriginFilteringKillSwitchEnabled = false,
                 incrementalExecutionEnabled = true,
+                deferUsage = null,
             )
 
             assertTrue(result.newDeferUsages.isEmpty())
@@ -1129,6 +1402,7 @@ class CollectFieldsTest {
                 plan.fragments,
                 fieldRssOriginFilteringKillSwitchEnabled = false,
                 incrementalExecutionEnabled = true,
+                deferUsage = null,
             )
 
             assertTrue(result.newDeferUsages.isEmpty())
@@ -1325,6 +1599,7 @@ class CollectFieldsTest {
             plan.fragments,
             fieldRssOriginFilteringKillSwitchEnabled = false,
             incrementalExecutionEnabled = incrementalExecutionEnabled,
+            deferUsage = null,
         )
     }
 }
@@ -1336,6 +1611,7 @@ private fun CollectFields.collectForTest(
     parentType: GraphQLObjectType,
     fragments: QueryPlan.Fragments,
     incrementalExecutionEnabled: Boolean = false,
+    deferUsage: DeferUsage? = null,
 ): CollectFields.Result =
     invoke(
         EngineSchema(schema),
@@ -1345,6 +1621,26 @@ private fun CollectFields.collectForTest(
         fragments,
         fieldRssOriginFilteringKillSwitchEnabled = false,
         incrementalExecutionEnabled = incrementalExecutionEnabled,
+        deferUsage = deferUsage,
+    )
+
+private fun CollectFields.collectSubfieldsForTest(
+    schema: GraphQLSchema,
+    fields: List<FieldDetails>,
+    variables: CoercedVariables,
+    objectType: GraphQLObjectType,
+    fragments: QueryPlan.Fragments,
+    incrementalExecutionEnabled: Boolean = true,
+): CollectFields.Result =
+    CollectSubfields(
+        schema = EngineSchema(schema),
+        objectType = objectType,
+        fields = fields,
+        variables = variables,
+        fragments = fragments,
+        fieldRssOriginFilteringKillSwitchEnabled = false,
+        incrementalExecutionEnabled = incrementalExecutionEnabled,
+        collectFields = this,
     )
 
 private val String.asEngineSchema: EngineSchema
