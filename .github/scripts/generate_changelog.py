@@ -463,7 +463,7 @@ def render_breaking_changes(entries: list[ChangelogEntry]) -> str:
     for entry in entries:
         line = f"- {capitalize_first(entry.description)} by {entry.formatted_authors}"
         if entry.breaking_description:
-            line += f" — {capitalize_first(entry.breaking_description)}"
+            line += f" — {entry.breaking_description}"
         lines.append(line)
     lines.append("")
 

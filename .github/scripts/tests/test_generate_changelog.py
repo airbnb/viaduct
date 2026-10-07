@@ -681,7 +681,7 @@ class TestRenderBreakingChanges(unittest.TestCase):
         ]
         result = render_breaking_changes(entries)
         self.assertIn("## Breaking Changes", result)
-        self.assertIn("- Subject description by @john — Body trailer description", result)
+        self.assertIn("- Subject description by @john — body trailer description", result)
 
     def test_breaking_change_keeps_subject_with_sha(self):
         # subject description already has SHA from (AIRBNB) substitution — body trailer does not
@@ -690,6 +690,13 @@ class TestRenderBreakingChanges(unittest.TestCase):
         ]
         result = render_breaking_changes(entries)
         self.assertIn("- Rename SomeClass (abc1234) by @alice — SomeClass renamed to OtherClass.", result)
+
+    def test_breaking_change_keeps_footer_case(self):
+        entries = [
+            ChangelogEntry("abc1234", "m1", ["@alice"], "refactor", None, "remove nodeRef (abc1234)", True, "nodeRef is removed; use ref instead.", LevelBump.MAJOR),
+        ]
+        result = render_breaking_changes(entries)
+        self.assertIn("- Remove nodeRef (abc1234) by @alice — nodeRef is removed; use ref instead.", result)
 
     def test_breaking_change_without_footer_renders_subject_only(self):
         entries = [
