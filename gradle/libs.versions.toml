@@ -8,6 +8,7 @@ assertj = "3.27.7"
 asm = "9.7.1"
 antlr-st4 = "4.3.1"
 binaryCompatibility = "0.18.1"
+byte-buddy = "1.14.12"
 caffeine = "2.9.3"
 classgraph = "4.8.177"
 clikt = "3.5.4"
@@ -174,6 +175,8 @@ protobuf-java = { module = "com.google.protobuf:protobuf-java", version.ref = "p
 protobuf-kotlin = { module = "com.google.protobuf:protobuf-kotlin", version.ref = "protobuf" }
 # Testing
 guava = { module = "com.google.guava:guava", version.ref = "guava" }
+byte-buddy = { module = "net.bytebuddy:byte-buddy", version.ref = "byte-buddy" }
+byte-buddy-agent = { module = "net.bytebuddy:byte-buddy-agent", version.ref = "byte-buddy" }
 io-mockk-dsl = { module = "io.mockk:mockk-dsl", version.ref = "mockk-jvm" }
 io-mockk-jvm = { module = "io.mockk:mockk-jvm", version.ref = "mockk-jvm" }
 jmh-annotation-processor = { module = "org.openjdk.jmh:jmh-generator-annprocess", version.ref = "jmh" }

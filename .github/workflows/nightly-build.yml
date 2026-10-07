@@ -55,7 +55,7 @@ jobs:
       # only place it runs on Windows: without it a single failing task hides the rest of the
       # platform's health until that first failure is fixed.
       - name: Check
-        run: ./gradlew check --scan --continue
+        run: ./gradlew check --scan --continue -PtestJavaVersion=${{ matrix.java }}
         shell: bash
 
   # Exercises demoappsStandaloneTest on its own. As a finalizer of root `check` it is skipped

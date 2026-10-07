@@ -5,6 +5,7 @@ import buildroot.registerForOrchestrationAggregate
 plugins {
     id("conventions.java-without-tests")
     id("conventions.jacoco")
+    id("conventions.test-jvm")
 }
 
 val libs = extensions.getByType(VersionCatalogsExtension::class.java).named("libs")
