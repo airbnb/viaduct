@@ -36,4 +36,5 @@ dependencies {
 
     testImplementation(libs.kotest.assertions.shared)
     testImplementation(libs.kotest.assertions.core.jvm)
+    testImplementation(libs.kotlinx.coroutines.test)
 }

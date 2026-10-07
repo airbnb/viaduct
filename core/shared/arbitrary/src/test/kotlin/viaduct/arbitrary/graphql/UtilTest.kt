@@ -1,5 +1,5 @@
 @file:Suppress("ForbiddenImport")
-@file:OptIn(ExperimentalTime::class)
+@file:OptIn(ExperimentalCoroutinesApi::class)
 
 package viaduct.arbitrary.graphql
 
@@ -28,10 +28,13 @@ import io.kotest.property.arbitrary.string
 import io.kotest.property.checkAll
 import io.kotest.property.forAll
 import io.kotest.property.forNone
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.ExperimentalTime
 import kotlin.time.measureTime
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.testTimeSource
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -339,23 +342,9 @@ class UtilTest : KotestPropertyBase() {
 
     @Test
     fun `maybeDelay`(): Unit =
-        runBlocking {
-            // no delay
-            run {
-                val time = measureTime {
-                    randomSource.maybeDelay(0.asLongRange())
-                }
-                // pick a number greater than 0 to accommodate slow CI machines
-                assertTrue(time < 50.milliseconds)
-            }
-
-            // delay
-            run {
-                val time = measureTime {
-                    randomSource.maybeDelay(100.asLongRange())
-                }
-                assertTrue(time >= 100.milliseconds)
-            }
+        runTest {
+            assertEquals(Duration.ZERO, testTimeSource.measureTime { randomSource.maybeDelay(0.asLongRange()) })
+            assertEquals(100.milliseconds, testTimeSource.measureTime { randomSource.maybeDelay(100.asLongRange()) })
         }
 
     @Test
