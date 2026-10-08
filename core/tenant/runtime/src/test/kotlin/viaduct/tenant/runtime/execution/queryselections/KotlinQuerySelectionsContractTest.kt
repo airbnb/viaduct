@@ -2,11 +2,15 @@
 
 package viaduct.tenant.runtime.execution.queryselections
 
+import viaduct.api.documents.GraphQLOperation
+import viaduct.api.documents.QueryFromAnnotation
 import viaduct.api.resolver.Resolver
-import viaduct.api.resolver.Variable
 import viaduct.tenant.runtime.execution.queryselections.resolverbases.MutationResolvers
 import viaduct.tenant.runtime.execution.queryselections.resolverbases.QueryResolvers
 import viaduct.tenant.runtime.execution.queryselections.resolverbases.UserResolvers
+
+@GraphQLOperation("query(\$userId: ID!) { viewer { id name } user(id: \$userId) { id name } }")
+object ViewerAndUserQuery : QueryFromAnnotation()
 
 class KotlinQuerySelectionsContractTest : QuerySelectionsContractTest() {
     @Resolver
@@ -74,15 +78,13 @@ class KotlinQuerySelectionsContractTest : QuerySelectionsContractTest() {
         }
     }
 
-    @Resolver(
-        queryValueFragment = "fragment _ on Query { viewer { id name } user(id: \$userId) { id name } }",
-        variables = [Variable(name = "userId", fromArgument = "userId")]
-    )
+    @Resolver
     class Mutation_UpdateUserWithViewerInfoResolver : MutationResolvers.UpdateUserWithViewerInfo() {
         override suspend fun resolve(ctx: Context): UpdateResult {
             val userId = ctx.arguments.userId
-            val viewer = ctx.getQueryValue().getViewerOrThrow()
-            val user = ctx.getQueryValue().getUserOrThrow()
+            val result = ctx.query(ViewerAndUserQuery, mapOf("userId" to userId))
+            val viewer = result.getViewerOrThrow()
+            val user = result.getUserOrThrow()
 
             val success = viewer != null && user != null
             val message = when {

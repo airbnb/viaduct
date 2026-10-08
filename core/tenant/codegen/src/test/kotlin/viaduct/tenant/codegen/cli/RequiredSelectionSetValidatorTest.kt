@@ -253,6 +253,28 @@ class RequiredSelectionSetValidatorTest {
     }
 
     @Test
+    fun `mutation resolver with query selection set fails`() {
+        val errors = validate(
+            "fragment Main on Query { user(id: \"1\") { id } }",
+            typeName = "Query",
+            isQuery = true,
+            field = field(typeName = "Mutation", fieldName = "createUser"),
+        )
+        assertTrue(errors.any { it.contains("Mutation.createUser") && it.contains("must not set queryValueFragment") }, errors.toString())
+    }
+
+    @Test
+    fun `namespaced mutation resolver with query selection set fails`() {
+        val errors = validate(
+            "fragment Main on Query { user(id: \"1\") { id } }",
+            typeName = "Query",
+            isQuery = true,
+            field = field(typeName = "MutationNamespace", fieldName = "createUser"),
+        )
+        assertTrue(errors.any { it.contains("MutationNamespace.createUser") && it.contains("must not set queryValueFragment") }, errors.toString())
+    }
+
+    @Test
     fun `mutation resolver with object selection set fails`() {
         val errors = validate(
             "fragment Main on Mutation { createUser(name: \"x\") { id } }",

@@ -20,6 +20,12 @@ class ResolverSelectionSetsAreProperlyTyped(
             val qryRSSName = executor.querySelectionSet?.selections?.typeName
             val queryName = schema.schema.getQueryType().name
 
+            if ((objRSSName != null || qryRSSName != null) && (objectName == schema.schema.mutationType?.name || schema.isMutationNamespaceType(objectName))) {
+                throw BadResolverSelectionSetTypeException(
+                    "Mutation resolver ${coord.first}.${coord.second} must not declare object or query selections. Use ctx.query or ctx.mutation inside resolve instead."
+                )
+            }
+
             var msg: String? = null
             if (objRSSName != null && objectName != objRSSName) {
                 msg = "Object selection type ($objRSSName) does not match coordinate type ($objectName)"

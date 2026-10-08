@@ -131,6 +131,8 @@ Errors from subqueries are attributed separately from the parent query, so they 
 
 The core distinction is *when* the engine schedules the data you need, not whether the document is known at build time. With `@Resolver` fragments (`objectValueFragment`, `queryValueFragment`), the engine sees your data requirements at query planning time. It fetches the data before your resolver runs, and it batches and deduplicates identical field requests across all instances of the resolver in the same request. With `ctx.query()`, the operation is declared at build time, but your resolver chooses whether and when to execute it, so each call triggers a separate execution.
 
+Mutation resolvers cannot declare either required selection fragment. Use `ctx.query()` or `ctx.mutation()` inside `resolve` instead; see [Mutations](mutations.md).
+
 | Approach | Use when |
 |----------|----------|
 | `objectValueFragment` in `@Resolver` | Your resolver needs fields from the parent object, known ahead of time |

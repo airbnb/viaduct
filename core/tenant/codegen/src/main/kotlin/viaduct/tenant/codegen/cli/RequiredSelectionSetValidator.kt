@@ -103,7 +103,11 @@ internal class RequiredSelectionSetValidator(
 
         if (isQuery) {
             val queryTypeName = tenantCompilationSchema.queryType.name
-            if (fragmentTypeName != queryTypeName) {
+            if (isMutationExecutionParentType(field.typeName)) {
+                errors.add(
+                    "Mutation resolver ${field.implFqn} (${field.typeName}.${field.fieldName}) must not set queryValueFragment. Use ctx.query inside resolve instead.",
+                )
+            } else if (fragmentTypeName != queryTypeName) {
                 errors.add(
                     "queryValueFragment for ${field.implFqn} must be on the root query type ($queryTypeName), but found type $fragmentTypeName",
                 )
@@ -121,7 +125,7 @@ internal class RequiredSelectionSetValidator(
 
     /**
      * True if [typeName] is the mutation root or a `@namespaceType` object reachable from it — i.e. a
-     * type whose fields execute as mutations, which must not declare an objectValueFragment.
+     * type whose fields execute as mutations, which must not declare required selection sets.
      */
     private fun isMutationExecutionParentType(typeName: String): Boolean {
         val mutationType = tenantCompilationSchema.mutationType ?: return false

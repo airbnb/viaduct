@@ -28,7 +28,7 @@ import viaduct.graphql.test.assertEquals
     }
 
     extend type Mutation {
-      "Use queryValueFragment(initialString) via getQueryValue; return \"Mutated from: <initialString>\""
+      "Use ctx.query(initialString); return \"Mutated from: <initialString>\""
       string1: String @resolver
     }
 
@@ -61,7 +61,7 @@ abstract class RequiredSelectionsContractTest : KotlinFeatureAppTestContractBase
     }
 
     @Test
-    fun `mutation resolver uses queryValueFragment`() {
+    fun `mutation resolver explicitly queries Query fields`() {
         execute("mutation { string1 }").assertEquals {
             "data" to { "string1" to "Mutated from: InitialValue" }
         }

@@ -2193,14 +2193,14 @@ class RequiredSelectionsTest {
         }
 
     @Test
-    fun `resolve mutation with queryValueFragment`() =
+    fun `resolve mutation with explicit query`() =
         EngineTestModule("extend type Query { string1: String } extend type Mutation { string1: String }") {
             fieldWithValue("Query" to "string1", "InitialValue")
             field("Mutation" to "string1") {
                 resolver {
-                    querySelections("string1")
-                    fn { _, _, qry, _, _ ->
-                        val currentValue = qry.fetchAs<String>("string1")
+                    fn { _, _, _, _, ctx ->
+                        val selections = ctx.engineSelectionSetFactory.engineSelectionSet("Query", "string1", emptyMap())
+                        val currentValue = ctx.query(selections).fetchAs<String>("string1")
                         "Mutated from: $currentValue"
                     }
                 }

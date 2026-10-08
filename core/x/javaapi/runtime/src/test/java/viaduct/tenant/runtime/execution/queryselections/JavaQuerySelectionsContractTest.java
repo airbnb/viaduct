@@ -1,8 +1,8 @@
 package viaduct.tenant.runtime.execution.queryselections;
 
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import viaduct.java.api.annotations.Resolver;
-import viaduct.java.api.annotations.Variable;
 import viaduct.tenant.runtime.execution.queryselections.resolverbases.MutationResolvers;
 import viaduct.tenant.runtime.execution.queryselections.resolverbases.QueryResolvers;
 import viaduct.tenant.runtime.execution.queryselections.resolverbases.UserResolvers;
@@ -83,40 +83,40 @@ public class JavaQuerySelectionsContractTest extends QuerySelectionsContractTest
     }
   }
 
-  @Resolver(
-      queryValueFragment =
-          "fragment _ on Query { viewer { id name } user(id: $userId) { id name } }",
-      variables = {@Variable(name = "userId", fromArgument = "userId")})
+  @Resolver
   public static class UpdateUserWithViewerInfoResolver
       extends MutationResolvers.UpdateUserWithViewerInfo {
     @Override
     public CompletableFuture<UpdateResult> resolve(
         MutationResolvers.UpdateUserWithViewerInfo.Context ctx) {
       String userId = ctx.getArguments().getUserId();
-      User viewer = ctx.getQueryValue().getViewerOrThrow();
-      User user = ctx.getQueryValue().getUserOrThrow();
+      return ctx.query("viewer { id name } user(id: $userId) { id name }", Map.of("userId", userId))
+          .thenApply(
+              q -> {
+                User viewer = q.getViewerOrThrow();
+                User user = q.getUserOrThrow();
 
-      boolean success = viewer != null && user != null;
-      String message;
-      if (viewer == null) {
-        message = "No viewer found";
-      } else if (user == null) {
-        message = "User " + userId + " not found";
-      } else {
-        message =
-            "Updated user "
-                + user.getNameOrThrow()
-                + " ("
-                + user.getIdOrThrow()
-                + ") with info from viewer "
-                + viewer.getNameOrThrow()
-                + " ("
-                + viewer.getIdOrThrow()
-                + ")";
-      }
+                boolean success = viewer != null && user != null;
+                String message;
+                if (viewer == null) {
+                  message = "No viewer found";
+                } else if (user == null) {
+                  message = "User " + userId + " not found";
+                } else {
+                  message =
+                      "Updated user "
+                          + user.getNameOrThrow()
+                          + " ("
+                          + user.getIdOrThrow()
+                          + ") with info from viewer "
+                          + viewer.getNameOrThrow()
+                          + " ("
+                          + viewer.getIdOrThrow()
+                          + ")";
+                }
 
-      return CompletableFuture.completedFuture(
-          UpdateResult.builder(ctx).success(success).message(message).build());
+                return UpdateResult.builder(ctx).success(success).message(message).build();
+              });
     }
   }
 }

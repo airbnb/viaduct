@@ -12,7 +12,7 @@ import viaduct.graphql.test.assertEquals
  * - Resolvers that access root Query data via queryValueFragment
  * - Null safety when a queryValueFragment field returns null
  * - Recursive resolver dependencies through Query Selections
- * - Mutation fields that load Query selections with variables
+ * - Mutation fields that explicitly query with variables
  *
  * Extend this class and provide resolver implementations to verify that a given
  * runtime correctly supports these patterns.
@@ -29,7 +29,7 @@ import viaduct.graphql.test.assertEquals
     }
 
     extend type Mutation {
-        "Use queryValueFragment to fetch viewer and user(id: userId); return UpdateResult(success=true, message=\"Updated user User-<userId> (<userId>) with info from viewer ViewerUser (viewer-123)\")"
+        "Use ctx.query to fetch viewer and user(id: userId); return UpdateResult(success=true, message=\"Updated user User-<userId> (<userId>) with info from viewer ViewerUser (viewer-123)\")"
         updateUserWithViewerInfo(userId: ID!): UpdateResult! @resolver
     }
 

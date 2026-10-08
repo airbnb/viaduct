@@ -78,29 +78,33 @@ class FromFieldVariablesFeatureTest {
         }
 
     @Test
-    fun `from object field -- simple mutation field`() =
-        EngineTestModule(
-            """
-                extend type Mutation { x:Int, y(b:Int):Int, z:Int }
-                extend type Query { empty:Int }
-            """.trimIndent()
-        ) {
-            fieldWithFromFieldVariables(
-                coord = "Mutation" to "x",
-                objectSelectionsText = "y(b:\$b), z",
-                variables = listOf(FromObjectFieldVariable("b", "z")),
-            ) { _, obj, _, _, _ ->
-                obj.fetchAs<Int>("y") * 5
-            }
-            field("Mutation" to "y") {
-                resolver {
-                    fn { args, _, _, _, _ -> args.getAs<Int>("b") * 3 }
+    fun `from object field -- mutation object selections are rejected`() {
+        val exception = assertThrows<Exception> {
+            EngineTestModule(
+                """
+                    extend type Mutation { x:Int, y(b:Int):Int, z:Int }
+                    extend type Query { empty:Int }
+                """.trimIndent()
+            ) {
+                fieldWithFromFieldVariables(
+                    coord = "Mutation" to "x",
+                    objectSelectionsText = "y(b:\$b), z",
+                    variables = listOf(FromObjectFieldVariable("b", "z")),
+                ) { _, obj, _, _, _ ->
+                    obj.fetchAs<Int>("y") * 5
                 }
+                field("Mutation" to "y") {
+                    resolver {
+                        fn { args, _, _, _, _ -> args.getAs<Int>("b") * 3 }
+                    }
+                }
+                fieldWithValue("Mutation" to "z", 2)
+            }.runFeatureTest {
+                runQuery("mutation { x }")
             }
-            fieldWithValue("Mutation" to "z", 2)
-        }.runFeatureTest {
-            runQuery("mutation { x }").assertJson("{data: {x: 30}}")
         }
+        assertTrue(exception.message!!.contains("Mutation.x must not declare object or query selections"))
+    }
 
     @Test
     fun `from object field -- selection is field with omitted arg and default value`() =
@@ -644,30 +648,34 @@ class FromFieldVariablesFeatureTest {
         }
 
     @Test
-    fun `from query field -- simple mutation field`() =
-        EngineTestModule(
-            """
+    fun `from query field -- mutation query selections are rejected`() {
+        val exception = assertThrows<Exception> {
+            EngineTestModule(
+                """
                 extend type Mutation { x:Int, y(b:Int):Int }
                 extend type Query { z:Int }
-            """.trimIndent()
-        ) {
-            fieldWithFromFieldVariables(
-                coord = "Mutation" to "x",
-                objectSelectionsText = "y(b:\$z)",
-                querySelectionsText = "z",
-                variables = listOf(FromQueryFieldVariable("z", "z")),
-            ) { _, obj, _, _, _ ->
-                obj.fetchAs<Int>("y") * 5
-            }
-            field("Mutation" to "y") {
-                resolver {
-                    fn { args, _, _, _, _ -> args.getAs<Int>("b") * 3 }
+                """.trimIndent()
+            ) {
+                fieldWithFromFieldVariables(
+                    coord = "Mutation" to "x",
+                    objectSelectionsText = "y(b:\$z)",
+                    querySelectionsText = "z",
+                    variables = listOf(FromQueryFieldVariable("z", "z")),
+                ) { _, obj, _, _, _ ->
+                    obj.fetchAs<Int>("y") * 5
                 }
+                field("Mutation" to "y") {
+                    resolver {
+                        fn { args, _, _, _, _ -> args.getAs<Int>("b") * 3 }
+                    }
+                }
+                fieldWithValue("Query" to "z", 2)
+            }.runFeatureTest {
+                runQuery("mutation {x}")
             }
-            fieldWithValue("Query" to "z", 2)
-        }.runFeatureTest {
-            runQuery("mutation {x}").assertJson("{data: {x: 30}}")
         }
+        assertTrue(exception.message!!.contains("Mutation.x must not declare object or query selections"))
+    }
 
     @Test
     fun `from query field -- binds variable to query field with different name`() =

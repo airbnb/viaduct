@@ -35,6 +35,28 @@ class ResolverSelectionSetsAreProperlyTypedTest {
     }
 
     @Test
+    fun `mutation query selections are rejected`() {
+        assertInvalid("Mutation", "updateUser", null, createRSS("Query", "currentUser"), "Mutation.updateUser", "must not declare object or query selections")
+    }
+
+    @Test
+    fun `namespaced mutation query selections are rejected`() {
+        assertInvalid("MutationNamespace", "updateUser", null, createRSS("Query", "currentUser"), "MutationNamespace.updateUser", "must not declare object or query selections")
+    }
+
+    @Test
+    fun `mutation object selections are rejected`() {
+        assertInvalid("Mutation", "updateUser", createRSS("Mutation", "updateUser { id }"), null, "Mutation.updateUser", "must not declare object or query selections")
+        assertInvalid("MutationNamespace", "updateUser", createRSS("MutationNamespace", "updateUser { id }"), null, "MutationNamespace.updateUser", "must not declare object or query selections")
+    }
+
+    @Test
+    fun `mutation without query selections passes`() {
+        assertValid("Mutation", "updateUser", null, null)
+        assertValid("MutationNamespace", "updateUser", null, null)
+    }
+
+    @Test
     fun `invalid -- object selection set with wrong type`() {
         val objectRSS = createRSS("Query", "currentUser") // Wrong! Should be "User"
         assertInvalid("User", "name", objectRSS, null, "Query")
@@ -106,6 +128,13 @@ class ResolverSelectionSetsAreProperlyTypedTest {
                 empty: Int
                 currentUser: User
                 globalFlag: String
+            }
+            extend type Mutation {
+                updateUser: User
+                namespace: MutationNamespace
+            }
+            type MutationNamespace @namespaceType {
+                updateUser: User
             }
             type User {
                 id: ID!

@@ -2,11 +2,16 @@
 
 package viaduct.tenant.runtime.execution.requiredselections
 
+import viaduct.api.documents.GraphQLOperation
+import viaduct.api.documents.QueryFromAnnotation
 import viaduct.api.resolver.Resolver
 import viaduct.tenant.runtime.execution.requiredselections.resolverbases.BarResolvers
 import viaduct.tenant.runtime.execution.requiredselections.resolverbases.BazResolvers
 import viaduct.tenant.runtime.execution.requiredselections.resolverbases.MutationResolvers
 import viaduct.tenant.runtime.execution.requiredselections.resolverbases.QueryResolvers
+
+@GraphQLOperation("{ initialString }")
+object InitialStringQuery : QueryFromAnnotation()
 
 class KotlinRequiredSelectionsContractTest : RequiredSelectionsContractTest() {
     @Resolver
@@ -37,10 +42,10 @@ class KotlinRequiredSelectionsContractTest : RequiredSelectionsContractTest() {
         override suspend fun resolve(ctx: Context): String = "InitialValue"
     }
 
-    @Resolver(queryValueFragment = "fragment _ on Query { initialString }")
+    @Resolver
     class Mutation_String1Resolver : MutationResolvers.String1() {
         override suspend fun resolve(ctx: Context): String {
-            val current = ctx.getQueryValue().getInitialStringOrThrow()
+            val current = ctx.query(InitialStringQuery).getInitialStringOrThrow()
             return "Mutated from: $current"
         }
     }

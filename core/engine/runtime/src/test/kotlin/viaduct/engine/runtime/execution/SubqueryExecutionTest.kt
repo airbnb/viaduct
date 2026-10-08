@@ -807,8 +807,8 @@ abstract class SubqueryExecutionTestCases(
 
     @Test
     fun `parallel ctx mutations with disjoint query selections on same node complete`() {
-        val variableResolversStarted = AtomicInteger()
-        val bothVariableResolversStarted = CompletableDeferred<Unit>()
+        val queryResolversStarted = AtomicInteger()
+        val bothQueryResolversStarted = CompletableDeferred<Unit>()
 
         EngineTestModule(
             """
@@ -851,34 +851,30 @@ abstract class SubqueryExecutionTestCases(
 
             field("Mutation" to "readFoo") {
                 resolver {
-                    querySelections(
-                        """
-                        node(id: ${'$'}fooId) {
-                            ... on Foo {
-                                a @include(if: ${'$'}includeA)
-                                b @include(if: ${'$'}includeB)
-                            }
+                    fn { args, _, _, _, ctx ->
+                        if (queryResolversStarted.incrementAndGet() == 2) {
+                            bothQueryResolversStarted.complete(Unit)
                         }
-                        """.trimIndent()
-                    ) {
-                        variables("fooId", "includeA", "includeB") { resolveCtx, _ ->
-                            if (variableResolversStarted.incrementAndGet() == 2) {
-                                bothVariableResolversStarted.complete(Unit)
+                        bothQueryResolversStarted.await()
+                        val kind = args.getAs<String>("kind")
+                        val selections = ctx.engineSelectionSetFactory.engineSelectionSet(
+                            "Query",
+                            """
+                            node(id: ${'$'}fooId) {
+                                ... on Foo {
+                                    a @include(if: ${'$'}includeA)
+                                    b @include(if: ${'$'}includeB)
+                                }
                             }
-                            bothVariableResolversStarted.await()
-
-                            val kind = resolveCtx.arguments.getAs<String>("kind")
+                            """.trimIndent(),
                             mapOf(
                                 "fooId" to "foo-1",
                                 "includeA" to (kind == "A"),
                                 "includeB" to (kind == "B")
                             )
-                        }
-                    }
-
-                    fn { args, _, queryValue, _, _ ->
-                        val node = queryValue.fetchAs<EngineObjectData>("node")
-                        when (args.getAs<String>("kind")) {
+                        )
+                        val node = ctx.query(selections).fetchAs<EngineObjectData>("node")
+                        when (kind) {
                             "A" -> node.fetchAs<String>("a")
                             "B" -> node.fetchAs<String>("b")
                             else -> error("Unexpected kind")
