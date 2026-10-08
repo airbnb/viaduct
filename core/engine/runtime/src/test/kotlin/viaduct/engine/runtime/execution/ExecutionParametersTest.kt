@@ -106,6 +106,115 @@ class ExecutionParametersTest {
     private val defaultLocalContext: CompositeLocalContext = createLocalContext(viaductSchema)
 
     @Test
+    fun `withNewDeferMap reuses parameters for the same map`() {
+        val usage = DeferUsage(mkDefer("A"), null)
+        val group = DeferDeliveryGroup(ResultPath.rootPath(), "A", null)
+        val parameters = rootCollectionParameters(queryPlanFor(queryType)).copy(deferMap = mapOf(usage to group))
+
+        val result = parameters.withNewDeferMap(parameters.deferMap)
+
+        assertSame(parameters, result)
+    }
+
+    @Test
+    fun `withNewDeferMap replaces the map without changing the original parameters`() {
+        val oldUsage = DeferUsage(mkDefer("old"), null)
+        val newUsage = DeferUsage(mkDefer("new"), null)
+        val oldMap = mapOf(oldUsage to DeferDeliveryGroup(ResultPath.rootPath(), "old", null))
+        val newMap = mapOf(newUsage to DeferDeliveryGroup(ResultPath.rootPath(), "new", null))
+        val parameters = rootCollectionParameters(queryPlanFor(queryType)).copy(deferMap = oldMap)
+
+        val result = parameters.withNewDeferMap(newMap)
+
+        assertNotSame(parameters, result)
+        assertSame(newMap, result.deferMap)
+        assertSame(oldMap, parameters.deferMap)
+    }
+
+    @Test
+    fun `withNewDeferMap replaces equal maps that have different identities`() {
+        val usage = DeferUsage(mkDefer("A"), null)
+        val group = DeferDeliveryGroup(ResultPath.rootPath(), "A", null)
+        val parameters = rootCollectionParameters(queryPlanFor(queryType)).copy(deferMap = mapOf(usage to group))
+        val equalMap = parameters.deferMap.toMutableMap()
+
+        val result = parameters.withNewDeferMap(equalMap)
+
+        assertNotSame(parameters, result)
+        assertSame(equalMap, result.deferMap)
+    }
+
+    @Test
+    fun `withNewDeferMap clears an existing map`() {
+        val usage = DeferUsage(mkDefer("A"), null)
+        val group = DeferDeliveryGroup(ResultPath.rootPath(), "A", null)
+        val parameters = rootCollectionParameters(queryPlanFor(queryType)).copy(deferMap = mapOf(usage to group))
+
+        val result = parameters.withNewDeferMap(emptyMap())
+
+        assertEquals(emptyMap<DeferUsage, DeferDeliveryGroup>(), result.deferMap)
+        assertSame(group, parameters.deferMap.getValue(usage))
+    }
+
+    @Test
+    fun `withNewDeferMap keeps execution handles isolated`() {
+        val usage = DeferUsage(mkDefer("A"), null)
+        val group = DeferDeliveryGroup(ResultPath.rootPath(), "A", null)
+        val parameters = rootCollectionParameters(queryPlanFor(queryType))
+
+        val result = parameters.withNewDeferMap(mapOf(usage to group))
+
+        assertNotSame(parameters.engineExecutionContext, result.engineExecutionContext)
+        assertSame(result, result.engineExecutionContext.executionHandle)
+        assertSame(parameters, parameters.engineExecutionContext.executionHandle)
+    }
+
+    @Test
+    fun `normal traversal preserves the defer map`() {
+        val usage = DeferUsage(mkDefer("A"), null)
+        val group = DeferDeliveryGroup(ResultPath.rootPath(), "A", null)
+        val root = createExecutionParameters(
+            source = defaultRootValue,
+            executionStepInfo = ExecutionStepInfo.newExecutionStepInfo().type(queryType).path(ResultPath.rootPath()).build(),
+            queryPlan = queryPlanFor(type = queryType),
+        ).copy(deferMap = mapOf(usage to group))
+        val field = collectedFooField(mergedField("foo", selectionSet("id")))
+        val fieldParameters = root.forField(queryType, field)
+        val objectParameters = fieldParameters.forObjectTraversal(
+            field,
+            ObjectEngineResultImpl.newForType(fooType),
+            defaultLocalContext,
+            null,
+        )
+
+        assertSame(root.deferMap, fieldParameters.deferMap)
+        assertSame(root.deferMap, objectParameters.deferMap)
+    }
+
+    @Test
+    fun `child query plans start with an empty defer map`() {
+        val usage = DeferUsage(mkDefer("A"), null)
+        val group = DeferDeliveryGroup(ResultPath.rootPath(), "A", null)
+        val root = createExecutionParameters(
+            source = defaultRootValue,
+            executionStepInfo = ExecutionStepInfo.newExecutionStepInfo().type(queryType).path(ResultPath.rootPath()).build(),
+            queryPlan = queryPlanFor(type = queryType),
+        ).copy(deferMap = mapOf(usage to group))
+        val field = collectedFooField(mergedField("foo", selectionSet("id")))
+        val objectParameters = root.forField(queryType, field).forObjectTraversal(
+            field,
+            ObjectEngineResultImpl.newForType(fooType),
+            defaultLocalContext,
+            null,
+        )
+
+        val child = objectParameters.forChildPlan(queryPlanFor(fooType), emptyVariables, ChildQueryPlanTarget.CurrentObjectResult)
+
+        assertEquals(emptyMap<DeferUsage, DeferDeliveryGroup>(), child.deferMap)
+        assertSame(group, objectParameters.deferMap.getValue(usage))
+    }
+
+    @Test
     fun `field collection receives the incremental execution flag from the request`() {
         val plan = buildPlan("{ ... @defer(label: \"later\") { foo { id } } }", viaductSchema)
         val disabledParameters = createExecutionParameters(

@@ -145,9 +145,13 @@ class FieldCompleter(
                     ctxCompleteObject.onCompletedNullable(null, null)
                     completeValueForNull(parameters)
                 } else {
-                    val collectedFields = collectFields(currentOER.type, parameters).collectedFieldsMap
+                    val collected = collectFields(currentOER.type, parameters)
+                    val collectedFields = collected.collectedFieldsMap
                     val completed = if (parameters.engineExecutionContext.incrementalExecutionEnabled) {
-                        executeExecutionPlan(parameters, collectedFields, BuildExecutionPlan(collectedFields))
+                        val completionParameters = parameters.withNewDeferMap(
+                            GetNewDeferMap(collected.newDeferUsages, parameters.path, parameters.deferMap)
+                        )
+                        executeExecutionPlan(completionParameters, collectedFields, BuildExecutionPlan(collectedFields))
                     } else {
                         completeCollectedFields(parameters, collectedFields)
                     }

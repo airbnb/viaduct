@@ -165,6 +165,7 @@ data class ExecutionParameters(
     val executionStepInfo: ExecutionStepInfo,
     val selectionSet: QueryPlan.SelectionSet,
     val errorAccumulator: ErrorAccumulator,
+    val deferMap: DeferMap = emptyMap(),
     val executionOrigin: ExecutionOrigin = ExecutionOrigin.Root,
     val field: CollectedField? = null,
     val bypassChecksDuringCompletion: Boolean = false,
@@ -238,6 +239,8 @@ data class ExecutionParameters(
      * Returns this instance when [caller] is null.
      */
     fun withCaller(caller: Caller?): ExecutionParameters = if (caller == null) this else copy(_caller = caller)
+
+    fun withNewDeferMap(deferMap: DeferMap): ExecutionParameters = if (deferMap === this.deferMap) this else copy(deferMap = deferMap)
 
     /**
      * The field resolver for the field that these parameters execute. Null when that field has no
@@ -708,6 +711,7 @@ data class ExecutionParameters(
             queryPlan = childPlan,
             queryPlanIndex = newIndex,
             selectionSet = childPlan.selectionSet,
+            deferMap = emptyMap(),
             errorAccumulator = ErrorAccumulator(),
             executionStepInfo = childExecutionStepInfo,
             currentObjectEngineResult = newCurrentObjectEngineResult,

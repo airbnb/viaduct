@@ -1,11 +1,14 @@
 package viaduct.engine.runtime.execution
 
+import graphql.execution.DataFetcherExceptionHandler
 import graphql.execution.NonNullableFieldWasNullException
+import graphql.execution.ResultPath
 import graphql.execution.SimpleDataFetcherExceptionHandler
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
@@ -13,9 +16,75 @@ import org.junit.jupiter.api.assertThrows
 import viaduct.engine.runtime.FieldResolutionResult
 import viaduct.engine.runtime.Value
 import viaduct.engine.runtime.context.CompositeLocalContext
+import viaduct.engine.runtime.dfe.engineExecutionContext
+import viaduct.engine.runtime.mocks.ContextMocks
+import viaduct.service.api.spi.mocks.MockFlagManager
 
 class ExecuteExecutionPlanTest {
     private val completer = FieldCompleter(SimpleDataFetcherExceptionHandler(), false)
+
+    @Test
+    fun `object completion registers newly collected defers at the response path`() =
+        runTest {
+            val ctx = mkObjectCompletionParameters(
+                schemaSDL = "extend type Query { obj: Obj } type Obj { a: Int }",
+                coordinate = "Query" to "obj",
+                query = "{ aliasedObj: obj { ... @defer(label: \"A\") { broken: a } } }",
+            )
+            val usage = FieldExecutionHelpers.collectFields(ctx.currentObjectEngineResult.type, ctx).newDeferUsages.single()
+
+            val deferMap = completeWithFieldFailure(ctx, "broken")
+
+            val group = deferMap.getValue(usage)
+            assertEquals(ResultPath.rootPath().segment("aliasedObj"), group.path)
+            assertEquals("A", group.label)
+            assertEquals(null, group.parent)
+            assertTrue(ctx.deferMap.isEmpty())
+        }
+
+    @Test
+    fun `object completion links new groups to inherited parents`() =
+        runTest {
+            val base = mkObjectCompletionParameters(
+                schemaSDL = "extend type Query { obj: Obj } type Obj { a: Int }",
+                coordinate = "Query" to "obj",
+                query = "{ ... @defer(label: \"outer\") { obj { ... @defer(label: \"inner\") { broken: a } } } }",
+            )
+            val parentUsage = checkNotNull(base.field).occurrences.single().deferUsage!!
+            val parent = DeferDeliveryGroup(ResultPath.rootPath(), "outer", null)
+            val ctx = base.copy(deferMap = mapOf(parentUsage to parent))
+            val childUsage = FieldExecutionHelpers.collectFields(ctx.currentObjectEngineResult.type, ctx).newDeferUsages.single()
+
+            val deferMap = completeWithFieldFailure(ctx, "broken")
+
+            assertSame(parent, deferMap.getValue(parentUsage))
+            assertSame(parent, deferMap.getValue(childUsage).parent)
+            assertEquals(mapOf(parentUsage to parent), ctx.deferMap)
+        }
+
+    @Test
+    fun `object completion preserves the defer map when incremental execution is disabled`() =
+        runTest {
+            val base = mkObjectCompletionParameters(
+                schemaSDL = "extend type Query { obj: Obj } type Obj { a: Int }",
+                coordinate = "Query" to "obj",
+                query = "{ ... @defer(label: \"outer\") { obj { ... @defer(label: \"inner\") { broken: a } } } }",
+            )
+            val parentUsage = checkNotNull(base.field).occurrences.single().deferUsage!!
+            val inheritedDeferMap = mapOf(parentUsage to DeferDeliveryGroup(ResultPath.rootPath(), "outer", null))
+            val ctx = base.copy(
+                _engineExecutionContext = ContextMocks(
+                    myFullSchema = base.engineExecutionContext.fullSchema,
+                    myFlagManager = MockFlagManager.Disabled,
+                ).engineExecutionContext,
+                deferMap = inheritedDeferMap,
+            )
+
+            val deferMap = completeWithFieldFailure(ctx, "broken")
+
+            assertSame(inheritedDeferMap, deferMap)
+            assertSame(inheritedDeferMap, ctx.deferMap)
+        }
 
     @Test
     fun `execution plans without deferred fields complete synchronously including empty plans`() =
@@ -242,6 +311,26 @@ class ExecuteExecutionPlanTest {
                 assertEquals(listOf(listOf("hero", "nonNullName")), ctx.errorAccumulator.toList().map { it.path })
                 deferred.complete(resolved("1"))
             }
+    }
+
+    private suspend fun completeWithFieldFailure(
+        ctx: ExecutionParameters,
+        responseKey: String,
+    ): DeferMap {
+        val fields = FieldExecutionHelpers.collectFields(ctx.currentObjectEngineResult.type, ctx).collectedFieldsMap
+        setRawFieldValue(ctx, fields.getValue(responseKey), Value.fromThrowable(IllegalStateException("failed")))
+        ctx.currentObjectEngineResult.fieldResolutionState.complete(Unit)
+        lateinit var deferMap: DeferMap
+        val handler = DataFetcherExceptionHandler { parameters ->
+            val executionParameters = parameters.dataFetchingEnvironment.engineExecutionContext.executionHandle as ExecutionParameters
+            deferMap = executionParameters.deferMap
+            SimpleDataFetcherExceptionHandler().handleException(parameters)
+        }
+
+        val result = FieldCompleter(handler, false).completeObject(ctx).await()
+
+        assertEquals(mapOf(responseKey to null), result.value)
+        return deferMap
     }
 
     private fun resolved(value: Any?) = FieldResolutionResult(value, emptyList(), CompositeLocalContext.empty, emptyMap(), value)
