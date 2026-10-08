@@ -72,7 +72,8 @@ public class Query_OrdersConnection_Arguments extends InputBase implements Argum
         private Builder(InternalContext __context) {
             this.__context = __context;
             this.graphQLInputObjectType =
-                    __context.getArgumentsInputType(
+                    InputBase.argumentsType(
+                            __context,
                             "Query_OrdersConnection_Arguments",
                             "Query",
                             "ordersConnection");
@@ -86,7 +87,8 @@ public class Query_OrdersConnection_Arguments extends InputBase implements Argum
 
         public Query_OrdersConnection_Arguments build() {
             return new Query_OrdersConnection_Arguments(
-                    __context, new LinkedHashMap<>(data), graphQLInputObjectType);
+                    __context, InputBase.validateInputData("Query_OrdersConnection_Arguments", graphQLInputObjectType, data),
+                    graphQLInputObjectType);
         }
     }
 }

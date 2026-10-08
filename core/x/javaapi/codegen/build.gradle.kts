@@ -39,6 +39,7 @@ dependencies {
     testImplementation(project(":x:javaapi:api"))
     // Generated argument builders use the shared synthetic input-type factory.
     testImplementation(libs.viaduct.tenant.api)
+    testImplementation(libs.viaduct.tenant.shared)
 }
 
 // Forward the golden-snapshot regenerate flag to the test JVM so that running with

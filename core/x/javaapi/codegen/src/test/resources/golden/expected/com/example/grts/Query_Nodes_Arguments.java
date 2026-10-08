@@ -67,7 +67,8 @@ public class Query_Nodes_Arguments extends InputBase implements Arguments {
         private Builder(InternalContext __context) {
             this.__context = __context;
             this.graphQLInputObjectType =
-                    __context.getArgumentsInputType(
+                    InputBase.argumentsType(
+                            __context,
                             "Query_Nodes_Arguments",
                             "Query",
                             "nodes");
@@ -81,7 +82,8 @@ public class Query_Nodes_Arguments extends InputBase implements Arguments {
 
         public Query_Nodes_Arguments build() {
             return new Query_Nodes_Arguments(
-                    __context, new LinkedHashMap<>(data), graphQLInputObjectType);
+                    __context, InputBase.validateInputData("Query_Nodes_Arguments", graphQLInputObjectType, data),
+                    graphQLInputObjectType);
         }
     }
 }

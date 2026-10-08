@@ -46,14 +46,10 @@ class InputGeneratorTest {
     assertTrue(generated.contains("public static Builder builder(ExecutionContext context)"));
     assertTrue(generated.contains("public static class Builder"));
     assertTrue(generated.contains("public Builder toBuilder()"));
+    assertTrue(generated.contains("InputBase.inputType(__context, \"CreateUserInput\")"));
     assertTrue(
         generated.contains(
-            "(GraphQLInputObjectType)"
-                + " __context.getSchema().getSchema().getType(\"CreateUserInput\")"));
-    assertTrue(
-        generated.contains(
-            "new CreateUserInput(__context, new LinkedHashMap<>(data),"
-                + " graphQLInputObjectType)"));
+            "InputBase.validateInputData(\"CreateUserInput\", graphQLInputObjectType, data)"));
   }
 
   @Test
@@ -225,12 +221,13 @@ class InputGeneratorTest {
     String generated = JavaGRTGenerator.InputGenerator.generate(model);
 
     assertTrue(
-        generated.contains("InputBase.validateOneOf(\"SearchFilterInput\", data);"),
+        generated.contains(
+            "InputBase.validateInputData(\"SearchFilterInput\", graphQLInputObjectType, data)"),
         "Expected build() to validate the @oneOf constraint, got:\n" + generated);
   }
 
   @Test
-  void nonOneOfInputBuildDoesNotValidate() {
+  void ordinaryInputBuildValidatesSchema() {
     InputModel model =
         new InputModel(
             "com.example.types",
@@ -242,8 +239,9 @@ class InputGeneratorTest {
     String generated = JavaGRTGenerator.InputGenerator.generate(model);
 
     assertTrue(
-        !generated.contains("validateOneOf"),
-        "Expected no @oneOf validation on a plain input, got:\n" + generated);
+        generated.contains(
+            "InputBase.validateInputData(\"PlainInput\", graphQLInputObjectType, data)"),
+        "Expected schema validation on a plain input, got:\n" + generated);
   }
 
   @Test

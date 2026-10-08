@@ -88,12 +88,13 @@ public class CreateOrderInput extends InputBase {
         private Builder(InternalContext __context) {
             this.__context = __context;
             this.graphQLInputObjectType =
-                    (GraphQLInputObjectType) __context.getSchema().getSchema().getType("CreateOrderInput");
+                    InputBase.inputType(__context, "CreateOrderInput");
         }
 
         private Builder(InternalContext context, GraphQLInputObjectType type, Map<String, Object> data) {
             this.__context = context;
-            this.graphQLInputObjectType = type;
+            this.graphQLInputObjectType = type != null || context == null
+                    ? type : InputBase.inputType(context, "CreateOrderInput");
             this.data.putAll(data);
         }
 
@@ -119,7 +120,9 @@ public class CreateOrderInput extends InputBase {
 
 
         public CreateOrderInput build() {
-            return new CreateOrderInput(__context, new LinkedHashMap<>(data), graphQLInputObjectType);
+            return new CreateOrderInput(__context,
+                    InputBase.validateInputData("CreateOrderInput", graphQLInputObjectType, data),
+                    graphQLInputObjectType);
         }
     }
 }

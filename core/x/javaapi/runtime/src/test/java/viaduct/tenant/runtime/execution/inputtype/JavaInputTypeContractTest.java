@@ -5,6 +5,10 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import graphql.Scalars;
+import graphql.schema.GraphQLInputObjectField;
+import graphql.schema.GraphQLInputObjectType;
+import graphql.schema.GraphQLNonNull;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.HashMap;
@@ -41,8 +45,26 @@ public class JavaInputTypeContractTest extends InputTypeContractTest {
 
   @Test
   void inputCopyBuilderPreservesPresenceAndSnapshotsOverrides() {
+    GraphQLInputObjectType type =
+        GraphQLInputObjectType.newInputObject()
+            .name("UserInput")
+            .field(
+                GraphQLInputObjectField.newInputObjectField()
+                    .name("name")
+                    .type(GraphQLNonNull.nonNull(Scalars.GraphQLString)))
+            .field(
+                GraphQLInputObjectField.newInputObjectField().name("age").type(Scalars.GraphQLInt))
+            .field(
+                GraphQLInputObjectField.newInputObjectField()
+                    .name("balance")
+                    .type(
+                        viaduct.graphql.Scalars.INSTANCE.getViaductStandardScalars().stream()
+                            .filter(scalar -> scalar.getName().equals("BigDecimal"))
+                            .findFirst()
+                            .orElseThrow()))
+            .build();
     UserInput original =
-        new UserInput(null, Map.of("name", "Alice", "balance", BigDecimal.TEN), null);
+        new UserInput(null, Map.of("name", "Alice", "balance", BigDecimal.TEN), type);
     UserInput roundTrip = original.toBuilder().build();
     UserInput.Builder builder = original.toBuilder().name("Bob").age(null);
     UserInput first = builder.build();

@@ -3,6 +3,7 @@ package viaduct.java.api.internal;
 import graphql.GraphQLContext;
 import graphql.execution.ValuesResolver;
 import graphql.schema.GraphQLInputObjectType;
+import graphql.schema.GraphQLTypeUtil;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -11,10 +12,13 @@ import java.util.Map;
 import org.jspecify.annotations.Nullable;
 import viaduct.errors.FrameworkException;
 import viaduct.errors.HandleErrors;
+import viaduct.errors.TenantUsageException;
 import viaduct.java.api.globalid.GlobalID;
 import viaduct.java.api.reflect.Field;
 import viaduct.java.api.types.GraphQLInput;
 import viaduct.java.api.types.NodeCompositeOutput;
+import viaduct.tenant.runtime.jvm.InputDataValidator;
+import viaduct.tenant.runtime.jvm.InputTypeFactory;
 
 /**
  * Base class for Java input type GRTs (Generated Runtime Types).
@@ -26,16 +30,8 @@ import viaduct.java.api.types.NodeCompositeOutput;
  * nested input types, the map value is wrapped using the provided constructor function (like
  * Kotlin's {@code grtConvFactory.createForInputField()}).
  *
- * <p><b>{@code @oneOf} inputs:</b> the "exactly one field must be set" constraint is enforced at
- * the builder level — a generated {@code build()} on a {@code @oneOf} input calls {@link
- * #validateOneOf} and throws a {@code TenantUsageException} if more or fewer than one field is set.
- * This fails fast so tenants learn of a violation when they build the input rather than only at
- * execution time. graphql-java remains the execution-time backstop, re-validating during input
- * coercion (its {@code ValuesResolverOneOfValidation}) before resolver input GRTs are ever
- * materialized. Unlike Kotlin's {@code InputLikeBase} — whose GRT constructor always receives the
- * schema type and re-runs {@code validateInputData} — this class is handed a null {@code
- * GraphQLInputObjectType} on the nested-input wrapping path, so there is no separate
- * construction-time {@code @oneOf} check there; the builder plus graphql-java cover every path.
+ * <p>Generated builders validate required fields, nested nullability, and {@code @oneOf}
+ * constraints before constructing an input. GraphQL Java still performs execution-time coercion.
  */
 public abstract class InputBase implements GraphQLInput {
 
@@ -126,39 +122,54 @@ public abstract class InputBase implements GraphQLInput {
         Locale.getDefault());
   }
 
-  /**
-   * Validates the {@code @oneOf} constraint for an input type: exactly one field must be present
-   * with a non-null value. Throws a {@code TenantUsageException} otherwise. Called from the
-   * generated {@code build()} of {@code @oneOf} inputs so violations fail fast at construction
-   * time, mirroring the {@code @oneOf} check in Kotlin's {@code InputLikeBase.validateInputData}.
-   *
-   * @param typeName the input type's GraphQL name, used in the error message
-   * @param data the builder's accumulated field data
-   */
+  public static GraphQLInputObjectType inputType(InternalContext context, String typeName) {
+    return HandleErrors.framework(
+        "InputBase.inputType: " + typeName,
+        () -> InputTypeFactory.inputObjectInputType(typeName, context.getSchema()));
+  }
+
+  public static GraphQLInputObjectType argumentsType(
+      InternalContext context, String typeName, String containingTypeName, String fieldName) {
+    return HandleErrors.framework(
+        "InputBase.argumentsType: " + containingTypeName + "." + fieldName,
+        () -> context.getArgumentsInputType(typeName, containingTypeName, fieldName));
+  }
+
+  public static Map<String, Object> validateInputData(
+      String typeName, @Nullable GraphQLInputObjectType type, Map<String, Object> data) {
+    return HandleErrors.framework(
+        "InputBase.validateInputData: " + typeName,
+        () -> {
+          if (type == null || !typeName.equals(type.getName())) {
+            throw new FrameworkException(
+                "Input schema type missing or mismatched for " + typeName, null);
+          }
+          try {
+            return InputDataValidator.validateAndCopy(
+                type,
+                data,
+                value -> value instanceof InputBase input ? input.getInputData() : null);
+          } catch (IllegalStateException e) {
+            throw new TenantUsageException(
+                "Failed to build " + typeName + " (" + e.getMessage() + ")", e);
+          }
+        });
+  }
+
   public static void validateOneOf(String typeName, Map<String, Object> data) {
-    // Mirror graphql-java's ValuesResolverOneOfValidation: first require exactly one supplied key,
-    // then require that key's value to be non-null. Counting supplied keys (not non-null values)
-    // means {byId: "1", byName: null} is rejected as two keys, matching execution-time coercion.
-    if (data.size() != 1) {
-      sneakyThrowTenantUsage(
-          "Exactly one field must be set for @oneOf type "
-              + typeName
-              + ", but "
-              + data.size()
-              + " were: "
-              + new ArrayList<>(data.keySet()),
-          null);
+    try {
+      InputDataValidator.validateOneOf(typeName, data);
+    } catch (IllegalStateException e) {
+      sneakyThrowTenantUsage(e.getMessage(), e);
     }
-    Map.Entry<String, Object> only = data.entrySet().iterator().next();
-    if (only.getValue() == null) {
-      sneakyThrowTenantUsage(
-          "Field '"
-              + only.getKey()
-              + "' for @oneOf type "
-              + typeName
-              + " must have a non-null value",
-          null);
-    }
+  }
+
+  @Nullable
+  private GraphQLInputObjectType nestedInputType(String fieldName) {
+    var field = graphQLInputObjectType == null ? null : graphQLInputObjectType.getField(fieldName);
+    return field == null
+        ? null
+        : (GraphQLInputObjectType) GraphQLTypeUtil.unwrapAll(field.getType());
   }
 
   /** Gets a scalar field value from the input data map. Like Kotlin: {@code get(fieldName)}. */
@@ -258,7 +269,8 @@ public abstract class InputBase implements GraphQLInput {
             return (T) value;
           }
           if (value instanceof Map<?, ?> map) {
-            return constructor.create(__context, (Map<String, Object>) map, null);
+            return constructor.create(
+                __context, (Map<String, Object>) map, nestedInputType(fieldName));
           }
           return (T) value;
         });
@@ -286,7 +298,9 @@ public abstract class InputBase implements GraphQLInput {
               } else if (element instanceof InputBase) {
                 wrapped.add((T) element);
               } else if (element instanceof Map<?, ?> map) {
-                wrapped.add(constructor.create(__context, (Map<String, Object>) map, null));
+                wrapped.add(
+                    constructor.create(
+                        __context, (Map<String, Object>) map, nestedInputType(fieldName)));
               } else {
                 wrapped.add((T) element);
               }

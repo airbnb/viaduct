@@ -67,7 +67,8 @@ public class Mutation_CreateOrder_Arguments extends InputBase implements Argumen
         private Builder(InternalContext __context) {
             this.__context = __context;
             this.graphQLInputObjectType =
-                    __context.getArgumentsInputType(
+                    InputBase.argumentsType(
+                            __context,
                             "Mutation_CreateOrder_Arguments",
                             "Mutation",
                             "createOrder");
@@ -81,7 +82,8 @@ public class Mutation_CreateOrder_Arguments extends InputBase implements Argumen
 
         public Mutation_CreateOrder_Arguments build() {
             return new Mutation_CreateOrder_Arguments(
-                    __context, new LinkedHashMap<>(data), graphQLInputObjectType);
+                    __context, InputBase.validateInputData("Mutation_CreateOrder_Arguments", graphQLInputObjectType, data),
+                    graphQLInputObjectType);
         }
     }
 }

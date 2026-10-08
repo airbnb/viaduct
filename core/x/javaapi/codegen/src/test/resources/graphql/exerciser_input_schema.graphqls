@@ -4,6 +4,58 @@
 
 type Query {
   inputDefaults(count: Int = 42, name: String): String
+  validate(
+    count: Int!
+    token: String!
+    defaulted: Int! = 7
+    nullable: String = "fallback"
+    matrix: [[Int!]!]!
+    loose: [[Int]]
+    cube: [[[Int!]!]!]
+    child: ValidationChild
+    children: [ValidationChild!]
+    choice: CopyChoice
+  ): String
+  firstOnly(first: Int!): ItemConnection
+}
+
+directive @connection on OBJECT
+directive @edge on OBJECT
+
+type Item {
+  label: String
+}
+type ItemEdge @edge {
+  node: Item
+  cursor: String!
+}
+type ItemConnection @connection {
+  edges: [ItemEdge!]!
+  pageInfo: PageInfo!
+}
+type PageInfo {
+  hasNextPage: Boolean!
+  hasPreviousPage: Boolean!
+  startCursor: String
+  endCursor: String
+}
+
+input ValidationInput {
+  count: Int!
+  token: String!
+  defaulted: Int! = 7
+  nullable: String = "fallback"
+  matrix: [[Int!]!]!
+  loose: [[Int]]
+  cube: [[[Int!]!]!]
+  child: ValidationChild
+  children: [ValidationChild!]
+  choice: CopyChoice
+}
+
+input ValidationChild {
+  count: Int!
+  token: String! = "child-default"
 }
 
 """

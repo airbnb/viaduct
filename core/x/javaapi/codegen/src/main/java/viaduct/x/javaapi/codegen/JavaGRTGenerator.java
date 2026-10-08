@@ -624,12 +624,13 @@ public final class JavaGRTGenerator {
                         private Builder(InternalContext __context) {
                             this.__context = __context;
                             this.graphQLInputObjectType =
-                                    (GraphQLInputObjectType) __context.getSchema().getSchema().getType("<mdl.className>");
+                                    InputBase.inputType(__context, "<mdl.className>");
                         }
 
                         private Builder(InternalContext context, GraphQLInputObjectType type, Map\\<String, Object> data) {
                             this.__context = context;
-                            this.graphQLInputObjectType = type;
+                            this.graphQLInputObjectType = type != null || context == null
+                                    ? type : InputBase.inputType(context, "<mdl.className>");
                             this.data.putAll(data);
                         }
 
@@ -638,10 +639,9 @@ public final class JavaGRTGenerator {
                 + """
 
                         public <mdl.className> build() {
-                            <if(mdl.isOneOf)>
-                            InputBase.validateOneOf("<mdl.className>", data);
-                            <endif>
-                            return new <mdl.className>(__context, new LinkedHashMap\\<>(data), graphQLInputObjectType);
+                            return new <mdl.className>(__context,
+                                    InputBase.validateInputData("<mdl.className>", graphQLInputObjectType, data),
+                                    graphQLInputObjectType);
                         }
                     }
                 }
@@ -840,7 +840,8 @@ public final class JavaGRTGenerator {
                         private Builder(InternalContext __context) {
                             this.__context = __context;
                             this.graphQLInputObjectType =
-                                    __context.getArgumentsInputType(
+                                    InputBase.argumentsType(
+                                            __context,
                                             "<mdl.className>",
                                             "<mdl.containingTypeName>",
                                             "<mdl.fieldName>");
@@ -852,7 +853,8 @@ public final class JavaGRTGenerator {
 
                         public <mdl.className> build() {
                             return new <mdl.className>(
-                                    __context, new LinkedHashMap\\<>(data), graphQLInputObjectType);
+                                    __context, InputBase.validateInputData("<mdl.className>", graphQLInputObjectType, data),
+                                    graphQLInputObjectType);
                         }
                     }
                 }

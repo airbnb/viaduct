@@ -74,12 +74,13 @@ public class OrderLookupInput extends InputBase {
         private Builder(InternalContext __context) {
             this.__context = __context;
             this.graphQLInputObjectType =
-                    (GraphQLInputObjectType) __context.getSchema().getSchema().getType("OrderLookupInput");
+                    InputBase.inputType(__context, "OrderLookupInput");
         }
 
         private Builder(InternalContext context, GraphQLInputObjectType type, Map<String, Object> data) {
             this.__context = context;
-            this.graphQLInputObjectType = type;
+            this.graphQLInputObjectType = type != null || context == null
+                    ? type : InputBase.inputType(context, "OrderLookupInput");
             this.data.putAll(data);
         }
 
@@ -95,8 +96,9 @@ public class OrderLookupInput extends InputBase {
 
 
         public OrderLookupInput build() {
-            InputBase.validateOneOf("OrderLookupInput", data);
-            return new OrderLookupInput(__context, new LinkedHashMap<>(data), graphQLInputObjectType);
+            return new OrderLookupInput(__context,
+                    InputBase.validateInputData("OrderLookupInput", graphQLInputObjectType, data),
+                    graphQLInputObjectType);
         }
     }
 }

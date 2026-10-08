@@ -67,7 +67,8 @@ public class Query_LookupOrder_Arguments extends InputBase implements Arguments 
         private Builder(InternalContext __context) {
             this.__context = __context;
             this.graphQLInputObjectType =
-                    __context.getArgumentsInputType(
+                    InputBase.argumentsType(
+                            __context,
                             "Query_LookupOrder_Arguments",
                             "Query",
                             "lookupOrder");
@@ -81,7 +82,8 @@ public class Query_LookupOrder_Arguments extends InputBase implements Arguments 
 
         public Query_LookupOrder_Arguments build() {
             return new Query_LookupOrder_Arguments(
-                    __context, new LinkedHashMap<>(data), graphQLInputObjectType);
+                    __context, InputBase.validateInputData("Query_LookupOrder_Arguments", graphQLInputObjectType, data),
+                    graphQLInputObjectType);
         }
     }
 }

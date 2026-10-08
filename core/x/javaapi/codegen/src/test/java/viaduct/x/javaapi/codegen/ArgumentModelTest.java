@@ -66,11 +66,13 @@ class ArgumentModelTest {
             "Returns whether this input contains a value for {@code field} after GraphQL"));
     assertTrue(generated.contains("public boolean isPresent(Field<Query_User_Arguments> field)"));
     assertTrue(generated.contains("return isFieldPresent(field)"));
-    assertTrue(generated.contains("__context.getArgumentsInputType("));
+    assertTrue(generated.contains("InputBase.argumentsType("));
     assertTrue(generated.contains("\"Query_User_Arguments\""));
     assertTrue(generated.contains("\"Query\""));
     assertTrue(generated.contains("\"user\""));
     assertTrue(generated.contains("new Query_User_Arguments("));
-    assertTrue(generated.contains("new LinkedHashMap<>(data), graphQLInputObjectType"));
+    assertTrue(
+        generated.contains(
+            "InputBase.validateInputData(\"Query_User_Arguments\", graphQLInputObjectType, data)"));
   }
 }
