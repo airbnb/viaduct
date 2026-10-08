@@ -59,6 +59,12 @@ val arbSchema = Arb.graphQLSchema(extraLargeObjectConfig)
 # Library
 Useful generators and methods provided by this library.
 
+## Common helpers
+
+`viaduct.arbitrary.common` contains GraphQL-independent generator, range, collection, and random-source helpers used by this module's generators.
+
+For seeded replay, `sampleWeight` consumes no randomness at weights 0 and 1 and uses an inclusive comparison otherwise.
+
 ## GraphQL
 
 ### Schema & Documents

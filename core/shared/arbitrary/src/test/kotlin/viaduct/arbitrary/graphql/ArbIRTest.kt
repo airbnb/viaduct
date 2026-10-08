@@ -32,6 +32,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.arbitrary.common.Config
 import viaduct.arbitrary.common.KotestPropertyBase
+import viaduct.arbitrary.common.asIntRange
 import viaduct.arbitrary.common.asSequence
 import viaduct.engine.api.EngineSchema
 import viaduct.mapping.graphql.IR

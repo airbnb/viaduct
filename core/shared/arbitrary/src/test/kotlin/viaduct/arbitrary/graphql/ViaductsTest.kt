@@ -29,6 +29,8 @@ import viaduct.arbitrary.common.CompoundingWeight.Companion.Never
 import viaduct.arbitrary.common.CompoundingWeight.Companion.Once
 import viaduct.arbitrary.common.Config
 import viaduct.arbitrary.common.KotestPropertyBase
+import viaduct.arbitrary.common.asIntRange
+import viaduct.arbitrary.common.asLongRange
 import viaduct.arbitrary.common.asSequence
 import viaduct.arbitrary.common.mapNotNull
 import viaduct.arbitrary.common.withCheck

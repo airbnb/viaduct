@@ -8,6 +8,7 @@ import graphql.schema.GraphQLObjectType
 import graphql.schema.GraphQLTypeUtil
 import io.kotest.property.RandomSource
 import viaduct.arbitrary.common.Config
+import viaduct.arbitrary.common.sampleWeight
 import viaduct.engine.api.Coordinate
 import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.gj

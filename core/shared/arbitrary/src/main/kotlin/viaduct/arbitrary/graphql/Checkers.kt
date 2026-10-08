@@ -7,6 +7,10 @@ import io.kotest.property.arbitrary.boolean
 import io.kotest.property.arbitrary.next
 import io.kotest.property.arbitrary.of
 import viaduct.arbitrary.common.Config
+import viaduct.arbitrary.common.count
+import viaduct.arbitrary.common.fork
+import viaduct.arbitrary.common.maybeDelay
+import viaduct.arbitrary.common.sampleWeight
 import viaduct.arbitrary.graphql.CheckerExecutor.Instrumented
 import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.CheckerResultContext

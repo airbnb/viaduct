@@ -22,6 +22,7 @@ import io.kotest.property.RandomSource
 import io.kotest.property.arbitrary.arbitrary
 import io.kotest.property.arbitrary.next
 import viaduct.arbitrary.common.Config
+import viaduct.arbitrary.common.sampleWeight
 import viaduct.engine.api.EngineSchema
 import viaduct.graphql.utils.DefaultSchemaFactory.DefaultDirective
 

@@ -37,7 +37,9 @@ import kotlin.math.min
 import viaduct.arbitrary.common.CompoundingWeight
 import viaduct.arbitrary.common.Config
 import viaduct.arbitrary.common.ConfigKey
+import viaduct.arbitrary.common.arbSubset
 import viaduct.arbitrary.common.asSequence
+import viaduct.arbitrary.common.sampleWeight
 
 /** A bag of generated types that can be converted into a GraphQLSchema */
 data class GraphQLTypes(

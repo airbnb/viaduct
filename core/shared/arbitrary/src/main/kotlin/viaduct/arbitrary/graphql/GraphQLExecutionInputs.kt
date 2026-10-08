@@ -16,6 +16,7 @@ import io.kotest.property.arbitrary.of
 import viaduct.api.internal.EngineValueConv
 import viaduct.apiannotations.InternalApi
 import viaduct.arbitrary.common.Config
+import viaduct.arbitrary.common.sampleWeight
 import viaduct.engine.api.EngineSchema
 
 /**

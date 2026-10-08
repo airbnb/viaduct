@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test
 import viaduct.arbitrary.common.CompoundingWeight
 import viaduct.arbitrary.common.Config
 import viaduct.arbitrary.common.KotestPropertyBase
+import viaduct.arbitrary.common.asIntRange
 import viaduct.arbitrary.common.asSequence
 import viaduct.graphql.utils.allChildrenOfType
 

@@ -42,6 +42,8 @@ import io.kotest.property.arbitrary.zoneOffset
 import java.time.OffsetTime
 import viaduct.arbitrary.common.Config
 import viaduct.arbitrary.common.ConfigKey
+import viaduct.arbitrary.common.sampleWeight
+import viaduct.arbitrary.common.weightedChoose
 import viaduct.engine.api.Coordinate
 import viaduct.engine.api.EngineSchema
 import viaduct.graphql.globalIDType

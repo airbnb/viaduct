@@ -5,6 +5,8 @@ import io.kotest.property.RandomSource
 import io.kotest.property.arbitrary.arbitrary
 import io.kotest.property.arbitrary.of
 import viaduct.arbitrary.common.Config
+import viaduct.arbitrary.common.maybeDelay
+import viaduct.arbitrary.common.sampleWeight
 import viaduct.arbitrary.graphql.NodeResolver.Instrumented
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData

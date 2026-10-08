@@ -41,6 +41,8 @@ import java.util.LinkedList
 import kotlin.math.max
 import viaduct.arbitrary.common.CompoundingWeight
 import viaduct.arbitrary.common.Config
+import viaduct.arbitrary.common.count
+import viaduct.arbitrary.common.sampleWeight
 import viaduct.engine.api.EngineSchema
 import viaduct.graphql.utils.allChildren
 import viaduct.mapping.graphql.GJValueConv

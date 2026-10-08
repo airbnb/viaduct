@@ -49,6 +49,7 @@ import viaduct.arbitrary.common.CompoundingWeight
 import viaduct.arbitrary.common.CompoundingWeight.Companion.Never
 import viaduct.arbitrary.common.Config
 import viaduct.arbitrary.common.KotestPropertyBase
+import viaduct.arbitrary.common.asIntRange
 import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.gj
 import viaduct.graphql.schema.binary.extensions.toBinaryFile

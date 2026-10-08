@@ -22,6 +22,7 @@ import io.kotest.property.arbitrary.next
 import io.kotest.property.arbitrary.of
 import viaduct.arbitrary.common.Config
 import viaduct.arbitrary.common.ConfigKey
+import viaduct.arbitrary.common.sampleWeight
 import viaduct.engine.api.EngineSchema
 import viaduct.mapping.graphql.IR
 

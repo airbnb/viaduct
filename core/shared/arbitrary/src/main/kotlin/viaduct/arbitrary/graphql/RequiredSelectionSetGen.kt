@@ -7,6 +7,7 @@ import graphql.schema.GraphQLImplementingType
 import graphql.schema.GraphQLInterfaceType
 import graphql.schema.GraphQLObjectType
 import graphql.schema.GraphQLTypeUtil
+import viaduct.arbitrary.common.sampleWeight
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.graphql.utils.ParsedSelections
 import viaduct.graphql.utils.SelectionsParserUtils.EntryPointFragmentName

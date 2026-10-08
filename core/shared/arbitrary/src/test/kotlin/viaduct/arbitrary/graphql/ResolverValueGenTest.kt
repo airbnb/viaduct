@@ -18,6 +18,7 @@ import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import viaduct.arbitrary.common.Config
 import viaduct.arbitrary.common.KotestPropertyBase
+import viaduct.arbitrary.common.asIntRange
 import viaduct.arbitrary.common.mapNotNull
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.NodeReference

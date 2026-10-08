@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
 import viaduct.arbitrary.common.Config
 import viaduct.arbitrary.common.KotestPropertyBase
+import viaduct.arbitrary.common.asIntRange
 import viaduct.arbitrary.common.withCheck
 
 class GraphQLExecutionInputGenTest : KotestPropertyBase() {

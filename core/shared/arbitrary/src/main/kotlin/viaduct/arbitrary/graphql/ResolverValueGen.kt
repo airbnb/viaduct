@@ -23,6 +23,7 @@ import io.kotest.property.arbitrary.next
 import io.kotest.property.arbitrary.string
 import viaduct.api.internal.EngineValueConv
 import viaduct.arbitrary.common.Config
+import viaduct.arbitrary.common.sampleWeight
 import viaduct.engine.api.Coordinate
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData

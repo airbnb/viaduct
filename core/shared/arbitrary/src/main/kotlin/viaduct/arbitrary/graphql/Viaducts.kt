@@ -8,6 +8,8 @@ import io.kotest.property.arbitrary.arbitrary
 import viaduct.apiannotations.InternalApi
 import viaduct.apiannotations.VisibleForTest
 import viaduct.arbitrary.common.Config
+import viaduct.arbitrary.common.fork
+import viaduct.arbitrary.common.sampleWeight
 import viaduct.engine.api.Coordinate
 import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.spi.CheckerExecutor

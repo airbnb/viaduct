@@ -44,6 +44,7 @@ import io.kotest.property.arbitrary.flatMap
 import io.kotest.property.arbitrary.next
 import io.kotest.property.arbitrary.of
 import viaduct.arbitrary.common.Config
+import viaduct.arbitrary.common.sampleWeight
 import viaduct.engine.ViaductWiringFactory
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineSchema
