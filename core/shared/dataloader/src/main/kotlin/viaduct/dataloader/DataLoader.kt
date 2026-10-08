@@ -26,6 +26,10 @@ abstract class DataLoader<K : Any, V, C : Any> {
         }
 
     protected val internalDataLoader by lazy {
+        createInternalDataLoader()
+    }
+
+    protected open fun createInternalDataLoader(): InternalDataLoader<K, V, C> {
         val loadFn = GenericBatchLoadFn<K, V> { keys, env ->
             val keySet = keys.toSet()
             statsCollector?.logDefaultLoad(loaderInfo, keySet, env.dispatchingContext)
@@ -37,7 +41,7 @@ abstract class DataLoader<K : Any, V, C : Any> {
 
         val dispatchStrategy = getInternalDispatchStrategy(loadFn)
 
-        InternalDataLoader.newLoader(
+        return InternalDataLoader.newLoader(
             dispatchStrategy,
             cacheKeyFn,
             cacheKeyMatchFn,
