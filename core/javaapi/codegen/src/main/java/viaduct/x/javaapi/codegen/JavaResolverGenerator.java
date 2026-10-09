@@ -80,7 +80,7 @@ public final class JavaResolverGenerator {
                    * Provides type-safe access to object value, query value, arguments, and selections.
                    */
                   public static final class Context
-                      implements <r.contextBaseType><if(r.isMutation)>, <r.mutationContextType><endif><if(r.isSelective)>, <r.selectiveContextType><endif>, InternalContext {
+                      implements <if(r.isMutation)><r.mutationContextType><else><r.contextBaseType><endif><if(r.isSelective)>, <r.selectiveContextType><endif>, InternalContext {
 
                       private final <r.fieldExecutionContextType> inner;
 
@@ -88,6 +88,7 @@ public final class JavaResolverGenerator {
                           this.inner = inner;
                       \\}
 
+                      <if(!r.isMutation)>
                       @Override
                       public <r.objectType> getObjectValue() {
                           return inner.getObjectValue();
@@ -98,6 +99,7 @@ public final class JavaResolverGenerator {
                           return inner.getQueryValue();
                       \\}
 
+                      <endif>
                       @Override
                       public <r.argumentsType> getArguments() {
                           return inner.getArguments();

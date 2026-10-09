@@ -14,7 +14,9 @@ import viaduct.java.api.types.Query;
 @StableApi
 public interface MutationFieldExecutionContext<
         T extends GraphQLObject, Q extends Query, A extends Arguments, O extends CompositeOutput>
-    extends FieldExecutionContext<T, Q, A, O> {
+    extends ResolverExecutionContext {
+  A getArguments();
+
   @Override
   <R> CompletableFuture<R> mutation(
       String selections, Map<String, Object> variables, Class<R> targetClass);

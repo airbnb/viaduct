@@ -46,22 +46,12 @@ public final class MutationResolvers {
              * Provides type-safe access to object value, query value, arguments, and selections.
              */
             public static final class Context
-                implements FieldResolverBase.Context<com.example.grts.Mutation, com.example.grts.Query, com.example.grts.Mutation_CreateOrder_Arguments, com.example.grts.Order>, MutationFieldExecutionContext<com.example.grts.Mutation, com.example.grts.Query, com.example.grts.Mutation_CreateOrder_Arguments, com.example.grts.Order>, InternalContext {
+                implements MutationFieldExecutionContext<com.example.grts.Mutation, com.example.grts.Query, com.example.grts.Mutation_CreateOrder_Arguments, com.example.grts.Order>, InternalContext {
 
                 private final FieldExecutionContext<com.example.grts.Mutation, com.example.grts.Query, com.example.grts.Mutation_CreateOrder_Arguments, com.example.grts.Order> inner;
 
                 public Context(FieldExecutionContext<com.example.grts.Mutation, com.example.grts.Query, com.example.grts.Mutation_CreateOrder_Arguments, com.example.grts.Order> inner) {
                     this.inner = inner;
-                }
-
-                @Override
-                public com.example.grts.Mutation getObjectValue() {
-                    return inner.getObjectValue();
-                }
-
-                @Override
-                public com.example.grts.Query getQueryValue() {
-                    return inner.getQueryValue();
                 }
 
                 @Override
