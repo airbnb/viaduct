@@ -187,7 +187,7 @@ class ObjectTest {
             loadKClass().also { kcls ->
                 kcls.shouldHaveFunction("myfun") {
                     assertEquals(0, it.valueParameters.size)
-                    assertEquals("java.lang.String", it.returnType.toString())
+                    assertEquals(String::class, it.returnType.classifier)
                 }
 
                 // check that method can be statically accessed from object instance

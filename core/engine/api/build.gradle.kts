@@ -46,6 +46,9 @@ dependencies {
     testFixturesImplementation(testFixtures(libs.viaduct.shared.dataloader))
     testFixturesImplementation(testFixtures(libs.viaduct.shared.graphql))
 
+    testImplementation(libs.viaduct.engine.wiring)
+    testImplementation(libs.viaduct.shared.graphql)
+
     /** Test fixtures - External dependencies (implementation) **/
     testFixturesImplementation(libs.kotlinx.coroutines.jdk8)
     testFixturesImplementation(libs.kotlinx.coroutines.test)

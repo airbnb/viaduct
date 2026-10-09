@@ -50,6 +50,7 @@ class ViaductSettingsPluginFunctionalTest {
             }
             """.trimIndent()
         )
+        createProjectDirectories("app/payments")
 
         val result = runner()
             .withArguments("projects", "printViaductTopology")
@@ -77,6 +78,7 @@ class ViaductSettingsPluginFunctionalTest {
             """.trimIndent()
         )
         writeBuildScript("")
+        createProjectDirectories("custom-app", "custom-payments")
 
         val result = runner()
             .withArguments(":app:payments:help")
@@ -101,6 +103,7 @@ class ViaductSettingsPluginFunctionalTest {
             """.trimIndent()
         )
         writeBuildScript("")
+        createProjectDirectories("app/payments")
 
         val result = runner()
             .withArguments("help", "--configuration-cache", "--configuration-cache-problems=fail")
@@ -167,6 +170,7 @@ class ViaductSettingsPluginFunctionalTest {
             }
             """.trimIndent()
         )
+        createProjectDirectories("support", "app1/inbox", "app2/search")
 
         val result = runner()
             .withArguments("projects", "printViaductTopologies")
@@ -210,6 +214,7 @@ class ViaductSettingsPluginFunctionalTest {
             }
             """.trimIndent()
         )
+        createProjectDirectories("app")
 
         val result = runner()
             .withArguments("projects", "printApplicationTopology")
@@ -256,6 +261,7 @@ class ViaductSettingsPluginFunctionalTest {
             }
             """.trimIndent()
         )
+        createProjectDirectories("app")
 
         val result = runner()
             .withArguments("printSelfModuleTopology")
@@ -481,6 +487,10 @@ class ViaductSettingsPluginFunctionalTest {
 
     private fun writeBuildScript(content: String) {
         File(projectDir, "build.gradle.kts").writeText(content)
+    }
+
+    private fun createProjectDirectories(vararg paths: String) {
+        paths.forEach { File(projectDir, it).mkdirs() }
     }
 
     private fun runner(): GradleRunner =

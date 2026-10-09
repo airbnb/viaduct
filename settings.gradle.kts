@@ -18,9 +18,7 @@ plugins {
 
 rootProject.name = "viaduct"
 
-// Verify that the KSP version in the version catalog is aligned with the Kotlin version.
-// KSP versions are formatted as "<kotlin-version>-<ksp-release>", so the KSP version
-// string must start with the Kotlin version string.
+// KSP versions before 2.3 are prefixed with their corresponding Kotlin version.
 run {
     val lines = file("gradle/libs.versions.toml").readLines()
     fun versionOf(key: String): String? =
@@ -35,7 +33,7 @@ run {
             "kotlinx-coroutines-core-jvm is redundant."
     }
 
-    if (kotlin != null && ksp != null) {
+    if (kotlin != null && ksp != null && '-' in ksp) {
         require(ksp.startsWith("$kotlin-")) {
             "KSP version ($ksp) must start with the Kotlin version ($kotlin-). " +
                 "Update the ksp version in gradle/libs.versions.toml."

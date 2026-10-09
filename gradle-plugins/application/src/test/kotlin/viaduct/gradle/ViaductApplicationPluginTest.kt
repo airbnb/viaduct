@@ -37,7 +37,7 @@ class ViaductApplicationPluginTest {
             .build()
 
         // Create the task directly instead of applying the full plugin
-        task = project.tasks.create("testAssembleCentralSchema", AssembleCentralSchemaTask::class.java)
+        task = project.tasks.register("testAssembleCentralSchema", AssembleCentralSchemaTask::class.java).get()
         task.outputDirectory.set(project.layout.buildDirectory.dir("test-output"))
     }
 

@@ -80,7 +80,7 @@ dependencies {
     testFixturesImplementation(libs.kotlinx.coroutines.jdk8)
 
     /** Test fixtures - External dependencies **/
-    testFixturesRuntimeOnly(libs.kotlin.reflect)
+    testFixturesImplementation(libs.kotlin.reflect)
 
     /** Test dependencies - Viaduct **/
     testImplementation(testFixtures(libs.viaduct.tenant.runtime))

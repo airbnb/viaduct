@@ -244,7 +244,7 @@ class AssembleTenantModuleConfigFileCleanupTest {
 
     private fun createTaskForTest(outputDir: File): AssembleTenantModuleConfigFileTask {
         val project = org.gradle.testfixtures.ProjectBuilder.builder().build()
-        val task = project.tasks.create("testAssemble", AssembleTenantModuleConfigFileTask::class.java)
+        val task = project.tasks.register("testAssemble", AssembleTenantModuleConfigFileTask::class.java).get()
         task.outputDir.set(outputDir)
         return task
     }

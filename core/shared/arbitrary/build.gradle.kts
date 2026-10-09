@@ -20,6 +20,7 @@ dependencies {
     api(libs.viaduct.shared.mapping)
     api(libs.viaduct.shared.viaductschema)
     testFixturesCompileOnly(libs.junit) // for @Execution(CONCURRENT) on KotestPropertyBase
+    testFixturesImplementation(libs.kotlinx.coroutines.core)
 
     implementation(libs.kotest.common.jvm)
     implementation(libs.kotlinx.coroutines.core)

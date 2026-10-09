@@ -23,6 +23,7 @@ import com.github.jk1.license.LicenseReportExtension
 import com.github.jk1.license.filter.LicenseBundleNormalizer
 import com.github.jk1.license.render.InventoryHtmlReportRenderer
 import com.github.jk1.license.render.JsonReportRenderer
+import com.github.jk1.license.render.ReportRenderer
 import javax.inject.Inject
 import org.cyclonedx.gradle.CycloneDxTask
 import org.gradle.api.model.ObjectFactory
@@ -117,7 +118,7 @@ pluginManager.withPlugin("java") {
         extensions.configure<LicenseReportExtension> {
             outputDir = layout.buildDirectory.dir("reports/license").get().asFile.absolutePath
             configurations = arrayOf("runtimeClasspath")
-            renderers = arrayOf(
+            renderers = arrayOf<ReportRenderer>(
                 JsonReportRenderer("license-report.json", false),
                 InventoryHtmlReportRenderer("license-report.html", "Viaduct License Report")
             )

@@ -44,21 +44,19 @@ tasks.named<Jar>("jar") {
 // - strip viaduct.shared.* deps (those coordinates are not published; their classes are bundled)
 // - promote their non-viaduct transitives as explicit runtime deps so consumers can resolve them
 //
-// afterEvaluate is required for timing: bundled(...) declarations in the applying project's
-// dependencies block run after this convention plugin applies, so bundled cannot be resolved
-// until evaluation completes. promotedDeps is captured as a plain List<Triple<String,String,String>>
-// (config-cache serializable) so pom.withXml only does XML manipulation — no live Gradle objects
-// are captured in the task action.
+// Register the POM adjustment after evaluation, and resolve bundled dependencies when the POM is
+// generated so composite substitutions from the enclosing build are available.
 afterEvaluate {
     // NOTE: filters all com.airbnb.viaduct.* groups (not just .shared) because bundled classes
     // are included via the viaduct/** JAR merge — any viaduct transitive is also bundled.
     // Uses resolutionResult (not resolvedConfiguration): ResolvedComponentResult is a value type
     // the configuration cache can serialize; ResolvedConfiguration is not.
-    val promotedDeps: List<Triple<String, String, String>> =
-        configurations["bundled"].incoming.resolutionResult.allComponents
+    val promotedDeps = configurations.named("bundled").map { cfg ->
+        cfg.incoming.resolutionResult.allComponents
             .mapNotNull { it.moduleVersion }
             .filter { !it.group.startsWith("com.airbnb.viaduct") }
             .map { Triple(it.group, it.name, it.version) }
+    }
 
     project.extensions.getByType(PublishingExtension::class.java)
         .publications.withType(MavenPublication::class.java).configureEach {
@@ -75,7 +73,7 @@ afterEvaluate {
                             }
                         toRemove.forEach { depsContainer.remove(it) }
 
-                        promotedDeps.forEach { (group, name, version) ->
+                        promotedDeps.get().forEach { (group, name, version) ->
                             depsContainer.appendNode("dependency").apply {
                                 appendNode("groupId", group)
                                 appendNode("artifactId", name)

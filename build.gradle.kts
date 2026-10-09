@@ -1,6 +1,14 @@
 import java.io.ByteArrayOutputStream
 import java.nio.file.Files
 import java.nio.file.Path
+import javax.inject.Inject
+import org.gradle.process.ExecOperations
+
+abstract class ExecOperationsHolder {
+    @get:Inject abstract val execOperations: ExecOperations
+}
+
+val execOperations = objects.newInstance<ExecOperationsHolder>().execOperations
 
 plugins {
     id("buildroot.orchestration")
@@ -136,7 +144,7 @@ val demoappsStandaloneTest by tasks.registering {
             // tasks. Without it, processResources's expand() may not restamp
             // viaduct-plugin-version.properties with the current VERSION, publishing stale
             // artifacts. See demoapps/AGENTS.md.
-            exec {
+            execOperations.exec {
                 environment(nestedGradleEnvironment)
                 commandLine(
                     rootWrapper, "clean",
@@ -147,7 +155,7 @@ val demoappsStandaloneTest by tasks.registering {
             }
 
             logger.lifecycle("Publishing Viaduct to isolated Maven local repo: $mavenLocalRepo")
-            exec {
+            execOperations.exec {
                 environment(nestedGradleEnvironment)
                 commandLine(
                     rootWrapper, "publishToMavenLocal", "-PpublishMinimal",
@@ -165,10 +173,10 @@ val demoappsStandaloneTest by tasks.registering {
                 // place: a build/ symlink into the real demoapp directory is shared mutable
                 // state that a concurrent run or an in-progress developer build can collide with.
                 val demoappWorkspace = File(runRoot, demoapp)
-                copyDemoappSources(demoapp, demoappWorkspace)
+                copyDemoappSources(demoapp, demoappWorkspace, execOperations)
                 val demoappGradleHome = File(runRoot, "gradle-home-$demoapp").apply { mkdirs() }
                 val demoappCacheDir = File(runRoot, "cache-$demoapp").apply { mkdirs() }
-                exec {
+                execOperations.exec {
                     workingDir = demoappWorkspace
                     environment(nestedGradleEnvironment)
                     environment("USE_MAVEN_LOCAL", "true")
@@ -193,10 +201,11 @@ val demoappsStandaloneTest by tasks.registering {
 fun Project.copyDemoappSources(
     demoapp: String,
     destination: File,
+    execOperations: ExecOperations,
 ) {
     val demoappDir = file("demoapps/$demoapp")
     val trackedFiles = ByteArrayOutputStream().use { out ->
-        exec {
+        execOperations.exec {
             workingDir = demoappDir
             commandLine("git", "ls-files", "--cached", "--others", "--exclude-standard")
             standardOutput = out

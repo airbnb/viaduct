@@ -31,4 +31,6 @@ dependencies {
     testFixturesImplementation(libs.kotest.property.jvm)
     testFixturesImplementation(libs.viaduct.shared.arbitrary)
     testFixturesImplementation(testFixtures(libs.viaduct.shared.arbitrary))
+    testFixturesImplementation(libs.kotlinx.coroutines.core)
+    testFixturesImplementation(libs.viaduct.engine.api)
 }

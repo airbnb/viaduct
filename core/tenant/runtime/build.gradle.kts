@@ -77,6 +77,7 @@ dependencies {
     testFixturesImplementation(libs.graphql.java)
     testFixturesApi(libs.kotest.property.jvm)
     testFixturesImplementation(libs.kotlin.reflect)
+    testFixturesImplementation(libs.guice)
     testFixturesImplementation(libs.kotlinx.coroutines.core)
     testFixturesImplementation(libs.kotlinx.coroutines.jdk8)
     testImplementation(testFixtures(libs.viaduct.engine.api))
