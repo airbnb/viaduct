@@ -4,6 +4,14 @@ This directory is an archive of dated Runtime2 profiling snapshots. Each round p
 
 Raw reports and checksums are evidence, not current performance expectations. Compare rounds only when their recorded host, JVM, parameters, corpus, and semantic workload are compatible.
 
+## Upstream Source Context
+
+The commit links in this archive refer to the public [`airbnb/viaduct`](https://github.com/airbnb/viaduct) repository. Use that repository when checking out a recorded revision. Some rounds also require preserved patches or describe uncommitted changes; their individual READMEs state whether the commit alone reproduces the measured source.
+
+`qplan` was the development branch and build layout used before Runtime2 moved into `core/engine/runtime2`. The import came from [`rstata/viaduct` at `3ded35076`](https://github.com/rstata/viaduct/tree/3ded35076f053302bcfb0c9e8f57dd2f1896fd63). Historical `qplan/`, `semantics/`, and `:engine:runtime2` paths and task names below describe that upstream layout; they are preserved for reproduction against the recorded revisions. Current source lives in [`core/engine/runtime2`](../../..), and current commands are in the [performance guide](../../testing/performance.md). For numbered reference resolver names, use the [family comparison and source links](../../architecture/resolver-families.md#comparison-grid).
+
+## Exporting Reports
+
 Create reports from each raw JFR recording with:
 
 ```shell

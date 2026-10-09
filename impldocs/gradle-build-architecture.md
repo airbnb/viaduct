@@ -60,9 +60,9 @@ Demoapps are not part of this composite build. `check` runs them by shelling out
 
 `core` also hosts JaCoCo aggregation and coverage thresholds, keeping CI verification commands scoped: `./gradlew -p core jacocoTestCoverageVerification`.
 
-## Runtime2 and Qplan
+## Runtime2
 
-The former qplan projects now live entirely in `core/engine/runtime2`, using core's Kotlin 1.9.25 and static-analysis conventions. From the repository root, run `./gradlew :core:engine:runtime2:check`. Production `main` output participates in the runtime publication; unpublished `support`, including the arbitrary generators, is shared by `test` and `jmh`, with JUnit harnesses in the extra `src/test/fixtures` directory. Runtime2 tasks retain the configuration-cache opt-out. Design documentation and profiling evidence live in Runtime2's `impldocs/`; the independent specification renderer under `impldocs/graphql-spec/` remains opt-in. There is no top-level qplan directory. See [Runtime2's README](../core/engine/runtime2/README.md#build-and-verification).
+Runtime2 lives in [`core/engine/runtime2`](../core/engine/runtime2), using core's Kotlin 1.9.25 and static-analysis conventions. From the Viaduct repository root, where `settings.gradle.kts` and `gradlew` live, run `./gradlew :core:engine:runtime2:check`. Production `main` output participates in the runtime publication; unpublished `support`, including the arbitrary generators, is shared by `test` and `jmh`, with JUnit harnesses in the extra `src/test/fixtures` directory. Runtime2 tasks retain the configuration-cache opt-out. Design documentation and profiling evidence live in Runtime2's `impldocs/`; the independent specification renderer under `impldocs/graphql-spec/` remains opt-in. Historical references to `qplan` describe the upstream development branch and build layout before import; see the [profiling archive's source context](../core/engine/runtime2/impldocs/evidence/profiles/README.md#upstream-source-context). See [Runtime2's README](../core/engine/runtime2/README.md#build-and-verification) for current build instructions.
 
 ## Maven Coordinate Scheme
 

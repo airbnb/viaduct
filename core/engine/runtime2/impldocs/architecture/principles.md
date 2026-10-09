@@ -96,7 +96,7 @@ Duplicate claims, duplicate writers, repeated lifecycle transitions, undeclared 
 
 Provider paths are compiled and validated before semantic reasoning, but provider evaluation occurs at runtime in Resolution. Provider containment, inclusion, and branch ordering are domain restrictions; they are not themselves an execution algorithm.
 
-Substitution precedes exact-key grouping in Resolver01–23. Resolution retains symbolic keys: selections with the same field and variable instances coalesce, while keys containing different variable instances remain distinct even when those variables bind to equal values.
+Substitution precedes exact-key grouping in [Resolver01–23](../../impldocs/architecture/resolver-families.md#comparison-grid). Resolution retains symbolic keys: selections with the same field and variable instances coalesce, while keys containing different variable instances remain distinct even when those variables bind to equal values.
 
 ## Structured Concurrency Owns Request Lifetime
 

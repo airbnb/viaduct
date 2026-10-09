@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Runtime2 maintains Resolver01–23 alongside production Resolution for two reasons.
+Runtime2 maintains nine numbered reference implementations under [`src/support/kotlin/viaduct/engine/runtime2/resolvers`](../../src/support/kotlin/viaduct/engine/runtime2/resolvers) alongside [production Resolution](../../src/main/kotlin/viaduct/engine/runtime2/resolution/Resolver.kt). `ResolverNN` identifies the `resolverNN/Resolver.kt` source file, not a production engine option or a continuous sequence of engine versions. The families are maintained for two reasons.
 
 First, the families protect Resolution's architectural integrity. They express related semantics through recursive depth-first construction, explicit depth-first tasks, and structured coroutines. Corresponding roles must remain recognizable across those execution structures, while differences required for readiness, identity, ownership, and progress remain explicit.
 
@@ -29,15 +29,15 @@ Package placement follows semantic ownership, not the number of implementations 
 
 ## Comparison Grid
 
-The maintained versions form a refinement and comparison grid, not a chronology. Its rows add semantic capability while its columns change execution structure, allowing the same obligations to be examined independently of increasing scheduling complexity.
+The maintained versions form a refinement and comparison grid, not a chronology. Rows identify semantic stages; columns identify execution structures, allowing the same obligations to be examined independently of increasing scheduling complexity.
 
 | Semantic stage | Recursive depth-first | Explicit depth-first tasks | Structured coroutines | Capability |
 | --- | --- | --- | --- | --- |
-| Base | Resolver01 | Resolver06 | Resolver21 | Empty user object fragments and complete output |
-| Object fragments | Resolver02 | Resolver07 | Resolver22 | Nonempty fragments and `FromArgument`, with complete output |
-| Selective resolution | Resolver03 | Resolver08 | Resolver23 | The same fragment domain with selective output and full successor demand |
+| Base | [Resolver01](../../src/support/kotlin/viaduct/engine/runtime2/resolvers/resolver01/Resolver.kt) | [Resolver06](../../src/support/kotlin/viaduct/engine/runtime2/resolvers/resolver06/Resolver.kt) | [Resolver21](../../src/support/kotlin/viaduct/engine/runtime2/resolvers/resolver21/Resolver.kt) | Empty user object fragments and complete output |
+| Object fragments | [Resolver02](../../src/support/kotlin/viaduct/engine/runtime2/resolvers/resolver02/Resolver.kt) | [Resolver07](../../src/support/kotlin/viaduct/engine/runtime2/resolvers/resolver07/Resolver.kt) | [Resolver22](../../src/support/kotlin/viaduct/engine/runtime2/resolvers/resolver22/Resolver.kt) | Nonempty fragments and `FromArgument`, with complete output |
+| Selective resolution | [Resolver03](../../src/support/kotlin/viaduct/engine/runtime2/resolvers/resolver03/Resolver.kt) | [Resolver08](../../src/support/kotlin/viaduct/engine/runtime2/resolvers/resolver08/Resolver.kt) | [Resolver23](../../src/support/kotlin/viaduct/engine/runtime2/resolvers/resolver23/Resolver.kt) | The same fragment domain with selective output and full successor demand |
 
-Each row changes semantic capability while holding execution structure roughly constant. Each column changes execution structure while holding semantic capability roughly constant. Resolver03, Resolver08, and Resolver23 are the usual comparison points for production Resolution because all three expose selective demand at increasing levels of scheduling sophistication.
+Moving down a column adds semantic capability while holding execution structure roughly constant. Moving across a row changes execution structure while holding semantic capability roughly constant. Resolver03, Resolver08, and Resolver23 are the usual comparison points for production Resolution because all three expose selective demand at increasing levels of scheduling sophistication.
 
 The grid deliberately does not pretend that every family supports the same domain:
 

@@ -1,6 +1,6 @@
 # Runtime2
 
-Runtime2 is the alpha implementation of Viaduct's new engine. Its public contract is [`viaduct.engine.api.Engine`](../api/src/main/kotlin/viaduct/engine/api/Engine.kt): Runtime2 supplies the production resolution algorithm, schema and dispatcher adaptation, and GraphQL Java execution components that implement that contract. `StandardViaduct` selects Runtime2 when `ENGINE2_ENABLED` is enabled; the existing engine remains the default.
+Runtime2 is the alpha engine implementation in `core/engine/runtime2`, exposed through [`Engine2`](src/main/kotlin/viaduct/engine/runtime2/Engine2.kt). Its public contract is [`viaduct.engine.api.Engine`](../api/src/main/kotlin/viaduct/engine/api/Engine.kt): Runtime2 supplies the production resolution algorithm, schema and dispatcher adaptation, and GraphQL Java execution components that implement that contract. `StandardViaduct` selects Runtime2 when `ENGINE2_ENABLED` is enabled; the implementation in [`core/engine/runtime`](../runtime) remains the default.
 
 The production field-resolution implementation is [`Resolution`](src/main/kotlin/viaduct/engine/runtime2/resolution/Resolver.kt), in `src/main/kotlin/viaduct/engine/runtime2/resolution`. Its shared production framework is in the adjacent `resolution/framework` package.
 
@@ -13,13 +13,13 @@ Major exclusions from the current Engine API integration include batching, mutat
 ## Source Layout
 
 - [`src/main`](src/main) contains the production model, schema lowering, bootstrap, execution integration, Resolution, and the shared production resolution framework. The `viaduct.engine.runtime2.model` package deliberately uses stylized Kotlin as an executable semantic model rather than as a conventional object-oriented domain model. Only this source set is published.
-- [`src/support`](src/support) contains Resolver01–23, correctness machinery, generators, benchmark support, and neutral development fixtures. It is development support and is not published.
+- [`src/support`](src/support) contains the numbered reference resolver implementations, correctness machinery, generators, benchmark support, and neutral development fixtures. It is development support and is not published.
 - [`src/test/kotlin`](src/test/kotlin) contains the tests, while [`src/test/fixtures`](src/test/fixtures) contains reusable JUnit contracts and fixtures.
 - [`src/jmh`](src/jmh) contains benchmarks and benchmark resources.
 
 ## Resolver Families
 
-Resolver01–23 are maintained development implementations, not superseded historical snapshots. They serve two purposes:
+The numbered implementations under [`src/support/kotlin/viaduct/engine/runtime2/resolvers`](src/support/kotlin/viaduct/engine/runtime2/resolvers) are maintained development references, not production engine choices or superseded historical snapshots. The recursive depth-first family is resolver01–03, the explicit-task family is resolver06–08, and the coroutine family is resolver21–23; these are not a continuous sequence of versions. The [comparison grid](impldocs/architecture/resolver-families.md#comparison-grid) links each implementation and explains its capabilities. They serve two purposes:
 
 1. They impose architectural integrity on production Resolution by expressing the same semantic roles and boundaries across increasingly sophisticated execution structures while keeping essential differences explicit.
 2. They provide a feature-development ladder: establish a feature in Resolver01–03, extend it through Resolver06–08, carry it into Resolver21–23, and then implement it in production Resolution.
@@ -53,7 +53,7 @@ Architecture:
 Integration:
 
 - [Engine API](impldocs/integration/engine-api.md) describes the execution adapter, current supported surface, and known exclusions.
-- [Feature tests](impldocs/integration/feature-tests.md) describes how Runtime2 uses production-derived feature tests to establish compatible behavior and record intentional differences from the old engine.
+- [Feature tests](impldocs/integration/feature-tests.md) describes how Runtime2 uses production-derived feature tests to establish compatible behavior and record intentional differences from the `runtime` engine.
 
 Testing:
 

@@ -4,11 +4,11 @@
 
 Runtime2's main-source execution layer adapts validated GraphQL Java query and mutation execution and Engine API field, node, and checker dispatchers to production Resolution. It decodes source operations into the canonical model, constructs the request-local operation state, starts Resolution, and exposes the promise-backed result graph to GraphQL Java for ordinary and incremental completion.
 
-The `QPlanExecutionStrategy`, `QPlanWiringFactory`, `QPlanInstrumentation`, and `runQPlanFeatureTest` names are current code identifiers inherited from the earlier project; they do not mean that Runtime2 is a separate build or that production Resolution is prospective.
+The `QPlan` prefix is inherited from the upstream `qplan` development branch and build layout; see the [upstream source context](../evidence/profiles/README.md#upstream-source-context). The names still identify current Runtime2 code: [`QPlanExecutionStrategy`](../../src/main/kotlin/viaduct/engine/runtime2/execution/QPlanExecutionStrategy.kt), [`QPlanWiringFactory`](../../src/main/kotlin/viaduct/engine/runtime2/execution/QPlanWiringFactory.kt), [`QPlanInstrumentation`](../../src/main/kotlin/viaduct/engine/runtime2/execution/QPlanInstrumentation.kt), and [`runQPlanFeatureTest`](../../src/test/fixtures/viaduct/engine/runtime2/execution/testing/QPlanFeatureTest.kt).
 
 `Engine2` implements `Engine.execute` and handle-based `Engine.resolveSelectionSet` and is selected by `StandardViaduct` when `ENGINE2_ENABLED` is enabled. The existing engine remains the default. Direct `Engine.resolveRootFieldReference` calls are intentionally unsupported: Runtime2 instead interprets `RootFieldReference` values returned by resolvers inside Resolution. Production integration reuses the service-built `DispatcherRegistry`; field, node, and checker invocation remains dispatcher-backed and receives a request-owned `EngineExecutionContext`. The direct executor adapter remains for focused integration fixtures; copied feature tests use production service wiring.
 
-Interoperability between engine selections across `StandardViaduct.Builder.buildWithReusedSchemas` rebuilds is not part of the Runtime2 integration contract. A deployment must not rely on rebuilding an old-engine `StandardViaduct` as an engine2 instance, or the reverse, merely because the new instance reuses the previous instance's schema objects.
+Interoperability between engine selections across `StandardViaduct.Builder.buildWithReusedSchemas` rebuilds is not part of the Runtime2 integration contract. A deployment must not rely on rebuilding a `StandardViaduct` using the [`runtime`](../../../runtime) engine as an `Engine2` instance, or the reverse, merely because the new instance reuses the previous instance's schema objects.
 
 ## Schema And Bootstrap Boundaries
 
@@ -83,7 +83,7 @@ A nested query is distinct from a declared Query required selection. Nested exec
 
 ### Root References And Nodes
 
-Source `RootFieldReference` values normalize recursively into `RootFieldReferenceData`, including references inside objects and lists. The adapter does not ask the old engine to resolve them. Resolution gives every reference occurrence and direct-result tail hop a fresh empty Query-rooted invocation identity while retaining publication at the original consumer occurrence. Equivalent descriptors are not semantically deduplicated.
+Source `RootFieldReference` values normalize recursively into `RootFieldReferenceData`, including references inside objects and lists. The adapter does not ask the `runtime` engine to resolve them. Resolution gives every reference occurrence and direct-result tail hop a fresh empty Query-rooted invocation identity while retaining publication at the original consumer occurrence. Equivalent descriptors are not semantically deduplicated.
 
 Reference targets must have empty object required selections and no `FromObjectField` variables. Namespace-relative dependencies are expressed as Query required selections with the Query-to-namespace path prefixed. Target Query fragments and `FromQueryField` variables retain their ordinary independently rooted lifecycle.
 
@@ -117,13 +117,13 @@ The execution layer rejects or does not provide:
 - function variables providers with their own required selections;
 - subscriptions, custom scalars, `@stream`, EOD aliases, asynchronous EOD variants, `EngineExecutionContext.completeSelectionSet`, and direct `Engine.resolveRootFieldReference` calls.
 
-Unsupported input fails explicitly during registry construction, operation decoding, or execution. Runtime2 does not retry an operation on the old engine after Resolution begins.
+Unsupported input fails explicitly during registry construction, operation decoding, or execution. Runtime2 does not retry an operation on the `runtime` engine after Resolution begins.
 
 ## Feature-Test Boundary
 
 `EngineTestModule.runQPlanFeatureTest` is a test-only wrapper in `src/test/fixtures` that runs through production `StandardViaduct` wiring with `ENGINE2_ENABLED`. It bootstraps the mock module's field, node, and checker executors through module configs and the production dispatcher registry, and executes against an optionally scoped GraphQL schema. The wrapper alone supplies fixture conveniences such as missing Query defaults, nullable-node completion, and synthetic inline Node IDs.
 
-Copied old-engine tests live under `src/test/kotlin/viaduct/engine/runtime2/execution/viaductfeaturetests`. [Feature tests](feature-tests.md) defines how those tests are preserved and how intentional differences are recorded. Adapter-specific tests cover execution strategy, completion, cancellation, defer, schema scoping, registry construction, selection conversion, and variable declaration compilation.
+Copied `runtime` engine tests live under `src/test/kotlin/viaduct/engine/runtime2/execution/viaductfeaturetests`. [Feature tests](feature-tests.md) defines how those tests are preserved and how intentional differences are recorded. Adapter-specific tests cover execution strategy, completion, cancellation, defer, schema scoping, registry construction, selection conversion, and variable declaration compilation.
 
 ## Resolver Observation
 

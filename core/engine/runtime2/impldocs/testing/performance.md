@@ -4,6 +4,8 @@ Runtime2 performance testing separates stable JMH measurements from diagnostic J
 
 This document owns maintained benchmark, profiling, corpus, and reporting practice. Dated measurements and investigation findings live in the [performance history](../evidence/profiles/performance-history.md) beside their exported profile evidence.
 
+The `qplan.PropertyTestPhase` JFR event name retains the historical upstream project prefix. Its definition is in [`PropertyTestBenchmarkSupport.kt`](../../src/jmh/kotlin/viaduct/engine/runtime2/benchmark/PropertyTestBenchmarkSupport.kt); it records Runtime2 benchmark phases in the current build.
+
 ## Running And Reporting
 
 Run benchmarks from the repository root:

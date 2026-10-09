@@ -4,7 +4,7 @@
 
 Fix a finite reasoning world whose schema, values, selections, and resolver registry satisfy their documented invariants, including an acyclic resolver-demand relation. Every runtime variable in this argument is defined `FromArgument`; runtime `FromObjectField` binding is outside the domain. Resolver Query fragments are empty, so independently resolved query-fragment OERs and their correctness witnesses are outside this claim.
 
-The claim concerns the non-selective Resolver02 policy supplied by `src/support/kotlin/viaduct/engine/runtime2/resolvers/resolver02/Resolver.kt` to the shared constructor in `src/support/kotlin/viaduct/engine/runtime2/resolvers/resolver01/DepthFirstResolve.kt`. The public `resolve` entry obtains the canonical Query source through `ResolverRegistry.createRootQueryInput()`, starts with an empty mutable Query OER, and applies complete resolver outputs. The claim does not establish selective one-shot producer completeness, JVM invocation count, scheduling, complexity, or runtime `FromObjectField` behavior.
+The claim concerns the non-selective policy in [resolver02/Resolver.kt](../../../src/support/kotlin/viaduct/engine/runtime2/resolvers/resolver02/Resolver.kt), supplied to the shared constructor in [resolver01/DepthFirstResolve.kt](../../../src/support/kotlin/viaduct/engine/runtime2/resolvers/resolver01/DepthFirstResolve.kt). The public `resolve` entry obtains the canonical Query source through `ResolverRegistry.createRootQueryInput()`, starts with an empty mutable Query OER, and applies complete resolver outputs. The claim does not establish selective one-shot producer completeness, JVM invocation count, scheduling, complexity, or runtime `FromObjectField` behavior.
 
 ## Argument Structure
 

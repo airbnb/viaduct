@@ -1,8 +1,10 @@
 # 2026-08-22 Performance Recovery
 
+Source revisions below are commits in the upstream [`airbnb/viaduct`](https://github.com/airbnb/viaduct) repository on github.com. Historical `qplan` paths refer to its development build layout; see the [upstream source context](../README.md#upstream-source-context) before reproducing these runs.
+
 > **Historical snapshot.** Commands, paths, source names, and measurements below describe this recorded round and are not current operating guidance.
 
-Runtime revision: `5193dec7ba656b6c748d8a39bd28a431b31d60e2`
+Runtime revision: [`5193dec7ba656b6c748d8a39bd28a431b31d60e2`](https://github.com/airbnb/viaduct/commit/5193dec7ba656b6c748d8a39bd28a431b31d60e2)
 
 The runtime tree was clean at this revision while the final tests, benchmarks, and profiles ran. This README and the performance-log documentation were added afterward. Host details, benchmark iterations, workload statistics, controlled intermediate results, and interpretation are recorded in the [corresponding performance-history entry](../performance-history.md#2026-08-22-174908-utc).
 

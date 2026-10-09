@@ -15,7 +15,7 @@ Runtime2 establishes confidence through several independent kinds of tests and j
 | GraphQL mutation tests | Do ordered effects, alias identity, payload completion, nested calls, and cancellation satisfy the mutation contract? | [GraphQL Mutation And Nested Execution Tests](resolution.md#graphql-mutation-and-nested-execution-tests) |
 | Directed stress tests | Do targeted feature distributions, depth, concurrency, and scheduling pressure preserve the relevant claims beyond the ordinary check? | [Production Broad Campaign](#production-broad-campaign) and [Testing Resolution](resolution.md) |
 
-This document defines what those evidence layers mean and how they compose. Checker profiles are specialized generated tests and directed stress tests, not an additional evidence kind; [Checker Profiles](#checker-profiles) defines their feature-specific correctness, exactness, and activation obligations. [Testing Guide](guide.md) owns day-to-day validation and investigation workflow, [Testing Resolution](resolution.md) owns production concurrency and stress commands, [Property Testing](property-tests.md) owns generator and campaign mechanics, and [Feature Tests](../integration/feature-tests.md) owns behavioral comparison with the old engine.
+This document defines what those evidence layers mean and how they compose. Checker profiles are specialized generated tests and directed stress tests, not an additional evidence kind; [Checker Profiles](#checker-profiles) defines their feature-specific correctness, exactness, and activation obligations. [Testing Guide](guide.md) owns day-to-day validation and investigation workflow, [Testing Resolution](resolution.md) owns production concurrency and stress commands, [Property Testing](property-tests.md) owns generator and campaign mechanics, and [Feature Tests](../integration/feature-tests.md) owns behavioral comparison with the [`runtime`](../../../runtime) engine.
 
 ## Contract Tests
 
@@ -35,7 +35,7 @@ JUnit 5 discovers `@Test` methods inherited from Kotlin interfaces. A concrete t
 
 Organize contracts by user-visible semantic capability, not by the resolver that first exposed a bug. Keep exact result shapes, resolver inputs, application counts, defaults, null and error positions, and other regression-sensitive assertions in the shared contract.
 
-For Resolver01–23, unsupported inputs are outside the resolver's test domain: fixtures and composed contracts omit them. An implementation may reject such an input when that falls out naturally, but rejection is not a required behavior and should not add capability flags or validation machinery. Resolution is the production algorithm and must reject unsupported inputs deterministically.
+For [Resolver01–23](../../impldocs/architecture/resolver-families.md#comparison-grid), unsupported inputs are outside the resolver's test domain: fixtures and composed contracts omit them. An implementation may reject such an input when that falls out naturally, but rejection is not a required behavior and should not add capability flags or validation machinery. Resolution is the production algorithm and must reject unsupported inputs deterministically.
 
 ### Tenant Failure And Liveness
 

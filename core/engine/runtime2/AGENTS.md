@@ -1,8 +1,8 @@
 # Runtime2 Agent Guidance
 
-Runtime2 is the alpha implementation of Viaduct's new engine. Start with [`README.md`](README.md) for its scope, source layout, resolver-family role, build boundary, and complete documentation map.
+Runtime2 is the alpha engine implementation in `core/engine/runtime2`. Start with [`README.md`](README.md) for its scope, source layout, resolver-family role, build boundary, and complete documentation map.
 
-Within this subtree, "Runtime2," "the new engine," and "the engine" mean `core/engine/runtime2`; "the old engine" means `core/engine/runtime`. Production field resolution is [`Resolution`](src/main/kotlin/viaduct/engine/runtime2/resolution/Resolver.kt), not a future Resolver26 implementation.
+Use `runtime2` and [`runtime`](../runtime) to distinguish the two engine implementations. Runtime2's Engine API implementation is [`Engine2`](src/main/kotlin/viaduct/engine/runtime2/Engine2.kt). Its production field-resolution algorithm is [`Resolution`](src/main/kotlin/viaduct/engine/runtime2/resolution/Resolver.kt).
 
 ## Source And Architecture
 
@@ -14,9 +14,9 @@ Within this subtree, "Runtime2," "the new engine," and "the engine" mean `core/e
 - [`impldocs/architecture/access-checks.md`](impldocs/architecture/access-checks.md) owns checker vocabulary, demand, application identity, and enforcement semantics.
 - [`impldocs/architecture/examples.md`](impldocs/architecture/examples.md) gives worked examples of demand closure, output projection, Query-OER sharing, and `@parent` constraints.
 
-Production code belongs in `src/main`. Resolver01–23, correctness machinery, generators, and neutral development support belong in the unpublished `src/support` source set. Reusable JUnit contracts belong in `src/test/fixtures`, concrete tests in `src/test/kotlin`, and benchmarks in `src/jmh`.
+Production code belongs in `src/main`. The numbered reference implementations in [`src/support/kotlin/viaduct/engine/runtime2/resolvers`](src/support/kotlin/viaduct/engine/runtime2/resolvers), correctness machinery, generators, and neutral development support belong in the unpublished `src/support` source set. Reusable JUnit contracts belong in `src/test/fixtures`, concrete tests in `src/test/kotlin`, and benchmarks in `src/jmh`.
 
-Resolver01–23 are maintained architectural controls as well as a feature ladder. For a semantic feature, establish the compact behavior in Resolver01–03, carry it through Resolver06–08, then Resolver21–23, and finally production Resolution. Read the resolver-family document before changing decomposition, shared framework boundaries, or family naming.
+The numbered implementations are maintained architectural controls as well as a feature ladder, not production engine choices or a continuous sequence of versions. For a semantic feature, establish the compact behavior in the recursive depth-first family (resolver01–03), carry it through the explicit-task family (resolver06–08), then the coroutine family (resolver21–23), and finally production Resolution. Read the [family comparison and source links](impldocs/architecture/resolver-families.md#comparison-grid) before changing decomposition, shared framework boundaries, or family naming.
 
 ## Integration And Testing
 
