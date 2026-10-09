@@ -153,11 +153,8 @@ jobs:
         shell: bash
 
   # ---------------------------------------------------------------------------
-  # Kotlin version matrix — re-run ktor-starter against prior Kotlin releases.
-  # ktor-starter's toml pins the *latest* supported version; this job covers
-  # older (kotlin, ksp) pairs so that a codegen regression in any supported
-  # Kotlin minor is caught without needing a separate full demoapp per version.
-  # Add a new entry here whenever a new Kotlin minor is released.
+  # Kotlin version matrix — verify the Kotlin 2.3/KSP 2.3 consumer pair while
+  # ktor-starter's default Kotlin 2.2/KSP 2.2 pair covers the minimum version.
   # ---------------------------------------------------------------------------
   test-kotlin-matrix:
     needs: publish-to-maven-local
@@ -166,13 +163,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # KSP2 on Kotlin 2.1 — covers the overlap point where both KSP1 and KSP2
-          # were available.  ktor-starter's toml is pinned to the latest (2.2.x);
-          # this entry keeps prior-minor coverage without a separate app.
-          # Note: no stable KSP2 release exists for Kotlin 2.0.x, so the first
-          # valid KSP2 entry is 2.1.20.  Kotlin 2.0.x KSP1 is covered by jetty-starter.
-          - kotlin_version: "2.1.20"
-            ksp_version: "2.1.20-2.0.1"
+          - kotlin_version: "2.3.21"
+            ksp_version: "2.3.7"
     name: Test ktor-starter (Kotlin ${{ matrix.kotlin_version }})
     env:
       GRADLE_OPTS: "-Dorg.gradle.parallel=true -Dorg.gradle.caching=true"

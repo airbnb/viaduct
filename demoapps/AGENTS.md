@@ -116,20 +116,20 @@ The demo apps collectively verify the KSP registry-extractor processor across th
 
 | Demo App | Kotlin | KSP | Generation | Gradle | Coverage goal |
 |---|---|---|---|---|---|
-| cli-starter | 1.9.24 | 1.9.24-1.0.20 | KSP1 | 9.1.0 | Oldest supported |
-| jetty-starter | 2.0.21 | 2.0.21-1.0.28 | KSP1 | 9.1.0 | KSP1 on 2.0 |
-| micronaut-starter | 2.1.20 | 2.1.20-1.0.32 | KSP1 | **8.11** | KSP1 on 2.1; Gradle 8.x coverage |
-| ktor-starter | 2.2.21 | 2.2.21-2.0.5 | KSP2 | 9.1.0 | Latest KSP2; prior versions tested via CI Kotlin matrix |
-| starwars | 2.2.21 | 2.2.21-2.0.5 | KSP2 | 9.1.0 | Latest; full feature coverage |
+| cli-starter | 2.2.21 | 2.2.21-2.0.5 | KSP2 | 9.1.0 | Minimum supported Kotlin |
+| jetty-starter | 2.2.21 | 2.2.21-2.0.5 | KSP2 | 9.1.0 | Jetty integration |
+| micronaut-starter | 2.2.21 | 2.2.21-2.0.5 | KSP2 | **8.11** | Gradle 8.x coverage |
+| ktor-starter | 2.2.21 | 2.2.21-2.0.5 | KSP2 | 9.1.0 | Kotlin 2.3/KSP 2.3 tested via CI matrix |
+| starwars | 2.2.21 | 2.2.21-2.0.5 | KSP2 | 9.1.0 | Full feature coverage |
 
 In addition to the per-app versions above, CI runs two version-matrix jobs that add coverage without requiring new full demoapp copies:
 
-- **Kotlin matrix** (`test-kotlin-matrix` in `demoapps-ci-check.yml`): runs `ktor-starter` against prior supported `(kotlin, ksp)` pairs (currently 2.1.20/`2.1.20-2.0.1`). Add a new row there whenever support for a new Kotlin minor needs to be verified. Note: no stable KSP2 release exists for Kotlin 2.0.x; KSP1-on-2.0 is covered by `jetty-starter`.
+- **Kotlin matrix** (`test-kotlin-matrix` in `demoapps-ci-check.yml`): runs `ktor-starter` with Kotlin 2.3.21/KSP 2.3.7. The default demoapp versions cover Kotlin 2.2.21/KSP 2.2.21-2.0.5.
 - **Gradle matrix** (`test-gradle-matrix`): runs `micronaut-starter` against Gradle 8.11 (its native version) and Gradle 9.1.0, confirming the Viaduct plugin works across both Gradle major versions.
 
-`micronaut-starter` intentionally stays on Gradle 8.11 (matching the monorepo root) to verify Viaduct works with Gradle 8. All other apps use Gradle 9 to match the standard consumer setup. If `micronaut-starter` is ever bumped to Gradle 9, add a separate Gradle 8 variant to preserve that coverage.
+`micronaut-starter` intentionally stays on Gradle 8.11 to verify Viaduct works with Gradle 8. All other apps use Gradle 9 to match the OSS root. If `micronaut-starter` is ever bumped to Gradle 9, add a separate Gradle 8 variant to preserve that coverage.
 
-Full transition to KSP2-only will occur after we deprecate Kotlin 1.9 support. Note that Kotlin 2.3+ uses a standalone KSP model (version-independent of the compiler), which will require a separate migration when we extend support past 2.2.
+Kotlin 2.2 is the minimum supported consumer version for artifacts compiled with Kotlin 2.3. Kotlin 2.3 uses standalone KSP versions that are independent of the compiler version.
 
 For more on KSP versioning see `ksp-versioning.md`.
 

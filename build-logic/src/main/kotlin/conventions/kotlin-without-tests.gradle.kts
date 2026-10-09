@@ -33,10 +33,9 @@ tasks.withType<KotlinCompile>().configureEach {
     compilerOptions {
         apiVersion = KotlinVersion.KOTLIN_1_9
         languageVersion = KotlinVersion.KOTLIN_1_9
-        // graphql-java 26 added @NullMarked (jspecify) annotations, causing hundreds of
-        // nullability warnings in Kotlin 1.9. Ignore them until we upgrade to Kotlin 2.x
-        // which handles jspecify annotations natively.
         freeCompilerArgs.add("-Xjspecify-annotations=ignore")
+        freeCompilerArgs.add("-Xsuppress-version-warnings")
+        freeCompilerArgs.add("-jvm-default=enable")
         allWarningsAsErrors = treatWarningsAsErrors
     }
 }

@@ -18,6 +18,10 @@ viaductFeatureAppContracts {
 
 tasks.named<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>("compileKotlin") {
     compilerOptions.moduleName.set("tenant-api")
+    // Direct-to-bytecode GRTs mirror the DefaultImpls shape of the api.types interfaces (same as Bazel).
+    compilerOptions.freeCompilerArgs.set(
+        compilerOptions.freeCompilerArgs.get().filterNot { it.startsWith("-jvm-default=") } + "-jvm-default=disable"
+    )
 }
 
 tasks.named<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>("compileTestFixturesKotlin") {

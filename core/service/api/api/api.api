@@ -74,8 +74,9 @@ public final class viaduct/service/api/SchemaId$None : viaduct/service/api/Schem
 
 public abstract interface class viaduct/service/api/Viaduct {
 	public abstract fun execute (Lviaduct/service/api/ExecutionInput;Lviaduct/service/api/SchemaId;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public abstract fun executeAsync (Lviaduct/service/api/ExecutionInput;)Ljava/util/concurrent/CompletableFuture;
-	public abstract fun executeAsync (Lviaduct/service/api/ExecutionInput;Lviaduct/service/api/SchemaId;)Ljava/util/concurrent/CompletableFuture;
+	public static synthetic fun execute$default (Lviaduct/service/api/Viaduct;Lviaduct/service/api/ExecutionInput;Lviaduct/service/api/SchemaId;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public fun executeAsync (Lviaduct/service/api/ExecutionInput;)Ljava/util/concurrent/CompletableFuture;
+	public fun executeAsync (Lviaduct/service/api/ExecutionInput;Lviaduct/service/api/SchemaId;)Ljava/util/concurrent/CompletableFuture;
 	public abstract fun executeAsync (Lviaduct/service/api/ExecutionInput;Lviaduct/service/api/SchemaId;Ljava/util/concurrent/Executor;)Ljava/util/concurrent/CompletableFuture;
 	public abstract fun getAppliedScopes (Lviaduct/service/api/SchemaId;)Ljava/util/Set;
 }
@@ -271,7 +272,7 @@ public abstract interface annotation class viaduct/service/api/spi/TenantBootstr
 
 public abstract interface class viaduct/service/api/spi/TenantModuleInjectorFactory {
 	public abstract fun bootstrap (Ljava/lang/String;Ljava/lang/Class;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public abstract fun onBootstrapComplete (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun onBootstrapComplete (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 }
 
 public final class viaduct/service/api/spi/TenantModuleInjectorFactory$DefaultImpls {

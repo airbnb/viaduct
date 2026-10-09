@@ -19,18 +19,18 @@ class ViaductModulePluginKspValidationTest {
     // ── Kotlin version range validation ─────────────────────────────────────
 
     @Test
-    fun `Kotlin 1_9_24 is accepted`() {
-        assertNull(ViaductModulePlugin.validateKotlinVersion("1.9.24"))
+    fun `Kotlin 1_9_24 is rejected`() {
+        ViaductModulePlugin.validateKotlinVersion("1.9.24")!! shouldContain "[2.2, 2.3]"
     }
 
     @Test
-    fun `Kotlin 2_0_21 is accepted`() {
-        assertNull(ViaductModulePlugin.validateKotlinVersion("2.0.21"))
+    fun `Kotlin 2_0_21 is rejected`() {
+        ViaductModulePlugin.validateKotlinVersion("2.0.21")!! shouldContain "[2.2, 2.3]"
     }
 
     @Test
-    fun `Kotlin 2_1_20 is accepted`() {
-        assertNull(ViaductModulePlugin.validateKotlinVersion("2.1.20"))
+    fun `Kotlin 2_1_20 is rejected`() {
+        ViaductModulePlugin.validateKotlinVersion("2.1.20")!! shouldContain "[2.2, 2.3]"
     }
 
     @Test
@@ -39,24 +39,28 @@ class ViaductModulePluginKspValidationTest {
     }
 
     @Test
+    fun `Kotlin 2_3_21 is accepted`() {
+        assertNull(ViaductModulePlugin.validateKotlinVersion("2.3.21"))
+    }
+
+    @Test
     fun `Kotlin 1_8_22 is rejected`() {
         val error = ViaductModulePlugin.validateKotlinVersion("1.8.22")
-        error!! shouldContain "[1.9, 2.2]"
+        error!! shouldContain "[2.2, 2.3]"
         error shouldContain "1.8.22"
     }
 
     @Test
-    fun `Kotlin 2_3_0 is rejected`() {
-        val error = ViaductModulePlugin.validateKotlinVersion("2.3.0")
-        error!! shouldContain "[1.9, 2.2]"
-        error shouldContain "2.3.0"
-        error shouldContain "KSP2"
+    fun `Kotlin 2_4_0 is rejected`() {
+        val error = ViaductModulePlugin.validateKotlinVersion("2.4.0")
+        error!! shouldContain "[2.2, 2.3]"
+        error shouldContain "2.4.0"
     }
 
     @Test
     fun `Kotlin 3_0_0 is rejected`() {
         val error = ViaductModulePlugin.validateKotlinVersion("3.0.0")
-        error!! shouldContain "[1.9, 2.2]"
+        error!! shouldContain "[2.2, 2.3]"
     }
 
     @Test

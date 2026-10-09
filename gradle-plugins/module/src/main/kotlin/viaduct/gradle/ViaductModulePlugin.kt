@@ -188,7 +188,7 @@ class ViaductModulePlugin : Plugin<Project> {
                     "Viaduct module '${project.displayName}' requires the KSP plugin but it is not applied.\n" +
                         "Add 'com.google.devtools.ksp' to your plugins block:\n" +
                         "  plugins {\n" +
-                        "    id(\"com.google.devtools.ksp\") version \"<kotlin-version>-<ksp-version>\"\n" +
+                        "    id(\"com.google.devtools.ksp\") version \"<compatible-ksp-version>\"\n" +
                         "  }\n" +
                         "See the Viaduct documentation for supported Kotlin and KSP versions."
                 )
@@ -219,10 +219,8 @@ class ViaductModulePlugin : Plugin<Project> {
             val major = kotlinVersion.substringBefore('.').toIntOrNull() ?: return null
             val minor = kotlinVersion.substringAfter('.').substringBefore('.').toIntOrNull() ?: return null
 
-            return if (major < 1 || (major == 1 && minor < 9) || major > 2 || (major == 2 && minor > 2)) {
-                "Viaduct requires Kotlin version in the range [1.9, 2.2] for KSP1 support. " +
-                    "Found: $kotlinVersion. " +
-                    "Kotlin 2.3+ requires KSP2 which is not yet supported by Viaduct."
+            return if (major != 2 || minor < 2 || minor > 3) {
+                "Viaduct requires Kotlin version in the range [2.2, 2.3]. Found: $kotlinVersion."
             } else {
                 null
             }

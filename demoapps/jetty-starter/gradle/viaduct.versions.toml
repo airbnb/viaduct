@@ -1,8 +1,8 @@
 [versions]
 jetty = "11.0.26"
 kotest = "5.9.1"
-kotlin = "2.0.21"
-ksp = "2.0.21-1.0.28"
+kotlin = "2.2.21"
+ksp = "2.2.21-2.0.5"
 coroutines = "1.5.2"
 jackson = "2.20.1"
 jakarta = "6.0.0"

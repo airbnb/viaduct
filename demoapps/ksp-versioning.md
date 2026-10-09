@@ -4,12 +4,12 @@ This document covers what we've learned about KSP version compatibility and the 
 
 ## KSP Version Format
 
-KSP versions follow the format `<kotlinVersion>-<kspMajor>.<kspMinor>.<kspPatch>`:
+Before KSP 2.3, versions follow `<kotlinVersion>-<kspMajor>.<kspMinor>.<kspPatch>`:
 
 - **KSP1**: the KSP portion is `1.0.x` (e.g., `2.0.21-1.0.28`)
 - **KSP2**: the KSP portion is `2.0.x` (e.g., `2.2.21-2.0.5`)
 
-The Kotlin version prefix must exactly match the Kotlin compiler version used in the project. This coupling is in the KSP Gradle plugin/implementation, NOT in the processor API.
+The Kotlin version prefix must match the project's compiler version. KSP 2.3+ uses standalone versions such as `2.3.7`, independent of the Kotlin compiler version. This coupling is in the KSP Gradle plugin/implementation, not in the processor API.
 
 ## KSP1 vs KSP2
 
@@ -24,7 +24,7 @@ KSP1 is a Kotlin compiler plugin that hooks into compiler internals. KSP2 is a r
 
 The `com.google.devtools.ksp:symbol-processing-api` is backward compatible across KSP1 versions. Google's stated guarantee: old interfaces never change, and processors depend only on the API.
 
-Our processor (`RegistryExtractorProcessor` in `tenant:codegen`) is compiled against `symbol-processing-api:1.9.25-1.0.20` as a `compileOnly` dependency. This single compiled artifact works across all KSP1 AND KSP2 versions we've tested (1.9.24 through 2.2.21).
+Our processor (`RegistryExtractorProcessor` in `tenant:codegen`) is compiled against `symbol-processing-api:2.3.7` as a `compileOnly` dependency. Its published artifact is tested with KSP 2.2.21-2.0.5 and 2.3.7.
 
 ## The KSP2 Classloader Gotcha
 
@@ -46,7 +46,7 @@ The Viaduct module plugin does NOT apply KSP itself. The consumer ("service engi
 
 1. Reacts to `com.google.devtools.ksp` via `pluginManager.withPlugin(...)`.
 2. Adds `com.airbnb.viaduct:buildtime:$version` to the `ksp` configuration (this contains the processor).
-3. Validates Kotlin is in [1.9, 2.2] and warns about mismatches.
+3. Validates Kotlin is in [2.2, 2.3] and warns about mismatches.
 4. Resolver modules must apply KSP to generate their module configs; runtime resolver discovery has no scanning fallback.
 
 This avoids the version-coupling problem entirely — we never need to know the consumer's Kotlin version at publish time.
@@ -55,19 +55,12 @@ This avoids the version-coupling problem entirely — we never need to know the 
 
 The demo apps verify the full matrix:
 
-- **KSP1 on Kotlin 1.9.24**: `1.9.24-1.0.20` (cli-starter)
-- **KSP1 on Kotlin 2.0.21**: `2.0.21-1.0.28` (jetty-starter)
-- **KSP1 on Kotlin 2.1.20**: `2.1.20-1.0.32` (micronaut-starter)
-- **KSP2 on Kotlin 2.1.20**: `2.1.20-2.0.1` (ktor-starter) — proves KSP2 works at the overlap point
-- **KSP2 on Kotlin 2.2.21**: `2.2.21-2.0.5` (starwars) — latest
+- **KSP2 on Kotlin 2.2.21**: `2.2.21-2.0.5` (demoapp defaults) — minimum supported consumer pair
+- **KSP 2.3 on Kotlin 2.3.21**: `2.3.7` (Ktor CI matrix) — upgraded compiler pair
+- **Gradle 8.11 and 9.1.0**: Micronaut CI matrix with Kotlin 2.2.21
 
-## Future: Kotlin 2.3+ and Standalone KSP
+## Kotlin 2.3+ and Standalone KSP
 
 Starting with KSP 2.3.0, KSP versions are completely independent of the Kotlin version (just `2.3.0`, `2.3.6`, etc. — no Kotlin prefix). KSP1 is not supported for Kotlin 2.3+, and the old `kotlinVersion-kspVersion` format is retired.
 
-When we extend support to Kotlin 2.3+, we'll need to:
-
-1. Verify the processor works with standalone KSP 2.3+ (likely just works given API stability).
-2. Update the Kotlin version validation in `ViaductModulePlugin` to accept 2.3+.
-3. Update documentation to explain the new versioning model to users.
-4. Decide whether to drop Kotlin 1.9 support at the same time (simplifies the matrix significantly).
+The processor and Ktor demoapp run with KSP 2.3.7. Artifacts compiled with Kotlin 2.3 require Kotlin 2.2 or newer in tested consumers; the Kotlin 1.9, 2.0, and 2.1 demoapp compilers reject their metadata.
