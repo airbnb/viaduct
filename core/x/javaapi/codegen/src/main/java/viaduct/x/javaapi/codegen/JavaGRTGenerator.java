@@ -31,7 +31,7 @@ public final class JavaGRTGenerator {
       """
           <mdl.fields: {f |
           public <f.javaType> <f.getterName>() {
-              <if(f.globalIDList)>return getGlobalIDList("<f.name>");<elseif(f.globalIDType)>return getGlobalID("<f.name>");<elseif(f.compositeList)>return getInputList("<f.name>", <f.baseTypeName>::new);<elseif(f.compositeType)>return getInput("<f.name>", <f.baseTypeName>::new);<elseif(f.enumList)>return getEnumList("<f.name>", <f.baseTypeName>.class);<elseif(f.enumType)>return getEnum("<f.name>", <f.baseTypeName>.class);<elseif(f.temporalScalarList)>return getScalarList("<f.name>", "<f.scalarCoercionHint>");<elseif(f.temporalScalar)>return get("<f.name>", "<f.scalarCoercionHint>");<elseif(f.scalarList)>return getScalarList("<f.name>");<else>return get("<f.name>");<endif>
+              return <f.inputGetterExpression>;
           \\}
           }; separator="\\n">
       """;
@@ -40,8 +40,8 @@ public final class JavaGRTGenerator {
       """
               <mdl.fields: {f |
               public Builder <f.safeName>(<f.builderType> <f.safeName>) {
-                  <if(f.globalIDBuilderSerialize)>data.put("<f.name>", <f.safeName> == null ? null : __context.getGlobalIDCodec().serialize(<f.safeName>.getType().getName(), <f.safeName>.getInternalID()));
-                  <elseif(f.globalIDListBuilderSerialize)>data.put("<f.name>", <f.safeName> == null ? null : <f.safeName>.stream().map(__id -> __id == null ? null : __context.getGlobalIDCodec().serialize(__id.getType().getName(), __id.getInternalID())).collect(java.util.stream.Collectors.toList()));
+                  <if(f.globalIDBuilderSerialize)>data.put("<f.name>", <f.builderValueExpression>);
+                  <elseif(f.globalIDListBuilderSerialize)>data.put("<f.name>", <f.builderValueExpression>);
                   <else>data.put("<f.name>", <f.safeName>);
                   <endif>return this;
               \\}
@@ -491,8 +491,7 @@ public final class JavaGRTGenerator {
 
                     <mdl.fields: {f |
                     public Builder <f.safeName>(<f.builderType> <f.safeName>) {
-                        <if(f.globalIDBuilderSerialize)>putGlobalIDField("<f.name>", <f.safeName>);
-                        <elseif(f.globalIDListBuilderSerialize)>putGlobalIDListField("<f.name>", <f.safeName>);
+                        <if(f.globalIDType)>putSerializedField("<f.name>", <f.safeName>, __value -> <f.connectionBuilderValueExpression>);
                         <else>putField(
                                 "<f.name>",
                                 <f.safeName>,

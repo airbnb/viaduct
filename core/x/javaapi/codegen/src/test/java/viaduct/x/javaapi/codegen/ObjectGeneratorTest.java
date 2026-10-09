@@ -401,8 +401,19 @@ class ObjectGeneratorTest {
     assertTrue(generated.contains("return fetchGlobalIDList(\"ownerIDs\", null)"), generated);
     assertTrue(generated.contains("import viaduct.java.api.globalid.GlobalID;"), generated);
     assertTrue(generated.contains("import java.time.Instant;"), generated);
-    assertTrue(generated.contains("putGlobalIDField(\"ownerID\", ownerID)"), generated);
-    assertTrue(generated.contains("putGlobalIDListField(\"ownerIDs\", ownerIDs)"), generated);
+    assertTrue(
+        generated.contains(
+            "putSerializedField(\"ownerID\", ownerID, __value -> __value == null ? null :"
+                + " internalContext.getGlobalIDCodec().serialize(__value.getType().getName(),"
+                + " __value.getInternalID()))"),
+        generated);
+    assertTrue(
+        generated.contains(
+            "putSerializedField(\"ownerIDs\", ownerIDs, __value -> __value == null ? null :"
+                + " __value.stream().map(__id -> __id == null ? null :"
+                + " internalContext.getGlobalIDCodec().serialize(__id.getType().getName(),"
+                + " __id.getInternalID())).collect(java.util.stream.Collectors.toList()))"),
+        generated);
   }
 
   @Test

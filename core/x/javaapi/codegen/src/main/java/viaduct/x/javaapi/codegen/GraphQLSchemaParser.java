@@ -393,10 +393,7 @@ public class GraphQLSchemaParser {
       if (argIdOfTypeName != null) {
         argGlobalIDType = true;
         argBaseTypeName = argIdOfTypeName;
-        argJavaType =
-            argList
-                ? "List<GlobalID<" + argIdOfTypeName + ">>"
-                : "GlobalID<" + argIdOfTypeName + ">";
+        argJavaType = typeMapper.toGlobalIDJavaType(arg.getType(), argIdOfTypeName, false);
       }
 
       fields.add(
@@ -413,7 +410,9 @@ public class GraphQLSchemaParser {
               getHasReflectedType(argBaseTypeDef) ? argBaseTypeDef.getName() : null,
               false,
               null,
-              null));
+              null,
+              List.of(),
+              arg.getType()));
     }
     return fields;
   }
@@ -791,7 +790,8 @@ public class GraphQLSchemaParser {
         rootObjectField,
         argumentsTypeName,
         pathFromQueryRoot,
-        rootFieldArguments);
+        rootFieldArguments,
+        field.getType());
   }
 
   /** Extracts description from a type definition. Returns null for now. */

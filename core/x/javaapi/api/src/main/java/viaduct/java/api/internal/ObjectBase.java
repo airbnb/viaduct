@@ -500,8 +500,13 @@ public abstract class ObjectBase implements GraphQLObject {
 
   /** Transforms a non-null raw engine or builder value into the value a {@code fetch*} returns. */
   @FunctionalInterface
-  private interface ValueWrapper {
+  interface ValueWrapper {
     @Nullable Object wrap(Object raw) throws Exception;
+  }
+
+  @FunctionalInterface
+  interface ListReader {
+    List<?> read(Object raw) throws Exception;
   }
 
   /**
@@ -529,6 +534,22 @@ public abstract class ObjectBase implements GraphQLObject {
           Object result = (prev != null) ? prev : toCache;
           return result == NULL_VALUE ? null : (T) result;
         });
+  }
+
+  static Object mapListLevels(@Nullable Object raw, int depth, ValueWrapper leaf) throws Exception {
+    return mapListLevels(raw, depth, leaf, ObjectBase::requireList);
+  }
+
+  static Object mapListLevels(
+      @Nullable Object raw, int depth, ValueWrapper leaf, ListReader container) throws Exception {
+    if (raw == null) return null;
+    if (depth == 0) return leaf.wrap(raw);
+    List<?> values = container.read(raw);
+    List<Object> result = new ArrayList<>(values.size());
+    for (Object value : values) {
+      result.add(mapListLevels(value, depth - 1, leaf, container));
+    }
+    return result;
   }
 
   private static List<?> requireList(Object raw) throws TenantUsageException {
@@ -579,18 +600,18 @@ public abstract class ObjectBase implements GraphQLObject {
   @Nullable
   protected <T> List<T> fetchScalarList(
       String fieldName, @Nullable String alias, String scalarType) {
+    return fetchScalarList(fieldName, alias, scalarType, 1);
+  }
+
+  @Nullable
+  @SuppressWarnings("TypeParameterUnusedInFormals")
+  protected <T> T fetchScalarList(
+      String fieldName, @Nullable String alias, String scalarType, int listDepth) {
     return fetchCached(
         "fetchScalarList",
         fieldName,
         alias,
-        raw -> {
-          List<?> list = requireList(raw);
-          List<Object> coerced = new ArrayList<>(list.size());
-          for (Object element : list) {
-            coerced.add(coerceScalar(element, scalarType));
-          }
-          return coerced;
-        });
+        raw -> mapListLevels(raw, listDepth, value -> coerceScalar(value, scalarType)));
   }
 
   /**
@@ -608,26 +629,30 @@ public abstract class ObjectBase implements GraphQLObject {
       Class<T> objectClass,
       BiFunction<InternalContext, EngineObjectData.Sync, T> constructor) {
     return fetchCached(
-        "fetchObject",
-        fieldName,
-        alias,
-        raw -> {
-          if (raw instanceof EngineObjectData.Sync syncData) {
-            return constructor.apply(__context, syncData);
-          }
-          if (objectClass.isInstance(raw)) {
-            return objectClass.cast(raw);
-          }
-          if (raw instanceof ObjectBase) {
-            throw new IllegalArgumentException(
-                "Expected value of type "
-                    + objectClass.getSimpleName()
-                    + ", got "
-                    + raw.getClass().getSimpleName());
-          }
-          throw new TenantUsageException(
-              "Expected value to be an instance of EngineObjectData, got " + raw, null);
-        });
+        "fetchObject", fieldName, alias, raw -> wrapObject(raw, objectClass, constructor));
+  }
+
+  private <T extends ObjectBase> Object wrapObject(
+      Object raw,
+      Class<T> objectClass,
+      BiFunction<InternalContext, EngineObjectData.Sync, T> constructor)
+      throws Exception {
+
+    if (raw instanceof EngineObjectData.Sync syncData) {
+      return constructor.apply(__context, syncData);
+    }
+    if (objectClass.isInstance(raw)) {
+      return objectClass.cast(raw);
+    }
+    if (raw instanceof ObjectBase) {
+      throw new IllegalArgumentException(
+          "Expected value of type "
+              + objectClass.getSimpleName()
+              + ", got "
+              + raw.getClass().getSimpleName());
+    }
+    throw new TenantUsageException(
+        "Expected value to be an instance of EngineObjectData, got " + raw, null);
   }
 
   /**
@@ -635,39 +660,27 @@ public abstract class ObjectBase implements GraphQLObject {
    * -> wrapList() -> wrapObject()}.
    */
   @Nullable
-  @SuppressWarnings("unchecked")
   protected <T extends ObjectBase> List<T> fetchObjectList(
       String fieldName,
       @Nullable String alias,
       Class<T> objectClass,
       BiFunction<InternalContext, EngineObjectData.Sync, T> constructor) {
+    return fetchObjectList(fieldName, alias, objectClass, constructor, 1);
+  }
+
+  @Nullable
+  @SuppressWarnings("TypeParameterUnusedInFormals")
+  protected <R, T extends ObjectBase> R fetchObjectList(
+      String fieldName,
+      @Nullable String alias,
+      Class<T> objectClass,
+      BiFunction<InternalContext, EngineObjectData.Sync, T> constructor,
+      int listDepth) {
     return fetchCached(
         "fetchObjectList",
         fieldName,
         alias,
-        raw -> {
-          List<?> list = requireList(raw);
-          List<T> wrapped = new ArrayList<>(list.size());
-          for (Object element : list) {
-            if (element == null) {
-              wrapped.add(null);
-            } else if (element instanceof EngineObjectData.Sync syncData) {
-              wrapped.add(constructor.apply(__context, syncData));
-            } else if (objectClass.isInstance(element)) {
-              wrapped.add(objectClass.cast(element));
-            } else if (element instanceof ObjectBase) {
-              throw new IllegalArgumentException(
-                  "Expected value of type "
-                      + objectClass.getSimpleName()
-                      + ", got "
-                      + element.getClass().getSimpleName());
-            } else {
-              throw new TenantUsageException(
-                  "Expected value to be an instance of EngineObjectData, got " + element, null);
-            }
-          }
-          return wrapped;
-        });
+        raw -> mapListLevels(raw, listDepth, value -> wrapObject(value, objectClass, constructor)));
   }
 
   /**
@@ -688,16 +701,20 @@ public abstract class ObjectBase implements GraphQLObject {
         "fetchAbstractObject",
         fieldName,
         alias,
-        raw -> {
-          if (raw instanceof EngineObjectData.Sync syncData) {
-            return instantiateConcrete(__context, syncData, interfaceClass, fieldName);
-          }
-          if (interfaceClass.isInstance(raw)) {
-            return raw;
-          }
-          throw new TenantUsageException(
-              "Expected value to be an instance of EngineObjectData, got " + raw, null);
-        });
+        raw -> wrapAbstractObject(raw, interfaceClass, fieldName));
+  }
+
+  private Object wrapAbstractObject(Object raw, Class<?> interfaceClass, String fieldName)
+      throws Exception {
+
+    if (raw instanceof EngineObjectData.Sync syncData) {
+      return instantiateConcrete(__context, syncData, interfaceClass, fieldName);
+    }
+    if (interfaceClass.isInstance(raw)) {
+      return raw;
+    }
+    throw new TenantUsageException(
+        "Expected value to be an instance of EngineObjectData, got " + raw, null);
   }
 
   /**
@@ -705,30 +722,22 @@ public abstract class ObjectBase implements GraphQLObject {
    * list fields.
    */
   @Nullable
-  @SuppressWarnings("unchecked")
   protected <T> List<T> fetchAbstractObjectList(
       String fieldName, @Nullable String alias, Class<T> interfaceClass) {
+    return fetchAbstractObjectList(fieldName, alias, interfaceClass, 1);
+  }
+
+  @Nullable
+  @SuppressWarnings("TypeParameterUnusedInFormals")
+  protected <T> T fetchAbstractObjectList(
+      String fieldName, @Nullable String alias, Class<?> interfaceClass, int listDepth) {
     return fetchCached(
         "fetchAbstractObjectList",
         fieldName,
         alias,
-        raw -> {
-          List<?> list = requireList(raw);
-          List<T> wrapped = new ArrayList<>(list.size());
-          for (Object element : list) {
-            if (element == null) {
-              wrapped.add(null);
-            } else if (element instanceof EngineObjectData.Sync syncData) {
-              wrapped.add((T) instantiateConcrete(__context, syncData, interfaceClass, fieldName));
-            } else if (interfaceClass.isInstance(element)) {
-              wrapped.add((T) element);
-            } else {
-              throw new TenantUsageException(
-                  "Expected value to be an instance of EngineObjectData, got " + element, null);
-            }
-          }
-          return wrapped;
-        });
+        raw ->
+            mapListLevels(
+                raw, listDepth, value -> wrapAbstractObject(value, interfaceClass, fieldName)));
   }
 
   /**
@@ -783,27 +792,27 @@ public abstract class ObjectBase implements GraphQLObject {
    * wrapList() -> wrapEnum()}.
    */
   @Nullable
-  @SuppressWarnings("unchecked")
   protected <E extends Enum<E>> List<E> fetchEnumList(
       String fieldName, @Nullable String alias, Class<E> enumClass) {
+    return fetchEnumList(fieldName, alias, enumClass, 1);
+  }
+
+  @Nullable
+  @SuppressWarnings("TypeParameterUnusedInFormals")
+  protected <T, E extends Enum<E>> T fetchEnumList(
+      String fieldName, @Nullable String alias, Class<E> enumClass, int listDepth) {
     return fetchCached(
         "fetchEnumList",
         fieldName,
         alias,
-        raw -> {
-          List<?> list = requireList(raw);
-          List<E> wrapped = new ArrayList<>(list.size());
-          for (Object element : list) {
-            if (element == null) {
-              wrapped.add(null);
-            } else if (enumClass.isInstance(element)) {
-              wrapped.add((E) element);
-            } else {
-              wrapped.add(Enum.valueOf(enumClass, element.toString()));
-            }
-          }
-          return wrapped;
-        });
+        raw ->
+            mapListLevels(
+                raw,
+                listDepth,
+                value ->
+                    enumClass.isInstance(value)
+                        ? value
+                        : Enum.valueOf(enumClass, value.toString())));
   }
 
   /**
@@ -826,18 +835,18 @@ public abstract class ObjectBase implements GraphQLObject {
   @Nullable
   protected <T extends NodeCompositeOutput> List<GlobalID<T>> fetchGlobalIDList(
       String fieldName, @Nullable String alias) {
+    return fetchGlobalIDList(fieldName, alias, 1);
+  }
+
+  @Nullable
+  @SuppressWarnings("TypeParameterUnusedInFormals")
+  protected <T> T fetchGlobalIDList(String fieldName, @Nullable String alias, int listDepth) {
     return fetchCached(
         "fetchGlobalIDList",
         fieldName,
         alias,
-        raw -> {
-          List<?> list = requireList(raw);
-          List<GlobalID<T>> decoded = new ArrayList<>(list.size());
-          for (Object element : list) {
-            decoded.add(element == null ? null : __context.deserializeGlobalID((String) element));
-          }
-          return decoded;
-        });
+        raw ->
+            mapListLevels(raw, listDepth, value -> __context.deserializeGlobalID((String) value)));
   }
 
   // ===== Scalar coercion helpers (mirrors Kotlin ObjectBase.wrapScalar) =====

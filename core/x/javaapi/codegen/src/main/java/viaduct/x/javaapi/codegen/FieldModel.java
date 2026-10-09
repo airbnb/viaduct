@@ -3,6 +3,7 @@ package viaduct.x.javaapi.codegen;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import viaduct.graphql.schema.ViaductSchema;
 import viaduct.tenant.codegen.bytecode.config.AccessorForm;
 
 /** Model representing a GraphQL field for code generation. */
@@ -20,11 +21,53 @@ public record FieldModel(
     boolean rootObjectField,
     String argumentsTypeName,
     List<String> pathFromQueryRoot,
-    List<FieldModel> rootFieldArguments) {
+    List<FieldModel> rootFieldArguments,
+    ViaductSchema.TypeExpr<?> typeExpr) {
 
   public FieldModel {
     pathFromQueryRoot = pathFromQueryRoot == null ? null : List.copyOf(pathFromQueryRoot);
     rootFieldArguments = rootFieldArguments == null ? List.of() : List.copyOf(rootFieldArguments);
+  }
+
+  public FieldModel(
+      String name,
+      String javaType,
+      boolean nullable,
+      boolean compositeType,
+      boolean list,
+      boolean enumType,
+      boolean abstractType,
+      boolean globalIDType,
+      String baseTypeName,
+      String reflectedTypeName,
+      boolean rootObjectField,
+      String argumentsTypeName,
+      List<String> pathFromQueryRoot,
+      List<FieldModel> rootFieldArguments) {
+    this(
+        name,
+        javaType,
+        nullable,
+        compositeType,
+        list,
+        enumType,
+        abstractType,
+        globalIDType,
+        baseTypeName,
+        reflectedTypeName,
+        rootObjectField,
+        argumentsTypeName,
+        pathFromQueryRoot,
+        rootFieldArguments,
+        null);
+  }
+
+  private int listDepth() {
+    return typeExpr != null ? typeExpr.getListDepth() : (list ? 1 : 0);
+  }
+
+  private String listDepthArgument() {
+    return listDepth() > 1 ? ", " + listDepth() : "";
   }
 
   /** Constructor for fields that declare no root-field-call arguments. */
@@ -346,6 +389,12 @@ public record FieldModel(
   public String getScalarCoercionHint() {
     if (compositeType || enumType || abstractType) return null;
     String baseType = javaType;
+    if (typeExpr != null) {
+      return switch (typeExpr.getBaseTypeDef().getName()) {
+        case "DateTime", "Date", "Time" -> typeExpr.getBaseTypeDef().getName();
+        default -> null;
+      };
+    }
     if (list && javaType.startsWith("List<") && javaType.endsWith(">")) {
       baseType = javaType.substring(5, javaType.length() - 1);
     }
@@ -397,13 +446,19 @@ public record FieldModel(
   private String getterExpression(String aliasExpr) {
     String selection = "\"" + name + "\", " + aliasExpr;
     if (getGlobalIDList()) {
-      return "fetchGlobalIDList(" + selection + ")";
+      return "fetchGlobalIDList(" + selection + listDepthArgument() + ")";
     }
     if (globalIDType) {
       return "fetchGlobalID(" + selection + ")";
     }
     if (getAbstractList()) {
-      return "fetchAbstractObjectList(" + selection + ", " + baseTypeName + ".class)";
+      return "fetchAbstractObjectList("
+          + selection
+          + ", "
+          + baseTypeName
+          + ".class"
+          + listDepthArgument()
+          + ")";
     }
     if (abstractType) {
       return "fetchAbstractObject(" + selection + ", " + baseTypeName + ".class)";
@@ -415,7 +470,9 @@ public record FieldModel(
           + baseTypeName
           + ".class, "
           + baseTypeName
-          + "::new)";
+          + "::new"
+          + listDepthArgument()
+          + ")";
     }
     if (compositeType) {
       return "fetchObject("
@@ -427,13 +484,25 @@ public record FieldModel(
           + "::new)";
     }
     if (getEnumList()) {
-      return "fetchEnumList(" + selection + ", " + baseTypeName + ".class)";
+      return "fetchEnumList("
+          + selection
+          + ", "
+          + baseTypeName
+          + ".class"
+          + listDepthArgument()
+          + ")";
     }
     if (enumType) {
       return "fetchEnum(" + selection + ", " + baseTypeName + ".class)";
     }
     if (getTemporalScalarList()) {
-      return "fetchScalarList(" + selection + ", \"" + getScalarCoercionHint() + "\")";
+      return "fetchScalarList("
+          + selection
+          + ", \""
+          + getScalarCoercionHint()
+          + "\""
+          + listDepthArgument()
+          + ")";
     }
     if (getTemporalScalar()) {
       return "fetchScalar(" + selection + ", \"" + getScalarCoercionHint() + "\")";
@@ -449,27 +518,73 @@ public record FieldModel(
    * engine-space wire representation; every other field is stored unchanged.
    */
   public String getBuilderValueExpression() {
-    return builderValueExpression(getSafeName());
+    return builderValueExpression(getSafeName(), "__context");
   }
 
-  private String builderValueExpression(String value) {
-    if (getGlobalIDBuilderSerialize()) {
-      return value
-          + " == null ? null : __context.getGlobalIDCodec().serialize("
-          + value
-          + ".getType().getName(), "
-          + value
-          + ".getInternalID())";
+  public String getConnectionBuilderValueExpression() {
+    return builderValueExpression("__value", "internalContext");
+  }
+
+  private String builderValueExpression(String value, String context) {
+    return globalIDType ? serializeIDs(value, listDepth(), context) : value;
+  }
+
+  private String serializeIDs(String value, int depth, String context) {
+    String converted;
+    if (depth == 0) {
+      converted =
+          context
+              + ".getGlobalIDCodec().serialize("
+              + value
+              + ".getType().getName(), "
+              + value
+              + ".getInternalID())";
+    } else {
+      String element = depth == 1 ? "__id" : "__list" + depth;
+      converted =
+          value
+              + ".stream().map("
+              + element
+              + " -> "
+              + serializeIDs(element, depth - 1, context)
+              + ").collect(java.util.stream.Collectors.toList())";
     }
-    if (getGlobalIDListBuilderSerialize()) {
-      return value
-          + " == null ? null : "
-          + value
-          + ".stream().map(__id -> __id == null ? null : __context.getGlobalIDCodec().serialize("
-          + "__id.getType().getName(), __id.getInternalID()))"
-          + ".collect(java.util.stream.Collectors.toList())";
-    }
-    return value;
+    return value + " == null ? null : " + converted;
+  }
+
+  public String getInputGetterExpression() {
+    String selection = "\"" + name + "\"";
+    if (getGlobalIDList()) return "getGlobalIDList(" + selection + listDepthArgument() + ")";
+    if (globalIDType) return "getGlobalID(" + selection + ")";
+    if (getCompositeList())
+      return "getInputList("
+          + selection
+          + ", "
+          + baseTypeName
+          + "::new"
+          + listDepthArgument()
+          + ")";
+    if (compositeType) return "getInput(" + selection + ", " + baseTypeName + "::new)";
+    if (getEnumList())
+      return "getEnumList("
+          + selection
+          + ", "
+          + baseTypeName
+          + ".class"
+          + listDepthArgument()
+          + ")";
+    if (enumType) return "getEnum(" + selection + ", " + baseTypeName + ".class)";
+    if (getTemporalScalarList())
+      return "getScalarList("
+          + selection
+          + ", \""
+          + getScalarCoercionHint()
+          + "\""
+          + listDepthArgument()
+          + ")";
+    if (getTemporalScalar()) return "get(" + selection + ", \"" + getScalarCoercionHint() + "\")";
+    if (getScalarList()) return "getScalarList(" + selection + ")";
+    return "get(" + selection + ")";
   }
 
   /** Returns the getter method name for this field. */

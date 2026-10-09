@@ -77,6 +77,10 @@ public abstract class ConnectionBuilder<C extends Connection<E, N>, E extends Ed
     data.put(fieldName, checkField(fieldName, expectedGeneratedType, value));
   }
 
+  protected <T> void putSerializedField(String fieldName, T value, Function<T, Object> serialize) {
+    data.put(fieldName, serialize.apply(checkField(fieldName, value)));
+  }
+
   /** Validates and stores a generated connection GlobalID setter value in wire format. */
   protected final void putGlobalIDField(String fieldName, GlobalID<?> value) {
     GlobalID<?> checkedValue = checkField(fieldName, value);

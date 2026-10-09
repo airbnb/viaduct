@@ -4,7 +4,6 @@ import graphql.GraphQLContext;
 import graphql.execution.ValuesResolver;
 import graphql.schema.GraphQLInputObjectType;
 import graphql.schema.GraphQLTypeUtil;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
@@ -228,25 +227,28 @@ public abstract class InputBase implements GraphQLInput {
    * @param scalarType the GraphQL scalar type name ("DateTime", "Date", or "Time")
    */
   @Nullable
-  @SuppressWarnings("unchecked")
   protected <T> List<T> getScalarList(String fieldName, String scalarType) {
+    return getScalarList(fieldName, scalarType, 1);
+  }
+
+  @Nullable
+  @SuppressWarnings({"TypeParameterUnusedInFormals", "unchecked"})
+  protected <T> T getScalarList(String fieldName, String scalarType, int listDepth) {
     return HandleErrors.framework(
         "InputBase.getScalarList: " + fieldName,
         () -> {
           Object value = fieldValue(fieldName);
-          if (value == null) {
-            return null;
+          if (value != null && !(value instanceof List<?>)) {
+            throw new FrameworkException(
+                "Expected List for field '" + fieldName + "', got " + value.getClass().getName(),
+                null);
           }
-          if (value instanceof List<?> list) {
-            List<Object> coerced = new ArrayList<>(list.size());
-            for (Object element : list) {
-              coerced.add(ObjectBase.coerceScalar(element, scalarType));
-            }
-            return (List<T>) coerced;
-          }
-          throw new FrameworkException(
-              "Expected List for field '" + fieldName + "', got " + value.getClass().getName(),
-              null);
+          return (T)
+              ObjectBase.mapListLevels(
+                  value,
+                  listDepth,
+                  leaf -> ObjectBase.coerceScalar(leaf, scalarType),
+                  container -> (List<?>) container);
         });
   }
 
@@ -261,53 +263,42 @@ public abstract class InputBase implements GraphQLInput {
     return HandleErrors.framework(
         "InputBase.getInput: " + fieldName,
         () -> {
-          Object value = fieldValue(fieldName);
-          if (value == null) {
-            return null;
-          }
-          if (value instanceof InputBase) {
-            return (T) value;
-          }
-          if (value instanceof Map<?, ?> map) {
-            return constructor.create(
-                __context, (Map<String, Object>) map, nestedInputType(fieldName));
-          }
-          return (T) value;
+          return (T) wrapInput(fieldName, fieldValue(fieldName), constructor);
         });
+  }
+
+  @SuppressWarnings("unchecked")
+  private @Nullable InputBase wrapInput(
+      String fieldName, @Nullable Object value, InputConstructor<?> constructor) {
+    if (value == null || value instanceof InputBase) return (InputBase) value;
+    if (value instanceof Map<?, ?> map) {
+      return constructor.create(__context, (Map<String, Object>) map, nestedInputType(fieldName));
+    }
+    return (InputBase) value;
   }
 
   /**
    * Gets a list of nested input fields, wrapping each element map using the provided constructor.
    */
   @Nullable
-  @SuppressWarnings("unchecked")
   protected <T extends InputBase> List<T> getInputList(
       String fieldName, InputConstructor<T> constructor) {
+    return getInputList(fieldName, constructor, 1);
+  }
+
+  @Nullable
+  @SuppressWarnings({"TypeParameterUnusedInFormals", "unchecked"})
+  protected <T> T getInputList(String fieldName, InputConstructor<?> constructor, int listDepth) {
     return HandleErrors.framework(
         "InputBase.getInputList: " + fieldName,
         () -> {
-          Object value = fieldValue(fieldName);
-          if (value == null) {
-            return null;
-          }
-          if (value instanceof List<?> list) {
-            List<T> wrapped = new ArrayList<>(list.size());
-            for (Object element : list) {
-              if (element == null) {
-                wrapped.add(null);
-              } else if (element instanceof InputBase) {
-                wrapped.add((T) element);
-              } else if (element instanceof Map<?, ?> map) {
-                wrapped.add(
-                    constructor.create(
-                        __context, (Map<String, Object>) map, nestedInputType(fieldName)));
-              } else {
-                wrapped.add((T) element);
-              }
-            }
-            return wrapped;
-          }
-          return (List<T>) value;
+          List<?> value = (List<?>) fieldValue(fieldName);
+          return (T)
+              ObjectBase.mapListLevels(
+                  value,
+                  listDepth,
+                  leaf -> wrapInput(fieldName, leaf, constructor),
+                  container -> (List<?>) container);
         });
   }
 
@@ -334,29 +325,25 @@ public abstract class InputBase implements GraphQLInput {
 
   /** Gets a list of enum fields, converting String values to enums if needed. */
   @Nullable
-  @SuppressWarnings("unchecked")
   protected <E extends Enum<E>> List<E> getEnumList(String fieldName, Class<E> enumClass) {
+    return getEnumList(fieldName, enumClass, 1);
+  }
+
+  @Nullable
+  @SuppressWarnings({"TypeParameterUnusedInFormals", "unchecked"})
+  protected <T, E extends Enum<E>> T getEnumList(
+      String fieldName, Class<E> enumClass, int listDepth) {
     return HandleErrors.framework(
         "InputBase.getEnumList: " + fieldName,
         () -> {
-          Object value = fieldValue(fieldName);
-          if (value == null) {
-            return null;
-          }
-          if (value instanceof List<?> list) {
-            List<E> wrapped = new ArrayList<>(list.size());
-            for (Object element : list) {
-              if (element == null) {
-                wrapped.add(null);
-              } else if (enumClass.isInstance(element)) {
-                wrapped.add((E) element);
-              } else {
-                wrapped.add(Enum.valueOf(enumClass, element.toString()));
-              }
-            }
-            return wrapped;
-          }
-          return (List<E>) value;
+          List<?> value = (List<?>) fieldValue(fieldName);
+          return (T)
+              ObjectBase.mapListLevels(
+                  value,
+                  listDepth,
+                  leaf ->
+                      enumClass.isInstance(leaf) ? leaf : Enum.valueOf(enumClass, leaf.toString()),
+                  container -> (List<?>) container);
         });
   }
 
@@ -393,25 +380,28 @@ public abstract class InputBase implements GraphQLInput {
    * typed {@link GlobalID}.
    */
   @Nullable
-  @SuppressWarnings("unchecked")
   protected <T extends NodeCompositeOutput> List<GlobalID<T>> getGlobalIDList(String fieldName) {
+    return getGlobalIDList(fieldName, 1);
+  }
+
+  @Nullable
+  @SuppressWarnings({"TypeParameterUnusedInFormals", "unchecked"})
+  protected <T> T getGlobalIDList(String fieldName, int listDepth) {
     return HandleErrors.framework(
         "InputBase.getGlobalIDList: " + fieldName,
         () -> {
           Object raw = fieldValue(fieldName);
-          if (raw == null) {
-            return null;
-          }
-          if (!(raw instanceof List<?> list)) {
+          if (raw != null && !(raw instanceof List<?>)) {
             throw new FrameworkException(
                 "Expected List for field '" + fieldName + "', got " + raw.getClass().getName(),
                 null);
           }
-          List<GlobalID<T>> result = new ArrayList<>(list.size());
-          for (Object element : list) {
-            result.add(element == null ? null : __context().deserializeGlobalID((String) element));
-          }
-          return result;
+          return (T)
+              ObjectBase.mapListLevels(
+                  raw,
+                  listDepth,
+                  value -> __context().deserializeGlobalID((String) value),
+                  container -> (List<?>) container);
         });
   }
 }
