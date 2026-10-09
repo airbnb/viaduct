@@ -12,6 +12,15 @@ import viaduct.apiannotations.StableApi
 @StableApi
 interface FieldExecutionContext<O : Object, Q : Query, A : Arguments, R : CompositeOutput> : BaseFieldExecutionContext<Q, A, R> {
     /**
+     * Returns a synchronously-accessible version of the query value where all selections have
+     * been eagerly resolved.
+     *
+     * All selections declared in [viaduct.api.Resolver.queryValueFragment] are available
+     * synchronously without suspending.
+     */
+    suspend fun getQueryValue(): Q
+
+    /**
      * Returns a synchronously-accessible version of the object value where all selections have
      * been eagerly resolved.
      *

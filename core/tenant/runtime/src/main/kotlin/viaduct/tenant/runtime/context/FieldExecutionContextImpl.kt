@@ -11,14 +11,11 @@ import viaduct.api.types.CompositeOutput
 import viaduct.api.types.Object
 import viaduct.api.types.Query
 import viaduct.engine.api.EngineObjectData
-import viaduct.errors.FrameworkException
-import viaduct.errors.handleFrameworkErrorsSuspend
-import viaduct.tenant.runtime.toObjectGRT
 
 /**
  * Implementation of [FieldExecutionContext] for non-mutation field resolvers.
  *
- * This class extends [BaseFieldExecutionContextImpl] to add object value access via [getObjectValue].
+ * This class extends [BaseRSSAwareFieldExecutionContextImpl] to add object value access via [getObjectValue].
  *
  * The [getObjectValue] method returns a synchronously-accessible version of the object value
  * where all selections declared in the resolver's `objectValueFragment` have been eagerly resolved.
@@ -34,35 +31,27 @@ class FieldExecutionContextImpl<Q : Query>(
     selections: SelectionSet<CompositeOutput>,
     requestContext: Any?,
     arguments: Arguments,
-    private val syncObjectValueGetter: (suspend () -> EngineObjectData.Sync)?,
+    syncObjectValueGetter: (suspend () -> EngineObjectData.Sync)?,
     syncQueryValueGetter: (suspend () -> EngineObjectData.Sync)?,
-    private val objectCls: KClass<Object>,
+    objectCls: KClass<Object>,
     queryCls: KClass<Q>,
     ownedSelections: Lazy<SelectionSet<CompositeOutput>> = lazyOf(selections),
 ) : FieldExecutionContext<Object, Q, Arguments, CompositeOutput>,
     SelectiveFieldExecutionContext<CompositeOutput>,
     ResolverOwnedSelectionsContext<CompositeOutput>,
-    BaseFieldExecutionContextImpl<Q, Arguments, CompositeOutput>(
+    BaseRSSAwareFieldExecutionContextImpl<Q, Arguments, CompositeOutput>(
         baseData,
         engineExecutionContextWrapper,
         selections,
         requestContext,
         arguments,
+        syncObjectValueGetter,
         syncQueryValueGetter,
+        objectCls,
         queryCls,
         ownedSelections,
     ) {
     override fun selections(): SelectionSet<CompositeOutput> = selectionSet()
 
     override fun ownedSelections(): SelectionSet<CompositeOutput> = ownedSelectionSet()
-
-    override suspend fun getObjectValue(): Object =
-        handleFrameworkErrorsSuspend("getObjectValue") {
-            val resolvedSyncObjectValue = syncObjectValueGetter?.invoke()
-                ?: throw FrameworkException(
-                    "Sync object value is not available. " +
-                        "This may indicate an internal error in Viaduct."
-                )
-            resolvedSyncObjectValue.toObjectGRT(this, objectCls)
-        }
 }

@@ -182,8 +182,6 @@ class FieldExecutionContextFactory internal constructor(
                 this.toSelectionSet(engineSelections),
                 requestContext,
                 rawArguments.toInputLikeGRT(internalContext, argumentsCls, graphqlTypeName, graphqlFieldName),
-                syncQueryValueGetter,
-                queryCls,
                 ownedSelections,
             )
 

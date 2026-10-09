@@ -1,6 +1,5 @@
 package viaduct.tenant.runtime.context
 
-import kotlin.reflect.KClass
 import viaduct.api.context.MutationFieldExecutionContext
 import viaduct.api.context.ResolverOwnedSelectionsContext
 import viaduct.api.context.SelectiveFieldExecutionContext
@@ -12,19 +11,10 @@ import viaduct.api.types.Arguments
 import viaduct.api.types.CompositeOutput
 import viaduct.api.types.Mutation
 import viaduct.api.types.Query
-import viaduct.engine.api.EngineObjectData
 
 /**
- * Implementation of [MutationFieldExecutionContext] for mutation field resolvers.
- *
- * This class extends [BaseFieldExecutionContextImpl] to add mutation-specific functionality,
- * including access to the mutation object via [mutation].
- *
- * Mutation resolvers can access query data via [getQueryValue], which returns a synchronously-accessible
- * version where all selections declared in the resolver's `queryValueFragment` have been eagerly resolved.
- *
- * @param syncQueryValueGetter A suspending function that returns the synchronous query value,
- *        or null if no query selections were declared by the resolver
+ * Implementation of [MutationFieldExecutionContext] for mutation field resolvers, extending
+ * [BaseFieldExecutionContextImpl] with mutation execution via [mutation].
  */
 class MutationFieldExecutionContextImpl<Q : Query, M : Mutation>(
     baseData: InternalContext,
@@ -32,8 +22,6 @@ class MutationFieldExecutionContextImpl<Q : Query, M : Mutation>(
     selections: SelectionSet<CompositeOutput>,
     requestContext: Any?,
     arguments: Arguments,
-    syncQueryValueGetter: (suspend () -> EngineObjectData.Sync)?,
-    queryCls: KClass<Q>,
     ownedSelections: Lazy<SelectionSet<CompositeOutput>> = lazyOf(selections),
 ) : MutationFieldExecutionContext<Q, M, Arguments, CompositeOutput>,
     SelectiveFieldExecutionContext<CompositeOutput>,
@@ -44,8 +32,6 @@ class MutationFieldExecutionContextImpl<Q : Query, M : Mutation>(
         selections,
         requestContext,
         arguments,
-        syncQueryValueGetter,
-        queryCls,
         ownedSelections,
     ) {
     override fun selections(): SelectionSet<CompositeOutput> = selectionSet()

@@ -12,7 +12,6 @@ public final class viaduct/api/FieldValue$Companion {
 public abstract interface class viaduct/api/context/BaseFieldExecutionContext : viaduct/api/context/ResolverExecutionContext {
 	public abstract fun getArguments ()Lviaduct/api/types/Arguments;
 	public abstract fun getCaller ()Lviaduct/api/context/Caller;
-	public abstract fun getQueryValue (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 }
 
 public final class viaduct/api/context/BaseFieldExecutionContext$DefaultImpls {
@@ -26,6 +25,7 @@ public abstract interface class viaduct/api/context/ExecutionContext {
 
 public abstract interface class viaduct/api/context/FieldExecutionContext : viaduct/api/context/BaseFieldExecutionContext {
 	public abstract fun getObjectValue (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun getQueryValue (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 }
 
 public final class viaduct/api/context/FieldExecutionContext$DefaultImpls {

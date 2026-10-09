@@ -364,9 +364,6 @@ class MockMutationFieldExecutionContext<Q : Query, M : Mutation, A : Arguments, 
 
     override fun ownedSelections() = ownedSelectionsValue
 
-    // In mock contexts, sync and lazy values are the same
-    override suspend fun getQueryValue(): Q = queryValue
-
     private fun <T : Mutation> mutation(selections: SelectionSet<T>): T {
         @Suppress("UNCHECKED_CAST")
         return mutationResults.get(selections as SelectionSet<Mutation>) as T

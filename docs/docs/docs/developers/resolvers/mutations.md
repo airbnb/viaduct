@@ -28,4 +28,6 @@ class PublishListingResolver @Inject constructor(
 
 As this example shows, resolvers for mutation fields are almost identical to query field resolvers. A major difference is that `Context` implements `MutationFieldExecutionContext`. This allows mutation field resolvers to execute submutations using `Context.mutation()` in addition to executing [subqueries](subqueries.md) using `Context.query()`.
 
-Mutation field resolvers should still be annotated with `@Resolver`. However, they may not provide a required selection set using `objectValueFragment`, since those selections would include other mutation fields. Mutation field resolvers can execute other mutation fields by calling `Context.mutation()` instead.
+Mutation field resolvers must be annotated with `@Resolver` and cannot declare `objectValueFragment` or `queryValueFragment`. The RSS restrictions are enforced at build time and runtime startup, including fields on `@namespaceType` types reachable from the mutation root.
+
+Execute reads with `ctx.query()` and writes with `ctx.mutation()` inside `resolve`. In Kotlin, `ctx.mutation()` is available only on root mutation resolver contexts. See [Subqueries](subqueries.md) for declaring operations with `@GraphQLOperation`.

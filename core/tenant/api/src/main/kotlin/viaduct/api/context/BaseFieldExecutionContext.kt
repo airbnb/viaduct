@@ -46,15 +46,6 @@ interface BaseFieldExecutionContext<
         get() = null
 
     /**
-     * Returns a synchronously-accessible version of the query value where all selections have
-     * been eagerly resolved.
-     *
-     * All selections declared in [viaduct.api.Resolver.queryValueFragment] are available
-     * synchronously without suspending.
-     */
-    suspend fun getQueryValue(): Q
-
-    /**
      * The value of any [A] arguments that were provided by the caller of this
      * resolver. If this field does not have arguments, this is [Arguments.NoArguments].
      */

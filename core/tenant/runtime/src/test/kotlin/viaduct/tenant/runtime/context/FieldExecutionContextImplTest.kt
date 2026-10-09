@@ -8,6 +8,7 @@ import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import viaduct.api.context.Caller
 import viaduct.api.mocks.MockInternalContext
 import viaduct.api.mocks.MockReflectionLoader
@@ -17,6 +18,7 @@ import viaduct.api.types.CompositeOutput
 import viaduct.api.types.Object
 import viaduct.api.types.Query as QueryType
 import viaduct.engine.api.Caller as EngineCaller
+import viaduct.errors.FrameworkException
 import viaduct.service.api.spi.GlobalIDCodec
 import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 import viaduct.tenant.runtime.executioncontext.ExecutionContextTestSchema
@@ -107,5 +109,31 @@ class FieldExecutionContextImplTest : ContextTestBase() {
             val ctx = mk()
             val result = ctx.query(TypenameQuery)
             assertEquals(queryObject, result)
+        }
+
+    @Test
+    fun `missing object RSS data is a framework error`() =
+        runTest {
+            val ctx = mk()
+
+            val error = assertThrows<FrameworkException> { ctx.getObjectValue() }
+
+            assertEquals(
+                "Sync object value is not available. This may indicate an internal error in Viaduct.",
+                error.message,
+            )
+        }
+
+    @Test
+    fun `missing query RSS data is a framework error`() =
+        runTest {
+            val ctx = mk()
+
+            val error = assertThrows<FrameworkException> { ctx.getQueryValue() }
+
+            assertEquals(
+                "Sync query value is not available. This may indicate an internal error in Viaduct.",
+                error.message,
+            )
         }
 }
