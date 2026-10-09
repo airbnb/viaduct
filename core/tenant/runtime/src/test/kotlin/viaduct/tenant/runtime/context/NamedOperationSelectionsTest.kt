@@ -103,7 +103,6 @@ class NamedOperationSelectionsTest {
 
     private fun mutationContext() =
         MockMutationFieldExecutionContext<Query, Mutation, Arguments.NoArguments, NodeObject>(
-            queryValue = QueryResult,
             arguments = Arguments.NoArguments,
             requestContext = null,
             selectionsValue = SelectionSet.empty(nodeType),

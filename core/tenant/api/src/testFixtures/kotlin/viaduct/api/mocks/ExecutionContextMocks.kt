@@ -345,7 +345,6 @@ class MockConnectionFieldExecutionContext<O : Object, Q : Query, A : ConnectionA
 @Suppress("DIFFERENT_NAMES_FOR_THE_SAME_PARAMETER_IN_SUPERTYPES")
 @OptIn(InternalApi::class)
 class MockMutationFieldExecutionContext<Q : Query, M : Mutation, A : Arguments, R : CompositeOutput>(
-    val queryValue: Q,
     override val arguments: A,
     override val requestContext: Any?,
     private val selectionsValue: SelectionSet<R>,

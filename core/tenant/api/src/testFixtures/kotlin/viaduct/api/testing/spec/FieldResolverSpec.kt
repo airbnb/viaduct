@@ -31,6 +31,7 @@ import viaduct.apiannotations.InternalApi
  */
 @ExperimentalApi
 class FieldResolverSpec<O : Object, Q : Query, A : Arguments> : BaseFieldSpec<Q, A>() {
+    var queryValue: Q? = null
     var objectValue: O? = null
 
     @OptIn(InternalApi::class)

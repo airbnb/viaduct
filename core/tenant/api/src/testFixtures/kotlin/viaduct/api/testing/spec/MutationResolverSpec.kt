@@ -7,7 +7,6 @@ import viaduct.api.mocks.MockMutationFieldExecutionContext
 import viaduct.api.select.SelectionSet
 import viaduct.api.testing.spec.base.BaseFieldSpec
 import viaduct.api.testing.spec.base.buildContextMutationMap
-import viaduct.api.testing.types.NullQuery
 import viaduct.api.types.Arguments
 import viaduct.api.types.CompositeOutput
 import viaduct.api.types.Mutation
@@ -39,7 +38,6 @@ class MutationResolverSpec<Q : Query, M : Mutation, A : Arguments> : BaseFieldSp
 
         @Suppress("UNCHECKED_CAST")
         val innerCtx = MockMutationFieldExecutionContext<Query, Mutation, Arguments, CompositeOutput>(
-            queryValue = queryValue ?: NullQuery,
             arguments = arguments ?: Arguments.NoArguments,
             requestContext = requestContext,
             selectionsValue = selections as SelectionSet<CompositeOutput>,
