@@ -508,9 +508,7 @@ class FieldResolver(
                     v!!,
                     executionStepInfoForField.type,
                     field,
-                    parameters.copy(
-                        executionStepInfo = executionStepInfoForField,
-                    )
+                    parameters
                 )
             }
         }
@@ -1302,16 +1300,24 @@ class FieldResolver(
             is GraphQLNonNull -> maybeFetchNestedObject(fieldResolutionResult, GraphQLTypeUtil.unwrapOneAs(outputType), field, parameters)
             is GraphQLList -> {
                 val engineResult = checkNotNull(fieldResolutionResult.engineResult as? Iterable<*>) { "Expected iterable engineResult but got ${fieldResolutionResult.engineResult}" }
-                val values = engineResult.mapIndexed { i, item ->
-                    check(item is Cell) { "Expected engine result to be a Cell." }
-                    item.getValue(RAW_VALUE_SLOT).flatMap { raw ->
-                        val frr = raw as? FieldResolutionResult
-                            ?: throw IllegalStateException("Expected FieldResolutionResult but got $raw")
-                        val newParams = updateListItemParameters(parameters, i)
-                        maybeFetchNestedObject(frr, GraphQLTypeUtil.unwrapOneAs(outputType), field, newParams)
-                    }.recover { Value.fromValue(Unit) } // Contain per-item failures so they don't propagate to the parent object
+                val fetchItems = {
+                    val values = engineResult.mapIndexed { i, item ->
+                        check(item is Cell) { "Expected engine result to be a Cell." }
+                        item.getValue(RAW_VALUE_SLOT).flatMap { raw ->
+                            val frr = raw as? FieldResolutionResult
+                                ?: throw IllegalStateException("Expected FieldResolutionResult but got $raw")
+                            val newParams = updateListItemParameters(parameters, i)
+                            maybeFetchNestedObject(frr, GraphQLTypeUtil.unwrapOneAs(outputType), field, newParams)
+                        }.recover { Value.fromValue(Unit) } // Contain per-item failures so they don't propagate to the parent object
+                    }
+                    Value.waitAll(values)
                 }
-                Value.waitAll(values)
+                if (GraphQLTypeUtil.isLeaf(GraphQLTypeUtil.unwrapAll(outputType))) {
+                    fetchItems()
+                } else {
+                    // Let sibling fields and lists progress while keeping each list's item traversal together.
+                    Value.fromDeferred(parameters.asyncOnRootScope { fetchItems().await() })
+                }
             }
 
             else -> {

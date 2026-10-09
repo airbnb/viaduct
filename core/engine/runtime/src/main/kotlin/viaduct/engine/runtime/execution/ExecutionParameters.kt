@@ -20,6 +20,7 @@ import kotlin.coroutines.CoroutineContext
 import kotlin.time.ExperimentalTime
 import kotlin.time.measureTimedValue
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.async
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.launch
 import viaduct.engine.api.Caller
@@ -353,6 +354,9 @@ data class ExecutionParameters(
      * @param block The suspend function to execute.
      */
     fun launchOnRootScope(block: suspend CoroutineScope.() -> Unit) = constants.launchOnRootScope(block)
+
+    /** Starts work on the captured request scope, including from completion callbacks on other threads. */
+    fun <T> asyncOnRootScope(block: suspend CoroutineScope.() -> T) = constants.asyncOnRootScope(block)
 
     /**
      * Returns the nearest object execution scope above this scope.
@@ -940,6 +944,8 @@ data class ExecutionParameters(
             supervisorScopeFactory(rootCoroutineContext).launch {
                 block(this)
             }
+
+        fun <T> asyncOnRootScope(block: suspend CoroutineScope.() -> T) = supervisorScopeFactory(rootCoroutineContext).async(block = block)
 
         /**
          * The instrumentation instance from the execution context.
