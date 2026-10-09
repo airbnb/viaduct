@@ -260,6 +260,7 @@ class ViaductExecutionStrategy internal constructor(
             rootOER,
             queryOER,
             supervisorScopeFactory,
+            fieldCompleter,
         )
     }
 

@@ -207,6 +207,7 @@ class ResolverDataFetcherTest {
             rootEngineResult = engineResultLocalContext.rootEngineResult,
             supervisorScopeFactory = { CoroutineScope(it) },
             rootCoroutineContext = EmptyCoroutineContext,
+            fieldCompleter = mockk(),
         )
         private val executionHandle = mockk<ExecutionParameters>()
         val engineExecutionContextImpl = baseEngineExecutionContextImpl.also {

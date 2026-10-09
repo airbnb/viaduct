@@ -625,6 +625,7 @@ class AccessCheckRunnerTest {
             rootEngineResult = mockk(relaxed = true),
             supervisorScopeFactory = { CoroutineScope(it) },
             rootCoroutineContext = EmptyCoroutineContext,
+            fieldCompleter = mockk(),
         )
     }
 

@@ -1461,6 +1461,7 @@ class ExecutionParametersTest {
             rootEngineResult = rootEngineResult,
             supervisorScopeFactory = { CoroutineScope(coroutineContext + rootExecutionJob) },
             rootCoroutineContext = coroutineContext,
+            fieldCompleter = mockk(),
         )
         return ExecutionParameters(
             _engineExecutionContext = engineExecutionContext,

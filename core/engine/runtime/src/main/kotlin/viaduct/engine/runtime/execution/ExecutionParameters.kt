@@ -851,6 +851,7 @@ data class ExecutionParameters(
                 rootEngineResult: ObjectEngineResultImpl,
                 queryEngineResult: ObjectEngineResultImpl,
                 supervisorScopeFactory: (CoroutineContext) -> CoroutineScope,
+                fieldCompleter: FieldCompleter,
             ): ExecutionParameters {
                 val planAttribution = ExecutionAttribution.fromOperation(executionContext.operationDefinition.name)
 
@@ -880,6 +881,7 @@ data class ExecutionParameters(
                     rootEngineResult = rootEngineResult,
                     supervisorScopeFactory = supervisorScopeFactory,
                     rootCoroutineContext = currentCoroutineContext,
+                    fieldCompleter = fieldCompleter,
                 )
 
                 return ExecutionParameters(
@@ -916,6 +918,7 @@ data class ExecutionParameters(
      * @property rootEngineResult Root ObjectEngineResult for the entire request
      * @property supervisorScopeFactory Coroutine scope factory for the entire execution. Creates a CoroutineScope supervised by the execution.
      * @property rootCoroutineContext Root coroutine context for async operations
+     * @property fieldCompleter Field completion shared during execution
      * @property collectFields Field collection shared during execution
      */
     data class Constants(
@@ -923,6 +926,7 @@ data class ExecutionParameters(
         val rootEngineResult: ObjectEngineResultImpl,
         val supervisorScopeFactory: (CoroutineContext) -> CoroutineScope,
         val rootCoroutineContext: CoroutineContext,
+        val fieldCompleter: FieldCompleter,
     ) {
         internal val collectFields: CollectFields = CollectFields.cached()
 
