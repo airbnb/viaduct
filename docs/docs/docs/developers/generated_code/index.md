@@ -37,6 +37,8 @@ class User private constructor(...): NodeObject {
   suspend fun getLastNameOrThrow(alias: String? = null): String?
   suspend fun getDisplayNameOrThrow(alias: String? = null): String?
 
+  fun toBuilder(): Builder
+
   class Builder(ctx: ExecutionContext): DynamicValueOutputBuilder<User> {
     fun id(id: GlobalID<User>): Builder
     fun firstName(firstName: String?): Builder
@@ -50,6 +52,20 @@ class User private constructor(...): NodeObject {
 {{ kdoc("viaduct.api.types.NodeObject") }} is a tagging interface (i.e., an interface with no methods) for GRTs representing GraphQL object types.  `DynamicValueOutputBuilder` is an interface for builders of such types (it is parameterized on `T` and defines a `build` function that returns a `T`).
 
 The values from a fragment on `User` (for example) are accessed through the GRT for `User`.  As a result, the Viaduct GRTs for object types distinguish fields that are "not set," because they haven’t been requested for in the fragment, from fields that are in the fragment and thus are "set."  If you attempt to access a field that has not been set, a `UnsetFieldException` exception will be thrown, even if that field is nullable.  Also, when you build an object-type value, you do *not* have to set all fields, even if those fields are non-nullable.
+
+### Set or override fields with `toBuilder()`
+
+Object and input GRTs have a `toBuilder()` function that creates a builder containing their existing fields. Use it to set additional fields or override values, then call `build()` to create a new GRT. The original GRT is unchanged.
+
+For example:
+
+```kotlin
+val updatedAddress = address.toBuilder()
+    .zip(fullZip)
+    .build()
+```
+
+An unresolved node or root-field reference returned by `ctx.ref(...)` cannot be copied: `ctx.ref(...).toBuilder()` throws because the reference does not contain resolved object data. Fetch the fields you need through required selections or `ctx.query()` before calling `toBuilder()` on the result.
 
 ### Strict and soft-failing accessors
 
