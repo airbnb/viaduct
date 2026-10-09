@@ -36,7 +36,7 @@ dependencies {
     testImplementation(libs.classgraph)
 
     // For GraphQLInput interface in exercise tests
-    testImplementation(project(":x:javaapi:api"))
+    testImplementation(project(":javaapi:api"))
     // Generated argument builders use the shared synthetic input-type factory.
     testImplementation(libs.viaduct.tenant.api)
     testImplementation(libs.viaduct.tenant.shared)

@@ -129,7 +129,7 @@ class TestFindCoordinateFiles(TempDirTestCase):
 
     def test_finds_files_across_nested_projects(self):
         write_coordinate_file(self.tmpdir, "publications/api", CENTRAL)
-        write_coordinate_file(self.tmpdir, "core/x/javaapi/registry-apt", CENTRAL)
+        write_coordinate_file(self.tmpdir, "core/javaapi/registry-apt", CENTRAL)
         found = find_coordinate_files(self.tmpdir)
         self.assertEqual(len(found), 2)
 

@@ -22,7 +22,7 @@ and consumer, not to the shared wire model.
 
 ## Retained scaffolding
 
-Paths below are relative to `core/x/javaapi`.
+Paths below are relative to `core/javaapi`.
 
 | Layer | Retained structures and current behavior |
 | --- | --- |

@@ -435,7 +435,7 @@ jobs:
           cd ..
 
           echo "🔨 Generating Dokka API documentation..."
-          ./gradlew :core:tenant:api:dokkaGenerate :core:service:dokkaGenerate :core:x:javaapi:api:dokkaGenerate --continue || { echo "❌ Dokka failed"; exit 1; }
+          ./gradlew :core:tenant:api:dokkaGenerate :core:service:dokkaGenerate :core:javaapi:api:dokkaGenerate --continue || { echo "❌ Dokka failed"; exit 1; }
 
           echo "📖 Verifying Dokka documentation output..."
 

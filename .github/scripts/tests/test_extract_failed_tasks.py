@@ -11,8 +11,8 @@ from extract_failed_tasks import extract_failed_tasks, main
 class TestExtractFailedTasks(unittest.TestCase):
 
     def test_single_task(self):
-        log = "> Task :core:x:javaapi:runtime:compileTestKotlin FAILED\n"
-        self.assertEqual([":core:x:javaapi:runtime:compileTestKotlin"], extract_failed_tasks(log))
+        log = "> Task :core:javaapi:runtime:compileTestKotlin FAILED\n"
+        self.assertEqual([":core:javaapi:runtime:compileTestKotlin"], extract_failed_tasks(log))
 
     def test_no_failing_task(self):
         log = "> Task :core:tenant:api:compileKotlin\nBUILD SUCCESSFUL in 2m\n"
@@ -73,8 +73,8 @@ class TestExtractFailedTasks(unittest.TestCase):
         self.assertEqual([":build-logic:build-common:detekt"], extract_failed_tasks(log))
 
     def test_dot_is_allowed_in_a_task_name(self):
-        log = "> Task :core:x:javaapi:api:test.integration FAILED\n"
-        self.assertEqual([":core:x:javaapi:api:test.integration"], extract_failed_tasks(log))
+        log = "> Task :core:javaapi:api:test.integration FAILED\n"
+        self.assertEqual([":core:javaapi:api:test.integration"], extract_failed_tasks(log))
 
     def test_path_carrying_markdown_is_skipped(self):
         log = "> Task :a`@everyone`[docs](https://example.com) FAILED\n> Task :b:test FAILED\n"

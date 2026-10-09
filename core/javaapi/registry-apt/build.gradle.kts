@@ -14,7 +14,7 @@ viaductPublishing {
 
 dependencies {
     // Java annotation types (@Resolver, @ResolverFor, @NodeResolverFor, @Variable, @Variables)
-    implementation(project(":x:javaapi:api"))
+    implementation(project(":javaapi:api"))
 
     // Shared descriptor model + JSON codec — single source of truth for the registry JSON shape.
     implementation(libs.viaduct.tenant.codegen)

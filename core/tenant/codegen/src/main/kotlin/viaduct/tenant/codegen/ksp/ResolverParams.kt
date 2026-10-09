@@ -10,7 +10,7 @@ import com.fasterxml.jackson.annotation.JsonProperty
  *
  * This model is the single source of truth for the per-file descriptor JSON shape. It is
  * shared by both the Kotlin KSP extractor (in this module) and the Java annotation-processor
- * extractor (`:x:javaapi:codegen-apt`), so a change here is a compile error in both producers
+ * extractor (`:javaapi:registry-apt`), so a change here is a compile error in both producers
  * rather than a silent runtime mismatch.
  */
 sealed interface ResolverParams {

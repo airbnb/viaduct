@@ -25,7 +25,7 @@ viaduct/                         ← root project (orchestration only)
 │   ├── tenant/                  (api, codegen, ksp, validation, runtime, wiring, tutorials)
 │   ├── shared/                  (apiannotations, arbitrary, codegen, dataloader, deferred,
 │   │                             errors, graphql, invariants, mapping, utils, viaductschema)
-│   └── x/javaapi/              (api, codegen, runtime)
+│   └── javaapi/                 (api, codegen, registry-apt, runtime)
 ├── publications/                ← included build: published facade artifacts
 │   ├── api                      (single-dependency entry point for tenant developers)
 │   ├── buildtime                (compile-only dependencies)

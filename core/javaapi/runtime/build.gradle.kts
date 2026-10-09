@@ -10,7 +10,7 @@ viaductFeatureAppContracts {
     java {
         contractsFrom(":tenant:runtime")
         contractsFrom(":tenant:tutorials")
-        contractsFrom(":x:javaapi:runtime")
+        contractsFrom(":javaapi:runtime")
     }
 }
 
@@ -23,7 +23,7 @@ description = "Java Tenant API runtime implementation - bridges Java API to Kotl
 
 dependencies {
     // Java API that this runtime implements
-    api(project(":x:javaapi:api"))
+    api(project(":javaapi:api"))
 
     // Viaduct engine API (Kotlin)
     api(libs.viaduct.engine.api)
@@ -64,7 +64,7 @@ dependencies {
     testImplementation(libs.viaduct.engine.wiring)
     testImplementation(testFixtures(libs.viaduct.engine.api))
     testImplementation(testFixtures(libs.viaduct.shared.graphql))
-    testImplementation(testFixtures(project(":x:javaapi:api")))
+    testImplementation(testFixtures(project(":javaapi:api")))
     testImplementation(libs.graphql.java)
 
     // Dependencies for JavaFeatureAppTestContractBase
@@ -73,7 +73,7 @@ dependencies {
     testImplementation(testFixtures(libs.viaduct.service.api))
     testImplementation(testFixtures(libs.viaduct.tenant.runtime))
     testImplementation(libs.viaduct.tenant.runtime)
-    testFixturesImplementation(testFixtures(project(":x:javaapi:api")))
+    testFixturesImplementation(testFixtures(project(":javaapi:api")))
     testFixturesImplementation(testFixtures(libs.viaduct.tenant.api))
     testFixturesImplementation(testFixtures(libs.viaduct.tenant.runtime))
 }

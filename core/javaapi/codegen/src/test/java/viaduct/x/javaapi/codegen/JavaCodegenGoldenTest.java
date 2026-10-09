@@ -44,7 +44,7 @@ import viaduct.graphql.utils.TypeDefinitionRegistryExtensionsKt;
  * changed behavior. From the {@code oss} directory:
  *
  * <pre>
- * ./gradlew -p core :x:javaapi:codegen:test \
+ * ./gradlew -p core :javaapi:codegen:test \
  *     --tests "viaduct.x.javaapi.codegen.JavaCodegenGoldenTest" \
  *     -Dviaduct.codegen.golden.regenerate=true
  * </pre>

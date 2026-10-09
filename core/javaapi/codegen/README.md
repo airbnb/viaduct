@@ -20,15 +20,15 @@ Generates **Java source code** for GraphQL types from schema files.
 Build the fat JAR with all dependencies:
 
 ```bash
-./gradlew :core:x:javaapi:codegen:shadowJar
+./gradlew :core:javaapi:codegen:shadowJar
 ```
 
-The JAR will be created at `x/javaapi/codegen/build/libs/java-grts-codegen-<version>.jar`.
+The JAR will be created at `javaapi/codegen/build/libs/java-grts-codegen-<version>.jar`.
 
 ## Usage
 
 ```bash
-java -jar x/javaapi/codegen/build/libs/java-grts-codegen-<version>.jar \
+java -jar javaapi/codegen/build/libs/java-grts-codegen-<version>.jar \
   --schema_files /path/to/schema.graphqls \
   --grt_output_dir /path/to/generated/grts \
   --grt_package com.mycompany.graphql.types \
@@ -132,5 +132,5 @@ cross-layer inventory and reenable checklist.
 ## Testing
 
 ```bash
-./gradlew :core:x:javaapi:codegen:test
+./gradlew :core:javaapi:codegen:test
 ```

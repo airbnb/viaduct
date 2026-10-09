@@ -51,10 +51,10 @@ include(":tenant:tutorials")
 include(":tenant:wiring")
 
 // Java API modules
-include(":x:javaapi:api")
-include(":x:javaapi:codegen")
-include(":x:javaapi:registry-apt")
-include(":x:javaapi:runtime")
+include(":javaapi:api")
+include(":javaapi:codegen")
+include(":javaapi:registry-apt")
+include(":javaapi:runtime")
 
 // Include all shared modules
 include(":shared:apiannotations")
@@ -74,7 +74,7 @@ include(":shared:errors")
 // Override the default group (com.airbnb.viaduct from settings.common) with path-based
 // subgroups. This must happen at settings time so that composite build auto-substitution
 // registers the correct group:name coordinates for each project.
-val subgroupRoots = setOf("engine", "service", "tenant", "shared")
+val subgroupRoots = setOf("engine", "service", "tenant", "shared", "javaapi")
 
 gradle.allprojects {
     val segments = path.split(":").filter { it.isNotEmpty() }

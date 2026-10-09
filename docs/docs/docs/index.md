@@ -65,4 +65,4 @@ These docs cover how to use Viaduct, including tutorials, how-to guides, and ref
 </div>
 
 [//]: # (TODO: Re-enable once Java API docs generation is set up)
-[//]: # (    * Tenant developers interested in the _experimental_ Java API should refer to the [Viaduct Java API]&#40;/apis/x-javaapi-api/&#41; docs.)
+[//]: # (    * Tenant developers interested in the _experimental_ Java API should refer to the [Viaduct Java API]&#40;/apis/javaapi-api/&#41; docs.)

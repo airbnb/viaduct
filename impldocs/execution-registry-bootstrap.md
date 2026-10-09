@@ -87,7 +87,7 @@ rejects selective field and node entries with `TenantModuleException` before loa
 classes or constructing executors. The error includes the field coordinate or node type. This
 runtime gate also rejects stale or externally produced metadata that bypasses Java schema-codegen
 and annotation-processor validation; it does not impose the Java restriction on Kotlin registries.
-See the [Java selective-resolver implementation document](../core/x/javaapi/impldocs/selective-resolvers.md)
+See the [Java selective-resolver implementation document](../core/javaapi/impldocs/selective-resolvers.md)
 for the retained scaffolding and reenable sequence.
 
 ## Why `apiName` and not the executor factory

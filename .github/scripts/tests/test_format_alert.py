@@ -209,7 +209,7 @@ class TestFailingTasks(unittest.TestCase):
             {
                 "name": "build-and-test / Test (Java 17) ubuntu-latest",
                 "run_id": "123",
-                "tasks": [":core:x:javaapi:runtime:compileTestKotlin"],
+                "tasks": [":core:javaapi:runtime:compileTestKotlin"],
             }
         ],
     }
@@ -232,7 +232,7 @@ class TestFailingTasks(unittest.TestCase):
         lines = format_alert(self.WITH_TASKS).splitlines()
         self.assertEqual(":red_circle: CI failed on `main`", lines[0])
         self.assertEqual("• build-and-test / Test (Java 17) ubuntu-latest", lines[1])
-        self.assertEqual("  `:core:x:javaapi:runtime:compileTestKotlin`", lines[2])
+        self.assertEqual("  `:core:javaapi:runtime:compileTestKotlin`", lines[2])
         self.assertEqual("  https://github.com/example/repo/actions/runs/123", lines[3])
 
     def test_tasks_are_capped_at_three_with_an_overflow_count(self):
@@ -259,7 +259,7 @@ class TestFailingTasks(unittest.TestCase):
     def test_retry_success_with_tasks(self):
         lines = format_alert({**self.WITH_TASKS, "outcome": "retry_success"}).splitlines()
         self.assertEqual(":green_circle: CI passed on retry on `main`", lines[0])
-        self.assertEqual("  `:core:x:javaapi:runtime:compileTestKotlin`", lines[2])
+        self.assertEqual("  `:core:javaapi:runtime:compileTestKotlin`", lines[2])
 
     def test_tasks_must_be_an_array(self):
         data = {**BASE, "jobs": [{"name": "A", "run_id": "1", "tasks": ":not:a:list"}]}
