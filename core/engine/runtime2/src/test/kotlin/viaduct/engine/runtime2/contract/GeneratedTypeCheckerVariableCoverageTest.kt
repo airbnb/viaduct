@@ -1,11 +1,14 @@
 package viaduct.engine.runtime2.contract
 
+import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.runtime2.model.Arguments
+import viaduct.engine.runtime2.model.EngineErrorDataReadException
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.ResolverTarget
 import viaduct.engine.runtime2.model.SelectionForest
@@ -28,6 +31,27 @@ class GeneratedTypeCheckerVariableCoverageTest : ResolverContract, ResolutionDis
     fun `counts executed type owned path and provider variables used on both roots`() {
         val coverage = observation().typeCheckerCoverage()
         assertTrue(coverage.containsAll(variableSignatures))
+        assertFalse(GeneratedTypeCheckerSignature.ERROR_ARGUMENT_IN_TYPE_INPUT in coverage)
+    }
+
+    @Test
+    fun `counts argument errors in executed object type checker inputs`() {
+        val coverage = observation(errorSource = ProviderFragment.QUERY).typeCheckerCoverage()
+        assertTrue(GeneratedTypeCheckerSignature.ERROR_ARGUMENT_IN_TYPE_INPUT in coverage)
+    }
+
+    @Test
+    fun `counts argument errors in executed Query type checker inputs`() {
+        val coverage = observation(errorSource = ProviderFragment.OBJECT).typeCheckerCoverage()
+        assertTrue(GeneratedTypeCheckerSignature.ERROR_ARGUMENT_IN_TYPE_INPUT in coverage)
+    }
+
+    @Test
+    fun `registered argument errors without a checker invocation are not activation`() {
+        ProviderFragment.entries.forEach { errorSource ->
+            val observation = observation(errorSource).copy(checkerApplications = emptyList())
+            assertFalse(GeneratedTypeCheckerSignature.ERROR_ARGUMENT_IN_TYPE_INPUT in observation.typeCheckerCoverage())
+        }
     }
 
     @Test
@@ -57,12 +81,14 @@ class GeneratedTypeCheckerVariableCoverageTest : ResolverContract, ResolutionDis
         selections: SelectionForest,
     ): ObjectEngineResult = operation.resolveWithTestDispatcher(selections)
 
-    private fun observation(): GeneratedResolutionObservation {
+    private fun observation(errorSource: ProviderFragment? = null): GeneratedResolutionObservation {
+        val objectToken = if (errorSource == ProviderFragment.OBJECT) "\"ERROR\"" else "1"
+        val queryToken = if (errorSource == ProviderFragment.QUERY) "\"ERROR\"" else "2"
         val testWorld = TestWorld.fromDSL(
             """
             extend type Query {
-              item: Item! @resolver(result: {source: {token: 1}})
-              source: Source! @resolver(result: {token: 2})
+              item: Item! @resolver(result: {source: {token: $objectToken}})
+              source: Source! @resolver(result: {token: $queryToken})
               echo(value: Int!): Int! @resolver(result: "value(${'$'}value)")
             }
             type Item {
@@ -93,7 +119,24 @@ class GeneratedTypeCheckerVariableCoverageTest : ResolverContract, ResolutionDis
                     allVariables,
                     variablesProvider = { mapOf("provided" to 3) },
                 )
-                mapOf(item to TypeCheckerResolver.of(item, schema.loweredSchema.requireQueryTypeDef(), mapOf("input" to pair)) { _, _ -> CheckerResult.Success })
+                mapOf(
+                    item to TypeCheckerResolver.of(item, schema.loweredSchema.requireQueryTypeDef(), mapOf("input" to pair)) { inputs, _ ->
+                        val input = inputs.getValue("input")
+                        if (errorSource == ProviderFragment.QUERY) {
+                            assertFailsWith<EngineErrorDataReadException> { input.objectValue.get("echo") }
+                        } else {
+                            assertEquals(2, input.objectValue.get("echo"))
+                        }
+                        if (errorSource == ProviderFragment.OBJECT) {
+                            assertFailsWith<EngineErrorDataReadException> { input.queryValue.get("echo") }
+                        } else {
+                            assertEquals(1, input.queryValue.get("echo"))
+                        }
+                        assertEquals(3, input.objectValue.get("callback"))
+                        assertEquals(3, input.queryValue.get("callback"))
+                        CheckerResult.Success
+                    },
+                )
             },
         )
         val world = testWorld.newAssumptions(selectiveResolvers = true)

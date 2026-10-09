@@ -27,6 +27,19 @@ import viaduct.graphql.schema.ViaductSchema
 
 class GeneratedTypeCheckerCoverageTest {
     @Test
+    fun `argument errors in type inputs are optional in every profile size`() {
+        GeneratedTypeCheckerMode.entries.forEach { mode ->
+            listOf(false, true).forEach { sizeOverridden ->
+                val required = requiredGeneratedTypeCheckerSignatures(mode, sizeOverridden)
+                assertFalse(GeneratedTypeCheckerSignature.ERROR_ARGUMENT_IN_TYPE_INPUT in required)
+                assertTrue(GeneratedTypeCheckerSignature.TYPE_CHECKER in required)
+                assertTrue(GeneratedTypeCheckerSignature.OBJECT_INPUT_RESOLVER in required)
+                assertTrue(GeneratedTypeCheckerSignature.QUERY_INPUT_RESOLVER in required)
+            }
+        }
+    }
+
+    @Test
     fun `ordinary runtime profiles leave nested path activation to directed tests`() {
         val required = requiredGeneratedTypeCheckerSignatures(GeneratedTypeCheckerMode.RUNTIME_MIXED, sizeOverridden = false)
         assertFalse(GeneratedTypeCheckerSignature.NESTED_PATH_VARIABLE in required)

@@ -63,6 +63,9 @@ private val runtimeSignatures = setOf(
 
 private val stressOnlySignatures = setOf(GeneratedTypeCheckerSignature.NESTED_PATH_VARIABLE)
 
+// Deterministic object/Query input tests cover this interaction; random profiles only count it.
+private val optionalSignatures = setOf(GeneratedTypeCheckerSignature.ERROR_ARGUMENT_IN_TYPE_INPUT)
+
 internal fun requiredGeneratedTypeCheckerSignatures(
     mode: GeneratedTypeCheckerMode,
     sizeOverridden: Boolean,
@@ -77,7 +80,7 @@ internal fun requiredGeneratedTypeCheckerSignatures(
         }
     val runtimeExclusions = if (mode.runtimeVariables) emptySet() else runtimeSignatures
     val stressExclusions = if (sizeOverridden) emptySet() else stressOnlySignatures
-    return GeneratedTypeCheckerSignature.entries.toSet() - outcomeExclusions - runtimeExclusions - stressExclusions
+    return GeneratedTypeCheckerSignature.entries.toSet() - outcomeExclusions - runtimeExclusions - stressExclusions - optionalSignatures
 }
 
 internal class GeneratedTypeCheckerCoverage {

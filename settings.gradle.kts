@@ -1,4 +1,5 @@
 pluginManagement {
+    // Included settings plugins' transitive dependencies resolve through this build's repositories.
     repositories {
         val artifactoryMirror = System.getenv("VIADUCT_ARTIFACTORY_MIRROR")
         if (artifactoryMirror != null) {
