@@ -30,11 +30,19 @@ import viaduct.graphql.schema.ViaductSchema
 import viaduct.graphql.schema.graphqljava.toGraphQLJavaValue
 
 data class TypeDefinitionRegistryOptions(
-    val addStubsOnEmptyTypes: Boolean
+    val addStubsOnEmptyTypes: Boolean,
+    // GraphQL-Java's schema printer cannot round-trip extensions without members.
+    val retainExtensionsWithoutMembers: Boolean = false
 ) {
     companion object {
         val DEFAULT = TypeDefinitionRegistryOptions(addStubsOnEmptyTypes = true)
         val NO_STUBS = TypeDefinitionRegistryOptions(addStubsOnEmptyTypes = false)
+
+        /** Runtime schemas need extensions that GraphQL-Java's SDL printer cannot round-trip. */
+        val RUNTIME = TypeDefinitionRegistryOptions(
+            addStubsOnEmptyTypes = false,
+            retainExtensionsWithoutMembers = true
+        )
     }
 }
 
@@ -45,17 +53,17 @@ fun ViaductSchema.toRegistry(options: TypeDefinitionRegistryOptions = TypeDefini
         when (value) {
             is ViaductSchema.Object -> {
                 result.add(value.toObjectTypeDefinition(options))
-                result.addAll(value.toObjectTypeDefinitionExtensions())
+                result.addAll(value.toObjectTypeDefinitionExtensions().filter { options.retainExtensionsWithoutMembers || it.fieldDefinitions.isNotEmpty() })
             }
 
             is ViaductSchema.Interface -> {
                 result.add(value.toInterfaceTypeDefinition(options))
-                result.addAll(value.toInterfaceTypeDefinitionExtensions())
+                result.addAll(value.toInterfaceTypeDefinitionExtensions().filter { options.retainExtensionsWithoutMembers || it.fieldDefinitions.isNotEmpty() })
             }
 
             is ViaductSchema.Union -> {
                 result.add(value.unionTypeDefinition(options))
-                result.addAll(value.unionTypeDefinitionExtensions())
+                result.addAll(value.unionTypeDefinitionExtensions().filter { options.retainExtensionsWithoutMembers || it.memberTypes.isNotEmpty() })
             }
 
             is ViaductSchema.Enum -> {
@@ -134,6 +142,7 @@ fun ViaductSchema.Scalar.scalarTypeDefinition() =
         .name(this.name)
         .description(toDescription())
         .directives(appliedDirectives.map { it.toDirectiveForTypeDefinition() })
+        .sourceLocation(sourceLocation?.toSourceLocationDefinition())
         .build()
 
 fun ViaductSchema.Object.toMergedObjectTypeDefinition(options: TypeDefinitionRegistryOptions = TypeDefinitionRegistryOptions.DEFAULT): ObjectTypeDefinition {
@@ -199,7 +208,7 @@ fun ViaductSchema.Object.toObjectTypeDefinition(options: TypeDefinitionRegistryO
 
 fun ViaductSchema.Object.toObjectTypeDefinitionExtensions() =
     extensions.drop(1).mapNotNull { extension ->
-        if (extension.members.isEmpty()) {
+        if (extension.members.isEmpty() && extension.appliedDirectives.isEmpty() && extension.supers.isEmpty()) {
             return@mapNotNull null
         }
         ObjectTypeExtensionDefinition
@@ -251,7 +260,7 @@ fun ViaductSchema.Input.toInputObjectTypeDefinitionExtensions() =
             .name(extension.def.name)
             .inputValueDefinitions(extension.members.map { it.inputValueDefinition() })
             .directives(extension.appliedDirectives.map { it.toDirectiveForTypeDefinition() })
-            .sourceLocation(sourceLocation?.toSourceLocationDefinition())
+            .sourceLocation(extension.sourceLocation?.toSourceLocationDefinition())
             .build()
     }
 
@@ -292,7 +301,7 @@ fun ViaductSchema.Interface.toInterfaceTypeDefinition(options: TypeDefinitionReg
 
 fun ViaductSchema.Interface.toInterfaceTypeDefinitionExtensions() =
     extensions.drop(1).mapNotNull { extension ->
-        if (extension.members.isEmpty()) {
+        if (extension.members.isEmpty() && extension.appliedDirectives.isEmpty() && extension.supers.isEmpty()) {
             return@mapNotNull null
         }
         InterfaceTypeExtensionDefinition
@@ -321,12 +330,8 @@ fun ViaductSchema.AppliedDirective<*>.toDirectiveForTypeDefinition() =
         .name(name)
         .arguments(
             arguments.entries
-                // NullLiteral represents an argument that was not explicitly specified by the
-                // schema author (filled in by DefinitionsDecoder for nullable args with no
-                // default). Omitting these arguments from the AST mirrors SDL parsing behaviour
-                // and lets graphql-java treat them as isNotSet = true, which is the expected
-                // contract for optional directive arguments.
-                .filterNot { (_, v) -> v is ViaductSchema.NullLiteral }
+                // Omitting nulls without defaults keeps unspecified nullable arguments unset.
+                .filterNot { (name, value) -> value is ViaductSchema.NullLiteral && directive.args.none { it.name == name && it.hasDefault } }
                 .map { arg ->
                     Argument
                         .newArgument()
@@ -372,7 +377,7 @@ fun ViaductSchema.Union.unionTypeDefinition(options: TypeDefinitionRegistryOptio
 
 fun ViaductSchema.Union.unionTypeDefinitionExtensions() =
     extensions.drop(1).mapNotNull { extension ->
-        if (extension.members.isEmpty()) {
+        if (extension.members.isEmpty() && extension.appliedDirectives.isEmpty()) {
             return@mapNotNull null
         }
         val directives = extension.appliedDirectives.map { it.toDirectiveForTypeDefinition() }
@@ -381,7 +386,7 @@ fun ViaductSchema.Union.unionTypeDefinitionExtensions() =
             .newUnionTypeExtensionDefinition()
             .name(name)
             .memberTypes(memberTypes)
-            .sourceLocation(sourceLocation?.toSourceLocationDefinition())
+            .sourceLocation(extension.sourceLocation?.toSourceLocationDefinition())
             .directives(directives)
             .build()
     }
@@ -439,7 +444,7 @@ fun ViaductSchema.Enum.enumTypeDefinitionExtensions() =
                         .build()
                 }
             ).directives(extension.appliedDirectives.map { it.toDirectiveForTypeDefinition() })
-            .sourceLocation(sourceLocation?.toSourceLocationDefinition())
+            .sourceLocation(extension.sourceLocation?.toSourceLocationDefinition())
             .build()
     }
 

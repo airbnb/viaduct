@@ -1,9 +1,13 @@
 package viaduct.graphql.schema.graphqljava
 
 import graphql.GraphQL
+import graphql.language.ObjectTypeDefinition
+import graphql.parser.MultiSourceReader
 import graphql.schema.idl.SchemaParser
+import graphql.schema.idl.SchemaPrinter
 import graphql.schema.idl.TypeDefinitionRegistry
 import graphql.schema.idl.UnExecutableSchemaGenerator
+import java.io.StringReader
 import org.junit.jupiter.api.Assertions.assertAll
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.DisplayName
@@ -31,6 +35,106 @@ import viaduct.invariants.FailureCollector
  * exercises all schemas of that kind.
  */
 class BlackBoxToRegistryTest {
+    @Test
+    fun `runtime registry preserves source paths on types scalars and extensions`() {
+        val reader = MultiSourceReader.newMultiSourceReader().trackData(true)
+            .reader(
+                StringReader(
+                    """
+                    scalar Custom
+                    type Query { value: Custom }
+                    input Input { value: String }
+                    enum Choice { FIRST }
+                    union Result = Query
+
+                    """.trimIndent()
+                ),
+                "base.graphqls"
+            )
+            .reader(
+                StringReader(
+                    """
+                    extend type Query { extra: String }
+                    extend input Input { extra: String }
+                    extend enum Choice { SECOND }
+                    type Other { value: String }
+                    extend union Result = Other
+
+                    """.trimIndent()
+                ),
+                "extension.graphqls"
+            )
+            .build()
+        val schema = gjSchemaRawFromRegistry(reader.use { SchemaParser().parse(it) })
+
+        val registry = schema.toRegistry(TypeDefinitionRegistryOptions.RUNTIME)
+
+        assertEquals("base.graphqls", registry.types().getValue("Query").sourceLocation.sourceName, "Query source")
+        assertEquals("base.graphqls", registry.scalars()["Custom"]!!.sourceLocation.sourceName, "Custom scalar source")
+        assertEquals("extension.graphqls", registry.objectTypeExtensions()["Query"]!!.single().sourceLocation.sourceName, "Query extension source")
+        assertEquals("extension.graphqls", registry.inputObjectTypeExtensions()["Input"]!!.single().sourceLocation.sourceName, "Input extension source")
+        assertEquals("extension.graphqls", registry.enumTypeExtensions()["Choice"]!!.single().sourceLocation.sourceName, "Choice extension source")
+        assertEquals("extension.graphqls", registry.unionTypeExtensions()["Result"]!!.single().sourceLocation.sourceName, "Result extension source")
+    }
+
+    @Test
+    fun `compilation registries remain parseable when projected extensions contain only directives`() {
+        val registry = SchemaParser().parse(
+            """
+            directive @tag repeatable on OBJECT | INTERFACE | UNION
+            interface Named { name: String }
+            interface Item { name: String }
+            extend interface Item @tag
+            type ConcreteItem implements Item { name: String }
+            extend type ConcreteItem implements Named @tag
+            union Result = ConcreteItem
+            extend union Result @tag
+            type Query { item: Item result: Result }
+            """.trimIndent()
+        )
+        val originalSchema = gjSchemaRawFromRegistry(registry)
+        val compilationOptions = listOf(
+            TypeDefinitionRegistryOptions.DEFAULT to setOf("item", "result", "VIADUCT_IGNORE"),
+            TypeDefinitionRegistryOptions.NO_STUBS to setOf("item", "result")
+        )
+        for ((options, expectedFields) in compilationOptions) {
+            val compilationRegistry = originalSchema.toRegistry(options)
+            val schema = UnExecutableSchemaGenerator.makeUnExecutableSchema(compilationRegistry)
+            val printed = SchemaPrinter(SchemaPrinter.Options.defaultOptions().useAstDefinitions(true)).print(schema)
+
+            val reparsed = SchemaParser().parse(printed)
+            val query = reparsed.types()["Query"] as ObjectTypeDefinition
+            assertEquals(expectedFields, query.fieldDefinitions.map { it.name }.toSet())
+        }
+    }
+
+    @Test
+    fun `explicit null directive arguments override nonnull defaults`() {
+        assertToRegistryRoundTrip(
+            """
+            directive @tag(value: String = "fallback") on OBJECT
+            type Query @tag(value: null) { value: String }
+            """.trimIndent()
+        )
+    }
+
+    @Test
+    fun `directive and interface only extensions survive registry conversion`() {
+        assertToRegistryRoundTrip(
+            """
+            directive @tag(value: String) repeatable on OBJECT | INTERFACE | UNION
+            interface Item { name: String }
+            interface Named { name: String }
+            type ConcreteItem { name: String }
+            extend type ConcreteItem implements Named @tag(value: "object")
+            extend interface Item @tag(value: "interface")
+            union Result = ConcreteItem
+            extend union Result @tag(value: "union")
+            type Query { item: Item result: Result }
+            """.trimIndent()
+        )
+    }
+
     private fun assertToRegistryRoundTrip(fullSdl: String) {
         val registry = SchemaParser().parse(fullSdl)
 
@@ -38,7 +142,7 @@ class BlackBoxToRegistryTest {
         val originalSchema = gjSchemaRawFromRegistry(registry)
 
         // Convert to TDRegistry
-        val roundTrippedRegistry = originalSchema.toRegistry(TypeDefinitionRegistryOptions.NO_STUBS)
+        val roundTrippedRegistry = originalSchema.toRegistry(TypeDefinitionRegistryOptions.RUNTIME)
 
         // Create GJSchemaRaw from round-tripped registry
         val roundTrippedSchema = gjSchemaRawFromRegistry(roundTrippedRegistry)
