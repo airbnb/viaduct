@@ -1,6 +1,7 @@
 package viaduct.java.api.reflect;
 
 import java.util.Objects;
+import viaduct.apiannotations.StableApi;
 import viaduct.java.api.types.GRT;
 
 /**
@@ -9,6 +10,7 @@ import viaduct.java.api.types.GRT;
  * @param <P> the GRT on which the field is defined
  * @param <T> the field's type with list and nullability wrappers removed
  */
+@StableApi
 public interface CompositeField<P extends GRT, T extends GRT> extends Field<P> {
 
   /** Returns the descriptor of the field's unwrapped type. */

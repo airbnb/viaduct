@@ -1,5 +1,7 @@
 package viaduct.java.api.resolvers;
 
+import viaduct.apiannotations.StableApi;
+import viaduct.apiannotations.TypeInferenceApi;
 import viaduct.java.api.context.FieldExecutionContext;
 import viaduct.java.api.types.Arguments;
 import viaduct.java.api.types.CompositeOutput;
@@ -69,6 +71,7 @@ import viaduct.java.api.types.Query;
  * @param <A> the arguments type for this field
  * @param <S> the selections type for the output
  */
+@TypeInferenceApi
 public interface FieldResolverBase<
     T, O extends GraphQLObject, Q extends Query, A extends Arguments, S extends CompositeOutput> {
 
@@ -76,6 +79,7 @@ public interface FieldResolverBase<
    * Context type alias for this resolver, providing type-safe access to object value, query value,
    * arguments, and selections.
    */
+  @StableApi
   interface Context<
           O extends GraphQLObject, Q extends Query, A extends Arguments, S extends CompositeOutput>
       extends FieldExecutionContext<O, Q, A, S> {}

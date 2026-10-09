@@ -1,5 +1,6 @@
 package viaduct.java.api.types;
 
+import viaduct.apiannotations.ExperimentalApi;
 import viaduct.tenant.runtime.jvm.ConnectionArgumentsSupport;
 
 /**
@@ -17,6 +18,7 @@ import viaduct.tenant.runtime.jvm.ConnectionArgumentsSupport;
  * <p>Prefer {@link ForwardConnectionArguments} or {@link BackwardConnectionArguments} when only one
  * direction is needed.
  */
+@ExperimentalApi
 public interface MultidirectionalConnectionArguments
     extends ForwardConnectionArguments, BackwardConnectionArguments {
 

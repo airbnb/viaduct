@@ -1,6 +1,7 @@
 package viaduct.java.api.reflect;
 
 import java.util.Objects;
+import viaduct.apiannotations.StableApi;
 import viaduct.java.api.types.GRT;
 
 /**
@@ -8,6 +9,7 @@ import viaduct.java.api.types.GRT;
  *
  * @param <P> the GRT on which the field is defined
  */
+@StableApi
 public interface Field<P extends GRT> {
 
   /** Returns the GraphQL name of this field. */

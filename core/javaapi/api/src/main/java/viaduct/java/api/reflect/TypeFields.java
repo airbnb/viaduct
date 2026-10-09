@@ -1,5 +1,6 @@
 package viaduct.java.api.reflect;
 
+import viaduct.apiannotations.StableApi;
 import viaduct.java.api.types.GRT;
 
 /**
@@ -7,4 +8,5 @@ import viaduct.java.api.types.GRT;
  *
  * @param <T> the GRT whose fields are described
  */
+@StableApi
 public interface TypeFields<T extends GRT> {}

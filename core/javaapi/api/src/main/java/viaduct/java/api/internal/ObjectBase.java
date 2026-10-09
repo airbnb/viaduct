@@ -23,6 +23,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiFunction;
 import org.jspecify.annotations.Nullable;
+import viaduct.apiannotations.InternalApi;
 import viaduct.engine.api.EngineObjectData;
 import viaduct.engine.api.NodeReference;
 import viaduct.engine.api.RootFieldReference;
@@ -57,6 +58,7 @@ import viaduct.java.api.types.NodeCompositeOutput;
  * <p>Field access is cached using a {@link ConcurrentHashMap} with a {@code NULL_VALUE} sentinel to
  * represent null values (identical to Kotlin's {@code OBJECTBASE_GRT_NULL} pattern).
  */
+@InternalApi
 public abstract class ObjectBase implements GraphQLObject {
 
   // Used to represent null in the field cache, since ConcurrentHashMap does not allow null values.

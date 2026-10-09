@@ -1,6 +1,9 @@
 package viaduct.java.api.types;
 
+import viaduct.apiannotations.StableApi;
+
 /** Tagging interface for GraphQL enum types. */
+@StableApi
 public interface GraphQLEnum extends GRT {
 
   /**

@@ -1,5 +1,6 @@
 package viaduct.java.api.context;
 
+import viaduct.apiannotations.StableApi;
 import viaduct.java.api.types.Arguments;
 
 /**
@@ -8,6 +9,7 @@ import viaduct.java.api.types.Arguments;
  *
  * @param <A> The arguments type for the field whose resolver references the provided variables.
  */
+@StableApi
 public interface VariablesProviderContext<A extends Arguments> extends ExecutionContext {
 
   /**

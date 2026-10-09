@@ -2,6 +2,8 @@ package viaduct.java.api.context;
 
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import viaduct.apiannotations.ExperimentalApi;
+import viaduct.apiannotations.StableApi;
 import viaduct.java.api.documents.MutationFromAnnotation;
 import viaduct.java.api.documents.QueryFromAnnotation;
 import viaduct.java.api.globalid.GlobalID;
@@ -11,6 +13,7 @@ import viaduct.java.api.types.NodeCompositeOutput;
 import viaduct.java.api.types.NodeObject;
 
 /** A generic context for resolving fields or types. */
+@StableApi
 public interface ResolverExecutionContext extends ExecutionContext {
   /**
    * Creates a lazy reference to a Node from its GlobalID.
@@ -39,6 +42,7 @@ public interface ResolverExecutionContext extends ExecutionContext {
    * @param <T> the field's object output type
    * @return an unresolved reference GRT
    */
+  @ExperimentalApi
   <T extends GraphQLObject> T ref(RootFieldCall<T> call);
 
   /**

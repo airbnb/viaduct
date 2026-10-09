@@ -2,6 +2,8 @@ package viaduct.java.api.reflect;
 
 import java.util.List;
 import java.util.Objects;
+import viaduct.apiannotations.ExperimentalApi;
+import viaduct.apiannotations.InternalApi;
 import viaduct.java.api.types.Arguments;
 import viaduct.java.api.types.GRT;
 import viaduct.java.api.types.GraphQLObject;
@@ -13,10 +15,12 @@ import viaduct.java.api.types.GraphQLObject;
  * @param <T> the field's unwrapped object type
  * @param <A> the field's generated arguments type
  */
+@ExperimentalApi
 public interface RootObjectField<P extends GRT, T extends GraphQLObject, A extends Arguments>
     extends CompositeField<P, T> {
 
   /** Returns the field-name path from the query root to this field. */
+  @InternalApi
   List<String> getPathFromQueryRoot();
 
   /** Creates a descriptor for a non-list object field reachable from the query root. */

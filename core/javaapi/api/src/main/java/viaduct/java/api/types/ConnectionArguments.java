@@ -1,5 +1,7 @@
 package viaduct.java.api.types;
 
+import viaduct.apiannotations.ExperimentalApi;
+
 /**
  * Typed access to the pagination inputs ({@code first}, {@code after}, {@code last}, {@code
  * before}) of a connection field.
@@ -14,6 +16,7 @@ package viaduct.java.api.types;
  * @see BackwardConnectionArguments
  * @see MultidirectionalConnectionArguments
  */
+@ExperimentalApi
 public interface ConnectionArguments extends Arguments {
   /** Default page size used when {@code first}/{@code last} are not specified. */
   int DEFAULT_PAGE_SIZE = 20;

@@ -1,5 +1,6 @@
 package viaduct.java.api.context;
 
+import viaduct.apiannotations.ExperimentalApi;
 import viaduct.java.api.types.Connection;
 import viaduct.java.api.types.ConnectionArguments;
 import viaduct.java.api.types.GraphQLObject;
@@ -17,6 +18,7 @@ import viaduct.java.api.types.Query;
  * @param <A> the connection-arguments type for this field
  * @param <R> the connection output type
  */
+@ExperimentalApi
 public interface ConnectionFieldExecutionContext<
         T extends GraphQLObject,
         Q extends Query,

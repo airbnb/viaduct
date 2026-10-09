@@ -1,5 +1,7 @@
 package viaduct.java.api.resolvers;
 
+import viaduct.apiannotations.StableApi;
+import viaduct.apiannotations.TypeInferenceApi;
 import viaduct.java.api.context.NodeExecutionContext;
 import viaduct.java.api.types.NodeObject;
 
@@ -11,8 +13,10 @@ import viaduct.java.api.types.NodeObject;
  *
  * @param <R> the Node type being resolved (must implement NodeObject)
  */
+@TypeInferenceApi
 public interface NodeResolverBase<R extends NodeObject> {
 
   /** Context type alias for node resolvers, providing type-safe access to the node's global ID. */
+  @StableApi
   interface Context<R extends NodeObject> extends NodeExecutionContext<R> {}
 }

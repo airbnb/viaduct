@@ -1,6 +1,7 @@
 package viaduct.java.api.internal;
 
 import graphql.schema.GraphQLInputObjectType;
+import viaduct.apiannotations.InternalApi;
 import viaduct.engine.api.EngineSchema;
 import viaduct.java.api.context.ExecutionContext;
 import viaduct.java.api.globalid.GlobalID;
@@ -24,6 +25,7 @@ import viaduct.service.api.spi.GlobalIDCodec;
  * IR values (a Kotlin-only concern — Java GRTs wrap engine data directly), and the latter is
  * GlobalID decoding that is out of scope for this context.
  */
+@InternalApi
 public interface InternalContext {
 
   /**

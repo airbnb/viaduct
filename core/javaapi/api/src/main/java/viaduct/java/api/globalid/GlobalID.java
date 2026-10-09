@@ -1,5 +1,6 @@
 package viaduct.java.api.globalid;
 
+import viaduct.apiannotations.StableApi;
 import viaduct.java.api.reflect.Type;
 import viaduct.java.api.types.NodeCompositeOutput;
 
@@ -18,6 +19,7 @@ import viaduct.java.api.types.NodeCompositeOutput;
  *
  * @param <T> The type of NodeCompositeOutput this GlobalID refers to
  */
+@StableApi
 public interface GlobalID<T extends NodeCompositeOutput> {
   /** Returns the type of the node object, e.g. User. */
   Type<T> getType();

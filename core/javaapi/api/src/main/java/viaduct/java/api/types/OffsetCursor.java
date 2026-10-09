@@ -1,5 +1,6 @@
 package viaduct.java.api.types;
 
+import viaduct.apiannotations.ExperimentalApi;
 import viaduct.tenant.runtime.jvm.OffsetCursorCodec;
 
 /**
@@ -19,6 +20,7 @@ import viaduct.tenant.runtime.jvm.OffsetCursorCodec;
  *   <li>{@link #fromOffset(int)} <b>creates</b> an OffsetCursor by encoding the offset
  * </ul>
  */
+@ExperimentalApi
 public final class OffsetCursor {
   private final String value;
 

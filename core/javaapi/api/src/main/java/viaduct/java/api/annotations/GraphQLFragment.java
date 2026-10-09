@@ -4,6 +4,7 @@ import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+import viaduct.apiannotations.ExperimentalApi;
 
 /**
  * Declares a reusable named GraphQL fragment on a {@link
@@ -15,6 +16,7 @@ import java.lang.annotation.Target;
  */
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
+@ExperimentalApi
 public @interface GraphQLFragment {
   /** A document containing exactly one named GraphQL fragment definition. */
   String value();

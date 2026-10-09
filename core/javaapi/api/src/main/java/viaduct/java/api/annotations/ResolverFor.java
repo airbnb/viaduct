@@ -4,6 +4,7 @@ import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+import viaduct.apiannotations.InternalApi;
 
 /**
  * Annotation used to mark generated resolver base classes in the Java API.
@@ -39,6 +40,7 @@ import java.lang.annotation.Target;
  */
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
+@InternalApi
 public @interface ResolverFor {
 
   /**

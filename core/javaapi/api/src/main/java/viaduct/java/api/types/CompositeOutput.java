@@ -1,8 +1,12 @@
 package viaduct.java.api.types;
 
+import viaduct.apiannotations.StableApi;
+
 /** Tagging interface for output types that have fields, i.e. interfaces, objects, and unions. */
+@StableApi
 public interface CompositeOutput extends GRT {
 
+  @StableApi
   final class None implements CompositeOutput {
     private None() {}
   }

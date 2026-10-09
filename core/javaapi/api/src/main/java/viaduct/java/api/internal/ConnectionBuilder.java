@@ -6,6 +6,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
+import viaduct.apiannotations.ExperimentalApi;
 import viaduct.errors.HandleErrors;
 import viaduct.java.api.context.ConnectionFieldExecutionContext;
 import viaduct.java.api.context.ExecutionContext;
@@ -42,6 +43,7 @@ import viaduct.java.api.types.OffsetLimit;
  * @param <E> the Edge type (must implement {@code Edge<N>})
  * @param <N> the Node type contained in edges
  */
+@ExperimentalApi
 public abstract class ConnectionBuilder<C extends Connection<E, N>, E extends Edge<N>, N> {
   private static final String PAGE_INFO_SIMPLE_NAME = "PageInfo";
 

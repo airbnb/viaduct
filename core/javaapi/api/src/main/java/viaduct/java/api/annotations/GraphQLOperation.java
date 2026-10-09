@@ -4,6 +4,7 @@ import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+import viaduct.apiannotations.StableApi;
 
 /**
  * Declares a build-time validated GraphQL operation on a {@link
@@ -12,6 +13,7 @@ import java.lang.annotation.Target;
  */
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
+@StableApi
 public @interface GraphQLOperation {
   /** A document containing exactly one GraphQL query or mutation. */
   String value();

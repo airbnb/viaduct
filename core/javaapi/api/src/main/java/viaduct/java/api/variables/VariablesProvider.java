@@ -2,6 +2,7 @@ package viaduct.java.api.variables;
 
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import viaduct.apiannotations.StableApi;
 import viaduct.java.api.context.VariablesProviderContext;
 import viaduct.java.api.types.Arguments;
 
@@ -19,6 +20,7 @@ import viaduct.java.api.types.Arguments;
  *     Use {@link Arguments.NoArguments} when the field has no arguments.
  */
 @FunctionalInterface
+@StableApi
 public interface VariablesProvider<A extends Arguments> {
 
   /**

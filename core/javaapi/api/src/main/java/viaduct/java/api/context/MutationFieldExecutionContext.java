@@ -2,6 +2,7 @@ package viaduct.java.api.context;
 
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import viaduct.apiannotations.StableApi;
 import viaduct.java.api.documents.MutationFromAnnotation;
 import viaduct.java.api.types.Arguments;
 import viaduct.java.api.types.CompositeOutput;
@@ -10,6 +11,7 @@ import viaduct.java.api.types.Query;
 
 /** Mutation capability for fields on the mutation root or its reachable namespace types. */
 @SuppressWarnings("deprecation")
+@StableApi
 public interface MutationFieldExecutionContext<
         T extends GraphQLObject, Q extends Query, A extends Arguments, O extends CompositeOutput>
     extends FieldExecutionContext<T, Q, A, O> {

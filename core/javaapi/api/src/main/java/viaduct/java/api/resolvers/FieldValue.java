@@ -1,5 +1,7 @@
 package viaduct.java.api.resolvers;
 
+import viaduct.apiannotations.StableApi;
+
 /**
  * Represents the value of a resolved GraphQL field.
  *
@@ -8,6 +10,7 @@ package viaduct.java.api.resolvers;
  *
  * @param <T> the resolved value type
  */
+@StableApi
 public sealed interface FieldValue<T> permits FieldValue.Success, FieldValue.Error {
 
   /** Returns the value on success, or throws the contained exception on error. */
@@ -26,6 +29,7 @@ public sealed interface FieldValue<T> permits FieldValue.Success, FieldValue.Err
     return new Error<>(error);
   }
 
+  @StableApi
   record Success<T>(T value) implements FieldValue<T> {
     @Override
     public T get() {
@@ -39,6 +43,7 @@ public sealed interface FieldValue<T> permits FieldValue.Success, FieldValue.Err
   }
 
   @SuppressWarnings("JavaLangClash")
+  @StableApi
   record Error<T>(Exception error) implements FieldValue<T> {
     @Override
     public T get() {

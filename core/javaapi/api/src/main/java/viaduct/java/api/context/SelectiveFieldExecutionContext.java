@@ -1,5 +1,6 @@
 package viaduct.java.api.context;
 
+import viaduct.apiannotations.ExperimentalApi;
 import viaduct.java.api.types.CompositeOutput;
 
 /**
@@ -10,6 +11,7 @@ import viaduct.java.api.types.CompositeOutput;
  *
  * @param <O> the composite output type of the resolved field
  */
+@ExperimentalApi
 public interface SelectiveFieldExecutionContext<O extends CompositeOutput> {
 
   /**

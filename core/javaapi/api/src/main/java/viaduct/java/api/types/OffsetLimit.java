@@ -1,5 +1,7 @@
 package viaduct.java.api.types;
 
+import viaduct.apiannotations.ExperimentalApi;
+
 /**
  * Result of converting {@link ConnectionArguments} to an offset/limit pair.
  *
@@ -15,4 +17,5 @@ package viaduct.java.api.types;
  *     (e.g. {@code -1} is the last item, {@code -10} means the 10th from the end)
  * @param limit maximum number of items to fetch
  */
+@ExperimentalApi
 public record OffsetLimit(int offset, int limit) {}

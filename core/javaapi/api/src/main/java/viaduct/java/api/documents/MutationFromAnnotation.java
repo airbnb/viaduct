@@ -1,8 +1,10 @@
 package viaduct.java.api.documents;
 
+import viaduct.apiannotations.StableApi;
 import viaduct.java.api.annotations.GraphQLOperation;
 
 /** Base class for reusable, build-time validated GraphQL mutation operations. */
+@StableApi
 public abstract class MutationFromAnnotation {
   /** Returns the operation document declared by {@link GraphQLOperation}. */
   public final String getOperationText() {

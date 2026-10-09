@@ -1,5 +1,6 @@
 package viaduct.java.api.reflect;
 
+import viaduct.apiannotations.StableApi;
 import viaduct.java.api.types.GRT;
 
 /**
@@ -9,6 +10,7 @@ import viaduct.java.api.types.GRT;
  *
  * @param <T> The GRT (GraphQL Runtime Type) that this Type represents
  */
+@StableApi
 public interface Type<T extends GRT> {
 
   /** Returns the GraphQL name of this type. */

@@ -1,5 +1,6 @@
 package viaduct.java.api.types;
 
+import viaduct.apiannotations.ExperimentalApi;
 import viaduct.tenant.runtime.jvm.ConnectionArgumentsSupport;
 
 /**
@@ -11,6 +12,7 @@ import viaduct.tenant.runtime.jvm.ConnectionArgumentsSupport;
  *
  * @see ForwardConnectionArguments
  */
+@ExperimentalApi
 public interface BackwardConnectionArguments extends ConnectionArguments {
   /** Maximum number of items to return from the end; null for the default page size. */
   Integer getLast();

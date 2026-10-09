@@ -1,5 +1,6 @@
 package viaduct.java.api.documents;
 
+import viaduct.apiannotations.ExperimentalApi;
 import viaduct.java.api.annotations.GraphQLFragment;
 import viaduct.java.api.types.CompositeOutput;
 
@@ -12,6 +13,7 @@ import viaduct.java.api.types.CompositeOutput;
  *
  * @param <T> the GraphQL composite output type selected by the fragment
  */
+@ExperimentalApi
 public abstract class FragmentFromAnnotation<T extends CompositeOutput> {
   /** Returns the fragment document declared by {@link GraphQLFragment}. */
   public final String getFragmentText() {

@@ -6,11 +6,13 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.function.Function;
+import viaduct.apiannotations.InternalApi;
 import viaduct.errors.TenantUsageException;
 import viaduct.java.api.context.FieldExecutionContext;
 import viaduct.java.api.resolvers.FieldValue;
 
 /** Common runtime contract implemented by generated batched field resolver bases. */
+@InternalApi
 public interface BaseBatchedFieldResolver {
   CompletableFuture<Map<FieldExecutionContext<?, ?, ?, ?>, Object>> invokeFieldBatchResolver(
       List<FieldExecutionContext<?, ?, ?, ?>> contexts);

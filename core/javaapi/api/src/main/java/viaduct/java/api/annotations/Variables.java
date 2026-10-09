@@ -4,6 +4,7 @@ import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+import viaduct.apiannotations.StableApi;
 
 /**
  * Declares the names and GraphQL types of the variables produced by a {@link
@@ -36,6 +37,7 @@ import java.lang.annotation.Target;
  */
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
+@StableApi
 public @interface Variables {
 
   /**

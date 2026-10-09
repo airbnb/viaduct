@@ -1,5 +1,6 @@
 package viaduct.java.api.context;
 
+import viaduct.apiannotations.StableApi;
 import viaduct.java.api.types.Arguments;
 import viaduct.java.api.types.CompositeOutput;
 import viaduct.java.api.types.GraphQLObject;
@@ -13,6 +14,7 @@ import viaduct.java.api.types.Query;
  * @param <A> The type of the arguments for this field
  * @param <O> The type of the output/selections for this field
  */
+@StableApi
 public interface FieldExecutionContext<
         T extends GraphQLObject, Q extends Query, A extends Arguments, O extends CompositeOutput>
     extends ResolverExecutionContext {

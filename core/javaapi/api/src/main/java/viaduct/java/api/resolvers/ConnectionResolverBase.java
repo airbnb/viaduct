@@ -1,5 +1,7 @@
 package viaduct.java.api.resolvers;
 
+import viaduct.apiannotations.ExperimentalApi;
+import viaduct.apiannotations.TypeInferenceApi;
 import viaduct.java.api.context.ConnectionFieldExecutionContext;
 import viaduct.java.api.types.Connection;
 import viaduct.java.api.types.ConnectionArguments;
@@ -19,6 +21,7 @@ import viaduct.java.api.types.Query;
  * @param <A> the connection-arguments type for this field
  * @param <R> the connection output type for the selections
  */
+@TypeInferenceApi
 public interface ConnectionResolverBase<
         T,
         O extends GraphQLObject,
@@ -28,6 +31,7 @@ public interface ConnectionResolverBase<
     extends FieldResolverBase<T, O, Q, A, R> {
 
   /** Context type alias for connection resolvers, narrowing to {@link ConnectionArguments}. */
+  @ExperimentalApi
   interface Context<
           O extends GraphQLObject,
           Q extends Query,

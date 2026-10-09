@@ -1,5 +1,7 @@
 package viaduct.java.api.annotations;
 
+import viaduct.apiannotations.StableApi;
+
 /**
  * Defines a variable binding for use in resolver fragments.
  *
@@ -70,6 +72,7 @@ package viaduct.java.api.annotations;
  *   <li>Non-nullable variable locations require non-nullable paths (no nullable traversals)
  * </ul>
  */
+@StableApi
 public @interface Variable {
 
   /**

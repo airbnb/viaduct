@@ -1,5 +1,7 @@
 package viaduct.java.api.types;
 
+import viaduct.apiannotations.ExperimentalApi;
+
 /**
  * A paginated list of {@link Edge}s plus a {@code pageInfo} object describing page boundaries.
  *
@@ -14,4 +16,5 @@ package viaduct.java.api.types;
  * @see Edge
  * @see viaduct.java.api.internal.ConnectionBuilder
  */
+@ExperimentalApi
 public interface Connection<E extends Edge<N>, N> extends GraphQLObject {}

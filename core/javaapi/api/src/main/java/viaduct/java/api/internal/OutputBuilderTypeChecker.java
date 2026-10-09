@@ -15,6 +15,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import viaduct.apiannotations.InternalApi;
 import viaduct.errors.FrameworkException;
 import viaduct.errors.HandleErrors;
 import viaduct.errors.TenantUsageException;
@@ -26,6 +27,7 @@ import viaduct.java.api.globalid.GlobalID;
  * Validates values stored by generated Java output builders where JVM type erasure prevents the
  * generated setter signature from enforcing the GraphQL type.
  */
+@InternalApi
 public final class OutputBuilderTypeChecker {
 
   /** Fixed package containing generated Java GRT classes. */

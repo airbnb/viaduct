@@ -2,6 +2,7 @@ package viaduct.java.api.internal;
 
 import java.util.Map;
 import org.jspecify.annotations.Nullable;
+import viaduct.apiannotations.InternalApi;
 import viaduct.engine.api.EngineObjectData;
 import viaduct.engine.api.NodeReference;
 import viaduct.engine.api.RootFieldReference;
@@ -13,6 +14,7 @@ import viaduct.java.api.types.NodeObject;
  * <p>Extends {@link ObjectBase} and implements {@link NodeObject}, satisfying the type bound {@code
  * R extends NodeObject} required by {@link viaduct.java.api.resolvers.NodeResolverBase}.
  */
+@InternalApi
 public abstract class NodeObjectBase extends ObjectBase implements NodeObject {
 
   protected NodeObjectBase(@Nullable InternalContext __context, EngineObjectData.Sync data) {

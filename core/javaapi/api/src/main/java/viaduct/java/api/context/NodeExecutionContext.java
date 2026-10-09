@@ -1,5 +1,6 @@
 package viaduct.java.api.context;
 
+import viaduct.apiannotations.StableApi;
 import viaduct.java.api.globalid.GlobalID;
 import viaduct.java.api.types.NodeObject;
 
@@ -8,6 +9,7 @@ import viaduct.java.api.types.NodeObject;
  *
  * @param <R> The type of the Node being resolved
  */
+@StableApi
 public interface NodeExecutionContext<R extends NodeObject> extends ResolverExecutionContext {
   /**
    * The ID of the node that is being resolved.

@@ -1,5 +1,7 @@
 package viaduct.java.api.types;
 
+import viaduct.apiannotations.ExperimentalApi;
+
 /**
  * A wrapper around a node that also carries a {@code cursor} encoding the item's position in the
  * list. Clients pass the cursor back as {@code after}/{@code before} to resume pagination from that
@@ -15,4 +17,5 @@ package viaduct.java.api.types;
  * @param <N> the type of node this edge contains
  * @see Connection
  */
+@ExperimentalApi
 public interface Edge<N> extends GraphQLObject {}

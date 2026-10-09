@@ -1,11 +1,13 @@
 package viaduct.java.api.context;
 
 import org.jspecify.annotations.Nullable;
+import viaduct.apiannotations.StableApi;
 import viaduct.java.api.globalid.GlobalID;
 import viaduct.java.api.reflect.Type;
 import viaduct.java.api.types.NodeCompositeOutput;
 
 /** A generic context for resolvers or variable providers. */
+@StableApi
 public interface ExecutionContext {
 
   /** Creates a GlobalID. Example usage: globalIDFor(User.Reflection, "123") */

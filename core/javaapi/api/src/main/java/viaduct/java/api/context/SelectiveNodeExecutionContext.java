@@ -1,5 +1,6 @@
 package viaduct.java.api.context;
 
+import viaduct.apiannotations.ExperimentalApi;
 import viaduct.java.api.types.NodeObject;
 
 /**
@@ -10,6 +11,7 @@ import viaduct.java.api.types.NodeObject;
  *
  * @param <R> the Node type being resolved
  */
+@ExperimentalApi
 public interface SelectiveNodeExecutionContext<R extends NodeObject>
     extends NodeExecutionContext<R> {
 

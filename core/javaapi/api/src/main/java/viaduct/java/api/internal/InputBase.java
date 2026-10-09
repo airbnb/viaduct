@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import org.jspecify.annotations.Nullable;
+import viaduct.apiannotations.InternalApi;
 import viaduct.errors.FrameworkException;
 import viaduct.errors.HandleErrors;
 import viaduct.errors.TenantUsageException;
@@ -32,6 +33,7 @@ import viaduct.tenant.runtime.jvm.InputTypeFactory;
  * <p>Generated builders validate required fields, nested nullability, and {@code @oneOf}
  * constraints before constructing an input. GraphQL Java still performs execution-time coercion.
  */
+@InternalApi
 public abstract class InputBase implements GraphQLInput {
 
   @FunctionalInterface
