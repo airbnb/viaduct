@@ -13,6 +13,8 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.CsvSource
 import viaduct.engine.runtime.FieldResolutionResult
 import viaduct.engine.runtime.Value
 import viaduct.engine.runtime.context.CompositeLocalContext
@@ -22,6 +24,39 @@ import viaduct.service.api.spi.mocks.MockFlagManager
 
 class ExecuteExecutionPlanTest {
     private val completer = FieldCompleter(SimpleDataFetcherExceptionHandler(), false)
+
+    @ParameterizedTest
+    @CsvSource("Obj, true", "Obj!, true", "Obj, false", "Obj!, false")
+    fun `object completion applies enclosing field nullability`(
+        objectType: String,
+        incrementalExecutionEnabled: Boolean,
+    ) = runTest {
+        val base = mkObjectCompletionParameters(
+            schemaSDL = "extend type Query { obj: $objectType } type Obj { a: Int, b: Int }",
+            coordinate = "Query" to "obj",
+            query = "{ obj { a ... @defer { b } } }",
+        )
+        val ctx = if (incrementalExecutionEnabled) {
+            base
+        } else {
+            base.copy(
+                _engineExecutionContext = ContextMocks(
+                    myFullSchema = base.engineExecutionContext.fullSchema,
+                    myFlagManager = MockFlagManager.Disabled,
+                ).engineExecutionContext,
+            )
+        }
+        val fields = FieldExecutionHelpers.collectFields(ctx.currentObjectEngineResult.type, ctx).collectedFieldsMap
+        setRawFieldValue(ctx, fields.getValue("a"), Value.fromValue(resolved(1)))
+        setRawFieldValue(ctx, fields.getValue("b"), Value.fromValue(resolved(2)))
+        ctx.currentObjectEngineResult.fieldResolutionState.complete(Unit)
+
+        val result = completer.completeObject(ctx).await()
+
+        assertEquals(mapOf("a" to 1, "b" to 2), result.value)
+        assertEquals(objectType == "Obj", result.isNullableField)
+        assertEquals(Work.empty, result.work)
+    }
 
     @Test
     fun `object completion registers newly collected defers at the response path`() =
@@ -101,7 +136,8 @@ class ExecuteExecutionPlanTest {
                 val result = completer.executeExecutionPlan(ctx, selected, BuildExecutionPlan(selected))
 
                 assertTrue(result is Value.Sync)
-                assertEquals(if (selected.isEmpty()) emptyMap() else mapOf("first" to 1), result.getCompleted())
+                assertEquals(if (selected.isEmpty()) emptyMap() else mapOf("first" to 1), result.getCompleted().data)
+                assertEquals(Work.empty, result.getCompleted().work)
             }
         }
 
@@ -132,8 +168,8 @@ class ExecuteExecutionPlanTest {
             deferred.complete(resolved(1))
             val result = completion.await()
 
-            assertEquals(mapOf("first" to 1, "shared" to 3, "b" to 2), result)
-            assertEquals(listOf("first", "shared", "b"), result.keys.toList())
+            assertEquals(mapOf("first" to 1, "shared" to 3, "b" to 2), result.data)
+            assertEquals(listOf("first", "shared", "b"), result.data.keys.toList())
         }
 
     @Test
@@ -183,7 +219,7 @@ class ExecuteExecutionPlanTest {
 
                 val result = completer.executeExecutionPlan(ctx, fields, plan).await()
 
-                assertEquals(mapOf("id" to "1", "name" to "Luke"), result)
+                assertEquals(mapOf("id" to "1", "name" to "Luke"), result.data)
             }
 
         @Test
@@ -199,7 +235,7 @@ class ExecuteExecutionPlanTest {
                 val result = completer.executeExecutionPlan(ctx, fields, BuildExecutionPlan(fields))
 
                 assertTrue(result is Value.Sync)
-                assertEquals(emptyMap<String, Any?>(), result.getCompleted())
+                assertEquals(emptyMap<String, Any?>(), result.getCompleted().data)
             }
 
         @Test
@@ -218,7 +254,7 @@ class ExecuteExecutionPlanTest {
 
                 val result = completer.executeExecutionPlan(ctx, fields, plan).await()
 
-                assertEquals(mapOf("name" to "Luke"), result)
+                assertEquals(mapOf("name" to "Luke"), result.data)
             }
 
         @Test
@@ -251,8 +287,8 @@ class ExecuteExecutionPlanTest {
                 id.complete(resolved("1"))
                 val result = completion.await()
 
-                assertEquals(mapOf("id" to "1", "name" to "Luke"), result)
-                assertEquals(listOf("id", "name"), result.keys.toList())
+                assertEquals(mapOf("id" to "1", "name" to "Luke"), result.data)
+                assertEquals(listOf("id", "name"), result.data.keys.toList())
             }
 
         @Test
@@ -277,7 +313,7 @@ class ExecuteExecutionPlanTest {
 
                 val result = completer.executeExecutionPlan(ctx, fields, BuildExecutionPlan(fields)).await()
 
-                assertEquals(mapOf("id" to "1", "name" to null), result)
+                assertEquals(mapOf("id" to "1", "name" to null), result.data)
                 val error = ctx.errorAccumulator.toList().single()
                 assertEquals(listOf("hero", "name"), error.path)
                 assertTrue(error.message.contains("bad"))

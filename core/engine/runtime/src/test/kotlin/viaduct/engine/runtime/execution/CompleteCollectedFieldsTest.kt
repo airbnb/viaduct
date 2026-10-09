@@ -32,9 +32,11 @@ class CompleteCollectedFieldsTest {
             val subset = completer.completeCollectedFields(ctx, fields.filterKeys { it == "first" })
 
             assertTrue(empty is Value.Sync)
-            assertEquals(emptyMap<String, Any?>(), empty.getCompleted())
+            assertEquals(emptyMap<String, Any?>(), empty.getCompleted().data)
+            assertEquals(Work.empty, empty.getCompleted().work)
             assertTrue(subset is Value.Sync)
-            assertEquals(mapOf("first" to 1), subset.getCompleted())
+            assertEquals(mapOf("first" to 1), subset.getCompleted().data)
+            assertEquals(Work.empty, subset.getCompleted().work)
         }
 
     @Test
@@ -55,8 +57,9 @@ class CompleteCollectedFieldsTest {
             first.complete(resolved(1))
             val result = pending.await()
 
-            assertEquals(listOf("first", "second"), result.keys.toList())
-            assertEquals(mapOf("first" to 1, "second" to 2), result)
+            assertEquals(listOf("first", "second"), result.data.keys.toList())
+            assertEquals(mapOf("first" to 1, "second" to 2), result.data)
+            assertEquals(Work.empty, result.work)
         }
 
     @Test
@@ -74,7 +77,8 @@ class CompleteCollectedFieldsTest {
 
             val result = completer.completeCollectedFields(ctx, fields).await()
 
-            assertEquals(mapOf("first" to null, "b" to 2), result)
+            assertEquals(mapOf("first" to null, "b" to 2), result.data)
+            assertEquals(Work.empty, result.work)
             assertEquals(listOf(fieldError), ctx.errorAccumulator.toList())
         }
 

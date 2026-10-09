@@ -155,9 +155,9 @@ class FieldCompleter(
                     } else {
                         completeCollectedFields(parameters, collectedFields)
                     }
-                    completed.map { resolvedData ->
-                        ctxCompleteObject.onCompleted(resolvedData, null)
-                        FieldCompletionResult.obj(resolvedData, parameters)
+                    completed.map { result ->
+                        ctxCompleteObject.onCompleted(result.data, null)
+                        FieldCompletionResult.obj(result.data, parameters, result.work)
                     }
                 }
             }
@@ -170,9 +170,11 @@ class FieldCompleter(
         ctx: ExecutionParameters,
         collectedFields: CollectedFieldsMap,
         executionPlan: ExecutionPlan,
-    ): Value<Map<String, Any?>> {
+    ): Value<ExecutionPlanResult> {
         val currentGroup = completeCollectedFields(ctx, executionPlan.collectedFieldsMap)
-        if (executionPlan.newCollectedFieldsMaps.isEmpty()) return currentGroup
+        if (executionPlan.newCollectedFieldsMaps.isEmpty()) {
+            return currentGroup
+        }
 
         val groups = listOf(currentGroup) + executionPlan.newCollectedFieldsMaps.values.map {
             completeCollectedFields(ctx, it)
@@ -181,8 +183,12 @@ class FieldCompleter(
         // This includes the current group and deferred groups; overlapping defers can produce a group with multiple usages.
         // Merge completed group maps in original field order.
         return Value.waitAll(groups).map {
-            val completedFields = groups.flatMap { it.getCompleted().entries }.associate { it.toPair() }
-            collectedFields.mapValues { (responseName, _) -> completedFields.getValue(responseName) }
+            val completedGroups = groups.map { it.getCompleted() }
+            val completedFields = completedGroups.flatMap { it.data.entries }.associate { it.toPair() }
+            ExecutionPlanResult(
+                collectedFields.mapValues { (responseName, _) -> completedFields.getValue(responseName) },
+                completedGroups.fold(Work.empty) { work, group -> work + group.work },
+            )
         }
     }
 
@@ -193,12 +199,14 @@ class FieldCompleter(
     internal fun completeCollectedFields(
         ctx: ExecutionParameters,
         collectedFieldsMap: CollectedFieldsMap,
-    ): Value<Map<String, Any?>> {
+    ): Value<ExecutionPlanResult> {
         val fieldValues = collectedFieldsMap.map { (responseName, field) ->
             responseName to completeField(ctx, field)
         }
         return Value.waitAll(fieldValues.map { it.second }).map {
-            fieldValues.associate { (key, value) -> key to value.getCompleted().value }
+            ExecutionPlanResult.fromFieldResults(
+                fieldValues.associate { (key, value) -> key to value.getCompleted() },
+            )
         }
     }
 
