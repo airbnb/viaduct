@@ -11,8 +11,10 @@ import viaduct.engine.runtime2.model.ResolverOccurrenceId
 import viaduct.engine.runtime2.model.RootFieldReferenceData
 import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.model.VariableInstanceId
+import viaduct.engine.runtime2.model.concatenateSelectionForests
 import viaduct.engine.runtime2.model.guardedBy
 import viaduct.engine.runtime2.model.merge
+import viaduct.engine.runtime2.model.objectKey
 import viaduct.engine.runtime2.model.outputValue
 import viaduct.engine.runtime2.model.registry.Assumptions
 import viaduct.engine.runtime2.model.registry.FieldCheckerResolver
@@ -22,7 +24,6 @@ import viaduct.engine.runtime2.model.registry.ResolverFragments
 import viaduct.engine.runtime2.model.registry.TypeCheckerResolver
 import viaduct.engine.runtime2.model.registry.VariableInstanceDefinition
 import viaduct.engine.runtime2.model.requireQueryTypeDef
-import viaduct.engine.runtime2.model.satisfiableAlternatives
 import viaduct.engine.runtime2.model.schemaType
 import viaduct.engine.runtime2.model.selectionForestOf
 import viaduct.engine.runtime2.model.usedVariables
@@ -104,7 +105,8 @@ internal fun EngineObjectData.Sync.closeOrchestrationConstructionDemand(
     }
 
     // The same four forests as grounded closure, retaining symbolic argument identities.
-    var accumulatedDemand = initialDemand.withLiftedParentDemand(world)
+    var pendingDemand = initialDemand.withLiftedParentDemand(world)
+    val demandContributions = mutableListOf(pendingDemand)
 
     // Query fragments demand fields within the associated root. Schema validation prohibits
     // parent backedges to Query, so this root cannot acquire incoming type-check demand.
@@ -118,72 +120,72 @@ internal fun EngineObjectData.Sync.closeOrchestrationConstructionDemand(
     val queryCheckerContexts = linkedMapOf<ObjectEngineResult.ObjectKey, CheckerContext>()
     val expansionState = SymbolicExpansionState()
 
-    var demandNotClosed: Boolean
-    do {
-        demandNotClosed = false
-        val newObjectResolverKeyInclusions = accumulatedDemand.objectRooted.newResolverKeyInclusions(
+    while (true) {
+        val newObjectResolverKeyInclusions = pendingDemand.objectRooted.newResolverKeyInclusions(
             world = world,
             occurrence = objectOccurrence,
             resolverContexts = objectResolverContexts,
             expansionState = expansionState,
             requiresStandardResolution = ::requiresStandardResolution,
         )
-        val newQueryResolverKeyInclusions = accumulatedDemand.queryRooted.newResolverKeyInclusions(
+        val newQueryResolverKeyInclusions = pendingDemand.queryRooted.newResolverKeyInclusions(
             world = world,
             occurrence = queryOccurrence,
             resolverContexts = queryResolverContexts,
             expansionState = expansionState,
             requiresStandardResolution = { true },
         )
-        val newObjectCheckerKeyInclusions = accumulatedDemand.objectRooted.newCheckerKeyInclusions(
+        val newObjectCheckerKeyInclusions = pendingDemand.objectRooted.newCheckerKeyInclusions(
             world,
             objectOccurrence,
             objectCheckerContexts,
             expansionState,
         )
-        val newQueryCheckerKeyInclusions = accumulatedDemand.queryRooted.newCheckerKeyInclusions(
+        val newQueryCheckerKeyInclusions = pendingDemand.queryRooted.newCheckerKeyInclusions(
             world,
             queryOccurrence,
             queryCheckerContexts,
             expansionState,
         )
-        val newObjectTypeInclusions = objectTypeChecker.newInclusions(accumulatedDemand.objectRooted.typeCheckCondition)
+        val newObjectTypeInclusion = objectTypeChecker.addInclusion(pendingDemand.objectRooted.typeCheckCondition)
         if (
-            newObjectResolverKeyInclusions.isNotEmpty() ||
-            newQueryResolverKeyInclusions.isNotEmpty() ||
-            newObjectCheckerKeyInclusions.isNotEmpty() ||
-            newQueryCheckerKeyInclusions.isNotEmpty() ||
-            newObjectTypeInclusions.isNotEmpty()
+            newObjectResolverKeyInclusions.isEmpty() &&
+            newQueryResolverKeyInclusions.isEmpty() &&
+            newObjectCheckerKeyInclusions.isEmpty() &&
+            newQueryCheckerKeyInclusions.isEmpty() &&
+            newObjectTypeInclusion == null
         ) {
-            demandNotClosed = true
-            val objectResolverInputs = newObjectResolverKeyInclusions.resolverInputDemand(objectResolverContexts)
-            val queryResolverInputs = newQueryResolverKeyInclusions.resolverInputDemand(queryResolverContexts)
-            val queryInputSelections =
-                objectResolverInputs.queryFragment +
-                    queryResolverInputs.objectFragment +
-                    queryResolverInputs.queryFragment
-            val objectCheckerInputs = newObjectCheckerKeyInclusions.checkerInputDemand(objectCheckerContexts)
-            val queryCheckerInputs = newQueryCheckerKeyInclusions.checkerInputDemand(queryCheckerContexts)
-            val objectTypeInputs = objectTypeChecker.inputDemand(newObjectTypeInclusions)
-            val objectInputs = Demand(
-                checked = objectResolverInputs.objectFragment,
-                unchecked = objectCheckerInputs.objectFragment + objectTypeInputs.objectFragment,
-                typeCheckDemanded = false,
-            )
-            val queryInputs = Demand(
-                checked = queryInputSelections,
-                unchecked = objectCheckerInputs.queryFragment +
-                    queryCheckerInputs.objectFragment + queryCheckerInputs.queryFragment +
-                    objectTypeInputs.queryFragment,
-                typeCheckDemanded = false,
-            )
-            // Preserve incremental lifting: only initial demand and new contributions need analysis.
-            accumulatedDemand += OrchestrationConstructionDemand(
-                objectRooted = objectInputs,
-                queryRooted = queryInputs,
-            ).withLiftedParentDemand(world)
+            break
         }
-    } while (demandNotClosed)
+        val queryType = queryOccurrence.target.type
+        val objectResolverInputs = newObjectResolverKeyInclusions.resolverInputDemand(objectResolverContexts, objectOccurrence.target.type, queryType)
+        val queryResolverInputs = newQueryResolverKeyInclusions.resolverInputDemand(queryResolverContexts, queryType, queryType)
+        val queryInputSelections =
+            objectResolverInputs.queryFragment +
+                queryResolverInputs.objectFragment +
+                queryResolverInputs.queryFragment
+        val objectCheckerInputs = newObjectCheckerKeyInclusions.checkerInputDemand(objectCheckerContexts, objectOccurrence.target.type, queryType)
+        val queryCheckerInputs = newQueryCheckerKeyInclusions.checkerInputDemand(queryCheckerContexts, queryType, queryType)
+        val objectTypeInputs = objectTypeChecker.inputDemand(newObjectTypeInclusion, objectOccurrence.target.type, queryType)
+        val objectInputs = Demand(
+            checked = objectResolverInputs.objectFragment,
+            unchecked = objectCheckerInputs.objectFragment + objectTypeInputs.objectFragment,
+            typeCheckDemanded = false,
+        )
+        val queryInputs = Demand(
+            checked = queryInputSelections,
+            unchecked = objectCheckerInputs.queryFragment +
+                queryCheckerInputs.objectFragment + queryCheckerInputs.queryFragment +
+                objectTypeInputs.queryFragment,
+            typeCheckDemanded = false,
+        )
+        pendingDemand = OrchestrationConstructionDemand(
+            objectRooted = objectInputs,
+            queryRooted = queryInputs,
+        ).withLiftedParentDemand(world)
+        demandContributions += pendingDemand
+    }
+    val accumulatedDemand = demandContributions.concatenateDemand()
 
     return ClosedConstructionDemandContext(
         objectRooted =
@@ -215,6 +217,21 @@ internal fun EngineObjectData.Sync.closeOrchestrationConstructionDemand(
     )
 }
 
+/** Concatenates closure frontiers once instead of repeatedly copying the accumulated prefix. */
+private fun List<OrchestrationConstructionDemand<SelectionForest>>.concatenateDemand(): OrchestrationConstructionDemand<SelectionForest> =
+    OrchestrationConstructionDemand(
+        objectRooted = map { it.objectRooted }.concatenateDemand(),
+        queryRooted = map { it.queryRooted }.concatenateDemand(),
+    )
+
+private fun List<Demand<SelectionForest>>.concatenateDemand(): Demand<SelectionForest> =
+    Demand(
+        checked = map { it.checked }.concatenateSelectionForests(),
+        unchecked = map { it.unchecked }.concatenateSelectionForests(),
+        typeCheckDemanded = any { it.typeCheckDemanded },
+        typeCheckCondition = InclusionCondition.anyOf(map { it.typeCheckCondition }),
+    )
+
 /** Corresponds to grounded groundWithLiftedParentDemand, applied only to new symbolic contributions. */
 private fun OrchestrationConstructionDemand<SelectionForest>.withLiftedParentDemand(world: Assumptions): OrchestrationConstructionDemand<SelectionForest> =
     OrchestrationConstructionDemand(
@@ -230,22 +247,23 @@ private fun Demand<SelectionForest>.newResolverKeyInclusions(
     expansionState: SymbolicExpansionState,
     requiresStandardResolution: (ObjectEngineResult.ObjectKey) -> Boolean,
 ): List<Pair<ObjectEngineResult.ObjectKey, InclusionCondition>> =
-    values.merge(occurrence.target.type).byKey().flatMap { (key, selection) ->
+    values.applicableKeyConditions(occurrence.target.type).mapNotNull { (key, inclusion) ->
         if (key.field !in world.resolverRegistry || !requiresStandardResolution(key)) {
-            return@flatMap emptyList()
+            return@mapNotNull null
         }
         // Retain one description even when this occurrence is excluded or has argument errors.
         val resolverContext = resolverContexts.getOrPut(key) { createResolverContext(world, occurrence, key) }
         if (key is ObjectEngineResult.GroundKey && key.arguments.argumentsContainErrorValue()) {
-            return@flatMap emptyList()
+            return@mapNotNull null
         }
-        val newInclusions = selection.inclusionCondition.satisfiableAlternatives()
-            .filter(resolverContext.accumulatedKeyInclusions::add)
-        if (newInclusions.isNotEmpty()) {
+        if (inclusion === InclusionCondition.Never || !resolverContext.accumulatedKeyInclusions.add(inclusion)) {
+            return@mapNotNull null
+        }
+        if (resolverContext.accumulatedKeyInclusions.size == 1) {
             // A reserved but statically excluded occurrence cannot extend a fragment cycle.
             expansionState.register(occurrence.root, key, checker = false, resolverContext.variableDefinitions)
         }
-        newInclusions.map { inclusion -> key to inclusion }
+        key to inclusion
     }
 
 private fun Demand<SelectionForest>.newCheckerKeyInclusions(
@@ -254,10 +272,10 @@ private fun Demand<SelectionForest>.newCheckerKeyInclusions(
     checkerContexts: MutableMap<ObjectEngineResult.ObjectKey, CheckerContext>,
     expansionState: SymbolicExpansionState,
 ): List<Pair<ObjectEngineResult.ObjectKey, InclusionCondition>> =
-    checked.merge(occurrence.target.type).byKey().flatMap { (key, selection) ->
-        if (key is ObjectEngineResult.ParentKey) return@flatMap emptyList()
-        val checker = world.resolverRegistry.fieldChecker(key.field) ?: return@flatMap emptyList()
-        if (selection.inclusionCondition === InclusionCondition.Never) return@flatMap emptyList()
+    checked.applicableKeyConditions(occurrence.target.type).mapNotNull { (key, inclusion) ->
+        if (key is ObjectEngineResult.ParentKey) return@mapNotNull null
+        val checker = world.resolverRegistry.fieldChecker(key.field) ?: return@mapNotNull null
+        if (inclusion === InclusionCondition.Never) return@mapNotNull null
         val checkerContext = checkerContexts.getOrPut(key) {
             CheckerContext(checker, checker.instantiateFragmentsAt(occurrence.root, occurrence.coordinate(key))).also { context ->
                 expansionState.register(
@@ -268,30 +286,46 @@ private fun Demand<SelectionForest>.newCheckerKeyInclusions(
                 )
             }
         }
-        if (key is ObjectEngineResult.GroundKey && key.arguments.argumentsContainErrorValue()) return@flatMap emptyList()
-        selection.inclusionCondition.satisfiableAlternatives()
-            .filter(checkerContext.accumulatedKeyInclusions::add)
-            .map { inclusion -> key to inclusion }
+        if (key is ObjectEngineResult.GroundKey && key.arguments.argumentsContainErrorValue()) return@mapNotNull null
+        (key to inclusion).takeIf { checkerContext.accumulatedKeyInclusions.add(inclusion) }
     }
 
-private fun List<Pair<ObjectEngineResult.ObjectKey, InclusionCondition>>.resolverInputDemand(resolverContexts: Map<ObjectEngineResult.ObjectKey, ResolverContext>): ResolverInputConstructionDemand {
+/** Preserves the additive occurrence boundary that merge would collapse into a Boolean disjunction. */
+private fun SelectionForest.applicableKeyConditions(type: ViaductSchema.Object): List<Pair<ObjectEngineResult.ObjectKey, InclusionCondition>> =
+    buildList {
+        this@applicableKeyConditions.forEach { selection ->
+            if (type in selection.possibleTypes) {
+                add(selection.objectKey(type) to selection.inclusionCondition)
+            }
+        }
+    }
+
+private fun List<Pair<ObjectEngineResult.ObjectKey, InclusionCondition>>.resolverInputDemand(
+    resolverContexts: Map<ObjectEngineResult.ObjectKey, ResolverContext>,
+    objectType: ViaductSchema.Object,
+    queryType: ViaductSchema.Object,
+): ResolverInputConstructionDemand {
     var objectFragment: SelectionForest = selectionForestOf()
     var queryFragment: SelectionForest = selectionForestOf()
     forEach { (key, inclusion) ->
         val fragments = resolverContexts.getValue(key).fragments
-        objectFragment += fragments.objectFragment.constructionSelections.guardedBy(inclusion)
-        queryFragment += fragments.queryFragment.constructionSelections.guardedBy(inclusion)
+        objectFragment += fragments.objectFragment.constructionSelections.merge(objectType).guardedBy(inclusion)
+        queryFragment += fragments.queryFragment.constructionSelections.merge(queryType).guardedBy(inclusion)
     }
     return ResolverInputConstructionDemand(objectFragment, queryFragment)
 }
 
-private fun List<Pair<ObjectEngineResult.ObjectKey, InclusionCondition>>.checkerInputDemand(checkerContexts: Map<ObjectEngineResult.ObjectKey, CheckerContext>): ResolverInputConstructionDemand {
+private fun List<Pair<ObjectEngineResult.ObjectKey, InclusionCondition>>.checkerInputDemand(
+    checkerContexts: Map<ObjectEngineResult.ObjectKey, CheckerContext>,
+    objectType: ViaductSchema.Object,
+    queryType: ViaductSchema.Object,
+): ResolverInputConstructionDemand {
     var objectFragment: SelectionForest = selectionForestOf()
     var queryFragment: SelectionForest = selectionForestOf()
     forEach { (key, inclusion) ->
         val fragments = checkerContexts.getValue(key).fragments
-        objectFragment += fragments.objectFragment.constructionSelections.guardedBy(inclusion)
-        queryFragment += fragments.queryFragment.constructionSelections.guardedBy(inclusion)
+        objectFragment += fragments.objectFragment.constructionSelections.merge(objectType).guardedBy(inclusion)
+        queryFragment += fragments.queryFragment.constructionSelections.merge(queryType).guardedBy(inclusion)
     }
     return ResolverInputConstructionDemand(objectFragment, queryFragment)
 }
@@ -558,19 +592,18 @@ private class TypeCheckerContext(
     val checker: TypeCheckerResolver,
     val fragments: ResolverFragments,
 ) {
-    val accumulatedInclusions = linkedSetOf<InclusionCondition>()
+    var inclusionCondition: InclusionCondition = InclusionCondition.Never
 
     fun toOccurrence(
         occurrence: OEROccurrence,
         queryOccurrence: OEROccurrence
     ): TypeCheckerOccurrence? {
-        if (accumulatedInclusions.isEmpty()) return null
-        val condition = InclusionCondition.anyOf(accumulatedInclusions)
+        if (inclusionCondition === InclusionCondition.Never) return null
         return TypeCheckerOccurrence(
             checker,
             fragments,
-            condition,
-            fragments.variableProviderReads(occurrence.target, queryOccurrence.target, occurrence.typeCheckerCycleTask(), condition),
+            inclusionCondition,
+            fragments.variableProviderReads(occurrence.target, queryOccurrence.target, occurrence.typeCheckerCycleTask(), inclusionCondition),
         )
     }
 }
@@ -580,13 +613,21 @@ private fun OEROccurrence.typeCheckerContext(world: Assumptions): TypeCheckerCon
         TypeCheckerContext(checker, checker.instantiateFragmentsAt(root, path))
     }
 
-private fun TypeCheckerContext?.newInclusions(condition: InclusionCondition): List<InclusionCondition> =
-    if (this == null) emptyList() else condition.satisfiableAlternatives().filter(accumulatedInclusions::add)
+private fun TypeCheckerContext?.addInclusion(condition: InclusionCondition): InclusionCondition? {
+    if (this == null || condition === InclusionCondition.Never) return null
+    val combined = inclusionCondition.or(condition)
+    if (combined == inclusionCondition) return null
+    inclusionCondition = combined
+    return condition
+}
 
-private fun TypeCheckerContext?.inputDemand(inclusions: List<InclusionCondition>): ResolverInputConstructionDemand {
-    val condition = InclusionCondition.anyOf(inclusions)
+private fun TypeCheckerContext?.inputDemand(
+    inclusion: InclusionCondition?,
+    objectType: ViaductSchema.Object,
+    queryType: ViaductSchema.Object,
+): ResolverInputConstructionDemand {
     return ResolverInputConstructionDemand(
-        if (this == null || inclusions.isEmpty()) selectionForestOf() else fragments.objectFragment.constructionSelections.guardedBy(condition),
-        if (this == null || inclusions.isEmpty()) selectionForestOf() else fragments.queryFragment.constructionSelections.guardedBy(condition),
+        if (this == null || inclusion == null) selectionForestOf() else fragments.objectFragment.constructionSelections.merge(objectType).guardedBy(inclusion),
+        if (this == null || inclusion == null) selectionForestOf() else fragments.queryFragment.constructionSelections.merge(queryType).guardedBy(inclusion),
     )
 }

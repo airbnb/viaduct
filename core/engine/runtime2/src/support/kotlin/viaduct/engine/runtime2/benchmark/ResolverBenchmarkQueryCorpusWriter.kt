@@ -2,6 +2,7 @@ package viaduct.engine.runtime2.benchmark
 
 import java.nio.file.Files
 import java.nio.file.Path
+import java.util.zip.GZIPInputStream
 import viaduct.engine.runtime2.arbitrary.ResolverBenchmarkCorpus
 import viaduct.engine.runtime2.arbitrary.ResolverBenchmarkQueryCorpus
 import viaduct.engine.runtime2.arbitrary.resolverBenchmarkOverheadQueryConfig
@@ -20,7 +21,11 @@ object ResolverBenchmarkQueryCorpusWriter {
         val corpus =
             ResolverBenchmarkCorpus.decode(
                 schemaSDL = Files.readString(schemaPath),
-                registryJson = Files.readString(registryPath),
+                registryJson =
+                    Files.newInputStream(registryPath).use { stream ->
+                        val input = if (registryPath.toString().endsWith(".gz")) GZIPInputStream(stream) else stream
+                        input.bufferedReader().use { reader -> reader.readText() }
+                    },
             )
         val querySources =
             corpus

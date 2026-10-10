@@ -7,8 +7,14 @@ import kotlin.test.assertTrue
 import viaduct.engine.api.CheckerResult
 import viaduct.engine.runtime2.contract.CheckerApplicationRecorder
 import viaduct.engine.runtime2.contract.demandedTypeCheckerApplications
+import viaduct.engine.runtime2.contract.hasIncludedAlternative
 import viaduct.engine.runtime2.correctresolution.CorrectnessCheckerObserver
 import viaduct.engine.runtime2.correctresolution.CorrectnessResolverObserver
+import viaduct.engine.runtime2.model.Arguments
+import viaduct.engine.runtime2.model.InclusionCondition
+import viaduct.engine.runtime2.model.ObjectEngineResult
+import viaduct.engine.runtime2.model.ResolverOccurrenceId
+import viaduct.engine.runtime2.model.VariableBinding
 import viaduct.engine.runtime2.model.registry.FieldCheckerResolver
 import viaduct.engine.runtime2.model.registry.ResolverFragmentTemplates
 import viaduct.engine.runtime2.model.registry.TypeCheckerResolver
@@ -23,6 +29,24 @@ import viaduct.engine.runtime2.schema.operationSelectionsFrom
 import viaduct.graphql.schema.ViaductSchema
 
 class TypeCheckerDemandOracleConditionTest : ResolutionDispatcherResource {
+    @Test
+    fun `oracle retains a successful alternative beside a failed binding`() {
+        val world = TestWorld.fromSDL("type Query { value: Boolean! }")
+        val root = ObjectEngineResult.of(world.schema.requireQueryTypeDef(), mutable = true)
+        val owner = ResolverOccurrenceId.at(root, emptyList())
+        val field = world.schema.requireObjectField("Query", "value")
+        val failed = Arguments.Variable.of(field, "failed").instantiate(owner)
+        val enabled = Arguments.Variable.of(field, "enabled").instantiate(owner)
+        val operation = SharedOperationContext.create(world.assumptions)
+        operation.variableBindings.bindVariable(requireNotNull(failed.instanceId), VariableBinding.Error)
+        operation.variableBindings.bindVariable(requireNotNull(enabled.instanceId), true)
+        val condition =
+            InclusionCondition.requires(mapOf(failed to true))
+                .or(InclusionCondition.requires(mapOf(enabled to true)))
+
+        assertTrue(condition.hasIncludedAlternative(operation.variableBindings))
+    }
+
     @Test
     fun `excluded symbolic error owner does not turn overlapping raw demand into checked demand`() {
         exercise(enabled = null)

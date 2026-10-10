@@ -5,6 +5,7 @@ package viaduct.engine.runtime2.benchmark
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.Collections
+import java.util.zip.GZIPOutputStream
 import kotlin.coroutines.CoroutineContext
 import kotlin.io.path.createDirectories
 import kotlin.math.abs
@@ -15,6 +16,8 @@ import viaduct.engine.runtime2.arbitrary.ArbitraryQuery
 import viaduct.engine.runtime2.arbitrary.ArbitraryRegistry
 import viaduct.engine.runtime2.arbitrary.ArbitrarySchema
 import viaduct.engine.runtime2.arbitrary.FieldCoordinate
+import viaduct.engine.runtime2.arbitrary.GeneratedFieldCheckerMode
+import viaduct.engine.runtime2.arbitrary.GeneratedTypeCheckerMode
 import viaduct.engine.runtime2.arbitrary.ResolutionWitnessBoundExceededException
 import viaduct.engine.runtime2.arbitrary.ResolverBenchmarkCorpus
 import viaduct.engine.runtime2.arbitrary.ResolverBenchmarkQueryCorpus
@@ -34,6 +37,9 @@ import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.fragmentFrom
 import viaduct.engine.runtime2.resolution.ResolutionDispatcherFactory
 import viaduct.engine.runtime2.resolution.configuredResolutionThreadCount
+import viaduct.engine.runtime2.resolution.framework.CheckerInvocationObservation
+import viaduct.engine.runtime2.resolution.framework.CheckerKind
+import viaduct.engine.runtime2.resolution.framework.CheckerObserver
 import viaduct.engine.runtime2.resolution.framework.ResolverInvocationObservation
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 import viaduct.engine.runtime2.resolution.resolve
@@ -63,10 +69,9 @@ object ResolverBenchmarkCorpusSearch {
                 schema = winner.schema,
                 metrics = winner.metrics(seed, counts),
             )
-        Files.writeString(
-            outputDirectory.resolve("registry.json"),
-            registryJson,
-        )
+        GZIPOutputStream(Files.newOutputStream(outputDirectory.resolve("registry.json.gz"))).use { output ->
+            output.writer().use { writer -> writer.write(registryJson) }
+        }
         val querySources =
             ResolverBenchmarkCorpus
                 .decode(
@@ -103,6 +108,8 @@ object ResolverBenchmarkCorpusSearch {
             config = resolverBenchmarkCorpusSearchConfig(),
             profile = "resolver-benchmark-corpus-search",
             seed = seed,
+            fieldCheckerMode = GeneratedFieldCheckerMode.RUNTIME_SUCCESS,
+            typeCheckerMode = GeneratedTypeCheckerMode.RUNTIME_SUCCESS,
         ) { testWorld, testCase ->
             val coordinates = requireNotNull(testCase.coordinates)
             val key = coordinates.schemaIndex to coordinates.registryIndex
@@ -149,6 +156,10 @@ object ResolverBenchmarkCorpusSearch {
                 mutableListOf<ResolverInvocationObservation>(),
             )
         val witnessObserver = registry.resolverObserver()
+        val checkerKinds =
+            Collections.synchronizedList(
+                mutableListOf<CheckerKind>(),
+            )
         val observer = object : viaduct.engine.runtime2.resolution.framework.ResolverObserver {
             override fun onResolverInvocation(observation: ResolverInvocationObservation) {
                 witnessObserver.onResolverInvocation(observation)
@@ -156,7 +167,16 @@ object ResolverBenchmarkCorpusSearch {
             }
         }
         val result =
-            SharedOperationContext.create(world, resolverObserver = observer).resolve(
+            SharedOperationContext.create(
+                world,
+                resolverObserver = observer,
+                checkerObserver =
+                    object : CheckerObserver {
+                        override fun onCheckerInvocation(observation: CheckerInvocationObservation) {
+                            checkerKinds += observation.checkerKind
+                        }
+                    },
+            ).resolve(
                 selections = fragment.subselections,
                 coroutineContext = resolverCoroutineContext,
             )
@@ -172,6 +192,8 @@ object ResolverBenchmarkCorpusSearch {
         maximumResultDepth = maxOf(maximumResultDepth, shape.depth)
         maximumQueryDepth = maxOf(maximumQueryDepth, testCase.query.selectionDepth)
         resolverApplications += witness.applications.size
+        fieldCheckerApplications += checkerKinds.count { kind -> kind == CheckerKind.FIELD }
+        typeCheckerApplications += checkerKinds.count { kind -> kind == CheckerKind.TYPE }
         resolverApplicationsPerQuery += witness.applications.size.toLong()
         val variableBearingApplications =
             applicationObservations.filter { observation ->
@@ -199,6 +221,14 @@ object ResolverBenchmarkCorpusSearch {
         activatedFromPathApplications +=
             witness.applications.count { application ->
                 registry.sourceResolverHasFromObjectFieldVariables(application.key.field)
+            }
+        activatedFromQueryPathApplications +=
+            witness.applications.count { application ->
+                registry.sourceResolverHasFromQueryFieldVariables(application.key.field)
+            }
+        activatedFromProviderApplications +=
+            witness.applications.count { application ->
+                registry.sourceResolverHasFromProviderVariables(application.key.field)
             }
         observeQueryFeatures(testCase.query)
     }
@@ -357,7 +387,10 @@ object ResolverBenchmarkCorpusSearch {
                 p90ObjectFragmentSelections >= 10 &&
                 maximumObjectFragmentSelections >= 30 &&
                 registry.features.fromArgumentVariableCount > 0 &&
-                registry.features.fromObjectFieldVariableCount > 0
+                registry.features.fromObjectFieldVariableCount > 0 &&
+                registry.features.fromQueryFieldVariableCount > 0 &&
+                registry.features.fromProviderVariableCount > 0 &&
+                registry.features.queryFragmentCount > 0
 
         var queryCount: Int = 0
         var totalResultFields: Long = 0
@@ -367,6 +400,8 @@ object ResolverBenchmarkCorpusSearch {
         var maximumResultDepth: Int = 0
         var maximumQueryDepth: Int = 0
         var resolverApplications: Int = 0
+        var fieldCheckerApplications: Int = 0
+        var typeCheckerApplications: Int = 0
         val resolverApplicationsPerQuery: MutableList<Long> = mutableListOf()
         val variableBearingResolverApplicationsPerQuery: MutableList<Long> =
             mutableListOf()
@@ -374,6 +409,8 @@ object ResolverBenchmarkCorpusSearch {
         var maximumVariableStackDepth: Long = 0
         var activatedFromArgumentApplications: Int = 0
         var activatedFromPathApplications: Int = 0
+        var activatedFromQueryPathApplications: Int = 0
+        var activatedFromProviderApplications: Int = 0
         var queriesWithAliases: Int = 0
         var queriesWithDuplicates: Int = 0
         var queriesWithDistinctArguments: Int = 0
@@ -382,10 +419,14 @@ object ResolverBenchmarkCorpusSearch {
 
         fun meetsWorkloadTargets(): Boolean =
             queryCount > 0 &&
-                totalResultFields / queryCount >= 1_000 &&
+                totalResultFields / queryCount >= 300 &&
                 resolverApplicationsPerQuery.average() >= 100 &&
                 activatedFromArgumentApplications > 0 &&
                 activatedFromPathApplications > 0 &&
+                activatedFromQueryPathApplications > 0 &&
+                activatedFromProviderApplications > 0 &&
+                fieldCheckerApplications > 0 &&
+                typeCheckerApplications > 0 &&
                 maximumVariableStackDepth > 0
 
         fun score(): Long {
@@ -396,8 +437,8 @@ object ResolverBenchmarkCorpusSearch {
             val medianVariableBearingApplications =
                 variableBearingResolverApplicationsPerQuery.percentile(0.5)
             val workloadScore =
-                closeness(averageResultFields, target = 2_500, radius = 5_000) * 100_000L +
-                    closeness(maximumResultFields, target = 5_000, radius = 20_000) * 10_000L +
+                closeness(averageResultFields, target = 1_000, radius = 2_000) * 100_000L +
+                    closeness(maximumResultFields, target = 2_500, radius = 10_000) * 10_000L +
                     closeness(maximumNonListFields, target = 75, radius = 500) * 10_000L +
                     closeness(
                         averageResolverApplications,
@@ -452,7 +493,9 @@ object ResolverBenchmarkCorpusSearch {
                     registry.nodeResolverTypes.size * 500L +
                     distinctResolverFields.size * 100L +
                     activatedFromArgumentApplications +
-                    activatedFromPathApplications * 2L
+                    activatedFromPathApplications * 2L +
+                    activatedFromQueryPathApplications * 2L +
+                    activatedFromProviderApplications
             val diversityScore =
                 queriesWithAliases * 10L +
                     queriesWithDuplicates * 10L +
@@ -484,6 +527,8 @@ object ResolverBenchmarkCorpusSearch {
                 "maximumResultDepth" to maximumResultDepth.toLong(),
                 "maximumQueryDepth" to maximumQueryDepth.toLong(),
                 "resolverApplications" to resolverApplications.toLong(),
+                "fieldCheckerApplications" to fieldCheckerApplications.toLong(),
+                "typeCheckerApplications" to typeCheckerApplications.toLong(),
                 "averageResolverApplications" to
                     resolverApplicationsPerQuery.average().toLong(),
                 "medianVariableBearingResolverApplications" to
@@ -506,10 +551,19 @@ object ResolverBenchmarkCorpusSearch {
                     activatedFromArgumentApplications.toLong(),
                 "activatedFromPathApplications" to
                     activatedFromPathApplications.toLong(),
+                "activatedFromQueryPathApplications" to
+                    activatedFromQueryPathApplications.toLong(),
+                "activatedFromProviderApplications" to
+                    activatedFromProviderApplications.toLong(),
                 "fromArgumentVariables" to
                     registry.features.fromArgumentVariableCount.toLong(),
                 "fromPathVariables" to
                     registry.features.fromObjectFieldVariableCount.toLong(),
+                "fromQueryPathVariables" to
+                    registry.features.fromQueryFieldVariableCount.toLong(),
+                "fromProviderVariables" to
+                    registry.features.fromProviderVariableCount.toLong(),
+                "queryFragments" to registry.features.queryFragmentCount.toLong(),
                 "maximumVariablesPerOwner" to
                     registry.features.maximumVariablesPerOwner.toLong(),
                 "maximumProviderPathLength" to

@@ -8,6 +8,76 @@ Compare measurements only when their recorded host, JVM, benchmark parameters, c
 
 ## Recorded Investigations
 
+### 2026-10-08 06:28:19 UTC
+
+The [inclusion review-fix controls](2026-10-08-inclusion-review-fixes/README.md) compare master `67ec32572b997293ab0879a130292c15457131b9`, with only the shared benchmark harness and corpus backported at `bb5e7e7c70c2cb19eac5665c44d5bd84286f9fd5`, against the complete fixed stack at `c80bcc5e5e5207dbab1c55f8e69c0ec443dfea3b` on the same host and corpus. The control contains no production-source changes from master. Ordinary evaluation now memoizes completed shared nodes per invocation, and ordinary evaluation and asynchronous activation prune nested branches contradicted by explicit conjunct requirements without DNF expansion. The regression suite covers failed and pending bindings, binding order, operation counts, wide/shared graphs, and production cell exclusion. These repairs preserve the compact representation and the model/Resolution cancellation boundary.
+
+The broad 100-query Resolution corpus measured 3.586 +/- 2.251 s/op before and 2.382 +/- 2.578 s/op after, or 35.860 and 23.820 ms/resolution. Its 33.6% lower mean is descriptive because three single-shot samples produce wide confidence intervals. The separate one-resolution guarded-checker diagnostic measured depth 3: 0.247 -> 0.122 ms/op; depth 6: 1.697 -> 0.249 ms/op; depth 9: 22.356 -> 0.423 ms/op; depth 12: 720.351 -> 0.679 ms/op, about 1,061 times faster. These are complete-stack comparisons against master, not PR2-only comparisons or isolated measurements of the latest fixes. The linked evidence records every iteration, JMH errors, host/JVM/parameters, resource hashes, and all emitted corpus statistics; both runs emitted identical statistics.
+
+### 2026-10-06 20:02:52 UTC
+
+Base revision: `bc623c504`. The non-distributing inclusion-condition DAG and compact closure changes described here were in the worktree.
+
+This round repeated the focused guarded-checker diagnostic after replacing eager DNF distribution with a shared `And`/`Or` condition DAG. Construction closure now discovers deltas before selection merge erases additive occurrence provenance and locally merges each fixed resolver/checker fragment before guarding it. Activation incrementally propagates bounded outcome summaries through the DAG while preserving independently ready true alternatives and existing ordinary-error precedence.
+
+The run used the same host, Corretto 21.0.4, JMH 1.36, one fork, one thread, three one-second warmup iterations, and five one-second average-time measurement iterations as the baseline. The command was `./gradlew :core:engine:runtime2:guardedCheckerResolutionBenchmark --console=plain`.
+
+| Depth | Measured iterations (ms/op) | JMH score | Previous score |
+| --- | --- | --- | --- |
+| 3 | 0.144, 0.154, 0.177, 0.145, 0.145 | 0.153 +/- 0.053 ms/op | 0.220 +/- 0.007 ms/op |
+| 6 | 0.327, 0.289, 0.320, 0.275, 0.297 | 0.302 +/- 0.083 ms/op | 1.440 +/- 0.047 ms/op |
+| 9 | 0.471, 0.456, 0.465, 0.453, 0.457 | 0.460 +/- 0.029 ms/op | 15.486 +/- 1.592 ms/op |
+| 12 | 0.813, 0.697, 0.688, 0.686, 0.691 | 0.715 +/- 0.211 ms/op | 203.556 +/- 39.410 ms/op |
+
+The post-change series grows approximately linearly over this diagnostic range. At depth 12 it is about 285 times faster than the baseline, while the smaller improvement at depth 3 is consistent with fixed execution overhead dominating the shallow case.
+
+### 2026-10-05 02:24:18 UTC
+
+Base revision: `d9e75e5ac`. The benchmark-profile, generated-corpus, and focused-benchmark changes described here were in the worktree.
+
+This round refreshed the Resolution-focused benchmark baseline before superlinear repairs. The arbitrary full profile and fixed corpus now cover resolver object and Query fragments, `FromArgument`, `FromObjectField`, `FromQueryField`, and `FromProvider` variables, singleton coercion, selection-aware nodes, and runtime-success field and type checkers. The corpus search requires actual activation of every variable-source family and both checker families. List fanout is fixed at two so large result lists do not dominate this investigation.
+
+The fixed resources have SHA-256 hashes `6087a6ecf2e14215eade69b9e4a8448d6c98061cfee3974f5e811a549e1076c5` for `schema.graphqls`, `525f75fd9ec08b24c379bfdd86ae802d1a777cb186570eb015129da117e18a0e` for `registry.json.gz`, and `5157978ea78a8c51f6359f8f07b8e240e2675432e0ca590e3b81abfef41a308c` for `queries.json`.
+
+The broad Resolution overhead control used Corretto 21.0.4 and JMH 1.36 with one fork, one thread, one warmup iteration, three single-shot measurement iterations, `loopCount=1`, and 100 resolutions per operation.
+
+| Benchmark | Measured iterations | JMH score | Work per operation | Mean per unit |
+| --- | --- | --- | --- | --- |
+| Resolution overhead | 2.891, 2.827, 2.785 s/op | 2.834 +/- 0.971 s/op | 100 resolutions | 28.340 ms/resolution |
+
+```text
+Resolver overhead corpus statistics (100 queries):
+  fields returned: average=296.39, p90=422, max=487
+  active fields returned: average=115.54, p90=165, max=202
+  passive fields returned: average=180.85, p90=260, max=291
+  passive fields per active field: average=1.60, p90=1.92, max=2.56
+  resolvers executed: average=280.27, p90=386, max=453
+  field checkers executed: average=84.94, p90=114, max=133
+  type checkers executed: average=46.48, p90=64, max=74
+  resolver executions with variable-bearing arguments: average=48.00, p50=49, max=88
+  variable-bearing arguments per such resolver execution: average=1.42, p90=3, max=3
+  maximum variable stack depth: average=1.84, p50=2, max=2
+  result depth: average=7.00, p90=7, max=7
+Resolver benchmark registry statistics:
+  active fields per non-Query object: average=1.92, p90=3, max=4
+  passive fields per non-Query object: average=14.85, p90=17, max=19
+  selections per object fragment: average=4.89, p90=22, max=48
+  object fragment depth: average=1.61, p90=5, max=7
+Resolver benchmark feature counts:
+  field resolvers: 38
+  field checkers: 26
+  type checkers: 13
+  Query fragments: 10
+  FromArgument variables: 2
+  FromObjectField variables: 14
+  FromQueryField variables: 15
+  FromProvider variables: 25
+```
+
+The focused `GuardedCheckerResolutionBenchmark` increases registry-defined guarded resolver depth and ends the chain at a field checker. It is deliberately a diagnostic of the known Boolean-alternative product, not a fixed-registry/query-scaled request witness. Default average-time measurements were depth 3: `0.220 +/- 0.007 ms/op`; depth 6: `1.440 +/- 0.047 ms/op`; depth 9: `15.486 +/- 1.592 ms/op`; and depth 12: `203.556 +/- 39.410 ms/op`.
+
+The full `./gradlew :core:engine:runtime2:check` gate passed in 5m 27s.
+
 ### 2026-09-27 07:57:14 UTC
 
 Host: `raymie-stata-codex`; one Intel Xeon Platinum 8375C socket, 32 physical cores / 64 logical CPUs, 495 GiB RAM, no swap, one NUMA node, and cgroup `cpu.max=max 100000` (no quota).

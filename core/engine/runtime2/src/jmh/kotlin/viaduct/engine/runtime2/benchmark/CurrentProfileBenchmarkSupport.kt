@@ -10,6 +10,8 @@ import kotlin.math.ceil
 import kotlinx.coroutines.runBlocking
 import org.openjdk.jmh.infra.Blackhole
 import viaduct.engine.api.EngineObjectData
+import viaduct.engine.runtime2.arbitrary.GeneratedFieldCheckerMode
+import viaduct.engine.runtime2.arbitrary.GeneratedTypeCheckerMode
 import viaduct.engine.runtime2.arbitrary.ResolverBenchmarkCorpus
 import viaduct.engine.runtime2.arbitrary.ResolverBenchmarkQueryCorpus
 import viaduct.engine.runtime2.arbitrary.TestCaseCount
@@ -30,6 +32,9 @@ import viaduct.engine.runtime2.model.registry.Assumptions
 import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.testing.fragmentFrom
 import viaduct.engine.runtime2.model.testing.objectOf
+import viaduct.engine.runtime2.resolution.framework.CheckerInvocationObservation
+import viaduct.engine.runtime2.resolution.framework.CheckerKind
+import viaduct.engine.runtime2.resolution.framework.CheckerObserver
 import viaduct.engine.runtime2.resolution.framework.ResolverObserver
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 import viaduct.engine.runtime2.resolution.framework.instantiateBindings
@@ -75,7 +80,7 @@ internal class CurrentProfileBenchmarkSupport(
 
     fun prepareOverheadInvocation(loopCount: Int) {
         require(loopCount > 0) { "Resolver benchmark loop count must be positive" }
-        val testWorld = corpus.world()
+        val testWorld = corpus.benchmarkWorld()
         val parsedQueries =
             querySources.map { source ->
                 testWorld.schemas.fragmentFrom(source).subselections
@@ -109,7 +114,7 @@ internal class CurrentProfileBenchmarkSupport(
     }
 
     fun reportOverheadStatistics() {
-        val testWorld = corpus.world()
+        val testWorld = corpus.benchmarkWorld()
         val variableArgumentCounts = mutableListOf<Long>()
         val samples =
             querySources.map { source ->
@@ -121,6 +126,10 @@ internal class CurrentProfileBenchmarkSupport(
                         mutableListOf<ResolverBenchmarkInvocationObservation>(),
                     )
                 val witnessObserver = corpus.registry.resolverObserver()
+                val checkerKinds =
+                    Collections.synchronizedList(
+                        mutableListOf<CheckerKind>(),
+                    )
                 val observer = object : ResolverObserver {
                     override fun onResolverInvocation(observation: viaduct.engine.runtime2.resolution.framework.ResolverInvocationObservation) {
                         witnessObserver.onResolverInvocation(observation)
@@ -132,7 +141,17 @@ internal class CurrentProfileBenchmarkSupport(
                         )
                     }
                 }
-                val operation = SharedOperationContext.create(world, resolverObserver = observer)
+                val operation =
+                    SharedOperationContext.create(
+                        world,
+                        resolverObserver = observer,
+                        checkerObserver =
+                            object : CheckerObserver {
+                                override fun onCheckerInvocation(observation: CheckerInvocationObservation) {
+                                    checkerKinds += observation.checkerKind
+                                }
+                            },
+                    )
                 val result =
                     subject.resolve(
                         operation = operation,
@@ -156,6 +175,8 @@ internal class CurrentProfileBenchmarkSupport(
                     activeFields = shape.activeFields,
                     passiveFields = shape.passiveFields,
                     resolverExecutions = witness.applications.size.toLong(),
+                    fieldCheckerExecutions = checkerKinds.count { kind -> kind == CheckerKind.FIELD }.toLong(),
+                    typeCheckerExecutions = checkerKinds.count { kind -> kind == CheckerKind.TYPE }.toLong(),
                     variableBearingResolverExecutions =
                         queryVariableArgumentCounts.count { count -> count > 0 }.toLong(),
                     variableStackDepth = applicationObservations.maximumVariableStackDepth(),
@@ -190,6 +211,14 @@ internal class CurrentProfileBenchmarkSupport(
                 appendLine(
                     "  resolvers executed: " +
                         samples.statistics(OverheadSample::resolverExecutions),
+                )
+                appendLine(
+                    "  field checkers executed: " +
+                        samples.statistics(OverheadSample::fieldCheckerExecutions),
+                )
+                appendLine(
+                    "  type checkers executed: " +
+                        samples.statistics(OverheadSample::typeCheckerExecutions),
                 )
                 appendLine(
                     "  resolver executions with variable-bearing arguments: " +
@@ -239,6 +268,8 @@ internal class CurrentProfileBenchmarkSupport(
                     config = resolverBenchmarkFullConfig(),
                     profile = "resolver-benchmark-full",
                     seed = 1L,
+                    fieldCheckerMode = GeneratedFieldCheckerMode.RUNTIME_SUCCESS,
+                    typeCheckerMode = GeneratedTypeCheckerMode.RUNTIME_SUCCESS,
                 ) { testWorld, testCase ->
                     check(testCase.query.selectionDepth >= 4)
                     val world = testWorld.newAssumptions(selectiveResolvers = true)
@@ -290,10 +321,18 @@ internal class CurrentProfileBenchmarkSupport(
         val activeFields: Long,
         val passiveFields: Long,
         val resolverExecutions: Long,
+        val fieldCheckerExecutions: Long,
+        val typeCheckerExecutions: Long,
         val variableBearingResolverExecutions: Long,
         val variableStackDepth: Long,
         val depth: Long,
     )
+
+    private fun ResolverBenchmarkCorpus.benchmarkWorld(): viaduct.engine.runtime2.model.testing.TestWorld =
+        world(
+            fieldCheckerMode = GeneratedFieldCheckerMode.RUNTIME_SUCCESS,
+            typeCheckerMode = GeneratedTypeCheckerMode.RUNTIME_SUCCESS,
+        )
 
     private fun EngineResult?.shape(
         world: Assumptions,
@@ -396,10 +435,19 @@ internal class CurrentProfileBenchmarkSupport(
             "  selections per object fragment: " +
                 objectFragmentSelections.statistics(value = { it }),
         )
-        append(
+        appendLine(
             "  object fragment depth: " +
                 objectFragmentDepths.statistics(value = { it }),
         )
+        appendLine("Resolver benchmark feature counts:")
+        appendLine("  field resolvers: ${corpus.registry.fieldResolverCoordinates.size}")
+        appendLine("  field checkers: ${corpus.registry.generatedFieldCheckerCoordinates.size}")
+        appendLine("  type checkers: ${corpus.schema.objects.size}")
+        appendLine("  Query fragments: ${corpus.registry.features.queryFragmentCount}")
+        appendLine("  FromArgument variables: ${corpus.registry.features.fromArgumentVariableCount}")
+        appendLine("  FromObjectField variables: ${corpus.registry.features.fromObjectFieldVariableCount}")
+        appendLine("  FromQueryField variables: ${corpus.registry.features.fromQueryFieldVariableCount}")
+        append("  FromProvider variables: ${corpus.registry.features.fromProviderVariableCount}")
     }
 
     private fun <T> List<T>.statistics(

@@ -10,7 +10,8 @@ import viaduct.graphql.schema.ViaductSchema
  *
  * [size] observes the number of current members. A forest returned by GraphQL selection
  * flattening has one member for each flattened GraphQL field occurrence, but that is a
- * postcondition of flattening rather than an invariant of every forest.
+ * postcondition of flattening rather than an invariant of every forest. Every representation
+ * rejects a forest containing more than [MAX_SIZE] members.
  *
  * ### Equality And Observation
  *
@@ -34,6 +35,16 @@ sealed interface SelectionForest {
     fun single(): Selection
 
     operator fun plus(other: SelectionForest): SelectionForest
+
+    companion object {
+        internal const val MAX_SIZE = 500_000
+
+        internal fun requireSupportedSize(size: Int) {
+            require(size <= MAX_SIZE) {
+                "A selection forest cannot contain more than $MAX_SIZE selections"
+            }
+        }
+    }
 }
 
 /**
@@ -85,7 +96,7 @@ sealed interface ObjectSelectionForest : SelectionForest {
             val occurrences =
                 buildList {
                     addAll(selections)
-                }
+                }.also { it.validateOrdinarySelections() }
             val byKey =
                 buildMap {
                     occurrences.forEach { selection ->
@@ -107,17 +118,19 @@ sealed interface ObjectSelectionForest : SelectionForest {
 }
 
 /** Constructs a [SelectionForest] containing the supplied occurrences. */
-fun selectionForestOf(vararg selections: Selection): SelectionForest = SelectionForestImpl(selections.asList())
+fun selectionForestOf(vararg selections: Selection): SelectionForest = SelectionForestImpl(selections.asList().also { it.validateOrdinarySelections() })
 
 /** Constructs a [SelectionForest] from these occurrences. */
-fun Iterable<Selection>.toSelectionForest(): SelectionForest = SelectionForestImpl(toList())
+fun Iterable<Selection>.toSelectionForest(): SelectionForest = SelectionForestImpl(toList().also { it.validateOrdinarySelections() })
 
 /** Maps each input to a forest and concatenates the results without comparing selections. */
 fun <T : Any> Iterable<T>.flatMapToSelectionForest(transform: (T) -> SelectionForest): SelectionForest =
     SelectionForestImpl(
         buildList {
             this@flatMapToSelectionForest.forEach { element ->
-                addAll(transform(element).occurrences())
+                val forest = transform(element)
+                if (forest is MutationSelectionForest) forest.orderedSelections().validateOrdinarySelections()
+                forest.forEach(::add)
             }
         },
     )
@@ -141,7 +154,7 @@ fun SelectionForest.merge(type: ViaductSchema.Object): ObjectSelectionForest {
     require(this !is MutationSelectionForest) { "Mutation forests must retain response-key collection and source order" }
     val occurrencesByKey =
         buildMap<ObjectEngineResult.ObjectKey, MutableList<Selection>> {
-            occurrences().forEach { selection ->
+            this@merge.forEach { selection ->
                 if (type in selection.possibleTypes) {
                     getOrPut(selection.objectKey(type), ::mutableListOf).add(selection)
                 }
@@ -425,28 +438,24 @@ private class ObjectSelectionImpl(
     override val subselections: SelectionForest,
 ) : ObjectSelection
 
-/** Conjunctively guards each occurrence, distributing disjunction into concatenated occurrences. */
+/** Conjunctively guards each occurrence while retaining a compact condition graph. */
 fun SelectionForest.guardedBy(condition: InclusionCondition): SelectionForest =
-    condition.alternatives().flatMapToSelectionForest { alternative ->
-        flatMap { selection ->
-            selectionForestOf(
-                Selection.of(
-                    key = selection.key,
-                    possibleTypes = selection.possibleTypes,
-                    subselections = selection.subselections,
-                    inclusionCondition = alternative.and(selection.inclusionCondition),
-                ),
-            )
-        }
+    flatMap { selection ->
+        selectionForestOf(
+            Selection.of(
+                key = selection.key,
+                possibleTypes = selection.possibleTypes,
+                subselections = selection.subselections,
+                inclusionCondition = condition.and(selection.inclusionCondition),
+            ),
+        )
     }
 
 private abstract class AbstractSelectionForest(
     val occurrences: List<Selection>,
 ) : SelectionForest {
     init {
-        require(occurrences.none { it is MutationSelection || it.subselections is MutationSelectionForest }) {
-            "An ordinary selection forest cannot contain mutation selections or mutation subselections"
-        }
+        SelectionForest.requireSupportedSize(occurrences.size)
     }
 
     override val size: Int
@@ -458,7 +467,7 @@ private abstract class AbstractSelectionForest(
 
     override fun filter(predicate: (Selection) -> Boolean): SelectionForest = SelectionForestImpl(occurrences.filter(predicate))
 
-    override fun flatMap(transform: (Selection) -> SelectionForest): SelectionForest = occurrences.flatMapToSelectionForest(transform)
+    override fun flatMap(transform: (Selection) -> SelectionForest): SelectionForest = flatMapSelections(transform)
 
     override fun forEach(action: (Selection) -> Unit) {
         occurrences.forEach(action)
@@ -466,7 +475,104 @@ private abstract class AbstractSelectionForest(
 
     override fun single(): Selection = occurrences.single()
 
-    override fun plus(other: SelectionForest): SelectionForest = SelectionForestImpl(occurrences + other.occurrences())
+    override fun plus(other: SelectionForest): SelectionForest {
+        if (other is MutationSelectionForest) other.orderedSelections().validateOrdinarySelections()
+        if (other.isEmpty()) return this
+        if (isEmpty()) return other
+        return ConcatenatedSelectionForest(this, other)
+    }
+}
+
+private class ConcatenatedSelectionForest(
+    val left: SelectionForest,
+    val right: SelectionForest,
+) : SelectionForest {
+    override val size: Int = left.size + right.size
+
+    init {
+        SelectionForest.requireSupportedSize(size)
+    }
+
+    override fun isEmpty(): Boolean = size == 0
+
+    override fun all(predicate: (Selection) -> Boolean): Boolean = visitWhile(predicate)
+
+    override fun filter(predicate: (Selection) -> Boolean): SelectionForest =
+        SelectionForestImpl(
+            buildList {
+                this@ConcatenatedSelectionForest.forEach { selection ->
+                    if (predicate(selection)) add(selection)
+                }
+            },
+        )
+
+    override fun flatMap(transform: (Selection) -> SelectionForest): SelectionForest = flatMapSelections(transform)
+
+    override fun forEach(action: (Selection) -> Unit) {
+        visitWhile { selection ->
+            action(selection)
+            true
+        }
+    }
+
+    override fun single(): Selection {
+        if (size == 0) throw NoSuchElementException("List is empty.")
+        require(size == 1) { "List has more than one element." }
+        var result: Selection? = null
+        forEach { result = it }
+        return requireNotNull(result)
+    }
+
+    override fun plus(other: SelectionForest): SelectionForest {
+        if (other is MutationSelectionForest) other.orderedSelections().validateOrdinarySelections()
+        if (other.isEmpty()) return this
+        // Ordinary forests are unordered; keep an added leaf on the left for chain traversal.
+        return if (other is ConcatenatedSelectionForest) {
+            ConcatenatedSelectionForest(this, other)
+        } else {
+            ConcatenatedSelectionForest(other, this)
+        }
+    }
+}
+
+private fun SelectionForest.flatMapSelections(transform: (Selection) -> SelectionForest): SelectionForest =
+    SelectionForestImpl(
+        buildList {
+            this@flatMapSelections.forEach { selection ->
+                val forest = transform(selection)
+                if (forest is MutationSelectionForest) forest.orderedSelections().validateOrdinarySelections()
+                forest.forEach(::add)
+            }
+        },
+    )
+
+private fun SelectionForest.visitWhile(predicate: (Selection) -> Boolean): Boolean {
+    var forest = this
+    var pending: ArrayDeque<SelectionForest>? = null
+    while (true) {
+        when (forest) {
+            is ConcatenatedSelectionForest -> {
+                if (forest.left is ConcatenatedSelectionForest) {
+                    if (pending == null) pending = ArrayDeque()
+                    pending.addLast(forest.right)
+                    forest = forest.left
+                } else {
+                    if (!forest.left.all(predicate)) return false
+                    forest = forest.right
+                }
+            }
+            else -> {
+                if (!forest.all(predicate)) return false
+                forest = pending?.removeLastOrNull() ?: return true
+            }
+        }
+    }
+}
+
+private fun Iterable<Selection>.validateOrdinarySelections() {
+    require(none { it is MutationSelection || it.subselections is MutationSelectionForest }) {
+        "An ordinary selection forest cannot contain mutation selections or mutation subselections"
+    }
 }
 
 private class SelectionForestImpl(
@@ -499,9 +605,3 @@ private class ObjectSelectionForestImpl(
 
     override fun get(key: ObjectEngineResult.ObjectKey): ObjectSelection = selectionsByKey.getValue(key)
 }
-
-private fun SelectionForest.occurrences(): List<Selection> =
-    when (this) {
-        is MutationSelectionForest -> orderedSelections()
-        else -> (this as AbstractSelectionForest).occurrences
-    }

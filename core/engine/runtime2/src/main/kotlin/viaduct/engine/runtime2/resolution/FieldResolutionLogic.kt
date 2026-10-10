@@ -1,19 +1,13 @@
 package viaduct.engine.runtime2.resolution
 
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.Deferred
-import kotlinx.coroutines.async
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
-import kotlinx.coroutines.selects.select
-import kotlinx.coroutines.supervisorScope
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.runtime2.model.Arguments
 import viaduct.engine.runtime2.model.EngineErrorData
 import viaduct.engine.runtime2.model.EngineObjectOrErrorData
 import viaduct.engine.runtime2.model.EngineResult
 import viaduct.engine.runtime2.model.ErrorEngineResult
-import viaduct.engine.runtime2.model.InclusionCondition
 import viaduct.engine.runtime2.model.NodeReferenceIdentity
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.ObjectSelection
@@ -33,7 +27,6 @@ import viaduct.engine.runtime2.model.nodeReferenceIdentityOrNull
 import viaduct.engine.runtime2.model.registry.ProviderFragment
 import viaduct.engine.runtime2.model.registry.VariableDefinition
 import viaduct.engine.runtime2.model.requireQueryTypeDef
-import viaduct.engine.runtime2.model.satisfiableAlternatives
 import viaduct.engine.runtime2.model.selectionForestOf
 import viaduct.engine.runtime2.resolution.framework.ResolverInvocationObservation
 import viaduct.engine.runtime2.resolution.framework.RootFieldReferenceInvocationObservation
@@ -544,53 +537,3 @@ internal class FieldResolutionLogic(
         }
     }
 }
-
-/** Shared cells activate from any independently ready true demand alternative. */
-internal suspend fun InclusionCondition.includeAnyReadyAlternative(binding: suspend (Arguments.Variable) -> Boolean): Boolean =
-    supervisorScope {
-        val alternatives = satisfiableAlternatives()
-        if (alternatives.size <= 1) {
-            return@supervisorScope alternatives.singleOrNull()?.include(binding) ?: false
-        }
-        val remaining =
-            alternatives.mapTo(linkedSetOf()) { alternative ->
-                async {
-                    try {
-                        Result.success(alternative.include(binding))
-                    } catch (cause: Exception) {
-                        Result.failure(cause)
-                    }
-                }
-            }
-        var failure: Throwable? = null
-        while (remaining.isNotEmpty()) {
-            val (completed, result) =
-                select<Pair<Deferred<Result<Boolean>>, Result<Boolean>>> {
-                    remaining.forEach { alternative ->
-                        alternative.onAwait { result -> alternative to result }
-                    }
-                }
-            remaining.remove(completed)
-            result.fold(
-                onSuccess = { included ->
-                    if (included) {
-                        remaining.forEach { it.cancel() }
-                        remaining.forEach { alternative ->
-                            try {
-                                alternative.await()
-                            } catch (_: CancellationException) {
-                                currentCoroutineContext().ensureActive()
-                            }
-                        }
-                        return@supervisorScope true
-                    }
-                },
-                onFailure = { cause ->
-                    currentCoroutineContext().ensureActive()
-                    if (failure == null) failure = cause
-                },
-            )
-        }
-        failure?.let { throw it }
-        false
-    }

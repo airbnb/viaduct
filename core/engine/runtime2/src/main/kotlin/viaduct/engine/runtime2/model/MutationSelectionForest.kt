@@ -27,6 +27,7 @@ sealed interface MutationSelectionForest : SelectionForest {
         ): MutationSelectionForest {
             require(type in schema.mutationNamespaceTypes()) { "${type.name} is not a mutation namespace type" }
             val members = selections.toList()
+            SelectionForest.requireSupportedSize(members.size)
             members.forEach { selection ->
                 require(
                     selection.possibleTypes == setOf(type) &&

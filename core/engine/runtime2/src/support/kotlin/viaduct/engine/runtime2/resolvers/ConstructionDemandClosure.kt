@@ -9,7 +9,6 @@ import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.model.guardedBy
 import viaduct.engine.runtime2.model.merge
 import viaduct.engine.runtime2.model.requireQueryTypeDef
-import viaduct.engine.runtime2.model.satisfiableAlternatives
 import viaduct.engine.runtime2.model.schemaType
 import viaduct.engine.runtime2.model.selectionForestOf
 import viaduct.engine.runtime2.resolution.framework.Demand
@@ -245,18 +244,14 @@ private fun Demand<ObjectSelectionForest>.newCheckerKeyInclusions(
     operation: SharedOperationContext<*>,
     expanded: MutableSet<Pair<ObjectEngineResult.GroundKey, InclusionCondition>>,
 ): List<Pair<ObjectEngineResult.GroundKey, InclusionCondition>> =
-    checked.byGroundKey().flatMap { (key, selection) ->
+    checked.byGroundKey().mapNotNull { (key, selection) ->
         if (
             key.arguments.argumentsContainErrorValue() ||
             operation.world.resolverRegistry.fieldChecker(key.field) == null
         ) {
-            emptyList()
+            null
         } else {
-            selection.inclusionCondition
-                .satisfiableAlternatives()
-                .mapNotNull { inclusion ->
-                    (key to inclusion).takeIf(expanded::add)
-                }
+            (key to selection.inclusionCondition).takeIf(expanded::add)
         }
     }
 

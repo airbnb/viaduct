@@ -61,7 +61,7 @@ class InclusionConditionTest {
     }
 
     @Test
-    fun `nested and duplicate disjunction alternatives are flattened and idempotent`() {
+    fun `nested and duplicate disjunctions preserve inclusion behavior`() {
         val xRequired = InclusionCondition.requires(mapOf(x to true))
         val yRequired = InclusionCondition.requires(mapOf(y to false))
         val condition =
@@ -76,12 +76,10 @@ class InclusionConditionTest {
         assertTrue(condition.include(mapOf(x to true, y to true)))
         assertTrue(condition.include(mapOf(x to false, y to false)))
         assertFalse(condition.include(mapOf(x to false, y to true)))
-        assertEquals(listOf(xRequired, yRequired), condition.satisfiableAlternatives())
-        assertTrue(InclusionCondition.Never.satisfiableAlternatives().isEmpty())
     }
 
     @Test
-    fun `conjunction distributes over disjunction`() {
+    fun `conjunction prunes contradicted disjunction branches without distribution`() {
         val condition =
             InclusionCondition.anyOf(
                 listOf(
@@ -93,6 +91,7 @@ class InclusionConditionTest {
         assertTrue(condition.include(mapOf(x to true, y to false)))
         assertFalse(condition.include(mapOf(x to false, y to false)))
         assertFalse(condition.include(mapOf(x to true, y to true)))
+        assertEquals(1, condition.nodeCount())
     }
 
     @Test
@@ -148,5 +147,43 @@ class InclusionConditionTest {
                 },
             )
             assertTrue(visited.isEmpty())
+        }
+
+    @Test
+    fun `condition graph grows linearly across Boolean products`() {
+        val owner = viaduct.engine.runtime2.model.ResolverOccurrenceId.at(
+            ObjectEngineResult.of(schema.requireQueryTypeDef(), mutable = true),
+            emptyList(),
+        )
+        var condition: InclusionCondition = InclusionCondition.Always
+        repeat(100) { index ->
+            val left = Arguments.Variable.of(field, "left$index").instantiate(owner)
+            val right = Arguments.Variable.of(field, "right$index").instantiate(owner)
+            condition =
+                condition.and(
+                    InclusionCondition.requires(mapOf(left to true))
+                        .or(InclusionCondition.requires(mapOf(right to true))),
+                )
+        }
+
+        assertTrue(condition.nodeCount() <= 400)
+        assertEquals(200, condition.usedVariables().size)
+    }
+
+    @Test
+    fun `wide condition operations are stack safe`() =
+        runBlocking {
+            val condition =
+                InclusionCondition.anyOf(
+                    (0 until 10_000).map { index ->
+                        InclusionCondition.requires(mapOf(Arguments.Variable.of(field, "x$index") to true))
+                    },
+                )
+
+            assertFalse(condition.includeWith { false })
+            assertFalse(condition.include { false })
+            assertEquals(10_000, condition.usedVariables().size)
+            assertFalse(condition.include(condition.usedVariables().associateWith { false }))
+            assertEquals(condition, condition.mapVariables { it })
         }
 }

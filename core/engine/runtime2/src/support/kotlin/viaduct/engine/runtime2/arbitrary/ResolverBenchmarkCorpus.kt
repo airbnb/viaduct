@@ -22,9 +22,14 @@ class ResolverBenchmarkCorpus private constructor(
     val schemaSDL: String
         get() = schema.sdl
 
-    fun world(): TestWorld =
+    fun world(
+        fieldCheckerMode: GeneratedFieldCheckerMode = GeneratedFieldCheckerMode.NONE,
+        typeCheckerMode: GeneratedTypeCheckerMode = GeneratedTypeCheckerMode.NONE,
+    ): TestWorld =
         registry.world(
             schemaSDL = schemaSDL,
+            fieldCheckerMode = fieldCheckerMode,
+            typeCheckerMode = typeCheckerMode,
         )
 
     fun generateQueries(
@@ -145,7 +150,10 @@ fun ArbitraryRegistry.encodeResolverBenchmarkCorpus(
             registry = toRegistryDocument(),
             metrics = metrics.toSortedMap(),
         )
-    return corpusMapper.writeValueAsString(document) + "\n"
+    return corpusMapper
+        .writer()
+        .without(SerializationFeature.INDENT_OUTPUT)
+        .writeValueAsString(document) + "\n"
 }
 
 private const val CORPUS_VERSION = 1

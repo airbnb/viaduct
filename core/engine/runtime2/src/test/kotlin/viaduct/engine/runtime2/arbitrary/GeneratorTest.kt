@@ -39,34 +39,39 @@ class GeneratorTest {
         val random = RandomSource.seeded(1L)
         val schema = Arb.schema(Config.default).next(random)
         val registry = schema.registry(Config.default).next(random)
-        val original = registry.encodeResolverBenchmarkCorpus(schema)
+        val encoded = registry.encodeResolverBenchmarkCorpus(schema)
         val mapper = jacksonObjectMapper()
-        val document = mapper.readTree(original)
+        val document = mapper.readTree(encoded)
         (document.get("schema") as ObjectNode).remove("sdl")
-        val compressed = ByteArrayOutputStream().apply {
-            GZIPOutputStream(this).use { it.write(mapper.writeValueAsBytes(document)) }
-        }.toByteArray()
-        val loader = object : ClassLoader() {
-            override fun getResourceAsStream(name: String) =
-                when (name) {
-                    "schema.graphqls" -> schema.sdl.byteInputStream()
-                    "registry.json.gz" -> compressed.inputStream()
-                    "registry.json" -> original.byteInputStream()
-                    else -> null
-                }
-        }
+        val compressed =
+            ByteArrayOutputStream().apply {
+                GZIPOutputStream(this).use { it.write(mapper.writeValueAsBytes(document)) }
+            }.toByteArray()
+        val loader =
+            object : ClassLoader() {
+                override fun getResourceAsStream(name: String) =
+                    when (name) {
+                        "schema.graphqls" -> schema.sdl.byteInputStream()
+                        "registry.json.gz" -> compressed.inputStream()
+                        "registry.json" -> encoded.byteInputStream()
+                        else -> null
+                    }
+            }
 
-        val compressedCorpus = ResolverBenchmarkCorpus.load("schema.graphqls", "registry.json.gz", loader)
-        val originalCorpus = ResolverBenchmarkCorpus.load("schema.graphqls", "registry.json", loader)
+        val compressedCorpus =
+            ResolverBenchmarkCorpus.load("schema.graphqls", "registry.json.gz", loader)
+        val uncompressedCorpus =
+            ResolverBenchmarkCorpus.load("schema.graphqls", "registry.json", loader)
 
+        assertFalse(encoded.contains("\n  "))
         assertEquals(schema.sdl, compressedCorpus.schemaSDL)
         assertEquals(
-            originalCorpus.registry.encodeResolverBenchmarkCorpus(originalCorpus.schema),
+            uncompressedCorpus.registry.encodeResolverBenchmarkCorpus(uncompressedCorpus.schema),
             compressedCorpus.registry.encodeResolverBenchmarkCorpus(compressedCorpus.schema),
         )
         compressedCorpus.world()
         assertFailsWith<IllegalArgumentException> {
-            ResolverBenchmarkCorpus.decode("type Query { different: String }", original)
+            ResolverBenchmarkCorpus.decode("type Query { different: String }", encoded)
         }
     }
 

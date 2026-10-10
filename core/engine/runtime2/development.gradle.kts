@@ -49,6 +49,8 @@ val resolverBenchmarkCorpusDirectory =
     layout.projectDirectory.dir("src/jmh/resources/viaduct/engine/runtime2/benchmark/current-profile")
 val resolverBenchmarkQueriesFile =
     resolverBenchmarkCorpusDirectory.file("queries.json")
+val resolverBenchmarkRegistryFile =
+    resolverBenchmarkCorpusDirectory.file("registry.json.gz")
 
 tasks.register<JavaExec>("generateResolverBenchmarkCorpus") {
     group = "benchmark"
@@ -83,7 +85,7 @@ tasks.register<JavaExec>("generateResolverBenchmarkQueries") {
     classpath = sourceSets["support"].runtimeClasspath
     mainClass.set("viaduct.engine.runtime2.benchmark.ResolverBenchmarkQueryCorpusWriter")
     inputs.file(resolverBenchmarkCorpusDirectory.file("schema.graphqls"))
-    inputs.file(resolverBenchmarkCorpusDirectory.file("registry.json"))
+    inputs.file(resolverBenchmarkRegistryFile)
     inputs.property("queryCount", resolverBenchmarkQueryCount)
     inputs.property("querySeed", resolverBenchmarkQuerySeed)
     outputs.file(resolverBenchmarkQueriesFile)
@@ -93,7 +95,7 @@ tasks.register<JavaExec>("generateResolverBenchmarkQueries") {
         args =
             listOf(
                 resolverBenchmarkCorpusDirectory.file("schema.graphqls").asFile.absolutePath,
-                resolverBenchmarkCorpusDirectory.file("registry.json").asFile.absolutePath,
+                resolverBenchmarkRegistryFile.asFile.absolutePath,
                 resolverBenchmarkQueriesFile.asFile.absolutePath,
                 resolverBenchmarkQueryCount.get(),
                 resolverBenchmarkQuerySeed.get(),
@@ -172,6 +174,20 @@ fun registerResolverBenchmarkTask(
 listOf("resolution").forEach { resolver ->
     registerResolverBenchmarkTask(resolver, "full")
     registerResolverBenchmarkTask(resolver, "overhead")
+}
+
+tasks.register<JavaExec>("guardedCheckerResolutionBenchmark") {
+    group = "benchmark"
+    description = "Benchmarks Resolution over guarded resolver demand ending in a field checker."
+    val benchmarkJar = tasks.named<org.gradle.jvm.tasks.Jar>("jmhJar")
+    dependsOn(benchmarkJar)
+    classpath = files(benchmarkJar.flatMap { jar -> jar.archiveFile })
+    mainClass.set("org.openjdk.jmh.Main")
+    outputs.upToDateWhen { false }
+
+    args(
+        "viaduct\\.engine\\.runtime2\\.resolution\\.GuardedCheckerResolutionBenchmark\\.execute",
+    )
 }
 
 tasks.register<JavaExec>("resolutionOverheadProfile") {

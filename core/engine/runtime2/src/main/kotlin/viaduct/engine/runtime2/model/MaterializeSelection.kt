@@ -190,21 +190,19 @@ fun SelectionForest.toCanonicalMaterializeSelectionForest(): MaterializeSelectio
     return selections.toMaterializeSelectionForest()
 }
 
-/** Conjunctively guards each source occurrence, distributing disjunction into occurrences. */
+/** Conjunctively guards each source occurrence while retaining a compact condition graph. */
 fun MaterializeSelectionForest.guardedBy(condition: InclusionCondition): MaterializeSelectionForest =
-    condition.alternatives().flatMapToMaterializeSelectionForest { alternative ->
-        flatMap { selection ->
-            materializeSelectionForestOf(
-                MaterializeSelection.of(
-                    responseKey = selection.responseKey,
-                    key = selection.key,
-                    possibleTypes = selection.possibleTypes,
-                    subselections = selection.subselections,
-                    inclusionCondition = alternative.and(selection.inclusionCondition),
-                    fieldDirectives = selection.fieldDirectives,
-                ),
-            )
-        }
+    flatMap { selection ->
+        materializeSelectionForestOf(
+            MaterializeSelection.of(
+                responseKey = selection.responseKey,
+                key = selection.key,
+                possibleTypes = selection.possibleTypes,
+                subselections = selection.subselections,
+                inclusionCondition = condition.and(selection.inclusionCondition),
+                fieldDirectives = selection.fieldDirectives,
+            ),
+        )
     }
 
 private class MaterializeSelectionImpl(

@@ -22,14 +22,15 @@ import viaduct.engine.runtime2.model.ResolverTarget
 import viaduct.engine.runtime2.model.RootFieldReferenceData
 import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.model.VariableBinding
+import viaduct.engine.runtime2.model.includeIfBound
 import viaduct.engine.runtime2.model.merge
 import viaduct.engine.runtime2.model.outputValue
 import viaduct.engine.runtime2.model.registry.ResolverFragments
-import viaduct.engine.runtime2.model.satisfiableAlternatives
 import viaduct.engine.runtime2.model.selectionForestOf
 import viaduct.engine.runtime2.resolution.framework.CheckerInvocationObservation
 import viaduct.engine.runtime2.resolution.framework.CheckerKind
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
+import viaduct.engine.runtime2.resolution.framework.VariableBindingsState
 import viaduct.engine.runtime2.resolution.framework.findStoredKey
 import viaduct.engine.runtime2.resolution.framework.groundedArguments
 
@@ -150,7 +151,7 @@ private class TypeCheckerDemandOracle(
                 forest.merge(value.type).byKey().values.forEach { selection ->
                     // Filter at the owner edge before expanding either kind of input. This also
                     // covers symbolic owners whose arguments become Error before invocation.
-                    if (!selection.inclusionCondition.hasIncludedAlternative()) return@forEach
+                    if (!selection.inclusionCondition.hasIncludedAlternative(operation.variableBindings)) return@forEach
                     val key = requireNotNull(value.findStoredKey(operation, selection.key))
                     val path = owner.path + key
                     if (key !is ObjectEngineResult.ParentKey) {
@@ -173,19 +174,6 @@ private class TypeCheckerDemandOracle(
             else -> Unit
         }
     }
-
-    /** A failed condition excludes its alternative, without suppressing another successful one. */
-    private fun InclusionCondition.hasIncludedAlternative(): Boolean =
-        satisfiableAlternatives().any { alternative ->
-            when (alternative) {
-                InclusionCondition.Always -> true
-                is InclusionCondition.Requires -> alternative.values.all { (variable, required) ->
-                    val binding = operation.variableBindings.getBinding(requireNotNull(variable.instanceId))
-                    binding is VariableBinding.Input && binding.value == required
-                }
-                else -> false
-            }
-        }
 
     private fun demandResolverInputs(
         owner: CheckedObjectAddress,
@@ -245,6 +233,17 @@ private class TypeCheckerDemandOracle(
         }
         visit(owner.result.getCell(key).value.get(), sourceField(owner, key), owner.path + key)
     }
+}
+
+/** A failed binding excludes its compact Boolean branch without suppressing successful siblings. */
+internal fun InclusionCondition.hasIncludedAlternative(variableBindings: VariableBindingsState): Boolean {
+    val bindings = mutableMapOf<Arguments.Variable, Boolean>()
+    usedVariables().forEach { variable ->
+        val binding = variableBindings.getBinding(requireNotNull(variable.instanceId))
+        val value = (binding as? VariableBinding.Input)?.value
+        if (value is Boolean) bindings[variable] = value
+    }
+    return includeIfBound(bindings)
 }
 
 private class CheckedObjectAddress(

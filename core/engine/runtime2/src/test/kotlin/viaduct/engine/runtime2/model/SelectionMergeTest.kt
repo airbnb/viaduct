@@ -341,6 +341,17 @@ class SelectionMergeTest {
         assertTrue(b.inclusionCondition.include(mapOf(x to false, y to true)))
     }
 
+    @Test
+    fun `guarding preserves statically excluded occurrences as metadata`() {
+        val fixture = Fixture()
+        val selection = fixture.selection("Query", "scalar", arguments = mapOf("arg" to 1))
+
+        val guarded = selectionForestOf(selection).guardedBy(InclusionCondition.Never)
+
+        assertEquals(1, guarded.size)
+        assertSame(InclusionCondition.Never, guarded.single().inclusionCondition)
+    }
+
     private class Fixture {
         val testWorld = TestWorld.fromSDL(SCHEMA)
         val world = testWorld.assumptions
