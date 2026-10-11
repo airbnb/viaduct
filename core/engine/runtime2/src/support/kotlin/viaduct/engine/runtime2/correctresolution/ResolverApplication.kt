@@ -523,7 +523,7 @@ private class ResolverReplayLogic(
         demand: SelectionForest,
     ): ResolverOutputData? {
         if (identity == null || this !is EngineObjectData.Sync) return this
-        if (schemaType != identity.type) return this
+        if (schemaType(operation.world.schema) != identity.type) return this
         val idField = identity.type.field("id") ?: return this
         if (demand
                 .merge(identity.type)

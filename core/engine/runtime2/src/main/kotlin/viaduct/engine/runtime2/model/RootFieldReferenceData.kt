@@ -2,6 +2,18 @@ package viaduct.engine.runtime2.model
 
 import viaduct.graphql.schema.ViaductSchema
 
+/** An Engine API compatibility handle carrying an already constructed canonical reference. */
+internal interface RootFieldReferenceDataCarrier {
+    val referenceData: RootFieldReferenceData
+}
+
+internal fun ResolverOutputData?.rootFieldReferenceDataOrNull(): RootFieldReferenceData? =
+    when (this) {
+        is RootFieldReferenceData -> this
+        is RootFieldReferenceDataCarrier -> referenceData
+        else -> null
+    }
+
 /**
  * A symbolic instruction to resolve one Query-reachable field.
  *

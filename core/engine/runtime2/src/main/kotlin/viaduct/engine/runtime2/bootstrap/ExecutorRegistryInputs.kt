@@ -1,23 +1,14 @@
 package viaduct.engine.runtime2.bootstrap
 
-import graphql.GraphQLContext
-import graphql.schema.GraphQLCompositeType
-import graphql.schema.GraphQLList
-import graphql.schema.GraphQLNonNull
 import graphql.schema.GraphQLObjectType
-import graphql.schema.GraphQLOutputType
-import graphql.schema.GraphQLScalarType
 import graphql.schema.GraphQLTypeUtil
-import java.util.Locale
 import viaduct.engine.api.Coordinate
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.EngineSelectionSet
-import viaduct.engine.api.NodeReference
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.ResolvedEngineObjectData
-import viaduct.engine.api.RootFieldReference
 import viaduct.engine.api.spi.CheckerExecutor
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.FieldSelectivityProvider
@@ -46,6 +37,7 @@ import viaduct.engine.runtime2.model.engineObjectDataOf
 import viaduct.engine.runtime2.model.guardedBy
 import viaduct.engine.runtime2.model.inputType
 import viaduct.engine.runtime2.model.materializeSelectionForestOf
+import viaduct.engine.runtime2.model.outputValue
 import viaduct.engine.runtime2.model.registry.CheckerInput
 import viaduct.engine.runtime2.model.registry.FieldCheckerResolver
 import viaduct.engine.runtime2.model.registry.FieldResolverDefinition
@@ -66,6 +58,8 @@ import viaduct.engine.runtime2.model.requireArg
 import viaduct.engine.runtime2.model.requireField
 import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.requireType
+import viaduct.engine.runtime2.model.rootFieldReferenceDataOrNull
+import viaduct.engine.runtime2.model.schemaType
 import viaduct.engine.runtime2.resolution.currentVariablesProviderResolutionContext
 import viaduct.engine.runtime2.schema.SourceSchemaAdapter
 import viaduct.engine.runtime2.schema.ViaductAndGJSchema
@@ -133,9 +127,6 @@ private fun executorRegistryInputs(
                     ?: throw IllegalArgumentException(
                         "Field executor ${coordinate.render()} does not map to a concrete object field",
                     )
-            val sourceField =
-                requireNotNull(fullSchema.schema.getObjectType(coordinate.first))
-                    .getFieldDefinition(coordinate.second)
             val objectFragment = executor.objectFragment(schemas, field)
             val queryFragment = executor.queryFragment(schemas, field)
             val variables =
@@ -177,7 +168,7 @@ private fun executorRegistryInputs(
                             ),
                         )
                 return output.fold(
-                    onSuccess = { normalizeSourceOutput(sourceField.type, it, sourceSchema) },
+                    onSuccess = { it },
                     onFailure = { EngineErrorData.of(it) },
                 )
             }
@@ -890,7 +881,7 @@ private fun nodeReference(
             context.fullSchema.schema.getObjectType(typeName)
                 ?: return EngineErrorData.of()
         if (type.interfaces.none { it.name == "Node" }) return EngineErrorData.of()
-        normalizeNodeReference(context.createNodeReference(globalId, type))
+        requireNotNull(context.createNodeReference(globalId, type).rootFieldReferenceDataOrNull())
     } catch (_: IllegalArgumentException) {
         EngineErrorData.of()
     }
@@ -938,24 +929,22 @@ private fun qplanNodeResolvers(
                         )
                 return output.fold(
                     onSuccess = {
-                        when (
-                            val normalized =
-                                normalizeSourceOutput(
-                                    requireNotNull(fullSchema.schema.getObjectType(typeName)),
-                                    it,
-                                    sourceSchema,
-                                )
-                        ) {
-                            is RootFieldReferenceData -> normalized
-                            is EngineObjectData.Sync ->
+                        val value = it.rootFieldReferenceDataOrNull() ?: it
+                        when (value) {
+                            is RootFieldReferenceData -> value
+                            is EngineObjectData.Sync -> {
+                                require(value.schemaType(schema) == type) {
+                                    "Node executor $typeName returned ${value.type.name}"
+                                }
                                 if (executor.isSelective) {
-                                    normalized.projectTopLevel(
+                                    value.projectTopLevel(
                                         selections = selections,
                                         excludedFields = fieldResolverOwnedFields,
                                     )
                                 } else {
-                                    normalized
+                                    value
                                 }
+                            }
                             else -> error("Node executor $typeName returned a non-object value")
                         }
                     },
@@ -1008,113 +997,11 @@ private fun EngineObjectData.Sync.projectTopLevel(
     val fields =
         getSelections()
             .filter { fieldName -> fieldName in demandedFields }
-            .associateWithTo(linkedMapOf(), ::get)
+            .associateWithTo(linkedMapOf(), ::outputValue)
     return ResolvedEngineObjectData(
         type,
         fields,
     )
-}
-
-private fun normalizeSourceOutput(
-    expectedType: GraphQLOutputType,
-    value: Any?,
-    sourceSchema: SourceSchemaAdapter,
-): Any? =
-    if (value is EngineErrorData) {
-        value
-    } else if (value is RootFieldReference) {
-        sourceSchema.lowerRootFieldReference(
-            rootFieldPath = value.rootFieldPath,
-            sourceTypeName = value.type.name,
-            arguments = value.args,
-        )
-    } else {
-        when (expectedType) {
-            is GraphQLNonNull ->
-                normalizeSourceOutput(expectedType.wrappedType as GraphQLOutputType, value, sourceSchema)
-            is GraphQLList -> {
-                if (value !is List<*>) {
-                    value
-                } else {
-                    value.map {
-                        normalizeSourceOutput(
-                            expectedType.wrappedType as GraphQLOutputType,
-                            it,
-                            sourceSchema,
-                        )
-                    }
-                }
-            }
-            is GraphQLObjectType ->
-                when (value) {
-                    is NodeReference -> normalizeNodeReference(value)
-                    is EngineObjectData.Sync -> normalizeSourceObject(expectedType, value, sourceSchema)
-                    is Map<*, *> -> normalizeSourceObjectMap(expectedType, value, sourceSchema)
-                    else -> value
-                }
-            is GraphQLCompositeType ->
-                when (value) {
-                    is NodeReference -> normalizeNodeReference(value)
-                    is EngineObjectData.Sync -> normalizeSourceObject(value, sourceSchema)
-                    else -> value
-                }
-            is GraphQLScalarType ->
-                value?.let {
-                    expectedType.coercing.serialize(
-                        it,
-                        GraphQLContext.getDefault(),
-                        Locale.getDefault(),
-                    )
-                }
-            else -> value
-        }
-    }
-
-private fun normalizeSourceObjectMap(
-    expectedType: GraphQLObjectType,
-    value: Map<*, *>,
-    sourceSchema: SourceSchemaAdapter,
-): EngineObjectData.Sync {
-    require(value.keys.all { it is String }) {
-        "Qplan requires string keys in map object executor outputs"
-    }
-    @Suppress("UNCHECKED_CAST")
-    return normalizeSourceObject(
-        ResolvedEngineObjectData(expectedType, value as Map<String, Any?>),
-        sourceSchema,
-    )
-}
-
-private fun normalizeNodeReference(reference: NodeReference): EngineObjectData.Sync =
-    ResolvedEngineObjectData(
-        reference.type,
-        mapOf("id" to reference.id),
-    )
-
-private fun normalizeSourceObject(
-    value: EngineObjectData,
-    sourceSchema: SourceSchemaAdapter,
-): EngineObjectData.Sync {
-    require(value is EngineObjectData.Sync) {
-        "Qplan requires synchronous EngineObjectData executor outputs"
-    }
-    return normalizeSourceObject(value.type, value, sourceSchema)
-}
-
-private fun normalizeSourceObject(
-    type: GraphQLObjectType,
-    value: EngineObjectData.Sync,
-    sourceSchema: SourceSchemaAdapter,
-): EngineObjectData.Sync {
-    val fields =
-        value.getSelections().associateWith { selection ->
-            val field =
-                requireNotNull(type.getFieldDefinition(selection)) {
-                    "Executor output ${type.name} has no field named $selection"
-                }
-            normalizeSourceOutput(field.type, value.get(selection), sourceSchema)
-        }
-    return ResolvedEngineObjectData(type, fields)
 }
 
 private fun Pair<String, String>.render(): String = "$first.$second"

@@ -29,6 +29,8 @@ import viaduct.engine.runtime2.model.Selection
 import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.model.arg
 import viaduct.engine.runtime2.model.inputType
+import viaduct.engine.runtime2.model.nodeRootFieldReferenceOf
+import viaduct.engine.runtime2.model.outputType
 import viaduct.engine.runtime2.model.registry.FieldCheckerResolver
 import viaduct.engine.runtime2.model.registry.ProviderFragment
 import viaduct.engine.runtime2.model.registry.ResolverFragmentTemplates
@@ -37,6 +39,7 @@ import viaduct.engine.runtime2.model.registry.fieldResolverOf
 import viaduct.engine.runtime2.model.registry.fromArgument
 import viaduct.engine.runtime2.model.registry.nodeResolverOf
 import viaduct.engine.runtime2.model.registry.selectionAwareNodeResolverOf
+import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireType
 import viaduct.engine.runtime2.model.selectionForestOf
 import viaduct.engine.runtime2.model.testing.TestWorld
@@ -49,6 +52,7 @@ import viaduct.engine.runtime2.resolution.framework.ResolverInvocationObservatio
 import viaduct.engine.runtime2.schema.SourceSchemaAdapter
 import viaduct.engine.runtime2.schema.ViaductAndGJSchema
 import viaduct.graphql.schema.ViaductSchema
+import viaduct.graphql.schema.isNode
 
 enum class ResolverProgramKind {
     CONSTANT,
@@ -4082,7 +4086,16 @@ internal data class ObjectPlan(
         typeExpr: ViaductSchema.TypeExpr<ViaductSchema.OutputTypeDef>,
         inputId: String?,
         generatedHashSeed: Int,
-    ): EngineObjectData.Sync = materializeObject(schema, inputId, generatedHashSeed)
+    ): ResolverOutputData =
+        if (typeExpr.baseTypeDef.isNode) {
+            val type = schema.requireType(typeName) as ViaductSchema.Object
+            val idField = schema.requireObjectField(typeName, "id")
+            val id = fields.getValue(FieldCoordinate(typeName, "id"))
+                .materialize(schema, idField.outputType, inputId, generatedHashSeed) as String
+            nodeRootFieldReferenceOf(schema.requireObjectField("Query", "node"), type, id)
+        } else {
+            materializeObject(schema, inputId, generatedHashSeed)
+        }
 
     fun materializeObject(
         schema: ViaductSchema,

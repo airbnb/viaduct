@@ -26,6 +26,7 @@ import viaduct.engine.runtime2.model.requireType
 import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.emptyFragmentOf
 import viaduct.engine.runtime2.model.testing.fragmentFrom
+import viaduct.engine.runtime2.model.testing.nodeReferenceOf
 import viaduct.engine.runtime2.model.testing.objectOf
 import viaduct.graphql.schema.ViaductSchema
 
@@ -55,9 +56,7 @@ class WorldInjectionTest {
                                 fieldResolverOf(
                                     objectFragment = queryFragment,
                                     function = { _, _ ->
-                                        schema.loweredSchema.objectOf("User") {
-                                            "id" setTo "field"
-                                        }
+                                        schema.loweredSchema.nodeReferenceOf("User", "field")
                                     },
                                 ),
                         )

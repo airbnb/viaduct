@@ -49,7 +49,7 @@ internal class DepthFirstReactor(
             dispatchedTasks += task
             enqueue(task)
         } else {
-            result = ObjectEngineResult.of(source.schemaType, mutable = true)
+            result = ObjectEngineResult.of(source.schemaType(operation.world.schema), mutable = true)
             operation.passiveValues(queryOERDepth = 0).resolvePassiveObjectValues(
                 source,
                 OEROccurrence(result, emptyList(), result),

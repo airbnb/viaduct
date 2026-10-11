@@ -46,8 +46,8 @@ internal class OrchestrationTask private constructor(
         require(occurrence.path.isEmpty() == (occurrence.root === occurrence.target)) {
             "Only a root Resolution occurrence may use its root as its target"
         }
-        require(source.schemaType == occurrence.target.type) {
-            "Source type ${source.schemaType.name} does not match result type ${occurrence.target.type.name}"
+        require(source.schemaType(operation.world.schema) == occurrence.target.type) {
+            "Source type ${source.schemaType(operation.world.schema).name} does not match result type ${occurrence.target.type.name}"
         }
     }
 

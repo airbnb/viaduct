@@ -8,7 +8,6 @@ import viaduct.engine.runtime2.model.ObjectSelection
 import viaduct.engine.runtime2.model.ObjectSelectionForest
 import viaduct.engine.runtime2.model.PathComponent
 import viaduct.engine.runtime2.model.ResolverOccurrenceId
-import viaduct.engine.runtime2.model.RootFieldReferenceData
 import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.model.VariableInstanceId
 import viaduct.engine.runtime2.model.concatenateSelectionForests
@@ -24,6 +23,7 @@ import viaduct.engine.runtime2.model.registry.ResolverFragments
 import viaduct.engine.runtime2.model.registry.TypeCheckerResolver
 import viaduct.engine.runtime2.model.registry.VariableInstanceDefinition
 import viaduct.engine.runtime2.model.requireQueryTypeDef
+import viaduct.engine.runtime2.model.rootFieldReferenceDataOrNull
 import viaduct.engine.runtime2.model.schemaType
 import viaduct.engine.runtime2.model.selectionForestOf
 import viaduct.engine.runtime2.model.usedVariables
@@ -88,8 +88,8 @@ internal fun EngineObjectData.Sync.closeOrchestrationConstructionDemand(
     queryOccurrence: OEROccurrence,
     initialDemand: OrchestrationConstructionDemand<SelectionForest>,
 ): ClosedConstructionDemandContext {
-    require(schemaType == objectOccurrence.target.type) {
-        "Source type ${schemaType.name} does not match result type ${objectOccurrence.target.type.name}"
+    require(schemaType(world.schema) == objectOccurrence.target.type) {
+        "Source type ${type.name} does not match result type ${objectOccurrence.target.type.name}"
     }
     require(queryOccurrence.target.type == world.schema.requireQueryTypeDef()) {
         "Query-rooted construction demand must target Query"
@@ -346,7 +346,7 @@ private fun finalizeClosedOERConstructionDemand(
     objectProviderResult: ObjectEngineResult,
     queryProviderResult: ObjectEngineResult,
 ): ClosedOERConstructionDemandContext {
-    val type = passiveSource?.schemaType ?: occurrence.target.type
+    val type = passiveSource?.schemaType(world.schema) ?: occurrence.target.type
     val constructionDemand = accumulatedDemand.merge(type)
     val closedValueSelections = constructionDemand.values.merge(type)
     val requiredResolverSelections =
@@ -452,7 +452,7 @@ private fun EngineObjectData.Sync.discoverRootFieldReferences(
         demand.byKey().forEach { (objectKey, selection) ->
             if (selection.inclusionCondition === InclusionCondition.Never) return@forEach
             if (!isPresent(objectKey.field.name)) return@forEach
-            val reference = outputValue(objectKey.field.name) as? RootFieldReferenceData
+            val reference = outputValue(objectKey.field.name).rootFieldReferenceDataOrNull()
                 ?: return@forEach
             require(objectKey is ObjectEngineResult.GroundKey) {
                 "Source-provided root-field reference has an open consumer key: $objectKey"

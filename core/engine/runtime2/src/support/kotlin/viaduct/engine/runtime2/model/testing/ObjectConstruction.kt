@@ -4,8 +4,11 @@ import viaduct.engine.api.EngineObjectData
 import viaduct.engine.runtime2.model.Arguments
 import viaduct.engine.runtime2.model.EngineObjectDataEntry
 import viaduct.engine.runtime2.model.ObjectEngineResult
+import viaduct.engine.runtime2.model.RootFieldReferenceData
 import viaduct.engine.runtime2.model.engineObjectDataOf
+import viaduct.engine.runtime2.model.nodeRootFieldReferenceOf
 import viaduct.engine.runtime2.model.registry.Assumptions
+import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireType
 import viaduct.engine.runtime2.model.schemaType
 import viaduct.engine.runtime2.schema.SourceSchemaAdapter
@@ -30,6 +33,11 @@ fun ViaductSchema.objectOf(
         .apply(block)
         .build()
 }
+
+fun ViaductSchema.nodeReferenceOf(
+    typeName: String,
+    id: String
+): RootFieldReferenceData = nodeRootFieldReferenceOf(requireObjectField("Query", "node"), requireType(typeName) as ViaductSchema.Object, id)
 
 @DslMarker
 annotation class ObjectValueDsl

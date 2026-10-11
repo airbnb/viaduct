@@ -21,6 +21,7 @@ import viaduct.engine.runtime2.model.outputValue
 import viaduct.engine.runtime2.model.registry.FieldValueResolver
 import viaduct.engine.runtime2.model.registry.ResolverFragment
 import viaduct.engine.runtime2.model.requireQueryTypeDef
+import viaduct.engine.runtime2.model.rootFieldReferenceDataOrNull
 import viaduct.engine.runtime2.resolution.CoroutineFieldResolverTaskBase
 import viaduct.engine.runtime2.resolution.CoroutinePublicationOccurrence
 import viaduct.engine.runtime2.resolution.framework.CycleTask
@@ -108,7 +109,7 @@ internal class CoroutineFieldResolverTask private constructor(
                     .filterKeys { !occurrence.target.isCellSet(it) }
                     .map { (key, selection) ->
                         val reference = if (oer.source.isPresent(key.field.name)) {
-                            oer.source.outputValue(key.field.name) as RootFieldReferenceData
+                            requireNotNull(oer.source.outputValue(key.field.name).rootFieldReferenceDataOrNull())
                         } else {
                             null
                         }

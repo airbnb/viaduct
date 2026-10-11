@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Test
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.ResolveSelectionSetOptions
+import viaduct.engine.api.ResolvedEngineObjectData
 import viaduct.engine.api.ResolverType
 import viaduct.engine.api.instrumentation.resolver.ResolverFunction
 import viaduct.engine.api.instrumentation.resolver.ViaductResolverInstrumentation
@@ -364,7 +365,7 @@ class Engine2StandardViaductTest {
                         ) { arguments, _, _, selections, _ ->
                             targetCalls.incrementAndGet()
                             assertEquals(listOf("value"), requireNotNull(selections).selections().map { it.fieldName })
-                            mapOf("value" to "selective-${arguments.getValue("id")}")
+                            ResolvedEngineObjectData(schema.schema.getObjectType("Item"), mapOf("value" to "selective-${arguments.getValue("id")}"))
                         }
                     }
                 }
@@ -450,11 +451,11 @@ class Engine2StandardViaductTest {
                                     ResolverType.FIELD,
                                 )
                             assertEquals(listOf("title"), owned.selections().map { it.fieldName })
-                            mapOf("title" to "owned")
+                            ResolvedEngineObjectData(schema.schema.getObjectType("Listing"), mapOf("title" to "owned"))
                         }
                     }
                 }
-                fieldWithValue("Listing" to "price", 9L)
+                fieldWithValue("Listing" to "price", 9)
             }
         val viaduct =
             StandardViaduct.Builder()
@@ -506,7 +507,13 @@ class Engine2StandardViaductTest {
         val requestContext = Any()
         val suppliedModule =
             EngineTestModule(sdl) {
-                fieldWithValue("Query" to "item", emptyMap<String, Any?>())
+                field("Query" to "item") {
+                    resolver {
+                        fn { _, _, _, _, context ->
+                            ResolvedEngineObjectData(context.fullSchema.schema.getObjectType("Item"), emptyMap())
+                        }
+                    }
+                }
                 field("Item" to "allowed") {
                     resolver {
                         fn { arguments, _, _, _, _ -> "allowed-${arguments.getValue("value")}" }

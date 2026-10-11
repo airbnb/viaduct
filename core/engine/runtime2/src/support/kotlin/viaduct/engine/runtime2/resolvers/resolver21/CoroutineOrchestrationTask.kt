@@ -7,12 +7,12 @@ import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.ObjectSelectionForest
 import viaduct.engine.runtime2.model.Promise
 import viaduct.engine.runtime2.model.ResolverOccurrenceId
-import viaduct.engine.runtime2.model.RootFieldReferenceData
 import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.model.engineObjectDataOf
 import viaduct.engine.runtime2.model.merge
 import viaduct.engine.runtime2.model.outputValue
 import viaduct.engine.runtime2.model.requireQueryTypeDef
+import viaduct.engine.runtime2.model.rootFieldReferenceDataOrNull
 import viaduct.engine.runtime2.model.schemaType
 import viaduct.engine.runtime2.resolution.CoroutineOrchestrationTaskBase
 import viaduct.engine.runtime2.resolution.framework.Demand
@@ -74,8 +74,8 @@ internal class CoroutineOrchestrationTask private constructor(
             source: EngineObjectData.Sync,
             constructionDemand: Demand<SelectionForest>,
         ): CoroutineOrchestrationTask {
-            require(source.schemaType == occurrence.target.type) {
-                "Source type ${source.schemaType.name} does not match result type ${occurrence.target.type.name}"
+            require(source.schemaType(operation.world.schema) == occurrence.target.type) {
+                "Source type ${source.schemaType(operation.world.schema).name} does not match result type ${occurrence.target.type.name}"
             }
             val queryType = operation.world.schema.requireQueryTypeDef()
             val queryResult = ObjectEngineResult.of(queryType, mutable = true)
@@ -100,7 +100,7 @@ internal class CoroutineOrchestrationTask private constructor(
                 SharedOERContext(
                     occurrence = occurrence,
                     source = source,
-                    closedValueSelections = closedConstructionDemand.objectRooted.values.merge(source.schemaType),
+                    closedValueSelections = closedConstructionDemand.objectRooted.values.merge(source.schemaType(operation.world.schema)),
                 )
             val queryOER =
                 SharedOERContext(
@@ -132,7 +132,7 @@ internal class CoroutineOrchestrationTask private constructor(
                     key !is ObjectEngineResult.ParentKey &&
                         (
                             !oer.source.isPresent(key.field.name) ||
-                                oer.source.outputValue(key.field.name) is RootFieldReferenceData ||
+                                oer.source.outputValue(key.field.name).rootFieldReferenceDataOrNull() != null ||
                                 (
                                     key in checkedKeys &&
                                         operation.world.resolverRegistry.fieldChecker(key.field) != null

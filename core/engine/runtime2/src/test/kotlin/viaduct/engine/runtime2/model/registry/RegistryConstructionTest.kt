@@ -23,6 +23,7 @@ import viaduct.engine.runtime2.model.RootFieldReferenceData
 import viaduct.engine.runtime2.model.emptyFragmentOf
 import viaduct.engine.runtime2.model.engineObjectDataOf
 import viaduct.engine.runtime2.model.nodeReferenceIdentityOrNull
+import viaduct.engine.runtime2.model.nodeRootFieldReferenceOf
 import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.requireType
@@ -97,7 +98,7 @@ class RegistryConstructionTest {
     }
 
     @Test
-    fun `lowers node references and retains their authoritative identity`() =
+    fun `dispatches canonical node references and retains their authoritative identity`() =
         runBlocking {
             val schemas =
                 schemas(
@@ -126,7 +127,7 @@ class RegistryConstructionTest {
                         mapOf(
                             nodeField to fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> null },
                             userField to fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
-                                engineObjectDataOf(userType, mapOf("id" to "42"))
+                                nodeRootFieldReferenceOf(nodeField, userType, "42")
                             },
                         ),
                     variableProviders = emptyMap(),

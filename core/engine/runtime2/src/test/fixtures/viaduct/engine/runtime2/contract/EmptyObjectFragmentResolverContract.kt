@@ -6,13 +6,24 @@ import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
 import org.junit.jupiter.api.Test
+import viaduct.engine.api.EngineObjectData
+import viaduct.engine.api.ResolvedEngineObjectData
 import viaduct.engine.runtime2.correctresolution.CorrectnessResolverObserver
+import viaduct.engine.runtime2.correctresolution.conformsToResolvers
+import viaduct.engine.runtime2.correctresolution.isClosedUnderResolverDemand
 import viaduct.engine.runtime2.model.ListEngineResult
 import viaduct.engine.runtime2.model.ObjectEngineResult
+import viaduct.engine.runtime2.model.materializeSelectionForestOf
+import viaduct.engine.runtime2.model.registry.Assumptions
+import viaduct.engine.runtime2.model.registry.FieldValueResolver
+import viaduct.engine.runtime2.model.registry.ResolverFragmentTemplates
+import viaduct.engine.runtime2.model.registry.ResolverRegistry
 import viaduct.engine.runtime2.model.requireObjectField
+import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.requireType
 import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.resolution.framework.ResolverInvocationObservation
+import viaduct.engine.runtime2.schema.operationSelectionsFrom
 import viaduct.graphql.schema.ViaductSchema
 
 /**
@@ -21,6 +32,44 @@ import viaduct.graphql.schema.ViaductSchema
 interface EmptyObjectFragmentResolverContract :
     ResolverContract,
     CrossKeyRecursiveDemandResolverContract {
+    @Test
+    fun `consumes resolved and delegating Sync objects without source adaptation across resolver families`() {
+        val fixture = TestWorld.fromSDL(
+            schemaSDL = "type Query { users: [User] } type User { name: String }",
+            selectiveResolvers = selectiveResolvers,
+        )
+        val schema = fixture.schema
+        val users = schema.requireObjectField("Query", "users")
+        val name = schema.contractKey("User", "name")
+        val source = ResolvedEngineObjectData(fixture.schemas.graphQLSchema.getObjectType("User"), mapOf("name" to "Ada"))
+        val delegated = object : EngineObjectData.Sync by source {}
+        val raw = FieldValueResolver.ofSelective(
+            field = users,
+            queryType = schema.requireQueryTypeDef(),
+            fragmentTemplates = ResolverFragmentTemplates(materializeSelectionForestOf(), materializeSelectionForestOf()),
+        ) { _, _, _, _, _ -> listOf(source, null, delegated) }
+        val base = fixture.resolverRegistry
+        val registry = object : ResolverRegistry by base {
+            override fun resolver(field: ViaductSchema.ObjectField): FieldValueResolver = if (field == users) raw else base.resolver(field)
+        }
+        val observation = observeResolution(
+            world = Assumptions.of(schema, registry, selectiveResolvers),
+            root = registry.createRootQueryInput(),
+            selections = fixture.schemas.operationSelectionsFrom("query { users { name } }"),
+        )
+        val result = observation.result
+        val list = assertIs<ListEngineResult>(result.getCell(schema.contractKey("Query", "users")).get())
+        val first = assertIs<ObjectEngineResult>(list[0].value.get())
+        val last = assertIs<ObjectEngineResult>(list[2].value.get())
+
+        assertTrue(first !== last)
+        assertEquals("Ada", first.getCell(name).get())
+        assertEquals(null, list[1].value.get())
+        assertEquals("Ada", last.getCell(name).get())
+        assertTrue(result.isClosedUnderResolverDemand(observation.operation))
+        assertTrue(result.conformsToResolvers(observation.operation))
+    }
+
     @Test
     fun `resolves an externally typename-only query to an empty root`() {
         val world =

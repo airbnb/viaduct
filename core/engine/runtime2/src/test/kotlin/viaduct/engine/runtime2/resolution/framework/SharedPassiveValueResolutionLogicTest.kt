@@ -10,9 +10,12 @@ import kotlin.test.assertSame
 import kotlin.test.assertTrue
 import kotlinx.coroutines.runBlocking
 import viaduct.engine.api.EngineObjectData
+import viaduct.engine.api.ResolvedEngineObjectData
+import viaduct.engine.runtime2.model.EngineErrorData
 import viaduct.engine.runtime2.model.EngineObjectDataEntry
 import viaduct.engine.runtime2.model.EngineResult
 import viaduct.engine.runtime2.model.EngineResultCell
+import viaduct.engine.runtime2.model.ErrorEngineResult
 import viaduct.engine.runtime2.model.ListEngineResult
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.ObjectSelection
@@ -37,6 +40,53 @@ import viaduct.engine.runtime2.resolvers.applicableGroundSelections
 import viaduct.graphql.schema.ViaductSchema
 
 class SharedPassiveValueResolutionLogicTest {
+    @Test
+    fun `traverses resolved objects directly and preserves errors and distinct list occurrences`() {
+        val fixture = TestWorld.fromSDL(
+            schemaSDL = "type Query { user: User } type User { name: String age: Int scores: [Int] peers: [User] computed: String }",
+            selectiveResolvers = false,
+        )
+        val schema = fixture.schema
+        val userType = fixture.schemas.graphQLSchema.getObjectType("User")
+        val error = EngineErrorData.of()
+        val peer = ResolvedEngineObjectData(userType, mapOf("name" to "peer"))
+        val source = ResolvedEngineObjectData(userType, mapOf("name" to "Ada", "age" to error, "scores" to listOf(1, error, null), "peers" to listOf(peer, null, peer)))
+        val selections = fixture.schemas.fragmentFrom("fragment Demand on User { name age scores peers { name computed } computed }").subselections
+        val nameKey = ObjectEngineResult.GroundKey.of(schema.requireObjectField("User", "name"), emptyMap())
+        val ageKey = ObjectEngineResult.GroundKey.of(schema.requireObjectField("User", "age"), emptyMap())
+        val scoresKey = ObjectEngineResult.GroundKey.of(schema.requireObjectField("User", "scores"), emptyMap())
+        val peersKey = ObjectEngineResult.GroundKey.of(schema.requireObjectField("User", "peers"), emptyMap())
+
+        val resolution = runBlocking {
+            source.recordPassiveResolution(
+                operation = SharedOperationContext.create(fixture.assumptions),
+                expectedType = schema.requireObjectField("Query", "user").outputType,
+                path = emptyList(),
+                constructionDemand = selections,
+            )
+        }
+        val user = assertIs<ObjectEngineResult>(resolution.engineResult)
+        val scores = assertIs<ListEngineResult>(user.getCell(scoresKey).value.get())
+        val peers = assertIs<ListEngineResult>(user.getCell(peersKey).value.get())
+        val first = assertIs<ObjectEngineResult>(peers[0].value.get())
+        val last = assertIs<ObjectEngineResult>(peers[2].value.get())
+
+        assertSame(schema.requireType("User"), user.type)
+        assertEquals("Ada", user.getCell(nameKey).value.get())
+        assertSame(error, assertIs<ErrorEngineResult>(user.getCell(ageKey).value.get()).errorData)
+        assertEquals(1, scores[0].value.get())
+        assertSame(error, assertIs<ErrorEngineResult>(scores[1].value.get()).errorData)
+        assertEquals(null, scores[2].value.get())
+        assertEquals(null, peers[1].value.get())
+        assertTrue(first !== last)
+        assertEquals("peer", first.getCell(nameKey).value.get())
+        assertEquals("peer", last.getCell(nameKey).value.get())
+        val sources = resolution.pendingObjects.associate { it.path to it.source }
+        assertSame(source, sources.getValue(emptyList()))
+        assertSame(peer, sources.getValue(listOf(peersKey, ListEngineResult.Index.of(0))))
+        assertSame(peer, sources.getValue(listOf(peersKey, ListEngineResult.Index.of(2))))
+    }
+
     @Test
     fun `leaves demanded active typename unresolved and retains exact resolver objects`() {
         val testWorld =
@@ -556,6 +606,7 @@ private class RecordedObject(
     val path: List<PathComponent>,
     val target: ObjectEngineResult,
     val selections: SelectionForest,
+    val source: EngineObjectData.Sync,
 )
 
 private class RecordedPassiveResolution(val engineResult: EngineResult?, val pendingObjects: List<RecordedObject>)
@@ -577,7 +628,7 @@ private fun ResolverOutputData?.recordPassiveResolution(
             override fun dispatchOrchestration(task: SharedOrchestrationTask<*>) {
                 val objectOER = task.objectOER
                 if (objectOER.closedValueSelections.groundKeys().any { it !in objectOER.occurrence.target.keys }) {
-                    pending += RecordedObject(objectOER.occurrence.path, objectOER.occurrence.target, objectOER.closedValueSelections)
+                    pending += RecordedObject(objectOER.occurrence.path, objectOER.occurrence.target, objectOER.closedValueSelections, objectOER.source)
                 }
             }
 

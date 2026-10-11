@@ -45,8 +45,8 @@ internal fun EngineObjectData.Sync.closeOrchestrationConstructionDemand(
     queryOccurrence: OEROccurrence,
     initialDemand: OrchestrationConstructionDemand<SelectionForest>,
 ): OrchestrationConstructionDemand<ObjectSelectionForest> {
-    require(schemaType == objectOccurrence.target.type) {
-        "Source type ${schemaType.name} does not match result type ${objectOccurrence.target.type.name}"
+    require(schemaType(operation.world.schema) == objectOccurrence.target.type) {
+        "Source type ${type.name} does not match result type ${objectOccurrence.target.type.name}"
     }
     require(queryOccurrence.target.type == operation.world.schema.requireQueryTypeDef()) {
         "Query-rooted construction demand must target Query"

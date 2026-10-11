@@ -28,6 +28,7 @@ import viaduct.engine.runtime2.model.registry.ResolutionExecutionContext
 import viaduct.engine.runtime2.model.registry.ResolverFragment
 import viaduct.engine.runtime2.model.registry.VariableDefinition
 import viaduct.engine.runtime2.model.requireQueryTypeDef
+import viaduct.engine.runtime2.model.rootFieldReferenceDataOrNull
 import viaduct.engine.runtime2.model.schemaType
 import viaduct.engine.runtime2.resolution.framework.CycleTask
 import viaduct.engine.runtime2.resolution.framework.Demand
@@ -125,7 +126,7 @@ internal class FieldResolverTask private constructor(
                     closedOER.rootFieldReferenceOccurrences.values.forEach { referenceOccurrence ->
                         val objectKey = referenceOccurrence.selection.key
                         check(
-                            oer.source.outputValue(objectKey.field.name) ===
+                            oer.source.outputValue(objectKey.field.name).rootFieldReferenceDataOrNull() ===
                                 referenceOccurrence.reference,
                         ) {
                             "Resolution root reference does not match its source value"
@@ -402,7 +403,7 @@ private suspend fun FieldValueResolver.resolveQueryFragment(
         queryFragment.constructionSelections.guardedBy(inclusionCondition)
     val source = operation.world.resolverRegistry.createRootQueryInput()
     val queryResult =
-        OrchestrationTask.createObjectResult(operation, source.schemaType, Demand.checked(constructionSelections))
+        OrchestrationTask.createObjectResult(operation, source.schemaType(operation.world.schema), Demand.checked(constructionSelections))
     val orchestration =
         OrchestrationTask.create(
             operation = operation,

@@ -26,6 +26,7 @@ import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.FromArgument
 import viaduct.engine.api.FromFieldVariablesResolver
+import viaduct.engine.api.NodeEngineObjectData
 import viaduct.engine.api.ResolvedEngineObjectData
 import viaduct.engine.api.mocks.MockCheckerErrorResult
 import viaduct.engine.api.mocks.MockCheckerExecutor
@@ -53,6 +54,11 @@ import viaduct.engine.runtime2.bootstrap.resolverRegistryOf
 import viaduct.engine.runtime2.model.Arguments
 import viaduct.engine.runtime2.model.EngineErrorData
 import viaduct.engine.runtime2.model.RootFieldReferenceData
+import viaduct.engine.runtime2.model.RootFieldReferenceDataCarrier
+import viaduct.engine.runtime2.model.SelectionForest
+import viaduct.engine.runtime2.model.engineObjectDataOf
+import viaduct.engine.runtime2.model.nodeReferenceIdentityOrNull
+import viaduct.engine.runtime2.model.outputValue
 import viaduct.engine.runtime2.model.registry.Assumptions
 import viaduct.engine.runtime2.model.registry.CheckerInput
 import viaduct.engine.runtime2.model.registry.ProviderFragment
@@ -61,12 +67,214 @@ import viaduct.engine.runtime2.model.registry.ResolverRegistry
 import viaduct.engine.runtime2.model.registry.VariableDefinition
 import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireType
+import viaduct.engine.runtime2.model.rootFieldReferenceDataOrNull
 import viaduct.engine.runtime2.model.selectionForestOf
 import viaduct.engine.runtime2.schema.ViaductAndGJSchema
 import viaduct.engine.runtime2.schema.selectionsFrom
+import viaduct.errors.UnsetFieldException
 import viaduct.graphql.schema.ViaductSchema
+import viaduct.tenant.runtime.jvm.OverlayEngineObjectData
 
 class ExecutorRegistryInputsTest {
+    @Test
+    fun `node references carry canonical identity at creation and expose only their id`() =
+        runTest {
+            val fixture = Fixture(NODE_SCHEMA)
+            val context = QPlanEngineExecutionContext(fixture.context, fixture.schemas, fixture.resolutionContext)
+            val userType = fixture.engineSchema.schema.getObjectType("User")
+
+            val reference = context.createNodeReference("original-id", userType)
+
+            assertSame(userType, reference.type)
+            assertEquals("original-id", reference.id)
+            assertFalse(reference is EngineObjectData.Sync)
+            val data = assertInstanceOf(RootFieldReferenceDataCarrier::class.java, reference).referenceData
+            assertSame(fixture.schemas.loweredSchema.requireObjectField("Query", "node"), data.targetField)
+            val identity = requireNotNull(data.nodeReferenceIdentityOrNull())
+            assertSame(fixture.schemas.loweredSchema.requireType("User"), identity.type)
+            assertEquals("original-id", identity.id)
+            val handle = assertInstanceOf(NodeEngineObjectData::class.java, reference)
+            assertEquals("original-id", handle.fetch("id"))
+            assertEquals("original-id", handle.fetchOrNull("id"))
+            assertEquals(null, handle.fetchOrNull("name"))
+            assertEquals(listOf("id"), handle.fetchSelections().toList())
+            assertThrows<UnsetFieldException> { handle.fetch("name") }
+        }
+
+    @Test
+    fun `root references snapshot their path and canonical arguments at creation`() =
+        runTest {
+            val fixture = Fixture(
+                "type Query { factory: Factory } type Factory { get(id: ID!, limit: Int = 3, ids: [ID!]): Product } type Product { name: String }",
+            )
+            val context = QPlanEngineExecutionContext(fixture.context, fixture.schemas, fixture.resolutionContext)
+            val type = fixture.engineSchema.schema.getObjectType("Product")
+            val path = mutableListOf("factory", "get")
+            val ids = mutableListOf("first")
+            val args = mutableMapOf<String, Any?>("id" to "p1", "ids" to ids)
+
+            val reference = context.createRootFieldReference(path, type, args)
+            val data = assertInstanceOf(RootFieldReferenceDataCarrier::class.java, reference).referenceData
+            path.clear()
+            args["id"] = "changed"
+            ids += "second"
+
+            assertSame(type, reference.type)
+            assertEquals(listOf("factory", "get"), reference.rootFieldPath)
+            assertEquals("p1", reference.args["id"])
+            assertEquals(listOf("factory", "get"), data.path.map { it.name })
+            assertSame(fixture.schemas.loweredSchema.requireObjectField("Factory", "get"), data.targetField)
+            assertEquals(mapOf("id" to "p1", "limit" to 3, "ids" to listOf("first")), data.arguments.fieldValues)
+            assertFalse(reference is EngineObjectData.Sync)
+            val handle = assertInstanceOf(EngineObjectData::class.java, reference)
+            assertEquals(emptyList<String>(), handle.fetchSelections().toList())
+            assertEquals(null, handle.fetchOrNull("name"))
+            assertThrows<UnsetFieldException> { handle.fetch("name") }
+        }
+
+    @Test
+    fun `invalid references fail during creation`() {
+        val fixture = Fixture(
+            "type Query { node(id: ID!): Node factory: Factory } interface Node { id: ID! } type Product implements Node { id: ID! } type Factory { get(id: ID!): Product list: [Product] }",
+        )
+        val context = QPlanEngineExecutionContext(fixture.context, fixture.schemas, fixture.resolutionContext)
+        val product = fixture.engineSchema.schema.getObjectType("Product")
+        assertThrows<IllegalArgumentException> { context.createNodeReference("id", fixture.engineSchema.schema.queryType) }
+        assertThrows<IllegalArgumentException> { context.createRootFieldReference(listOf("missing"), product, emptyMap()) }
+        assertThrows<IllegalArgumentException> { context.createRootFieldReference(listOf("factory", "list"), product, emptyMap()) }
+        assertThrows<IllegalArgumentException> {
+            context.createRootFieldReference(listOf("factory", "get"), fixture.engineSchema.schema.getObjectType("Factory"), mapOf("id" to "p1"))
+        }
+        assertThrows<ClassCastException> { context.createRootFieldReference(listOf("factory", "get"), product, emptyMap()) }
+    }
+
+    @Test
+    fun `executor outputs retain reference handles in nested object lists`() =
+        runTest {
+            val fixture = Fixture(
+                "type Query { node(id: ID!): Node factory: Factory shelves: [Shelf] } interface Node { id: ID! } type User implements Node { id: ID! } type Factory { get: User } type Shelf { user: User }",
+            )
+            val userType = fixture.engineSchema.schema.getObjectType("User")
+            val shelfType = fixture.engineSchema.schema.getObjectType("Shelf")
+            lateinit var nodeData: RootFieldReferenceData
+            lateinit var rootData: RootFieldReferenceData
+            val executor = MockFieldUnbatchedResolverExecutor(resolverId = "Query.shelves") { _, _, _, _, context ->
+                val node = context.createNodeReference("u1", userType)
+                val root = context.createRootFieldReference(listOf("factory", "get"), userType, emptyMap())
+                nodeData = (node as RootFieldReferenceDataCarrier).referenceData
+                rootData = (root as RootFieldReferenceDataCarrier).referenceData
+                listOf(
+                    ResolvedEngineObjectData(shelfType, mapOf("user" to node)),
+                    ResolvedEngineObjectData(shelfType, mapOf("user" to root)),
+                )
+            }
+            val factory = MockFieldUnbatchedResolverExecutor(resolverId = "Query.factory")
+            val node = MockNodeUnbatchedResolverExecutor(typeName = "User")
+            val registry = fixture.registry(
+                fixture.adapt(listOf(("Query" to "shelves") to executor, ("Query" to "factory") to factory), listOf("User" to node)),
+            )
+
+            val field = fixture.schemas.loweredSchema.requireObjectField("Query", "shelves")
+            val query = registry.createRootQueryInput()
+            val output = registry.resolver(field)(
+                input = query,
+                queryValue = query,
+                arguments = Arguments.Resolved.of(field, emptyMap()),
+                selections = fixture.schemas.selectionsFrom("fragment Demand on Shelf { user { id } }").second,
+                selectiveResolvers = true,
+                executionContext = fixture.resolutionContext,
+            ) as List<*>
+
+            assertSame(nodeData, (output[0] as EngineObjectData.Sync).outputValue("user").rootFieldReferenceDataOrNull())
+            assertSame(rootData, (output[1] as EngineObjectData.Sync).outputValue("user").rootFieldReferenceDataOrNull())
+        }
+
+    @Test
+    fun `field executor and dispatcher outputs preserve compliant object and list identities`() =
+        runTest {
+            val fixture = Fixture("type Query { boxes: [Box] } type Box { children: [Child] missing: String } type Child { value: Int }")
+            val child = fixture.resolved("Child", mapOf("value" to 7))
+            val children = listOf(child, null)
+            val resolved = fixture.resolved("Box", mapOf("children" to children))
+            val owned = engineObjectDataOf(fixture.schemas.loweredSchema.requireType("Box") as ViaductSchema.Object, mapOf("children" to children))
+            val output = listOf(resolved, owned, null)
+            val executor = MockFieldUnbatchedResolverExecutor(resolverId = "Query.boxes", isSelective = true) { _, _, _, _, _ -> output }
+            val dispatchers = DispatcherRegistry.Impl(
+                fieldResolverDispatchers = mapOf(("Query" to "boxes") to FieldResolverDispatcherImpl(executor)),
+                nodeResolverDispatchers = emptyMap(),
+                fieldCheckerDispatchers = emptyMap(),
+                typeCheckerDispatchers = emptyMap(),
+            )
+            val inputs = listOf(
+                fixture.adapt(listOf(("Query" to "boxes") to executor)),
+                dispatcherRegistryInputs(fixture.engineSchema, fixture.schemas, dispatchers),
+            )
+
+            inputs.forEach { adapted ->
+                val value = fixture.invoke(
+                    fixture.registry(adapted),
+                    "boxes",
+                    fixture.schemas.selectionsFrom("fragment Demand on Box { children { value } }").second,
+                )
+                assertSame(output, value)
+                assertSame(children, resolved.outputValue("children"))
+                assertSame(children, owned.outputValue("children"))
+                assertEquals(7, child.outputValue("value"))
+                assertFalse(resolved.isPresent("missing"))
+            }
+        }
+
+    @Test
+    fun `resolution consumes tenant overlays from executors and dispatchers`() =
+        runTest {
+            val fixture = Fixture("type Query { box: Box } type Box { name: String nickname: String age: Int scores: [Int] }")
+            val scores = listOf(1, null)
+            val base = fixture.resolved("Box", mapOf("name" to "Ada", "nickname" to "Countess", "age" to 36, "scores" to scores))
+            val overlay = fixture.resolved("Box", mapOf("name" to "Grace", "nickname" to null, "age" to 42))
+            val output = OverlayEngineObjectData(overlay, base)
+            val executor = MockFieldUnbatchedResolverExecutor(resolverId = "Query.box", isSelective = true) { _, _, _, _, _ -> output }
+            val dispatchers = DispatcherRegistry.Impl(
+                fieldResolverDispatchers = mapOf(("Query" to "box") to FieldResolverDispatcherImpl(executor)),
+                nodeResolverDispatchers = emptyMap(),
+                fieldCheckerDispatchers = emptyMap(),
+                typeCheckerDispatchers = emptyMap(),
+            )
+            val inputs = listOf(
+                fixture.adapt(listOf(("Query" to "box") to executor)),
+                dispatcherRegistryInputs(fixture.engineSchema, fixture.schemas, dispatchers),
+            )
+
+            inputs.forEach { adapted ->
+                assertSame(output, fixture.invoke(fixture.registry(adapted), "box"))
+                val result = fixture.execute(adapted, "{ box { name nickname age scores } }")
+
+                assertEquals(
+                    mapOf("box" to mapOf("name" to "Grace", "nickname" to null, "age" to 42, "scores" to listOf(1, null))),
+                    result.getData(),
+                )
+                assertTrue(result.errors.isEmpty(), result.errors.toString())
+                assertSame(scores, output.outputValue("scores"))
+                assertEquals(42, output.outputValue("age"))
+            }
+        }
+
+    @Test
+    fun `resolution rejects legacy object maps and noncompliant nested scalar representations`() =
+        runTest {
+            val fixture = Fixture("type Query { box: Box } type Box { value: Int }")
+            val outputs = listOf(mapOf("value" to 7), fixture.resolved("Box", mapOf("value" to 7L)))
+
+            outputs.forEach { output ->
+                val executor = MockFieldUnbatchedResolverExecutor(resolverId = "Query.box") { _, _, _, _, _ -> output }
+                val inputs = fixture.adapt(listOf(("Query" to "box") to executor))
+
+                val result = fixture.execute(inputs, "{ box { value } }")
+
+                assertTrue(result.errors.isNotEmpty())
+                assertEquals(mapOf("box" to null), result.getData())
+            }
+        }
+
     @Test
     fun `production field dispatchers receive the runtime2 invocation context`() =
         runTest {
@@ -75,7 +283,7 @@ class ExecutorRegistryInputsTest {
                 MockFieldUnbatchedResolverExecutor(resolverId = "Query.value") { _, _, _, _, context ->
                     assertInstanceOf(QPlanEngineExecutionContext::class.java, context)
                     assertSame(fixture.context.requestContext, context.requestContext)
-                    7L
+                    7
                 }
             val dispatcherRegistry =
                 DispatcherRegistry.Impl(
@@ -103,7 +311,7 @@ class ExecutorRegistryInputsTest {
                     resolverId = "Query.value",
                     batchResolveFn = { selectors, _ ->
                         assertEquals(1, selectors.size)
-                        mapOf(selectors.single() to Result.success(7L))
+                        mapOf(selectors.single() to Result.success(7))
                     },
                 )
             val effectiveExecutor =
@@ -359,7 +567,7 @@ class ExecutorRegistryInputsTest {
                             ("Query" to "item") to
                                 FieldResolverDispatcherImpl(
                                     MockFieldUnbatchedResolverExecutor(resolverId = "Query.item") { _, _, _, _, _ ->
-                                        mapOf("owner" to "object-owner")
+                                        fixture.resolved("Item", mapOf("owner" to "object-owner"))
                                     },
                                 ),
                             ("Query" to "viewer") to
@@ -454,7 +662,7 @@ class ExecutorRegistryInputsTest {
                         mapOf(
                             ("Query" to "value") to
                                 FieldResolverDispatcherImpl(
-                                    MockFieldUnbatchedResolverExecutor(resolverId = "Query.value") { _, _, _, _, _ -> 7L },
+                                    MockFieldUnbatchedResolverExecutor(resolverId = "Query.value") { _, _, _, _, _ -> 7 },
                                 ),
                             ("Query" to "skippedPolicy") to
                                 FieldResolverDispatcherImpl(
@@ -566,7 +774,7 @@ class ExecutorRegistryInputsTest {
                         mapOf(
                             ("Query" to "value") to
                                 FieldResolverDispatcherImpl(
-                                    MockFieldUnbatchedResolverExecutor(resolverId = "Query.value") { _, _, _, _, _ -> 7L },
+                                    MockFieldUnbatchedResolverExecutor(resolverId = "Query.value") { _, _, _, _, _ -> 7 },
                                 ),
                         ),
                     nodeResolverDispatchers = emptyMap(),
@@ -609,7 +817,7 @@ class ExecutorRegistryInputsTest {
                             ("Query" to "item") to
                                 FieldResolverDispatcherImpl(
                                     MockFieldUnbatchedResolverExecutor(resolverId = "Query.item") { _, _, _, _, _ ->
-                                        mapOf("value" to 7L)
+                                        fixture.resolved("Item", mapOf("value" to 7))
                                     },
                                 ),
                         ),
@@ -659,7 +867,7 @@ class ExecutorRegistryInputsTest {
             val fixture = Fixture("type Query { box: Box! } type Box { children: [Child!]! } type Child { value: Int! }")
             val executor = MockFieldUnbatchedResolverExecutor(resolverId = "Query.box") { _, _, _, _, context ->
                 assertSame(fixture.context.requestContext, context.requestContext)
-                mapOf("children" to listOf(mapOf("value" to 7L)))
+                fixture.resolved("Box", mapOf("children" to listOf(fixture.resolved("Child", mapOf("value" to 7)))))
             }
             val registry = fixture.registry(fixture.adapt(listOf(("Query" to "box") to executor)))
             val graphQLSchema = SchemaGenerator().makeExecutableSchema(
@@ -752,6 +960,65 @@ class ExecutorRegistryInputsTest {
         }
 
     @Test
+    fun `node projection preserves stored error markers while restoring the reference id`() =
+        runTest {
+            val fixture = Fixture("type Query { node(id: ID!): Node user: User } interface Node { id: ID! } type User implements Node { id: ID! name: String }")
+            val type = fixture.schemas.loweredSchema.requireType("User") as ViaductSchema.Object
+            val error = EngineErrorData.of(IllegalStateException("name failed"))
+            val source = engineObjectDataOf(type, mapOf("id" to "payload-id", "name" to error))
+            val viewer = MockFieldUnbatchedResolverExecutor(resolverId = "Query.user") { _, _, _, _, context ->
+                context.createNodeReference("reference-id", source.type)
+            }
+            val node = MockNodeUnbatchedResolverExecutor(typeName = "User", isSelective = true) { _, _, _ -> source }
+            val registry = fixture.registry(fixture.adapt(listOf(("Query" to "user") to viewer), listOf("User" to node)))
+            val reference = assertInstanceOf(RootFieldReferenceData::class.java, fixture.invoke(registry, "user"))
+            val root = registry.createRootQueryInput()
+
+            val output = assertInstanceOf(
+                EngineObjectData.Sync::class.java,
+                registry.resolver(reference.targetField)(
+                    input = root,
+                    queryValue = root,
+                    arguments = reference.arguments,
+                    selections = fixture.schemas.selectionsFrom("fragment Demand on User { id name }").second,
+                    selectiveResolvers = true,
+                    executionContext = fixture.resolutionContext,
+                ),
+            )
+
+            assertEquals("reference-id", output.get("id"))
+            assertSame(error, output.outputValue("name"))
+        }
+
+    @Test
+    fun `selective node projection accepts delegating Sync objects`() =
+        runTest {
+            val fixture = Fixture("type Query { node(id: ID!): Node user: User } interface Node { id: ID! } type User implements Node { id: ID! name: String }")
+            val user = fixture.resolved("User", mapOf("name" to "Ada"))
+            val delegated = object : EngineObjectData.Sync by user {}
+            val viewer = MockFieldUnbatchedResolverExecutor(resolverId = "Query.user") { _, _, _, _, context ->
+                context.createNodeReference("id", user.type)
+            }
+            val node = MockNodeUnbatchedResolverExecutor(typeName = "User", isSelective = true) { _, _, _ -> delegated }
+            val registry = fixture.registry(fixture.adapt(listOf(("Query" to "user") to viewer), listOf("User" to node)))
+            val reference = assertInstanceOf(RootFieldReferenceData::class.java, fixture.invoke(registry, "user"))
+            val root = registry.createRootQueryInput()
+
+            val output = assertInstanceOf(
+                EngineObjectData.Sync::class.java,
+                registry.resolver(reference.targetField)(
+                    input = root,
+                    queryValue = root,
+                    arguments = reference.arguments,
+                    selections = fixture.schemas.selectionsFrom("fragment Demand on User { name }").second,
+                    selectiveResolvers = true,
+                    executionContext = fixture.resolutionContext,
+                ),
+            )
+            assertEquals("Ada", output.outputValue("name"))
+        }
+
+    @Test
     fun `missing node selectors remain executor errors`() =
         runTest {
             val fixture = Fixture("type Query { node(id: ID!): Node user: User } interface Node { id: ID! } type User implements Node { id: ID! name: String }")
@@ -786,11 +1053,11 @@ class ExecutorRegistryInputsTest {
         runTest {
             val fixture = Fixture("type Query { node(id: ID!): Node user: User } interface Node { id: ID! } type User implements Node { id: ID! name: String }")
             val viewer = MockFieldUnbatchedResolverExecutor(resolverId = "Query.user") { _, _, _, _, _ ->
-                mapOf("name" to "Ada")
+                fixture.resolved("User", mapOf("name" to "Ada"))
             }
             val node = MockNodeUnbatchedResolverExecutor(typeName = "User")
             val registry = fixture.registry(fixture.adapt(listOf(("Query" to "user") to viewer), listOf("User" to node)))
-            assertThrows<viaduct.errors.UnsetFieldException> { fixture.invoke(registry, "user") }
+            assertFalse((fixture.invoke(registry, "user") as EngineObjectData.Sync).isPresent("id"))
         }
 
     private class Fixture(val sdl: String) {
@@ -810,6 +1077,11 @@ class ExecutorRegistryInputsTest {
             object : ResolutionExecutionContext by ResolutionExecutionContext.Unsupported {
                 override val engineExecutionContext: EngineExecutionContext = dispatcherContext
             }
+
+        fun resolved(
+            typeName: String,
+            fields: Map<String, Any?>
+        ): ResolvedEngineObjectData = ResolvedEngineObjectData(engineSchema.schema.getObjectType(typeName), fields)
 
         fun adapt(
             fields: List<Pair<Pair<String, String>, FieldResolverExecutor>> = emptyList(),
@@ -862,7 +1134,8 @@ class ExecutorRegistryInputsTest {
 
         suspend fun invoke(
             registry: ResolverRegistry,
-            name: String
+            name: String,
+            selections: SelectionForest = selectionForestOf(),
         ): Any? {
             val field = schemas.loweredSchema.requireObjectField("Query", name)
             val root = registry.createRootQueryInput()
@@ -870,7 +1143,7 @@ class ExecutorRegistryInputsTest {
                 input = root,
                 queryValue = root,
                 arguments = Arguments.Resolved.of(field, emptyMap()),
-                selections = selectionForestOf(),
+                selections = selections,
                 selectiveResolvers = true,
                 executionContext = resolutionContext,
             )

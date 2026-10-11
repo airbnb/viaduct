@@ -21,6 +21,7 @@ import viaduct.engine.runtime2.model.inputType
 import viaduct.engine.runtime2.model.matchingVariableTypes
 import viaduct.engine.runtime2.model.merge
 import viaduct.engine.runtime2.model.mutationNamespaceTypes
+import viaduct.engine.runtime2.model.outputValue
 import viaduct.engine.runtime2.model.registry.BranchOrderValidator
 import viaduct.engine.runtime2.model.registry.FieldCheckerResolver
 import viaduct.engine.runtime2.model.registry.FieldResolverDefinition
@@ -43,6 +44,7 @@ import viaduct.engine.runtime2.model.requireField
 import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.requireType
+import viaduct.engine.runtime2.model.rootFieldReferenceDataOrNull
 import viaduct.engine.runtime2.model.schemaType
 import viaduct.engine.runtime2.model.selectionForestOf
 import viaduct.engine.runtime2.model.usedVariables
@@ -119,10 +121,10 @@ fun resolverRegistryOf(
 }
 
 /**
- * Lowers source-world node references and node lookups into the canonical field-only world.
+ * Composes node lookups into the canonical field-only world.
  *
- * Node-valued source fields retain their coordinates and source-shaped node references become
- * root-field references to the built-in `Query.node`. That built-in decodes the concrete type and
+ * Node-valued source fields retain their coordinates and return canonical root-field references
+ * to the built-in `Query.node`. That built-in decodes the concrete type and
  * original ID, then dispatches to the corresponding raw node lookup.
  *
  * A lowered field must be declared as `Node` or a subtype whose every possible concrete type has a
@@ -144,10 +146,7 @@ private class NodeResolverLowering(
     init {
         validateRawFieldResolvers(rawFieldResolvers)
 
-        val ordinaryResolvers =
-            rawFieldResolvers.mapValues { (field, resolver) ->
-                resolver.mapOutput { output -> sourceSchema.lowerOutput(field, output) }
-            }.toMutableMap()
+        val ordinaryResolvers = rawFieldResolvers.toMutableMap()
         nodeType?.let {
             val queryNode = schema.requireObjectField("Query", "node")
             ordinaryResolvers[queryNode] =
@@ -303,21 +302,21 @@ private class NodeResolverLowering(
             } else {
                 nodeOwnedDemand
             }
-        val sourceResult = resolver(id, resolverDemand, executionContext)
+        val output = resolver(id, resolverDemand, executionContext)
+        val sourceResult = output.rootFieldReferenceDataOrNull() ?: output
         if (sourceResult == null || sourceResult is EngineErrorData) return sourceResult
         if (sourceResult is RootFieldReferenceData) return sourceResult
         require(sourceResult is EngineObjectData.Sync) {
             "Node resolver for ${type.name} returned a non-object value"
         }
-        val result = sourceSchema.lowerNodeResolverOutput(type, sourceResult)
-            as EngineObjectData.Sync
-        val resultType = result.schemaType
+        val result = sourceResult
+        val resultType = result.schemaType(schema)
         require(resultType == type) {
             "Node resolver for ${type.name} returned ${resultType.name}"
         }
         val fields =
             result.getSelections().associateWith { selection ->
-                result.get(selection)
+                result.outputValue(selection)
             }
 
         /*

@@ -2,15 +2,20 @@
 
 package viaduct.engine.runtime2.resolution
 
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
+import kotlin.test.assertSame
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.runBlocking
+import viaduct.engine.api.ResolvedEngineObjectData
 import viaduct.engine.runtime2.model.Arguments
+import viaduct.engine.runtime2.model.EngineErrorData
 import viaduct.engine.runtime2.model.EngineOutputData
 import viaduct.engine.runtime2.model.EngineResult
+import viaduct.engine.runtime2.model.ErrorEngineResult
 import viaduct.engine.runtime2.model.ListEngineResult
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.PathComponent
@@ -32,6 +37,52 @@ import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 import viaduct.graphql.schema.ViaductSchema
 
 class PassiveValueResolutionLogicTest : ResolutionDispatcherResource {
+    @Test
+    fun `resolved source values nulls and errors suppress resolvers while absent fields resolve`() {
+        val calls = AtomicInteger()
+        val fixture = TestWorld.fromSDL(
+            schemaSDL = "type Query { item: Item } type Item { name: String nickname: String age: Int computed: String }",
+            fieldResolvers = { schemas ->
+                val schema = schemas.loweredSchema
+                val passive = listOf("name", "nickname", "age").associate { name ->
+                    schema.requireObjectField("Item", name) to fieldResolverOf(schema.emptyFragmentOf("Item")) { _, _ ->
+                        error("Source-supplied fields must suppress their standard resolvers")
+                    }
+                }
+                passive + (
+                    schema.requireObjectField("Item", "computed") to fieldResolverOf(
+                        schemas.fragmentFrom("fragment Input on Item { name }"),
+                    ) { input, _ ->
+                        calls.incrementAndGet()
+                        "computed:${input.get("name")}"
+                    }
+                )
+            },
+        )
+        val schema = fixture.schema
+        val itemField = schema.requireObjectField("Query", "item")
+        val error = EngineErrorData.of(IllegalStateException("field failure"))
+        val source = ResolvedEngineObjectData(fixture.schemas.graphQLSchema.getObjectType("Item"), mapOf("name" to "Ada", "nickname" to null, "age" to error))
+        val demand = fixture.schemas.fragmentFrom("fragment Demand on Item { name nickname age computed }").subselections
+
+        val result = assertIs<ObjectEngineResult>(
+            resolvePassiveValues(
+                world = fixture.assumptions,
+                value = source,
+                expectedType = itemField.outputType,
+                path = listOf(itemField.key()),
+                invocationDemand = demand,
+                constructionDemand = demand,
+            )
+        )
+
+        assertEquals("Ada", result.getCell(schema.requireObjectField("Item", "name").key()).value.get())
+        assertEquals(null, result.getCell(schema.requireObjectField("Item", "nickname").key()).value.get())
+        assertSame(error, assertIs<ErrorEngineResult>(result.getCell(schema.requireObjectField("Item", "age").key()).value.get()).errorData)
+        assertEquals("computed:Ada", result.getCell(schema.requireObjectField("Item", "computed").key()).value.get())
+        assertEquals(1, calls.get())
+    }
+
     @Test
     fun `passive-only object trees freeze synchronously as they are created`() {
         val worldFixture = TestWorld

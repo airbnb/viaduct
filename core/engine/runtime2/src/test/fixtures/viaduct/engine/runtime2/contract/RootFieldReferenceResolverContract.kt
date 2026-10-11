@@ -7,11 +7,13 @@ import kotlin.test.assertIs
 import kotlin.test.assertNotSame
 import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.Test
+import viaduct.engine.api.ResolvedEngineObjectData
 import viaduct.engine.runtime2.correctresolution.CorrectnessResolverObserver
 import viaduct.engine.runtime2.model.Arguments
 import viaduct.engine.runtime2.model.ListEngineResult
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.RootFieldReferenceData
+import viaduct.engine.runtime2.model.RootFieldReferenceDataCarrier
 import viaduct.engine.runtime2.model.emptyFragmentOf
 import viaduct.engine.runtime2.model.merge
 import viaduct.engine.runtime2.model.outputValue
@@ -29,6 +31,51 @@ import viaduct.graphql.schema.ViaductSchema
 
 /** Root-field-reference behavior common to every maintained resolver capability tier. */
 interface RootFieldReferenceResolverContract : ResolverContract {
+    @Test
+    fun `consumes canonical reference handles directly and inside resolved objects and nested lists`() {
+        val world = TestWorld.fromSDL(
+            selectiveResolvers = selectiveResolvers,
+            schemaSDL = "type Query { container: Container indirect: Item lookup: Item } type Container { item: Item items: [[Item]] } type Item { value: Int }",
+            fieldResolvers = { schemas ->
+                val schema = schemas.loweredSchema
+                val lookup = schema.requireObjectField("Query", "lookup")
+                val reference = RootFieldReferenceData.of(listOf(lookup), emptyMap())
+                val handle = object : RootFieldReferenceDataCarrier {
+                    override val referenceData = reference
+                }
+                val source = ResolvedEngineObjectData(
+                    schemas.graphQLSchema.getObjectType("Container"),
+                    mapOf("item" to handle, "items" to listOf(listOf(handle, null, handle))),
+                )
+                val fragment = schema.emptyFragmentOf("Query")
+                mapOf(
+                    schema.requireObjectField("Query", "container") to fieldResolverOf(fragment) { _, _ -> source },
+                    schema.requireObjectField("Query", "indirect") to fieldResolverOf(fragment) { _, _ -> handle },
+                    lookup to fieldResolverOf(fragment) { _, _ ->
+                        ResolvedEngineObjectData(schemas.graphQLSchema.getObjectType("Item"), mapOf("value" to 7))
+                    },
+                )
+            },
+        )
+        val result = resolveAndValidate(world, "query { container { item { value } items { value } } indirect { value } }")
+        val schema = world.schema
+        val container = assertIs<ObjectEngineResult>(result.getCell(schema.contractKey("Query", "container")).get())
+        val item = assertIs<ObjectEngineResult>(container.getCell(schema.contractKey("Container", "item")).get())
+        val lists = assertIs<ListEngineResult>(container.getCell(schema.contractKey("Container", "items")).get())
+        val list = assertIs<ListEngineResult>(lists[0].get())
+        val first = assertIs<ObjectEngineResult>(list[0].get())
+        val last = assertIs<ObjectEngineResult>(list[2].get())
+        val indirect = assertIs<ObjectEngineResult>(result.getCell(schema.contractKey("Query", "indirect")).get())
+
+        assertNotSame(item, first)
+        assertNotSame(first, last)
+        assertNotSame(last, indirect)
+        assertEquals(null, list[1].get())
+        listOf(item, first, last, indirect).forEach { occurrence ->
+            assertEquals(7, occurrence.getCell(schema.contractKey("Item", "value")).get())
+        }
+    }
+
     @Test
     fun `abstract target resolves when all possible types conform to the consumer`() {
         val testWorld =

@@ -31,9 +31,11 @@ import viaduct.engine.runtime2.model.EngineInputData
 import viaduct.engine.runtime2.model.EngineOutputData
 import viaduct.engine.runtime2.model.Fragment
 import viaduct.engine.runtime2.model.ResolverTarget
+import viaduct.engine.runtime2.model.RootFieldReferenceData
 import viaduct.engine.runtime2.model.arg
 import viaduct.engine.runtime2.model.emptyFragmentOf
 import viaduct.engine.runtime2.model.fieldExpressions
+import viaduct.engine.runtime2.model.nodeRootFieldReferenceOf
 import viaduct.engine.runtime2.model.registry.FieldResolverDefinition
 import viaduct.engine.runtime2.model.registry.NodeResolverFunction
 import viaduct.engine.runtime2.model.registry.ProviderFragment
@@ -41,6 +43,7 @@ import viaduct.engine.runtime2.model.registry.VariableDeclaration
 import viaduct.engine.runtime2.model.registry.fieldResolverOf
 import viaduct.engine.runtime2.model.registry.fromArgument
 import viaduct.engine.runtime2.model.registry.nodeResolverOf
+import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireType
 import viaduct.engine.runtime2.model.spec.SpecSelection
 import viaduct.engine.runtime2.model.spec.flattenForMaterialization
@@ -741,7 +744,7 @@ private class ResultEvaluator(
         declaredType: ViaductSchema.CompositeTypeDef,
         source: ObjectValue,
         context: EvaluationContext,
-    ): EngineObjectData.Sync {
+    ): RootFieldReferenceData {
         val fields = source.uniqueFields("Node reference")
         require(fields.keys == setOf(ID_FIELD)) {
             "Node-typed results may contain only id"
@@ -753,9 +756,7 @@ private class ResultEvaluator(
         require(entry.type in declaredType.possibleObjectTypes) {
             "Node id $id has type ${entry.type.name}, not ${declaredType.name}"
         }
-        return schema.objectOf(entry.type.name) {
-            ID_FIELD setTo id
-        }
+        return nodeRootFieldReferenceOf(schema.requireObjectField("Query", "node"), entry.type, id)
     }
 
     private fun evaluateInt(

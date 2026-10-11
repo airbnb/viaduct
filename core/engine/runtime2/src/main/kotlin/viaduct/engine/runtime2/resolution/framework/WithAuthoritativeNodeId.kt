@@ -19,8 +19,8 @@ internal fun ResolverOutputData?.withAuthoritativeNodeId(
     demand: SelectionForest,
 ): ResolverOutputData? {
     if (identity == null || this !is EngineObjectData.Sync) return this
-    require(schemaType == identity.type) {
-        "Node reference for ${identity.type.name} resolved to ${schemaType.name}"
+    require(schemaType(identity.type) == identity.type) {
+        "Node reference for ${identity.type.name} resolved to ${type.name}"
     }
     val idField = identity.type.field("id")
         ?: throw IllegalArgumentException("Node type ${identity.type.name} has no id field")

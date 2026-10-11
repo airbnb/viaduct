@@ -52,6 +52,7 @@ dependencies {
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.viaduct.engine.wiring)
     testImplementation(libs.viaduct.service.api)
+    testImplementation(libs.viaduct.tenant.shared)
     testImplementation(libs.viaduct.shared.arbitrary)
     testImplementation(testFixtures(libs.viaduct.engine.api))
     testImplementation(testFixtures(libs.viaduct.engine.runtime))

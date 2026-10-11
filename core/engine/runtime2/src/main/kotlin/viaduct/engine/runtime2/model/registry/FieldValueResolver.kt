@@ -14,7 +14,9 @@ import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.model.arg
 import viaduct.engine.runtime2.model.engineObjectDataOf
 import viaduct.engine.runtime2.model.instantiateVariables
+import viaduct.engine.runtime2.model.outputType
 import viaduct.engine.runtime2.model.outputValue
+import viaduct.engine.runtime2.model.rootFieldReferenceDataOrNull
 import viaduct.engine.runtime2.model.schemaType
 import viaduct.engine.runtime2.model.selectionForestOf
 import viaduct.graphql.schema.ViaductSchema
@@ -273,8 +275,8 @@ class FieldValueResolver private constructor(
         selectiveResolvers: Boolean,
         executionContext: ResolutionExecutionContext,
     ): ResolverOutputData? {
-        require(queryValue.schemaType == queryType) {
-            "Query value type ${queryValue.schemaType.name} does not match ${queryType.name}"
+        require(queryValue.schemaType(queryType) == queryType) {
+            "Query value type ${queryValue.type.name} does not match ${queryType.name}"
         }
         val output =
             try {
@@ -285,11 +287,11 @@ class FieldValueResolver private constructor(
         // output.requireArgumentlessObjectFields()
         val selectedOutput =
             if (projectNonselectiveOutput && selectiveResolvers) {
-                output.snipToDemand(projectionDemand(selections))
+                output.snipToDemand(projectionDemand(selections), target.field.outputType.baseTypeDef)
             } else {
                 output
             }
-        return selectedOutput
+        return selectedOutput.rootFieldReferenceDataOrNull() ?: selectedOutput
     }
 
     companion object {

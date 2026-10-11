@@ -10,7 +10,6 @@ import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.PathComponent
 import viaduct.engine.runtime2.model.ResolverOccurrenceId
 import viaduct.engine.runtime2.model.ResolverOutputData
-import viaduct.engine.runtime2.model.RootFieldReferenceData
 import viaduct.engine.runtime2.model.VariableBinding
 import viaduct.engine.runtime2.model.merge
 import viaduct.engine.runtime2.model.outputType
@@ -19,6 +18,7 @@ import viaduct.engine.runtime2.model.registry.FieldValueResolver
 import viaduct.engine.runtime2.model.registry.ResolverFragments
 import viaduct.engine.runtime2.model.registry.VariableDefinition
 import viaduct.engine.runtime2.model.requireQueryTypeDef
+import viaduct.engine.runtime2.model.rootFieldReferenceDataOrNull
 import viaduct.engine.runtime2.model.schemaType
 import viaduct.engine.runtime2.model.toEngineOutputData
 import viaduct.engine.runtime2.model.usedVariables
@@ -181,10 +181,11 @@ private class ResolverConformanceLogic(
         structuralParent: ObjectEngineResult,
         producerField: ViaductSchema.ObjectField,
     ): Boolean {
-        if (resolverValue is RootFieldReferenceData) {
+        val reference = resolverValue.rootFieldReferenceDataOrNull()
+        if (reference != null) {
             return operation.reapplyRootFieldReference(
                 resolverApplicationCache = resolverApplicationCache,
-                reference = resolverValue,
+                reference = reference,
                 publicationRoot = resolverApplicationCache.root,
                 publicationPath = path,
                 validationDemand = completedOutputDemand(),
@@ -236,7 +237,7 @@ private class ResolverConformanceLogic(
         structuralParent: ObjectEngineResult,
         producerField: ViaductSchema.ObjectField,
     ): Boolean {
-        if (type != resolverValue.schemaType) return false
+        if (type != resolverValue.schemaType(operation.world.schema)) return false
 
         return objectConformsToResolvers(
             path = path,

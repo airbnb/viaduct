@@ -54,22 +54,6 @@ class SourceSchemaAdapter(
         }
     }
 
-    fun lowerNodeResolverOutput(
-        type: ViaductSchema.Object,
-        output: ResolverOutputData?,
-    ): ResolverOutputData? {
-        if (output == null || output is EngineErrorData || output is RootFieldReferenceData) {
-            return output
-        }
-        require(output is EngineObjectData.Sync) {
-            "Node resolver for ${type.name} returned a non-object value"
-        }
-        return lowerOrdinaryObject(
-            output,
-            ViaductSchema.TypeExpr(type),
-        )
-    }
-
     fun lowerRootFieldReference(
         rootFieldPath: List<String>,
         sourceTypeName: String,

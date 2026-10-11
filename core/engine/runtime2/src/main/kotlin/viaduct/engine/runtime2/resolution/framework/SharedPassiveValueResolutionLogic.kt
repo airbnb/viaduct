@@ -20,6 +20,7 @@ import viaduct.engine.runtime2.model.merge
 import viaduct.engine.runtime2.model.outputType
 import viaduct.engine.runtime2.model.outputValue
 import viaduct.engine.runtime2.model.requireField
+import viaduct.engine.runtime2.model.rootFieldReferenceDataOrNull
 import viaduct.engine.runtime2.model.schemaType
 import viaduct.engine.runtime2.model.selectionForestOf
 import viaduct.engine.runtime2.model.toEngineResult
@@ -71,7 +72,7 @@ internal abstract class SharedPassiveValueResolutionLogic<
     /** Returns the checked/unchecked demand closed by [orchestration]. */
     protected open fun closedConstructionDemand(orchestration: T): Demand<ObjectSelectionForest> =
         Demand.checked(orchestration.objectOER.closedValueSelections)
-            .merge(orchestration.objectOER.source.schemaType)
+            .merge(orchestration.objectOER.source.schemaType(operation.world.schema))
 
     /**
      * Collects selections for [type]. Resolution merges while retaining unresolved arguments;
@@ -142,7 +143,7 @@ internal abstract class SharedPassiveValueResolutionLogic<
             is RootFieldReferenceData ->
                 error("A direct root-field reference must be resolved before passive resolution")
             is EngineObjectData.Sync -> {
-                val target = createObjectResult(value.schemaType, constructionDemand)
+                val target = createObjectResult(value.schemaType(operation.world.schema), constructionDemand)
                 resolvePassiveObjectValues(
                     source = value,
                     occurrence = OEROccurrence(root, path, target, parent),
@@ -158,7 +159,8 @@ internal abstract class SharedPassiveValueResolutionLogic<
                 value.forEachIndexed { index, element ->
                     val elementPath = path + ListEngineResult.Index.of(index)
                     val cell = result[index]
-                    if (element is RootFieldReferenceData) {
+                    val reference = element.rootFieldReferenceDataOrNull()
+                    if (reference != null) {
                         val key = elementPath.filterIsInstance<ObjectEngineResult.ObjectKey>().last()
                         val selection = selectionForestOf(
                             Selection.of(
@@ -168,7 +170,7 @@ internal abstract class SharedPassiveValueResolutionLogic<
                             ),
                         ).merge(containingOccurrence.target.type).byKey().getValue(key)
                         resolveListReference(
-                            reference = element,
+                            reference = reference,
                             cell = cell,
                             path = elementPath,
                             expectedType = elementType,
@@ -210,8 +212,8 @@ internal abstract class SharedPassiveValueResolutionLogic<
         constructionDemand: Demand<SelectionForest>,
         invocationDemand: SelectionForest = constructionDemand.values,
     ) {
-        require(source.schemaType == occurrence.target.type) {
-            "Source type ${source.schemaType.name} does not match result type ${occurrence.target.type.name}"
+        require(source.schemaType(operation.world.schema) == occurrence.target.type) {
+            "Source type ${source.schemaType(operation.world.schema).name} does not match result type ${occurrence.target.type.name}"
         }
         val orchestration = createOrchestrationTask(occurrence, source, constructionDemand)
         materializePassiveFields(
@@ -237,7 +239,7 @@ internal abstract class SharedPassiveValueResolutionLogic<
         val objectOER = orchestration.objectOER
         val source = objectOER.source
         val occurrence = objectOER.occurrence
-        val type = source.schemaType
+        val type = source.schemaType(operation.world.schema)
         val invocationByKey = collect(invocationDemand, type).byKey()
         val passiveByKey = collect(invocationDemand + closedConstructionDemand.values, type).byKey()
         if (operation.world.selectiveResolvers) {
@@ -258,7 +260,7 @@ internal abstract class SharedPassiveValueResolutionLogic<
             }
             val value = source.outputValue(fieldName)
             // Direct references are classified as executable work by object orchestration.
-            if (value is RootFieldReferenceData) return@forEach
+            if (value.rootFieldReferenceDataOrNull() != null) return@forEach
             val containsReference = value.containsListElementRootFieldReference()
             val demandedKeys = passiveByKey.keys.filterTo(linkedSetOf()) { it.field == field }
             if (demandedKeys.isEmpty()) {
@@ -305,4 +307,4 @@ internal abstract class SharedPassiveValueResolutionLogic<
  * Whether this value is a list containing a root-field reference, directly or through nested lists.
  * References inside objects are handled by those objects' own resolution lifecycles.
  */
-private fun Any?.containsListElementRootFieldReference(): Boolean = this is List<*> && any { it is RootFieldReferenceData || it.containsListElementRootFieldReference() }
+private fun Any?.containsListElementRootFieldReference(): Boolean = this is List<*> && any { it.rootFieldReferenceDataOrNull() != null || it.containsListElementRootFieldReference() }

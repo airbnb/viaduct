@@ -80,11 +80,18 @@ private data class ErrorEngineObjectOrErrorDataImpl(
 ) : EngineObjectOrErrorData.Error
 
 /**
- * [EngineOutputData] or [RootFieldReferenceData].
+ * [EngineOutputData] or [RootFieldReferenceData], including Runtime2-created reference handles.
  *
  * This is the field-resolver codomain. A root-field reference is a symbolic resolver instruction
  * with grounded, variable-free arguments, not engine data supplied as resolver input. List and
  * object positions within resolver output may recursively contain [ResolverOutputData].
+ * Object values may use any [EngineObjectData.Sync] implementation with materialized values
+ * conforming recursively to this contract. Tenant resolver EODs must not contain field-error
+ * markers, either [EngineErrorData] or exceptions, including within lists and nested objects;
+ * getters must not throw to model field errors. Runtime2-owned objects use [outputValue] to
+ * preserve internal error markers for algorithmic validation and future fine-grained tenant
+ * errors. Other implementations are read through [EngineObjectData.Sync.get], which returns
+ * successful stored values and nulls or throws [viaduct.errors.UnsetFieldException] for absence.
  */
 typealias ResolverOutputData = Any
 

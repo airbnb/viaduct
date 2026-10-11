@@ -75,6 +75,8 @@ private fun Any?.conformsToOutputSchemaType(
     when (this) {
         null -> typeExpr.isNullable
         is EngineErrorData -> true
+        is RootFieldReferenceDataCarrier ->
+            referenceData.conformsToOutputSchemaType(typeExpr, rootFieldReferencesAllowed)
         is List<*> ->
             typeExpr.unwrapList()
                 ?.let { elementType ->

@@ -14,6 +14,7 @@ import kotlin.test.assertTrue
 import kotlinx.coroutines.runBlocking
 import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.EngineObjectData
+import viaduct.engine.api.ResolvedEngineObjectData
 import viaduct.engine.runtime2.bootstrap.resolverRegistryOf
 import viaduct.engine.runtime2.model.Arguments
 import viaduct.engine.runtime2.model.EngineErrorData
@@ -39,12 +40,54 @@ import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.emptyFragmentOf
 import viaduct.engine.runtime2.model.testing.fragmentFrom
 import viaduct.engine.runtime2.model.testing.fromSDL
+import viaduct.engine.runtime2.model.testing.nodeReferenceOf
 import viaduct.engine.runtime2.model.testing.objectOf
 import viaduct.engine.runtime2.model.testing.testRoot
 import viaduct.engine.runtime2.schema.ViaductAndGJSchema
 import viaduct.graphql.schema.ViaductSchema
 
 class ResolverRegistryTest {
+    @Test
+    fun `projects delegating Sync objects recursively using canonical declared types`() {
+        val schemas = ViaductAndGJSchema.fromSDL(
+            """
+            type Query { container: Container }
+            type Container { items: [Item] }
+            interface Item { selected: Int extra: Int }
+            type A implements Item { selected: Int extra: Int }
+            type B implements Item { selected: Int extra: Int }
+            """.trimIndent(),
+        )
+        val schema = schemas.loweredSchema
+        val source = object : EngineObjectData.Sync by ResolvedEngineObjectData(
+            schemas.graphQLSchema.getObjectType("Container"),
+            mapOf(
+                "items" to listOf(
+                    object : EngineObjectData.Sync by ResolvedEngineObjectData(schemas.graphQLSchema.getObjectType("A"), mapOf("selected" to 1, "extra" to 3)) {},
+                    object : EngineObjectData.Sync by ResolvedEngineObjectData(schemas.graphQLSchema.getObjectType("B"), mapOf("selected" to null, "extra" to 2)) {},
+                    null,
+                ),
+            ),
+        ) {}
+        val demand = schemas.fragmentFrom("fragment Demand on Container { items { selected ... on A { extra } } }").subselections
+
+        val projected = assertIs<EngineObjectData.Sync>(source.snipToDemand(demand, schema.requireType("Container") as ViaductSchema.Object))
+        val items = assertIs<List<*>>(projected.outputValue("items"))
+        val a = assertIs<EngineObjectData.Sync>(items[0])
+        val b = assertIs<EngineObjectData.Sync>(items[1])
+
+        assertSame(schema.requireType("A"), a.schemaType)
+        assertEquals(setOf("selected", "extra"), a.getSelections().toSet())
+        assertEquals(1, a.outputValue("selected"))
+        assertEquals(3, a.outputValue("extra"))
+        assertSame(schema.requireType("B"), b.schemaType)
+        assertEquals(listOf("selected"), b.getSelections().toList())
+        assertTrue(b.isPresent("selected"))
+        assertEquals(null, b.outputValue("selected"))
+        assertFalse(b.isPresent("extra"))
+        assertEquals(null, items[2])
+    }
+
     @Test
     fun `stores type checkers by their canonical concrete object target`() {
         lateinit var suppliedChecker: TypeCheckerResolver
@@ -294,9 +337,7 @@ class ResolverRegistryTest {
                                         assertEquals(schema.loweredSchema.requireQueryTypeDef(), parent.schemaType)
                                         assertTrue(parent.getSelections().none())
                                         assertTrue(arguments.fieldValues.isEmpty())
-                                        schema.loweredSchema.objectOf("User") {
-                                            "id" setTo "42"
-                                        }
+                                        schema.loweredSchema.nodeReferenceOf("User", "42")
                                     },
                                 ),
                         )

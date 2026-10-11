@@ -3,16 +3,143 @@ package viaduct.engine.runtime2.execution
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertIs
+import kotlin.test.assertNull
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
+import kotlinx.coroutines.test.runTest
+import viaduct.engine.api.EngineObjectData
+import viaduct.engine.api.ResolvedEngineObjectData
 import viaduct.engine.api.mocks.EngineTestModule
 import viaduct.engine.api.mocks.MockFieldBatchResolverExecutor
 import viaduct.engine.api.mocks.MockFieldUnbatchedResolverExecutor
+import viaduct.engine.api.mocks.MockNodeUnbatchedResolverExecutor
 import viaduct.engine.api.mocks.createEngineObjectData
 import viaduct.engine.api.mocks.fetchAs
+import viaduct.engine.api.spi.FieldResolverExecutor
+import viaduct.engine.api.spi.NodeResolverExecutor
 import viaduct.engine.runtime.execution.query
+import viaduct.engine.runtime.mocks.ContextMocks
+import viaduct.engine.runtime2.execution.testing.fixtureFieldExecutor
+import viaduct.engine.runtime2.execution.testing.fixtureNodeExecutor
 import viaduct.engine.runtime2.execution.testing.runQPlanFeatureTest
+import viaduct.engine.runtime2.model.EngineErrorData
+import viaduct.engine.runtime2.model.engineObjectDataOf
+import viaduct.engine.runtime2.model.outputValue
+import viaduct.engine.runtime2.model.requireType
+import viaduct.engine.runtime2.schema.ViaductAndGJSchema
+import viaduct.graphql.schema.ViaductSchema
 
 class EngineTestModuleQPlanFeatureTest {
+    @Test
+    fun `field wrapper adapts nested mock maps objects and scalars before production`() =
+        runTest {
+            val module = EngineTestModule(
+                """
+                extend type Query { users: [User] }
+                type User { id: ID age: Int scores: [Int] child: Detail name: String missing: String }
+                type Detail { weight: Float }
+                """.trimIndent(),
+            ) {}
+            val userType = module.fullSchema.schema.getObjectType("User")
+            val detailType = module.fullSchema.schema.getObjectType("Detail")
+            val child = object : EngineObjectData.Sync by ResolvedEngineObjectData(detailType, mapOf("weight" to 8)) {}
+            val legacy = object : EngineObjectData.Sync by ResolvedEngineObjectData(userType, mapOf("age" to 9L)) {}
+            val executor = MockFieldUnbatchedResolverExecutor(resolverId = "Query.users") { _, _, _, _, _ ->
+                listOf(mapOf("id" to 42, "age" to 7L, "scores" to listOf(3L, null), "child" to child, "name" to null), legacy)
+            }
+            val root = ResolvedEngineObjectData(module.fullSchema.schema.queryType, emptyMap())
+            val selector = FieldResolverExecutor.Selector(emptyMap(), null, { root }, { root })
+            val context = ContextMocks(myFullSchema = module.fullSchema).engineExecutionContext
+
+            val output = module.fixtureFieldExecutor("Query" to "users", executor)
+                .batchResolve(listOf(selector), context).getValue(selector).getOrThrow() as List<*>
+
+            val first = assertIs<ResolvedEngineObjectData>(output[0])
+            assertEquals("42", first.get("id"))
+            assertEquals(7, first.get("age"))
+            assertEquals(listOf(3, null), first.get("scores"))
+            assertEquals(8.0, assertIs<ResolvedEngineObjectData>(first.get("child")).get("weight"))
+            assertTrue(first.isPresent("name"))
+            assertNull(first.get("name"))
+            assertFalse(first.isPresent("missing"))
+            assertEquals(9, assertIs<ResolvedEngineObjectData>(output[1]).get("age"))
+        }
+
+    @Test
+    fun `node wrapper adapts scalar values and supplies only missing demanded nullable fields`() =
+        runTest {
+            val module = EngineTestModule(
+                """
+                type User implements Node { id: ID! age: Int nickname: String unused: String active: String @resolver }
+                """.trimIndent(),
+            ) {
+                fieldWithValue("User" to "active", "owned")
+            }
+            val userType = module.fullSchema.schema.getObjectType("User")
+            val legacy = object : EngineObjectData.Sync by ResolvedEngineObjectData(userType, mapOf("age" to 7L)) {}
+            val executor = MockNodeUnbatchedResolverExecutor(typeName = "User", isSelective = true) { _, _, _ -> legacy }
+            val context = ContextMocks(myFullSchema = module.fullSchema).engineExecutionContext
+            val selections = context.engineSelectionSetFactory.engineSelectionSet("User", "id age nickname active", emptyMap())
+            val selector = NodeResolverExecutor.Selector("u1", selections)
+
+            val output = module.fixtureNodeExecutor("User", executor)
+                .resolve(listOf(selector), context).getValue(selector).getOrThrow()
+
+            val data = assertIs<ResolvedEngineObjectData>(output)
+            assertEquals(7, data.get("age"))
+            assertEquals("__qplan_inline_node__", data.get("id"))
+            assertTrue(data.isPresent("nickname"))
+            assertNull(data.get("nickname"))
+            assertFalse(data.isPresent("unused"))
+            assertFalse(data.isPresent("active"))
+        }
+
+    @Test
+    fun `fixture wrappers preserve runtime2 object and stored error identity`() =
+        runTest {
+            val module = EngineTestModule("extend type Query { user: User } type User implements Node { id: ID! age: Int }") {}
+            val schemas = ViaductAndGJSchema.fromGraphQLSchema(module.fullSchema.schema)
+            val userType = schemas.loweredSchema.requireType("User") as ViaductSchema.Object
+            val marker = EngineErrorData.of()
+            val prepared = engineObjectDataOf(userType, mapOf("age" to marker))
+            val executor = MockFieldUnbatchedResolverExecutor(resolverId = "Query.user") { _, _, _, _, _ -> prepared }
+            val root = ResolvedEngineObjectData(module.fullSchema.schema.queryType, emptyMap())
+            val selector = FieldResolverExecutor.Selector(emptyMap(), null, { root }, { root })
+            val context = ContextMocks(myFullSchema = module.fullSchema).engineExecutionContext
+
+            val output = module.fixtureFieldExecutor("Query" to "user", executor)
+                .batchResolve(listOf(selector), context).getValue(selector).getOrThrow()
+
+            assertSame(prepared, output)
+            assertSame(marker, prepared.outputValue("age"))
+
+            val nodeExecutor = MockNodeUnbatchedResolverExecutor(typeName = "User") { _, _, _ -> prepared }
+            val selections = context.engineSelectionSetFactory.engineSelectionSet("User", "age", emptyMap())
+            val nodeSelector = NodeResolverExecutor.Selector("u1", selections)
+            val nodeOutput = module.fixtureNodeExecutor("User", nodeExecutor)
+                .resolve(listOf(nodeSelector), context).getValue(nodeSelector).getOrThrow()
+
+            assertSame(prepared, nodeOutput)
+        }
+
+    @Test
+    fun `field wrapper preserves failed executor results`() =
+        runTest {
+            val module = EngineTestModule("extend type Query { value: Int }") {}
+            val failure = IllegalStateException("resolver failed")
+            val executor = MockFieldUnbatchedResolverExecutor(resolverId = "Query.value") { _, _, _, _, _ -> throw failure }
+            val root = ResolvedEngineObjectData(module.fullSchema.schema.queryType, emptyMap())
+            val selector = FieldResolverExecutor.Selector(emptyMap(), null, { root }, { root })
+            val context = ContextMocks(myFullSchema = module.fullSchema).engineExecutionContext
+
+            val result = module.fixtureFieldExecutor("Query" to "value", executor)
+                .batchResolve(listOf(selector), context).getValue(selector)
+
+            assertSame(failure, result.exceptionOrNull())
+        }
+
     @Test
     fun `ctx query nests under the calling field task`() {
         EngineTestModule(

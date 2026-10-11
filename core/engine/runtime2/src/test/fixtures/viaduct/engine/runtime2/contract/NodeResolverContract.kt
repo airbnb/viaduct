@@ -26,6 +26,7 @@ import viaduct.engine.runtime2.model.requireType
 import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.emptyFragmentOf
 import viaduct.engine.runtime2.model.testing.fragmentFrom
+import viaduct.engine.runtime2.model.testing.nodeReferenceOf
 import viaduct.engine.runtime2.model.testing.objectOf
 import viaduct.engine.runtime2.resolution.framework.ResolverInvocationObservation
 import viaduct.graphql.schema.ViaductSchema
@@ -124,7 +125,7 @@ interface NodeResolverContract : ResolverContract {
                     mapOf(
                         foo to
                             fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
-                                schema.loweredSchema.objectOf("Foo") { "id" setTo "source-id" }
+                                schema.loweredSchema.nodeReferenceOf("Foo", "source-id")
                             },
                         referencedFoo to
                             fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
@@ -215,15 +216,11 @@ interface NodeResolverContract : ResolverContract {
                     mapOf(
                         baz to
                             fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
-                                schema.loweredSchema.objectOf("Baz") {
-                                    "id" setTo "1"
-                                }
+                                schema.loweredSchema.nodeReferenceOf("Baz", "1")
                             },
                         anotherBaz to
                             fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Baz")) { _, _ ->
-                                schema.loweredSchema.objectOf("Baz") {
-                                    "id" setTo "2"
-                                }
+                                schema.loweredSchema.nodeReferenceOf("Baz", "2")
                             },
                         z to
                             fieldResolverOf(
@@ -426,12 +423,8 @@ interface NodeResolverContract : ResolverContract {
                                 val group =
                                     arguments.fieldValues.getValue("group") as String
                                 listOf(
-                                    schema.loweredSchema.objectOf("User") {
-                                        "id" setTo "$group-user"
-                                    },
-                                    schema.loweredSchema.objectOf("Admin") {
-                                        "id" setTo "$group-admin"
-                                    },
+                                    schema.loweredSchema.nodeReferenceOf("User", "$group-user"),
+                                    schema.loweredSchema.nodeReferenceOf("Admin", "$group-admin"),
                                 )
                             },
                     )
@@ -503,12 +496,7 @@ interface NodeResolverContract : ResolverContract {
                 fieldResolvers = { schema ->
                     val matrix = schema.loweredSchema.requireField("Query", "matrix")
 
-                    fun row(vararg ids: String): EngineOutputListData =
-                        ids.map { id ->
-                            schema.loweredSchema.objectOf("User") {
-                                "id" setTo id
-                            }
-                        }
+                    fun row(vararg ids: String): EngineOutputListData = ids.map { id -> schema.loweredSchema.nodeReferenceOf("User", id) }
                     mapOf(
                         matrix to
                             fieldResolverOf(

@@ -8,8 +8,8 @@ import viaduct.engine.runtime2.model.ListEngineResult
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.PathComponent
 import viaduct.engine.runtime2.model.ResolverOutputData
-import viaduct.engine.runtime2.model.RootFieldReferenceData
 import viaduct.engine.runtime2.model.outputValue
+import viaduct.engine.runtime2.model.rootFieldReferenceDataOrNull
 import viaduct.engine.runtime2.model.schemaType
 import viaduct.engine.runtime2.model.usedVariables
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
@@ -181,10 +181,11 @@ private class ResolverDemandValidationLogic(
         structuralParent: ObjectEngineResult,
         producerField: ViaductSchema.ObjectField,
     ): Boolean {
-        if (source is RootFieldReferenceData) {
+        val reference = source.rootFieldReferenceDataOrNull()
+        if (reference != null) {
             return operation.reapplyRootFieldReference(
                 resolverApplicationCache = resolverApplicationCache,
-                reference = source,
+                reference = reference,
                 publicationRoot = resolverApplicationCache.root,
                 publicationPath = path,
                 validationDemand = completedOutputDemand(),
@@ -204,7 +205,7 @@ private class ResolverDemandValidationLogic(
 
             is ObjectEngineResult ->
                 source is EngineObjectData.Sync &&
-                    type == source.schemaType &&
+                    type == source.schemaType(operation.world.schema) &&
                     objectIsClosedUnderResolverDemand(
                         path = path,
                         source = source,

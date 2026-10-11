@@ -3,11 +3,14 @@
 package viaduct.engine.runtime2.execution.testing
 
 import graphql.ExecutionResult
+import graphql.GraphQLContext
 import graphql.schema.GraphQLInterfaceType
 import graphql.schema.GraphQLList
 import graphql.schema.GraphQLNonNull
 import graphql.schema.GraphQLObjectType
 import graphql.schema.GraphQLOutputType
+import graphql.schema.GraphQLScalarType
+import java.util.Locale
 import viaduct.engine.EngineConfiguration
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
@@ -26,6 +29,8 @@ import viaduct.engine.api.spi.NodeResolverExecutor
 import viaduct.engine.runtime.tenantloading.InvalidVariableException
 import viaduct.engine.runtime.tenantloading.RequiredSelectionsAreInvalid
 import viaduct.engine.runtime.tenantloading.RequiredSelectionsCycleException
+import viaduct.engine.runtime2.model.EngineErrorData
+import viaduct.engine.runtime2.model.qplanSchemaTypeOrNull
 import viaduct.service.runtime.StandardViaduct
 
 /** GraphQL feature-test surface backed by engine2 through production [StandardViaduct] wiring. */
@@ -170,7 +175,7 @@ fun MockTenantModuleBootstrapper.runQPlanFeatureTest(
     )
 }
 
-private fun EngineTestModule.fixtureFieldExecutor(
+internal fun EngineTestModule.fixtureFieldExecutor(
     coordinate: Pair<String, String>,
     executor: FieldResolverExecutor,
 ): FieldResolverExecutor =
@@ -181,12 +186,12 @@ private fun EngineTestModule.fixtureFieldExecutor(
         ): Map<FieldResolverExecutor.Selector, Result<Any?>> {
             val type = fullSchema.schema.getObjectType(coordinate.first).getFieldDefinition(coordinate.second).type
             return executor.batchResolve(selectors, context).mapValues { (_, result) ->
-                result.map { fixtureNodeIds(type, it) }
+                result.map { fixtureOutput(type, it) }
             }
         }
     }
 
-private fun EngineTestModule.fixtureNodeExecutor(
+internal fun EngineTestModule.fixtureNodeExecutor(
     typeName: String,
     executor: NodeResolverExecutor,
 ): NodeResolverExecutor =
@@ -198,8 +203,8 @@ private fun EngineTestModule.fixtureNodeExecutor(
             executor.resolve(selectors, context).mapValues { (selector, result) ->
                 result.map { output ->
                     val type = requireNotNull(fullSchema.schema.getObjectType(typeName))
-                    val prepared = fixtureNodeIds(type, output) as EngineObjectData
-                    if (prepared !is EngineObjectData.Sync || prepared is RootFieldReference) {
+                    val prepared = fixtureOutput(type, output) as EngineObjectData
+                    if (prepared !is EngineObjectData.Sync || prepared is RootFieldReference || prepared.qplanSchemaTypeOrNull != null) {
                         prepared
                     } else {
                         val fields = prepared.getSelections().associateWith(prepared::get).toMutableMap()
@@ -218,28 +223,36 @@ private fun EngineTestModule.fixtureNodeExecutor(
             }
     }
 
-private fun fixtureNodeIds(
+private fun fixtureOutput(
     expectedType: GraphQLOutputType,
     value: Any?,
 ): Any? {
-    if (value is RootFieldReference || value is NodeReference) return value
-    if (expectedType is GraphQLNonNull) return fixtureNodeIds(expectedType.wrappedType as GraphQLOutputType, value)
+    if (value is RootFieldReference || value is NodeReference || value is EngineErrorData) return value
+    if (value is EngineObjectData.Sync && value.qplanSchemaTypeOrNull != null) return value
+    if (expectedType is GraphQLNonNull) return fixtureOutput(expectedType.wrappedType as GraphQLOutputType, value)
     if (expectedType is GraphQLList && value is List<*>) {
-        return value.map { fixtureNodeIds(expectedType.wrappedType as GraphQLOutputType, it) }
+        return value.map { fixtureOutput(expectedType.wrappedType as GraphQLOutputType, it) }
+    }
+    if (expectedType is GraphQLScalarType) {
+        return value?.let {
+            expectedType.coercing.serialize(it, GraphQLContext.getDefault(), Locale.getDefault())
+        }
     }
     val type = (expectedType as? GraphQLObjectType) ?: (value as? EngineObjectData.Sync)?.type ?: return value
     val fields = when (value) {
         is EngineObjectData.Sync -> value.getSelections().associateWith(value::get)
         is Map<*, *> -> {
-            if (value.keys.any { it !is String }) return value
+            require(value.keys.all { it is String }) {
+                "Qplan requires string keys in map object executor outputs"
+            }
             value.entries.associate { (key, entry) -> key as String to entry }
         }
         else -> return value
     }.mapValues { (name, entry) ->
-        type.getFieldDefinition(name)?.let { fixtureNodeIds(it.type, entry) } ?: entry
+        type.getFieldDefinition(name)?.let { fixtureOutput(it.type, entry) } ?: entry
     }.toMutableMap()
     if (type.interfaces.any { it.name == "Node" } && "id" !in fields) {
         fields["id"] = "__qplan_inline_node__"
     }
-    return if (value is Map<*, *>) fields else ResolvedEngineObjectData(type, fields)
+    return ResolvedEngineObjectData(type, fields)
 }

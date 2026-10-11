@@ -57,7 +57,7 @@ internal fun CoroutineOperationContext.startResolve(
         dispatcher.dispatchMutationOrchestration(task)
         return result
     }
-    val result = CoroutineOrchestrationTask.createObjectResult(this, source.schemaType, demand)
+    val result = CoroutineOrchestrationTask.createObjectResult(this, source.schemaType(world.schema), demand)
     val orchestration =
         CoroutineOrchestrationTask.create(
             this@startResolve,

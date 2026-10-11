@@ -13,16 +13,102 @@ import kotlin.test.assertSame
 import kotlin.test.assertTrue
 import kotlinx.coroutines.runBlocking
 import viaduct.engine.api.EngineObjectData
+import viaduct.engine.api.ResolvedEngineObjectData
 import viaduct.engine.runtime2.model.testing.fromSDL
 import viaduct.engine.runtime2.schema.ViaductAndGJSchema
+import viaduct.errors.ErroneousFieldException
+import viaduct.errors.FieldError
 import viaduct.errors.UnsetFieldException
 import viaduct.graphql.schema.ViaductSchema
+import viaduct.tenant.runtime.jvm.OverlayEngineObjectData
 
 class QPlanEngineObjectDataTest {
     private val fixture = ViaductAndGJSchema.fromSDL(SCHEMA_SDL)
     private val schema: ViaductSchema = fixture.loweredSchema
     private val userType = schema.requireType("User") as ViaductSchema.Object
     private val graphQLUserType = requireNotNull(fixture.graphQLSchema.getObjectType("User"))
+
+    @Test
+    fun `reads resolved objects directly without copying values or losing absence`() {
+        val scores = listOf(1, null)
+        val data = ResolvedEngineObjectData(
+            graphQLUserType,
+            mapOf("name" to "Ada", "nickname" to null, "age" to 36, "scores" to scores),
+        )
+
+        assertSame(userType, data.schemaType(schema))
+        assertSame(userType, data.schemaType(userType))
+        assertEquals("Ada", data.outputValue("name"))
+        assertTrue(data.isPresent("nickname"))
+        assertNull(data.outputValue("nickname"))
+        assertEquals(36, data.outputValue("age"))
+        assertSame(scores, data.outputValue("scores"))
+        assertFalse(data.isPresent("missing"))
+        assertFailsWith<UnsetFieldException> { data.outputValue("missing") }
+    }
+
+    @Test
+    fun `reads arbitrary Sync objects with compliant stored output values`() {
+        val scores = listOf(1, null)
+        val other = OtherEngineObjectData(graphQLUserType, mapOf("name" to "Ada", "nickname" to null, "age" to 36, "scores" to scores))
+
+        assertSame(userType, other.schemaType(schema))
+        assertSame(userType, other.schemaType(userType))
+        assertTrue(other.conformsToResolverOutputSchemaType(ViaductSchema.TypeExpr(userType)))
+        assertEquals("Ada", other.outputValue("name"))
+        assertTrue(other.isPresent("nickname"))
+        assertNull(other.outputValue("nickname"))
+        assertEquals(36, other.outputValue("age"))
+        assertSame(scores, other.outputValue("scores"))
+        assertFalse(other.isPresent("missing"))
+        assertFailsWith<UnsetFieldException> { other.outputValue("missing") }
+    }
+
+    @Test
+    fun `rejects incompatible Sync object types`() {
+        val other = OtherEngineObjectData(graphQLUserType)
+        assertFailsWith<IllegalArgumentException> { other.schemaType(schema.requireQueryTypeDef()) }
+        assertFalse(other.conformsToResolverOutputSchemaType(ViaductSchema.TypeExpr(schema.requireQueryTypeDef())))
+
+        val resolved = ResolvedEngineObjectData(graphQLUserType, emptyMap())
+        assertFailsWith<IllegalArgumentException> { resolved.schemaType(schema.requireQueryTypeDef()) }
+        val unknown = OtherEngineObjectData(GraphQLObjectType.newObject().name("Unknown").build())
+        assertFailsWith<IllegalArgumentException> { unknown.schemaType(schema) }
+        assertFalse(unknown.conformsToResolverOutputSchemaType(ViaductSchema.TypeExpr(userType)))
+    }
+
+    @Test
+    fun `reads overlay output with null masking while retaining base values`() {
+        val scores = listOf(1, null)
+        val base = ResolvedEngineObjectData(graphQLUserType, mapOf("name" to "Ada", "nickname" to "Countess", "age" to 36, "scores" to scores))
+        val overlay = OtherEngineObjectData(graphQLUserType, mapOf("name" to "Grace", "nickname" to null, "age" to 36))
+        val data = OverlayEngineObjectData(overlay, base)
+
+        assertSame(userType, data.schemaType(schema))
+        assertSame(userType, data.schemaType(userType))
+        assertTrue(data.conformsToResolverOutputSchemaType(ViaductSchema.TypeExpr(userType)))
+        assertEquals(setOf("name", "nickname", "age", "scores"), data.getSelections().toSet())
+        assertEquals("Grace", data.outputValue("name"))
+        assertTrue(data.isPresent("nickname"))
+        assertNull(data.outputValue("nickname"))
+        assertEquals(36, data.outputValue("age"))
+        assertSame(scores, data.outputValue("scores"))
+        assertFalse(data.isPresent("missing"))
+        assertFailsWith<UnsetFieldException> { data.outputValue("missing") }
+    }
+
+    @Test
+    fun `does not translate getter exceptions into error markers`() {
+        val error = ErroneousFieldException(listOf(FieldError("legacy field failure")))
+        val data = object : EngineObjectData.Sync by OtherEngineObjectData(graphQLUserType, mapOf("age" to 36)) {
+            override fun get(selection: String): Any? = throw error
+        }
+
+        assertTrue(data.isPresent("age"))
+        assertSame(error, assertFailsWith<ErroneousFieldException> { data.outputValue("age") })
+        assertFalse(error.conformsToResolverOutputSchemaType(schema.requireObjectField("User", "age").outputType))
+        assertFailsWith<IllegalArgumentException> { engineObjectDataOf(userType, mapOf("age" to error)) }
+    }
 
     @Test
     fun `distinguishes absent null value and error selections`() {
@@ -236,22 +322,9 @@ class QPlanEngineObjectDataTest {
         )
 
     private class OtherEngineObjectData(
-        override val type: GraphQLObjectType,
-    ) : EngineObjectData.Sync {
-        override suspend fun fetch(selection: String): Any? = null
-
-        override suspend fun fetchOrNull(selection: String): Any? = null
-
-        override suspend fun fetchSelections(): Iterable<String> = emptyList()
-
-        override fun get(selection: String): Any? = null
-
-        override fun getOrNull(selection: String): Any? = null
-
-        override fun isPresent(selection: String): Boolean = false
-
-        override fun getSelections(): Iterable<String> = emptyList()
-    }
+        type: GraphQLObjectType,
+        fields: Map<String, Any?> = emptyMap(),
+    ) : EngineObjectData.Sync by ResolvedEngineObjectData(type, fields)
 
     private companion object {
         val SCHEMA_SDL =

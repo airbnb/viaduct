@@ -4,7 +4,7 @@ These claims record implementation invariants that constrain production Resoluti
 
 **[flattened-equivalence](./arguments/flattened-equivalence.md).** Within Runtime2's post-validation ordinary field-resolution boundary for Query selections and mutation payloads, flattened selections preserve the same unordered field-resolution obligations as nested GraphQL selections. Ordered mutation namespace traversal is outside this claim.
 
-**[field-only-node-lowering](./arguments/field-only-node-lowering.md).** Within the fixture-supported node domain, retaining Node-valued source field coordinates while normalizing node values into concrete-type-bearing root-field references to the built-in `Query.node` preserves the field-resolution obligations of external Node-valued field and node-resolver inputs.
+**[field-only-node-lowering](./arguments/field-only-node-lowering.md).** Within the fixture-supported node domain, retaining Node-valued source field coordinates while representing node values as concrete-type-bearing root-field references to the built-in `Query.node` preserves the field-resolution obligations of external Node-valued field and node-resolver inputs.
 
 **[resolver03-one-shot-construction](./arguments/resolver03-one-shot-construction.md).** Within Resolver03's acyclic domain with argument-defined variables, every resolver-bearing OER occurrence is constructed by one field-resolver application after all guarded transitive demand for that occurrence has been aggregated.
 

@@ -5,11 +5,14 @@ import viaduct.engine.runtime2.model.Arguments
 import viaduct.engine.runtime2.model.EngineErrorData
 import viaduct.engine.runtime2.model.ResolverOutputData
 import viaduct.engine.runtime2.model.RootFieldReferenceData
+import viaduct.engine.runtime2.model.RootFieldReferenceDataCarrier
 import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.model.engineObjectDataOf
 import viaduct.engine.runtime2.model.merge
 import viaduct.engine.runtime2.model.objectKey
+import viaduct.engine.runtime2.model.outputType
 import viaduct.engine.runtime2.model.outputValue
+import viaduct.engine.runtime2.model.qplanSchemaTypeOrNull
 import viaduct.engine.runtime2.model.schemaType
 import viaduct.graphql.schema.ViaductSchema
 
@@ -37,16 +40,21 @@ import viaduct.graphql.schema.ViaductSchema
  *
  * @throws IllegalArgumentException when a precondition is not met
  */
-internal fun ResolverOutputData?.snipToDemand(demand: SelectionForest): ResolverOutputData? =
+internal fun ResolverOutputData?.snipToDemand(
+    demand: SelectionForest,
+    declaredType: ViaductSchema.OutputTypeDef? = null,
+): ResolverOutputData? =
     when (this) {
         null,
         is EngineErrorData,
         is RootFieldReferenceData,
         -> this
 
-        is EngineObjectData.Sync -> snipObjectToDemand(demand)
+        is RootFieldReferenceDataCarrier -> referenceData
+
+        is EngineObjectData.Sync -> snipObjectToDemand(demand, declaredType)
         is List<*> -> {
-            val values: List<ResolverOutputData?> = map { value -> value.snipToDemand(demand) }
+            val values: List<ResolverOutputData?> = map { value -> value.snipToDemand(demand, declaredType) }
             values
         }
 
@@ -63,8 +71,13 @@ internal fun ResolverOutputData?.snipToDemand(demand: SelectionForest): Resolver
         else -> throw ClassCastException("Unsupported engine output data: $this")
     }
 
-private fun EngineObjectData.Sync.snipObjectToDemand(demand: SelectionForest): EngineObjectData.Sync {
-    val schemaType = this.schemaType
+private fun EngineObjectData.Sync.snipObjectToDemand(
+    demand: SelectionForest,
+    declaredType: ViaductSchema.OutputTypeDef?,
+): EngineObjectData.Sync {
+    val schemaType = qplanSchemaTypeOrNull ?: schemaType(
+        requireNotNull(declaredType as? ViaductSchema.CompositeTypeDef) { "Object projection requires a declared composite type" },
+    )
     val selectedFields =
         demand
             .merge(schemaType)
@@ -93,7 +106,7 @@ private fun EngineObjectData.Sync.snipObjectToDemand(demand: SelectionForest): E
                     if (concreteField.type.baseTypeDef is ViaductSchema.SimpleTypeDef) {
                         value
                     } else {
-                        value.snipToDemand(selection.subselections)
+                        value.snipToDemand(selection.subselections, concreteField.outputType.baseTypeDef)
                     }
                 concreteField.name to selectedValue
             }

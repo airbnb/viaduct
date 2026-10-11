@@ -111,9 +111,7 @@ private val ViaductSchema.Object.engineObjectDataType: GraphQLObjectType
 /**
  * The canonical qplan schema type retained by this qplan-owned EOD.
  *
- * Qplan's model admits only objects constructed by [engineObjectDataOf]. The downcast keeps the
- * concrete implementation private while making its canonical model type available without
- * inspecting the opaque GraphQL-Java [EngineObjectData.type] witness.
+ * Reads without a schema are available only for Runtime2-owned objects.
  */
 val EngineObjectData.Sync.schemaType: ViaductSchema.Object
     get() =
@@ -124,20 +122,26 @@ val EngineObjectData.Sync.schemaType: ViaductSchema.Object
 internal val EngineObjectData.Sync.qplanSchemaTypeOrNull: ViaductSchema.Object?
     get() = (this as? QPlanEngineObjectData)?.schemaType
 
-/**
- * Returns a qplan-owned selection in the resolver-output domain without applying resolver-read
- * error behavior.
- *
- * This is a temporary workaround for [EngineObjectData.Sync.get] and [EngineObjectData.fetch]
- * exposing a present error as an exception. Those operations should instead return the stored
- * [EngineErrorData], leaving the Tenant API implementation responsible for converting an erroneous
- * field read into a tenant-visible exception.
- */
-fun EngineObjectData.Sync.outputValue(selection: String): ResolverOutputData? {
-    require(this is QPlanEngineObjectData) {
-        "Engine object data for ${type.name} is not owned by qplan"
+/** Resolves a compliant object's concrete type in the active canonical schema. */
+fun EngineObjectData.Sync.schemaType(schema: ViaductSchema): ViaductSchema.Object =
+    qplanSchemaTypeOrNull ?: run {
+        schema.types[type.name] as? ViaductSchema.Object
+            ?: throw IllegalArgumentException("Resolver output type ${type.name} is not an object")
     }
-    return outputValue(selection)
+
+/** Resolves a compliant object's concrete type within a declared composite output type. */
+internal fun EngineObjectData.Sync.schemaType(declaredType: ViaductSchema.CompositeTypeDef): ViaductSchema.Object =
+    qplanSchemaTypeOrNull ?: run {
+        declaredType.possibleObjectTypes.singleOrNull { it.name == type.name }
+            ?: throw IllegalArgumentException("Resolver output type ${type.name} is not valid for ${declaredType.name}")
+    }
+
+/** Reads raw Runtime2 storage or error-free external resolver output through its synchronous getter. */
+fun EngineObjectData.Sync.outputValue(selection: String): ResolverOutputData? {
+    return when (this) {
+        is QPlanEngineObjectData -> outputValue(selection)
+        else -> get(selection)
+    }
 }
 
 private data class EngineObjectDataEntryImpl(

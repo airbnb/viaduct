@@ -44,8 +44,6 @@ import viaduct.engine.runtime.DispatcherExecutionContext
 import viaduct.engine.runtime.DispatcherRegistry
 import viaduct.engine.runtime.FieldDataLoader
 import viaduct.engine.runtime.NodeDataLoader
-import viaduct.engine.runtime.NodeEngineObjectDataImpl
-import viaduct.engine.runtime.ObjectRootFieldReference
 import viaduct.engine.runtime.execution.DefaultCoroutineInterop
 import viaduct.engine.runtime.select.EngineSelectionSetFactoryImpl
 import viaduct.engine.runtime2.bootstrap.dispatcherRegistryInputs
@@ -58,6 +56,8 @@ import viaduct.engine.runtime2.execution.QPlanInstrumentation
 import viaduct.engine.runtime2.execution.QPlanWiringFactory
 import viaduct.engine.runtime2.execution.Runtime2ExecutionHandle
 import viaduct.engine.runtime2.execution.instrumentForRuntime2
+import viaduct.engine.runtime2.execution.runtime2NodeReferenceOf
+import viaduct.engine.runtime2.execution.runtime2RootFieldReferenceOf
 import viaduct.engine.runtime2.model.registry.Assumptions
 import viaduct.engine.runtime2.schema.ViaductAndGJSchema
 import viaduct.service.api.spi.GlobalIDCodec
@@ -216,13 +216,13 @@ class Engine2(
         override fun createNodeReference(
             id: String,
             graphQLObjectType: GraphQLObjectType,
-        ): NodeReference = NodeEngineObjectDataImpl(id, graphQLObjectType, dispatcherRegistry, fieldScope.caller)
+        ): NodeReference = runtime2NodeReferenceOf(schemas.loweredSchema, id, graphQLObjectType)
 
         override fun createRootFieldReference(
             rootFieldPath: List<String>,
             type: GraphQLObjectType,
             args: Map<String, Any?>,
-        ): RootFieldReference = ObjectRootFieldReference(rootFieldPath, type, args, fieldScope.caller)
+        ): RootFieldReference = runtime2RootFieldReferenceOf(schemas.loweredSchema, rootFieldPath, type, args)
 
         override fun hasModernNodeResolver(typeName: String): Boolean = dispatcherRegistry.getNodeResolverDispatcher(typeName) != null
 
