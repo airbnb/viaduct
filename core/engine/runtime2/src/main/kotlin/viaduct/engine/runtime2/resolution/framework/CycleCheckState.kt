@@ -1,6 +1,5 @@
 package viaduct.engine.runtime2.resolution.framework
 
-import java.util.concurrent.ConcurrentHashMap
 import viaduct.engine.runtime2.model.EngineResultCell
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.PathComponent
@@ -24,6 +23,7 @@ class CycleTask(
     path: List<PathComponent>,
 ) {
     val path: List<PathComponent> = path.toList()
+    private val cachedHashCode = 31 * (31 * kind.hashCode() + System.identityHashCode(root)) + this.path.hashCode()
 
     override fun equals(other: Any?): Boolean =
         other is CycleTask &&
@@ -31,7 +31,7 @@ class CycleTask(
             root === other.root &&
             path == other.path
 
-    override fun hashCode(): Int = 31 * (31 * kind.hashCode() + System.identityHashCode(root)) + path.hashCode()
+    override fun hashCode(): Int = cachedHashCode
 
     override fun toString(): String = "$kind@${System.identityHashCode(root)}:$path"
 
@@ -113,7 +113,7 @@ internal val EngineResultCell.fieldCheckerCycleSlot: CycleSlot
 internal val ObjectEngineResult.typeCheckerCycleSlot: CycleSlot
     get() = CycleSlot.typeChecker(this)
 
-/** Tracks exact task-to-slot reads and rejects cycles in the resulting writer dependency graph. */
+/** Tracks exact task-to-slot reads with eager rejection or explicit deferred cycle diagnosis. */
 interface CycleCheckState {
     fun registerWriter(
         slot: CycleSlot,
@@ -127,6 +127,8 @@ interface CycleCheckState {
 
     companion object {
         fun create(): CycleCheckState = CycleCheckStateImpl()
+
+        fun createDeferred(): DeferredCycleCheckState = DeferredCycleCheckStateImpl()
 
         fun createNOP(): CycleCheckState = NOPCycleCheckState
     }
@@ -150,52 +152,20 @@ private object NOPCycleCheckState : CycleCheckState {
     ) {}
 }
 
-private class CycleCheckStateImpl : CycleCheckState {
-    private val writersBySlot =
-        ConcurrentHashMap<CycleSlot, CycleTask>()
-    private val readersBySlot =
-        ConcurrentHashMap<CycleSlot, MutableSet<CycleTask>>()
-    private val readsByReader =
-        ConcurrentHashMap<CycleTask, MutableSet<CycleTask>>()
+private class CycleCheckStateImpl : AbstractCycleCheckState() {
+    private var hasRejectedCycle = false
 
-    override fun registerWriter(
-        slot: CycleSlot,
-        writer: CycleTask,
-    ) {
-        val previous = writersBySlot.putIfAbsent(slot, writer)
-        check(previous == null) {
-            "Writer already registered for slot: $previous"
-        }
-        readersBySlot[slot].orEmpty().forEach { reader ->
-            addRead(reader, writer)
-        }
-    }
-
-    override fun cycleCheck(
-        reader: CycleTask,
-        slot: CycleSlot,
-    ) {
-        readersBySlot
-            .computeIfAbsent(slot) {
-                ConcurrentHashMap.newKeySet()
-            }.add(reader)
-        writersBySlot[slot]?.let { writer ->
-            addRead(reader, writer)
-        }
-    }
-
-    @Synchronized
-    private fun addRead(
+    override fun onDependencyRecorded(
         reader: CycleTask,
         writer: CycleTask,
+        added: Boolean,
     ) {
-        readsByReader
-            .computeIfAbsent(reader) {
-                // One coroutine normally owns a reader's set; keep it concurrent defensively.
-                ConcurrentHashMap.newKeySet()
-            }.add(writer)
+        // While the graph is acyclic, an existing edge cannot introduce a cycle. Rejected
+        // edges remain in the graph, so subsequent reads must keep checking for cycles.
+        if (!added && !hasRejectedCycle) return
 
         pathFrom(writer, reader)?.let { writerToReader ->
+            hasRejectedCycle = true
             throw ResolverReadCycleException(listOf(reader) + writerToReader)
         }
     }

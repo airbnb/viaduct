@@ -1,0 +1,23 @@
+{
+  "command": [
+    "java",
+    "-jar",
+    "/tmp/runtime2-edge-collection-20261009/candidate.jar",
+    "viaduct\\.engine\\.runtime2\\.resolution\\.ResolverBenchmark\\.overhead",
+    "-p",
+    "loopCount=10",
+    "-wi",
+    "3",
+    "-i",
+    "1",
+    "-f",
+    "1",
+    "-foe",
+    "true",
+    "-jvmArgsAppend",
+    "-DresolutionOverheadProfileOutput=/tmp/runtime2-edge-collection-20261009/candidate-overhead.jfr"
+  ],
+  "started_utc": "2026-10-09T02:12:10.448146+00:00",
+  "exit_code": 0,
+  "finished_utc": "2026-10-09T02:13:16.503805+00:00"
+}

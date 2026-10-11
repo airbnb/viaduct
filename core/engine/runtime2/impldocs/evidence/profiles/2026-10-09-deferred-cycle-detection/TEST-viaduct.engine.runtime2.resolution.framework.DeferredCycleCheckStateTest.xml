@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="viaduct.engine.runtime2.resolution.framework.DeferredCycleCheckStateTest" tests="10" skipped="0" failures="0" errors="0" timestamp="2026-10-09T02:15:19" hostname="raymie-stata-codex" time="7.298">
+  <properties/>
+  <testcase name="equal paths under distinct roots do not create a self-cycle()" classname="viaduct.engine.runtime2.resolution.framework.DeferredCycleCheckStateTest" time="0.003"/>
+  <testcase name="empty and converging acyclic graphs have no cycle()" classname="viaduct.engine.runtime2.resolution.framework.DeferredCycleCheckStateTest" time="0.002"/>
+  <testcase name="denial can release a recorded dependency and allow a historical cycle to finish()" classname="viaduct.engine.runtime2.resolution.framework.DeferredCycleCheckStateTest" time="0.004"/>
+  <testcase name="slot and task kinds remain independent()" classname="viaduct.engine.runtime2.resolution.framework.DeferredCycleCheckStateTest" time="0.003"/>
+  <testcase name="deep graphs are scanned iteratively and return an exact closed cycle()" classname="viaduct.engine.runtime2.resolution.framework.DeferredCycleCheckStateTest" time="7.231"/>
+  <testcase name="self-cycle is collected without throwing and diagnosed repeatedly()" classname="viaduct.engine.runtime2.resolution.framework.DeferredCycleCheckStateTest" time="0.003"/>
+  <testcase name="multi-hop cycle survives duplicate edges and pending writer registration()" classname="viaduct.engine.runtime2.resolution.framework.DeferredCycleCheckStateTest" time="0.002"/>
+  <testcase name="completed slot dependencies remain historical evidence()" classname="viaduct.engine.runtime2.resolution.framework.DeferredCycleCheckStateTest" time="0.002"/>
+  <testcase name="overlapping reads and writer registration retain every dependency()" classname="viaduct.engine.runtime2.resolution.framework.DeferredCycleCheckStateTest" time="0.042"/>
+  <testcase name="writer uniqueness is still enforced during collection()" classname="viaduct.engine.runtime2.resolution.framework.DeferredCycleCheckStateTest" time="0.004"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

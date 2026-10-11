@@ -1,0 +1,74 @@
+[
+  {
+    "kind": "overhead",
+    "benchmark": "One dispatcher thread",
+    "unit": "ms/resolution",
+    "baseline": {
+      "score": 14.622719047083333,
+      "scoreError": 0.09876727662258447,
+      "scoreConfidence": [
+        14.523951770460748,
+        14.721486323705918
+      ]
+    },
+    "candidate": {
+      "score": 14.24289774541667,
+      "scoreError": 0.12624417876448274,
+      "scoreConfidence": [
+        14.116653566652186,
+        14.369141924181152
+      ]
+    },
+    "saving_percent": 2.597473838098685,
+    "saving_absolute": 0.37982130166666295,
+    "intervals_overlap": false
+  },
+  {
+    "kind": "threads5",
+    "benchmark": "Five dispatcher threads",
+    "unit": "ms/resolution",
+    "baseline": {
+      "score": 6.6863096170833325,
+      "scoreError": 0.10416405848793203,
+      "scoreConfidence": [
+        6.5821455585954,
+        6.790473675571265
+      ]
+    },
+    "candidate": {
+      "score": 6.416830853333333,
+      "scoreError": 0.0458654141566604,
+      "scoreConfidence": [
+        6.370965439176672,
+        6.462696267489994
+      ]
+    },
+    "saving_percent": 4.03030638996269,
+    "saving_absolute": 0.2694787637499996,
+    "intervals_overlap": false
+  },
+  {
+    "kind": "property",
+    "benchmark": "Frozen property case",
+    "unit": "ms/case",
+    "baseline": {
+      "score": 954.7465624166667,
+      "scoreError": 14.809050856035025,
+      "scoreConfidence": [
+        939.9375115606317,
+        969.5556132727017
+      ]
+    },
+    "candidate": {
+      "score": 947.0486460833331,
+      "scoreError": 15.987400627438777,
+      "scoreConfidence": [
+        931.0612454558943,
+        963.0360467107718
+      ]
+    },
+    "saving_percent": 0.806278507444802,
+    "saving_absolute": 7.697916333333637,
+    "intervals_overlap": true
+  }
+]

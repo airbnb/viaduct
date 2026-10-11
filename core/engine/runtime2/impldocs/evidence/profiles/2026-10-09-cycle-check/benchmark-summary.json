@@ -1,0 +1,118 @@
+[
+  {
+    "benchmark": "Resolution overhead, one dispatcher thread",
+    "kind": "overhead",
+    "baseline": {
+      "variant": "baseline",
+      "score": 14.999849115416668,
+      "error": 0.08047751762162372,
+      "raw_score": 1.4999849115416668,
+      "unit": "ms/resolution",
+      "confidence": [
+        14.919371597795044,
+        15.080326633038293
+      ]
+    },
+    "final": {
+      "variant": "final",
+      "score": 14.617795934583333,
+      "error": 0.05656523060046021,
+      "raw_score": 1.4617795934583333,
+      "unit": "ms/resolution",
+      "confidence": [
+        14.561230703982872,
+        14.674361165183793
+      ]
+    },
+    "saving_percent": 2.547046826228838,
+    "saving_absolute": 0.38205318083333495,
+    "intervals_overlap": false
+  },
+  {
+    "benchmark": "Resolution overhead, five dispatcher threads",
+    "kind": "threads5",
+    "baseline": {
+      "variant": "baseline",
+      "score": 6.608682720833333,
+      "error": 0.06233718138888884,
+      "raw_score": 0.6608682720833333,
+      "unit": "ms/resolution",
+      "confidence": [
+        6.546345539444445,
+        6.671019902222222
+      ]
+    },
+    "final": {
+      "variant": "final",
+      "score": 6.5942503908333325,
+      "error": 0.08683372446051135,
+      "raw_score": 0.6594250390833333,
+      "unit": "ms/resolution",
+      "confidence": [
+        6.507416666372822,
+        6.681084115293844
+      ]
+    },
+    "saving_percent": 0.21838436810567297,
+    "saving_absolute": 0.014432330000000881,
+    "intervals_overlap": true
+  },
+  {
+    "benchmark": "Frozen property case",
+    "kind": "property",
+    "baseline": {
+      "variant": "baseline",
+      "score": 977.2827809166665,
+      "error": 15.677486887945395,
+      "raw_score": 0.9772827809166665,
+      "unit": "ms/case",
+      "confidence": [
+        961.6052940287212,
+        992.9602678046119
+      ]
+    },
+    "final": {
+      "variant": "final",
+      "score": 952.2176784583335,
+      "error": 14.789429370813988,
+      "raw_score": 0.9522176784583335,
+      "unit": "ms/case",
+      "confidence": [
+        937.4282490875196,
+        967.0071078291475
+      ]
+    },
+    "saving_percent": 2.5647747967914247,
+    "saving_absolute": 25.065102458333058,
+    "intervals_overlap": true
+  },
+  {
+    "benchmark": "Correctness replay",
+    "kind": "correctness",
+    "baseline": {
+      "variant": "baseline",
+      "score": 3.9591368475,
+      "error": 0.042489877144052404,
+      "raw_score": 0.197956842375,
+      "unit": "ms/judgment",
+      "confidence": [
+        3.9166469703559477,
+        4.001626724644052
+      ]
+    },
+    "final": {
+      "variant": "final",
+      "score": 3.968159475833333,
+      "error": 0.040565954167323545,
+      "raw_score": 0.19840797379166666,
+      "unit": "ms/judgment",
+      "confidence": [
+        3.92759352166601,
+        4.008725430000657
+      ]
+    },
+    "saving_percent": -0.22789382334764685,
+    "saving_absolute": -0.009022628333333227,
+    "intervals_overlap": true
+  }
+]

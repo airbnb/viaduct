@@ -1,0 +1,114 @@
+# JMH version: 1.36
+# VM version: JDK 21.0.4, OpenJDK 64-Bit Server VM, 21.0.4+7-LTS
+# VM invoker: /opt/mise/installs/java/corretto-21.0.4.7.1/bin/java
+# VM options: <none>
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 5 iterations, single-shot each
+# Measurement: 8 iterations, single-shot each
+# Timeout: 10 min per iteration
+# Threads: 1 thread
+# Benchmark mode: Single shot invocation time
+# Benchmark: viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest
+# Parameters: (loopCount = 1)
+
+# Run progress: 0.00% complete, ETA 00:00:00
+# Fork: 1 of 3
+# Warmup Iteration   1: 1.978 s/op
+# Warmup Iteration   2: 1.196 s/op
+# Warmup Iteration   3: 0.997 s/op
+# Warmup Iteration   4: 0.975 s/op
+# Warmup Iteration   5: 0.997 s/op
+Iteration   1: 0.969 s/op
+Iteration   2: 0.941 s/op
+Iteration   3: 0.993 s/op
+Iteration   4: 0.992 s/op
+Iteration   5: 0.967 s/op
+Iteration   6: 0.956 s/op
+Iteration   7: 1.002 s/op
+Iteration   8: 0.974 s/op
+
+# Run progress: 33.33% complete, ETA 00:00:30
+# Fork: 2 of 3
+# Warmup Iteration   1: 1.889 s/op
+# Warmup Iteration   2: 1.227 s/op
+# Warmup Iteration   3: 1.030 s/op
+# Warmup Iteration   4: 0.990 s/op
+# Warmup Iteration   5: 1.012 s/op
+Iteration   1: 1.014 s/op
+Iteration   2: 0.960 s/op
+Iteration   3: 0.952 s/op
+Iteration   4: 0.998 s/op
+Iteration   5: 0.978 s/op
+Iteration   6: 0.946 s/op
+Iteration   7: 0.965 s/op
+Iteration   8: 0.992 s/op
+
+# Run progress: 66.67% complete, ETA 00:00:15
+# Fork: 3 of 3
+# Warmup Iteration   1: 1.923 s/op
+# Warmup Iteration   2: 1.183 s/op
+# Warmup Iteration   3: 1.036 s/op
+# Warmup Iteration   4: 0.995 s/op
+# Warmup Iteration   5: 0.989 s/op
+Iteration   1: 0.957 s/op
+Iteration   2: 0.978 s/op
+Iteration   3: 1.005 s/op
+Iteration   4: 0.966 s/op
+Iteration   5: 0.997 s/op
+Iteration   6: 0.991 s/op
+Iteration   7: 0.962 s/op
+Iteration   8: 0.996 s/op
+
+
+Result "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest":
+  N = 24
+  mean =      0.977 ±(99.9%) 0.016 s/op
+
+  Histogram, s/op:
+    [0.940, 0.945) = 1
+    [0.945, 0.950) = 1
+    [0.950, 0.955) = 1
+    [0.955, 0.960) = 3
+    [0.960, 0.965) = 2
+    [0.965, 0.970) = 3
+    [0.970, 0.975) = 1
+    [0.975, 0.980) = 2
+    [0.980, 0.985) = 0
+    [0.985, 0.990) = 0
+    [0.990, 0.995) = 4
+    [0.995, 1.000) = 3
+    [1.000, 1.005) = 2
+    [1.005, 1.010) = 0
+    [1.010, 1.015) = 1
+
+  Percentiles, s/op:
+      p(0.0000) =      0.941 s/op
+     p(50.0000) =      0.976 s/op
+     p(90.0000) =      1.004 s/op
+     p(95.0000) =      1.012 s/op
+     p(99.0000) =      1.014 s/op
+     p(99.9000) =      1.014 s/op
+     p(99.9900) =      1.014 s/op
+     p(99.9990) =      1.014 s/op
+     p(99.9999) =      1.014 s/op
+    p(100.0000) =      1.014 s/op
+
+
+# Run complete. Total time: 00:00:45
+
+REMEMBER: The numbers below are just data. To gain reusable insights, you need to follow up on
+why the numbers are the way they are. Use profilers (see -prof, -lprof), design factorial
+experiments, perform baseline and negative tests that provide experimental control, make sure
+the benchmarking environment is safe on JVM/OS/HW level, ask for reviews from the domain experts.
+Do not assume the numbers tell you what you want them to tell.
+
+NOTE: Current JVM experimentally supports Compiler Blackholes, and they are in use. Please exercise
+extra caution when trusting the results, look into the generated code to check the benchmark still
+works, and factor in a small probability of new VM bugs. Additionally, while comparisons between
+different JVMs are already problematic, the performance difference caused by different Blackhole
+modes can be very significant. Please make sure you use the consistent Blackhole mode for comparisons.
+
+Benchmark                           (loopCount)  Mode  Cnt  Score   Error  Units
+PropertyTestBenchmark.propertyTest            1    ss   24  0.977 ± 0.016   s/op
+
+Benchmark result is saved to /tmp/runtime2-cycle-consolidated-20261009/baseline-property.json

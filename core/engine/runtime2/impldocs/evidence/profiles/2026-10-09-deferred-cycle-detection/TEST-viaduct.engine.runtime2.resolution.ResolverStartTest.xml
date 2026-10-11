@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="viaduct.engine.runtime2.resolution.ResolverStartTest" tests="15" skipped="0" failures="0" errors="0" timestamp="2026-10-09T02:16:02" hostname="raymie-stata-codex" time="0.087">
+  <properties/>
+  <testcase name="await propagates request cancellation for queries and mutations()" classname="viaduct.engine.runtime2.resolution.ResolverStartTest" time="0.015"/>
+  <testcase name="nested selection execution is owned by the calling field task()" classname="viaduct.engine.runtime2.resolution.ResolverStartTest" time="0.008"/>
+  <testcase name="field exception does not cancel queued sibling producers()" classname="viaduct.engine.runtime2.resolution.ResolverStartTest" time="0.006"/>
+  <testcase name="cancelling the request scope cancels resolver work()" classname="viaduct.engine.runtime2.resolution.ResolverStartTest" time="0.005"/>
+  <testcase name="task-local cancellation becomes the affected field error()" classname="viaduct.engine.runtime2.resolution.ResolverStartTest" time="0.004"/>
+  <testcase name="task-local cancellation becomes field errors without cancelling the request()" classname="viaduct.engine.runtime2.resolution.ResolverStartTest" time="0.005"/>
+  <testcase name="startResolve publishes root shape before resolver values complete()" classname="viaduct.engine.runtime2.resolution.ResolverStartTest" time="0.004"/>
+  <testcase name="nested execution retains observer but only query fragment emits preparation()" classname="viaduct.engine.runtime2.resolution.ResolverStartTest" time="0.005"/>
+  <testcase name="successful nested query retains its caller dependency in the operation checker()" classname="viaduct.engine.runtime2.resolution.ResolverStartTest" time="0.005"/>
+  <testcase name="equal resolver paths in distinct nested Query roots do not form a cycle()" classname="viaduct.engine.runtime2.resolution.ResolverStartTest" time="0.003"/>
+  <testcase name="await propagates fatal failures without swallowing the request exception handler()" classname="viaduct.engine.runtime2.resolution.ResolverStartTest" time="0.005"/>
+  <testcase name="request cancellation terminates field promises before coroutine entry()" classname="viaduct.engine.runtime2.resolution.ResolverStartTest" time="0.005"/>
+  <testcase name="await waits for query and mutation task children without waiting for unrelated request work()" classname="viaduct.engine.runtime2.resolution.ResolverStartTest" time="0.008"/>
+  <testcase name="request cancellation records entered producer but not waiting consumer()" classname="viaduct.engine.runtime2.resolution.ResolverStartTest" time="0.005"/>
+  <testcase name="provider contract exception becomes a field error()" classname="viaduct.engine.runtime2.resolution.ResolverStartTest" time="0.004"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

@@ -1,0 +1,24 @@
+{
+  "base_commit": "1b0418ee3f26d9115050c6d2fa827f026c752d89",
+  "jar_sha256": "7e1230bf47e35bbbdc8ff9b9bca2a80d87fe3c32fc9f0fe2a1ead9284c87a2f6",
+  "jar_content_sha256": "ca40998beb12c1c5f3c59c23da6e8c1b6889af6f44ce9d302342277643280ac2",
+  "corpus": {
+    "core/engine/runtime2/src/jmh/resources/viaduct/engine/runtime2/benchmark/current-profile/queries.json": "5157978ea78a8c51f6359f8f07b8e240e2675432e0ca590e3b81abfef41a308c",
+    "core/engine/runtime2/src/jmh/resources/viaduct/engine/runtime2/benchmark/current-profile/registry.json.gz": "525f75fd9ec08b24c379bfdd86ae802d1a777cb186570eb015129da117e18a0e",
+    "core/engine/runtime2/src/jmh/resources/viaduct/engine/runtime2/benchmark/current-profile/schema.graphqls": "70d662d35ce271f1f5867cfbc60ea3fbdccf74a852433225448a62e10398f85e"
+  },
+  "source_files": {
+    "core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/Engine2.kt": "5eae4c57341dcb34ea9ab4a055a5e465db4c5ecc4006b3bd0da69192f47ef41b",
+    "core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/execution/QPlanExecutionStrategy.kt": "bf70f68ee37742cbca1cd8bc3b62d0a666a686c6083baffa124be65233158764",
+    "core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/Resolver.kt": "f530e68a68f4995e6c82119844df642accbc85dfe407ca7edc4922f29add64ca",
+    "core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/framework/CycleCheckState.kt": "c6e11a08b8bdc501055d21d7177722dc1f5f58e0944232258ac2103a5c0baa62",
+    "core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/framework/DeferredCycleCheckState.kt": "250a6f7927b3d948b95ebcb3be59678e5918aa2ea44efeffea461d87ad08cbc8",
+    "core/engine/runtime2/src/test/kotlin/viaduct/engine/runtime2/execution/QPlanRequestTimeoutTest.kt": "aa39c685876d7f4c0748cf5453fb816dca2463be359f2cbe33f0e71349c3161f",
+    "core/engine/runtime2/src/test/kotlin/viaduct/engine/runtime2/resolution/ResolverStartTest.kt": "bf669b3f96b11c0a4fbb5ee13eaae1ab87dd6803d92aee401d2651f9b280371b",
+    "core/engine/runtime2/src/test/kotlin/viaduct/engine/runtime2/resolution/ResolverTimeoutTest.kt": "bb51c72b6ffbbd24eac73bbe9373c3220ac42a09294f3523ed3123640baad065",
+    "core/engine/runtime2/src/test/kotlin/viaduct/engine/runtime2/resolution/framework/DeferredCycleCheckStateTest.kt": "b506b464f749dc474e8d49dfd9aaf4d9bb1d5822b56822de142c7942109605b5",
+    "core/engine/wiring/src/main/kotlin/viaduct/engine/EngineConfiguration.kt": "b631c54630798230c873eb5fd6365d21f532ec647eaec058835bef30933f633a",
+    "core/engine/wiring/src/main/kotlin/viaduct/engine/EngineFactory.kt": "f9de4aaf0360ec82f58b6526f407145760dce583c03239e950ddd8cf1131ca88"
+  },
+  "git_status": " M core/engine/runtime2/impldocs/architecture/resolution.md\n M core/engine/runtime2/impldocs/integration/engine-api.md\n M core/engine/runtime2/impldocs/testing/performance.md\n M core/engine/runtime2/impldocs/testing/resolution.md\n M core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/Engine2.kt\n M core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/execution/QPlanExecutionStrategy.kt\n M core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/Resolver.kt\n M core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/framework/CycleCheckState.kt\n M core/engine/runtime2/src/test/kotlin/viaduct/engine/runtime2/resolution/ResolverStartTest.kt\n M core/engine/wiring/src/main/kotlin/viaduct/engine/EngineConfiguration.kt\n M core/engine/wiring/src/main/kotlin/viaduct/engine/EngineFactory.kt\n?? core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/framework/DeferredCycleCheckState.kt\n?? core/engine/runtime2/src/test/kotlin/viaduct/engine/runtime2/execution/QPlanRequestTimeoutTest.kt\n?? core/engine/runtime2/src/test/kotlin/viaduct/engine/runtime2/resolution/ResolverTimeoutTest.kt\n?? core/engine/runtime2/src/test/kotlin/viaduct/engine/runtime2/resolution/framework/DeferredCycleCheckStateTest.kt\n"
+}

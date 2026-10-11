@@ -1,0 +1,111 @@
+# JMH version: 1.36
+# VM version: JDK 21.0.4, OpenJDK 64-Bit Server VM, 21.0.4+7-LTS
+# VM invoker: /opt/mise/installs/java/corretto-21.0.4.7.1/bin/java
+# VM options: -Dviaduct.resolution.threadcount=5 -DresolverBenchmarkReportFile=/tmp/runtime2-edge-collection-20261009/baseline-threads5-statistics.txt
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 5 iterations, single-shot each
+# Measurement: 8 iterations, single-shot each
+# Timeout: 10 min per iteration
+# Threads: 1 thread
+# Benchmark mode: Single shot invocation time
+# Benchmark: viaduct.engine.runtime2.resolution.ResolverBenchmark.overhead
+# Parameters: (loopCount = 1)
+
+# Run progress: 0.00% complete, ETA 00:00:00
+# Fork: 1 of 3
+# Warmup Iteration   1: 0.715 s/op
+# Warmup Iteration   2: 0.735 s/op
+# Warmup Iteration   3: 0.676 s/op
+# Warmup Iteration   4: 0.667 s/op
+# Warmup Iteration   5: 0.660 s/op
+Iteration   1: 0.657 s/op
+Iteration   2: 0.654 s/op
+Iteration   3: 0.665 s/op
+Iteration   4: 0.667 s/op
+Iteration   5: 0.667 s/op
+Iteration   6: 0.673 s/op
+Iteration   7: 0.671 s/op
+Iteration   8: 0.670 s/op
+
+# Run progress: 33.33% complete, ETA 00:00:30
+# Fork: 2 of 3
+# Warmup Iteration   1: 0.715 s/op
+# Warmup Iteration   2: 0.730 s/op
+# Warmup Iteration   3: 0.670 s/op
+# Warmup Iteration   4: 0.672 s/op
+# Warmup Iteration   5: 0.670 s/op
+Iteration   1: 0.678 s/op
+Iteration   2: 0.685 s/op
+Iteration   3: 0.684 s/op
+Iteration   4: 0.689 s/op
+Iteration   5: 0.691 s/op
+Iteration   6: 0.691 s/op
+Iteration   7: 0.679 s/op
+Iteration   8: 0.681 s/op
+
+# Run progress: 66.67% complete, ETA 00:00:15
+# Fork: 3 of 3
+# Warmup Iteration   1: 0.690 s/op
+# Warmup Iteration   2: 0.711 s/op
+# Warmup Iteration   3: 0.665 s/op
+# Warmup Iteration   4: 0.700 s/op
+# Warmup Iteration   5: 0.660 s/op
+Iteration   1: 0.655 s/op
+Iteration   2: 0.659 s/op
+Iteration   3: 0.655 s/op
+Iteration   4: 0.655 s/op
+Iteration   5: 0.657 s/op
+Iteration   6: 0.645 s/op
+Iteration   7: 0.656 s/op
+Iteration   8: 0.662 s/op
+
+
+Result "viaduct.engine.runtime2.resolution.ResolverBenchmark.overhead":
+  N = 24
+  mean =      0.669 ±(99.9%) 0.010 s/op
+
+  Histogram, s/op:
+    [0.640, 0.645) = 0
+    [0.645, 0.650) = 1
+    [0.650, 0.655) = 2
+    [0.655, 0.660) = 6
+    [0.660, 0.665) = 2
+    [0.665, 0.670) = 2
+    [0.670, 0.675) = 3
+    [0.675, 0.680) = 2
+    [0.680, 0.685) = 3
+    [0.685, 0.690) = 1
+    [0.690, 0.695) = 2
+    [0.695, 0.700) = 0
+
+  Percentiles, s/op:
+      p(0.0000) =      0.645 s/op
+     p(50.0000) =      0.667 s/op
+     p(90.0000) =      0.690 s/op
+     p(95.0000) =      0.691 s/op
+     p(99.0000) =      0.691 s/op
+     p(99.9000) =      0.691 s/op
+     p(99.9900) =      0.691 s/op
+     p(99.9990) =      0.691 s/op
+     p(99.9999) =      0.691 s/op
+    p(100.0000) =      0.691 s/op
+
+
+# Run complete. Total time: 00:00:46
+
+REMEMBER: The numbers below are just data. To gain reusable insights, you need to follow up on
+why the numbers are the way they are. Use profilers (see -prof, -lprof), design factorial
+experiments, perform baseline and negative tests that provide experimental control, make sure
+the benchmarking environment is safe on JVM/OS/HW level, ask for reviews from the domain experts.
+Do not assume the numbers tell you what you want them to tell.
+
+NOTE: Current JVM experimentally supports Compiler Blackholes, and they are in use. Please exercise
+extra caution when trusting the results, look into the generated code to check the benchmark still
+works, and factor in a small probability of new VM bugs. Additionally, while comparisons between
+different JVMs are already problematic, the performance difference caused by different Blackhole
+modes can be very significant. Please make sure you use the consistent Blackhole mode for comparisons.
+
+Benchmark                   (loopCount)  Mode  Cnt  Score   Error  Units
+ResolverBenchmark.overhead            1    ss   24  0.669 ± 0.010   s/op
+
+Benchmark result is saved to /tmp/runtime2-edge-collection-20261009/baseline-threads5.json

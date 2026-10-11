@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="viaduct.engine.runtime2.resolution.framework.CycleCheckStateTest" tests="21" skipped="0" failures="0" errors="0" timestamp="2026-10-09T01:00:21" hostname="raymie-stata-codex" time="1.359">
+  <properties/>
+  <testcase name="equal paths under different Query roots are different tasks()" classname="viaduct.engine.runtime2.resolution.framework.CycleCheckStateTest" time="0.978"/>
+  <testcase name="multi-hop cycle reports dependency order()" classname="viaduct.engine.runtime2.resolution.framework.CycleCheckStateTest" time="0.023"/>
+  <testcase name="repeated attempts to insert a rejected edge still report the cycle()" classname="viaduct.engine.runtime2.resolution.framework.CycleCheckStateTest" time="0.014"/>
+  <testcase name="repeated direct self-cycle still fails()" classname="viaduct.engine.runtime2.resolution.framework.CycleCheckStateTest" time="0.019"/>
+  <testcase name="acyclic reads are retained without failure()" classname="viaduct.engine.runtime2.resolution.framework.CycleCheckStateTest" time="0.013"/>
+  <testcase name="read recorded before writer registration still detects a cycle()" classname="viaduct.engine.runtime2.resolution.framework.CycleCheckStateTest" time="0.011"/>
+  <testcase name="concurrent writer registration still rejects duplicate ownership()" classname="viaduct.engine.runtime2.resolution.framework.CycleCheckStateTest" time="0.029"/>
+  <testcase name="concurrent edge insertion detects a newly closed cycle()" classname="viaduct.engine.runtime2.resolution.framework.CycleCheckStateTest" time="0.025"/>
+  <testcase name="writer registration is write-once per exact slot()" classname="viaduct.engine.runtime2.resolution.framework.CycleCheckStateTest" time="0.01"/>
+  <testcase name="direct self-cycle reports its complete path()" classname="viaduct.engine.runtime2.resolution.framework.CycleCheckStateTest" time="0.009"/>
+  <testcase name="recording the same acyclic edge repeatedly is harmless()" classname="viaduct.engine.runtime2.resolution.framework.CycleCheckStateTest" time="0.008"/>
+  <testcase name="overlapping reader and writer registration retains the dependency()" classname="viaduct.engine.runtime2.resolution.framework.CycleCheckStateTest" time="0.077"/>
+  <testcase name="immutable task identity hash is computed once()" classname="viaduct.engine.runtime2.resolution.framework.CycleCheckStateTest" time="0.01"/>
+  <testcase name="accepted edge is rechecked after another edge was rejected()" classname="viaduct.engine.runtime2.resolution.framework.CycleCheckStateTest" time="0.008"/>
+  <testcase name="duplicate accepted edges do not repeat reachability searches()" classname="viaduct.engine.runtime2.resolution.framework.CycleCheckStateTest" time="0.009"/>
+  <testcase name="completed deferred slot still contributes a read edge()" classname="viaduct.engine.runtime2.resolution.framework.CycleCheckStateTest" time="0.011"/>
+  <testcase name="cross-slot resolver-checker cycle is rejected()" classname="viaduct.engine.runtime2.resolution.framework.CycleCheckStateTest" time="0.007"/>
+  <testcase name="NOP cycle checker ignores writer registration and cycle checks()" classname="viaduct.engine.runtime2.resolution.framework.CycleCheckStateTest" time="0.007"/>
+  <testcase name="multiple concurrent readers are connected to their writer()" classname="viaduct.engine.runtime2.resolution.framework.CycleCheckStateTest" time="0.045"/>
+  <testcase name="one cell has independent value and checker writers()" classname="viaduct.engine.runtime2.resolution.framework.CycleCheckStateTest" time="0.007"/>
+  <testcase name="concurrent duplicate reads retain one acyclic dependency()" classname="viaduct.engine.runtime2.resolution.framework.CycleCheckStateTest" time="0.027"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

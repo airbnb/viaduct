@@ -2,6 +2,7 @@ package viaduct.engine.runtime2.resolution.framework
 
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import kotlin.concurrent.thread
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -11,9 +12,11 @@ import kotlin.test.assertTrue
 import viaduct.engine.runtime2.model.EngineResultCell
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.PathComponent
+import viaduct.engine.runtime2.model.registry.Assumptions
 import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.testing.TestWorld
+import viaduct.graphql.schema.ViaductSchema
 
 class CycleCheckStateTest {
     @Test
@@ -137,6 +140,92 @@ class CycleCheckStateTest {
     }
 
     @Test
+    fun `duplicate accepted edges do not repeat reachability searches`() {
+        val fixture = Fixture()
+        var endpointComparisons = 0
+        val field = fixture.world.schema.requireObjectField("Query", "second")
+        val countedField =
+            object : ViaductSchema.ObjectField by field {
+                override fun equals(other: Any?): Boolean {
+                    endpointComparisons++
+                    return field == other
+                }
+
+                override fun hashCode(): Int = field.hashCode()
+            }
+        val writer =
+            CycleTask.fieldResolver(
+                fixture.target,
+                listOf(ObjectEngineResult.GroundKey.of(countedField, emptyMap())),
+            )
+        val reader = fixture.task("first")
+        val slot = fixture.slot("second")
+        fixture.checker.registerWriter(slot, writer)
+        fixture.register("first")
+
+        // pathFrom compares its endpoints before traversing. Observe that comparison without
+        // adding instrumentation to production or relying on the task's hash implementation.
+        fixture.checker.cycleCheck(reader, slot)
+        assertTrue(endpointComparisons > 0)
+        endpointComparisons = 0
+        repeat(10) { fixture.checker.cycleCheck(reader, slot) }
+        assertEquals(0, endpointComparisons)
+
+        val failure =
+            assertFailsWith<ResolverReadCycleException> {
+                fixture.checker.cycleCheck(writer, fixture.slot("first"))
+            }
+        assertEquals(listOf(writer, reader, writer), failure.cycle)
+    }
+
+    @Test
+    fun `repeated attempts to insert a rejected edge still report the cycle`() {
+        val fixture = Fixture()
+        fixture.register("first")
+        fixture.register("second")
+        fixture.checker.cycleCheck(fixture.task("first"), fixture.slot("second"))
+
+        repeat(3) {
+            val failure =
+                assertFailsWith<ResolverReadCycleException> {
+                    fixture.checker.cycleCheck(fixture.task("second"), fixture.slot("first"))
+                }
+            assertEquals(listOf(fixture.task("second"), fixture.task("first"), fixture.task("second")), failure.cycle)
+        }
+    }
+
+    @Test
+    fun `accepted edge is rechecked after another edge was rejected`() {
+        val fixture = Fixture()
+        fixture.register("first")
+        fixture.register("second")
+        fixture.checker.cycleCheck(fixture.task("first"), fixture.slot("second"))
+        assertFailsWith<ResolverReadCycleException> {
+            fixture.checker.cycleCheck(fixture.task("second"), fixture.slot("first"))
+        }
+
+        val failure =
+            assertFailsWith<ResolverReadCycleException> {
+                fixture.checker.cycleCheck(fixture.task("first"), fixture.slot("second"))
+            }
+        assertEquals(listOf(fixture.task("first"), fixture.task("second"), fixture.task("first")), failure.cycle)
+    }
+
+    @Test
+    fun `repeated direct self-cycle still fails`() {
+        val fixture = Fixture()
+        fixture.register("first")
+
+        repeat(3) {
+            val failure =
+                assertFailsWith<ResolverReadCycleException> {
+                    fixture.checker.cycleCheck(fixture.task("first"), fixture.slot("first"))
+                }
+            assertEquals(listOf(fixture.task("first"), fixture.task("first")), failure.cycle)
+        }
+    }
+
+    @Test
     fun `writer registration is write-once per exact slot`() {
         val fixture = Fixture()
         fixture.register("first")
@@ -179,6 +268,36 @@ class CycleCheckStateTest {
             }
 
         assertEquals(listOf(checker, resolver, checker), failure.cycle)
+    }
+
+    @Test
+    fun `immutable task identity hash is computed once`() {
+        val fixture = Fixture()
+        var fieldHashes = 0
+        val field = fixture.world.schema.requireObjectField("Query", "first")
+        val countedField =
+            object : ViaductSchema.ObjectField by field {
+                override fun hashCode(): Int {
+                    fieldHashes++
+                    return field.hashCode()
+                }
+            }
+        val key = ObjectEngineResult.GroundKey.of(countedField, emptyMap())
+        val path = mutableListOf<PathComponent>(key)
+        val task = CycleTask.fieldResolver(fixture.target, path)
+        val equalTask = CycleTask.fieldResolver(fixture.target, listOf(key))
+        assertTrue(fieldHashes > 0)
+        val expectedHash = task.hashCode()
+        fieldHashes = 0
+        path.clear()
+
+        repeat(10) {
+            assertEquals(expectedHash, task.hashCode())
+            assertEquals(expectedHash, equalTask.hashCode())
+            assertEquals(equalTask, task)
+        }
+        assertEquals(0, fieldHashes)
+        assertEquals(listOf(key), task.path)
     }
 
     @Test
@@ -236,6 +355,98 @@ class CycleCheckStateTest {
     }
 
     @Test
+    fun `overlapping reader and writer registration retains the dependency`() {
+        val world = Fixture().world
+        repeat(128) { iteration ->
+            val fixture = Fixture(world)
+            fixture.register("first")
+            val reader = fixture.task("first")
+            val writer = fixture.task("second")
+            val slot = fixture.slot("second")
+            val actions =
+                listOf<() -> Unit>(
+                    { fixture.checker.cycleCheck(reader, slot) },
+                    { fixture.checker.registerWriter(slot, writer) },
+                )
+            val failures = concurrently(if (iteration % 2 == 0) actions else actions.reversed())
+            assertTrue(failures.isEmpty(), "Concurrent registration failed: $failures")
+
+            // Both operations returning is insufficient: this closes a cycle only if the
+            // concurrently registered first -> second dependency was actually recorded.
+            val failure =
+                assertFailsWith<ResolverReadCycleException> {
+                    fixture.checker.cycleCheck(writer, fixture.slot("first"))
+                }
+            assertEquals(listOf(writer, reader, writer), failure.cycle)
+        }
+    }
+
+    @Test
+    fun `multiple concurrent readers are connected to their writer`() {
+        val world = Fixture().world
+        repeat(64) { iteration ->
+            val fixture = Fixture(world)
+            fixture.register("first")
+            fixture.register("second")
+            val first = fixture.task("first")
+            val second = fixture.task("second")
+            val writer = fixture.task("third")
+            val slot = fixture.slot("third")
+            val actions =
+                listOf<() -> Unit>(
+                    { fixture.checker.cycleCheck(first, slot) },
+                    { fixture.checker.cycleCheck(second, slot) },
+                    { fixture.checker.registerWriter(slot, writer) },
+                )
+            val failures = concurrently(if (iteration % 2 == 0) actions else actions.reversed())
+            assertTrue(failures.isEmpty(), "Concurrent registration failed: $failures")
+
+            for (name in listOf("first", "second")) {
+                val failure =
+                    assertFailsWith<ResolverReadCycleException> {
+                        fixture.checker.cycleCheck(writer, fixture.slot(name))
+                    }
+                assertEquals(listOf(writer, fixture.task(name), writer), failure.cycle)
+            }
+        }
+    }
+
+    @Test
+    fun `concurrent duplicate reads retain one acyclic dependency`() {
+        val world = Fixture().world
+        repeat(32) {
+            val fixture = Fixture(world)
+            fixture.register("first")
+            fixture.register("second")
+            val reader = fixture.task("first")
+            val writer = fixture.task("second")
+            val slot = fixture.slot("second")
+            val failures =
+                concurrently(List(4) { { fixture.checker.cycleCheck(reader, slot) } })
+            assertTrue(failures.isEmpty(), "Concurrent duplicate read failed: $failures")
+
+            val failure =
+                assertFailsWith<ResolverReadCycleException> {
+                    fixture.checker.cycleCheck(writer, fixture.slot("first"))
+                }
+            assertEquals(listOf(writer, reader, writer), failure.cycle)
+        }
+    }
+
+    @Test
+    fun `concurrent writer registration still rejects duplicate ownership`() {
+        val fixture = Fixture()
+        val slot = fixture.slot("first")
+        val writer = fixture.task("first")
+        val failures =
+            concurrently(List(2) { { fixture.checker.registerWriter(slot, writer) } })
+
+        assertEquals(1, failures.size)
+        val failure = assertIs<IllegalStateException>(failures.single())
+        assertTrue(failure.message.orEmpty().startsWith("Writer already registered for slot:"))
+    }
+
+    @Test
     fun `NOP cycle checker ignores writer registration and cycle checks`() {
         val fixture = Fixture()
         val checker = CycleCheckState.createNOP()
@@ -250,8 +461,33 @@ class CycleCheckStateTest {
         )
     }
 
-    private class Fixture {
-        val world =
+    private fun concurrently(actions: List<() -> Unit>): List<Throwable> {
+        val ready = CountDownLatch(actions.size)
+        val start = CountDownLatch(1)
+        val failures = ConcurrentLinkedQueue<Throwable>()
+        val workers =
+            actions.mapIndexed { index, action ->
+                thread(isDaemon = true) {
+                    ready.countDown()
+                    try {
+                        check(start.await(10, TimeUnit.SECONDS)) { "Timed out waiting for concurrent start" }
+                        if (index % 2 == 0) Thread.yield()
+                        action()
+                    } catch (failure: Throwable) {
+                        failures += failure
+                    }
+                }
+            }
+        val allReady = ready.await(10, TimeUnit.SECONDS)
+        start.countDown()
+        workers.forEach { it.join(10_000) }
+        assertTrue(allReady, "Workers did not reach the start barrier")
+        assertTrue(workers.none { it.isAlive }, "Concurrent graph update did not finish")
+        return failures.toList()
+    }
+
+    private class Fixture(
+        val world: Assumptions =
             TestWorld
                 .fromSDL(
                     """
@@ -261,7 +497,8 @@ class CycleCheckStateTest {
                       third: String!
                     }
                     """.trimIndent(),
-                ).assumptions
+                ).assumptions,
+    ) {
         val target = ObjectEngineResult.of(world.schema.requireQueryTypeDef(), mutable = true)
         val checker = CycleCheckState.create()
 

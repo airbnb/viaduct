@@ -1,0 +1,514 @@
+[
+  {
+    "name": "viaduct.engine.runtime2.resolution.BindingDeclarationsStateTest",
+    "tests": "2",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "failed_tests": []
+  },
+  {
+    "name": "viaduct.engine.runtime2.resolution.CoroutineResolveTest",
+    "tests": "63",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "failed_tests": []
+  },
+  {
+    "name": "viaduct.engine.runtime2.resolution.EngineExecutionContextPropagationTest",
+    "tests": "1",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "failed_tests": []
+  },
+  {
+    "name": "viaduct.engine.runtime2.resolution.FieldCheckerClosureTest",
+    "tests": "3",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "failed_tests": []
+  },
+  {
+    "name": "viaduct.engine.runtime2.resolution.FieldCheckerGeneratedTest",
+    "tests": "5",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "failed_tests": []
+  },
+  {
+    "name": "viaduct.engine.runtime2.resolution.FieldCheckerLifecycleTest",
+    "tests": "4",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "failed_tests": []
+  },
+  {
+    "name": "viaduct.engine.runtime2.resolution.FromFieldExclusionTest",
+    "tests": "7",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "failed_tests": []
+  },
+  {
+    "name": "viaduct.engine.runtime2.resolution.FullBenchmarkReplayTest",
+    "tests": "1",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "failed_tests": []
+  },
+  {
+    "name": "viaduct.engine.runtime2.resolution.InclusionConditionActivationTest",
+    "tests": "13",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "failed_tests": []
+  },
+  {
+    "name": "viaduct.engine.runtime2.resolution.InclusionConditionLegacyOutcomeTest",
+    "tests": "2",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "failed_tests": []
+  },
+  {
+    "name": "viaduct.engine.runtime2.resolution.InclusionConditionResolutionRegressionTest",
+    "tests": "2",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "failed_tests": []
+  },
+  {
+    "name": "viaduct.engine.runtime2.resolution.InclusionConditionTest",
+    "tests": "14",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "failed_tests": []
+  },
+  {
+    "name": "viaduct.engine.runtime2.resolution.IndependentQueryInputWitnessRegressionTest",
+    "tests": "3",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "failed_tests": []
+  },
+  {
+    "name": "viaduct.engine.runtime2.resolution.IndependentQueryScopeOwnershipRegressionTest",
+    "tests": "3",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "failed_tests": []
+  },
+  {
+    "name": "viaduct.engine.runtime2.resolution.MutationOrchestrationTaskTest",
+    "tests": "2",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "failed_tests": []
+  },
+  {
+    "name": "viaduct.engine.runtime2.resolution.MutationRegistryTest",
+    "tests": "1",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "failed_tests": []
+  },
+  {
+    "name": "viaduct.engine.runtime2.resolution.MutationResolutionTest",
+    "tests": "41",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "failed_tests": []
+  },
+  {
+    "name": "viaduct.engine.runtime2.resolution.OrchestrationTaskTest",
+    "tests": "5",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "failed_tests": []
+  },
+  {
+    "name": "viaduct.engine.runtime2.resolution.ParentConstructionDemandComplexityRegressionTest",
+    "tests": "1",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "failed_tests": []
+  },
+  {
+    "name": "viaduct.engine.runtime2.resolution.ParentConstructionDemandTest",
+    "tests": "8",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "failed_tests": []
+  },
+  {
+    "name": "viaduct.engine.runtime2.resolution.ParentCoverageMetricsTest",
+    "tests": "4",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "failed_tests": []
+  },
+  {
+    "name": "viaduct.engine.runtime2.resolution.PassiveValueResolutionLogicTest",
+    "tests": "3",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "failed_tests": []
+  },
+  {
+    "name": "viaduct.engine.runtime2.resolution.PublicationValidationTest",
+    "tests": "2",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "failed_tests": []
+  },
+  {
+    "name": "viaduct.engine.runtime2.resolution.QueryFragmentBindingTerminationTest",
+    "tests": "10",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "failed_tests": []
+  },
+  {
+    "name": "viaduct.engine.runtime2.resolution.QueryFragmentProducerTest",
+    "tests": "3",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "failed_tests": []
+  },
+  {
+    "name": "viaduct.engine.runtime2.resolution.RegistrySuccessorDemandCacheTest",
+    "tests": "4",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "failed_tests": []
+  },
+  {
+    "name": "viaduct.engine.runtime2.resolution.RequestScopeOwnershipTest",
+    "tests": "2",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "failed_tests": []
+  },
+  {
+    "name": "viaduct.engine.runtime2.resolution.ResolutionDispatcherFactoryTest",
+    "tests": "4",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "failed_tests": []
+  },
+  {
+    "name": "viaduct.engine.runtime2.resolution.ResolutionDispatcherResourceTest",
+    "tests": "2",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "failed_tests": []
+  },
+  {
+    "name": "viaduct.engine.runtime2.resolution.ResolverBroadStressCampaignConfigurationTest",
+    "tests": "5",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "failed_tests": []
+  },
+  {
+    "name": "viaduct.engine.runtime2.resolution.ResolverContractTest",
+    "tests": "113",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "failed_tests": []
+  },
+  {
+    "name": "viaduct.engine.runtime2.resolution.ResolverFromFieldBindingOracleTest",
+    "tests": "6",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "failed_tests": []
+  },
+  {
+    "name": "viaduct.engine.runtime2.resolution.ResolverGeneratedTest",
+    "tests": "13",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "failed_tests": []
+  },
+  {
+    "name": "viaduct.engine.runtime2.resolution.ResolverMutationTest",
+    "tests": "1",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "failed_tests": []
+  },
+  {
+    "name": "viaduct.engine.runtime2.resolution.ResolverOccurrenceWitnessTest",
+    "tests": "2",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "failed_tests": []
+  },
+  {
+    "name": "viaduct.engine.runtime2.resolution.ResolverSelectiveDemandWitnessTest",
+    "tests": "1",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "failed_tests": []
+  },
+  {
+    "name": "viaduct.engine.runtime2.resolution.ResolverStartTest",
+    "tests": "15",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "failed_tests": []
+  },
+  {
+    "name": "viaduct.engine.runtime2.resolution.ResolverWitnessTest",
+    "tests": "2",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "1",
+    "failed_tests": []
+  },
+  {
+    "name": "viaduct.engine.runtime2.resolution.RootFieldReferenceResolutionTest",
+    "tests": "22",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "failed_tests": []
+  },
+  {
+    "name": "viaduct.engine.runtime2.resolution.RuntimeTypeCheckerWitnessTest",
+    "tests": "1",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "failed_tests": []
+  },
+  {
+    "name": "viaduct.engine.runtime2.resolution.SharedQueryCrossScopeWitnessRegressionTest",
+    "tests": "2",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "failed_tests": []
+  },
+  {
+    "name": "viaduct.engine.runtime2.resolution.SharedQueryGuardReadinessRegressionTest",
+    "tests": "1",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "failed_tests": []
+  },
+  {
+    "name": "viaduct.engine.runtime2.resolution.SharedQueryInclusionFailureRegressionTest",
+    "tests": "4",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "failed_tests": []
+  },
+  {
+    "name": "viaduct.engine.runtime2.resolution.SharedQueryProviderOwnershipTest",
+    "tests": "1",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "failed_tests": []
+  },
+  {
+    "name": "viaduct.engine.runtime2.resolution.SingularQueryGuardIsolationTest",
+    "tests": "9",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "failed_tests": []
+  },
+  {
+    "name": "viaduct.engine.runtime2.resolution.SuccessorDemandRegressionTest",
+    "tests": "1",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "failed_tests": []
+  },
+  {
+    "name": "viaduct.engine.runtime2.resolution.SuperlinearGrowthTest",
+    "tests": "11",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "3",
+    "failed_tests": []
+  },
+  {
+    "name": "viaduct.engine.runtime2.resolution.SymbolicFieldCheckerTest",
+    "tests": "5",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "failed_tests": []
+  },
+  {
+    "name": "viaduct.engine.runtime2.resolution.SymbolicKeyIdentityTest",
+    "tests": "3",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "failed_tests": []
+  },
+  {
+    "name": "viaduct.engine.runtime2.resolution.SymbolicTypeCheckerTest",
+    "tests": "9",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "failed_tests": []
+  },
+  {
+    "name": "viaduct.engine.runtime2.resolution.TypeCheckerDemandOracleConditionTest",
+    "tests": "4",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "failed_tests": []
+  },
+  {
+    "name": "viaduct.engine.runtime2.resolution.TypeCheckerGeneratedTest",
+    "tests": "3",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "failed_tests": []
+  },
+  {
+    "name": "viaduct.engine.runtime2.resolution.TypeCheckerLifecycleTest",
+    "tests": "3",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "failed_tests": []
+  },
+  {
+    "name": "viaduct.engine.runtime2.resolution.TypeCheckerStressCoverageTest",
+    "tests": "1",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "failed_tests": []
+  },
+  {
+    "name": "viaduct.engine.runtime2.resolution.VariablesProviderExecutionContextTest",
+    "tests": "2",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "failed_tests": []
+  },
+  {
+    "name": "viaduct.engine.runtime2.resolution.framework.CycleCheckStateTest",
+    "tests": "21",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "failed_tests": []
+  },
+  {
+    "name": "viaduct.engine.runtime2.resolution.framework.GroundSelectionsTest",
+    "tests": "4",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "failed_tests": []
+  },
+  {
+    "name": "viaduct.engine.runtime2.resolution.framework.InclusionConditionTest",
+    "tests": "4",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "failed_tests": []
+  },
+  {
+    "name": "viaduct.engine.runtime2.resolution.framework.OperationStateIsolationTest",
+    "tests": "4",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "failed_tests": []
+  },
+  {
+    "name": "viaduct.engine.runtime2.resolution.framework.ParentSuccessorDemandTest",
+    "tests": "3",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "failed_tests": []
+  },
+  {
+    "name": "viaduct.engine.runtime2.resolution.framework.ResolverObservationTest",
+    "tests": "99",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "failed_tests": []
+  },
+  {
+    "name": "viaduct.engine.runtime2.resolution.framework.SharedPassiveValueResolutionLogicTest",
+    "tests": "8",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "failed_tests": []
+  },
+  {
+    "name": "viaduct.engine.runtime2.resolution.framework.VariableBindingsStateTest",
+    "tests": "5",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "failed_tests": []
+  },
+  {
+    "name": "viaduct.engine.runtime2.resolution.inclusion.InclusionCombinationTest",
+    "tests": "3",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "failed_tests": []
+  }
+]

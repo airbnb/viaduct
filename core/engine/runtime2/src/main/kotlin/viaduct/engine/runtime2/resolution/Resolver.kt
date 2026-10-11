@@ -5,7 +5,10 @@ package viaduct.engine.runtime2.resolution
 import kotlin.coroutines.CoroutineContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeout
@@ -14,10 +17,12 @@ import viaduct.engine.runtime2.model.MutationSelectionForest
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.model.schemaType
+import viaduct.engine.runtime2.resolution.framework.CycleCheckState
 import viaduct.engine.runtime2.resolution.framework.Demand
 import viaduct.engine.runtime2.resolution.framework.MutationNamespaceOccurrence
 import viaduct.engine.runtime2.resolution.framework.MutationOrchestrationTask
 import viaduct.engine.runtime2.resolution.framework.OEROccurrence
+import viaduct.engine.runtime2.resolution.framework.ResolverReadCycleException
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 
 /**
@@ -33,15 +38,37 @@ fun SharedOperationContext<*>.resolve(
     coroutineContext: CoroutineContext,
 ): ObjectEngineResult =
     runBlocking(coroutineContext) {
-        withTimeout(15_000) {
+        resolveWithTimeout(selections, 15_000)
+    }
+
+/** Bounded Resolution collects dependencies and diagnoses cycles only at its own deadline. */
+internal suspend fun SharedOperationContext<*>.resolveWithTimeout(
+    selections: SelectionForest,
+    timeoutMillis: Long,
+): ObjectEngineResult {
+    val callerContext = currentCoroutineContext()
+    val cycleChecker = CycleCheckState.createDeferred()
+    return withTimeout(timeoutMillis) {
+        try {
             coroutineScope {
-                startResolve(
+                startResolution(
                     selections = selections,
                     requestScope = this,
-                )
+                    cycleChecker = cycleChecker,
+                ).root
             }
+        } catch (timeout: TimeoutCancellationException) {
+            // Inside this timeout's body its job is cancelled only by its own deadline or
+            // caller cancellation, not by a nested timeout escaping coroutineScope above.
+            if (!isActive && callerContext.isActive) {
+                cycleChecker.findCycle()?.let { cycle ->
+                    throw ResolverReadCycleException(cycle).also { it.initCause(timeout) }
+                }
+            }
+            throw timeout
         }
     }
+}
 
 /**
  * Starts one Resolution request and returns its live root result.
@@ -72,6 +99,7 @@ internal class StartedResolution(
 internal fun SharedOperationContext<*>.startResolution(
     selections: SelectionForest,
     requestScope: CoroutineScope,
+    cycleChecker: CycleCheckState = CycleCheckState.create(),
 ): StartedResolution {
     require(world.selectiveResolvers) {
         "Resolution requires selective resolvers"
@@ -83,6 +111,7 @@ internal fun SharedOperationContext<*>.startResolution(
             OperationContext.create(
                 base = this@startResolution,
                 requestScope = resolutionScope,
+                cycleChecker = cycleChecker,
             )
         val root = resolutionOperation.startResolve(selections)
         completion.complete()

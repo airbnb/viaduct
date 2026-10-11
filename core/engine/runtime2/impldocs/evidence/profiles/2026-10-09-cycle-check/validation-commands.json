@@ -1,0 +1,28 @@
+[
+  {
+    "name": "resolution-threads5",
+    "command": [
+      "./gradlew",
+      ":core:engine:runtime2:test",
+      "--tests",
+      "viaduct.engine.runtime2.resolution.*",
+      "-Pviaduct.resolution.threadcount=5",
+      "-PresolverPropertySeed=424242",
+      "--no-configuration-cache",
+      "--console=plain"
+    ],
+    "started_utc": "2026-10-09T01:07:55.798178+00:00",
+    "exit_code": 0,
+    "finished_utc": "2026-10-09T01:09:14.616121+00:00"
+  },
+  {
+    "name": "full-check",
+    "command": [
+      "./gradlew",
+      ":core:engine:runtime2:check"
+    ],
+    "started_utc": "2026-10-09T01:09:14.649180+00:00",
+    "exit_code": 0,
+    "finished_utc": "2026-10-09T01:12:03.135680+00:00"
+  }
+]

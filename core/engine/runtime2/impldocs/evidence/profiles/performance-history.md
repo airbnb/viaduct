@@ -8,6 +8,24 @@ Compare measurements only when their recorded host, JVM, benchmark parameters, c
 
 ## Recorded Investigations
 
+### 2026-10-09 — deferred cycle diagnosis at request deadlines
+
+The [whole-change experiment](2026-10-09-deferred-cycle-detection/README.md) compares HEAD `1b0418ee3f26d` with an uncommitted edge collector and timeout integration on `rstata--2perf`, session `01a11ce9-fb33-7b50-aa1f-35ab16fbef2e`. Host `raymie-stata-codex`, KVM Intel Xeon 6975P-C (32 cores / 64 logical CPUs, approximately 495 GiB RAM, no swap), Corretto 21.0.4, JMH 1.36. Exact timing timestamps, commands, source patch/hashes and corpus/JAR identities are retained. The prepared callbacks and original fixed corpus are unchanged. Changes remain uncommitted for review.
+
+Five warmups, eight measurements and three fresh forks give **14.623 ± 0.099 → 14.243 ± 0.126 ms/resolution**, **2.60% less time**, at one dispatcher thread; five threads give **6.686 ± 0.104 → 6.417 ± 0.046**, **4.03% less time**. Frozen property is **954.747 ± 14.809 → 947.049 ± 15.987 ms/case**, a 0.81% mean reduction with overlapping intervals and no established benefit. All six measurements run serially without build/test/diagnostic overlap. Within-run 99.9% confidence errors and shared-host variance limit attribution.
+
+The candidate preserves 246,624 reads, 45,704 writers/tasks, 64,838 distinct edges and 102,340 pending index pairs, while eliminating all 64,838 eager searches, 131,788 node visits and 87,642 edge scans; successful requests perform no deadline scans. Candidate-only JFR records 954 execution samples: construction closure 24.63%, input materialization 20.34%, successor demand 19.81%, normalization 17.61%, cycle bookkeeping 4.93%, and resolver relation evaluation 3.35%, with overlapping inclusive shares. The requested deadline policy diagnoses any historical cycle as a violation of validated dependencies' acyclicity, without needing to prove it caused the particular timeout. Production timeout defaults to configurable 60 seconds; bounded Resolution retains 15 seconds. Direct unbounded startup retains eager checking.
+
+The exact Runtime2 full check passed. The five-thread Resolution and wiring checks are included in the linked validation summary. No fixture or coverage guard is weakened, and no commit or push is performed.
+
+### 2026-10-09 — consolidated cycle-check optimization
+
+The [whole-change evidence](2026-10-09-cycle-check/README.md) compares baseline `b21ddcf895392` with one cycle-check optimization commit. Concurrent maps and sets are retained; the final change combines safe duplicate-search elimination, one monitor for slot/graph operations, pending indexing only for unknown writers, and immutable task-hash caching. Production edits are local to `CycleCheckState.kt`; the prepared callbacks and original fixed corpus are unchanged.
+
+The controlled one-thread result is **15.000 ± 0.080 → 14.618 ± 0.057 ms/resolution**, **2.55% less time**. The collection contains paired five-thread, frozen-property and correctness controls, raw JSON/logs, all iterations, exact commands, source/JAR/corpus identities and host/JVM details. All runs execute serially with five warmups, eight measurements and three fresh forks; reported errors are within-run JMH 99.9% confidence errors. Shared-host variation limits generalization and finer attribution.
+
+Exact counters preserve reads, tasks and distinct edges while reducing BFS searches 109,251 → 64,838, node visits 211,157 → 131,788, edge scans 131,143 → 87,642 and reader-index pairs 167,178 → 102,340. A 128-edge acyclic chain still visits 8,256 nodes; quadratic traversal is not repaired. No baseline missed-edge race was demonstrated, and no allocation-byte or monitor-contention saving is claimed. Focused tests pass 21/21; the five-thread Resolution suite reports 606 tests, 0 failures, 0 errors and 4 skips. The exact full check reports 2490 tests, 0 failures, 0 errors and 166 skips; its outcomes are preserved in the single collection. No push is performed.
+
 ### 2026-10-08 06:28:19 UTC
 
 The [inclusion review-fix controls](2026-10-08-inclusion-review-fixes/README.md) compare master `67ec32572b997293ab0879a130292c15457131b9`, with only the shared benchmark harness and corpus backported at `bb5e7e7c70c2cb19eac5665c44d5bd84286f9fd5`, against the complete fixed stack at `c80bcc5e5e5207dbab1c55f8e69c0ec443dfea3b` on the same host and corpus. The control contains no production-source changes from master. Ordinary evaluation now memoizes completed shared nodes per invocation, and ordinary evaluation and asynchronous activation prune nested branches contradicted by explicit conjunct requirements without DNF expansion. The regression suite covers failed and pending bindings, binding order, operation counts, wide/shared graphs, and production cell exclusion. These repairs preserve the compact representation and the model/Resolution cancellation boundary.

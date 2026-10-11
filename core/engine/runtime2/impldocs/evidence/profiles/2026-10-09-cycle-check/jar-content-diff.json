@@ -1,0 +1,21 @@
+{
+  "added": [
+    "viaduct/engine/runtime2/resolution/framework/CycleCheckStateImpl$addRead$added$1.class"
+  ],
+  "removed": [
+    "viaduct/engine/runtime2/resolution/framework/CycleCheckStateImpl$addRead$1.class"
+  ],
+  "changed": [
+    "viaduct/engine/runtime2/resolution/framework/CycleCheckState$Companion.class",
+    "viaduct/engine/runtime2/resolution/framework/CycleCheckStateImpl$cycleCheck$1.class",
+    "viaduct/engine/runtime2/resolution/framework/CycleCheckStateImpl.class",
+    "viaduct/engine/runtime2/resolution/framework/CycleCheckStateKt.class",
+    "viaduct/engine/runtime2/resolution/framework/CycleSlot$Companion.class",
+    "viaduct/engine/runtime2/resolution/framework/CycleSlot.class",
+    "viaduct/engine/runtime2/resolution/framework/CycleSlotKind.class",
+    "viaduct/engine/runtime2/resolution/framework/CycleTask$Companion.class",
+    "viaduct/engine/runtime2/resolution/framework/CycleTask.class",
+    "viaduct/engine/runtime2/resolution/framework/NOPCycleCheckState.class",
+    "viaduct/engine/runtime2/resolution/framework/ResolverReadCycleException.class"
+  ]
+}

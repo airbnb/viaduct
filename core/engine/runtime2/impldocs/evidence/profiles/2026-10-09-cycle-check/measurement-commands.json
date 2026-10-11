@@ -1,0 +1,362 @@
+[
+  {
+    "name": "baseline-overhead",
+    "variant": "baseline",
+    "source": {
+      "commit": "b21ddcf895392fb97fac5004c752a48e8df88215",
+      "jar_sha256": "e0e1f15db498cfc39c10e9dc979d55f31bb0b95da71f9b4655f99324144483c5",
+      "jar_content_sha256": "352ad9ac4cc0f9f805ba46432b2862045b7baf97703c0ba9b820440bb65f5008",
+      "source_trees": {
+        "src/main": "1cfdc7ce93143881860c79666e53cb334f3f1ae2",
+        "src/support": "ab4e9ecffc8381fc03a2abf51539e31ee4798ce1",
+        "src/jmh": "81ed50c83b924a23557abe8bcea8311f46ba1d83"
+      },
+      "cycle_source_blob": "78c7121ff1b522b3c12e39049115078dbe7f3fab",
+      "corpus": {
+        "core/engine/runtime2/src/jmh/resources/viaduct/engine/runtime2/benchmark/current-profile/queries.json": "5157978ea78a8c51f6359f8f07b8e240e2675432e0ca590e3b81abfef41a308c",
+        "core/engine/runtime2/src/jmh/resources/viaduct/engine/runtime2/benchmark/current-profile/registry.json.gz": "525f75fd9ec08b24c379bfdd86ae802d1a777cb186570eb015129da117e18a0e",
+        "core/engine/runtime2/src/jmh/resources/viaduct/engine/runtime2/benchmark/current-profile/schema.graphqls": "70d662d35ce271f1f5867cfbc60ea3fbdccf74a852433225448a62e10398f85e"
+      }
+    },
+    "command": [
+      "java",
+      "-jar",
+      "/tmp/runtime2-cycle-consolidated-20261009/baseline.jar",
+      "viaduct\\.engine\\.runtime2\\.resolution\\.ResolverBenchmark\\.overhead",
+      "-p",
+      "loopCount=1",
+      "-wi",
+      "5",
+      "-i",
+      "8",
+      "-f",
+      "3",
+      "-foe",
+      "true",
+      "-rf",
+      "json",
+      "-rff",
+      "/tmp/runtime2-cycle-consolidated-20261009/baseline-overhead.json",
+      "-jvmArgsAppend",
+      "-Dviaduct.resolution.threadcount=1 -DresolverBenchmarkReportFile=/tmp/runtime2-cycle-consolidated-20261009/baseline-overhead-statistics.txt"
+    ],
+    "started_utc": "2026-10-09T01:00:54.195772+00:00",
+    "exit_code": 0,
+    "finished_utc": "2026-10-09T01:02:20.644619+00:00"
+  },
+  {
+    "name": "final-overhead",
+    "variant": "final",
+    "source": {
+      "commit": "6f53700316a598a1dc46902f50fe1ffd45ccb5a8",
+      "jar_sha256": "20f7d564f6aa458f1cb2a1a428774f124c53af0313ac9b569867c511554cc3f1",
+      "jar_content_sha256": "df66b024ed3a27252a77b944f10393a2f74213821323154d3f6c8a0219563fcf",
+      "source_trees": {
+        "src/main": "0ebd8980f64958b332fbe525a841b6e7472da198",
+        "src/support": "ab4e9ecffc8381fc03a2abf51539e31ee4798ce1",
+        "src/jmh": "81ed50c83b924a23557abe8bcea8311f46ba1d83"
+      },
+      "cycle_source_blob": "09f79feac8c16467c1ebab6b6548954474b1605c",
+      "corpus": {
+        "core/engine/runtime2/src/jmh/resources/viaduct/engine/runtime2/benchmark/current-profile/queries.json": "5157978ea78a8c51f6359f8f07b8e240e2675432e0ca590e3b81abfef41a308c",
+        "core/engine/runtime2/src/jmh/resources/viaduct/engine/runtime2/benchmark/current-profile/registry.json.gz": "525f75fd9ec08b24c379bfdd86ae802d1a777cb186570eb015129da117e18a0e",
+        "core/engine/runtime2/src/jmh/resources/viaduct/engine/runtime2/benchmark/current-profile/schema.graphqls": "70d662d35ce271f1f5867cfbc60ea3fbdccf74a852433225448a62e10398f85e"
+      }
+    },
+    "command": [
+      "java",
+      "-jar",
+      "/tmp/runtime2-cycle-consolidated-20261009/final.jar",
+      "viaduct\\.engine\\.runtime2\\.resolution\\.ResolverBenchmark\\.overhead",
+      "-p",
+      "loopCount=1",
+      "-wi",
+      "5",
+      "-i",
+      "8",
+      "-f",
+      "3",
+      "-foe",
+      "true",
+      "-rf",
+      "json",
+      "-rff",
+      "/tmp/runtime2-cycle-consolidated-20261009/final-overhead.json",
+      "-jvmArgsAppend",
+      "-Dviaduct.resolution.threadcount=1 -DresolverBenchmarkReportFile=/tmp/runtime2-cycle-consolidated-20261009/final-overhead-statistics.txt"
+    ],
+    "started_utc": "2026-10-09T01:02:20.645043+00:00",
+    "exit_code": 0,
+    "finished_utc": "2026-10-09T01:03:45.080983+00:00"
+  },
+  {
+    "name": "final-threads5",
+    "variant": "final",
+    "source": {
+      "commit": "6f53700316a598a1dc46902f50fe1ffd45ccb5a8",
+      "jar_sha256": "20f7d564f6aa458f1cb2a1a428774f124c53af0313ac9b569867c511554cc3f1",
+      "jar_content_sha256": "df66b024ed3a27252a77b944f10393a2f74213821323154d3f6c8a0219563fcf",
+      "source_trees": {
+        "src/main": "0ebd8980f64958b332fbe525a841b6e7472da198",
+        "src/support": "ab4e9ecffc8381fc03a2abf51539e31ee4798ce1",
+        "src/jmh": "81ed50c83b924a23557abe8bcea8311f46ba1d83"
+      },
+      "cycle_source_blob": "09f79feac8c16467c1ebab6b6548954474b1605c",
+      "corpus": {
+        "core/engine/runtime2/src/jmh/resources/viaduct/engine/runtime2/benchmark/current-profile/queries.json": "5157978ea78a8c51f6359f8f07b8e240e2675432e0ca590e3b81abfef41a308c",
+        "core/engine/runtime2/src/jmh/resources/viaduct/engine/runtime2/benchmark/current-profile/registry.json.gz": "525f75fd9ec08b24c379bfdd86ae802d1a777cb186570eb015129da117e18a0e",
+        "core/engine/runtime2/src/jmh/resources/viaduct/engine/runtime2/benchmark/current-profile/schema.graphqls": "70d662d35ce271f1f5867cfbc60ea3fbdccf74a852433225448a62e10398f85e"
+      }
+    },
+    "command": [
+      "java",
+      "-jar",
+      "/tmp/runtime2-cycle-consolidated-20261009/final.jar",
+      "viaduct\\.engine\\.runtime2\\.resolution\\.ResolverBenchmark\\.overhead",
+      "-p",
+      "loopCount=1",
+      "-wi",
+      "5",
+      "-i",
+      "8",
+      "-f",
+      "3",
+      "-foe",
+      "true",
+      "-rf",
+      "json",
+      "-rff",
+      "/tmp/runtime2-cycle-consolidated-20261009/final-threads5.json",
+      "-jvmArgsAppend",
+      "-Dviaduct.resolution.threadcount=5 -DresolverBenchmarkReportFile=/tmp/runtime2-cycle-consolidated-20261009/final-threads5-statistics.txt"
+    ],
+    "started_utc": "2026-10-09T01:03:45.081430+00:00",
+    "exit_code": 0,
+    "finished_utc": "2026-10-09T01:04:31.243202+00:00"
+  },
+  {
+    "name": "baseline-threads5",
+    "variant": "baseline",
+    "source": {
+      "commit": "b21ddcf895392fb97fac5004c752a48e8df88215",
+      "jar_sha256": "e0e1f15db498cfc39c10e9dc979d55f31bb0b95da71f9b4655f99324144483c5",
+      "jar_content_sha256": "352ad9ac4cc0f9f805ba46432b2862045b7baf97703c0ba9b820440bb65f5008",
+      "source_trees": {
+        "src/main": "1cfdc7ce93143881860c79666e53cb334f3f1ae2",
+        "src/support": "ab4e9ecffc8381fc03a2abf51539e31ee4798ce1",
+        "src/jmh": "81ed50c83b924a23557abe8bcea8311f46ba1d83"
+      },
+      "cycle_source_blob": "78c7121ff1b522b3c12e39049115078dbe7f3fab",
+      "corpus": {
+        "core/engine/runtime2/src/jmh/resources/viaduct/engine/runtime2/benchmark/current-profile/queries.json": "5157978ea78a8c51f6359f8f07b8e240e2675432e0ca590e3b81abfef41a308c",
+        "core/engine/runtime2/src/jmh/resources/viaduct/engine/runtime2/benchmark/current-profile/registry.json.gz": "525f75fd9ec08b24c379bfdd86ae802d1a777cb186570eb015129da117e18a0e",
+        "core/engine/runtime2/src/jmh/resources/viaduct/engine/runtime2/benchmark/current-profile/schema.graphqls": "70d662d35ce271f1f5867cfbc60ea3fbdccf74a852433225448a62e10398f85e"
+      }
+    },
+    "command": [
+      "java",
+      "-jar",
+      "/tmp/runtime2-cycle-consolidated-20261009/baseline.jar",
+      "viaduct\\.engine\\.runtime2\\.resolution\\.ResolverBenchmark\\.overhead",
+      "-p",
+      "loopCount=1",
+      "-wi",
+      "5",
+      "-i",
+      "8",
+      "-f",
+      "3",
+      "-foe",
+      "true",
+      "-rf",
+      "json",
+      "-rff",
+      "/tmp/runtime2-cycle-consolidated-20261009/baseline-threads5.json",
+      "-jvmArgsAppend",
+      "-Dviaduct.resolution.threadcount=5 -DresolverBenchmarkReportFile=/tmp/runtime2-cycle-consolidated-20261009/baseline-threads5-statistics.txt"
+    ],
+    "started_utc": "2026-10-09T01:04:31.243665+00:00",
+    "exit_code": 0,
+    "finished_utc": "2026-10-09T01:05:17.664165+00:00"
+  },
+  {
+    "name": "baseline-property",
+    "variant": "baseline",
+    "source": {
+      "commit": "b21ddcf895392fb97fac5004c752a48e8df88215",
+      "jar_sha256": "e0e1f15db498cfc39c10e9dc979d55f31bb0b95da71f9b4655f99324144483c5",
+      "jar_content_sha256": "352ad9ac4cc0f9f805ba46432b2862045b7baf97703c0ba9b820440bb65f5008",
+      "source_trees": {
+        "src/main": "1cfdc7ce93143881860c79666e53cb334f3f1ae2",
+        "src/support": "ab4e9ecffc8381fc03a2abf51539e31ee4798ce1",
+        "src/jmh": "81ed50c83b924a23557abe8bcea8311f46ba1d83"
+      },
+      "cycle_source_blob": "78c7121ff1b522b3c12e39049115078dbe7f3fab",
+      "corpus": {
+        "core/engine/runtime2/src/jmh/resources/viaduct/engine/runtime2/benchmark/current-profile/queries.json": "5157978ea78a8c51f6359f8f07b8e240e2675432e0ca590e3b81abfef41a308c",
+        "core/engine/runtime2/src/jmh/resources/viaduct/engine/runtime2/benchmark/current-profile/registry.json.gz": "525f75fd9ec08b24c379bfdd86ae802d1a777cb186570eb015129da117e18a0e",
+        "core/engine/runtime2/src/jmh/resources/viaduct/engine/runtime2/benchmark/current-profile/schema.graphqls": "70d662d35ce271f1f5867cfbc60ea3fbdccf74a852433225448a62e10398f85e"
+      }
+    },
+    "command": [
+      "java",
+      "-jar",
+      "/tmp/runtime2-cycle-consolidated-20261009/baseline.jar",
+      "viaduct\\.engine\\.runtime2\\.resolution\\.PropertyTestBenchmark\\.propertyTest",
+      "-p",
+      "loopCount=1",
+      "-wi",
+      "5",
+      "-i",
+      "8",
+      "-f",
+      "3",
+      "-foe",
+      "true",
+      "-rf",
+      "json",
+      "-rff",
+      "/tmp/runtime2-cycle-consolidated-20261009/baseline-property.json"
+    ],
+    "started_utc": "2026-10-09T01:05:17.665466+00:00",
+    "exit_code": 0,
+    "finished_utc": "2026-10-09T01:06:03.361156+00:00"
+  },
+  {
+    "name": "final-property",
+    "variant": "final",
+    "source": {
+      "commit": "6f53700316a598a1dc46902f50fe1ffd45ccb5a8",
+      "jar_sha256": "20f7d564f6aa458f1cb2a1a428774f124c53af0313ac9b569867c511554cc3f1",
+      "jar_content_sha256": "df66b024ed3a27252a77b944f10393a2f74213821323154d3f6c8a0219563fcf",
+      "source_trees": {
+        "src/main": "0ebd8980f64958b332fbe525a841b6e7472da198",
+        "src/support": "ab4e9ecffc8381fc03a2abf51539e31ee4798ce1",
+        "src/jmh": "81ed50c83b924a23557abe8bcea8311f46ba1d83"
+      },
+      "cycle_source_blob": "09f79feac8c16467c1ebab6b6548954474b1605c",
+      "corpus": {
+        "core/engine/runtime2/src/jmh/resources/viaduct/engine/runtime2/benchmark/current-profile/queries.json": "5157978ea78a8c51f6359f8f07b8e240e2675432e0ca590e3b81abfef41a308c",
+        "core/engine/runtime2/src/jmh/resources/viaduct/engine/runtime2/benchmark/current-profile/registry.json.gz": "525f75fd9ec08b24c379bfdd86ae802d1a777cb186570eb015129da117e18a0e",
+        "core/engine/runtime2/src/jmh/resources/viaduct/engine/runtime2/benchmark/current-profile/schema.graphqls": "70d662d35ce271f1f5867cfbc60ea3fbdccf74a852433225448a62e10398f85e"
+      }
+    },
+    "command": [
+      "java",
+      "-jar",
+      "/tmp/runtime2-cycle-consolidated-20261009/final.jar",
+      "viaduct\\.engine\\.runtime2\\.resolution\\.PropertyTestBenchmark\\.propertyTest",
+      "-p",
+      "loopCount=1",
+      "-wi",
+      "5",
+      "-i",
+      "8",
+      "-f",
+      "3",
+      "-foe",
+      "true",
+      "-rf",
+      "json",
+      "-rff",
+      "/tmp/runtime2-cycle-consolidated-20261009/final-property.json"
+    ],
+    "started_utc": "2026-10-09T01:06:03.361765+00:00",
+    "exit_code": 0,
+    "finished_utc": "2026-10-09T01:06:48.332646+00:00"
+  },
+  {
+    "name": "final-correctness",
+    "variant": "final",
+    "source": {
+      "commit": "6f53700316a598a1dc46902f50fe1ffd45ccb5a8",
+      "jar_sha256": "20f7d564f6aa458f1cb2a1a428774f124c53af0313ac9b569867c511554cc3f1",
+      "jar_content_sha256": "df66b024ed3a27252a77b944f10393a2f74213821323154d3f6c8a0219563fcf",
+      "source_trees": {
+        "src/main": "0ebd8980f64958b332fbe525a841b6e7472da198",
+        "src/support": "ab4e9ecffc8381fc03a2abf51539e31ee4798ce1",
+        "src/jmh": "81ed50c83b924a23557abe8bcea8311f46ba1d83"
+      },
+      "cycle_source_blob": "09f79feac8c16467c1ebab6b6548954474b1605c",
+      "corpus": {
+        "core/engine/runtime2/src/jmh/resources/viaduct/engine/runtime2/benchmark/current-profile/queries.json": "5157978ea78a8c51f6359f8f07b8e240e2675432e0ca590e3b81abfef41a308c",
+        "core/engine/runtime2/src/jmh/resources/viaduct/engine/runtime2/benchmark/current-profile/registry.json.gz": "525f75fd9ec08b24c379bfdd86ae802d1a777cb186570eb015129da117e18a0e",
+        "core/engine/runtime2/src/jmh/resources/viaduct/engine/runtime2/benchmark/current-profile/schema.graphqls": "70d662d35ce271f1f5867cfbc60ea3fbdccf74a852433225448a62e10398f85e"
+      }
+    },
+    "command": [
+      "java",
+      "-jar",
+      "/tmp/runtime2-cycle-consolidated-20261009/final.jar",
+      "viaduct\\.engine\\.runtime2\\.correctresolution\\.CorrectResolutionBenchmark\\.correctResolution",
+      "-p",
+      "loopCount=1",
+      "-p",
+      "inputCount=50",
+      "-p",
+      "querySeed=1",
+      "-wi",
+      "5",
+      "-i",
+      "8",
+      "-f",
+      "3",
+      "-foe",
+      "true",
+      "-rf",
+      "json",
+      "-rff",
+      "/tmp/runtime2-cycle-consolidated-20261009/final-correctness.json"
+    ],
+    "started_utc": "2026-10-09T01:06:48.333208+00:00",
+    "exit_code": 0,
+    "finished_utc": "2026-10-09T01:07:06.703296+00:00"
+  },
+  {
+    "name": "baseline-correctness",
+    "variant": "baseline",
+    "source": {
+      "commit": "b21ddcf895392fb97fac5004c752a48e8df88215",
+      "jar_sha256": "e0e1f15db498cfc39c10e9dc979d55f31bb0b95da71f9b4655f99324144483c5",
+      "jar_content_sha256": "352ad9ac4cc0f9f805ba46432b2862045b7baf97703c0ba9b820440bb65f5008",
+      "source_trees": {
+        "src/main": "1cfdc7ce93143881860c79666e53cb334f3f1ae2",
+        "src/support": "ab4e9ecffc8381fc03a2abf51539e31ee4798ce1",
+        "src/jmh": "81ed50c83b924a23557abe8bcea8311f46ba1d83"
+      },
+      "cycle_source_blob": "78c7121ff1b522b3c12e39049115078dbe7f3fab",
+      "corpus": {
+        "core/engine/runtime2/src/jmh/resources/viaduct/engine/runtime2/benchmark/current-profile/queries.json": "5157978ea78a8c51f6359f8f07b8e240e2675432e0ca590e3b81abfef41a308c",
+        "core/engine/runtime2/src/jmh/resources/viaduct/engine/runtime2/benchmark/current-profile/registry.json.gz": "525f75fd9ec08b24c379bfdd86ae802d1a777cb186570eb015129da117e18a0e",
+        "core/engine/runtime2/src/jmh/resources/viaduct/engine/runtime2/benchmark/current-profile/schema.graphqls": "70d662d35ce271f1f5867cfbc60ea3fbdccf74a852433225448a62e10398f85e"
+      }
+    },
+    "command": [
+      "java",
+      "-jar",
+      "/tmp/runtime2-cycle-consolidated-20261009/baseline.jar",
+      "viaduct\\.engine\\.runtime2\\.correctresolution\\.CorrectResolutionBenchmark\\.correctResolution",
+      "-p",
+      "loopCount=1",
+      "-p",
+      "inputCount=50",
+      "-p",
+      "querySeed=1",
+      "-wi",
+      "5",
+      "-i",
+      "8",
+      "-f",
+      "3",
+      "-foe",
+      "true",
+      "-rf",
+      "json",
+      "-rff",
+      "/tmp/runtime2-cycle-consolidated-20261009/baseline-correctness.json"
+    ],
+    "started_utc": "2026-10-09T01:07:06.703868+00:00",
+    "exit_code": 0,
+    "finished_utc": "2026-10-09T01:07:24.967962+00:00"
+  }
+]

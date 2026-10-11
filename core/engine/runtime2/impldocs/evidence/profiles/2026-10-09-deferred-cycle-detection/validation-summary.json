@@ -1,0 +1,26 @@
+{
+  "timeouts": {
+    "tests": 11,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "resolution-threads5": {
+    "tests": 620,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 4
+  },
+  "full-check": {
+    "tests": 2511,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 166
+  },
+  "wiring": {
+    "tests": 44,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  }
+}

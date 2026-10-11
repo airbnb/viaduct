@@ -1,0 +1,26 @@
+Resolver overhead corpus statistics (100 queries):
+  fields returned: average=296.39, p90=422, max=487
+  active fields returned: average=115.54, p90=165, max=202
+  passive fields returned: average=180.85, p90=260, max=291
+  passive fields per active field: average=1.60, p90=1.92, max=2.56
+  resolvers executed: average=280.27, p90=386, max=453
+  field checkers executed: average=84.94, p90=114, max=133
+  type checkers executed: average=46.48, p90=64, max=74
+  resolver executions with variable-bearing arguments: average=48.00, p50=49, max=88
+  variable-bearing arguments per such resolver execution: average=1.42, p90=3, max=3
+  maximum variable stack depth: average=1.84, p50=2, max=2
+  result depth: average=7.00, p90=7, max=7
+Resolver benchmark registry statistics:
+  active fields per non-Query object: average=1.92, p90=3, max=4
+  passive fields per non-Query object: average=14.85, p90=17, max=19
+  selections per object fragment: average=4.89, p90=22, max=48
+  object fragment depth: average=1.61, p90=5, max=7
+Resolver benchmark feature counts:
+  field resolvers: 38
+  field checkers: 26
+  type checkers: 13
+  Query fragments: 10
+  FromArgument variables: 2
+  FromObjectField variables: 14
+  FromQueryField variables: 15
+  FromProvider variables: 25

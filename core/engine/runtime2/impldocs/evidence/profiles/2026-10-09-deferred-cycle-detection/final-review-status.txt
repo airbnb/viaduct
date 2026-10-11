@@ -1,0 +1,17 @@
+ M core/engine/runtime2/impldocs/architecture/resolution.md
+ M core/engine/runtime2/impldocs/evidence/profiles/performance-history.md
+ M core/engine/runtime2/impldocs/integration/engine-api.md
+ M core/engine/runtime2/impldocs/testing/performance.md
+ M core/engine/runtime2/impldocs/testing/resolution.md
+ M core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/Engine2.kt
+ M core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/execution/QPlanExecutionStrategy.kt
+ M core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/Resolver.kt
+ M core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/framework/CycleCheckState.kt
+ M core/engine/runtime2/src/test/kotlin/viaduct/engine/runtime2/resolution/ResolverStartTest.kt
+ M core/engine/wiring/src/main/kotlin/viaduct/engine/EngineConfiguration.kt
+ M core/engine/wiring/src/main/kotlin/viaduct/engine/EngineFactory.kt
+?? core/engine/runtime2/impldocs/evidence/profiles/2026-10-09-deferred-cycle-detection/
+?? core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/framework/DeferredCycleCheckState.kt
+?? core/engine/runtime2/src/test/kotlin/viaduct/engine/runtime2/execution/QPlanRequestTimeoutTest.kt
+?? core/engine/runtime2/src/test/kotlin/viaduct/engine/runtime2/resolution/ResolverTimeoutTest.kt
+?? core/engine/runtime2/src/test/kotlin/viaduct/engine/runtime2/resolution/framework/DeferredCycleCheckStateTest.kt

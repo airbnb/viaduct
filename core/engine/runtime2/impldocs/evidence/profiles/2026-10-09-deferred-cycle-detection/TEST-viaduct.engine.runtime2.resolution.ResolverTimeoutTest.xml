@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="viaduct.engine.runtime2.resolution.ResolverTimeoutTest" tests="4" skipped="0" failures="0" errors="0" timestamp="2026-10-09T02:17:16" hostname="raymie-stata-codex" time="0.046">
+  <properties/>
+  <testcase name="acyclic query and mutation timeouts preserve cancellation and clean up work()" classname="viaduct.engine.runtime2.resolution.ResolverTimeoutTest" time="0.026"/>
+  <testcase name="caller timeout is not replaced by a collected cycle()" classname="viaduct.engine.runtime2.resolution.ResolverTimeoutTest" time="0.008"/>
+  <testcase name="request deadline diagnoses a genuine resolver read cycle()" classname="viaduct.engine.runtime2.resolution.ResolverTimeoutTest" time="0.006"/>
+  <testcase name="resolver-local timeout remains a field failure()" classname="viaduct.engine.runtime2.resolution.ResolverTimeoutTest" time="0.004"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

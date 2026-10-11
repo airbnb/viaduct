@@ -1,0 +1,20 @@
+{
+  "focused": {
+    "tests": 21,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "resolution-threads5": {
+    "tests": 606,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 4
+  },
+  "full-check": {
+    "tests": 2490,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 166
+  }
+}

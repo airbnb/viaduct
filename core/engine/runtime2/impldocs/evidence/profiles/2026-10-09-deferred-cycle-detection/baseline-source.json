@@ -1,0 +1,15 @@
+{
+  "base_commit": "1b0418ee3f26d9115050c6d2fa827f026c752d89",
+  "jar_sha256": "20f7d564f6aa458f1cb2a1a428774f124c53af0313ac9b569867c511554cc3f1",
+  "jar_content_sha256": "df66b024ed3a27252a77b944f10393a2f74213821323154d3f6c8a0219563fcf",
+  "corpus": {
+    "core/engine/runtime2/src/jmh/resources/viaduct/engine/runtime2/benchmark/current-profile/queries.json": "5157978ea78a8c51f6359f8f07b8e240e2675432e0ca590e3b81abfef41a308c",
+    "core/engine/runtime2/src/jmh/resources/viaduct/engine/runtime2/benchmark/current-profile/registry.json.gz": "525f75fd9ec08b24c379bfdd86ae802d1a777cb186570eb015129da117e18a0e",
+    "core/engine/runtime2/src/jmh/resources/viaduct/engine/runtime2/benchmark/current-profile/schema.graphqls": "70d662d35ce271f1f5867cfbc60ea3fbdccf74a852433225448a62e10398f85e"
+  },
+  "source_trees": {
+    "src/main": "0ebd8980f64958b332fbe525a841b6e7472da198",
+    "src/support": "ab4e9ecffc8381fc03a2abf51539e31ee4798ce1",
+    "src/jmh": "81ed50c83b924a23557abe8bcea8311f46ba1d83"
+  }
+}

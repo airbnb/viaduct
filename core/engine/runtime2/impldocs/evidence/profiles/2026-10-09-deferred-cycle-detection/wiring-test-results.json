@@ -1,0 +1,44 @@
+[
+  {
+    "name": "viaduct.engine.EngineFactoryTest",
+    "tests": "1",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0"
+  },
+  {
+    "name": "viaduct.engine.IntrospectionRestrictingPreparsedDocumentProviderTest",
+    "tests": "10",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0"
+  },
+  {
+    "name": "viaduct.engine.SchemaFactoryTest$ErrorTests",
+    "tests": "8",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0"
+  },
+  {
+    "name": "viaduct.engine.SchemaFactoryTest$PositiveTests",
+    "tests": "6",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0"
+  },
+  {
+    "name": "viaduct.engine.ViaductModernWiringTest",
+    "tests": "3",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0"
+  },
+  {
+    "name": "viaduct.engine.ViaductWiringFactoryTest",
+    "tests": "16",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0"
+  }
+]

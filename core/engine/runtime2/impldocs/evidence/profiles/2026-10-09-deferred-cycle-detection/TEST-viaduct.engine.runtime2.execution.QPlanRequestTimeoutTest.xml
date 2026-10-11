@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="viaduct.engine.runtime2.execution.QPlanRequestTimeoutTest" tests="7" skipped="0" failures="0" errors="0" timestamp="2026-10-09T02:15:13" hostname="raymie-stata-codex" time="0.106">
+  <properties/>
+  <testcase name="deadline reports a cycle before cancelling query and mutation promises()" classname="viaduct.engine.runtime2.execution.QPlanRequestTimeoutTest" time="0.036"/>
+  <testcase name="deadline remains active after an initial incremental response()" classname="viaduct.engine.runtime2.execution.QPlanRequestTimeoutTest" time="0.014"/>
+  <testcase name="default deadline is longer than the benchmark bound()" classname="viaduct.engine.runtime2.execution.QPlanRequestTimeoutTest" time="0.01"/>
+  <testcase name="caller cancellation cancels the deadline and the resolver()" classname="viaduct.engine.runtime2.execution.QPlanRequestTimeoutTest" time="0.013"/>
+  <testcase name="successful completion cancels the deadline()" classname="viaduct.engine.runtime2.execution.QPlanRequestTimeoutTest" time="0.01"/>
+  <testcase name="invalid request timeouts are rejected()" classname="viaduct.engine.runtime2.execution.QPlanRequestTimeoutTest" time="0.004"/>
+  <testcase name="configured deadline fails queries and mutations and cancels their tenant work()" classname="viaduct.engine.runtime2.execution.QPlanRequestTimeoutTest" time="0.017"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

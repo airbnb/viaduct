@@ -45,9 +45,9 @@ import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.emptyFragmentOf
 import viaduct.engine.runtime2.model.testing.fragmentFrom
 import viaduct.engine.runtime2.resolution.framework.CycleCheckState
+import viaduct.engine.runtime2.resolution.framework.DeferredCycleCheckState
 import viaduct.engine.runtime2.resolution.framework.ResolverInvocationObservation
 import viaduct.engine.runtime2.resolution.framework.ResolverObserver
-import viaduct.engine.runtime2.resolution.framework.ResolverReadCycleException
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 import viaduct.engine.runtime2.resolution.framework.fieldResolverCycleTask
 import viaduct.engine.runtime2.resolution.framework.valueCycleSlot
@@ -252,12 +252,16 @@ class ResolverStartTest : ResolutionDispatcherResource {
             val outerCell = result.getCell(outerKey)
             assertEquals(7, outerCell.value.await())
 
-            assertFailsWith<ResolverReadCycleException> {
-                observedChecker.cycleCheck(
-                    reader = innerRoot.fieldResolverCycleTask(listOf(innerKey)),
-                    slot = outerCell.valueCycleSlot,
-                )
-            }
+            observedChecker.cycleCheck(
+                reader = innerRoot.fieldResolverCycleTask(listOf(innerKey)),
+                slot = outerCell.valueCycleSlot,
+            )
+            val cycle = checkNotNull(assertIs<DeferredCycleCheckState>(observedChecker).findCycle())
+            assertEquals(cycle.first(), cycle.last())
+            assertEquals(
+                setOf(result.fieldResolverCycleTask(listOf(outerKey)), innerRoot.fieldResolverCycleTask(listOf(innerKey))),
+                cycle.dropLast(1).toSet(),
+            )
         }
 
     @Test

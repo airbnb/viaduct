@@ -1,0 +1,38 @@
+{
+  "baseline": {
+    "graphs": 100,
+    "readCalls": 246624,
+    "readsWithKnownWriter": 109251,
+    "distinctReaderSlots": 167178,
+    "writerSlots": 45704,
+    "addReadCalls": 109251,
+    "distinctEdges": 64838,
+    "distinctTasks": 45704,
+    "searches": 64838,
+    "bfsDequeues": 131788,
+    "bfsEdgesScanned": 87642,
+    "failedAddReads": 0,
+    "distinctReadsWithoutWriter": 102340,
+    "maxBfsDequeues": 45,
+    "readerIndexPairs": 102340,
+    "diagnosticScans": 0
+  },
+  "candidate": {
+    "graphs": 100,
+    "readCalls": 246624,
+    "readsWithKnownWriter": 109251,
+    "distinctReaderSlots": 167178,
+    "writerSlots": 45704,
+    "addReadCalls": 109251,
+    "distinctEdges": 64838,
+    "distinctTasks": 45704,
+    "searches": 0,
+    "bfsDequeues": 0,
+    "bfsEdgesScanned": 0,
+    "failedAddReads": 0,
+    "distinctReadsWithoutWriter": 102340,
+    "maxBfsDequeues": 0,
+    "readerIndexPairs": 102340,
+    "diagnosticScans": 0
+  }
+}

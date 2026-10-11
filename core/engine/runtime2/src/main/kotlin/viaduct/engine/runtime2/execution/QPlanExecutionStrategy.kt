@@ -27,6 +27,7 @@ import org.reactivestreams.Subscription
 import viaduct.engine.api.Engine
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.runtime2.model.registry.Assumptions
+import viaduct.engine.runtime2.resolution.framework.CycleCheckState
 import viaduct.engine.runtime2.resolution.framework.ResolverObserver
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 import viaduct.engine.runtime2.resolution.startResolution
@@ -70,6 +71,7 @@ class QPlanExecutionStrategy(
             .get<QPlanCallerCancellation>(QPlanCallerCancellationKey)
             ?.attach(requestJob)
         val requestFailure = CompletableFuture<Throwable>()
+        val cycleChecker = CycleCheckState.create()
         val callerCoroutineContext = executionContext.graphQLContext.getOrDefault<CoroutineContext>(
             QPlanCallerCoroutineContextKey,
             EmptyCoroutineContext,
@@ -99,7 +101,7 @@ class QPlanExecutionStrategy(
                         ResolverObserver::class.java,
                         ResolverObserver.NOP,
                     ),
-                ).startResolution(selections, requestScope)
+                ).startResolution(selections, requestScope, cycleChecker)
             } catch (throwable: Exception) {
                 executionContext.graphQLContext.delete(lifetimeKey)
                 requestJob.cancel(requestCancellation("QPlan request failed to start", throwable))
