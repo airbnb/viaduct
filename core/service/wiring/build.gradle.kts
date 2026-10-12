@@ -23,6 +23,7 @@ dependencies {
     implementation(libs.viaduct.engine.wiring)
     implementation(libs.viaduct.tenant.wiring)
     implementation(libs.viaduct.shared.apiannotations)
+    implementation(libs.viaduct.shared.scoping)
 
     implementation(libs.viaduct.service.runtime)
     testImplementation(testFixtures(libs.viaduct.engine.api))

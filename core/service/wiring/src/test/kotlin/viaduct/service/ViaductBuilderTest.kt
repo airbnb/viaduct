@@ -207,6 +207,15 @@ class ViaductBuilderTest {
     }
 
     @Test
+    fun `registering no views at all is rejected`() {
+        val message = assertThrows<IllegalArgumentException> {
+            ViaductBuilder().withScopedSchemas(emptyList())
+        }.message!!
+
+        assertTrue(message.contains("SchemaScopeInfo.Base"), message)
+    }
+
+    @Test
     fun `strict mode rejects missing resolver at build time`() {
         val exception = assertThrows<GraphQLBuildError> {
             ViaductBuilder()

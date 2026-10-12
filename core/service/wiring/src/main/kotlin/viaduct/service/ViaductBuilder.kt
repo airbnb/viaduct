@@ -2,11 +2,15 @@ package viaduct.service
 
 import io.micrometer.core.instrument.MeterRegistry
 import viaduct.apiannotations.ExperimentalApi
+import viaduct.apiannotations.InternalApi
 import viaduct.apiannotations.StableApi
 import viaduct.apiannotations.VisibleForTest
 import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.spi.CheckerExecutorFactory
 import viaduct.engine.api.spi.ProxyResolverFactory
+import viaduct.scoping.SchemaScopeDefinitions
+import viaduct.scoping.SchemaScoping
+import viaduct.scoping.SchemaScopingManifest
 import viaduct.service.api.SchemaId
 import viaduct.service.api.Viaduct
 import viaduct.service.api.spi.ErrorReporter
@@ -64,10 +68,17 @@ class ViaductBuilder {
      *
      * Only the listed views are registered. Include [SchemaScopeInfo.Base] to allow execution
      * using [SchemaId.Base].
+     *
+     * @param scopedSchemas the views to register; must not be empty.
+     * @throws IllegalArgumentException if [scopedSchemas] is empty.
      */
     @Suppress("DEPRECATION")
     fun withScopedSchemas(scopedSchemas: List<SchemaScopeInfo>) =
         apply {
+            require(scopedSchemas.isNotEmpty()) {
+                "withScopedSchemas requires at least one view to register. Pass " +
+                    "SchemaScopeInfo.Base to serve the unscoped schema."
+            }
             val schemaConfiguration = SchemaConfiguration.fromResources(
                 scopes = scopedSchemas.map { it.toScopeConfig() }.toSet()
             )
@@ -200,6 +211,60 @@ sealed interface SchemaScopeInfo {
         }
 
         override val schemaId: SchemaId = SchemaId.Scoped(id, scopesToApply)
+    }
+
+    @StableApi
+    @OptIn(ExperimentalApi::class, InternalApi::class)
+    companion object {
+        /**
+         * Returns every scoped schema the application declared in its `scopes.yaml` and the build
+         * validated, ordered by id.
+         *
+         * Read these rather than restating them: a deployment usually serves a subset, and selecting from
+         * what the build declared is what keeps a renamed scope id from drifting silently. [Base] is not
+         * declarable, so add it yourself to also serve the unscoped view.
+         *
+         * @throws IllegalStateException if no definitions are on the classpath, which is the state of an
+         *  application without a `scopes.yaml`, or if two applications contribute them to one classpath.
+         * @throws IllegalArgumentException if the definitions on the classpath are malformed or written at an
+         *  unsupported version.
+         */
+        @JvmStatic
+        fun fromResources(): List<SchemaScopeInfo> = declaredIn(SchemaScopingManifest.load())
+
+        /**
+         * Returns the declared scoped schemas named by [ids], ordered by id. Pass an empty [ids] to
+         * select none; add [Base] to serve the unscoped view.
+         *
+         * @throws IllegalArgumentException if any of [ids] is not declared, naming every one of them.
+         * @throws IllegalStateException under the conditions described on the no-argument overload.
+         */
+        @JvmStatic
+        fun fromResources(ids: Set<String>): List<SchemaScopeInfo> = select(declaredIn(SchemaScopingManifest.load()), ids)
+
+        @VisibleForTest
+        internal fun declaredIn(scoping: SchemaScoping?): List<SchemaScopeInfo> {
+            checkNotNull(scoping) {
+                "No schema scope definitions found on the classpath at ${SchemaScopingManifest.RESOURCE_PATH}. " +
+                    "Declare them in this application's ${SchemaScopeDefinitions.SOURCE_FILE_NAME}, or register " +
+                    "views explicitly with ViaductBuilder.withScopedSchemas."
+            }
+            return scoping.scopedSchemas.toSortedMap().map { (id, scopes) -> Scoped(id, scopes) }
+        }
+
+        @VisibleForTest
+        internal fun select(
+            declared: List<SchemaScopeInfo>,
+            ids: Set<String>,
+        ): List<SchemaScopeInfo> {
+            val declaredIds = declared.map { it.schemaId.id }
+            val undeclared = ids - declaredIds.toSet()
+            require(undeclared.isEmpty()) {
+                "Scoped schema id(s) ${undeclared.sorted()} are not declared in this application's " +
+                    "${SchemaScopeDefinitions.SOURCE_FILE_NAME}. Declared: $declaredIds."
+            }
+            return declared.filter { it.schemaId.id in ids }
+        }
     }
 }
 

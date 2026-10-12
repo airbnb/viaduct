@@ -11,7 +11,7 @@ import viaduct.graphql.scopes.ScopedSchemaBuilder
 import viaduct.graphql.scopes.errors.SchemaScopeValidationError
 import viaduct.graphql.scopes.utils.StubRoot
 import viaduct.graphql.scopes.utils.buildSchemaTraverser
-import viaduct.service.api.scoping.SchemaScoping
+import viaduct.scoping.SchemaScoping
 
 /**
  * Builds every scoped schema an application declares and checks each one is still a valid,

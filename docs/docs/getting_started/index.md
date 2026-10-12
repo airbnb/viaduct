@@ -175,13 +175,30 @@ The `ktor-starter` project illustrates how Viaduct might fit into a Ktor-based s
 
 `src/main/kotlin/com/example/viadapp/ViaductService.kt` is the Ktor entry point: it contains the server's `main` function and configures `io.ktor.server.application.Application`.
 
-`Routing.kt` contains the GraphQL and GraphiQL routes:
+An application declares which scoped schemas it serves in `src/main/viaduct/scopes.yaml`. The build
+validates these against the `@scope` directives in your schema and packages them beside it, so the
+running service selects from what the build already checked:
+
+```yaml
+version: 1
+
+schemaScopes:
+  - default
+
+scopedSchemas:
+  - id: publicSchema
+    scopes: [default]
+```
+
+`Routing.kt` contains the GraphQL and GraphiQL routes, and reads that declaration by id:
 
 ```kotlin
+private val defaultSchema = SchemaScopeInfo.fromResources(setOf(SCHEMA_ID)).single()
+
 // Create and initialize the [Viaduct] instance used to execute GraphQL operations
 private val viaduct by lazy {
     BasicViaductFactory.create(
-        scopedSchemas = listOf(SchemaScopeInfo.Scoped(SCHEMA_ID, setOf(DEFAULT_SCOPE_ID))),
+        scopedSchemas = listOf(defaultSchema),
     )
 }
 

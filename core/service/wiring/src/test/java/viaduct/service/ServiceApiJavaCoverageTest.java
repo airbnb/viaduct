@@ -2,6 +2,7 @@ package viaduct.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
@@ -167,6 +168,17 @@ class ServiceApiJavaCoverageTest {
     assertNotNull(SchemaScopeInfo.Base.INSTANCE);
   }
 
+  /**
+   * This module's test classpath carries no manifest, so both overloads take the undeclared path.
+   */
+  @Test
+  void fromResourcesIsCallableFromJavaAndRejectsAMissingManifest() {
+    assertThrows(IllegalStateException.class, () -> SchemaScopeInfo.fromResources());
+    assertThrows(
+        IllegalStateException.class, () -> SchemaScopeInfo.fromResources(Set.of("publicSchema")));
+    assertThrows(IllegalStateException.class, () -> SchemaScopeInfo.fromResources(Set.of()));
+  }
+
   private static Viaduct buildMinimalViaduct() {
     final var scopedSchemas =
         List.of(
@@ -191,7 +203,9 @@ class ServiceApiJavaCoverageTest {
     final var factory = BasicViaductFactory.INSTANCE;
     final Viaduct v1 = factory.create();
     final Viaduct v2 = factory.create(NaiveTenantModuleInjectorFactory.INSTANCE);
-    final Viaduct v3 = factory.create(NaiveTenantModuleInjectorFactory.INSTANCE, List.of());
+    final Viaduct v3 =
+        factory.create(
+            NaiveTenantModuleInjectorFactory.INSTANCE, List.of(SchemaScopeInfo.Base.INSTANCE));
     final var scopedSchemas =
         List.of(new SchemaScopeInfo.Scoped("public", Set.of("viaduct-public")));
 

@@ -45,6 +45,14 @@ class EngineRegistryTest {
             }
         """
 
+        private const val WILDCARD_ONLY_SDL = """
+            directive @scope(to: [String!]!) repeatable on OBJECT | INPUT_OBJECT | ENUM | INTERFACE | UNION
+
+            type Query @scope(to: ["*"]) {
+                hello: String
+            }
+        """
+
         fun createSchemaFromSdl(sdl: String = SIMPLE_SDL): EngineSchema {
             val graphQLSchema = UnExecutableSchemaGenerator.makeUnExecutableSchema(
                 SchemaParser().parse(sdl)
@@ -184,26 +192,30 @@ class EngineRegistryTest {
     }
 
     @Test
-    fun `Base scope configs preserve the source schema scoping mode`() {
-        val scopeConfig = SchemaConfiguration.ScopeConfig.Base
-
-        val scopingMode = scopeConfig.scopingMode(createSchemaFromSdl(SCOPED_SDL))
+    fun `with nothing declared the universe is inferred from the schema`() {
+        val mode = scopingMode(createSchemaFromSdl(SCOPED_SDL), declaredScopes = emptySet())
 
         assertEquals(
             setOf("admin", "public", "internal", "lazy", "resource", "test", "sdl"),
-            (scopingMode as SchemaScopingMode.ScopeAware).validScopes,
+            (mode as SchemaScopingMode.ScopeAware).validScopes,
         )
     }
 
     @Test
-    fun `Scoped scope configs use the source schema valid scopes`() {
-        val scopeConfig = SchemaConfiguration.ScopeConfig.Scoped("public", setOf("public"))
+    fun `a declared universe replaces what the schema mentions`() {
+        val mode = scopingMode(createSchemaFromSdl(SCOPED_SDL), declaredScopes = setOf("public", "unused"))
 
-        val scopingMode = scopeConfig.scopingMode(createSchemaFromSdl(SCOPED_SDL))
+        assertEquals(setOf("public", "unused"), (mode as SchemaScopingMode.ScopeAware).validScopes)
+    }
 
+    @Test
+    fun `a wildcard-only schema is unscoped by inference and scope-aware once declared`() {
+        val wildcardOnly = createSchemaFromSdl(WILDCARD_ONLY_SDL)
+
+        assertEquals(SchemaScopingMode.Unscoped, scopingMode(wildcardOnly, declaredScopes = emptySet()))
         assertEquals(
-            setOf("admin", "public", "internal", "lazy", "resource", "test", "sdl"),
-            (scopingMode as SchemaScopingMode.ScopeAware).validScopes,
+            setOf("public"),
+            (scopingMode(wildcardOnly, declaredScopes = setOf("public")) as SchemaScopingMode.ScopeAware).validScopes,
         )
     }
 

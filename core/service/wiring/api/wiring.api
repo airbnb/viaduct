@@ -7,7 +7,15 @@ public final class viaduct/service/BasicViaductFactory {
 }
 
 public abstract interface class viaduct/service/SchemaScopeInfo {
+	public static final field Companion Lviaduct/service/SchemaScopeInfo$Companion;
+	public static fun fromResources ()Ljava/util/List;
+	public static fun fromResources (Ljava/util/Set;)Ljava/util/List;
 	public abstract fun getSchemaId ()Lviaduct/service/api/SchemaId;
+}
+
+public final class viaduct/service/SchemaScopeInfo$Companion {
+	public final fun fromResources ()Ljava/util/List;
+	public final fun fromResources (Ljava/util/Set;)Ljava/util/List;
 }
 
 public final class viaduct/service/ViaductBuilder {

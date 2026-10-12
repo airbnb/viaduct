@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.service.BasicViaductFactory
+import viaduct.service.SchemaScopeInfo
 import viaduct.service.api.ExecutionInput
 
 class PluginExecutionSmokeTest {
@@ -63,6 +64,42 @@ class PluginExecutionSmokeTest {
         ).join()
         assertTrue(mutationResult.errors.isEmpty(), "Expected mutation execution without errors: ${mutationResult.errors}")
         assertEquals(mapOf("echo" to "plugin e2e"), mutationResult.getData())
+    }
+
+    @Test
+    fun declaredScopeDefinitionsAreWrittenForPackaging() {
+        val applicationBuildDir = Path.of(System.getProperty("projectBuildDir"))
+        val manifest = applicationBuildDir.resolve("viaduct/schemaScoping/META-INF/viaduct/schema-scoping.json")
+
+        assertTrue(manifest.exists(), "Expected the schema scoping manifest to be generated")
+        assertEquals(
+            """{"schemaScopes":["default"],"scopedSchemas":[{"id":"publicSchema","scopes":["default"]}],""" +
+                """"version":"1"}""",
+            manifest.readText(),
+        )
+    }
+
+    @Test
+    fun wildcardOnlySchemaServesTheScopedViewTheBuildDeclared() {
+        // The schema's only @scope is the ["*"] wildcard, which EngineSchema.scopes() filters out, so
+        // without the declared universe reaching runtime this view cannot be built at all.
+        val declared = SchemaScopeInfo.fromResources()
+        assertEquals(listOf(SchemaScopeInfo.Scoped("publicSchema", setOf("default"))), declared)
+
+        val viaduct = BasicViaductFactory.create(scopedSchemas = declared + SchemaScopeInfo.Base)
+        val result = viaduct.executeAsync(
+            ExecutionInput.create("query { greeting author }"),
+            declared.single().schemaId,
+        ).join()
+
+        assertTrue(result.errors.isEmpty(), "Expected query execution without errors: ${result.errors}")
+        assertEquals(
+            mapOf(
+                "greeting" to "hello from two-project",
+                "author" to "gradletestapps",
+            ),
+            result.getData(),
+        )
     }
 
     @Test

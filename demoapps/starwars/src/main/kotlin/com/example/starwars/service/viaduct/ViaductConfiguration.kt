@@ -9,8 +9,8 @@ import viaduct.service.api.spi.FlagManager
 
 const val DEFAULT_SCOPE_ID = "default"
 const val EXTRAS_SCOPE_ID = "extras"
-val DEFAULT_SCHEMA = SchemaScopeInfo.Scoped("publicSchema", setOf(DEFAULT_SCOPE_ID))
-val EXTRAS_SCHEMA = SchemaScopeInfo.Scoped("publicSchemaWithExtras", setOf(DEFAULT_SCOPE_ID, EXTRAS_SCOPE_ID))
+val DEFAULT_SCHEMA: SchemaScopeInfo = SchemaScopeInfo.fromResources(setOf("publicSchema")).single()
+val EXTRAS_SCHEMA: SchemaScopeInfo = SchemaScopeInfo.fromResources(setOf("publicSchemaWithExtras")).single()
 private val MAT_RESOLUTION_FLAG_MANAGER = object : FlagManager {
     override fun isEnabled(flag: FlagManager.Flag): Boolean = flag == FlagManager.Flags.ENABLE_MAT_RESOLUTION
 }
@@ -25,7 +25,7 @@ class ViaductConfiguration(
         // tag::schema_registration[4]
         ViaductBuilder()
             .withTenantModuleInjectorFactory(tenantModuleInjectorFactory)
-            .withScopedSchemas(listOf(DEFAULT_SCHEMA, EXTRAS_SCHEMA))
+            .withScopedSchemas(SchemaScopeInfo.fromResources())
             .withFlagManager(MAT_RESOLUTION_FLAG_MANAGER)
             .build()
     // end::schema_registration

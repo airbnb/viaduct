@@ -1,0 +1,10 @@
+version: 1
+
+# This application's schema reaches every scope through the @scope(to: ["*"]) wildcard, which is the case
+# where a universe inferred from the schema comes back empty and no scoped view can be built.
+schemaScopes:
+  - default
+
+scopedSchemas:
+  - id: publicSchema
+    scopes: [default]

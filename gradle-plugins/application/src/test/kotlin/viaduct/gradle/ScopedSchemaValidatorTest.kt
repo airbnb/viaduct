@@ -9,7 +9,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import viaduct.apiannotations.ExperimentalApi
 import viaduct.graphql.utils.DefaultSchemaFactory
-import viaduct.service.api.scoping.SchemaScoping
+import viaduct.scoping.SchemaScoping
 
 @OptIn(ExperimentalApi::class)
 class ScopedSchemaValidatorTest {

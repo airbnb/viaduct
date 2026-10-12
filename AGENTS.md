@@ -32,6 +32,7 @@ The `core/shared/` directory contains libraries used across the Viaduct engine a
 - [ViaductSchema](core/shared/viaductschema/AGENTS.md) — Unified abstraction over GraphQL schemas.
 - **`core/shared/apiannotations/`** — Annotations used in the Viaduct public API.
 - [Bootstrap data](core/shared/bootstrap/README.md) — The config model shared by build tooling and the engine; intentionally independent of the engine runtime.
+- [Schema scoping](core/shared/scoping/README.md) — The `scopes.yaml` model, its validation rules, and the manifest the build hands to the runtime; bundled by the Gradle plugins.
 
 The [Tenant API](core/tenant/api/module.md) provides the interfaces application developers use to write resolvers.
 

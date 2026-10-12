@@ -1,4 +1,4 @@
-package viaduct.service.api.scoping
+package viaduct.scoping
 
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse

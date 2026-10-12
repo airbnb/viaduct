@@ -86,9 +86,15 @@ abstract class AbstractFeatureAppTestContractBase {
     /**
      * Configures scoped schemas for the test. Each [SchemaScopeInfo] binds a schema name
      * to a set of scope IDs. Replaces the default (unscoped) schema configuration.
+     *
+     * @throws IllegalArgumentException if [scopedSchemas] is empty.
      */
     @Suppress("DEPRECATION")
     fun withScopedSchemas(scopedSchemas: List<SchemaScopeInfo>) {
+        require(scopedSchemas.isNotEmpty()) {
+            "withScopedSchemas requires at least one view to register. Pass " +
+                "SchemaScopeInfo.Base to serve the unscoped schema."
+        }
         val scopeConfigs = scopedSchemas.map {
             when (it) {
                 SchemaScopeInfo.Base -> SchemaConfiguration.ScopeConfig.Base

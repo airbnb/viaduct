@@ -7,8 +7,7 @@ import viaduct.service.SchemaScopeInfo
 import viaduct.service.api.Viaduct
 
 val SCHEMA_ID = "publicSchema"
-const val DEFAULT_SCOPE_ID = "default"
-val DEFAULT_SCHEMA = SchemaScopeInfo.Scoped(SCHEMA_ID, setOf(DEFAULT_SCOPE_ID))
+val DEFAULT_SCHEMA = SchemaScopeInfo.fromResources(setOf(SCHEMA_ID)).single()
 
 /**
  * Micronaut factory that provides the Viaduct instance.

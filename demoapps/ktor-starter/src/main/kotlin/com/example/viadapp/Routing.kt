@@ -32,7 +32,7 @@ private val ktorStarterGraphiQLConfig = GraphiQLHtmlConfig(
     storageKey = "ktor-starter",
 )
 
-private val defaultSchema = SchemaScopeInfo.Scoped(SCHEMA_ID, setOf(DEFAULT_SCOPE_ID))
+private val defaultSchema = SchemaScopeInfo.fromResources(setOf(SCHEMA_ID)).single()
 
 private val viaduct by lazy {
     BasicViaductFactory.create(

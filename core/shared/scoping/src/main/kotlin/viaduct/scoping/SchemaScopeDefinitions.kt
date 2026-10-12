@@ -1,4 +1,4 @@
-package viaduct.service.api.scoping
+package viaduct.scoping
 
 import viaduct.apiannotations.ExperimentalApi
 import viaduct.apiannotations.InternalApi

@@ -20,6 +20,7 @@ import org.gradle.api.tasks.bundling.Jar
 import org.gradle.api.tasks.compile.JavaCompile
 import org.gradle.jvm.toolchain.JavaToolchainService
 import org.gradle.kotlin.dsl.register
+import schemaScopingManifestDirectory
 import viaduct.apiannotations.InternalApi
 import viaduct.gradle.ViaductPluginCommon.configureIdeaIntegration
 import viaduct.gradle.ViaductPluginCommon.createOrGetCodegenClasspath
@@ -32,8 +33,9 @@ import viaduct.gradle.task.AssembleCentralSchemaTask
 import viaduct.gradle.task.AssembleSchemaPartitionTask
 import viaduct.gradle.task.GenerateGRTClassFilesTask
 import viaduct.gradle.task.GenerateJavaGRTSourcesTask
+import viaduct.gradle.task.GenerateSchemaScopingManifestTask
 import viaduct.gradle.task.ValidateSchemaExtensionsTask
-import viaduct.service.api.scoping.SchemaScopeDefinitions
+import viaduct.scoping.SchemaScopeDefinitions
 
 abstract class ViaductApplicationPlugin : Plugin<Project> {
     override fun apply(project: Project): Unit =
@@ -53,7 +55,8 @@ abstract class ViaductApplicationPlugin : Plugin<Project> {
             setupOutgoingConfigurationForCentralSchema(assembleCentralSchemaTask)
             setupIncomingDependenciesFromTopology(topology, viaductModules)
 
-            val kotlinGRTJar = setupKotlinGenerateGRTsTask(assembleCentralSchemaTask)
+            val schemaScopingManifestTask = setupGenerateSchemaScopingManifestTask()
+            val kotlinGRTJar = setupKotlinGenerateGRTsTask(assembleCentralSchemaTask, schemaScopingManifestTask)
             val javaGRTJar = setupJavaGenerateGRTsTask(assembleCentralSchemaTask)
             extensions.add(
                 VIADUCT_APPLICATION_OUTPUTS_EXTENSION_NAME,
@@ -213,18 +216,31 @@ abstract class ViaductApplicationPlugin : Plugin<Project> {
 
             outputDirectory.set(centralSchemaDirectory())
 
-            scopesFile.setFrom(
-                project.fileTree(ViaductScopesYaml.SOURCE_DIRECTORY) {
-                    include(SchemaScopeDefinitions.SOURCE_FILE_NAME)
-                }
-            )
+            scopesFile.setFrom(declaredScopesFile())
         }
 
         return assembleCentralSchemaTask
     }
 
+    @OptIn(InternalApi::class)
+    private fun Project.setupGenerateSchemaScopingManifestTask(): TaskProvider<GenerateSchemaScopingManifestTask> =
+        tasks.register<GenerateSchemaScopingManifestTask>("generateViaductSchemaScopingManifest") {
+            outputDirectory.set(schemaScopingManifestDirectory())
+
+            scopesFile.setFrom(declaredScopesFile())
+        }
+
+    @OptIn(InternalApi::class)
+    private fun Project.declaredScopesFile() =
+        fileTree(ViaductScopesYaml.SOURCE_DIRECTORY) {
+            include(SchemaScopeDefinitions.SOURCE_FILE_NAME)
+        }
+
     /** Call the bytecode-generator to generate Kotlin GRT files. */
-    private fun Project.setupKotlinGenerateGRTsTask(assembleCentralSchemaTask: TaskProvider<AssembleCentralSchemaTask>): TaskProvider<Jar> {
+    private fun Project.setupKotlinGenerateGRTsTask(
+        assembleCentralSchemaTask: TaskProvider<AssembleCentralSchemaTask>,
+        schemaScopingManifestTask: TaskProvider<GenerateSchemaScopingManifestTask>,
+    ): TaskProvider<Jar> {
         val version = pluginVersion(ViaductApplicationPlugin::class.java)
         val codegenClasspath = createOrGetCodegenClasspath(version)
 
@@ -247,6 +263,12 @@ abstract class ViaductApplicationPlugin : Plugin<Project> {
             from(assembleCentralSchemaTask.flatMap { it.outputDirectory }) {
                 into("viaduct/centralSchema")
                 exclude(BUILTIN_SCHEMA_FILE)
+                includeEmptyDirs = false
+            }
+
+            // The scope definitions travel with the schema they describe, so runtime cannot read one
+            // without the other.
+            from(schemaScopingManifestTask.flatMap { it.outputDirectory }) {
                 includeEmptyDirs = false
             }
         }

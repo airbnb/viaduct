@@ -104,8 +104,8 @@ internal class BasicViaductFactoryTest {
         }
 
         @Test
-        fun `create should accept empty scoped schemas list`() {
-            assertThrows<Exception> {
+        fun `create should reject empty scoped schemas list`() {
+            assertThrows<IllegalArgumentException> {
                 BasicViaductFactory.create(
                     scopedSchemas = emptyList(),
                 )

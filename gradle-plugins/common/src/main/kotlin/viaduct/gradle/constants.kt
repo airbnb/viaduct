@@ -11,6 +11,9 @@ val centralSchemaDirectoryName = "$viaductBuildDirectory/centralSchema"
 fun Project.centralSchemaDirectory() = layout.buildDirectory.dir(centralSchemaDirectoryName)
 
 @InternalApi
+fun Project.schemaScopingManifestDirectory() = layout.buildDirectory.dir("$viaductBuildDirectory/schemaScoping")
+
+@InternalApi
 val grtClassesDirectoryName = "generated-sources/$viaductBuildDirectory/grtClasses"
 
 @InternalApi

@@ -5,17 +5,17 @@ plugins {
     id("conventions.kotlin-static-analysis")
     id("conventions.bcv-api")
     id("conventions.viaduct-publishing")
+    id("conventions.viaduct-fat-plugin")
 }
 
 dependencies {
     api(gradleApi())
 
-    // service-api hosts the schema scope definition model and its rules, which cross module
-    // boundaries: ViaductScopesYaml here decodes scopes.yaml against them, and :application reads the
-    // result inside AssembleCentralSchemaTask. Exposed via `api` so :application can name the types
-    // directly; @InternalApi and @ExperimentalApi on each member keep BCV's public-surface listing
-    // unchanged.
-    api(libs.viaduct.service.api)
+    // shared.scoping and shared.apiannotations have no published artifact, so this module bundles their
+    // classes; `api` lets the plugins that depend on it name the scoping types directly.
+    bundled(libs.viaduct.shared.scoping)
+    api(libs.viaduct.shared.scoping)
+    api(libs.viaduct.shared.apiannotations)
 
     implementation(libs.jackson.module)
     implementation(libs.jackson.dataformat.yaml)

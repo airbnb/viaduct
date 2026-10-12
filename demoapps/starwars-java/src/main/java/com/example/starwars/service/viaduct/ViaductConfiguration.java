@@ -2,7 +2,6 @@ package com.example.starwars.service.viaduct;
 
 import io.micronaut.context.annotation.Bean;
 import io.micronaut.context.annotation.Factory;
-import java.util.List;
 import java.util.Set;
 import viaduct.service.BasicViaductFactory;
 import viaduct.service.SchemaScopeInfo;
@@ -13,11 +12,10 @@ import viaduct.service.api.Viaduct;
 public final class ViaductConfiguration {
   public static final String DEFAULT_SCOPE_ID = "default";
   public static final String EXTRAS_SCOPE_ID = "extras";
-  public static final SchemaScopeInfo.Scoped DEFAULT_SCHEMA =
-      new SchemaScopeInfo.Scoped("publicSchema", Set.of(DEFAULT_SCOPE_ID));
-  public static final SchemaScopeInfo.Scoped EXTRAS_SCHEMA =
-      new SchemaScopeInfo.Scoped(
-          "publicSchemaWithExtras", Set.of(DEFAULT_SCOPE_ID, EXTRAS_SCOPE_ID));
+  public static final SchemaScopeInfo DEFAULT_SCHEMA =
+      SchemaScopeInfo.fromResources(Set.of("publicSchema")).get(0);
+  public static final SchemaScopeInfo EXTRAS_SCHEMA =
+      SchemaScopeInfo.fromResources(Set.of("publicSchemaWithExtras")).get(0);
 
   private final MicronautTenantModuleInjectorFactory tenantModuleInjectorFactory;
 
@@ -27,7 +25,6 @@ public final class ViaductConfiguration {
 
   @Bean
   public Viaduct providesViaduct() {
-    return BasicViaductFactory.create(
-        tenantModuleInjectorFactory, List.of(DEFAULT_SCHEMA, EXTRAS_SCHEMA));
+    return BasicViaductFactory.create(tenantModuleInjectorFactory, SchemaScopeInfo.fromResources());
   }
 }

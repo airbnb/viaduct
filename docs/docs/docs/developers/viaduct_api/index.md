@@ -100,9 +100,9 @@ This application must execute requests using the corresponding `SchemaId.Scoped`
 is not registered. The internal Full schema still exists for planning and execution support, but
 it is not a client execution target.
 
-`SchemaScopeInfo` selects executable views; it does not declare whether the source schema is
-unscoped or scope-aware. Viaduct determines that from the schema itself. A Scoped view can only be
-derived from a scope-aware schema.
+`SchemaScopeInfo` selects executable views; it does not declare which scope IDs are valid. For a
+schema loaded from resources, Viaduct reads those from the scope definitions the build packaged, and
+infers them from the schema when no definitions are present. A Scoped view requires one or the other.
 
 ## Choosing The Schema: `SchemaId`
 

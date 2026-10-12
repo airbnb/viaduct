@@ -1,0 +1,8 @@
+version: 1
+
+schemaScopes:
+  - default
+
+scopedSchemas:
+  - id: publicSchema
+    scopes: [default]

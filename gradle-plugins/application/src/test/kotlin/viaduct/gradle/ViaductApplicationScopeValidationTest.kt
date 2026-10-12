@@ -11,7 +11,7 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import viaduct.apiannotations.ExperimentalApi
-import viaduct.service.api.scoping.ScopingErrorCodes
+import viaduct.scoping.ScopingErrorCodes
 
 /**
  * Covers schema scope definitions end-to-end through a real Gradle build: that `scopes.yaml` reaches

@@ -253,6 +253,26 @@ class StandardViaductTest {
     }
 
     @Test
+    fun `an instance registering no views starts and then serves nothing`() {
+        val sdl = """
+            extend type Query {
+                user: String
+            }
+        """.trimIndent()
+        val viaduct = StandardViaduct.Builder()
+            .withSchemaConfiguration(SchemaConfiguration.fromSdl(sdl, scopes = emptySet()))
+            .build()
+
+        listOf(SchemaId.Base, SchemaId.Scoped("publicSchema", setOf("default"))).forEach { schemaId ->
+            val result = viaduct.executeAsync(ExecutionInput.create("query { user }"), schemaId).join()
+
+            assertNull(result.getData(), "expected no data for $schemaId")
+            assertEquals(1, result.errors.size, "expected one error for $schemaId: ${result.errors}")
+            assertEquals("Schema not found for schemaId=$schemaId", result.errors.single().message)
+        }
+    }
+
+    @Test
     fun `build should allow Subscription when airbnbModeEnabled is true`() {
         val sdl = """
             extend type Query {

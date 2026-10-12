@@ -102,6 +102,7 @@ viaduct-shared-apiannotations = { module = "com.airbnb.viaduct.shared:apiannotat
 viaduct-shared-arbitrary = { module = "com.airbnb.viaduct.shared:arbitrary", version.ref = "project" }
 viaduct-shared-arbitrary-cli = { module = "com.airbnb.viaduct.shared:arbitrary-cli", version.ref = "project" }
 viaduct-shared-bootstrap = { module = "com.airbnb.viaduct.shared:bootstrap", version.ref = "project" }
+viaduct-shared-scoping = { module = "com.airbnb.viaduct.shared:scoping", version.ref = "project" }
 viaduct-shared-codegen = { module = "com.airbnb.viaduct.shared:codegen", version.ref = "project" }
 viaduct-shared-dataloader = { module = "com.airbnb.viaduct.shared:dataloader", version.ref = "project" }
 viaduct-shared-deferred = { module = "com.airbnb.viaduct.shared:deferred", version.ref = "project" }

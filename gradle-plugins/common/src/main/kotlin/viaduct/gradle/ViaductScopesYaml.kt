@@ -8,9 +8,9 @@ import java.io.File
 import org.gradle.api.GradleException
 import viaduct.apiannotations.ExperimentalApi
 import viaduct.apiannotations.InternalApi
-import viaduct.service.api.scoping.SchemaScopeDefinitions
-import viaduct.service.api.scoping.SchemaScoping
-import viaduct.service.api.scoping.ScopingErrorCodes
+import viaduct.scoping.SchemaScopeDefinitions
+import viaduct.scoping.SchemaScoping
+import viaduct.scoping.ScopingErrorCodes
 
 /**
  * Reads an application's schema scope definitions from `src/main/viaduct/scopes.yaml`.

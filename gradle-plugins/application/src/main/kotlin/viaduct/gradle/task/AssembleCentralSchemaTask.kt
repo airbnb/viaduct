@@ -27,8 +27,8 @@ import viaduct.gradle.ViaductApplicationPlugin.Companion.BUILTIN_SCHEMA_FILE
 import viaduct.gradle.ViaductSchemaValidator
 import viaduct.gradle.ViaductScopesYaml
 import viaduct.graphql.utils.DefaultSchemaFactory
-import viaduct.service.api.scoping.SchemaScopeDefinitions
-import viaduct.service.api.scoping.SchemaScoping
+import viaduct.scoping.SchemaScopeDefinitions
+import viaduct.scoping.SchemaScoping
 
 /**
  * This task gathers the various partitions of the schema and

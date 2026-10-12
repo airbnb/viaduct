@@ -9,13 +9,13 @@ import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.io.TempDir
 import viaduct.apiannotations.ExperimentalApi
 import viaduct.apiannotations.InternalApi
-import viaduct.service.api.scoping.SchemaScoping
-import viaduct.service.api.scoping.ScopingErrorCodes
+import viaduct.scoping.SchemaScoping
+import viaduct.scoping.ScopingErrorCodes
 
 /**
  * Covers the YAML layer only: reading real files, and the failures that can only be detected while
  * parsing. Rule-by-rule coverage of the definitions themselves lives in
- * [viaduct.service.api.scoping.SchemaScopeDefinitionsTest], which needs no YAML.
+ * [viaduct.scoping.SchemaScopeDefinitionsTest], which needs no YAML.
  */
 @OptIn(ExperimentalApi::class, InternalApi::class)
 class ViaductScopesYamlTest {

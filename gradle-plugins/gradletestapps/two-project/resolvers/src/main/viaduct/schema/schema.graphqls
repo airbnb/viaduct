@@ -1,8 +1,8 @@
-extend type Query {
+extend type Query @scope(to: ["*"]) {
   greeting: String @resolver
   author: String @resolver
 }
 
-extend type Mutation {
+extend type Mutation @scope(to: ["*"]) {
   echo(message: String!): String @resolver
 }

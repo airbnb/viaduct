@@ -13,7 +13,7 @@ Thus, we use the `maven.repo.local` flag to create a fresh cache for each end-to
 Generate a random 4-character identifier and create the directory:
 
 ```shell
-MLC="/tmp/mlc/m2-$(head -c 100 /dev/urandom | tr -dc '0-9a-z' | head -c 4)"
+MLC="/tmp/mlc/m2-$(LC_ALL=C tr -dc '0-9a-z' < /dev/urandom | head -c 4)"
 mkdir -p "$MLC"
 ```
 
@@ -54,7 +54,7 @@ rm -rf "$MLC"
 Here is a complete single-command example that publishes and tests in one shot:
 
 ```shell
-MLC="/tmp/mlc/m2-$(head -c 100 /dev/urandom | tr -dc '0-9a-z' | head -c 4)" \
+MLC="/tmp/mlc/m2-$(LC_ALL=C tr -dc '0-9a-z' < /dev/urandom | head -c 4)" \
   && mkdir -p "$MLC" \
   && ./gradlew clean --no-daemon \
   && ./gradlew publishToMavenLocal -PpublishMinimal -Dmaven.repo.local="$MLC" --no-daemon \

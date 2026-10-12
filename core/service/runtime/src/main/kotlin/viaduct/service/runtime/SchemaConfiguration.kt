@@ -1,12 +1,14 @@
 package viaduct.service.runtime
 
 import java.util.concurrent.ConcurrentHashMap
+import viaduct.apiannotations.VisibleForTest
 import viaduct.engine.SchemaFactory
 import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.FullSchema
 import viaduct.graphql.scopes.SchemaScopingMode
 import viaduct.graphql.scopes.SchemaView
 import viaduct.graphql.scopes.ScopedSchemaBuilder
+import viaduct.scoping.SchemaScopingManifest
 import viaduct.service.api.SchemaId
 
 class SchemaConfiguration private constructor(
@@ -111,6 +113,7 @@ class SchemaConfiguration private constructor(
         class Derived(
             private val scopeConfig: ScopeConfig,
             override val lazy: Boolean,
+            private val declaredScopes: Lazy<Set<String>> = lazyOf(emptySet()),
         ) : ScopedSchemaConfig {
             override val schemaId: SchemaId = scopeConfig.schemaId()
 
@@ -118,7 +121,7 @@ class SchemaConfiguration private constructor(
                 val scopedSchema = ScopedSchemaBuilder(
                     inputSchema = fullSchema.schema,
                     additionalVisitorConstructors = emptyList(),
-                    scopingMode = scopeConfig.scopingMode(fullSchema),
+                    scopingMode = scopingMode(fullSchema, declaredScopes.value),
                 ).build(scopeConfig.schemaView()).filtered
                 return if (scopedSchema === fullSchema.schema) {
                     fullSchema
@@ -139,6 +142,9 @@ class SchemaConfiguration private constructor(
          * Creates a [SchemaConfiguration] that registers schemas from the provided SDL string.
          * Registers exactly one external schema for each provided [ScopeConfig].
          * The internal full schema includes all fields; the base schema filters tenant-local fields.
+         *
+         * Scope definitions on the classpath are not consulted: SDL handed in directly bears no relation
+         * to them. The valid scope IDs are inferred from [sdl] itself.
          *
          * @param sdl the GraphQL SDL string defining the schema
          * @param scopes set of [ScopeConfig] defining named external schemas to register
@@ -167,6 +173,11 @@ class SchemaConfiguration private constructor(
          * If [grtPackagePrefix] is null, resources are loaded from the root of the classpath.
          * If [resourcesIncluded] is null, all resources in the package are included.
          *
+         * If [scopes] contains a [ScopeConfig.Scoped], the valid scope IDs are the ones declared in the
+         * application's `scopes.yaml`, which the build packages on the classpath. Without a `scopes.yaml`,
+         * they are inferred from the `@scope` directives in the loaded schema. When [scopes] contains only
+         * [ScopeConfig.Base], the declared scopes are not read.
+         *
          * @param grtPackagePrefix optional GRT package prefix to load schema resources from (for testing only)
          * @param resourcesIncluded optional regex to filter which resources to include
          * @param scopes set of [ScopeConfig] defining named external schemas to register
@@ -180,10 +191,15 @@ class SchemaConfiguration private constructor(
             scopes: Set<ScopeConfig> = setOf(ScopeConfig.Base),
             lazyScopedSchemas: Boolean = false,
         ): SchemaConfiguration {
+            val declaredScopes = if (scopes.any { it is ScopeConfig.Scoped }) {
+                declaredScopesFromResources()
+            } else {
+                lazyOf(emptySet())
+            }
             return SchemaConfiguration(
                 FullSchemaConfig.FromResources(grtPackagePrefix, resourcesIncluded),
                 scopes.associate {
-                    it.schemaId() to ScopedSchemaConfig.Derived(it, lazyScopedSchemas)
+                    it.schemaId() to ScopedSchemaConfig.Derived(it, lazyScopedSchemas, declaredScopes)
                 }
             )
         }
@@ -193,6 +209,9 @@ class SchemaConfiguration private constructor(
          * Registers exactly one external schema for each provided [ScopeConfig].
          * The internal full schema includes all fields; the base schema filters tenant-local fields.
          * The provided [schema] is used as the basis for all registered schemas.
+         *
+         * Scope definitions on the classpath are not consulted, as in [fromSdl]. The valid scope IDs are
+         * inferred from [schema] itself.
          *
          * @param schema the existing [EngineSchema] to register schemas from
          * @param scopes set of [ScopeConfig] defining named external schemas to register
@@ -211,6 +230,17 @@ class SchemaConfiguration private constructor(
                     it.schemaId() to ScopedSchemaConfig.Derived(it, lazyScopedSchemas)
                 }
             )
+        }
+
+        /**
+         * Binds the loader now because a lazy view is first built on the requesting thread, whose context
+         * loader need not see the application.
+         */
+        @VisibleForTest
+        internal fun declaredScopesFromResources(): Lazy<Set<String>> {
+            val classLoader = Thread.currentThread().contextClassLoader
+                ?: SchemaConfiguration::class.java.classLoader
+            return lazy { SchemaScopingManifest.load(classLoader)?.scopeUniverse ?: emptySet() }
         }
     }
 
@@ -300,7 +330,22 @@ private fun SchemaConfiguration.ScopeConfig.schemaView(): SchemaView =
         is SchemaConfiguration.ScopeConfig.Scoped -> SchemaView.Scoped(scopeIds)
     }
 
-internal fun SchemaConfiguration.ScopeConfig.scopingMode(fullSchema: EngineSchema): SchemaScopingMode = fullSchema.schemaScopingMode()
+/**
+ * Resolves the scope universe a projection is built against: what the application declared, falling back
+ * to what the schema itself mentions when no declaration reached this far.
+ *
+ * Inference cannot see `@scope(to: ["*"])` — [EngineSchema.scopes] filters the wildcard out — so a schema
+ * whose only scope directive is the wildcard reads as unscoped and cannot produce a projection.
+ */
+internal fun scopingMode(
+    fullSchema: EngineSchema,
+    declaredScopes: Set<String>,
+): SchemaScopingMode =
+    if (declaredScopes.isEmpty()) {
+        fullSchema.schemaScopingMode()
+    } else {
+        SchemaScopingMode.ScopeAware(declaredScopes)
+    }
 
 /**
  * Converts a [SchemaId.Scoped] to a [SchemaConfiguration.ScopeConfig].
