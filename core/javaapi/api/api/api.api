@@ -1,0 +1,183 @@
+public abstract interface annotation class viaduct/java/api/annotations/GraphQLOperation : java/lang/annotation/Annotation {
+	public abstract fun value ()Ljava/lang/String;
+}
+
+public abstract interface annotation class viaduct/java/api/annotations/Resolver : java/lang/annotation/Annotation {
+	public abstract fun objectValueFragment ()Ljava/lang/String;
+	public abstract fun queryValueFragment ()Ljava/lang/String;
+	public abstract fun variables ()[Lviaduct/java/api/annotations/Variable;
+}
+
+public abstract interface annotation class viaduct/java/api/annotations/Variable : java/lang/annotation/Annotation {
+	public abstract fun fromArgument ()Ljava/lang/String;
+	public abstract fun fromObjectField ()Ljava/lang/String;
+	public abstract fun fromQueryField ()Ljava/lang/String;
+	public abstract fun name ()Ljava/lang/String;
+}
+
+public abstract interface annotation class viaduct/java/api/annotations/Variables : java/lang/annotation/Annotation {
+	public abstract fun types ()[Ljava/lang/String;
+}
+
+public abstract interface class viaduct/java/api/context/ExecutionContext {
+	public abstract fun getRequestContext ()Ljava/lang/Object;
+	public abstract fun globalIDFor (Lviaduct/java/api/reflect/Type;Ljava/lang/String;)Lviaduct/java/api/globalid/GlobalID;
+	public abstract fun serialize (Lviaduct/java/api/globalid/GlobalID;)Ljava/lang/String;
+}
+
+public abstract interface class viaduct/java/api/context/FieldExecutionContext : viaduct/java/api/context/ResolverExecutionContext {
+	public abstract fun getArguments ()Lviaduct/java/api/types/Arguments;
+	public abstract fun getObjectValue ()Lviaduct/java/api/types/GraphQLObject;
+	public abstract fun getQueryValue ()Lviaduct/java/api/types/Query;
+}
+
+public abstract interface class viaduct/java/api/context/MutationFieldExecutionContext : viaduct/java/api/context/ResolverExecutionContext {
+	public abstract fun getArguments ()Lviaduct/java/api/types/Arguments;
+	public fun mutation (Ljava/lang/String;Ljava/lang/Class;)Ljava/util/concurrent/CompletableFuture;
+	public abstract fun mutation (Ljava/lang/String;Ljava/util/Map;Ljava/lang/Class;)Ljava/util/concurrent/CompletableFuture;
+	public fun mutation (Lviaduct/java/api/documents/MutationFromAnnotation;Ljava/lang/Class;)Ljava/util/concurrent/CompletableFuture;
+	public fun mutation (Lviaduct/java/api/documents/MutationFromAnnotation;Ljava/util/Map;Ljava/lang/Class;)Ljava/util/concurrent/CompletableFuture;
+}
+
+public abstract interface class viaduct/java/api/context/NodeExecutionContext : viaduct/java/api/context/ResolverExecutionContext {
+	public abstract fun getId ()Lviaduct/java/api/globalid/GlobalID;
+}
+
+public abstract interface class viaduct/java/api/context/ResolverExecutionContext : viaduct/java/api/context/ExecutionContext {
+	public abstract fun globalIDStringFor (Lviaduct/java/api/reflect/Type;Ljava/lang/String;)Ljava/lang/String;
+	public fun mutation (Ljava/lang/String;Ljava/lang/Class;)Ljava/util/concurrent/CompletableFuture;
+	public abstract fun mutation (Ljava/lang/String;Ljava/util/Map;Ljava/lang/Class;)Ljava/util/concurrent/CompletableFuture;
+	public fun mutation (Lviaduct/java/api/documents/MutationFromAnnotation;Ljava/lang/Class;)Ljava/util/concurrent/CompletableFuture;
+	public fun mutation (Lviaduct/java/api/documents/MutationFromAnnotation;Ljava/util/Map;Ljava/lang/Class;)Ljava/util/concurrent/CompletableFuture;
+	public fun query (Ljava/lang/String;Ljava/lang/Class;)Ljava/util/concurrent/CompletableFuture;
+	public abstract fun query (Ljava/lang/String;Ljava/util/Map;Ljava/lang/Class;)Ljava/util/concurrent/CompletableFuture;
+	public fun query (Lviaduct/java/api/documents/QueryFromAnnotation;Ljava/lang/Class;)Ljava/util/concurrent/CompletableFuture;
+	public fun query (Lviaduct/java/api/documents/QueryFromAnnotation;Ljava/util/Map;Ljava/lang/Class;)Ljava/util/concurrent/CompletableFuture;
+	public abstract fun ref (Lviaduct/java/api/globalid/GlobalID;)Lviaduct/java/api/types/NodeCompositeOutput;
+}
+
+public abstract interface class viaduct/java/api/context/VariablesProviderContext : viaduct/java/api/context/ExecutionContext {
+	public abstract fun getArguments ()Lviaduct/java/api/types/Arguments;
+}
+
+public abstract class viaduct/java/api/documents/MutationFromAnnotation {
+	public fun <init> ()V
+	public final fun getOperationText ()Ljava/lang/String;
+}
+
+public abstract class viaduct/java/api/documents/QueryFromAnnotation {
+	public fun <init> ()V
+	public final fun getOperationText ()Ljava/lang/String;
+}
+
+public abstract interface class viaduct/java/api/globalid/GlobalID {
+	public abstract fun getInternalID ()Ljava/lang/String;
+	public abstract fun getType ()Lviaduct/java/api/reflect/Type;
+}
+
+public abstract interface class viaduct/java/api/reflect/CompositeField : viaduct/java/api/reflect/Field {
+	public abstract fun getType ()Lviaduct/java/api/reflect/Type;
+	public static fun of (Ljava/lang/String;Lviaduct/java/api/reflect/Type;Lviaduct/java/api/reflect/Type;)Lviaduct/java/api/reflect/CompositeField;
+}
+
+public abstract interface class viaduct/java/api/reflect/Field {
+	public abstract fun getContainingType ()Lviaduct/java/api/reflect/Type;
+	public abstract fun getName ()Ljava/lang/String;
+	public static fun of (Ljava/lang/String;Lviaduct/java/api/reflect/Type;)Lviaduct/java/api/reflect/Field;
+}
+
+public abstract interface class viaduct/java/api/reflect/Type {
+	public abstract fun getJavaClass ()Ljava/lang/Class;
+	public abstract fun getName ()Ljava/lang/String;
+	public static fun ofClass (Ljava/lang/Class;)Lviaduct/java/api/reflect/Type;
+}
+
+public abstract interface class viaduct/java/api/reflect/TypeFields {
+}
+
+public abstract interface class viaduct/java/api/resolvers/FieldResolverBase$Context : viaduct/java/api/context/FieldExecutionContext {
+}
+
+public abstract interface class viaduct/java/api/resolvers/FieldValue {
+	public abstract fun get ()Ljava/lang/Object;
+	public abstract fun isError ()Z
+	public static fun ofError (Ljava/lang/Exception;)Lviaduct/java/api/resolvers/FieldValue;
+	public static fun ofValue (Ljava/lang/Object;)Lviaduct/java/api/resolvers/FieldValue;
+}
+
+public final class viaduct/java/api/resolvers/FieldValue$Error : java/lang/Record, viaduct/java/api/resolvers/FieldValue {
+	public fun <init> (Ljava/lang/Exception;)V
+	public final fun equals (Ljava/lang/Object;)Z
+	public fun error ()Ljava/lang/Exception;
+	public fun get ()Ljava/lang/Object;
+	public final fun hashCode ()I
+	public fun isError ()Z
+	public final fun toString ()Ljava/lang/String;
+}
+
+public final class viaduct/java/api/resolvers/FieldValue$Success : java/lang/Record, viaduct/java/api/resolvers/FieldValue {
+	public fun <init> (Ljava/lang/Object;)V
+	public final fun equals (Ljava/lang/Object;)Z
+	public fun get ()Ljava/lang/Object;
+	public final fun hashCode ()I
+	public fun isError ()Z
+	public final fun toString ()Ljava/lang/String;
+	public fun value ()Ljava/lang/Object;
+}
+
+public abstract interface class viaduct/java/api/resolvers/NodeResolverBase$Context : viaduct/java/api/context/NodeExecutionContext {
+}
+
+public abstract interface class viaduct/java/api/types/Arguments : viaduct/java/api/types/InputLike {
+	public static final field NoArguments Lviaduct/java/api/types/Arguments;
+	public static final field None Lviaduct/java/api/types/Arguments$NoArguments;
+}
+
+public final class viaduct/java/api/types/Arguments$NoArguments : viaduct/java/api/types/Arguments$None {
+}
+
+public abstract interface class viaduct/java/api/types/CompositeOutput : viaduct/java/api/types/GRT {
+	public static final field NotComposite Lviaduct/java/api/types/CompositeOutput;
+}
+
+public final class viaduct/java/api/types/CompositeOutput$None : viaduct/java/api/types/CompositeOutput {
+}
+
+public abstract interface class viaduct/java/api/types/GRT {
+}
+
+public abstract interface class viaduct/java/api/types/GraphQLEnum : viaduct/java/api/types/GRT {
+	public static fun enumFrom (Ljava/lang/Class;Ljava/lang/String;)Ljava/lang/Enum;
+}
+
+public abstract interface class viaduct/java/api/types/GraphQLInput : viaduct/java/api/types/InputLike {
+}
+
+public abstract interface class viaduct/java/api/types/GraphQLInterface : viaduct/java/api/types/CompositeOutput {
+}
+
+public abstract interface class viaduct/java/api/types/GraphQLObject : viaduct/java/api/types/GraphQLInterface {
+}
+
+public abstract interface class viaduct/java/api/types/GraphQLUnion : viaduct/java/api/types/CompositeOutput {
+}
+
+public abstract interface class viaduct/java/api/types/InputLike : viaduct/java/api/types/GRT {
+}
+
+public abstract interface class viaduct/java/api/types/Mutation : viaduct/java/api/types/GraphQLObject {
+}
+
+public abstract interface class viaduct/java/api/types/NodeCompositeOutput : viaduct/java/api/types/CompositeOutput {
+}
+
+public abstract interface class viaduct/java/api/types/NodeObject : viaduct/java/api/types/GraphQLObject, viaduct/java/api/types/NodeCompositeOutput {
+}
+
+public abstract interface class viaduct/java/api/types/Query : viaduct/java/api/types/GraphQLObject {
+}
+
+public abstract interface class viaduct/java/api/variables/VariablesProvider {
+	public abstract fun provide (Lviaduct/java/api/context/VariablesProviderContext;)Ljava/util/concurrent/CompletableFuture;
+}
+

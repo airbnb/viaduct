@@ -4,6 +4,7 @@ plugins {
     `java-library`
     id("conventions.java")
     id("conventions.dokka")
+    id("conventions.bcv-api")
     id("conventions.kotlin")
     id("conventions.kotlin-static-analysis")
     `java-test-fixtures`
