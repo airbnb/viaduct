@@ -169,10 +169,10 @@ class ContractSchemaExtractTest {
         outputDir: File
     ) {
         val project = ProjectBuilder.builder().build()
-        val task = project.tasks.create(
+        val task = project.tasks.register(
             "extractContractSchemas",
             ContractSchemaExtractTask::class.java
-        )
+        ).get()
         task.classesDirs.from(classesDir)
         task.outputDir.set(outputDir)
         task.extract()

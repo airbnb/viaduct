@@ -12,10 +12,10 @@ class DefaultSchemaOutputTaskTest {
         @TempDir tempDir: File
     ) {
         val project = ProjectBuilder.builder().build()
-        val task = project.tasks.create(
+        val task = project.tasks.register(
             "extractDefaultSchema",
             DefaultSchemaOutputTask::class.java
-        )
+        ).get()
         val outputFile = tempDir.resolve("default_schema.graphqls")
         task.defaultSchemaFile.set(outputFile)
 

@@ -24,6 +24,7 @@ pluginManager.withPlugin("jacoco") {
     tasks.named<Test>("test") {
         useJUnitPlatform()
     }
+    dependencies.add("testRuntimeOnly", libs.findLibrary("junit-launcher").get())
 
     tasks.named<JacocoReport>("jacocoTestReport") {
         dependsOn(tasks.named("test"))

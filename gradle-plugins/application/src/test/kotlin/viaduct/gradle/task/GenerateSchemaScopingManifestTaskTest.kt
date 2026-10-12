@@ -22,7 +22,7 @@ class GenerateSchemaScopingManifestTaskTest {
 
     private fun task(): GenerateSchemaScopingManifestTask {
         val project = ProjectBuilder.builder().withProjectDir(projectDir).build()
-        return project.tasks.create("manifest", GenerateSchemaScopingManifestTask::class.java).apply {
+        return project.tasks.register("manifest", GenerateSchemaScopingManifestTask::class.java).get().apply {
             outputDirectory.set(project.layout.buildDirectory.dir("manifest-output"))
             scopesFile.setFrom(
                 project.fileTree(ViaductScopesYaml.SOURCE_DIRECTORY) { include("scopes.yaml") },

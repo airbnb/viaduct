@@ -91,7 +91,7 @@ class FeatureAppContractsExtensionTest {
      */
     private fun newExtension(): Fixture {
         val project = ProjectBuilder.builder().build()
-        project.tasks.create("extractContractSchemas", ContractSchemaExtractTask::class.java)
+        project.tasks.register("extractContractSchemas", ContractSchemaExtractTask::class.java)
 
         val kotlinSchemas = project.configurations.create("contractSchemasResolved")
         val javaSchemas = project.configurations.create("javaContractSchemasResolved")
