@@ -141,6 +141,8 @@ sealed interface ExecutionOrigin {
  * @property source The source object for the current execution step
  * @property executionStepInfo Current position in the query execution tree
  * @property selectionSet Selection set for the current level of execution
+ * @property deferUsageSet Defer usages whose fields are completing in this scope
+ * @property deferMap Response-path-specific delivery groups for the defer usages in scope
  * @property errorAccumulator Errors collected at this level
  * @property executionOrigin How this execution scope was derived
  * @property field Field currently being executed, if any
@@ -166,6 +168,7 @@ data class ExecutionParameters(
     val executionStepInfo: ExecutionStepInfo,
     val selectionSet: QueryPlan.SelectionSet,
     val errorAccumulator: ErrorAccumulator,
+    val deferUsageSet: Set<DeferUsage> = emptySet(),
     val deferMap: DeferMap = emptyMap(),
     val executionOrigin: ExecutionOrigin = ExecutionOrigin.Root,
     val field: CollectedField? = null,
@@ -715,6 +718,7 @@ data class ExecutionParameters(
             queryPlan = childPlan,
             queryPlanIndex = newIndex,
             selectionSet = childPlan.selectionSet,
+            deferUsageSet = emptySet(),
             deferMap = emptyMap(),
             errorAccumulator = ErrorAccumulator(),
             executionStepInfo = childExecutionStepInfo,

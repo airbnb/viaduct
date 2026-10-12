@@ -170,14 +170,14 @@ class ExecutionParametersTest {
     }
 
     @Test
-    fun `normal traversal preserves the defer map`() {
+    fun `normal traversal preserves the defer context`() {
         val usage = DeferUsage(mkDefer("A"), null)
         val group = DeferDeliveryGroup(ResultPath.rootPath(), "A", null)
         val root = createExecutionParameters(
             source = defaultRootValue,
             executionStepInfo = ExecutionStepInfo.newExecutionStepInfo().type(queryType).path(ResultPath.rootPath()).build(),
             queryPlan = queryPlanFor(type = queryType),
-        ).copy(deferMap = mapOf(usage to group))
+        ).copy(deferUsageSet = setOf(usage), deferMap = mapOf(usage to group))
         val field = collectedFooField(mergedField("foo", selectionSet("id")))
         val fieldParameters = root.forField(queryType, field)
         val objectParameters = fieldParameters.forObjectTraversal(
@@ -187,19 +187,21 @@ class ExecutionParametersTest {
             null,
         )
 
+        assertEquals(root.deferUsageSet, fieldParameters.deferUsageSet)
+        assertEquals(root.deferUsageSet, objectParameters.deferUsageSet)
         assertSame(root.deferMap, fieldParameters.deferMap)
         assertSame(root.deferMap, objectParameters.deferMap)
     }
 
     @Test
-    fun `child query plans start with an empty defer map`() {
+    fun `child query plans start with an empty defer context`() {
         val usage = DeferUsage(mkDefer("A"), null)
         val group = DeferDeliveryGroup(ResultPath.rootPath(), "A", null)
         val root = createExecutionParameters(
             source = defaultRootValue,
             executionStepInfo = ExecutionStepInfo.newExecutionStepInfo().type(queryType).path(ResultPath.rootPath()).build(),
             queryPlan = queryPlanFor(type = queryType),
-        ).copy(deferMap = mapOf(usage to group))
+        ).copy(deferUsageSet = setOf(usage), deferMap = mapOf(usage to group))
         val field = collectedFooField(mergedField("foo", selectionSet("id")))
         val objectParameters = root.forField(queryType, field).forObjectTraversal(
             field,
@@ -210,6 +212,8 @@ class ExecutionParametersTest {
 
         val child = objectParameters.forChildPlan(queryPlanFor(fooType), emptyVariables, ChildQueryPlanTarget.CurrentObjectResult)
 
+        assertEquals(emptySet<DeferUsage>(), child.deferUsageSet)
+        assertEquals(root.deferUsageSet, objectParameters.deferUsageSet)
         assertEquals(emptyMap<DeferUsage, DeferDeliveryGroup>(), child.deferMap)
         assertSame(group, objectParameters.deferMap.getValue(usage))
     }

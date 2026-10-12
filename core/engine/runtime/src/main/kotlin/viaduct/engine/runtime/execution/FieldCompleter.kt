@@ -210,7 +210,7 @@ class FieldCompleter(
         }
     }
 
-    private fun completeField(
+    internal fun completeField(
         ctx: ExecutionParameters,
         field: CollectedField,
     ): Value<FieldCompletionResult> {
