@@ -1,0 +1,585 @@
+diff --git a/projects/viaduct/oss/core/engine/runtime2/impldocs/testing/performance.md b/projects/viaduct/oss/core/engine/runtime2/impldocs/testing/performance.md
+index 0806ecfc71439a..5db7a3245c364f 100644
+--- a/projects/viaduct/oss/core/engine/runtime2/impldocs/testing/performance.md
++++ b/projects/viaduct/oss/core/engine/runtime2/impldocs/testing/performance.md
+@@ -72,10 +72,18 @@ ## Overhead Benchmark
+ 
+ The overhead benchmark uses fully prepared callback outputs. Each field callback returns its fixed value-plan output, materialized during registry assembly, and ignores its input and arguments. Each node callback looks up a prepared output by the requested ID. An untimed discovery pass over the query batch records the required IDs once per trial using constant field outputs and a separate registry. Each invocation then builds a fresh registry and eagerly materializes its canonical node outputs for those IDs; an undiscovered ID raises an error rather than generating an output during measurement. The discovery registry's engine caches are not reused. Node identity, resolver fragments, variable providers, checkers, and ordinary engine output lowering and projection remain active. Field-resolver input/argument fingerprinting and fixture object/list construction are outside the measured body.
+ 
+-This deliberately changes the callback semantics from the corpus's input-sensitive programs to prepared outputs. The full, property, and correctness benchmarks retain their input-sensitive callbacks. Treat the overhead change as a measurement correction, not an engine speedup, and record both timing and workload statistics across this boundary. For the current fixed corpus, all emitted workload statistics are unchanged.
++This deliberately changes the callback semantics from the corpus's input-sensitive programs to prepared outputs. The full, property, and correctness benchmarks retain their input-sensitive callbacks. Treat the overhead change as a measurement correction, not an engine speedup, and record both timing and workload statistics across this boundary. Prepared callback outputs alone preserve the original workload statistics; replacing the checker fixture subsequently changes hidden demand and checker activity.
+ 
+ Overhead checker callbacks likewise return their setup-chosen result without running the fixture's input assertions or fingerprint comparisons. The engine still prepares every named checker input and invokes the checker; ordinary generated test worlds retain those assertions.
+ 
++The overhead fixture uses one China-active checker profile, independent of the resolver-fragment recipe. All ordinary business fields receive a successful checker, including passive fields; hash and policy-helper fields are excluded. About a third receive custom China rules, approximating the 956 eligible fields among 3,123 declarations on custom-rule types in the private source census. The others retain fragmentless default-block checks. This is a conservative synthetic policy surface, not a measured traffic distribution or a reproduction of production denial behavior. Identifier fields use fragmentless checks to avoid artificial self-dependencies. Query fields receive privacy checks only; type checkers remain privacy-only.
++
++Custom China checks use approximately 94% Query-plus-object-ID inputs and 6% named-null inputs. One named input carries both an aliased, guarded object identifier and a guarded Query lookup, with an unconditional Query `__typename` selection. A constant variable provider returns `shouldSkipForChinaAccess=false`; a `FromField(OBJECT)` variable supplies the actual identifier to the lookup. The thirteen corpus objects use a passive ID, String, or Int field as their identifier. Setup-built helper Query outputs model user country/allowlist/data-scope, listing location/address, reservation host/guest, and a bounded two-user list tail. Helper types have no checkers, and their callback outputs are built once per registry. The list tail is deliberately larger than the source census's rare list rule.
++
++About 42% of business field policies add privacy inputs, with occasional three-input composites, following the custom-China subset's approximately 58%/41%/1% one/two/three-policy mix. Privacy inputs are mostly scalar identifiers, with context-only/null slots and a small Query lookup tail. Type privacy uses three context-only, four scalar, four null, one Query, and one two-input composite checker across the thirteen objects. Standalone context/default-block checks have zero named inputs; a fragmentless policy inside a composite keeps its named empty pair. The previous `left`/`right`/`empty`/raw-root correctness fixtures remain in ordinary generated worlds and the full benchmark.
++
++Changing the checker profile changes hidden engine demand, resolver activations, and projection counts even though the 100 client query sources remain fixed. Treat the timing difference as a workload correction, not an engine optimization. Reports include actual installed checker counts, named inputs and populated roots per query, and composite input sizes so comparisons across that boundary remain interpretable.
++
+ Control the repetition count with `-PresolverBenchmarkLoopCount=M`. One overhead JMH operation contains exactly `100 * M` resolver calls.
+ 
+ After the measured trial, an untimed reporting pass resolves the 100 queries once more with application observation enabled. It reports average, percentile, and maximum statistics for fields returned, resolvers executed, result depth, and three variable-workload measurements:
+diff --git a/projects/viaduct/oss/core/engine/runtime2/src/jmh/kotlin/viaduct/engine/runtime2/benchmark/CurrentProfileBenchmarkSupport.kt b/projects/viaduct/oss/core/engine/runtime2/src/jmh/kotlin/viaduct/engine/runtime2/benchmark/CurrentProfileBenchmarkSupport.kt
+index c6ce203dfce1b9..63e8fb01afeeb5 100644
+--- a/projects/viaduct/oss/core/engine/runtime2/src/jmh/kotlin/viaduct/engine/runtime2/benchmark/CurrentProfileBenchmarkSupport.kt
++++ b/projects/viaduct/oss/core/engine/runtime2/src/jmh/kotlin/viaduct/engine/runtime2/benchmark/CurrentProfileBenchmarkSupport.kt
+@@ -31,7 +31,9 @@ import viaduct.engine.runtime2.model.ResolverOccurrenceId
+ import viaduct.engine.runtime2.model.SelectionForest
+ import viaduct.engine.runtime2.model.merge
+ import viaduct.engine.runtime2.model.registry.Assumptions
++import viaduct.engine.runtime2.model.requireObjectField
+ import viaduct.engine.runtime2.model.requireQueryTypeDef
++import viaduct.engine.runtime2.model.requireType
+ import viaduct.engine.runtime2.model.testing.TestWorld
+ import viaduct.engine.runtime2.model.testing.fragmentFrom
+ import viaduct.engine.runtime2.model.testing.objectOf
+@@ -79,6 +81,8 @@ internal class CurrentProfileBenchmarkSupport(
+             .querySources
+             .toTypedArray()
+ 
++    private val overheadCheckers = ChinaActiveBenchmarkCheckers(corpus)
++
+     private var overheadCases: Array<PreparedResolution> = emptyArray()
+ 
+     private val precomputedResolverOutputs: PrecomputedResolverOutputs by lazy {
+@@ -158,6 +162,8 @@ internal class CurrentProfileBenchmarkSupport(
+                         )
+                     }
+                 }
++                val fieldCheckerInputCounts = Collections.synchronizedList(mutableListOf<Long>())
++                val checkerInputCounts = Collections.synchronizedList(mutableListOf<Pair<Long, Long>>())
+                 val operation =
+                     SharedOperationContext.create(
+                         world,
+@@ -167,6 +173,18 @@ internal class CurrentProfileBenchmarkSupport(
+                                 override fun onCheckerInvocation(observation: CheckerInvocationObservation) {
+                                     checkerKinds += observation.checkerKind
+                                 }
++
++                                override fun onCheckerInvocation(
++                                    observation: CheckerInvocationObservation,
++                                    inputs: Map<String, viaduct.engine.runtime2.model.registry.CheckerInput>,
++                                ) {
++                                    onCheckerInvocation(observation)
++                                    if (observation.checkerKind == CheckerKind.FIELD) fieldCheckerInputCounts += inputs.size.toLong()
++                                    checkerInputCounts += inputs.size.toLong() to inputs.values.sumOf { input ->
++                                        (if (input.objectValue.getSelections().any()) 1L else 0L) +
++                                            (if (input.queryValue.getSelections().any()) 1L else 0L)
++                                    }
++                                }
+                             },
+                     )
+                 val result =
+@@ -194,6 +212,9 @@ internal class CurrentProfileBenchmarkSupport(
+                     resolverExecutions = witness.applications.size.toLong(),
+                     fieldCheckerExecutions = checkerKinds.count { kind -> kind == CheckerKind.FIELD }.toLong(),
+                     typeCheckerExecutions = checkerKinds.count { kind -> kind == CheckerKind.TYPE }.toLong(),
++                    namedCheckerInputs = checkerInputCounts.sumOf { it.first },
++                    namedFieldCheckerInputs = fieldCheckerInputCounts.sum(),
++                    populatedCheckerRoots = checkerInputCounts.sumOf { it.second },
+                     variableBearingResolverExecutions =
+                         queryVariableArgumentCounts.count { count -> count > 0 }.toLong(),
+                     variableStackDepth = applicationObservations.maximumVariableStackDepth(),
+@@ -263,7 +284,10 @@ internal class CurrentProfileBenchmarkSupport(
+                     "  result depth: " +
+                         samples.statistics(OverheadSample::depth),
+                 )
+-                appendRegistryStatistics()
++                appendLine("  named checker inputs: " + samples.statistics(OverheadSample::namedCheckerInputs))
++                appendLine("  named field checker inputs: " + samples.statistics(OverheadSample::namedFieldCheckerInputs))
++                appendLine("  populated checker input roots: " + samples.statistics(OverheadSample::populatedCheckerRoots))
++                appendRegistryStatistics(testWorld)
+             }
+         val reportFile = System.getProperty(REPORT_FILE_PROPERTY)
+         if (reportFile == null) {
+@@ -345,6 +369,9 @@ internal class CurrentProfileBenchmarkSupport(
+         val resolverExecutions: Long,
+         val fieldCheckerExecutions: Long,
+         val typeCheckerExecutions: Long,
++        val namedCheckerInputs: Long,
++        val namedFieldCheckerInputs: Long,
++        val populatedCheckerRoots: Long,
+         val variableBearingResolverExecutions: Long,
+         val variableStackDepth: Long,
+         val depth: Long,
+@@ -352,10 +379,11 @@ internal class CurrentProfileBenchmarkSupport(
+ 
+     private fun ResolverBenchmarkCorpus.benchmarkWorld(outputs: PrecomputedResolverOutputs = precomputedResolverOutputs): TestWorld =
+         registry.world(
+-            schemaSDL = schemaSDL,
+-            fieldCheckerMode = GeneratedFieldCheckerMode.RUNTIME_SUCCESS,
+-            typeCheckerMode = GeneratedTypeCheckerMode.RUNTIME_SUCCESS,
++            schemaSDL = overheadCheckers.schemaSDL,
+             precomputedResolverOutputs = outputs,
++            additionalFieldResolvers = overheadCheckers::fieldResolvers,
++            fieldCheckerFactory = overheadCheckers::fieldCheckers,
++            typeCheckerFactory = overheadCheckers::typeCheckers,
+         )
+ 
+     private fun EngineResult?.shape(
+@@ -433,7 +461,7 @@ internal class CurrentProfileBenchmarkSupport(
+             depth = maxOf(depth, other.depth),
+         )
+ 
+-    private fun StringBuilder.appendRegistryStatistics() {
++    private fun StringBuilder.appendRegistryStatistics(checkerWorld: TestWorld) {
+         val activeFieldsPerObject =
+             corpus.schema.sourceFieldCoordinatesByObject.values.map { fields ->
+                 fields.count(corpus.registry.fieldResolverCoordinates::contains).toLong()
+@@ -464,9 +492,21 @@ internal class CurrentProfileBenchmarkSupport(
+                 objectFragmentDepths.statistics(value = { it }),
+         )
+         appendLine("Resolver benchmark feature counts:")
+-        appendLine("  field resolvers: ${corpus.registry.fieldResolverCoordinates.size}")
+-        appendLine("  field checkers: ${corpus.registry.generatedFieldCheckerCoordinates.size}")
+-        appendLine("  type checkers: ${corpus.schema.objects.size}")
++        appendLine("  corpus field resolvers: ${corpus.registry.fieldResolverCoordinates.size}")
++        appendLine("  checker profile: China active (prepared success callbacks)")
++        appendLine("  field checkers: ${overheadCheckers.fieldPolicies.size}")
++        appendLine("  type checkers: ${overheadCheckers.typePolicies.size}")
++        // Registry keys are canonical: derive counts from one assembled world.
++        val fieldCheckers = overheadCheckers.fieldPolicies.keys.map { coordinate ->
++            checkerWorld.resolverRegistry.fieldChecker(checkerWorld.schema.requireObjectField(coordinate.typeName, coordinate.fieldName))!!
++        }
++        val typeCheckers = overheadCheckers.typePolicies.keys.map { typeName ->
++            checkerWorld.resolverRegistry.typeChecker(checkerWorld.schema.requireType(typeName) as viaduct.graphql.schema.ViaductSchema.Object)!!
++        }
++        appendLine("  named inputs per field checker: ${fieldCheckers.map { it.fragmentTemplates.size.toLong() }.statistics(value = { it })}")
++        appendLine("  named inputs per type checker: ${typeCheckers.map { it.fragmentTemplates.size.toLong() }.statistics(value = { it })}")
++        appendLine("  field checker policies: ${overheadCheckers.fieldPolicies.values.flatten().groupingBy { if (it.startsWith("privacy")) "privacy" else it }.eachCount()}")
++        appendLine("  checker-only prepared Query resolvers: ${overheadCheckers.typePolicies.size + 1}")
+         appendLine("  Query fragments: ${corpus.registry.features.queryFragmentCount}")
+         appendLine("  FromArgument variables: ${corpus.registry.features.fromArgumentVariableCount}")
+         appendLine("  FromObjectField variables: ${corpus.registry.features.fromObjectFieldVariableCount}")
+diff --git a/projects/viaduct/oss/core/engine/runtime2/src/support/kotlin/viaduct/engine/runtime2/arbitrary/RegistryGenerator.kt b/projects/viaduct/oss/core/engine/runtime2/src/support/kotlin/viaduct/engine/runtime2/arbitrary/RegistryGenerator.kt
+index 9fd9f901dc8ba5..a50aa53c02efbc 100644
+--- a/projects/viaduct/oss/core/engine/runtime2/src/support/kotlin/viaduct/engine/runtime2/arbitrary/RegistryGenerator.kt
++++ b/projects/viaduct/oss/core/engine/runtime2/src/support/kotlin/viaduct/engine/runtime2/arbitrary/RegistryGenerator.kt
+@@ -30,8 +30,10 @@ import viaduct.engine.runtime2.model.SelectionForest
+ import viaduct.engine.runtime2.model.arg
+ import viaduct.engine.runtime2.model.inputType
+ import viaduct.engine.runtime2.model.registry.FieldCheckerResolver
++import viaduct.engine.runtime2.model.registry.FieldResolverDefinition
+ import viaduct.engine.runtime2.model.registry.ProviderFragment
+ import viaduct.engine.runtime2.model.registry.ResolverFragmentTemplates
++import viaduct.engine.runtime2.model.registry.TypeCheckerResolver
+ import viaduct.engine.runtime2.model.registry.VariableDefinition
+ import viaduct.engine.runtime2.model.registry.fieldResolverOf
+ import viaduct.engine.runtime2.model.registry.fromArgument
+@@ -469,6 +471,9 @@ class ArbitraryRegistry internal constructor(
+         fieldCheckerMode: GeneratedFieldCheckerMode = GeneratedFieldCheckerMode.NONE,
+         typeCheckerMode: GeneratedTypeCheckerMode = GeneratedTypeCheckerMode.NONE,
+         precomputedResolverOutputs: PrecomputedResolverOutputs? = null,
++        additionalFieldResolvers: (ViaductAndGJSchema) -> Map<ViaductSchema.Field, FieldResolverDefinition> = { emptyMap() },
++        fieldCheckerFactory: ((ViaductAndGJSchema) -> Map<ViaductSchema.ObjectField, FieldCheckerResolver>)? = null,
++        typeCheckerFactory: ((ViaductAndGJSchema) -> Map<ViaductSchema.Object, TypeCheckerResolver>)? = null,
+     ): TestWorld {
+         val firstInputs = ConcurrentHashMap<FieldCoordinate, EngineObjectData.Sync>()
+         val firstArguments = ConcurrentHashMap<FieldCoordinate, Arguments.Resolved>()
+@@ -650,7 +655,7 @@ class ArbitraryRegistry internal constructor(
+                                     }
+                                 }
+                             }
+-                    }.toMap()
++                    }.toMap() + additionalFieldResolvers(canonicalSchema)
+                 },
+                 variableProviders = { canonicalSchema ->
+                     val sourceSchema = SourceSchemaAdapter(canonicalSchema.loweredSchema)
+@@ -694,10 +699,12 @@ class ArbitraryRegistry internal constructor(
+                     }.toMap()
+                 },
+                 typeCheckers = { canonicalSchema ->
+-                    generatedTypeCheckers(canonicalSchema, typeCheckerMode, validateInputs = precomputedResolverOutputs == null)
++                    typeCheckerFactory?.invoke(canonicalSchema)
++                        ?: generatedTypeCheckers(canonicalSchema, typeCheckerMode, validateInputs = precomputedResolverOutputs == null)
+                 },
+                 fieldCheckers = { canonicalSchema ->
+-                    generatedFieldCheckers(canonicalSchema, fieldCheckerMode, validateInputs = precomputedResolverOutputs == null)
++                    fieldCheckerFactory?.invoke(canonicalSchema)
++                        ?: generatedFieldCheckers(canonicalSchema, fieldCheckerMode, validateInputs = precomputedResolverOutputs == null)
+                 },
+             )
+         objectFragmentSources.values
+diff --git a/projects/viaduct/oss/core/engine/runtime2/src/support/kotlin/viaduct/engine/runtime2/benchmark/ChinaActiveBenchmarkCheckers.kt b/projects/viaduct/oss/core/engine/runtime2/src/support/kotlin/viaduct/engine/runtime2/benchmark/ChinaActiveBenchmarkCheckers.kt
+new file mode 100644
+--- /dev/null
++++ b/projects/viaduct/oss/core/engine/runtime2/src/support/kotlin/viaduct/engine/runtime2/benchmark/ChinaActiveBenchmarkCheckers.kt
+@@ -0,0 +1,225 @@
++package viaduct.engine.runtime2.benchmark
++
++import viaduct.engine.api.CheckerResult
++import viaduct.engine.runtime2.arbitrary.FieldCoordinate
++import viaduct.engine.runtime2.arbitrary.ResolverBenchmarkCorpus
++import viaduct.engine.runtime2.model.Arguments
++import viaduct.engine.runtime2.model.ResolverTarget
++import viaduct.engine.runtime2.model.emptyFragmentOf
++import viaduct.engine.runtime2.model.materializeSelectionForestOf
++import viaduct.engine.runtime2.model.registry.FieldCheckerResolver
++import viaduct.engine.runtime2.model.registry.FieldResolverDefinition
++import viaduct.engine.runtime2.model.registry.ProviderFragment
++import viaduct.engine.runtime2.model.registry.ResolverFragmentTemplates
++import viaduct.engine.runtime2.model.registry.TypeCheckerResolver
++import viaduct.engine.runtime2.model.registry.VariableDefinition
++import viaduct.engine.runtime2.model.registry.fieldResolverOf
++import viaduct.engine.runtime2.model.requireObjectField
++import viaduct.engine.runtime2.model.requireQueryTypeDef
++import viaduct.engine.runtime2.model.requireType
++import viaduct.engine.runtime2.model.testing.fragmentFrom
++import viaduct.engine.runtime2.model.testing.fromSDL
++import viaduct.engine.runtime2.model.testing.objectOf
++import viaduct.engine.runtime2.schema.ViaductAndGJSchema
++import viaduct.engine.runtime2.schema.lowering.LOWERED_TYPENAME_FIELD
++import viaduct.graphql.schema.ViaductSchema
++
++/** A single, always-active overhead fixture; source counts inform shapes, not traffic weights. */
++internal class ChinaActiveBenchmarkCheckers(corpus: ResolverBenchmarkCorpus) {
++    private val original = ViaductAndGJSchema.fromSDL(corpus.schemaSDL).loweredSchema
++    private val objects = original.types.values.filterIsInstance<ViaductSchema.Object>()
++        .filter { it.name.matches(Regex("Object\\d+")) }.sortedBy { it.name.removePrefix("Object").toInt() }
++    private val identifiers = objects.associate { type ->
++        type.name to type.fields.filter {
++            it.name != LOWERED_TYPENAME_FIELD && it.args.isEmpty() && !it.type.isList && it.type.baseTypeDef.name in setOf("ID", "String", "Int") &&
++                FieldCoordinate(type.name, it.name) !in corpus.registry.fieldResolverCoordinates
++        }.minBy { field ->
++            when {
++                field.name == "id" -> 0
++                field.type.baseTypeDef.name == "ID" -> 1
++                field.type.baseTypeDef.name == "String" -> 2
++                else -> 3
++            }
++        }.name
++    }
++
++    // Select a third of ordinary fields for custom China rules. The rest retain conservative
++    // fragmentless default-block checks; helper/hash fields are outside the policy surface.
++    val fieldPolicies: Map<FieldCoordinate, List<String>> = buildMap {
++        var ordinal = 0
++        objects.forEach { type ->
++            type.fields.filter { !it.name.startsWith("__") && it.name != LOWERED_TYPENAME_FIELD && it.name != "hash" }.forEach { field ->
++                val china = if (field.name == identifiers.getValue(type.name)) {
++                    "defaultBlock"
++                } else if (ordinal % 3 == 0) {
++                    if ((ordinal / 3 * 37) % 100 < 6) "chinaNull" else "chinaQuery"
++                } else {
++                    "defaultBlock"
++                }
++                val privacyCount = when ((ordinal * 37) % 100) {
++                    0 -> 2
++                    in 1..41 -> 1
++                    else -> 0
++                }
++                put(FieldCoordinate(type.name, field.name), listOf(china) + List(privacyCount) { "privacy${((ordinal + it) * 53 + 17) % 100}" })
++                ordinal++
++            }
++        }
++        original.requireQueryTypeDef().fields.filter { !it.name.startsWith("__") && it.name != LOWERED_TYPENAME_FIELD }.forEachIndexed { index, field ->
++            put(FieldCoordinate("Query", field.name), if (index % 7 == 0) emptyList() else listOf("queryPrivacy"))
++        }
++    }
++
++    val typePolicies: Map<String, List<String>> = objects.mapIndexed { index, type ->
++        type.name to when (index % 13) {
++            in 0..2 -> emptyList()
++            in 3..6 -> listOf("scalarPrivacy")
++            in 7..10 -> listOf("nullPrivacy")
++            11 -> listOf("nestedPrivacy")
++            else -> listOf("scalarPrivacy", "nullPrivacy")
++        }
++    }.toMap()
++
++    val schemaSDL: String = corpus.schemaSDL + "\n" + buildString {
++        appendLine("extend type Query {")
++        objects.forEach { type ->
++            val idType = type.field(identifiers.getValue(type.name))!!.type.baseTypeDef.name
++            appendLine("  benchmarkChina${type.name}(id: $idType): BenchmarkChina!")
++        }
++        appendLine("  benchmarkPrivacy: BenchmarkPrivacy!")
++        appendLine("}")
++        appendLine("type BenchmarkPrivacy { allowed: Boolean! }")
++        appendLine(
++            "type BenchmarkChina { country: String! allowed: Boolean! dataScope: BenchmarkDataScope! location: BenchmarkLocation! host: BenchmarkUser! guest: BenchmarkUser! users: [BenchmarkUser!]! }"
++        )
++        appendLine("type BenchmarkDataScope { synthetic: Boolean! }")
++        appendLine("type BenchmarkLocation { defaultAddress: BenchmarkAddress! }")
++        appendLine("type BenchmarkAddress { country: String! }")
++        appendLine("type BenchmarkUser { country: String! allowed: Boolean! dataScope: BenchmarkDataScope! }")
++    }
++
++    fun fieldResolvers(schema: ViaductAndGJSchema): Map<ViaductSchema.Field, FieldResolverDefinition> {
++        val canonical = schema.loweredSchema
++        val dataScope = canonical.objectOf("BenchmarkDataScope") { "synthetic" setTo false }
++        val user = canonical.objectOf("BenchmarkUser") {
++            "country" setTo "CN"
++            "allowed" setTo true
++            "dataScope" setTo dataScope
++        }
++        val address = canonical.objectOf("BenchmarkAddress") { "country" setTo "CN" }
++        val location = canonical.objectOf("BenchmarkLocation") { "defaultAddress" setTo address }
++        val china = canonical.objectOf("BenchmarkChina") {
++            "country" setTo "CN"
++            "allowed" setTo true
++            "dataScope" setTo dataScope
++            "location" setTo location
++            "host" setTo user
++            "guest" setTo user
++            "users" setTo listOf(user, user)
++        }
++        val privacy = canonical.objectOf("BenchmarkPrivacy") { "allowed" setTo true }
++        val empty = canonical.emptyFragmentOf("Query")
++        return objects.associate { type ->
++            canonical.requireObjectField("Query", "benchmarkChina${type.name}") to
++                fieldResolverOf(empty) { _, _ -> china }
++        } + (canonical.requireObjectField("Query", "benchmarkPrivacy") to fieldResolverOf(empty) { _, _ -> privacy })
++    }
++
++    fun fieldCheckers(schema: ViaductAndGJSchema): Map<ViaductSchema.ObjectField, FieldCheckerResolver> =
++        fieldPolicies.map { (coordinate, policies) ->
++            val field = schema.loweredSchema.requireObjectField(coordinate.typeName, coordinate.fieldName)
++            val target = ResolverTarget.FieldCheckerTarget(field)
++            field to FieldCheckerResolver.of(field, schema.loweredSchema.requireQueryTypeDef(), templates(schema, target, coordinate.typeName, policies)) { _, _, _ ->
++                CheckerResult.Success
++            }
++        }.toMap()
++
++    fun typeCheckers(schema: ViaductAndGJSchema): Map<ViaductSchema.Object, TypeCheckerResolver> =
++        typePolicies.map { (typeName, policies) ->
++            val type = schema.loweredSchema.requireType(typeName) as ViaductSchema.Object
++            val target = ResolverTarget.TypeCheckerTarget(type)
++            type to TypeCheckerResolver.of(type, schema.loweredSchema.requireQueryTypeDef(), templates(schema, target, typeName, policies)) { _, _ ->
++                CheckerResult.Success
++            }
++        }.toMap()
++
++    private fun templates(
++        schema: ViaductAndGJSchema,
++        target: ResolverTarget,
++        typeName: String,
++        policies: List<String>,
++    ): Map<String, ResolverFragmentTemplates> {
++        if (policies == listOf("defaultBlock")) return emptyMap()
++        return policies.mapIndexed { index, policy ->
++            val pair = when {
++                policy == "chinaQuery" -> chinaTemplate(schema, target, typeName)
++                policy == "queryPrivacy" || policy == "nestedPrivacy" -> pair(schema, target, query = "benchmarkPrivacy { allowed }")
++                policy == "scalarPrivacy" -> pair(schema, target, objectSelection = identifiers.getValue(typeName), typeName = typeName)
++                policy.startsWith("privacy") -> {
++                    val percentile = policy.removePrefix("privacy").toInt()
++                    // Context-only policies gain a null slot inside a composite, as in production.
++                    when (percentile) {
++                        in 15..85 -> pair(schema, target, objectSelection = identifiers.getValue(typeName), typeName = typeName)
++                        in 86..94 -> pair(schema, target, query = "benchmarkPrivacy { allowed }")
++                        else -> pair(schema, target)
++                    }
++                }
++                else -> pair(schema, target)
++            }
++            "${index}_$policy" to pair
++        }.toMap()
++    }
++
++    private fun pair(
++        schema: ViaductAndGJSchema,
++        target: ResolverTarget,
++        objectSelection: String? = null,
++        typeName: String = "Query",
++        query: String? = null,
++    ): ResolverFragmentTemplates =
++        ResolverFragmentTemplates(
++            objectFragmentTemplate = objectSelection?.let {
++                schema.fragmentFrom("fragment Input on $typeName { $it }", variableTarget = target).materializeSelections
++            } ?: materializeSelectionForestOf(),
++            queryFragmentTemplate = query?.let {
++                schema.fragmentFrom("fragment Input on Query { $it }", variableTarget = target).materializeSelections
++            } ?: materializeSelectionForestOf(),
++        )
++
++    private fun chinaTemplate(
++        schema: ViaductAndGJSchema,
++        target: ResolverTarget,
++        typeName: String
++    ): ResolverFragmentTemplates {
++        val identifier = identifiers.getValue(typeName)
++        val skip = "shouldSkipForChinaAccess"
++        val objectTemplate = schema.fragmentFrom(
++            "fragment Input on $typeName { policyId: $identifier @skip(if: ${'$'}$skip) }",
++            variableTarget = target,
++        ).materializeSelections
++        val index = typeName.removePrefix("Object").toInt()
++        val selection = when (index % 4) {
++            0 -> "country allowed dataScope { synthetic }"
++            1 -> "location { defaultAddress { country } } allowed"
++            2 -> "location { defaultAddress { country } } host { country allowed dataScope { synthetic } } guest { country allowed dataScope { synthetic } }"
++            else -> "users { country allowed dataScope { synthetic } }"
++        }
++        val queryTemplate = schema.fragmentFrom(
++            "fragment Input on Query { benchmarkChina$typeName(id: ${'$'}id) @skip(if: ${'$'}$skip) { $selection } __typename }",
++            variableTarget = target,
++        ).materializeSelections
++        return ResolverFragmentTemplates(
++            objectFragmentTemplate = objectTemplate,
++            queryFragmentTemplate = queryTemplate,
++            variables = mapOf(
++                Arguments.Variable.of(target, "id") to VariableDefinition.FromField.of(
++                    ProviderFragment.OBJECT,
++                    listOf(objectTemplate.single().key),
++                    listOf("policyId"),
++                ),
++                Arguments.Variable.of(target, skip) to VariableDefinition.FromProvider,
++            ),
++            variablesProvider = { mapOf(skip to false) },
++        )
++    }
++}
+diff --git a/projects/viaduct/oss/core/engine/runtime2/src/test/kotlin/viaduct/engine/runtime2/benchmark/ChinaActiveBenchmarkCheckersTest.kt b/projects/viaduct/oss/core/engine/runtime2/src/test/kotlin/viaduct/engine/runtime2/benchmark/ChinaActiveBenchmarkCheckersTest.kt
+new file mode 100644
+--- /dev/null
++++ b/projects/viaduct/oss/core/engine/runtime2/src/test/kotlin/viaduct/engine/runtime2/benchmark/ChinaActiveBenchmarkCheckersTest.kt
+@@ -0,0 +1,145 @@
++package viaduct.engine.runtime2.benchmark
++
++import java.nio.file.Files
++import java.nio.file.Path
++import java.util.concurrent.ConcurrentLinkedQueue
++import kotlin.test.Test
++import kotlin.test.assertEquals
++import kotlin.test.assertNotSame
++import kotlin.test.assertSame
++import kotlin.test.assertTrue
++import kotlinx.coroutines.test.runTest
++import viaduct.engine.runtime2.arbitrary.GeneratedFieldCheckerMode
++import viaduct.engine.runtime2.arbitrary.PrecomputedResolverOutputs
++import viaduct.engine.runtime2.arbitrary.ResolverBenchmarkCorpus
++import viaduct.engine.runtime2.arbitrary.ResolverBenchmarkQueryCorpus
++import viaduct.engine.runtime2.model.Arguments
++import viaduct.engine.runtime2.model.ResolverTarget
++import viaduct.engine.runtime2.model.registry.CheckerInput
++import viaduct.engine.runtime2.model.registry.ResolutionExecutionContext
++import viaduct.engine.runtime2.model.registry.VariableDefinition
++import viaduct.engine.runtime2.model.requireObjectField
++import viaduct.engine.runtime2.model.testing.TestWorld
++import viaduct.engine.runtime2.model.testing.fragmentFrom
++import viaduct.engine.runtime2.model.testing.objectOf
++import viaduct.engine.runtime2.resolution.ResolutionDispatcherResource
++import viaduct.engine.runtime2.resolution.framework.CheckerInvocationObservation
++import viaduct.engine.runtime2.resolution.framework.CheckerObserver
++import viaduct.engine.runtime2.resolution.framework.ResolverInvocationObservation
++import viaduct.engine.runtime2.resolution.framework.ResolverObserver
++import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
++import viaduct.engine.runtime2.schema.lowering.LOWERED_TYPENAME_FIELD
++
++class ChinaActiveBenchmarkCheckersTest : ResolutionDispatcherResource {
++    private val resourcePrefix = "viaduct/engine/runtime2/benchmark/current-profile/"
++    private val loader = object : ClassLoader() {
++        override fun getResourceAsStream(name: String) = Files.newInputStream(Path.of("src/jmh/resources", name))
++    }
++    private val corpus = ResolverBenchmarkCorpus.load(resourcePrefix + "schema.graphqls", resourcePrefix + "registry.json.gz", loader)
++    private val profile = ChinaActiveBenchmarkCheckers(corpus)
++
++    private fun world(outputs: PrecomputedResolverOutputs): TestWorld =
++        corpus.registry.world(
++            schemaSDL = profile.schemaSDL,
++            precomputedResolverOutputs = outputs,
++            additionalFieldResolvers = profile::fieldResolvers,
++            fieldCheckerFactory = profile::fieldCheckers,
++            typeCheckerFactory = profile::typeCheckers,
++        )
++
++    @Test
++    fun `field policies include passive fields and distinguish zero slots from null composites`() {
++        val world = world(PrecomputedResolverOutputs())
++        val checkers = profile.fieldPolicies.map { (coordinate, _) ->
++            world.resolverRegistry.fieldChecker(world.schema.requireObjectField(coordinate.typeName, coordinate.fieldName))!!
++        }
++        assertTrue(profile.fieldPolicies.keys.any { it.typeName != "Query" && it !in corpus.registry.fieldResolverCoordinates })
++        assertTrue(checkers.any { it.fragmentTemplates.isEmpty() })
++        assertTrue(checkers.any { it.fragmentTemplates.size == 3 })
++        val namedNull = checkers.flatMap { it.fragmentTemplates.entries }.first { it.key.endsWith("chinaNull") }.value
++        assertTrue(namedNull.objectFragmentTemplate.isEmpty())
++        assertTrue(namedNull.queryFragmentTemplate.isEmpty())
++        assertTrue(checkers.all { it.fragmentTemplates.size <= 3 })
++        assertTrue(profile.typePolicies.values.flatten().none { it.startsWith("china") })
++        assertTrue(profile.typePolicies.keys.all { it.startsWith("Object") })
++        val ordinary = corpus.world(fieldCheckerMode = GeneratedFieldCheckerMode.RUNTIME_SUCCESS)
++        corpus.registry.fieldResolverCoordinates.forEach { coordinate ->
++            val checker = ordinary.resolverRegistry.fieldChecker(ordinary.schema.requireObjectField(coordinate.typeName, coordinate.fieldName))!!
++            assertEquals(setOf("left", "right", "empty", "rawObject", "rawQuery"), checker.fragmentTemplates.keys)
++        }
++    }
++
++    @Test
++    fun `China has a guarded object ID and deeper Query in one slot with an active provider`() =
++        runTest {
++            val world = world(PrecomputedResolverOutputs())
++            profile.fieldPolicies.filterValues { "chinaQuery" in it }.forEach { (coordinate, _) ->
++                val field = world.schema.requireObjectField(coordinate.typeName, coordinate.fieldName)
++                val checker = world.resolverRegistry.fieldChecker(field)!!
++                val china = checker.fragmentTemplates.entries.single { it.key.endsWith("chinaQuery") }.value
++                assertEquals("policyId", china.objectFragmentTemplate.single().responseKey)
++                assertTrue(!china.queryFragmentTemplate.filter { !it.subselections.isEmpty() }.isEmpty())
++                assertEquals(1, china.variables.values.count { it is VariableDefinition.FromField })
++                assertEquals(listOf("policyId"), (china.variables.values.first { it is VariableDefinition.FromField } as VariableDefinition.FromField).responsePath)
++                if (field.args.isEmpty()) assertEquals(mapOf("shouldSkipForChinaAccess" to false), china.variablesProvider!!(Arguments.Resolved.of(field, emptyMap())))
++            }
++            val providers = profile.fieldResolvers(world.schemas)
++            val field = world.schema.requireObjectField("Query", "benchmarkChinaObject0")
++            val resolver = world.resolverRegistry.resolver(field)
++
++            suspend fun invoke() =
++                resolver(
++                    input = world.schema.objectOf("Query"),
++                    arguments = Arguments.Resolved.of(field, mapOf("id" to null)),
++                    selectiveResolvers = false,
++                    executionContext = ResolutionExecutionContext.Unsupported,
++                )
++            assertSame(invoke(), invoke())
++            assertEquals(14, providers.size)
++        }
++
++    @Test
++    fun `all fixed queries materialize China inputs using actual object IDs in fresh registries`() {
++        val queries = ResolverBenchmarkQueryCorpus.load(resourcePrefix + "queries.json", loader).querySources
++        val discovery = PrecomputedResolverOutputs()
++        val discoveryWorld = world(discovery)
++        queries.forEach { source ->
++            SharedOperationContext.create(discoveryWorld.assumptions).resolveWithTestDispatcher(discoveryWorld.schemas.fragmentFrom(source).subselections)
++        }
++        val prepared = discovery.prepared()
++        val world = world(prepared)
++        assertNotSame(discoveryWorld.resolverRegistry, world.resolverRegistry)
++        val chinaInputs = ConcurrentLinkedQueue<Pair<String, Any?>>()
++        val lookupArguments = ConcurrentLinkedQueue<Pair<String, Any?>>()
++        queries.forEach { source ->
++            val operation = SharedOperationContext.create(
++                world.newAssumptions(),
++                resolverObserver = object : ResolverObserver {
++                    override fun onResolverInvocation(observation: ResolverInvocationObservation) {
++                        if (observation.field.name.startsWith("benchmarkChinaObject")) {
++                            lookupArguments += observation.field.name.removePrefix("benchmarkChina") to observation.arguments.fieldValues.getValue("id")
++                        }
++                    }
++                },
++                checkerObserver = object : CheckerObserver {
++                    override fun onCheckerInvocation(observation: CheckerInvocationObservation) = Unit
++
++                    override fun onCheckerInvocation(
++                        observation: CheckerInvocationObservation,
++                        inputs: Map<String, CheckerInput>
++                    ) {
++                        inputs.filterKeys { it.endsWith("chinaQuery") }.values.forEach { input ->
++                            val typeName = (observation.checkedTarget as ResolverTarget.FieldCheckerTarget).field.containingDef.name
++                            assertTrue(input.queryValue.isPresent("benchmarkChina$typeName"))
++                            assertTrue(input.queryValue.isPresent(LOWERED_TYPENAME_FIELD))
++                            chinaInputs += typeName to input.objectValue.get("policyId")
++                        }
++                    }
++                },
++            )
++            operation.resolveWithTestDispatcher(world.schemas.fragmentFrom(source).subselections)
++        }
++        assertTrue(chinaInputs.size > 100)
++        assertTrue(lookupArguments.toSet().containsAll(chinaInputs.toSet()))
++    }
++}

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="viaduct.engine.runtime2.arbitrary.PrecomputedResolverOutputsTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-10-08T23:56:15" hostname="raymie-stata-codex" time="0.384">
+  <properties/>
+  <testcase name="node ID snapshot rejects undiscovered IDs without generating outputs()" classname="viaduct.engine.runtime2.arbitrary.PrecomputedResolverOutputsTest" time="0.002"/>
+  <testcase name="prepared field outputs do not inspect inputs while ordinary worlds retain sensitivity()" classname="viaduct.engine.runtime2.arbitrary.PrecomputedResolverOutputsTest" time="0.378"/>
+  <testcase name="node outputs are built during assembly and reused by type and ID()" classname="viaduct.engine.runtime2.arbitrary.PrecomputedResolverOutputsTest" time="0.002"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

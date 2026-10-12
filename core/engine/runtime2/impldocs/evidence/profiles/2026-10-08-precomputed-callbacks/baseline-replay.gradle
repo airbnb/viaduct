@@ -1,0 +1,11 @@
+gradle.projectsEvaluated {
+    def p = gradle.rootProject.findProject(':engine:runtime2')
+    if (p != null) {
+        p.tasks.named('resolverPropertyReplay', org.gradle.api.tasks.testing.Test) {
+            classpath = p.files('/tmp/runtime2-precomputed-outputs-20261008/baseline.jar') + classpath
+            doFirst {
+                logger.lifecycle('Baseline replay first runtime classpath entry: ' + classpath.files.iterator().next())
+            }
+        }
+    }
+}

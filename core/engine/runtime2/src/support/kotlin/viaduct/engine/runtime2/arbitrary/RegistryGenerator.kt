@@ -32,8 +32,11 @@ import viaduct.engine.runtime2.model.inputType
 import viaduct.engine.runtime2.model.nodeRootFieldReferenceOf
 import viaduct.engine.runtime2.model.outputType
 import viaduct.engine.runtime2.model.registry.FieldCheckerResolver
+import viaduct.engine.runtime2.model.registry.FieldResolverDefinition
 import viaduct.engine.runtime2.model.registry.ProviderFragment
 import viaduct.engine.runtime2.model.registry.ResolverFragmentTemplates
+import viaduct.engine.runtime2.model.registry.TypeCheckerResolver
+import viaduct.engine.runtime2.model.registry.VariableDeclaration
 import viaduct.engine.runtime2.model.registry.VariableDefinition
 import viaduct.engine.runtime2.model.registry.fieldResolverOf
 import viaduct.engine.runtime2.model.registry.fromArgument
@@ -455,6 +458,7 @@ class ArbitraryRegistry internal constructor(
         selectiveNodeResolvers: Boolean = false,
         fieldCheckerMode: GeneratedFieldCheckerMode = GeneratedFieldCheckerMode.NONE,
         typeCheckerMode: GeneratedTypeCheckerMode = GeneratedTypeCheckerMode.NONE,
+        precomputedResolverOutputs: PrecomputedResolverOutputs? = null,
     ): TestWorld =
         world(
             schemaSDL = schema.sdl,
@@ -462,6 +466,7 @@ class ArbitraryRegistry internal constructor(
             selectiveNodeResolvers = selectiveNodeResolvers,
             fieldCheckerMode = fieldCheckerMode,
             typeCheckerMode = typeCheckerMode,
+            precomputedResolverOutputs = precomputedResolverOutputs,
         )
 
     fun world(
@@ -470,6 +475,11 @@ class ArbitraryRegistry internal constructor(
         selectiveNodeResolvers: Boolean = false,
         fieldCheckerMode: GeneratedFieldCheckerMode = GeneratedFieldCheckerMode.NONE,
         typeCheckerMode: GeneratedTypeCheckerMode = GeneratedTypeCheckerMode.NONE,
+        precomputedResolverOutputs: PrecomputedResolverOutputs? = null,
+        additionalFieldResolvers: (ViaductAndGJSchema) -> Map<ViaductSchema.Field, FieldResolverDefinition> = { emptyMap() },
+        additionalVariableProviders: (ViaductAndGJSchema) -> Map<Arguments.Variable, VariableDeclaration> = { emptyMap() },
+        fieldCheckerFactory: ((ViaductAndGJSchema) -> Map<ViaductSchema.ObjectField, FieldCheckerResolver>)? = null,
+        typeCheckerFactory: ((ViaductAndGJSchema) -> Map<ViaductSchema.Object, TypeCheckerResolver>)? = null,
     ): TestWorld {
         val firstInputs = ConcurrentHashMap<FieldCoordinate, EngineObjectData.Sync>()
         val firstArguments = ConcurrentHashMap<FieldCoordinate, Arguments.Resolved>()
@@ -480,7 +490,7 @@ class ArbitraryRegistry internal constructor(
                 nodeResolvers = { canonicalSchema ->
                     nodeValues.map { (typeName, plan) ->
                         val type = canonicalSchema.loweredSchema.requireType(typeName) as ViaductSchema.Object
-                        val materialize: (String) -> ResolverOutputData? = { id ->
+                        val materializePlan: (String) -> ResolverOutputData? = { id ->
                             when (plan) {
                                 is ObjectPlan ->
                                     plan.materializeObject(
@@ -492,6 +502,9 @@ class ArbitraryRegistry internal constructor(
                                 else -> error("Node resolver $typeName has unsupported value plan $plan")
                             }
                         }
+                        val materialize =
+                            precomputedResolverOutputs?.nodeResolver(typeName, materializePlan)
+                                ?: materializePlan
                         type to
                             if (selectiveNodeResolvers) {
                                 selectionAwareNodeResolverOf { id, demand ->
@@ -531,11 +544,15 @@ class ArbitraryRegistry internal constructor(
                                     canonicalSchema,
                                     field,
                                 )
-                        val definition =
-                            fieldResolverOf(
-                                objectFragment = objectFragment,
-                                queryFragment = queryFragment,
-                                function = { input, queryValue, arguments ->
+                        val function: suspend (
+                            EngineObjectData.Sync,
+                            EngineObjectData.Sync,
+                            Arguments.Resolved,
+                        ) -> ResolverOutputData? =
+                            if (precomputedResolverOutputs != null) {
+                                { _, _, _ -> constant }
+                            } else {
+                                { input, queryValue, arguments ->
                                     field.args
                                         .filter { argument -> argument.hasDefault }
                                         .forEach { argument ->
@@ -608,7 +625,13 @@ class ArbitraryRegistry internal constructor(
                                                 )
                                             }
                                     }
-                                },
+                                }
+                            }
+                        val definition =
+                            fieldResolverOf(
+                                objectFragment = objectFragment,
+                                queryFragment = queryFragment,
+                                function = function,
                             )
                         val providerPlans =
                             variableProviders
@@ -638,7 +661,7 @@ class ArbitraryRegistry internal constructor(
                                     }
                                 }
                             }
-                    }.toMap()
+                    }.toMap() + additionalFieldResolvers(canonicalSchema)
                 },
                 variableProviders = { canonicalSchema ->
                     val sourceSchema = SourceSchemaAdapter(canonicalSchema.loweredSchema)
@@ -679,11 +702,15 @@ class ArbitraryRegistry internal constructor(
                                 is FromProviderVariableProviderPlan ->
                                     error("FromProvider plan was not filtered")
                             }
-                    }.toMap()
+                    }.toMap() + additionalVariableProviders(canonicalSchema)
                 },
-                typeCheckers = { canonicalSchema -> generatedTypeCheckers(canonicalSchema, typeCheckerMode) },
+                typeCheckers = { canonicalSchema ->
+                    typeCheckerFactory?.invoke(canonicalSchema)
+                        ?: generatedTypeCheckers(canonicalSchema, typeCheckerMode, validateInputs = precomputedResolverOutputs == null)
+                },
                 fieldCheckers = { canonicalSchema ->
-                    generatedFieldCheckers(canonicalSchema, fieldCheckerMode)
+                    fieldCheckerFactory?.invoke(canonicalSchema)
+                        ?: generatedFieldCheckers(canonicalSchema, fieldCheckerMode, validateInputs = precomputedResolverOutputs == null)
                 },
             )
         objectFragmentSources.values
@@ -699,6 +726,7 @@ class ArbitraryRegistry internal constructor(
     private fun generatedFieldCheckers(
         schema: ViaductAndGJSchema,
         mode: GeneratedFieldCheckerMode,
+        validateInputs: Boolean = true,
     ): Map<ViaductSchema.ObjectField, FieldCheckerResolver> {
         if (mode == GeneratedFieldCheckerMode.NONE) return emptyMap()
         val sourceSchema = SourceSchemaAdapter(schema.loweredSchema)
@@ -791,12 +819,14 @@ class ArbitraryRegistry internal constructor(
                         )
                     }
                 }
+            val result = if (generatedFieldCheckerDenies(coordinate, mode)) GeneratedFieldCheckerDenial else CheckerResult.Success
             field to
                 FieldCheckerResolver.of(
                     field = field,
                     queryType = queryType,
                     fragmentTemplates = fragmentTemplates,
                 ) { _, inputs, _ ->
+                    if (!validateInputs) return@of result
                     val left = inputs.getValue("left")
                     val right = inputs.getValue("right")
                     val empty = inputs.getValue("empty")
@@ -838,17 +868,7 @@ class ArbitraryRegistry internal constructor(
                     ) {
                         "Generated checker Query inputs differ for $coordinate"
                     }
-                    when (mode) {
-                        GeneratedFieldCheckerMode.SUCCESS, GeneratedFieldCheckerMode.RUNTIME_SUCCESS -> CheckerResult.Success
-                        GeneratedFieldCheckerMode.DENIAL, GeneratedFieldCheckerMode.RUNTIME_DENIAL -> GeneratedFieldCheckerDenial
-                        GeneratedFieldCheckerMode.MIXED, GeneratedFieldCheckerMode.RUNTIME_MIXED ->
-                            if (generatedFieldCheckerDenies(coordinate, mode)) {
-                                GeneratedFieldCheckerDenial
-                            } else {
-                                CheckerResult.Success
-                            }
-                        GeneratedFieldCheckerMode.NONE -> error("No generated checker was requested")
-                    }
+                    result
                 }
         }
     }

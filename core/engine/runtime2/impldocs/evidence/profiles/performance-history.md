@@ -1,12 +1,158 @@
 # Performance History
 
-Source revisions below are commits in the upstream [`airbnb/viaduct`](https://github.com/airbnb/viaduct) repository on github.com. Historical `qplan` paths refer to its development build layout; see the [upstream source context](README.md#upstream-source-context) before reproducing these runs.
+Source revisions in the historical upstream investigations are commits in the upstream [`airbnb/viaduct`](https://github.com/airbnb/viaduct) repository on github.com. Historical `qplan` paths refer to its development build layout; see the [upstream source context](README.md#upstream-source-context) before reproducing these runs.
 
 This document preserves dated Runtime2 benchmark and profiling investigations. It is evidence, not current operating guidance: commands, paths, names, source layouts, and conclusions below describe the recorded revision and must not be silently modernized. Use [Performance Testing](../../testing/performance.md) for maintained benchmark and profiling instructions.
 
 Compare measurements only when their recorded host, JVM, benchmark parameters, corpus, and semantic workload permit it. The linked round directories retain exported JFR summaries, hot methods, allocation sites, stacks, checksums, and supporting artifacts where available.
 
 ## Recorded Investigations
+
+### 2026-10-12 — current Resolution overhead baseline
+
+This reset establishes the workload for future measurements in [Treehouse PR #1154484](https://git.musta.ch/airbnb/treehouse/pull/1154484). The 100-query snapshot shares one schema and registry: its bulk partition preserves the existing size, depth and fragment distributions, while sixteen small deterministic sections each appear in three distinct queries. The ten added ordinary objects each contain two active and fourteen passive fields. All 64 observed feature categories meet the three-query minimum, including parent and checker-parent demand, supplied active descendants, general references, compound variable dependencies, exclusions, provider null/errors and field/type denials. This is a synthetic workload with sparse feature exercise, without production-frequency weighting or a comparison to a retired baseline.
+
+Measured source: Treehouse `b3e18a962d6815eb47ad725f0dbb04f08fef3c0c`, worktree `~/repos/4ht/projects/viaduct/oss`, branch `rstata--baseline`; the tree was clean. Run started 2026-10-12T08:27:42.705474+00:00. Host `raymie-stata-codex`, Intel Xeon 6975P-C, 32 cores / 64 logical CPUs; Corretto 21.0.4+7-LTS, JMH 1.36, compiler Blackholes. Single-shot time uses five warmup iterations, eight measured iterations and three fresh forks, one JMH thread, one Resolution dispatcher thread, and `loopCount=1`. Local builds, tests, lint and push hooks finished before measurement; forks ran serially. Prepared callbacks, parsing, setup, correctness validation and reporting are untimed.
+
+The score is **2.569303435 ± 0.009108442 s/op**, or **25.693034 ± 0.091084 ms/resolution**, with exactly 100 top-level resolutions per operation. Error is JMH's within-run 99.9% confidence error; host variance limits its interpretation. All three forks completed their untimed reporting and coverage gate; the report file below is the final fork's report.
+
+```sh
+java -jar dist/gradle/viaduct-oss/core/build/engine/runtime2/libs/engine-runtime2-2.1.0-SNAPSHOT-jmh.jar 'viaduct\.engine\.runtime2\.resolution\.ResolverBenchmark\.overhead' -wi 5 -i 8 -f 3 -t 1 -p loopCount=1 -foe true -rf json -rff /tmp/4ht-current-baseline.json -jvmArgsAppend '-Dviaduct.resolution.threadcount=1 -DresolverBenchmarkReportFile=/tmp/4ht-current-baseline-statistics.txt'
+```
+
+The command above runs from the Treehouse root; raw JSON, console log, report and identity manifest from this run are `/tmp/4ht-current-baseline.json`, `/tmp/4ht-current-baseline.log`, `/tmp/4ht-current-baseline-statistics.txt` and `/tmp/4ht-current-baseline-identities.json` on the recorded host. The following values preserve every measured sample and emitted statistic.
+
+| Fork | Measured iterations (s/op) |
+| --- | --- |
+| 1 | 2.583649080, 2.561120634, 2.569157205, 2.581491821, 2.587747021, 2.557292531, 2.553612829, 2.580584568 |
+| 2 | 2.585853270, 2.581275710, 2.575519612, 2.573173147, 2.578857575, 2.574854004, 2.572823038, 2.566860220 |
+| 3 | 2.572155248, 2.567745434, 2.572118496, 2.552189885, 2.554811292, 2.552847528, 2.559294017, 2.548248270 |
+
+SHA-256 identities (paths relative to the Treehouse root):
+
+```text
+36c7d608c19e291e3aefcd8510a5e63804ebc34c1f9e89e88379528a52a84b28  dist/gradle/viaduct-oss/core/build/engine/runtime2/libs/engine-runtime2-2.1.0-SNAPSHOT-jmh.jar
+70d662d35ce271f1f5867cfbc60ea3fbdccf74a852433225448a62e10398f85e  projects/viaduct/oss/core/engine/runtime2/src/jmh/resources/viaduct/engine/runtime2/benchmark/current-profile/schema.graphqls
+525f75fd9ec08b24c379bfdd86ae802d1a777cb186570eb015129da117e18a0e  projects/viaduct/oss/core/engine/runtime2/src/jmh/resources/viaduct/engine/runtime2/benchmark/current-profile/registry.json.gz
+011606897dfc003647d1ee81290ede061223e554217fd6ba9b6ab3f99cf4d522  projects/viaduct/oss/core/engine/runtime2/src/jmh/resources/viaduct/engine/runtime2/benchmark/current-profile/queries.json
+647ba29286a0d2d240f926662feaa404d16655ad1489d4906071b1fe0fbe16d5  projects/viaduct/oss/core/engine/runtime2/src/support/kotlin/viaduct/engine/runtime2/benchmark/ResolverBenchmarkFeaturePartition.kt
+7121efa426a404ee9b2b0e2e2c431c735ad538c51d44c75e4e19c8888b683a72  projects/viaduct/oss/core/engine/runtime2/src/support/kotlin/viaduct/engine/runtime2/benchmark/ResolverBenchmarkFixture.kt
+2ed215ba5492e044e837a1bcd95337b066be8d598242f541912f8dfc0660b7a5  projects/viaduct/oss/core/engine/runtime2/src/support/kotlin/viaduct/engine/runtime2/benchmark/ResolverBenchmarkCoverage.kt
+e483b2ca91144f2d021d51e7ad94433572e9c3a915145ab3133b1b0b3208ab7a  projects/viaduct/oss/core/engine/runtime2/src/support/kotlin/viaduct/engine/runtime2/benchmark/ChinaActiveBenchmarkCheckers.kt
+c52053002ce896b1c02e0d0def355828a5c65bc16d5535ff7f33f06f2414805c  projects/viaduct/oss/core/engine/runtime2/src/jmh/kotlin/viaduct/engine/runtime2/benchmark/CurrentProfileBenchmarkSupport.kt
+```
+
+```text
+Resolver overhead corpus statistics (100 queries):
+  fields returned: average=277.81, p90=382, max=449
+  active fields returned: average=53.78, p90=71, max=84
+  passive fields returned: average=224.03, p90=315, max=383
+  passive fields per active field: average=4.20, p90=5.43, max=7.14
+  resolvers executed: average=173.64, p90=235, max=267
+  field checkers executed: average=231.07, p90=315, max=359
+  type checkers executed: average=48.00, p90=68, max=79
+  resolver executions with variable-bearing arguments: average=74.50, p50=73, max=125
+  variable-bearing arguments per such resolver execution: average=1.08, p90=1, max=3
+  maximum variable stack depth: average=2.02, p50=2, max=4
+  result depth: average=10.00, p90=10, max=10
+  named checker inputs: average=266.03, p90=367, max=423
+  named field checker inputs: average=223.45, p90=306, max=351
+  populated checker input roots: average=236.22, p90=332, max=371
+Resolver benchmark registry statistics:
+  active fields per non-Query object: average=1.96, p90=3, max=4
+  passive fields per non-Query object: average=15.17, p90=17, max=20
+  combined selections per object fragment: average=1.66, p90=2, max=48
+  combined object fragment depth: average=0.65, p90=2, max=7
+  bulk selections per object fragment: average=4.89, p90=22, max=48
+  bulk object fragment depth: average=1.61, p90=5, max=7
+Resolver benchmark feature counts:
+  ordinary object types: 23
+  total object types including policy helpers: 31
+  installed field resolvers: 140
+  checker profile: China active plus bounded prepared success/denial feature cases
+  field checkers: 238
+  type checkers: 15
+  named inputs per field checker: average=1.04, p90=2, max=3
+  named inputs per type checker: average=1.00, p90=2, max=2
+  bulk field checker policies: {chinaNull=5, privacy=97, defaultBlock=152, chinaQuery=64, queryPrivacy=12}
+  checker-only prepared Query resolvers: 14
+  Query fragments: 16
+  FromArgument variables: 14
+  FromObjectField variables: 22
+  FromQueryField variables: 18
+  FromProvider variables: 27
+Resolver benchmark activated feature coverage (distinct queries):
+  SELECTIVE_DEMAND: 100
+  NONSELECTIVE_CALLBACK: 48
+  SYMBOLIC_LIST_ARGUMENT: 70
+  SHARED_QUERY_ROOT: 99
+  OBJECT_INPUT: 100
+  QUERY_INPUT: 100
+  FROM_ARGUMENT: 70
+  FROM_OBJECT_FIELD: 95
+  FROM_QUERY_FIELD: 89
+  FROM_PROVIDER: 100
+  NESTED_ARGUMENT: 18
+  NULL_ARGUMENT_TRAVERSAL: 9
+  NESTED_VARIABLE_EXPRESSION: 12
+  INPUT_OBJECT: 15
+  INPUT_LIST: 70
+  SINGLETON_COERCION: 21
+  ABSTRACT_PROVIDER: 12
+  PASSIVE_DESCENDANT_VARIABLE: 12
+  OWNER_DEPENDENCY_CHAIN: 3
+  SYMBOLIC_CONVERGENCE: 12
+  PARENT_SOURCE_OVERRIDE: 6
+  PARENT_VARIABLE_MIX: 9
+  PARENT: 9
+  GREAT_GRANDPARENT: 9
+  DIAGONAL_PARENT: 9
+  SOMETIMES_PASSIVE: 3
+  CONDITION_INCLUDED: 9
+  CONDITION_EXCLUDED: 3
+  NULL_PROVIDER_INTERMEDIATE: 3
+  ERROR_PROVIDER_INTERMEDIATE: 3
+  ARGUMENT_ERROR: 3
+  NODE_REFERENCE: 100
+  GENERAL_REFERENCE: 3
+  REFERENCE_NAMESPACE: 3
+  REFERENCE_TAIL: 3
+  REFERENCE_LIST: 78
+  REFERENCE_ENUM: 3
+  REFERENCE_CONCRETE: 3
+  REFERENCE_UNION: 3
+  REFERENCE_TARGET_ARGUMENT_VARIABLE: 3
+  REFERENCE_TARGET_QUERY_VARIABLE: 3
+  REFERENCE_ABSTRACT: 100
+  REFERENCE_OVERRIDE: 3
+  REFERENCE_FALLBACK: 3
+  FIELD_CHECK_SUCCESS: 100
+  FIELD_CHECK_DENIAL: 3
+  TYPE_CHECK_SUCCESS: 100
+  TYPE_CHECK_DENIAL: 3
+  CHECKER_PARENT_DEMAND: 9
+  CHECKER_ARGUMENT_ERROR: 3
+  CHECKER_PROVIDER_BOTH_INPUTS: 6
+  CHECKER_ARGUMENT_VARIABLE: 6
+  CHECKER_NESTED_PATH: 9
+  CHECKER_RAW_RESOLVER_INPUT: 9
+  CHECKER_COMPOSITE: 100
+  CHECKER_DUPLICATE_INPUT: 100
+  CHECKER_LIST_OCCURRENCE: 98
+  CHECKER_SYMBOLIC_KEY: 100
+  CHECKER_PASSIVE_FIELD: 100
+  CHECKER_QUERY_OCCURRENCE: 99
+  CHECKER_OBJECT_VARIABLE: 100
+  CHECKER_QUERY_VARIABLE: 9
+  CHECKER_PROVIDER_VARIABLE: 100
+  NAMED_EMPTY_CHECKER_INPUT: 100
+```
+
+The exact Runtime2 full check passed with 2,955 tests, zero failures/errors and 168 skipped; `yak lint` passed, and the JMH JAR built. Each deterministic section passes independent result correctness, exact application accounting with its known supplied-field exemptions, and binding validation. The prepared full snapshot passes binding/activation checks, reporting checks, and the all-100 bulk client-value comparison. Whole-corpus correctness replay is not claimed: its pre-existing closed Query-OER checker validation encounters failed guards on non-invoked owners, as recorded in the maintained performance guide.
+
+### 2026-10-08 — benchmark correctness repair on the corrected baseline
+
+The [fresh repair validation](2026-10-08-full-benchmark-repair/README.md) carries the checker-owned Query-root repair onto the prepared-callback, production-informed checker baseline. The generated full benchmark records checker inputs, and development application and from-field-binding oracles enumerate distinct checker-associated Query roots. JMH failures propagate to the Gradle launchers. This repairs benchmark validation; it changes no production engine execution and is excluded from the engine-performance stack.
 
 ### 2026-10-09 — deferred cycle diagnosis at request deadlines
 
@@ -25,6 +171,19 @@ The [whole-change evidence](2026-10-09-cycle-check/README.md) compares baseline 
 The controlled one-thread result is **15.000 ± 0.080 → 14.618 ± 0.057 ms/resolution**, **2.55% less time**. The collection contains paired five-thread, frozen-property and correctness controls, raw JSON/logs, all iterations, exact commands, source/JAR/corpus identities and host/JVM details. All runs execute serially with five warmups, eight measurements and three fresh forks; reported errors are within-run JMH 99.9% confidence errors. Shared-host variation limits generalization and finer attribution.
 
 Exact counters preserve reads, tasks and distinct edges while reducing BFS searches 109,251 → 64,838, node visits 211,157 → 131,788, edge scans 131,143 → 87,642 and reader-index pairs 167,178 → 102,340. A 128-edge acyclic chain still visits 8,256 nodes; quadratic traversal is not repaired. No baseline missed-edge race was demonstrated, and no allocation-byte or monitor-contention saving is claimed. Focused tests pass 21/21; the five-thread Resolution suite reports 606 tests, 0 failures, 0 errors and 4 skips. The exact full check reports 2490 tests, 0 failures, 0 errors and 166 skips; its outcomes are preserved in the single collection. No push is performed.
+### 2026-10-08 23:54–23:56 UTC — China-active overhead checker fixture
+
+The [China-active round](2026-10-08-china-active-checkers/README.md) replaces duplicate correctness checker fragments in the overhead benchmark with one production-informed privacy/China shape, while preserving the fixed 100 client query sources and prepared callbacks. Worktree `~/repos/2ht/projects/viaduct/oss`, branch `rstata--tmp`, clean baseline `b21ddcf895392fb97fac5004c752a48e8df88215`, uncommitted candidate retained as complete patches. Session `01a11dd6-5044-74b1-905c-aa3e3e50222d`, host `raymie-stata-codex`, KVM Intel Xeon 6975P-C (32 cores / 64 logical CPUs), Corretto 21.0.4+7-LTS, JMH 1.36. Serial overhead runs use five warmups, eight measurements and three forks at 100 queries/op. Timing falls from 14.972 ± 0.093 to 11.050 ± 0.097 ms/query, a workload correction of 3.922 ms (26.20%), not an engine optimization. Field checker requests fall from 849.40 to 308.84 projections/query while field checker executions rise from 84.94 to 161.27 due to passive-field coverage. The new field policies include Query-plus-object-ID China fragments, nested/list lookup outputs, named-null policies, default block and privacy composites; type policies remain privacy-only. All client-selected values agree across the corpus; constructed field and resolver counts change because hidden demand changes.
+
+The measured-body JFR contains 623 execution samples: construction closure 27.93%, selection normalization/merge 22.79%, successor entry 20.71%, input materialization 10.11%, and engine output projection 7.87%, inclusively and with overlap. Prepared fixture object construction is absent from samples. Demand/forest reuse and output projection remain candidate engine opportunities; this round implements only the approved benchmark fixture. Full check: 2,485 tests, one acknowledged aggregate type-checker coverage failure (`ERROR_ARGUMENT_IN_TYPE_INPUT`), 166 skipped; all seven fixture/preparation tests pass. The round retains commands, identities, hashes, iterations, statistics, JFR exports and test evidence. Changes remain uncommitted for review.
+
+### 2026-10-08 22:46:00 UTC — prepared callbacks correct the overhead benchmark
+
+Host: `raymie-stata-codex`; KVM guest, Intel Xeon 6975P-C, 32 cores / 64 logical CPUs, one NUMA node, 495 GiB RAM, no swap, `cpu.max=max 100000`. Corretto 21.0.4+7-LTS, JMH 1.36, compiler Blackholes, one JMH thread and one Resolution dispatcher thread. Session: `01a11ce9-fb33-7b50-aa1f-35ab16fbef2e`. Worktree: `~/repos/3ht/projects/viaduct/oss`, branch `rstata--1perf`. Clean baseline `c9b53de9df17bddd4ba25fdfd72361c9e9129862`; clean candidate `113b0e877626afd08ba07901e518e92bbc267106`. [Round evidence](2026-10-08-precomputed-callbacks/README.md) preserves source/JAR/corpus identities, commands, every measured iteration, unchanged workload statistics, validation, and final Resolution-overhead JFR exports.
+
+The overhead benchmark now returns setup-built field outputs and prepared node-ID lookups, and skips checker fixture assertions/fingerprint comparisons. A separate discovery world collects IDs without warming the measured registry's successor cache. Correctness tests and other benchmarks retain ordinary input-sensitive programs and input assertions. Controlled single-shot JMH (five warmups, eight measurements, three forks, 100 resolutions/operation) changes from 1.899357 ± 0.013031 to 1.497617 ± 0.008029 s/op: **18.994 → 14.976 ms/resolution**, a **4.017 ms (21.15%)** measurement reduction. This corrects the harness; no production engine speedup is claimed. All emitted corpus statistics are byte-identical.
+
+The final profile has 530 execution samples and no fixture object/hash/scalar construction or output/input fingerprint traversal samples. Inclusive resolver relation evaluation falls to 3.96%; construction closure is 23.02%, input materialization 22.08%, successor analysis 16.79%, normalization 15.09%, and cycle checking 8.68%. Shares overlap. Final focused tests and static checks pass; full checks encounter the known randomized type-checker coverage issue, with baseline/candidate replay evidence retained. No full-check pass is claimed.
 
 ### 2026-10-08 06:28:19 UTC
 

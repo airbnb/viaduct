@@ -40,6 +40,7 @@ enum class GeneratedTypeCheckerMode(val runtimeVariables: Boolean = false) {
 internal fun ArbitraryRegistry.generatedTypeCheckers(
     schema: ViaductAndGJSchema,
     mode: GeneratedTypeCheckerMode,
+    validateInputs: Boolean = true,
 ): Map<ViaductSchema.Object, TypeCheckerResolver> {
     if (mode == GeneratedTypeCheckerMode.NONE) return emptyMap()
     val query = schema.loweredSchema.requireQueryTypeDef()
@@ -84,6 +85,14 @@ internal fun ArbitraryRegistry.generatedTypeCheckers(
                 emptyList()
             }
             val pairs = listOf(pair) + runtimePairs
+            val result =
+                when (mode) {
+                    GeneratedTypeCheckerMode.SUCCESS, GeneratedTypeCheckerMode.RUNTIME_SUCCESS -> CheckerResult.Success
+                    GeneratedTypeCheckerMode.DENIAL, GeneratedTypeCheckerMode.RUNTIME_DENIAL -> GeneratedTypeCheckerDenial
+                    GeneratedTypeCheckerMode.MIXED, GeneratedTypeCheckerMode.RUNTIME_MIXED ->
+                        if (type.name.hashCode() % 2 == 0) CheckerResult.Success else GeneratedTypeCheckerDenial
+                    GeneratedTypeCheckerMode.NONE -> error("No generated type checker was requested")
+                }
             TypeCheckerResolver.of(
                 type,
                 query,
@@ -95,6 +104,7 @@ internal fun ArbitraryRegistry.generatedTypeCheckers(
                     put("empty", ResolverFragmentTemplates(materializeSelectionForestOf(), materializeSelectionForestOf()))
                 },
             ) { inputs, _ ->
+                if (!validateInputs) return@of result
                 val left = inputs.getValue("left")
                 check(left.objectValue.get("kind") == type.name)
                 check(left.queryValue.get("rootKind") == "Query")
@@ -104,13 +114,7 @@ internal fun ArbitraryRegistry.generatedTypeCheckers(
                     check(first.objectValue.resolutionFingerprint() == second.objectValue.resolutionFingerprint())
                     check(first.queryValue.resolutionFingerprint() == second.queryValue.resolutionFingerprint())
                 }
-                when (mode) {
-                    GeneratedTypeCheckerMode.SUCCESS, GeneratedTypeCheckerMode.RUNTIME_SUCCESS -> CheckerResult.Success
-                    GeneratedTypeCheckerMode.DENIAL, GeneratedTypeCheckerMode.RUNTIME_DENIAL -> GeneratedTypeCheckerDenial
-                    GeneratedTypeCheckerMode.MIXED, GeneratedTypeCheckerMode.RUNTIME_MIXED ->
-                        if (type.name.hashCode() % 2 == 0) CheckerResult.Success else GeneratedTypeCheckerDenial
-                    GeneratedTypeCheckerMode.NONE -> error("No generated type checker was requested")
-                }
+                result
             }
         }
 }

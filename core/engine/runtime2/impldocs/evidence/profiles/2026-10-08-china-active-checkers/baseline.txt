@@ -1,0 +1,113 @@
+# JMH version: 1.36
+# VM version: JDK 21.0.4, OpenJDK 64-Bit Server VM, 21.0.4+7-LTS
+# VM invoker: /opt/mise/installs/java/corretto-21.0.4.7.1/bin/java
+# VM options: -DresolverBenchmarkReportFile=/tmp/runtime2-china-active-20261008/baseline-statistics.txt
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 5 iterations, single-shot each
+# Measurement: 8 iterations, single-shot each
+# Timeout: 10 min per iteration
+# Threads: 1 thread
+# Benchmark mode: Single shot invocation time
+# Benchmark: viaduct.engine.runtime2.resolution.ResolverBenchmark.overhead
+# Parameters: (loopCount = 1)
+
+# Run progress: 0.00% complete, ETA 00:00:00
+# Fork: 1 of 3
+# Warmup Iteration   1: 1.581 s/op
+# Warmup Iteration   2: 1.913 s/op
+# Warmup Iteration   3: 1.532 s/op
+# Warmup Iteration   4: 1.501 s/op
+# Warmup Iteration   5: 1.493 s/op
+Iteration   1: 1.493 s/op
+Iteration   2: 1.486 s/op
+Iteration   3: 1.489 s/op
+Iteration   4: 1.482 s/op
+Iteration   5: 1.487 s/op
+Iteration   6: 1.487 s/op
+Iteration   7: 1.496 s/op
+Iteration   8: 1.489 s/op
+
+# Run progress: 33.33% complete, ETA 00:00:57
+# Fork: 2 of 3
+# Warmup Iteration   1: 1.708 s/op
+# Warmup Iteration   2: 1.523 s/op
+# Warmup Iteration   3: 1.519 s/op
+# Warmup Iteration   4: 1.496 s/op
+# Warmup Iteration   5: 1.492 s/op
+Iteration   1: 1.492 s/op
+Iteration   2: 1.493 s/op
+Iteration   3: 1.504 s/op
+Iteration   4: 1.505 s/op
+Iteration   5: 1.511 s/op
+Iteration   6: 1.504 s/op
+Iteration   7: 1.496 s/op
+Iteration   8: 1.495 s/op
+
+# Run progress: 66.67% complete, ETA 00:00:28
+# Fork: 3 of 3
+# Warmup Iteration   1: 1.727 s/op
+# Warmup Iteration   2: 1.522 s/op
+# Warmup Iteration   3: 1.520 s/op
+# Warmup Iteration   4: 1.534 s/op
+# Warmup Iteration   5: 1.525 s/op
+Iteration   1: 1.510 s/op
+Iteration   2: 1.503 s/op
+Iteration   3: 1.540 s/op
+Iteration   4: 1.500 s/op
+Iteration   5: 1.499 s/op
+Iteration   6: 1.488 s/op
+Iteration   7: 1.498 s/op
+Iteration   8: 1.487 s/op
+
+
+Result "viaduct.engine.runtime2.resolution.ResolverBenchmark.overhead":
+  N = 24
+  mean =      1.497 ±(99.9%) 0.009 s/op
+
+  Histogram, s/op:
+    [1.480, 1.485) = 1 
+    [1.485, 1.490) = 7 
+    [1.490, 1.495) = 4 
+    [1.495, 1.500) = 4 
+    [1.500, 1.505) = 4 
+    [1.505, 1.510) = 2 
+    [1.510, 1.515) = 1 
+    [1.515, 1.520) = 0 
+    [1.520, 1.525) = 0 
+    [1.525, 1.530) = 0 
+    [1.530, 1.535) = 0 
+    [1.535, 1.540) = 0 
+    [1.540, 1.545) = 1 
+    [1.545, 1.550) = 0 
+
+  Percentiles, s/op:
+      p(0.0000) =      1.482 s/op
+     p(50.0000) =      1.495 s/op
+     p(90.0000) =      1.510 s/op
+     p(95.0000) =      1.533 s/op
+     p(99.0000) =      1.540 s/op
+     p(99.9000) =      1.540 s/op
+     p(99.9900) =      1.540 s/op
+     p(99.9990) =      1.540 s/op
+     p(99.9999) =      1.540 s/op
+    p(100.0000) =      1.540 s/op
+
+
+# Run complete. Total time: 00:01:25
+
+REMEMBER: The numbers below are just data. To gain reusable insights, you need to follow up on
+why the numbers are the way they are. Use profilers (see -prof, -lprof), design factorial
+experiments, perform baseline and negative tests that provide experimental control, make sure
+the benchmarking environment is safe on JVM/OS/HW level, ask for reviews from the domain experts.
+Do not assume the numbers tell you what you want them to tell.
+
+NOTE: Current JVM experimentally supports Compiler Blackholes, and they are in use. Please exercise
+extra caution when trusting the results, look into the generated code to check the benchmark still
+works, and factor in a small probability of new VM bugs. Additionally, while comparisons between
+different JVMs are already problematic, the performance difference caused by different Blackhole
+modes can be very significant. Please make sure you use the consistent Blackhole mode for comparisons.
+
+Benchmark                   (loopCount)  Mode  Cnt  Score   Error  Units
+ResolverBenchmark.overhead            1    ss   24  1.497 ± 0.009   s/op
+
+Benchmark result is saved to /tmp/runtime2-china-active-20261008/baseline.json

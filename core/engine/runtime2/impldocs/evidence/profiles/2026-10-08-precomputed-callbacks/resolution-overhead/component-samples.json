@@ -1,0 +1,41 @@
+{
+  "samples": 530,
+  "inclusive_components": {
+    "resolver_input_materialization": {
+      "samples": 117,
+      "percent": 22.07547169811321
+    },
+    "runtime_cycle_check": {
+      "samples": 46,
+      "percent": 8.679245283018869
+    },
+    "construction_closure": {
+      "samples": 122,
+      "percent": 23.0188679245283
+    },
+    "selection_normalization": {
+      "samples": 80,
+      "percent": 15.09433962264151
+    },
+    "successor_any": {
+      "samples": 89,
+      "percent": 16.79245283018868
+    },
+    "successor_entry": {
+      "samples": 89,
+      "percent": 16.79245283018868
+    },
+    "compact_successor": {
+      "samples": 45,
+      "percent": 8.49056603773585
+    },
+    "resolver_relation": {
+      "samples": 21,
+      "percent": 3.9622641509433962
+    },
+    "output_conformance_or_lowering": {
+      "samples": 14,
+      "percent": 2.641509433962264
+    }
+  }
+}

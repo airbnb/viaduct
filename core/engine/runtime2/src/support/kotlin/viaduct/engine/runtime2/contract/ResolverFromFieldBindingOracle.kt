@@ -1,6 +1,7 @@
 package viaduct.engine.runtime2.contract
 
 import kotlin.test.assertEquals
+import viaduct.engine.runtime2.correctresolution.CorrectnessCheckerObserver
 import viaduct.engine.runtime2.correctresolution.CorrectnessResolverObserver
 import viaduct.engine.runtime2.model.EngineInputData
 import viaduct.engine.runtime2.model.EngineResult
@@ -132,6 +133,13 @@ private fun ObjectEngineResult.requestQueryRoots(operation: SharedOperationConte
                 .allQueryFragmentResults()
                 .values
                 .flatten(),
+        )
+        addAll(
+            (operation.checkerObserver as? CorrectnessCheckerObserver)
+                ?.allQueryFragmentResults()
+                ?.values
+                ?.flatten()
+                .orEmpty(),
         )
     }
 

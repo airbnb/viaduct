@@ -158,6 +158,8 @@ fun registerResolverBenchmarkTask(
             args =
                 listOf(
                     "viaduct\\.engine\\.runtime2\\.$resolver\\.ResolverBenchmark\\.$benchmark",
+                    "-foe",
+                    "true",
                     "-p",
                     "loopCount=${resolverBenchmarkLoopCount.get()}",
                 ) + reportArguments

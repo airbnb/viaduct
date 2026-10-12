@@ -11,6 +11,7 @@ import viaduct.engine.runtime2.arbitrary.ResolverApplicationKey
 import viaduct.engine.runtime2.arbitrary.ResolverOccurrenceApplicationIdentity
 import viaduct.engine.runtime2.arbitrary.ResolverOccurrenceApplicationKey
 import viaduct.engine.runtime2.arbitrary.resolutionFingerprint
+import viaduct.engine.runtime2.correctresolution.CorrectnessCheckerObserver
 import viaduct.engine.runtime2.correctresolution.CorrectnessResolverObserver
 import viaduct.engine.runtime2.correctresolution.conformsToSelectionsAt
 import viaduct.engine.runtime2.correctresolution.ownedRootFieldReferenceInvocations
@@ -32,7 +33,7 @@ import viaduct.engine.runtime2.resolution.framework.materializeResult
 /**
  * Expected deterministic resolver applications reconstructed from every request-local Query root.
  *
- * The receiver is the primary result root; Query-fragment roots come from resolver observations.
+ * The receiver is the primary result root; Query-fragment roots come from resolver and checker observations.
  * Ordinary occurrences are independent of the observed application stream. Symbolic-reference
  * occurrences necessarily use invocation observations for their fresh roots and paths, but only
  * after source-ownership replay justifies each observed hop from the completed results under test.
@@ -224,6 +225,14 @@ private fun EngineResult?.requestQueryRoots(
             .allQueryFragmentResults()
             .values
             .flatten()
+            .forEach { queryRoot ->
+                if (seen.add(queryRoot)) add(queryRoot)
+            }
+        (operation.checkerObserver as? CorrectnessCheckerObserver)
+            ?.allQueryFragmentResults()
+            ?.values
+            ?.flatten()
+            .orEmpty()
             .forEach { queryRoot ->
                 if (seen.add(queryRoot)) add(queryRoot)
             }

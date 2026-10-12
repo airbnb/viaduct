@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="viaduct.engine.runtime2.benchmark.ChinaActiveBenchmarkCheckersTest" tests="4" skipped="0" failures="0" errors="0" timestamp="2026-10-08T23:56:16" hostname="raymie-stata-codex" time="18.136">
+  <properties/>
+  <testcase name="field policies include passive fields and distinguish zero slots from null composites()" classname="viaduct.engine.runtime2.benchmark.ChinaActiveBenchmarkCheckersTest" time="0.602"/>
+  <testcase name="China has a guarded object ID and deeper Query in one slot with an active provider()" classname="viaduct.engine.runtime2.benchmark.ChinaActiveBenchmarkCheckersTest" time="0.237"/>
+  <testcase name="all fixed queries materialize China inputs using actual object IDs in fresh registries()" classname="viaduct.engine.runtime2.benchmark.ChinaActiveBenchmarkCheckersTest" time="6.523"/>
+  <testcase name="replacing hidden checker demand preserves every client selected value()" classname="viaduct.engine.runtime2.benchmark.ChinaActiveBenchmarkCheckersTest" time="10.533"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

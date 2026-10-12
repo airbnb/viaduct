@@ -12,6 +12,7 @@ import org.openjdk.jmh.infra.Blackhole
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.runtime2.arbitrary.GeneratedFieldCheckerMode
 import viaduct.engine.runtime2.arbitrary.GeneratedTypeCheckerMode
+import viaduct.engine.runtime2.arbitrary.PrecomputedResolverOutputs
 import viaduct.engine.runtime2.arbitrary.ResolverBenchmarkCorpus
 import viaduct.engine.runtime2.arbitrary.ResolverBenchmarkQueryCorpus
 import viaduct.engine.runtime2.arbitrary.TestCaseCount
@@ -19,26 +20,29 @@ import viaduct.engine.runtime2.arbitrary.checkResolverTestCases
 import viaduct.engine.runtime2.arbitrary.resolverBenchmarkFullConfig
 import viaduct.engine.runtime2.contract.registeredResolverApplicationIdentityCounts
 import viaduct.engine.runtime2.contract.validateFromFieldBindings
+import viaduct.engine.runtime2.correctresolution.CorrectnessCheckerObserver
+import viaduct.engine.runtime2.correctresolution.CorrectnessResolverObserver
 import viaduct.engine.runtime2.correctresolution.correctResolution
-import viaduct.engine.runtime2.model.EngineResult
-import viaduct.engine.runtime2.model.ErrorEngineResult
-import viaduct.engine.runtime2.model.ListEngineResult
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.PathComponent
 import viaduct.engine.runtime2.model.ResolverOccurrenceId
 import viaduct.engine.runtime2.model.SelectionForest
+import viaduct.engine.runtime2.model.isParentField
 import viaduct.engine.runtime2.model.merge
-import viaduct.engine.runtime2.model.registry.Assumptions
+import viaduct.engine.runtime2.model.registry.ProviderFragment
+import viaduct.engine.runtime2.model.registry.VariableDefinition
 import viaduct.engine.runtime2.model.requireQueryTypeDef
+import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.fragmentFrom
 import viaduct.engine.runtime2.model.testing.objectOf
 import viaduct.engine.runtime2.resolution.framework.CheckerInvocationObservation
 import viaduct.engine.runtime2.resolution.framework.CheckerKind
 import viaduct.engine.runtime2.resolution.framework.CheckerObserver
-import viaduct.engine.runtime2.resolution.framework.ResolverObserver
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 import viaduct.engine.runtime2.resolution.framework.instantiateBindings
 import viaduct.engine.runtime2.resolvers.instantiateBindings
+import viaduct.engine.runtime2.schema.lowering.LOWERED_TYPENAME_FIELD
+import viaduct.graphql.schema.ViaductSchema
 
 internal const val DEFAULT_OVERHEAD_LOOP_COUNT = 1
 
@@ -76,7 +80,24 @@ internal class CurrentProfileBenchmarkSupport(
             .querySources
             .toTypedArray()
 
+    private val fixture = ResolverBenchmarkFixture(corpus)
+    private val overheadCheckers = fixture.checkers
+
     private var overheadCases: Array<PreparedResolution> = emptyArray()
+
+    private val precomputedResolverOutputs: PrecomputedResolverOutputs by lazy {
+        val discovery = PrecomputedResolverOutputs()
+        val testWorld = corpus.benchmarkWorld(discovery)
+        querySources.forEach { source ->
+            val world = testWorld.newAssumptions(selectiveResolvers = true)
+            subject.resolve(
+                operation = SharedOperationContext.create(world),
+                root = world.objectOf("Query"),
+                selections = testWorld.schemas.fragmentFrom(source).subselections,
+            )
+        }
+        discovery.prepared()
+    }
 
     fun prepareOverheadInvocation(loopCount: Int) {
         require(loopCount > 0) { "Resolver benchmark loop count must be positive" }
@@ -115,9 +136,10 @@ internal class CurrentProfileBenchmarkSupport(
 
     fun reportOverheadStatistics() {
         val testWorld = corpus.benchmarkWorld()
+        val coverage = ResolverBenchmarkCoverage()
         val variableArgumentCounts = mutableListOf<Long>()
         val samples =
-            querySources.map { source ->
+            querySources.mapIndexed { queryIndex, source ->
                 val world = testWorld.newAssumptions(selectiveResolvers = true)
                 val selections = testWorld.schemas.fragmentFrom(source).subselections
                 corpus.registry.clearResolutionWitness()
@@ -130,9 +152,9 @@ internal class CurrentProfileBenchmarkSupport(
                     Collections.synchronizedList(
                         mutableListOf<CheckerKind>(),
                     )
-                val observer = object : ResolverObserver {
+                val observer = object : CorrectnessResolverObserver(witnessObserver) {
                     override fun onResolverInvocation(observation: viaduct.engine.runtime2.resolution.framework.ResolverInvocationObservation) {
-                        witnessObserver.onResolverInvocation(observation)
+                        super.onResolverInvocation(observation)
                         applicationObservations += ResolverBenchmarkInvocationObservation(
                             occurrencePath = observation.occurrencePath,
                             resolverOccurrenceId = observation.resolverOccurrenceId,
@@ -141,16 +163,32 @@ internal class CurrentProfileBenchmarkSupport(
                         )
                     }
                 }
+                val fieldCheckerInputCounts = Collections.synchronizedList(mutableListOf<Long>())
+                val checkerInputCounts = Collections.synchronizedList(mutableListOf<Pair<Long, Long>>())
+                val checkerApplications = Collections.synchronizedList(mutableListOf<CheckerInvocationObservation>())
                 val operation =
                     SharedOperationContext.create(
                         world,
                         resolverObserver = observer,
                         checkerObserver =
-                            object : CheckerObserver {
+                            CorrectnessCheckerObserver(object : CheckerObserver {
                                 override fun onCheckerInvocation(observation: CheckerInvocationObservation) {
                                     checkerKinds += observation.checkerKind
+                                    checkerApplications += observation
                                 }
-                            },
+
+                                override fun onCheckerInvocation(
+                                    observation: CheckerInvocationObservation,
+                                    inputs: Map<String, viaduct.engine.runtime2.model.registry.CheckerInput>,
+                                ) {
+                                    onCheckerInvocation(observation)
+                                    if (observation.checkerKind == CheckerKind.FIELD) fieldCheckerInputCounts += inputs.size.toLong()
+                                    checkerInputCounts += inputs.size.toLong() to inputs.values.sumOf { input ->
+                                        (if (input.objectValue.getSelections().any()) 1L else 0L) +
+                                            (if (input.queryValue.getSelections().any()) 1L else 0L)
+                                    }
+                                }
+                            }),
                     )
                 val result =
                     subject.resolve(
@@ -159,6 +197,7 @@ internal class CurrentProfileBenchmarkSupport(
                         selections = selections,
                     )
                 val witness = corpus.registry.resolutionWitness()
+                coverage.record(queryIndex, operation, result, checkerApplications)
                 check(applicationObservations.size == witness.applications.size) {
                     "Observed ${applicationObservations.size} variable-argument counts " +
                         "for ${witness.applications.size} resolver executions"
@@ -169,7 +208,7 @@ internal class CurrentProfileBenchmarkSupport(
                     }
                 variableArgumentCounts += queryVariableArgumentCounts.filter { count -> count > 0 }
                 val shape =
-                    result.shape(world)
+                    runBlocking { result.benchmarkShape(world) }
                 OverheadSample(
                     fields = shape.fields,
                     activeFields = shape.activeFields,
@@ -177,12 +216,16 @@ internal class CurrentProfileBenchmarkSupport(
                     resolverExecutions = witness.applications.size.toLong(),
                     fieldCheckerExecutions = checkerKinds.count { kind -> kind == CheckerKind.FIELD }.toLong(),
                     typeCheckerExecutions = checkerKinds.count { kind -> kind == CheckerKind.TYPE }.toLong(),
+                    namedCheckerInputs = checkerInputCounts.sumOf { it.first },
+                    namedFieldCheckerInputs = fieldCheckerInputCounts.sum(),
+                    populatedCheckerRoots = checkerInputCounts.sumOf { it.second },
                     variableBearingResolverExecutions =
                         queryVariableArgumentCounts.count { count -> count > 0 }.toLong(),
                     variableStackDepth = applicationObservations.maximumVariableStackDepth(),
                     depth = shape.depth.toLong(),
                 )
             }
+        coverage.assertComplete()
         val report =
             buildString {
                 appendLine(
@@ -246,7 +289,11 @@ internal class CurrentProfileBenchmarkSupport(
                     "  result depth: " +
                         samples.statistics(OverheadSample::depth),
                 )
-                appendRegistryStatistics()
+                appendLine("  named checker inputs: " + samples.statistics(OverheadSample::namedCheckerInputs))
+                appendLine("  named field checker inputs: " + samples.statistics(OverheadSample::namedFieldCheckerInputs))
+                appendLine("  populated checker input roots: " + samples.statistics(OverheadSample::populatedCheckerRoots))
+                appendRegistryStatistics(testWorld)
+                append(coverage.report())
             }
         val reportFile = System.getProperty(REPORT_FILE_PROPERTY)
         if (reportFile == null) {
@@ -274,7 +321,12 @@ internal class CurrentProfileBenchmarkSupport(
                     check(testCase.query.selectionDepth >= 4)
                     val world = testWorld.newAssumptions(selectiveResolvers = true)
                     val observer = testCase.registry.resolverObserver()
-                    val operation = SharedOperationContext.create(world, resolverObserver = observer)
+                    val operation =
+                        SharedOperationContext.create(
+                            world,
+                            resolverObserver = observer,
+                            checkerObserver = CorrectnessCheckerObserver(),
+                        )
                     val fragment = testWorld.schemas.fragmentFrom(testCase.query.source)
                     testCase.registry.clearResolutionWitness()
                     val result =
@@ -309,13 +361,6 @@ internal class CurrentProfileBenchmarkSupport(
         val selections: SelectionForest,
     )
 
-    private data class ResultShape(
-        val fields: Long,
-        val activeFields: Long,
-        val passiveFields: Long,
-        val depth: Int,
-    )
-
     private data class OverheadSample(
         val fields: Long,
         val activeFields: Long,
@@ -323,105 +368,41 @@ internal class CurrentProfileBenchmarkSupport(
         val resolverExecutions: Long,
         val fieldCheckerExecutions: Long,
         val typeCheckerExecutions: Long,
+        val namedCheckerInputs: Long,
+        val namedFieldCheckerInputs: Long,
+        val populatedCheckerRoots: Long,
         val variableBearingResolverExecutions: Long,
         val variableStackDepth: Long,
         val depth: Long,
     )
 
-    private fun ResolverBenchmarkCorpus.benchmarkWorld(): viaduct.engine.runtime2.model.testing.TestWorld =
-        world(
-            fieldCheckerMode = GeneratedFieldCheckerMode.RUNTIME_SUCCESS,
-            typeCheckerMode = GeneratedTypeCheckerMode.RUNTIME_SUCCESS,
-        )
+    private fun ResolverBenchmarkCorpus.benchmarkWorld(outputs: PrecomputedResolverOutputs = precomputedResolverOutputs): TestWorld = fixture.world(outputs)
 
-    private fun EngineResult?.shape(
-        world: Assumptions,
-        depth: Int = 0
-    ): ResultShape =
-        when (this) {
-            null, is ErrorEngineResult ->
-                ResultShape(
-                    fields = 0,
-                    activeFields = 0,
-                    passiveFields = 0,
-                    depth = depth,
-                )
-            is ListEngineResult ->
-                indices
-                    .map { index -> get(index).value.get().shape(world, depth) }
-                    .fold(
-                        ResultShape(
-                            fields = 0,
-                            activeFields = 0,
-                            passiveFields = 0,
-                            depth = depth,
-                        ),
-                    ) { result, child ->
-                        result.combine(child)
-                    }
-            is ObjectEngineResult ->
-                keys
-                    .map { key ->
-                        val child =
-                            if (key is ObjectEngineResult.ParentKey) {
-                                ResultShape(
-                                    fields = 0,
-                                    activeFields = 0,
-                                    passiveFields = 0,
-                                    depth = depth + 1,
-                                )
-                            } else {
-                                getCell(key).value.get().shape(world, depth + 1)
-                            }
-                        child.copy(
-                            fields = child.fields + 1,
-                            activeFields =
-                                child.activeFields +
-                                    if (key.field in world.resolverRegistry) 1 else 0,
-                            passiveFields =
-                                child.passiveFields +
-                                    if (key.field in world.resolverRegistry) 0 else 1,
-                        )
-                    }.fold(
-                        ResultShape(
-                            fields = 0,
-                            activeFields = 0,
-                            passiveFields = 0,
-                            depth = depth,
-                        ),
-                    ) { result, child ->
-                        result.combine(child)
-                    }
-            else ->
-                ResultShape(
-                    fields = 0,
-                    activeFields = 0,
-                    passiveFields = 0,
-                    depth = depth,
-                )
+    private fun StringBuilder.appendRegistryStatistics(checkerWorld: TestWorld) {
+        val registry = checkerWorld.resolverRegistry
+        val objects = checkerWorld.schema.types.values.filterIsInstance<ViaductSchema.Object>()
+        val ordinaryObjects = objects.filter { it.name.matches(Regex("Object\\d+")) || it.name.startsWith("Coverage") }
+        val fields = objects.flatMap { it.fields }
+        val resolvers = fields.filter { it in registry }.map(registry::resolver)
+        val activeFieldsPerObject = ordinaryObjects.map { type -> type.fields.count { it.name != LOWERED_TYPENAME_FIELD && !it.isParentField() && it in registry }.toLong() }
+        val passiveFieldsPerObject = ordinaryObjects.map {
+                type ->
+            type.fields.count { (it.isParentField() || it !in registry) && !it.name.startsWith("__") && it.name != LOWERED_TYPENAME_FIELD }.toLong()
         }
 
-    private fun ResultShape.combine(other: ResultShape): ResultShape =
-        ResultShape(
-            fields = fields + other.fields,
-            activeFields = activeFields + other.activeFields,
-            passiveFields = passiveFields + other.passiveFields,
-            depth = maxOf(depth, other.depth),
-        )
+        fun SelectionForest.selectionCount(): Int {
+            var count = 0
+            forEach { count += 1 + it.subselections.selectionCount() }
+            return count
+        }
 
-    private fun StringBuilder.appendRegistryStatistics() {
-        val activeFieldsPerObject =
-            corpus.schema.sourceFieldCoordinatesByObject.values.map { fields ->
-                fields.count(corpus.registry.fieldResolverCoordinates::contains).toLong()
-            }
-        val passiveFieldsPerObject =
-            corpus.schema.sourceFieldCoordinatesByObject.values.map { fields ->
-                fields.count { field -> field !in corpus.registry.fieldResolverCoordinates }.toLong()
-            }
-        val objectFragmentSelections =
-            corpus.registry.objectFragmentSelectionCounts().map(Int::toLong)
-        val objectFragmentDepths =
-            corpus.registry.objectFragmentDepths().map(Int::toLong)
+        fun SelectionForest.selectionDepth(): Int {
+            var depth = 0
+            forEach { depth = maxOf(depth, 1 + it.subselections.selectionDepth()) }
+            return depth
+        }
+        val objectFragmentSelections = resolvers.map { it.objectFragment.selectionCount().toLong() }
+        val objectFragmentDepths = resolvers.map { it.objectFragment.selectionDepth().toLong() }
         appendLine("Resolver benchmark registry statistics:")
         appendLine(
             "  active fields per non-Query object: " +
@@ -432,22 +413,34 @@ internal class CurrentProfileBenchmarkSupport(
                 passiveFieldsPerObject.statistics(value = { it }),
         )
         appendLine(
-            "  selections per object fragment: " +
+            "  combined selections per object fragment: " +
                 objectFragmentSelections.statistics(value = { it }),
         )
         appendLine(
-            "  object fragment depth: " +
+            "  combined object fragment depth: " +
                 objectFragmentDepths.statistics(value = { it }),
         )
+        appendLine("  bulk selections per object fragment: ${corpus.registry.objectFragmentSelectionCounts().map(Int::toLong).statistics(value = { it })}")
+        appendLine("  bulk object fragment depth: ${corpus.registry.objectFragmentDepths().map(Int::toLong).statistics(value = { it })}")
         appendLine("Resolver benchmark feature counts:")
-        appendLine("  field resolvers: ${corpus.registry.fieldResolverCoordinates.size}")
-        appendLine("  field checkers: ${corpus.registry.generatedFieldCheckerCoordinates.size}")
-        appendLine("  type checkers: ${corpus.schema.objects.size}")
-        appendLine("  Query fragments: ${corpus.registry.features.queryFragmentCount}")
-        appendLine("  FromArgument variables: ${corpus.registry.features.fromArgumentVariableCount}")
-        appendLine("  FromObjectField variables: ${corpus.registry.features.fromObjectFieldVariableCount}")
-        appendLine("  FromQueryField variables: ${corpus.registry.features.fromQueryFieldVariableCount}")
-        append("  FromProvider variables: ${corpus.registry.features.fromProviderVariableCount}")
+        appendLine("  ordinary object types: ${ordinaryObjects.size}")
+        appendLine("  total object types including policy helpers: ${objects.size}")
+        appendLine("  installed field resolvers: ${resolvers.size}")
+        appendLine("  checker profile: China active plus bounded prepared success/denial feature cases")
+        val fieldCheckers = fields.mapNotNull(registry::fieldChecker)
+        val typeCheckers = objects.mapNotNull(registry::typeChecker)
+        appendLine("  field checkers: ${fieldCheckers.size}")
+        appendLine("  type checkers: ${typeCheckers.size}")
+        appendLine("  named inputs per field checker: ${fieldCheckers.map { it.fragmentTemplates.size.toLong() }.statistics(value = { it })}")
+        appendLine("  named inputs per type checker: ${typeCheckers.map { it.fragmentTemplates.size.toLong() }.statistics(value = { it })}")
+        appendLine("  bulk field checker policies: ${overheadCheckers.fieldPolicies.values.flatten().groupingBy { if (it.startsWith("privacy")) "privacy" else it }.eachCount()}")
+        appendLine("  checker-only prepared Query resolvers: ${overheadCheckers.typePolicies.size + 1}")
+        appendLine("  Query fragments: ${resolvers.count { !it.queryFragment.isEmpty() }}")
+        val variables = resolvers.flatMap { it.variables.values }
+        appendLine("  FromArgument variables: ${variables.count { it is VariableDefinition.FromArgument }}")
+        appendLine("  FromObjectField variables: ${variables.count { it is VariableDefinition.FromField && it.providerFragment == ProviderFragment.OBJECT }}")
+        appendLine("  FromQueryField variables: ${variables.count { it is VariableDefinition.FromField && it.providerFragment == ProviderFragment.QUERY }}")
+        appendLine("  FromProvider variables: ${variables.count { it == VariableDefinition.FromProvider }}")
     }
 
     private fun <T> List<T>.statistics(

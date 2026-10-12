@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="viaduct.engine.runtime2.resolution.TypeCheckerGeneratedTest" tests="1" skipped="0" failures="1" errors="0" timestamp="2026-10-08T22:27:27" hostname="raymie-stata-codex" time="10.288">
+  <properties/>
+  <testcase name="generated successful type checker worlds resolve correctly()" classname="viaduct.engine.runtime2.resolution.TypeCheckerGeneratedTest" time="10.288">
+    <failure message="java.lang.AssertionError: Type-checker profile missed activated coverage [FROM_QUERY_PATH_VARIABLE, PATH_VARIABLE_IN_OBJECT_INPUT, NESTED_PATH_VARIABLE]; activatedCases={TYPE_CHECKER=131, SUCCESS=131, DENIAL=0, LIST_OCCURRENCE=63, ASSOCIATED_QUERY_OCCURRENCE=129, REPEATED_TYPE=124, OBJECT_INPUT_RESOLVER=84, QUERY_INPUT_RESOLVER=67, LIST_OCCURRENCE_WITH_RESOLVER_INPUT=35, ASSOCIATED_QUERY_WITH_RESOLVER_INPUT=74, SUCCESS_WITH_RESOLVER_INPUT=89, DENIAL_WITH_RESOLVER_INPUT=0, RESOLVER_INPUT_FIELD_CHECK=66, RESOLVER_INPUT_TYPE_CHECK=48, FIELD_AND_TYPE_SAME_PATH=110, FROM_PROVIDER_VARIABLE=57, PROVIDER_VARIABLE_IN_OBJECT_INPUT=29, PROVIDER_VARIABLE_IN_QUERY_INPUT=30, FROM_OBJECT_PATH_VARIABLE=8, FROM_QUERY_PATH_VARIABLE=0, PATH_VARIABLE_IN_OBJECT_INPUT=0, PATH_VARIABLE_IN_QUERY_INPUT=8, NESTED_PATH_VARIABLE=0, ERROR_ARGUMENT_IN_TYPE_INPUT=5}&#10;Coordinates: profile=resolution-type-checker-success seed=3895819303534908208 S=all R=all Q=all&#10;Size: 10:3:5&#10;Replay seed: -PresolverPropertySeed=3895819303534908208" type="java.lang.AssertionError">java.lang.AssertionError: Type-checker profile missed activated coverage [FROM_QUERY_PATH_VARIABLE, PATH_VARIABLE_IN_OBJECT_INPUT, NESTED_PATH_VARIABLE]; activatedCases={TYPE_CHECKER=131, SUCCESS=131, DENIAL=0, LIST_OCCURRENCE=63, ASSOCIATED_QUERY_OCCURRENCE=129, REPEATED_TYPE=124, OBJECT_INPUT_RESOLVER=84, QUERY_INPUT_RESOLVER=67, LIST_OCCURRENCE_WITH_RESOLVER_INPUT=35, ASSOCIATED_QUERY_WITH_RESOLVER_INPUT=74, SUCCESS_WITH_RESOLVER_INPUT=89, DENIAL_WITH_RESOLVER_INPUT=0, RESOLVER_INPUT_FIELD_CHECK=66, RESOLVER_INPUT_TYPE_CHECK=48, FIELD_AND_TYPE_SAME_PATH=110, FROM_PROVIDER_VARIABLE=57, PROVIDER_VARIABLE_IN_OBJECT_INPUT=29, PROVIDER_VARIABLE_IN_QUERY_INPUT=30, FROM_OBJECT_PATH_VARIABLE=8, FROM_QUERY_PATH_VARIABLE=0, PATH_VARIABLE_IN_OBJECT_INPUT=0, PATH_VARIABLE_IN_QUERY_INPUT=8, NESTED_PATH_VARIABLE=0, ERROR_ARGUMENT_IN_TYPE_INPUT=5}
+Coordinates: profile=resolution-type-checker-success seed=3895819303534908208 S=all R=all Q=all
+Size: 10:3:5
+Replay seed: -PresolverPropertySeed=3895819303534908208
+	at viaduct.engine.runtime2.arbitrary.ResolverTestRun.assertAggregate(TestCaseGenerator.kt:104)
+	at viaduct.engine.runtime2.contract.GeneratedTypeCheckerCoverage.assertRequired(GeneratedTypeCheckerCoverage.kt:96)
+	at viaduct.engine.runtime2.contract.GeneratedTypeCheckerContract$typeCheckerProfile$1.invokeSuspend(GeneratedTypeCheckerContract.kt:97)
+	at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:33)
+	at kotlinx.coroutines.DispatchedTask.run(DispatchedTask.kt:104)
+	at kotlinx.coroutines.EventLoopImplBase.processNextEvent(EventLoop.common.kt:277)
+	at kotlinx.coroutines.BlockingCoroutine.joinBlocking(Builders.kt:95)
+	at kotlinx.coroutines.BuildersKt__BuildersKt.runBlocking(Builders.kt:69)
+	at kotlinx.coroutines.BuildersKt.runBlocking(Unknown Source)
+	at kotlinx.coroutines.BuildersKt__BuildersKt.runBlocking$default(Builders.kt:48)
+	at kotlinx.coroutines.BuildersKt.runBlocking$default(Unknown Source)
+	at viaduct.engine.runtime2.contract.GeneratedTypeCheckerContract$DefaultImpls.typeCheckerProfile(GeneratedTypeCheckerContract.kt:80)
+	at viaduct.engine.runtime2.contract.GeneratedTypeCheckerContract$DefaultImpls.generated successful type checker worlds resolve correctly(GeneratedTypeCheckerContract.kt:71)
+	at viaduct.engine.runtime2.resolution.TypeCheckerGeneratedTest.generated successful type checker worlds resolve correctly(TypeCheckerGeneratedTest.kt:12)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:568)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+</failure>
+  </testcase>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

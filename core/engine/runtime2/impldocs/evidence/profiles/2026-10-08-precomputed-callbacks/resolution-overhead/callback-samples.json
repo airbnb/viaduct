@@ -1,0 +1,29 @@
+{
+  "execution_samples": 530,
+  "inclusive_components": {
+    "fixture_object_materialization": {
+      "samples": 0,
+      "percent": 0.0
+    },
+    "generated_hash_construction": {
+      "samples": 0,
+      "percent": 0.0
+    },
+    "sensitive_scalar": {
+      "samples": 0,
+      "percent": 0.0
+    },
+    "fixture_output_fingerprinting": {
+      "samples": 0,
+      "percent": 0.0
+    },
+    "argument_fingerprinting": {
+      "samples": 1,
+      "percent": 0.18867924528301888
+    },
+    "resolver_relation": {
+      "samples": 21,
+      "percent": 3.9622641509433962
+    }
+  }
+}

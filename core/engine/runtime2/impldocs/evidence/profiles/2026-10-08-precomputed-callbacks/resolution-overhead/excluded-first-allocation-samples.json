@@ -1,0 +1,89 @@
+[
+  {
+    "eventThread": {
+      "osName": "viaduct.engine.runtime2.resolution.ResolverBenchmark.overhead-jmh-worker-1",
+      "osThreadId": 162805,
+      "javaName": "viaduct.engine.runtime2.resolution.ResolverBenchmark.overhead-jmh-worker-1",
+      "javaThreadId": 36,
+      "group": {
+        "parent": {
+          "parent": null,
+          "name": "system"
+        },
+        "name": "main"
+      },
+      "virtual": false
+    },
+    "weight": 1146644480,
+    "startTime": "2026-10-08T22:43:39.176437743Z"
+  },
+  {
+    "eventThread": {
+      "osName": "resolution-1-1",
+      "osThreadId": 162867,
+      "javaName": "resolution-1-1",
+      "javaThreadId": 90,
+      "group": {
+        "parent": {
+          "parent": null,
+          "name": "system"
+        },
+        "name": "main"
+      },
+      "virtual": false
+    },
+    "weight": 13431041176,
+    "startTime": "2026-10-08T22:43:39.381726257Z"
+  },
+  {
+    "eventThread": {
+      "osName": "Reference Handler",
+      "osThreadId": 162790,
+      "javaName": "Reference Handler",
+      "javaThreadId": 9,
+      "group": {
+        "parent": null,
+        "name": "system"
+      },
+      "virtual": false
+    },
+    "weight": 104,
+    "startTime": "2026-10-08T22:43:39.426414620Z"
+  },
+  {
+    "eventThread": {
+      "osName": "Common-Cleaner",
+      "osThreadId": 162798,
+      "javaName": "Common-Cleaner",
+      "javaThreadId": 32,
+      "group": {
+        "parent": {
+          "parent": null,
+          "name": "system"
+        },
+        "name": "InnocuousThreadGroup"
+      },
+      "virtual": false
+    },
+    "weight": 976,
+    "startTime": "2026-10-08T22:43:39.426457023Z"
+  },
+  {
+    "eventThread": {
+      "osName": "JFR Periodic Tasks",
+      "osThreadId": 163455,
+      "javaName": "JFR Periodic Tasks",
+      "javaThreadId": 93,
+      "group": {
+        "parent": {
+          "parent": null,
+          "name": "system"
+        },
+        "name": "main"
+      },
+      "virtual": false
+    },
+    "weight": 22024,
+    "startTime": "2026-10-08T22:43:40.152025208Z"
+  }
+]

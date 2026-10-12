@@ -82,6 +82,7 @@ object ResolverBenchmarkCorpusSearch {
                     config = resolverBenchmarkOverheadQueryConfig(),
                     seed = benchmarkQuerySeed,
                 ).map { query -> query.source }
+                .let(ResolverBenchmarkFeaturePartition::decorateQueries)
         Files.writeString(
             outputDirectory.resolve("queries.json"),
             ResolverBenchmarkQueryCorpus

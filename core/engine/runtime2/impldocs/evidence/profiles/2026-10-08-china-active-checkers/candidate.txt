@@ -1,0 +1,111 @@
+# JMH version: 1.36
+# VM version: JDK 21.0.4, OpenJDK 64-Bit Server VM, 21.0.4+7-LTS
+# VM invoker: /opt/mise/installs/java/corretto-21.0.4.7.1/bin/java
+# VM options: -DresolverBenchmarkReportFile=/tmp/runtime2-china-active-20261008/candidate-statistics.txt
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 5 iterations, single-shot each
+# Measurement: 8 iterations, single-shot each
+# Timeout: 10 min per iteration
+# Threads: 1 thread
+# Benchmark mode: Single shot invocation time
+# Benchmark: viaduct.engine.runtime2.resolution.ResolverBenchmark.overhead
+# Parameters: (loopCount = 1)
+
+# Run progress: 0.00% complete, ETA 00:00:00
+# Fork: 1 of 3
+# Warmup Iteration   1: 1.144 s/op
+# Warmup Iteration   2: 1.119 s/op
+# Warmup Iteration   3: 1.191 s/op
+# Warmup Iteration   4: 1.099 s/op
+# Warmup Iteration   5: 1.109 s/op
+Iteration   1: 1.106 s/op
+Iteration   2: 1.102 s/op
+Iteration   3: 1.097 s/op
+Iteration   4: 1.095 s/op
+Iteration   5: 1.092 s/op
+Iteration   6: 1.085 s/op
+Iteration   7: 1.088 s/op
+Iteration   8: 1.083 s/op
+
+# Run progress: 33.33% complete, ETA 00:00:44
+# Fork: 2 of 3
+# Warmup Iteration   1: 1.165 s/op
+# Warmup Iteration   2: 1.144 s/op
+# Warmup Iteration   3: 1.134 s/op
+# Warmup Iteration   4: 1.119 s/op
+# Warmup Iteration   5: 1.123 s/op
+Iteration   1: 1.115 s/op
+Iteration   2: 1.111 s/op
+Iteration   3: 1.110 s/op
+Iteration   4: 1.105 s/op
+Iteration   5: 1.134 s/op
+Iteration   6: 1.124 s/op
+Iteration   7: 1.117 s/op
+Iteration   8: 1.107 s/op
+
+# Run progress: 66.67% complete, ETA 00:00:22
+# Fork: 3 of 3
+# Warmup Iteration   1: 1.156 s/op
+# Warmup Iteration   2: 1.125 s/op
+# Warmup Iteration   3: 1.117 s/op
+# Warmup Iteration   4: 1.120 s/op
+# Warmup Iteration   5: 1.124 s/op
+Iteration   1: 1.122 s/op
+Iteration   2: 1.111 s/op
+Iteration   3: 1.114 s/op
+Iteration   4: 1.108 s/op
+Iteration   5: 1.104 s/op
+Iteration   6: 1.100 s/op
+Iteration   7: 1.099 s/op
+Iteration   8: 1.092 s/op
+
+
+Result "viaduct.engine.runtime2.resolution.ResolverBenchmark.overhead":
+  N = 24
+  mean =      1.105 ±(99.9%) 0.010 s/op
+
+  Histogram, s/op:
+    [1.080, 1.085) = 2 
+    [1.085, 1.090) = 1 
+    [1.090, 1.095) = 3 
+    [1.095, 1.100) = 2 
+    [1.100, 1.105) = 4 
+    [1.105, 1.110) = 4 
+    [1.110, 1.115) = 3 
+    [1.115, 1.120) = 2 
+    [1.120, 1.125) = 2 
+    [1.125, 1.130) = 0 
+    [1.130, 1.135) = 1 
+    [1.135, 1.140) = 0 
+
+  Percentiles, s/op:
+      p(0.0000) =      1.083 s/op
+     p(50.0000) =      1.106 s/op
+     p(90.0000) =      1.123 s/op
+     p(95.0000) =      1.131 s/op
+     p(99.0000) =      1.134 s/op
+     p(99.9000) =      1.134 s/op
+     p(99.9900) =      1.134 s/op
+     p(99.9990) =      1.134 s/op
+     p(99.9999) =      1.134 s/op
+    p(100.0000) =      1.134 s/op
+
+
+# Run complete. Total time: 00:01:07
+
+REMEMBER: The numbers below are just data. To gain reusable insights, you need to follow up on
+why the numbers are the way they are. Use profilers (see -prof, -lprof), design factorial
+experiments, perform baseline and negative tests that provide experimental control, make sure
+the benchmarking environment is safe on JVM/OS/HW level, ask for reviews from the domain experts.
+Do not assume the numbers tell you what you want them to tell.
+
+NOTE: Current JVM experimentally supports Compiler Blackholes, and they are in use. Please exercise
+extra caution when trusting the results, look into the generated code to check the benchmark still
+works, and factor in a small probability of new VM bugs. Additionally, while comparisons between
+different JVMs are already problematic, the performance difference caused by different Blackhole
+modes can be very significant. Please make sure you use the consistent Blackhole mode for comparisons.
+
+Benchmark                   (loopCount)  Mode  Cnt  Score   Error  Units
+ResolverBenchmark.overhead            1    ss   24  1.105 ± 0.010   s/op
+
+Benchmark result is saved to /tmp/runtime2-china-active-20261008/candidate.json

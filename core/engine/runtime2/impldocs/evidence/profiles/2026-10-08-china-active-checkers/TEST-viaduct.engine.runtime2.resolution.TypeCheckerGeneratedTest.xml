@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="viaduct.engine.runtime2.resolution.TypeCheckerGeneratedTest" tests="3" skipped="0" failures="1" errors="0" timestamp="2026-10-08T23:57:16" hostname="raymie-stata-codex" time="40.77">
+  <properties/>
+  <testcase name="generated successful type checker worlds resolve correctly()" classname="viaduct.engine.runtime2.resolution.TypeCheckerGeneratedTest" time="12.151"/>
+  <testcase name="generated denying type checker worlds resolve correctly()" classname="viaduct.engine.runtime2.resolution.TypeCheckerGeneratedTest" time="17.005">
+    <failure message="java.lang.AssertionError: Type-checker profile missed activated coverage [ERROR_ARGUMENT_IN_TYPE_INPUT]; activatedCases={TYPE_CHECKER=125, SUCCESS=0, DENIAL=125, LIST_OCCURRENCE=69, ASSOCIATED_QUERY_OCCURRENCE=122, REPEATED_TYPE=120, OBJECT_INPUT_RESOLVER=93, QUERY_INPUT_RESOLVER=59, LIST_OCCURRENCE_WITH_RESOLVER_INPUT=42, ASSOCIATED_QUERY_WITH_RESOLVER_INPUT=90, SUCCESS_WITH_RESOLVER_INPUT=0, DENIAL_WITH_RESOLVER_INPUT=99, RESOLVER_INPUT_FIELD_CHECK=57, RESOLVER_INPUT_TYPE_CHECK=54, FIELD_AND_TYPE_SAME_PATH=117, FROM_PROVIDER_VARIABLE=54, PROVIDER_VARIABLE_IN_OBJECT_INPUT=26, PROVIDER_VARIABLE_IN_QUERY_INPUT=36, FROM_OBJECT_PATH_VARIABLE=22, FROM_QUERY_PATH_VARIABLE=11, PATH_VARIABLE_IN_OBJECT_INPUT=16, PATH_VARIABLE_IN_QUERY_INPUT=12, NESTED_PATH_VARIABLE=11, ERROR_ARGUMENT_IN_TYPE_INPUT=0}&#10;Coordinates: profile=resolution-type-checker-denial seed=8742323394940950761 S=all R=all Q=all&#10;Size: 10:3:5&#10;Replay seed: -PresolverPropertySeed=8742323394940950761" type="java.lang.AssertionError">java.lang.AssertionError: Type-checker profile missed activated coverage [ERROR_ARGUMENT_IN_TYPE_INPUT]; activatedCases={TYPE_CHECKER=125, SUCCESS=0, DENIAL=125, LIST_OCCURRENCE=69, ASSOCIATED_QUERY_OCCURRENCE=122, REPEATED_TYPE=120, OBJECT_INPUT_RESOLVER=93, QUERY_INPUT_RESOLVER=59, LIST_OCCURRENCE_WITH_RESOLVER_INPUT=42, ASSOCIATED_QUERY_WITH_RESOLVER_INPUT=90, SUCCESS_WITH_RESOLVER_INPUT=0, DENIAL_WITH_RESOLVER_INPUT=99, RESOLVER_INPUT_FIELD_CHECK=57, RESOLVER_INPUT_TYPE_CHECK=54, FIELD_AND_TYPE_SAME_PATH=117, FROM_PROVIDER_VARIABLE=54, PROVIDER_VARIABLE_IN_OBJECT_INPUT=26, PROVIDER_VARIABLE_IN_QUERY_INPUT=36, FROM_OBJECT_PATH_VARIABLE=22, FROM_QUERY_PATH_VARIABLE=11, PATH_VARIABLE_IN_OBJECT_INPUT=16, PATH_VARIABLE_IN_QUERY_INPUT=12, NESTED_PATH_VARIABLE=11, ERROR_ARGUMENT_IN_TYPE_INPUT=0}
+Coordinates: profile=resolution-type-checker-denial seed=8742323394940950761 S=all R=all Q=all
+Size: 10:3:5
+Replay seed: -PresolverPropertySeed=8742323394940950761
+	at viaduct.engine.runtime2.arbitrary.ResolverTestRun.assertAggregate(TestCaseGenerator.kt:104)
+	at viaduct.engine.runtime2.contract.GeneratedTypeCheckerCoverage.assertRequired(GeneratedTypeCheckerCoverage.kt:96)
+	at viaduct.engine.runtime2.contract.GeneratedTypeCheckerContract$typeCheckerProfile$1.invokeSuspend(GeneratedTypeCheckerContract.kt:97)
+	at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:33)
+	at kotlinx.coroutines.DispatchedTask.run(DispatchedTask.kt:104)
+	at kotlinx.coroutines.EventLoopImplBase.processNextEvent(EventLoop.common.kt:277)
+	at kotlinx.coroutines.BlockingCoroutine.joinBlocking(Builders.kt:95)
+	at kotlinx.coroutines.BuildersKt__BuildersKt.runBlocking(Builders.kt:69)
+	at kotlinx.coroutines.BuildersKt.runBlocking(Unknown Source)
+	at kotlinx.coroutines.BuildersKt__BuildersKt.runBlocking$default(Builders.kt:48)
+	at kotlinx.coroutines.BuildersKt.runBlocking$default(Unknown Source)
+	at viaduct.engine.runtime2.contract.GeneratedTypeCheckerContract$DefaultImpls.typeCheckerProfile(GeneratedTypeCheckerContract.kt:80)
+	at viaduct.engine.runtime2.contract.GeneratedTypeCheckerContract$DefaultImpls.generated denying type checker worlds resolve correctly(GeneratedTypeCheckerContract.kt:74)
+	at viaduct.engine.runtime2.resolution.TypeCheckerGeneratedTest.generated denying type checker worlds resolve correctly(TypeCheckerGeneratedTest.kt:12)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:568)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+</failure>
+  </testcase>
+  <testcase name="generated mixed type checker worlds resolve correctly()" classname="viaduct.engine.runtime2.resolution.TypeCheckerGeneratedTest" time="11.614"/>
+  <system-out><![CDATA[Type-checker coverage profile=resolution-type-checker-success seed=6206505645705748630 cases=150 activatedCases={TYPE_CHECKER=131, SUCCESS=131, DENIAL=0, LIST_OCCURRENCE=46, ASSOCIATED_QUERY_OCCURRENCE=123, REPEATED_TYPE=120, OBJECT_INPUT_RESOLVER=76, QUERY_INPUT_RESOLVER=69, LIST_OCCURRENCE_WITH_RESOLVER_INPUT=20, ASSOCIATED_QUERY_WITH_RESOLVER_INPUT=79, SUCCESS_WITH_RESOLVER_INPUT=94, DENIAL_WITH_RESOLVER_INPUT=0, RESOLVER_INPUT_FIELD_CHECK=64, RESOLVER_INPUT_TYPE_CHECK=52, FIELD_AND_TYPE_SAME_PATH=117, FROM_PROVIDER_VARIABLE=42, PROVIDER_VARIABLE_IN_OBJECT_INPUT=11, PROVIDER_VARIABLE_IN_QUERY_INPUT=34, FROM_OBJECT_PATH_VARIABLE=13, FROM_QUERY_PATH_VARIABLE=7, PATH_VARIABLE_IN_OBJECT_INPUT=7, PATH_VARIABLE_IN_QUERY_INPUT=10, NESTED_PATH_VARIABLE=0, ERROR_ARGUMENT_IN_TYPE_INPUT=1}
+Type-checker coverage profile=resolution-type-checker-mixed seed=-3943747916745022191 cases=150 activatedCases={TYPE_CHECKER=143, SUCCESS=139, DENIAL=104, LIST_OCCURRENCE=92, ASSOCIATED_QUERY_OCCURRENCE=136, REPEATED_TYPE=137, OBJECT_INPUT_RESOLVER=91, QUERY_INPUT_RESOLVER=74, LIST_OCCURRENCE_WITH_RESOLVER_INPUT=44, ASSOCIATED_QUERY_WITH_RESOLVER_INPUT=73, SUCCESS_WITH_RESOLVER_INPUT=58, DENIAL_WITH_RESOLVER_INPUT=65, RESOLVER_INPUT_FIELD_CHECK=69, RESOLVER_INPUT_TYPE_CHECK=54, FIELD_AND_TYPE_SAME_PATH=126, FROM_PROVIDER_VARIABLE=43, PROVIDER_VARIABLE_IN_OBJECT_INPUT=8, PROVIDER_VARIABLE_IN_QUERY_INPUT=36, FROM_OBJECT_PATH_VARIABLE=34, FROM_QUERY_PATH_VARIABLE=3, PATH_VARIABLE_IN_OBJECT_INPUT=8, PATH_VARIABLE_IN_QUERY_INPUT=29, NESTED_PATH_VARIABLE=3, ERROR_ARGUMENT_IN_TYPE_INPUT=14}
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

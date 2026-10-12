@@ -34,6 +34,7 @@ object ResolverBenchmarkQueryCorpusWriter {
                     config = resolverBenchmarkOverheadQueryConfig(),
                     seed = querySeed,
                 ).map { query -> query.source }
+                .let(ResolverBenchmarkFeaturePartition::decorateQueries)
         outputPath.parent?.let(Files::createDirectories)
         Files.writeString(
             outputPath,

@@ -1,0 +1,74 @@
+[
+  {
+    "eventThread": {
+      "osName": "viaduct.engine.runtime2.resolution.ResolverBenchmark.overhead-jmh-worker-1",
+      "osThreadId": 267533,
+      "javaName": "viaduct.engine.runtime2.resolution.ResolverBenchmark.overhead-jmh-worker-1",
+      "javaThreadId": 36,
+      "group": {
+        "parent": {
+          "parent": null,
+          "name": "system"
+        },
+        "name": "main"
+      },
+      "virtual": false
+    },
+    "weight": 1505302784,
+    "startTime": "2026-10-08T23:55:06.594503681Z"
+  },
+  {
+    "eventThread": {
+      "osName": "resolution-1-1",
+      "osThreadId": 267644,
+      "javaName": "resolution-1-1",
+      "javaThreadId": 90,
+      "group": {
+        "parent": {
+          "parent": null,
+          "name": "system"
+        },
+        "name": "main"
+      },
+      "virtual": false
+    },
+    "weight": 35344528904,
+    "startTime": "2026-10-08T23:55:06.638796032Z"
+  },
+  {
+    "eventThread": {
+      "osName": "Common-Cleaner",
+      "osThreadId": 267529,
+      "javaName": "Common-Cleaner",
+      "javaThreadId": 32,
+      "group": {
+        "parent": {
+          "parent": null,
+          "name": "system"
+        },
+        "name": "InnocuousThreadGroup"
+      },
+      "virtual": false
+    },
+    "weight": 1232,
+    "startTime": "2026-10-08T23:55:07.401629985Z"
+  },
+  {
+    "eventThread": {
+      "osName": "JFR Periodic Tasks",
+      "osThreadId": 267966,
+      "javaName": "JFR Periodic Tasks",
+      "javaThreadId": 93,
+      "group": {
+        "parent": {
+          "parent": null,
+          "name": "system"
+        },
+        "name": "main"
+      },
+      "virtual": false
+    },
+    "weight": 22024,
+    "startTime": "2026-10-08T23:55:07.556923845Z"
+  }
+]

@@ -1,14 +1,18 @@
 package viaduct.engine.runtime2.resolution
 
-import kotlin.test.Test
 import kotlin.test.assertFailsWith
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import viaduct.engine.runtime2.contract.validateFromFieldBindings
+import viaduct.engine.runtime2.correctresolution.CorrectnessCheckerObserver
 import viaduct.engine.runtime2.correctresolution.CorrectnessResolverObserver
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.ResolverOccurrenceId
+import viaduct.engine.runtime2.model.ResolverTarget
 import viaduct.engine.runtime2.model.registry.Assumptions
 import viaduct.engine.runtime2.model.registry.InstantiatedFieldPathDefinition
 import viaduct.engine.runtime2.model.requireObjectField
+import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.engineResultOf
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
@@ -70,6 +74,36 @@ class ResolverFromFieldBindingOracleTest {
         )
 
         assertFailsWith<AssertionError> {
+            primaryResult.validateFromFieldBindings(operation, setOf(queryFixture.occurrenceId))
+        }
+    }
+
+    @Test
+    fun `object-path bindings in checker-only Query roots are validated`() {
+        listOf(false, true).forEach { typeChecker ->
+            val world = bindingWorld().assumptions
+            val checkerObserver = CorrectnessCheckerObserver()
+            val operation =
+                SharedOperationContext.create(
+                    world,
+                    resolverObserver = CorrectnessResolverObserver(),
+                    checkerObserver = checkerObserver,
+                )
+            val primaryResult = world.engineResultOf("Query")
+            val queryResult = completedBindingResult(world)
+            val queryFixture = bindingFixture(operation, queryResult)
+            val target =
+                if (typeChecker) {
+                    ResolverTarget.TypeCheckerTarget(world.schema.requireQueryTypeDef())
+                } else {
+                    ResolverTarget.FieldCheckerTarget(world.schema.requireObjectField("Query", "result"))
+                }
+            checkerObserver.onCheckerQueryFragmentPrepared(target, ResolverOccurrenceId.at(primaryResult, emptyList()), queryResult)
+
+            assertThrows<AssertionError> {
+                primaryResult.validateFromFieldBindings(operation, setOf(queryFixture.occurrenceId))
+            }
+            queryFixture.definitions.forEach(queryFixture::bind)
             primaryResult.validateFromFieldBindings(operation, setOf(queryFixture.occurrenceId))
         }
     }

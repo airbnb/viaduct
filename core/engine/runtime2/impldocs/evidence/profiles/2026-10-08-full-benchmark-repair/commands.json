@@ -1,0 +1,45 @@
+[
+  {
+    "command": [
+      "./gradlew",
+      ":core:engine:runtime2:test",
+      "--tests",
+      "viaduct.engine.runtime2.contract.CheckerQueryResolverWitnessTest",
+      "--tests",
+      "viaduct.engine.runtime2.resolution.FullBenchmarkReplayTest",
+      "--tests",
+      "viaduct.engine.runtime2.resolution.ResolverFromFieldBindingOracleTest",
+      ":core:engine:runtime2:jmhJar",
+      "--no-configuration-cache",
+      "--console=plain"
+    ],
+    "cwd": "/home/raymie_stata/repos/3ht/projects/viaduct/oss",
+    "revision": "15127d872997b4b03207c8056765809252a4ea73",
+    "started_utc": "2026-10-09T03:16:18.459610+00:00",
+    "exit_code": 0,
+    "finished_utc": "2026-10-09T03:16:31.090759+00:00",
+    "test_counts": {
+      "tests": 8,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  },
+  {
+    "command": [
+      "./gradlew",
+      ":core:engine:runtime2:check"
+    ],
+    "cwd": "/home/raymie_stata/repos/3ht/projects/viaduct/oss",
+    "revision": "15127d872997b4b03207c8056765809252a4ea73",
+    "started_utc": "2026-10-09T03:16:31.174689+00:00",
+    "exit_code": 0,
+    "finished_utc": "2026-10-09T03:20:26.852414+00:00",
+    "test_counts": {
+      "tests": 2511,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 166
+    }
+  }
+]
