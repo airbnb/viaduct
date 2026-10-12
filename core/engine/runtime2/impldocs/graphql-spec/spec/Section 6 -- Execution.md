@@ -928,7 +928,7 @@ CoerceResult(leafType, value):
   - If {value} is not a String, raise an _execution error_.
   - Return {value}.
 - If {leafType} is the `ID` scalar:
-  - If {value} is not an `EngineIDResult`, raise an _execution error_.
+  - If {value} is not an `IDEngineResult`, raise an _execution error_.
   - Return the String retained by {value}.
 - If {leafType} is an Enum type:
   - If {value} is not the canonical enum value owned by {leafType}, raise an
@@ -1014,9 +1014,9 @@ This appendix defines the backing data assumed by this chapter's execution algor
 
 {++
 
-`EngineResult` values form a finite Engine Result Tree. A non-null `EngineResult` is exactly one of an `Int`, a finite `Double`, a `Boolean`, a `String`, an `EngineIDResult`, a canonical schema Enum value, an `ObjectEngineResult`, a `ListEngineResult`, or an `ErrorEngineResult`.
+`EngineResult` values form a finite Engine Result Tree. A non-null `EngineResult` is exactly one of a native scalar value (`Int`, finite `Double`, `Boolean`, `String`, `Byte`, `Short`, `Long`, `BigInteger`, `BigDecimal`, `LocalDate`, or `Instant`), an `IDEngineResult`, a `JSONEngineResult`, a `BackingDataEngineResult`, a canonical schema Enum value, an `ObjectEngineResult`, a `ListEngineResult`, or an `ErrorEngineResult`.
 
-The scalar carriers are schema-directed: `String` represents only GraphQL `String`, `EngineIDResult` represents GraphQL `ID`, and a canonical schema Enum value identifies both its enum type and member name. An `Int`, finite `Double`, and `Boolean` represent GraphQL `Int`, `Float`, and `Boolean`, respectively.
+The scalar carriers are schema-directed: `String` represents only GraphQL `String`, `IDEngineResult` represents GraphQL `ID`, and a canonical schema Enum value identifies both its enum type and member name. An `Int`, finite `Double`, and `Boolean` represent GraphQL `Int`, `Float`, and `Boolean`, respectively.
 
 An `ErrorEngineResult` retains useful diagnostic information associated with an error at one result position. It is admitted at every output type so a failure can occupy the exact position where field resolution observed it. {CompleteValue()} converts it into an _execution error_; it is not treated as a scalar, object, list, or {null}.
 

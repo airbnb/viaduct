@@ -7,6 +7,7 @@ import viaduct.engine.api.EngineObjectData
 import viaduct.engine.runtime2.model.Arguments
 import viaduct.engine.runtime2.model.RootFieldReferenceData
 import viaduct.engine.runtime2.model.engineObjectDataOf
+import viaduct.engine.runtime2.model.outputType
 import viaduct.engine.runtime2.model.outputValue
 import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireType
@@ -43,7 +44,7 @@ class RootFieldReferenceSnipToDemandTest {
 
         assertSame(
             reference,
-            with(world.assumptions) { reference.snipToDemand(demand) },
+            reference.snipToDemand(demand, schema.loweredSchema.requireObjectField("ProductFactory", "create").outputType),
         )
 
         val wrapper =

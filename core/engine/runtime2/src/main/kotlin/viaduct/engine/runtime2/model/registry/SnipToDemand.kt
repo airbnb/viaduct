@@ -42,38 +42,30 @@ import viaduct.graphql.schema.ViaductSchema
  */
 internal fun ResolverOutputData?.snipToDemand(
     demand: SelectionForest,
-    declaredType: ViaductSchema.OutputTypeDef? = null,
-): ResolverOutputData? =
-    when (this) {
-        null,
-        is EngineErrorData,
-        is RootFieldReferenceData,
-        -> this
+    expectedType: ViaductSchema.TypeExpr<ViaductSchema.OutputTypeDef>,
+): ResolverOutputData? {
+    if (this == null || this is EngineErrorData || this is RootFieldReferenceData) return this
+    if (this is RootFieldReferenceDataCarrier) return referenceData
 
-        is RootFieldReferenceDataCarrier -> referenceData
-
-        is EngineObjectData.Sync -> snipObjectToDemand(demand, declaredType)
-        is List<*> -> {
-            val values: List<ResolverOutputData?> = map { value -> value.snipToDemand(demand, declaredType) }
-            values
-        }
-
-        is Int,
-        is Double,
-        is String,
-        is Boolean,
-        -> {
+    val elementType = expectedType.unwrapList()
+    if (elementType != null) {
+        return (this as List<*>).map { value -> value.snipToDemand(demand, elementType) }
+    }
+    return when (val type = expectedType.baseTypeDef) {
+        is ViaductSchema.SimpleTypeDef -> {
             require(demand.isEmpty()) {
                 "Cannot apply subselections to a simple value $this"
             }
             this
         }
-        else -> throw ClassCastException("Unsupported engine output data: $this")
+        is ViaductSchema.CompositeTypeDef -> (this as EngineObjectData.Sync).snipToDemand(demand, type)
+        else -> error("Unsupported output type: ${type.name}")
     }
+}
 
-private fun EngineObjectData.Sync.snipObjectToDemand(
+internal fun EngineObjectData.Sync.snipToDemand(
     demand: SelectionForest,
-    declaredType: ViaductSchema.OutputTypeDef?,
+    declaredType: ViaductSchema.OutputTypeDef? = null,
 ): EngineObjectData.Sync {
     val schemaType = qplanSchemaTypeOrNull ?: schemaType(
         requireNotNull(declaredType as? ViaductSchema.CompositeTypeDef) { "Object projection requires a declared composite type" },
@@ -102,12 +94,7 @@ private fun EngineObjectData.Sync.snipObjectToDemand(
                         "must be argumentless"
                 }
                 val value = outputValue(concreteField.name)
-                val selectedValue =
-                    if (concreteField.type.baseTypeDef is ViaductSchema.SimpleTypeDef) {
-                        value
-                    } else {
-                        value.snipToDemand(selection.subselections, concreteField.outputType.baseTypeDef)
-                    }
+                val selectedValue = value.snipToDemand(selection.subselections, concreteField.outputType)
                 concreteField.name to selectedValue
             }
             .toMap()

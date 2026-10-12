@@ -29,7 +29,6 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import viaduct.engine.runtime2.model.EngineErrorData
-import viaduct.engine.runtime2.model.EngineIDResult
 import viaduct.engine.runtime2.model.EngineResult
 import viaduct.engine.runtime2.model.EngineResultCell
 import viaduct.engine.runtime2.model.EngineResultIsPending
@@ -40,6 +39,7 @@ import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.Promise
 import viaduct.engine.runtime2.model.awaitCheckedValue
 import viaduct.engine.runtime2.model.materializeCheckedValue
+import viaduct.engine.runtime2.model.scalarResultValue
 import viaduct.engine.runtime2.schema.lowering.loweredFieldFromSourceCoordinate
 import viaduct.graphql.schema.ViaductSchema
 
@@ -192,14 +192,8 @@ private fun EngineResult?.toGraphQLJavaValue(
                 }
             }
         }
-        is EngineIDResult -> value
         is ViaductSchema.EnumValue -> name
-        is Int,
-        is Double,
-        is Boolean,
-        is String,
-        -> this
-        else -> throw IllegalStateException("Unexpected qplan engine result: $this")
+        else -> scalarResultValue()
     }
 
 private fun EngineResult?.isGraphQLJavaValueReady(): Boolean =
@@ -227,14 +221,8 @@ private suspend fun EngineResult?.toGraphQLJavaValueAwaiting(
         is ErrorEngineResult -> errorResult(errorData, environment, path)
         is ObjectEngineResult -> source.copy(objectResult = this)
         is ListEngineResult -> toGraphQLJavaListAwaiting(source, environment, path)
-        is EngineIDResult -> value
         is ViaductSchema.EnumValue -> name
-        is Int,
-        is Double,
-        is Boolean,
-        is String,
-        -> this
-        else -> throw IllegalStateException("Unexpected qplan engine result: $this")
+        else -> scalarResultValue()
     }
 
 private suspend fun ListEngineResult.toGraphQLJavaListAwaiting(

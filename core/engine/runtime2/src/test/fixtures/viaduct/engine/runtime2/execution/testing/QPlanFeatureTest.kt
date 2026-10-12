@@ -30,7 +30,9 @@ import viaduct.engine.runtime.tenantloading.InvalidVariableException
 import viaduct.engine.runtime.tenantloading.RequiredSelectionsAreInvalid
 import viaduct.engine.runtime.tenantloading.RequiredSelectionsCycleException
 import viaduct.engine.runtime2.model.EngineErrorData
+import viaduct.engine.runtime2.model.conformsToScalarOutput
 import viaduct.engine.runtime2.model.qplanSchemaTypeOrNull
+import viaduct.engine.runtime2.model.toScalarInput
 import viaduct.service.runtime.StandardViaduct
 
 /** GraphQL feature-test surface backed by engine2 through production [StandardViaduct] wiring. */
@@ -235,7 +237,18 @@ private fun fixtureOutput(
     }
     if (expectedType is GraphQLScalarType) {
         return value?.let {
-            expectedType.coercing.serialize(it, GraphQLContext.getDefault(), Locale.getDefault())
+            if (it.conformsToScalarOutput(expectedType.name)) {
+                it
+            } else {
+                val input = if (expectedType.name == "DateTime") {
+                    it
+                } else {
+                    requireNotNull(expectedType.coercing.serialize(it, GraphQLContext.getDefault(), Locale.getDefault()))
+                }
+                requireNotNull(
+                    expectedType.coercing.parseValue(input, GraphQLContext.getDefault(), Locale.getDefault()),
+                ).toScalarInput(expectedType.name)
+            }
         }
     }
     val type = (expectedType as? GraphQLObjectType) ?: (value as? EngineObjectData.Sync)?.type ?: return value

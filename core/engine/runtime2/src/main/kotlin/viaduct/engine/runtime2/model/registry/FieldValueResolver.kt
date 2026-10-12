@@ -287,7 +287,7 @@ class FieldValueResolver private constructor(
         // output.requireArgumentlessObjectFields()
         val selectedOutput =
             if (projectNonselectiveOutput && selectiveResolvers) {
-                output.snipToDemand(projectionDemand(selections), target.field.outputType.baseTypeDef)
+                output.snipToDemand(projectionDemand(selections), target.field.outputType)
             } else {
                 output
             }

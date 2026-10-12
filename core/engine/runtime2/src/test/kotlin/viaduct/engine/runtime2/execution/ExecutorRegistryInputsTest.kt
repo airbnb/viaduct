@@ -8,6 +8,7 @@ import graphql.schema.idl.RuntimeWiring
 import graphql.schema.idl.SchemaGenerator
 import graphql.schema.idl.SchemaParser
 import graphql.schema.idl.UnExecutableSchemaGenerator
+import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.Dispatchers
@@ -76,6 +77,40 @@ import viaduct.graphql.schema.ViaductSchema
 import viaduct.tenant.runtime.jvm.OverlayEngineObjectData
 
 class ExecutorRegistryInputsTest {
+    @Test
+    fun `executor and dispatcher adapters preserve canonical extended scalar outputs`() =
+        runTest {
+            val fixture = Fixture(
+                "scalar Long scalar DateTime scalar JSON scalar BackingData type Query { long: Long dateTime: DateTime json: JSON backing: BackingData }",
+            )
+            val outputs = mapOf(
+                "long" to Long.MAX_VALUE,
+                "dateTime" to Instant.parse("2024-10-29T14:30:00.123456789Z"),
+                "json" to listOf(mapOf("value" to 1), null),
+                "backing" to Any(),
+            )
+            val executors = outputs.map { (name, value) ->
+                ("Query" to name) to MockFieldUnbatchedResolverExecutor(resolverId = "Query.$name", isSelective = true) { _, _, _, _, _ -> value }
+            }
+            val dispatchers = DispatcherRegistry.Impl(
+                fieldResolverDispatchers = executors.associate { (coordinate, executor) -> coordinate to FieldResolverDispatcherImpl(executor) },
+                nodeResolverDispatchers = emptyMap(),
+                fieldCheckerDispatchers = emptyMap(),
+                typeCheckerDispatchers = emptyMap(),
+            )
+            val inputs = listOf(
+                fixture.adapt(executors),
+                dispatcherRegistryInputs(fixture.engineSchema, fixture.schemas, dispatchers),
+            )
+
+            inputs.forEach { adapted ->
+                val registry = fixture.registry(adapted)
+                outputs.forEach { (name, value) ->
+                    assertSame(value, fixture.invoke(registry, name))
+                }
+            }
+        }
+
     @Test
     fun `node references carry canonical identity at creation and expose only their id`() =
         runTest {

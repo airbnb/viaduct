@@ -42,38 +42,32 @@ private inline fun Arguments.groundedArguments(
 private fun ArgumentExpression?.groundWithBindings(
     expectedType: ViaductSchema.TypeExpr<ViaductSchema.InputTypeDef>,
     bindingFor: (Arguments.Variable) -> VariableBinding,
-): VariableBinding =
-    when (this) {
-        null -> VariableBinding.of(null)
-        ArgumentResolutionError -> VariableBinding.Error
-        is Arguments.Variable ->
-            if (isInstantiated) {
-                bindingFor(this).coerceTo(expectedType)
-            } else {
-                error("Variable template $this must be instantiated before it can be grounded")
-            }
-        is List<*> -> {
-            val elementType = expectedType.unwrapList()
-            require(elementType != null) {
-                "Argument list expression does not match $expectedType"
-            }
-            val grounded = mutableListOf<EngineInputData?>()
-            forEach { value ->
-                when (val binding = value.groundWithBindings(elementType, bindingFor)) {
-                    VariableBinding.Error -> return VariableBinding.Error
-                    is VariableBinding.Input -> grounded += binding.value
-                }
-            }
-            VariableBinding.of(grounded.toList())
+): VariableBinding {
+    if (this == null) return VariableBinding.of(null)
+    if (this == ArgumentResolutionError) return VariableBinding.Error
+    if (this is Arguments.Variable) {
+        check(isInstantiated) {
+            "Variable template $this must be instantiated before it can be grounded"
         }
-        is Map<*, *> -> {
-            val expectedObjectType = expectedType.baseTypeDef.takeUnless { expectedType.isList }
-            require(expectedObjectType is ViaductSchema.Input) {
-                "Argument input-object expression does not match $expectedType"
+        return bindingFor(this).coerceTo(expectedType)
+    }
+
+    val elementType = expectedType.unwrapList()
+    if (elementType != null) {
+        val grounded = mutableListOf<EngineInputData?>()
+        for (value in this as List<*>) {
+            when (val binding = value.groundWithBindings(elementType, bindingFor)) {
+                VariableBinding.Error -> return VariableBinding.Error
+                is VariableBinding.Input -> grounded += binding.value
             }
+        }
+        return VariableBinding.of(grounded.toList())
+    }
+    return when (val type = expectedType.baseTypeDef) {
+        is ViaductSchema.Input -> {
             val grounded = linkedMapOf<String, EngineInputData?>()
             toStringKeyedArgumentMap().forEach { (name, value) ->
-                val fieldType = expectedObjectType.requireField(name).inputType
+                val fieldType = type.requireField(name).inputType
                 when (val binding = value.groundWithBindings(fieldType, bindingFor)) {
                     VariableBinding.Error -> return VariableBinding.Error
                     is VariableBinding.Input -> grounded[name] = binding.value
@@ -83,42 +77,37 @@ private fun ArgumentExpression?.groundWithBindings(
         }
         else -> VariableBinding.of(toEngineInputData(expectedType, this))
     }
+}
 
 private suspend fun ArgumentExpression?.fetchGroundWithBindings(
     expectedType: ViaductSchema.TypeExpr<ViaductSchema.InputTypeDef>,
     bindingFor: suspend (Arguments.Variable) -> VariableBinding,
 ): VariableBinding {
-    return when (this) {
-        null -> VariableBinding.of(null)
-        ArgumentResolutionError -> VariableBinding.Error
-        is Arguments.Variable ->
-            if (isInstantiated) {
-                bindingFor(this).coerceTo(expectedType)
-            } else {
-                error("Variable template $this must be instantiated before it can be grounded")
-            }
-        is List<*> -> {
-            val elementType = expectedType.unwrapList()
-            require(elementType != null) {
-                "Argument list expression does not match $expectedType"
-            }
-            val grounded = mutableListOf<EngineInputData?>()
-            for (value in this) {
-                when (val binding = value.fetchGroundWithBindings(elementType, bindingFor)) {
-                    VariableBinding.Error -> return VariableBinding.Error
-                    is VariableBinding.Input -> grounded += binding.value
-                }
-            }
-            VariableBinding.of(grounded.toList())
+    if (this == null) return VariableBinding.of(null)
+    if (this == ArgumentResolutionError) return VariableBinding.Error
+    if (this is Arguments.Variable) {
+        check(isInstantiated) {
+            "Variable template $this must be instantiated before it can be grounded"
         }
-        is Map<*, *> -> {
-            val expectedObjectType = expectedType.baseTypeDef.takeUnless { expectedType.isList }
-            require(expectedObjectType is ViaductSchema.Input) {
-                "Argument input-object expression does not match $expectedType"
+        return bindingFor(this).coerceTo(expectedType)
+    }
+
+    val elementType = expectedType.unwrapList()
+    if (elementType != null) {
+        val grounded = mutableListOf<EngineInputData?>()
+        for (value in this as List<*>) {
+            when (val binding = value.fetchGroundWithBindings(elementType, bindingFor)) {
+                VariableBinding.Error -> return VariableBinding.Error
+                is VariableBinding.Input -> grounded += binding.value
             }
+        }
+        return VariableBinding.of(grounded.toList())
+    }
+    return when (val type = expectedType.baseTypeDef) {
+        is ViaductSchema.Input -> {
             val grounded = linkedMapOf<String, EngineInputData?>()
             for ((name, value) in toStringKeyedArgumentMap()) {
-                val fieldType = expectedObjectType.requireField(name).inputType
+                val fieldType = type.requireField(name).inputType
                 when (val binding = value.fetchGroundWithBindings(fieldType, bindingFor)) {
                     VariableBinding.Error -> return VariableBinding.Error
                     is VariableBinding.Input -> grounded[name] = binding.value

@@ -8,8 +8,9 @@ import viaduct.graphql.schema.ViaductSchema
 /**
  * A finite field-resolution result whose only reference edges are distinguished parent fields.
  *
- * The semantic union contains Int, finite Double, Boolean, String, [EngineIDResult],
- * [ViaductSchema.EnumValue], [ObjectEngineResult], [ListEngineResult], or [ErrorEngineResult]. Nullable
+ * The semantic union contains native scalar values, [IDEngineResult], [JSONEngineResult],
+ * [BackingDataEngineResult], [ViaductSchema.EnumValue], [ObjectEngineResult], [ListEngineResult],
+ * or [ErrorEngineResult]. Nullable
  * uses additionally represent GraphQL null. Membership and schema compatibility are enforced by
  * result constructors and cell completion boundaries. Ordinary value containment is well-founded;
  * a [ObjectEngineResult.ParentKey] cell may additionally point to an existing ancestor OER. This
@@ -19,17 +20,17 @@ import viaduct.graphql.schema.ViaductSchema
 typealias EngineResult = Any
 
 /** A structurally equal GraphQL ID result value. */
-sealed interface EngineIDResult {
+sealed interface IDEngineResult {
     val value: String
 
     companion object {
-        fun of(value: String): EngineIDResult = EngineIDResultImpl(value)
+        fun of(value: String): IDEngineResult = IDEngineResultImpl(value)
     }
 }
 
-private data class EngineIDResultImpl(
+private data class IDEngineResultImpl(
     override val value: String,
-) : EngineIDResult
+) : IDEngineResult
 
 /**
  * One step in an exact path through an engine-result tree.
@@ -1262,11 +1263,7 @@ private fun validateObjectValue(
 }
 
 private fun EngineResult.isScalarResultMember(): Boolean =
-    this is Int ||
-        this is Double && isFinite() ||
-        this is Boolean ||
-        this is String ||
-        this is EngineIDResult ||
+    scalarResultTypeNameOrNull() != null ||
         this is ViaductSchema.EnumValue
 
 private data class MutationKeyImpl(

@@ -2,14 +2,12 @@
 
 package viaduct.engine.runtime2.schema
 
+import graphql.GraphQLContext
+import graphql.execution.CoercedVariables
 import graphql.language.ArrayValue
-import graphql.language.BooleanValue
 import graphql.language.EnumValue
-import graphql.language.FloatValue
-import graphql.language.IntValue
 import graphql.language.NullValue
 import graphql.language.ObjectValue
-import graphql.language.StringValue
 import graphql.language.Value as GraphQLValue
 import graphql.language.VariableReference
 import graphql.schema.GraphQLEnumType
@@ -20,6 +18,7 @@ import graphql.schema.GraphQLNamedType
 import graphql.schema.GraphQLNonNull
 import graphql.schema.GraphQLScalarType
 import graphql.schema.InputValueWithState
+import java.util.Locale
 import viaduct.engine.runtime2.model.Arguments
 import viaduct.engine.runtime2.model.EngineInputData
 import viaduct.engine.runtime2.model.EngineInputObjectData
@@ -99,7 +98,7 @@ internal fun decodeLiteral(
         is GraphQLScalarType ->
             coerceArgumentExpression(
                 decodeModelInputType(type, schema),
-                decodeScalarLiteral(type.name, value),
+                decodeScalarLiteral(type, value, variableValues),
             )
         is GraphQLEnumType ->
             coerceArgumentExpression(
@@ -113,27 +112,18 @@ internal fun decodeLiteral(
 }
 
 private fun decodeScalarLiteral(
-    scalarName: String,
+    type: GraphQLScalarType,
     value: GraphQLValue<*>,
+    variableValues: Map<String, EngineInputData?>,
 ): EngineSimpleData =
-    when (scalarName) {
-        "Int" -> (value as IntValue).value.intValueExact()
-        "Float" ->
-            when (value) {
-                is FloatValue -> value.value.toDouble()
-                is IntValue -> value.value.toDouble()
-                else -> error("Invalid Float literal: $value")
-            }
-        "String" -> (value as StringValue).value!!
-        "Boolean" -> (value as BooleanValue).isValue
-        "ID" ->
-            when (value) {
-                is StringValue -> value.value!!
-                is IntValue -> value.value.toString()
-                else -> error("Invalid ID literal: $value")
-            }
-        else -> error("Unsupported scalar: $scalarName")
-    }
+    requireNotNull(
+        type.coercing.parseLiteral(
+            value,
+            CoercedVariables.of(variableValues),
+            GraphQLContext.getDefault(),
+            Locale.getDefault(),
+        ),
+    )
 
 private inline fun decodeInputObjectFields(
     type: GraphQLInputObjectType,
@@ -218,7 +208,7 @@ private fun decodeExternal(
                 )
             }
         }
-        is GraphQLScalarType -> decodeScalarExternal(type.name, value)
+        is GraphQLScalarType -> decodeScalarExternal(type, value)
         is GraphQLEnumType -> value.toString()
         is GraphQLInputObjectType -> decodeObjectExternal(type, value, variableValues, schema)
         else -> error("Unexpected input type: $type")
@@ -236,17 +226,9 @@ internal fun decodeExternalInputValue(
     )
 
 private fun decodeScalarExternal(
-    scalarName: String,
+    type: GraphQLScalarType,
     value: Any,
-): EngineSimpleData =
-    when (scalarName) {
-        "Int" -> (value as Number).toInt()
-        "Float" -> (value as Number).toDouble()
-        "String" -> value as String
-        "Boolean" -> value as Boolean
-        "ID" -> value.toString()
-        else -> error("Unsupported scalar: $scalarName")
-    }
+): EngineSimpleData = requireNotNull(type.coercing.parseValue(value, GraphQLContext.getDefault(), Locale.getDefault()))
 
 private fun decodeModelInputType(
     type: GraphQLInputType,

@@ -111,7 +111,7 @@ The execution layer supports:
 - field- and type-checker dispatchers, including named inputs, supported variable definitions, execution conditions, denial, and errors;
 - object- and Query-rooted required selections, aliases, arguments, fragments, transitive demand, and occurrence-local variables;
 - `FromArgument`, supported singular `FromObjectField` and `FromQueryField` paths, and no-RSS function providers;
-- synchronous scalar, enum, list, object, error, node-reference, and root-field-reference outputs;
+- synchronous scalar, enum, list, object, error, node-reference, and root-field-reference outputs, including `Byte`, `Short`, `Long`, `BigInteger`, `BigDecimal`, `Date`, `DateTime`, `JSON`, and opaque internal `BackingData`;
 - namespace traversal, built-in `Query.node` and `Query.nodes`, and canonical `__typename` lowering;
 - scoped public schemas with full-schema resolver inputs;
 - nested `ctx.query()` and `ctx.mutation()` execution;
@@ -127,7 +127,7 @@ The execution layer rejects or does not provide:
 - inline object materialization for Node-valued fields;
 - object required selections or `FromObjectField` variables on reference targets;
 - function variables providers with their own required selections;
-- subscriptions, custom scalars, `@stream`, EOD aliases, asynchronous EOD variants, `EngineExecutionContext.completeSelectionSet`, and direct `Engine.resolveRootFieldReference` calls.
+- subscriptions, application-defined custom scalars, `@stream`, EOD aliases, asynchronous EOD variants, `EngineExecutionContext.completeSelectionSet`, and direct `Engine.resolveRootFieldReference` calls.
 
 Unsupported input fails explicitly during registry construction, operation decoding, or execution. Runtime2 does not retry an operation on the `runtime` engine after Resolution begins.
 

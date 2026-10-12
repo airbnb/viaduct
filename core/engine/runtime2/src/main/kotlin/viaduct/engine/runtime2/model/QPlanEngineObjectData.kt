@@ -11,8 +11,8 @@ import viaduct.utils.collections.HMap
 /**
  * One construction-time EOD entry whose selection may be a field name or response alias.
  *
- * The schema field is retained through resolver-output validation and then forgotten by the
- * constructed EOD.
+ * The constructed EOD retains the canonical field so aliases and opaque scalar values can be
+ * validated without inferring a schema type from their JVM representation.
  */
 sealed interface EngineObjectDataEntry {
     val selection: String
@@ -94,6 +94,7 @@ private fun constructEngineObjectData(
         type = schemaType.engineObjectDataType,
         schemaType = schemaType,
         values = values,
+        selectionFields = entries.associate { it.selection to it.field },
     )
 }
 
@@ -152,6 +153,7 @@ private data class EngineObjectDataEntryImpl(
 
 internal interface QPlanEngineObjectData : EngineObjectData.Sync {
     val schemaType: ViaductSchema.Object
+    val selectionFields: Map<String, ViaductSchema.ObjectField>
 
     fun outputValue(selection: String): ResolverOutputData?
 }
@@ -165,6 +167,7 @@ private class QPlanEngineObjectDataImpl(
     override val type: GraphQLObjectType,
     override val schemaType: ViaductSchema.Object,
     private val values: Map<String, ResolverOutputData?>,
+    override val selectionFields: Map<String, ViaductSchema.ObjectField>,
 ) : QPlanEngineObjectData {
     override suspend fun fetch(selection: String): Any? = get(selection)
 
