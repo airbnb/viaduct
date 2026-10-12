@@ -1002,39 +1002,85 @@ class ResolverDemandTest {
     }
 
     @Test
-    fun `statically excluded demand does not form a resolver cycle`() {
-        val world =
-            TestWorld.fromSDL(
-                schemaSDL =
-                    """
-                    type Query {
-                      first: Int!
-                      second: Int!
+    fun `rejects statically excluded resolver cycles in object and Query fragments`() {
+        for (provider in ProviderFragment.entries) {
+            for (directive in listOf("@skip(if: true)", "@include(if: false)")) {
+                val failure =
+                    assertFailsWith<IllegalArgumentException> {
+                        TestWorld.fromSDL(
+                            schemaSDL = "type Query { first: Int!, second: Int! }",
+                            fieldResolvers = { schema ->
+                                val empty = schema.loweredSchema.emptyFragmentOf("Query")
+                                listOf("first" to "second $directive", "second" to "first").associate { (field, selections) ->
+                                    val fragment = schema.fragmentFrom("fragment Input on Query { $selections }")
+                                    schema.loweredSchema.requireObjectField("Query", field) to
+                                        fieldResolverOf(
+                                            objectFragment = if (provider == ProviderFragment.OBJECT) fragment else empty,
+                                            queryFragment = if (provider == ProviderFragment.QUERY) fragment else empty,
+                                        ) { _, _, _ -> error("Not invoked") }
+                                }
+                            },
+                        )
                     }
-                    """.trimIndent(),
-                fieldResolvers = { schema ->
-                    mapOf(
-                        schema.loweredSchema.requireField("Query", "first") to
-                            resolver(
-                                schema.fragmentFrom(
-                                    "fragment ignored on Query { second @skip(if: true) }",
-                                ),
-                            ),
-                        schema.loweredSchema.requireField("Query", "second") to
-                            resolver(
-                                schema.fragmentFrom(
-                                    "fragment ignored on Query { first }",
-                                ),
-                            ),
-                    )
-                },
-            )
-        val schema = world.schemas
-        val first = schema.loweredSchema.requireObjectField("Query", "first")
-        val second = schema.loweredSchema.requireObjectField("Query", "second")
+                assertTrue(failure.message.orEmpty().contains("demand cycle"), failure.message)
+            }
+        }
+    }
 
-        assertTrue(world.resolverRegistry.mayDemandFrom(first).isEmpty())
-        assertEquals(setOf(first), world.resolverRegistry.mayDemandFrom(second))
+    @Test
+    fun `accepts statically excluded acyclic dependencies`() {
+        for (provider in ProviderFragment.entries) {
+            for (directive in listOf("@skip(if: true)", "@include(if: false)")) {
+                val world =
+                    TestWorld.fromSDL(
+                        schemaSDL = "type Query { first: Int!, second: Int! }",
+                        fieldResolvers = { schema ->
+                            val empty = schema.loweredSchema.emptyFragmentOf("Query")
+                            val fragment = schema.fragmentFrom("fragment Input on Query { second $directive }")
+                            mapOf(
+                                schema.loweredSchema.requireObjectField("Query", "first") to
+                                    fieldResolverOf(
+                                        objectFragment = if (provider == ProviderFragment.OBJECT) fragment else empty,
+                                        queryFragment = if (provider == ProviderFragment.QUERY) fragment else empty,
+                                    ) { _, _, _ -> error("Not invoked") },
+                                schema.loweredSchema.requireObjectField("Query", "second") to resolver(empty),
+                            )
+                        },
+                    )
+                val first = world.schema.requireObjectField("Query", "first")
+                val second = world.schema.requireObjectField("Query", "second")
+                assertEquals(setOf(second), world.resolverRegistry.mayDemandFrom(first))
+                assertTrue(world.resolverRegistry.mayDemandFrom(second).isEmpty())
+            }
+        }
+    }
+
+    @Test
+    fun `rejects statically excluded self dependencies including beneath ancestors`() {
+        for (provider in ProviderFragment.entries) {
+            for (directive in listOf("@skip(if: true)", "@include(if: false)")) {
+                for (selections in listOf("value $directive", "... $directive { value }", "wrapper $directive { value }")) {
+                    val failure =
+                        assertFailsWith<IllegalArgumentException> {
+                            TestWorld.fromSDL(
+                                schemaSDL = "type Query { value: Int!, wrapper: Query! }",
+                                fieldResolvers = { schema ->
+                                    val empty = schema.loweredSchema.emptyFragmentOf("Query")
+                                    val fragment = schema.fragmentFrom("fragment Input on Query { $selections }")
+                                    mapOf(
+                                        schema.loweredSchema.requireObjectField("Query", "value") to
+                                            fieldResolverOf(
+                                                objectFragment = if (provider == ProviderFragment.OBJECT) fragment else empty,
+                                                queryFragment = if (provider == ProviderFragment.QUERY) fragment else empty,
+                                            ) { _, _, _ -> error("Not invoked") },
+                                    )
+                                },
+                            )
+                        }
+                    assertTrue(failure.message.orEmpty().contains("demand cycle"), failure.message)
+                }
+            }
+        }
     }
 
     @Test

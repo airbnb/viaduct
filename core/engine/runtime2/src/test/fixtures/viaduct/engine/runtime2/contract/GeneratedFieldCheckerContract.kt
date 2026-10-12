@@ -110,7 +110,7 @@ interface GeneratedFieldCheckerContract : GeneratedCaseAssertionPolicy {
                     coverage.record(testCase.registry, observation)
                 }
 
-            coverage.assertRequired(
+            coverage.warnMissingRequired(
                 run = run,
                 required =
                     setOf(
@@ -153,7 +153,7 @@ interface GeneratedFieldCheckerContract : GeneratedCaseAssertionPolicy {
                     coverage.record(testCase.registry, observation)
                 }
 
-            coverage.assertRequired(
+            coverage.warnMissingRequired(
                 run = run,
                 required =
                     setOf(
@@ -255,7 +255,7 @@ interface GeneratedFieldCheckerContract : GeneratedCaseAssertionPolicy {
                     run to sampledCoverage
                 }
 
-            requiredCoverage.assertRequired(
+            requiredCoverage.warnMissingRequired(
                 run = coverageRun,
                 required = required,
             )

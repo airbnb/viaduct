@@ -9,6 +9,7 @@ import viaduct.engine.runtime2.contract.DepthFirstTaskOrderingContract
 import viaduct.engine.runtime2.contract.EmptyObjectFragmentResolverContract
 import viaduct.engine.runtime2.contract.FrozenObjectResolutionContract
 import viaduct.engine.runtime2.contract.NodeResolverContract
+import viaduct.engine.runtime2.contract.QueryFragmentVariablesResolverContract
 import viaduct.engine.runtime2.contract.ResolverTaskObservation
 import viaduct.engine.runtime2.contract.RootFieldReferenceResolverContract
 import viaduct.engine.runtime2.contract.SometimesPassiveResolverContract
@@ -18,6 +19,7 @@ import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 
 class ResolverContractTest :
     EmptyObjectFragmentResolverContract,
+    QueryFragmentVariablesResolverContract,
     NodeResolverContract,
     RootFieldReferenceResolverContract,
     CompleteOutputRootFieldReferenceResolverContract,

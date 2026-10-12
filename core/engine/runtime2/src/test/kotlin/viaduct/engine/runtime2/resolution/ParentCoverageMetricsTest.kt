@@ -3,7 +3,6 @@ package viaduct.engine.runtime2.resolution
 import kotlin.test.Test
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.resolution.framework.ResolverInvocationObservation
@@ -173,11 +172,13 @@ class ParentCoverageMetricsTest : ResolutionDispatcherResource {
         }
         assertContains(rendered, "FOUR-RUN RESULT: HIT (4/4 runs hit all nine criteria)")
         assertContains(rendered, "COMBINED RESULT: HIT")
-        report.requireCombinedHit()
+        val warnings = mutableListOf<String>()
+        report.warnCombinedMiss(warnings::add)
+        assertEquals(emptyList(), warnings)
     }
 
     @Test
-    fun `coverage misses are reported and rejected`() {
+    fun `coverage misses warn without rejecting the run`() {
         val report = ParentFocusedCoverageReport(schemaCount = 4, sliceCount = 4)
         repeat(4) { schemaOffset -> report.record(schemaOffset + 1, ParentFocusedCoverageSnapshot()) }
 
@@ -197,9 +198,12 @@ class ParentCoverageMetricsTest : ResolutionDispatcherResource {
         }
         assertContains(rendered, "FOUR-RUN RESULT: MISS (0/4 runs hit all nine criteria)")
         assertContains(rendered, "COMBINED RESULT: MISS")
-        val failure = assertFailsWith<IllegalStateException> { report.requireCombinedHit() }
-        assertContains(failure.message.orEmpty(), "1. Parent topology")
-        assertContains(failure.message.orEmpty(), "9. Sometimes-passive parent demand")
+        val warnings = mutableListOf<String>()
+        report.warnCombinedMiss(warnings::add)
+        assertEquals(1, warnings.size)
+        assertContains(warnings.single(), "WARNING: Combined parent-focused coverage missed criteria")
+        assertContains(warnings.single(), "1. Parent topology")
+        assertContains(warnings.single(), "9. Sometimes-passive parent demand")
     }
 
     @Test

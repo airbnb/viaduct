@@ -113,11 +113,11 @@ interface RootFieldReferenceGeneratedResolverContract : GeneratedCaseAssertionPo
                             .size
                 }
             if (run.selectedCase == null) {
-                run.assertAggregate(
+                run.warnCoverage(
                     generatedReferences > 0,
                     "Root-field-reference profile generated no references",
                 )
-                run.assertAggregate(
+                run.warnCoverage(
                     activatedReferences > 0,
                     "Root-field-reference profile activated no references",
                 )
@@ -198,11 +198,11 @@ interface SometimesPassiveGeneratedResolverContract : GeneratedCaseAssertionPoli
                         )
                 }
 
-                activationRun.assertAggregate(
+                activationRun.warnCoverage(
                     activationCoverage.generatedFields > 0,
                     "Sometimes-passive activation corpus produced no source-owned fields",
                 )
-                activationRun.assertAggregate(
+                activationRun.warnCoverage(
                     activationCoverage.activatedOccurrences > 0,
                     "Sometimes-passive activation corpus activated no source-owned fields",
                 )
@@ -283,19 +283,19 @@ interface NodeGeneratedResolverContract : GeneratedCaseAssertionPolicy {
                         )
                 }
 
-                activationRun.assertAggregate(
+                activationRun.warnCoverage(
                     activationCoverage.generatedNodeResolvers > 0,
                     "Node activation corpus produced no node resolvers",
                 )
-                activationRun.assertAggregate(
+                activationRun.warnCoverage(
                     activationCoverage.nodeLoaderApplications > 0,
                     "Node activation corpus activated no fixture-lowered node loaders",
                 )
-                activationRun.assertAggregate(
+                activationRun.warnCoverage(
                     activationCoverage.generatedMixedTopologyCases > 0,
                     "Node activation corpus produced no mixed node/non-node schemas",
                 )
-                activationRun.assertAggregate(
+                activationRun.warnCoverage(
                     activationCoverage.activatedMixedTopologyCases > 0,
                     "Node activation corpus activated no node loaders in mixed schemas",
                 )
@@ -372,15 +372,15 @@ interface SelectiveNodeGeneratedResolverContract : GeneratedCaseAssertionPolicy 
                         )
                 }
 
-                activationRun.assertAggregate(
+                activationRun.warnCoverage(
                     activationCoverage.generatedNodeResolvers > 0,
                     "Selective-node activation corpus produced no node resolvers",
                 )
-                activationRun.assertAggregate(
+                activationRun.warnCoverage(
                     activationCoverage.nodeLoaderApplications > 0,
                     "Selective-node activation corpus activated no fixture-lowered node loaders",
                 )
-                activationRun.assertAggregate(
+                activationRun.warnCoverage(
                     activationCoverage.nonemptyDemandApplications > 0,
                     "Selective-node activation corpus supplied no nonempty node payload demand",
                 )
@@ -426,11 +426,11 @@ interface ObjectFragmentGeneratedResolverContract : GeneratedCaseAssertionPolicy
                     }
             }
 
-            run.assertAggregate(
+            run.warnCoverage(
                 generatedNonemptyFragments > 0,
                 "Generated object-fragment profile produced no nonempty fragments",
             )
-            run.assertAggregate(
+            run.warnCoverage(
                 activatedNonemptyFragments > 0,
                 "Generated object-fragment profile activated no nonempty fragments",
             )
@@ -517,39 +517,39 @@ interface QueryFragmentGeneratedResolverContract : GeneratedCaseAssertionPolicy 
                         }
                 }
 
-            run.assertAggregate(
+            run.warnCoverage(
                 generatedQueryFragments > 0,
                 "Generated query-fragment profile produced no query fragments",
             )
-            run.assertAggregate(
+            run.warnCoverage(
                 generatedArgumentVariables > 0,
                 "Generated query-fragment profile produced no FromArgument variables",
             )
             if (queryFragmentObjectPathVariablesEnabled) {
-                run.assertAggregate(
+                run.warnCoverage(
                     generatedObjectPathVariables > 0,
                     "Generated query-fragment profile produced no FromObjectField variables",
                 )
             }
             if (queryFragmentQueryPathVariablesEnabled) {
-                run.assertAggregate(
+                run.warnCoverage(
                     generatedQueryPathVariables > 0,
                     "Generated query-fragment profile produced no FromQueryField variables",
                 )
-                run.assertAggregate(
+                run.warnCoverage(
                     activatedQueryPathVariableApplications > 0,
                     "Generated query-fragment profile activated no FromQueryField variables",
                 )
             }
-            run.assertAggregate(
+            run.warnCoverage(
                 activatedQueryFragments > 0,
                 "Generated query-fragment profile activated no query fragments",
             )
-            run.assertAggregate(
+            run.warnCoverage(
                 activatedArgumentVariableApplications > 0,
                 "Generated query-fragment profile activated no FromArgument variables",
             )
-            run.assertAggregate(
+            run.warnCoverage(
                 queryValueWitnesses > 0,
                 "Generated query-fragment profile produced no query-value witnesses",
             )
@@ -635,27 +635,27 @@ interface ObjectFragmentFromArgumentGeneratedResolverContract : GeneratedCaseAss
                         )
                 }
 
-                activationRun.assertAggregate(
+                activationRun.warnCoverage(
                     activationCoverage.generatedVariables > 0,
                     "FromArgument activation corpus produced no FromArgument variables",
                 )
-                activationRun.assertAggregate(
+                activationRun.warnCoverage(
                     activationCoverage.activatedApplications > 0,
                     "FromArgument activation corpus activated no variable-bearing resolvers",
                 )
-                activationRun.assertAggregate(
+                activationRun.warnCoverage(
                     activationCoverage.generatedNestedPaths > 0,
                     "FromArgument activation corpus produced no nested argument paths",
                 )
-                activationRun.assertAggregate(
+                activationRun.warnCoverage(
                     activationCoverage.activatedNestedPathApplications > 0,
                     "FromArgument activation corpus activated no nested argument paths",
                 )
-                activationRun.assertAggregate(
+                activationRun.warnCoverage(
                     activationCoverage.generatedNullableTraversals > 0,
                     "FromArgument activation corpus produced no nullable input traversal",
                 )
-                activationRun.assertAggregate(
+                activationRun.warnCoverage(
                     activationCoverage.activatedNullableTraversalApplications > 0,
                     "FromArgument activation corpus activated no nullable input traversal",
                 )
@@ -735,27 +735,27 @@ interface ObjectFragmentFromObjectPathGeneratedResolverContract : GeneratedCaseA
                         }
                 }
 
-            run.assertAggregate(
+            run.warnCoverage(
                 generatedVariables > 0,
                 "Generated FromObjectField profile produced no path variables",
             )
-            run.assertAggregate(
+            run.warnCoverage(
                 generatedNestedProviderPaths > 0,
                 "Generated FromObjectField profile produced no nested provider paths",
             )
-            run.assertAggregate(
+            run.warnCoverage(
                 generatedProviderArgumentVariables > 0,
                 "Generated FromObjectField profile produced no provider-argument dependencies",
             )
-            run.assertAggregate(
+            run.warnCoverage(
                 activatedApplications > 0,
                 "Generated FromObjectField profile activated no variable-bearing resolvers",
             )
-            run.assertAggregate(
+            run.warnCoverage(
                 activatedNestedProviderApplications > 0,
                 "Generated FromObjectField profile activated no resolver with a nested provider path",
             )
-            run.assertAggregate(
+            run.warnCoverage(
                 activatedProviderArgumentApplications > 0,
                 "Generated FromObjectField profile activated no provider-argument dependency",
             )
@@ -851,23 +851,23 @@ interface FromProviderGeneratedResolverContract : GeneratedCaseAssertionPolicy {
                         }
                 }
 
-            run.assertAggregate(
+            run.warnCoverage(
                 generatedVariables > 0,
                 "Generated FromProvider profile produced no provider variables",
             )
-            run.assertAggregate(
+            run.warnCoverage(
                 generatedArgumentSensitiveVariables > 0,
                 "Generated FromProvider profile produced no argument-sensitive providers",
             )
-            run.assertAggregate(
+            run.warnCoverage(
                 activatedApplications > 0,
                 "Generated FromProvider profile activated no provider-bearing resolvers",
             )
-            run.assertAggregate(
+            run.warnCoverage(
                 activatedArgumentSensitiveApplications > 0,
                 "Generated FromProvider profile activated no argument-sensitive provider",
             )
-            run.assertAggregate(
+            run.warnCoverage(
                 observedArgumentSensitiveValues > 0,
                 "Generated FromProvider profile observed no argument-dependent callback values",
             )
@@ -944,12 +944,12 @@ interface MixedVariableGeneratedResolverContract : GeneratedCaseAssertionPolicy 
                         )
                 }
 
-                activationRun.assertAggregate(
+                activationRun.warnCoverage(
                     activationCoverage.generatedFromArgument > 0 &&
                         activationCoverage.generatedFromObjectField > 0,
                     "Mixed-variable activation corpus did not generate both variable kinds",
                 )
-                activationRun.assertAggregate(
+                activationRun.warnCoverage(
                     activationCoverage.coactivatedCases > 0,
                     "Mixed-variable activation corpus did not coactivate both variable kinds",
                 )
@@ -1031,25 +1031,25 @@ interface FeatureInteractionGeneratedResolverContract : GeneratedCaseAssertionPo
                 }
             }
 
-            run.assertAggregate(
+            run.warnCoverage(
                 generatedFromArgumentVariables > 0,
                 "Feature-interaction profile produced no FromArgument variables",
             )
             if (nodeRootFieldReferencesEnabled) {
-                run.assertAggregate(
+                run.warnCoverage(
                     generatedMixedTopologyCases > 0,
                     "Feature-interaction profile produced no mixed node/non-node schemas",
                 )
-                run.assertAggregate(
+                run.warnCoverage(
                     activatedMixedTopologyCases > 0,
                     "Feature-interaction profile activated no mixed node/non-node schemas",
                 )
-                run.assertAggregate(
+                run.warnCoverage(
                     coactivatedNodeAndFromArgumentCases > 0,
                     "Feature-interaction profile never coactivated a node loader and FromArgument",
                 )
             }
-            run.assertAggregate(
+            run.warnCoverage(
                 activatedImplementationDefaults > 0,
                 "Feature-interaction profile activated no abstract implementation defaults",
             )

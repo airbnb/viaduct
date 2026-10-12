@@ -7,6 +7,7 @@ import viaduct.engine.runtime2.contract.CorrectResolutionPostTestPolicy
 import viaduct.engine.runtime2.contract.EmptyObjectFragmentResolverContract
 import viaduct.engine.runtime2.contract.FrozenObjectResolutionContract
 import viaduct.engine.runtime2.contract.NodeResolverContract
+import viaduct.engine.runtime2.contract.QueryFragmentVariablesResolverContract
 import viaduct.engine.runtime2.contract.RootFieldReferenceResolverContract
 import viaduct.engine.runtime2.contract.SometimesPassiveResolverContract
 import viaduct.engine.runtime2.model.ObjectEngineResult
@@ -16,6 +17,7 @@ import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 class ResolverContractTest :
     FrozenObjectResolutionContract,
     EmptyObjectFragmentResolverContract,
+    QueryFragmentVariablesResolverContract,
     NodeResolverContract,
     RootFieldReferenceResolverContract,
     CompleteOutputRootFieldReferenceResolverContract,

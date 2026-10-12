@@ -108,7 +108,7 @@ Silence from Gradle is not evidence of deadlock. Inspect CPU, thread stacks, gen
 
 ## Fixture And Observation Discipline
 
-`TestWorld` makes intentionally incomplete test registries deterministic by installing null producers for missing nullable Query fields and error producers for missing non-null Query fields before overlaying test declarations. This is a fixture-composition rule, not permission for production bootstrap to omit required entries.
+`TestWorld` makes intentionally incomplete test registries deterministic by installing null producers for missing nullable Query fields and error producers for missing non-null Query fields before overlaying test declarations. This is a fixture-composition rule, not permission for production bootstrap to omit required entries. `TestWorld.fromSDL`'s `variableProviders` parameter supplies variable declarations such as `FromArgument` and `FromField`; tenant callback providers are attached with `FieldResolverDefinition.withVariablesProvider` (or the DSL's `providerVars`).
 
 Record runtime events cheaply and thread-safely, snapshot them after request quiescence, and perform expensive correctness analysis serially. Observers must not impose scheduler order. Keep extensional result correctness, exact resolver and checker applications, occurrence identity, variable bindings, lifecycle ownership, supplied demand, mutation evidence, and activation coverage as independent judgments.
 

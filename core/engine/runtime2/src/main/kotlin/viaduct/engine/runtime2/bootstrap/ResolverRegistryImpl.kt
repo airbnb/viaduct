@@ -812,7 +812,6 @@ private class ResolverRegistryImpl(
         selection: Selection,
         ownerField: ViaductSchema.ObjectField,
     ) {
-        if (selection.inclusionCondition === InclusionCondition.Never) return
         selection.possibleTypes.forEach { possibleType ->
             possibleType.field(selection.key.field.name)
                 ?.takeIf { it in sourceFieldResolvers }
@@ -848,7 +847,7 @@ private class ResolverRegistryImpl(
                 outgoing.getValue(site).none { dependency -> dependency in remaining }
             }
         require(ready.isNotEmpty()) {
-            "Resolver object fragments contain a demand cycle"
+            "Resolver fragments contain a demand cycle"
         }
         return dependencyOrder(
             outgoing = outgoing,

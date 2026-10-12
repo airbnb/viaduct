@@ -123,12 +123,12 @@ internal fun EngineObjectData.Sync.closeOrchestrationConstructionDemand(
             objectTypeCheckerInputs != null
         ) {
             demandNotClosed = true
-            newObjectResolverKeys.bindFromArguments(
+            newObjectResolverKeys.bindResolverVariables(
                 operation,
                 objectOccurrence.root,
                 objectOccurrence.path,
             )
-            newQueryResolverKeys.bindFromArguments(
+            newQueryResolverKeys.bindResolverVariables(
                 operation,
                 queryOccurrence.root,
                 queryOccurrence.path,

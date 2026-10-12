@@ -13,9 +13,9 @@ import viaduct.graphql.schema.ViaductSchema
  * resolver-local variable-template names, and acyclicity across object fields and
  * variable-template values. Acyclicity is intentionally checked over a conservative
  * coordinate-level possibility relation derived from fixed open fragment shapes. The relation
- * may therefore contain an edge whose exact occurrence is inactive because of a runtime type guard
- * or erroneous argument tuple, and the registry may reject a world whose exact active occurrences
- * would be acyclic.
+ * may therefore contain an edge whose exact occurrence is inactive because of an inclusion condition,
+ * runtime type guard, or erroneous argument tuple. Even statically excluded selections contribute
+ * dependencies, and the registry may reject a world whose exact active occurrences would be acyclic.
  *
  * Every variable is defined from one argument of its resolver field, from one nonempty canonical
  * [ObjectEngineResult.Key] path relative to that field's containing object, or by its resolver's

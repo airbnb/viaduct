@@ -12,6 +12,49 @@ import kotlinx.coroutines.runBlocking
 
 class ResolverTestReplayTest {
     @Test
+    fun `coverage gaps warn with replay coordinates without failing the run`() {
+        val run = ResolverTestRun(
+            profile = "coverage-warning",
+            seed = 31415926L,
+            attemptedCases = 8,
+            counts = TestCaseCount(schemas = 2, registriesPerSchema = 2, queriesPerSchema = 2),
+            selectedCase = null,
+            sizeOverridden = false,
+        )
+        val warnings = mutableListOf<String>()
+
+        run.warnCoverage(false, "No activated query fragments", warnings::add)
+        run.warnCoverage(true, "Covered feature", warnings::add)
+
+        assertEquals(1, warnings.size)
+        assertContains(warnings.single(), "WARNING: Generated coverage gap")
+        assertContains(warnings.single(), "No activated query fragments")
+        assertContains(warnings.single(), "profile=coverage-warning seed=31415926 S=all R=all Q=all")
+        assertContains(warnings.single(), "Size: ${run.counts.summary()}")
+        assertContains(warnings.single(), "-PresolverPropertySeed=31415926")
+        assertFailsWith<AssertionError> {
+            run.assertAggregate(run.attemptedCases == 9, "Incomplete run")
+        }
+    }
+
+    @Test
+    fun `single case replay suppresses coverage warnings`() {
+        val run = ResolverTestRun(
+            profile = "coverage-warning",
+            seed = 31415926L,
+            attemptedCases = 1,
+            counts = TestCaseCount(schemas = 2, registriesPerSchema = 2, queriesPerSchema = 2),
+            selectedCase = ResolverTestCaseCoordinate(1, 1, 1),
+            sizeOverridden = false,
+        )
+        val warnings = mutableListOf<String>()
+
+        run.warnCoverage(false, "Missing feature outside the selected case", warnings::add)
+
+        assertEquals(emptyList(), warnings)
+    }
+
+    @Test
     fun `same seed reproduces generated cases and coordinates`(): Unit =
         runBlocking {
             val first = generatedCases(seed = 8675309L)

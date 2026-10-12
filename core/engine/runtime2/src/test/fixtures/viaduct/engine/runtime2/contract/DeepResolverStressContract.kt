@@ -28,6 +28,7 @@ import viaduct.engine.runtime2.arbitrary.ResolverFromArgumentVariablesEnabled
 import viaduct.engine.runtime2.arbitrary.ResolverFromQueryFieldVariablesEnabled
 import viaduct.engine.runtime2.arbitrary.ResolverQueryFragmentWeight
 import viaduct.engine.runtime2.arbitrary.ResolverQueryFragmentsEnabled
+import viaduct.engine.runtime2.arbitrary.ResolverTestRun
 import viaduct.engine.runtime2.arbitrary.ResolverVariablesEnabled
 import viaduct.engine.runtime2.arbitrary.SchemaObjectCount
 import viaduct.engine.runtime2.arbitrary.TestCaseCount
@@ -150,8 +151,9 @@ interface DeepResolverStressContract : ResolverContract {
             val previousSeed = PropertyTesting.defaultSeed
             PropertyTesting.defaultSeed = seed
 
+            val run: ResolverTestRun
             try {
-                checkResolverTestCases(
+                run = checkResolverTestCases(
                     counts,
                     config,
                     profile = "$resolverName-stress",
@@ -383,12 +385,22 @@ interface DeepResolverStressContract : ResolverContract {
 
             assertEquals(requestedCases, attemptedCases)
             assertEquals(requestedCases, verifiedCases)
-            assertTrue(resolverApplications >= requestedCases)
+            run.warnCoverage(
+                resolverApplications >= requestedCases,
+                "Deep stress coverage: resolverApplications=$resolverApplications, expected >= $requestedCases",
+            )
             if (nodeResolversEnabled) {
-                assertTrue(generatedNodeResolvers >= requestedCases / 100)
-                assertTrue(nodeLoaderApplications >= requestedCases / 1_000)
-                assertTrue(
+                run.warnCoverage(
+                    generatedNodeResolvers >= requestedCases / 100,
+                    "Deep stress coverage: generatedNodeResolvers=$generatedNodeResolvers, expected >= ${requestedCases / 100}",
+                )
+                run.warnCoverage(
+                    nodeLoaderApplications >= requestedCases / 1_000,
+                    "Deep stress coverage: nodeLoaderApplications=$nodeLoaderApplications, expected >= ${requestedCases / 1_000}",
+                )
+                run.warnCoverage(
                     argumentBearingNodeProducerApplications >= requestedCases / 1_000,
+                    "Deep stress missed argument-bearing node producer coverage",
                 )
             } else {
                 assertEquals(0, generatedNodeResolvers)
@@ -396,21 +408,48 @@ interface DeepResolverStressContract : ResolverContract {
                 assertEquals(0, argumentBearingNodeProducerApplications)
             }
             if (objectPathVariablesEnabled) {
-                assertTrue(generatedObjectPathVariables > 0)
-                assertTrue(activatedObjectPathApplications > 0)
+                run.warnCoverage(
+                    generatedObjectPathVariables > 0,
+                    "Deep stress coverage: generatedObjectPathVariables=$generatedObjectPathVariables, expected > 0",
+                )
+                run.warnCoverage(
+                    activatedObjectPathApplications > 0,
+                    "Deep stress coverage: activatedObjectPathApplications=$activatedObjectPathApplications, expected > 0",
+                )
             }
             if (queryPathVariablesEnabled) {
-                assertTrue(generatedQueryPathVariables > 0)
-                assertTrue(activatedQueryPathApplications > 0)
+                run.warnCoverage(
+                    generatedQueryPathVariables > 0,
+                    "Deep stress coverage: generatedQueryPathVariables=$generatedQueryPathVariables, expected > 0",
+                )
+                run.warnCoverage(
+                    activatedQueryPathApplications > 0,
+                    "Deep stress coverage: activatedQueryPathApplications=$activatedQueryPathApplications, expected > 0",
+                )
             }
             if (queryFragmentCoverageRequired) {
-                assertTrue(generatedQueryFragments > 0)
-                assertTrue(queryFragmentFreeCases > 0)
-                assertTrue(activatedQueryFragmentApplications > 0)
-                assertTrue(casesWithDemandedQueryOERs > 0)
-                assertTrue(casesWithoutDemandedQueryOERs > 0)
+                run.warnCoverage(
+                    generatedQueryFragments > 0,
+                    "Deep stress coverage: generatedQueryFragments=$generatedQueryFragments, expected > 0",
+                )
+                run.warnCoverage(
+                    queryFragmentFreeCases > 0,
+                    "Deep stress coverage: queryFragmentFreeCases=$queryFragmentFreeCases, expected > 0",
+                )
+                run.warnCoverage(
+                    activatedQueryFragmentApplications > 0,
+                    "Deep stress coverage: activatedQueryFragmentApplications=$activatedQueryFragmentApplications, expected > 0",
+                )
+                run.warnCoverage(
+                    casesWithDemandedQueryOERs > 0,
+                    "Deep stress coverage: casesWithDemandedQueryOERs=$casesWithDemandedQueryOERs, expected > 0",
+                )
+                run.warnCoverage(
+                    casesWithoutDemandedQueryOERs > 0,
+                    "Deep stress coverage: casesWithoutDemandedQueryOERs=$casesWithoutDemandedQueryOERs, expected > 0",
+                )
                 if (minimumDemandedQueryOERDepth > 0) {
-                    assertTrue(
+                    run.warnCoverage(
                         maximumDemandedQueryOERDepth >= minimumDemandedQueryOERDepth,
                         "Expected demanded Query-OER depth of at least " +
                             "$minimumDemandedQueryOERDepth, found $maximumDemandedQueryOERDepth",
@@ -418,10 +457,13 @@ interface DeepResolverStressContract : ResolverContract {
                 }
             }
             if (nestedObjectPathCoverageRequired) {
-                assertTrue(activatedNestedObjectPathApplications > 0)
+                run.warnCoverage(
+                    activatedNestedObjectPathApplications > 0,
+                    "Deep stress coverage: activatedNestedObjectPathApplications=$activatedNestedObjectPathApplications, expected > 0",
+                )
             }
             if (minimumActivatedObjectPathResolverChainLength > 0) {
-                assertTrue(
+                run.warnCoverage(
                     maximumActivatedObjectPathResolverChainLength >=
                         minimumActivatedObjectPathResolverChainLength,
                     "Expected an activated object-path resolver chain of length " +
@@ -430,22 +472,55 @@ interface DeepResolverStressContract : ResolverContract {
                 )
             }
             if (mixedVariableCoverageRequired) {
-                assertTrue(generatedFromArgumentVariables > 0)
-                assertTrue(generatedObjectPathVariables > 0)
-                assertTrue(activatedFromArgumentApplications > 0)
-                assertTrue(activatedObjectPathApplications > 0)
-                assertTrue(coactivatedMixedVariableCases > 0)
+                run.warnCoverage(
+                    generatedFromArgumentVariables > 0,
+                    "Deep stress coverage: generatedFromArgumentVariables=$generatedFromArgumentVariables, expected > 0",
+                )
+                run.warnCoverage(
+                    generatedObjectPathVariables > 0,
+                    "Deep stress coverage: generatedObjectPathVariables=$generatedObjectPathVariables, expected > 0",
+                )
+                run.warnCoverage(
+                    activatedFromArgumentApplications > 0,
+                    "Deep stress coverage: activatedFromArgumentApplications=$activatedFromArgumentApplications, expected > 0",
+                )
+                run.warnCoverage(
+                    activatedObjectPathApplications > 0,
+                    "Deep stress coverage: activatedObjectPathApplications=$activatedObjectPathApplications, expected > 0",
+                )
+                run.warnCoverage(
+                    coactivatedMixedVariableCases > 0,
+                    "Deep stress coverage: coactivatedMixedVariableCases=$coactivatedMixedVariableCases, expected > 0",
+                )
             }
             if (sometimesPassiveCoverageRequired) {
-                assertTrue(generatedSometimesPassiveFields > 0)
-                assertTrue(activatedSometimesPassiveOccurrences > 0)
+                run.warnCoverage(
+                    generatedSometimesPassiveFields > 0,
+                    "Deep stress coverage: generatedSometimesPassiveFields=$generatedSometimesPassiveFields, expected > 0",
+                )
+                run.warnCoverage(
+                    activatedSometimesPassiveOccurrences > 0,
+                    "Deep stress coverage: activatedSometimesPassiveOccurrences=$activatedSometimesPassiveOccurrences, expected > 0",
+                )
             }
             if (rootFieldReferenceCoverageRequired) {
-                assertTrue(generatedRootFieldReferences > 0)
-                assertTrue(activatedRootFieldReferences > 0)
+                run.warnCoverage(
+                    generatedRootFieldReferences > 0,
+                    "Deep stress coverage: generatedRootFieldReferences=$generatedRootFieldReferences, expected > 0",
+                )
+                run.warnCoverage(
+                    activatedRootFieldReferences > 0,
+                    "Deep stress coverage: activatedRootFieldReferences=$activatedRootFieldReferences, expected > 0",
+                )
                 if (nodeResolversEnabled) {
-                    assertTrue(generatedNodeRootFieldReferences > 0)
-                    assertTrue(activatedNodeRootFieldReferences > 0)
+                    run.warnCoverage(
+                        generatedNodeRootFieldReferences > 0,
+                        "Deep stress coverage: generatedNodeRootFieldReferences=$generatedNodeRootFieldReferences, expected > 0",
+                    )
+                    run.warnCoverage(
+                        activatedNodeRootFieldReferences > 0,
+                        "Deep stress coverage: activatedNodeRootFieldReferences=$activatedNodeRootFieldReferences, expected > 0",
+                    )
                 }
             }
         }

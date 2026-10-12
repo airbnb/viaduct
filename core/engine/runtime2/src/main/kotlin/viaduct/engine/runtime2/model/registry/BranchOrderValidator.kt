@@ -1,7 +1,6 @@
 package viaduct.engine.runtime2.model.registry
 
 import viaduct.engine.runtime2.model.Arguments
-import viaduct.engine.runtime2.model.InclusionCondition
 import viaduct.engine.runtime2.model.ResolverTarget
 import viaduct.engine.runtime2.model.Selection
 import viaduct.engine.runtime2.model.SelectionForest
@@ -211,7 +210,7 @@ private val Arguments.Variable.fieldValueResolverField: ViaductSchema.ObjectFiel
     get() = (target as ResolverTarget.FieldValueResolverTarget).field
 
 private fun Selection.branchOn(type: ViaductSchema.Object): ViaductSchema.ObjectField? =
-    if (inclusionCondition !== InclusionCondition.Never && type in possibleTypes) {
+    if (type in possibleTypes) {
         type.requireField(key.field.name)
     } else {
         null
@@ -235,7 +234,6 @@ private fun Selection.pathsContaining(
     variable: Arguments.Variable,
     prefix: List<String> = emptyList(),
 ): Set<String> {
-    if (inclusionCondition === InclusionCondition.Never) return emptySet()
     val path = prefix + key.field.name
     val result = linkedSetOf<String>()
     if (variable in key.arguments.variables() || variable in inclusionCondition.usedVariables()) {

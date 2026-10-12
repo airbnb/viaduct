@@ -6,6 +6,7 @@ import java.util.IdentityHashMap
 import kotlinx.coroutines.runBlocking
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.runtime2.model.Arguments
+import viaduct.engine.runtime2.model.EngineErrorData
 import viaduct.engine.runtime2.model.EngineResult
 import viaduct.engine.runtime2.model.ListEngineResult
 import viaduct.engine.runtime2.model.NodeReferenceIdentity
@@ -23,7 +24,10 @@ import viaduct.engine.runtime2.model.engineObjectDataOf
 import viaduct.engine.runtime2.model.merge
 import viaduct.engine.runtime2.model.nodeReferenceIdentityOrNull
 import viaduct.engine.runtime2.model.outputValue
+import viaduct.engine.runtime2.model.registry.FieldValueResolver
 import viaduct.engine.runtime2.model.registry.ResolutionExecutionContext
+import viaduct.engine.runtime2.model.registry.VariableDefinition
+import viaduct.engine.runtime2.model.registry.VariableInstanceDefinition
 import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.schemaType
 import viaduct.engine.runtime2.model.selectionForestOf
@@ -394,6 +398,12 @@ private class ResolverReplayLogic(
             val arguments = key.groundedArguments(operation) as? Arguments.Resolved ?: return@getOrPut null
             val resolver = operation.world.resolverRegistry.resolver(key.field)
             val coordinate = path + key
+            val providerDefinitions =
+                resolver.instantiatedVariableDefinitions(ResolverOccurrenceId.at(resolverApplicationCache.root, coordinate))
+                    .filter { it.definition == VariableDefinition.FromProvider }
+            if (providerDefinitions.any { it.hasProviderError() }) {
+                return@getOrPut resolver.reapplyProviderFailure(arguments, providerDefinitions)
+            }
             val fragments =
                 resolver.fragmentsSatisfiedBy(
                     operation = operation,
@@ -483,6 +493,28 @@ private class ResolverReplayLogic(
                 },
             )
         }
+
+    private fun VariableInstanceDefinition.hasProviderError(): Boolean =
+        operation.variableBindings.isBound(requireNotNull(variable.instanceId)) &&
+            operation.variableBindings.getBinding(requireNotNull(variable.instanceId)) == VariableBinding.Error
+
+    private fun FieldValueResolver.reapplyProviderFailure(
+        arguments: Arguments.Resolved,
+        providerDefinitions: List<VariableInstanceDefinition>,
+    ): ReappliedResolver? {
+        val failed =
+            try {
+                runBlocking { requireNotNull(variablesProvider)(arguments) }.keys !=
+                    providerDefinitions.mapTo(linkedSetOf()) { it.variable.variableName }
+            } catch (_: Exception) {
+                true
+            }
+        return if (failed && providerDefinitions.all { it.hasProviderError() }) {
+            ReappliedResolver(EngineErrorData.of())
+        } else {
+            null
+        }
+    }
 
     /** Reapplies every independently rooted resolver hop that justified one consumer value. */
     fun reapplyRootFieldReference(
@@ -579,8 +611,9 @@ private class ResolverReplayLogic(
             )
         val resolverOccurrenceId = fragments.objectFragment.resolverOccurrenceId
         if (resolverOccurrenceId != ResolverOccurrenceId.at(invocationRoot, invocationPath)) return null
+        val variableDefinitions = resolver.instantiatedVariableDefinitions(resolverOccurrenceId)
         if (
-            resolver.instantiatedVariableDefinitions(resolverOccurrenceId).any { definition ->
+            variableDefinitions.any { definition ->
                 val instanceId = requireNotNull(definition.variable.instanceId)
                 val source = definition.definition
                 !operation.variableBindings.isBound(instanceId) ||
@@ -592,6 +625,10 @@ private class ResolverReplayLogic(
             }
         ) {
             return null
+        }
+        val providerDefinitions = variableDefinitions.filter { it.definition == VariableDefinition.FromProvider }
+        if (providerDefinitions.any { it.hasProviderError() }) {
+            return resolver.reapplyProviderFailure(arguments, providerDefinitions)
         }
         val queryFragment = fragments.queryFragment
         val queryValue =

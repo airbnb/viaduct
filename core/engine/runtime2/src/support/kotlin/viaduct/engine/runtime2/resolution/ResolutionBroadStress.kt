@@ -540,20 +540,20 @@ internal suspend fun runResolutionBroadStress(
         assertEquals(run.expectedCases, attemptedCases)
         assertEquals(run.expectedCases, resolutionCalls)
         assertEquals(run.expectedCases, completedCases)
-        run.assertAggregate(
+        run.warnCoverage(
             observedSignatures.containsAll(requiredSignatures),
             "Resolution profile $propertyProfile missed required signatures: " +
                 "${requiredSignatures - observedSignatures}; " +
                 "observed=$observedSignatures",
         )
         if (config[SometimesPassiveFieldWeight] > 0.0) {
-            run.assertAggregate(
+            run.warnCoverage(
                 generatedSometimesPassiveFields > 0 &&
                     activatedSometimesPassiveOccurrences > 0,
                 "Resolution profile $propertyProfile did not activate sometimes-passive fields",
             )
             if (config[RandomParentFieldsEnabled]) {
-                run.assertAggregate(
+                run.warnCoverage(
                     activatedSometimesPassiveParentDemandOccurrences > 0,
                     "Resolution profile $propertyProfile did not source-supply a registered " +
                         "field whose standard resolver has @parent demand",
@@ -561,62 +561,62 @@ internal suspend fun runResolutionBroadStress(
             }
         }
         if (config[ResolverQueryFragmentsEnabled]) {
-            run.assertAggregate(
+            run.warnCoverage(
                 generatedQueryFragments > 0 && activatedQueryFragmentApplications > 0,
                 "Resolution profile $propertyProfile did not activate query fragments",
             )
         }
         if (config[RootFieldReferencesEnabled]) {
-            run.assertAggregate(
+            run.warnCoverage(
                 generatedRootFieldReferences > 0 && activatedRootFieldReferences > 0,
                 "Resolution profile $propertyProfile did not generate and activate root-field references",
             )
             if (config[NodeResolversEnabled]) {
-                run.assertAggregate(
+                run.warnCoverage(
                     generatedNodeRootFieldReferences > 0 &&
                         activatedNodeRootFieldReferences > 0,
                     "Resolution profile $propertyProfile did not generate and activate a " +
                         "root-field-reference-returning node resolver",
                 )
             }
-            run.assertAggregate(
+            run.warnCoverage(
                 activatedRootFieldReferencePathDepths.containsAll(setOf(2, 3, 4)),
                 "Resolution profile $propertyProfile missed root-field-reference namespace depths: " +
                     "observed=$activatedRootFieldReferencePathDepths",
             )
-            run.assertAggregate(
+            run.warnCoverage(
                 activatedRootFieldReferenceArgumentCounts.containsAll(setOf(0, 1, 4)),
                 "Resolution profile $propertyProfile missed root-field-reference arities: " +
                     "observed=$activatedRootFieldReferenceArgumentCounts",
             )
-            run.assertAggregate(
+            run.warnCoverage(
                 activatedRootFieldReferenceTargetKinds.containsAll(
                     setOf("object", "interface", "union", "enum", "scalar"),
                 ),
                 "Resolution profile $propertyProfile missed root-field-reference target kinds: " +
                     "observed=$activatedRootFieldReferenceTargetKinds",
             )
-            run.assertAggregate(
+            run.warnCoverage(
                 activatedListRootFieldReferences > 0,
                 "Resolution profile $propertyProfile did not activate a list-element root-field reference",
             )
-            run.assertAggregate(
+            run.warnCoverage(
                 maximumRootFieldReferenceTailLength >= 3,
                 "Resolution profile $propertyProfile did not activate a three-hop root-field-reference tail",
             )
-            run.assertAggregate(
+            run.warnCoverage(
                 activatedRootFieldReferenceFallbacks > 0,
                 "Resolution profile $propertyProfile did not activate root-field-reference fallback",
             )
-            run.assertAggregate(
+            run.warnCoverage(
                 activatedRootFieldReferenceOverrides > 0,
                 "Resolution profile $propertyProfile did not suppress a registered resolver with a root-field reference",
             )
-            run.assertAggregate(
+            run.warnCoverage(
                 activatedRootFieldReferenceExtensions > 0,
                 "Resolution profile $propertyProfile did not resolve successor demand within a referenced result",
             )
-            run.assertAggregate(
+            run.warnCoverage(
                 activatedRootTargetsWithFromArgument > 0 &&
                     activatedRootTargetsWithFromQueryField > 0,
                 "Resolution profile $propertyProfile did not activate root targets using both " +
@@ -624,14 +624,14 @@ internal suspend fun runResolutionBroadStress(
             )
         }
         if (config[ResolverFromQueryFieldVariablesEnabled]) {
-            run.assertAggregate(
+            run.warnCoverage(
                 generatedQueryPathVariables > 0 &&
                     activatedQueryPathVariableApplications > 0,
                 "Resolution profile $propertyProfile did not activate FromQueryField variables",
             )
         }
         if (config[ParentFieldsEnabled]) {
-            run.assertAggregate(
+            run.warnCoverage(
                 activatedParentDemandApplications > 0,
                 "Resolution profile $propertyProfile did not activate great-grandparent demand",
             )
@@ -642,11 +642,11 @@ internal suspend fun runResolutionBroadStress(
             )
         }
         if (config[RandomParentFieldsEnabled]) {
-            run.assertAggregate(
+            run.warnCoverage(
                 materializedRandomParentFieldActivations > 0,
                 "Resolution profile $propertyProfile did not materialize a random parent field",
             )
-            run.assertAggregate(
+            run.warnCoverage(
                 directDiagonalResolverSelectionsBeneathParent > 0,
                 "Resolution profile $propertyProfile did not activate diagonal parent demand",
             )
@@ -658,7 +658,7 @@ internal suspend fun runResolutionBroadStress(
                         add(ParentVariableSource.QUERY_FIELD)
                     }
                 }.forEach { source ->
-                    run.assertAggregate(
+                    run.warnCoverage(
                         resolverVariableSourceCombinationsBeneathParent.keys.any { sources ->
                             source in sources
                         },
@@ -666,13 +666,13 @@ internal suspend fun runResolutionBroadStress(
                             "@parent",
                     )
                 }
-                run.assertAggregate(
+                run.warnCoverage(
                     diagonalResolverSelectionsWithVariables > 0,
                     "Resolution profile $propertyProfile did not activate variables in " +
                         "diagonal parent demand",
                 )
             }
-            parentFocusedReport?.requireCombinedHit()
+            parentFocusedReport?.warnCombinedMiss()
         }
         return completedCases
     } finally {

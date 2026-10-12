@@ -1,12 +1,65 @@
+@file:Suppress("ForbiddenImport")
+
 package viaduct.engine.runtime2.resolvers
 
+import kotlin.coroutines.ContinuationInterceptor
+import kotlin.coroutines.CoroutineContext
+import kotlin.coroutines.EmptyCoroutineContext
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.runBlocking
 import viaduct.engine.runtime2.model.Arguments
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.PathComponent
 import viaduct.engine.runtime2.model.ResolverOccurrenceId
+import viaduct.engine.runtime2.model.VariableBinding
 import viaduct.engine.runtime2.model.registry.ResolverFragments
 import viaduct.engine.runtime2.model.registry.VariableDefinition
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
+
+internal fun Iterable<ObjectEngineResult.GroundKey>.bindResolverVariables(
+    operation: SharedOperationContext<*>,
+    root: ObjectEngineResult,
+    path: List<PathComponent>,
+    providerContext: CoroutineContext? = null,
+) {
+    bindFromArguments(operation, root, path)
+    forEach { key ->
+        val arguments = key.arguments as? Arguments.Resolved ?: return@forEach
+        val resolver = operation.world.resolverRegistry.resolver(key.field)
+        val provider = resolver.variablesProvider ?: return@forEach
+        val definitions =
+            resolver.instantiatedVariableDefinitions(ResolverOccurrenceId.at(root, path + key))
+                .filter { it.definition == VariableDefinition.FromProvider }
+        definitions.forEach { operation.variableBindings.declareBinding(requireNotNull(it.variable.instanceId)) }
+        val expectedNames = definitions.mapTo(linkedSetOf()) { it.variable.variableName }
+        val context = providerContext ?: (operation as? GroundedVariablesProviderContext)?.variablesProviderContext ?: EmptyCoroutineContext
+        val values =
+            try {
+                runBlocking(context.minusKey(ContinuationInterceptor)) {
+                    provider(arguments).also { values ->
+                        require(values.keys == expectedNames) { "VariablesProvider returned invalid variables" }
+                    }
+                }
+            } catch (exception: Exception) {
+                definitions.forEach {
+                    operation.variableBindings.completeBinding(requireNotNull(it.variable.instanceId), VariableBinding.Error)
+                }
+                context.ensureActive()
+                return@forEach
+            }
+        definitions.forEach {
+            check(operation.variableBindings.completeBinding(requireNotNull(it.variable.instanceId), values.getValue(it.variable.variableName))) {
+                "Resolver variable binding was completed twice"
+            }
+        }
+    }
+}
+
+internal fun ResolverFragments.variablesProviderFailed(operation: SharedOperationContext<*>): Boolean =
+    (objectFragment.variableDefinitions + queryFragment.variableDefinitions).any {
+        it.definition == VariableDefinition.FromProvider &&
+            operation.variableBindings.getBinding(requireNotNull(it.variable.instanceId)) == VariableBinding.Error
+    }
 
 /**
  * Declares and immediately completes every argument-defined variable belonging to these resolver

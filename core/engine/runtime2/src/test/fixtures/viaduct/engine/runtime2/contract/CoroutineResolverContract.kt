@@ -14,10 +14,13 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import viaduct.engine.api.EngineObjectData
@@ -36,6 +39,7 @@ import viaduct.engine.runtime2.model.registry.Assumptions
 import viaduct.engine.runtime2.model.registry.FieldValueResolver
 import viaduct.engine.runtime2.model.registry.ResolverFragmentTemplates
 import viaduct.engine.runtime2.model.registry.ResolverRegistry
+import viaduct.engine.runtime2.model.registry.VariablesProviderFunction
 import viaduct.engine.runtime2.model.registry.fieldResolverOf
 import viaduct.engine.runtime2.model.requireField
 import viaduct.engine.runtime2.model.requireObjectField
@@ -517,6 +521,95 @@ interface CoroutineResolverContract {
     }
 
     @Test
+    fun `request cancellation stops suspended primary and reference providers`() =
+        runBlocking {
+            for (fieldName in listOf("consumer", "reference")) {
+                val entered = CompletableDeferred<Unit>()
+                val exited = CompletableDeferred<Unit>()
+                val cancellation = CancellationException("request cancelled during provider")
+                val requestJob = Job()
+                val requestScope = CoroutineScope(coroutineContext + requestJob + Dispatchers.Default)
+                val fixture = providerCancellationWorld(selectiveResolvers, provider = {
+                    entered.complete(Unit)
+                    try {
+                        awaitCancellation()
+                    } finally {
+                        exited.complete(Unit)
+                    }
+                })
+                val resolution = async(Dispatchers.Default) {
+                    val result = startResolution(
+                        SharedOperationContext.create(fixture.assumptions),
+                        requestScope,
+                        fixture.schemas.operationSelectionsFrom("{ $fieldName }"),
+                        CycleCheckState.create(),
+                    )
+                    result.getCell(fixture.schema.groundKey("Query", fieldName)).value.await()
+                }
+                try {
+                    withTimeout(5_000) { entered.await() }
+                    requestJob.cancel(cancellation)
+                    withTimeout(5_000) {
+                        exited.await()
+                        requestJob.join()
+                    }
+                    val failure = assertFailsWith<CancellationException> { withTimeout(5_000) { resolution.await() } }
+                    assertEquals(cancellation.message, failure.message)
+                } finally {
+                    requestJob.cancelAndJoin()
+                    resolution.cancelAndJoin()
+                }
+            }
+        }
+
+    @Test
+    fun `reference provider belongs to the invoking field task`() =
+        runBlocking {
+            val entered = CompletableDeferred<Unit>()
+            val exited = CompletableDeferred<Unit>()
+            val fieldJob = CompletableDeferred<Job>()
+            val cancellation = CancellationException("reference task cancelled")
+            val requestJob = Job()
+            val requestScope = CoroutineScope(coroutineContext + requestJob + Dispatchers.Default)
+            val fixture = providerCancellationWorld(
+                selectiveResolvers,
+                provider = {
+                    entered.complete(Unit)
+                    try {
+                        awaitCancellation()
+                    } finally {
+                        exited.complete(Unit)
+                    }
+                },
+                onReference = { fieldJob.complete(requireNotNull(currentCoroutineContext()[Job])) },
+            )
+            try {
+                val result = startResolution(
+                    SharedOperationContext.create(fixture.assumptions),
+                    requestScope,
+                    fixture.schemas.operationSelectionsFrom("{ reference healthy }"),
+                    CycleCheckState.create(),
+                )
+                withTimeout(5_000) { entered.await() }
+                val owner = withTimeout(5_000) { fieldJob.await() }
+                assertTrue(requestJob.isActive)
+                owner.cancel(cancellation)
+                withTimeout(5_000) {
+                    exited.await()
+                    owner.join()
+                }
+                assertTrue(requestJob.isActive)
+                val failure = assertFailsWith<CancellationException> {
+                    withTimeout(5_000) { result.getCell(fixture.schema.groundKey("Query", "reference")).value.await() }
+                }
+                assertEquals(cancellation.message, failure.message)
+                assertEquals(42, withTimeout(5_000) { result.getCell(fixture.schema.groundKey("Query", "healthy")).value.await() })
+            } finally {
+                requestJob.cancelAndJoin()
+            }
+        }
+
+    @Test
     fun `request cancellation cancels promises before field entry and during Query production`() =
         runBlocking {
             if (usesSingularQueryOER) {
@@ -800,6 +893,33 @@ private fun queryFailureWorld(
                     7
                 },
                 schema.loweredSchema.requireObjectField("Query", "healthy") to fieldResolverOf(fragment) { _, _ -> 42 },
+            )
+        },
+    )
+
+private fun providerCancellationWorld(
+    selective: Boolean,
+    provider: VariablesProviderFunction,
+    onReference: suspend () -> Unit = {},
+): TestWorld =
+    TestWorld.fromSDL(
+        selectiveResolvers = selective,
+        schemaSDL = "type Query { consumer: Int, reference: Int, echo(value: Int): Int, healthy: Int }",
+        fieldResolvers = { schemas ->
+            val schema = schemas.loweredSchema
+            val empty = schema.emptyFragmentOf("Query")
+            val consumer = schema.requireObjectField("Query", "consumer")
+            mapOf(
+                consumer to fieldResolverOf(
+                    empty,
+                    schemas.fragmentFrom("fragment ProviderInput on Query { echo(value: ${'$'}value) }"),
+                ) { _, query, _ -> query.outputValue("echo") }.withVariablesProvider(setOf("value"), provider),
+                schema.requireObjectField("Query", "reference") to fieldResolverOf(empty) { _, _ ->
+                    onReference()
+                    RootFieldReferenceData.of(listOf(consumer), emptyMap())
+                },
+                schema.requireObjectField("Query", "echo") to fieldResolverOf(empty) { _, arguments -> arguments.fieldValues.getValue("value") },
+                schema.requireObjectField("Query", "healthy") to fieldResolverOf(empty) { _, _ -> 42 },
             )
         },
     )

@@ -487,12 +487,14 @@ internal class FieldResolutionLogic(
             val extra = values.keys - expectedNames
             val missing = expectedNames - values.keys
             completeVariablesProviderBindingsWithError(fieldResolverOccurrence)
-            error(
-                buildString {
-                    append("VariablesProvider returned invalid variables.")
-                    if (extra.isNotEmpty()) append(" Extra keys: ${extra.joinToString(",")}")
-                    if (missing.isNotEmpty()) append(" Missing keys: ${missing.joinToString(",")}")
-                },
+            return EngineErrorData.of(
+                IllegalStateException(
+                    buildString {
+                        append("VariablesProvider returned invalid variables.")
+                        if (extra.isNotEmpty()) append(" Extra keys: ${extra.joinToString(",")}")
+                        if (missing.isNotEmpty()) append(" Missing keys: ${missing.joinToString(",")}")
+                    },
+                ),
             )
         }
         providerDefinitions.forEach { definition ->

@@ -50,6 +50,39 @@ import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 
 class RootFieldReferenceResolutionTest : ResolutionDispatcherResource {
     @Test
+    fun `invalid reference provider names retain their cause and reference witness`() {
+        val fixture =
+            TestWorld.fromSDL(
+                schemaSDL = "type Query { reference: Int, result: Int, echo(value: Int): Int }",
+                fieldResolvers = { schemas ->
+                    val schema = schemas.loweredSchema
+                    val target = schema.requireObjectField("Query", "result")
+                    mapOf(
+                        target to
+                            fieldResolverOf(
+                                objectFragment = schema.emptyFragmentOf("Query"),
+                                queryFragment = schemas.fragmentFrom("fragment Input on Query { echo(value: ${'$'}provided) }"),
+                            ) { _, _, _ -> 7 }.withVariablesProvider(setOf("provided")) { emptyMap() },
+                        schema.requireObjectField("Query", "reference") to
+                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> RootFieldReferenceData.of(listOf(target), emptyMap()) },
+                    )
+                },
+            )
+        val observer = CorrectnessResolverObserver()
+        val operation = SharedOperationContext.create(fixture.assumptions, resolverObserver = observer)
+        val selections = fixture.schemas.fragmentFrom("fragment Result on Query { reference }").subselections
+
+        val result = operation.resolveWithTestDispatcher(selections)
+
+        val error = assertIs<ErrorEngineResult>(result.getCell(fixture.schema.contractKey("Query", "reference")).value.get())
+        val cause = assertIs<IllegalStateException>(error.errorData.cause)
+        assertEquals("VariablesProvider returned invalid variables. Missing keys: provided", cause.message)
+        val hop = observer.rootFieldReferenceInvocations().single()
+        assertFalse(ResolverOccurrenceId.at(hop.invocationRoot, hop.invocationPath) in observer.invokedResolverOccurrences())
+        assertTrue(result.correctResolution(operation, selections.merge(fixture.schema.requireQueryTypeDef())))
+    }
+
+    @Test
     fun `conditioned passive reference list preserves its independent checker writer`() {
         for (enabled in listOf(false, true)) {
             val resolution = resolveConditionalPassiveListReference(enabled, withChecker = true)

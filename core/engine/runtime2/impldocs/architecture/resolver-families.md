@@ -33,8 +33,8 @@ The maintained versions form a refinement and comparison grid, not a chronology.
 
 | Semantic stage | Recursive depth-first | Explicit depth-first tasks | Structured coroutines | Capability |
 | --- | --- | --- | --- | --- |
-| Base | [Resolver01](../../src/support/kotlin/viaduct/engine/runtime2/resolvers/resolver01/Resolver.kt) | [Resolver06](../../src/support/kotlin/viaduct/engine/runtime2/resolvers/resolver06/Resolver.kt) | [Resolver21](../../src/support/kotlin/viaduct/engine/runtime2/resolvers/resolver21/Resolver.kt) | Empty user object fragments and complete output |
-| Object fragments | [Resolver02](../../src/support/kotlin/viaduct/engine/runtime2/resolvers/resolver02/Resolver.kt) | [Resolver07](../../src/support/kotlin/viaduct/engine/runtime2/resolvers/resolver07/Resolver.kt) | [Resolver22](../../src/support/kotlin/viaduct/engine/runtime2/resolvers/resolver22/Resolver.kt) | Nonempty fragments and `FromArgument`, with complete output |
+| Base | [Resolver01](../../src/support/kotlin/viaduct/engine/runtime2/resolvers/resolver01/Resolver.kt) | [Resolver06](../../src/support/kotlin/viaduct/engine/runtime2/resolvers/resolver06/Resolver.kt) | [Resolver21](../../src/support/kotlin/viaduct/engine/runtime2/resolvers/resolver21/Resolver.kt) | Empty user object fragments, Query inputs with `FromArgument` and `FromProvider`, and complete output |
+| Object fragments | [Resolver02](../../src/support/kotlin/viaduct/engine/runtime2/resolvers/resolver02/Resolver.kt) | [Resolver07](../../src/support/kotlin/viaduct/engine/runtime2/resolvers/resolver07/Resolver.kt) | [Resolver22](../../src/support/kotlin/viaduct/engine/runtime2/resolvers/resolver22/Resolver.kt) | Nonempty object fragments with the same argument and provider variable sources, and complete output |
 | Selective resolution | [Resolver03](../../src/support/kotlin/viaduct/engine/runtime2/resolvers/resolver03/Resolver.kt) | [Resolver08](../../src/support/kotlin/viaduct/engine/runtime2/resolvers/resolver08/Resolver.kt) | [Resolver23](../../src/support/kotlin/viaduct/engine/runtime2/resolvers/resolver23/Resolver.kt) | The same fragment domain with selective output and full successor demand |
 
 Moving down a column adds semantic capability while holding execution structure roughly constant. Moving across a row changes execution structure while holding semantic capability roughly constant. Resolver03, Resolver08, and Resolver23 are the usual comparison points for production Resolution because all three expose selective demand at increasing levels of scheduling sophistication.
@@ -80,7 +80,7 @@ When one implementation must be shared between execution families, prefer aligni
 
 | Phase | Resolver01–08 | Resolver21–23 | Resolution |
 | --- | --- | --- | --- |
-| Orchestration preparation | Close grounded paired demand and establish dependency order. | Close grounded paired demand, bind `FromArgument`, and establish parent backedges where supported. | Close symbolic paired demand, retain occurrence and provider descriptions, declare pending bindings, and establish parent backedges. |
+| Orchestration preparation | Close grounded paired demand, bind argument and provider variables, and establish dependency order. | Close grounded paired demand, bind argument and provider variables, and establish parent backedges where supported. | Close symbolic paired demand, retain occurrence and provider descriptions, declare pending bindings, and establish parent backedges. |
 | Publication preparation | `DepthFirstFieldResolverTask.prepare` claims and activates one publication and returns its executable task at dispatch. | `prepareAll` claims ordinary value and checker publications on both roots during `prepareAndDispatchFieldWork`. | Prepare checker slots before passive descent, record executable checkers and delayed absence, register conditioned passive-list publications, and prepare ordinary values. |
 | Dispatch | Enter synchronously or enqueue the prepared task in dependency order. | Orchestration dispatches prepared value and checker publications. | Orchestration dispatches ordinary and conditioned passive publications with executable checkers. |
 | Task launch | The dispatcher enters the task or the depth-first reactor later dequeues it. | The dispatcher launches a request-root coroutine and constructs the running task inside it. | The same coroutine boundary applies. |
@@ -95,7 +95,7 @@ Coroutine families validate prepared publication metadata at field-task entry, i
 
 ### Resolver01–03: Compact Semantics
 
-Resolver01 is the smallest result-tree constructor. Resolver02 adds object-fragment closure and `FromArgument`. Resolver03 adds selective projection and complete successor demand.
+Resolver01 is the smallest result-tree constructor. It supports Query-fragment inputs with `FromArgument` and tenant callback `FromProvider` variables while requiring empty user object fragments. Resolver02 adds object-fragment closure with the same variable sources. Resolver03 adds selective projection and complete successor demand.
 
 Resolver03 is the principal compact reference for demand closure, exact-key publication, passive deepening, argument grounding, one-shot producer demand, and completed-result correctness. Its recursive execution exposes those semantics with the least scheduling machinery.
 
@@ -111,7 +111,9 @@ This family retains the parent-free domain. Making its queue suspend, revisit an
 
 Resolver21–23 use the same task roles and coroutine phase boundaries as Resolution. They share `CoroutineTaskDispatcher`, `CoroutineOrchestrationTaskBase`, and `CoroutineFieldResolverTaskBase` with production while retaining grounded demand, grounded publication identities, and family-specific preparation and resolution logic.
 
-Resolver21 is the base coroutine and access-check plumbing reference. Resolver22 adds object and Query fragments, `FromArgument`, fragment-bearing checker inputs, and parent support. Resolver23 adds selective checked and unchecked successor demand, exact resolver and checker applications, and per-OER correctness replay. Together they isolate structured ownership, promise readiness, cancellation, and field-error publication from Resolution's symbolic-key and runtime-provider machinery.
+Resolver21 is the base coroutine and access-check plumbing reference, including Query-fragment inputs with `FromArgument` and `FromProvider`. Resolver22 adds object fragments with those sources, fragment-bearing checker inputs, and parent support. Resolver23 adds selective checked and unchecked successor demand, exact resolver and checker applications, and per-OER correctness replay. Together they isolate structured ownership, promise readiness, cancellation, and field-error publication from Resolution's symbolic-key and resolved-field variable machinery.
+
+All numbered families bind argument and tenant-provider values for each newly discovered grounded resolver occurrence before expanding its input fragments. The provider receives resolved arguments, runs once per active occurrence, and shares its bindings across the object and Query inputs. Source-supplied passive fields bypass the provider. Providers may suspend through the grounded closure's synchronous coroutine bridge; the coroutine family retains the request Job during primary preparation and the invoking field task's Job for reference-target preparation while using the bridge's event loop. Failure, including a callback-local `CancellationException` while the owner is active, or an invalid returned name set completes the provider bindings as errors and suppresses the owning resolver body. Cancellation of the owning Job cancels a suspended provider and propagates. Provider callbacks do not acquire nested-query execution capabilities. `FromField` values still require Resolution's runtime field-read readiness; their exclusion from the numbered families does not apply to callback providers.
 
 ### Production Resolution
 

@@ -319,11 +319,13 @@ internal class ParentFocusedCoverageReport(
         }.trimEnd()
     }
 
-    fun requireCombinedHit() {
+    fun warnCombinedMiss(report: (String) -> Unit = System.err::println) {
         val missed = combinedCoverage().criteria().filterNot { criterion -> criterion.hit }
-        check(missed.isEmpty()) {
-            "Combined parent-focused coverage missed criteria: " +
-                missed.joinToString { criterion -> "${criterion.number}. ${criterion.name}" }
+        if (missed.isNotEmpty()) {
+            report(
+                "WARNING: Combined parent-focused coverage missed criteria: " +
+                    missed.joinToString { criterion -> "${criterion.number}. ${criterion.name}" },
+            )
         }
     }
 

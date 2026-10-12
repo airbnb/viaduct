@@ -73,6 +73,14 @@ data class ResolverTestCase(
         """.trimMargin()
 }
 
+fun warnCoverageGap(
+    condition: Boolean,
+    message: String,
+    report: (String) -> Unit = System.err::println,
+) {
+    if (!condition) report("WARNING: Generated coverage gap\n$message")
+}
+
 /** Coordinates and execution count shared by aggregate assertions after one generated run. */
 data class ResolverTestRun(
     val profile: String,
@@ -95,22 +103,32 @@ data class ResolverTestRun(
                 1
             }
 
+    fun warnCoverage(
+        condition: Boolean,
+        message: String,
+        report: (String) -> Unit = System.err::println,
+    ) {
+        if (selectedCase != null || condition) return
+        warnCoverageGap(condition, aggregateMessage(message), report)
+    }
+
     fun assertAggregate(
         condition: Boolean,
         message: String,
     ) {
         if (selectedCase != null) return
         if (!condition) {
-            throw AssertionError(
-                """
-                |$message
-                |Coordinates: profile=$profile seed=$seed S=all R=all Q=all
-                |Size: ${counts.summary()}
-                |Replay seed: -PresolverPropertySeed=$seed
-                """.trimMargin(),
-            )
+            throw AssertionError(aggregateMessage(message))
         }
     }
+
+    private fun aggregateMessage(message: String): String =
+        """
+        |$message
+        |Coordinates: profile=$profile seed=$seed S=all R=all Q=all
+        |Size: ${counts.summary()}
+        |Replay seed: -PresolverPropertySeed=$seed
+        """.trimMargin()
 }
 
 data class ResolverTestBatch(

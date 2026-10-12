@@ -12,8 +12,8 @@ import viaduct.engine.runtime2.model.registry.VariableDefinition
 import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.testing.TestWorld
 
-/** Deterministic Resolution coverage for variables supplied by a tenant provider function. */
-interface VariablesProviderResolverContract : ResolverContract {
+/** Object- and Query-fragment coverage for variables supplied by a tenant provider function. */
+interface VariablesProviderResolverContract : QueryFragmentVariablesResolverContract {
     @Test
     fun `binds provider variables for each grounded resolver occurrence`() {
         val testWorld =

@@ -33,9 +33,11 @@ import viaduct.engine.runtime2.resolution.framework.SharedFieldResolverTask
 import viaduct.engine.runtime2.resolution.framework.fieldResolverCycleTask
 import viaduct.engine.runtime2.resolution.framework.withAuthoritativeNodeId
 import viaduct.engine.runtime2.resolvers.GroundedFieldPublicationOccurrence
+import viaduct.engine.runtime2.resolvers.PreparedRootFieldReferenceInvocation
 import viaduct.engine.runtime2.resolvers.emptyObjectInput
 import viaduct.engine.runtime2.resolvers.materializeResolverInput
 import viaduct.engine.runtime2.resolvers.prepareRootFieldReferenceInvocation
+import viaduct.engine.runtime2.resolvers.variablesProviderFailed
 
 /**
  * Invokes and publishes one field for Resolver01-03 and Resolver06-08, retaining the grounded
@@ -103,6 +105,12 @@ internal class DepthFirstFieldResolverTask private constructor(
                 is Arguments.Resolved -> {
                     val resolver = operation.world.resolverRegistry.resolver(key.field)
                     val fragments = resolver.instantiateFragmentsAt(oerOccurrence.root, publicationPath)
+                    if (fragments.variablesProviderFailed(operation)) {
+                        check(publicationCell.value.complete(ErrorEngineResult.of(EngineErrorData.of()))) {
+                            "Cell value was completed twice"
+                        }
+                        return@with
+                    }
 
                     val queryMaterializationSelections =
                         resolver.instantiateQueryMaterializationSelections(
@@ -166,11 +174,22 @@ internal class DepthFirstFieldResolverTask private constructor(
                     "Root-field reference does not conform to $publicationExpectedType"
                 }
                 authoritativeNodeIdentity = authoritativeNodeIdentity ?: reference.nodeReferenceIdentityOrNull()
+                val invocation = reference.prepareRootFieldReferenceInvocation(operation)
                 fieldValue = invokeRootFieldResolver(
                     reference,
-                    oerOccurrence.root,
-                    publicationPath,
+                    invocation,
                     invocationDemand,
+                )
+                operation.resolverObserver.onRootFieldReferenceInvocation(
+                    RootFieldReferenceInvocationObservation(
+                        publicationRoot = oerOccurrence.root,
+                        publicationPath = publicationPath,
+                        reference = reference,
+                        invocationRoot = invocation.invocationRoot,
+                        invocationPath = invocation.invocationPath,
+                        invocationKey = invocation.invocationKey,
+                        suppliedDemand = invocationDemand,
+                    ),
                 )
             }
             val passiveValue = operation.passiveValues(queryOERDepth).resolvePassiveValues(
@@ -188,12 +207,11 @@ internal class DepthFirstFieldResolverTask private constructor(
     /** Invokes one independently rooted reference target using this resolver's Query-fragment policy. */
     private fun invokeRootFieldResolver(
         reference: RootFieldReferenceData,
-        publicationRoot: ObjectEngineResult,
-        publicationPath: List<PathComponent>,
+        invocation: PreparedRootFieldReferenceInvocation,
         invocationDemand: SelectionForest,
     ): ResolverOutputData? {
         val operation = publication.operation
-        val invocation = reference.prepareRootFieldReferenceInvocation(operation)
+        if (invocation.fragments.variablesProviderFailed(operation)) return EngineErrorData.of()
         val queryValue =
             produceAndMaterializeIndependentQueryFragment(
                 resolver = invocation.resolver,
@@ -230,17 +248,6 @@ internal class DepthFirstFieldResolverTask private constructor(
                     executionContext = ResolutionExecutionContext.Unsupported,
                 )
             }
-        operation.resolverObserver.onRootFieldReferenceInvocation(
-            RootFieldReferenceInvocationObservation(
-                publicationRoot = publicationRoot,
-                publicationPath = publicationPath,
-                reference = reference,
-                invocationRoot = invocation.invocationRoot,
-                invocationPath = invocation.invocationPath,
-                invocationKey = invocation.invocationKey,
-                suppliedDemand = invocationDemand,
-            ),
-        )
         return output
     }
 

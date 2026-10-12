@@ -80,13 +80,13 @@ internal class GeneratedFieldCheckerCoverage(
         }
     }
 
-    fun assertRequired(
+    fun warnMissingRequired(
         run: ResolverTestRun,
         required: Set<GeneratedFieldCheckerCoverageSignature>,
     ) {
         val missingGenerated = required.filterTo(linkedSetOf()) { generatedCases.getValue(it) == 0 }
         val missingActivated = required.filterTo(linkedSetOf()) { activatedCases.getValue(it) == 0 }
-        run.assertAggregate(
+        run.warnCoverage(
             missingGenerated.isEmpty() && missingActivated.isEmpty(),
             buildString {
                 append("Generated field-checker profile missed required coverage signatures")

@@ -96,19 +96,18 @@ class FieldCheckerClosureTest : ResolutionDispatcherResource {
         }
 
     @Test
-    fun `statically excluded recursion does not trigger the symbolic expansion guard`() {
-        val world = TestWorld.fromDSL(
-            """
-            extend type Query {
-              checked(seed: Int!): Int!
-                @resolver(of: "checked(seed: ${'$'}seed) @skip(if: true)", result: 1)
-            }
-            """.trimIndent(),
-        )
-        val operation = SharedOperationContext.create(world.assumptions)
-        val result = operation.resolveWithTestDispatcher(world.schemas.operationSelectionsFrom("{ checked(seed: 1) }"))
-        val key = ObjectEngineResult.GroundKey.of(world.schema.requireObjectField("Query", "checked"), mapOf("seed" to 1))
-        assertEquals(1, result.getCell(key).value.get())
+    fun `rejects statically excluded resolver self-dependencies during registry construction`() {
+        val failure = assertFailsWith<IllegalArgumentException> {
+            TestWorld.fromDSL(
+                """
+                extend type Query {
+                  checked(seed: Int!): Int!
+                    @resolver(of: "checked(seed: ${'$'}seed) @skip(if: true)", result: 1)
+                }
+                """.trimIndent(),
+            )
+        }
+        assertTrue(failure.message.orEmpty().contains("demand cycle"), failure.message)
     }
 
     @Test

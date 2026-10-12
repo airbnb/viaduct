@@ -6,6 +6,7 @@ import viaduct.engine.runtime2.resolution.CoroutineTaskDispatcher
 import viaduct.engine.runtime2.resolution.framework.CycleCheckState
 import viaduct.engine.runtime2.resolution.framework.Demand
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
+import viaduct.engine.runtime2.resolvers.GroundedVariablesProviderContext
 import viaduct.graphql.schema.ViaductSchema
 
 /** One Resolver21-23 execution scope: shared state, grounded-demand policy, scheduling, and cycle checking. */
@@ -14,7 +15,8 @@ internal class CoroutineOperationContext(
     requestScope: CoroutineScope,
     val complete: (Demand<SelectionForest>, Set<ViaductSchema.Object>) -> SelectionForest,
     val cycleChecker: CycleCheckState,
-) : SharedOperationContext<CoroutineTaskDispatcher> by
+) : GroundedVariablesProviderContext,
+    SharedOperationContext<CoroutineTaskDispatcher> by
     SharedOperationContext.create(
         world = base.world,
         variableBindings = base.variableBindings,
@@ -24,5 +26,6 @@ internal class CoroutineOperationContext(
             requestScope = requestScope,
         ),
     ) {
+    override val variablesProviderContext = requestScope.coroutineContext
     val passiveValues = CoroutinePassiveValueResolutionLogic(this)
 }

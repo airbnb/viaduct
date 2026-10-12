@@ -1,5 +1,6 @@
 package viaduct.engine.runtime2.resolvers
 
+import kotlin.coroutines.CoroutineContext
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.PathComponent
 import viaduct.engine.runtime2.model.ResolverOccurrenceId
@@ -21,12 +22,12 @@ internal data class PreparedRootFieldReferenceInvocation(
 )
 
 /**
- * Creates the empty Query-rooted identity and binds the grounded arguments for one reference hop.
- *
- * The maintained pre-Resolution algorithms support only `FromArgument` variables. Reference
- * targets inherit that boundary instead of acquiring Resolution's runtime binding protocols.
+ * Creates the empty Query-rooted identity and binds argument and provider variables for one reference hop.
  */
-internal fun RootFieldReferenceData.prepareRootFieldReferenceInvocation(operation: SharedOperationContext<*>): PreparedRootFieldReferenceInvocation {
+internal fun RootFieldReferenceData.prepareRootFieldReferenceInvocation(
+    operation: SharedOperationContext<*>,
+    providerContext: CoroutineContext? = null,
+): PreparedRootFieldReferenceInvocation {
     require(targetField in operation.world.resolverRegistry) {
         "Root-field-reference target has no registered resolver: " +
             "${targetField.containingDef.name}/${targetField.name}"
@@ -45,11 +46,11 @@ internal fun RootFieldReferenceData.prepareRootFieldReferenceInvocation(operatio
         "Root-field-reference target ${targetField.containingDef.name}/${targetField.name} " +
             "must not declare an object fragment"
     }
-    require(resolver.variables.values.all { definition -> definition is VariableDefinition.FromArgument }) {
+    require(resolver.variables.values.all { definition -> definition is VariableDefinition.FromArgument || definition == VariableDefinition.FromProvider }) {
         "Root-field-reference target ${targetField.containingDef.name}/${targetField.name} " +
             "uses a variable source unsupported before Resolution"
     }
-    setOf(invocationKey).bindFromArguments(operation, invocationRoot, prefixKeys)
+    setOf(invocationKey).bindResolverVariables(operation, invocationRoot, prefixKeys, providerContext)
     return PreparedRootFieldReferenceInvocation(
         invocationRoot = invocationRoot,
         invocationPath = invocationPath,

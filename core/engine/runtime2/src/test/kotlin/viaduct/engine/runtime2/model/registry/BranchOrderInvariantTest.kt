@@ -17,6 +17,36 @@ import viaduct.graphql.schema.ViaductSchema
 
 class BranchOrderInvariantTest {
     @Test
+    fun `rejects statically excluded variable uses that form a branch-order cycle`() {
+        for (directive in listOf("@skip(if: true)", "@include(if: false)")) {
+            for (consumer in listOf("a { consume(arg: ${'$'}value) $directive }", "a $directive { consume(arg: ${'$'}value) }")) {
+                val failure =
+                    assertFailsWith<IllegalArgumentException> {
+                        TestWorld.fromSDL(
+                            schemaSDL = TWO_BRANCH_SCHEMA,
+                            fieldResolvers = { schema ->
+                                twoBranchResolvers(
+                                    schema,
+                                    "fragment Input on Query { provider: a { value } consumer: $consumer }",
+                                )
+                            },
+                            variableProviders = { schema ->
+                                variable(
+                                    schema,
+                                    name = "value",
+                                    provider = "fragment Provider on Query { provider: a { value } }",
+                                    responsePath = listOf("provider", "value"),
+                                )
+                            },
+                        )
+                    }
+                assertTrue(failure.message.orEmpty().contains("Query contains a cycle a -> a"), failure.message)
+                assertTrue(failure.message.orEmpty().contains("variable \$value"), failure.message)
+            }
+        }
+    }
+
+    @Test
     fun `rejects a provider and use in the same structural branch`() {
         val failure =
             assertFailsWith<IllegalArgumentException> {

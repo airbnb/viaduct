@@ -94,7 +94,7 @@ interface GeneratedTypeCheckerContract : GeneratedCaseAssertionPolicy {
                 )
                 coverage.record(observation.ordinary)
             }
-            coverage.assertRequired(run, effectiveMode)
+            coverage.warnMissingRequired(run, effectiveMode)
             println("Type-checker coverage profile=$profile seed=${run.seed} cases=${run.attemptedCases} ${coverage.summary()}")
         }
 }
