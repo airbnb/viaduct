@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       java_versions:
-        description: "Java versions (array, e.g. [\"17\",\"21\"]). Defaults to [\"17\",\"21\",\"25\"]."
+        description: "Java versions (array, e.g. [\"17\",\"21\"]). Defaults to [\"17\",\"21\",\"25\"] for Test and Core Check, and [\"17\",\"21\"] for Build."
         required: false
         type: string
       os:
@@ -71,7 +71,7 @@ jobs:
     strategy:
       matrix:
         os: ${{ fromJSON(inputs.os || '["ubuntu-latest","macos-latest"]') }}
-        java: ${{ fromJSON(inputs.java_versions || '["17", "21", "25"]') }}
+        java: ${{ fromJSON(inputs.java_versions || '["17", "21"]') }}
     runs-on: ${{ matrix.os }}
     name: Build (Java ${{ matrix.java }}) ${{ matrix.os }}
     env:
