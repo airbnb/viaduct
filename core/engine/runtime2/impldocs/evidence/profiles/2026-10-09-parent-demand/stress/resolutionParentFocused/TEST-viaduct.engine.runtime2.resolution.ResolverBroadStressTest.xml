@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="viaduct.engine.runtime2.resolution.ResolverBroadStressTest" tests="1" skipped="0" failures="0" errors="0" timestamp="2026-10-09T06:28:12" hostname="raymie-stata-codex" time="37.456">
+  <properties/>
+  <testcase name="parent focused randomized worlds resolve correctly()" classname="viaduct.engine.runtime2.resolution.ResolverBroadStressTest" time="37.456"/>
+  <system-out><![CDATA[Resolution parent-focused coverage report
+RUN 1/4: HIT (schemas=1..10, cases=250)
+  1. Parent topology: HIT — depths=[1, 2, 3], producerShapes=[NESTED_LIST, SINGULAR, LIST], targetKinds=[CONCRETE, ABSTRACT]
+  2. Resolver placement: HIT — placements=[TRANSITIVE, DIRECT]
+  3. Variable sources: HIT — sources=[ARGUMENT, QUERY_FIELD, OBJECT_FIELD]
+  4. Mixed sources: HIT — pairs=[[ARGUMENT, QUERY_FIELD], [ARGUMENT, OBJECT_FIELD], [QUERY_FIELD, OBJECT_FIELD]]
+  5. Input locations: HIT — fragments=[QUERY, OBJECT]
+  6. Argument-selection depths: HIT — depths=[NESTED, DIRECT]
+  7. Diagonals: HIT — depths=[1, 2]
+  8. Variable-bearing diagonals: HIT — sourceFragments=[ParentVariableFragment(source=ARGUMENT, fragment=QUERY), ParentVariableFragment(source=ARGUMENT, fragment=OBJECT), ParentVariableFragment(source=QUERY_FIELD, fragment=OBJECT), ParentVariableFragment(source=QUERY_FIELD, fragment=QUERY), ParentVariableFragment(source=OBJECT_FIELD, fragment=QUERY), ParentVariableFragment(source=OBJECT_FIELD, fragment=OBJECT)]
+  9. Sometimes-passive parent demand: HIT — occurrences=460, depths=[1, 2, 3]
+RUN 2/4: HIT (schemas=11..20, cases=250)
+  1. Parent topology: HIT — depths=[1, 2, 3], producerShapes=[LIST, SINGULAR, NESTED_LIST], targetKinds=[CONCRETE, ABSTRACT]
+  2. Resolver placement: HIT — placements=[TRANSITIVE, DIRECT]
+  3. Variable sources: HIT — sources=[OBJECT_FIELD, QUERY_FIELD, ARGUMENT]
+  4. Mixed sources: HIT — pairs=[[OBJECT_FIELD, QUERY_FIELD], [QUERY_FIELD, ARGUMENT], [OBJECT_FIELD, ARGUMENT]]
+  5. Input locations: HIT — fragments=[QUERY, OBJECT]
+  6. Argument-selection depths: HIT — depths=[DIRECT, NESTED]
+  7. Diagonals: HIT — depths=[1, 2]
+  8. Variable-bearing diagonals: HIT — sourceFragments=[ParentVariableFragment(source=OBJECT_FIELD, fragment=QUERY), ParentVariableFragment(source=QUERY_FIELD, fragment=QUERY), ParentVariableFragment(source=ARGUMENT, fragment=QUERY), ParentVariableFragment(source=QUERY_FIELD, fragment=OBJECT), ParentVariableFragment(source=ARGUMENT, fragment=OBJECT), ParentVariableFragment(source=OBJECT_FIELD, fragment=OBJECT)]
+  9. Sometimes-passive parent demand: HIT — occurrences=616, depths=[1, 2]
+RUN 3/4: HIT (schemas=21..30, cases=250)
+  1. Parent topology: HIT — depths=[1, 2, 3], producerShapes=[SINGULAR, NESTED_LIST, LIST], targetKinds=[CONCRETE, ABSTRACT]
+  2. Resolver placement: HIT — placements=[DIRECT, TRANSITIVE]
+  3. Variable sources: HIT — sources=[OBJECT_FIELD, ARGUMENT, QUERY_FIELD]
+  4. Mixed sources: HIT — pairs=[[ARGUMENT, OBJECT_FIELD], [ARGUMENT, QUERY_FIELD], [OBJECT_FIELD, QUERY_FIELD]]
+  5. Input locations: HIT — fragments=[QUERY, OBJECT]
+  6. Argument-selection depths: HIT — depths=[DIRECT, NESTED]
+  7. Diagonals: HIT — depths=[1, 2, 3]
+  8. Variable-bearing diagonals: HIT — sourceFragments=[ParentVariableFragment(source=ARGUMENT, fragment=OBJECT), ParentVariableFragment(source=ARGUMENT, fragment=QUERY), ParentVariableFragment(source=OBJECT_FIELD, fragment=QUERY), ParentVariableFragment(source=OBJECT_FIELD, fragment=OBJECT), ParentVariableFragment(source=QUERY_FIELD, fragment=OBJECT), ParentVariableFragment(source=QUERY_FIELD, fragment=QUERY)]
+  9. Sometimes-passive parent demand: HIT — occurrences=354, depths=[2, 1]
+RUN 4/4: MISS (schemas=31..40, cases=250)
+  1. Parent topology: HIT — depths=[1, 2, 3], producerShapes=[SINGULAR, LIST, NESTED_LIST], targetKinds=[CONCRETE, ABSTRACT]
+  2. Resolver placement: HIT — placements=[TRANSITIVE, DIRECT]
+  3. Variable sources: HIT — sources=[OBJECT_FIELD, ARGUMENT, QUERY_FIELD]
+  4. Mixed sources: MISS — missing=pairs=[[ARGUMENT, OBJECT_FIELD], [ARGUMENT, QUERY_FIELD]]; pairs=[[QUERY_FIELD, OBJECT_FIELD]]
+  5. Input locations: HIT — fragments=[QUERY, OBJECT]
+  6. Argument-selection depths: HIT — depths=[NESTED, DIRECT]
+  7. Diagonals: HIT — depths=[1, 2]
+  8. Variable-bearing diagonals: MISS — missing=source/fragment=[ParentVariableFragment(source=OBJECT_FIELD, fragment=OBJECT), ParentVariableFragment(source=QUERY_FIELD, fragment=QUERY)]; sourceFragments=[ParentVariableFragment(source=OBJECT_FIELD, fragment=QUERY), ParentVariableFragment(source=ARGUMENT, fragment=QUERY), ParentVariableFragment(source=ARGUMENT, fragment=OBJECT), ParentVariableFragment(source=QUERY_FIELD, fragment=OBJECT)]
+  9. Sometimes-passive parent demand: HIT — occurrences=680, depths=[1, 2, 3]
+COMBINED CRITERION COVERAGE:
+  1. Parent topology: slices=4/4, instances=958/1000 cases, bySlice=[245/250, 240/250, 234/250, 239/250]
+  2. Resolver placement: slices=4/4, instances=958/1000 cases, bySlice=[245/250, 240/250, 234/250, 239/250]
+  3. Variable sources: slices=4/4, instances=120/1000 cases, bySlice=[33/250, 32/250, 31/250, 24/250]
+  4. Mixed sources: slices=3/4, instances=32/1000 cases, bySlice=[17/250, 8/250, 6/250, 1/250]
+  5. Input locations: slices=4/4, instances=120/1000 cases, bySlice=[33/250, 32/250, 31/250, 24/250]
+  6. Argument-selection depths: slices=4/4, instances=120/1000 cases, bySlice=[33/250, 32/250, 31/250, 24/250]
+  7. Diagonals: slices=4/4, instances=455/1000 cases, bySlice=[102/250, 128/250, 107/250, 118/250]
+  8. Variable-bearing diagonals: slices=3/4, instances=79/1000 cases, bySlice=[22/250, 21/250, 20/250, 16/250]
+  9. Sometimes-passive parent demand: slices=4/4, instances=481/1000 cases, bySlice=[129/250, 98/250, 129/250, 125/250]
+FOUR-RUN RESULT: MISS (3/4 runs hit all nine criteria)
+COMBINED RESULT: HIT
+Resolution broad stress: profile=resolution-parent-fields, seed=2026090403, size=40:5:5, attemptedCases=1000, resolutionCalls=1000, completedCases=1000, resolverApplications=74194, generatedArgumentVariables=12475, generatedObjectPathVariables=11965, generatedQueryPathVariables=12610, activatedArgumentVariableApplications=3861, activatedObjectPathVariableApplications=2508, activatedQueryPathVariableApplications=2968, maximumProviderPathLength=3, maximumVariableUseDepth=3, generatedSometimesPassiveFields=9715, activatedSometimesPassiveOccurrences=2292, activatedSometimesPassiveParentDemandOccurrences=2110, sometimesPassiveParentDemandDepths={1=1465, 2=639, 3=6}, generatedQueryFragments=18150, activatedQueryFragmentApplications=15878, generatedRootFieldReferences=0, generatedNodeRootFieldReferences=0, activatedRootFieldReferences=0, activatedNodeRootFieldReferences=0, activatedListRootFieldReferences=0, maximumRootFieldReferenceTailLength=0, activatedRootFieldReferenceFallbacks=0, activatedRootFieldReferenceExtensions=0, activatedRootFieldReferenceOverrides=0, activatedRootTargetsWithFromArgument=0, activatedRootTargetsWithFromQueryField=0, activatedRootFieldReferencePathDepths=[], activatedRootFieldReferenceArgumentCounts=[], activatedRootFieldReferenceTargetKinds=[], activatedParentDemandApplications=825, materializedParentFieldActivations=27501, materializedRandomParentFieldActivations=21730, materializedParentSelectionSets=27501, parentSelectionSetsWithArgumentVariables=0, argumentVariableSelectionsBeneathParent=0, argumentVariableSourceCombinationsBeneathParent={}, parentSelectionSetsWithSelectedResolvers=25420, resolverSelectionsBeneathParent=32296, directResolverSelectionsBeneathParent=18273, resolverSelectionsWithVariablesBeneathParent=354, directResolverSelectionsWithVariablesBeneathParent=281, parentSelectionSetVariableSourceCombinations={[ARGUMENT]=111, [ARGUMENT, QUERY_FIELD]=33, [ARGUMENT, OBJECT_FIELD]=28, [QUERY_FIELD]=107, [QUERY_FIELD, OBJECT_FIELD]=16, [OBJECT_FIELD]=46, [ARGUMENT, QUERY_FIELD, OBJECT_FIELD]=9}, resolverVariableSourceCombinationsBeneathParent={[ARGUMENT]=112, [ARGUMENT, QUERY_FIELD]=36, [ARGUMENT, OBJECT_FIELD]=28, [QUERY_FIELD]=107, [QUERY_FIELD, OBJECT_FIELD]=19, [OBJECT_FIELD]=46, [ARGUMENT, QUERY_FIELD, OBJECT_FIELD]=6}, resolverVariableArgumentSelectionsBeneathParent=550, resolverVariableArgumentFragmentsBeneathParent={QUERY=369, OBJECT=181}, resolverVariableArgumentDepthsBeneathParent={3=219, 1=222, 2=109}, resolverVariableArgumentSourceCombinationsBeneathParent={[ARGUMENT]=197, [QUERY_FIELD]=226, [QUERY_FIELD, ARGUMENT]=8, [OBJECT_FIELD]=88, [ARGUMENT, OBJECT_FIELD]=20, [QUERY_FIELD, OBJECT_FIELD]=9, [OBJECT_FIELD, ARGUMENT, QUERY_FIELD]=2}, parentSelectionSetsWithDiagonalDemand=1788, diagonalResolverSelectionsBeneathParent=1927, directDiagonalResolverSelectionsBeneathParent=1260, diagonalResolverSelectionsWithVariables=224, diagonalVariableArgumentSelections=370, diagonalParentDepths={1=1733, 2=192, 3=2}, diagonalVariableSourceCombinations={[ARGUMENT]=95, [ARGUMENT, QUERY_FIELD]=36, [ARGUMENT, OBJECT_FIELD]=20, [QUERY_FIELD]=14, [QUERY_FIELD, OBJECT_FIELD]=19, [OBJECT_FIELD]=34, [ARGUMENT, QUERY_FIELD, OBJECT_FIELD]=6}, diagonalVariableArgumentSourceCombinations={[ARGUMENT]=180, [QUERY_FIELD]=83, [QUERY_FIELD, ARGUMENT]=8, [OBJECT_FIELD]=76, [ARGUMENT, OBJECT_FIELD]=12, [QUERY_FIELD, OBJECT_FIELD]=9, [OBJECT_FIELD, ARGUMENT, QUERY_FIELD]=2}, distinctMaterializedParentFields=11, materializedParentFieldDepths={1=23756, 2=2920, 3=825}, signatures=[GREAT_GRANDPARENT_PARENT_DEMAND, SYMBOLIC_RESOLVER_INSTANCE, LIST_SYMBOLIC_RESOLVER_INSTANCE, OBJECT_PATH_VARIABLE_OWNER, NESTED_VARIABLE_USE, MIXED_BINDING_SOURCES, NESTED_PROVIDER_PATH, MULTIPLE_OBJECT_PATH_OWNERS, EQUAL_SYMBOLIC_ARGUMENTS, PASSIVE_DESCENDANT_VARIABLE_USE, OBJECT_PATH_OWNER_DEPENDENCY], elapsedMillis=37358
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="viaduct.engine.runtime2.resolution.ParentConstructionDemandTest" tests="1" skipped="0" failures="1" errors="0" timestamp="2026-10-09T06:19:22" hostname="raymie-stata-codex" time="1.216">
+  <properties/>
+  <testcase name="joining parent requirements keeps shared interface selections compact()" classname="viaduct.engine.runtime2.resolution.ParentConstructionDemandTest" time="1.216">
+    <failure message="org.opentest4j.AssertionFailedError: A shared interface field expanded to 128 concrete copies" type="org.opentest4j.AssertionFailedError">org.opentest4j.AssertionFailedError: A shared interface field expanded to 128 concrete copies
+	at app//org.junit.jupiter.api.AssertionUtils.fail(AssertionUtils.java:38)
+	at app//org.junit.jupiter.api.Assertions.fail(Assertions.java:138)
+	at app//kotlin.test.junit5.JUnit5Asserter.fail(JUnitSupport.kt:56)
+	at app//kotlin.test.Asserter$DefaultImpls.assertTrue(Assertions.kt:652)
+	at app//kotlin.test.junit5.JUnit5Asserter.assertTrue(JUnitSupport.kt:30)
+	at app//kotlin.test.Asserter$DefaultImpls.assertTrue(Assertions.kt:662)
+	at app//kotlin.test.junit5.JUnit5Asserter.assertTrue(JUnitSupport.kt:30)
+	at app//kotlin.test.AssertionsKt__AssertionsKt.assertTrue(Assertions.kt:44)
+	at app//kotlin.test.AssertionsKt.assertTrue(Unknown Source)
+	at app//viaduct.engine.runtime2.resolution.ParentConstructionDemandTest.joining parent requirements keeps shared interface selections compact(ParentConstructionDemandTest.kt:511)
+	at java.base@17.0.11/java.lang.reflect.Method.invoke(Method.java:568)
+	at java.base@17.0.11/java.util.ArrayList.forEach(ArrayList.java:1511)
+	at java.base@17.0.11/java.util.ArrayList.forEach(ArrayList.java:1511)
+</failure>
+  </testcase>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

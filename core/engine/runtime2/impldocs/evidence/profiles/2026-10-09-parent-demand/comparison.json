@@ -1,0 +1,41 @@
+{
+  "parent_lookahead": {
+    "0": {
+      "baseline_ms": 0.00581045154898172,
+      "candidate_ms": 0.0024514556459836944,
+      "baseline_error_ms": 5.341920202683409e-05,
+      "candidate_error_ms": 8.834820503051545e-06,
+      "time_saved_percent": 57.80955016459415,
+      "baseline_bytes_per_op": 8776.002370347178,
+      "candidate_bytes_per_op": 6704.001000036983,
+      "allocation_saved_percent": 23.609854269310393
+    },
+    "5": {
+      "baseline_ms": 0.04705778342421149,
+      "candidate_ms": 0.01589692881571843,
+      "baseline_error_ms": 0.000459289760688196,
+      "candidate_error_ms": 0.0002428841186792194,
+      "time_saved_percent": 66.21827961505859,
+      "baseline_bytes_per_op": 63952.0201733299,
+      "candidate_bytes_per_op": 35872.00648481247,
+      "allocation_saved_percent": 43.90793850203926
+    },
+    "20": {
+      "baseline_ms": 45.04948971884058,
+      "candidate_ms": 0.061215094981015204,
+      "baseline_error_ms": 0.20858487059399078,
+      "candidate_error_ms": 0.0003492615887669741,
+      "time_saved_percent": 99.8641158970655,
+      "baseline_bytes_per_op": 58510444.89275363,
+      "candidate_bytes_per_op": 130560.0262423972,
+      "allocation_saved_percent": 99.77686030847704
+    }
+  },
+  "overhead": {
+    "baseline_ms_per_query": 9.878871172499998,
+    "candidate_ms_per_query": 9.842549102083334,
+    "baseline_error_ms_per_query": 0.0649006942868174,
+    "candidate_error_ms_per_query": 0.04742612365701927,
+    "workload_statistics_byte_identical": true
+  }
+}

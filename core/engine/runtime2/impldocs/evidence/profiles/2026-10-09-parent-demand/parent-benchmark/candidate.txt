@@ -1,0 +1,476 @@
+# JMH version: 1.36
+# VM version: JDK 21.0.4, OpenJDK 64-Bit Server VM, 21.0.4+7-LTS
+# VM invoker: /opt/mise/installs/java/corretto-21.0.4.7.1/bin/java
+# VM options: -Xms2g -Xmx2g
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 3 iterations, 1 s each
+# Measurement: 5 iterations, 1 s each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: parentprofile.ParentDemandBenchmark.lift
+# Parameters: (depth = 0)
+
+# Run progress: 0.00% complete, ETA 00:01:12
+# Fork: 1 of 3
+# Warmup Iteration   1: 0.005 ms/op
+# Warmup Iteration   2: 0.002 ms/op
+# Warmup Iteration   3: 0.002 ms/op
+Iteration   1: 0.002 ms/op
+                 ·gc.alloc.rate:      2600.392 MB/sec
+                 ·gc.alloc.rate.norm: 6704.001 B/op
+                 ·gc.count:           2.000 counts
+                 ·gc.time:            10.000 ms
+
+Iteration   2: 0.002 ms/op
+                 ·gc.alloc.rate:      2596.217 MB/sec
+                 ·gc.alloc.rate.norm: 6704.001 B/op
+                 ·gc.count:           2.000 counts
+                 ·gc.time:            9.000 ms
+
+Iteration   3: 0.002 ms/op
+                 ·gc.alloc.rate:      2604.714 MB/sec
+                 ·gc.alloc.rate.norm: 6704.001 B/op
+                 ·gc.count:           2.000 counts
+                 ·gc.time:            10.000 ms
+
+Iteration   4: 0.002 ms/op
+                 ·gc.alloc.rate:      2610.806 MB/sec
+                 ·gc.alloc.rate.norm: 6704.001 B/op
+                 ·gc.count:           2.000 counts
+                 ·gc.time:            9.000 ms
+
+Iteration   5: 0.002 ms/op
+                 ·gc.alloc.rate:      2606.195 MB/sec
+                 ·gc.alloc.rate.norm: 6704.001 B/op
+                 ·gc.count:           2.000 counts
+                 ·gc.time:            7.000 ms
+
+
+# Run progress: 11.11% complete, ETA 00:01:10
+# Fork: 2 of 3
+# Warmup Iteration   1: 0.005 ms/op
+# Warmup Iteration   2: 0.002 ms/op
+# Warmup Iteration   3: 0.002 ms/op
+Iteration   1: 0.002 ms/op
+                 ·gc.alloc.rate:      2609.329 MB/sec
+                 ·gc.alloc.rate.norm: 6704.001 B/op
+                 ·gc.count:           2.000 counts
+                 ·gc.time:            10.000 ms
+
+Iteration   2: 0.002 ms/op
+                 ·gc.alloc.rate:      2607.982 MB/sec
+                 ·gc.alloc.rate.norm: 6704.001 B/op
+                 ·gc.count:           2.000 counts
+                 ·gc.time:            10.000 ms
+
+Iteration   3: 0.002 ms/op
+                 ·gc.alloc.rate:      2596.305 MB/sec
+                 ·gc.alloc.rate.norm: 6704.001 B/op
+                 ·gc.count:           2.000 counts
+                 ·gc.time:            9.000 ms
+
+Iteration   4: 0.002 ms/op
+                 ·gc.alloc.rate:      2602.161 MB/sec
+                 ·gc.alloc.rate.norm: 6704.001 B/op
+                 ·gc.count:           2.000 counts
+                 ·gc.time:            10.000 ms
+
+Iteration   5: 0.002 ms/op
+                 ·gc.alloc.rate:      2612.720 MB/sec
+                 ·gc.alloc.rate.norm: 6704.001 B/op
+                 ·gc.count:           2.000 counts
+                 ·gc.time:            7.000 ms
+
+
+# Run progress: 22.22% complete, ETA 00:01:01
+# Fork: 3 of 3
+# Warmup Iteration   1: 0.005 ms/op
+# Warmup Iteration   2: 0.003 ms/op
+# Warmup Iteration   3: 0.002 ms/op
+Iteration   1: 0.002 ms/op
+                 ·gc.alloc.rate:      2608.489 MB/sec
+                 ·gc.alloc.rate.norm: 6704.001 B/op
+                 ·gc.count:           2.000 counts
+                 ·gc.time:            10.000 ms
+
+Iteration   2: 0.002 ms/op
+                 ·gc.alloc.rate:      2599.491 MB/sec
+                 ·gc.alloc.rate.norm: 6704.001 B/op
+                 ·gc.count:           2.000 counts
+                 ·gc.time:            9.000 ms
+
+Iteration   3: 0.002 ms/op
+                 ·gc.alloc.rate:      2614.795 MB/sec
+                 ·gc.alloc.rate.norm: 6704.001 B/op
+                 ·gc.count:           2.000 counts
+                 ·gc.time:            10.000 ms
+
+Iteration   4: 0.002 ms/op
+                 ·gc.alloc.rate:      2603.800 MB/sec
+                 ·gc.alloc.rate.norm: 6704.001 B/op
+                 ·gc.count:           2.000 counts
+                 ·gc.time:            10.000 ms
+
+Iteration   5: 0.002 ms/op
+                 ·gc.alloc.rate:      2631.815 MB/sec
+                 ·gc.alloc.rate.norm: 6704.001 B/op
+                 ·gc.count:           2.000 counts
+                 ·gc.time:            7.000 ms
+
+
+
+Result "parentprofile.ParentDemandBenchmark.lift":
+  0.002 ±(99.9%) 0.001 ms/op [Average]
+  (min, avg, max) = (0.002, 0.002, 0.002), stdev = 0.001
+  CI (99.9%): [0.002, 0.002] (assumes normal distribution)
+
+Secondary result "parentprofile.ParentDemandBenchmark.lift:·gc.alloc.rate":
+  2607.014 ±(99.9%) 9.487 MB/sec [Average]
+  (min, avg, max) = (2596.217, 2607.014, 2631.815), stdev = 8.874
+  CI (99.9%): [2597.527, 2616.501] (assumes normal distribution)
+
+Secondary result "parentprofile.ParentDemandBenchmark.lift:·gc.alloc.rate.norm":
+  6704.001 ±(99.9%) 0.001 B/op [Average]
+  (min, avg, max) = (6704.001, 6704.001, 6704.001), stdev = 0.001
+  CI (99.9%): [6704.001, 6704.001] (assumes normal distribution)
+
+Secondary result "parentprofile.ParentDemandBenchmark.lift:·gc.count":
+  30.000 ±(99.9%) 0.001 counts [Sum]
+  (min, avg, max) = (2.000, 2.000, 2.000), stdev = 0.001
+  CI (99.9%): [30.000, 30.000] (assumes normal distribution)
+
+Secondary result "parentprofile.ParentDemandBenchmark.lift:·gc.time":
+  137.000 ±(99.9%) 0.001 ms [Sum]
+  (min, avg, max) = (7.000, 9.133, 10.000), stdev = 1.187
+  CI (99.9%): [137.000, 137.000] (assumes normal distribution)
+
+
+# JMH version: 1.36
+# VM version: JDK 21.0.4, OpenJDK 64-Bit Server VM, 21.0.4+7-LTS
+# VM invoker: /opt/mise/installs/java/corretto-21.0.4.7.1/bin/java
+# VM options: -Xms2g -Xmx2g
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 3 iterations, 1 s each
+# Measurement: 5 iterations, 1 s each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: parentprofile.ParentDemandBenchmark.lift
+# Parameters: (depth = 5)
+
+# Run progress: 33.33% complete, ETA 00:00:52
+# Fork: 1 of 3
+# Warmup Iteration   1: 0.030 ms/op
+# Warmup Iteration   2: 0.017 ms/op
+# Warmup Iteration   3: 0.016 ms/op
+Iteration   1: 0.016 ms/op
+                 ·gc.alloc.rate:      2165.435 MB/sec
+                 ·gc.alloc.rate.norm: 36096.006 B/op
+                 ·gc.count:           2.000 counts
+                 ·gc.time:            8.000 ms
+
+Iteration   2: 0.016 ms/op
+                 ·gc.alloc.rate:      2176.324 MB/sec
+                 ·gc.alloc.rate.norm: 36096.006 B/op
+                 ·gc.count:           1.000 counts
+                 ·gc.time:            4.000 ms
+
+Iteration   3: 0.016 ms/op
+                 ·gc.alloc.rate:      2168.436 MB/sec
+                 ·gc.alloc.rate.norm: 36096.006 B/op
+                 ·gc.count:           2.000 counts
+                 ·gc.time:            9.000 ms
+
+Iteration   4: 0.016 ms/op
+                 ·gc.alloc.rate:      2164.563 MB/sec
+                 ·gc.alloc.rate.norm: 36096.006 B/op
+                 ·gc.count:           2.000 counts
+                 ·gc.time:            9.000 ms
+
+Iteration   5: 0.016 ms/op
+                 ·gc.alloc.rate:      2165.229 MB/sec
+                 ·gc.alloc.rate.norm: 36096.006 B/op
+                 ·gc.count:           2.000 counts
+                 ·gc.time:            8.000 ms
+
+
+# Run progress: 44.44% complete, ETA 00:00:43
+# Fork: 2 of 3
+# Warmup Iteration   1: 0.029 ms/op
+# Warmup Iteration   2: 0.017 ms/op
+# Warmup Iteration   3: 0.016 ms/op
+Iteration   1: 0.016 ms/op
+                 ·gc.alloc.rate:      2144.035 MB/sec
+                 ·gc.alloc.rate.norm: 35424.006 B/op
+                 ·gc.count:           2.000 counts
+                 ·gc.time:            8.000 ms
+
+Iteration   2: 0.016 ms/op
+                 ·gc.alloc.rate:      2159.736 MB/sec
+                 ·gc.alloc.rate.norm: 35424.006 B/op
+                 ·gc.count:           1.000 counts
+                 ·gc.time:            5.000 ms
+
+Iteration   3: 0.016 ms/op
+                 ·gc.alloc.rate:      2151.160 MB/sec
+                 ·gc.alloc.rate.norm: 35424.006 B/op
+                 ·gc.count:           2.000 counts
+                 ·gc.time:            8.000 ms
+
+Iteration   4: 0.016 ms/op
+                 ·gc.alloc.rate:      2068.221 MB/sec
+                 ·gc.alloc.rate.norm: 35424.007 B/op
+                 ·gc.count:           2.000 counts
+                 ·gc.time:            8.000 ms
+
+Iteration   5: 0.016 ms/op
+                 ·gc.alloc.rate:      2137.247 MB/sec
+                 ·gc.alloc.rate.norm: 35424.006 B/op
+                 ·gc.count:           2.000 counts
+                 ·gc.time:            9.000 ms
+
+
+# Run progress: 55.56% complete, ETA 00:00:35
+# Fork: 3 of 3
+# Warmup Iteration   1: 0.030 ms/op
+# Warmup Iteration   2: 0.017 ms/op
+# Warmup Iteration   3: 0.016 ms/op
+Iteration   1: 0.017 ms/op
+                 ·gc.alloc.rate:      2085.171 MB/sec
+                 ·gc.alloc.rate.norm: 36096.007 B/op
+                 ·gc.count:           2.000 counts
+                 ·gc.time:            8.000 ms
+
+Iteration   2: 0.016 ms/op
+                 ·gc.alloc.rate:      2184.404 MB/sec
+                 ·gc.alloc.rate.norm: 36096.006 B/op
+                 ·gc.count:           1.000 counts
+                 ·gc.time:            5.000 ms
+
+Iteration   3: 0.016 ms/op
+                 ·gc.alloc.rate:      2166.544 MB/sec
+                 ·gc.alloc.rate.norm: 36096.006 B/op
+                 ·gc.count:           2.000 counts
+                 ·gc.time:            8.000 ms
+
+Iteration   4: 0.016 ms/op
+                 ·gc.alloc.rate:      2167.129 MB/sec
+                 ·gc.alloc.rate.norm: 36096.006 B/op
+                 ·gc.count:           2.000 counts
+                 ·gc.time:            8.000 ms
+
+Iteration   5: 0.016 ms/op
+                 ·gc.alloc.rate:      2171.032 MB/sec
+                 ·gc.alloc.rate.norm: 36096.006 B/op
+                 ·gc.count:           2.000 counts
+                 ·gc.time:            8.000 ms
+
+
+
+Result "parentprofile.ParentDemandBenchmark.lift":
+  0.016 ±(99.9%) 0.001 ms/op [Average]
+  (min, avg, max) = (0.016, 0.016, 0.017), stdev = 0.001
+  CI (99.9%): [0.016, 0.016] (assumes normal distribution)
+
+Secondary result "parentprofile.ParentDemandBenchmark.lift:·gc.alloc.rate":
+  2151.644 ±(99.9%) 35.054 MB/sec [Average]
+  (min, avg, max) = (2068.221, 2151.644, 2184.404), stdev = 32.790
+  CI (99.9%): [2116.590, 2186.699] (assumes normal distribution)
+
+Secondary result "parentprofile.ParentDemandBenchmark.lift:·gc.alloc.rate.norm":
+  35872.006 ±(99.9%) 350.548 B/op [Average]
+  (min, avg, max) = (35424.006, 35872.006, 36096.007), stdev = 327.902
+  CI (99.9%): [35521.459, 36222.554] (assumes normal distribution)
+
+Secondary result "parentprofile.ParentDemandBenchmark.lift:·gc.count":
+  27.000 ±(99.9%) 0.001 counts [Sum]
+  (min, avg, max) = (1.000, 1.800, 2.000), stdev = 0.414
+  CI (99.9%): [27.000, 27.000] (assumes normal distribution)
+
+Secondary result "parentprofile.ParentDemandBenchmark.lift:·gc.time":
+  113.000 ±(99.9%) 0.001 ms [Sum]
+  (min, avg, max) = (4.000, 7.533, 9.000), stdev = 1.552
+  CI (99.9%): [113.000, 113.000] (assumes normal distribution)
+
+
+# JMH version: 1.36
+# VM version: JDK 21.0.4, OpenJDK 64-Bit Server VM, 21.0.4+7-LTS
+# VM invoker: /opt/mise/installs/java/corretto-21.0.4.7.1/bin/java
+# VM options: -Xms2g -Xmx2g
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 3 iterations, 1 s each
+# Measurement: 5 iterations, 1 s each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: parentprofile.ParentDemandBenchmark.lift
+# Parameters: (depth = 20)
+
+# Run progress: 66.67% complete, ETA 00:00:26
+# Fork: 1 of 3
+# Warmup Iteration   1: 0.114 ms/op
+# Warmup Iteration   2: 0.066 ms/op
+# Warmup Iteration   3: 0.061 ms/op
+Iteration   1: 0.061 ms/op
+                 ·gc.alloc.rate:      2042.689 MB/sec
+                 ·gc.alloc.rate.norm: 130384.025 B/op
+                 ·gc.count:           1.000 counts
+                 ·gc.time:            5.000 ms
+
+Iteration   2: 0.061 ms/op
+                 ·gc.alloc.rate:      2027.248 MB/sec
+                 ·gc.alloc.rate.norm: 130384.025 B/op
+                 ·gc.count:           2.000 counts
+                 ·gc.time:            8.000 ms
+
+Iteration   3: 0.061 ms/op
+                 ·gc.alloc.rate:      2035.017 MB/sec
+                 ·gc.alloc.rate.norm: 130384.025 B/op
+                 ·gc.count:           2.000 counts
+                 ·gc.time:            9.000 ms
+
+Iteration   4: 0.061 ms/op
+                 ·gc.alloc.rate:      2048.360 MB/sec
+                 ·gc.alloc.rate.norm: 130384.031 B/op
+                 ·gc.count:           1.000 counts
+                 ·gc.time:            5.000 ms
+
+Iteration   5: 0.061 ms/op
+                 ·gc.alloc.rate:      2036.434 MB/sec
+                 ·gc.alloc.rate.norm: 130384.025 B/op
+                 ·gc.count:           2.000 counts
+                 ·gc.time:            8.000 ms
+
+
+# Run progress: 77.78% complete, ETA 00:00:17
+# Fork: 2 of 3
+# Warmup Iteration   1: 0.115 ms/op
+# Warmup Iteration   2: 0.066 ms/op
+# Warmup Iteration   3: 0.062 ms/op
+Iteration   1: 0.061 ms/op
+                 ·gc.alloc.rate:      2031.865 MB/sec
+                 ·gc.alloc.rate.norm: 130912.025 B/op
+                 ·gc.count:           1.000 counts
+                 ·gc.time:            5.000 ms
+
+Iteration   2: 0.062 ms/op
+                 ·gc.alloc.rate:      2013.197 MB/sec
+                 ·gc.alloc.rate.norm: 130912.025 B/op
+                 ·gc.count:           2.000 counts
+                 ·gc.time:            8.000 ms
+
+Iteration   3: 0.061 ms/op
+                 ·gc.alloc.rate:      2034.116 MB/sec
+                 ·gc.alloc.rate.norm: 130912.025 B/op
+                 ·gc.count:           2.000 counts
+                 ·gc.time:            8.000 ms
+
+Iteration   4: 0.062 ms/op
+                 ·gc.alloc.rate:      2027.224 MB/sec
+                 ·gc.alloc.rate.norm: 130912.032 B/op
+                 ·gc.count:           1.000 counts
+                 ·gc.time:            5.000 ms
+
+Iteration   5: 0.062 ms/op
+                 ·gc.alloc.rate:      2028.485 MB/sec
+                 ·gc.alloc.rate.norm: 130912.025 B/op
+                 ·gc.count:           2.000 counts
+                 ·gc.time:            8.000 ms
+
+
+# Run progress: 88.89% complete, ETA 00:00:08
+# Fork: 3 of 3
+# Warmup Iteration   1: 0.115 ms/op
+# Warmup Iteration   2: 0.066 ms/op
+# Warmup Iteration   3: 0.061 ms/op
+Iteration   1: 0.061 ms/op
+                 ·gc.alloc.rate:      2036.299 MB/sec
+                 ·gc.alloc.rate.norm: 130384.025 B/op
+                 ·gc.count:           1.000 counts
+                 ·gc.time:            4.000 ms
+
+Iteration   2: 0.061 ms/op
+                 ·gc.alloc.rate:      2036.548 MB/sec
+                 ·gc.alloc.rate.norm: 130384.025 B/op
+                 ·gc.count:           2.000 counts
+                 ·gc.time:            9.000 ms
+
+Iteration   3: 0.061 ms/op
+                 ·gc.alloc.rate:      2033.725 MB/sec
+                 ·gc.alloc.rate.norm: 130384.025 B/op
+                 ·gc.count:           2.000 counts
+                 ·gc.time:            8.000 ms
+
+Iteration   4: 0.061 ms/op
+                 ·gc.alloc.rate:      2036.599 MB/sec
+                 ·gc.alloc.rate.norm: 130384.031 B/op
+                 ·gc.count:           1.000 counts
+                 ·gc.time:            5.000 ms
+
+Iteration   5: 0.061 ms/op
+                 ·gc.alloc.rate:      2034.729 MB/sec
+                 ·gc.alloc.rate.norm: 130384.025 B/op
+                 ·gc.count:           2.000 counts
+                 ·gc.time:            8.000 ms
+
+
+
+Result "parentprofile.ParentDemandBenchmark.lift":
+  0.061 ±(99.9%) 0.001 ms/op [Average]
+  (min, avg, max) = (0.061, 0.061, 0.062), stdev = 0.001
+  CI (99.9%): [0.061, 0.062] (assumes normal distribution)
+
+Secondary result "parentprofile.ParentDemandBenchmark.lift:·gc.alloc.rate":
+  2033.502 ±(99.9%) 8.395 MB/sec [Average]
+  (min, avg, max) = (2013.197, 2033.502, 2048.360), stdev = 7.853
+  CI (99.9%): [2025.107, 2041.897] (assumes normal distribution)
+
+Secondary result "parentprofile.ParentDemandBenchmark.lift:·gc.alloc.rate.norm":
+  130560.026 ±(99.9%) 275.430 B/op [Average]
+  (min, avg, max) = (130384.025, 130560.026, 130912.032), stdev = 257.638
+  CI (99.9%): [130284.596, 130835.457] (assumes normal distribution)
+
+Secondary result "parentprofile.ParentDemandBenchmark.lift:·gc.count":
+  24.000 ±(99.9%) 0.001 counts [Sum]
+  (min, avg, max) = (1.000, 1.600, 2.000), stdev = 0.507
+  CI (99.9%): [24.000, 24.000] (assumes normal distribution)
+
+Secondary result "parentprofile.ParentDemandBenchmark.lift:·gc.time":
+  103.000 ±(99.9%) 0.001 ms [Sum]
+  (min, avg, max) = (4.000, 6.867, 9.000), stdev = 1.767
+  CI (99.9%): [103.000, 103.000] (assumes normal distribution)
+
+
+# Run complete. Total time: 00:01:19
+
+REMEMBER: The numbers below are just data. To gain reusable insights, you need to follow up on
+why the numbers are the way they are. Use profilers (see -prof, -lprof), design factorial
+experiments, perform baseline and negative tests that provide experimental control, make sure
+the benchmarking environment is safe on JVM/OS/HW level, ask for reviews from the domain experts.
+Do not assume the numbers tell you what you want them to tell.
+
+NOTE: Current JVM experimentally supports Compiler Blackholes, and they are in use. Please exercise
+extra caution when trusting the results, look into the generated code to check the benchmark still
+works, and factor in a small probability of new VM bugs. Additionally, while comparisons between
+different JVMs are already problematic, the performance difference caused by different Blackhole
+modes can be very significant. Please make sure you use the consistent Blackhole mode for comparisons.
+
+Benchmark                                       (depth)  Mode  Cnt       Score     Error   Units
+ParentDemandBenchmark.lift                            0  avgt   15       0.002 ±   0.001   ms/op
+ParentDemandBenchmark.lift:·gc.alloc.rate             0  avgt   15    2607.014 ±   9.487  MB/sec
+ParentDemandBenchmark.lift:·gc.alloc.rate.norm        0  avgt   15    6704.001 ±   0.001    B/op
+ParentDemandBenchmark.lift:·gc.count                  0  avgt   15      30.000            counts
+ParentDemandBenchmark.lift:·gc.time                   0  avgt   15     137.000                ms
+ParentDemandBenchmark.lift                            5  avgt   15       0.016 ±   0.001   ms/op
+ParentDemandBenchmark.lift:·gc.alloc.rate             5  avgt   15    2151.644 ±  35.054  MB/sec
+ParentDemandBenchmark.lift:·gc.alloc.rate.norm        5  avgt   15   35872.006 ± 350.548    B/op
+ParentDemandBenchmark.lift:·gc.count                  5  avgt   15      27.000            counts
+ParentDemandBenchmark.lift:·gc.time                   5  avgt   15     113.000                ms
+ParentDemandBenchmark.lift                           20  avgt   15       0.061 ±   0.001   ms/op
+ParentDemandBenchmark.lift:·gc.alloc.rate            20  avgt   15    2033.502 ±   8.395  MB/sec
+ParentDemandBenchmark.lift:·gc.alloc.rate.norm       20  avgt   15  130560.026 ± 275.430    B/op
+ParentDemandBenchmark.lift:·gc.count                 20  avgt   15      24.000            counts
+ParentDemandBenchmark.lift:·gc.time                  20  avgt   15     103.000                ms
+
+Benchmark result is saved to /tmp/runtime2-parent-demand-20261009/parent-benchmark/candidate.json

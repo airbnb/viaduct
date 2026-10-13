@@ -2,15 +2,22 @@ package viaduct.engine.runtime2.resolution
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
+import kotlinx.coroutines.test.runTest
+import viaduct.engine.runtime2.model.Arguments
 import viaduct.engine.runtime2.model.InclusionCondition
 import viaduct.engine.runtime2.model.ObjectSelectionForest
+import viaduct.engine.runtime2.model.Selection
 import viaduct.engine.runtime2.model.merge
 import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireQueryTypeDef
+import viaduct.engine.runtime2.model.selectionForestOf
 import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.fragmentFrom
+import viaduct.engine.runtime2.resolution.framework.Demand
 
 class ParentConstructionDemandTest {
     @Test
@@ -425,6 +432,256 @@ class ParentConstructionDemandTest {
                 "Construction demand for OrdinaryChild with $selectionSet",
             )
         }
+    }
+
+    @Test
+    fun `joined ancestor requirements preserve guards arguments and concrete descendants`() {
+        val fixture = TestWorld.fromDSL(
+            """
+            extend type Query { root: Parent @resolver(result: {}) }
+            type Parent { child: Child data(id: Int!): Data }
+            type Child { parent: Parent @parent }
+            interface Data { common: Int }
+            type A implements Data { common: Int left: Int right: Int }
+            type B implements Data { common: Int other: Int }
+            """.trimIndent(),
+        )
+        val input = fixture.schemas.fragmentFrom(
+            """
+            fragment F on Query {
+              root {
+                child @include(if: ${'$'}a) {
+                  parent { data(id: 1) { common ... on A { left } ... on B { other } } }
+                }
+                child @include(if: ${'$'}b) {
+                  parent { data(id: 1) { ... on A { common right } } data(id: 2) { ... on B { other } } }
+                }
+              }
+            }
+            """.trimIndent(),
+        ).subselections
+        val world = fixture.assumptions
+        val lifted = Demand.checked(input).liftParentConstructionDemand(world)
+        assertTrue(lifted.unchecked.isEmpty())
+        val parent = world.schema.requireObjectField("Parent", "child").containingDef
+        val data = lifted.checked.single().subselections.merge(parent)
+        assertEquals(2, data.size, "Different ancestor argument tuples must stay separate")
+        val byId = data.byKey().values.associateBy { (it.key.arguments as Arguments.Resolved).fieldValues["id"] }
+        val aType = world.schema.requireObjectField("A", "left").containingDef
+        val bType = world.schema.requireObjectField("B", "other").containingDef
+        val first = byId.getValue(1)
+        val second = byId.getValue(2)
+        assertEquals(setOf("common", "left", "right"), first.subselections.merge(aType).fieldNames())
+        assertEquals(setOf("common", "other"), first.subselections.merge(bType).fieldNames())
+        assertTrue(second.subselections.merge(aType).isEmpty())
+        for (a in listOf(false, true)) for (b in listOf(false, true)) {
+            fun included(condition: InclusionCondition) =
+                condition.includeWith { variable ->
+                    when (variable.variableName) {
+                        "a" -> a
+                        "b" -> b
+                        else -> error("Unexpected binding $variable")
+                    }
+                }
+            assertEquals(a || b, included(first.inclusionCondition))
+            assertEquals(b, included(second.inclusionCondition))
+            assertEquals(a || b, included(first.subselections.merge(aType).field("common").inclusionCondition))
+            assertEquals(a, included(first.subselections.merge(bType).field("common").inclusionCondition))
+            assertEquals(a, included(first.subselections.merge(aType).field("left").inclusionCondition))
+            assertEquals(b, included(first.subselections.merge(aType).field("right").inclusionCondition))
+            assertEquals(a, included(first.subselections.merge(bType).field("other").inclusionCondition))
+            assertEquals(b, included(second.subselections.merge(bType).field("other").inclusionCondition))
+        }
+    }
+
+    @Test
+    fun `repeated parent joins do not read excluded sibling guards`() {
+        for (checked in listOf(true, false)) {
+            val descendants = repeatedSiblingDemand(checked)
+            for ((field, guard) in listOf("common" to "a", "special" to "b")) {
+                val visited = mutableListOf<String>()
+                assertFalse(
+                    descendants.field(field).inclusionCondition.includeWith { variable ->
+                        visited += variable.variableName
+                        if (variable.variableName == guard) false else error("Unneeded sibling ${variable.variableName}")
+                    }
+                )
+                assertEquals(listOf(guard), visited)
+            }
+            assertTrue(descendants.field("other").inclusionCondition.includeWith { error("Unconditional descendant read a binding") })
+        }
+    }
+
+    @Test
+    fun `repeated parent joins exclude descendants despite failed sibling activation`() =
+        runTest {
+            for (checked in listOf(true, false)) {
+                val descendants = repeatedSiblingDemand(checked)
+                for ((field, guard) in listOf("common" to "a", "special" to "b")) {
+                    assertFalse(
+                        descendants.field(field).inclusionCondition.includeAnyReadyAlternative { variable ->
+                            if (variable.variableName == guard) false else error("Unneeded sibling ${variable.variableName}")
+                        }
+                    )
+                }
+                assertTrue(descendants.field("other").inclusionCondition.includeAnyReadyAlternative { error("Unconditional descendant read a binding") })
+            }
+        }
+
+    @Test
+    fun `repeated parent joins retain binding order in equivalent composite guards`() =
+        runTest {
+            val query = """
+            fragment F on Parent {
+              child @include(if: ${'$'}a) { parent @include(if: ${'$'}b) { item { common } } }
+              child @include(if: ${'$'}b) { parent @include(if: ${'$'}a) { item { special } } }
+              child { parent { item { other } } }
+            }
+            """.trimIndent()
+            for (checked in listOf(true, false)) {
+                val special = repeatedSiblingDemand(checked, query).field("special")
+                val visited = mutableListOf<String>()
+                assertFalse(
+                    special.inclusionCondition.includeWith { variable ->
+                        visited += variable.variableName
+                        if (variable.variableName == "b") false else error("Excluded descendant read ${variable.variableName}")
+                    }
+                )
+                assertEquals(listOf("b"), visited)
+                assertFalse(
+                    special.inclusionCondition.includeAnyReadyAlternative { variable ->
+                        if (variable.variableName == "b") false else error("Excluded descendant read ${variable.variableName}")
+                    }
+                )
+            }
+        }
+
+    private fun repeatedSiblingDemand(
+        checked: Boolean,
+        query: String = """
+            fragment F on Parent {
+              child @include(if: ${'$'}a) { parent { item { common } } }
+              child @include(if: ${'$'}b) { parent { item { special } } }
+              child { parent { item { other } } }
+            }
+        """.trimIndent(),
+    ): ObjectSelectionForest {
+        val fixture = TestWorld.fromDSL(
+            """
+            extend type Query { root: Parent @resolver(result: {}) }
+            type Parent { child: Child item: Item }
+            type Child { parent: Parent @parent }
+            type Item { common: Int special: Int other: Int }
+            """.trimIndent(),
+        )
+        val input = fixture.schemas.fragmentFrom(query).subselections
+        val demand = if (checked) Demand.checked(input) else Demand.unchecked(input)
+        val lifted = demand.liftParentConstructionDemand(fixture.assumptions)
+        val parent = fixture.assumptions.schema.requireObjectField("Parent", "child").containingDef
+        val itemType = fixture.assumptions.schema.requireObjectField("Item", "common").containingDef
+        val component = if (checked) lifted.checked else lifted.unchecked
+        val item = component.merge(parent).field("item")
+        assertSame(InclusionCondition.Always, item.inclusionCondition)
+        return item.subselections.merge(itemType)
+    }
+
+    @Test
+    fun `joining parent requirements keeps shared interface selections compact`() {
+        val implementations = (0 until 128).joinToString("\n") { "type Item$it implements Item { common(extra: Int = $it): Int }" }
+        val fixture = TestWorld.fromDSL(
+            """
+            extend type Query { root: Parent @resolver(result: {}) }
+            type Parent { child: Child item: Item }
+            type Child { parent: Parent @parent }
+            interface Item { common: Int }
+            $implementations
+            """.trimIndent(),
+        )
+        val input = fixture.schemas.fragmentFrom(
+            "fragment F on Parent { child { first: parent { item { common } } second: parent { item { common } } } }",
+        ).subselections
+        val parent = fixture.schemas.loweredSchema.requireObjectField("Parent", "child").containingDef
+        val lifted = Demand.checked(input).liftParentConstructionDemand(fixture.assumptions)
+        val item = lifted.checked.merge(parent).single()
+        assertTrue(item.subselections.size <= 2, "A shared interface field expanded to ${item.subselections.size} concrete copies")
+        val original = fixture.schemas.fragmentFrom("fragment Original on Item { common }").subselections
+        for (index in 0 until 128) {
+            val type = fixture.schemas.loweredSchema.requireObjectField("Item$index", "common").containingDef
+            val concrete = item.subselections.merge(type)
+            assertEquals(setOf("common"), concrete.fieldNames())
+            assertEquals(original.merge(type).keys(), concrete.keys(), "Concrete argument defaults changed for Item$index")
+        }
+    }
+
+    @Test
+    fun `shared parent paths preserve the first failing alternative`() {
+        val fixture = TestWorld.fromDSL(
+            """
+            extend type Query { root: Parent @resolver(result: {}) }
+            type Parent { child: Child seed: Int }
+            type Child { parent: Parent @parent field0: Int @resolver(of: "parent { seed }", result: 1) }
+            """.trimIndent(),
+        )
+        val input = fixture.schemas.fragmentFrom(
+            """
+            fragment F on Query {
+              root { child {
+                first: field0 @include(if: ${'$'}a)
+                parent @include(if: ${'$'}b) { seed }
+                last: field0 @include(if: ${'$'}c)
+              } }
+            }
+            """.trimIndent(),
+        ).subselections
+        val guard = Demand.checked(input).liftParentConstructionDemand(fixture.assumptions)
+            .checked.single().subselections.single().inclusionCondition
+        val visited = mutableListOf<String>()
+        val failure = assertFailsWith<IllegalStateException> {
+            guard.includeWith {
+                visited += it.variableName
+                if (it.variableName == "a") false else error(it.variableName)
+            }
+        }
+        assertEquals("b", failure.message)
+        assertEquals(listOf("a", "b"), visited)
+        assertTrue(guard.includeWith { if (it.variableName == "a") true else error("Unneeded sibling") })
+    }
+
+    @Test
+    fun `joining empty parent projections preserves guarded root type check provenance`() {
+        val fixture = TestWorld.fromDSL(
+            """
+            extend type Query { root: Parent @resolver(result: {}) }
+            type Parent { child: Child }
+            type Child { parent: Parent @parent }
+            """.trimIndent(),
+        )
+        val parent = fixture.schemas.loweredSchema.requireObjectField("Parent", "child").containingDef
+        val parsed = fixture.schemas.fragmentFrom(
+            "fragment F on Parent { child @include(if: ${'$'}a) { parent { __typename } } child @include(if: ${'$'}b) { parent { __typename } } }",
+        ).subselections
+        val emptyProjections = parsed.flatMap { child ->
+            val backedge = child.subselections.single()
+            selectionForestOf(
+                Selection.of(
+                    child.key,
+                    child.possibleTypes,
+                    selectionForestOf(Selection.of(backedge.key, backedge.possibleTypes, selectionForestOf(), backedge.inclusionCondition)),
+                    child.inclusionCondition,
+                )
+            )
+        }
+        val lifted = Demand.checked(emptyProjections, typeCheckDemanded = false).liftParentConstructionDemand(fixture.assumptions)
+        assertTrue(lifted.values.isEmpty())
+        assertTrue(lifted.typeCheckDemanded, "An empty checked projection still demands the ancestor type check")
+        assertTrue(lifted.checked.merge(parent).isEmpty())
+        for (a in listOf(false, true)) for (b in listOf(false, true)) {
+            assertEquals(a || b, lifted.typeCheckCondition.includeWith { if (it.variableName == "a") a else b })
+        }
+        val raw = Demand.unchecked(emptyProjections).liftParentConstructionDemand(fixture.assumptions)
+        assertTrue(raw.values.isEmpty())
+        assertEquals(false, raw.typeCheckDemanded)
+        assertSame(InclusionCondition.Never, raw.typeCheckCondition)
     }
 
     private fun ObjectSelectionForest.field(name: String) = byKey().values.single { selection -> selection.key.field.name == name }

@@ -1,0 +1,42 @@
+[
+  {
+    "variant": "baseline",
+    "command": [
+      "java",
+      "-cp",
+      "/tmp/runtime2-parent-jmh-43icm6pt/classes:/home/raymie_stata/.gradle/caches/modules-2/files-2.1/org.ow2.asm/asm/9.8/dc19ecb3f7889b7860697215cae99c0f9b6f6b4b/asm-9.8.jar:/home/raymie_stata/.gradle/caches/modules-2/files-2.1/org.openjdk.jmh/jmh-generator-bytecode/1.36/b8ab8b88a6b48a0cb540ede365fa84876e6608bf/jmh-generator-bytecode-1.36.jar:/home/raymie_stata/.gradle/caches/modules-2/files-2.1/org.openjdk.jmh/jmh-generator-reflection/1.36/40c9b3bb0523b58dada012987172452895f2c6cb/jmh-generator-reflection-1.36.jar:/tmp/runtime2-parent-demand-20261009/baseline.jar",
+      "org.openjdk.jmh.Main",
+      "parentprofile.ParentDemandBenchmark.lift",
+      "-foe",
+      "true",
+      "-prof",
+      "gc",
+      "-jvmArgsAppend",
+      "-Xms2g -Xmx2g",
+      "-rf",
+      "json",
+      "-rff",
+      "/tmp/runtime2-parent-demand-20261009/parent-benchmark/baseline.json"
+    ]
+  },
+  {
+    "variant": "candidate",
+    "command": [
+      "java",
+      "-cp",
+      "/tmp/runtime2-parent-jmh-43icm6pt/classes:/home/raymie_stata/.gradle/caches/modules-2/files-2.1/org.ow2.asm/asm/9.8/dc19ecb3f7889b7860697215cae99c0f9b6f6b4b/asm-9.8.jar:/home/raymie_stata/.gradle/caches/modules-2/files-2.1/org.openjdk.jmh/jmh-generator-bytecode/1.36/b8ab8b88a6b48a0cb540ede365fa84876e6608bf/jmh-generator-bytecode-1.36.jar:/home/raymie_stata/.gradle/caches/modules-2/files-2.1/org.openjdk.jmh/jmh-generator-reflection/1.36/40c9b3bb0523b58dada012987172452895f2c6cb/jmh-generator-reflection-1.36.jar:/tmp/runtime2-parent-demand-20261009/candidate.jar",
+      "org.openjdk.jmh.Main",
+      "parentprofile.ParentDemandBenchmark.lift",
+      "-foe",
+      "true",
+      "-prof",
+      "gc",
+      "-jvmArgsAppend",
+      "-Xms2g -Xmx2g",
+      "-rf",
+      "json",
+      "-rff",
+      "/tmp/runtime2-parent-demand-20261009/parent-benchmark/candidate.json"
+    ]
+  }
+]

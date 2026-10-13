@@ -1,0 +1,182 @@
+[
+  {
+    "task": "resolutionParentFocused",
+    "command": [
+      "./gradlew",
+      ":core:engine:runtime2:resolutionParentFocused",
+      "-Pviaduct.resolution.threadcount=5",
+      "--no-configuration-cache",
+      "--console=plain"
+    ],
+    "start": "2026-10-09T06:28:07.284032+00:00",
+    "end": "2026-10-09T06:28:50.234875+00:00",
+    "exit_code": 0,
+    "tests": 1,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "task": "resolutionStress",
+    "command": [
+      "./gradlew",
+      ":core:engine:runtime2:resolutionStress",
+      "-PresolutionStressSeed=20260809",
+      "--no-configuration-cache",
+      "--console=plain"
+    ],
+    "start": "2026-10-09T06:28:50.235027+00:00",
+    "end": "2026-10-09T06:32:11.370746+00:00",
+    "exit_code": 0,
+    "tests": 1,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "task": "resolutionFieldCheckerStress",
+    "command": [
+      "./gradlew",
+      ":core:engine:runtime2:resolutionFieldCheckerStress",
+      "-PresolutionFieldCheckerStressSeed=424242",
+      "-PresolutionFieldCheckerStressProfile=success",
+      "-Pviaduct.resolution.threadcount=5",
+      "--no-configuration-cache",
+      "--console=plain"
+    ],
+    "start": "2026-10-09T06:32:11.370960+00:00",
+    "end": "2026-10-09T06:34:53.031208+00:00",
+    "exit_code": 0,
+    "tests": 1,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "task": "resolutionFieldCheckerStress",
+    "command": [
+      "./gradlew",
+      ":core:engine:runtime2:resolutionFieldCheckerStress",
+      "-PresolutionFieldCheckerStressSeed=424242",
+      "-PresolutionFieldCheckerStressProfile=denial",
+      "-Pviaduct.resolution.threadcount=5",
+      "--no-configuration-cache",
+      "--console=plain"
+    ],
+    "start": "2026-10-09T06:34:53.031399+00:00",
+    "end": "2026-10-09T06:37:31.300130+00:00",
+    "exit_code": 0,
+    "tests": 1,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "task": "resolutionFieldCheckerStress",
+    "command": [
+      "./gradlew",
+      ":core:engine:runtime2:resolutionFieldCheckerStress",
+      "-PresolutionFieldCheckerStressSeed=424242",
+      "-PresolutionFieldCheckerStressProfile=mixed",
+      "-Pviaduct.resolution.threadcount=5",
+      "--no-configuration-cache",
+      "--console=plain"
+    ],
+    "start": "2026-10-09T06:37:31.300320+00:00",
+    "end": "2026-10-09T06:39:26.845339+00:00",
+    "exit_code": 0,
+    "tests": 1,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "task": "resolutionFieldCheckerStress",
+    "command": [
+      "./gradlew",
+      ":core:engine:runtime2:resolutionFieldCheckerStress",
+      "-PresolutionFieldCheckerStressSeed=424242",
+      "-PresolutionFieldCheckerStressProfile=passive",
+      "-Pviaduct.resolution.threadcount=5",
+      "--no-configuration-cache",
+      "--console=plain"
+    ],
+    "start": "2026-10-09T06:39:26.845530+00:00",
+    "end": "2026-10-09T06:39:41.352018+00:00",
+    "exit_code": 0,
+    "tests": 1,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "task": "resolutionFieldCheckerStress",
+    "command": [
+      "./gradlew",
+      ":core:engine:runtime2:resolutionFieldCheckerStress",
+      "-PresolutionFieldCheckerStressSeed=424242",
+      "-PresolutionFieldCheckerStressProfile=root-reference",
+      "-Pviaduct.resolution.threadcount=5",
+      "--no-configuration-cache",
+      "--console=plain"
+    ],
+    "start": "2026-10-09T06:39:41.352240+00:00",
+    "end": "2026-10-09T06:40:13.794026+00:00",
+    "exit_code": 0,
+    "tests": 1,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "task": "resolutionTypeCheckerStress",
+    "command": [
+      "./gradlew",
+      ":core:engine:runtime2:resolutionTypeCheckerStress",
+      "-PresolutionTypeCheckerStressSeed=2026093001",
+      "-Pviaduct.resolution.threadcount=5",
+      "--no-configuration-cache",
+      "--console=plain"
+    ],
+    "start": "2026-10-09T06:40:13.794304+00:00",
+    "end": "2026-10-09T06:48:02.986463+00:00",
+    "exit_code": 0,
+    "tests": 3,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "task": "resolutionMultithreadedStress",
+    "command": [
+      "./gradlew",
+      ":core:engine:runtime2:resolutionMultithreadedStress",
+      "--no-configuration-cache",
+      "--console=plain"
+    ],
+    "start": "2026-10-09T06:48:02.987120+00:00",
+    "end": "2026-10-09T07:06:09.221069+00:00",
+    "exit_code": 0,
+    "tests": 4,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  {
+    "task": "resolver23Stress",
+    "command": [
+      "./gradlew",
+      ":core:engine:runtime2:resolver23Stress",
+      "-Presolver23StressSeed=20260809",
+      "--no-configuration-cache",
+      "--console=plain"
+    ],
+    "start": "2026-10-09T07:06:09.221304+00:00",
+    "end": "2026-10-09T07:08:35.894848+00:00",
+    "exit_code": 0,
+    "tests": 1,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  }
+]

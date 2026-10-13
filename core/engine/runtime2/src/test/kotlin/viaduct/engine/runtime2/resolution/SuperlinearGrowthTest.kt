@@ -128,7 +128,6 @@ class SuperlinearGrowthTest : ResolutionDispatcherResource {
     }
 
     @Test
-    @Disabled("Nonempty parent demand still expands the resolver/checker dependency-path tree")
     fun `parent demand records one nonempty request across a resolver diamond`() {
         for (depth in listOf(5, 10, 15, 20)) {
             val fields = (0..depth).joinToString("\n") { index ->
@@ -177,9 +176,75 @@ class SuperlinearGrowthTest : ResolutionDispatcherResource {
             val distinct = demand.merge(world.schema.requireObjectField("Parent", "seed").containingDef).size
             assertEquals(1, distinct)
             assertTrue(
-                demand.size <= 2 * (depth + 1),
+                demand.size <= 2,
                 "Parent lifting expanded ${demand.size} seed selections across ${depth + 1} fields",
             )
+        }
+    }
+
+    @Test
+    fun `nested parent requirements stay compact with resolver field and type checkers`() {
+        for (depth in listOf(5, 10, 20, 40)) {
+            val fields = (0..depth).joinToString("\n") { index ->
+                val inputs = if (index == depth) {
+                    "parent { seed { value other } }"
+                } else {
+                    ((index + 1)..minOf(index + 2, depth)).joinToString(" ") { "field$it" }
+                }
+                "field$index: Int @resolver(of: \"$inputs\", result: 1)"
+            }
+            val fixture = TestWorld.fromDSL(
+                """
+                extend type Query { root: Parent @resolver(result: {seed: {value: 7 other: 8} child: {}}) }
+                type Parent { seed: Seed child: Child }
+                type Seed { value: Int other: Int }
+                type Child { parent: Parent @parent $fields }
+                """.trimIndent(),
+                fieldCheckers = { schema ->
+                    val pair = ResolverFragmentTemplates(
+                        schema.fragmentFrom("fragment FC on Child { parent { seed { value other } } }").materializeSelections,
+                        materializeSelectionForestOf(),
+                    )
+                    (0..depth).associate { index ->
+                        val field = schema.loweredSchema.requireObjectField("Child", "field$index")
+                        field to FieldCheckerResolver.of(field, schema.loweredSchema.requireQueryTypeDef(), mapOf("input" to pair)) { _, _, _ -> CheckerResult.Success }
+                    }
+                },
+                typeCheckers = { schema ->
+                    val child = schema.loweredSchema.requireObjectField("Child", "parent").containingDef
+                    val pair = ResolverFragmentTemplates(
+                        schema.fragmentFrom("fragment TC on Child { field0 field1 parent { seed { value other } } }").materializeSelections,
+                        materializeSelectionForestOf(),
+                    )
+                    mapOf(child to TypeCheckerResolver.of(child, schema.loweredSchema.requireQueryTypeDef(), mapOf("input" to pair)) { _, _ -> CheckerResult.Success })
+                },
+            )
+            val world = fixture.assumptions
+            val input = fixture.schemas.fragmentFrom("fragment F on Query { root { child { field0 } } }").subselections
+            val lifted = Demand.checked(input).liftParentConstructionDemand(world)
+            // Each provenance has one seed key, whose descendants are normalized as well.
+            for (component in listOf(lifted.checked, lifted.unchecked)) {
+                assertEquals(1, component.size)
+                val seeds = component.single().subselections
+                assertEquals(1, seeds.size, "depth=$depth")
+                assertEquals(2, seeds.single().subselections.size, "Nested requirements multiplied at depth=$depth")
+            }
+            if (depth == 20) {
+                val applications = AtomicInteger()
+                val observer = object : ResolverObserver {
+                    override fun onResolverInvocation(observation: ResolverInvocationObservation) {
+                        applications.incrementAndGet()
+                    }
+                }
+                val result = SharedOperationContext.create(world, resolverObserver = observer).resolveWithTestDispatcher(input)
+                val parent = result.getCell(result.keys.single()).value.get() as ObjectEngineResult
+                val childKey = parent.keys.single { it.field.name == "child" }
+                val child = parent.getCell(childKey).value.get() as ObjectEngineResult
+                val ordinary = child.keys.filter { it.field.name != "parent" }
+                assertEquals(depth + 1, ordinary.size)
+                ordinary.forEach { assertEquals(1, child.getCell(it).value.get()) }
+                assertEquals(depth + 2, applications.get(), "Shared paths must not duplicate resolver applications")
+            }
         }
     }
 

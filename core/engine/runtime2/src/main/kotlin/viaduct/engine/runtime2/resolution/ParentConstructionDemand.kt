@@ -1,10 +1,13 @@
 package viaduct.engine.runtime2.resolution
 
+import java.util.IdentityHashMap
 import viaduct.engine.runtime2.model.InclusionCondition
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.ObjectSelection
 import viaduct.engine.runtime2.model.Selection
 import viaduct.engine.runtime2.model.SelectionForest
+import viaduct.engine.runtime2.model.concatenateSelectionForests
+import viaduct.engine.runtime2.model.flatMapToSelectionForest
 import viaduct.engine.runtime2.model.guardedBy
 import viaduct.engine.runtime2.model.objectKey
 import viaduct.engine.runtime2.model.registry.Assumptions
@@ -52,6 +55,7 @@ private class ParentDemandContext(
     val fieldChecker: (ViaductSchema.ObjectField) -> FieldCheckerResolver?,
     val typeChecker: (ViaductSchema.Object) -> TypeCheckerResolver? = { null },
 ) {
+    val normalizer = ParentDemandNormalizer()
     val expandingTypes = mutableSetOf<ViaductSchema.Object>()
     val parentDemandByType = mutableMapOf<ViaductSchema.Object, ParentDemandAnalysis>()
     val parentDemandByObjectFragmentId = mutableMapOf<ObjectFragmentId, ParentDemandAnalysis>()
@@ -69,19 +73,26 @@ private data class ObjectFragmentId(
  * [localDemand] is additional demand already placed at the current object's level.
  * [parentRequests] are demands reached through `@parent` fields whose matching producer field
  * has not yet been encountered; enclosing selections carry them outward until that producer edge
- * can transpose their demand onto the parent object.
+ * can transpose their demand onto the parent object. Requests are joined by canonical parent
+ * field and normalized independently by checking provenance, rather than copied per path.
  */
 private class ParentDemandAnalysis(
+    val normalizer: ParentDemandNormalizer,
     val localDemand: Demand<SelectionForest> = Demand.EMPTY,
-    val parentRequests: List<ParentRequest> = emptyList(),
+    val parentRequests: Map<ViaductSchema.ObjectField, ParentRequest> = emptyMap(),
     val reusable: Boolean = true,
 ) {
     operator fun plus(other: ParentDemandAnalysis): ParentDemandAnalysis =
-        ParentDemandAnalysis(
-            localDemand = localDemand + other.localDemand,
-            parentRequests = parentRequests + other.parentRequests,
-            reusable = reusable && other.reusable,
-        )
+        if (this === other) {
+            this
+        } else {
+            ParentDemandAnalysis(
+                normalizer,
+                localDemand = normalizer.combine(localDemand, other.localDemand),
+                parentRequests = normalizer.combineRequests(parentRequests, other.parentRequests),
+                reusable = reusable && other.reusable,
+            )
+        }
 }
 
 private class ParentRequest(
@@ -89,12 +100,93 @@ private class ParentRequest(
     val demand: Demand<SelectionForest>,
 )
 
+/** Exact keys, applicability and provenance bound additions, including nested requirements. */
+private class ParentDemandNormalizer {
+    // Forest identity only reuses immutable normalization within this lookahead computation.
+    private val normalized = IdentityHashMap<SelectionForest, SelectionForest>()
+    private val descendantGuardIds = IdentityHashMap<InclusionCondition, Int>()
+
+    /** Join at the destination, retaining left-to-right guard order and separate provenance. */
+    fun combineRequests(
+        first: Map<ViaductSchema.ObjectField, ParentRequest>,
+        second: Map<ViaductSchema.ObjectField, ParentRequest>,
+    ): Map<ViaductSchema.ObjectField, ParentRequest> {
+        if (first.isEmpty()) return second
+        if (second.isEmpty() || first === second) return first
+        val result = first.toMutableMap()
+        second.forEach { (field, request) ->
+            val existing = result[field]
+            result[field] = if (existing == null || existing === request) request else ParentRequest(field, combine(existing.demand, request.demand))
+        }
+        return result
+    }
+
+    fun combine(
+        first: Demand<SelectionForest>,
+        second: Demand<SelectionForest>
+    ): Demand<SelectionForest> {
+        if (first === Demand.EMPTY) return second
+        if (second === Demand.EMPTY || first === second) return first
+        return Demand(
+            checked = combine(first.checked, second.checked),
+            unchecked = combine(first.unchecked, second.unchecked),
+            typeCheckDemanded = first.typeCheckDemanded || second.typeCheckDemanded,
+            typeCheckCondition = first.typeCheckCondition.or(second.typeCheckCondition),
+        )
+    }
+
+    private fun combine(
+        first: SelectionForest,
+        second: SelectionForest
+    ): SelectionForest =
+        when {
+            first === second || second.isEmpty() -> first
+            first.isEmpty() -> second
+            else -> normalize(first + second)
+        }
+
+    private data class RequirementId(
+        val key: ObjectEngineResult.Key,
+        val possibleTypes: Set<ViaductSchema.Object>,
+        val descendantGuardId: Int?,
+    )
+
+    private fun normalize(forest: SelectionForest): SelectionForest {
+        normalized[forest]?.let { return it }
+        if (forest.isEmpty()) return forest
+        val occurrences = linkedMapOf<RequirementId, MutableList<Selection>>()
+        forest.forEach { selection ->
+            // Boolean-equal guards can differ in binding order and must retain their descendants.
+            val guardId = if (selection.subselections.isEmpty()) null else descendantGuardIds.getOrPut(selection.inclusionCondition) { descendantGuardIds.size }
+            val id = RequirementId(selection.key, selection.possibleTypes, guardId)
+            occurrences.getOrPut(id, ::mutableListOf).add(selection)
+        }
+        // Retain shared abstract selections; concrete specialization belongs to the later merge
+        // against an occurrence's runtime type. Different applicability sets remain alternatives.
+        val result = occurrences.entries.flatMapToSelectionForest { (id, alternatives) ->
+            selectionForestOf(
+                Selection.of(
+                    key = id.key,
+                    possibleTypes = id.possibleTypes,
+                    inclusionCondition = InclusionCondition.anyOf(alternatives.map { it.inclusionCondition }),
+                    subselections = normalize(
+                        alternatives.map { it.subselections.guardedBy(it.inclusionCondition) }.concatenateSelectionForests(),
+                    ),
+                ),
+            )
+        }
+        normalized[forest] = result
+        normalized[result] = result
+        return result
+    }
+}
+
 private fun SelectionForest.findParentDemandInSelectionForest(
     world: Assumptions,
     context: ParentDemandContext,
     checked: Boolean,
 ): ParentDemandAnalysis {
-    var result = ParentDemandAnalysis()
+    var result = ParentDemandAnalysis(context.normalizer)
     forEach { selection ->
         // An abstract field can be a parent link on one implementation and ordinary on another.
         // Specialize before choosing either case, preserving each contribution's type condition.
@@ -128,23 +220,18 @@ private fun ObjectSelection.findParentDemandInObjectSelection(
                 Demand.unchecked(subselections.guardedBy(inclusionCondition))
             }
         return ParentDemandAnalysis(
-            parentRequests =
-                listOf(
-                    ParentRequest(
-                        key.field,
-                        parentDemand,
-                    ),
-                ),
+            context.normalizer,
+            parentRequests = mapOf(key.field to ParentRequest(key.field, parentDemand)),
         )
     }
 
     val typeInputs = if (checked && inclusionCondition !== InclusionCondition.Never) {
         (key.field.type.baseTypeDef as? ViaductSchema.CompositeTypeDef)?.possibleObjectTypes
-            .orEmpty().fold(ParentDemandAnalysis()) { result, type ->
+            .orEmpty().fold(ParentDemandAnalysis(context.normalizer)) { result, type ->
                 result + type.findParentDemandInTypeFragment(world, context)
             }
     } else {
-        ParentDemandAnalysis()
+        ParentDemandAnalysis(context.normalizer)
     }
     val nested = subselections.findParentDemandInSelectionForest(world, context, checked) + typeInputs
 
@@ -174,17 +261,14 @@ private fun ObjectSelection.findParentDemandInObjectSelection(
             Demand.unchecked(carryNestedDemand(nested.localDemand.values))
         }
     var reusable = nested.reusable
-    val parentRequests = mutableListOf<ParentRequest>()
-    nested.parentRequests.forEach { unguardedRequest ->
-        val request =
-            ParentRequest(
-                parentField = unguardedRequest.parentField,
-                demand = unguardedRequest.demand.guardedBy(inclusionCondition),
-            )
-        if (world.parentFieldRelations[request.parentField] == key.field) {
-            val ancestor = request.demand.findParentDemandInDemand(world, context)
-            localDemand += request.demand + ancestor.localDemand
-            parentRequests += ancestor.parentRequests
+    var parentRequests = emptyMap<ViaductSchema.ObjectField, ParentRequest>()
+    nested.parentRequests.values.forEach { request ->
+        val parentField = request.parentField
+        val demand = request.demand.guardedBy(inclusionCondition)
+        if (world.parentFieldRelations[parentField] == key.field) {
+            val ancestor = demand.findParentDemandInDemand(world, context)
+            localDemand = context.normalizer.combine(localDemand, context.normalizer.combine(demand, ancestor.localDemand))
+            parentRequests = context.normalizer.combineRequests(parentRequests, ancestor.parentRequests)
             reusable = reusable && ancestor.reusable
         }
     }
@@ -194,13 +278,13 @@ private fun ObjectSelection.findParentDemandInObjectSelection(
             if (checked) {
                 field.findParentDemandInObjectFragment(world, context, checked = false)
             } else {
-                ParentDemandAnalysis()
+                ParentDemandAnalysis(context.normalizer)
             }
     val guardedFixedInputs = fixedInputs.guardedBy(inclusionCondition)
-    localDemand += guardedFixedInputs.localDemand
-    parentRequests += guardedFixedInputs.parentRequests
+    localDemand = context.normalizer.combine(localDemand, guardedFixedInputs.localDemand)
+    parentRequests = context.normalizer.combineRequests(parentRequests, guardedFixedInputs.parentRequests)
     reusable = reusable && guardedFixedInputs.reusable
-    return ParentDemandAnalysis(localDemand, parentRequests, reusable)
+    return ParentDemandAnalysis(context.normalizer, localDemand, parentRequests, reusable)
 }
 
 private fun Demand<SelectionForest>.findParentDemandInDemand(
@@ -226,9 +310,9 @@ private fun ViaductSchema.ObjectField.findParentDemandInObjectFragment(
             }
         } else {
             context.fieldChecker(this)?.objectFragment
-        } ?: return ParentDemandAnalysis()
+        } ?: return ParentDemandAnalysis(context.normalizer)
     if (!context.expandingObjectFragmentIds.add(objectFragmentId)) {
-        return ParentDemandAnalysis(reusable = false)
+        return ParentDemandAnalysis(context.normalizer, reusable = false)
     }
     val result = try {
         selections
@@ -242,17 +326,16 @@ private fun ViaductSchema.ObjectField.findParentDemandInObjectFragment(
 }
 
 private fun ParentDemandAnalysis.guardedBy(condition: InclusionCondition): ParentDemandAnalysis =
-    ParentDemandAnalysis(
-        localDemand = localDemand.guardedBy(condition),
-        parentRequests =
-            parentRequests.map { request ->
-                ParentRequest(
-                    parentField = request.parentField,
-                    demand = request.demand.guardedBy(condition),
-                )
-            },
-        reusable = reusable,
-    )
+    if (condition === InclusionCondition.Always) {
+        this
+    } else {
+        ParentDemandAnalysis(
+            normalizer,
+            localDemand = localDemand.guardedBy(condition),
+            parentRequests = parentRequests.mapValues { (_, request) -> ParentRequest(request.parentField, request.demand.guardedBy(condition)) },
+            reusable = reusable,
+        )
+    }
 
 /** Fixed descendant demand is lifted before occurrence-local condition bindings can exist. */
 internal fun SelectionForest.withoutInclusionConditions(): SelectionForest =
@@ -276,8 +359,8 @@ private fun ViaductSchema.Object.findParentDemandInTypeFragment(
     context: ParentDemandContext,
 ): ParentDemandAnalysis {
     context.parentDemandByType[this]?.let { return it }
-    val checker = context.typeChecker(this) ?: return ParentDemandAnalysis()
-    if (!context.expandingTypes.add(this)) return ParentDemandAnalysis(reusable = false)
+    val checker = context.typeChecker(this) ?: return ParentDemandAnalysis(context.normalizer)
+    if (!context.expandingTypes.add(this)) return ParentDemandAnalysis(context.normalizer, reusable = false)
     val result = try {
         checker.objectFragment.withoutInclusionConditions().findParentDemandInSelectionForest(world, context, checked = false)
     } finally {

@@ -1,0 +1,453 @@
+diff --git a/projects/viaduct/oss/core/engine/runtime2/impldocs/architecture/resolution.md b/projects/viaduct/oss/core/engine/runtime2/impldocs/architecture/resolution.md
+index 3c0d508e7d07c..50742936b2346 100644
+--- a/projects/viaduct/oss/core/engine/runtime2/impldocs/architecture/resolution.md
++++ b/projects/viaduct/oss/core/engine/runtime2/impldocs/architecture/resolution.md
+@@ -121,0 +122,2 @@ ## Construction Demand Closure
++Parent lookahead joins pending requests by their canonical parent field within one analysis and combines checked and unchecked requirements independently. Each join combines exact keys with the same applicability set and recursively compacts their nested selections, preserving argument tuples, inherited guards, and the separate root type-check condition. Shared interface selections remain shared; concrete specialization and overlapping abstract/concrete alternatives are merged when the occurrence's runtime type is known. Shared resolver/checker templates therefore contribute one requirement per semantic destination and provenance instead of retaining copies for every dependency path. Immutable forest normalization is memoized only within that lookahead computation; no occurrence values or runtime bindings are cached. Left-to-right alternative order remains intact, and analyses affected by a recursion cut remain ineligible for template memoization. This bounds the repeated diamond contributions, not the cost of arbitrary distinct requirement sets or condition graphs.
++
+diff --git a/projects/viaduct/oss/core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/ParentConstructionDemand.kt b/projects/viaduct/oss/core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/ParentConstructionDemand.kt
+index 4461cd9b08f25..3306b906fd25f 100644
+--- a/projects/viaduct/oss/core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/ParentConstructionDemand.kt
++++ b/projects/viaduct/oss/core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/ParentConstructionDemand.kt
+@@ -2,0 +3 @@ package viaduct.engine.runtime2.resolution
++import java.util.IdentityHashMap
+@@ -7,0 +9,2 @@ import viaduct.engine.runtime2.model.SelectionForest
++import viaduct.engine.runtime2.model.concatenateSelectionForests
++import viaduct.engine.runtime2.model.flatMapToSelectionForest
+@@ -54,0 +58 @@ private class ParentDemandContext(
++    val normalizer = ParentDemandNormalizer()
+@@ -72 +76,2 @@ private data class ObjectFragmentId(
+- * can transpose their demand onto the parent object.
++ * can transpose their demand onto the parent object. Requests are joined by canonical parent
++ * field and normalized independently by checking provenance, rather than copied per path.
+@@ -74,0 +80 @@ private class ParentDemandAnalysis(
++    val normalizer: ParentDemandNormalizer,
+@@ -76 +82 @@ private class ParentDemandAnalysis(
+-    val parentRequests: List<ParentRequest> = emptyList(),
++    val parentRequests: Map<ViaductSchema.ObjectField, ParentRequest> = emptyMap(),
+@@ -80,5 +86,10 @@ private class ParentDemandAnalysis(
+-        ParentDemandAnalysis(
+-            localDemand = localDemand + other.localDemand,
+-            parentRequests = parentRequests + other.parentRequests,
+-            reusable = reusable && other.reusable,
+-        )
++        if (this === other) {
++            this
++        } else {
++            ParentDemandAnalysis(
++                normalizer,
++                localDemand = normalizer.combine(localDemand, other.localDemand),
++                parentRequests = normalizer.combineRequests(parentRequests, other.parentRequests),
++                reusable = reusable && other.reusable,
++            )
++        }
+@@ -91,0 +103,76 @@ private class ParentRequest(
++/** Exact keys, applicability and provenance bound additions, including nested requirements. */
++private class ParentDemandNormalizer {
++    // Forest identity only reuses immutable normalization within this lookahead computation.
++    private val normalized = IdentityHashMap<SelectionForest, SelectionForest>()
++
++    /** Join at the destination, retaining left-to-right guard order and separate provenance. */
++    fun combineRequests(
++        first: Map<ViaductSchema.ObjectField, ParentRequest>,
++        second: Map<ViaductSchema.ObjectField, ParentRequest>,
++    ): Map<ViaductSchema.ObjectField, ParentRequest> {
++        if (first.isEmpty()) return second
++        if (second.isEmpty() || first === second) return first
++        val result = first.toMutableMap()
++        second.forEach { (field, request) ->
++            val existing = result[field]
++            result[field] = if (existing == null || existing === request) request else ParentRequest(field, combine(existing.demand, request.demand))
++        }
++        return result
++    }
++
++    fun combine(
++        first: Demand<SelectionForest>,
++        second: Demand<SelectionForest>
++    ): Demand<SelectionForest> {
++        if (first === Demand.EMPTY) return second
++        if (second === Demand.EMPTY || first === second) return first
++        return Demand(
++            checked = combine(first.checked, second.checked),
++            unchecked = combine(first.unchecked, second.unchecked),
++            typeCheckDemanded = first.typeCheckDemanded || second.typeCheckDemanded,
++            typeCheckCondition = first.typeCheckCondition.or(second.typeCheckCondition),
++        )
++    }
++
++    private fun combine(
++        first: SelectionForest,
++        second: SelectionForest
++    ): SelectionForest =
++        when {
++            first === second || second.isEmpty() -> first
++            first.isEmpty() -> second
++            else -> normalize(first + second)
++        }
++
++    private data class RequirementId(
++        val key: ObjectEngineResult.Key,
++        val possibleTypes: Set<ViaductSchema.Object>,
++    )
++
++    private fun normalize(forest: SelectionForest): SelectionForest {
++        normalized[forest]?.let { return it }
++        if (forest.isEmpty()) return forest
++        val occurrences = linkedMapOf<RequirementId, MutableList<Selection>>()
++        forest.forEach { selection ->
++            occurrences.getOrPut(RequirementId(selection.key, selection.possibleTypes), ::mutableListOf).add(selection)
++        }
++        // Retain shared abstract selections; concrete specialization belongs to the later merge
++        // against an occurrence's runtime type. Different applicability sets remain alternatives.
++        val result = occurrences.entries.flatMapToSelectionForest { (id, alternatives) ->
++            selectionForestOf(
++                Selection.of(
++                    key = id.key,
++                    possibleTypes = id.possibleTypes,
++                    inclusionCondition = InclusionCondition.anyOf(alternatives.map { it.inclusionCondition }),
++                    subselections = normalize(
++                        alternatives.map { it.subselections.guardedBy(it.inclusionCondition) }.concatenateSelectionForests(),
++                    ),
++                ),
++            )
++        }
++        normalized[forest] = result
++        normalized[result] = result
++        return result
++    }
++}
++
+@@ -97 +184 @@ private fun SelectionForest.findParentDemandInSelectionForest(
+-    var result = ParentDemandAnalysis()
++    var result = ParentDemandAnalysis(context.normalizer)
+@@ -131,7 +218,2 @@ private fun ObjectSelection.findParentDemandInObjectSelection(
+-            parentRequests =
+-                listOf(
+-                    ParentRequest(
+-                        key.field,
+-                        parentDemand,
+-                    ),
+-                ),
++            context.normalizer,
++            parentRequests = mapOf(key.field to ParentRequest(key.field, parentDemand)),
+@@ -143 +225 @@ private fun ObjectSelection.findParentDemandInObjectSelection(
+-            .orEmpty().fold(ParentDemandAnalysis()) { result, type ->
++            .orEmpty().fold(ParentDemandAnalysis(context.normalizer)) { result, type ->
+@@ -147 +229 @@ private fun ObjectSelection.findParentDemandInObjectSelection(
+-        ParentDemandAnalysis()
++        ParentDemandAnalysis(context.normalizer)
+@@ -177,11 +259,8 @@ private fun ObjectSelection.findParentDemandInObjectSelection(
+-    val parentRequests = mutableListOf<ParentRequest>()
+-    nested.parentRequests.forEach { unguardedRequest ->
+-        val request =
+-            ParentRequest(
+-                parentField = unguardedRequest.parentField,
+-                demand = unguardedRequest.demand.guardedBy(inclusionCondition),
+-            )
+-        if (world.parentFieldRelations[request.parentField] == key.field) {
+-            val ancestor = request.demand.findParentDemandInDemand(world, context)
+-            localDemand += request.demand + ancestor.localDemand
+-            parentRequests += ancestor.parentRequests
++    var parentRequests = emptyMap<ViaductSchema.ObjectField, ParentRequest>()
++    nested.parentRequests.values.forEach { request ->
++        val parentField = request.parentField
++        val demand = request.demand.guardedBy(inclusionCondition)
++        if (world.parentFieldRelations[parentField] == key.field) {
++            val ancestor = demand.findParentDemandInDemand(world, context)
++            localDemand = context.normalizer.combine(localDemand, context.normalizer.combine(demand, ancestor.localDemand))
++            parentRequests = context.normalizer.combineRequests(parentRequests, ancestor.parentRequests)
+@@ -197 +276 @@ private fun ObjectSelection.findParentDemandInObjectSelection(
+-                ParentDemandAnalysis()
++                ParentDemandAnalysis(context.normalizer)
+@@ -200,2 +279,2 @@ private fun ObjectSelection.findParentDemandInObjectSelection(
+-    localDemand += guardedFixedInputs.localDemand
+-    parentRequests += guardedFixedInputs.parentRequests
++    localDemand = context.normalizer.combine(localDemand, guardedFixedInputs.localDemand)
++    parentRequests = context.normalizer.combineRequests(parentRequests, guardedFixedInputs.parentRequests)
+@@ -203 +282 @@ private fun ObjectSelection.findParentDemandInObjectSelection(
+-    return ParentDemandAnalysis(localDemand, parentRequests, reusable)
++    return ParentDemandAnalysis(context.normalizer, localDemand, parentRequests, reusable)
+@@ -229 +308 @@ private fun ViaductSchema.ObjectField.findParentDemandInObjectFragment(
+-        } ?: return ParentDemandAnalysis()
++        } ?: return ParentDemandAnalysis(context.normalizer)
+@@ -231 +310 @@ private fun ViaductSchema.ObjectField.findParentDemandInObjectFragment(
+-        return ParentDemandAnalysis(reusable = false)
++        return ParentDemandAnalysis(context.normalizer, reusable = false)
+@@ -245,11 +324,10 @@ private fun ParentDemandAnalysis.guardedBy(condition: InclusionCondition): Paren
+-    ParentDemandAnalysis(
+-        localDemand = localDemand.guardedBy(condition),
+-        parentRequests =
+-            parentRequests.map { request ->
+-                ParentRequest(
+-                    parentField = request.parentField,
+-                    demand = request.demand.guardedBy(condition),
+-                )
+-            },
+-        reusable = reusable,
+-    )
++    if (condition === InclusionCondition.Always) {
++        this
++    } else {
++        ParentDemandAnalysis(
++            normalizer,
++            localDemand = localDemand.guardedBy(condition),
++            parentRequests = parentRequests.mapValues { (_, request) -> ParentRequest(request.parentField, request.demand.guardedBy(condition)) },
++            reusable = reusable,
++        )
++    }
+@@ -279,2 +357,2 @@ private fun ViaductSchema.Object.findParentDemandInTypeFragment(
+-    val checker = context.typeChecker(this) ?: return ParentDemandAnalysis()
+-    if (!context.expandingTypes.add(this)) return ParentDemandAnalysis(reusable = false)
++    val checker = context.typeChecker(this) ?: return ParentDemandAnalysis(context.normalizer)
++    if (!context.expandingTypes.add(this)) return ParentDemandAnalysis(context.normalizer, reusable = false)
+diff --git a/projects/viaduct/oss/core/engine/runtime2/src/test/kotlin/viaduct/engine/runtime2/resolution/ParentConstructionDemandTest.kt b/projects/viaduct/oss/core/engine/runtime2/src/test/kotlin/viaduct/engine/runtime2/resolution/ParentConstructionDemandTest.kt
+index 882565db52cbc..8f5ee47dab78d 100644
+--- a/projects/viaduct/oss/core/engine/runtime2/src/test/kotlin/viaduct/engine/runtime2/resolution/ParentConstructionDemandTest.kt
++++ b/projects/viaduct/oss/core/engine/runtime2/src/test/kotlin/viaduct/engine/runtime2/resolution/ParentConstructionDemandTest.kt
+@@ -4,0 +5 @@ import kotlin.test.assertEquals
++import kotlin.test.assertFailsWith
+@@ -6,0 +8 @@ import kotlin.test.assertTrue
++import viaduct.engine.runtime2.model.Arguments
+@@ -8,0 +11 @@ import viaduct.engine.runtime2.model.ObjectSelectionForest
++import viaduct.engine.runtime2.model.Selection
+@@ -11,0 +15 @@ import viaduct.engine.runtime2.model.requireQueryTypeDef
++import viaduct.engine.runtime2.model.selectionForestOf
+@@ -13,0 +18 @@ import viaduct.engine.runtime2.model.testing.fragmentFrom
++import viaduct.engine.runtime2.resolution.framework.Demand
+@@ -429,0 +435,159 @@ class ParentConstructionDemandTest {
++    @Test
++    fun `joined ancestor requirements preserve guards arguments and concrete descendants`() {
++        val fixture = TestWorld.fromDSL(
++            """
++            extend type Query { root: Parent @resolver(result: {}) }
++            type Parent { child: Child data(id: Int!): Data }
++            type Child { parent: Parent @parent }
++            interface Data { common: Int }
++            type A implements Data { common: Int left: Int right: Int }
++            type B implements Data { common: Int other: Int }
++            """.trimIndent(),
++        )
++        val input = fixture.schemas.fragmentFrom(
++            """
++            fragment F on Query {
++              root {
++                child @include(if: ${'$'}a) {
++                  parent { data(id: 1) { common ... on A { left } ... on B { other } } }
++                }
++                child @include(if: ${'$'}b) {
++                  parent { data(id: 1) { ... on A { common right } } data(id: 2) { ... on B { other } } }
++                }
++              }
++            }
++            """.trimIndent(),
++        ).subselections
++        val world = fixture.assumptions
++        val lifted = Demand.checked(input).liftParentConstructionDemand(world)
++        assertTrue(lifted.unchecked.isEmpty())
++        val parent = world.schema.requireObjectField("Parent", "child").containingDef
++        val data = lifted.checked.single().subselections.merge(parent)
++        assertEquals(2, data.size, "Different ancestor argument tuples must stay separate")
++        val byId = data.byKey().values.associateBy { (it.key.arguments as Arguments.Resolved).fieldValues["id"] }
++        val aType = world.schema.requireObjectField("A", "left").containingDef
++        val bType = world.schema.requireObjectField("B", "other").containingDef
++        val first = byId.getValue(1)
++        val second = byId.getValue(2)
++        assertEquals(setOf("common", "left", "right"), first.subselections.merge(aType).fieldNames())
++        assertEquals(setOf("common", "other"), first.subselections.merge(bType).fieldNames())
++        assertTrue(second.subselections.merge(aType).isEmpty())
++        for (a in listOf(false, true)) for (b in listOf(false, true)) {
++            fun included(condition: InclusionCondition) =
++                condition.includeWith { variable ->
++                    when (variable.variableName) {
++                        "a" -> a
++                        "b" -> b
++                        else -> error("Unexpected binding $variable")
++                    }
++                }
++            assertEquals(a || b, included(first.inclusionCondition))
++            assertEquals(b, included(second.inclusionCondition))
++            assertEquals(a || b, included(first.subselections.merge(aType).field("common").inclusionCondition))
++            assertEquals(a, included(first.subselections.merge(bType).field("common").inclusionCondition))
++            assertEquals(a, included(first.subselections.merge(aType).field("left").inclusionCondition))
++            assertEquals(b, included(first.subselections.merge(aType).field("right").inclusionCondition))
++            assertEquals(a, included(first.subselections.merge(bType).field("other").inclusionCondition))
++            assertEquals(b, included(second.subselections.merge(bType).field("other").inclusionCondition))
++        }
++    }
++
++    @Test
++    fun `joining parent requirements keeps shared interface selections compact`() {
++        val implementations = (0 until 128).joinToString("\n") { "type Item$it implements Item { common(extra: Int = $it): Int }" }
++        val fixture = TestWorld.fromDSL(
++            """
++            extend type Query { root: Parent @resolver(result: {}) }
++            type Parent { child: Child item: Item }
++            type Child { parent: Parent @parent }
++            interface Item { common: Int }
++            $implementations
++            """.trimIndent(),
++        )
++        val input = fixture.schemas.fragmentFrom(
++            "fragment F on Parent { child { first: parent { item { common } } second: parent { item { common } } } }",
++        ).subselections
++        val parent = fixture.schemas.loweredSchema.requireObjectField("Parent", "child").containingDef
++        val lifted = Demand.checked(input).liftParentConstructionDemand(fixture.assumptions)
++        val item = lifted.checked.merge(parent).single()
++        assertTrue(item.subselections.size <= 2, "A shared interface field expanded to ${item.subselections.size} concrete copies")
++        val original = fixture.schemas.fragmentFrom("fragment Original on Item { common }").subselections
++        for (index in 0 until 128) {
++            val type = fixture.schemas.loweredSchema.requireObjectField("Item$index", "common").containingDef
++            val concrete = item.subselections.merge(type)
++            assertEquals(setOf("common"), concrete.fieldNames())
++            assertEquals(original.merge(type).keys(), concrete.keys(), "Concrete argument defaults changed for Item$index")
++        }
++    }
++
++    @Test
++    fun `shared parent paths preserve the first failing alternative`() {
++        val fixture = TestWorld.fromDSL(
++            """
++            extend type Query { root: Parent @resolver(result: {}) }
++            type Parent { child: Child seed: Int }
++            type Child { parent: Parent @parent field0: Int @resolver(of: "parent { seed }", result: 1) }
++            """.trimIndent(),
++        )
++        val input = fixture.schemas.fragmentFrom(
++            """
++            fragment F on Query {
++              root { child {
++                first: field0 @include(if: ${'$'}a)
++                parent @include(if: ${'$'}b) { seed }
++                last: field0 @include(if: ${'$'}c)
++              } }
++            }
++            """.trimIndent(),
++        ).subselections
++        val guard = Demand.checked(input).liftParentConstructionDemand(fixture.assumptions)
++            .checked.single().subselections.single().inclusionCondition
++        val visited = mutableListOf<String>()
++        val failure = assertFailsWith<IllegalStateException> {
++            guard.includeWith {
++                visited += it.variableName
++                if (it.variableName == "a") false else error(it.variableName)
++            }
++        }
++        assertEquals("b", failure.message)
++        assertEquals(listOf("a", "b"), visited)
++        assertTrue(guard.includeWith { if (it.variableName == "a") true else error("Unneeded sibling") })
++    }
++
++    @Test
++    fun `joining empty parent projections preserves guarded root type check provenance`() {
++        val fixture = TestWorld.fromDSL(
++            """
++            extend type Query { root: Parent @resolver(result: {}) }
++            type Parent { child: Child }
++            type Child { parent: Parent @parent }
++            """.trimIndent(),
++        )
++        val parent = fixture.schemas.loweredSchema.requireObjectField("Parent", "child").containingDef
++        val parsed = fixture.schemas.fragmentFrom(
++            "fragment F on Parent { child @include(if: ${'$'}a) { parent { __typename } } child @include(if: ${'$'}b) { parent { __typename } } }",
++        ).subselections
++        val emptyProjections = parsed.flatMap { child ->
++            val backedge = child.subselections.single()
++            selectionForestOf(
++                Selection.of(
++                    child.key,
++                    child.possibleTypes,
++                    selectionForestOf(Selection.of(backedge.key, backedge.possibleTypes, selectionForestOf(), backedge.inclusionCondition)),
++                    child.inclusionCondition,
++                )
++            )
++        }
++        val lifted = Demand.checked(emptyProjections, typeCheckDemanded = false).liftParentConstructionDemand(fixture.assumptions)
++        assertTrue(lifted.values.isEmpty())
++        assertTrue(lifted.typeCheckDemanded, "An empty checked projection still demands the ancestor type check")
++        assertTrue(lifted.checked.merge(parent).isEmpty())
++        for (a in listOf(false, true)) for (b in listOf(false, true)) {
++            assertEquals(a || b, lifted.typeCheckCondition.includeWith { if (it.variableName == "a") a else b })
++        }
++        val raw = Demand.unchecked(emptyProjections).liftParentConstructionDemand(fixture.assumptions)
++        assertTrue(raw.values.isEmpty())
++        assertEquals(false, raw.typeCheckDemanded)
++        assertSame(InclusionCondition.Never, raw.typeCheckCondition)
++    }
++
+diff --git a/projects/viaduct/oss/core/engine/runtime2/src/test/kotlin/viaduct/engine/runtime2/resolution/SuperlinearGrowthTest.kt b/projects/viaduct/oss/core/engine/runtime2/src/test/kotlin/viaduct/engine/runtime2/resolution/SuperlinearGrowthTest.kt
+index 5717f6537fbfb..10e890be68c0f 100644
+--- a/projects/viaduct/oss/core/engine/runtime2/src/test/kotlin/viaduct/engine/runtime2/resolution/SuperlinearGrowthTest.kt
++++ b/projects/viaduct/oss/core/engine/runtime2/src/test/kotlin/viaduct/engine/runtime2/resolution/SuperlinearGrowthTest.kt
+@@ -131 +130,0 @@ class SuperlinearGrowthTest : ResolutionDispatcherResource {
+-    @Disabled("Nonempty parent demand still expands the resolver/checker dependency-path tree")
+@@ -180 +179 @@ class SuperlinearGrowthTest : ResolutionDispatcherResource {
+-                demand.size <= 2 * (depth + 1),
++                demand.size <= 2,
+@@ -185,0 +185,66 @@ class SuperlinearGrowthTest : ResolutionDispatcherResource {
++    @Test
++    fun `nested parent requirements stay compact with resolver field and type checkers`() {
++        for (depth in listOf(5, 10, 20, 40)) {
++            val fields = (0..depth).joinToString("\n") { index ->
++                val inputs = if (index == depth) {
++                    "parent { seed { value other } }"
++                } else {
++                    ((index + 1)..minOf(index + 2, depth)).joinToString(" ") { "field$it" }
++                }
++                "field$index: Int @resolver(of: \"$inputs\", result: 1)"
++            }
++            val fixture = TestWorld.fromDSL(
++                """
++                extend type Query { root: Parent @resolver(result: {seed: {value: 7 other: 8} child: {}}) }
++                type Parent { seed: Seed child: Child }
++                type Seed { value: Int other: Int }
++                type Child { parent: Parent @parent $fields }
++                """.trimIndent(),
++                fieldCheckers = { schema ->
++                    val pair = ResolverFragmentTemplates(
++                        schema.fragmentFrom("fragment FC on Child { parent { seed { value other } } }").materializeSelections,
++                        materializeSelectionForestOf(),
++                    )
++                    (0..depth).associate { index ->
++                        val field = schema.loweredSchema.requireObjectField("Child", "field$index")
++                        field to FieldCheckerResolver.of(field, schema.loweredSchema.requireQueryTypeDef(), mapOf("input" to pair)) { _, _, _ -> CheckerResult.Success }
++                    }
++                },
++                typeCheckers = { schema ->
++                    val child = schema.loweredSchema.requireObjectField("Child", "parent").containingDef
++                    val pair = ResolverFragmentTemplates(
++                        schema.fragmentFrom("fragment TC on Child { field0 field1 parent { seed { value other } } }").materializeSelections,
++                        materializeSelectionForestOf(),
++                    )
++                    mapOf(child to TypeCheckerResolver.of(child, schema.loweredSchema.requireQueryTypeDef(), mapOf("input" to pair)) { _, _ -> CheckerResult.Success })
++                },
++            )
++            val world = fixture.assumptions
++            val input = fixture.schemas.fragmentFrom("fragment F on Query { root { child { field0 } } }").subselections
++            val lifted = Demand.checked(input).liftParentConstructionDemand(world)
++            // Each provenance has one seed key, whose descendants are normalized as well.
++            for (component in listOf(lifted.checked, lifted.unchecked)) {
++                assertEquals(1, component.size)
++                val seeds = component.single().subselections
++                assertEquals(1, seeds.size, "depth=$depth")
++                assertEquals(2, seeds.single().subselections.size, "Nested requirements multiplied at depth=$depth")
++            }
++            if (depth == 20) {
++                val applications = AtomicInteger()
++                val observer = object : ResolverObserver {
++                    override fun onResolverInvocation(observation: ResolverInvocationObservation) {
++                        applications.incrementAndGet()
++                    }
++                }
++                val result = SharedOperationContext.create(world, resolverObserver = observer).resolveWithTestDispatcher(input)
++                val parent = result.getCell(result.keys.single()).value.get() as ObjectEngineResult
++                val childKey = parent.keys.single { it.field.name == "child" }
++                val child = parent.getCell(childKey).value.get() as ObjectEngineResult
++                val ordinary = child.keys.filter { it.field.name != "parent" }
++                assertEquals(depth + 1, ordinary.size)
++                ordinary.forEach { assertEquals(1, child.getCell(it).value.get()) }
++                assertEquals(depth + 2, applications.get(), "Shared paths must not duplicate resolver applications")
++            }
++        }
++    }
++

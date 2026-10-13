@@ -1,0 +1,32 @@
+{
+  "timestamp_utc": "2026-10-09T06:33:40.800523+00:00",
+  "worktree": "/home/raymie_stata/repos/2ht/projects/viaduct/oss",
+  "branch": "rstata--tmp",
+  "baseline_revision": "6b692129d4b1088529dd2e997588cdd239f47c6d",
+  "host": "raymie-stata-codex",
+  "java": "openjdk version \"21.0.4\" 2024-07-16 LTS\nOpenJDK Runtime Environment Corretto-21.0.4.7.1 (build 21.0.4+7-LTS)\nOpenJDK 64-Bit Server VM Corretto-21.0.4.7.1 (build 21.0.4+7-LTS, mixed mode, sharing)\n",
+  "hardware": "Architecture:                            x86_64\nCPU op-mode(s):                          32-bit, 64-bit\nAddress sizes:                           48 bits physical, 48 bits virtual\nByte Order:                              Little Endian\nCPU(s):                                  64\nOn-line CPU(s) list:                     0-63\nVendor ID:                               GenuineIntel\nModel name:                              Intel(R) Xeon(R) 6975P-C\nCPU family:                              6\nModel:                                   173\nThread(s) per core:                      2\nCore(s) per socket:                      32\nSocket(s):                               1\nStepping:                                1\nBogoMIPS:                                5400.00\nFlags:                                   fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 ss ht syscall nx pdpe1gb rdtscp lm constant_tsc arch_perfmon rep_good nopl xtopology nonstop_tsc cpuid aperfmperf tsc_known_freq pni pclmulqdq monitor ssse3 fma cx16 pdcm pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand hypervisor lahf_lm abm 3dnowprefetch cpuid_fault invpcid_single ssbd ibrs ibpb stibp ibrs_enhanced fsgsbase tsc_adjust bmi1 avx2 smep bmi2 erms invpcid avx512f avx512dq rdseed adx smap avx512ifma clflushopt clwb avx512cd sha_ni avx512bw avx512vl xsaveopt xsavec xgetbv1 xsaves avx_vnni avx512_bf16 wbnoinvd ida arat avx512vbmi umip pku ospke waitpkg avx512_vbmi2 gfni vaes vpclmulqdq avx512_vnni avx512_bitalg tme avx512_vpopcntdq rdpid bus_lock_detect cldemote movdiri movdir64b md_clear serialize amx_bf16 avx512_fp16 amx_tile amx_int8 flush_l1d arch_capabilities\nHypervisor vendor:                       KVM\nVirtualization type:                     full\nL1d cache:                               1.5 MiB (32 instances)\nL1i cache:                               2 MiB (32 instances)\nL2 cache:                                64 MiB (32 instances)\nL3 cache:                                480 MiB (1 instance)\nNUMA node(s):                            1\nNUMA node0 CPU(s):                       0-63\nVulnerability Gather data sampling:      Not affected\nVulnerability Indirect target selection: Not affected\nVulnerability Itlb multihit:             Not affected\nVulnerability L1tf:                      Not affected\nVulnerability Mds:                       Not affected\nVulnerability Meltdown:                  Not affected\nVulnerability Mmio stale data:           Not affected\nVulnerability Reg file data sampling:    Not affected\nVulnerability Retbleed:                  Not affected\nVulnerability Spec rstack overflow:      Not affected\nVulnerability Spec store bypass:         Mitigation; Speculative Store Bypass disabled via prctl\nVulnerability Spectre v1:                Mitigation; usercopy/swapgs barriers and __user pointer sanitization\nVulnerability Spectre v2:                Mitigation; Enhanced / Automatic IBRS; IBPB conditional; PBRSB-eIBRS Not affected; BHI BHI_DIS_S\nVulnerability Srbds:                     Not affected\nVulnerability Tsa:                       Not affected\nVulnerability Tsx async abort:           Not affected\nVulnerability Vmscape:                   Not affected\n",
+  "memory": "               total        used        free      shared  buff/cache   available\nMem:           495Gi        53Gi        51Gi        13Mi       390Gi       437Gi\nSwap:             0B          0B          0B\n",
+  "jmh": "1.36",
+  "jar_hashes": {
+    "baseline.jar": "73fed9e5a4b12fbc3820d0293ebc8b041f33a0adf9e8b5cd337aea48b3543fcd",
+    "candidate.jar": "cc9e017c96e1452a770a0201b640cb19784a471a4aa0d0e4c6a7d9e872b723dc",
+    "initial-candidate.jar": "7bbaf44b90d741541a09a2e37484e0ec8e7a8a443c4e1aa0235ccbaeec4be3af"
+  },
+  "source_hashes": {
+    "core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/ParentConstructionDemand.kt": "60962987171054edda3dbf57be1dd90de5dcbe060300bef66e3372ed2a4ddfb5",
+    "core/engine/runtime2/src/test/kotlin/viaduct/engine/runtime2/resolution/ParentConstructionDemandTest.kt": "d9714d0178bd9ee773f35347a60e1e0de2dc51c7027438134c1fb63b7e375ae4",
+    "core/engine/runtime2/src/test/kotlin/viaduct/engine/runtime2/resolution/SuperlinearGrowthTest.kt": "38441cc1c09f285c94c7e930028d75847a8c9fe64faa2cd249d1221567562974",
+    "core/engine/runtime2/impldocs/architecture/resolution.md": "e435499729d8ee370475497abb55a90fcb879b7e9958462255c15ac35c15345d"
+  },
+  "source_changes_patch_sha256": "92413b341e7946a46084c884b72747ee531a223c8933a0222ab86b08f618f211",
+  "corpus_hashes": {
+    "core/engine/runtime2/src/jmh/resources/viaduct/engine/runtime2/benchmark/current-profile/registry.json.gz": "525f75fd9ec08b24c379bfdd86ae802d1a777cb186570eb015129da117e18a0e",
+    "core/engine/runtime2/src/jmh/resources/viaduct/engine/runtime2/benchmark/current-profile/queries.json": "5157978ea78a8c51f6359f8f07b8e240e2675432e0ca590e3b81abfef41a308c",
+    "core/engine/runtime2/src/jmh/resources/viaduct/engine/runtime2/benchmark/current-profile/schema.graphqls": "70d662d35ce271f1f5867cfbc60ea3fbdccf74a852433225448a62e10398f85e"
+  },
+  "candidate_identity": "The enclosing commit contains this tested source; candidate.jar hash identifies the measured binary.",
+  "baseline_jar_origin": "73fed9e5a4b12fbc3820d0293ebc8b041f33a0adf9e8b5cd337aea48b3543fcd, preceding input-preparation round final candidate",
+  "serialization": "All Gradle invocations, directed operation probes and benchmarks run serially.",
+  "staged_source_tree_before_evidence": "16533d8b3d862012d619f7f3b1abd99abf161570"
+}

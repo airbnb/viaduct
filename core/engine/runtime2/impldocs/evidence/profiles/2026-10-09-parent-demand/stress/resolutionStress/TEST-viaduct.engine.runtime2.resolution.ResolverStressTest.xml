@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="viaduct.engine.runtime2.resolution.ResolverStressTest" tests="1" skipped="0" failures="0" errors="0" timestamp="2026-10-09T06:28:55" hostname="raymie-stata-codex" time="195.801">
+  <properties/>
+  <testcase name="deep dependency-heavy arbitrary worlds resolve correctly()" classname="viaduct.engine.runtime2.resolution.ResolverStressTest" time="195.801"/>
+  <system-out><![CDATA[Resolution stress: seed=20260809, requestedCases=10000, attemptedCases=10000, verifiedCases=10000, resolverApplications=927958, generatedNodeResolvers=11990, nodeLoaderApplications=14305, argumentBearingNodeProducerApplications=105627, polymorphicNodeLoaderApplications=3825, generatedFromArgumentVariables=19015, generatedObjectPathVariables=23800, generatedQueryPathVariables=52165, generatedSometimesPassiveFields=34970, generatedRootFieldReferences=150880, generatedNodeRootFieldReferences=10010, generatedQueryFragments=32745, queryFragmentFreeCases=545, activatedFromArgumentApplications=1845, activatedObjectPathApplications=3870, activatedQueryPathApplications=7485, activatedNestedObjectPathApplications=3190, activatedSometimesPassiveOccurrences=85466, activatedRootFieldReferences=146417, activatedNodeRootFieldReferences=14305, activatedQueryFragmentApplications=7485, casesWithDemandedQueryOERs=3605, casesWithoutDemandedQueryOERs=6395, demandedQueryOERDepthCounts={}, maximumDemandedQueryOERDepth=0, maximumActivatedObjectPathResolverChainLength=10, coactivatedMixedVariableCases=620, minimumDepth=4
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

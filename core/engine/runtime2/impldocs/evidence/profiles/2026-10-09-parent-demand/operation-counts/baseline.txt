@@ -1,0 +1,8 @@
+PARENT_COUNT shape=scalar depth=5 requests=122 normalizedElements=0 checked=8 unchecked=20
+PARENT_COUNT shape=scalar depth=10 requests=1470 normalizedElements=0 checked=89 unchecked=232
+PARENT_COUNT shape=scalar depth=15 requests=16469 normalizedElements=0 checked=987 unchecked=2583
+PARENT_COUNT shape=scalar depth=20 requests=182861 normalizedElements=0 checked=10946 unchecked=28656
+PARENT_COUNT shape=nested depth=5 requests=122 normalizedElements=0 checked=8 unchecked=20
+PARENT_COUNT shape=nested depth=10 requests=1470 normalizedElements=0 checked=89 unchecked=232
+PARENT_COUNT shape=nested depth=15 requests=16469 normalizedElements=0 checked=987 unchecked=2583
+PARENT_COUNT shape=nested depth=20 requests=182861 normalizedElements=0 checked=10946 unchecked=28656

@@ -1,0 +1,322 @@
+> Task :build-logic:buildSrc:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :build-logic:buildSrc:generateExternalPluginSpecBuilders
+> Task :build-logic:buildSrc:extractPrecompiledScriptPluginPlugins FROM-CACHE
+> Task :build-logic:buildSrc:compilePluginsBlocks
+> Task :build-logic:buildSrc:generatePrecompiledScriptPluginAccessors
+> Task :build-logic:buildSrc:generateScriptPluginAdapters
+> Task :build-logic:buildSrc:pluginDescriptors
+> Task :build-logic:buildSrc:processResources
+> Task :build-logic:buildSrc:compileKotlin
+> Task :build-logic:buildSrc:compileJava NO-SOURCE
+> Task :build-logic:buildSrc:compileGroovy NO-SOURCE
+> Task :build-logic:buildSrc:classes
+> Task :build-logic:buildSrc:jar
+
+> Configure project :build-logic
+WARNING: Unsupported Kotlin plugin version.
+The `embedded-kotlin` and `kotlin-dsl` plugins rely on features of Kotlin `2.0.20` that might work differently than in the requested version `1.9.25`.
+
+> Configure project :build-logic:build-test-support
+WARNING: Unsupported Kotlin plugin version.
+The `embedded-kotlin` and `kotlin-dsl` plugins rely on features of Kotlin `2.0.20` that might work differently than in the requested version `1.9.25`.
+
+> Task :build-logic:checkKotlinGradlePluginConfigurationErrors
+> Task :build-logic:generateExternalPluginSpecBuilders
+> Task :build-logic:extractPrecompiledScriptPluginPlugins
+> Task :build-logic:compilePluginsBlocks
+> Task :build-logic:generatePrecompiledScriptPluginAccessors
+> Task :build-logic:generateScriptPluginAdapters
+> Task :build-logic:compileKotlin FROM-CACHE
+> Task :build-logic:compileJava NO-SOURCE
+> Task :build-logic:pluginDescriptors
+> Task :build-logic:processResources
+> Task :build-logic:classes
+> Task :build-logic:jar
+> Task :build-logic:build-common:checkKotlinGradlePluginConfigurationErrors
+> Task :build-logic:build-common:compileKotlin UP-TO-DATE
+> Task :build-logic:build-common:compileJava NO-SOURCE
+> Task :build-logic:build-common:processResources UP-TO-DATE
+> Task :build-logic:build-common:classes UP-TO-DATE
+> Task :build-logic:build-common:jar UP-TO-DATE
+> Task :build-logic:build-test-support:checkKotlinGradlePluginConfigurationErrors
+> Task :build-logic:build-test-support:generateExternalPluginSpecBuilders UP-TO-DATE
+> Task :build-logic:build-test-support:extractPrecompiledScriptPluginPlugins UP-TO-DATE
+> Task :build-logic:build-test-support:compilePluginsBlocks UP-TO-DATE
+> Task :build-logic:build-test-support:generatePrecompiledScriptPluginAccessors UP-TO-DATE
+> Task :build-logic:build-test-support:generateScriptPluginAdapters UP-TO-DATE
+> Task :build-logic:build-test-support:compileKotlin UP-TO-DATE
+> Task :build-logic:build-test-support:compileJava NO-SOURCE
+> Task :build-logic:build-test-support:pluginDescriptors UP-TO-DATE
+> Task :build-logic:build-test-support:processResources UP-TO-DATE
+> Task :build-logic:build-test-support:classes UP-TO-DATE
+> Task :build-logic:build-test-support:jar UP-TO-DATE
+
+> Configure project :gradle-plugins:application
+WARNING: Unsupported Kotlin plugin version.
+The `embedded-kotlin` and `kotlin-dsl` plugins rely on features of Kotlin `2.0.20` that might work differently than in the requested version `1.9.25`.
+
+> Configure project :gradle-plugins:metamodule
+WARNING: Unsupported Kotlin plugin version.
+The `embedded-kotlin` and `kotlin-dsl` plugins rely on features of Kotlin `2.0.20` that might work differently than in the requested version `1.9.25`.
+
+> Configure project :gradle-plugins:module
+WARNING: Unsupported Kotlin plugin version.
+The `embedded-kotlin` and `kotlin-dsl` plugins rely on features of Kotlin `2.0.20` that might work differently than in the requested version `1.9.25`.
+
+> Configure project :gradle-plugins:module-java
+WARNING: Unsupported Kotlin plugin version.
+The `embedded-kotlin` and `kotlin-dsl` plugins rely on features of Kotlin `2.0.20` that might work differently than in the requested version `1.9.25`.
+
+> Configure project :gradle-plugins:settings
+WARNING: Unsupported Kotlin plugin version.
+The `embedded-kotlin` and `kotlin-dsl` plugins rely on features of Kotlin `2.0.20` that might work differently than in the requested version `1.9.25`.
+
+> Task :core:service:api:checkKotlinGradlePluginConfigurationErrors
+> Task :gradle-plugins:common:checkKotlinGradlePluginConfigurationErrors
+> Task :core:shared:apiannotations:checkKotlinGradlePluginConfigurationErrors
+> Task :gradle-plugins:common:processResources NO-SOURCE
+> Task :gradle-plugins:settings:checkKotlinGradlePluginConfigurationErrors
+> Task :gradle-plugins:settings:pluginDescriptors UP-TO-DATE
+> Task :gradle-plugins:settings:processResources UP-TO-DATE
+> Task :core:shared:apiannotations:compileKotlin UP-TO-DATE
+> Task :core:shared:apiannotations:compileJava NO-SOURCE
+> Task :core:shared:apiannotations:processResources NO-SOURCE
+> Task :core:shared:apiannotations:classes UP-TO-DATE
+> Task :core:shared:apiannotations:jar UP-TO-DATE
+> Task :core:shared:graphql:checkKotlinGradlePluginConfigurationErrors
+> Task :core:shared:utils:checkKotlinGradlePluginConfigurationErrors
+> Task :core:shared:utils:compileKotlin UP-TO-DATE
+> Task :core:shared:utils:compileJava NO-SOURCE
+> Task :core:shared:utils:processResources NO-SOURCE
+> Task :core:shared:utils:classes UP-TO-DATE
+> Task :core:shared:utils:jar UP-TO-DATE
+> Task :core:shared:graphql:compileKotlin UP-TO-DATE
+> Task :core:shared:graphql:compileJava NO-SOURCE
+> Task :core:shared:graphql:processResources NO-SOURCE
+> Task :core:shared:graphql:classes UP-TO-DATE
+> Task :core:shared:graphql:jar UP-TO-DATE
+> Task :core:service:api:compileKotlin UP-TO-DATE
+> Task :core:service:api:compileJava NO-SOURCE
+> Task :core:service:api:processResources NO-SOURCE
+> Task :core:service:api:classes UP-TO-DATE
+> Task :core:service:api:jar UP-TO-DATE
+> Task :gradle-plugins:common:compileKotlin UP-TO-DATE
+> Task :gradle-plugins:common:compileJava NO-SOURCE
+> Task :gradle-plugins:common:classes UP-TO-DATE
+> Task :gradle-plugins:common:jar UP-TO-DATE
+> Task :gradle-plugins:settings:compileKotlin UP-TO-DATE
+> Task :gradle-plugins:settings:compileJava NO-SOURCE
+> Task :gradle-plugins:settings:classes UP-TO-DATE
+> Task :gradle-plugins:settings:jar UP-TO-DATE
+> Task :gradle-plugins:application:checkKotlinGradlePluginConfigurationErrors
+> Task :gradle-plugins:application:pluginDescriptors UP-TO-DATE
+> Task :gradle-plugins:application:processResources UP-TO-DATE
+> Task :gradle-plugins:metamodule:checkKotlinGradlePluginConfigurationErrors
+> Task :core:shared:invariants:checkKotlinGradlePluginConfigurationErrors
+> Task :gradle-plugins:metamodule:compileKotlin UP-TO-DATE
+> Task :gradle-plugins:metamodule:compileJava NO-SOURCE
+> Task :gradle-plugins:module-java:checkKotlinGradlePluginConfigurationErrors
+> Task :gradle-plugins:module-java:pluginDescriptors UP-TO-DATE
+> Task :gradle-plugins:module-java:processResources UP-TO-DATE
+> Task :core:shared:invariants:compileKotlin UP-TO-DATE
+> Task :gradle-plugins:metamodule:pluginDescriptors UP-TO-DATE
+> Task :core:shared:invariants:compileJava NO-SOURCE
+> Task :core:shared:invariants:processResources NO-SOURCE
+> Task :gradle-plugins:metamodule:processResources UP-TO-DATE
+> Task :core:shared:invariants:classes UP-TO-DATE
+> Task :gradle-plugins:metamodule:classes UP-TO-DATE
+> Task :core:shared:invariants:jar UP-TO-DATE
+> Task :gradle-plugins:metamodule:jar UP-TO-DATE
+> Task :core:shared:viaductschema:checkKotlinGradlePluginConfigurationErrors
+> Task :core:shared:viaductschema:compileKotlin UP-TO-DATE
+> Task :core:shared:viaductschema:compileJava NO-SOURCE
+> Task :core:shared:viaductschema:processResources NO-SOURCE
+> Task :core:shared:viaductschema:classes UP-TO-DATE
+> Task :core:shared:viaductschema:jar UP-TO-DATE
+> Task :gradle-plugins:application:compileKotlin UP-TO-DATE
+> Task :gradle-plugins:application:compileJava NO-SOURCE
+> Task :gradle-plugins:application:classes UP-TO-DATE
+> Task :gradle-plugins:application:jar UP-TO-DATE
+> Task :gradle-plugins:module-java:compileKotlin UP-TO-DATE
+> Task :gradle-plugins:module-java:compileJava NO-SOURCE
+> Task :gradle-plugins:module-java:classes UP-TO-DATE
+> Task :gradle-plugins:module-java:jar UP-TO-DATE
+> Task :gradle-plugins:module:checkKotlinGradlePluginConfigurationErrors
+> Task :gradle-plugins:module:compileKotlin UP-TO-DATE
+> Task :gradle-plugins:module:compileJava NO-SOURCE
+> Task :gradle-plugins:module:pluginDescriptors UP-TO-DATE
+> Task :gradle-plugins:module:processResources UP-TO-DATE
+> Task :gradle-plugins:module:classes UP-TO-DATE
+> Task :gradle-plugins:module:jar UP-TO-DATE
+> Task :build-logic:build-ktlint:checkKotlinGradlePluginConfigurationErrors
+> Task :build-logic:build-ktlint:compileKotlin UP-TO-DATE
+> Task :core:engine:runtime2:loadKtlintReporters UP-TO-DATE
+> Task :build-logic:build-ktlint:compileJava NO-SOURCE
+> Task :core:engine:api:checkKotlinGradlePluginConfigurationErrors
+> Task :core:shared:bootstrap:checkKotlinGradlePluginConfigurationErrors
+> Task :build-logic:build-ktlint:processResources UP-TO-DATE
+> Task :build-logic:build-ktlint:classes UP-TO-DATE
+> Task :build-logic:build-ktlint:jar UP-TO-DATE
+> Task :core:shared:bootstrap:compileKotlin UP-TO-DATE
+> Task :core:engine:runtime2:runKtlintFormatOverKotlinScripts UP-TO-DATE
+> Task :core:engine:runtime2:runKtlintFormatOverJmhSourceSet UP-TO-DATE
+> Task :core:engine:runtime2:ktlintJmhSourceSetFormat UP-TO-DATE
+> Task :core:engine:runtime2:ktlintKotlinScriptFormat UP-TO-DATE
+> Task :core:engine:runtime2:runKtlintFormatOverMainSourceSet UP-TO-DATE
+> Task :core:engine:runtime2:ktlintMainSourceSetFormat UP-TO-DATE
+> Task :core:engine:runtime2:runKtlintFormatOverSupportSourceSet UP-TO-DATE
+> Task :core:engine:runtime2:ktlintSupportSourceSetFormat UP-TO-DATE
+> Task :core:shared:bootstrap:compileJava NO-SOURCE
+> Task :core:shared:bootstrap:processResources NO-SOURCE
+> Task :core:shared:bootstrap:classes UP-TO-DATE
+> Task :core:shared:bootstrap:jar UP-TO-DATE
+> Task :core:shared:errors:checkKotlinGradlePluginConfigurationErrors
+> Task :core:shared:errors:compileKotlin UP-TO-DATE
+> Task :core:shared:errors:compileJava NO-SOURCE
+> Task :core:shared:errors:processResources NO-SOURCE
+> Task :core:shared:errors:classes UP-TO-DATE
+> Task :core:shared:errors:jar UP-TO-DATE
+> Task :core:engine:api:compileKotlin UP-TO-DATE
+> Task :core:engine:api:compileJava NO-SOURCE
+> Task :core:engine:api:processResources NO-SOURCE
+> Task :core:engine:api:classes UP-TO-DATE
+> Task :core:engine:api:jar UP-TO-DATE
+> Task :core:engine:runtime:checkKotlinGradlePluginConfigurationErrors
+> Task :core:shared:dataloader:checkKotlinGradlePluginConfigurationErrors
+> Task :core:shared:dataloader:compileKotlin UP-TO-DATE
+> Task :core:shared:dataloader:compileJava NO-SOURCE
+> Task :core:shared:dataloader:processResources NO-SOURCE
+> Task :core:shared:dataloader:classes UP-TO-DATE
+> Task :core:shared:dataloader:jar UP-TO-DATE
+> Task :core:shared:deferred:checkKotlinGradlePluginConfigurationErrors
+> Task :core:shared:deferred:compileKotlin UP-TO-DATE
+> Task :core:shared:deferred:compileJava NO-SOURCE
+> Task :core:shared:deferred:processResources NO-SOURCE
+> Task :core:shared:deferred:classes UP-TO-DATE
+> Task :core:shared:deferred:jar UP-TO-DATE
+> Task :core:shared:mapping:checkKotlinGradlePluginConfigurationErrors
+> Task :core:shared:mapping:compileKotlin UP-TO-DATE
+> Task :core:shared:mapping:compileJava NO-SOURCE
+> Task :core:shared:mapping:processResources NO-SOURCE
+> Task :core:shared:mapping:classes UP-TO-DATE
+> Task :core:shared:mapping:jar UP-TO-DATE
+> Task :core:tenant:api:checkKotlinGradlePluginConfigurationErrors
+> Task :core:tenant:shared:checkKotlinGradlePluginConfigurationErrors
+> Task :core:tenant:shared:compileKotlin UP-TO-DATE
+> Task :core:tenant:shared:compileJava NO-SOURCE
+> Task :core:tenant:shared:processResources NO-SOURCE
+> Task :core:tenant:shared:classes UP-TO-DATE
+> Task :core:tenant:shared:jar UP-TO-DATE
+> Task :core:tenant:api:compileKotlin UP-TO-DATE
+> Task :core:tenant:api:compileJava NO-SOURCE
+> Task :core:engine:runtime:compileKotlin UP-TO-DATE
+> Task :core:engine:runtime:compileJava NO-SOURCE
+> Task :core:engine:runtime:processResources NO-SOURCE
+> Task :core:engine:runtime:classes UP-TO-DATE
+> Task :core:engine:runtime:jar UP-TO-DATE
+> Task :core:engine:runtime2:checkKotlinGradlePluginConfigurationErrors
+> Task :core:engine:runtime2:compileKotlin UP-TO-DATE
+> Task :core:engine:runtime2:compileJava NO-SOURCE
+> Task :core:engine:runtime2:processResources NO-SOURCE
+> Task :core:engine:runtime2:classes UP-TO-DATE
+> Task :core:engine:runtime2:jar UP-TO-DATE
+> Task :core:service:api:compileTestFixturesKotlin UP-TO-DATE
+> Task :core:service:api:compileTestFixturesJava NO-SOURCE
+> Task :core:engine:wiring:checkKotlinGradlePluginConfigurationErrors
+> Task :core:engine:wiring:compileKotlin UP-TO-DATE
+> Task :core:engine:wiring:compileJava NO-SOURCE
+> Task :core:engine:wiring:processResources NO-SOURCE
+> Task :core:engine:wiring:classes UP-TO-DATE
+> Task :core:engine:wiring:jar UP-TO-DATE
+> Task :core:service:runtime:checkKotlinGradlePluginConfigurationErrors
+> Task :core:service:runtime:compileKotlin UP-TO-DATE
+> Task :core:service:runtime:compileJava NO-SOURCE
+> Task :core:service:runtime:processResources NO-SOURCE
+> Task :core:service:runtime:classes UP-TO-DATE
+> Task :core:service:runtime:jar UP-TO-DATE
+> Task :core:service:wiring:checkKotlinGradlePluginConfigurationErrors
+> Task :core:tenant:runtime:checkKotlinGradlePluginConfigurationErrors
+> Task :core:tenant:runtime:compileKotlin UP-TO-DATE
+> Task :core:tenant:runtime:compileJava NO-SOURCE
+> Task :core:tenant:runtime:extractDefaultSchema UP-TO-DATE
+> Task :core:tenant:runtime:processResources NO-SOURCE
+> Task :core:tenant:runtime:classes UP-TO-DATE
+> Task :core:tenant:runtime:jar UP-TO-DATE
+> Task :core:tenant:wiring:checkKotlinGradlePluginConfigurationErrors
+> Task :core:tenant:wiring:compileKotlin NO-SOURCE
+> Task :core:tenant:wiring:compileJava NO-SOURCE
+> Task :core:tenant:wiring:processResources NO-SOURCE
+> Task :core:tenant:wiring:classes UP-TO-DATE
+> Task :core:tenant:wiring:jar UP-TO-DATE
+> Task :core:service:wiring:compileKotlin UP-TO-DATE
+> Task :core:service:wiring:compileJava NO-SOURCE
+> Task :core:service:wiring:processResources UP-TO-DATE
+> Task :core:service:wiring:classes UP-TO-DATE
+> Task :core:service:wiring:jar UP-TO-DATE
+> Task :core:shared:arbitrary:checkKotlinGradlePluginConfigurationErrors
+> Task :core:shared:arbitrary:compileKotlin UP-TO-DATE
+> Task :core:shared:arbitrary:compileJava NO-SOURCE
+> Task :core:shared:arbitrary:processResources NO-SOURCE
+> Task :core:shared:arbitrary:classes UP-TO-DATE
+> Task :core:shared:arbitrary:jar UP-TO-DATE
+> Task :core:shared:arbitrary:compileTestFixturesKotlin UP-TO-DATE
+> Task :core:shared:arbitrary:compileTestFixturesJava NO-SOURCE
+> Task :core:engine:runtime:compileTestFixturesKotlin UP-TO-DATE
+> Task :core:engine:runtime:compileTestFixturesJava NO-SOURCE
+> Task :core:shared:dataloader:compileTestFixturesKotlin UP-TO-DATE
+> Task :core:shared:dataloader:compileTestFixturesJava NO-SOURCE
+> Task :core:shared:graphql:compileTestFixturesKotlin UP-TO-DATE
+> Task :core:shared:graphql:compileTestFixturesJava NO-SOURCE
+> Task :core:engine:api:compileTestFixturesKotlin UP-TO-DATE
+> Task :core:engine:api:compileTestFixturesJava NO-SOURCE
+> Task :core:engine:api:processTestFixturesResources NO-SOURCE
+> Task :core:engine:api:testFixturesClasses UP-TO-DATE
+> Task :core:engine:api:testFixturesJar UP-TO-DATE
+> Task :core:engine:runtime:processTestFixturesResources NO-SOURCE
+> Task :core:engine:runtime:testFixturesClasses UP-TO-DATE
+> Task :core:engine:runtime:testFixturesJar UP-TO-DATE
+> Task :core:engine:runtime2:checkDocumentationLabels
+> Task :core:engine:runtime2:compileSupportKotlin UP-TO-DATE
+> Task :core:engine:runtime2:compileSupportJava NO-SOURCE
+> Task :core:engine:runtime2:processSupportResources NO-SOURCE
+> Task :core:engine:runtime2:supportClasses UP-TO-DATE
+> Task :core:engine:runtime2:processTestResources UP-TO-DATE
+> Task :core:service:api:processTestFixturesResources NO-SOURCE
+> Task :core:service:api:testFixturesClasses UP-TO-DATE
+> Task :core:service:api:testFixturesJar UP-TO-DATE
+> Task :core:shared:arbitrary:processTestFixturesResources NO-SOURCE
+> Task :core:shared:arbitrary:testFixturesClasses UP-TO-DATE
+> Task :core:shared:arbitrary:testFixturesJar UP-TO-DATE
+> Task :core:shared:dataloader:processTestFixturesResources NO-SOURCE
+> Task :core:shared:dataloader:testFixturesClasses UP-TO-DATE
+> Task :core:shared:dataloader:testFixturesJar UP-TO-DATE
+> Task :core:shared:graphql:processTestFixturesResources NO-SOURCE
+> Task :core:shared:graphql:testFixturesClasses UP-TO-DATE
+> Task :core:shared:graphql:testFixturesJar UP-TO-DATE
+> Task :core:tenant:api:extractDefaultSchema UP-TO-DATE
+> Task :core:tenant:api:processResources NO-SOURCE
+> Task :core:tenant:api:classes UP-TO-DATE
+> Task :core:tenant:api:jar UP-TO-DATE
+> Task :core:engine:runtime2:runKtlintFormatOverTestSourceSet
+> Task :core:engine:runtime2:ktlintTestSourceSetFormat
+> Task :core:engine:runtime2:ktlintFormat
+> Task :core:engine:runtime2:compileTestKotlin
+> Task :core:engine:runtime2:compileTestJava NO-SOURCE
+> Task :core:engine:runtime2:testClasses UP-TO-DATE
+> Task :core:engine:runtime2:test
+
+SymbolicKeyIdentityTest > symbolic cell identity coalesces only equal variable instances() FAILED
+    org.opentest4j.AssertionFailedError at SymbolicKeyIdentityTest.kt:260
+
+646 tests completed, 1 failed, 6 skipped
+
+> Task :core:engine:runtime2:test FAILED
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':core:engine:runtime2:test'.
+> There were failing tests. See the report at: file:///home/raymie_stata/repos/2ht/dist/gradle/viaduct-oss/core/build/engine/runtime2/reports/tests/test/index.html
+
+BUILD FAILED in 1m 26s
+161 actionable tasks: 53 executed, 2 from cache, 106 up-to-date

@@ -1,0 +1,56 @@
+[
+  {
+    "variant": "baseline",
+    "command": [
+      "java",
+      "-jar",
+      "/tmp/runtime2-parent-demand-20261009/baseline.jar",
+      "viaduct\\.engine\\.runtime2\\.resolution\\.ResolverBenchmark\\.overhead",
+      "-p",
+      "loopCount=1",
+      "-wi",
+      "5",
+      "-i",
+      "8",
+      "-f",
+      "3",
+      "-foe",
+      "true",
+      "-rf",
+      "json",
+      "-rff",
+      "/tmp/runtime2-parent-demand-20261009/baseline-overhead.json",
+      "-jvmArgsAppend",
+      "-DresolverBenchmarkReportFile=/tmp/runtime2-parent-demand-20261009/baseline-statistics.txt"
+    ],
+    "start": "2026-10-09T07:16:42.627004+00:00",
+    "end": "2026-10-09T07:17:44.930129+00:00"
+  },
+  {
+    "variant": "candidate",
+    "command": [
+      "java",
+      "-jar",
+      "/tmp/runtime2-parent-demand-20261009/candidate.jar",
+      "viaduct\\.engine\\.runtime2\\.resolution\\.ResolverBenchmark\\.overhead",
+      "-p",
+      "loopCount=1",
+      "-wi",
+      "5",
+      "-i",
+      "8",
+      "-f",
+      "3",
+      "-foe",
+      "true",
+      "-rf",
+      "json",
+      "-rff",
+      "/tmp/runtime2-parent-demand-20261009/candidate-overhead.json",
+      "-jvmArgsAppend",
+      "-DresolverBenchmarkReportFile=/tmp/runtime2-parent-demand-20261009/candidate-statistics.txt"
+    ],
+    "start": "2026-10-09T07:17:44.930229+00:00",
+    "end": "2026-10-09T07:18:47.107107+00:00"
+  }
+]
