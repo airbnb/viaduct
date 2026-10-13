@@ -55,12 +55,12 @@ This avoids the version-coupling problem entirely — we never need to know the 
 
 The demo apps verify the full matrix:
 
-- **KSP2 on Kotlin 2.2.21**: `2.2.21-2.0.5` (demoapp defaults) — minimum supported consumer pair
-- **KSP 2.3 on Kotlin 2.3.21**: `2.3.7` (Ktor CI matrix) — upgraded compiler pair
-- **Gradle 8.11 and 9.1.0**: Micronaut CI matrix with Kotlin 2.2.21
+- **KSP2 on Kotlin 2.2.21**: `2.2.21-2.0.5` (Ktor CI matrix) — minimum supported consumer pair
+- **KSP 2.3 on Kotlin 2.3.21**: `2.3.7` (demoapp defaults) — current compiler pair
+- **Gradle 8.11 and 9.1.0**: Micronaut CI matrix with Kotlin 2.3.21
 
 ## Kotlin 2.3+ and Standalone KSP
 
 Starting with KSP 2.3.0, KSP versions are completely independent of the Kotlin version (just `2.3.0`, `2.3.6`, etc. — no Kotlin prefix). KSP1 is not supported for Kotlin 2.3+, and the old `kotlinVersion-kspVersion` format is retired.
 
-The processor and Ktor demoapp run with KSP 2.3.7. Artifacts compiled with Kotlin 2.3 require Kotlin 2.2 or newer in tested consumers; the Kotlin 1.9, 2.0, and 2.1 demoapp compilers reject their metadata.
+The processor and the demoapps run with KSP 2.3.7. Artifacts compiled with Kotlin 2.3 require Kotlin 2.2 or newer in tested consumers; the Kotlin 1.9, 2.0, and 2.1 demoapp compilers reject their metadata.

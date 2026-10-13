@@ -116,18 +116,18 @@ The demo apps collectively verify the KSP registry-extractor processor across th
 
 | Demo App | Kotlin | KSP | Generation | Gradle | Coverage goal |
 |---|---|---|---|---|---|
-| cli-starter | 2.2.21 | 2.2.21-2.0.5 | KSP2 | 9.1.0 | Minimum supported Kotlin |
-| jetty-starter | 2.2.21 | 2.2.21-2.0.5 | KSP2 | 9.1.0 | Jetty integration |
-| micronaut-starter | 2.2.21 | 2.2.21-2.0.5 | KSP2 | **8.11** | Gradle 8.x coverage |
-| ktor-starter | 2.2.21 | 2.2.21-2.0.5 | KSP2 | 9.1.0 | Kotlin 2.3/KSP 2.3 tested via CI matrix |
-| starwars | 2.2.21 | 2.2.21-2.0.5 | KSP2 | 9.1.0 | Full feature coverage |
+| cli-starter | 2.3.21 | 2.3.7 | KSP2 | 9.1.0 | Plain CLI integration |
+| jetty-starter | 2.3.21 | 2.3.7 | KSP2 | 9.1.0 | Jetty integration |
+| micronaut-starter | 2.3.21 | 2.3.7 | KSP2 | 9.1.0 | Gradle 8.11 tested via CI matrix |
+| ktor-starter | 2.3.21 | 2.3.7 | KSP2 | 9.1.0 | Kotlin 2.2/KSP 2.2 tested via CI matrix |
+| starwars | 2.3.21 | 2.3.7 | KSP2 | 9.1.0 | Full feature coverage |
 
 In addition to the per-app versions above, CI runs two version-matrix jobs that add coverage without requiring new full demoapp copies:
 
-- **Kotlin matrix** (`test-kotlin-matrix` in `demoapps-ci-check.yml`): runs `ktor-starter` with Kotlin 2.3.21/KSP 2.3.7. The default demoapp versions cover Kotlin 2.2.21/KSP 2.2.21-2.0.5.
-- **Gradle matrix** (`test-gradle-matrix`): runs `micronaut-starter` against Gradle 8.11 (its native version) and Gradle 9.1.0, confirming the Viaduct plugin works across both Gradle major versions.
+- **Kotlin matrix** (`test-kotlin-matrix` in `demoapps-ci-check.yml`): runs `ktor-starter` with Kotlin 2.2.21/KSP 2.2.21-2.0.5, the minimum supported consumer pair. The default demoapp versions cover Kotlin 2.3.21/KSP 2.3.7.
+- **Gradle matrix** (`test-gradle-matrix`): runs `micronaut-starter` against Gradle 8.11 and Gradle 9.1.0 (its native version), confirming the Viaduct plugin works across both Gradle major versions.
 
-`micronaut-starter` intentionally stays on Gradle 8.11 to verify Viaduct works with Gradle 8. All other apps use Gradle 9 to match the OSS root. If `micronaut-starter` is ever bumped to Gradle 9, add a separate Gradle 8 variant to preserve that coverage.
+The demoapps default to Kotlin 2.3 and Gradle 9 because Kotlin 2.2 cannot target Java 25 and Gradle 8 cannot run on it; the two matrix jobs keep the Kotlin 2.2 and Gradle 8 minimums covered.
 
 Kotlin 2.2 is the minimum supported consumer version for artifacts compiled with Kotlin 2.3. Kotlin 2.3 uses standalone KSP versions that are independent of the compiler version.
 

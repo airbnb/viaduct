@@ -94,7 +94,7 @@ jobs:
       fail-fast: false
       matrix:
         demoapp: [cli-starter, jetty-starter, ktor-starter, micronaut-starter, spring-starter]
-        java: ['17', '21']
+        java: ['17', '21', '25']
     name: Test ${{ matrix.demoapp }} (Java ${{ matrix.java }})
     env:
       GRADLE_OPTS: "-Dorg.gradle.parallel=true -Dorg.gradle.caching=true"
@@ -153,8 +153,8 @@ jobs:
         shell: bash
 
   # ---------------------------------------------------------------------------
-  # Kotlin version matrix — verify the Kotlin 2.3/KSP 2.3 consumer pair while
-  # ktor-starter's default Kotlin 2.2/KSP 2.2 pair covers the minimum version.
+  # Kotlin version matrix — verify the minimum Kotlin 2.2/KSP 2.2 consumer pair while
+  # ktor-starter's default Kotlin 2.3/KSP 2.3 pair covers the current version.
   # ---------------------------------------------------------------------------
   test-kotlin-matrix:
     needs: publish-to-maven-local
@@ -163,8 +163,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - kotlin_version: "2.3.21"
-            ksp_version: "2.3.7"
+          - kotlin_version: "2.2.21"
+            ksp_version: "2.2.21-2.0.5"
     name: Test ktor-starter (Kotlin ${{ matrix.kotlin_version }})
     env:
       GRADLE_OPTS: "-Dorg.gradle.parallel=true -Dorg.gradle.caching=true"
@@ -193,8 +193,8 @@ jobs:
           KSP_VERSION: ${{ matrix.ksp_version }}
 
   # ---------------------------------------------------------------------------
-  # Gradle version matrix — re-run micronaut-starter against Gradle 9 as well
-  # as its native Gradle 8 wrapper, ensuring Viaduct's plugin works across
+  # Gradle version matrix — re-run micronaut-starter against Gradle 8 as well
+  # as its native Gradle 9 wrapper, ensuring Viaduct's plugin works across
   # both major Gradle generations without maintaining two full demoapp copies.
   # ---------------------------------------------------------------------------
   test-gradle-matrix:
