@@ -1,0 +1,570 @@
+{
+  "recording": "/tmp/runtime2-local-scans-20261009/detail.jfr",
+  "cpu_samples": 3067,
+  "cpu_components": {
+    "selection_normalization": {
+      "count": 814,
+      "percent": 26.540593413759375
+    },
+    "output_snipping": {
+      "count": 177,
+      "percent": 5.771111835670036
+    },
+    "input_projection": {
+      "count": 259,
+      "percent": 8.444734268014347
+    },
+    "projection_checker_caller": {
+      "count": 122,
+      "percent": 3.9778284969025104
+    },
+    "input_projection_or_instantiation": {
+      "count": 499,
+      "percent": 16.269970655363547
+    },
+    "inclusion_activation": {
+      "count": 65,
+      "percent": 2.119334854907075
+    },
+    "construction_closure": {
+      "count": 824,
+      "percent": 26.866644929898925
+    },
+    "successor_demand": {
+      "count": 875,
+      "percent": 28.52950766221063
+    },
+    "materialization_instantiation": {
+      "count": 240,
+      "percent": 7.825236387349201
+    },
+    "materialize_selection_creation": {
+      "count": 42,
+      "percent": 1.3694163677861102
+    },
+    "projection_filter_inclusions": {
+      "count": 19,
+      "percent": 0.6194978806651451
+    },
+    "checker_template_lowering": {
+      "count": 129,
+      "percent": 4.206064558200196
+    },
+    "passive_fields_inclusive": {
+      "count": 493,
+      "percent": 16.07433974567982
+    },
+    "selection_validation": {
+      "count": 142,
+      "percent": 4.6299315291816105
+    },
+    "projection_resolver_caller": {
+      "count": 50,
+      "percent": 1.6302575806977502
+    },
+    "projection_collect": {
+      "count": 49,
+      "percent": 1.5976524290837952
+    },
+    "output_construction": {
+      "count": 57,
+      "percent": 1.8584936419954352
+    },
+    "projection_eod_construction": {
+      "count": 20,
+      "percent": 0.6521030322791
+    },
+    "projection_checked_read": {
+      "count": 37,
+      "percent": 1.2063906097163353
+    }
+  },
+  "projection_details": {
+    "projection_hot_leaf": [
+      [
+        "viaduct/engine/runtime2/resolution/ResolverInputMaterializationLogic.materializeSelectedObject",
+        26
+      ],
+      [
+        "viaduct/engine/runtime2/model/MaterializeSelectionForestImpl.collect",
+        22
+      ],
+      [
+        "java/util/HashMap.putVal",
+        16
+      ],
+      [
+        "java/util/HashMap.getNode",
+        14
+      ],
+      [
+        "java/util/concurrent/ConcurrentHashMap.transfer",
+        13
+      ],
+      [
+        "kotlin/jvm/internal/Intrinsics.areEqual",
+        13
+      ],
+      [
+        "viaduct/engine/runtime2/resolution/framework/DeferredCycleCheckStateImpl.addRead",
+        9
+      ],
+      [
+        "viaduct/engine/runtime2/model/MaterializeSelectionForestImpl.forEach",
+        8
+      ],
+      [
+        "viaduct/engine/runtime2/resolution/ResolverInputMaterializationLogic.materializeSelectedValue",
+        8
+      ],
+      [
+        "java/util/concurrent/ConcurrentHashMap.get",
+        7
+      ],
+      [
+        "java/util/concurrent/ConcurrentHashMap.computeIfAbsent",
+        7
+      ],
+      [
+        "viaduct/engine/runtime2/model/MaterializeSelectionKt.flatMapToMaterializeSelectionForest",
+        7
+      ],
+      [
+        "viaduct/engine/runtime2/model/SchemaConformanceKt.conformsToOutputSchemaType",
+        6
+      ],
+      [
+        "kotlin/coroutines/jvm/internal/ContinuationImpl.<init>",
+        6
+      ],
+      [
+        "viaduct/engine/runtime2/model/GroundKeyImpl.getArguments",
+        5
+      ],
+      [
+        "java/util/Arrays.copyOf",
+        5
+      ],
+      [
+        "kotlin/collections/CollectionsKt__MutableCollectionsKt.addAll",
+        5
+      ],
+      [
+        "kotlinx/coroutines/internal/LockFreeLinkedListNode.finishAdd",
+        5
+      ],
+      [
+        "kotlinx/coroutines/internal/ThreadContextKt$countAll$1.invoke",
+        4
+      ],
+      [
+        "viaduct/engine/runtime2/resolution/ResolverInputMaterializationLogic.materializedObjectKey",
+        3
+      ],
+      [
+        "kotlinx/coroutines/JobKt__JobKt.invokeOnCompletion",
+        3
+      ],
+      [
+        "java/util/HashMap.resize",
+        3
+      ],
+      [
+        "viaduct/engine/runtime2/model/ArgumentExpressionsKt.variables",
+        3
+      ],
+      [
+        "viaduct/engine/runtime2/model/MaterializeSelectionKt.mergeFieldDirectives",
+        3
+      ],
+      [
+        "kotlin/collections/CollectionsKt___CollectionsKt.toMutableList",
+        3
+      ],
+      [
+        "java/util/ArrayList.addAll",
+        2
+      ],
+      [
+        "viaduct/engine/runtime2/model/QPlanEngineObjectDataKt.constructEngineObjectData",
+        2
+      ],
+      [
+        "viaduct/engine/runtime2/model/DeferredPromiseImpl.await",
+        2
+      ],
+      [
+        "kotlin/collections/CollectionsKt___CollectionsKt.toList",
+        2
+      ],
+      [
+        "java/util/concurrent/ConcurrentHashMap.putVal",
+        2
+      ],
+      [
+        "java/util/AbstractMap.equals",
+        2
+      ],
+      [
+        "viaduct/engine/runtime2/model/SchemaLookupsKt.requireOutputType",
+        2
+      ],
+      [
+        "viaduct/engine/runtime2/model/ReservablePromiseImpl.isCompleted",
+        2
+      ],
+      [
+        "viaduct/engine/runtime2/model/CheckedEngineResultKt.materializeCheckedValue",
+        2
+      ],
+      [
+        "java/util/LinkedHashMap.sequencedEntrySet",
+        2
+      ],
+      [
+        "java/util/ArrayList$Itr.checkForComodification",
+        2
+      ],
+      [
+        "viaduct/engine/runtime2/resolution/ResolverInputMaterializationLogic.materialize",
+        1
+      ],
+      [
+        "java/util/Collections.eq",
+        1
+      ],
+      [
+        "kotlinx/coroutines/internal/DispatchedContinuation.<init>",
+        1
+      ],
+      [
+        "viaduct/engine/runtime2/resolution/ResolverInputMaterializationLogic.fetchIncluded",
+        1
+      ]
+    ],
+    "projection_inclusive": [
+      [
+        "kotlinx/coroutines/DispatchedTask.run",
+        259
+      ],
+      [
+        "java/lang/Thread.runWith",
+        259
+      ],
+      [
+        "java/util/concurrent/ThreadPoolExecutor$Worker.run",
+        259
+      ],
+      [
+        "kotlin/coroutines/jvm/internal/BaseContinuationImpl.resumeWith",
+        259
+      ],
+      [
+        "java/lang/Thread.run",
+        259
+      ],
+      [
+        "java/util/concurrent/ThreadPoolExecutor.runWorker",
+        259
+      ],
+      [
+        "viaduct/engine/runtime2/resolution/ResolverInputMaterializationLogic.materializeSelectedObject",
+        257
+      ],
+      [
+        "viaduct/engine/runtime2/resolution/MaterializeResolverInputKt.materializeResolverInput",
+        172
+      ],
+      [
+        "viaduct/engine/runtime2/resolution/ResolverInputMaterializationLogic.materialize",
+        172
+      ],
+      [
+        "viaduct/engine/runtime2/resolution/FieldCheckerTask.executeAndPublish",
+        107
+      ],
+      [
+        "viaduct/engine/runtime2/resolution/FieldCheckerTask.run",
+        102
+      ],
+      [
+        "viaduct/engine/runtime2/resolution/FieldCheckerTask.access$run",
+        102
+      ],
+      [
+        "viaduct/engine/runtime2/resolution/FieldCheckerTask$Companion.execute",
+        102
+      ],
+      [
+        "viaduct/engine/runtime2/resolution/SymbolicFieldCheckerPublicationOccurrence$dispatch$1.invokeSuspend",
+        102
+      ],
+      [
+        "viaduct/engine/runtime2/resolution/ResolverInputMaterializationLogic$materializeSelectedObject$1.invokeSuspend",
+        86
+      ],
+      [
+        "viaduct/engine/runtime2/resolution/ResolverInputMaterializationLogic.access$materializeSelectedObject",
+        86
+      ],
+      [
+        "viaduct/engine/runtime2/resolution/ResolverInputMaterializationLogic.materializeSelectedValue",
+        79
+      ],
+      [
+        "viaduct/engine/runtime2/resolution/ResolverInputMaterializationLogic.materializeValueForConsumer",
+        70
+      ],
+      [
+        "viaduct/engine/runtime2/resolution/MaterializeResolverInputKt.materializeResolverInput$default",
+        50
+      ],
+      [
+        "viaduct/engine/runtime2/resolution/FieldResolutionLogic.runFieldResolver",
+        50
+      ],
+      [
+        "viaduct/engine/runtime2/model/MaterializeSelectionForestImpl.collect",
+        49
+      ],
+      [
+        "viaduct/engine/runtime2/resolution/framework/MaterializeResultKt.materializeCheckedValueForResolver",
+        37
+      ],
+      [
+        "viaduct/engine/runtime2/resolution/framework/DeferredCycleCheckStateImpl.cycleCheck",
+        36
+      ],
+      [
+        "viaduct/engine/runtime2/resolution/FieldResolutionLogic.publishResult",
+        29
+      ],
+      [
+        "viaduct/engine/runtime2/resolution/SymbolicFieldPublicationOccurrence$dispatch$1.invokeSuspend",
+        29
+      ],
+      [
+        "viaduct/engine/runtime2/resolution/FieldResolverTask$Companion.execute$engine_runtime2_compileKotlin",
+        29
+      ],
+      [
+        "viaduct/engine/runtime2/resolution/CoroutineFieldResolverTaskBase.run",
+        29
+      ],
+      [
+        "viaduct/engine/runtime2/resolution/FieldResolverTask.executeAndPublish",
+        29
+      ],
+      [
+        "viaduct/engine/runtime2/resolution/ResolverInputMaterializationLogic.materializedObjectKey",
+        27
+      ],
+      [
+        "viaduct/engine/runtime2/model/DeferredPromiseImpl.await",
+        27
+      ],
+      [
+        "viaduct/engine/runtime2/model/ObjectResultImpl.reserveCell",
+        27
+      ],
+      [
+        "viaduct/engine/runtime2/model/ObjectCellStore.reserve",
+        27
+      ],
+      [
+        "viaduct/engine/runtime2/resolution/framework/GroundObjectKeyKt.fetchGroundedArguments",
+        24
+      ],
+      [
+        "viaduct/engine/runtime2/resolution/FieldResolutionLogic$runFieldResolver$1.invokeSuspend",
+        21
+      ],
+      [
+        "viaduct/engine/runtime2/resolution/FieldResolutionLogic.access$runFieldResolver",
+        21
+      ],
+      [
+        "viaduct/engine/runtime2/model/QPlanEngineObjectDataKt.materializedEngineObjectDataOf",
+        20
+      ],
+      [
+        "viaduct/engine/runtime2/model/QPlanEngineObjectDataKt.constructEngineObjectData",
+        20
+      ],
+      [
+        "java/util/HashMap.getNode",
+        20
+      ],
+      [
+        "java/util/concurrent/ConcurrentHashMap.computeIfAbsent",
+        19
+      ],
+      [
+        "java/util/HashMap.put",
+        19
+      ]
+    ]
+  },
+  "allocation_samples": 14951,
+  "weighted_bytes_excluding_first_per_thread": 83275848256,
+  "allocation_components": {
+    "passive_fields_inclusive": {
+      "weight": 22447700896,
+      "percent": 26.955835774849223
+    },
+    "construction_closure": {
+      "weight": 23624306960,
+      "percent": 28.36873770096707
+    },
+    "selection_normalization": {
+      "weight": 23390598416,
+      "percent": 28.088093854168232
+    },
+    "selection_validation": {
+      "weight": 687576072,
+      "percent": 0.8256608445299869
+    },
+    "successor_demand": {
+      "weight": 20152984856,
+      "percent": 24.200275683830075
+    },
+    "checker_template_lowering": {
+      "weight": 3975742632,
+      "percent": 4.774184490775871
+    },
+    "materialization_instantiation": {
+      "weight": 6581637328,
+      "percent": 7.903416735867107
+    },
+    "input_projection_or_instantiation": {
+      "weight": 15950019040,
+      "percent": 19.15323515044568
+    },
+    "materialize_selection_creation": {
+      "weight": 578728120,
+      "percent": 0.6949531372180322
+    },
+    "inclusion_activation": {
+      "weight": 2667256144,
+      "percent": 3.2029168118474556
+    },
+    "input_projection": {
+      "weight": 9368381712,
+      "percent": 11.249818414578575
+    },
+    "projection_resolver_caller": {
+      "weight": 1224590480,
+      "percent": 1.4705229735222405
+    },
+    "output_snipping": {
+      "weight": 3145364856,
+      "percent": 3.777043310721698
+    },
+    "projection_filter_inclusions": {
+      "weight": 1568467256,
+      "percent": 1.8834599572955926
+    },
+    "projection_checker_caller": {
+      "weight": 3321483936,
+      "percent": 3.9885320961118977
+    },
+    "projection_collect": {
+      "weight": 2700275168,
+      "percent": 3.242566992171642
+    },
+    "projection_checked_read": {
+      "weight": 410987416,
+      "percent": 0.49352534331031384
+    },
+    "projection_eod_construction": {
+      "weight": 863889992,
+      "percent": 1.037383599317173
+    },
+    "output_construction": {
+      "weight": 1367145264,
+      "percent": 1.6417068005086308
+    }
+  },
+  "projection_allocated_classes": [
+    [
+      "java/util/LinkedHashMap",
+      1509722224
+    ],
+    [
+      "[Ljava/lang/Object;",
+      1325229984
+    ],
+    [
+      "java/util/ArrayList",
+      620159432
+    ],
+    [
+      "java/util/LinkedHashMap$Entry",
+      570332736
+    ],
+    [
+      "[Ljava/util/HashMap$Node;",
+      561965264
+    ],
+    [
+      "java/util/ArrayList$Itr",
+      318734952
+    ],
+    [
+      "java/util/LinkedHashMap$LinkedEntrySet",
+      276788976
+    ],
+    [
+      "viaduct/engine/runtime2/model/MaterializeSelectionForestImpl",
+      251614184
+    ],
+    [
+      "viaduct/engine/runtime2/resolution/ResolverInputMaterializationLogic$materializeSelectedObject$1",
+      243246416
+    ],
+    [
+      "viaduct/engine/runtime2/resolution/ResolverInputMaterializationLogic$materializeSelectedValue$1",
+      234866112
+    ],
+    [
+      "viaduct/engine/runtime2/resolution/ResolverInputMaterializationLogic$fetchIncluded$1",
+      234854088
+    ],
+    [
+      "kotlin/collections/builders/ListBuilder$Itr",
+      226460768
+    ],
+    [
+      "[Ljava/util/concurrent/ConcurrentHashMap$Node;",
+      218058448
+    ],
+    [
+      "viaduct/engine/runtime2/model/CellImpl$awaitActivated$1",
+      201314600
+    ],
+    [
+      "java/util/concurrent/ConcurrentHashMap$Node",
+      192911256
+    ],
+    [
+      "viaduct/engine/runtime2/resolution/framework/GroundObjectKeyKt$fetchGroundedArguments$1",
+      184528992
+    ],
+    [
+      "java/util/concurrent/ConcurrentHashMap",
+      159368488
+    ],
+    [
+      "java/util/LinkedHashMap$LinkedEntryIterator",
+      159366256
+    ],
+    [
+      "viaduct/engine/runtime2/resolution/ResolverInputMaterializationLogic$materializedObjectKey$1",
+      150975480
+    ],
+    [
+      "java/util/Arrays$ArrayList",
+      125820352
+    ]
+  ]
+}

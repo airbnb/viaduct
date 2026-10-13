@@ -35,6 +35,28 @@ import viaduct.engine.runtime2.resolvers.materializeResolverInput as materialize
 
 class MaterializeResolverInputTest {
     @Test
+    fun `sharing a layout never shares operation values`() =
+        runBlocking {
+            val fixture = TestWorld.fromSDL("type Query { value: Int }")
+            val type = fixture.schema.requireQueryTypeDef()
+            val key = ObjectEngineResult.GroundKey.of(fixture.schema.requireObjectField("Query", "value"), emptyMap())
+            val selections = fixture.schemas.fragmentFrom("fragment Input on Query { alias: value }").materializeSelections
+            for (value in listOf(1, 2)) {
+                val result = ObjectEngineResult.of(type, values = mapOf(key to value))
+                val input = result.materializeResolutionInput(
+                    operation = SharedOperationContext.create(fixture.assumptions),
+                    cycleChecker = CycleCheckState.createNOP(),
+                    selections = selections,
+                    reader = result.fieldResolverCycleTask(emptyList()),
+                    resultPath = emptyList(),
+                    checked = false,
+                )
+                assertEquals(value, input.get("alias"))
+                assertFalse(input.isPresent("value"))
+            }
+        }
+
+    @Test
     fun `Resolver01-23 input materialization is driven by checker slot presence`() =
         runBlocking {
             assertSlotDrivenMaterialization { result, operation, selections, reader ->

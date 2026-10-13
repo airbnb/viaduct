@@ -23,6 +23,8 @@ import viaduct.engine.runtime2.model.merge
 import viaduct.engine.runtime2.model.mutationNamespaceTypes
 import viaduct.engine.runtime2.model.outputValue
 import viaduct.engine.runtime2.model.registry.BranchOrderValidator
+import viaduct.engine.runtime2.model.registry.EmptyResolverInputCache
+import viaduct.engine.runtime2.model.registry.EmptyResolverInputCacheOwner
 import viaduct.engine.runtime2.model.registry.FieldCheckerResolver
 import viaduct.engine.runtime2.model.registry.FieldResolverDefinition
 import viaduct.engine.runtime2.model.registry.FieldValueResolver
@@ -392,7 +394,8 @@ private class ResolverRegistryImpl(
     private val fieldCheckers: Map<ViaductSchema.ObjectField, FieldCheckerResolver>,
     private val typeCheckers: Map<ViaductSchema.Object, TypeCheckerResolver>,
     variableDeclarations: Map<Arguments.Variable, VariableDeclaration>,
-) : ResolverRegistry, FixedSuccessorDemandCacheOwner {
+) : ResolverRegistry, FixedSuccessorDemandCacheOwner, EmptyResolverInputCacheOwner {
+    override val emptyResolverInputCache = EmptyResolverInputCache()
     override val fixedSuccessorDemandCache = FixedSuccessorDemandCache()
 
     private val sourceFieldResolvers = fieldResolverDefinitions

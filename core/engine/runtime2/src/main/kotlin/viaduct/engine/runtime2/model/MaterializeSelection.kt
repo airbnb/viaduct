@@ -1,5 +1,6 @@
 package viaduct.engine.runtime2.model
 
+import java.util.concurrent.ConcurrentHashMap
 import viaduct.engine.api.FieldDirectives
 import viaduct.graphql.schema.ViaductSchema
 
@@ -191,8 +192,9 @@ fun SelectionForest.toCanonicalMaterializeSelectionForest(): MaterializeSelectio
 }
 
 /** Conjunctively guards each source occurrence while retaining a compact condition graph. */
-fun MaterializeSelectionForest.guardedBy(condition: InclusionCondition): MaterializeSelectionForest =
-    flatMap { selection ->
+fun MaterializeSelectionForest.guardedBy(condition: InclusionCondition): MaterializeSelectionForest {
+    if (condition === InclusionCondition.Always) return this
+    return flatMap { selection ->
         materializeSelectionForestOf(
             MaterializeSelection.of(
                 responseKey = selection.responseKey,
@@ -204,6 +206,7 @@ fun MaterializeSelectionForest.guardedBy(condition: InclusionCondition): Materia
             ),
         )
     }
+}
 
 private class MaterializeSelectionImpl(
     override val responseKey: String,
@@ -224,6 +227,23 @@ private class ObjectMaterializeSelectionImpl(
 private class MaterializeSelectionForestImpl(
     private val selections: List<MaterializeSelection>,
 ) : MaterializeSelectionForest {
+    @Volatile
+    private var unconditional: Boolean? = null
+
+    @Volatile
+    private var layouts: ConcurrentHashMap<ViaductSchema.Object, ObjectMaterializeSelectionForest>? = null
+
+    val isUnconditional: Boolean
+        get() = unconditional ?: selections.all { it.inclusionCondition === InclusionCondition.Always }.also { unconditional = it }
+
+    val containsVariables: Boolean by lazy(LazyThreadSafetyMode.PUBLICATION) {
+        selections.any { selection ->
+            selection.key.arguments.usedVariables().isNotEmpty() ||
+                selection.inclusionCondition.usedVariables().isNotEmpty() ||
+                selection.subselections.containsVariables()
+        }
+    }
+
     override val size: Int
         get() = selections.size
 
@@ -255,6 +275,16 @@ private class MaterializeSelectionForestImpl(
             }.toSelectionForest()
 
     override fun collect(type: ViaductSchema.Object): ObjectMaterializeSelectionForest {
+        // Layouts retain immutable keys and child forests, never materialized values or fetched bindings.
+        // Conditional forests are filtered per input and do not benefit from retaining a cache.
+        if (!isUnconditional) return collectUncached(type)
+        val cache = layouts ?: synchronized(this) {
+            layouts ?: ConcurrentHashMap<ViaductSchema.Object, ObjectMaterializeSelectionForest>().also { layouts = it }
+        }
+        return cache.computeIfAbsent(type, ::collectUncached)
+    }
+
+    private fun collectUncached(type: ViaductSchema.Object): ObjectMaterializeSelectionForest {
         val membersByResponseKey =
             linkedMapOf<
                 String,
@@ -276,6 +306,10 @@ private class MaterializeSelectionForestImpl(
         val groups =
             membersByResponseKey.mapValues { (responseKey, members) ->
                 val key = members.first().first
+                if (members.size == 1) {
+                    val (_, subselections, directives) = members.single()
+                    return@mapValues ObjectMaterializeSelectionImpl(responseKey, key, directives, subselections)
+                }
                 require(
                     members.all { (memberKey, _, _) ->
                         memberKey.field == key.field &&
@@ -318,6 +352,12 @@ private class ObjectMaterializeSelectionForestImpl(
 }
 
 private fun MaterializeSelectionForest.occurrences(): List<MaterializeSelection> = (this as MaterializeSelectionForestImpl).occurrences()
+
+/** Whether binding an occurrence can change any key or guard in this immutable forest. */
+internal fun MaterializeSelectionForest.containsVariables(): Boolean = (this as MaterializeSelectionForestImpl).containsVariables
+
+/** A reusable layout must still evaluate any runtime guards before concrete-type collection. */
+internal fun MaterializeSelectionForest.isUnconditional(): Boolean = (this as MaterializeSelectionForestImpl).isUnconditional
 
 /**
  * Conservatively exposes a directive only when every collected source occurrence exposes it.

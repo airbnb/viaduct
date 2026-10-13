@@ -1,0 +1,6 @@
+LOCAL_AGENT_STARTED
+LOCAL_TRANSFORM viaduct/engine/runtime2/model/MaterializeSelectionForestImpl
+WORK_COUNT materialize width=16 prefixCopies=120 fieldKeyReads=0 awaitRegistrations=0 completionSends=0
+WORK_COUNT materialize width=32 prefixCopies=496 fieldKeyReads=0 awaitRegistrations=0 completionSends=0
+WORK_COUNT materialize width=64 prefixCopies=2016 fieldKeyReads=0 awaitRegistrations=0 completionSends=0
+WORK_COUNT materialize width=128 prefixCopies=8128 fieldKeyReads=0 awaitRegistrations=0 completionSends=0

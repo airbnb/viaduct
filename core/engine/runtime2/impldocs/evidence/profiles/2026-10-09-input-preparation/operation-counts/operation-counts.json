@@ -1,0 +1,218 @@
+[
+  {
+    "variant": "baseline",
+    "probe": "materialize",
+    "width": 16,
+    "prefixCopies": 120,
+    "fieldKeyReads": 0,
+    "awaitRegistrations": 0,
+    "completionSends": 0
+  },
+  {
+    "variant": "baseline",
+    "probe": "materialize",
+    "width": 32,
+    "prefixCopies": 496,
+    "fieldKeyReads": 0,
+    "awaitRegistrations": 0,
+    "completionSends": 0
+  },
+  {
+    "variant": "baseline",
+    "probe": "materialize",
+    "width": 64,
+    "prefixCopies": 2016,
+    "fieldKeyReads": 0,
+    "awaitRegistrations": 0,
+    "completionSends": 0
+  },
+  {
+    "variant": "baseline",
+    "probe": "materialize",
+    "width": 128,
+    "prefixCopies": 8128,
+    "fieldKeyReads": 0,
+    "awaitRegistrations": 0,
+    "completionSends": 0
+  },
+  {
+    "variant": "baseline",
+    "probe": "passive",
+    "width": 16,
+    "prefixCopies": 0,
+    "fieldKeyReads": 288,
+    "awaitRegistrations": 0,
+    "completionSends": 0
+  },
+  {
+    "variant": "baseline",
+    "probe": "activation",
+    "width": 16,
+    "prefixCopies": 0,
+    "fieldKeyReads": 0,
+    "awaitRegistrations": 136,
+    "completionSends": 0
+  },
+  {
+    "variant": "baseline",
+    "probe": "passive",
+    "width": 32,
+    "prefixCopies": 0,
+    "fieldKeyReads": 1088,
+    "awaitRegistrations": 0,
+    "completionSends": 0
+  },
+  {
+    "variant": "baseline",
+    "probe": "activation",
+    "width": 32,
+    "prefixCopies": 0,
+    "fieldKeyReads": 0,
+    "awaitRegistrations": 528,
+    "completionSends": 0
+  },
+  {
+    "variant": "baseline",
+    "probe": "passive",
+    "width": 64,
+    "prefixCopies": 0,
+    "fieldKeyReads": 4224,
+    "awaitRegistrations": 0,
+    "completionSends": 0
+  },
+  {
+    "variant": "baseline",
+    "probe": "activation",
+    "width": 64,
+    "prefixCopies": 0,
+    "fieldKeyReads": 0,
+    "awaitRegistrations": 2080,
+    "completionSends": 0
+  },
+  {
+    "variant": "baseline",
+    "probe": "passive",
+    "width": 128,
+    "prefixCopies": 0,
+    "fieldKeyReads": 16640,
+    "awaitRegistrations": 0,
+    "completionSends": 0
+  },
+  {
+    "variant": "baseline",
+    "probe": "activation",
+    "width": 128,
+    "prefixCopies": 0,
+    "fieldKeyReads": 0,
+    "awaitRegistrations": 8256,
+    "completionSends": 0
+  },
+  {
+    "variant": "candidate",
+    "probe": "materialize",
+    "width": 16,
+    "prefixCopies": 0,
+    "fieldKeyReads": 0,
+    "awaitRegistrations": 0,
+    "completionSends": 0
+  },
+  {
+    "variant": "candidate",
+    "probe": "materialize",
+    "width": 32,
+    "prefixCopies": 0,
+    "fieldKeyReads": 0,
+    "awaitRegistrations": 0,
+    "completionSends": 0
+  },
+  {
+    "variant": "candidate",
+    "probe": "materialize",
+    "width": 64,
+    "prefixCopies": 0,
+    "fieldKeyReads": 0,
+    "awaitRegistrations": 0,
+    "completionSends": 0
+  },
+  {
+    "variant": "candidate",
+    "probe": "materialize",
+    "width": 128,
+    "prefixCopies": 0,
+    "fieldKeyReads": 0,
+    "awaitRegistrations": 0,
+    "completionSends": 0
+  },
+  {
+    "variant": "candidate",
+    "probe": "passive",
+    "width": 16,
+    "prefixCopies": 0,
+    "fieldKeyReads": 48,
+    "awaitRegistrations": 0,
+    "completionSends": 0
+  },
+  {
+    "variant": "candidate",
+    "probe": "activation",
+    "width": 16,
+    "prefixCopies": 0,
+    "fieldKeyReads": 0,
+    "awaitRegistrations": 0,
+    "completionSends": 16
+  },
+  {
+    "variant": "candidate",
+    "probe": "passive",
+    "width": 32,
+    "prefixCopies": 0,
+    "fieldKeyReads": 96,
+    "awaitRegistrations": 0,
+    "completionSends": 0
+  },
+  {
+    "variant": "candidate",
+    "probe": "activation",
+    "width": 32,
+    "prefixCopies": 0,
+    "fieldKeyReads": 0,
+    "awaitRegistrations": 0,
+    "completionSends": 32
+  },
+  {
+    "variant": "candidate",
+    "probe": "passive",
+    "width": 64,
+    "prefixCopies": 0,
+    "fieldKeyReads": 192,
+    "awaitRegistrations": 0,
+    "completionSends": 0
+  },
+  {
+    "variant": "candidate",
+    "probe": "activation",
+    "width": 64,
+    "prefixCopies": 0,
+    "fieldKeyReads": 0,
+    "awaitRegistrations": 0,
+    "completionSends": 64
+  },
+  {
+    "variant": "candidate",
+    "probe": "passive",
+    "width": 128,
+    "prefixCopies": 0,
+    "fieldKeyReads": 384,
+    "awaitRegistrations": 0,
+    "completionSends": 0
+  },
+  {
+    "variant": "candidate",
+    "probe": "activation",
+    "width": 128,
+    "prefixCopies": 0,
+    "fieldKeyReads": 0,
+    "awaitRegistrations": 0,
+    "completionSends": 128
+  }
+]

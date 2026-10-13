@@ -1,0 +1,104 @@
+[
+  {
+    "eventThread": {
+      "osName": "viaduct.engine.runtime2.resolution.ResolverBenchmark.overhead-jmh-worker-1",
+      "osThreadId": 26710,
+      "javaName": "viaduct.engine.runtime2.resolution.ResolverBenchmark.overhead-jmh-worker-1",
+      "javaThreadId": 36,
+      "group": {
+        "parent": {
+          "parent": null,
+          "name": "system"
+        },
+        "name": "main"
+      },
+      "virtual": false
+    },
+    "weight": 1639391144,
+    "startTime": "2026-10-09T04:00:25.726906020Z"
+  },
+  {
+    "eventThread": {
+      "osName": "resolution-1-1",
+      "osThreadId": 26775,
+      "javaName": "resolution-1-1",
+      "javaThreadId": 90,
+      "group": {
+        "parent": {
+          "parent": null,
+          "name": "system"
+        },
+        "name": "main"
+      },
+      "virtual": false
+    },
+    "weight": 167840791928,
+    "startTime": "2026-10-09T04:00:25.752526924Z"
+  },
+  {
+    "eventThread": {
+      "osName": "Reference Handler",
+      "osThreadId": 26697,
+      "javaName": "Reference Handler",
+      "javaThreadId": 9,
+      "group": {
+        "parent": null,
+        "name": "system"
+      },
+      "virtual": false
+    },
+    "weight": 392,
+    "startTime": "2026-10-09T04:00:27.142262987Z"
+  },
+  {
+    "eventThread": {
+      "osName": "Common-Cleaner",
+      "osThreadId": 26705,
+      "javaName": "Common-Cleaner",
+      "javaThreadId": 32,
+      "group": {
+        "parent": {
+          "parent": null,
+          "name": "system"
+        },
+        "name": "InnocuousThreadGroup"
+      },
+      "virtual": false
+    },
+    "weight": 1424,
+    "startTime": "2026-10-09T04:00:27.142297829Z"
+  },
+  {
+    "eventThread": {
+      "osName": "JFR Periodic Tasks",
+      "osThreadId": 27687,
+      "javaName": "JFR Periodic Tasks",
+      "javaThreadId": 93,
+      "group": {
+        "parent": {
+          "parent": null,
+          "name": "system"
+        },
+        "name": "main"
+      },
+      "virtual": false
+    },
+    "weight": 22184,
+    "startTime": "2026-10-09T04:00:27.690776489Z"
+  },
+  {
+    "eventThread": {
+      "osName": "C1 CompilerThread0",
+      "osThreadId": 26703,
+      "javaName": "C1 CompilerThread0",
+      "javaThreadId": 26,
+      "group": {
+        "parent": null,
+        "name": "system"
+      },
+      "virtual": false
+    },
+    "weight": 5640,
+    "startTime": "2026-10-09T04:00:38.723243264Z"
+  }
+]

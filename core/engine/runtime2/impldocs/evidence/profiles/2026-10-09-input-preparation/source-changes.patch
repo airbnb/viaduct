@@ -1,0 +1,595 @@
+diff --git a/projects/viaduct/oss/core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/bootstrap/ResolverRegistryImpl.kt b/projects/viaduct/oss/core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/bootstrap/ResolverRegistryImpl.kt
+index 184e4d5702a33..2d496e860252f 100644
+--- a/projects/viaduct/oss/core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/bootstrap/ResolverRegistryImpl.kt
++++ b/projects/viaduct/oss/core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/bootstrap/ResolverRegistryImpl.kt
+@@ -24,0 +25,2 @@ import viaduct.engine.runtime2.model.registry.BranchOrderValidator
++import viaduct.engine.runtime2.model.registry.EmptyResolverInputCache
++import viaduct.engine.runtime2.model.registry.EmptyResolverInputCacheOwner
+@@ -396 +398,2 @@ private class ResolverRegistryImpl(
+-) : ResolverRegistry, FixedSuccessorDemandCacheOwner {
++) : ResolverRegistry, FixedSuccessorDemandCacheOwner, EmptyResolverInputCacheOwner {
++    override val emptyResolverInputCache = EmptyResolverInputCache()
+diff --git a/projects/viaduct/oss/core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/MaterializeSelection.kt b/projects/viaduct/oss/core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/MaterializeSelection.kt
+index b5b3beddfa0d4..bf736d23aa1bc 100644
+--- a/projects/viaduct/oss/core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/MaterializeSelection.kt
++++ b/projects/viaduct/oss/core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/MaterializeSelection.kt
+@@ -2,0 +3 @@ package viaduct.engine.runtime2.model
++import java.util.concurrent.ConcurrentHashMap
+@@ -194,2 +195,3 @@ fun SelectionForest.toCanonicalMaterializeSelectionForest(): MaterializeSelectio
+-fun MaterializeSelectionForest.guardedBy(condition: InclusionCondition): MaterializeSelectionForest =
+-    flatMap { selection ->
++fun MaterializeSelectionForest.guardedBy(condition: InclusionCondition): MaterializeSelectionForest {
++    if (condition === InclusionCondition.Always) return this
++    return flatMap { selection ->
+@@ -206,0 +209 @@ fun MaterializeSelectionForest.guardedBy(condition: InclusionCondition): Materia
++}
+@@ -226,0 +230,17 @@ private class MaterializeSelectionForestImpl(
++    @Volatile
++    private var unconditional: Boolean? = null
++
++    @Volatile
++    private var layouts: ConcurrentHashMap<ViaductSchema.Object, ObjectMaterializeSelectionForest>? = null
++
++    val isUnconditional: Boolean
++        get() = unconditional ?: selections.all { it.inclusionCondition === InclusionCondition.Always }.also { unconditional = it }
++
++    val containsVariables: Boolean by lazy(LazyThreadSafetyMode.PUBLICATION) {
++        selections.any { selection ->
++            selection.key.arguments.usedVariables().isNotEmpty() ||
++                selection.inclusionCondition.usedVariables().isNotEmpty() ||
++                selection.subselections.containsVariables()
++        }
++    }
++
+@@ -257,0 +278,10 @@ private class MaterializeSelectionForestImpl(
++        // Layouts retain immutable keys and child forests, never materialized values or fetched bindings.
++        // Conditional forests are filtered per input and do not benefit from retaining a cache.
++        if (!isUnconditional) return collectUncached(type)
++        val cache = layouts ?: synchronized(this) {
++            layouts ?: ConcurrentHashMap<ViaductSchema.Object, ObjectMaterializeSelectionForest>().also { layouts = it }
++        }
++        return cache.computeIfAbsent(type, ::collectUncached)
++    }
++
++    private fun collectUncached(type: ViaductSchema.Object): ObjectMaterializeSelectionForest {
+@@ -278,0 +309,4 @@ private class MaterializeSelectionForestImpl(
++                if (members.size == 1) {
++                    val (_, subselections, directives) = members.single()
++                    return@mapValues ObjectMaterializeSelectionImpl(responseKey, key, directives, subselections)
++                }
+@@ -321,0 +356,6 @@ private fun MaterializeSelectionForest.occurrences(): List<MaterializeSelection>
++/** Whether binding an occurrence can change any key or guard in this immutable forest. */
++internal fun MaterializeSelectionForest.containsVariables(): Boolean = (this as MaterializeSelectionForestImpl).containsVariables
++
++/** A reusable layout must still evaluate any runtime guards before concrete-type collection. */
++internal fun MaterializeSelectionForest.isUnconditional(): Boolean = (this as MaterializeSelectionForestImpl).isUnconditional
++
+diff --git a/projects/viaduct/oss/core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/registry/CheckerResolverBase.kt b/projects/viaduct/oss/core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/registry/CheckerResolverBase.kt
+index 5fea794f2393a..224fe27347819 100644
+--- a/projects/viaduct/oss/core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/registry/CheckerResolverBase.kt
++++ b/projects/viaduct/oss/core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/registry/CheckerResolverBase.kt
+@@ -71,0 +72,11 @@ abstract class CheckerResolverBase<out T : ResolverTarget> internal constructor(
++    private val loweredNamedTemplates =
++        this.fragmentTemplates.mapValues { (name, templates) -> templates.lowerForResolution(name) }
++
++    private val providerVariableNames =
++        this.fragmentTemplates.mapValues { (_, templates) ->
++            templates.variables
++                .filterValues { it == VariableDefinition.FromProvider }
++                .keys
++                .mapTo(linkedSetOf()) { it.variableName }
++        }
++
+@@ -73 +84 @@ abstract class CheckerResolverBase<out T : ResolverTarget> internal constructor(
+-        this.fragmentTemplates.lowerForResolution(ProviderFragment.OBJECT)
++        loweredNamedTemplates.combineForResolution(ProviderFragment.OBJECT)
+@@ -76 +87 @@ abstract class CheckerResolverBase<out T : ResolverTarget> internal constructor(
+-        this.fragmentTemplates.lowerForResolution(ProviderFragment.QUERY)
++        loweredNamedTemplates.combineForResolution(ProviderFragment.QUERY)
+@@ -119 +130 @@ abstract class CheckerResolverBase<out T : ResolverTarget> internal constructor(
+-        fragmentTemplates.mapValues { (name, templates) ->
++        loweredNamedTemplates.mapValues { (_, templates) ->
+@@ -121 +131,0 @@ abstract class CheckerResolverBase<out T : ResolverTarget> internal constructor(
+-                .lowerForResolution(name)
+@@ -128 +138 @@ abstract class CheckerResolverBase<out T : ResolverTarget> internal constructor(
+-        fragmentTemplates.mapValues { (name, templates) ->
++        loweredNamedTemplates.mapValues { (_, templates) ->
+@@ -130 +139,0 @@ abstract class CheckerResolverBase<out T : ResolverTarget> internal constructor(
+-                .lowerForResolution(name)
+@@ -140,5 +149 @@ abstract class CheckerResolverBase<out T : ResolverTarget> internal constructor(
+-                val expected =
+-                    templates.variables
+-                        .filterValues { it == VariableDefinition.FromProvider }
+-                        .keys
+-                        .mapTo(linkedSetOf()) { it.variableName }
++                val expected = providerVariableNames.getValue(name)
+@@ -163 +168 @@ private class LoweredCheckerFragment(
+-private fun Map<String, ResolverFragmentTemplates>.lowerForResolution(fragmentRoot: ProviderFragment): LoweredCheckerFragment {
++private fun Map<String, ResolverFragmentTemplates>.combineForResolution(fragmentRoot: ProviderFragment): LoweredCheckerFragment {
+@@ -168,2 +173 @@ private fun Map<String, ResolverFragmentTemplates>.lowerForResolution(fragmentRo
+-    forEach { (name, templates) ->
+-        val lowered = templates.lowerForResolution(name)
++    forEach { (_, lowered) ->
+diff --git a/projects/viaduct/oss/core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/registry/EmptyResolverInputCache.kt b/projects/viaduct/oss/core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/registry/EmptyResolverInputCache.kt
+new file mode 100644
+index 0000000000000..f886ae1215fd3
+--- /dev/null
++++ b/projects/viaduct/oss/core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/registry/EmptyResolverInputCache.kt
+@@ -0,0 +1,21 @@
++package viaduct.engine.runtime2.model.registry
++
++import java.util.concurrent.ConcurrentHashMap
++import viaduct.engine.api.EngineObjectData
++import viaduct.engine.runtime2.model.engineObjectDataOf
++import viaduct.graphql.schema.ViaductSchema
++
++/** A prepared registry owns only immutable, typed empty inputs, with no operation state. */
++internal interface EmptyResolverInputCacheOwner {
++    val emptyResolverInputCache: EmptyResolverInputCache
++}
++
++internal class EmptyResolverInputCache {
++    private val inputs = ConcurrentHashMap<ViaductSchema.Object, EngineObjectData.Sync>()
++
++    fun get(type: ViaductSchema.Object): EngineObjectData.Sync = inputs.computeIfAbsent(type) { engineObjectDataOf(it) }
++}
++
++/** Decorated or external registries use the ordinary empty-object factory. */
++internal fun ResolverRegistry.emptyResolverInput(type: ViaductSchema.Object): EngineObjectData.Sync =
++    (this as? EmptyResolverInputCacheOwner)?.emptyResolverInputCache?.get(type) ?: engineObjectDataOf(type)
+diff --git a/projects/viaduct/oss/core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/registry/ResolverSupport.kt b/projects/viaduct/oss/core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/registry/ResolverSupport.kt
+index f2f70d14d8351..da8ff7ab017e1 100644
+--- a/projects/viaduct/oss/core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/registry/ResolverSupport.kt
++++ b/projects/viaduct/oss/core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/registry/ResolverSupport.kt
+@@ -10,0 +11 @@ import viaduct.engine.runtime2.model.SelectionForest
++import viaduct.engine.runtime2.model.containsVariables
+@@ -142,2 +143,3 @@ private fun SelectionForest.instantiateVariables(resolverOccurrenceId: ResolverO
+-internal fun MaterializeSelectionForest.instantiateVariables(resolverOccurrenceId: ResolverOccurrenceId): MaterializeSelectionForest =
+-    flatMap { selection ->
++internal fun MaterializeSelectionForest.instantiateVariables(resolverOccurrenceId: ResolverOccurrenceId): MaterializeSelectionForest {
++    if (!containsVariables()) return this
++    return flatMap { selection ->
+@@ -168,0 +171 @@ internal fun MaterializeSelectionForest.instantiateVariables(resolverOccurrenceI
++}
+diff --git a/projects/viaduct/oss/core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/FieldResolutionLogic.kt b/projects/viaduct/oss/core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/FieldResolutionLogic.kt
+index 66c508333f1db..58b10df3f625d 100644
+--- a/projects/viaduct/oss/core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/FieldResolutionLogic.kt
++++ b/projects/viaduct/oss/core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/FieldResolutionLogic.kt
+@@ -10,0 +11 @@ import viaduct.engine.runtime2.model.ErrorEngineResult
++import viaduct.engine.runtime2.model.MaterializeSelectionForest
+@@ -286 +286,0 @@ internal class FieldResolutionLogic(
+-        val queryValue = materializeQueryFragment(fieldResolverOccurrence)
+@@ -291 +291,2 @@ internal class FieldResolutionLogic(
+-                ).guardedBy(fieldResolverOccurrence.selection.inclusionCondition)
++                )
++        val queryValue = materializeQueryFragment(fieldResolverOccurrence, queryMaterializationSelections)
+@@ -299 +300 @@ internal class FieldResolutionLogic(
+-                queryInputSelections = queryMaterializationSelections,
++                queryInputSelections = queryMaterializationSelections.guardedBy(fieldResolverOccurrence.selection.inclusionCondition),
+@@ -316 +317,4 @@ internal class FieldResolutionLogic(
+-    private suspend fun materializeQueryFragment(fieldResolverOccurrence: FieldResolverOccurrence): EngineObjectData.Sync {
++    private suspend fun materializeQueryFragment(
++        fieldResolverOccurrence: FieldResolverOccurrence,
++        materializationSelections: MaterializeSelectionForest,
++    ): EngineObjectData.Sync {
+@@ -324,5 +327,0 @@ internal class FieldResolutionLogic(
+-        val materializationSelections =
+-            fieldResolverOccurrence.resolver
+-                .instantiateQueryMaterializationSelections(
+-                    queryFragment.resolverOccurrenceId,
+-                )
+diff --git a/projects/viaduct/oss/core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/InclusionConditionActivation.kt b/projects/viaduct/oss/core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/InclusionConditionActivation.kt
+index adc5bac8f3518..2e4c35bec79aa 100644
+--- a/projects/viaduct/oss/core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/InclusionConditionActivation.kt
++++ b/projects/viaduct/oss/core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/InclusionConditionActivation.kt
+@@ -5,0 +6 @@ import kotlinx.coroutines.async
++import kotlinx.coroutines.channels.Channel
+@@ -8 +8,0 @@ import kotlinx.coroutines.ensureActive
+-import kotlinx.coroutines.selects.select
+@@ -30,0 +31,6 @@ private class EvaluationNode(
++private class EvaluationCompletion(
++    val node: EvaluationNode,
++    val result: Result<Boolean>,
++    val fatal: Throwable? = null,
++)
++
+@@ -31,0 +38 @@ private class EvaluationNode(
++@Suppress("TooGenericExceptionCaught") // Fatal children must signal the receiver before rethrowing.
+@@ -33,0 +41,3 @@ internal suspend fun InclusionCondition.includeAnyReadyAlternative(binding: susp
++        val prunedCondition = this@includeAnyReadyAlternative.pruneContradictions()
++        if (prunedCondition === InclusionCondition.Always) return@supervisorScope true
++        if (prunedCondition === InclusionCondition.Never) return@supervisorScope false
+@@ -36 +46,3 @@ internal suspend fun InclusionCondition.includeAnyReadyAlternative(binding: susp
+-        val evaluations = linkedMapOf<Deferred<Result<Boolean>>, EvaluationNode>()
++        val evaluations = linkedMapOf<EvaluationNode, Deferred<Unit>>()
++        // Each leaf contributes at most one signal. Waiting never re-registers the other leaves.
++        val completions = Channel<EvaluationCompletion>(Channel.UNLIMITED)
+@@ -86,5 +98,5 @@ internal suspend fun InclusionCondition.includeAnyReadyAlternative(binding: susp
+-                            async {
+-                                try {
+-                                    Result.success(condition.include(binding))
+-                                } catch (cause: Exception) {
+-                                    Result.failure(cause)
++                            async<Unit> {
++                                val completion = try {
++                                    EvaluationCompletion(node, Result.success(condition.include(binding)))
++                                } catch (cause: Throwable) {
++                                    EvaluationCompletion(node, Result.failure(cause), cause.takeUnless { it is Exception })
+@@ -91,0 +104,2 @@ internal suspend fun InclusionCondition.includeAnyReadyAlternative(binding: susp
++                                completions.send(completion)
++                                completion.fatal?.let { throw it }
+@@ -93 +107 @@ internal suspend fun InclusionCondition.includeAnyReadyAlternative(binding: susp
+-                        evaluations[evaluation] = node
++                        evaluations[node] = evaluation
+@@ -135,2 +149,2 @@ internal suspend fun InclusionCondition.includeAnyReadyAlternative(binding: susp
+-            evaluations.keys.forEach { it.cancel() }
+-            evaluations.keys.forEach { task ->
++            evaluations.values.forEach { it.cancel() }
++            evaluations.values.forEach { task ->
+@@ -145 +159 @@ internal suspend fun InclusionCondition.includeAnyReadyAlternative(binding: susp
+-        val root = build(this@includeAnyReadyAlternative.pruneContradictions())
++        val root = build(prunedCondition)
+@@ -152,7 +166,5 @@ internal suspend fun InclusionCondition.includeAnyReadyAlternative(binding: susp
+-                val (task, node, result) =
+-                    select<Triple<Deferred<Result<Boolean>>, EvaluationNode, Result<Boolean>>> {
+-                        evaluations.forEach { (task, node) ->
+-                            task.onAwait { result -> Triple(task, node, result) }
+-                        }
+-                    }
+-                evaluations.remove(task)
++                val completion = completions.receive()
++                completion.fatal?.let { throw it }
++                val node = completion.node
++                val result = completion.result
++                evaluations.remove(node)
+diff --git a/projects/viaduct/oss/core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/MaterializeResolverInput.kt b/projects/viaduct/oss/core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/MaterializeResolverInput.kt
+index ecf1b5f2cc509..14c8b68ba8b5e 100644
+--- a/projects/viaduct/oss/core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/MaterializeResolverInput.kt
++++ b/projects/viaduct/oss/core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/MaterializeResolverInput.kt
+@@ -15 +14,0 @@ import viaduct.engine.runtime2.model.PathComponent
+-import viaduct.engine.runtime2.model.materializeSelectionForestOf
+@@ -17,0 +17 @@ import viaduct.engine.runtime2.model.outputType
++import viaduct.engine.runtime2.model.registry.emptyResolverInput
+@@ -76,3 +76,5 @@ private class ResolverInputMaterializationLogic(
+-        val selectedValues =
+-            linkedMapOf<String, Pair<ViaductSchema.ObjectField, EngineOutputData?>>()
+-        selections.fetchIncluded().collect(type).byResponseKey().forEach { (responseKey, selection) ->
++        if (selections.isEmpty()) return operation.world.resolverRegistry.emptyResolverInput(type)
++        val collected = selections.fetchIncluded(operation).collect(type)
++        if (collected.isEmpty()) return operation.world.resolverRegistry.emptyResolverInput(type)
++        val selectedValues = ArrayList<EngineObjectDataEntry>(collected.size)
++        collected.byResponseKey().forEach { (responseKey, selection) ->
+@@ -99 +101 @@ private class ResolverInputMaterializationLogic(
+-            selectedValues[responseKey] = storedKey.field to selectedValue
++            selectedValues.add(EngineObjectDataEntry.of(responseKey, storedKey.field, selectedValue))
+@@ -103,4 +105 @@ private class ResolverInputMaterializationLogic(
+-            fields =
+-                selectedValues.map { (key, fieldAndValue) ->
+-                    EngineObjectDataEntry.of(key, fieldAndValue.first, fieldAndValue.second)
+-                },
++            fields = selectedValues,
+@@ -110,12 +108,0 @@ private class ResolverInputMaterializationLogic(
+-    private suspend fun MaterializeSelectionForest.fetchIncluded(): MaterializeSelectionForest {
+-        var included = materializeSelectionForestOf()
+-        val selections = mutableListOf<viaduct.engine.runtime2.model.MaterializeSelection>()
+-        forEach(selections::add)
+-        for (selection in selections) {
+-            if (selection.inclusionCondition.fetchIncluded(operation)) {
+-                included += materializeSelectionForestOf(selection)
+-            }
+-        }
+-        return included
+-    }
+-
+@@ -124 +111 @@ private class ResolverInputMaterializationLogic(
+-        key.fetchGroundedArguments(operation)
++        if (key !is ObjectEngineResult.GroundKey) key.fetchGroundedArguments(operation)
+diff --git a/projects/viaduct/oss/core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/framework/InclusionCondition.kt b/projects/viaduct/oss/core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/framework/InclusionCondition.kt
+index ed29d351a0ac1..5a4ec5d7d80ea 100644
+--- a/projects/viaduct/oss/core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/framework/InclusionCondition.kt
++++ b/projects/viaduct/oss/core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/framework/InclusionCondition.kt
+@@ -3,0 +4,2 @@ import viaduct.engine.runtime2.model.InclusionCondition
++import viaduct.engine.runtime2.model.MaterializeSelection
++import viaduct.engine.runtime2.model.MaterializeSelectionForest
+@@ -4,0 +7,2 @@ import viaduct.engine.runtime2.model.VariableBinding
++import viaduct.engine.runtime2.model.isUnconditional
++import viaduct.engine.runtime2.model.toMaterializeSelectionForest
+@@ -21,0 +26,12 @@ internal suspend fun InclusionCondition.fetchIncluded(operation: SharedOperation
++/** Preserves unconditional forests and accumulates conditional occurrences without prefix copies. */
++internal suspend fun MaterializeSelectionForest.fetchIncluded(operation: SharedOperationContext<*>): MaterializeSelectionForest {
++    if (isUnconditional()) return this
++    val selections = ArrayList<MaterializeSelection>(size)
++    forEach(selections::add)
++    val included = ArrayList<MaterializeSelection>(size)
++    for (selection in selections) {
++        if (selection.inclusionCondition.fetchIncluded(operation)) included.add(selection)
++    }
++    return included.toMaterializeSelectionForest()
++}
++
+diff --git a/projects/viaduct/oss/core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/framework/MaterializeResult.kt b/projects/viaduct/oss/core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/framework/MaterializeResult.kt
+index 2e1888108d6d1..7abe66e5a4e73 100644
+--- a/projects/viaduct/oss/core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/framework/MaterializeResult.kt
++++ b/projects/viaduct/oss/core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/framework/MaterializeResult.kt
+@@ -14 +13,0 @@ import viaduct.engine.runtime2.model.ListEngineResult
+-import viaduct.engine.runtime2.model.MaterializeSelection
+@@ -21 +19,0 @@ import viaduct.engine.runtime2.model.materializeCheckedValue
+-import viaduct.engine.runtime2.model.materializeSelectionForestOf
+@@ -23,0 +22 @@ import viaduct.engine.runtime2.model.outputType
++import viaduct.engine.runtime2.model.registry.emptyResolverInput
+@@ -84,3 +83,5 @@ private class MaterializationLogic(
+-        val selectedValues =
+-            linkedMapOf<String, Pair<ViaductSchema.ObjectField, EngineOutputData?>>()
+-        selections.fetchIncluded().collect(type).byResponseKey().forEach { (responseKey, selection) ->
++        if (selections.isEmpty()) return operation.world.resolverRegistry.emptyResolverInput(type)
++        val collected = selections.fetchIncluded(operation).collect(type)
++        if (collected.isEmpty()) return operation.world.resolverRegistry.emptyResolverInput(type)
++        val selectedValues = ArrayList<EngineObjectDataEntry>(collected.size)
++        collected.byResponseKey().forEach { (responseKey, selection) ->
+@@ -113 +114 @@ private class MaterializationLogic(
+-            selectedValues[responseKey] = storedKey.field to selectedValue
++            selectedValues.add(EngineObjectDataEntry.of(responseKey, storedKey.field, selectedValue))
+@@ -117,4 +118 @@ private class MaterializationLogic(
+-            fields =
+-                selectedValues.map { (key, fieldAndValue) ->
+-                    EngineObjectDataEntry.of(key, fieldAndValue.first, fieldAndValue.second)
+-                },
++            fields = selectedValues,
+@@ -124,12 +121,0 @@ private class MaterializationLogic(
+-    private suspend fun MaterializeSelectionForest.fetchIncluded(): MaterializeSelectionForest {
+-        var included = materializeSelectionForestOf()
+-        val selections = mutableListOf<MaterializeSelection>()
+-        forEach(selections::add)
+-        for (selection in selections) {
+-            if (selection.inclusionCondition.fetchIncluded(operation)) {
+-                included += materializeSelectionForestOf(selection)
+-            }
+-        }
+-        return included
+-    }
+-
+@@ -137 +123 @@ private class MaterializationLogic(
+-        key.fetchGroundedArguments(operation)
++        if (key !is ObjectEngineResult.GroundKey) key.fetchGroundedArguments(operation)
+diff --git a/projects/viaduct/oss/core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/framework/SharedPassiveValueResolutionLogic.kt b/projects/viaduct/oss/core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/framework/SharedPassiveValueResolutionLogic.kt
+index 019d173a76256..14142c69cca1d 100644
+--- a/projects/viaduct/oss/core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/framework/SharedPassiveValueResolutionLogic.kt
++++ b/projects/viaduct/oss/core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/framework/SharedPassiveValueResolutionLogic.kt
+@@ -242,0 +243 @@ internal abstract class SharedPassiveValueResolutionLogic<
++        val passiveKeysByField = passiveByKey.keys.groupBy { it.field }
+@@ -263,5 +264,2 @@ internal abstract class SharedPassiveValueResolutionLogic<
+-            val demandedKeys = passiveByKey.keys.filterTo(linkedSetOf()) { it.field == field }
+-            if (demandedKeys.isEmpty()) {
+-                if (containsReference) return@forEach
+-                demandedKeys += ObjectEngineResult.GroundKey.of(field, emptyMap())
+-            }
++            val demandedKeys = passiveKeysByField[field]
++                ?: if (containsReference) return@forEach else listOf(ObjectEngineResult.GroundKey.of(field, emptyMap()))
+diff --git a/projects/viaduct/oss/core/engine/runtime2/src/test/kotlin/viaduct/engine/runtime2/MaterializeResolverInputTest.kt b/projects/viaduct/oss/core/engine/runtime2/src/test/kotlin/viaduct/engine/runtime2/MaterializeResolverInputTest.kt
+index 9ad3977d97a2f..ccb697091f477 100644
+--- a/projects/viaduct/oss/core/engine/runtime2/src/test/kotlin/viaduct/engine/runtime2/MaterializeResolverInputTest.kt
++++ b/projects/viaduct/oss/core/engine/runtime2/src/test/kotlin/viaduct/engine/runtime2/MaterializeResolverInputTest.kt
+@@ -36,0 +37,22 @@ class MaterializeResolverInputTest {
++    @Test
++    fun `sharing a layout never shares operation values`() =
++        runBlocking {
++            val fixture = TestWorld.fromSDL("type Query { value: Int }")
++            val type = fixture.schema.requireQueryTypeDef()
++            val key = ObjectEngineResult.GroundKey.of(fixture.schema.requireObjectField("Query", "value"), emptyMap())
++            val selections = fixture.schemas.fragmentFrom("fragment Input on Query { alias: value }").materializeSelections
++            for (value in listOf(1, 2)) {
++                val result = ObjectEngineResult.of(type, values = mapOf(key to value))
++                val input = result.materializeResolutionInput(
++                    operation = SharedOperationContext.create(fixture.assumptions),
++                    cycleChecker = CycleCheckState.createNOP(),
++                    selections = selections,
++                    reader = result.fieldResolverCycleTask(emptyList()),
++                    resultPath = emptyList(),
++                    checked = false,
++                )
++                assertEquals(value, input.get("alias"))
++                assertFalse(input.isPresent("value"))
++            }
++        }
++
+diff --git a/projects/viaduct/oss/core/engine/runtime2/src/test/kotlin/viaduct/engine/runtime2/model/MaterializeSelectionLayoutTest.kt b/projects/viaduct/oss/core/engine/runtime2/src/test/kotlin/viaduct/engine/runtime2/model/MaterializeSelectionLayoutTest.kt
+new file mode 100644
+index 0000000000000..dbef8300a8fc0
+--- /dev/null
++++ b/projects/viaduct/oss/core/engine/runtime2/src/test/kotlin/viaduct/engine/runtime2/model/MaterializeSelectionLayoutTest.kt
+@@ -0,0 +1,27 @@
++package viaduct.engine.runtime2.model
++
++import kotlin.test.Test
++import kotlin.test.assertEquals
++import kotlin.test.assertNotSame
++import kotlin.test.assertSame
++import viaduct.engine.runtime2.model.testing.TestWorld
++import viaduct.engine.runtime2.model.testing.fragmentFrom
++import viaduct.graphql.schema.ViaductSchema
++
++class MaterializeSelectionLayoutTest {
++    @Test
++    fun `reusable layouts keep response aliases and concrete type alternatives`() {
++        val fixture = TestWorld.fromSDL("type Query { node: Node } interface Node { id: ID } type A implements Node { id: ID a: String } type B implements Node { id: ID b: String }")
++        val source = fixture.schemas.fragmentFrom("fragment Input on Node { ... on A { result: a } ... on B { result: b } }").materializeSelections
++        val a = fixture.schema.requireType("A") as ViaductSchema.Object
++        val b = fixture.schema.requireType("B") as ViaductSchema.Object
++        val aLayout = source.collect(a)
++        val bLayout = source.collect(b)
++        assertEquals(setOf("result"), aLayout.responseKeys())
++        assertEquals("a", aLayout["result"].key.field.name)
++        assertEquals("b", bLayout["result"].key.field.name)
++        assertSame(aLayout, source.collect(a))
++        assertSame(bLayout, source.collect(b))
++        assertNotSame(aLayout, bLayout)
++    }
++}
+diff --git a/projects/viaduct/oss/core/engine/runtime2/src/test/kotlin/viaduct/engine/runtime2/model/registry/EmptyResolverInputCacheTest.kt b/projects/viaduct/oss/core/engine/runtime2/src/test/kotlin/viaduct/engine/runtime2/model/registry/EmptyResolverInputCacheTest.kt
+new file mode 100644
+index 0000000000000..ea90d7afac593
+--- /dev/null
++++ b/projects/viaduct/oss/core/engine/runtime2/src/test/kotlin/viaduct/engine/runtime2/model/registry/EmptyResolverInputCacheTest.kt
+@@ -0,0 +1,43 @@
++@file:Suppress("ForbiddenImport")
++
++package viaduct.engine.runtime2.model.registry
++
++import kotlin.test.Test
++import kotlin.test.assertFailsWith
++import kotlin.test.assertFalse
++import kotlin.test.assertNotSame
++import kotlin.test.assertSame
++import viaduct.engine.runtime2.model.requireQueryTypeDef
++import viaduct.engine.runtime2.model.requireType
++import viaduct.engine.runtime2.model.schemaType
++import viaduct.engine.runtime2.model.testing.TestWorld
++import viaduct.errors.UnsetFieldException
++import viaduct.graphql.schema.ViaductSchema
++
++class EmptyResolverInputCacheTest {
++    @Test
++    fun `typed empty inputs retain schema identity and remain absent`() {
++        val fixture = TestWorld.fromSDL("type Query { value: Value } type Value { text: String }")
++        val registry = fixture.assumptions.resolverRegistry
++        val query = fixture.schema.requireQueryTypeDef()
++        val value = fixture.schema.requireType("Value") as ViaductSchema.Object
++        val empty = registry.emptyResolverInput(query)
++        assertSame(empty, registry.emptyResolverInput(query))
++        assertSame(query, empty.schemaType)
++        assertFalse(empty.getSelections().any())
++        assertFailsWith<UnsetFieldException> { empty.get("value") }
++        assertNotSame(empty, registry.emptyResolverInput(value))
++
++        val other = TestWorld.fromSDL("type Query { value: Value } type Value { text: String }")
++        assertNotSame(empty, other.assumptions.resolverRegistry.emptyResolverInput(other.schema.requireQueryTypeDef()))
++    }
++
++    @Test
++    fun `a registry decorator does not inherit the prepared registry cache`() {
++        val fixture = TestWorld.fromSDL("type Query { value: Int }")
++        val original = fixture.assumptions.resolverRegistry
++        val decorator = object : ResolverRegistry by original {}
++        val type = fixture.schema.requireQueryTypeDef()
++        assertNotSame(original.emptyResolverInput(type), decorator.emptyResolverInput(type))
++    }
++}
+diff --git a/projects/viaduct/oss/core/engine/runtime2/src/test/kotlin/viaduct/engine/runtime2/model/registry/MaterializeSelectionInstantiationTest.kt b/projects/viaduct/oss/core/engine/runtime2/src/test/kotlin/viaduct/engine/runtime2/model/registry/MaterializeSelectionInstantiationTest.kt
+new file mode 100644
+index 0000000000000..059ba79d22561
+--- /dev/null
++++ b/projects/viaduct/oss/core/engine/runtime2/src/test/kotlin/viaduct/engine/runtime2/model/registry/MaterializeSelectionInstantiationTest.kt
+@@ -0,0 +1,56 @@
++@file:Suppress("ForbiddenImport")
++
++package viaduct.engine.runtime2.model.registry
++
++import kotlin.test.Test
++import kotlin.test.assertNotEquals
++import kotlin.test.assertSame
++import kotlin.test.assertTrue
++import viaduct.engine.runtime2.model.ObjectEngineResult
++import viaduct.engine.runtime2.model.ResolverOccurrenceId
++import viaduct.engine.runtime2.model.ResolverTarget
++import viaduct.engine.runtime2.model.requireObjectField
++import viaduct.engine.runtime2.model.requireQueryTypeDef
++import viaduct.engine.runtime2.model.testing.TestWorld
++import viaduct.engine.runtime2.model.testing.fragmentFrom
++import viaduct.engine.runtime2.model.usedVariables
++
++class MaterializeSelectionInstantiationTest {
++    private val fixture = TestWorld.fromSDL("type Query { checked: Int child: Child echo(value: Int): Int } type Child { flag: Boolean }")
++    private val schema = fixture.schemas
++    private val target = ResolverTarget.FieldValueResolverTarget(schema.loweredSchema.requireObjectField("Query", "checked"))
++
++    private fun occurrence() = ResolverOccurrenceId.at(ObjectEngineResult.of(schema.loweredSchema.requireQueryTypeDef()), emptyList())
++
++    @Test
++    fun `constant trees are shared across distinct applications`() {
++        val source = schema.fragmentFrom("fragment Input on Query { child { flag } echo(value: 1) }", variableTarget = target).materializeSelections
++        assertSame(source, source.instantiateVariables(occurrence()))
++        assertSame(source, source.instantiateVariables(occurrence()))
++    }
++
++    @Test
++    fun `mixed trees retain static children and distinct occurrence bindings`() {
++        val source = schema.fragmentFrom("fragment Input on Query { child { flag } echo(value: ${'$'}v) }", variableTarget = target).materializeSelections
++        val first = source.instantiateVariables(occurrence())
++        val second = source.instantiateVariables(occurrence())
++        assertSame(source.filter { it.responseKey == "child" }.single().subselections, first.filter { it.responseKey == "child" }.single().subselections)
++        assertNotEquals(first.constructionSelections().usedVariables(), second.constructionSelections().usedVariables())
++        assertTrue(first.constructionSelections().usedVariables().all { it.isInstantiated })
++        val type = schema.loweredSchema.requireQueryTypeDef()
++        val firstLayout = first.collect(type)
++        val secondLayout = second.collect(type)
++        assertSame(firstLayout, first.collect(type))
++        assertSame(secondLayout, second.collect(type))
++        assertNotEquals(firstLayout["echo"].key.arguments, secondLayout["echo"].key.arguments)
++    }
++
++    @Test
++    fun `nested guard variables are instantiated even when arguments are constant`() {
++        val source = schema.fragmentFrom("fragment Input on Query { child { flag @include(if: ${'$'}included) } }", variableTarget = target).materializeSelections
++        val first = source.instantiateVariables(occurrence())
++        val second = source.instantiateVariables(occurrence())
++        assertTrue(first.constructionSelections().usedVariables().all { it.isInstantiated })
++        assertNotEquals(first.constructionSelections().usedVariables(), second.constructionSelections().usedVariables())
++    }
++}
+diff --git a/projects/viaduct/oss/core/engine/runtime2/src/test/kotlin/viaduct/engine/runtime2/resolution/InclusionConditionActivationTest.kt b/projects/viaduct/oss/core/engine/runtime2/src/test/kotlin/viaduct/engine/runtime2/resolution/InclusionConditionActivationTest.kt
+index d0eee673d9d90..ad95987be98c2 100644
+--- a/projects/viaduct/oss/core/engine/runtime2/src/test/kotlin/viaduct/engine/runtime2/resolution/InclusionConditionActivationTest.kt
++++ b/projects/viaduct/oss/core/engine/runtime2/src/test/kotlin/viaduct/engine/runtime2/resolution/InclusionConditionActivationTest.kt
+@@ -14,0 +15 @@ import kotlinx.coroutines.withTimeout
++import kotlinx.coroutines.yield
+@@ -26,0 +28,50 @@ class InclusionConditionActivationTest {
++    @Test
++    fun `fatal binding failures terminate activation`(): Unit =
++        runBlocking {
++            assertFailsWith<AssertionError> {
++                withTimeout(1_000) {
++                    InclusionCondition.requires(mapOf(x to true)).includeAnyReadyAlternative { throw AssertionError("fatal binding") }
++                }
++            }
++        }
++
++    @Test
++    fun `ready true alternative does not mask a completed fatal sibling`(): Unit =
++        runBlocking {
++            val condition = InclusionCondition.requires(mapOf(x to true))
++                .or(InclusionCondition.requires(mapOf(y to true)))
++            assertFailsWith<AssertionError> {
++                withTimeout(1_000) {
++                    condition.includeAnyReadyAlternative { variable ->
++                        if (variable == x) true else throw AssertionError("fatal sibling")
++                    }
++                }
++            }
++        }
++
++    @Test
++    fun `staggered false completions leave no pending activation`() =
++        runBlocking {
++            val gates = List(32) { CompletableDeferred<Boolean>() }
++            val started = CompletableDeferred<Unit>()
++            var reads = 0
++            val condition = InclusionCondition.anyOf(
++                gates.indices.map { index ->
++                    InclusionCondition.requires(mapOf(Arguments.Variable.of(field, "pending$index") to true))
++                }
++            )
++            val result = async {
++                condition.includeAnyReadyAlternative { variable ->
++                    if (++reads == gates.size) started.complete(Unit)
++                    gates[variable.variableName.removePrefix("pending").toInt()].await()
++                }
++            }
++            withTimeout(1_000) { started.await() }
++            for (index in gates.indices.reversed()) {
++                assertFalse(result.isCompleted)
++                gates[index].complete(false)
++                yield()
++            }
++            assertFalse(withTimeout(1_000) { result.await() })
++        }
++

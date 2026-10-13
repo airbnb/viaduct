@@ -1,0 +1,42 @@
+{
+  "baseline_cpu_samples": 3067,
+  "candidate_cpu_samples": 2848,
+  "cpu_components": {
+    "input_projection": {
+      "baseline_percent": 8.444734268014347,
+      "candidate_percent": 7.127808988764045
+    },
+    "materialization_instantiation": {
+      "baseline_percent": 7.825236387349201,
+      "candidate_percent": 1.0884831460674158
+    },
+    "input_projection_or_instantiation": {
+      "baseline_percent": 16.269970655363547,
+      "candidate_percent": 8.21629213483146
+    },
+    "checker_template_lowering": {
+      "baseline_percent": 4.206064558200196,
+      "candidate_percent": 0
+    },
+    "construction_closure": {
+      "baseline_percent": 26.866644929898925,
+      "candidate_percent": 30.161516853932586
+    },
+    "successor_demand": {
+      "baseline_percent": 28.52950766221063,
+      "candidate_percent": 29.599719101123597
+    },
+    "selection_normalization": {
+      "baseline_percent": 26.540593413759375,
+      "candidate_percent": 28.51123595505618
+    },
+    "output_snipping": {
+      "baseline_percent": 5.771111835670036,
+      "candidate_percent": 6.390449438202247
+    }
+  },
+  "input_allocation_sample_share": {
+    "baseline_percent": 19.15323515044568,
+    "candidate_percent": 6.507663054679958
+  }
+}

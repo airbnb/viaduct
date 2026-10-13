@@ -1,0 +1,15 @@
+{
+  "full_check": "passed",
+  "full_check_command": "./gradlew :core:engine:runtime2:check :core:engine:runtime2:jmhJar --no-configuration-cache --console=plain",
+  "suites": 266,
+  "totals": {
+    "tests": 2525,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 166
+  },
+  "failed_suites": [],
+  "focused_checks": "Materialize*Test, InclusionConditionActivationTest, EmptyResolverInputCacheTest; five Resolution threads; passed",
+  "static_first_attempt": "detekt TooGenericExceptionCaught; explained narrow suppression added",
+  "fatal_sibling_regression": "fails before rethrowing from child; passes after; ordinary sibling Exceptions remain maskable by ready success"
+}

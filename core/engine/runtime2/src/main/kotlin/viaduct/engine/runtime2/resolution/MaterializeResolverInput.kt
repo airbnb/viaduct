@@ -12,9 +12,9 @@ import viaduct.engine.runtime2.model.MaterializeSelectionForest
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.ObjectMaterializeSelection
 import viaduct.engine.runtime2.model.PathComponent
-import viaduct.engine.runtime2.model.materializeSelectionForestOf
 import viaduct.engine.runtime2.model.materializedEngineObjectDataOf
 import viaduct.engine.runtime2.model.outputType
+import viaduct.engine.runtime2.model.registry.emptyResolverInput
 import viaduct.engine.runtime2.model.toEngineOutputData
 import viaduct.engine.runtime2.resolution.framework.CycleCheckState
 import viaduct.engine.runtime2.resolution.framework.CycleTask
@@ -73,9 +73,11 @@ private class ResolverInputMaterializationLogic(
         reader: CycleTask,
         resultPath: List<PathComponent>,
     ): EngineObjectData.Sync {
-        val selectedValues =
-            linkedMapOf<String, Pair<ViaductSchema.ObjectField, EngineOutputData?>>()
-        selections.fetchIncluded().collect(type).byResponseKey().forEach { (responseKey, selection) ->
+        if (selections.isEmpty()) return operation.world.resolverRegistry.emptyResolverInput(type)
+        val collected = selections.fetchIncluded(operation).collect(type)
+        if (collected.isEmpty()) return operation.world.resolverRegistry.emptyResolverInput(type)
+        val selectedValues = ArrayList<EngineObjectDataEntry>(collected.size)
+        collected.byResponseKey().forEach { (responseKey, selection) ->
             val storedKey = selection.materializedObjectKey()
             val cell = reserveCell(storedKey)
             cell.value
@@ -96,32 +98,17 @@ private class ResolverInputMaterializationLogic(
                         fieldDirectives = selection.fieldDirectives,
                     )
                 }
-            selectedValues[responseKey] = storedKey.field to selectedValue
+            selectedValues.add(EngineObjectDataEntry.of(responseKey, storedKey.field, selectedValue))
         }
         return materializedEngineObjectDataOf(
             schemaType = type,
-            fields =
-                selectedValues.map { (key, fieldAndValue) ->
-                    EngineObjectDataEntry.of(key, fieldAndValue.first, fieldAndValue.second)
-                },
+            fields = selectedValues,
         )
-    }
-
-    private suspend fun MaterializeSelectionForest.fetchIncluded(): MaterializeSelectionForest {
-        var included = materializeSelectionForestOf()
-        val selections = mutableListOf<viaduct.engine.runtime2.model.MaterializeSelection>()
-        forEach(selections::add)
-        for (selection in selections) {
-            if (selection.inclusionCondition.fetchIncluded(operation)) {
-                included += materializeSelectionForestOf(selection)
-            }
-        }
-        return included
     }
 
     // Awaits every argument binding but preserves the selection's symbolic OER-cell identity.
     private suspend fun ObjectMaterializeSelection.materializedObjectKey(): ObjectEngineResult.ObjectKey {
-        key.fetchGroundedArguments(operation)
+        if (key !is ObjectEngineResult.GroundKey) key.fetchGroundedArguments(operation)
         return key
     }
 

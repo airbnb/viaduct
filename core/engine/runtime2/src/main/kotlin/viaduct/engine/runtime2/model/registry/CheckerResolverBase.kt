@@ -69,11 +69,22 @@ abstract class CheckerResolverBase<out T : ResolverTarget> internal constructor(
         }
     }
 
+    private val loweredNamedTemplates =
+        this.fragmentTemplates.mapValues { (name, templates) -> templates.lowerForResolution(name) }
+
+    private val providerVariableNames =
+        this.fragmentTemplates.mapValues { (_, templates) ->
+            templates.variables
+                .filterValues { it == VariableDefinition.FromProvider }
+                .keys
+                .mapTo(linkedSetOf()) { it.variableName }
+        }
+
     private val loweredObjectFragment =
-        this.fragmentTemplates.lowerForResolution(ProviderFragment.OBJECT)
+        loweredNamedTemplates.combineForResolution(ProviderFragment.OBJECT)
 
     private val loweredQueryFragment =
-        this.fragmentTemplates.lowerForResolution(ProviderFragment.QUERY)
+        loweredNamedTemplates.combineForResolution(ProviderFragment.QUERY)
 
     /** The lowered variable definitions shared by the combined resolution fragments. */
     val variables: Map<Arguments.Variable, VariableDefinition>
@@ -116,18 +127,16 @@ abstract class CheckerResolverBase<out T : ResolverTarget> internal constructor(
 
     /** Instantiates each named object template without combining its response-key namespace. */
     fun instantiateObjectMaterializationSelections(resolverOccurrenceId: ResolverOccurrenceId): Map<String, MaterializeSelectionForest> =
-        fragmentTemplates.mapValues { (name, templates) ->
+        loweredNamedTemplates.mapValues { (_, templates) ->
             templates
-                .lowerForResolution(name)
                 .objectFragmentTemplate
                 .instantiateVariables(resolverOccurrenceId)
         }
 
     /** Instantiates each named Query template without combining its response-key namespace. */
     fun instantiateQueryMaterializationSelections(resolverOccurrenceId: ResolverOccurrenceId): Map<String, MaterializeSelectionForest> =
-        fragmentTemplates.mapValues { (name, templates) ->
+        loweredNamedTemplates.mapValues { (_, templates) ->
             templates
-                .lowerForResolution(name)
                 .queryFragmentTemplate
                 .instantiateVariables(resolverOccurrenceId)
         }
@@ -137,11 +146,7 @@ abstract class CheckerResolverBase<out T : ResolverTarget> internal constructor(
         buildMap {
             fragmentTemplates.forEach { (name, templates) ->
                 val provider = templates.variablesProvider ?: return@forEach
-                val expected =
-                    templates.variables
-                        .filterValues { it == VariableDefinition.FromProvider }
-                        .keys
-                        .mapTo(linkedSetOf()) { it.variableName }
+                val expected = providerVariableNames.getValue(name)
                 val values = provider(arguments)
                 require(values.keys == expected) {
                     "Checker variables provider $name returned invalid variables: " +
@@ -160,13 +165,12 @@ private class LoweredCheckerFragment(
     val fieldPathInclusionConditions: Map<Arguments.Variable, List<InclusionCondition>>,
 )
 
-private fun Map<String, ResolverFragmentTemplates>.lowerForResolution(fragmentRoot: ProviderFragment): LoweredCheckerFragment {
+private fun Map<String, ResolverFragmentTemplates>.combineForResolution(fragmentRoot: ProviderFragment): LoweredCheckerFragment {
     var constructionSelections = selectionForestOf()
     val variables = linkedMapOf<Arguments.Variable, VariableDefinition>()
     val fieldPathInclusionConditions =
         linkedMapOf<Arguments.Variable, List<InclusionCondition>>()
-    forEach { (name, templates) ->
-        val lowered = templates.lowerForResolution(name)
+    forEach { (_, lowered) ->
         val materializeSelections =
             when (fragmentRoot) {
                 ProviderFragment.OBJECT -> lowered.objectFragmentTemplate

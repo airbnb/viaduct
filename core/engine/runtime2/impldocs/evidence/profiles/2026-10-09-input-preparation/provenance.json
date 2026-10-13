@@ -1,0 +1,56 @@
+{
+  "timestamp_utc": "2026-10-09T04:42:14.704573+00:00",
+  "worktree": "/home/raymie_stata/repos/2ht/projects/viaduct/oss",
+  "branch": "rstata--tmp",
+  "baseline_revision": "d00c4ffa7e3248e0951cebba24928e344a131291",
+  "original_revision": "ba7de5ba047a286dd654143619c6c8aebbf7f56c",
+  "move_stash": "7ce95f4f42a8e3496ba527d5f30b06bcc0cf6fc4",
+  "session": "01a11dd6-5044-74b1-905c-aa3e3e50222d",
+  "host": "raymie-stata-codex",
+  "java": "openjdk version \"21.0.4\" 2024-07-16 LTS\nOpenJDK Runtime Environment Corretto-21.0.4.7.1 (build 21.0.4+7-LTS)\nOpenJDK 64-Bit Server VM Corretto-21.0.4.7.1 (build 21.0.4+7-LTS, mixed mode, sharing)\n",
+  "hardware": "Architecture:                            x86_64\nCPU op-mode(s):                          32-bit, 64-bit\nAddress sizes:                           48 bits physical, 48 bits virtual\nByte Order:                              Little Endian\nCPU(s):                                  64\nOn-line CPU(s) list:                     0-63\nVendor ID:                               GenuineIntel\nModel name:                              Intel(R) Xeon(R) 6975P-C\nCPU family:                              6\nModel:                                   173\nThread(s) per core:                      2\nCore(s) per socket:                      32\nSocket(s):                               1\nStepping:                                1\nBogoMIPS:                                5400.00\nFlags:                                   fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 ss ht syscall nx pdpe1gb rdtscp lm constant_tsc arch_perfmon rep_good nopl xtopology nonstop_tsc cpuid aperfmperf tsc_known_freq pni pclmulqdq monitor ssse3 fma cx16 pdcm pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand hypervisor lahf_lm abm 3dnowprefetch cpuid_fault invpcid_single ssbd ibrs ibpb stibp ibrs_enhanced fsgsbase tsc_adjust bmi1 avx2 smep bmi2 erms invpcid avx512f avx512dq rdseed adx smap avx512ifma clflushopt clwb avx512cd sha_ni avx512bw avx512vl xsaveopt xsavec xgetbv1 xsaves avx_vnni avx512_bf16 wbnoinvd ida arat avx512vbmi umip pku ospke waitpkg avx512_vbmi2 gfni vaes vpclmulqdq avx512_vnni avx512_bitalg tme avx512_vpopcntdq rdpid bus_lock_detect cldemote movdiri movdir64b md_clear serialize amx_bf16 avx512_fp16 amx_tile amx_int8 flush_l1d arch_capabilities\nHypervisor vendor:                       KVM\nVirtualization type:                     full\nL1d cache:                               1.5 MiB (32 instances)\nL1i cache:                               2 MiB (32 instances)\nL2 cache:                                64 MiB (32 instances)\nL3 cache:                                480 MiB (1 instance)\nNUMA node(s):                            1\nNUMA node0 CPU(s):                       0-63\nVulnerability Gather data sampling:      Not affected\nVulnerability Indirect target selection: Not affected\nVulnerability Itlb multihit:             Not affected\nVulnerability L1tf:                      Not affected\nVulnerability Mds:                       Not affected\nVulnerability Meltdown:                  Not affected\nVulnerability Mmio stale data:           Not affected\nVulnerability Reg file data sampling:    Not affected\nVulnerability Retbleed:                  Not affected\nVulnerability Spec rstack overflow:      Not affected\nVulnerability Spec store bypass:         Mitigation; Speculative Store Bypass disabled via prctl\nVulnerability Spectre v1:                Mitigation; usercopy/swapgs barriers and __user pointer sanitization\nVulnerability Spectre v2:                Mitigation; Enhanced / Automatic IBRS; IBPB conditional; PBRSB-eIBRS Not affected; BHI BHI_DIS_S\nVulnerability Srbds:                     Not affected\nVulnerability Tsa:                       Not affected\nVulnerability Tsx async abort:           Not affected\nVulnerability Vmscape:                   Not affected\n",
+  "memory": "               total        used        free      shared  buff/cache   available\nMem:           495Gi        77Gi        60Gi        13Mi       357Gi       414Gi\nSwap:             0B          0B          0B\n",
+  "cpu_max": "max 100000",
+  "corpus_hashes": {
+    "core/engine/runtime2/src/jmh/resources/viaduct/engine/runtime2/benchmark/current-profile/registry.json.gz": "525f75fd9ec08b24c379bfdd86ae802d1a777cb186570eb015129da117e18a0e",
+    "core/engine/runtime2/src/jmh/resources/viaduct/engine/runtime2/benchmark/current-profile/queries.json": "5157978ea78a8c51f6359f8f07b8e240e2675432e0ca590e3b81abfef41a308c",
+    "core/engine/runtime2/src/jmh/resources/viaduct/engine/runtime2/benchmark/current-profile/schema.graphqls": "70d662d35ce271f1f5867cfbc60ea3fbdccf74a852433225448a62e10398f85e"
+  },
+  "jmh": "1.36",
+  "parameters": {
+    "mode": "SingleShotTime",
+    "threads": 1,
+    "resolution_threads": 1,
+    "loopCount": 1,
+    "warmup_iterations": 5,
+    "measurement_iterations": 8,
+    "forks": 3,
+    "queries_per_op": 100
+  },
+  "artifacts": {
+    "step6.jar": "b417105e70000d0ce055a0f3ffba2e5094849de1f11305309d93c641fa28958d",
+    "probe.jar": "4d30d4e9743ae9b28393fafe5e5b0395f9a724a389c0f04c57de01c12861b89a",
+    "step6-refined.jar": "c9fcc63ba60a0feb7cdc56ec889cce4cd7bed2578b70370b01de8b0d48461e69",
+    "final-candidate.jar": "73fed9e5a4b12fbc3820d0293ebc8b041f33a0adf9e8b5cd337aea48b3543fcd",
+    "step5.jar": "8bae02e66f81490b2ef5c3bf5326a3b7fc8d26995ba452cbc3dfea91fee25a37",
+    "baseline.jar": "25c738e34eb78a678d83e7f81c80a8a2679348802b26f119b8fc7c44c1a1af06",
+    "step4.jar": "c20687ae4a5ba6e10d014102c59fa02a732ba6240d3da22f4b5aafb6114625e2",
+    "rebased-baseline.jar": "f67b387e02f974f6d6199412b99ec9a479f59a99fd346418c03b1a238fb30340",
+    "step3.jar": "103645fa390b37b363724ee1b7f2520a81627704e3f37fd00f6e161d19fa8943",
+    "step1.jar": "d66d5a78850e5855334d2a90fb41d6eb6577a70295a2d66553a83ba5fdf44bf5",
+    "step2.jar": "fd4cdcd7123626600859bb46b179b8afb680dccdc50a23bee59cdc9b3f618bab"
+  },
+  "source_changes_patch_sha256": "bc38dcd8c5677b3cf6e94a2d66e1f5e96fd5e7d600564039b6f12e973f72dba7",
+  "baseline_source_equality": true,
+  "final_candidate_jar": "final-candidate.jar",
+  "final_baseline_jar": "rebased-baseline.jar",
+  "timing_commands": {
+    "final-baseline": "java -jar /tmp/runtime2-input-preparation-20261009/rebased-baseline.jar 'viaduct\\.engine\\.runtime2\\.resolution\\.ResolverBenchmark\\.overhead' -p loopCount=1 -wi 5 -i 8 -f 3 -foe true -rf json -rff /tmp/runtime2-input-preparation-20261009/final-baseline.json -jvmArgsAppend '-DresolverBenchmarkReportFile=/tmp/runtime2-input-preparation-20261009/final-baseline-statistics.txt'",
+    "final-candidate": "java -jar /tmp/runtime2-input-preparation-20261009/final-candidate.jar 'viaduct\\.engine\\.runtime2\\.resolution\\.ResolverBenchmark\\.overhead' -p loopCount=1 -wi 5 -i 8 -f 3 -foe true -rf json -rff /tmp/runtime2-input-preparation-20261009/final-candidate.json -jvmArgsAppend '-DresolverBenchmarkReportFile=/tmp/runtime2-input-preparation-20261009/final-candidate-statistics.txt'"
+  },
+  "final_profile_command": "java -jar /tmp/runtime2-input-preparation-20261009/final-candidate.jar 'viaduct\\.engine\\.runtime2\\.resolution\\.ResolverBenchmark\\.overhead' -p loopCount=50 -wi 2 -i 1 -f 1 -foe true -rf json -rff /tmp/runtime2-input-preparation-20261009/final-profile.json -jvmArgsAppend '-DresolutionOverheadProfileOutput=/tmp/runtime2-input-preparation-20261009/final-profile.jfr -DresolverBenchmarkReportFile=/tmp/runtime2-input-preparation-20261009/final-profile-statistics.txt -XX:FlightRecorderOptions=stackdepth=256'",
+  "completed_timestamp_utc": "2026-10-09T04:56:15.624823+00:00",
+  "candidate_runtime2_source_tree": "2d26d0e9f24c61959129c1b9d2c6282329598a83",
+  "source_changes_patch_format": "zero-context unified diff; apply with git apply --unidiff-zero",
+  "log_format": "Captured output stored as .txt with trailing whitespace normalized; original logs remain under /tmp."
+}

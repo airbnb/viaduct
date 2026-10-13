@@ -1,0 +1,50 @@
+{
+  "samples": 2848,
+  "projection_samples": 203,
+  "cpu": {
+    "EOD construction/validation": {
+      "count": 19,
+      "percent_all": 0.6671348314606742,
+      "percent_projection": 9.35960591133005
+    },
+    "response-key collection": {
+      "count": 19,
+      "percent_all": 0.6671348314606742,
+      "percent_projection": 9.35960591133005
+    },
+    "other traversal/conversion": {
+      "count": 65,
+      "percent_all": 2.282303370786517,
+      "percent_projection": 32.01970443349754
+    },
+    "cycle bookkeeping": {
+      "count": 43,
+      "percent_all": 1.5098314606741574,
+      "percent_projection": 21.182266009852217
+    },
+    "argument grounding": {
+      "count": 20,
+      "percent_all": 0.702247191011236,
+      "percent_projection": 9.852216748768473
+    },
+    "cells/promises/checked reads": {
+      "count": 24,
+      "percent_all": 0.8426966292134831,
+      "percent_projection": 11.822660098522167
+    },
+    "inclusion filtering/copying": {
+      "count": 13,
+      "percent_all": 0.45646067415730335,
+      "percent_projection": 6.403940886699507
+    }
+  },
+  "allocation_weights": {
+    "cells/promises/checked reads": 327121688,
+    "other traversal/conversion": 1300074704,
+    "EOD construction/validation": 461294352,
+    "inclusion filtering/copying": 327023232,
+    "argument grounding": 150967136,
+    "response-key collection": 352286384,
+    "cycle bookkeeping": 729737880
+  }
+}

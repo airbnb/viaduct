@@ -12,6 +12,7 @@ import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.yield
 import viaduct.engine.runtime2.model.Arguments
 import viaduct.engine.runtime2.model.InclusionCondition
 import viaduct.engine.runtime2.model.requireObjectField
@@ -23,6 +24,56 @@ class InclusionConditionActivationTest {
     private val field = schema.requireObjectField("Query", "value")
     private val x = Arguments.Variable.of(field, "x")
     private val y = Arguments.Variable.of(field, "y")
+
+    @Test
+    fun `fatal binding failures terminate activation`(): Unit =
+        runBlocking {
+            assertFailsWith<AssertionError> {
+                withTimeout(1_000) {
+                    InclusionCondition.requires(mapOf(x to true)).includeAnyReadyAlternative { throw AssertionError("fatal binding") }
+                }
+            }
+        }
+
+    @Test
+    fun `ready true alternative does not mask a completed fatal sibling`(): Unit =
+        runBlocking {
+            val condition = InclusionCondition.requires(mapOf(x to true))
+                .or(InclusionCondition.requires(mapOf(y to true)))
+            assertFailsWith<AssertionError> {
+                withTimeout(1_000) {
+                    condition.includeAnyReadyAlternative { variable ->
+                        if (variable == x) true else throw AssertionError("fatal sibling")
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun `staggered false completions leave no pending activation`() =
+        runBlocking {
+            val gates = List(32) { CompletableDeferred<Boolean>() }
+            val started = CompletableDeferred<Unit>()
+            var reads = 0
+            val condition = InclusionCondition.anyOf(
+                gates.indices.map { index ->
+                    InclusionCondition.requires(mapOf(Arguments.Variable.of(field, "pending$index") to true))
+                }
+            )
+            val result = async {
+                condition.includeAnyReadyAlternative { variable ->
+                    if (++reads == gates.size) started.complete(Unit)
+                    gates[variable.variableName.removePrefix("pending").toInt()].await()
+                }
+            }
+            withTimeout(1_000) { started.await() }
+            for (index in gates.indices.reversed()) {
+                assertFalse(result.isCompleted)
+                gates[index].complete(false)
+                yield()
+            }
+            assertFalse(withTimeout(1_000) { result.await() })
+        }
 
     @Test
     fun `ready true alternative does not await suspended sibling`() =

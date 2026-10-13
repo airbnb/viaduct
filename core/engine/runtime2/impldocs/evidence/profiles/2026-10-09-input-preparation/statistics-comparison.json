@@ -1,0 +1,50 @@
+{
+  "final-candidate-statistics.txt": {
+    "sha256": "db4bb4fcb626b053157edbd3b0e9cc792a5b093e2915681ee590160e41b7b5d2",
+    "equal_to_requested_baseline": true
+  },
+  "step6-refined-statistics.txt": {
+    "sha256": "db4bb4fcb626b053157edbd3b0e9cc792a5b093e2915681ee590160e41b7b5d2",
+    "equal_to_requested_baseline": true
+  },
+  "step3-statistics.txt": {
+    "sha256": "db4bb4fcb626b053157edbd3b0e9cc792a5b093e2915681ee590160e41b7b5d2",
+    "equal_to_requested_baseline": true
+  },
+  "step4-statistics.txt": {
+    "sha256": "db4bb4fcb626b053157edbd3b0e9cc792a5b093e2915681ee590160e41b7b5d2",
+    "equal_to_requested_baseline": true
+  },
+  "baseline-statistics.txt": {
+    "sha256": "db4bb4fcb626b053157edbd3b0e9cc792a5b093e2915681ee590160e41b7b5d2",
+    "equal_to_requested_baseline": true
+  },
+  "final-baseline-statistics.txt": {
+    "sha256": "db4bb4fcb626b053157edbd3b0e9cc792a5b093e2915681ee590160e41b7b5d2",
+    "equal_to_requested_baseline": true
+  },
+  "step2-statistics.txt": {
+    "sha256": "db4bb4fcb626b053157edbd3b0e9cc792a5b093e2915681ee590160e41b7b5d2",
+    "equal_to_requested_baseline": true
+  },
+  "step5-statistics.txt": {
+    "sha256": "db4bb4fcb626b053157edbd3b0e9cc792a5b093e2915681ee590160e41b7b5d2",
+    "equal_to_requested_baseline": true
+  },
+  "final-profile-statistics.txt": {
+    "sha256": "db4bb4fcb626b053157edbd3b0e9cc792a5b093e2915681ee590160e41b7b5d2",
+    "equal_to_requested_baseline": true
+  },
+  "step6-refined-control-statistics.txt": {
+    "sha256": "db4bb4fcb626b053157edbd3b0e9cc792a5b093e2915681ee590160e41b7b5d2",
+    "equal_to_requested_baseline": true
+  },
+  "step6-statistics.txt": {
+    "sha256": "db4bb4fcb626b053157edbd3b0e9cc792a5b093e2915681ee590160e41b7b5d2",
+    "equal_to_requested_baseline": true
+  },
+  "step1-statistics.txt": {
+    "sha256": "db4bb4fcb626b053157edbd3b0e9cc792a5b093e2915681ee590160e41b7b5d2",
+    "equal_to_requested_baseline": true
+  }
+}

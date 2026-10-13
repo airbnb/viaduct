@@ -1,0 +1,10 @@
+{
+  "baseline_ms_per_query": 10.87278946291667,
+  "baseline_jmh_error_ms_per_query": 0.08248071577918334,
+  "candidate_ms_per_query": 9.87149462625,
+  "candidate_jmh_error_ms_per_query": 0.04076968003591283,
+  "saving_ms_per_query": 1.0012948366666696,
+  "elapsed_reduction_percent": 9.209180772622705,
+  "throughput_increase_percent": 10.14329516022887,
+  "statistics_byte_identical": true
+}

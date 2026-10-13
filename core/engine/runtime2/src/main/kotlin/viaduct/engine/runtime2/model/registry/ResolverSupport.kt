@@ -8,6 +8,7 @@ import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.ResolverOccurrenceId
 import viaduct.engine.runtime2.model.Selection
 import viaduct.engine.runtime2.model.SelectionForest
+import viaduct.engine.runtime2.model.containsVariables
 import viaduct.engine.runtime2.model.instantiateVariables
 import viaduct.engine.runtime2.model.materializeSelectionForestOf
 import viaduct.engine.runtime2.model.objectKey
@@ -139,8 +140,9 @@ private fun SelectionForest.instantiateVariables(resolverOccurrenceId: ResolverO
         )
     }
 
-internal fun MaterializeSelectionForest.instantiateVariables(resolverOccurrenceId: ResolverOccurrenceId): MaterializeSelectionForest =
-    flatMap { selection ->
+internal fun MaterializeSelectionForest.instantiateVariables(resolverOccurrenceId: ResolverOccurrenceId): MaterializeSelectionForest {
+    if (!containsVariables()) return this
+    return flatMap { selection ->
         materializeSelectionForestOf(
             MaterializeSelection.of(
                 responseKey = selection.responseKey,
@@ -166,3 +168,4 @@ internal fun MaterializeSelectionForest.instantiateVariables(resolverOccurrenceI
             ),
         )
     }
+}

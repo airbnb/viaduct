@@ -1,0 +1,61 @@
+{
+  "samples": 3067,
+  "inclusive_components": {
+    "successor_any": {
+      "samples": 875,
+      "percent": 28.52950766221063
+    },
+    "successor_entry": {
+      "samples": 875,
+      "percent": 28.52950766221063
+    },
+    "compact_successor": {
+      "samples": 475,
+      "percent": 15.487447016628627
+    },
+    "construction_closure": {
+      "samples": 824,
+      "percent": 26.866644929898925
+    },
+    "resolver_input_materialization": {
+      "samples": 259,
+      "percent": 8.444734268014347
+    },
+    "fixture_output_materialization": {
+      "samples": 0,
+      "percent": 0.0
+    },
+    "resolver_relation": {
+      "samples": 220,
+      "percent": 7.173133355070101
+    },
+    "output_conformance_or_lowering": {
+      "samples": 63,
+      "percent": 2.0541245516791653
+    },
+    "runtime_cycle_check": {
+      "samples": 54,
+      "percent": 1.7606781871535702
+    },
+    "cycle_bookkeeping": {
+      "samples": 57,
+      "percent": 1.8584936419954352
+    },
+    "cycle_registration": {
+      "samples": 3,
+      "percent": 0.09781545484186502
+    },
+    "deferred_diagnostic_scan": {
+      "samples": 0,
+      "percent": 0.0
+    },
+    "schema_lowered_coordinate": {
+      "samples": 0,
+      "percent": 0.0
+    },
+    "selection_normalization": {
+      "samples": 814,
+      "percent": 26.540593413759375
+    }
+  }
+}

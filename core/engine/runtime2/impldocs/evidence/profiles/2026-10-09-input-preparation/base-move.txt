@@ -1,0 +1,12 @@
+Original and requested bases differ only in earlier evidence files:
+ .../runtime2/impldocs/evidence/profiles/2026-10-08-3perf/README.md     | 2 ++
+ .../profiles/2026-10-08-3perf/validation/replay-bazel-coverage.py      | 3 ++-
+ .../evidence/profiles/2026-10-08-3perf/validation/replay-coverage.py   | 3 ++-
+ .../evidence/profiles/2026-10-08-3perf/validation/validate-gradle.py   | 2 +-
+ 4 files changed, 7 insertions(+), 3 deletions(-)
+
+Runtime2 source tree identities (original, requested):
+b01768905f75ba632b972b796f43c57420d1c5c6
+b01768905f75ba632b972b796f43c57420d1c5c6
+
+Stash: 7ce95f4f42a8e3496ba527d5f30b06bcc0cf6fc4; restored with --index on rstata--tmp at the requested base. The rstata--3perf branch in the 3ht worktree was not changed.

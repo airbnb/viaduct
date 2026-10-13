@@ -1,0 +1,55 @@
+[
+    {
+        "jmhVersion" : "1.36",
+        "benchmark" : "viaduct.engine.runtime2.resolution.ResolverBenchmark.overhead",
+        "mode" : "ss",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "/opt/mise/installs/java/corretto-21.0.4.7.1/bin/java",
+        "jvmArgs" : [
+            "-DresolutionOverheadProfileOutput=/tmp/runtime2-input-preparation-20261009/final-profile.jfr",
+            "-DresolverBenchmarkReportFile=/tmp/runtime2-input-preparation-20261009/final-profile-statistics.txt",
+            "-XX:FlightRecorderOptions=stackdepth=256"
+        ],
+        "jdkVersion" : "21.0.4",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "21.0.4+7-LTS",
+        "warmupIterations" : 2,
+        "warmupTime" : "single-shot",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 1,
+        "measurementTime" : "single-shot",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "loopCount" : "50"
+        },
+        "primaryMetric" : {
+            "score" : 51.3220826,
+            "scoreError" : "NaN",
+            "scoreConfidence" : [
+                "NaN",
+                "NaN"
+            ],
+            "scorePercentiles" : {
+                "0.0" : 51.3220826,
+                "50.0" : 51.3220826,
+                "90.0" : 51.3220826,
+                "95.0" : 51.3220826,
+                "99.0" : 51.3220826,
+                "99.9" : 51.3220826,
+                "99.99" : 51.3220826,
+                "99.999" : 51.3220826,
+                "99.9999" : 51.3220826,
+                "100.0" : 51.3220826
+            },
+            "scoreUnit" : "s/op",
+            "rawData" : [
+                [
+                    51.3220826
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    }
+]

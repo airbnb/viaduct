@@ -1,0 +1,16 @@
+LOCAL_AGENT_STARTED
+LOCAL_TRANSFORM viaduct/engine/runtime2/model/MaterializeSelectionForestImpl
+LOCAL_TRANSFORM viaduct/engine/runtime2/resolution/framework/SharedPassiveValueResolutionLogic
+LOCAL_TRANSFORM viaduct/engine/runtime2/resolution/InclusionConditionActivationKt
+LOCAL_TRANSFORM viaduct/engine/runtime2/resolution/InclusionConditionActivationKt$includeAnyReadyAlternative$2
+LOCAL_TRANSFORM viaduct/engine/runtime2/resolution/InclusionConditionActivationKt$includeAnyReadyAlternative$2$cancelRemaining$1
+WORK_COUNT passive width=16 prefixCopies=0 fieldKeyReads=288 awaitRegistrations=0 completionSends=0
+LOCAL_TRANSFORM viaduct/engine/runtime2/resolution/InclusionConditionActivationKt$includeAnyReadyAlternative$2$build$evaluation$1
+LOCAL_TRANSFORM viaduct/engine/runtime2/resolution/InclusionConditionActivationKt$includeAnyReadyAlternative$2$1$1$1
+WORK_COUNT activation width=16 prefixCopies=0 fieldKeyReads=0 awaitRegistrations=136 completionSends=0
+WORK_COUNT passive width=32 prefixCopies=0 fieldKeyReads=1088 awaitRegistrations=0 completionSends=0
+WORK_COUNT activation width=32 prefixCopies=0 fieldKeyReads=0 awaitRegistrations=528 completionSends=0
+WORK_COUNT passive width=64 prefixCopies=0 fieldKeyReads=4224 awaitRegistrations=0 completionSends=0
+WORK_COUNT activation width=64 prefixCopies=0 fieldKeyReads=0 awaitRegistrations=2080 completionSends=0
+WORK_COUNT passive width=128 prefixCopies=0 fieldKeyReads=16640 awaitRegistrations=0 completionSends=0
+WORK_COUNT activation width=128 prefixCopies=0 fieldKeyReads=0 awaitRegistrations=8256 completionSends=0

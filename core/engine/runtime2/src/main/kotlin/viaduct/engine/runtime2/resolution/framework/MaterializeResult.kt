@@ -11,16 +11,15 @@ import viaduct.engine.runtime2.model.EngineResultCell
 import viaduct.engine.runtime2.model.EngineResultIsPending
 import viaduct.engine.runtime2.model.ErrorEngineResult
 import viaduct.engine.runtime2.model.ListEngineResult
-import viaduct.engine.runtime2.model.MaterializeSelection
 import viaduct.engine.runtime2.model.MaterializeSelectionForest
 import viaduct.engine.runtime2.model.MutationObjectEngineResult
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.ObjectMaterializeSelection
 import viaduct.engine.runtime2.model.PathComponent
 import viaduct.engine.runtime2.model.materializeCheckedValue
-import viaduct.engine.runtime2.model.materializeSelectionForestOf
 import viaduct.engine.runtime2.model.materializedEngineObjectDataOf
 import viaduct.engine.runtime2.model.outputType
+import viaduct.engine.runtime2.model.registry.emptyResolverInput
 import viaduct.engine.runtime2.model.toEngineOutputData
 import viaduct.graphql.schema.ViaductSchema
 
@@ -81,9 +80,11 @@ private class MaterializationLogic(
         reader: CycleTask,
         resultPath: List<PathComponent>,
     ): EngineObjectData.Sync {
-        val selectedValues =
-            linkedMapOf<String, Pair<ViaductSchema.ObjectField, EngineOutputData?>>()
-        selections.fetchIncluded().collect(type).byResponseKey().forEach { (responseKey, selection) ->
+        if (selections.isEmpty()) return operation.world.resolverRegistry.emptyResolverInput(type)
+        val collected = selections.fetchIncluded(operation).collect(type)
+        if (collected.isEmpty()) return operation.world.resolverRegistry.emptyResolverInput(type)
+        val selectedValues = ArrayList<EngineObjectDataEntry>(collected.size)
+        collected.byResponseKey().forEach { (responseKey, selection) ->
             val selectedKey = selection.materializedSymbolicKey()
             val candidateKey = if (this is MutationObjectEngineResult) {
                 ObjectEngineResult.MutationKey.of(selectedKey as ObjectEngineResult.GroundKey, responseKey)
@@ -110,31 +111,16 @@ private class MaterializationLogic(
                             fieldDirectives = selection.fieldDirectives,
                         )
                 }
-            selectedValues[responseKey] = storedKey.field to selectedValue
+            selectedValues.add(EngineObjectDataEntry.of(responseKey, storedKey.field, selectedValue))
         }
         return materializedEngineObjectDataOf(
             schemaType = type,
-            fields =
-                selectedValues.map { (key, fieldAndValue) ->
-                    EngineObjectDataEntry.of(key, fieldAndValue.first, fieldAndValue.second)
-                },
+            fields = selectedValues,
         )
     }
 
-    private suspend fun MaterializeSelectionForest.fetchIncluded(): MaterializeSelectionForest {
-        var included = materializeSelectionForestOf()
-        val selections = mutableListOf<MaterializeSelection>()
-        forEach(selections::add)
-        for (selection in selections) {
-            if (selection.inclusionCondition.fetchIncluded(operation)) {
-                included += materializeSelectionForestOf(selection)
-            }
-        }
-        return included
-    }
-
     private suspend fun ObjectMaterializeSelection.materializedSymbolicKey(): ObjectEngineResult.ObjectKey {
-        key.fetchGroundedArguments(operation)
+        if (key !is ObjectEngineResult.GroundKey) key.fetchGroundedArguments(operation)
         return key
     }
 

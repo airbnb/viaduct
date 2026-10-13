@@ -1,0 +1,30 @@
+{
+  "timestamp_utc": "2026-10-09T04:03:35.644409+00:00",
+  "source_root": "/home/raymie_stata/repos/2ht/projects/viaduct/oss",
+  "revision": "ba7de5ba047a286dd654143619c6c8aebbf7f56c",
+  "branch": "rstata--tmp",
+  "clean": true,
+  "host": "raymie-stata-codex",
+  "jar_sha256": "25c738e34eb78a678d83e7f81c80a8a2679348802b26f119b8fc7c44c1a1af06",
+  "corpus_sha256": {
+    "registry.json.gz": "525f75fd9ec08b24c379bfdd86ae802d1a777cb186570eb015129da117e18a0e",
+    "queries.json": "5157978ea78a8c51f6359f8f07b8e240e2675432e0ca590e3b81abfef41a308c",
+    "schema.graphqls": "70d662d35ce271f1f5867cfbc60ea3fbdccf74a852433225448a62e10398f85e"
+  },
+  "runs": [
+    {
+      "kind": "measured-body JFR diagnostic; not controlled timing",
+      "queries": 1000,
+      "seconds_per_operation": 11.47,
+      "milliseconds_per_query": 11.47,
+      "command": "java -jar /tmp/runtime2-local-scans-20261009/baseline.jar 'viaduct\\.engine\\.runtime2\\.resolution\\.ResolverBenchmark\\.overhead' -p loopCount=10 -wi 2 -i 1 -f 1 -foe true -jvmArgsAppend '-DresolutionOverheadProfileOutput=/tmp/runtime2-local-scans-20261009/baseline.jfr -DresolverBenchmarkReportFile=/tmp/runtime2-local-scans-20261009/profile-statistics.txt -XX:FlightRecorderOptions=stackdepth=256'"
+    },
+    {
+      "kind": "measured-body JFR diagnostic; not controlled timing",
+      "queries": 5000,
+      "seconds_per_operation": 56.318,
+      "milliseconds_per_query": 11.2636,
+      "command": "java -jar /tmp/runtime2-local-scans-20261009/baseline.jar 'viaduct\\.engine\\.runtime2\\.resolution\\.ResolverBenchmark\\.overhead' -p loopCount=50 -wi 2 -i 1 -f 1 -foe true -jvmArgsAppend '-DresolutionOverheadProfileOutput=/tmp/runtime2-local-scans-20261009/detail.jfr -DresolverBenchmarkReportFile=/tmp/runtime2-local-scans-20261009/detail-statistics.txt -XX:FlightRecorderOptions=stackdepth=256'"
+    }
+  ]
+}

@@ -44,6 +44,8 @@ One root `coroutineScope` owns the request. The request-scope ownership rule is 
 
 Task completion is not an ordinary cross-task readiness protocol. Mutation orchestration uses field-task completion as its sequencing boundary before awaiting payload completion and advancing to the next mutation. The GraphQL adapter awaits the mutation resolution scope before starting response completion so null propagation cannot cancel later effects. Cross-task reads use OER value promises, binding promises, or an OER's bindings-declared signal. The dispatcher changes scheduling only; it does not change resolver, variable, path, or task identity.
 
+Production asynchronous inclusion activation registers one child evaluation per distinct requirement leaf and receives one completion signal per leaf through an invocation-local queue. Incremental DAG propagation preserves independently ready true alternatives and ordinary binding-error precedence. Returning an outcome cancels and awaits the remaining children; request cancellation and fatal failures retain their structured-concurrency boundary. Passive source classification indexes demanded keys by canonical field once per object while preserving exact-key order, source-presence ownership and root-reference deferral.
+
 ### Failure And Cancellation Protocol
 
 #### Rules shared by Resolver21-23 and Resolution

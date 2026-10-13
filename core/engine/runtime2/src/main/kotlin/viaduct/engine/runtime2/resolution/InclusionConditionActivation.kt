@@ -3,9 +3,9 @@ package viaduct.engine.runtime2.resolution
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.async
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
-import kotlinx.coroutines.selects.select
 import kotlinx.coroutines.supervisorScope
 import viaduct.engine.runtime2.model.Arguments
 import viaduct.engine.runtime2.model.Conjunction
@@ -28,12 +28,24 @@ private class EvaluationNode(
     lateinit var summary: EvaluationSummary
 }
 
+private class EvaluationCompletion(
+    val node: EvaluationNode,
+    val result: Result<Boolean>,
+    val fatal: Throwable? = null,
+)
+
 /** Evaluates implicit DNF outcomes with incremental propagation over the compact graph. */
+@Suppress("TooGenericExceptionCaught") // Fatal children must signal the receiver before rethrowing.
 internal suspend fun InclusionCondition.includeAnyReadyAlternative(binding: suspend (Arguments.Variable) -> Boolean): Boolean =
     supervisorScope {
+        val prunedCondition = this@includeAnyReadyAlternative.pruneContradictions()
+        if (prunedCondition === InclusionCondition.Always) return@supervisorScope true
+        if (prunedCondition === InclusionCondition.Never) return@supervisorScope false
         val nodes = java.util.IdentityHashMap<InclusionCondition, EvaluationNode>()
         val parents = java.util.IdentityHashMap<EvaluationNode, MutableList<EvaluationNode>>()
-        val evaluations = linkedMapOf<Deferred<Result<Boolean>>, EvaluationNode>()
+        val evaluations = linkedMapOf<EvaluationNode, Deferred<Unit>>()
+        // Each leaf contributes at most one signal. Waiting never re-registers the other leaves.
+        val completions = Channel<EvaluationCompletion>(Channel.UNLIMITED)
 
         fun disjunction(
             left: EvaluationSummary,
@@ -83,14 +95,16 @@ internal suspend fun InclusionCondition.includeAnyReadyAlternative(binding: susp
                     InclusionCondition.Never -> node.summary = EvaluationSummary(hasFalse = true)
                     is InclusionCondition.Requires -> {
                         val evaluation =
-                            async {
-                                try {
-                                    Result.success(condition.include(binding))
-                                } catch (cause: Exception) {
-                                    Result.failure(cause)
+                            async<Unit> {
+                                val completion = try {
+                                    EvaluationCompletion(node, Result.success(condition.include(binding)))
+                                } catch (cause: Throwable) {
+                                    EvaluationCompletion(node, Result.failure(cause), cause.takeUnless { it is Exception })
                                 }
+                                completions.send(completion)
+                                completion.fatal?.let { throw it }
                             }
-                        evaluations[evaluation] = node
+                        evaluations[node] = evaluation
                         node.summary = EvaluationSummary(hasPending = true)
                     }
                     is Conjunction -> {
@@ -132,8 +146,8 @@ internal suspend fun InclusionCondition.includeAnyReadyAlternative(binding: susp
         }
 
         suspend fun cancelRemaining() {
-            evaluations.keys.forEach { it.cancel() }
-            evaluations.keys.forEach { task ->
+            evaluations.values.forEach { it.cancel() }
+            evaluations.values.forEach { task ->
                 try {
                     task.await()
                 } catch (_: CancellationException) {
@@ -142,20 +156,18 @@ internal suspend fun InclusionCondition.includeAnyReadyAlternative(binding: susp
             }
         }
 
-        val root = build(this@includeAnyReadyAlternative.pruneContradictions())
+        val root = build(prunedCondition)
         while (true) {
             if (root.summary.hasTrue) {
                 cancelRemaining()
                 return@supervisorScope true
             }
             if (root.summary.hasPending) {
-                val (task, node, result) =
-                    select<Triple<Deferred<Result<Boolean>>, EvaluationNode, Result<Boolean>>> {
-                        evaluations.forEach { (task, node) ->
-                            task.onAwait { result -> Triple(task, node, result) }
-                        }
-                    }
-                evaluations.remove(task)
+                val completion = completions.receive()
+                completion.fatal?.let { throw it }
+                val node = completion.node
+                val result = completion.result
+                evaluations.remove(node)
                 node.summary =
                     result.fold(
                         onSuccess = { included -> EvaluationSummary(hasTrue = included, hasFalse = !included) },

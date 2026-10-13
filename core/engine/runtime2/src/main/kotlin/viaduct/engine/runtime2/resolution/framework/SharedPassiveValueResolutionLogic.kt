@@ -247,6 +247,7 @@ internal abstract class SharedPassiveValueResolutionLogic<
         val type = source.schemaType(operation.world.schema)
         val invocationByKey = collect(invocationDemand, type).byKey()
         val passiveByKey = collect(invocationDemand + closedConstructionDemand.values, type).byKey()
+        val passiveKeysByField = passiveByKey.keys.groupBy { it.field }
         if (operation.world.selectiveResolvers) {
             val selectedNames = invocationByKey.keys.mapTo(linkedSetOf()) { it.field.name }
             val unselectedFields =
@@ -267,11 +268,8 @@ internal abstract class SharedPassiveValueResolutionLogic<
             // Direct references are classified as executable work by object orchestration.
             if (value.rootFieldReferenceDataOrNull() != null) return@forEach
             val containsReference = value.containsListElementRootFieldReference()
-            val demandedKeys = passiveByKey.keys.filterTo(linkedSetOf()) { it.field == field }
-            if (demandedKeys.isEmpty()) {
-                if (containsReference) return@forEach
-                demandedKeys += ObjectEngineResult.GroundKey.of(field, emptyMap())
-            }
+            val demandedKeys = passiveKeysByField[field]
+                ?: if (containsReference) return@forEach else listOf(ObjectEngineResult.GroundKey.of(field, emptyMap()))
             for (key in demandedKeys) {
                 check(key is ObjectEngineResult.GroundKey) {
                     "Passive returned field has an open key: $key"
