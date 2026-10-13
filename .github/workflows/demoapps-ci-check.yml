@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       java_versions:
-        description: "Java versions array. Defaults to [\"17\",\"21\"]."
+        description: "Java versions array. Defaults to [\"17\",\"21\",\"25\"]."
         required: false
         type: string
       os:
@@ -127,7 +127,7 @@ jobs:
       matrix:
         demoapp: [starwars, starwars-java]
         os: ${{ fromJSON(inputs.os || '["ubuntu-latest","macos-latest"]') }}
-        java: ${{ fromJSON(inputs.java_versions || '["17","21"]') }}
+        java: ${{ fromJSON(inputs.java_versions || '["17","21","25"]') }}
     name: Test ${{ matrix.demoapp }} (Java ${{ matrix.java }}) ${{ matrix.os }}
     env:
       GRADLE_OPTS: "-Dorg.gradle.parallel=true -Dorg.gradle.caching=true"
