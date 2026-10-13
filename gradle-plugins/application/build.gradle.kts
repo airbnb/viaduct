@@ -20,6 +20,7 @@ dependencies {
     // build time via the viaductCodegenClasspath Configuration.
     // Classes bundled directly into this plugin JAR via conventions.viaduct-fat-plugin.
     bundled(libs.viaduct.shared.graphql)
+    bundled(libs.viaduct.shared.bootstrap)
     bundled(libs.viaduct.shared.viaductschema)
     // Do NOT leak the Kotlin Gradle Plugin at runtime
     compileOnly(libs.kotlin.gradle.plugin)

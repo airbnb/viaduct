@@ -13,11 +13,13 @@ import io.github.classgraph.ClassGraph
 import kotlin.jvm.optionals.getOrNull
 import kotlin.time.ExperimentalTime
 import kotlin.time.measureTimedValue
+import viaduct.bootstrap.ViaductResourceIndexes
 import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.spi.CoroutineInterop
 import viaduct.engine.runtime.execution.DefaultCoroutineInterop
 import viaduct.graphql.Scalars
 import viaduct.graphql.utils.DefaultSchemaFactory
+import viaduct.utils.resources.ClasspathResourceIndex
 import viaduct.utils.slf4j.logger
 
 class SchemaFactory(
@@ -48,8 +50,18 @@ class SchemaFactory(
         grtPackagePrefix: String? = null,
         filesIncluded: Regex? = null,
     ): EngineSchema {
-        return schemaFromRuntimeSchemaFiles(grtPackagePrefix, filesIncluded ?: Regex(".*graphqls"))
+        return schemaFromRuntimeSchemaFiles(
+            grtPackagePrefix,
+            filesIncluded ?: Regex(".*graphqls"),
+            Thread.currentThread().contextClassLoader ?: SchemaFactory::class.java.classLoader,
+        )
     }
+
+    internal fun fromResources(
+        grtPackagePrefix: String?,
+        filesIncluded: Regex?,
+        classLoader: ClassLoader,
+    ): EngineSchema = schemaFromRuntimeSchemaFiles(grtPackagePrefix, filesIncluded ?: Regex(".*graphqls"), classLoader)
 
     /**
      * This function is used to get the full schema files available during runtime
@@ -58,30 +70,54 @@ class SchemaFactory(
     private fun schemaFromRuntimeSchemaFiles(
         grtPackagePrefix: String?,
         filesIncluded: Regex = Regex(".*graphqls"),
+        classLoader: ClassLoader,
     ): EngineSchema {
         val resourceContents = mutableMapOf<String, String>()
 
         val (resources, elapsedTime) = measureTimedValue {
-            val classGraph = ClassGraph()
-            if (grtPackagePrefix != null) {
-                // Convert package notation (com.example.foo) to path notation (com/example/foo)
-                // and accept only that path subtree for resource scanning
-                classGraph.acceptPaths(grtPackagePrefix.replace('.', '/'))
-            }
-            classGraph.scan().use {
-                it.getResourcesMatchingPattern(filesIncluded.toPattern()).map { res ->
-                    val origin =
-                        res.classpathElementURI?.toString() ?: res.classpathElementURL?.toString() ?: "unknown"
-                    val uniqueKey = "$origin!/${res.path}"
-
-                    val content = res.open().use { stream ->
-                        stream.reader(Charsets.UTF_8).readText().trim()
+            val index = ClasspathResourceIndex.load(ViaductResourceIndexes.SCHEMA, classLoader)
+            if (index != null) {
+                val acceptedPath = grtPackagePrefix?.replace('.', '/')
+                index.paths
+                    .filter { path ->
+                        (acceptedPath == null || path == acceptedPath || path.startsWith("$acceptedPath/")) &&
+                            filesIncluded.matches(path)
                     }
-                    if (content.isEmpty()) {
-                        log.warn("Empty schema file found: {}", uniqueKey)
+                    .map { path ->
+                        val url = index.resourceUrl(path)
+                        val uniqueKey = url.toExternalForm()
+                        val content = url.openStream().use { stream ->
+                            stream.reader(Charsets.UTF_8).readText().trim()
+                        }
+                        if (content.isEmpty()) {
+                            log.warn("Empty schema file found: {}", uniqueKey)
+                        }
+                        resourceContents[uniqueKey] = content
+                        uniqueKey
                     }
-                    resourceContents[uniqueKey] = content
-                    uniqueKey
+            } else {
+                log.warn(
+                    "No Viaduct schema resource index found at {}; falling back to a ClassGraph scan",
+                    ViaductResourceIndexes.SCHEMA,
+                )
+                val classGraph = ClassGraph()
+                if (grtPackagePrefix != null) {
+                    classGraph.acceptPaths(grtPackagePrefix.replace('.', '/'))
+                }
+                classGraph.scan().use {
+                    it.getResourcesMatchingPattern(filesIncluded.toPattern()).map { res ->
+                        val origin =
+                            res.classpathElementURI?.toString() ?: res.classpathElementURL?.toString() ?: "unknown"
+                        val uniqueKey = "$origin!/${res.path}"
+                        val content = res.open().use { stream ->
+                            stream.reader(Charsets.UTF_8).readText().trim()
+                        }
+                        if (content.isEmpty()) {
+                            log.warn("Empty schema file found: {}", uniqueKey)
+                        }
+                        resourceContents[uniqueKey] = content
+                        uniqueKey
+                    }
                 }
             }
         }

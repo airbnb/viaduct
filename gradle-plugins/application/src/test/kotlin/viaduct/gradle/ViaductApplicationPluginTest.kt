@@ -2,6 +2,9 @@ package viaduct.gradle
 
 import java.io.File
 import java.nio.file.Path
+import java.util.zip.ZipEntry
+import java.util.zip.ZipOutputStream
+import kotlin.io.path.readLines
 import org.gradle.api.GradleException
 import org.gradle.api.Project
 import org.gradle.api.artifacts.ProjectDependency
@@ -13,7 +16,10 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.io.TempDir
+import viaduct.bootstrap.ViaductResourceIndexes
 import viaduct.gradle.task.AssembleCentralSchemaTask
+import viaduct.gradle.task.GenerateExecutionRegistryResourceIndexTask
+import viaduct.gradle.task.GenerateSchemaResourceIndexTask
 
 /**
  * Tests for ViaductApplicationPlugin base schema functionality.
@@ -51,6 +57,71 @@ class ViaductApplicationPluginTest {
     @Test
     fun `task has no scope definitions until a file is wired in`() {
         assertTrue(task.scopesFile.isEmpty, "expected an empty scopesFile, got ${task.scopesFile.files}")
+    }
+
+    @Test
+    fun `resource index task writes sorted schema and registry paths`() {
+        val schemaDir = tempDir.resolve("central-schema").toFile()
+        schemaDir.resolve("partition/z.graphqls").apply {
+            parentFile.mkdirs()
+            writeText("extend type Query { z: String }")
+        }
+        schemaDir.resolve("partition/a.graphqls").writeText("extend type Query { a: String }")
+        schemaDir.resolve(ViaductApplicationPlugin.BUILTIN_SCHEMA_FILE).writeText("type Query")
+        val moduleJar = tempDir.resolve("module.jar").toFile()
+        writeJar(
+            moduleJar,
+            "META-INF/viaduct/modules/com.example.module.json" to registryJson("example/module"),
+        )
+        val schemaIndexTask = project.tasks.register("testGenerateSchemaResourceIndex", GenerateSchemaResourceIndexTask::class.java).get().apply {
+            centralSchemaDirectory.set(schemaDir)
+            outputDirectory.set(project.layout.buildDirectory.dir("test-schema-index"))
+        }
+        val registryIndexTask =
+            project.tasks.register(
+                "testGenerateExecutionRegistryResourceIndex",
+                GenerateExecutionRegistryResourceIndexTask::class.java,
+            ).get().apply {
+                moduleClasspath.from(moduleJar)
+                outputDirectory.set(project.layout.buildDirectory.dir("test-registry-index"))
+            }
+
+        schemaIndexTask.generate()
+        registryIndexTask.generate()
+
+        assertEquals(
+            listOf(
+                "viaduct/centralSchema/partition/a.graphqls",
+                "viaduct/centralSchema/partition/z.graphqls",
+            ),
+            schemaIndexTask.outputDirectory.get().asFile.toPath().resolve(ViaductResourceIndexes.SCHEMA).readLines(),
+        )
+        assertEquals(
+            listOf("META-INF/viaduct/modules/com.example.module.json"),
+            registryIndexTask.outputDirectory.get().asFile.toPath().resolve(ViaductResourceIndexes.EXECUTION_REGISTRY).readLines(),
+        )
+    }
+
+    @Test
+    fun `resource index task rejects duplicate registry keys`() {
+        val moduleJar = tempDir.resolve("duplicate-module.jar").toFile()
+        writeJar(
+            moduleJar,
+            "META-INF/viaduct/modules/com.example.first.json" to registryJson("example/duplicate"),
+            "META-INF/viaduct/modules/com.example.second.json" to registryJson("example/duplicate"),
+        )
+        val indexTask =
+            project.tasks.register(
+                "testDuplicateResourceIndexes",
+                GenerateExecutionRegistryResourceIndexTask::class.java,
+            ).get().apply {
+                moduleClasspath.from(moduleJar)
+                outputDirectory.set(project.layout.buildDirectory.dir("duplicate-indexes"))
+            }
+
+        val exception = assertThrows<IllegalArgumentException> { indexTask.generate() }
+
+        assertTrue(exception.message.orEmpty().contains("Duplicate execution registry config identities"))
     }
 
     @Test
@@ -233,6 +304,31 @@ class ViaductApplicationPluginTest {
         val baseSchemaFiles = task.baseSchemaFiles.files
         assertTrue(baseSchemaFiles.isEmpty())
     }
+
+    private fun writeJar(
+        file: File,
+        vararg entries: Pair<String, String>,
+    ) {
+        ZipOutputStream(file.outputStream()).use { output ->
+            entries.forEach { (path, contents) ->
+                output.putNextEntry(ZipEntry(path))
+                output.write(contents.toByteArray())
+                output.closeEntry()
+            }
+        }
+    }
+
+    private fun registryJson(tenantName: String): String =
+        """
+        {
+          "version": "1",
+          "executorFactory": "com.example.ExecutorFactory",
+          "tenantName": "$tenantName",
+          "apiName": "kotlin",
+          "nodes": [],
+          "fields": []
+        }
+        """.trimIndent()
 
     @Test
     fun `task should only include graphqls files from base schema directory`() {

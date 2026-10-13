@@ -31,8 +31,11 @@ import viaduct.gradle.ViaductPluginCommon.prettyPath
 import viaduct.gradle.ViaductPluginCommon.validateApplicationProjectPlacement
 import viaduct.gradle.task.AssembleCentralSchemaTask
 import viaduct.gradle.task.AssembleSchemaPartitionTask
+import viaduct.gradle.task.AssembleTenantModuleConfigFileTask
+import viaduct.gradle.task.GenerateExecutionRegistryResourceIndexTask
 import viaduct.gradle.task.GenerateGRTClassFilesTask
 import viaduct.gradle.task.GenerateJavaGRTSourcesTask
+import viaduct.gradle.task.GenerateSchemaResourceIndexTask
 import viaduct.gradle.task.GenerateSchemaScopingManifestTask
 import viaduct.gradle.task.ValidateSchemaExtensionsTask
 import viaduct.scoping.SchemaScopeDefinitions
@@ -56,7 +59,18 @@ abstract class ViaductApplicationPlugin : Plugin<Project> {
             setupIncomingDependenciesFromTopology(topology, viaductModules)
 
             val schemaScopingManifestTask = setupGenerateSchemaScopingManifestTask()
-            val kotlinGRTJar = setupKotlinGenerateGRTsTask(assembleCentralSchemaTask, schemaScopingManifestTask)
+            val moduleRuntimeClasspath = setupModuleRuntimeClasspathForResourceIndex(viaductModules)
+            val schemaResourceIndex = setupGenerateSchemaResourceIndexTask(assembleCentralSchemaTask)
+            val executionRegistryResourceIndex = setupGenerateExecutionRegistryResourceIndexTask(
+                topology,
+                moduleRuntimeClasspath,
+            )
+            setupExecutionRegistryResourceIndexSource(executionRegistryResourceIndex)
+            val kotlinGRTJar = setupKotlinGenerateGRTsTask(
+                assembleCentralSchemaTask,
+                schemaScopingManifestTask,
+                schemaResourceIndex,
+            )
             val javaGRTJar = setupJavaGenerateGRTsTask(assembleCentralSchemaTask)
             extensions.add(
                 VIADUCT_APPLICATION_OUTPUTS_EXTENSION_NAME,
@@ -183,6 +197,64 @@ abstract class ViaductApplicationPlugin : Plugin<Project> {
             }
         }
 
+    private fun Project.setupModuleRuntimeClasspathForResourceIndex(viaductModules: Configuration): Configuration =
+        configurations.create("viaductModuleRuntimeForResourceIndex").apply {
+            description = "Runtime artifacts inspected to index generated Viaduct module configs."
+            isCanBeConsumed = false
+            isCanBeResolved = true
+            extendsFrom(viaductModules)
+            attributes {
+                attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage::class.java, Usage.JAVA_RUNTIME))
+                attribute(Category.CATEGORY_ATTRIBUTE, objects.named(Category::class.java, Category.LIBRARY))
+                attribute(
+                    LibraryElements.LIBRARY_ELEMENTS_ATTRIBUTE,
+                    objects.named(LibraryElements::class.java, LibraryElements.JAR),
+                )
+            }
+        }
+
+    private fun Project.setupGenerateSchemaResourceIndexTask(assembleCentralSchemaTask: TaskProvider<AssembleCentralSchemaTask>): TaskProvider<GenerateSchemaResourceIndexTask> =
+        tasks.register<GenerateSchemaResourceIndexTask>("generateViaductSchemaResourceIndex") {
+            centralSchemaDirectory.set(assembleCentralSchemaTask.flatMap { it.outputDirectory })
+            outputDirectory.set(layout.buildDirectory.dir("generated-resources/viaduct-schema-index"))
+        }
+
+    private fun Project.setupGenerateExecutionRegistryResourceIndexTask(
+        topology: ViaductApplicationTopology,
+        moduleRuntimeClasspath: Configuration,
+    ): TaskProvider<GenerateExecutionRegistryResourceIndexTask> {
+        val task = tasks.register<GenerateExecutionRegistryResourceIndexTask>("generateViaductExecutionRegistryResourceIndex") {
+            moduleClasspath.from(moduleRuntimeClasspath.incoming.artifactView {}.files)
+            outputDirectory.set(layout.buildDirectory.dir("generated-resources/viaduct-execution-registry-index"))
+        }
+        if (path in topology.modulePackageSuffixes) {
+            listOf(
+                "com.airbnb.viaduct.module-gradle-plugin",
+                "com.airbnb.viaduct.module-java-gradle-plugin",
+            ).forEach { pluginId ->
+                pluginManager.withPlugin(pluginId) {
+                    task.configure {
+                        moduleClasspath.from(
+                            tasks.named(
+                                "assembleViaductModuleConfigFile",
+                                AssembleTenantModuleConfigFileTask::class.java,
+                            ).flatMap { it.outputDir }
+                        )
+                    }
+                }
+            }
+        }
+        return task
+    }
+
+    private fun Project.setupExecutionRegistryResourceIndexSource(resourceIndex: TaskProvider<GenerateExecutionRegistryResourceIndexTask>) {
+        pluginManager.withPlugin("java") {
+            extensions.getByType(JavaPluginExtension::class.java).sourceSets.named("main").configure {
+                resources.srcDir(resourceIndex.flatMap { it.outputDirectory })
+            }
+        }
+    }
+
     @OptIn(InternalApi::class)
     private fun Project.setupAssembleCentralSchemaTask(
         viaductModules: Configuration,
@@ -240,6 +312,7 @@ abstract class ViaductApplicationPlugin : Plugin<Project> {
     private fun Project.setupKotlinGenerateGRTsTask(
         assembleCentralSchemaTask: TaskProvider<AssembleCentralSchemaTask>,
         schemaScopingManifestTask: TaskProvider<GenerateSchemaScopingManifestTask>,
+        schemaResourceIndex: TaskProvider<GenerateSchemaResourceIndexTask>,
     ): TaskProvider<Jar> {
         val version = pluginVersion(ViaductApplicationPlugin::class.java)
         val codegenClasspath = createOrGetCodegenClasspath(version)
@@ -271,6 +344,7 @@ abstract class ViaductApplicationPlugin : Plugin<Project> {
             from(schemaScopingManifestTask.flatMap { it.outputDirectory }) {
                 includeEmptyDirs = false
             }
+            from(schemaResourceIndex.flatMap { it.outputDirectory })
         }
 
         return generateGRTsTask

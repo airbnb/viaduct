@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
@@ -82,10 +83,28 @@ public class PluginExecutionSmokeTest {
       assertNotNull(
           jar.getJarEntry(REGISTRY_ENTRY),
           "Expected the assembled registry at " + REGISTRY_ENTRY + " in " + moduleJar);
+      var registryIndex = jar.getJarEntry("META-INF/viaduct/indexes/execution-registry-v1.index");
+      assertNotNull(registryIndex, "Expected the application's registry index in " + moduleJar);
+      try (var stream = jar.getInputStream(registryIndex)) {
+        assertEquals(
+            REGISTRY_ENTRY + "\n", new String(stream.readAllBytes(), StandardCharsets.UTF_8));
+      }
       assertFalse(
           jar.stream().anyMatch(entry -> entry.getName().startsWith("viaduct-registry/")),
           "Expected no raw APT descriptors in " + moduleJar);
     }
+  }
+
+  @Test
+  void schemaIndexListsTheGeneratedSchema() throws IOException {
+    Path schemaIndex =
+        buildDir.resolve(
+            "generated-resources/viaduct-schema-index/META-INF/viaduct/indexes/schema-v1.index");
+
+    assertExists(schemaIndex);
+    assertTrue(
+        Files.readAllLines(schemaIndex)
+            .contains("viaduct/centralSchema/partition/resolvers/graphql/schema.graphqls"));
   }
 
   @Test

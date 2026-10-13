@@ -58,6 +58,23 @@ class PluginExecutionSmokeTest {
     }
 
     @Test
+    fun resourceIndexesContainGeneratedSchemaAndRegistryPaths() {
+        val schemaIndex = buildDir.resolve(
+            "generated-resources/viaduct-schema-index/META-INF/viaduct/indexes/schema-v1.index"
+        ).readText()
+        assertTrue(schemaIndex.contains("viaduct/centralSchema/partition/resolvers/graphql/schema.graphqls"))
+
+        val registryIndex = buildDir.resolve(
+            "generated-resources/viaduct-execution-registry-index/" +
+                "META-INF/viaduct/indexes/execution-registry-v1.index"
+        ).readText()
+        assertEquals(
+            "META-INF/viaduct/modules/com.example.execution.oneproject.resolvers.json\n",
+            registryIndex,
+        )
+    }
+
+    @Test
     fun queriesAndMutationsExecuteThroughViaduct() {
         val viaduct = BasicViaductFactory.create()
 

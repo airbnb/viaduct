@@ -3,6 +3,10 @@ package viaduct.engine
 import graphql.schema.idl.SchemaParser
 import graphql.schema.idl.errors.SchemaProblem
 import io.kotest.matchers.string.shouldContain
+import java.net.URLClassLoader
+import java.nio.file.Path
+import kotlin.io.path.createDirectories
+import kotlin.io.path.writeText
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
@@ -10,6 +14,8 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import org.junit.jupiter.api.io.TempDir
+import viaduct.bootstrap.ViaductResourceIndexes
 import viaduct.engine.api.mocks.createCoroutineInterop
 
 class SchemaFactoryTest {
@@ -29,6 +35,31 @@ class SchemaFactoryTest {
 
             assertNotNull(schema)
             assertEquals("Query", schema.schema.queryType?.name)
+        }
+
+        @Test
+        fun `fromResources loads exact schema resources from the generated index`(
+            @TempDir tempDir: Path
+        ) {
+            val schemaPath = "viaduct/centralSchema/partition/example/graphql/schema.graphqls"
+            tempDir.resolve(ViaductResourceIndexes.SCHEMA).apply {
+                parent.createDirectories()
+                writeText("$schemaPath\n")
+            }
+            tempDir.resolve(schemaPath).apply {
+                parent.createDirectories()
+                writeText("extend type Query { indexed: String }")
+            }
+
+            URLClassLoader(arrayOf(tempDir.toUri().toURL()), null).use { classLoader ->
+                val schema = schemaFactory.fromResources(
+                    grtPackagePrefix = "viaduct.centralSchema",
+                    filesIncluded = Regex(".*\\.graphqls"),
+                    classLoader = classLoader,
+                )
+
+                assertNotNull(schema.schema.queryType.getFieldDefinition("indexed"))
+            }
         }
 
         @Test

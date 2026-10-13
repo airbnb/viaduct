@@ -14,6 +14,7 @@ dependencies {
     testImplementation(libs.kotest.assertions.shared)
     testImplementation(libs.kotest.assertions.core.jvm)
     testImplementation(libs.kotest.property.jvm)
+    testImplementation(libs.assertj.core)
 
     jmh(libs.jmh.annotation.processor)
     jmh(libs.jmh.core)

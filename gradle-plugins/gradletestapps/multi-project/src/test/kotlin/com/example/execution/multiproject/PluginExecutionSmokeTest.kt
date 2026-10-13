@@ -71,6 +71,20 @@ class PluginExecutionSmokeTest {
     }
 
     @Test
+    fun resourceIndexContainsEveryModuleRegistry() {
+        val registryIndex = buildDir.resolve(
+            "generated-resources/viaduct-execution-registry-index/" +
+                "META-INF/viaduct/indexes/execution-registry-v1.index"
+        ).readText()
+
+        assertEquals(
+            "META-INF/viaduct/modules/com.example.execution.multiproject.alpha.json\n" +
+                "META-INF/viaduct/modules/com.example.execution.multiproject.beta.json\n",
+            registryIndex,
+        )
+    }
+
+    @Test
     fun kotlinAndJavaResolversExecuteThroughViaduct() {
         val viaduct = BasicViaductFactory.create()
 
