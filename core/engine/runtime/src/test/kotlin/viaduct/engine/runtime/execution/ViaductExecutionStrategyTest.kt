@@ -110,7 +110,6 @@ class ViaductExecutionStrategyTest {
         flagManager = FlagManager.Disabled
     )
 
-    // JMB TODO: what is this even testing?
     @Nested
     inner class ExecutionGroups {
         @TestFactory

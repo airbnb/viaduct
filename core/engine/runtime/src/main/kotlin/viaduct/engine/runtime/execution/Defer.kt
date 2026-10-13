@@ -151,3 +151,52 @@ data class Work(
         val empty: Work = Work(emptySet(), emptyList())
     }
 }
+
+/**
+ * Additional fields completed at a position in the response
+ *
+ * @property path Absolute response path where [data] belongs, including aliases and list indices.
+ * @property data Additional fields by response name, rather than a replacement for the object.
+ * @property errors Field errors accompanying [data]. Failures that prevent producing data are
+ *   reported through [WorkEvent.GroupFailure] instead.
+ */
+data class GroupValue(
+    val path: ResultPath,
+    val data: Map<String, Any?>,
+    val errors: List<GraphQLError>
+)
+
+/**
+ * An update from [WorkGraph], before it is turned into a client response, as described in
+ * Section 6.4.7, Mapping Work Events to Response Events.
+ *
+ * Events arrive in batches, so delivering values, completing groups, and ending the stream can
+ * all happen in the same response.
+ */
+sealed interface WorkEvent {
+    /**
+     * Delivers completed [values] for [group]. Shared task results are delivered once under one
+     * participating group. Other tasks may still need to finish before the group completes.
+     *
+     * @property group An announced participating group with the longest response path, as required
+     *   by the Incremental Object Result section of the specification.
+     * @property values Results to deliver. Their paths may extend below [group]'s path.
+     */
+    data class GroupValues(val group: DeferDeliveryGroup, val values: List<GroupValue>) : WorkEvent
+
+    /**
+     * All work belonging to [group] has completed successfully.
+     *
+     * @property newGroups Groups now eligible for delivery, including descendants of empty groups.
+     */
+    data class GroupSuccess(val group: DeferDeliveryGroup, val newGroups: List<DeferDeliveryGroup>) : WorkEvent
+
+    /**
+     * Completes [group] with [errors] from failed execution. Errors accompanying successfully
+     * produced data belong in [GroupValues] instead.
+     */
+    data class GroupFailure(val group: DeferDeliveryGroup, val errors: List<GraphQLError>) : WorkEvent
+
+    /** The entire work queue has finished. This can accompany group events in the same batch. */
+    object Terminated : WorkEvent
+}
