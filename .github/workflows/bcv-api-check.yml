@@ -52,7 +52,7 @@ jobs:
                     echo " "
                     echo "[api-check] Binary API check failed."
                     echo " "
-                    echo "This check validates the public Kotlin API definitions for modules that enforce binary compatibility (i.e., :api modules)."
+                    echo "This check validates the public API definitions for modules that enforce binary compatibility (i.e., :api modules)."
                     echo "If you intentionally changed a public API covered by this check, you must:"
                     echo " "
                     echo "  1) Regenerate the API dumps locally:"
