@@ -1,0 +1,25 @@
+[
+  {
+    "command": [
+      "bazel",
+      "test",
+      "//projects/viaduct/oss/..."
+    ],
+    "cwd": "/home/raymie_stata/repos/3ht",
+    "revision": "54382b55c7fe183041fbd7fdf886d5823192159e",
+    "started_utc": "2026-10-09T03:36:00.984367+00:00",
+    "exit_code": 3,
+    "finished_utc": "2026-10-09T03:43:46.457266+00:00"
+  },
+  {
+    "command": [
+      "yak",
+      "lint"
+    ],
+    "cwd": "/home/raymie_stata/repos/3ht",
+    "revision": "54382b55c7fe183041fbd7fdf886d5823192159e",
+    "exit_code": 0,
+    "recorded_utc": "2026-10-09T03:44:39.544559+00:00",
+    "note": "Invoked separately after the Bazel command returned; the complete lint output is in lint.txt."
+  }
+]

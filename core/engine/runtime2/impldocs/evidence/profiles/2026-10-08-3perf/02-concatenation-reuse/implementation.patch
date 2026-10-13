@@ -1,0 +1,19 @@
+diff --git a/projects/viaduct/oss/core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/Selection.kt b/projects/viaduct/oss/core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/Selection.kt
+index e84765775e782..9242478ff02b0 100644
+--- a/projects/viaduct/oss/core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/Selection.kt
++++ b/projects/viaduct/oss/core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/Selection.kt
+@@ -136,7 +136,13 @@ fun <T : Any> Iterable<T>.flatMapToSelectionForest(transform: (T) -> SelectionFo
+     )
+ 
+ /** Concatenates these forests without comparing their selection occurrences. */
+-fun Iterable<SelectionForest>.concatenateSelectionForests(): SelectionForest = flatMapToSelectionForest { forest -> forest }
++fun Iterable<SelectionForest>.concatenateSelectionForests(): SelectionForest {
++    if (this is Collection<SelectionForest> && size == 1) {
++        val forest = first()
++        if (forest !is MutationSelectionForest) return forest
++    }
++    return flatMapToSelectionForest { forest -> forest }
++}
+ 
+ /**
+  * Returns the demand applicable to concrete parent [type], normalized by structural object key.

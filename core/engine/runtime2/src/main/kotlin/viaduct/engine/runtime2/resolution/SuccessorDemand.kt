@@ -1,5 +1,6 @@
 package viaduct.engine.runtime2.resolution
 
+import java.util.concurrent.ConcurrentHashMap
 import viaduct.engine.runtime2.model.InclusionCondition
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.Selection
@@ -10,6 +11,7 @@ import viaduct.engine.runtime2.model.guardedBy
 import viaduct.engine.runtime2.model.merge
 import viaduct.engine.runtime2.model.objectKey
 import viaduct.engine.runtime2.model.registry.Assumptions
+import viaduct.engine.runtime2.model.registry.ResolverRegistry
 import viaduct.engine.runtime2.model.selectionForestOf
 import viaduct.engine.runtime2.resolution.framework.Demand
 import viaduct.engine.runtime2.resolution.framework.liftParentSuccessorDemand
@@ -29,7 +31,7 @@ internal fun Demand<SelectionForest>.successorDemandFromConstructionDemand(
     possibleRootTypes: Set<ViaductSchema.Object> = emptySet(),
 ): SelectionForest {
     val constructionDemand = this + liftParentConstructionDemand(world)
-    val context = SuccessorDemandContext(world)
+    val context = SuccessorDemandContext(world.resolverRegistry)
     val checkedDemand = constructionDemand.checked.successorDemandWithChecks(context, checked = true)
     val uncheckedDemand = constructionDemand.unchecked.successorDemandWithChecks(context, checked = false)
     val typeCheckerDemand = if (constructionDemand.typeCheckCondition !== InclusionCondition.Never) {
@@ -41,20 +43,41 @@ internal fun Demand<SelectionForest>.successorDemandFromConstructionDemand(
     return demand + demand.liftParentSuccessorDemand(world)
 }
 
-/** Per-computation recursion and memoization for argument-independent fixed-template analysis. */
+/** Implemented only by prepared registries; decorating a registry must not inherit its cache. */
+internal interface FixedSuccessorDemandCacheOwner {
+    val fixedSuccessorDemandCache: FixedSuccessorDemandCache
+}
+
+/** Registry-lifetime memoization of immutable, recursion-stack-independent template expansions. */
+internal class FixedSuccessorDemandCache {
+    private val demands = ConcurrentHashMap<SuccessorBoundary, SelectionForest>()
+
+    internal fun get(boundary: SuccessorBoundary): SelectionForest? = demands[boundary]
+
+    internal fun put(
+        boundary: SuccessorBoundary,
+        demand: SelectionForest,
+    ) {
+        demands.putIfAbsent(boundary, demand)
+    }
+}
+
+/** Recursion state belongs to one computation, even when completed expansions are shared. */
 private class SuccessorDemandContext(
-    val world: Assumptions,
+    val registry: ResolverRegistry,
 ) {
-    val expansionState = SuccessorExpansionState()
+    val expansionState = SuccessorExpansionState((registry as? FixedSuccessorDemandCacheOwner)?.fixedSuccessorDemandCache)
 }
 
 /** Memoizes only expansions independent of the current recursion stack. */
-private class SuccessorExpansionState {
+private class SuccessorExpansionState(
+    private val sharedCache: FixedSuccessorDemandCache?,
+) {
     private val expandingBoundaries = mutableSetOf<SuccessorBoundary>()
     private val fixedInputDemand = mutableMapOf<SuccessorBoundary, SelectionForest>()
     private var cycleCuts = 0
 
-    fun cachedInputDemand(boundary: SuccessorBoundary): SelectionForest? = fixedInputDemand[boundary]
+    fun cachedInputDemand(boundary: SuccessorBoundary): SelectionForest? = sharedCache?.get(boundary) ?: fixedInputDemand[boundary]
 
     fun beginExpansion(boundary: SuccessorBoundary): Int? {
         if (expandingBoundaries.add(boundary)) return cycleCuts
@@ -71,18 +94,20 @@ private class SuccessorExpansionState {
         cutsBefore: Int,
         demand: SelectionForest
     ) {
-        if (cycleCuts == cutsBefore) fixedInputDemand[boundary] = demand
+        if (cycleCuts == cutsBefore) {
+            if (sharedCache != null) sharedCache.put(boundary, demand) else fixedInputDemand[boundary] = demand
+        }
     }
 }
 
 /** Unlike grounded boundaries, fixed-template boundaries do not depend on argument values. */
-private data class SuccessorBoundary(
+internal data class SuccessorBoundary(
     val field: ViaductSchema.ObjectField? = null,
     val type: ViaductSchema.Object? = null,
     val kind: SuccessorBoundaryKind,
 )
 
-private enum class SuccessorBoundaryKind {
+internal enum class SuccessorBoundaryKind {
     RESOLVER,
     CHECKER,
     TYPE_CHECKER,
@@ -108,7 +133,7 @@ private fun Selection.requestedSuccessorDemand(
     checked: Boolean,
     producerSuppliableOnly: Boolean,
 ): SelectionForest {
-    val hasRegisteredResolver = key.field in context.world.resolverRegistry
+    val hasRegisteredResolver = key.field in context.registry
     if (hasRegisteredResolver && (key !is ObjectEngineResult.GroundKey || (producerSuppliableOnly && key.field.args.isNotEmpty()))) {
         return selectionForestOf()
     }
@@ -155,20 +180,20 @@ private fun Set<ViaductSchema.Object>.fixedTypeCheckerInputDemand(context: Succe
 
 private fun SuccessorBoundary.fixedInputDemand(context: SuccessorDemandContext): SelectionForest {
     context.expansionState.cachedInputDemand(this)?.let { return it }
-    val fragment = when (kind) {
-        SuccessorBoundaryKind.RESOLVER ->
-            if (requireNotNull(field) in context.world.resolverRegistry) context.world.resolverRegistry.resolver(field).objectFragment else null
-        SuccessorBoundaryKind.CHECKER -> context.world.resolverRegistry.fieldChecker(requireNotNull(field))?.objectFragment
-        SuccessorBoundaryKind.TYPE_CHECKER -> context.world.resolverRegistry.typeChecker(requireNotNull(type))?.objectFragment
-    } ?: return selectionForestOf()
     val cutsBefore = context.expansionState.beginExpansion(this) ?: return selectionForestOf()
     val result = try {
+        val fragment = when (kind) {
+            SuccessorBoundaryKind.RESOLVER ->
+                if (requireNotNull(field) in context.registry) context.registry.resolver(field).objectFragment else null
+            SuccessorBoundaryKind.CHECKER -> context.registry.fieldChecker(requireNotNull(field))?.objectFragment
+            SuccessorBoundaryKind.TYPE_CHECKER -> context.registry.typeChecker(requireNotNull(type))?.objectFragment
+        }
         // Descendant occurrence bindings do not exist while choosing a producer's passive output.
-        fragment.withoutInclusionConditions().successorDemandWithChecks(
+        fragment?.withoutInclusionConditions()?.successorDemandWithChecks(
             context,
             checked = kind == SuccessorBoundaryKind.RESOLVER,
             producerSuppliableOnly = true,
-        )
+        ) ?: selectionForestOf()
     } finally {
         context.expansionState.endExpansion(this)
     }

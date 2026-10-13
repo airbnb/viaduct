@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="viaduct.engine.runtime2.resolution.TypeCheckerGeneratedTest" tests="1" skipped="0" failures="1" errors="0" timestamp="2026-10-09T03:35:30" hostname="raymie-stata-codex" time="11.999">
+  <properties/>
+  <testcase name="generated mixed type checker worlds resolve correctly()" classname="viaduct.engine.runtime2.resolution.TypeCheckerGeneratedTest" time="11.999">
+    <failure message="java.lang.AssertionError: Type-checker profile missed activated coverage [ERROR_ARGUMENT_IN_TYPE_INPUT]; activatedCases={TYPE_CHECKER=134, SUCCESS=130, DENIAL=99, LIST_OCCURRENCE=55, ASSOCIATED_QUERY_OCCURRENCE=126, REPEATED_TYPE=125, OBJECT_INPUT_RESOLVER=55, QUERY_INPUT_RESOLVER=70, LIST_OCCURRENCE_WITH_RESOLVER_INPUT=25, ASSOCIATED_QUERY_WITH_RESOLVER_INPUT=56, SUCCESS_WITH_RESOLVER_INPUT=72, DENIAL_WITH_RESOLVER_INPUT=32, RESOLVER_INPUT_FIELD_CHECK=46, RESOLVER_INPUT_TYPE_CHECK=43, FIELD_AND_TYPE_SAME_PATH=114, FROM_PROVIDER_VARIABLE=29, PROVIDER_VARIABLE_IN_OBJECT_INPUT=12, PROVIDER_VARIABLE_IN_QUERY_INPUT=19, FROM_OBJECT_PATH_VARIABLE=2, FROM_QUERY_PATH_VARIABLE=6, PATH_VARIABLE_IN_OBJECT_INPUT=6, PATH_VARIABLE_IN_QUERY_INPUT=5, NESTED_PATH_VARIABLE=3, ERROR_ARGUMENT_IN_TYPE_INPUT=0}&#10;Coordinates: profile=resolution-type-checker-mixed seed=-8164484992334210930 S=all R=all Q=all&#10;Size: 10:3:5&#10;Replay seed: -PresolverPropertySeed=-8164484992334210930" type="java.lang.AssertionError">java.lang.AssertionError: Type-checker profile missed activated coverage [ERROR_ARGUMENT_IN_TYPE_INPUT]; activatedCases={TYPE_CHECKER=134, SUCCESS=130, DENIAL=99, LIST_OCCURRENCE=55, ASSOCIATED_QUERY_OCCURRENCE=126, REPEATED_TYPE=125, OBJECT_INPUT_RESOLVER=55, QUERY_INPUT_RESOLVER=70, LIST_OCCURRENCE_WITH_RESOLVER_INPUT=25, ASSOCIATED_QUERY_WITH_RESOLVER_INPUT=56, SUCCESS_WITH_RESOLVER_INPUT=72, DENIAL_WITH_RESOLVER_INPUT=32, RESOLVER_INPUT_FIELD_CHECK=46, RESOLVER_INPUT_TYPE_CHECK=43, FIELD_AND_TYPE_SAME_PATH=114, FROM_PROVIDER_VARIABLE=29, PROVIDER_VARIABLE_IN_OBJECT_INPUT=12, PROVIDER_VARIABLE_IN_QUERY_INPUT=19, FROM_OBJECT_PATH_VARIABLE=2, FROM_QUERY_PATH_VARIABLE=6, PATH_VARIABLE_IN_OBJECT_INPUT=6, PATH_VARIABLE_IN_QUERY_INPUT=5, NESTED_PATH_VARIABLE=3, ERROR_ARGUMENT_IN_TYPE_INPUT=0}
+Coordinates: profile=resolution-type-checker-mixed seed=-8164484992334210930 S=all R=all Q=all
+Size: 10:3:5
+Replay seed: -PresolverPropertySeed=-8164484992334210930
+	at viaduct.engine.runtime2.arbitrary.ResolverTestRun.assertAggregate(TestCaseGenerator.kt:104)
+	at viaduct.engine.runtime2.contract.GeneratedTypeCheckerCoverage.assertRequired(GeneratedTypeCheckerCoverage.kt:96)
+	at viaduct.engine.runtime2.contract.GeneratedTypeCheckerContract$typeCheckerProfile$1.invokeSuspend(GeneratedTypeCheckerContract.kt:97)
+	at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:33)
+	at kotlinx.coroutines.DispatchedTask.run(DispatchedTask.kt:104)
+	at kotlinx.coroutines.EventLoopImplBase.processNextEvent(EventLoop.common.kt:277)
+	at kotlinx.coroutines.BlockingCoroutine.joinBlocking(Builders.kt:95)
+	at kotlinx.coroutines.BuildersKt__BuildersKt.runBlocking(Builders.kt:69)
+	at kotlinx.coroutines.BuildersKt.runBlocking(Unknown Source)
+	at kotlinx.coroutines.BuildersKt__BuildersKt.runBlocking$default(Builders.kt:48)
+	at kotlinx.coroutines.BuildersKt.runBlocking$default(Unknown Source)
+	at viaduct.engine.runtime2.contract.GeneratedTypeCheckerContract$DefaultImpls.typeCheckerProfile(GeneratedTypeCheckerContract.kt:80)
+	at viaduct.engine.runtime2.contract.GeneratedTypeCheckerContract$DefaultImpls.generated mixed type checker worlds resolve correctly(GeneratedTypeCheckerContract.kt:77)
+	at viaduct.engine.runtime2.resolution.TypeCheckerGeneratedTest.generated mixed type checker worlds resolve correctly(TypeCheckerGeneratedTest.kt:12)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:568)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+</failure>
+  </testcase>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

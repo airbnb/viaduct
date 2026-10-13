@@ -1,0 +1,19 @@
+Artifact bazel-wrapper-linux-amd64-a5099da5b7def2b985daf93245e0c38ee9028d99 already landed
+FAIL: //projects/viaduct/oss/core/engine/runtime2/src/test/kotlin/viaduct/engine/runtime2/resolution:resolution (Exit 1) (see /tmp/_bazel_user/ace73efc796db60c9b5da27f568b6d6d/execroot/treehouse/bazel-out/k8-fastbuild/testlogs/projects/viaduct/oss/core/engine/runtime2/src/test/kotlin/viaduct/engine/runtime2/resolution/resolution/test.log)
+//projects/viaduct/oss/core/engine/runtime2/src/test/kotlin/viaduct/engine/runtime2/resolution:resolution FAILED in 189.2s
+  /tmp/_bazel_user/ace73efc796db60c9b5da27f568b6d6d/execroot/treehouse/bazel-out/k8-fastbuild/testlogs/projects/viaduct/oss/core/engine/runtime2/src/test/kotlin/viaduct/engine/runtime2/resolution/resolution/test.log
+
+Executed 170 out of 257 tests: 256 tests pass and 1 fails remotely.
+There were tests whose specified size is too big. Use the --test_verbose_timeout_warnings command line option to see which ones these are.
+exit status 3
+Artifact failed-invocation-summarizer-universal-e2db559fbfeb3d18a5b96ce30aa295b83d8d0c11 already landed
+INFO : Refer human here for build details: https://engflow.musta.ch/invocations/default/98959116-2b5c-48ac-9154-e2b0b50033cb#highlights
+WARN : Full log for failed target: //projects/viaduct/oss/core/engine/runtime2/src/test/kotlin/viaduct/engine/runtime2/resolution:resolution available at: /tmp/invocation-summarizer/98959116-2b5c-48ac-9154-e2b0b50033cb/target-output-705034842.log
+INFO : A full list of github-style file level annotations of errors can be found at /tmp/invocation-summarizer/98959116-2b5c-48ac-9154-e2b0b50033cb/github_file_annotations.json
+---
+<h3>Test Failures</h3>
+The following test targets compiled successfully but failed when run:
+//projects/viaduct/oss/core/engine/runtime2/src/test/kotlin/viaduct/engine/runtime2/resolution:resolution
+Command to reproduce errors locally:
+bazel test //projects/viaduct/oss/core/engine/runtime2/src/test/kotlin/viaduct/engine/runtime2/resolution:resolution --test_filter="viaduct.engine.runtime2.resolution.ResolverMultithreadedStressTest#generated denying type checker worlds resolve correctly"
+

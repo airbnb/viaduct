@@ -1,0 +1,46 @@
+[
+  {
+    "name": "coverage-candidate",
+    "command": [
+      "./gradlew",
+      ":core:engine:runtime2:resolverPropertyReplay",
+      "-PresolverPropertyClass=viaduct.engine.runtime2.resolution.TypeCheckerGeneratedTest",
+      "-PresolverPropertyProfile=resolution-type-checker-mixed",
+      "-PresolverPropertySeed=-8164484992334210930",
+      "-PresolverPropertyCase=all",
+      "-PresolverPropertySize=10:3:5",
+      "--no-configuration-cache",
+      "--console=plain"
+    ],
+    "cwd": "/home/raymie_stata/repos/3ht/projects/viaduct/oss",
+    "revision": "54382b55c7fe183041fbd7fdf886d5823192159e",
+    "started_utc": "2026-10-09T03:35:04.854730+00:00",
+    "exit_code": 1,
+    "finished_utc": "2026-10-09T03:35:21.815101+00:00",
+    "failure_messages": [
+      "java.lang.AssertionError: Type-checker profile missed activated coverage [ERROR_ARGUMENT_IN_TYPE_INPUT]; activatedCases={TYPE_CHECKER=134, SUCCESS=130, DENIAL=99, LIST_OCCURRENCE=55, ASSOCIATED_QUERY_OCCURRENCE=126, REPEATED_TYPE=125, OBJECT_INPUT_RESOLVER=55, QUERY_INPUT_RESOLVER=70, LIST_OCCURRENCE_WITH_RESOLVER_INPUT=25, ASSOCIATED_QUERY_WITH_RESOLVER_INPUT=56, SUCCESS_WITH_RESOLVER_INPUT=72, DENIAL_WITH_RESOLVER_INPUT=32, RESOLVER_INPUT_FIELD_CHECK=46, RESOLVER_INPUT_TYPE_CHECK=43, FIELD_AND_TYPE_SAME_PATH=114, FROM_PROVIDER_VARIABLE=29, PROVIDER_VARIABLE_IN_OBJECT_INPUT=12, PROVIDER_VARIABLE_IN_QUERY_INPUT=19, FROM_OBJECT_PATH_VARIABLE=2, FROM_QUERY_PATH_VARIABLE=6, PATH_VARIABLE_IN_OBJECT_INPUT=6, PATH_VARIABLE_IN_QUERY_INPUT=5, NESTED_PATH_VARIABLE=3, ERROR_ARGUMENT_IN_TYPE_INPUT=0}\nCoordinates: profile=resolution-type-checker-mixed seed=-8164484992334210930 S=all R=all Q=all\nSize: 10:3:5\nReplay seed: -PresolverPropertySeed=-8164484992334210930"
+    ]
+  },
+  {
+    "name": "coverage-baseline",
+    "command": [
+      "./gradlew",
+      ":core:engine:runtime2:resolverPropertyReplay",
+      "-PresolverPropertyClass=viaduct.engine.runtime2.resolution.TypeCheckerGeneratedTest",
+      "-PresolverPropertyProfile=resolution-type-checker-mixed",
+      "-PresolverPropertySeed=-8164484992334210930",
+      "-PresolverPropertyCase=all",
+      "-PresolverPropertySize=10:3:5",
+      "--no-configuration-cache",
+      "--console=plain"
+    ],
+    "cwd": "/home/raymie_stata/repos/3ht/projects/viaduct/oss",
+    "revision": "3c6f07eab6706326e4b4a3d51a4308c15c9947b6",
+    "started_utc": "2026-10-09T03:35:23.794326+00:00",
+    "exit_code": 1,
+    "finished_utc": "2026-10-09T03:35:42.544769+00:00",
+    "failure_messages": [
+      "java.lang.AssertionError: Type-checker profile missed activated coverage [ERROR_ARGUMENT_IN_TYPE_INPUT]; activatedCases={TYPE_CHECKER=134, SUCCESS=130, DENIAL=99, LIST_OCCURRENCE=55, ASSOCIATED_QUERY_OCCURRENCE=126, REPEATED_TYPE=125, OBJECT_INPUT_RESOLVER=55, QUERY_INPUT_RESOLVER=70, LIST_OCCURRENCE_WITH_RESOLVER_INPUT=25, ASSOCIATED_QUERY_WITH_RESOLVER_INPUT=56, SUCCESS_WITH_RESOLVER_INPUT=72, DENIAL_WITH_RESOLVER_INPUT=32, RESOLVER_INPUT_FIELD_CHECK=46, RESOLVER_INPUT_TYPE_CHECK=43, FIELD_AND_TYPE_SAME_PATH=114, FROM_PROVIDER_VARIABLE=29, PROVIDER_VARIABLE_IN_OBJECT_INPUT=12, PROVIDER_VARIABLE_IN_QUERY_INPUT=19, FROM_OBJECT_PATH_VARIABLE=2, FROM_QUERY_PATH_VARIABLE=6, PATH_VARIABLE_IN_OBJECT_INPUT=6, PATH_VARIABLE_IN_QUERY_INPUT=5, NESTED_PATH_VARIABLE=3, ERROR_ARGUMENT_IN_TYPE_INPUT=0}\nCoordinates: profile=resolution-type-checker-mixed seed=-8164484992334210930 S=all R=all Q=all\nSize: 10:3:5\nReplay seed: -PresolverPropertySeed=-8164484992334210930"
+    ]
+  }
+]

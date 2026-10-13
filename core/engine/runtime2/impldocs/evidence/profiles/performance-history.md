@@ -150,6 +150,10 @@ Resolver benchmark activated feature coverage (distinct queries):
 
 The exact Runtime2 full check passed with 2,955 tests, zero failures/errors and 168 skipped; `yak lint` passed, and the JMH JAR built. Each deterministic section passes independent result correctness, exact application accounting with its known supplied-field exemptions, and binding validation. The prepared full snapshot passes binding/activation checks, reporting checks, and the all-100 bulk client-value comparison. Whole-corpus correctness replay is not claimed: its pre-existing closed Query-OER checker validation encounters failed guards on non-invoked owners, as recorded in the maintained performance guide.
 
+### 2026-10-08 — incremental optimizations on the corrected overhead baseline
+
+The [fresh three-improvement collection](2026-10-08-3perf/README.md) starts from the corrected prepared-callback, production-informed checker baseline and deferred runtime cycle diagnosis. It measures guard reuse, singleton forest concatenation reuse, and registry-lifetime fixed successor demand caching incrementally, each against its immediate predecessor. Five warmups, eight measurements and three fresh forks use the unchanged fixed 100-query corpus at one dispatcher thread. The collection records exact source/host/JVM identities, commands, all measured iterations, JMH uncertainty and byte-identical workload statistics; older-workload optimization evidence is replaced for this branch.
+
 ### 2026-10-08 — benchmark correctness repair on the corrected baseline
 
 The [fresh repair validation](2026-10-08-full-benchmark-repair/README.md) carries the checker-owned Query-root repair onto the prepared-callback, production-informed checker baseline. The generated full benchmark records checker inputs, and development application and from-field-binding oracles enumerate distinct checker-associated Query roots. JMH failures propagate to the Gradle launchers. This repairs benchmark validation; it changes no production engine execution and is excluded from the engine-performance stack.

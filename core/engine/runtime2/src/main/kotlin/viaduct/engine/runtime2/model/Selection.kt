@@ -136,7 +136,13 @@ fun <T : Any> Iterable<T>.flatMapToSelectionForest(transform: (T) -> SelectionFo
     )
 
 /** Concatenates these forests without comparing their selection occurrences. */
-fun Iterable<SelectionForest>.concatenateSelectionForests(): SelectionForest = flatMapToSelectionForest { forest -> forest }
+fun Iterable<SelectionForest>.concatenateSelectionForests(): SelectionForest {
+    if (this is Collection<SelectionForest> && size == 1) {
+        val forest = first()
+        if (forest !is MutationSelectionForest) return forest
+    }
+    return flatMapToSelectionForest { forest -> forest }
+}
 
 /**
  * Returns the demand applicable to concrete parent [type], normalized by structural object key.
@@ -440,15 +446,19 @@ private class ObjectSelectionImpl(
 
 /** Conjunctively guards each occurrence while retaining a compact condition graph. */
 fun SelectionForest.guardedBy(condition: InclusionCondition): SelectionForest =
-    flatMap { selection ->
-        selectionForestOf(
-            Selection.of(
-                key = selection.key,
-                possibleTypes = selection.possibleTypes,
-                subselections = selection.subselections,
-                inclusionCondition = condition.and(selection.inclusionCondition),
-            ),
-        )
+    if (this !is MutationSelectionForest && (condition === InclusionCondition.Always || isEmpty())) {
+        this
+    } else {
+        flatMap { selection ->
+            selectionForestOf(
+                Selection.of(
+                    key = selection.key,
+                    possibleTypes = selection.possibleTypes,
+                    subselections = selection.subselections,
+                    inclusionCondition = condition.and(selection.inclusionCondition),
+                ),
+            )
+        }
     }
 
 private abstract class AbstractSelectionForest(

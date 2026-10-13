@@ -1,0 +1,6 @@
+{
+  "stage": "01-guard-reuse",
+  "original_commit": "d81d50f5f224d",
+  "parent_before_apply": "3c6f07eab6706326e4b4a3d51a4308c15c9947b6",
+  "implementation_revision": "57200f2fb9d6ea7d4bdee43ddb0d63d2672be320"
+}

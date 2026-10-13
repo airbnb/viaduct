@@ -49,6 +49,8 @@ import viaduct.engine.runtime2.model.schemaType
 import viaduct.engine.runtime2.model.selectionForestOf
 import viaduct.engine.runtime2.model.usedVariables
 import viaduct.engine.runtime2.model.variableTemplates
+import viaduct.engine.runtime2.resolution.FixedSuccessorDemandCache
+import viaduct.engine.runtime2.resolution.FixedSuccessorDemandCacheOwner
 import viaduct.engine.runtime2.schema.SourceSchemaAdapter
 import viaduct.engine.runtime2.schema.ViaductAndGJSchema
 import viaduct.engine.runtime2.schema.lowering.ALL_SOURCE_OBJECTS_TYPE
@@ -390,7 +392,9 @@ private class ResolverRegistryImpl(
     private val fieldCheckers: Map<ViaductSchema.ObjectField, FieldCheckerResolver>,
     private val typeCheckers: Map<ViaductSchema.Object, TypeCheckerResolver>,
     variableDeclarations: Map<Arguments.Variable, VariableDeclaration>,
-) : ResolverRegistry {
+) : ResolverRegistry, FixedSuccessorDemandCacheOwner {
+    override val fixedSuccessorDemandCache = FixedSuccessorDemandCache()
+
     private val sourceFieldResolvers = fieldResolverDefinitions
     private val fieldResolvers: Map<ViaductSchema.Field, FieldValueResolver>
     private val variablesProviderTemplates =

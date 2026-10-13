@@ -1,0 +1,109 @@
+# JMH version: 1.36
+# VM version: JDK 21.0.4, OpenJDK 64-Bit Server VM, 21.0.4+7-LTS
+# VM invoker: /opt/mise/installs/java/corretto-21.0.4.7.1/bin/java
+# VM options: -Dviaduct.resolution.threadcount=1 -DresolverBenchmarkReportFile=/tmp/runtime2-3perf/00-baseline/statistics.txt
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 5 iterations, single-shot each
+# Measurement: 8 iterations, single-shot each
+# Timeout: 10 min per iteration
+# Threads: 1 thread
+# Benchmark mode: Single shot invocation time
+# Benchmark: viaduct.engine.runtime2.resolution.ResolverBenchmark.overhead
+# Parameters: (loopCount = 1)
+
+# Run progress: 0.00% complete, ETA 00:00:00
+# Fork: 1 of 3
+# Warmup Iteration   1: 1.349 s/op
+# Warmup Iteration   2: 1.310 s/op
+# Warmup Iteration   3: 1.287 s/op
+# Warmup Iteration   4: 1.285 s/op
+# Warmup Iteration   5: 1.277 s/op
+Iteration   1: 1.279 s/op
+Iteration   2: 1.278 s/op
+Iteration   3: 1.268 s/op
+Iteration   4: 1.272 s/op
+Iteration   5: 1.284 s/op
+Iteration   6: 1.285 s/op
+Iteration   7: 1.278 s/op
+Iteration   8: 1.286 s/op
+
+# Run progress: 33.33% complete, ETA 00:00:50
+# Fork: 2 of 3
+# Warmup Iteration   1: 1.346 s/op
+# Warmup Iteration   2: 1.330 s/op
+# Warmup Iteration   3: 1.305 s/op
+# Warmup Iteration   4: 1.300 s/op
+# Warmup Iteration   5: 1.280 s/op
+Iteration   1: 1.280 s/op
+Iteration   2: 1.282 s/op
+Iteration   3: 1.289 s/op
+Iteration   4: 1.304 s/op
+Iteration   5: 1.286 s/op
+Iteration   6: 1.282 s/op
+Iteration   7: 1.289 s/op
+Iteration   8: 1.290 s/op
+
+# Run progress: 66.67% complete, ETA 00:00:25
+# Fork: 3 of 3
+# Warmup Iteration   1: 1.348 s/op
+# Warmup Iteration   2: 1.313 s/op
+# Warmup Iteration   3: 1.293 s/op
+# Warmup Iteration   4: 1.306 s/op
+# Warmup Iteration   5: 1.281 s/op
+Iteration   1: 1.288 s/op
+Iteration   2: 1.281 s/op
+Iteration   3: 1.276 s/op
+Iteration   4: 1.278 s/op
+Iteration   5: 1.275 s/op
+Iteration   6: 1.290 s/op
+Iteration   7: 1.284 s/op
+Iteration   8: 1.274 s/op
+
+
+Result "viaduct.engine.runtime2.resolution.ResolverBenchmark.overhead":
+  N = 24
+  mean =      1.282 ±(99.9%) 0.006 s/op
+
+  Histogram, s/op:
+    [1.260, 1.265) = 0 
+    [1.265, 1.270) = 1 
+    [1.270, 1.275) = 3 
+    [1.275, 1.280) = 6 
+    [1.280, 1.285) = 5 
+    [1.285, 1.290) = 7 
+    [1.290, 1.295) = 1 
+    [1.295, 1.300) = 0 
+    [1.300, 1.305) = 1 
+    [1.305, 1.310) = 0 
+
+  Percentiles, s/op:
+      p(0.0000) =      1.268 s/op
+     p(50.0000) =      1.282 s/op
+     p(90.0000) =      1.290 s/op
+     p(95.0000) =      1.300 s/op
+     p(99.0000) =      1.304 s/op
+     p(99.9000) =      1.304 s/op
+     p(99.9900) =      1.304 s/op
+     p(99.9990) =      1.304 s/op
+     p(99.9999) =      1.304 s/op
+    p(100.0000) =      1.304 s/op
+
+
+# Run complete. Total time: 00:01:15
+
+REMEMBER: The numbers below are just data. To gain reusable insights, you need to follow up on
+why the numbers are the way they are. Use profilers (see -prof, -lprof), design factorial
+experiments, perform baseline and negative tests that provide experimental control, make sure
+the benchmarking environment is safe on JVM/OS/HW level, ask for reviews from the domain experts.
+Do not assume the numbers tell you what you want them to tell.
+
+NOTE: Current JVM experimentally supports Compiler Blackholes, and they are in use. Please exercise
+extra caution when trusting the results, look into the generated code to check the benchmark still
+works, and factor in a small probability of new VM bugs. Additionally, while comparisons between
+different JVMs are already problematic, the performance difference caused by different Blackhole
+modes can be very significant. Please make sure you use the consistent Blackhole mode for comparisons.
+
+Benchmark                   (loopCount)  Mode  Cnt  Score   Error  Units
+ResolverBenchmark.overhead            1    ss   24  1.282 ± 0.006   s/op
+
+Benchmark result is saved to /tmp/runtime2-3perf/00-baseline/benchmark.json

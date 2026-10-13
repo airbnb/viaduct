@@ -1,0 +1,50 @@
+[
+  {
+    "stage": "00-baseline",
+    "revision": "3c6f07eab6706326e4b4a3d51a4308c15c9947b6",
+    "ms_per_resolution": 12.824454439166669,
+    "error_ms_per_resolution": 0.057533103121822235,
+    "unit": "s/op",
+    "resolutions_per_operation": 100,
+    "forks": 3,
+    "warmup_iterations": 5,
+    "measurement_iterations": 8,
+    "incremental_percent_reduction": null
+  },
+  {
+    "stage": "01-guard-reuse",
+    "revision": "57200f2fb9d6ea7d4bdee43ddb0d63d2672be320",
+    "ms_per_resolution": 12.077865312499998,
+    "error_ms_per_resolution": 0.08400112914112626,
+    "unit": "s/op",
+    "resolutions_per_operation": 100,
+    "forks": 3,
+    "warmup_iterations": 5,
+    "measurement_iterations": 8,
+    "incremental_percent_reduction": 5.82160535723486
+  },
+  {
+    "stage": "02-concatenation-reuse",
+    "revision": "77134f2329a70e1583c524723dc25c5b6808ed13",
+    "ms_per_resolution": 11.74720913,
+    "error_ms_per_resolution": 0.05977469756707719,
+    "unit": "s/op",
+    "resolutions_per_operation": 100,
+    "forks": 3,
+    "warmup_iterations": 5,
+    "measurement_iterations": 8,
+    "incremental_percent_reduction": 2.737703840411154
+  },
+  {
+    "stage": "03-successor-cache",
+    "revision": "2f80df7d91405d93ccfbe29cc6f60ac7057868ee",
+    "ms_per_resolution": 10.86237407166667,
+    "error_ms_per_resolution": 0.05708592585170398,
+    "unit": "s/op",
+    "resolutions_per_operation": 100,
+    "forks": 3,
+    "warmup_iterations": 5,
+    "measurement_iterations": 8,
+    "incremental_percent_reduction": 7.532300213108833
+  }
+]

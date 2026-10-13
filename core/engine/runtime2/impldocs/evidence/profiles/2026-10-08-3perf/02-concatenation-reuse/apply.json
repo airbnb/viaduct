@@ -1,0 +1,6 @@
+{
+  "stage": "02-concatenation-reuse",
+  "original_commit": "aef1025a6a286",
+  "parent_before_apply": "51138d237d3c6d34bae0419c236c7241a3457435",
+  "implementation_revision": "77134f2329a70e1583c524723dc25c5b6808ed13"
+}

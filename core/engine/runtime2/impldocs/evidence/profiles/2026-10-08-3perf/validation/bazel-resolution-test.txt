@@ -1,0 +1,586 @@
+exec ${PAGER:-/usr/bin/less} "$0" || exit 1
+Executing tests from //projects/viaduct/oss/core/engine/runtime2/src/test/kotlin/viaduct/engine/runtime2/resolution:resolution
+-----------------------------------------------------------------------------
+OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+Oct 09, 2026 3:40:33 AM sun.util.locale.provider.LocaleProviderAdapter <clinit>
+WARNING: COMPAT locale provider will be removed in a future release
+[otel.javaagent 2026-10-09 03:40:33:297 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 2.16.0
+OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+Field-checker coverage profile=resolution-field-checker-mixed seed=-5333813306515019288 generatedCases={FIELD_CHECKER=150, NONEMPTY_OBJECT_FRAGMENT=150, NONEMPTY_QUERY_FRAGMENT=150, FROM_ARGUMENT_VARIABLE=125, FROM_OBJECT_FIELD_VARIABLE=75, FROM_QUERY_FIELD_VARIABLE=70, FROM_PROVIDER_VARIABLE=145, NESTED_FROM_ARGUMENT_VARIABLE=20, NULLABLE_FROM_ARGUMENT_TRAVERSAL=5, PARENT_FIELD_DEMAND=150, DUPLICATE_NAMED_PAIR_PROJECTIONS=150, EMPTY_NAMED_PAIR=150, CHECKER_ONLY_OBJECT_DEMAND=150, CHECKER_ONLY_QUERY_DEMAND=150, PASSIVE_CHECKED_FIELD=15, SHARED_QUERY_OER_MULTIPLE_OWNERS=150, CHECKER_IN_ASSOCIATED_QUERY_OER=150, LIST_ELEMENT_OCCURRENCE=135, REPEATED_CHECKER_COORDINATE=150, ARGUMENT_DISTINCT_OCCURRENCES=150, SYMBOLIC_CHECKER_KEY=145, ROOT_FIELD_REFERENCE_RESULT=0, CHECKER_SUCCESS=150, CHECKER_DENIAL=150, RESOLVER_WITHOUT_CHECKER=120}, activatedCases={FIELD_CHECKER=132, NONEMPTY_OBJECT_FRAGMENT=132, NONEMPTY_QUERY_FRAGMENT=132, FROM_ARGUMENT_VARIABLE=47, FROM_OBJECT_FIELD_VARIABLE=22, FROM_QUERY_FIELD_VARIABLE=17, FROM_PROVIDER_VARIABLE=93, NESTED_FROM_ARGUMENT_VARIABLE=3, NULLABLE_FROM_ARGUMENT_TRAVERSAL=3, PARENT_FIELD_DEMAND=1, DUPLICATE_NAMED_PAIR_PROJECTIONS=132, EMPTY_NAMED_PAIR=132, CHECKER_ONLY_OBJECT_DEMAND=132, CHECKER_ONLY_QUERY_DEMAND=132, PASSIVE_CHECKED_FIELD=0, SHARED_QUERY_OER_MULTIPLE_OWNERS=126, CHECKER_IN_ASSOCIATED_QUERY_OER=118, LIST_ELEMENT_OCCURRENCE=8, REPEATED_CHECKER_COORDINATE=119, ARGUMENT_DISTINCT_OCCURRENCES=98, SYMBOLIC_CHECKER_KEY=99, ROOT_FIELD_REFERENCE_RESULT=0, CHECKER_SUCCESS=129, CHECKER_DENIAL=100, RESOLVER_WITHOUT_CHECKER=86}, activatedApplications={FIELD_CHECKER=4888, NONEMPTY_OBJECT_FRAGMENT=4888, NONEMPTY_QUERY_FRAGMENT=4886, FROM_ARGUMENT_VARIABLE=754, FROM_OBJECT_FIELD_VARIABLE=64, FROM_QUERY_FIELD_VARIABLE=48, FROM_PROVIDER_VARIABLE=1318, NESTED_FROM_ARGUMENT_VARIABLE=88, NULLABLE_FROM_ARGUMENT_TRAVERSAL=84, PARENT_FIELD_DEMAND=4, DUPLICATE_NAMED_PAIR_PROJECTIONS=4888, EMPTY_NAMED_PAIR=4888, CHECKER_ONLY_OBJECT_DEMAND=4888, CHECKER_ONLY_QUERY_DEMAND=4888, PASSIVE_CHECKED_FIELD=0, SHARED_QUERY_OER_MULTIPLE_OWNERS=10484, CHECKER_IN_ASSOCIATED_QUERY_OER=2646, LIST_ELEMENT_OCCURRENCE=62, REPEATED_CHECKER_COORDINATE=4484, ARGUMENT_DISTINCT_OCCURRENCES=4090, SYMBOLIC_CHECKER_KEY=2934, ROOT_FIELD_REFERENCE_RESULT=0, CHECKER_SUCCESS=2678, CHECKER_DENIAL=2210, RESOLVER_WITHOUT_CHECKER=2092}
+Field-checker coverage profile=resolution-field-checker-root-reference generatedCases={FIELD_CHECKER=150, NONEMPTY_OBJECT_FRAGMENT=0, NONEMPTY_QUERY_FRAGMENT=0, FROM_ARGUMENT_VARIABLE=0, FROM_OBJECT_FIELD_VARIABLE=0, FROM_QUERY_FIELD_VARIABLE=0, FROM_PROVIDER_VARIABLE=0, NESTED_FROM_ARGUMENT_VARIABLE=0, NULLABLE_FROM_ARGUMENT_TRAVERSAL=0, PARENT_FIELD_DEMAND=0, DUPLICATE_NAMED_PAIR_PROJECTIONS=150, EMPTY_NAMED_PAIR=150, CHECKER_ONLY_OBJECT_DEMAND=150, CHECKER_ONLY_QUERY_DEMAND=150, PASSIVE_CHECKED_FIELD=150, SHARED_QUERY_OER_MULTIPLE_OWNERS=150, CHECKER_IN_ASSOCIATED_QUERY_OER=0, LIST_ELEMENT_OCCURRENCE=150, REPEATED_CHECKER_COORDINATE=150, ARGUMENT_DISTINCT_OCCURRENCES=150, SYMBOLIC_CHECKER_KEY=0, ROOT_FIELD_REFERENCE_RESULT=150, CHECKER_SUCCESS=150, CHECKER_DENIAL=0, RESOLVER_WITHOUT_CHECKER=0}, activatedCases={FIELD_CHECKER=150, NONEMPTY_OBJECT_FRAGMENT=0, NONEMPTY_QUERY_FRAGMENT=0, FROM_ARGUMENT_VARIABLE=0, FROM_OBJECT_FIELD_VARIABLE=0, FROM_QUERY_FIELD_VARIABLE=0, FROM_PROVIDER_VARIABLE=0, NESTED_FROM_ARGUMENT_VARIABLE=0, NULLABLE_FROM_ARGUMENT_TRAVERSAL=0, PARENT_FIELD_DEMAND=0, DUPLICATE_NAMED_PAIR_PROJECTIONS=150, EMPTY_NAMED_PAIR=150, CHECKER_ONLY_OBJECT_DEMAND=150, CHECKER_ONLY_QUERY_DEMAND=150, PASSIVE_CHECKED_FIELD=150, SHARED_QUERY_OER_MULTIPLE_OWNERS=150, CHECKER_IN_ASSOCIATED_QUERY_OER=0, LIST_ELEMENT_OCCURRENCE=58, REPEATED_CHECKER_COORDINATE=68, ARGUMENT_DISTINCT_OCCURRENCES=9, SYMBOLIC_CHECKER_KEY=0, ROOT_FIELD_REFERENCE_RESULT=150, CHECKER_SUCCESS=150, CHECKER_DENIAL=0, RESOLVER_WITHOUT_CHECKER=0}, activatedApplications={FIELD_CHECKER=3850, NONEMPTY_OBJECT_FRAGMENT=0, NONEMPTY_QUERY_FRAGMENT=0, FROM_ARGUMENT_VARIABLE=0, FROM_OBJECT_FIELD_VARIABLE=0, FROM_QUERY_FIELD_VARIABLE=0, FROM_PROVIDER_VARIABLE=0, NESTED_FROM_ARGUMENT_VARIABLE=0, NULLABLE_FROM_ARGUMENT_TRAVERSAL=0, PARENT_FIELD_DEMAND=0, DUPLICATE_NAMED_PAIR_PROJECTIONS=3850, EMPTY_NAMED_PAIR=3850, CHECKER_ONLY_OBJECT_DEMAND=3850, CHECKER_ONLY_QUERY_DEMAND=3850, PASSIVE_CHECKED_FIELD=1830, SHARED_QUERY_OER_MULTIPLE_OWNERS=3070, CHECKER_IN_ASSOCIATED_QUERY_OER=0, LIST_ELEMENT_OCCURRENCE=456, REPEATED_CHECKER_COORDINATE=694, ARGUMENT_DISTINCT_OCCURRENCES=72, SYMBOLIC_CHECKER_KEY=0, ROOT_FIELD_REFERENCE_RESULT=2268, CHECKER_SUCCESS=3850, CHECKER_DENIAL=0, RESOLVER_WITHOUT_CHECKER=0}
+Field-checker coverage profile=resolution-field-checker-denial seed=-1662986981617984515 generatedCases={FIELD_CHECKER=150, NONEMPTY_OBJECT_FRAGMENT=150, NONEMPTY_QUERY_FRAGMENT=150, FROM_ARGUMENT_VARIABLE=125, FROM_OBJECT_FIELD_VARIABLE=55, FROM_QUERY_FIELD_VARIABLE=55, FROM_PROVIDER_VARIABLE=150, NESTED_FROM_ARGUMENT_VARIABLE=45, NULLABLE_FROM_ARGUMENT_TRAVERSAL=40, PARENT_FIELD_DEMAND=150, DUPLICATE_NAMED_PAIR_PROJECTIONS=150, EMPTY_NAMED_PAIR=150, CHECKER_ONLY_OBJECT_DEMAND=150, CHECKER_ONLY_QUERY_DEMAND=150, PASSIVE_CHECKED_FIELD=15, SHARED_QUERY_OER_MULTIPLE_OWNERS=150, CHECKER_IN_ASSOCIATED_QUERY_OER=150, LIST_ELEMENT_OCCURRENCE=135, REPEATED_CHECKER_COORDINATE=150, ARGUMENT_DISTINCT_OCCURRENCES=150, SYMBOLIC_CHECKER_KEY=150, ROOT_FIELD_REFERENCE_RESULT=0, CHECKER_SUCCESS=0, CHECKER_DENIAL=150, RESOLVER_WITHOUT_CHECKER=0}, activatedCases={FIELD_CHECKER=135, NONEMPTY_OBJECT_FRAGMENT=135, NONEMPTY_QUERY_FRAGMENT=135, FROM_ARGUMENT_VARIABLE=54, FROM_OBJECT_FIELD_VARIABLE=15, FROM_QUERY_FIELD_VARIABLE=13, FROM_PROVIDER_VARIABLE=109, NESTED_FROM_ARGUMENT_VARIABLE=13, NULLABLE_FROM_ARGUMENT_TRAVERSAL=13, PARENT_FIELD_DEMAND=27, DUPLICATE_NAMED_PAIR_PROJECTIONS=135, EMPTY_NAMED_PAIR=135, CHECKER_ONLY_OBJECT_DEMAND=135, CHECKER_ONLY_QUERY_DEMAND=135, PASSIVE_CHECKED_FIELD=3, SHARED_QUERY_OER_MULTIPLE_OWNERS=129, CHECKER_IN_ASSOCIATED_QUERY_OER=126, LIST_ELEMENT_OCCURRENCE=40, REPEATED_CHECKER_COORDINATE=127, ARGUMENT_DISTINCT_OCCURRENCES=104, SYMBOLIC_CHECKER_KEY=113, ROOT_FIELD_REFERENCE_RESULT=0, CHECKER_SUCCESS=0, CHECKER_DENIAL=135, RESOLVER_WITHOUT_CHECKER=0}, activatedApplications={FIELD_CHECKER=12304, NONEMPTY_OBJECT_FRAGMENT=12304, NONEMPTY_QUERY_FRAGMENT=12302, FROM_ARGUMENT_VARIABLE=1576, FROM_OBJECT_FIELD_VARIABLE=76, FROM_QUERY_FIELD_VARIABLE=74, FROM_PROVIDER_VARIABLE=2994, NESTED_FROM_ARGUMENT_VARIABLE=86, NULLABLE_FROM_ARGUMENT_TRAVERSAL=66, PARENT_FIELD_DEMAND=58, DUPLICATE_NAMED_PAIR_PROJECTIONS=12304, EMPTY_NAMED_PAIR=12304, CHECKER_ONLY_OBJECT_DEMAND=12304, CHECKER_ONLY_QUERY_DEMAND=12304, PASSIVE_CHECKED_FIELD=6, SHARED_QUERY_OER_MULTIPLE_OWNERS=22782, CHECKER_IN_ASSOCIATED_QUERY_OER=8882, LIST_ELEMENT_OCCURRENCE=810, REPEATED_CHECKER_COORDINATE=11638, ARGUMENT_DISTINCT_OCCURRENCES=10610, SYMBOLIC_CHECKER_KEY=9470, ROOT_FIELD_REFERENCE_RESULT=0, CHECKER_SUCCESS=0, CHECKER_DENIAL=12304, RESOLVER_WITHOUT_CHECKER=0}
+Field-checker coverage profile=resolution-field-checker-success seed=9094854069772742355 generatedCases={FIELD_CHECKER=150, NONEMPTY_OBJECT_FRAGMENT=150, NONEMPTY_QUERY_FRAGMENT=150, FROM_ARGUMENT_VARIABLE=150, FROM_OBJECT_FIELD_VARIABLE=95, FROM_QUERY_FIELD_VARIABLE=115, FROM_PROVIDER_VARIABLE=150, NESTED_FROM_ARGUMENT_VARIABLE=40, NULLABLE_FROM_ARGUMENT_TRAVERSAL=15, PARENT_FIELD_DEMAND=150, DUPLICATE_NAMED_PAIR_PROJECTIONS=150, EMPTY_NAMED_PAIR=150, CHECKER_ONLY_OBJECT_DEMAND=150, CHECKER_ONLY_QUERY_DEMAND=150, PASSIVE_CHECKED_FIELD=10, SHARED_QUERY_OER_MULTIPLE_OWNERS=150, CHECKER_IN_ASSOCIATED_QUERY_OER=150, LIST_ELEMENT_OCCURRENCE=135, REPEATED_CHECKER_COORDINATE=150, ARGUMENT_DISTINCT_OCCURRENCES=150, SYMBOLIC_CHECKER_KEY=150, ROOT_FIELD_REFERENCE_RESULT=0, CHECKER_SUCCESS=150, CHECKER_DENIAL=0, RESOLVER_WITHOUT_CHECKER=0}, activatedCases={FIELD_CHECKER=135, NONEMPTY_OBJECT_FRAGMENT=135, NONEMPTY_QUERY_FRAGMENT=135, FROM_ARGUMENT_VARIABLE=101, FROM_OBJECT_FIELD_VARIABLE=43, FROM_QUERY_FIELD_VARIABLE=48, FROM_PROVIDER_VARIABLE=126, NESTED_FROM_ARGUMENT_VARIABLE=28, NULLABLE_FROM_ARGUMENT_TRAVERSAL=6, PARENT_FIELD_DEMAND=36, DUPLICATE_NAMED_PAIR_PROJECTIONS=135, EMPTY_NAMED_PAIR=135, CHECKER_ONLY_OBJECT_DEMAND=135, CHECKER_ONLY_QUERY_DEMAND=135, PASSIVE_CHECKED_FIELD=0, SHARED_QUERY_OER_MULTIPLE_OWNERS=135, CHECKER_IN_ASSOCIATED_QUERY_OER=134, LIST_ELEMENT_OCCURRENCE=57, REPEATED_CHECKER_COORDINATE=135, ARGUMENT_DISTINCT_OCCURRENCES=127, SYMBOLIC_CHECKER_KEY=126, ROOT_FIELD_REFERENCE_RESULT=0, CHECKER_SUCCESS=135, CHECKER_DENIAL=0, RESOLVER_WITHOUT_CHECKER=0}, activatedApplications={FIELD_CHECKER=18530, NONEMPTY_OBJECT_FRAGMENT=18530, NONEMPTY_QUERY_FRAGMENT=18520, FROM_ARGUMENT_VARIABLE=2140, FROM_OBJECT_FIELD_VARIABLE=248, FROM_QUERY_FIELD_VARIABLE=396, FROM_PROVIDER_VARIABLE=4854, NESTED_FROM_ARGUMENT_VARIABLE=196, NULLABLE_FROM_ARGUMENT_TRAVERSAL=18, PARENT_FIELD_DEMAND=94, DUPLICATE_NAMED_PAIR_PROJECTIONS=18530, EMPTY_NAMED_PAIR=18530, CHECKER_ONLY_OBJECT_DEMAND=18530, CHECKER_ONLY_QUERY_DEMAND=18530, PASSIVE_CHECKED_FIELD=0, SHARED_QUERY_OER_MULTIPLE_OWNERS=35688, CHECKER_IN_ASSOCIATED_QUERY_OER=13382, LIST_ELEMENT_OCCURRENCE=1992, REPEATED_CHECKER_COORDINATE=17812, ARGUMENT_DISTINCT_OCCURRENCES=16488, SYMBOLIC_CHECKER_KEY=13920, ROOT_FIELD_REFERENCE_RESULT=0, CHECKER_SUCCESS=18530, CHECKER_DENIAL=0, RESOLVER_WITHOUT_CHECKER=0}
+Field-checker coverage profile=resolution-field-checker-passive generatedCases={FIELD_CHECKER=150, NONEMPTY_OBJECT_FRAGMENT=0, NONEMPTY_QUERY_FRAGMENT=0, FROM_ARGUMENT_VARIABLE=0, FROM_OBJECT_FIELD_VARIABLE=0, FROM_QUERY_FIELD_VARIABLE=0, FROM_PROVIDER_VARIABLE=0, NESTED_FROM_ARGUMENT_VARIABLE=0, NULLABLE_FROM_ARGUMENT_TRAVERSAL=0, PARENT_FIELD_DEMAND=0, DUPLICATE_NAMED_PAIR_PROJECTIONS=150, EMPTY_NAMED_PAIR=150, CHECKER_ONLY_OBJECT_DEMAND=150, CHECKER_ONLY_QUERY_DEMAND=150, PASSIVE_CHECKED_FIELD=150, SHARED_QUERY_OER_MULTIPLE_OWNERS=150, CHECKER_IN_ASSOCIATED_QUERY_OER=0, LIST_ELEMENT_OCCURRENCE=90, REPEATED_CHECKER_COORDINATE=120, ARGUMENT_DISTINCT_OCCURRENCES=75, SYMBOLIC_CHECKER_KEY=0, ROOT_FIELD_REFERENCE_RESULT=0, CHECKER_SUCCESS=150, CHECKER_DENIAL=0, RESOLVER_WITHOUT_CHECKER=0}, activatedCases={FIELD_CHECKER=111, NONEMPTY_OBJECT_FRAGMENT=0, NONEMPTY_QUERY_FRAGMENT=0, FROM_ARGUMENT_VARIABLE=0, FROM_OBJECT_FIELD_VARIABLE=0, FROM_QUERY_FIELD_VARIABLE=0, FROM_PROVIDER_VARIABLE=0, NESTED_FROM_ARGUMENT_VARIABLE=0, NULLABLE_FROM_ARGUMENT_TRAVERSAL=0, PARENT_FIELD_DEMAND=0, DUPLICATE_NAMED_PAIR_PROJECTIONS=111, EMPTY_NAMED_PAIR=111, CHECKER_ONLY_OBJECT_DEMAND=111, CHECKER_ONLY_QUERY_DEMAND=111, PASSIVE_CHECKED_FIELD=85, SHARED_QUERY_OER_MULTIPLE_OWNERS=78, CHECKER_IN_ASSOCIATED_QUERY_OER=0, LIST_ELEMENT_OCCURRENCE=14, REPEATED_CHECKER_COORDINATE=24, ARGUMENT_DISTINCT_OCCURRENCES=13, SYMBOLIC_CHECKER_KEY=0, ROOT_FIELD_REFERENCE_RESULT=0, CHECKER_SUCCESS=111, CHECKER_DENIAL=0, RESOLVER_WITHOUT_CHECKER=0}, activatedApplications={FIELD_CHECKER=814, NONEMPTY_OBJECT_FRAGMENT=0, NONEMPTY_QUERY_FRAGMENT=0, FROM_ARGUMENT_VARIABLE=0, FROM_OBJECT_FIELD_VARIABLE=0, FROM_QUERY_FIELD_VARIABLE=0, FROM_PROVIDER_VARIABLE=0, NESTED_FROM_ARGUMENT_VARIABLE=0, NULLABLE_FROM_ARGUMENT_TRAVERSAL=0, PARENT_FIELD_DEMAND=0, DUPLICATE_NAMED_PAIR_PROJECTIONS=814, EMPTY_NAMED_PAIR=814, CHECKER_ONLY_OBJECT_DEMAND=814, CHECKER_ONLY_QUERY_DEMAND=814, PASSIVE_CHECKED_FIELD=376, SHARED_QUERY_OER_MULTIPLE_OWNERS=516, CHECKER_IN_ASSOCIATED_QUERY_OER=0, LIST_ELEMENT_OCCURRENCE=90, REPEATED_CHECKER_COORDINATE=150, ARGUMENT_DISTINCT_OCCURRENCES=54, SYMBOLIC_CHECKER_KEY=0, ROOT_FIELD_REFERENCE_RESULT=0, CHECKER_SUCCESS=814, CHECKER_DENIAL=0, RESOLVER_WITHOUT_CHECKER=0}
+Type-checker coverage profile=resolution-type-checker-success seed=6073285964213760020 cases=150 activatedCases={TYPE_CHECKER=129, SUCCESS=129, DENIAL=0, LIST_OCCURRENCE=45, ASSOCIATED_QUERY_OCCURRENCE=123, REPEATED_TYPE=119, OBJECT_INPUT_RESOLVER=93, QUERY_INPUT_RESOLVER=85, LIST_OCCURRENCE_WITH_RESOLVER_INPUT=26, ASSOCIATED_QUERY_WITH_RESOLVER_INPUT=98, SUCCESS_WITH_RESOLVER_INPUT=108, DENIAL_WITH_RESOLVER_INPUT=0, RESOLVER_INPUT_FIELD_CHECK=81, RESOLVER_INPUT_TYPE_CHECK=58, FIELD_AND_TYPE_SAME_PATH=119, FROM_PROVIDER_VARIABLE=63, PROVIDER_VARIABLE_IN_OBJECT_INPUT=35, PROVIDER_VARIABLE_IN_QUERY_INPUT=42, FROM_OBJECT_PATH_VARIABLE=33, FROM_QUERY_PATH_VARIABLE=9, PATH_VARIABLE_IN_OBJECT_INPUT=17, PATH_VARIABLE_IN_QUERY_INPUT=25, NESTED_PATH_VARIABLE=9, ERROR_ARGUMENT_IN_TYPE_INPUT=3}
+Resolution type-checker concurrency: threads=1, maximumConcurrentContinuations=1, observedThreads=1
+Resolution type-checker concurrency: threads=1, maximumConcurrentContinuations=1, observedThreads=1
+Type-checker coverage profile=resolution-type-checker-mixed seed=-4076381347894846020 cases=150 activatedCases={TYPE_CHECKER=122, SUCCESS=118, DENIAL=97, LIST_OCCURRENCE=37, ASSOCIATED_QUERY_OCCURRENCE=117, REPEATED_TYPE=114, OBJECT_INPUT_RESOLVER=72, QUERY_INPUT_RESOLVER=63, LIST_OCCURRENCE_WITH_RESOLVER_INPUT=22, ASSOCIATED_QUERY_WITH_RESOLVER_INPUT=71, SUCCESS_WITH_RESOLVER_INPUT=81, DENIAL_WITH_RESOLVER_INPUT=41, RESOLVER_INPUT_FIELD_CHECK=70, RESOLVER_INPUT_TYPE_CHECK=52, FIELD_AND_TYPE_SAME_PATH=119, FROM_PROVIDER_VARIABLE=36, PROVIDER_VARIABLE_IN_OBJECT_INPUT=12, PROVIDER_VARIABLE_IN_QUERY_INPUT=25, FROM_OBJECT_PATH_VARIABLE=12, FROM_QUERY_PATH_VARIABLE=6, PATH_VARIABLE_IN_OBJECT_INPUT=4, PATH_VARIABLE_IN_QUERY_INPUT=12, NESTED_PATH_VARIABLE=1, ERROR_ARGUMENT_IN_TYPE_INPUT=1}
+Resolution type-checker concurrency: threads=1, maximumConcurrentContinuations=1, observedThreads=1
+Resolution broad stress: profile=resolution-root-field-references, seed=2026091001, size=10:5:5, attemptedCases=250, resolutionCalls=250, completedCases=250, resolverApplications=41014, generatedArgumentVariables=1490, generatedObjectPathVariables=1120, generatedQueryPathVariables=1465, activatedArgumentVariableApplications=1229, activatedObjectPathVariableApplications=372, activatedQueryPathVariableApplications=773, maximumProviderPathLength=4, maximumVariableUseDepth=4, generatedSometimesPassiveFields=1170, activatedSometimesPassiveOccurrences=3280, activatedSometimesPassiveParentDemandOccurrences=92, sometimesPassiveParentDemandDepths={1=40, 3=52}, generatedQueryFragments=3065, activatedQueryFragmentApplications=3780, generatedRootFieldReferences=6580, generatedNodeRootFieldReferences=250, activatedRootFieldReferences=6231, activatedNodeRootFieldReferences=980, activatedListRootFieldReferences=1430, maximumRootFieldReferenceTailLength=3, activatedRootFieldReferenceFallbacks=374, activatedRootFieldReferenceExtensions=2928, activatedRootFieldReferenceOverrides=2245, activatedRootTargetsWithFromArgument=761, activatedRootTargetsWithFromQueryField=324, activatedRootFieldReferencePathDepths=[1, 4, 2, 3], activatedRootFieldReferenceArgumentCounts=[1, 0, 4], activatedRootFieldReferenceTargetKinds=[interface, enum, object, scalar, union], activatedParentDemandApplications=32, materializedParentFieldActivations=610, materializedRandomParentFieldActivations=0, materializedParentSelectionSets=610, parentSelectionSetsWithArgumentVariables=0, argumentVariableSelectionsBeneathParent=0, argumentVariableSourceCombinationsBeneathParent={}, parentSelectionSetsWithSelectedResolvers=610, resolverSelectionsBeneathParent=868, directResolverSelectionsBeneathParent=527, resolverSelectionsWithVariablesBeneathParent=4, directResolverSelectionsWithVariablesBeneathParent=4, parentSelectionSetVariableSourceCombinations={[PROVIDER]=4}, resolverVariableSourceCombinationsBeneathParent={[PROVIDER]=4}, resolverVariableArgumentSelectionsBeneathParent=8, resolverVariableArgumentFragmentsBeneathParent={QUERY=8}, resolverVariableArgumentDepthsBeneathParent={1=4, 2=4}, resolverVariableArgumentSourceCombinationsBeneathParent={[PROVIDER]=8}, parentSelectionSetsWithDiagonalDemand=26, diagonalResolverSelectionsBeneathParent=26, directDiagonalResolverSelectionsBeneathParent=26, diagonalResolverSelectionsWithVariables=0, diagonalVariableArgumentSelections=0, diagonalParentDepths={1=26}, diagonalVariableSourceCombinations={}, diagonalVariableArgumentSourceCombinations={}, distinctMaterializedParentFields=3, materializedParentFieldDepths={1=474, 2=104, 3=32}, signatures=[GREAT_GRANDPARENT_PARENT_DEMAND, SYMBOLIC_RESOLVER_INSTANCE, PROVIDER_VARIABLE_OWNER, OBJECT_PATH_VARIABLE_OWNER, NESTED_VARIABLE_USE, MIXED_BINDING_SOURCES, NESTED_PROVIDER_PATH, MULTIPLE_OBJECT_PATH_OWNERS, LIST_SYMBOLIC_RESOLVER_INSTANCE, EQUAL_SYMBOLIC_ARGUMENTS, ABSTRACT_PROVIDER_PATH, NULL_PROVIDER_INTERMEDIATE, ERROR_PROVIDER_INTERMEDIATE, OBJECT_PATH_OWNER_DEPENDENCY], elapsedMillis=18026
+Resolution broad stress: profile=resolution-broad-campaign-v1-round-001-run-01-resolution-balanced-standard, seed=2026081300011, size=200:2:5, attemptedCases=1, resolutionCalls=1, completedCases=1, resolverApplications=192, generatedArgumentVariables=4, generatedObjectPathVariables=5, generatedQueryPathVariables=7, activatedArgumentVariableApplications=7, activatedObjectPathVariableApplications=0, activatedQueryPathVariableApplications=1, maximumProviderPathLength=4, maximumVariableUseDepth=4, generatedSometimesPassiveFields=9, activatedSometimesPassiveOccurrences=20, activatedSometimesPassiveParentDemandOccurrences=0, sometimesPassiveParentDemandDepths={}, generatedQueryFragments=15, activatedQueryFragmentApplications=31, generatedRootFieldReferences=13, generatedNodeRootFieldReferences=1, activatedRootFieldReferences=35, activatedNodeRootFieldReferences=16, activatedListRootFieldReferences=4, maximumRootFieldReferenceTailLength=3, activatedRootFieldReferenceFallbacks=1, activatedRootFieldReferenceExtensions=9, activatedRootFieldReferenceOverrides=7, activatedRootTargetsWithFromArgument=2, activatedRootTargetsWithFromQueryField=1, activatedRootFieldReferencePathDepths=[2, 4, 1, 3], activatedRootFieldReferenceArgumentCounts=[0, 1, 4], activatedRootFieldReferenceTargetKinds=[object, scalar, enum, interface, union], activatedParentDemandApplications=0, materializedParentFieldActivations=0, materializedRandomParentFieldActivations=0, materializedParentSelectionSets=0, parentSelectionSetsWithArgumentVariables=0, argumentVariableSelectionsBeneathParent=0, argumentVariableSourceCombinationsBeneathParent={}, parentSelectionSetsWithSelectedResolvers=0, resolverSelectionsBeneathParent=0, directResolverSelectionsBeneathParent=0, resolverSelectionsWithVariablesBeneathParent=0, directResolverSelectionsWithVariablesBeneathParent=0, parentSelectionSetVariableSourceCombinations={}, resolverVariableSourceCombinationsBeneathParent={}, resolverVariableArgumentSelectionsBeneathParent=0, resolverVariableArgumentFragmentsBeneathParent={}, resolverVariableArgumentDepthsBeneathParent={}, resolverVariableArgumentSourceCombinationsBeneathParent={}, parentSelectionSetsWithDiagonalDemand=0, diagonalResolverSelectionsBeneathParent=0, directDiagonalResolverSelectionsBeneathParent=0, diagonalResolverSelectionsWithVariables=0, diagonalVariableArgumentSelections=0, diagonalParentDepths={}, diagonalVariableSourceCombinations={}, diagonalVariableArgumentSourceCombinations={}, distinctMaterializedParentFields=0, materializedParentFieldDepths={}, signatures=[GREAT_GRANDPARENT_PARENT_DEMAND], elapsedMillis=209
+Property test round: id=resolution-broad-campaign-v1-round-001, runs=1, completedCases=1, elapsedMillis=211
+╷
+├─ JUnit Jupiter ✔
+│  ├─ SingularQueryGuardIsolationTest ✔
+│  │  ├─ ready owner completes before unrelated suspended guard is released() ✔
+│  │  │  ├─ query ✔
+│  │  │  ├─ objectProvider ✔
+│  │  │  └─ queryProvider ✔
+│  │  └─ failed alternative cannot poison transitive shared input() ✔
+│  │     ├─ query order=bad good ✔
+│  │     ├─ query order=good bad ✔
+│  │     ├─ objectProvider order=bad good ✔
+│  │     ├─ objectProvider order=good bad ✔
+│  │     ├─ queryProvider order=bad good ✔
+│  │     └─ queryProvider order=good bad ✔
+│  ├─ ResolverGeneratedTest ✔
+│  │  ├─ generated query fragment worlds resolve correctly() 12265 ms ✔
+│  │  ├─ list-heavy passive deepening worlds resolve with exact witnessed applications() ✔
+│  │  ├─ generated node worlds resolve correctly() ✔
+│  │  ├─ generated full feature interactions resolve correctly() ✔
+│  │  ├─ generated object fragment worlds without variables resolve correctly() ✔
+│  │  ├─ generated selective node worlds resolve correctly with supplied payload demand() ✔
+│  │  ├─ generated mixed resolver variable worlds resolve correctly() ✔
+│  │  ├─ generated sometimes-passive fields resolve correctly() ✔
+│  │  ├─ generated fromProvider variable worlds resolve correctly() ✔
+│  │  ├─ generated object fragment worlds with fromArgument resolve correctly() ✔
+│  │  ├─ generated object fragment worlds with fromObjectField resolve correctly() ✔
+│  │  ├─ generated root-field-reference worlds resolve correctly() ✔
+│  │  └─ generated empty object fragment worlds resolve correctly() ✔
+│  ├─ CoroutineResolveTest ✔
+│  │  ├─ type denial takes precedence over a selected child failure and checker failure r... ✔
+│  │  ├─ value and checker wait cycle fails instead of hanging() ✔
+│  │  ├─ argument-distinct occurrences receive grounded arguments() ✔
+│  │  ├─ root-field-reference list elements enforce type checks from their independent oc... ✔
+│  │  ├─ type checker parent input lifts ancestor demand through nested list occurrences(... ✔
+│  │  ├─ request cancellation cancels promises before field entry and during Query produc... ✔
+│  │  ├─ field and type owners at the same path retain distinct shared Query scopes() ✔
+│  │  ├─ type checker runs once for every demanded object occurrence() ✔
+│  │  ├─ installs active child promises before publishing their ancestor value() ✔
+│  │  ├─ object and Query inputs read exact value slots as the field checker() ✔
+│  │  ├─ field and reference exceptions leave unrelated fields running() ✔
+│  │  ├─ checker error can define directive-sensitive resolver applicability() ✔
+│  │  ├─ named object and Query inputs honor fromArgument inclusion conditions() ✔
+│  │  ├─ checker denial absence and exception do not change field values() ✔
+│  │  ├─ checker denial takes precedence over raw dependency failure() ✔
+│  │  ├─ checker-only raw demand restores checks at a nested resolver boundary() ✔
+│  │  ├─ nested list elements enforce their occurrence-owned type results at runtime path... ✔
+│  │  ├─ Query input materialization failures complete the checker slot exceptionally() ✔
+│  │  ├─ type-checker writer and resolver read use the OER-owned type slot() ✔
+│  │  ├─ overlapping raw named pairs and ordinary demand execute each producer once() ✔
+│  │  ├─ checked resolver parent input upgrades a checker-only occurrence to type-checked... ✔
+│  │  ├─ request cancellation terminates checker promises before entry and during executi... ✔
+│  │  ├─ unused denied object dependency does not suppress its consumer() ✔
+│  │  ├─ raw checker input bypasses combined field and type denial enforced by an ordinar... ✔
+│  │  ├─ one checker result is shared by multiple consumers() ✔
+│  │  ├─ request cancellation during type-checker execution terminates the OER-owned resu... ✔
+│  │  ├─ reserves every value and checker slot before any local producer starts() ✔
+│  │  ├─ denial is enforced in a declared Query-fragment resolver input() ✔
+│  │  ├─ one type result is shared by directive-sensitive repeated consumers() ✔
+│  │  ├─ checker raw demand is exact and restores checks only at value resolver inputs() ✔
+│  │  ├─ type-checker cancellation cancels its waiting consumer without suppressing sibli... ✔
+│  │  ├─ request cancellation terminates shared Query work and the checker slot() ✔
+│  │  ├─ type checker and checked parent input cycle terminates on the OER slot() ✔
+│  │  ├─ resolver read cycles become field errors before timeout() ✔
+│  │  ├─ checker applications coalesce in one associated Query scope with exact paths() ✔
+│  │  ├─ active and passive selected fields run once while an unselected returned field d... ✔
+│  │  ├─ correctness replay preserves early field denial before a later type denial() ✔
+│  │  ├─ Query producer failures become field errors without stopping unrelated fields() ✔
+│  │  ├─ reference targets receive type checker demand and keep publication occurrences d... ✔
+│  │  ├─ successful return is quiescent with write-once completed promises() ✔
+│  │  ├─ independent reference Query preparation failures remain field local() ✔
+│  │  ├─ parent backedge reuses and enforces the ancestor type result() ✔
+│  │  ├─ request cancellation terminates type checker waiting for its Query input() ✔
+│  │  ├─ type checker raw demand restores checked inputs only beyond active boundaries() ✔
+│  │  ├─ resolver failure becomes an error consumed by waiting siblings() ✔
+│  │  ├─ denial is enforced through aliasing and FromArgument variable instantiation() ✔
+│  │  ├─ selective producer receives object but not Query type-checker demand() ✔
+│  │  ├─ materializes empty object Query and paired named inputs raw for every occurrence... ✔
+│  │  ├─ checked parent reads inside a Query fragment do not check its Query root() ✔
+│  │  ├─ checker object input follows parent backedges raw() ✔
+│  │  ├─ denied active and passive dependencies become consumer input errors() ✔
+│  │  ├─ orchestration exceptions fail the request including Query fragment orchestration... ✔
+│  │  ├─ raw checker demand resumes checked semantics at an active resolver boundary() ✔
+│  │  ├─ materializes named object inputs raw after passive construction() ✔
+│  │  ├─ installs every local promise before any local producer starts() ✔
+│  │  ├─ allowed active and passive dependencies reach their consumers() ✔
+│  │  ├─ unused denied Query dependency does not suppress its consumer() ✔
+│  │  ├─ JVM Error escapes unchanged() ✔
+│  │  ├─ singular field and type results enforce independently and combine in production ... ✔
+│  │  ├─ Query input materialization failure completes the type-checker slot exceptionall... ✔
+│  │  ├─ checker failure terminates a waiting consumer with the original failure() ✔
+│  │  ├─ shares one Query OER while preserving owner-local checker projections() ✔
+│  │  └─ abstract nested lists check each concrete occurrence including empty selected su... ✔
+│  ├─ SymbolicTypeCheckerTest ✔
+│  │  ├─ checker field bindings preserve null intermediates terminals and nested errors o... ✔
+│  │  ├─ named pairs bind both roots and independent providers at list occurrences() ✔
+│  │  ├─ checked parent demand checks a raw ancestor and expands its type inputs() ✔
+│  │  ├─ equal grounded producing keys retain separate type occurrences() ✔
+│  │  ├─ checked OER provenance survives raw overlap and runtime exclusion() ✔
+│  │  ├─ independent replay rejects wrong target binding values even when resolver output... ✔
+│  │  ├─ checker provider exclusion is alias local even when another pair demands the sam... ✔
+│  │  ├─ reference target Query roots prepare their own registered type result() ✔
+│  │  └─ type checker parent inputs are lifted before the ancestor freezes() ✔
+│  ├─ ResolutionDispatcherFactoryTest ✔
+│  │  ├─ create returns fresh caller-owned daemon pools with distinguishable names() ✔
+│  │  ├─ create requires a positive thread count() ✔
+│  │  ├─ closing the dispatcher shuts down its executor() ✔
+│  │  └─ configured thread count reads the existing system property and validates it() ✔
+│  ├─ ParentCoverageMetricsTest ✔
+│  │  ├─ coverage misses are reported and rejected() ✔
+│  │  ├─ reports all nine criteria for each parent-focused slice() ✔
+│  │  ├─ classifies variable sources and diagonal parent demand across a resolver boundar... ✔
+│  │  └─ counts criterion instances once per recorded generated case() ✔
+│  ├─ RequestScopeOwnershipTest ✔
+│  │  ├─ checker ownership guard recognizes calls and callable references() ✔
+│  │  └─ only task roots and the mutation completion waiter can launch on the request sco... ✔
+│  ├─ ResolverOccurrenceWitnessTest ✔
+│  │  ├─ occurrence oracle includes one shared query root() ✔
+│  │  └─ occurrence oracle rejects duplicate-one omit-one for equal-input list elements() ✔
+│  ├─ ParentConstructionDemandTest ✔
+│  │  ├─ lifted demand retains client inclusion conditions() ✔
+│  │  ├─ lifted active demand can introduce another parent request() ✔
+│  │  ├─ selections without parent demand contribute nothing() ✔
+│  │  ├─ mixed parent and ordinary field selection retains ordinary resolver parent deman... ✔
+│  │  ├─ resolver-local conditions cannot suppress parent demand during lifting() ✔
+│  │  ├─ parent demand can cross two producer edges() ✔
+│  │  ├─ a resolver object fragment can introduce parent demand() ✔
+│  │  └─ a direct parent selection lifts demand across its producer edge() ✔
+│  ├─ RootFieldReferenceResolutionTest ✔
+│  │  ├─ abstract target is rejected when only some possible types conform to the consume... ✔
+│  │  ├─ list provider awaits root-reference elements() ✔
+│  │  ├─ conditioned passive reference list preserves its independent checker writer() ✔
+│  │  ├─ excluded passive list does not invoke its root-field-reference elements() ✔
+│  │  ├─ application-count oracle excludes references beneath an excluded passive list() ✔
+│  │  ├─ correctness replays a root reference with canonical rather than observed demand(... ✔
+│  │  ├─ direct resolver result tail resolves every hop with a fresh occurrence root() ✔
+│  │  ├─ correctness rejects a root-reference witness with a noncanonical invocation path... ✔
+│  │  ├─ tail reference targets retain argument and provider variables per occurrence() ✔
+│  │  ├─ embedded reference invokes namespace root field with query input consumer demand... ✔
+│  │  ├─ list-element exception becomes an error value and preserves siblings() ✔
+│  │  ├─ static resolver may passively override a registered list field with mixed refere... ✔
+│  │  ├─ referenced resolver retains Query fragment sourced variables() ✔
+│  │  ├─ embedded reference reaches its target through three namespace fields() ✔
+│  │  ├─ application-count oracle rejects an unowned root-reference observation() ✔
+│  │  ├─ task-local cancellation becomes a list-element field error and preserves sibling... ✔
+│  │  ├─ included passive list invokes its root-field-reference elements() ✔
+│  │  ├─ correctness rejects sibling root references that reuse one invocation root() ✔
+│  │  ├─ failing list-element reference preserves passive and successful siblings() ✔
+│  │  ├─ referenced resolver cannot declare an object fragment() ✔
+│  │  ├─ argument condition activates an embedded root-field-reference occurrence() ✔
+│  │  └─ error-valued resolver occurrence owns references in its query fragment() ✔
+│  ├─ PassiveValueResolutionLogicTest ✔
+│  │  ├─ passive-only object trees freeze synchronously as they are created() ✔
+│  │  ├─ source-provided active field coalesces equal invocation and construction keys() ✔
+│  │  └─ projection materializes passive values while construction launches active values... ✔
+│  ├─ VariablesProviderExecutionContextTest ✔
+│  │  ├─ provider context preserves failure and cancellation identity() ✔
+│  │  └─ provider context is scoped to the invocation and survives suspension() ✔
+│  ├─ SharedQueryInclusionFailureRegressionTest ✔
+│  │  ├─ healthy guard first preserves healthy owner's shared Query input() ✔
+│  │  ├─ healthy Query path guard first preserves healthy owner input() ✔
+│  │  ├─ failed guard first preserves healthy owner's shared Query input() ✔
+│  │  └─ failed Query path guard first preserves healthy owner input() ✔
+│  ├─ RegistrySuccessorDemandCacheTest ✔
+│  │  ├─ decorating a warmed registry does not reuse answers for an overridden checker() ✔
+│  │  ├─ concurrent cold computations produce the same demand as independent local analys... ✔
+│  │  ├─ fixed expansions are reused across fresh assumptions without retaining the incom... ✔
+│  │  └─ cycle-cut type checker and resolver expansions are not retained across demand or... ✔
+│  ├─ MutationRegistryTest ✔
+│  │  └─ mutation root and namespace resolvers reject object and Query fragments() ✔
+│  ├─ FieldCheckerGeneratedTest ✔
+│  │  ├─ generated mixed field checker worlds resolve correctly() ✔
+│  │  ├─ generated root-reference field checker worlds resolve correctly() ✔
+│  │  ├─ generated denying field checker worlds resolve correctly() 11234 ms ✔
+│  │  ├─ generated successful field checker worlds resolve correctly() 22411 ms ✔
+│  │  └─ generated passive field checker worlds resolve correctly() ✔
+│  ├─ ResolverStartTest ✔
+│  │  ├─ await propagates request cancellation for queries and mutations() ✔
+│  │  ├─ nested selection execution is owned by the calling field task() ✔
+│  │  ├─ field exception does not cancel queued sibling producers() ✔
+│  │  ├─ cancelling the request scope cancels resolver work() ✔
+│  │  ├─ task-local cancellation becomes the affected field error() ✔
+│  │  ├─ task-local cancellation becomes field errors without cancelling the request() ✔
+│  │  ├─ startResolve publishes root shape before resolver values complete() ✔
+│  │  ├─ nested execution retains observer but only query fragment emits preparation() ✔
+│  │  ├─ successful nested query retains its caller dependency in the operation checker() ✔
+│  │  ├─ equal resolver paths in distinct nested Query roots do not form a cycle() ✔
+│  │  ├─ await propagates fatal failures without swallowing the request exception handler... ✔
+│  │  ├─ request cancellation terminates field promises before coroutine entry() ✔
+│  │  ├─ await waits for query and mutation task children without waiting for unrelated r... ✔
+│  │  ├─ request cancellation records entered producer but not waiting consumer() ✔
+│  │  └─ provider contract exception becomes a field error() ✔
+│  ├─ QueryFragmentBindingTerminationTest ✔
+│  │  └─ consumer exits do not strand Query binding readers() ✔
+│  │     ├─ consumer cancelled through ordinary field ✔
+│  │     ├─ consumer cancelled through reference ✔
+│  │     ├─ unexpected exception reaches run through ordinary field ✔
+│  │     ├─ unexpected exception reaches run through reference ✔
+│  │     ├─ variables provider throws through ordinary field ✔
+│  │     ├─ variables provider throws through reference ✔
+│  │     ├─ variable missing from variables provider map through ordinary field ✔
+│  │     ├─ variable missing from variables provider map through reference ✔
+│  │     ├─ consumer argument contains an error through ordinary field ✔
+│  │     └─ consumer negatively activated through ordinary field ✔
+│  ├─ ResolutionDispatcherResourceTest ✔
+│  │  ├─ second per-method instance sees the same class dispatcher() ✔
+│  │  └─ first per-method instance sees the class dispatcher() ✔
+│  ├─ ResolverContractTest ✔
+│  │  ├─ empty Query fragments follow Query OER ownership policy() ✔
+│  │  ├─ resolves a fromArgument variable whose name differs from its argument() ✔
+│  │  ├─ dispatches every nested node-list reference occurrence() ✔
+│  │  ├─ recursive same-type parent chain retains immediate occurrence identity() ✔
+│  │  ├─ resolver produced parent field is not traversed as a passive child() ✔
+│  │  ├─ referenced Query execution uses singular sharing internally() ✔
+│  │  ├─ orders argument-bearing applications through a path-variable dependency() ✔
+│  │  ├─ deepens an already launched recursive list with typename demand() ✔
+│  │  ├─ diamond owners follow Query OER ownership policy() ✔
+│  │  ├─ checker receives raw object and Query inputs under correctness contract() ✔
+│  │  ├─ error-valued resolver argument does not import transitive demand() ✔
+│  │  ├─ duplicate response groups combine nested aliased subselections() ✔
+│  │  ├─ DSL collects one alias across non-overlapping concrete types() ✔
+│  │  ├─ late provider path deepens an already published node reference() ✔
+│  │  ├─ diagonal parent demand supports every variable source in a Query fragment() ✔
+│  │  │  ├─ FromArgument ✔
+│  │  │  ├─ FromObjectField ✔
+│  │  │  └─ FromQueryField ✔
+│  │  ├─ checker replay canonicalizes occurrences reached through parent backedges() ✔
+│  │  ├─ list null and error elements preserve position and skip descendants() ✔
+│  │  ├─ a symbolic fromArgument key remains distinct from an equal grounded key() ✔
+│  │  ├─ open resolver template closes demand before an argumentless descendant launches(... ✔
+│  │  ├─ parent demand can revisit its child before deepening the same parent() ✔
+│  │  ├─ parent demand waits for a revisited active child field() ✔
+│  │  ├─ ancestor is invoked once with standard demand before supplying the active field(... ✔
+│  │  ├─ applies concrete implementation defaults in transitive demand() ✔
+│  │  ├─ closes potential demand before descending through a passive object() ✔
+│  │  ├─ awaits completion for node in required selection set() ✔
+│  │  ├─ Query field bindings support every fragment consumer() ✔
+│  │  │  ├─ Query fragment ✔
+│  │  │  ├─ object fragment ✔
+│  │  │  └─ both fragments ✔
+│  │  ├─ projects passive recursive output to required demand() ✔
+│  │  ├─ selective Query producer receives exact successor demand once() ✔
+│  │  ├─ ancestor output supplies active fields at successive descendant fringes() ✔
+│  │  ├─ equal symbolic selections coalesce independently of response aliases() ✔
+│  │  ├─ resolver input closes sibling demand reached through a child parent() ✔
+│  │  ├─ resolves a fromArgument variable through a nested input object() ✔
+│  │  ├─ applies a concrete implementation default after interface dispatch() ✔
+│  │  ├─ object outputs vary by input and arguments at equal-key list occurrences() ✔
+│  │  ├─ omits unselected passive fields from selective resolver outputs() ✔
+│  │  ├─ rejects a non-selective resolver world() ✔
+│  │  ├─ reads a provider below an ancestor-supplied active field() ✔
+│  │  ├─ query fragment resolution is transitive() ✔
+│  │  ├─ materialized parent EOD is a copy of the ancestor value() ✔
+│  │  ├─ resolves a transitive chain of fromArgument variables() ✔
+│  │  ├─ omitted active field uses its standard resolver and ancestor-supplied demand() ✔
+│  │  ├─ resolver produced parent field cannot replace the structural parent() ✔
+│  │  ├─ provider variables may be null() ✔
+│  │  ├─ converts a terminal scalar list to a ground input list() ✔
+│  │  ├─ accepts an acyclic path-variable dependency chain() ✔
+│  │  ├─ resolves a nested passive node through Query node() ✔
+│  │  ├─ accepts an acyclic mixed-variable dependency chain() ✔
+│  │  ├─ supplies successor demand to a selective referenced target() ✔
+│  │  ├─ waits for a provider value before expanding a nested variable use() ✔
+│  │  ├─ retains passive demand below an ungrounded nested resolver key() ✔
+│  │  ├─ preserves arguments and occurrence-distinct list output shapes() ✔
+│  │  ├─ object returned inside a Query scope owns a distinct Query OER() ✔
+│  │  ├─ binds null and error from nullable provider paths() ✔
+│  │  ├─ equal pre-grounded selections merge in fragments and external queries() ✔
+│  │  ├─ binds null when a fromArgument path traverses a null input object() ✔
+│  │  ├─ retains potential demand beyond a deferred nested resolver() ✔
+│  │  ├─ late variable selection crosses a passive object field() ✔
+│  │  ├─ resolves embedded list and tail references while preserving source ownership() ✔
+│  │  ├─ retains successor demand beneath a node reference() ✔
+│  │  ├─ checker replay retains nested occurrence arguments and fromArgument bindings() ✔
+│  │  ├─ mixed argument and object path node demand is rejected as a cycle() ✔
+│  │  ├─ one fromArgument binding is shared by object and query fragments() ✔
+│  │  ├─ grounds an object-path provider argument from the owner argument() ✔
+│  │  ├─ binds a variable from a direct active scalar provider() ✔
+│  │  ├─ shared exact Query key retains distinct owner projections() ✔
+│  │  ├─ open resolver template retains output demand through nested resolver inputs() ✔
+│  │  ├─ materializes aliases and present nulls by response key() ✔
+│  │  ├─ waits for late orchestration of an already published provider object() ✔
+│  │  ├─ resolves an empty query through field and node resolvers() ✔
+│  │  ├─ closes and orders transitive sibling resolver demand() ✔
+│  │  ├─ node resolver root reference retains the originating id() ✔
+│  │  ├─ correct resolution validates access errors in both resolver inputs() ✔
+│  │  ├─ finite Query expansion invokes each exact field once() ✔
+│  │  ├─ installs a resolver promise below a passive provider field() ✔
+│  │  ├─ Query-rooted parent demand activates one ancestor resolver and its Query input() ✔
+│  │  ├─ does not copy recursive demand between different grounded keys() ✔
+│  │  ├─ resolves input selected with a fromArgument variable() ✔
+│  │  ├─ root-field reference override does not activate registered resolver input demand... ✔
+│  │  ├─ late equal child calls retain their symbolic identities() ✔
+│  │  ├─ parent demand crosses nested-list child fields and reaches grandparents() ✔
+│  │  ├─ reads a nested provider after its active ancestor publishes passive content() ✔
+│  │  ├─ query fragments preserve owner projections and OER ownership policy() ✔
+│  │  ├─ query fragment resolver occurrences are distinct from the same request occurrenc... ✔
+│  │  ├─ abstract list elements retain separate containing Query scopes() ✔
+│  │  ├─ child resolver parent input closes active ancestor demand() ✔
+│  │  ├─ does not validate object-path bindings for a source-owned resolver occurrence() ✔
+│  │  ├─ a failing Query projection does not corrupt an unrelated owner() ✔
+│  │  ├─ object fragment provider binding can be used by the query fragment() ✔
+│  │  ├─ binds provider variables for each grounded resolver occurrence() ✔
+│  │  ├─ accepts position-distinct passive fields in list output() ✔
+│  │  ├─ binds referenced arguments consumed by the target Query fragment() ✔
+│  │  ├─ DSL materializes argumentless and argument-bearing aliases by response key() ✔
+│  │  ├─ ancestor output supplies an active field instead of its standard resolver() ✔
+│  │  ├─ abstract target resolves when all possible types conform to the consumer() ✔
+│  │  ├─ ancestor-supplied active field does not activate its standard resolver demand() ✔
+│  │  ├─ grounds an object-path provider argument from another object path() ✔
+│  │  ├─ disjoint successor demand is closed before one selective producer application() ✔
+│  │  ├─ grounds a nested provider argument from another nested provider() ✔
+│  │  ├─ retains potential demand through a passive node reference() ✔
+│  │  ├─ dispatches argument-bearing abstract node lists() ✔
+│  │  ├─ seals active and passive object occurrences including list elements() ✔
+│  │  ├─ grounds a nested provider argument from another object path() ✔
+│  │  ├─ root-field references publish scalar and enum values at every consumer shape() ✔
+│  │  ├─ resolves an externally typename-only query to an empty root() ✔
+│  │  ├─ provider failure completes its resolver field as an error() ✔
+│  │  ├─ specializes shared list continuation and concrete argument defaults() ✔
+│  │  ├─ resolves recursive demand introduced by an object fragment() ✔
+│  │  ├─ future variable boundary selects its passive predecessors() ✔
+│  │  └─ resolves descendant demand before its consuming sibling() ✔
+│  ├─ SymbolicKeyIdentityTest ✔
+│  │  ├─ symbolic cell identity coalesces only equal variable instances() ✔
+│  │  ├─ list elements reuse one resolver-owned symbolic child key() ✔
+│  │  └─ equal grounded calls from different resolver instances remain separate() ✔
+│  ├─ InclusionConditionTest ✔
+│  │  ├─ statically excluded demand below parent does not invoke ancestor resolver() ✔
+│  │  ├─ an excluded resolver does not ground a descendant key from its provider() ✔
+│  │  ├─ field and fragment conditions are conjoined() ✔
+│  │  ├─ include and skip gate synthetic namespace resolvers at root and nested positions... ✔
+│  │  ├─ an excluded resolver does not invoke its own variables provider() ✔
+│  │  ├─ conflicting requirements for one variable never invoke the dependency() ✔
+│  │  ├─ aliases sharing one construction cell are materialized by source occurrence() ✔
+│  │  ├─ from-field variables apply include and skip semantics() ✔
+│  │  ├─ a failed provider inclusion condition leaves unrelated fields running() ✔
+│  │  ├─ a variable defined beneath parent may condition a sibling dependency() ✔
+│  │  ├─ a from-provider condition gates a dependency after its owning resolver activates... ✔
+│  │  ├─ equal-key alternatives invoke their tenant resolver exactly when any condition p... ✔
+│  │  ├─ late equal-key alternative broadens resolver prerequisites() ✔
+│  │  └─ include and skip must both permit inclusion() ✔
+│  ├─ TypeCheckerStressCoverageTest ✔
+│  │  └─ the multithreaded stress distribution includes type checkers() ✔
+│  ├─ ParentConstructionDemandComplexityRegressionTest ✔
+│  │  └─ an unused parent relation does not exponentially expand an acyclic resolver diam... ✔
+│  ├─ OrchestrationTaskTest ✔
+│  │  ├─ object orchestration validates source and target types at construction() ✔
+│  │  ├─ value preparation claims both roots without dispatching or deciding activation() ✔
+│  │  ├─ factory closes demand without dispatching field work() ✔
+│  │  ├─ checker preparation records every claimed slot and delays absence for pending va... ✔
+│  │  └─ conditioned passive lists wait for orchestration dispatch and retain checker act... ✔
+│  ├─ BindingDeclarationsStateTest ✔
+│  │  ├─ await suspends until the object binding domain is declared() ✔
+│  │  └─ an object binding domain is marked exactly once() ✔
+│  ├─ RuntimeTypeCheckerWitnessTest ✔
+│  │  └─ named providers and conditional paths retain occurrence local bindings() ✔
+│  ├─ ResolverMutationTest ✔
+│  │  └─ generated properties reject independent resolver program mutations() 13955 ms ✔
+│  ├─ FromFieldExclusionTest ✔
+│  │  ├─ terminal response alias selects its own guard() ✔
+│  │  ├─ selected null intermediate and terminal still bind null() ✔
+│  │  ├─ another fragment or alias cannot include the variable's excluded path() ✔
+│  │  ├─ excluded errors do not poison a binding but included errors do() ✔
+│  │  ├─ a path condition can depend on another from-field variable() ✔
+│  │  ├─ repeated path occurrences preserve ancestor condition correlations() ✔
+│  │  └─ excluded intermediate and terminal paths bind null without invoking excluded res... ✔
+│  ├─ InclusionConditionActivationTest ✔
+│  │  ├─ cancelling activation cancels binding evaluation() ✔
+│  │  ├─ contradictory alternative does not await an irrelevant binding() ✔
+│  │  ├─ wide activation is stack safe() ✔
+│  │  ├─ nested pruning retains failures from an explicit left guard() ✔
+│  │  ├─ equal guarded alternatives exclude demand without awaiting a pending binding() ✔
+│  │  ├─ compact activation preserves distributed conjunction failure() ✔
+│  │  ├─ equal guarded alternatives exclude demand without reading a failed binding() ✔
+│  │  ├─ contradictory alternative does not propagate a binding failure() ✔
+│  │  ├─ activation returns false only when every alternative is false() ✔
+│  │  ├─ nested contradictory alternatives do not await irrelevant bindings() ✔
+│  │  ├─ ready true alternative does not await suspended sibling() ✔
+│  │  ├─ ready true alternative masks sibling failure() ✔
+│  │  └─ nested contradictory alternatives do not propagate failed bindings() ✔
+│  ├─ ResolverMultithreadedStressTest ✔
+│  │  ├─ generated successful type checker worlds resolve correctly() 23823 ms ✔
+│  │  ├─ generated denying type checker worlds resolve correctly() 16505 ms ✘ 
+│  │  │        java.lang.AssertionError: Type-checker profile missed activated coverage [ERROR_ARGUMENT_IN_TYPE_INPUT]; activatedCases={TYPE_CHECKER=141, SUCCESS=0, DENIAL=141, LIST_OCCURRENCE=68, ASSOCIATED_QUERY_OCCURRENCE=135, REPEATED_TYPE=134, OBJECT_INPUT_RESOLVER=74, QUERY_INPUT_RESOLVER=60, LIST_OCCURRENCE_WITH_RESOLVER_INPUT=18, ASSOCIATED_QUERY_WITH_RESOLVER_INPUT=77, SUCCESS_WITH_RESOLVER_INPUT=0, DENIAL_WITH_RESOLVER_INPUT=88, RESOLVER_INPUT_FIELD_CHECK=54, RESOLVER_INPUT_TYPE_CHECK=44, FIELD_AND_TYPE_SAME_PATH=128, FROM_PROVIDER_VARIABLE=28, PROVIDER_VARIABLE_IN_OBJECT_INPUT=11, PROVIDER_VARIABLE_IN_QUERY_INPUT=17, FROM_OBJECT_PATH_VARIABLE=19, FROM_QUERY_PATH_VARIABLE=5, PATH_VARIABLE_IN_OBJECT_INPUT=7, PATH_VARIABLE_IN_QUERY_INPUT=17, NESTED_PATH_VARIABLE=5, ERROR_ARGUMENT_IN_TYPE_INPUT=0}
+│  │  │        Coordinates: profile=resolution-type-checker-denial seed=6550275219250612614 S=all R=all Q=all
+│  │  │        Size: 10:3:5
+│  │  │        Replay seed: -PresolverPropertySeed=6550275219250612614
+│  │  │        	at viaduct.engine.runtime2.arbitrary.ResolverTestRun.assertAggregate(TestCaseGenerator.kt:104)
+│  │  │        	at viaduct.engine.runtime2.contract.GeneratedTypeCheckerCoverage.assertRequired(GeneratedTypeCheckerCoverage.kt:96)
+│  │  │        	at viaduct.engine.runtime2.contract.GeneratedTypeCheckerContract$typeCheckerProfile$1.invokeSuspend(GeneratedTypeCheckerContract.kt:97)
+│  │  │        	at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:33)
+│  │  │        	at kotlinx.coroutines.DispatchedTask.run(DispatchedTask.kt:104)
+│  │  │        	at io.opentelemetry.javaagent.instrumentation.kotlinxcoroutines.RunnableWrapper.lambda$stopPropagation$0(RunnableWrapper.java:16)
+│  │  │        	at kotlinx.coroutines.EventLoopImplBase.processNextEvent(EventLoop.common.kt:277)
+│  │  │        	at kotlinx.coroutines.BlockingCoroutine.joinBlocking(Builders.kt:95)
+│  │  │        	at kotlinx.coroutines.BuildersKt__BuildersKt.runBlocking(Builders.kt:69)
+│  │  │        	at kotlinx.coroutines.BuildersKt.runBlocking(Unknown Source)
+│  │  │        	at kotlinx.coroutines.BuildersKt__BuildersKt.runBlocking$default(Builders.kt:48)
+│  │  │        	at kotlinx.coroutines.BuildersKt.runBlocking$default(Unknown Source)
+│  │  │        	at viaduct.engine.runtime2.contract.GeneratedTypeCheckerContract.typeCheckerProfile(GeneratedTypeCheckerContract.kt:80)
+│  │  │        	at viaduct.engine.runtime2.contract.GeneratedTypeCheckerContract.generated denying type checker worlds resolve correctly(GeneratedTypeCheckerContract.kt:74)
+│  │  │        	at viaduct.engine.runtime2.resolution.ResolverMultithreadedStressTest.generated denying type checker worlds resolve correctly(ResolverMultithreadedStressTest.kt:34)
+│  │  │        ... 3 more
+│  │  └─ generated mixed type checker worlds resolve correctly() ✔
+│  ├─ QueryFragmentProducerTest ✔
+│  │  ├─ cancellation before or during field entry cancels provider bindings() ✔
+│  │  ├─ field task cancellation terminates bindings created by a reference hop() ✔
+│  │  └─ Query producer failure publishes a field error and terminates its bindings() ✔
+│  ├─ ResolverTimeoutTest ✔
+│  │  ├─ acyclic query and mutation timeouts preserve cancellation and clean up work() ✔
+│  │  ├─ caller timeout is not replaced by a collected cycle() ✔
+│  │  ├─ request deadline diagnoses a genuine resolver read cycle() ✔
+│  │  └─ resolver-local timeout remains a field failure() ✔
+│  ├─ IndependentQueryScopeOwnershipRegressionTest ✔
+│  │  ├─ DFS reference Query input may itself contain shared Query owners() ✔
+│  │  ├─ grounded coroutine reference Query input may itself contain shared Query owners(... ✔
+│  │  └─ symbolic reference Query input may itself contain shared Query owners() ✔
+│  ├─ EngineExecutionContextPropagationTest ✔
+│  │  └─ child resolution scopes retain the request engine context() ✔
+│  ├─ TypeCheckerLifecycleTest ✔
+│  │  ├─ nonterminating checker provider is bounded and cancellation closes every binding... ✔
+│  │  ├─ cancel before checker task entry terminates checker and variable promises() ✔
+│  │  └─ failed checker provider terminates bindings and dependent values without invokin... ✔
+│  ├─ SuperlinearGrowthTest ✔
+│  │  ├─ successor demand stays compact across a resolver diamond() ✔
+│  │  ├─ wide client request activates compact guarded demand without recursion() ✔
+│  │  ├─ cycle checking stays linear across an acyclic chain() ↷ Cycle detection still runs a fresh reachability search for every dependency edge
+│  │  ├─ hashing a linear symbolic key DAG does not revisit its shared predecessor() ✔
+│  │  ├─ type checker input demand keeps guarded alternatives compact() ✔
+│  │  ├─ equal valued diamond arguments do not multiply symbolic keys() ↷ Exact occurrence-owned arguments still permit exponential symbolic-key multiplicity
+│  │  ├─ runtime successor demand stays compact across a resolver diamond() ✔
+│  │  ├─ closure work stays linear across a resolver chain() ✔
+│  │  ├─ fixed registry keeps query scaled guarded checker demand linear() ✔
+│  │  ├─ parent demand records one nonempty request across a resolver diamond() ↷ Nonempty parent demand still expands the resolver/checker dependency-path tree
+│  │  └─ shared query closure keeps guarded alternatives compact() ✔
+│  ├─ SharedQueryGuardReadinessRegressionTest ✔
+│  │  └─ healthy owner completes while another owner's Query guard is suspended() ✔
+│  ├─ MutationOrchestrationTaskTest ✔
+│  │  ├─ suspended mutation prevents its successor from starting and cancels locally() ✔
+│  │  └─ cancellation before orchestration entry terminates every prepared cell() ✔
+│  ├─ SharedQueryCrossScopeWitnessRegressionTest ✔
+│  │  ├─ same containing scope still permits a single shared producer() ✔
+│  │  └─ merging both Query associations and producer witness across list scopes is rejec... ✔
+│  ├─ ResolverWitnessTest ✔
+│  │  ├─ generated construction witness is exact minimal and permutation invariant() ✔
+│  │  └─ generated supplied demand matches independently reconstructed successor demand() ↷ not currently worth the effort
+│  ├─ TypeCheckerDemandOracleConditionTest ✔
+│  │  ├─ from-path argument error preserves both excluded and included owner demand() ✔
+│  │  ├─ oracle retains a successful alternative beside a failed binding() ✔
+│  │  ├─ checker argument failure still contributes its declared Query input demand() ✔
+│  │  └─ excluded symbolic error owner does not turn overlapping raw demand into checked ... ✔
+│  ├─ SharedQueryProviderOwnershipTest ✔
+│  │  └─ object and Query providers retain roots and owner identities inside one shared s... ✔
+│  ├─ InclusionConditionLegacyOutcomeTest ✔
+│  │  ├─ activation matches normalized alternative outcomes including pending bindings() ✔
+│  │  └─ ordinary evaluators match normalized ordered alternatives with failed bindings() ✔
+│  ├─ PublicationValidationTest ✔
+│  │  ├─ symbolic validation fails before provider reads and terminates their bindings() ✔
+│  │  └─ grounded publication metadata failure stays local to the owned field() ✔
+│  ├─ FullBenchmarkReplayTest ✔
+│  │  └─ checker-only Query roots participate in full benchmark application reconstructio... ✔
+│  ├─ ResolverBroadStressTest ✔
+│  │  └─ root field reference focused randomized worlds resolve correctly() 18045 ms ✔
+│  ├─ IndependentQueryInputWitnessRegressionTest ✔
+│  │  ├─ DFS witness rejects shared Query input across independent references() ✔
+│  │  ├─ grounded coroutine witness rejects shared Query input across independent referen... ✔
+│  │  └─ symbolic witness rejects shared Query input across independent references() ✔
+│  ├─ ResolverBroadStressCampaignConfigurationTest ✔
+│  │  ├─ broad profile knobs exert distinct Resolution pressure() ✔
+│  │  ├─ campaign records the large deep duplicate-selection cap transition() ✔
+│  │  ├─ query interaction rounds retain diversity for registry-shaped profiles() ✔
+│  │  ├─ campaign manifest records one million heterogeneous executions() ✔
+│  │  └─ persisted campaign coordinate executes Resolution validation oracles() ✔
+│  ├─ MutationResolutionTest ✔
+│  │  ├─ mutation payload Query fragments observe each mutation before the next effect() ✔
+│  │  │  ├─ 01 ✔
+│  │  │  ├─ 02 ✔
+│  │  │  ├─ 03 ✔
+│  │  │  ├─ 06 ✔
+│  │  │  ├─ 07 ✔
+│  │  │  ├─ 08 ✔
+│  │  │  ├─ 21 ✔
+│  │  │  ├─ 22 ✔
+│  │  │  ├─ 23 ✔
+│  │  │  └─ Resolution ✔
+│  │  ├─ inactive payload dependencies do not prevent the next mutation() ✔
+│  │  ├─ mutations traverse namespaces depth first and preserve separate alias results() ✔
+│  │  │  ├─ 01 ✔
+│  │  │  ├─ 02 ✔
+│  │  │  ├─ 03 ✔
+│  │  │  ├─ 06 ✔
+│  │  │  ├─ 07 ✔
+│  │  │  ├─ 08 ✔
+│  │  │  ├─ 21 ✔
+│  │  │  ├─ 22 ✔
+│  │  │  ├─ 23 ✔
+│  │  │  └─ Resolution ✔
+│  │  └─ nonnull mutation failures preserve all namespace effects across every family() ✔
+│  │     ├─ 01: nonnull namespace=false ✔
+│  │     ├─ 01: nonnull namespace=true ✔
+│  │     ├─ 02: nonnull namespace=false ✔
+│  │     ├─ 02: nonnull namespace=true ✔
+│  │     ├─ 03: nonnull namespace=false ✔
+│  │     ├─ 03: nonnull namespace=true ✔
+│  │     ├─ 06: nonnull namespace=false ✔
+│  │     ├─ 06: nonnull namespace=true ✔
+│  │     ├─ 07: nonnull namespace=false ✔
+│  │     ├─ 07: nonnull namespace=true ✔
+│  │     ├─ 08: nonnull namespace=false ✔
+│  │     ├─ 08: nonnull namespace=true ✔
+│  │     ├─ 21: nonnull namespace=false ✔
+│  │     ├─ 21: nonnull namespace=true ✔
+│  │     ├─ 22: nonnull namespace=false ✔
+│  │     ├─ 22: nonnull namespace=true ✔
+│  │     ├─ 23: nonnull namespace=false ✔
+│  │     ├─ 23: nonnull namespace=true ✔
+│  │     ├─ Resolution: nonnull namespace=false ✔
+│  │     └─ Resolution: nonnull namespace=true ✔
+│  ├─ ResolverFromFieldBindingOracleTest ✔
+│  │  ├─ object-path bindings in checker-only Query roots are validated() ✔
+│  │  ├─ a passive occurrence with an object-path binding is rejected() ✔
+│  │  ├─ a passive occurrence requires no object-path bindings() ✔
+│  │  ├─ partial from-field binding state is rejected() ✔
+│  │  ├─ object-path bindings in a query-fragment root are validated() ✔
+│  │  └─ an applied occurrence with no object-path bindings is rejected() ✔
+│  ├─ FieldCheckerClosureTest ✔
+│  │  ├─ statically excluded recursion does not trigger the symbolic expansion guard() ✔
+│  │  ├─ closure restores checked demand at raw value resolver boundaries on both roots() ✔
+│  │  └─ unbounded symbolic checker expansion fails during preparation() ✔
+│  ├─ FieldCheckerLifecycleTest ✔
+│  │  ├─ nonterminating checker provider is bounded and cancellation closes every binding... ✔
+│  │  ├─ cancel before checker task entry terminates checker and variable promises() ✔
+│  │  ├─ checker ctx query uses an independent raw scope with ordinary checked resolver b... ✔
+│  │  └─ failed checker provider terminates bindings and dependent values without invokin... ✔
+│  ├─ ResolverSelectiveDemandWitnessTest ✔
+│  │  └─ producer witness captures exact successor demand() ✔
+│  ├─ SymbolicFieldCheckerTest ✔
+│  │  ├─ equal grounded checker arguments keep distinct symbolic occurrences() ✔
+│  │  ├─ checker field bindings preserve null intermediates terminals and nested errors o... ✔
+│  │  ├─ named pairs bind arguments both roots and independent providers at list occurren... ✔
+│  │  ├─ raw overlap does not activate a checker whose checked occurrence is excluded() ✔
+│  │  └─ checker provider exclusion is alias local even when another pair demands the sam... ✔
+│  ├─ InclusionConditionResolutionRegressionTest ✔
+│  │  ├─ duplicate guarded demand leaves the field excluded instead of publishing an erro... ✔
+│  │  └─ nested contradictory demand leaves the field excluded instead of publishing an e... ✔
+│  └─ SuccessorDemandRegressionTest ✔
+│     └─ shared resolver and checker dependencies stay bounded across a diamond() ✔
+└─ JUnit Vintage ✔
+Total Test CPU usage: 168.84268%
+
+Test run finished after 185298 ms
+[        67 containers found      ]
+[         0 containers skipped    ]
+[        67 containers started    ]
+[         0 containers aborted    ]
+[        67 containers successful ]
+[         0 containers failed     ]
+[       460 tests found           ]
+[         4 tests skipped         ]
+[       456 tests started         ]
+[         0 tests aborted         ]
+[       455 tests successful      ]
+[         1 tests failed          ]
+
+Remote server execution message: Execution result: https://engflow.musta.ch/actions/executions/ChAOTGgKVzpN_YU03Hzf751REgdkZWZhdWx0GiUKIPqGUvGbQoWIRY0A84PQCo6Tg3zY8xQzXcanqcAaVK-VEOwCIAYoAQ==

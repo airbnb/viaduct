@@ -1,0 +1,66 @@
+[
+  {
+    "name": "viaduct.engine.runtime2.arbitrary.PrecomputedResolverOutputsTest",
+    "tests": "3",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "failed_tests": []
+  },
+  {
+    "name": "viaduct.engine.runtime2.benchmark.ChinaActiveBenchmarkCheckersTest",
+    "tests": "4",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "failed_tests": []
+  },
+  {
+    "name": "viaduct.engine.runtime2.contract.CheckerQueryResolverWitnessTest",
+    "tests": "1",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "failed_tests": []
+  },
+  {
+    "name": "viaduct.engine.runtime2.model.SelectionForestConcatenationTest",
+    "tests": "6",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "failed_tests": []
+  },
+  {
+    "name": "viaduct.engine.runtime2.model.SelectionMergeTest",
+    "tests": "12",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "failed_tests": []
+  },
+  {
+    "name": "viaduct.engine.runtime2.resolution.FullBenchmarkReplayTest",
+    "tests": "1",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "failed_tests": []
+  },
+  {
+    "name": "viaduct.engine.runtime2.resolution.RegistrySuccessorDemandCacheTest",
+    "tests": "4",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "failed_tests": []
+  },
+  {
+    "name": "viaduct.engine.runtime2.resolution.ResolverFromFieldBindingOracleTest",
+    "tests": "6",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "failed_tests": []
+  }
+]

@@ -1,0 +1,33 @@
+diff --git a/projects/viaduct/oss/core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/Selection.kt b/projects/viaduct/oss/core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/Selection.kt
+index f745ab273d030..e84765775e782 100644
+--- a/projects/viaduct/oss/core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/Selection.kt
++++ b/projects/viaduct/oss/core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/Selection.kt
+@@ -440,15 +440,19 @@ private class ObjectSelectionImpl(
+ 
+ /** Conjunctively guards each occurrence while retaining a compact condition graph. */
+ fun SelectionForest.guardedBy(condition: InclusionCondition): SelectionForest =
+-    flatMap { selection ->
+-        selectionForestOf(
+-            Selection.of(
+-                key = selection.key,
+-                possibleTypes = selection.possibleTypes,
+-                subselections = selection.subselections,
+-                inclusionCondition = condition.and(selection.inclusionCondition),
+-            ),
+-        )
++    if (this !is MutationSelectionForest && (condition === InclusionCondition.Always || isEmpty())) {
++        this
++    } else {
++        flatMap { selection ->
++            selectionForestOf(
++                Selection.of(
++                    key = selection.key,
++                    possibleTypes = selection.possibleTypes,
++                    subselections = selection.subselections,
++                    inclusionCondition = condition.and(selection.inclusionCondition),
++                ),
++            )
++        }
+     }
+ 
+ private abstract class AbstractSelectionForest(

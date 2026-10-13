@@ -1,0 +1,54 @@
+[
+  {
+    "command": [
+      "./gradlew",
+      ":core:engine:runtime2:test",
+      "--tests",
+      "viaduct.engine.runtime2.model.SelectionForestConcatenationTest",
+      "--tests",
+      "viaduct.engine.runtime2.model.SelectionMergeTest",
+      "--tests",
+      "viaduct.engine.runtime2.resolution.RegistrySuccessorDemandCacheTest",
+      "--tests",
+      "viaduct.engine.runtime2.contract.CheckerQueryResolverWitnessTest",
+      "--tests",
+      "viaduct.engine.runtime2.resolution.FullBenchmarkReplayTest",
+      "--tests",
+      "viaduct.engine.runtime2.resolution.ResolverFromFieldBindingOracleTest",
+      "--tests",
+      "viaduct.engine.runtime2.benchmark.ChinaActiveBenchmarkCheckersTest",
+      "--tests",
+      "viaduct.engine.runtime2.arbitrary.PrecomputedResolverOutputsTest",
+      "--no-configuration-cache",
+      "--console=plain"
+    ],
+    "cwd": "/home/raymie_stata/repos/3ht/projects/viaduct/oss",
+    "revision": "54382b55c7fe183041fbd7fdf886d5823192159e",
+    "started_utc": "2026-10-09T03:31:21.764436+00:00",
+    "exit_code": 0,
+    "finished_utc": "2026-10-09T03:31:47.987895+00:00",
+    "test_counts": {
+      "tests": 37,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  },
+  {
+    "command": [
+      "./gradlew",
+      ":core:engine:runtime2:check"
+    ],
+    "cwd": "/home/raymie_stata/repos/3ht/projects/viaduct/oss",
+    "revision": "54382b55c7fe183041fbd7fdf886d5823192159e",
+    "started_utc": "2026-10-09T03:31:48.064369+00:00",
+    "exit_code": 1,
+    "finished_utc": "2026-10-09T03:34:38.838060+00:00",
+    "test_counts": {
+      "tests": 2515,
+      "failures": 1,
+      "errors": 0,
+      "skipped": 166
+    }
+  }
+]

@@ -1,0 +1,6 @@
+{
+  "stage": "03-successor-cache",
+  "original_commit": "c423de1bf82d6",
+  "parent_before_apply": "7fb401a0222373f1f64658aa139e5aa232a1af78",
+  "implementation_revision": "2f80df7d91405d93ccfbe29cc6f60ac7057868ee"
+}

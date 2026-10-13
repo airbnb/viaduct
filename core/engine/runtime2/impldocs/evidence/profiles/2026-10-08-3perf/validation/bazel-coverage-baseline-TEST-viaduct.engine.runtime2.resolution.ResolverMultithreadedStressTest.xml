@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="viaduct.engine.runtime2.resolution.ResolverMultithreadedStressTest" tests="1" skipped="0" failures="1" errors="0" timestamp="2026-10-09T03:45:12" hostname="raymie-stata-codex" time="16.945">
+  <properties/>
+  <testcase name="generated denying type checker worlds resolve correctly()" classname="viaduct.engine.runtime2.resolution.ResolverMultithreadedStressTest" time="16.945">
+    <failure message="java.lang.AssertionError: Type-checker profile missed activated coverage [ERROR_ARGUMENT_IN_TYPE_INPUT]; activatedCases={TYPE_CHECKER=141, SUCCESS=0, DENIAL=141, LIST_OCCURRENCE=68, ASSOCIATED_QUERY_OCCURRENCE=135, REPEATED_TYPE=134, OBJECT_INPUT_RESOLVER=74, QUERY_INPUT_RESOLVER=60, LIST_OCCURRENCE_WITH_RESOLVER_INPUT=18, ASSOCIATED_QUERY_WITH_RESOLVER_INPUT=77, SUCCESS_WITH_RESOLVER_INPUT=0, DENIAL_WITH_RESOLVER_INPUT=88, RESOLVER_INPUT_FIELD_CHECK=54, RESOLVER_INPUT_TYPE_CHECK=44, FIELD_AND_TYPE_SAME_PATH=128, FROM_PROVIDER_VARIABLE=28, PROVIDER_VARIABLE_IN_OBJECT_INPUT=11, PROVIDER_VARIABLE_IN_QUERY_INPUT=17, FROM_OBJECT_PATH_VARIABLE=19, FROM_QUERY_PATH_VARIABLE=5, PATH_VARIABLE_IN_OBJECT_INPUT=7, PATH_VARIABLE_IN_QUERY_INPUT=17, NESTED_PATH_VARIABLE=5, ERROR_ARGUMENT_IN_TYPE_INPUT=0}&#10;Coordinates: profile=resolution-type-checker-denial seed=6550275219250612614 S=all R=all Q=all&#10;Size: 10:3:5&#10;Replay seed: -PresolverPropertySeed=6550275219250612614" type="java.lang.AssertionError">java.lang.AssertionError: Type-checker profile missed activated coverage [ERROR_ARGUMENT_IN_TYPE_INPUT]; activatedCases={TYPE_CHECKER=141, SUCCESS=0, DENIAL=141, LIST_OCCURRENCE=68, ASSOCIATED_QUERY_OCCURRENCE=135, REPEATED_TYPE=134, OBJECT_INPUT_RESOLVER=74, QUERY_INPUT_RESOLVER=60, LIST_OCCURRENCE_WITH_RESOLVER_INPUT=18, ASSOCIATED_QUERY_WITH_RESOLVER_INPUT=77, SUCCESS_WITH_RESOLVER_INPUT=0, DENIAL_WITH_RESOLVER_INPUT=88, RESOLVER_INPUT_FIELD_CHECK=54, RESOLVER_INPUT_TYPE_CHECK=44, FIELD_AND_TYPE_SAME_PATH=128, FROM_PROVIDER_VARIABLE=28, PROVIDER_VARIABLE_IN_OBJECT_INPUT=11, PROVIDER_VARIABLE_IN_QUERY_INPUT=17, FROM_OBJECT_PATH_VARIABLE=19, FROM_QUERY_PATH_VARIABLE=5, PATH_VARIABLE_IN_OBJECT_INPUT=7, PATH_VARIABLE_IN_QUERY_INPUT=17, NESTED_PATH_VARIABLE=5, ERROR_ARGUMENT_IN_TYPE_INPUT=0}
+Coordinates: profile=resolution-type-checker-denial seed=6550275219250612614 S=all R=all Q=all
+Size: 10:3:5
+Replay seed: -PresolverPropertySeed=6550275219250612614
+	at viaduct.engine.runtime2.arbitrary.ResolverTestRun.assertAggregate(TestCaseGenerator.kt:104)
+	at viaduct.engine.runtime2.contract.GeneratedTypeCheckerCoverage.assertRequired(GeneratedTypeCheckerCoverage.kt:96)
+	at viaduct.engine.runtime2.contract.GeneratedTypeCheckerContract$typeCheckerProfile$1.invokeSuspend(GeneratedTypeCheckerContract.kt:97)
+	at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:33)
+	at kotlinx.coroutines.DispatchedTask.run(DispatchedTask.kt:104)
+	at kotlinx.coroutines.EventLoopImplBase.processNextEvent(EventLoop.common.kt:277)
+	at kotlinx.coroutines.BlockingCoroutine.joinBlocking(Builders.kt:95)
+	at kotlinx.coroutines.BuildersKt__BuildersKt.runBlocking(Builders.kt:69)
+	at kotlinx.coroutines.BuildersKt.runBlocking(Unknown Source)
+	at kotlinx.coroutines.BuildersKt__BuildersKt.runBlocking$default(Builders.kt:48)
+	at kotlinx.coroutines.BuildersKt.runBlocking$default(Unknown Source)
+	at viaduct.engine.runtime2.contract.GeneratedTypeCheckerContract$DefaultImpls.typeCheckerProfile(GeneratedTypeCheckerContract.kt:80)
+	at viaduct.engine.runtime2.contract.GeneratedTypeCheckerContract$DefaultImpls.generated denying type checker worlds resolve correctly(GeneratedTypeCheckerContract.kt:74)
+	at viaduct.engine.runtime2.resolution.ResolverMultithreadedStressTest.generated denying type checker worlds resolve correctly(ResolverMultithreadedStressTest.kt:34)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:568)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+</failure>
+  </testcase>
+  <system-out><![CDATA[Resolution type-checker concurrency: threads=1, maximumConcurrentContinuations=1, observedThreads=1
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>
