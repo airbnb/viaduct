@@ -1,6 +1,7 @@
 package viaduct.invariants
 
 import io.kotest.assertions.withClue
+import io.kotest.matchers.booleans.shouldBeFalse
 import io.kotest.matchers.booleans.shouldBeTrue
 import io.kotest.matchers.collections.shouldContainExactly
 import io.kotest.matchers.shouldBe
@@ -10,6 +11,7 @@ import java.util.regex.Pattern
 import org.junit.jupiter.api.Assertions.fail
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInfo
+import org.junit.jupiter.api.assertThrows
 
 class AssertionTests {
     @Test
@@ -195,6 +197,32 @@ class AssertionTests {
             Failure("", "T3", ".*"),
             Failure("", "T6", ".*")
         )
+    }
+
+    @Test
+    fun containedByTests() {
+        val subject = FailureCollector()
+        subject.containedBy(listOf("a", "b"), "b", "T1").shouldBeTrue()
+        subject.containedBy(listOf("a", "b"), "z", "T2").shouldBeFalse()
+        subject.containedBy(listOf<String?>(null), null, "T3").shouldBeTrue()
+        subject.assertContainsExactly(
+            Failure("", "T2", "z is not contained by \\[a, b\\]")
+        )
+    }
+
+    @Test
+    fun failureReportTests() {
+        FailureCollector().assertEmpty()
+
+        val subject = FailureCollector()
+        subject.isTrue(false, "T1")
+        subject.containedBy(listOf(1), 2, "T2")
+
+        subject.toListOfErrors() shouldBe listOf("T1\n", "T2\n    2 is not contained by [1]\n")
+        assertThrows<AssertionError> { subject.assertEmpty(" | ") }.message shouldBe
+            "T1 | T2 (2 is not contained by [1])"
+        assertThrows<AssertionError> { subject.assertEmptyMultiline("Failures:\n") }.message shouldBe
+            "Failures:\nT1\nT2\n    2 is not contained by [1]\n"
     }
 
     @Test

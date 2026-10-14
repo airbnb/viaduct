@@ -88,7 +88,7 @@ class FetchUtilsTest {
         FetchUtils.fetchOrDefault("default", () -> CompletableFuture.failedFuture(cancellation));
 
     assertThat(result).isCancelled();
-    assertThatThrownBy(result::join).isSameAs(cancellation);
+    assertThat(result.handle((value, thrown) -> thrown).join()).isSameAs(cancellation);
   }
 
   @Test
@@ -100,7 +100,7 @@ class FetchUtilsTest {
         FetchUtils.fetchOrDefault("default", () -> CompletableFuture.failedFuture(failure));
 
     assertThat(result).isCancelled();
-    assertThatThrownBy(result::join).isSameAs(cancellation);
+    assertThat(result.handle((value, thrown) -> thrown).join()).isSameAs(cancellation);
   }
 
   @Test
@@ -115,7 +115,7 @@ class FetchUtilsTest {
             });
 
     assertThat(result).isCancelled();
-    assertThatThrownBy(result::join).isSameAs(cancellation);
+    assertThat(result.handle((value, thrown) -> thrown).join()).isSameAs(cancellation);
   }
 
   @Test

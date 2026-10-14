@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       java_versions:
-        description: "Java versions (array, e.g. [\"17\",\"21\"]). Defaults to [\"17\",\"21\"]."
+        description: "Java versions (array, e.g. [\"17\",\"21\"]). Defaults to [\"17\",\"21\",\"25\"] for Test and Core Check, and [\"17\",\"21\"] for Build."
         required: false
         type: string
       os:
@@ -131,7 +131,7 @@ jobs:
       fail-fast: false
       matrix:
         os: ${{ fromJSON(inputs.os || '["ubuntu-latest","macos-latest"]') }}
-        java: ${{ fromJSON(inputs.java_versions || '["17", "21"]') }}
+        java: ${{ fromJSON(inputs.java_versions || '["17", "21", "25"]') }}
     name: Test (Java ${{ matrix.java }}) ${{ matrix.os }}
     needs: validate-inputs
     env:
@@ -171,7 +171,7 @@ jobs:
       # Push/PR CI's only Windows coverage of core; the nightly runs the root check there separately.
       fail-fast: false
       matrix:
-        java: ${{ fromJSON(inputs.java_versions || '["17", "21"]') }}
+        java: ${{ fromJSON(inputs.java_versions || '["17", "21", "25"]') }}
     name: Core Check (Windows, Java ${{ matrix.java }})
     env:
       # fromEnv lets Gradle's daemon JVM discovery find Java 21 via JAVA_HOME_21_X64 when JAVA_HOME != Java 21.
