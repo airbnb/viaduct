@@ -1,4 +1,6 @@
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+import org.gradle.api.file.DirectoryProperty
+import org.gradle.api.file.RegularFileProperty
 
 plugins {
     id("conventions.kotlin")
@@ -32,8 +34,6 @@ dependencies {
 
     // Testing
     testImplementation(libs.assertj.core)
-    // Classpath resource scanning for golden snapshots (works under both Gradle and Bazel).
-    testImplementation(libs.classgraph)
 
     // For GraphQLInput interface in exercise tests
     testImplementation(project(":javaapi:api"))
@@ -67,4 +67,35 @@ tasks.named<Jar>("jar") {
 
 tasks.named("assemble") {
     dependsOn(tasks.shadowJar)
+}
+
+abstract class GenerateGoldenIndex : DefaultTask() {
+    @get:InputDirectory
+    @get:PathSensitive(PathSensitivity.RELATIVE)
+    abstract val snapshotsDirectory: DirectoryProperty
+
+    @get:OutputFile
+    abstract val indexFile: RegularFileProperty
+
+    @TaskAction
+    fun generate() {
+        val root = snapshotsDirectory.get().asFile
+        val output = indexFile.get().asFile
+        output.parentFile.mkdirs()
+        output.writeText(
+            root.walkTopDown().filter { it.isFile }.map { it.relativeTo(root).invariantSeparatorsPath }
+                .sorted().joinToString("\n", postfix = "\n")
+        )
+    }
+}
+
+val generateGoldenIndex by tasks.registering(GenerateGoldenIndex::class) {
+    snapshotsDirectory.set(layout.projectDirectory.dir("src/test/resources/golden/expected"))
+    indexFile.set(layout.buildDirectory.file("generated/golden/expected.index"))
+}
+
+tasks.processTestResources {
+    from(generateGoldenIndex) {
+        into("golden")
+    }
 }

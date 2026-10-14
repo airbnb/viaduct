@@ -4,10 +4,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import graphql.schema.idl.SchemaParser;
 import graphql.schema.idl.TypeDefinitionRegistry;
-import io.github.classgraph.ClassGraph;
-import io.github.classgraph.ScanResult;
+import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -169,12 +169,16 @@ class JavaCodegenGoldenTest {
     }
   }
 
-  private List<String> listGoldenRelativePaths() {
-    try (ScanResult scan = new ClassGraph().acceptPaths(GOLDEN_RESOURCE_PREFIX).scan()) {
-      return scan.getAllResources().stream()
-          .map(r -> stripPrefix(r.getPath()))
-          .sorted()
-          .collect(Collectors.toList());
+  private List<String> listGoldenRelativePaths() throws IOException {
+    String resourcePath = GOLDEN_RESOURCE_PREFIX + ".index";
+    try (InputStream in = getClass().getClassLoader().getResourceAsStream(resourcePath)) {
+      if (in == null) {
+        throw new IllegalStateException("Golden index not found on classpath: " + resourcePath);
+      }
+      try (BufferedReader reader =
+          new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8))) {
+        return reader.lines().toList();
+      }
     }
   }
 
@@ -189,10 +193,6 @@ class JavaCodegenGoldenTest {
       // readGolden (line 199).
       return new String(in.readAllBytes(), StandardCharsets.UTF_8).replace("\r\n", "\n");
     }
-  }
-
-  private static String stripPrefix(String resourcePath) {
-    return resourcePath.substring(GOLDEN_RESOURCE_PREFIX.length() + 1);
   }
 
   /**
