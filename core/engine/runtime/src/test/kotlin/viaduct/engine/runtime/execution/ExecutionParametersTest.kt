@@ -106,6 +106,36 @@ class ExecutionParametersTest {
     private val defaultLocalContext: CompositeLocalContext = createLocalContext(viaductSchema)
 
     @Test
+    fun `copied parameters and constants share delivery group ids`() {
+        val parameters = rootCollectionParameters(queryPlanFor(queryType))
+        val first = DeferDeliveryGroup(ResultPath.rootPath(), "first", null)
+        val second = DeferDeliveryGroup(ResultPath.rootPath(), "second", null)
+        val third = DeferDeliveryGroup(ResultPath.rootPath(), "third", null)
+
+        assertEquals("0", parameters.constants.ensureId(first))
+        assertEquals("1", parameters.copy().constants.ensureId(second))
+
+        val copiedConstants = parameters.copy(constants = parameters.constants.copy())
+        assertEquals("0", copiedConstants.constants.ensureId(first))
+        assertEquals("1", copiedConstants.constants.ensureId(second))
+        assertEquals("2", copiedConstants.constants.ensureId(third))
+        assertEquals("2", parameters.constants.ensureId(third))
+    }
+
+    @Test
+    fun `separate requests allocate delivery group ids independently`() {
+        val firstRequest = rootCollectionParameters(queryPlanFor(queryType))
+        val secondRequest = rootCollectionParameters(queryPlanFor(queryType))
+        val first = DeferDeliveryGroup(ResultPath.rootPath(), "first", null)
+        val second = DeferDeliveryGroup(ResultPath.rootPath(), "second", null)
+
+        assertEquals("0", firstRequest.constants.ensureId(first))
+        assertEquals("1", firstRequest.constants.ensureId(second))
+        assertEquals("0", secondRequest.constants.ensureId(second))
+        assertEquals("1", firstRequest.constants.ensureId(second))
+    }
+
+    @Test
     fun `withNewDeferMap reuses parameters for the same map`() {
         val usage = DeferUsage(mkDefer("A"), null)
         val group = DeferDeliveryGroup(ResultPath.rootPath(), "A", null)

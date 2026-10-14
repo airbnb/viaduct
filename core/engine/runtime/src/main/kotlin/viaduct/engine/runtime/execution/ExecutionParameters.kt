@@ -927,6 +927,7 @@ data class ExecutionParameters(
      * @property supervisorScopeFactory Coroutine scope factory for the entire execution. Creates a CoroutineScope supervised by the execution.
      * @property rootCoroutineContext Root coroutine context for async operations
      * @property fieldCompleter Field completion shared during execution
+     * @property ensureId Delivery group IDs shared during execution
      * @property collectFields Field collection shared during execution
      */
     data class Constants(
@@ -935,6 +936,7 @@ data class ExecutionParameters(
         val supervisorScopeFactory: (CoroutineContext) -> CoroutineScope,
         val rootCoroutineContext: CoroutineContext,
         val fieldCompleter: FieldCompleter,
+        internal val ensureId: EnsureID = EnsureID(),
     ) {
         internal val collectFields: CollectFields = CollectFields.cached()
 
