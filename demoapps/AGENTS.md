@@ -121,11 +121,12 @@ The demo apps collectively verify the KSP registry-extractor processor across th
 | micronaut-starter | 2.3.21 | 2.3.7 | KSP2 | 9.1.0 | Gradle 8.11 tested via CI matrix |
 | ktor-starter | 2.3.21 | 2.3.7 | KSP2 | 9.1.0 | Kotlin 2.2/KSP 2.2 tested via CI matrix |
 | starwars | 2.3.21 | 2.3.7 | KSP2 | 9.1.0 | Full feature coverage |
+| starwars-java | 2.3.21 | n/a | n/a | 9.1.0 | Java tenant API (no Kotlin compile) |
 
 In addition to the per-app versions above, CI runs two version-matrix jobs that add coverage without requiring new full demoapp copies:
 
 - **Kotlin matrix** (`test-kotlin-matrix` in `demoapps-ci-check.yml`): runs `ktor-starter` with Kotlin 2.2.21/KSP 2.2.21-2.0.5, the minimum supported consumer pair. The default demoapp versions cover Kotlin 2.3.21/KSP 2.3.7.
-- **Gradle matrix** (`test-gradle-matrix`): runs `micronaut-starter` against Gradle 8.11 and Gradle 9.1.0 (its native version), confirming the Viaduct plugin works across both Gradle major versions.
+- **Gradle matrix** (`test-gradle-matrix`): runs `micronaut-starter` on Gradle 8.11 with Kotlin 2.3.21 and with Kotlin 2.2.21. Its native Gradle 9.1.0 runs in `test-starters`, so both Gradle major versions are covered.
 
 The demoapps default to Kotlin 2.3 and Gradle 9 because Kotlin 2.2 cannot target Java 25 and Gradle 8 cannot run on it; the two matrix jobs keep the Kotlin 2.2 and Gradle 8 minimums covered.
 

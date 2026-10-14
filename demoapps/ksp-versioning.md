@@ -57,7 +57,7 @@ The demo apps verify the full matrix:
 
 - **KSP2 on Kotlin 2.2.21**: `2.2.21-2.0.5` (Ktor CI matrix) — minimum supported consumer pair
 - **KSP 2.3 on Kotlin 2.3.21**: `2.3.7` (demoapp defaults) — current compiler pair
-- **Gradle 8.11 and 9.1.0**: Micronaut CI matrix with Kotlin 2.3.21
+- **Gradle 8.11**: Micronaut CI matrix with Kotlin 2.3.21 and 2.2.21; Gradle 9.1.0 is every demoapp's default
 
 ## Kotlin 2.3+ and Standalone KSP
 

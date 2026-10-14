@@ -193,9 +193,9 @@ jobs:
           KSP_VERSION: ${{ matrix.ksp_version }}
 
   # ---------------------------------------------------------------------------
-  # Gradle version matrix — re-run micronaut-starter against Gradle 8 as well
-  # as its native Gradle 9 wrapper, ensuring Viaduct's plugin works across
-  # both major Gradle generations without maintaining two full demoapp copies.
+  # Gradle version matrix — re-run micronaut-starter on Gradle 8, with both the
+  # current and the minimum Kotlin, while its native Gradle 9 wrapper runs in
+  # test-starters. This covers both Gradle generations without a second demoapp.
   # ---------------------------------------------------------------------------
   test-gradle-matrix:
     needs: publish-to-maven-local
@@ -206,9 +206,13 @@ jobs:
         include:
           - gradle_version: "8.11"
             gradle_sha: "57dafb5c2622c6cc08b993c85b7c06956a2f53536432a30ead46166dbca0f1e9"
-          - gradle_version: "9.1.0"
-            gradle_sha: "a17ddd85a26b6a7f5ddb71ff8b05fc5104c0202c6e64782429790c933686c806"
-    name: Test micronaut-starter (Gradle ${{ matrix.gradle_version }})
+            kotlin_version: "2.3.21"
+            ksp_version: "2.3.7"
+          - gradle_version: "8.11"
+            gradle_sha: "57dafb5c2622c6cc08b993c85b7c06956a2f53536432a30ead46166dbca0f1e9"
+            kotlin_version: "2.2.21"
+            ksp_version: "2.2.21-2.0.5"
+    name: Test micronaut-starter (Gradle ${{ matrix.gradle_version }}, Kotlin ${{ matrix.kotlin_version }})
     env:
       GRADLE_OPTS: "-Dorg.gradle.parallel=true -Dorg.gradle.caching=true"
       BUILDSCAN_PUBLISH: "true"
@@ -242,6 +246,14 @@ jobs:
             demoapps/micronaut-starter/gradle/wrapper/gradle-wrapper.properties
         shell: bash
 
-      - name: Test micronaut-starter (Gradle ${{ matrix.gradle_version }})
+      - name: Override Kotlin to ${{ matrix.kotlin_version }}
+        run: |
+          sed -i \
+            -e 's|^kotlin = "[^"]*"$|kotlin = "${{ matrix.kotlin_version }}"|' \
+            -e 's|^ksp = "[^"]*"$|ksp = "${{ matrix.ksp_version }}"|' \
+            demoapps/micronaut-starter/gradle/libs.versions.toml
+        shell: bash
+
+      - name: Test micronaut-starter (Gradle ${{ matrix.gradle_version }}, Kotlin ${{ matrix.kotlin_version }})
         run: cd demoapps/micronaut-starter && USE_MAVEN_LOCAL=true ./gradlew test --no-daemon
         shell: bash
