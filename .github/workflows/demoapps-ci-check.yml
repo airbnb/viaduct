@@ -252,6 +252,8 @@ jobs:
             -e 's|^kotlin = "[^"]*"$|kotlin = "${{ matrix.kotlin_version }}"|' \
             -e 's|^ksp = "[^"]*"$|ksp = "${{ matrix.ksp_version }}"|' \
             demoapps/micronaut-starter/gradle/libs.versions.toml
+          grep -qx 'kotlin = "${{ matrix.kotlin_version }}"' demoapps/micronaut-starter/gradle/libs.versions.toml
+          grep -qx 'ksp = "${{ matrix.ksp_version }}"' demoapps/micronaut-starter/gradle/libs.versions.toml
         shell: bash
 
       - name: Test micronaut-starter (Gradle ${{ matrix.gradle_version }}, Kotlin ${{ matrix.kotlin_version }})
