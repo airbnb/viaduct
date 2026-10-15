@@ -139,29 +139,31 @@ Combined, these variable sources establish a pool of variables, any of which may
 
 #### @Resolver variables parameter
 
-Variables may be bound using the `variables` parameter of `@Resolver`, which is an array of `@Variable` annotations. For example, consider this resolver configuration for a field on `MyType` that conditionally includes a field based on a value from the object:
+Variables may be bound using the `variables` parameter of `@Resolver`, which is an array of `@Variable` annotations. For example, consider this resolver configuration for a field on `MyType` that passes a value from the object as an argument to another field:
 
 ```kotlin
 @Resolver(
   objectValueFragment = """
     fragment _ on MyType {
       settings {
-        isActive
+        pageSize
       }
-      field @include(if: ${'$'}shouldInclude)
+      items(first: ${'$'}pageSize)
     }
   """,
-  variables = [Variable("shouldInclude", fromObjectField = "settings.isActive")]
+  variables = [Variable("pageSize", fromObjectField = "settings.pageSize")]
 )
 ```
 
-This resolver fragment uses a `shouldInclude` variable. At runtime, the value for this variable will be determined by the value of `settings.isActive` on `MyType`'s object value. The `fromObjectField` parameter takes a dot-separated path relative to the object value, and the referenced path must be a selection defined in the resolver's `objectValueFragment`.
+This resolver fragment uses a `pageSize` variable. At runtime, the value for this variable will be determined by the value of `settings.pageSize` on `MyType`'s object value. The `fromObjectField` parameter takes a dot-separated path relative to the object value, and the referenced path must be a selection defined in the resolver's `objectValueFragment`.
 
 There are three mutually-exclusive parameters to the `@Variable` class that can be used to set the value of a variable:
 
 1. the `fromArgument` parameter, which binds the variable to a field argument value (i.e. from `ctx.arguments`). To support nested GraphQL input types, the `fromArgument` string can contain a dot-separated path.
 1. the `fromObjectField` parameter just illustrated, which takes a dot-separated path relative to the `objectValue` of an execution. If used, the path must be a selection defined in the resolver's `objectValueFragment`.
 1. the `fromQueryField` parameter. This parameter is analogous to `fromObjectField`, but the path describes a selection in the resolver's `queryValueFragment`.
+
+Variables bound with `fromObjectField` or `fromQueryField` cannot be used in the `if` argument of `@skip` or `@include`; such resolvers fail at startup. To select data conditionally on a value from the object or query, select the value in the fragment and fetch the conditional data with `ctx.query()` in the resolver body. Variables bound with `fromArgument` or a `VariablesProvider` may be used in conditional directives.
 
 #### VariablesProvider
 
