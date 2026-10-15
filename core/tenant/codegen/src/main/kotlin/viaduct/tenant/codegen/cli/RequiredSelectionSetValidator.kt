@@ -3,10 +3,16 @@ package viaduct.tenant.codegen.cli
 import graphql.analysis.QueryTraversalOptions
 import graphql.analysis.QueryVisitorFieldEnvironment
 import graphql.analysis.QueryVisitorStub
+import graphql.language.Directive
 import graphql.language.Document
+import graphql.language.Field
 import graphql.language.FragmentDefinition
+import graphql.language.FragmentSpread
+import graphql.language.InlineFragment
+import graphql.language.SelectionSet
 import graphql.schema.GraphQLCompositeType
 import graphql.schema.GraphQLFieldDefinition
+import graphql.schema.GraphQLFieldsContainer
 import graphql.schema.GraphQLObjectType
 import graphql.schema.GraphQLSchema
 import graphql.schema.GraphQLTypeUtil
@@ -19,6 +25,8 @@ import viaduct.graphql.schema.ViaductSchema
 import viaduct.graphql.utils.DefaultSchemaFactory
 import viaduct.graphql.utils.SelectionsParserUtils
 import viaduct.graphql.utils.ViaductQueryTraverser
+import viaduct.graphql.utils.collectVariableReferencesFollowingFragments
+import viaduct.graphql.utils.isParentField
 import viaduct.tenant.codegen.ksp.ResolverParams
 
 /**
@@ -180,8 +188,6 @@ internal class RequiredSelectionSetValidator(
         field: ResolverParams.Field,
         errors: MutableList<String>,
     ) {
-        val tenantModule = currentTenantModule
-        if (tenantModule == null && !forbiddenDirectiveChecker.isEnabled) return
         val rootParentType = tenantCompilationSchema.getType(typeName) as? GraphQLCompositeType ?: return
         val fragments = expandedDocument.getDefinitionsOfType(FragmentDefinition::class.java)
         val entryFragment = try {
@@ -192,39 +198,120 @@ internal class RequiredSelectionSetValidator(
         val fragmentsByName = fragments.associateBy { it.name }
         val tenantLocalViolations = linkedSetOf<TenantLocalFieldAccessViolation>()
 
-        ViaductQueryTraverser
-            .newQueryTraverser()
-            .schema(tenantCompilationSchema)
-            .root(entryFragment)
-            .rootParentType(rootParentType)
-            .fragmentsByName(fragmentsByName)
-            .options(QueryTraversalOptions.defaultOptions().coerceFieldArguments(false))
-            .build()
-            .visitPreOrder(
-                object : QueryVisitorStub() {
-                    override fun visitField(env: QueryVisitorFieldEnvironment) {
-                        val selectedField = env.fieldDefinition
-                        if (tenantModule == null || !selectedField.isTenantLocalField()) return
-
-                        val fieldCoordinate = "${env.fieldsContainer.name}.${env.field.name}"
-                        val owner = fieldOwnershipIndex.ownerOf(env.fieldsContainer.name, env.field.name)
-                        if (owner == tenantModule) return
-
-                        tenantLocalViolations.add(TenantLocalFieldAccessViolation(fieldCoordinate, owner))
-                    }
-                },
-            )
+        if (currentTenantModule != null) {
+            ViaductQueryTraverser
+                .newQueryTraverser()
+                .schema(tenantCompilationSchema)
+                .root(entryFragment)
+                .rootParentType(rootParentType)
+                .fragmentsByName(fragmentsByName)
+                .options(QueryTraversalOptions.defaultOptions().coerceFieldArguments(false))
+                .build()
+                .visitPreOrder(
+                    object : QueryVisitorStub() {
+                        override fun visitField(env: QueryVisitorFieldEnvironment) {
+                            env.findTenantLocalViolation()?.let(tenantLocalViolations::add)
+                        }
+                    },
+                )
+        }
+        val parentFieldViolations = findParentFieldViolations(entryFragment, rootParentType, fragmentsByName)
 
         tenantLocalViolations.forEach { violation ->
             errors.add(
                 "Required selection set for ${field.implFqn} (${field.typeName}.${field.fieldName}) " +
                     "references tenant-local field ${violation.fieldCoordinate} owned by ${violation.owner ?: "unknown tenant module"} " +
-                    "from tenant module $tenantModule. Tenant-local fields may only be selected by resolvers in the owning tenant module.",
+                    "from tenant module $currentTenantModule. Tenant-local fields may only be selected by resolvers in the owning tenant module.",
+            )
+        }
+        parentFieldViolations.directivesByField.forEach { (fieldCoordinate, directiveNames) ->
+            errors.add(
+                "Required selection set for ${field.implFqn} (${field.typeName}.${field.fieldName}) " +
+                    "applies ${directiveNames.joinToString(", ") { "@$it" }} to @parent field $fieldCoordinate. " +
+                    "Directives may not be applied to a @parent field or to inline fragments or fragment spreads that directly contain it.",
+            )
+        }
+        parentFieldViolations.variablesByField.forEach { (fieldCoordinate, variableNames) ->
+            errors.add(
+                "Required selection set for ${field.implFqn} (${field.typeName}.${field.fieldName}) " +
+                    "uses ${variableNames.joinToString(", ") { "\$$it" }} beneath @parent field $fieldCoordinate. " +
+                    "Required selection sets may not use variables beneath a @parent field.",
             )
         }
         forbiddenDirectiveChecker.violations(entryFragment, rootParentType, fragmentsByName).forEach { violation ->
             errors.add("Required selection set for ${field.implFqn} (${field.typeName}.${field.fieldName}) ${violation.message()}")
         }
+    }
+
+    private fun QueryVisitorFieldEnvironment.findTenantLocalViolation(): TenantLocalFieldAccessViolation? {
+        val tenantModule = currentTenantModule ?: return null
+        if (!fieldDefinition.isTenantLocalField()) return null
+        val owner = fieldOwnershipIndex.ownerOf(fieldsContainer.name, field.name)
+        return if (owner == tenantModule) null else TenantLocalFieldAccessViolation(fieldCoordinate(), owner)
+    }
+
+    // Expands every spread occurrence with its own ancestry: graphql-java's traverser visits a shared fragment only once.
+    private fun findParentFieldViolations(
+        entryFragment: FragmentDefinition,
+        rootParentType: GraphQLCompositeType,
+        fragmentsByName: Map<String, FragmentDefinition>,
+    ): ParentFieldViolations {
+        val violations = ParentFieldViolations()
+
+        fun walk(
+            selectionSet: SelectionSet?,
+            parentType: GraphQLCompositeType,
+            enclosingDirectives: List<Directive>,
+            activeFragments: Set<String>,
+            underParentField: Boolean,
+        ) {
+            selectionSet?.selections?.forEach { selection ->
+                when (selection) {
+                    is Field -> {
+                        val fieldsContainer = parentType as? GraphQLFieldsContainer ?: return@forEach
+                        val fieldDefinition = fieldsContainer.getFieldDefinition(selection.name) ?: return@forEach
+                        val isParentField = fieldDefinition.isParentField()
+                        if (isParentField) {
+                            val fieldCoordinate = "${fieldsContainer.name}.${selection.name}"
+                            val directiveNames = (enclosingDirectives + selection.directives).map { it.name }
+                            if (directiveNames.isNotEmpty()) {
+                                violations.directivesByField.getOrPut(fieldCoordinate) { linkedSetOf() }.addAll(directiveNames)
+                            }
+                            if (!underParentField) {
+                                selection.selectionSet
+                                    ?.collectVariableReferencesFollowingFragments(fragmentsByName)
+                                    ?.takeIf { it.isNotEmpty() }
+                                    ?.let { violations.variablesByField.getOrPut(fieldCoordinate) { linkedSetOf() }.addAll(it) }
+                            }
+                        }
+                        val fieldType = GraphQLTypeUtil.unwrapAll(fieldDefinition.type) as? GraphQLCompositeType ?: return@forEach
+                        walk(selection.selectionSet, fieldType, emptyList(), activeFragments, underParentField || isParentField)
+                    }
+                    is InlineFragment -> walk(
+                        selection.selectionSet,
+                        selection.typeCondition?.let { tenantCompilationSchema.getType(it.name) as? GraphQLCompositeType } ?: parentType,
+                        enclosingDirectives + selection.directives,
+                        activeFragments,
+                        underParentField,
+                    )
+                    is FragmentSpread -> {
+                        if (selection.name in activeFragments) return@forEach
+                        val fragment = fragmentsByName[selection.name] ?: return@forEach
+                        val fragmentType = tenantCompilationSchema.getType(fragment.typeCondition.name) as? GraphQLCompositeType ?: return@forEach
+                        walk(
+                            fragment.selectionSet,
+                            fragmentType,
+                            enclosingDirectives + selection.directives + fragment.directives,
+                            activeFragments + selection.name,
+                            underParentField,
+                        )
+                    }
+                }
+            }
+        }
+
+        walk(entryFragment.selectionSet, rootParentType, entryFragment.directives, setOf(entryFragment.name), underParentField = false)
+        return violations
     }
 
     companion object {
@@ -246,12 +333,19 @@ internal class RequiredSelectionSetValidator(
         )
 
         private fun GraphQLFieldDefinition.isTenantLocalField(): Boolean = hasAppliedDirective(TENANT_LOCAL_DIRECTIVE_NAME)
+
+        private fun QueryVisitorFieldEnvironment.fieldCoordinate(): String = "${fieldsContainer.name}.${field.name}"
     }
 
     private data class TenantLocalFieldAccessViolation(
         val fieldCoordinate: String,
         val owner: String?,
     )
+
+    private class ParentFieldViolations {
+        val directivesByField = linkedMapOf<String, MutableSet<String>>()
+        val variablesByField = linkedMapOf<String, MutableSet<String>>()
+    }
 
     private class FieldOwnershipIndex private constructor(
         private val ownersByFieldCoordinate: Map<Pair<String, String>, String?>,

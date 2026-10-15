@@ -6,6 +6,7 @@ import graphql.language.AstPrinter
 import graphql.language.BooleanValue
 import graphql.language.Comment
 import graphql.language.EnumValue
+import graphql.language.Field
 import graphql.language.FloatValue
 import graphql.language.FragmentDefinition
 import graphql.language.IgnoredChars
@@ -16,6 +17,7 @@ import graphql.language.NodeVisitor
 import graphql.language.NullValue
 import graphql.language.ObjectField
 import graphql.language.ObjectValue
+import graphql.language.OperationDefinition
 import graphql.language.SourceLocation
 import graphql.language.StringValue
 import graphql.language.TypeName
@@ -156,6 +158,22 @@ class ValueExtensionsTest {
     @Test
     fun `collectVariableReferences -- VariableDefinition`() {
         assertEquals(emptySet<String>(), VariableDefinition("foo", TypeName("Int")).collectVariableReferences())
+    }
+
+    @Test
+    fun `collectVariableReferencesFollowingFragments -- only this node and the fragments it spreads`() {
+        val document = Parser.parse(
+            """
+            { a(x: ${'$'}outside) b(y: ${'$'}inside) { ...F } }
+            fragment F on T { c(z: ${'$'}spread) ...F }
+            fragment G on T { d(w: ${'$'}unreachable) }
+            """.trimIndent()
+        )
+        val fragments = document.getDefinitionsOfType(FragmentDefinition::class.java).associateBy { it.name }
+        val b = document.getDefinitionsOfType(OperationDefinition::class.java).single()
+            .selectionSet.getSelectionsOfType(Field::class.java).single { it.name == "b" }
+
+        assertEquals(setOf("inside", "spread"), b.collectVariableReferencesFollowingFragments(fragments))
     }
 
     @Test

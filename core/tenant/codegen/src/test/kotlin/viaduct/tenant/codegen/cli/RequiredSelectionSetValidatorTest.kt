@@ -22,10 +22,12 @@ class RequiredSelectionSetValidatorTest {
             directive @tenantLocal on FIELD_DEFINITION
             directive @tombstoned on FIELD_DEFINITION | OBJECT
             directive @parent on FIELD_DEFINITION
+            directive @tag(name: String) on FIELD | INLINE_FRAGMENT | FRAGMENT_SPREAD | FRAGMENT_DEFINITION
             scalar Long
 
             type Query {
                 user(id: ID!): User
+                holding: Holding
             }
 
             type Mutation {
@@ -55,6 +57,21 @@ class RequiredSelectionSetValidatorTest {
             type Company implements Organization {
                 id: ID!
                 companyName: String
+                logoUrl(size: Int): String
+                employees: [Employee]
+                parent: Holding @parent
+            }
+
+            type Holding {
+                id: ID!
+                name(locale: String): String
+                companies: [Company]
+            }
+
+            type Employee {
+                id: ID!
+                title: String
+                parent: Company @parent
             }
 
             type County {
@@ -114,6 +131,37 @@ class RequiredSelectionSetValidatorTest {
                 errors = errors,
             )
         }
+
+    private fun validateParentSelections(
+        selections: String,
+        typeName: String = "Employee",
+        isQuery: Boolean = false,
+        expandedSelections: String = selections,
+        currentTenantModule: String? = "feature",
+    ): List<String> =
+        validate(
+            selections = selections,
+            typeName = typeName,
+            isQuery = isQuery,
+            expandedSelections = expandedSelections,
+            field = field(typeName = "Employee", fieldName = "title"),
+            currentTenantModule = currentTenantModule,
+        )
+
+    private fun parentFieldVariableError(
+        variables: String,
+        parentFieldCoordinate: String,
+    ): String =
+        "Required selection set for com.example.TestResolver (Employee.title) uses $variables beneath " +
+            "@parent field $parentFieldCoordinate. Required selection sets may not use variables beneath a @parent field."
+
+    private fun parentFieldDirectiveError(
+        directives: String,
+        parentFieldCoordinate: String,
+    ): String =
+        "Required selection set for com.example.TestResolver (Employee.title) applies $directives to " +
+            "@parent field $parentFieldCoordinate. Directives may not be applied to a @parent field or to inline fragments " +
+            "or fragment spreads that directly contain it."
 
     private fun validator(
         forbiddenSelectionDirectives: Set<String> = emptySet(),
@@ -410,6 +458,329 @@ class RequiredSelectionSetValidatorTest {
         )
 
         assertTrue(errors.any { it.contains("notACompanyField") }, errors.toString())
+    }
+
+    @Test
+    fun `variable in an argument under a parent field fails`() {
+        val errors = validateParentSelections(
+            """
+            fragment Main on Employee {
+                parent {
+                    logoUrl(size: ${'$'}size)
+                }
+            }
+            """.trimIndent(),
+        )
+
+        assertEquals(listOf(parentFieldVariableError("${'$'}size", "Employee.parent")), errors)
+    }
+
+    @Test
+    fun `variable in a conditional directive on a parent field fails`() {
+        val errors = validateParentSelections("fragment Main on Employee { parent @include(if: ${'$'}withParent) { companyName } }")
+
+        assertEquals(listOf(parentFieldDirectiveError("@include", "Employee.parent")), errors)
+    }
+
+    @Test
+    fun `literal conditional directive on a parent field fails`() {
+        val errors = validateParentSelections("fragment Main on Employee { parent @skip(if: false) { companyName } }")
+
+        assertEquals(listOf(parentFieldDirectiveError("@skip", "Employee.parent")), errors)
+    }
+
+    @Test
+    fun `non-conditional directive on a parent field fails`() {
+        val errors = validateParentSelections("fragment Main on Employee { parent @tag(name: \"a\") { companyName } }")
+
+        assertEquals(listOf(parentFieldDirectiveError("@tag", "Employee.parent")), errors)
+    }
+
+    @Test
+    fun `directive on a parent field nested under another parent field fails`() {
+        val errors = validateParentSelections("fragment Main on Employee { parent { parent @include(if: true) { id } } }")
+
+        assertEquals(listOf(parentFieldDirectiveError("@include", "Company.parent")), errors)
+    }
+
+    @Test
+    fun `variable in a directive on an inline fragment around a parent field fails`() {
+        val errors = validateParentSelections("fragment Main on Employee { ... @include(if: ${'$'}withParent) { title parent { companyName } } }")
+
+        assertEquals(listOf(parentFieldDirectiveError("@include", "Employee.parent")), errors)
+    }
+
+    @Test
+    fun `literal directive on an inline fragment around a parent field fails`() {
+        val errors = validateParentSelections("fragment Main on Employee { ... on Employee @tag(name: \"a\") { parent { companyName } } }")
+
+        assertEquals(listOf(parentFieldDirectiveError("@tag", "Employee.parent")), errors)
+    }
+
+    @Test
+    fun `directive on a fragment definition containing a parent field fails`() {
+        val errors = validateParentSelections(
+            selections = "fragment Main on Employee { ...EmployeeParent }",
+            expandedSelections = """
+                fragment Main on Employee { ...EmployeeParent }
+                fragment EmployeeParent on Employee @tag(name: "a") { parent { companyName } }
+            """.trimIndent(),
+        )
+
+        assertEquals(listOf(parentFieldDirectiveError("@tag", "Employee.parent")), errors)
+    }
+
+    @Test
+    fun `directive on the entry fragment definition around a parent field fails`() {
+        val errors = validateParentSelections("fragment Main on Employee @tag(name: \"a\") { parent { companyName } }")
+
+        assertEquals(listOf(parentFieldDirectiveError("@tag", "Employee.parent")), errors)
+    }
+
+    @Test
+    fun `variable in a directive on a fragment spread around a parent field fails`() {
+        val errors = validateParentSelections(
+            selections = "fragment Main on Employee { ...EmployeeParent @include(if: ${'$'}withParent) }",
+            expandedSelections = """
+                fragment Main on Employee { ...EmployeeParent @include(if: ${'$'}withParent) }
+                fragment EmployeeParent on Employee { parent { companyName } }
+            """.trimIndent(),
+        )
+
+        assertEquals(listOf(parentFieldDirectiveError("@include", "Employee.parent")), errors)
+    }
+
+    @Test
+    fun `variable under a parent field selected inside a fragment spread fails`() {
+        val errors = validateParentSelections(
+            selections = "fragment Main on Employee { ...EmployeeParent }",
+            expandedSelections = """
+                fragment Main on Employee { ...EmployeeParent }
+                fragment EmployeeParent on Employee { parent { logoUrl(size: ${'$'}size) } }
+            """.trimIndent(),
+        )
+
+        assertEquals(listOf(parentFieldVariableError("${'$'}size", "Employee.parent")), errors)
+    }
+
+    @Test
+    fun `variables in a fragment spread under a parent field fail`() {
+        val errors = validateParentSelections(
+            selections = "fragment Main on Employee { parent { ...CompanyFields } }",
+            expandedSelections = """
+                fragment Main on Employee { parent { ...CompanyFields } }
+                fragment CompanyFields on Company { logoUrl(size: ${'$'}size) companyName @skip(if: ${'$'}skipName) }
+            """.trimIndent(),
+        )
+
+        assertEquals(listOf(parentFieldVariableError("${'$'}size, ${'$'}skipName", "Employee.parent")), errors)
+    }
+
+    @Test
+    fun `guarded spread of a shared parent fragment fails after an unguarded spread`() {
+        val errors = validateHoldingSpreads(
+            first = "...EmployeeParent",
+            second = "...EmployeeParent @include(if: ${'$'}flag)",
+        )
+
+        assertEquals(listOf(parentFieldDirectiveError("@include", "Employee.parent")), errors)
+    }
+
+    @Test
+    fun `guarded spread of a shared parent fragment fails before an unguarded spread`() {
+        val errors = validateHoldingSpreads(
+            first = "...EmployeeParent @include(if: ${'$'}flag)",
+            second = "...EmployeeParent",
+        )
+
+        assertEquals(listOf(parentFieldDirectiveError("@include", "Employee.parent")), errors)
+    }
+
+    @Test
+    fun `inline fragment guard around a later spread of a shared parent fragment fails`() {
+        val errors = validateHoldingSpreads(
+            first = "...EmployeeParent",
+            second = "... @include(if: ${'$'}flag) { ...EmployeeParent }",
+        )
+
+        assertEquals(listOf(parentFieldDirectiveError("@include", "Employee.parent")), errors)
+    }
+
+    @Test
+    fun `directives from different spreads of a shared parent fragment are reported together`() {
+        val errors = validateHoldingSpreads(
+            first = "...EmployeeParent @skip(if: ${'$'}skip)",
+            second = "... @include(if: ${'$'}flag) { ...EmployeeParent }",
+        )
+
+        assertEquals(listOf(parentFieldDirectiveError("@skip, @include", "Employee.parent")), errors)
+    }
+
+    private fun validateHoldingSpreads(
+        first: String,
+        second: String,
+    ): List<String> {
+        val main = "fragment Main on Holding { a: companies { employees { $first } } b: companies { employees { $second } } }"
+        return validateParentSelections(
+            selections = main,
+            typeName = "Holding",
+            expandedSelections = "$main\nfragment EmployeeParent on Employee { parent { companyName } }",
+        )
+    }
+
+    @Test
+    fun `variable in an inline fragment directive under a parent field fails`() {
+        val errors = validateParentSelections("fragment Main on Employee { parent { ... on Company @include(if: ${'$'}withName) { companyName } } }")
+
+        assertEquals(listOf(parentFieldVariableError("${'$'}withName", "Employee.parent")), errors)
+    }
+
+    @Test
+    fun `variable under a parent field reached through other fields fails`() {
+        val errors = validateParentSelections(
+            "fragment Main on Holding { companies { employees { parent { logoUrl(size: ${'$'}size) } } } }",
+            typeName = "Holding",
+        )
+
+        assertEquals(listOf(parentFieldVariableError("${'$'}size", "Employee.parent")), errors)
+    }
+
+    @Test
+    fun `variable under nested parent fields is reported once at the outer parent field`() {
+        val errors = validateParentSelections("fragment Main on Employee { parent { parent { name(locale: ${'$'}locale) } } }")
+
+        assertEquals(listOf(parentFieldVariableError("${'$'}locale", "Employee.parent")), errors)
+    }
+
+    @Test
+    fun `variable under a parent field in query selections fails`() {
+        val errors = validateParentSelections(
+            "fragment Main on Query { holding { companies { employees { parent { logoUrl(size: ${'$'}size) } } } } }",
+            typeName = "Query",
+            isQuery = true,
+        )
+
+        assertEquals(listOf(parentFieldVariableError("${'$'}size", "Employee.parent")), errors)
+    }
+
+    @Test
+    fun `parent field variables are checked without tenant-local ownership validation`() {
+        val errors = validateParentSelections(
+            "fragment Main on Employee { parent { logoUrl(size: ${'$'}size) } }",
+            currentTenantModule = null,
+        )
+
+        assertEquals(listOf(parentFieldVariableError("${'$'}size", "Employee.parent")), errors)
+    }
+
+    @Test
+    fun `variable in a non-conditional directive under a parent field fails`() {
+        val errors = validateParentSelections("fragment Main on Employee { parent { companyName @tag(name: ${'$'}name) } }")
+
+        assertEquals(listOf(parentFieldVariableError("${'$'}name", "Employee.parent")), errors)
+    }
+
+    @Test
+    fun `variable under a statically skipped selection beneath a parent field fails`() {
+        val errors = validateParentSelections("fragment Main on Employee { parent { logoUrl(size: ${'$'}size) @skip(if: true) } }")
+
+        assertEquals(listOf(parentFieldVariableError("${'$'}size", "Employee.parent")), errors)
+    }
+
+    @Test
+    fun `directive and variable violations on one parent field are both reported`() {
+        val errors = validateParentSelections("fragment Main on Employee { parent @include(if: true) { logoUrl(size: ${'$'}size) } }")
+
+        assertEquals(
+            listOf(
+                parentFieldDirectiveError("@include", "Employee.parent"),
+                parentFieldVariableError("${'$'}size", "Employee.parent"),
+            ),
+            errors,
+        )
+    }
+
+    @Test
+    fun `literal directives beneath a parent field pass`() {
+        val errors = validateParentSelections("fragment Main on Employee { parent { companyName @skip(if: false) ... @include(if: true) { id } } }")
+
+        assertTrue(errors.isEmpty(), errors.joinToString("\n"))
+    }
+
+    @Test
+    fun `variables beside a parent field pass`() {
+        val errors = validateParentSelections(
+            """
+            fragment Main on Employee {
+                title @skip(if: ${'$'}skipTitle)
+                ... @include(if: ${'$'}withId) { id }
+                parent {
+                    logoUrl(size: 64)
+                }
+            }
+            """.trimIndent(),
+        )
+
+        assertTrue(errors.isEmpty(), errors.joinToString("\n"))
+    }
+
+    @Test
+    fun `variables on the field directly enclosing a parent field pass`() {
+        val errors = validateParentSelections(
+            "fragment Main on Company { employees @include(if: ${'$'}withEmployees) { parent { companyName } } }",
+            typeName = "Company",
+        )
+
+        assertTrue(errors.isEmpty(), errors.joinToString("\n"))
+    }
+
+    @Test
+    fun `variable under a parent field reached through an interface type condition fails`() {
+        val errors = validateParentSelections(
+            "fragment Main on Organization { ... on Company { parent { name(locale: ${'$'}locale) } } }",
+            typeName = "Organization",
+        )
+
+        assertEquals(listOf(parentFieldVariableError("${'$'}locale", "Company.parent")), errors)
+    }
+
+    @Test
+    fun `variables on fields above a parent field pass`() {
+        val errors = validateParentSelections(
+            "fragment Main on Holding { companies @include(if: ${'$'}withCompanies) { employees { parent { companyName } } } }",
+            typeName = "Holding",
+        )
+
+        assertTrue(errors.isEmpty(), errors.joinToString("\n"))
+    }
+
+    @Test
+    fun `variables on inline fragments above a parent field's enclosing field pass`() {
+        val errors = validateParentSelections(
+            """
+            fragment Main on Holding {
+                ... @include(if: ${'$'}withCompanies) { companies { employees { parent { companyName } } } }
+                companies { ... @include(if: ${'$'}withEmployees) { employees { parent { companyName } } } }
+            }
+            """.trimIndent(),
+            typeName = "Holding",
+        )
+
+        assertTrue(errors.isEmpty(), errors.joinToString("\n"))
+    }
+
+    @Test
+    fun `variables on fragment spreads above a parent field's enclosing field pass`() {
+        val errors = validateParentSelections(
+            selections = "fragment Main on Holding { ...HoldingCompanies @include(if: ${'$'}withCompanies) }",
+            typeName = "Holding",
+            expandedSelections = """
+                fragment Main on Holding { ...HoldingCompanies @include(if: ${'$'}withCompanies) }
+                fragment HoldingCompanies on Holding { companies { employees { parent { companyName } } } }
+            """.trimIndent(),
+        )
+
+        assertTrue(errors.isEmpty(), errors.joinToString("\n"))
     }
 
     @Test

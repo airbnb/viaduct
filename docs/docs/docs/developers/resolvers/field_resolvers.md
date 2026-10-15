@@ -136,6 +136,8 @@ class UserCompanyDisplayNameResolver : UserResolvers.CompanyDisplayName() {
 
 Viaduct resolves `User.parent` to the particular `Company` object from which that `User` was reached. It executes `Company.name` normally if the value is not already available. Parent selections can be nested when each object in the traversal declares its own `@parent` field.
 
+Directives cannot be applied to a parent field, including on inline fragments or fragment spreads between it and the field that contains it, and nothing selected under a parent field can use variables. This is enforced at build time for resolvers only, not checkers.
+
 `@parent` is intended for required selection sets, not client queries. Parent fields are tenant-local automatically and are absent from any externally accessible schemas.
 
 The `@parent` field itself must be declared directly on an object type, rather than on an interface or a field inherited from an interface. It may be nullable or non-null, and its base type may be an object, interface, or union, but it cannot return a list, take arguments, or carry `@resolver`. The engine resolves this field from execution ancestry.

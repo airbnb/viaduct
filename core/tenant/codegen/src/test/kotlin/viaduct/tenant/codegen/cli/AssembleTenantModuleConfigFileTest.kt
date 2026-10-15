@@ -821,6 +821,48 @@ class AssembleTenantModuleConfigFileTest {
     }
 
     @Test
+    fun `schema-files reject a variable under a parent field from a cross-leaf named fragment`() {
+        val descriptors = descriptorDir()
+        File(descriptors, "FieldResolvers.json").writeText(
+            """
+            {
+              "nodes": [],
+              "fields": [ {
+                "attribution": "TitleResolver",
+                "implFqn": "com.example.feature.resolvers.TitleResolver",
+                "isBatching": false,
+                "isSelective": false,
+                "resolverBaseClass": "com.example.feature.resolverbases.Title",
+                "typeName": "Employee",
+                "fieldName": "title",
+                "objectSelections": {
+                  "selections": "fragment _ on Employee { ...EmployeeParent }",
+                  "variablesProviders": []
+                }
+              } ],
+              "grtPackagePrefix": "viaduct.api.grts"
+            }
+            """.trimIndent(),
+        )
+        File(descriptors, "FragmentDefs.json").writeText(
+            """{"nodes":[],"fields":[],"namedFragments":[{"text":"fragment EmployeeParent on Employee { parent { logoUrl(size: ${'$'}size) } }"}]}""",
+        )
+        val schema = schemaFile(
+            """
+            directive @parent on FIELD_DEFINITION
+            type Query { company: Company }
+            type Company { logoUrl(size: Int): String employees: [Employee] }
+            type Employee { title: String parent: Company @parent }
+            """.trimIndent(),
+        )
+        val exception = assertThrows<IllegalStateException> {
+            runCliWithSchema(descriptors = descriptors, out = outputDir(), schema = schema)
+        }
+        assertTrue(exception.message!!.contains("RSS validation failed"), exception.message)
+        assertTrue(exception.message!!.contains("uses ${'$'}size beneath @parent field Employee.parent"), exception.message)
+    }
+
+    @Test
     fun `schema-files validate cross-leaf named fragment spread after assembly`() {
         val descriptors = descriptorDir()
         File(descriptors, "FieldResolvers.json").writeText(

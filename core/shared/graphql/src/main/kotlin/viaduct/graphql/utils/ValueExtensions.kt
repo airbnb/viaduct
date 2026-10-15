@@ -67,7 +67,10 @@ fun AbstractNode<*>.collectVariableReferences(): Set<String> {
     return visitor.variableReferences
 }
 
-fun ParsedSelections.collectVariableReferences(): Set<String> {
+fun ParsedSelections.collectVariableReferences(): Set<String> = selections.collectVariableReferencesFollowingFragments(fragmentMap)
+
+/** Collects variable references under this node, following fragment spreads through [fragmentMap]. */
+fun Node<*>.collectVariableReferencesFollowingFragments(fragmentMap: Map<String, FragmentDefinition>): Set<String> {
     val references = mutableSetOf<String>()
     val visitedFragments = mutableSetOf<String>()
 
@@ -81,7 +84,7 @@ fun ParsedSelections.collectVariableReferences(): Set<String> {
         node.children.forEach(::visit)
     }
 
-    visit(selections)
+    visit(this)
     return references
 }
 
