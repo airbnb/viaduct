@@ -71,5 +71,5 @@ information about reporting vulnerabilities.
 
 ## Build requirements
 
-* Mac OS X or Linux
+* Linux, macOS or Windows
 * JDK 17+, 64-bit

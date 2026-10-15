@@ -23,7 +23,7 @@ Whole-type mapping would use GraphQL field names and would not support aliased f
 projection and alias mapping as a separate decision. It does not depend on re-enabling Java
 selective resolvers, which are currently disabled as described in `selective-resolvers.md`.
 
-Source anchors: [Kotlin GRT domain](../../../tenant/api/src/main/kotlin/viaduct/api/mapping/GRTDomain.kt),
-[Kotlin JSON domain](../../../tenant/api/src/main/kotlin/viaduct/api/mapping/JsonDomain.kt),
-[Kotlin mapping contract](../../../tenant/runtime/src/testFixtures/kotlin/viaduct/tenant/runtime/execution/mapping/MappingContractTest.kt),
+Source anchors: [Kotlin GRT domain](../../tenant/api/src/main/kotlin/viaduct/api/mapping/GRTDomain.kt),
+[Kotlin JSON domain](../../tenant/api/src/main/kotlin/viaduct/api/mapping/JsonDomain.kt),
+[Kotlin mapping contract](../../tenant/runtime/src/testFixtures/kotlin/viaduct/tenant/runtime/execution/mapping/MappingContractTest.kt),
 and [Java bridge conversion](../runtime/src/main/kotlin/viaduct/java/runtime/bridge/GRTConverter.kt).

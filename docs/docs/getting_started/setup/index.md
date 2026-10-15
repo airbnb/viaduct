@@ -15,12 +15,12 @@ description: Set up your first Viaduct application
 
 Viaduct is compatible with the following versions:
 
-- **Language**: Kotlin (tenant code is written in Kotlin; Java tenants are not yet supported).
-- **Java**: 17+
-- **Gradle**: 8.10+ (Gradle 9.1.0+ supported with Kotlin 2.0+)
-- **Kotlin**: Use a Kotlin version compatible with your Gradle version.
-    - Gradle 8.x: Kotlin 1.9.x or 2.x
-    - Gradle 9.x: Kotlin 2.0+
+- **Java**: 17 or newer. CI tests 17, 21 and 25.
+- **Tenant language**: Kotlin, or Java through the [Java Tenant API](/apis/javaapi-api/) (preview). The
+  [`starwars-java`](https://github.com/airbnb/viaduct/tree/main/demoapps/starwars-java) demo app shows a Java tenant.
+- **Kotlin**: 2.2 or 2.3 for Kotlin tenants. The Viaduct Gradle plugin rejects other versions. Kotlin 2.2 compiles
+  for JVM targets up to 24, so targeting Java 25 needs Kotlin 2.3.
+- **Gradle**: 8.11 or newer, and 9.1 or newer on Java 25. CI tests 8.11 and 9.1.
 
 > **Note**: Choose Gradle and Kotlin versions that are compatible with each other — the [Gradle-Kotlin compatibility matrix](https://docs.gradle.org/current/userguide/compatibility.html#kotlin) is the authoritative reference.
 
