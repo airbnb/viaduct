@@ -2745,7 +2745,7 @@ class SelectiveNodeResolversExecutionTest {
 
             MockTenantModuleBootstrapper(
                 """
-                    extend type Query { a: Int, b: Int, foo: Foo! }
+                    extend type Query { a: Int, b: Int, foo: Foo!, sink(x: Boolean): Int }
                     type Foo implements Node { id: ID!, y: Int, z: Boolean! }
                 """.trimIndent()
             ) {
@@ -2757,7 +2757,7 @@ class SelectiveNodeResolversExecutionTest {
                     resolverExecutor {
                         val objectSelections = SelectionsParser.parse(
                             "Query",
-                            "__typename @include(if: \$includeFoo), foo { z y }",
+                            "sink(x: \$includeFoo), foo { z y }",
                         )
                         val variablesResolvers = VariablesResolver.fromSelectionSetVariables(
                             objectSelections = objectSelections,
@@ -2776,6 +2776,15 @@ class SelectiveNodeResolversExecutionTest {
                             ),
                             resolverId = resolverId,
                             unbatchedResolveFn = { _, _, _, _, _ -> 2 },
+                        )
+                    }
+                }
+
+                field("Query" to "sink") {
+                    resolverExecutor {
+                        MockFieldUnbatchedResolverExecutor(
+                            resolverId = resolverId,
+                            unbatchedResolveFn = { _, _, _, _, _ -> 0 },
                         )
                     }
                 }

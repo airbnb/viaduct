@@ -32,6 +32,7 @@ import viaduct.engine.api.spi.VariableFromFieldDefinitions
 import viaduct.engine.runtime.execution.ExecutionParameters
 import viaduct.engine.runtime.execution.FieldChildPlan
 import viaduct.engine.runtime.execution.QueryPlan
+import viaduct.engine.runtime.tenantloading.InvalidVariableException
 import viaduct.engine.runtime2.execution.testing.runQPlanFeatureTest
 import viaduct.graphql.scopes.SchemaScopingMode
 import viaduct.graphql.scopes.SchemaView
@@ -2709,87 +2710,55 @@ class RequiredSelectionsTest {
     }
 
     @Test
-    fun `ALTERNATIVE objectSelections conditional directives honor per-item variables`() {
-        val selectedValueCount = AtomicInteger()
+    fun `ALTERNATIVE objectSelections conditional directives reject per-item from-field variables`() {
+        val err = assertThrows<IllegalArgumentException> {
+            EngineTestModule(
+                """
+                extend type Query {
+                    items: [Item!]!
+                }
 
-        EngineTestModule(
-            """
-            extend type Query {
-                items: [Item!]!
-            }
-
-            type Item {
-                includeSelectedValue: Boolean!
-                selectedValue: String
-                summary: String
-            }
-            """.trimIndent()
-        ) {
-            field("Query" to "items") {
-                resolver {
-                    fn { _, _, _, _, _ ->
-                        listOf(
-                            createEngineObjectData(
-                                requireNotNull(schema.schema.getObjectType("Item")),
-                                mapOf("includeSelectedValue" to true)
+                type Item {
+                    includeSelectedValue: Boolean!
+                    selectedValue: String
+                    summary: String
+                }
+                """.trimIndent()
+            ) {
+                field("Item" to "summary") {
+                    resolverExecutor {
+                        val objectSelections = SelectionsParser.parse(
+                            "Item",
+                            "includeSelectedValue selectedValue @include(if: \$includeSelectedValue)",
+                        )
+                        val variablesResolvers = VariablesResolver.fromSelectionSetVariables(
+                            objectSelections = objectSelections,
+                            querySelections = null,
+                            variables = listOf(
+                                FromObjectFieldVariable(
+                                    "includeSelectedValue",
+                                    "includeSelectedValue",
+                                )
                             ),
-                            createEngineObjectData(
-                                requireNotNull(schema.schema.getObjectType("Item")),
-                                mapOf("includeSelectedValue" to false)
-                            )
+                            forChecker = false,
+                        )
+                        MockFieldUnbatchedResolverExecutor(
+                            objectFieldVariables = VariableFromFieldDefinitions(mapOf("includeSelectedValue" to "includeSelectedValue")),
+                            objectSelectionSet = RequiredSelectionSet(
+                                selections = objectSelections,
+                                variablesResolvers = variablesResolvers,
+                                forChecker = false,
+                            ),
+                            resolverId = resolverId,
+                            unbatchedResolveFn = { _, _, _, _, _ -> error("should not execute") },
                         )
                     }
                 }
-            }
-            field("Item" to "selectedValue") {
-                resolver {
-                    fn { _, _, _, _, _ ->
-                        selectedValueCount.incrementAndGet()
-                        "selected"
-                    }
-                }
-            }
-            field("Item" to "summary") {
-                resolverExecutor {
-                    val objectSelections = SelectionsParser.parse(
-                        "Item",
-                        "includeSelectedValue selectedValue @include(if: \$includeSelectedValue)",
-                    )
-                    val variablesResolvers = VariablesResolver.fromSelectionSetVariables(
-                        objectSelections = objectSelections,
-                        querySelections = null,
-                        variables = listOf(
-                            FromObjectFieldVariable(
-                                "includeSelectedValue",
-                                "includeSelectedValue",
-                            )
-                        ),
-                        forChecker = false,
-                    )
-                    MockFieldUnbatchedResolverExecutor(
-                        objectFieldVariables = VariableFromFieldDefinitions(mapOf("includeSelectedValue" to "includeSelectedValue")),
-                        objectSelectionSet = RequiredSelectionSet(
-                            selections = objectSelections,
-                            variablesResolvers = variablesResolvers,
-                            forChecker = false,
-                        ),
-                        resolverId = resolverId,
-                        unbatchedResolveFn = { _, obj, _, _, _ ->
-                            if (obj.fetchAs<Boolean>("includeSelectedValue")) {
-                                obj.fetchAs<String>("selectedValue")
-                            } else {
-                                "skipped"
-                            }
-                        },
-                    )
-                }
-            }
-        }.runQPlanFeatureTest {
-            runQuery("{ items { summary } }")
-                .assertJson("""{"data": {"items": [{"summary": "selected"}, {"summary": "skipped"}]}}""")
+            }.runQPlanFeatureTest { }
         }
 
-        assertEquals(1, selectedValueCount.get())
+        val cause = generateSequence<Throwable>(err) { it.cause }.filterIsInstance<InvalidVariableException>().first()
+        assertEquals("includeSelectedValue", cause.variableName)
     }
 
     @Test

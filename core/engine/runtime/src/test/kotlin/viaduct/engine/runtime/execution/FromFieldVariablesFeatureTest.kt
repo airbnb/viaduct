@@ -1,7 +1,6 @@
 package viaduct.engine.runtime.execution
 
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -445,35 +444,20 @@ class FromFieldVariablesFeatureTest {
         }
 
     @Test
-    fun `from object field -- variable used in conditional directive`() {
-        var yResolved = false
+    fun `invalid from object field -- variable used in conditional directive`() {
+        val err = assertThrows<Throwable> {
+            EngineTestModule("extend type Query { x:String, y:Boolean, z:Boolean! }") {
+                fieldWithFromFieldVariables(
+                    coord = "Query" to "x",
+                    objectSelectionsText = "y @skip(if:\$z), z",
+                    variables = listOf(FromObjectFieldVariable("z", "z")),
+                ) { _, _, _, _, _ -> error("should not execute") }
+                fieldWithValue("Query" to "y", true)
+                fieldWithValue("Query" to "z", true)
+            }.runFeatureTest { }
+        }.unwrapAs<InvalidVariableException>()
 
-        EngineTestModule("extend type Query { x:String, y:Boolean, z:Boolean! }") {
-            fieldWithFromFieldVariables(
-                coord = "Query" to "x",
-                objectSelectionsText = "y @skip(if:\$z), z",
-                variables = listOf(FromObjectFieldVariable("z", "z")),
-            ) { _, obj, _, _, _ ->
-                runCatching {
-                    obj.fetchAs<Boolean>("y")
-                }.exceptionOrNull()?.javaClass?.simpleName
-            }
-            field("Query" to "y") {
-                resolver {
-                    fn { _, _, _, _, _ ->
-                        yResolved = true
-                        true
-                    }
-                }
-            }
-            fieldWithValue("Query" to "z", true)
-        }.runFeatureTest {
-            // Sync path returns null for conditionally-excluded keys (@skip); fetchAs<Boolean>
-            // on a null value throws NullPointerException rather than UnsetFieldException.
-            runQuery("{x}").assertJson("{data: {x: \"NullPointerException\"}}")
-        }
-
-        assertFalse(yResolved)
+        assertEquals("z", err.variableName)
     }
 
     @Test

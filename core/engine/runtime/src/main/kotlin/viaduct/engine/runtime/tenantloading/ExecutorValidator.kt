@@ -28,7 +28,8 @@ class ExecutorValidator(
             RequiredSelectionsAreSchematicallyValid(schema),
             RequiredSelectionsAreAcyclic(schema),
             FromArgumentVariablesHaveValidPaths(schema),
-            FromFieldVariablesHaveValidPaths(schema)
+            FromFieldVariablesHaveValidPaths(schema),
+            FromFieldVariablesAreNotConditions(),
         ).flatten(),
         checkerExecutorValidator = CheckerSelectionSetsAreProperlyTyped(schema),
     )

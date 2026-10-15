@@ -9,10 +9,10 @@ class InvalidVariableException(
         get() {
             val (typeName, fieldName) = typeOrFieldCoordinate
             val coord = if (fieldName != null) {
-                "field `$typeName.$fieldName"
+                "field `$typeName.$fieldName`"
             } else {
                 "type `$typeName`"
             }
-            return "Invalid configuration for coordinate `$coord` variable `$variableName`: $reason"
+            return "Invalid configuration for $coord variable `$variableName`: $reason"
         }
 }

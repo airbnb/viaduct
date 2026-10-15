@@ -8,8 +8,6 @@ import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.FromFieldVariablesResolver
 import viaduct.engine.api.RequiredSelectionSet
-import viaduct.engine.api.Validated
-import viaduct.engine.api.VariablesResolver
 import viaduct.engine.api.gj
 import viaduct.engine.runtime.select.EngineSelectionSetFactoryImpl
 import viaduct.engine.runtime.select.coord
@@ -49,7 +47,7 @@ class FromFieldVariablesHaveValidPaths(
 
         allSets.forEach { rss ->
             rss.variablesResolvers
-                .mapNotNull(::extractFromFieldVariables)
+                .mapNotNull { it.asFromFieldVariablesResolver() }
                 .forEach { vr ->
                     variableResolversByName[vr.name] = vr
 
@@ -109,13 +107,6 @@ class FromFieldVariablesHaveValidPaths(
             }
         }
     }
-
-    private fun extractFromFieldVariables(resolver: VariablesResolver): FromFieldVariablesResolver? =
-        when (resolver) {
-            is Validated -> extractFromFieldVariables(resolver.delegate)
-            is FromFieldVariablesResolver -> resolver
-            else -> null
-        }
 
     private fun validateFromFieldVariable(
         coord: TypeOrFieldCoordinate,

@@ -2407,7 +2407,7 @@ class SelectiveFieldResolversExecutionTest {
         fun `ALTERNATIVE variable rss does not use skipped child object plan`() {
             MockTenantModuleBootstrapper(
                 """
-                    extend type Query { a: Int, b: Int, foo: Foo! @resolver }
+                    extend type Query { a: Int, b: Int, foo: Foo! @resolver, sink(x: Boolean): Int }
                     type Foo { y: Int, z: Boolean! }
                 """.trimIndent()
             ) {
@@ -2415,7 +2415,7 @@ class SelectiveFieldResolversExecutionTest {
                     resolverExecutor {
                         val objectSelections = SelectionsParser.parse(
                             "Query",
-                            "__typename @include(if: \$includeFoo), foo { z y }",
+                            "sink(x: \$includeFoo), foo { z y }",
                         )
                         val variablesResolvers = VariablesResolver.fromSelectionSetVariables(
                             objectSelections = objectSelections,
@@ -2434,6 +2434,15 @@ class SelectiveFieldResolversExecutionTest {
                             ),
                             resolverId = resolverId,
                             unbatchedResolveFn = { _, _, _, _, _ -> 2 },
+                        )
+                    }
+                }
+
+                field("Query" to "sink") {
+                    resolverExecutor {
+                        MockFieldUnbatchedResolverExecutor(
+                            resolverId = resolverId,
+                            unbatchedResolveFn = { _, _, _, _, _ -> 0 },
                         )
                     }
                 }

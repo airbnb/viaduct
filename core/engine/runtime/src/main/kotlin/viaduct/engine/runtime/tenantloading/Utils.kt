@@ -6,6 +6,9 @@ import graphql.schema.GraphQLList
 import graphql.schema.GraphQLNonNull
 import graphql.schema.GraphQLType
 import graphql.schema.GraphQLTypeUtil
+import viaduct.engine.api.FromFieldVariablesResolver
+import viaduct.engine.api.Validated
+import viaduct.engine.api.VariablesResolver
 import viaduct.graphql.utils.VariableUsageInfo
 
 internal data class Type(
@@ -103,4 +106,11 @@ internal tailrec fun areTypesCompatible(
         }
 
         else -> GraphQLTypeUtil.unwrapNonNull(locationType.type) == GraphQLTypeUtil.unwrapNonNull(variableType.type)
+    }
+
+internal fun VariablesResolver.asFromFieldVariablesResolver(): FromFieldVariablesResolver? =
+    when (this) {
+        is Validated -> delegate.asFromFieldVariablesResolver()
+        is FromFieldVariablesResolver -> this
+        else -> null
     }
