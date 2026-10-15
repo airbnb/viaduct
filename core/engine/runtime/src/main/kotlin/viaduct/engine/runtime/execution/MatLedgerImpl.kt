@@ -93,7 +93,7 @@ internal class MatLedgerImpl(
     ): MatResult {
         val result = try {
             mat(reservation.requested, selectionHandle)
-        } catch (failure: Throwable) {
+        } catch (failure: Exception) {
             completeFailure(reservation, failure)
             throw failure
         }

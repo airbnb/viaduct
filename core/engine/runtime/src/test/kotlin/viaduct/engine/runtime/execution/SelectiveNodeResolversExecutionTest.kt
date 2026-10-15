@@ -11,10 +11,13 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withTimeout
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.CsvSource
 import viaduct.arbitrary.common.CheckedArb
 import viaduct.arbitrary.common.Config
 import viaduct.arbitrary.common.DeepArbSuite
@@ -58,10 +61,15 @@ import viaduct.engine.api.mocks.fetchAs
 import viaduct.engine.api.mocks.getAs
 import viaduct.engine.api.mocks.runFeatureTest
 import viaduct.engine.api.spi.MaterializedFieldValueReader
+import viaduct.errors.TenantException
+import viaduct.errors.TenantResolverException
 import viaduct.graphql.test.assertMatches
 import viaduct.service.api.ExecutionInput
+import viaduct.service.api.GraphQLError
 import viaduct.service.api.Viaduct
+import viaduct.service.api.spi.ErrorReporter
 import viaduct.service.api.spi.FlagManager
+import viaduct.service.api.spi.ResolverErrorBuilder
 import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 import viaduct.service.api.spi.mocks.MockFlagManager
 
@@ -75,6 +83,101 @@ class SelectiveNodeResolversExecutionTest {
             read
         }
     }
+
+    @Nested
+    inner class ErrorTests {
+        @ParameterizedTest
+        @CsvSource("false, x", "true, x", "false, id __typename", "true, id __typename")
+        fun `selective node failures preserve embedder error classification`(
+            matEnabled: Boolean,
+            fields: String
+        ) {
+            val failure = MissingNodeException()
+            val reported = mutableListOf<Throwable>()
+            val handler = ViaductDataFetcherExceptionHandler(
+                ErrorReporter { error, _, _ -> reported.add(error) },
+                ResolverErrorBuilder { error, _ ->
+                    if (error is MissingNodeException) {
+                        listOf(GraphQLError(message = error.message!!, extensions = mapOf("errorType" to "NOT_FOUND", "fatal" to false)))
+                    } else {
+                        null
+                    }
+                },
+            )
+
+            MockTenantModuleBootstrapper(
+                """
+                    extend type Query { foo: Foo }
+                    type Foo implements Node { id: ID!, x: Int }
+                """.trimIndent()
+            ) {
+                field("Query" to "foo") {
+                    valueFromContext { it.createNodeReference("foo", objectType("Foo")) }
+                }
+                type("Foo") {
+                    nodeUnbatchedExecutor(selective = true) { _, _, _ ->
+                        throw TenantResolverException(failure, "Node:Foo")
+                    }
+                }
+            }.runFeatureTest(
+                engineConfig = EngineConfiguration.featureTestDefault.copy(
+                    flagManager = if (matEnabled) MockFlagManager.create(FlagManager.Flags.ENABLE_MAT_RESOLUTION) else MockFlagManager.Disabled,
+                    dataFetcherExceptionHandler = handler,
+                )
+            ) {
+                val result = runQueryWithTimeout("{ foo { $fields } }")
+                assertEquals(mapOf("foo" to null), result.getData())
+                val error = result.errors.single()
+                assertEquals(listOf("foo"), error.path)
+                assertEquals("NOT_FOUND", error.extensions["errorType"])
+                assertEquals(false, error.extensions["fatal"])
+            }
+
+            assertSame(failure, reported.single())
+        }
+
+        @Test
+        fun `materialization invariant failures remain internal errors`() {
+            val reported = mutableListOf<Throwable>()
+
+            MockTenantModuleBootstrapper(
+                """
+                    extend type Query { foo: Foo }
+                    type Foo implements Node { id: ID!, bar: Bar }
+                    type Bar { x: Int }
+                """.trimIndent()
+            ) {
+                field("Query" to "foo") {
+                    valueFromContext { it.createNodeReference("foo", objectType("Foo")) }
+                }
+                type("Foo") {
+                    nodeUnbatchedExecutor(selective = true) { _, _, _ ->
+                        createEngineObjectData(
+                            objectType,
+                            mapOf("bar" to createEngineObjectData("Bar", mapOf("x" to 1))),
+                        )
+                    }
+                }
+            }.runFeatureTest(
+                engineConfig = EngineConfiguration.featureTestDefault.copy(
+                    dataFetcherExceptionHandler = ViaductDataFetcherExceptionHandler(
+                        ErrorReporter { error, _, _ -> reported.add(error) },
+                        ResolverErrorBuilder.NOOP,
+                    ),
+                    materializedFieldValueReader = MaterializedFieldValueReader { _, _, _ -> error("broken materialization") },
+                )
+            ) {
+                val result = runQueryWithTimeout("{ foo { bar { x } } }")
+                assertEquals(mapOf("foo" to null), result.getData())
+                assertEquals(listOf("foo"), result.errors.single().path)
+            }
+
+            assertInstanceOf(InternalEngineException::class.java, reported.single())
+            assertTrue(reported.single().message!!.contains("broken materialization"))
+        }
+    }
+
+    private class MissingNodeException : RuntimeException("node not found"), TenantException
 
     @Nested
     inner class BasicExecutionTests {

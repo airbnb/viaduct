@@ -908,7 +908,7 @@ class FieldResolver(
             } catch (e: CancellationException) {
                 deferred.completeExceptionally(e)
                 throw e
-            } catch (e: Throwable) {
+            } catch (e: Exception) {
                 deferred.complete(LedgerReader.failed(e))
             }
         }
@@ -1021,7 +1021,7 @@ class FieldResolver(
             } catch (e: CancellationException) {
                 deferred.completeExceptionally(e)
                 throw e
-            } catch (e: Throwable) {
+            } catch (e: Exception) {
                 deferred.completeExceptionally(e)
             }
         }
@@ -1098,9 +1098,9 @@ class FieldResolver(
                 engineResult.resolveExceptionally(e)
                 deferred.completeExceptionally(e)
                 throw e
-            } catch (e: Throwable) {
+            } catch (e: Exception) {
                 engineResult.resolveExceptionally(e)
-                deferred.completeExceptionally(e)
+                deferred.complete(engineResult)
             }
         }
         return Value.fromDeferred(deferred)
