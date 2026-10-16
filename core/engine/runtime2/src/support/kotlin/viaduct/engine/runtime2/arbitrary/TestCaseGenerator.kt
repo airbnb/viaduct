@@ -3,6 +3,7 @@ package viaduct.engine.runtime2.arbitrary
 import io.kotest.common.ExperimentalKotest
 import io.kotest.property.Arb
 import io.kotest.property.PropTestConfig
+import io.kotest.property.PropertyContext
 import io.kotest.property.PropertyTesting
 import io.kotest.property.arbitrary.bind
 import io.kotest.property.arbitrary.flatMap
@@ -209,7 +210,7 @@ suspend fun checkResolverTestCases(
  * own annotations, Gradle properties, or [configuredResolverTestExecution].
  */
 @OptIn(ExperimentalKotest::class)
-@Suppress("TooGenericExceptionCaught") // Include assertion failures in replay diagnostics.
+@Suppress("TooGenericExceptionCaught") // Record the failing schema before Kotest shrinks.
 suspend fun executeResolverTestCases(
     execution: ResolverTestExecution,
     config: Config = Config.default,
@@ -222,67 +223,24 @@ suspend fun executeResolverTestCases(
     require(profile.isNotBlank())
     var attemptedCases = 0
     var failingSchemaIndex: Int? = null
-    checkAll(
-        PropTestConfig(
-            seed = seed,
-            iterations = execution.schemaIterations,
-        ),
-        Arb.resolverTestBatch(execution.counts, config),
-    ) { batch ->
+    forEachResolverTestBatch(execution.counts, config, seed, execution.schemaIterations) { batch ->
         val schemaIndex = failingSchemaIndex ?: successes() + 1
-        if (
-            execution.selectedCase != null &&
-            schemaIndex != execution.selectedCase.schemaIndex
-        ) {
-            return@checkAll
-        }
-        batch.registries.forEachIndexed { registryOffset, registry ->
-            val registryIndex = registryOffset + 1
-            if (
-                execution.selectedCase != null &&
-                registryIndex != execution.selectedCase.registryIndex
-            ) {
-                return@forEachIndexed
-            }
-            val world =
-                registry.world(
-                    schema = batch.schema,
+        try {
+            attemptedCases +=
+                checkResolverTestBatch(
+                    batch = batch,
+                    schemaIndex = schemaIndex,
+                    execution = execution,
+                    profile = profile,
+                    seed = seed,
                     selectiveNodeResolvers = config[SelectiveNodeResolversEnabled],
                     fieldCheckerMode = fieldCheckerMode,
                     typeCheckerMode = typeCheckerMode,
+                    property = property,
                 )
-            batch.queries.forEachIndexed query@{ queryOffset, query ->
-                val queryIndex = queryOffset + 1
-                if (
-                    execution.selectedCase != null &&
-                    queryIndex != execution.selectedCase.queryIndex
-                ) {
-                    return@query
-                }
-                attemptedCases += 1
-                val testCase =
-                    ResolverTestCase(
-                        schema = batch.schema,
-                        registry = registry,
-                        query = query,
-                        coordinates =
-                            ResolverTestCoordinates(
-                                profile = profile,
-                                seed = seed,
-                                schemaIndex = schemaIndex,
-                                registryIndex = registryIndex,
-                                queryIndex = queryIndex,
-                            ),
-                    )
-                try {
-                    property(world, testCase)
-                } catch (failure: Throwable) {
-                    failingSchemaIndex = schemaIndex
-                    val counts = execution.counts
-                    val size = "${counts.schemas}:${counts.registriesPerSchema}:${counts.queriesPerSchema}"
-                    throw AssertionError("${testCase.failureContext()}\nReplay size: -PresolverPropertySize=$size", failure)
-                }
-            }
+        } catch (failure: Throwable) {
+            failingSchemaIndex = schemaIndex
+            throw failure
         }
     }
     return ResolverTestRun(
@@ -293,6 +251,88 @@ suspend fun executeResolverTestCases(
         selectedCase = execution.selectedCase,
         sizeOverridden = execution.sizeOverridden,
     )
+}
+
+@Suppress("TooGenericExceptionCaught") // Include assertion failures in replay diagnostics.
+suspend fun checkResolverTestBatch(
+    batch: ResolverTestBatch,
+    schemaIndex: Int,
+    execution: ResolverTestExecution,
+    profile: String,
+    seed: Long,
+    selectiveNodeResolvers: Boolean,
+    fieldCheckerMode: GeneratedFieldCheckerMode,
+    typeCheckerMode: GeneratedTypeCheckerMode,
+    property: suspend (TestWorld, ResolverTestCase) -> Unit,
+): Int {
+    val selectedCase = execution.selectedCase
+    if (selectedCase != null && schemaIndex != selectedCase.schemaIndex) return 0
+    var attemptedCases = 0
+    batch.registries.forEachIndexed { registryOffset, registry ->
+        val registryIndex = registryOffset + 1
+        if (selectedCase != null && registryIndex != selectedCase.registryIndex) {
+            return@forEachIndexed
+        }
+        val world =
+            registry.world(
+                schema = batch.schema,
+                selectiveNodeResolvers = selectiveNodeResolvers,
+                fieldCheckerMode = fieldCheckerMode,
+                typeCheckerMode = typeCheckerMode,
+            )
+        batch.queries.forEachIndexed query@{ queryOffset, query ->
+            val queryIndex = queryOffset + 1
+            if (selectedCase != null && queryIndex != selectedCase.queryIndex) {
+                return@query
+            }
+            attemptedCases += 1
+            val testCase =
+                ResolverTestCase(
+                    schema = batch.schema,
+                    registry = registry,
+                    query = query,
+                    coordinates =
+                        ResolverTestCoordinates(
+                            profile = profile,
+                            seed = seed,
+                            schemaIndex = schemaIndex,
+                            registryIndex = registryIndex,
+                            queryIndex = queryIndex,
+                        ),
+                )
+            try {
+                property(world, testCase)
+            } catch (failure: Throwable) {
+                throw AssertionError(
+                    "${testCase.failureContext()}\nReplay size: -PresolverPropertySize=${execution.counts.summary()}",
+                    failure,
+                )
+            }
+        }
+    }
+    return attemptedCases
+}
+
+suspend fun generateResolverTestBatches(
+    counts: TestCaseCount,
+    config: Config,
+    seed: Long,
+): List<ResolverTestBatch> {
+    val batches = mutableListOf<ResolverTestBatch>()
+    forEachResolverTestBatch(counts, config, seed, counts.schemas) { batch -> batches += batch }
+    return batches
+}
+
+// Live runs and stored-suite generation share this so stored shards keep live replay coordinates.
+@OptIn(ExperimentalKotest::class)
+private suspend fun forEachResolverTestBatch(
+    counts: TestCaseCount,
+    config: Config,
+    seed: Long,
+    iterations: Int,
+    body: suspend PropertyContext.(ResolverTestBatch) -> Unit,
+) {
+    checkAll(PropTestConfig(seed = seed, iterations = iterations), Arb.resolverTestBatch(counts, config), body)
 }
 
 fun parseResolverTestCase(value: String): ResolverTestCaseCoordinate =
@@ -335,6 +375,9 @@ data class ResolverTestExecution(
     val schemaIterations: Int
         get() = selectedCase?.schemaIndex ?: counts.schemas
 }
+
+/** A configured seed or size bypasses stored suites. */
+fun resolverTestGenerationConfigured(): Boolean = System.getProperty(RESOLVER_TEST_SEED_PROPERTY) != null || System.getProperty(RESOLVER_TEST_SIZE_PROPERTY) != null
 
 fun configuredResolverTestExecution(
     defaultCounts: TestCaseCount,

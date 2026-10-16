@@ -14,13 +14,8 @@ import viaduct.engine.runtime2.arbitrary.FieldArgumentWeight
 import viaduct.engine.runtime2.arbitrary.GeneratedFieldCheckerMode
 import viaduct.engine.runtime2.arbitrary.GeneratedTypeCheckerMode
 import viaduct.engine.runtime2.arbitrary.ImplementationArgumentDefaultWeight
-import viaduct.engine.runtime2.arbitrary.InputListTypeWeight
-import viaduct.engine.runtime2.arbitrary.InputObjectCount
-import viaduct.engine.runtime2.arbitrary.InputObjectTypeWeight
-import viaduct.engine.runtime2.arbitrary.MaxInputTypeDepth
 import viaduct.engine.runtime2.arbitrary.NodeObjectWeight
 import viaduct.engine.runtime2.arbitrary.NodeResolversEnabled
-import viaduct.engine.runtime2.arbitrary.NullableTypeWeight
 import viaduct.engine.runtime2.arbitrary.ObjectFieldCount
 import viaduct.engine.runtime2.arbitrary.QueryFieldCount
 import viaduct.engine.runtime2.arbitrary.ResolverApplicationRecord
@@ -52,6 +47,8 @@ import viaduct.engine.runtime2.correctresolution.CorrectnessResolverObserver
 import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.selectionForestOf
 import viaduct.engine.runtime2.model.testing.TestWorld
+import viaduct.engine.runtime2.propertytest.ResolverTestSuiteDefinition
+import viaduct.engine.runtime2.propertytest.checkResolverTestSuite
 
 /**
  * Generated contract for user-declared resolvers with empty object fragments and no variables.
@@ -397,22 +394,7 @@ interface ObjectFragmentGeneratedResolverContract : GeneratedCaseAssertionPolicy
         runBlocking {
             var generatedNonemptyFragments = 0
             var activatedNonemptyFragments = 0
-            val config =
-                Config.default +
-                    (FieldArgumentWeight to 1.0) +
-                    (InputListTypeWeight to 0.0) +
-                    (InputObjectCount to 2..3) +
-                    (InputObjectTypeWeight to 0.6) +
-                    (MaxInputTypeDepth to 2) +
-                    (NullableTypeWeight to 1.0) +
-                    (ExplicitFieldResolverWeight to 1.0) +
-                    (NodeResolversEnabled to false) +
-                    (ResolverFragmentsEnabled to true) +
-                    (ResolverFragmentWeight to 1.0) +
-                    (ResolverFromArgumentVariablesEnabled to false) +
-                    (ResolverVariablesEnabled to false)
-
-            val run = checkGeneratedProfile("object-fragment", config) { testWorld, testCase ->
+            val run = checkResolverTestSuite(ResolverTestSuiteDefinition.OBJECT_FRAGMENT) { testWorld, testCase ->
                 assertTrue(testCase.registry.nodeResolverTypes.isEmpty())
                 assertEquals(0, testCase.registry.features.variableCount)
                 generatedNonemptyFragments +=

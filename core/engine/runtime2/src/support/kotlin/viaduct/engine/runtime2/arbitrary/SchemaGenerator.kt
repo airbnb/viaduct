@@ -269,7 +269,7 @@ internal data class OutputTypeSpec(
     val nestedElementNullabilities: List<Boolean> = emptyList(),
 ) {
     init {
-        require(list || nestedElementNullabilities.isEmpty())
+        require(list || (!elementNullable && nestedElementNullabilities.isEmpty()))
     }
 
     val listDepth: Int
@@ -281,6 +281,7 @@ internal data class OutputTypeSpec(
             copy(
                 nullable = elementNullable,
                 list = false,
+                elementNullable = false,
                 nestedElementNullabilities = emptyList(),
             )
         } else {
@@ -389,7 +390,7 @@ private class SchemaGenerator(
                                 namedType = "String",
                                 nullable = chance(config[NullableTypeWeight]),
                                 list = false,
-                                elementNullable = true,
+                                elementNullable = false,
                             ),
                         arguments = emptyList(),
                     )
@@ -1505,7 +1506,7 @@ private class SchemaGenerator(
                     namedType = namedType,
                     nullable = nullable,
                     list = isList,
-                    elementNullable = elementNullable,
+                    elementNullable = isList && elementNullable,
                     nestedElementNullabilities = nestedElementNullabilities,
                 ),
             arguments = arguments,

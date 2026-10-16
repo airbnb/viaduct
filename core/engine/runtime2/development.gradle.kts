@@ -444,6 +444,18 @@ tasks.register<JavaExec>("materializeGeneratorConfigs") {
     outputs.upToDateWhen { false }
 }
 
+tasks.register<JavaExec>("materializeResolverTestSuites") {
+    group = "verification"
+    description = "Pre-generates stored resolver property-test suites so tests replay them instead of generating."
+    dependsOn("supportClasses")
+    classpath = sourceSets["support"].output.classesDirs + configurations["supportRuntimeClasspath"]
+    mainClass.set("viaduct.engine.runtime2.propertytest.ResolverTestSuiteMaterializer")
+    maxHeapSize = "4g"
+    val resourcesRoot = layout.projectDirectory.dir("src/support/resources")
+    outputs.dir(resourcesRoot.dir("viaduct/engine/runtime2/property-tests/suites"))
+    args(resourcesRoot.asFile.absolutePath)
+}
+
 val propertyTestLauncherJar =
     tasks.register<Jar>("propertyTestLauncherJar") {
         dependsOn("supportClasses")

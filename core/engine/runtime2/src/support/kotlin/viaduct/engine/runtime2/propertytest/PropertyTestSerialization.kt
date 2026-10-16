@@ -225,10 +225,15 @@ object PropertyTestJson {
     inline fun <reified T> readResource(
         resource: String,
         classLoader: ClassLoader = defaultClassLoader(),
-    ): T =
+    ): T = read(readResourceBytes(resource, classLoader).inputStream())
+
+    fun readResourceBytes(
+        resource: String,
+        classLoader: ClassLoader = defaultClassLoader(),
+    ): ByteArray =
         requireNotNull(classLoader.getResourceAsStream(resource.removePrefix("/"))) {
             "Missing property-test resource $resource"
-        }.use(::read)
+        }.use(InputStream::readAllBytes)
 
     fun write(value: Any): String = mapper.writeValueAsString(value) + "\n"
 

@@ -9,7 +9,9 @@ plugins {
     id("me.champeau.jmh") version "0.7.3"
 }
 
-val support by sourceSets.creating
+val support by sourceSets.creating {
+    resources.exclude("**/BUILD.bazel")
+}
 
 kotlin {
     sourceSets.named("test") {

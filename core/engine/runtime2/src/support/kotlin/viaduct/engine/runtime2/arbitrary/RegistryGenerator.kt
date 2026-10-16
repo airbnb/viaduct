@@ -142,8 +142,8 @@ class ArbitraryRegistry internal constructor(
     internal val queryFragments: Map<FieldCoordinate, FragmentPlan>,
     internal val variableProviders: List<VariableProviderPlan>,
     internal val resolverPrograms: Map<FieldCoordinate, ResolverProgramKind>,
-    val parentDemandOwnerFields: Map<FieldCoordinate, Int> = emptyMap(),
-    internal val schemaRootFieldReferenceFamily: RootFieldReferenceFamily? = null,
+    val parentDemandOwnerFields: Map<FieldCoordinate, Int>,
+    internal val schemaRootFieldReferenceFamily: RootFieldReferenceFamily?,
     val features: RegistryFeatures,
 ) {
     private val applicationLog = BoundedRecorder<ResolverApplicationRecord>()
@@ -1077,10 +1077,7 @@ private class RegistryGenerator(
             variableProviders.fromField(ProviderFragment.OBJECT).features(fieldSites)
         val queryFieldFeatures =
             variableProviders.fromField(ProviderFragment.QUERY).features(fieldSites)
-        val parentDemandOwnerFields =
-            objectFragments
-                .mapValues { (_, fragment) -> fragment.maximumParentSelectionDepth() }
-                .filterValues { depth -> depth > 0 }
+        val parentDemandOwnerFields = schema.parentDemandOwnerFields(objectFragments)
         return ArbitraryRegistry(
             fieldResolverCoordinates = fieldSites,
             nodeResolverTypes = nodeSites,
@@ -3085,31 +3082,6 @@ private class RegistryGenerator(
                 ),
         )
 
-    private fun FragmentPlan.maximumParentSelectionDepth(): Int =
-        selections.maxOfOrNull { selection ->
-            selection.maximumParentSelectionDepth(ownerName, parentDepth = 0)
-        } ?: 0
-
-    private fun FragmentSelectionPlan.maximumParentSelectionDepth(
-        ownerName: String,
-        parentDepth: Int,
-    ): Int {
-        val selectionOwner = typeCondition ?: ownerName
-        val field =
-            schema.fieldsOn(selectionOwner).singleOrNull { candidate ->
-                candidate.name == fieldName
-            } ?: return parentDepth
-        val nextParentDepth = if (field.isParentField) parentDepth + 1 else 0
-        val nestedMaximum =
-            subselections.maxOfOrNull { selection ->
-                selection.maximumParentSelectionDepth(
-                    ownerName = field.type.namedType,
-                    parentDepth = nextParentDepth,
-                )
-            } ?: 0
-        return maxOf(nextParentDepth, nestedMaximum)
-    }
-
     private fun chance(weight: Double): Boolean = Arb.double(0.0, 1.0).next(random) < weight
 
     private fun <T> List<T>.shuffled(random: RandomSource): List<T> {
@@ -3154,6 +3126,29 @@ private data class FromArgumentCandidate(
     val occurrence: ArgumentOccurrence,
     val source: FromArgumentSource,
 )
+
+internal fun ArbitrarySchema.parentDemandOwnerFields(objectFragments: Map<FieldCoordinate, FragmentPlan>): Map<FieldCoordinate, Int> =
+    objectFragments
+        .mapValues { (_, fragment) ->
+            fragment.selections.maxOfOrNull { selection -> maximumParentSelectionDepth(selection, fragment.ownerName, parentDepth = 0) } ?: 0
+        }.filterValues { depth -> depth > 0 }
+
+private fun ArbitrarySchema.maximumParentSelectionDepth(
+    selection: FragmentSelectionPlan,
+    ownerName: String,
+    parentDepth: Int,
+): Int {
+    val field =
+        fieldsOn(selection.typeCondition ?: ownerName).singleOrNull { candidate ->
+            candidate.name == selection.fieldName
+        } ?: return parentDepth
+    val nextParentDepth = if (field.isParentField) parentDepth + 1 else 0
+    val nestedMaximum =
+        selection.subselections.maxOfOrNull { subselection ->
+            maximumParentSelectionDepth(subselection, field.type.namedType, nextParentDepth)
+        } ?: 0
+    return maxOf(nextParentDepth, nestedMaximum)
+}
 
 internal data class FragmentPlan(
     val ownerName: String,
