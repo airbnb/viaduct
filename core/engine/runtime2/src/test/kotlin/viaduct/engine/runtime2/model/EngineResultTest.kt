@@ -710,8 +710,8 @@ class EngineResultTest {
                     try {
                         result.reserveCell(key).value.set(value)
                         successes.incrementAndGet()
-                    } catch (throwable: Throwable) {
-                        failures.add(throwable)
+                    } catch (exception: IllegalStateException) {
+                        failures.add(exception)
                     }
                 }
             }

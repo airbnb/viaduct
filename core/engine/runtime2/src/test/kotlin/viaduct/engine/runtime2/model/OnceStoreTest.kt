@@ -68,8 +68,8 @@ class OnceStoreTest {
                     try {
                         store.write("key", value)
                         successes.incrementAndGet()
-                    } catch (throwable: Throwable) {
-                        failures.add(throwable)
+                    } catch (exception: IllegalStateException) {
+                        failures.add(exception)
                     }
                 }
             }
