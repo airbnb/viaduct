@@ -2,12 +2,15 @@
 
 package viaduct.engine.api.instrumentation
 
-import java.util.concurrent.CompletableFuture
+import java.util.concurrent.ExecutionException
+import java.util.concurrent.FutureTask
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 
 class ViaductTenantNameContextTest {
     @Test
@@ -91,17 +94,21 @@ class ViaductTenantNameContextTest {
         assertNull(resultAfterScope)
     }
 
+    @Test
+    fun `failures on a new thread are reported to the test thread`() {
+        val failure = AssertionError("worker failed")
+
+        val thrown = assertThrows<ExecutionException> {
+            runOnNewThread<Unit> { throw failure }
+        }
+
+        assertSame(failure, thrown.cause)
+    }
+
     // Helper to run a block on a fresh thread, ensuring ThreadLocal isolation.
     private fun <T> runOnNewThread(block: () -> T): T {
-        val future = CompletableFuture<T>()
-        val thread = Thread {
-            try {
-                future.complete(block())
-            } catch (e: Throwable) {
-                future.completeExceptionally(e)
-            }
-        }
-        thread.start()
-        return future.get()
+        val task = FutureTask { block() }
+        Thread(task).start()
+        return task.get()
     }
 }
