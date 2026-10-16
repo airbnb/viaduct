@@ -49,6 +49,15 @@ def _strip_comments(text):
     return text.strip()
 
 
+def _strip_java_imports(text):
+    return re.sub(
+        r'^[ \t]*import\b[^;]*;[^\S\n]*(?://[^\n]*)?(?:\n|$)(?:[ \t]*\n)*',
+        '',
+        text,
+        flags=re.MULTILINE,
+    )
+
+
 def define_env(env):
     """
     Define custom macros for code snippet embedding.
@@ -130,6 +139,9 @@ def define_env(env):
             if strip_comments:
                 snippet = _strip_comments(snippet)
 
+            if lang == 'java':
+                snippet = _strip_java_imports(snippet)
+
             return f"""
 ```{lang}
 {snippet}
@@ -185,6 +197,9 @@ def define_env(env):
                 lines = lines[start_idx:end_idx]
 
             content = ''.join(lines).rstrip()
+
+            if lang == 'java':
+                content = _strip_java_imports(content)
 
             line_range = ""
             if start or end:

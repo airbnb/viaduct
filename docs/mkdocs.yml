@@ -45,6 +45,7 @@ theme:
     - search.highlight
     - content.code.copy
     - content.code.annotate
+    - content.tabs.link
   icon:
     repo: fontawesome/brands/github
 
