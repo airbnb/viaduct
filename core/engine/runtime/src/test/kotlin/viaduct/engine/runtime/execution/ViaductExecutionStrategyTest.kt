@@ -2,8 +2,11 @@
 
 package viaduct.engine.runtime.execution
 
+import graphql.ExecutionResult
+import graphql.GraphQL
 import graphql.GraphQLError
 import graphql.execution.DataFetcherResult
+import graphql.execution.ResultPath
 import graphql.execution.SimpleDataFetcherExceptionHandler
 import graphql.execution.instrumentation.InstrumentationContext
 import graphql.execution.instrumentation.InstrumentationState
@@ -16,17 +19,17 @@ import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.ObsoleteCoroutinesApi
 import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.future.await
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
-import kotlinx.coroutines.withTimeoutOrNull
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNotSame
 import org.junit.jupiter.api.Assertions.assertNull
@@ -37,6 +40,7 @@ import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.RepeatedTest
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestFactory
+import org.junit.jupiter.api.Timeout
 import org.junit.jupiter.api.assertThrows
 import viaduct.dataloader.BatchLoaderEnvironment
 import viaduct.dataloader.InternalDataLoader
@@ -47,6 +51,8 @@ import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.CheckerResultContext
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
+import viaduct.engine.api.IncrementalEntry
+import viaduct.engine.api.IncrementalExecutionResult
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.instrumentation.ViaductModernGJInstrumentation
 import viaduct.engine.api.mocks.EngineTestModule
@@ -57,6 +63,7 @@ import viaduct.engine.api.mocks.featureTestDefault
 import viaduct.engine.api.mocks.runFeatureTest
 import viaduct.engine.api.spi.CheckerExecutor
 import viaduct.engine.runtime.CheckerDispatcher
+import viaduct.engine.runtime.EngineExecutionContextExtensions.incrementalExecutionEnabled
 import viaduct.engine.runtime.EngineObjectDataFactory
 import viaduct.engine.runtime.EngineResultLocalContext
 import viaduct.engine.runtime.RequestScopeCancellationException
@@ -68,6 +75,7 @@ import viaduct.engine.runtime.execution.ExecutionTestHelpers.executeQuery
 import viaduct.engine.runtime.execution.ExecutionTestHelpers.executeViaductModernGraphQL
 import viaduct.engine.runtime.execution.ExecutionTestHelpers.runExecutionTest
 import viaduct.service.api.spi.FlagManager
+import viaduct.service.api.spi.mocks.MockFlagManager
 import viaduct.utils.slf4j.logger
 
 /**
@@ -1862,221 +1870,163 @@ class ViaductExecutionStrategyTest {
     }
 
     @Nested
-    inner class WithRequestSupervisorTests {
-        private fun createTestStrategy() =
-            ViaductExecutionStrategy(
-                dataFetcherExceptionHandler = SimpleDataFetcherExceptionHandler(),
-                executionParametersFactory = ExecutionParameters.Factory(
-                    queryPlanFactory = QueryPlanFactory.Default,
-                ),
-                accessCheckRunner = AccessCheckRunner(DefaultCoroutineInterop),
-                isSerial = false
-            )
+    @Timeout(10)
+    inner class RootSelectionSetTests {
+        private val schema = createSchema(
+            "type Query { value: Int } type Mutation { value: Int }",
+            mapOf(
+                "Query" to mapOf("value" to DataFetcher { 1 }),
+                "Mutation" to mapOf("value" to DataFetcher { 1 }),
+            ),
+        )
 
-        @Test
-        fun `cancels child jobs after block completes`() =
-            runExecutionTest {
-                val strategy = createTestStrategy()
-                val childWasCancelled = CompletableDeferred<Unit>()
-
-                val result = strategy.withRequestSupervisor { supervisorScopeFactory ->
-                    // Launch on supervisor (sibling to async, not child)
-                    supervisorScopeFactory(coroutineContext).launch {
-                        delay(Long.MAX_VALUE)
-                    }.invokeOnCompletion { cause ->
-                        if (cause is kotlinx.coroutines.CancellationException) {
-                            childWasCancelled.complete(Unit)
-                        }
-                    }
-                    "success"
-                }
-
-                assertEquals("success", result)
-
-                // Wait for cancellation to propagate
-                withTimeout(1000) {
-                    childWasCancelled.await()
-                }
-            }
-
-        @Test
-        fun `nested request supervisors reuse existing supervisor and defer cleanup to outer scope`() =
-            runExecutionTest {
-                val strategy = createTestStrategy()
-                val childStarted = CompletableDeferred<Unit>()
-                val childCancellationCause = CompletableDeferred<Throwable?>()
-                var outerSupervisorJobId: Int?
-                var innerSupervisorJobId: Int? = null
-
-                strategy.withRequestSupervisor { outerFactory ->
-                    outerSupervisorJobId = outerFactory(coroutineContext).coroutineContext[Job]?.let { System.identityHashCode(it) }
-
-                    strategy.withRequestSupervisor { innerFactory ->
-                        innerSupervisorJobId = innerFactory(coroutineContext).coroutineContext[Job]?.let { System.identityHashCode(it) }
-                        innerFactory(coroutineContext).launch {
-                            childStarted.complete(Unit)
-                            delay(Long.MAX_VALUE)
-                        }.invokeOnCompletion { cause ->
-                            childCancellationCause.complete(cause)
-                        }
-
-                        childStarted.await()
-                    }
-
-                    assertEquals(outerSupervisorJobId, innerSupervisorJobId)
-                    val prematureCancellation = withTimeoutOrNull(100) { childCancellationCause.await() }
-                    assertNull(prematureCancellation)
-                }
-
-                val cause = withTimeout(1000) {
-                    childCancellationCause.await()
-                }
-
-                assertNotNull(cause)
-                cause.shouldBeInstanceOf<RequestScopeCancellationException>()
-                Unit
-            }
-
-        @Test
-        fun `nested request supervisors keep scopedFuture parent active`() =
-            runExecutionTest {
-                val strategy = createTestStrategy()
-
-                val value = strategy.withRequestSupervisor {
-                    strategy.withRequestSupervisor {
-                        scopedFuture { "ok" }.await()
-                    }
-                }
-
-                assertEquals("ok", value)
-            }
-
-        @Test
-        fun `cancels supervisor even when block throws exception`() =
-            runExecutionTest {
-                val strategy = createTestStrategy()
-                val childWasCancelled = CompletableDeferred<Unit>()
-
-                val exception = RuntimeException("test exception")
-
-                val thrown = assertThrows<RuntimeException> {
-                    runBlocking {
-                        withThreadLocalCoroutineContext {
-                            strategy.withRequestSupervisor { supervisorScopeFactory ->
-                                // Launch on supervisor (sibling to async, not child)
-                                supervisorScopeFactory(coroutineContext).launch {
-                                    delay(Long.MAX_VALUE)
-                                }.invokeOnCompletion { cause ->
-                                    if (cause is kotlinx.coroutines.CancellationException) {
-                                        childWasCancelled.complete(Unit)
+        @TestFactory
+        fun `root execution receives the operation mode and cleans up its request`() =
+            listOf(false, true).flatMap { incremental ->
+                listOf("{ value }" to ExecutionMode.Normal, "mutation { value }" to ExecutionMode.Serial).map { (query, mode) ->
+                    dynamicTest("${mode.name}, incremental=$incremental") {
+                        runExecutionTest<Unit> {
+                            val started = CompletableDeferred<Unit>()
+                            val cancelled = CompletableDeferred<Unit>()
+                            val graphQL = graphQL { parameters, executionMode ->
+                                assertEquals(mode, executionMode)
+                                assertEquals(incremental, parameters.engineExecutionContext.incrementalExecutionEnabled)
+                                parameters.launchOnRootScope {
+                                    try {
+                                        started.complete(Unit)
+                                        awaitCancellation()
+                                    } finally {
+                                        cancelled.complete(Unit)
                                     }
                                 }
-                                throw exception
+                                started.await()
+                                ExecutionResult.newExecutionResult().data(mapOf("value" to 2)).build()
                             }
+                            val flags = if (incremental) MockFlagManager.create(FlagManager.Flags.ENABLE_INCREMENTAL_EXECUTION) else FlagManager.Disabled
+                            val input = createExecutionInput(schema, query, flagManager = flags)
+
+                            val result = graphQL.executeAsync(input).await()
+
+                            assertEquals(mapOf("value" to 2), result.getData<Map<String, Any?>>())
+                            assertTrue(result.errors.isEmpty())
+                            assertTrue(cancelled.isCompleted)
                         }
                     }
-                }
-
-                assertEquals("test exception", thrown.message)
-
-                // Wait for cancellation to propagate
-                withTimeout(1000) {
-                    childWasCancelled.await()
                 }
             }
 
         @Test
-        fun `handles self-cancellation of the block`() =
-            runExecutionTest {
-                val strategy = createTestStrategy()
-                val childLaunched = CompletableDeferred<Unit>()
-                val childWasCancelled = CompletableDeferred<Unit>()
-
-                val ex = assertThrows<kotlinx.coroutines.CancellationException> {
-                    runBlocking {
-                        withThreadLocalCoroutineContext {
-                            strategy.withRequestSupervisor { supervisorScopeFactory ->
-                                // Launch on supervisor (sibling to async, not child)
-                                val job = supervisorScopeFactory(coroutineContext).launch {
-                                    childLaunched.complete(Unit)
-                                    delay(Long.MAX_VALUE)
-                                }
-                                job.invokeOnCompletion { cause ->
-                                    if (cause is kotlinx.coroutines.CancellationException) {
-                                        childWasCancelled.complete(Unit)
-                                    }
-                                }
-                                childLaunched.await()
-                                throw kotlinx.coroutines.CancellationException("self-cancel")
-                            }
+        fun `initial response is available while deferred work is still running`(): Unit =
+            runExecutionTest<Unit> {
+                val started = CompletableDeferred<Unit>()
+                val release = CompletableDeferred<Unit>()
+                val requestCleanedUp = CompletableDeferred<Unit>()
+                val group = DeferDeliveryGroup(ResultPath.rootPath(), "later", null)
+                val task = ExecutionGroupTask(setOf(group), group.path) {
+                    started.complete(Unit)
+                    release.await()
+                    ExecutionGroupResult(mapOf("later" to 3), emptyList(), Work.empty)
+                }
+                val graphQL = graphQL { parameters, _ ->
+                    parameters.launchOnRootScope {
+                        try {
+                            awaitCancellation()
+                        } finally {
+                            requestCleanedUp.complete(Unit)
                         }
                     }
+                    ExecuteRootSelectionSet.buildExecutionResults(
+                        parameters,
+                        Result.success(FieldCompletionResult.ObjectResult(mapOf("value" to 2), false, Work(setOf(group), listOf(task)))),
+                        emptyList(),
+                    )
                 }
+                val input = createExecutionInput(schema, "{ value }", flagManager = MockFlagManager.create(FlagManager.Flags.ENABLE_INCREMENTAL_EXECUTION))
+                val future = graphQL.executeAsync(input)
+                var result: IncrementalExecutionResult? = null
+                try {
+                    started.await()
+                    val initial = withTimeout(2_000) { future.await() }.shouldBeInstanceOf<IncrementalExecutionResult>()
+                    result = initial
+                    assertEquals(mapOf("value" to 2), initial.getData<Map<String, Any?>>())
+                    assertEquals("later", initial.pending.single().label)
+                    assertFalse(requestCleanedUp.isCompleted)
 
-                assertEquals("self-cancel", ex.message)
-
-                // Wait for cancellation to propagate
-                withTimeout(1000) {
-                    childWasCancelled.await()
+                    release.complete(Unit)
+                    val updates = initial.updates.toList()
+                    val patch = updates.flatMap { it.incremental }.single().shouldBeInstanceOf<IncrementalEntry.Object>()
+                    assertEquals(mapOf("later" to 3), patch.data)
+                    assertEquals(listOf(initial.pending.single().id), updates.flatMap { it.completed }.map { it.id })
+                    assertFalse(updates.last().hasNext)
+                    requestCleanedUp.await()
+                } finally {
+                    result?.cancel()
+                    release.complete(Unit)
+                    future.cancel(true)
                 }
             }
 
         @Test
-        fun `cancellation propagates through multiple job levels`() =
-            runExecutionTest {
-                val strategy = createTestStrategy()
-                val grandchildWasCancelled = CompletableDeferred<Unit>()
-
-                val result = strategy.withRequestSupervisor { supervisorScopeFactory ->
-                    // Launch child on supervisor (sibling to async, not child)
-                    // This way it doesn't block the async from completing
-                    supervisorScopeFactory(coroutineContext).launch {
-                        // Launch grandchild that would hang without cancellation
-                        launch {
-                            delay(Long.MAX_VALUE)
-                        }.invokeOnCompletion { cause ->
-                            if (cause is kotlinx.coroutines.CancellationException) {
-                                grandchildWasCancelled.complete(Unit)
-                            }
+        fun `cancelling an uncollected initial response cleans up deferred execution`(): Unit =
+            runExecutionTest<Unit> {
+                val started = CompletableDeferred<Unit>()
+                val stopped = CompletableDeferred<Unit>()
+                val requestCleanedUp = CompletableDeferred<Unit>()
+                val group = DeferDeliveryGroup(ResultPath.rootPath(), "later", null)
+                val task = ExecutionGroupTask(setOf(group), group.path) {
+                    try {
+                        started.complete(Unit)
+                        awaitCancellation()
+                    } finally {
+                        stopped.complete(Unit)
+                    }
+                }
+                val graphQL = graphQL { parameters, _ ->
+                    parameters.launchOnRootScope {
+                        try {
+                            awaitCancellation()
+                        } finally {
+                            requestCleanedUp.complete(Unit)
                         }
                     }
-                    "done"
+                    ExecuteRootSelectionSet.buildExecutionResults(
+                        parameters,
+                        Result.success(FieldCompletionResult.ObjectResult(emptyMap(), false, Work(setOf(group), listOf(task)))),
+                        emptyList(),
+                    )
                 }
+                val input = createExecutionInput(schema, "{ value }", flagManager = MockFlagManager.create(FlagManager.Flags.ENABLE_INCREMENTAL_EXECUTION))
+                val future = graphQL.executeAsync(input)
+                var result: IncrementalExecutionResult? = null
+                try {
+                    started.await()
+                    val initial = withTimeout(2_000) { future.await() }.shouldBeInstanceOf<IncrementalExecutionResult>()
+                    result = initial
 
-                assertEquals("done", result)
+                    initial.cancel()
 
-                // Wait for cancellation to propagate through all levels
-                withTimeout(1000) {
-                    grandchildWasCancelled.await()
+                    stopped.await()
+                    requestCleanedUp.await()
+                    assertThrows<kotlinx.coroutines.CancellationException> { initial.updates.toList() }
+                } finally {
+                    result?.cancel()
+                    future.cancel(true)
                 }
             }
 
-        @Test
-        fun `request supervisor cancellation uses RequestScopeCancellationException`() =
-            runExecutionTest {
-                val strategy = createTestStrategy()
-                val cancellationCause = CompletableDeferred<Throwable?>()
-
-                runBlocking {
-                    withThreadLocalCoroutineContext {
-                        strategy.withRequestSupervisor { supervisorScopeFactory ->
-                            supervisorScopeFactory(coroutineContext).launch {
-                                delay(Long.MAX_VALUE)
-                            }.invokeOnCompletion { cause ->
-                                cancellationCause.complete(cause)
-                            }
-                        }
-                    }
-                }
-
-                val cause = withTimeout(1000) {
-                    cancellationCause.await()
-                }
-
-                assertNotNull(cause)
-                cause.shouldBeInstanceOf<RequestScopeCancellationException>()
-                Unit
-            }
+        private fun graphQL(root: ExecuteRootSelectionSet): GraphQL {
+            fun strategy(serial: Boolean) =
+                ViaductExecutionStrategy(
+                    SimpleDataFetcherExceptionHandler(),
+                    ExecutionParameters.Factory(QueryPlanFactory.Default),
+                    serial,
+                    executeRootSelectionSet = root,
+                )
+            return GraphQL.newGraphQL(schema.schema)
+                .queryExecutionStrategy(strategy(false))
+                .mutationExecutionStrategy(strategy(true))
+                .build()
+        }
     }
 
     @Nested
