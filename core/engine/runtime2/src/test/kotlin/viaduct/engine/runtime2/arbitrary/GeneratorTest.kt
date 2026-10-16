@@ -1780,7 +1780,7 @@ class GeneratorTest {
             val query = schema.query(config).next(random)
             val world = try {
                 registry.world(schema)
-            } catch (failure: Throwable) {
+            } catch (failure: Exception) {
                 throw AssertionError("Generated invalid schema:\n${schema.sdl}", failure)
             }
 
