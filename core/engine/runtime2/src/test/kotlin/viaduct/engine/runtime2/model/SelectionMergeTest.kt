@@ -342,6 +342,99 @@ class SelectionMergeTest {
     }
 
     @Test
+    fun `conditional singleton pushes its guard into independently guarded descendants`() {
+        val fixture = Fixture()
+        val field = fixture.schema.requireObjectField("Query", "item")
+        val parentVariable = Arguments.Variable.of(field, "parent")
+        val childVariable = Arguments.Variable.of(field, "child")
+        val parentCondition = InclusionCondition.requires(mapOf(parentVariable to true))
+        val childCondition = InclusionCondition.requires(mapOf(childVariable to true))
+        val child = fixture.selection("ConcreteItem", "a", inclusionCondition = childCondition)
+        val parent = fixture.selection("Query", "item", subselections = selectionForestOf(child), inclusionCondition = parentCondition)
+
+        val merged = selectionForestOf(parent).merge(fixture.query).single()
+        val mergedChild = merged.subselections.merge(fixture.item).single()
+
+        for (parentIncluded in listOf(false, true)) {
+            for (childIncluded in listOf(false, true)) {
+                val bindings = mapOf(parentVariable to parentIncluded, childVariable to childIncluded)
+                assertEquals(parentIncluded, merged.inclusionCondition.include(bindings))
+                assertEquals(parentIncluded && childIncluded, mergedChild.inclusionCondition.include(bindings))
+            }
+        }
+        assertTrue(child.inclusionCondition.include(mapOf(childVariable to true)))
+    }
+
+    @Test
+    fun `merging a directly constructed object forest propagates the singleton guard`() {
+        val fixture = Fixture()
+        val field = fixture.schema.requireObjectField("Query", "item")
+        val variable = Arguments.Variable.of(field, "included")
+        val condition = InclusionCondition.requires(mapOf(variable to true))
+        val child = fixture.selection("ConcreteItem", "a")
+        val parent = assertIs<ObjectSelection>(
+            fixture.selection("Query", "item", subselections = selectionForestOf(child), inclusionCondition = condition),
+        )
+        val forest = ObjectSelectionForest.of(fixture.query, listOf(parent))
+
+        val mergedChild = forest.merge(fixture.query).single().subselections.merge(fixture.item).single()
+
+        assertFalse(mergedChild.inclusionCondition.include(mapOf(variable to false)))
+        assertTrue(mergedChild.inclusionCondition.include(mapOf(variable to true)))
+        assertSame(InclusionCondition.Always, child.inclusionCondition)
+    }
+
+    @Test
+    fun `abstract singleton applies concrete defaults and exclusive applicability`() {
+        val fixture = Fixture()
+        val abstract = fixture.selection("Item", "computed")
+
+        val merged = selectionForestOf(abstract).merge(fixture.item).single()
+
+        assertEquals(fixture.schema.requireObjectField("ConcreteItem", "computed"), merged.key.field)
+        assertEquals(
+            ObjectEngineResult.GroundKey.of(fixture.schema.requireObjectField("ConcreteItem", "computed"), mapOf("factor" to 7)),
+            merged.key,
+        )
+        assertEquals(setOf(fixture.item), merged.possibleTypes)
+    }
+
+    @Test
+    fun `singleton and duplicate groups retain guard failure order`() {
+        val fixture = Fixture()
+        val field = fixture.schema.requireObjectField("Query", "item")
+        val x = Arguments.Variable.of(field, "x")
+        val y = Arguments.Variable.of(field, "y")
+        val z = Arguments.Variable.of(field, "z")
+        val firstCondition = InclusionCondition.requires(linkedMapOf(z to true, x to true))
+        val first = fixture.selection("Query", "item", inclusionCondition = firstCondition)
+        val second = fixture.selection("Query", "item", inclusionCondition = InclusionCondition.requires(mapOf(y to true)))
+        val singleton = fixture.selection("Query", "optionalItem", inclusionCondition = firstCondition)
+        val merged = selectionForestOf(first, singleton, second, first).merge(fixture.query)
+        val visited = mutableListOf<Arguments.Variable>()
+
+        fun binding(variable: Arguments.Variable): Boolean {
+            visited += variable
+            check(variable != x) { "Excluded demand read x" }
+            return variable == y
+        }
+
+        assertTrue(merged[first.objectKey(fixture.query)].inclusionCondition.includeWith(::binding))
+        assertEquals(listOf(z, y), visited)
+        visited.clear()
+        assertFalse(merged[singleton.objectKey(fixture.query)].inclusionCondition.includeWith(::binding))
+        assertEquals(listOf(z), visited)
+        visited.clear()
+        assertFailsWith<IllegalStateException> {
+            merged[first.objectKey(fixture.query)].inclusionCondition.includeWith { variable ->
+                visited += variable
+                if (variable == z) false else error("Rejected alternative failed")
+            }
+        }
+        assertEquals(listOf(z, y), visited)
+    }
+
+    @Test
     fun `guarding preserves statically excluded occurrences as metadata`() {
         val fixture = Fixture()
         val selection = fixture.selection("Query", "scalar", arguments = mapOf("arg" to 1))

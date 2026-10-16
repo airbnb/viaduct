@@ -54,14 +54,13 @@ internal class ClosedConstructionDemandContext(
 /** Closed symbolic demand and its executable occurrences for one side of an orchestration pair. */
 internal class ClosedOERConstructionDemandContext(
     val constructionDemand: Demand<ObjectSelectionForest>,
+    val closedValueSelections: ObjectSelectionForest,
     val fieldCheckerOccurrences: Map<ObjectEngineResult.ObjectKey, FieldCheckerOccurrence>,
     val typeCheckerOccurrence: TypeCheckerOccurrence? = null,
     val fieldResolverOccurrences: Map<ObjectEngineResult.ObjectKey, FieldResolverOccurrence>,
     val rootFieldReferenceOccurrences: Map<ObjectEngineResult.ObjectKey, RootFieldReferenceOccurrence>,
     val variableProviderReadsByResolverOccurrence: Map<ResolverOccurrenceId, List<VariableProviderReadOccurrence>>,
-) {
-    val closedValueSelections: ObjectSelectionForest = constructionDemand.values.merge(constructionDemand.checked.type)
-}
+)
 
 /**
  * One planned provider-path read that produces an instantiated variable binding.
@@ -372,6 +371,7 @@ private fun finalizeClosedOERConstructionDemand(
     }
     return ClosedOERConstructionDemandContext(
         constructionDemand = constructionDemand,
+        closedValueSelections = closedValueSelections,
         typeCheckerOccurrence = typeCheckerOccurrence,
         fieldCheckerOccurrences = checkerContexts.mapValues { (key, context) ->
             context.toFieldCheckerOccurrence(

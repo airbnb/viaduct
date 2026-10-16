@@ -178,6 +178,20 @@ private fun normalizedObjectSelectionForest(
     val selectionsByKey =
         buildMap {
             occurrencesByKey.forEach { (key, occurrences) ->
+                if (occurrences.size == 1) {
+                    val first = occurrences.single()
+                    val subselections = first.subselections.guardedBy(first.inclusionCondition)
+                    val selection = if (
+                        first is ObjectSelection && first.key === key &&
+                        first.possibleTypes.size == 1 && subselections === first.subselections
+                    ) {
+                        first
+                    } else {
+                        ObjectSelectionImpl(key, possibleTypes, first.inclusionCondition, subselections)
+                    }
+                    put(key, selection)
+                    return@forEach
+                }
                 put(
                     key,
                     ObjectSelectionImpl(

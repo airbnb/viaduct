@@ -15,10 +15,14 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.runBlocking
 import viaduct.engine.api.CheckerResult
+import viaduct.engine.runtime2.model.Arguments
+import viaduct.engine.runtime2.model.InclusionCondition
 import viaduct.engine.runtime2.model.ListEngineResult
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.RootFieldReferenceData
+import viaduct.engine.runtime2.model.Selection
 import viaduct.engine.runtime2.model.emptyFragmentOf
+import viaduct.engine.runtime2.model.merge
 import viaduct.engine.runtime2.model.registry.FieldCheckerResolver
 import viaduct.engine.runtime2.model.registry.fieldResolverOf
 import viaduct.engine.runtime2.model.requireObjectField
@@ -29,12 +33,66 @@ import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.emptyFragmentOf
 import viaduct.engine.runtime2.model.testing.fragmentFrom
 import viaduct.engine.runtime2.model.testing.objectOf
+import viaduct.engine.runtime2.resolution.framework.Demand
 import viaduct.engine.runtime2.resolution.framework.OEROccurrence
+import viaduct.engine.runtime2.resolution.framework.OrchestrationConstructionDemand
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 import viaduct.engine.runtime2.schema.operationSelectionsFrom
 import viaduct.graphql.schema.ViaductSchema
 
 class OrchestrationTaskTest : ResolutionDispatcherResource {
+    @Test
+    fun `closed value projection preserves independently guarded checked and raw descendants`() {
+        val fixture = TestWorld.fromSDL("type Query { item: Item } type Item { checked: Int raw: Int }")
+        val world = fixture.assumptions
+        val queryType = world.schema.requireQueryTypeDef()
+        val itemType = world.schema.requireType("Item") as ViaductSchema.Object
+        val itemField = world.schema.requireObjectField("Query", "item")
+        val checkedVariable = Arguments.Variable.of(itemField, "checked")
+        val rawVariable = Arguments.Variable.of(itemField, "raw")
+        val checkedCondition = InclusionCondition.requires(mapOf(checkedVariable to true))
+        val rawCondition = InclusionCondition.requires(mapOf(rawVariable to true))
+        val key = ObjectEngineResult.GroundKey.of(itemField, emptyMap())
+        val checkedSelection = Selection.of(
+            key,
+            setOf(queryType),
+            fixture.schemas.fragmentFrom("fragment Input on Item { checked }").subselections,
+            checkedCondition,
+        )
+        val rawSelection = Selection.of(
+            key,
+            setOf(queryType),
+            fixture.schemas.fragmentFrom("fragment Input on Item { raw }").subselections,
+            rawCondition,
+        )
+        val root = ObjectEngineResult.of(queryType, mutable = true)
+        val queryRoot = ObjectEngineResult.of(queryType, mutable = true)
+        val closed = world.objectOf("Query").closeOrchestrationConstructionDemand(
+            world,
+            OEROccurrence(root, emptyList(), root),
+            OEROccurrence(queryRoot, emptyList(), queryRoot),
+            OrchestrationConstructionDemand(
+                Demand(selectionForestOf(checkedSelection), selectionForestOf(rawSelection), typeCheckDemanded = true),
+                Demand.EMPTY,
+            ),
+        ).objectRooted
+
+        assertEquals(setOf("checked"), closed.constructionDemand.checked[key].subselections.merge(itemType).keys().map { it.field.name }.toSet())
+        assertEquals(setOf("raw"), closed.constructionDemand.unchecked[key].subselections.merge(itemType).keys().map { it.field.name }.toSet())
+        assertTrue(closed.constructionDemand.typeCheckDemanded)
+        val valueSelection = closed.closedValueSelections[key]
+        val children = valueSelection.subselections.merge(itemType).byKey().values.associateBy { it.key.field.name }
+        assertEquals(setOf("checked", "raw"), children.keys)
+        for (checked in listOf(false, true)) {
+            for (raw in listOf(false, true)) {
+                val bindings = mapOf(checkedVariable to checked, rawVariable to raw)
+                assertEquals(checked || raw, valueSelection.inclusionCondition.include(bindings))
+                assertEquals(checked, children.getValue("checked").inclusionCondition.include(bindings))
+                assertEquals(raw, children.getValue("raw").inclusionCondition.include(bindings))
+            }
+        }
+    }
+
     @Test
     fun `factory closes demand without dispatching field work`(): Unit =
         runBlocking {
