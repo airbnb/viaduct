@@ -35,7 +35,7 @@ Choose **Kotlin** or **Java** below. Your selection applies to the examples thro
     ./gradlew run
     ```
 
-    Open [http://localhost:8080/graphiql](http://localhost:8080/graphiql) in your browser.
+    Open <!-- djlint:off -->[http://localhost:8080/graphiql](http://localhost:8080/graphiql)<!-- djlint:on --> in your browser.
 
     You will land in a GraphiQL workspace with a starter query ready to run:
 
@@ -77,7 +77,7 @@ Choose **Kotlin** or **Java** below. Your selection applies to the examples thro
     USE_VIADUCT_SNAPSHOT_REPO=true ./gradlew run
     ```
 
-    Wait for the server to start, then open [http://localhost:8080/graphiql](http://localhost:8080/graphiql) in your browser. Keep the server running while you use GraphiQL.
+    Wait for the server to start, then open <!-- djlint:off -->[http://localhost:8080/graphiql](http://localhost:8080/graphiql)<!-- djlint:on --> in your browser. Keep the server running while you use GraphiQL.
 
     Replace the query in the editor with:
 
