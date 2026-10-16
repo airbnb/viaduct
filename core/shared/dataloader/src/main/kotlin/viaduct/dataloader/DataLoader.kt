@@ -46,6 +46,7 @@ abstract class DataLoader<K : Any, V, C : Any> {
             cacheKeyFn,
             cacheKeyMatchFn,
             cacheKeyMatchCandidateFn,
+            cachingEnabled = getDataLoaderOptions().cachingEnabled,
         )
     }
 

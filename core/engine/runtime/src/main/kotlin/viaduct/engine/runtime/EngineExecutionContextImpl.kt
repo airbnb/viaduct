@@ -62,6 +62,7 @@ class EngineExecutionContextFactory(
     fieldSelectivityProvider: FieldSelectivityProvider = FieldSelectivityProvider.Never,
     private val resolverErrorReporter: ErrorReporter = ErrorReporter.NOOP,
     private val materializedFieldValueReader: MaterializedFieldValueReader,
+    private val nodeResolverCachingEnabled: Boolean = true,
 ) {
     // Constructing this is expensive, so do it just once per schema-version
     private val engineSelectionSetFactory: EngineSelectionSet.Factory = EngineSelectionSetFactoryImpl(fullSchema)
@@ -96,6 +97,7 @@ class EngineExecutionContextFactory(
             ownedSelectionProjector,
             materializedFieldValueReader,
             incrementalExecutionEnabled = flagManager.isEnabled(FlagManager.Flags.ENABLE_INCREMENTAL_EXECUTION),
+            nodeResolverCachingEnabled = nodeResolverCachingEnabled,
         )
     }
 }
@@ -148,6 +150,7 @@ class EngineExecutionContextImpl internal constructor(
     internal val matBatchDepth: Int = 0,
     internal val currentResolver: Caller? = null,
     val incrementalExecutionEnabled: Boolean = false,
+    private val nodeResolverCachingEnabled: Boolean = true,
 ) : InternalEngineExecutionContext,
     DispatcherExecutionContext {
     public override val impl: EngineExecutionContextImpl get() = this
@@ -331,7 +334,7 @@ class EngineExecutionContextImpl internal constructor(
      */
     override fun nodeDataLoader(resolver: NodeResolverExecutor): NodeDataLoader =
         nodeDataLoaders.computeIfAbsent(resolver.typeName) {
-            NodeDataLoader(resolver)
+            NodeDataLoader(resolver, cachingEnabled = nodeResolverCachingEnabled)
         }
 
     /**
@@ -387,6 +390,7 @@ class EngineExecutionContextImpl internal constructor(
             matBatchDepth = matBatchDepth ?: this.matBatchDepth,
             currentResolver = currentResolver,
             incrementalExecutionEnabled = this.incrementalExecutionEnabled,
+            nodeResolverCachingEnabled = this.nodeResolverCachingEnabled,
         )
     }
 
@@ -420,6 +424,7 @@ class EngineExecutionContextImpl internal constructor(
             materializedFieldValueReader = materializedFieldValueReader,
             matBatchDepth = 0,
             incrementalExecutionEnabled = incrementalExecutionEnabled,
+            nodeResolverCachingEnabled = nodeResolverCachingEnabled,
         )
 }
 

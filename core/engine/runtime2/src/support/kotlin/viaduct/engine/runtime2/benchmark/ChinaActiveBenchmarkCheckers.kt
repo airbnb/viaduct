@@ -25,7 +25,7 @@ import viaduct.engine.runtime2.schema.lowering.LOWERED_TYPENAME_FIELD
 import viaduct.graphql.schema.ViaductSchema
 
 /** A single, always-active overhead fixture; source counts inform shapes, not traffic weights. */
-internal class ChinaActiveBenchmarkCheckers(corpus: ResolverBenchmarkCorpus) {
+internal class ChinaActiveBenchmarkCheckers(corpus: ResolverBenchmarkCorpus, private val comparisonMode: Boolean = false) {
     private val original = ViaductAndGJSchema.fromSDL(corpus.schemaSDL).loweredSchema
     private val objects = original.types.values.filterIsInstance<ViaductSchema.Object>()
         .filter { it.name.matches(Regex("Object\\d+")) }.sortedBy { it.name.removePrefix("Object").toInt() }
@@ -45,10 +45,10 @@ internal class ChinaActiveBenchmarkCheckers(corpus: ResolverBenchmarkCorpus) {
 
     // Select a third of ordinary fields for custom China rules. The rest retain conservative
     // fragmentless default-block checks; helper/hash fields are outside the policy surface.
-    val fieldPolicies: Map<FieldCoordinate, List<String>> = buildMap {
+    val fieldPolicies: Map<FieldCoordinate, List<String>> = buildMap<FieldCoordinate, List<String>> {
         var ordinal = 0
         objects.forEach { type ->
-            type.fields.filter { !it.name.startsWith("__") && it.name != LOWERED_TYPENAME_FIELD && it.name != "hash" }.forEach { field ->
+            type.fields.filter { !it.name.startsWith("__") && it.name != LOWERED_TYPENAME_FIELD && it.type.baseTypeDef.name != "Hash" }.forEach { field ->
                 val china = if (field.name == identifiers.getValue(type.name)) {
                     "defaultBlock"
                 } else if (ordinal % 3 == 0) {
@@ -68,7 +68,7 @@ internal class ChinaActiveBenchmarkCheckers(corpus: ResolverBenchmarkCorpus) {
         original.requireQueryTypeDef().fields.filter { !it.name.startsWith("__") && it.name != LOWERED_TYPENAME_FIELD }.forEachIndexed { index, field ->
             put(FieldCoordinate("Query", field.name), if (index % 7 == 0) emptyList() else listOf("queryPrivacy"))
         }
-    }
+    }.filterKeys { coordinate -> !comparisonMode || coordinate.fieldName != identifiers[coordinate.typeName] }
 
     val typePolicies: Map<String, List<String>> = objects.mapIndexed { index, type ->
         type.name to when (index % 13) {
@@ -80,13 +80,25 @@ internal class ChinaActiveBenchmarkCheckers(corpus: ResolverBenchmarkCorpus) {
         }
     }.toMap()
 
+    private val privacyFields: Map<Pair<String, Int>, String> = buildMap {
+        if (comparisonMode) {
+            val policies = fieldPolicies.mapKeys { it.key.toString() } + typePolicies
+            policies.forEach { (owner, slots) ->
+                slots.forEachIndexed { index, policy ->
+                    if (usesQueryPrivacy(policy)) put(owner to index, "benchmarkPrivacy$size")
+                }
+            }
+        }
+    }
+    private val privacyFieldNames = if (comparisonMode) privacyFields.values.toList() else listOf("benchmarkPrivacy")
+
     val schemaSDL: String = corpus.schemaSDL + "\n" + buildString {
         appendLine("extend type Query {")
         objects.forEach { type ->
             val idType = type.field(identifiers.getValue(type.name))!!.type.baseTypeDef.name
             appendLine("  benchmarkChina${type.name}(id: $idType): BenchmarkChina!")
         }
-        appendLine("  benchmarkPrivacy: BenchmarkPrivacy!")
+        privacyFieldNames.forEach { appendLine("  $it: BenchmarkPrivacy!") }
         appendLine("}")
         appendLine("type BenchmarkPrivacy { allowed: Boolean! }")
         appendLine(
@@ -122,14 +134,14 @@ internal class ChinaActiveBenchmarkCheckers(corpus: ResolverBenchmarkCorpus) {
         return objects.associate { type ->
             canonical.requireObjectField("Query", "benchmarkChina${type.name}") to
                 fieldResolverOf(empty) { _, _ -> china }
-        } + (canonical.requireObjectField("Query", "benchmarkPrivacy") to fieldResolverOf(empty) { _, _ -> privacy })
+        } + privacyFieldNames.associate { name -> canonical.requireObjectField("Query", name) to fieldResolverOf(empty) { _, _ -> privacy } }
     }
 
     fun fieldCheckers(schema: ViaductAndGJSchema): Map<ViaductSchema.ObjectField, FieldCheckerResolver> =
         fieldPolicies.map { (coordinate, policies) ->
             val field = schema.loweredSchema.requireObjectField(coordinate.typeName, coordinate.fieldName)
             val target = ResolverTarget.FieldCheckerTarget(field)
-            field to FieldCheckerResolver.of(field, schema.loweredSchema.requireQueryTypeDef(), templates(schema, target, coordinate.typeName, policies)) { _, _, _ ->
+            field to FieldCheckerResolver.of(field, schema.loweredSchema.requireQueryTypeDef(), templates(schema, target, coordinate.typeName, coordinate.toString(), policies)) { _, _, _ ->
                 CheckerResult.Success
             }
         }.toMap()
@@ -138,7 +150,7 @@ internal class ChinaActiveBenchmarkCheckers(corpus: ResolverBenchmarkCorpus) {
         typePolicies.map { (typeName, policies) ->
             val type = schema.loweredSchema.requireType(typeName) as ViaductSchema.Object
             val target = ResolverTarget.TypeCheckerTarget(type)
-            type to TypeCheckerResolver.of(type, schema.loweredSchema.requireQueryTypeDef(), templates(schema, target, typeName, policies)) { _, _ ->
+            type to TypeCheckerResolver.of(type, schema.loweredSchema.requireQueryTypeDef(), templates(schema, target, typeName, typeName, policies)) { _, _ ->
                 CheckerResult.Success
             }
         }.toMap()
@@ -147,20 +159,23 @@ internal class ChinaActiveBenchmarkCheckers(corpus: ResolverBenchmarkCorpus) {
         schema: ViaductAndGJSchema,
         target: ResolverTarget,
         typeName: String,
+        privacyOwner: String,
         policies: List<String>,
     ): Map<String, ResolverFragmentTemplates> {
         if (policies == listOf("defaultBlock")) return emptyMap()
         return policies.mapIndexed { index, policy ->
             val pair = when {
                 policy == "chinaQuery" -> chinaTemplate(schema, target, typeName)
-                policy == "queryPrivacy" || policy == "nestedPrivacy" -> pair(schema, target, query = "benchmarkPrivacy { allowed }")
+                usesQueryPrivacy(policy) -> {
+                    val field = if (comparisonMode) privacyFields.getValue(privacyOwner to index) else "benchmarkPrivacy"
+                    pair(schema, target, query = "$field { allowed }")
+                }
                 policy == "scalarPrivacy" -> pair(schema, target, objectSelection = identifiers.getValue(typeName), typeName = typeName)
                 policy.startsWith("privacy") -> {
                     val percentile = policy.removePrefix("privacy").toInt()
                     // Context-only policies gain a null slot inside a composite, as in production.
                     when (percentile) {
                         in 15..85 -> pair(schema, target, objectSelection = identifiers.getValue(typeName), typeName = typeName)
-                        in 86..94 -> pair(schema, target, query = "benchmarkPrivacy { allowed }")
                         else -> pair(schema, target)
                     }
                 }
@@ -169,6 +184,8 @@ internal class ChinaActiveBenchmarkCheckers(corpus: ResolverBenchmarkCorpus) {
             "${index}_$policy" to pair
         }.toMap()
     }
+
+    private fun usesQueryPrivacy(policy: String): Boolean = policy == "queryPrivacy" || policy == "nestedPrivacy" || policy.removePrefix("privacy").toIntOrNull()?.let { it in 86..94 } == true
 
     private fun pair(
         schema: ViaductAndGJSchema,

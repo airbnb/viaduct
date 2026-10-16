@@ -49,6 +49,7 @@ data class EngineConfiguration(
     val globalIDCodec: GlobalIDCodec = GlobalIDCodecDefault,
     val tenantNameResolver: TenantNameResolver = TenantNameResolver(),
     val materializedFieldValueReader: MaterializedFieldValueReader = MaterializedFieldValueReader.Default,
+    val nodeResolverCachingEnabled: Boolean = true,
 ) {
     companion object {
         val default = EngineConfiguration()

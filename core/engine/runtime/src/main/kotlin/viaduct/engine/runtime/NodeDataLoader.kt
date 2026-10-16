@@ -8,6 +8,7 @@ import viaduct.dataloader.CacheKeyFn
 import viaduct.dataloader.CacheKeyMatchCandidateFn
 import viaduct.dataloader.CacheKeyMatchFn
 import viaduct.dataloader.DataLoader
+import viaduct.dataloader.DataLoaderOptions
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineSchema
@@ -26,6 +27,7 @@ import viaduct.engine.runtime.select.covers
  */
 class NodeDataLoader(
     private val resolver: NodeResolverExecutor,
+    private val cachingEnabled: Boolean = true,
 ) : DataLoader<NodeResolverExecutor.Selector, Result<EngineObjectData>, NodeResolverExecutor.Selector>() {
     suspend fun loadByKey(
         key: NodeResolverExecutor.Selector,
@@ -40,6 +42,8 @@ class NodeDataLoader(
     ): Map<NodeResolverExecutor.Selector, Result<EngineObjectData>?> {
         return resolver.resolve(keys.toList(), executionContextForBatchLoadFromKeys(keys, environment))
     }
+
+    override fun getDataLoaderOptions(): DataLoaderOptions = DataLoaderOptions(cachingEnabled = cachingEnabled)
 
     override fun shouldUseImmediateDispatch(): Boolean = !resolver.isBatching
 

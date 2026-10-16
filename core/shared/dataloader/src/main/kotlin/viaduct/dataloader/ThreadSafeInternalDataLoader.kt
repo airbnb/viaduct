@@ -12,6 +12,7 @@ internal class ThreadSafeInternalDataLoader<K : Any, V, C : Any> internal constr
     private val cacheKeyFn: CacheKeyFn<K, C>,
     private val cacheKeyMatchFn: CacheKeyMatchFn<C>? = null,
     private val cacheKeyMatchCandidateFn: CacheKeyMatchCandidateFn<C>? = null,
+    private val cachingEnabled: Boolean = true,
 ) : InternalDataLoader<K, V, C> {
     private val cacheMap = ConcurrentHashMap<C, InternalDataLoader.Batch.BatchResult<V?>>()
     private val candidateCacheMap:
@@ -44,9 +45,11 @@ internal class ThreadSafeInternalDataLoader<K : Any, V, C : Any> internal constr
         key: K,
         keyContext: Any?
     ): V? {
-        val cacheKey = cacheKeyFn(key)
         val defaultResult = InternalDataLoader.Batch.BatchResult(CompletableDeferred<V?>())
-        val entryResult =
+        val entryResult = if (!cachingEnabled) {
+            defaultResult
+        } else {
+            val cacheKey = cacheKeyFn(key)
             cacheKeyMatchCandidateFn?.let { candidateFn ->
                 val candidateCache = checkNotNull(candidateCacheMap)
                     .computeIfAbsent(candidateFn(cacheKey)) { ConcurrentHashMap() }
@@ -59,6 +62,7 @@ internal class ThreadSafeInternalDataLoader<K : Any, V, C : Any> internal constr
                         if (matchFn(cacheKey, existingKey)) existingKey else null
                     }?.let { matchedKey -> cacheMap.get(matchedKey) }
             } ?: cacheMap.computeIfAbsent(cacheKey) { defaultResult }
+        }
 
         val isCached = entryResult != defaultResult
         if (!isCached) {
@@ -80,6 +84,7 @@ internal class ThreadSafeInternalDataLoader<K : Any, V, C : Any> internal constr
     }
 
     override fun clear(key: K) {
+        if (!cachingEnabled) return
         val cacheKey = cacheKeyFn(key)
         val candidateFn = cacheKeyMatchCandidateFn
         if (candidateFn == null) {

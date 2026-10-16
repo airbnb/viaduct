@@ -135,6 +135,10 @@ class StandardViaduct
             private var globalIDCodec: GlobalIDCodec? = null
             private var proxyResolverFactory: ProxyResolverFactory? = null
             private var lenientResolverValidation: Boolean = false
+            private var nodeResolverCachingEnabled: Boolean = true
+
+            /** Controls the old engine's per-request node resolver cache. */
+            fun withNodeResolverCaching(enabled: Boolean): Builder = apply { nodeResolverCachingEnabled = enabled }
 
             fun enableAirbnbBypassDoNotUse(tenantNameResolver: TenantNameResolver): Builder =
                 apply {
@@ -341,6 +345,7 @@ class StandardViaduct
                         materializedFieldValueReader =
                             builder.materializedFieldValueReader ?: materializedFieldValueReader,
                         globalIDCodec = finalGlobalIDCodec,
+                        nodeResolverCachingEnabled = builder.nodeResolverCachingEnabled,
                     )
                 }
 

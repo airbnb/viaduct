@@ -8,6 +8,8 @@ import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
 import viaduct.engine.api.Caller
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
@@ -19,9 +21,11 @@ import viaduct.engine.api.mocks.MockNodeUnbatchedResolverExecutor
 import viaduct.engine.api.mocks.createEngineObjectData
 import viaduct.engine.api.mocks.runFeatureTest
 import viaduct.engine.api.spi.NodeResolverExecutor
+import viaduct.engine.runtime.EngineExecutionContextExtensions.copy
 import viaduct.engine.runtime.mocks.ContextMocks
 import viaduct.engine.runtime.select.EngineSelectionSetFactoryImpl
 import viaduct.engine.runtime.select.ProjectedEngineSelectionSet
+import viaduct.service.api.spi.FlagManager
 
 class NodeDataLoaderTest {
     private val id1 = "1"
@@ -35,6 +39,40 @@ class NodeDataLoaderTest {
         """.trimIndent()
     )
     private val selectionSetFactory = EngineSelectionSetFactoryImpl(schema)
+
+    @Suppress("DEPRECATION")
+    @ParameterizedTest
+    @ValueSource(booleans = [true, false])
+    fun `cache policy survives context copies and shadow forks`(cachingEnabled: Boolean) =
+        runTest {
+            var calls = 0
+            val objectType = schema.schema.getObjectType("Test")
+            val resolver = MockNodeUnbatchedResolverExecutor(typeName = "Test") { id, _, _ ->
+                calls++
+                createEngineObjectData(objectType, mapOf("id" to id))
+            }
+            val mocks = ContextMocks(myFullSchema = schema, myFlagManager = FlagManager.Disabled)
+            val factory = EngineExecutionContextFactory(
+                fullSchema = mocks.fullSchema,
+                dispatcherRegistry = mocks.dispatcherRegistry,
+                resolverInstrumentation = mocks.resolverInstrumentation,
+                flagManager = mocks.flagManager,
+                engine = mocks.engine,
+                globalIDCodec = mocks.globalIDCodec,
+                meterRegistry = null,
+                materializedFieldValueReader = viaduct.engine.api.spi.MaterializedFieldValueReader.Default,
+                nodeResolverCachingEnabled = cachingEnabled,
+            )
+            val context = factory.create(schema, null) as EngineExecutionContextImpl
+            val selector = NodeResolverExecutor.Selector(id1, selectionSetFactory.engineSelectionSet("Test", "id", emptyMap()))
+            val copied = context.copy()
+            context.nodeDataLoader(resolver).loadByKey(selector, context).getOrThrow()
+            copied.nodeDataLoader(resolver).loadByKey(selector, copied).getOrThrow()
+            assertEquals(if (cachingEnabled) 1 else 2, calls)
+            val shadow = copied.forkForShadowExecution()
+            repeat(2) { shadow.nodeDataLoader(resolver).loadByKey(selector, shadow).getOrThrow() }
+            assertEquals(if (cachingEnabled) 2 else 4, calls)
+        }
 
     @Test
     fun `node resolver is the caller for detached work it starts`() =

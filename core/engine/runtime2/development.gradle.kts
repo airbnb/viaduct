@@ -6,6 +6,24 @@ val resolverBenchmarkQuerySeed =
     providers.gradleProperty("resolverBenchmarkQuerySeed").orElse("1")
 val resolverBenchmarkLoopCount =
     providers.gradleProperty("resolverBenchmarkLoopCount").orElse("1")
+val standardViaductBenchmarkEngine =
+    providers.gradleProperty("standardViaductBenchmarkEngine").orElse("old,new")
+val standardViaductNodeCache =
+    providers.gradleProperty("standardViaductNodeCache").orElse("enabled")
+val standardViaductCycleChecker =
+    providers.gradleProperty("standardViaductCycleChecker").orElse("deferred")
+val standardViaductStrictValidation =
+    providers.gradleProperty("standardViaductStrictValidation").map { it.toBooleanStrict() }.orElse(false)
+val standardViaductProfileOutput =
+    providers.gradleProperty("standardViaductProfileOutput")
+        .map { configured -> file(configured) }
+        .orElse(layout.buildDirectory.file("reports/resolver-benchmarks/standard-viaduct.jfr").map { it.asFile })
+val standardViaductWorkloadOutput =
+    providers.gradleProperty("standardViaductWorkloadOutput")
+        .map { configured -> file(configured) }
+        .orElse(layout.buildDirectory.dir("reports/resolver-benchmarks/standard-viaduct-workload").map { it.asFile })
+val standardViaductWorkloadEngine =
+    providers.gradleProperty("standardViaductWorkloadEngine").orElse("new")
 val correctResolutionBenchmarkInputCount =
     providers.gradleProperty("correctResolutionBenchmarkInputCount").orElse("50")
 val correctResolutionBenchmarkQuerySeed =
@@ -176,6 +194,88 @@ fun registerResolverBenchmarkTask(
 listOf("resolution").forEach { resolver ->
     registerResolverBenchmarkTask(resolver, "full")
     registerResolverBenchmarkTask(resolver, "overhead")
+}
+
+tasks.register<JavaExec>("standardViaductBenchmark") {
+    group = "benchmark"
+    description = "Compares both engines through StandardViaduct over the fixed 100-query corpus."
+    val benchmarkJar = tasks.named<org.gradle.jvm.tasks.Jar>("jmhJar")
+    dependsOn(benchmarkJar)
+    classpath = files(benchmarkJar.flatMap { jar -> jar.archiveFile })
+    mainClass.set("org.openjdk.jmh.Main")
+    inputs.property("engine", standardViaductBenchmarkEngine)
+    inputs.property("nodeCache", standardViaductNodeCache)
+    inputs.property("cycleChecker", standardViaductCycleChecker)
+    inputs.property("strictValidation", standardViaductStrictValidation)
+    inputs.property("loopCount", resolverBenchmarkLoopCount)
+    outputs.upToDateWhen { false }
+    doFirst {
+        args = listOf(
+            "viaduct\\.engine\\.runtime2\\.benchmark\\.StandardViaductBenchmark\\.execute",
+            "-foe",
+            "true",
+            "-p",
+            "engine=${standardViaductBenchmarkEngine.get()}",
+            "-p",
+            "nodeCache=${standardViaductNodeCache.get()}",
+            "-p",
+            "cycleChecker=${standardViaductCycleChecker.get()}",
+            "-p",
+            "loopCount=${resolverBenchmarkLoopCount.get()}",
+            "-jvmArgsAppend",
+            "-DstandardViaductStrictValidation=${standardViaductStrictValidation.get()}",
+        )
+    }
+}
+
+tasks.register<JavaExec>("standardViaductWorkloadReport") {
+    group = "benchmark"
+    description = "Reports client query and response sizes for the adapted StandardViaduct workload."
+    val benchmarkJar = tasks.named<org.gradle.jvm.tasks.Jar>("jmhJar")
+    dependsOn(benchmarkJar)
+    classpath = files(benchmarkJar.flatMap { it.archiveFile })
+    mainClass.set("viaduct.engine.runtime2.benchmark.StandardViaductBenchmarkDiagnostics")
+    systemProperty("standardViaductStrictValidation", standardViaductStrictValidation.get())
+    outputs.upToDateWhen { false }
+    doFirst { args = listOf(standardViaductWorkloadOutput.get().absolutePath, standardViaductWorkloadEngine.get(), standardViaductNodeCache.get()) }
+}
+
+tasks.register<JavaExec>("standardViaductProfile") {
+    group = "benchmark"
+    description = "Profiles a measured StandardViaduct new-engine batch with JFR."
+    val benchmarkJar = tasks.named<org.gradle.jvm.tasks.Jar>("jmhJar")
+    dependsOn(benchmarkJar)
+    classpath = files(benchmarkJar.flatMap { it.archiveFile })
+    mainClass.set("org.openjdk.jmh.Main")
+    outputs.upToDateWhen { false }
+    doFirst {
+        val profileFile = standardViaductProfileOutput.get().absoluteFile
+        profileFile.parentFile.mkdirs()
+        profileFile.delete()
+        args = listOf(
+            "viaduct\\.engine\\.runtime2\\.benchmark\\.StandardViaductBenchmark\\.execute",
+            "-foe",
+            "true",
+            "-p",
+            "engine=new",
+            "-p",
+            "nodeCache=${standardViaductNodeCache.get()}",
+            "-p",
+            "cycleChecker=${standardViaductCycleChecker.get()}",
+            "-p",
+            "loopCount=${resolverBenchmarkLoopCount.get()}",
+            "-wi",
+            "1",
+            "-i",
+            "1",
+            "-f",
+            "1",
+            "-jvmArgsAppend",
+            "-DstandardViaductProfileOutput=${profileFile.absolutePath} " +
+                "-DstandardViaductStrictValidation=${standardViaductStrictValidation.get()} -XX:FlightRecorderOptions=stackdepth=256",
+        )
+    }
+    doLast { logger.lifecycle("StandardViaduct JFR: ${standardViaductProfileOutput.get().absolutePath}") }
 }
 
 tasks.register<JavaExec>("guardedCheckerResolutionBenchmark") {
@@ -392,6 +492,7 @@ tasks.withType<org.gradle.api.tasks.testing.Test>().configureEach {
 }
 
 tasks.named<Test>("test") {
+    systemProperty("standardViaductStrictValidation", standardViaductStrictValidation.get())
     maxHeapSize = "2g"
     maxParallelForks =
         providers.gradleProperty("runtime2TestForks")

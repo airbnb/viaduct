@@ -17,6 +17,7 @@ import viaduct.engine.runtime2.arbitrary.ResolverBenchmarkCorpus
 import viaduct.engine.runtime2.arbitrary.ResolverBenchmarkQueryCorpus
 import viaduct.engine.runtime2.arbitrary.resolutionFingerprint
 import viaduct.engine.runtime2.model.Arguments
+import viaduct.engine.runtime2.model.MaterializeSelectionForest
 import viaduct.engine.runtime2.model.ResolverTarget
 import viaduct.engine.runtime2.model.registry.CheckerInput
 import viaduct.engine.runtime2.model.registry.ResolutionExecutionContext
@@ -34,6 +35,7 @@ import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 import viaduct.engine.runtime2.resolution.framework.fieldResolverCycleTask
 import viaduct.engine.runtime2.resolution.framework.materializeResult
 import viaduct.engine.runtime2.schema.lowering.LOWERED_TYPENAME_FIELD
+import viaduct.graphql.schema.ViaductSchema
 
 class ChinaActiveBenchmarkCheckersTest : ResolutionDispatcherResource {
     private val resourcePrefix = "viaduct/engine/runtime2/benchmark/current-profile/"
@@ -45,6 +47,43 @@ class ChinaActiveBenchmarkCheckersTest : ResolutionDispatcherResource {
     private val fixture = ResolverBenchmarkFixture(corpus)
 
     private fun world(outputs: PrecomputedResolverOutputs): TestWorld = fixture.world(outputs)
+
+    @Test
+    fun `comparison checker inputs have no checked fields or result types and privacy slots are distinct`() {
+        val comparisonCorpus = ResolverBenchmarkCorpus.load(BENCHMARK_RESOURCE_PREFIX + "schema.graphqls", BENCHMARK_RESOURCE_PREFIX + "registry.json.gz", loader)
+        val comparison = ChinaActiveBenchmarkCheckers(comparisonCorpus, comparisonMode = true)
+        val world = comparisonCorpus.registry.world(
+            schemaSDL = comparison.schemaSDL,
+            additionalFieldResolvers = comparison::fieldResolvers,
+            fieldCheckerFactory = comparison::fieldCheckers,
+            typeCheckerFactory = comparison::typeCheckers,
+        )
+        val pairs = comparison.fieldCheckers(world.schemas).values.flatMap { it.fragmentTemplates.values } +
+            comparison.typeCheckers(world.schemas).values.flatMap { it.fragmentTemplates.values }
+        val privacyFields = mutableListOf<String>()
+
+        fun verify(forest: MaterializeSelectionForest) {
+            forest.forEach { selection ->
+                val field = selection.key.field as ViaductSchema.ObjectField
+                assertEquals(null, world.resolverRegistry.fieldChecker(field), "${field.containingDef.name}.${field.name}")
+                (field.type.baseTypeDef as? ViaductSchema.CompositeTypeDef)?.possibleObjectTypes?.forEach { type ->
+                    assertEquals(null, world.resolverRegistry.typeChecker(type), type.name)
+                }
+                if (field.name.startsWith("benchmarkPrivacy")) privacyFields += field.name
+                verify(selection.subselections)
+            }
+        }
+        pairs.forEach {
+            verify(it.objectFragmentTemplate)
+            verify(it.queryFragmentTemplate)
+        }
+        assertTrue(privacyFields.size > 10)
+        assertEquals(privacyFields.size, privacyFields.toSet().size)
+        assertTrue(privacyFields.all { it.matches(Regex("benchmarkPrivacy\\d+")) })
+        val providers = comparison.fieldResolvers(world.schemas).keys.filter { it.name.startsWith("benchmarkPrivacy") }.map { it.name }.toSet()
+        assertEquals(privacyFields.toSet(), providers)
+        assertTrue(comparison.typeCheckers(world.schemas).isNotEmpty())
+    }
 
     @Test
     fun `field policies include passive fields and distinguish zero slots from null composites`() {

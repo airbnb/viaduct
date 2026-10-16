@@ -164,6 +164,7 @@ class EngineImpl(
         config.fieldSelectivityProvider,
         resolverErrorReporter = config.resolverErrorReporter,
         materializedFieldValueReader = config.materializedFieldValueReader,
+        nodeResolverCachingEnabled = config.nodeResolverCachingEnabled,
     )
 
     @Deprecated("Airbnb use only")

@@ -71,7 +71,8 @@ class QPlanExecutionStrategy(
             .get<QPlanCallerCancellation>(QPlanCallerCancellationKey)
             ?.attach(requestJob)
         val requestFailure = CompletableFuture<Throwable>()
-        val cycleChecker = CycleCheckState.create()
+        val cycleChecker = executionContext.graphQLContext.get<CycleCheckState>(CycleCheckState::class.java)
+            ?: CycleCheckState.create()
         val callerCoroutineContext = executionContext.graphQLContext.getOrDefault<CoroutineContext>(
             QPlanCallerCoroutineContextKey,
             EmptyCoroutineContext,

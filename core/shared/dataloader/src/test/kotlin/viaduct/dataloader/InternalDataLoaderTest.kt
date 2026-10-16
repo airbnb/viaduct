@@ -15,6 +15,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import javax.inject.Provider
 import kotlin.random.Random
 import kotlin.system.measureTimeMillis
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
@@ -29,6 +30,8 @@ import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.supervisorScope
+import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
@@ -80,6 +83,56 @@ class InternalDataLoaderTest {
             Executors.newSingleThreadExecutor().asCoroutineDispatcher(),
             flagManager = FlagManager.Disabled,
         )
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun `disabled cache does not share in-flight or completed results`() =
+        runTest {
+            for (cachingEnabled in listOf(true, false)) {
+                var calls = 0
+                val release = CompletableDeferred<Unit>()
+                val strategy = InternalDispatchStrategy.immediateDispatchStrategy(
+                    GenericBatchLoadFn<String, Int> { _, _ ->
+                        val call = ++calls
+                        release.await()
+                        listOf(Try(call))
+                    },
+                    object : DataLoaderInstrumentation {},
+                )
+                val loader = InternalDataLoader.newLoader<String, Int, String>(
+                    strategy,
+                    cachingEnabled = cachingEnabled,
+                )
+                val first = async { loader.load("same") }
+                val second = async { loader.load("same") }
+                runCurrent()
+                assertEquals(if (cachingEnabled) 1 else 2, calls)
+                release.complete(Unit)
+                assertEquals(1, first.await())
+                assertEquals(if (cachingEnabled) 1 else 2, second.await())
+                assertEquals(if (cachingEnabled) 1 else 3, loader.load("same"))
+                assertEquals(if (cachingEnabled) 1 else 3, calls)
+            }
+        }
+
+    @Test
+    fun `mapped loader option disables completed result reuse`() {
+        runBlocking(singleThreadedNextTickDispatcher()) {
+            var calls = 0
+            val fn = object : MappedBatchLoadFn<Int, Int> {
+                override suspend fun load(
+                    keys: Set<Int>,
+                    env: BatchLoaderEnvironment<Int>
+                ): Map<Int, Int> = keys.associateWith { ++calls }
+            }
+            val loader = InternalDataLoader.newMappedLoader<Int, Int, Int>(
+                fn,
+                dataLoaderOptions = DataLoaderOptions(cachingEnabled = false),
+            )
+            assertEquals(1, loader.load(1))
+            assertEquals(2, loader.load(1))
+        }
+    }
 
     @ParameterizedTest
     @EnumSource(TestDispatchStrategy::class)

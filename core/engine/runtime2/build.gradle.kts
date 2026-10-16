@@ -49,6 +49,14 @@ dependencies {
     add("supportImplementation", libs.kotest.assertions.core.jvm)
     add("supportImplementation", libs.jackson.module)
     add("supportImplementation", kotlin("test"))
+    add(
+        "supportImplementation",
+        (testFixtures(libs.viaduct.engine.api.get()) as ModuleDependency).apply {
+            // Benchmark executors use fixture wiring, not its JUnit assertions.
+            exclude(mapOf("group" to "org.junit.jupiter"))
+            exclude(mapOf("group" to "org.junit.platform"))
+        },
+    )
 
     testImplementation(kotlin("test-junit5"))
     testImplementation(libs.kotlinx.coroutines.test)

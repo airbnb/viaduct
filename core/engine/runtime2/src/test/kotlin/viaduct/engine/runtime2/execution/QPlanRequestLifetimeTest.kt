@@ -31,6 +31,7 @@ import viaduct.engine.runtime2.model.registry.fieldResolverOf
 import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.resolution.FieldResolverTask
+import viaduct.engine.runtime2.resolution.framework.CycleCheckState
 import viaduct.engine.runtime2.resolution.framework.ResolverReadCycleException
 import viaduct.engine.runtime2.resolution.framework.fieldResolverCycleTask
 import viaduct.engine.runtime2.resolution.framework.valueCycleSlot
@@ -113,6 +114,54 @@ class QPlanRequestLifetimeTest {
                 } finally {
                     response.cancel(true)
                     runCurrent()
+                }
+            }
+        }
+
+    @Test
+    fun `caller cancellation terminates cycles with deferred and no-op checkers`() =
+        runTest {
+            for (type in listOf("Query", "Mutation")) {
+                for (checker in listOf(CycleCheckState.createDeferred(), CycleCheckState.createNOP())) {
+                    val caller = QPlanCallerCancellation()
+                    var stopped = false
+                    val world = TestWorld.fromSDL(
+                        "type Query { value: Int } type Mutation { value: Int }",
+                        fieldResolvers = { schema ->
+                            mapOf(
+                                schema.loweredSchema.requireObjectField(type, "value") to fieldResolverOf(schema.loweredSchema.emptyFragmentOf(type)) { _, _, context ->
+                                    val publication = assertIs<FieldResolverTask>(context).publication
+                                    val reader = publication.oerOccurrence.root.fieldResolverCycleTask(publication.sourceOccurrence.publicationPath)
+                                    try {
+                                        publication.operation.cycleChecker.cycleCheck(reader, publication.publicationCell.valueCycleSlot)
+                                        publication.publicationCell.value.await()
+                                    } finally {
+                                        stopped = true
+                                    }
+                                },
+                            )
+                        },
+                    )
+                    val query = if (type == "Mutation") "mutation { value }" else "{ value }"
+                    val response = graphql(world, StandardTestDispatcher(testScheduler)).executeAsync(
+                        ExecutionInput.newExecutionInput().query(query).graphQLContext {
+                            it.put(CycleCheckState::class.java, checker)
+                            it.put(QPlanCallerCancellationKey, caller)
+                        },
+                    )
+                    try {
+                        runCurrent()
+                        assertFalse(response.isDone)
+                        assertTrue(response.cancel(true))
+                        caller.cancel(requestCancellation("Caller cancelled"))
+                        runCurrent()
+                        assertTrue(stopped)
+                        assertEquals(0L, testScheduler.currentTime)
+                    } finally {
+                        response.cancel(true)
+                        caller.cancel(requestCancellation("Caller cancelled"))
+                        runCurrent()
+                    }
                 }
             }
         }

@@ -95,7 +95,8 @@ interface InternalDataLoader<K : Any, V, C : Any> {
                     dataLoaderInstrumentationProvider?.get() ?: object : DataLoaderInstrumentation {}
                 ),
                 cacheKeyFn,
-                cacheKeyMatchFn
+                cacheKeyMatchFn,
+                cachingEnabled = dataLoaderOptions.cachingEnabled,
             )
 
         @Suppress("UNCHECKED_CAST")
@@ -104,12 +105,14 @@ interface InternalDataLoader<K : Any, V, C : Any> {
             cacheKeyFn: CacheKeyFn<K, C> = { k: K -> k as C },
             cacheKeyMatchFn: CacheKeyMatchFn<C>? = null,
             cacheKeyMatchCandidateFn: CacheKeyMatchCandidateFn<C>? = null,
+            cachingEnabled: Boolean = true,
         ): InternalDataLoader<K, V, C> =
             createInternalDataLoader(
                 internalDispatchStrategy,
                 cacheKeyFn,
                 cacheKeyMatchFn,
                 cacheKeyMatchCandidateFn,
+                cachingEnabled,
             )
 
         private fun <K : Any, V, C : Any> createInternalDataLoader(
@@ -117,6 +120,7 @@ interface InternalDataLoader<K : Any, V, C : Any> {
             cacheKeyFn: CacheKeyFn<K, C>,
             cacheKeyMatchFn: CacheKeyMatchFn<C>?,
             cacheKeyMatchCandidateFn: CacheKeyMatchCandidateFn<C>? = null,
+            cachingEnabled: Boolean = true,
         ): InternalDataLoader<K, V, C> {
             // default to thread safe loader
             return ThreadSafeInternalDataLoader(
@@ -124,6 +128,7 @@ interface InternalDataLoader<K : Any, V, C : Any> {
                 cacheKeyFn,
                 cacheKeyMatchFn,
                 cacheKeyMatchCandidateFn,
+                cachingEnabled,
             )
         }
     }
@@ -162,7 +167,9 @@ data class DataLoaderOptions(
      *
      * This is useful for transient errors (e.g., cancellation exceptions) that should not poison the cache.
      */
-    val cachingExceptionsEnabled: Boolean = true
+    val cachingExceptionsEnabled: Boolean = true,
+    /** Reuses completed and in-flight results when enabled. */
+    val cachingEnabled: Boolean = true,
 )
 
 interface BatchLoadFn<K, V> {
