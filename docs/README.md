@@ -109,7 +109,6 @@ mkdocs build
 
 # Run the link checker
 PYTHONPATH=.:$PYTHONPATH djlint site/ --lint \
-  --ignore "H005,H006,H013,H014,H015,H020,H021,H022,H023,H025,H026,H030,H031" \
   --include "LINK001"
 ```
 

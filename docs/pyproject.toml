@@ -1,4 +1,4 @@
 [tool.djlint]
 profile = "html"
 extension = "html"
-ignore = "H006,H013,H021,H025,H030,H031"
+ignore = "H005,H006,H013,H014,H015,H020,H021,H022,H023,H025,H026,H030,H031"
