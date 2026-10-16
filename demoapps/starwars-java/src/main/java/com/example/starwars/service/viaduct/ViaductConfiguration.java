@@ -3,9 +3,10 @@ package com.example.starwars.service.viaduct;
 import io.micronaut.context.annotation.Bean;
 import io.micronaut.context.annotation.Factory;
 import java.util.Set;
-import viaduct.service.BasicViaductFactory;
 import viaduct.service.SchemaScopeInfo;
+import viaduct.service.ViaductBuilder;
 import viaduct.service.api.Viaduct;
+import viaduct.service.api.spi.FlagManager;
 
 /** Registers the public and extras schema variants. */
 @Factory
@@ -25,6 +26,13 @@ public final class ViaductConfiguration {
 
   @Bean
   public Viaduct providesViaduct() {
-    return BasicViaductFactory.create(tenantModuleInjectorFactory, SchemaScopeInfo.fromResources());
+    return new ViaductBuilder()
+        .withTenantModuleInjectorFactory(tenantModuleInjectorFactory)
+        .withScopedSchemas(SchemaScopeInfo.fromResources())
+        .withFlagManager(
+            flag ->
+                flag == FlagManager.Flags.ENGINE2_ENABLED
+                    || FlagManager.Default.INSTANCE.isEnabled(flag))
+        .build();
   }
 }
