@@ -2,6 +2,7 @@ package viaduct.engine.runtime2.propertytest
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import viaduct.engine.runtime2.arbitrary.Config
 import viaduct.engine.runtime2.arbitrary.GeneratorConfigData
@@ -52,6 +53,7 @@ class PropertyTestSerializationTest {
 
         assertEquals(round, decoded)
         assertTrue(PropertyTestJson.write(round).endsWith("\n"))
+        assertFalse('\r' in PropertyTestJson.write(round))
     }
 
     @Test
