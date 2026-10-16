@@ -10,6 +10,8 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 import kotlinx.coroutines.runBlocking
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.EnumSource
 import viaduct.engine.runtime2.arbitrary.ArbitraryQuery
 import viaduct.engine.runtime2.arbitrary.ArbitraryRegistry
 import viaduct.engine.runtime2.arbitrary.ArbitrarySchema
@@ -36,9 +38,9 @@ class ResolverTestSuiteTest {
             }
         }
 
-    @Test
-    fun `stored object-fragment suite loads every shard`() {
-        val definition = ResolverTestSuiteDefinition.OBJECT_FRAGMENT
+    @ParameterizedTest
+    @EnumSource(ResolverTestSuiteDefinition::class)
+    fun `stored suite loads every shard`(definition: ResolverTestSuiteDefinition) {
         val suite = ResolverTestSuite.load(definition)
 
         val batches = (1..definition.counts.schemas).map(suite::loadShard)
@@ -49,10 +51,10 @@ class ResolverTestSuiteTest {
         )
     }
 
-    @Test
-    fun `stored object-fragment suite matches live generation for its seed`(): Unit =
+    @ParameterizedTest
+    @EnumSource(ResolverTestSuiteDefinition::class)
+    fun `stored suite matches live generation for its seed`(definition: ResolverTestSuiteDefinition): Unit =
         runBlocking {
-            val definition = ResolverTestSuiteDefinition.OBJECT_FRAGMENT
             val firstSchemaOnly = definition.counts.copy(schemas = 1)
             val shard = ResolverTestShardCodec.encode(1, generateResolverTestBatches(firstSchemaOnly, definition.config, definition.seed).single())
 

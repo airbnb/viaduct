@@ -34,12 +34,8 @@ import viaduct.engine.runtime2.arbitrary.ResolverTestRun
 import viaduct.engine.runtime2.arbitrary.ResolverVariableCount
 import viaduct.engine.runtime2.arbitrary.ResolverVariableWeight
 import viaduct.engine.runtime2.arbitrary.ResolverVariablesEnabled
-import viaduct.engine.runtime2.arbitrary.RootFieldReferenceWeight
-import viaduct.engine.runtime2.arbitrary.RootFieldReferencesEnabled
 import viaduct.engine.runtime2.arbitrary.RootQueryFieldCount
 import viaduct.engine.runtime2.arbitrary.SchemaObjectCount
-import viaduct.engine.runtime2.arbitrary.SelectiveNodeResolversEnabled
-import viaduct.engine.runtime2.arbitrary.SometimesPassiveFieldWeight
 import viaduct.engine.runtime2.arbitrary.TestCaseCount
 import viaduct.engine.runtime2.arbitrary.checkResolverTestCases
 import viaduct.engine.runtime2.arbitrary.resolutionDigest
@@ -57,14 +53,7 @@ interface EmptyObjectFragmentGeneratedResolverContract : GeneratedCaseAssertionP
     @Test
     fun `generated empty object fragment worlds resolve correctly`(): Unit =
         runBlocking {
-            val config =
-                Config.default +
-                    (NodeResolversEnabled to false) +
-                    (ResolverFragmentsEnabled to false) +
-                    (ResolverFromArgumentVariablesEnabled to false) +
-                    (ResolverVariablesEnabled to false)
-
-            checkGeneratedProfile("empty-object-fragment", config) { testWorld, testCase ->
+            checkResolverTestSuite(ResolverTestSuiteDefinition.EMPTY_OBJECT_FRAGMENT) { testWorld, testCase ->
                 assertTrue(testCase.registry.nodeResolverTypes.isEmpty())
                 assertTrue(testCase.registry.objectFragmentSources.values.all(String::isEmpty))
                 assertEquals(0, testCase.registry.features.variableCount)
@@ -84,18 +73,8 @@ interface RootFieldReferenceGeneratedResolverContract : GeneratedCaseAssertionPo
                 generatedCaseAssertions.filterNot { assertion ->
                     assertion === GeneratedCaseAssertions.exactOrdinaryApplicationCounts
                 }
-            val config =
-                Config.default +
-                    (NodeResolversEnabled to false) +
-                    (ResolverFragmentsEnabled to false) +
-                    (ResolverQueryFragmentsEnabled to false) +
-                    (ResolverFromArgumentVariablesEnabled to false) +
-                    (ResolverVariablesEnabled to false) +
-                    (RootFieldReferencesEnabled to true) +
-                    (RootFieldReferenceWeight to 0.25)
-
             val run =
-                checkGeneratedProfile("root-field-reference", config) { testWorld, testCase ->
+                checkResolverTestSuite(ResolverTestSuiteDefinition.ROOT_FIELD_REFERENCE) { testWorld, testCase ->
                     generatedReferences +=
                         testCase.registry.features.generatedRootFieldReferenceCount
                     val observation =
@@ -131,15 +110,7 @@ interface SometimesPassiveGeneratedResolverContract : GeneratedCaseAssertionPoli
                 generatedCaseAssertions.filterNot { assertion ->
                     assertion === GeneratedCaseAssertions.exactOrdinaryApplicationCounts
                 }
-            val config =
-                Config.default +
-                    (FieldArgumentWeight to 0.0) +
-                    (ExplicitFieldResolverWeight to 1.0) +
-                    (NodeResolversEnabled to false) +
-                    (ResolverFragmentsEnabled to false) +
-                    (ResolverFromArgumentVariablesEnabled to false) +
-                    (ResolverVariablesEnabled to false) +
-                    (SometimesPassiveFieldWeight to 1.0)
+            val definition = ResolverTestSuiteDefinition.SOMETIMES_PASSIVE
 
             fun property(coverage: SometimesPassiveCoverage): suspend (TestWorld, ResolverTestCase) -> Unit =
                 { testWorld, testCase ->
@@ -172,27 +143,16 @@ interface SometimesPassiveGeneratedResolverContract : GeneratedCaseAssertionPoli
                 }
 
             val sampledCoverage = SometimesPassiveCoverage()
-            val sampledRun =
-                checkGeneratedProfile(
-                    profile = "sometimes-passive",
-                    config = config,
-                    property = property(sampledCoverage),
-                )
+            val sampledRun = checkResolverTestSuite(definition, property = property(sampledCoverage))
             if (sampledRun.selectedCase == null) {
                 val activationCoverage: SometimesPassiveCoverage
                 val activationRun: ResolverTestRun
-                if (sampledRun.seed == SOMETIMES_PASSIVE_ACTIVATION_SEED) {
+                if (sampledRun.seed == definition.seed) {
                     activationCoverage = sampledCoverage
                     activationRun = sampledRun
                 } else {
                     activationCoverage = SometimesPassiveCoverage()
-                    activationRun =
-                        checkGeneratedProfile(
-                            profile = "sometimes-passive",
-                            config = config,
-                            seed = SOMETIMES_PASSIVE_ACTIVATION_SEED,
-                            property = property(activationCoverage),
-                        )
+                    activationRun = checkResolverTestSuite(definition, definition.seed, property(activationCoverage))
                 }
 
                 activationRun.warnCoverage(
@@ -214,15 +174,8 @@ interface NodeGeneratedResolverContract : GeneratedCaseAssertionPolicy {
     @Test
     fun `generated node worlds resolve correctly`(): Unit =
         runBlocking {
-            val config =
-                Config.default +
-                    (FieldArgumentWeight to 1.0) +
-                    (ExplicitFieldResolverWeight to 1.0) +
-                    (NodeResolversEnabled to nodeRootFieldReferencesEnabled) +
-                    (NodeObjectWeight to 0.35) +
-                    (ResolverFragmentsEnabled to false) +
-                    (ResolverFromArgumentVariablesEnabled to false) +
-                    (ResolverVariablesEnabled to false)
+            assertTrue(nodeRootFieldReferencesEnabled, "The stored node suite generates node resolvers")
+            val definition = ResolverTestSuiteDefinition.NODE
 
             fun property(coverage: NodeCoverage): suspend (TestWorld, ResolverTestCase) -> Unit =
                 { testWorld, testCase ->
@@ -262,22 +215,16 @@ interface NodeGeneratedResolverContract : GeneratedCaseAssertionPolicy {
                 }
 
             val sampledCoverage = NodeCoverage()
-            val run = checkGeneratedProfile("node", config, property = property(sampledCoverage))
+            val run = checkResolverTestSuite(definition, property = property(sampledCoverage))
             if (run.selectedCase == null) {
                 val activationCoverage: NodeCoverage
                 val activationRun: ResolverTestRun
-                if (run.seed == NODE_ACTIVATION_SEED) {
+                if (run.seed == definition.seed) {
                     activationCoverage = sampledCoverage
                     activationRun = run
                 } else {
                     activationCoverage = NodeCoverage()
-                    activationRun =
-                        checkGeneratedProfile(
-                            profile = "node",
-                            config = config,
-                            seed = NODE_ACTIVATION_SEED,
-                            property = property(activationCoverage),
-                        )
+                    activationRun = checkResolverTestSuite(definition, definition.seed, property(activationCoverage))
                 }
 
                 activationRun.warnCoverage(
@@ -305,16 +252,8 @@ interface SelectiveNodeGeneratedResolverContract : GeneratedCaseAssertionPolicy 
     @Test
     fun `generated selective node worlds resolve correctly with supplied payload demand`(): Unit =
         runBlocking {
-            val config =
-                Config.default +
-                    (FieldArgumentWeight to 1.0) +
-                    (ExplicitFieldResolverWeight to 1.0) +
-                    (NodeResolversEnabled to nodeRootFieldReferencesEnabled) +
-                    (SelectiveNodeResolversEnabled to true) +
-                    (NodeObjectWeight to 0.35) +
-                    (ResolverFragmentsEnabled to false) +
-                    (ResolverFromArgumentVariablesEnabled to false) +
-                    (ResolverVariablesEnabled to false)
+            assertTrue(nodeRootFieldReferencesEnabled, "The stored selective-node suite generates node resolvers")
+            val definition = ResolverTestSuiteDefinition.SELECTIVE_NODE
             val emptyDemand = selectionForestOf().resolutionDigest()
 
             fun property(coverage: SelectiveNodeCoverage): suspend (TestWorld, ResolverTestCase) -> Unit =
@@ -346,27 +285,16 @@ interface SelectiveNodeGeneratedResolverContract : GeneratedCaseAssertionPolicy 
                 }
 
             val sampledCoverage = SelectiveNodeCoverage()
-            val run =
-                checkGeneratedProfile(
-                    profile = "selective-node",
-                    config = config,
-                    property = property(sampledCoverage),
-                )
+            val run = checkResolverTestSuite(definition, property = property(sampledCoverage))
             if (run.selectedCase == null) {
                 val activationCoverage: SelectiveNodeCoverage
                 val activationRun: ResolverTestRun
-                if (run.seed == NODE_ACTIVATION_SEED) {
+                if (run.seed == definition.seed) {
                     activationCoverage = sampledCoverage
                     activationRun = run
                 } else {
                     activationCoverage = SelectiveNodeCoverage()
-                    activationRun =
-                        checkGeneratedProfile(
-                            profile = "selective-node",
-                            config = config,
-                            seed = NODE_ACTIVATION_SEED,
-                            property = property(activationCoverage),
-                        )
+                    activationRun = checkResolverTestSuite(definition, definition.seed, property(activationCoverage))
                 }
 
                 activationRun.warnCoverage(
@@ -1040,10 +968,8 @@ interface FeatureInteractionGeneratedResolverContract : GeneratedCaseAssertionPo
 
 private const val GENERATED_PROFILE_CASE_BUDGET = 150
 private const val FEATURE_INTERACTION_CASE_BUDGET = 300
-private const val NODE_ACTIVATION_SEED = 1L
 private const val FROM_ARGUMENT_ACTIVATION_SEED = 1L
 private const val MIXED_VARIABLE_ACTIVATION_SEED = 1L
-private const val SOMETIMES_PASSIVE_ACTIVATION_SEED = 1L
 
 private val GENERATED_PROFILE_COUNTS =
     TestCaseCount(
