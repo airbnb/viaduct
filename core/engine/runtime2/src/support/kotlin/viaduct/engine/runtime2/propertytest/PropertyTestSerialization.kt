@@ -1,6 +1,8 @@
 package viaduct.engine.runtime2.propertytest
 
 import com.fasterxml.jackson.annotation.JsonInclude
+import com.fasterxml.jackson.core.util.DefaultIndenter
+import com.fasterxml.jackson.core.util.DefaultPrettyPrinter
 import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.MapperFeature
 import com.fasterxml.jackson.databind.SerializationFeature
@@ -244,6 +246,7 @@ object PropertyTestJson {
             .addModule(kotlinModule())
             .enable(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY)
             .enable(SerializationFeature.INDENT_OUTPUT)
+            .defaultPrettyPrinter(DefaultPrettyPrinter().withObjectIndenter(DefaultIndenter("  ", "\n")))
             .enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS)
             .enable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
             .build()
