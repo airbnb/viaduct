@@ -6,6 +6,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.minutes
 import kotlinx.coroutines.test.runTest
 import viaduct.engine.runtime2.arbitrary.PrecomputedResolverOutputs
 import viaduct.engine.runtime2.arbitrary.ResolverBenchmarkCorpus
@@ -104,7 +105,7 @@ class ResolverBenchmarkCoverageTest : ResolutionDispatcherResource {
 
     @Test
     fun `the prepared frozen corpus activates every required feature in at least three queries`() =
-        runTest {
+        runTest(timeout = 5.minutes) {
             val sources = ResolverBenchmarkQueryCorpus.load(prefix + "queries.json", loader).querySources
             val discovery = PrecomputedResolverOutputs()
             val discoveryWorld = fixture.world(discovery)

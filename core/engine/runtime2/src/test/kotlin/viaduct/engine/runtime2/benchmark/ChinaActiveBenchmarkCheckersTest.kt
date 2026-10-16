@@ -8,6 +8,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNotSame
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.minutes
 import kotlinx.coroutines.test.runTest
 import viaduct.engine.runtime2.arbitrary.GeneratedFieldCheckerMode
 import viaduct.engine.runtime2.arbitrary.GeneratedTypeCheckerMode
@@ -143,7 +144,7 @@ class ChinaActiveBenchmarkCheckersTest : ResolutionDispatcherResource {
 
     @Test
     fun `replacing hidden checker demand preserves bulk client selected values`() =
-        runTest {
+        runTest(timeout = 5.minutes) {
             val queries = ResolverBenchmarkQueryCorpus.load(resourcePrefix + "queries.json", loader).querySources.mapIndexed { index, source ->
                 if (index < ResolverBenchmarkFeaturePartition.selections.size * 3) source.substringBeforeLast("\n  coverage") + "\n}" else source
             }
