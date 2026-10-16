@@ -12,6 +12,8 @@ The `@namespaceType` directive solves this by letting you group related root fie
 
 Namespace types also enable cross-tenant delegation patterns like factory functions. A namespace type can expose `@resolver` fields that other tenants invoke via [`ctx.ref()`](../resolvers/root_field_references.md) without needing a direct code dependency on the owning tenant.
 
+The schema directive and engine behavior are the same for Kotlin and Java tenants. In either language, implement only the fields marked `@resolver` inside the namespace; the namespace field itself needs no resolver.
+
 ## Usage
 
 Apply `@namespaceType` to an object type and expose it as a field on the root query type:

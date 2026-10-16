@@ -6,6 +6,8 @@ description: Best practices for managing schema changes in Viaduct.
 
 ## Schema Change Management
 
+These schema compatibility principles apply to Kotlin and Java tenants. After an SDL change, regenerate and compile every affected tenant so changes to GRT getters, builders, argument types, and resolver method signatures are checked in both languages.
+
 ### Key Principles for Schema Changes
 
 1. **Backward Compatibility:** Any schema change must ensure backward compatibility unless explicitly intended otherwise. Additive changes, such as adding new fields, are usually safe, while subtractive changes (like removing fields) often break client operations
@@ -27,4 +29,3 @@ description: Best practices for managing schema changes in Viaduct.
 
 2. Deprecations: Annotating fields slated for removal with `@deprecated` and updating client-side queries to avoid referencing these fields
 3. Modifications in Input Types: Converting an input type field from non-nullable (`String!`) to nullable (`String`) is considered safe
-

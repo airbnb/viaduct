@@ -7,22 +7,40 @@ This page collects the recurring "do" and "don't" guidance from across the tutor
 
 ## Resolver responsibility
 
-- **Do** keep node resolvers small: _lookup → build → return_. Load a single entity by its internal ID and attach a Global ID via `ctx.globalIDFor(<Type>.Reflection, internalId)`. See [Node Resolvers](../../../getting_started/starwars/core/node_resolvers.md).
+- **Do** keep node resolvers small: _lookup → build → return_. Load a single entity by its internal ID and attach a Global ID using the language-specific call shown below. See [Node Resolvers](../../../getting_started/starwars/core/node_resolvers.md).
 - **Do** put computation, formatting, and lightweight relationship dereferencing in field resolvers. See [Field Resolvers](../../../getting_started/starwars/core/field_resolvers.md).
 - **Do** isolate concerns: nodes fetch, fields compute, batch resolvers aggregate. Don't mix loading logic inside field resolvers.
 - **Don't** perform per-request joins or heavy business logic inside a node resolver — you'll lose batching opportunities elsewhere.
 - **Don't** assume execution order between independent resolvers. Express dependencies through `objectValueFragment`, not by sequencing.
 
+Both languages use the same resolver responsibilities. The identity call differs only in how the context ID is accessed:
+
+=== "Kotlin"
+
+    ```kotlin
+    val internalId = ctx.id.internalID
+    val id = ctx.globalIDFor(MyNode.Reflection, internalId)
+    ```
+
+=== "Java"
+
+    ```java
+    String internalId = ctx.getId().getInternalID();
+    var id = ctx.globalIDFor(MyNode.Reflection, internalId);
+    ```
+
+    Compose asynchronous service calls with `thenApply` or `thenCompose`; do not block on `join()` inside resolvers.
+
 ## Nullability and errors
 
-- **Do** return `null` for missing or unknown values when the schema field is nullable. GraphQL treats `null` as an expected outcome and surfaces partial results to clients.
+- **Do** return `null` for missing or unknown values when the schema field is nullable. Java returns `CompletableFuture.completedFuture(null)`. GraphQL treats `null` as an expected outcome and surfaces partial results to clients.
 - **Do** match the field's nullability: if the schema field is non-null, ensure your resolver always produces a value.
-- **Don't** throw exceptions for "not found" cases. Reserve exceptions for **unexpected** conditions (I/O failures, decoding errors, programming bugs).
+- **Do** report a missing node from a node resolver as an error: throw for a single node, or return `FieldValue.ofError(...)` for its context in a batch. A field resolver may return `null` for an expected missing value when the field is nullable. See [Node Resolvers](../resolvers/node_resolvers.md#output-selection-set).
 
 ## Batching and N+1
 
 - **Do** opt into batching with `@resolver(isBatching: true)` whenever the same field is selected across many parent objects in a single operation. See [Batch Resolvers](../../../getting_started/starwars/core/batch_resolvers.md).
-- **Do** deduplicate keys before hitting the data layer, and return results in the **same order** as the input contexts.
+- **Do** deduplicate keys before hitting the data layer and return one result for every input context, following the language-specific contract in [Batch Resolution](../resolvers/batch_resolution.md#output): Kotlin field batches use a positional `List<FieldValue<T>>`; node batches in either language use `Map<Context, FieldValue<T>>`; Java field batches use `Map<Context, T>` (or `Map<Context, FieldValue<T>>` when overriding `batchResolveWithErrors`). Maps must use the exact input `Context` objects as keys.
 - **Do** migrate a single-field resolver to a batch resolver as soon as you notice it executes the same repository call per parent.
 - **Don't** call the data layer once per context inside `batchResolve`. The point of batching is one fetch per unique key set.
 - **Don't** loop lookups inside a non-batched `resolve` when the query can select many parents.
@@ -36,14 +54,14 @@ This page collects the recurring "do" and "don't" guidance from across the tutor
 ## Identity and Global IDs
 
 - **Do** treat Global IDs as opaque at the network boundary. Clients should pass them around without parsing.
-- **Do** generate IDs in resolvers via `ctx.globalIDFor(<Type>.Reflection, internalId)` — this keeps them opaque and stable across module or storage backends.
+- **Do** generate IDs in resolvers via `ctx.globalIDFor(MyNode.Reflection, internalId)` in either language — this keeps them opaque and stable across module or storage backends.
 - **Do** annotate `ID` field arguments and input fields with `@idOf(...)` to bind them to a concrete GraphQL type so resolvers and tooling can handle them type-safely. See [Global IDs](../../../getting_started/starwars/core/global_id.md).
 - **Don't** ask clients to decode Global IDs or otherwise rely on their internal format.
 - **Don't** embed business logic or access-control information into IDs.
 
 ## Scopes
 
-- **Do** define a `default` scope for general-availability fields so requests without an explicit scope still see something useful. See [Scope Directive](../../../getting_started/starwars/directives/scope.md).
+- **Do** annotate client-visible types and extensions consistently when using scopes, and configure which executable schema view handles each request. There is no implicit default scope. See [Scope Directive](../../../getting_started/starwars/directives/scope.md).
 - **Do** keep scopes orthogonal — non-overlapping responsibilities reduce confusion and accidental exposure.
 - **Do** apply `@scope` explicitly to sensitive fields and pick a single source of truth for which scopes apply to a request (JWT claims, session, request context).
 - **Don't** rely on `@scope` alone for authorization. Scopes govern **schema visibility**; complement them with application-level checks for data-level access control.

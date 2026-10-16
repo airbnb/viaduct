@@ -125,9 +125,9 @@ extend type Foo @scope(to: ["private"]) {
 
 ### Validation
 
-In GraphQL SDL, scopes are referenced by their string value, and in Kotlin are referenced by the strongly typed enum member. The SDL will be validated at build time to ensure invalid scope names were not referenced.
+Scope names are strings in GraphQL SDL for both Kotlin and Java tenants. The application declares valid scopes and selects an executable schema view for each request; changing the resolver language does not change schema visibility. See the [Viaduct API](../viaduct_api/index.md#registering-executable-schema-views) for configuration. The SDL is validated to reject invalid scope names.
 
-In addition to detecting invalid scope names, the Viaduct Bazel validators will perform other static analysis on the schema in order to detect invalid or confusing scope usage.
+In addition to detecting invalid scope names, Viaduct schema validation performs static analysis on the schema in order to detect invalid or confusing scope usage.
 
 #### Require a client-visible field for each declared scope
 

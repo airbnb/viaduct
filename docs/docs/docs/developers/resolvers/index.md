@@ -10,6 +10,8 @@ In Viaduct, all module code is provided in the form of either a *node resolver* 
 * **Generated base classes**: Viaduct generates abstract classes for all node and field resolvers based on the schema. Each generated class contains either a `resolve` method or a `batchResolve` method, depending on the `@resolver` directive's `isBatching` argument.
 * **Implementation**: Implement a resolver by providing a subclass of the generated base class and overriding the generated method.
 
+Kotlin resolver methods are suspending functions. Java resolver methods return `CompletableFuture<R>` (or a future containing a context-to-result map for batching). Java uses `viaduct.java.api.annotations.Resolver` and `viaduct.java.grts` generated types. See the following pages for matching Kotlin and Java examples.
+
 ## Output selection sets
 
 Output selection sets are an important concept in the Viaduct API. Every node and field resolver is responsible for resolving the fields in its output selection set. This includes direct and nested fields that themselves do not have a resolver. The node and field resolver pages provide more details with examples.

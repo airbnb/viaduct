@@ -3,14 +3,14 @@ title: Global IDs
 description: Global identifiers for nodes
 ---
 
-Viaduct uses two different Kotlin types to represent GraphQL `ID` types: `GlobalID<T>` and String. `GlobalID<T>` is an object that consists of a type and an internal ID. They are used to uniquely identify `Node` objects in the graph. `GlobalID` values support structural equality, as opposed to referential equality.
+Viaduct uses `GlobalID<T>` and `String` to represent GraphQL `ID` values in both Kotlin and Java. Kotlin imports `viaduct.api.globalid.GlobalID`; Java imports `viaduct.java.api.globalid.GlobalID`. `GlobalID<T>` is an object that consists of a type and an internal ID. They are used to uniquely identify `Node` objects in the graph. `GlobalID` values support structural equality, as opposed to referential equality.
 
 There are two conditions under which `GlobalID<T>` will be used:
 
 1. The `id` field of a `Node` object type
 2. A field of type `ID` with the `@idOf(type:"T")` directive, where `T` must be a GraphQL object or interface type that implements `Node`
 
-Where neither condition is met, String is used in Kotlin to represent GraphQL IDs.
+Where neither condition is met, `String` is used in both languages to represent GraphQL IDs.
 
 For the examples below, `id`, `id3` and `f2` are GlobalIDs and while `id2` and `f1` are Strings.
 
@@ -36,19 +36,40 @@ Logically a global ID consists of two components:
 * **Type:** a GraphQL object or interface type that implements `Node`
 * **Internal ID:** an type-specific unique identifier of an instance of that type. Application logic defines the contents of internal ids, usually in the type's node resolver. Details vary greatly, but a common example is for the internal ID to be the primary key for the type's database table.
 
-In Kotlin, these type components are accessed via the `GlobalID.type` and `GlobalID.internalID` properties, respectively.
+In Kotlin, these components are the `type` and `internalID` properties. In Java, call `getType()` and `getInternalID()`. Java type descriptors come from `viaduct.java.api.reflect.Type`; the generated GRT also exposes a `Reflection` constant.
 
 Instances of `GlobalID` can be created using the `Context` objects provided to resolvers:
 
-```kotlin
-id(ctx.globalIDFor(MyNode.Reflection, entity.id))
-```
+=== "Kotlin"
 
-Or using the inline reified form:
+    ```kotlin
+    id(ctx.globalIDFor(MyNode.Reflection, entity.id))
+    ```
 
-```kotlin
-id(ctx.globalIDFor<MyNode>(entity.id))
-```
+=== "Java"
+
+    ```java
+    GlobalID<MyNode> id = ctx.globalIDFor(MyNode.Reflection, entity.id());
+    MyNode node = MyNode.builder(ctx).id(id).build();
+    ```
+
+
+Kotlin also provides an inline reified form; Java passes a type descriptor explicitly:
+
+=== "Kotlin"
+
+    ```kotlin
+    id(ctx.globalIDFor<MyNode>(entity.id))
+    ```
+
+=== "Java"
+
+    Java has no reified type parameter form. Pass the generated `MyNode.Reflection` descriptor or `Type.ofClass(MyNode.class)` explicitly:
+
+    ```java
+    GlobalID<MyNode> id = ctx.globalIDFor(Type.ofClass(MyNode.class), entity.id());
+    ```
+
 
 ## Serialization and Durability
 
@@ -70,29 +91,74 @@ where `accountNumber` _is_ an identifier intended to be stored by external syste
 
 ## Using Global IDs in node resolvers
 
-Node resolvers receive a `GlobalID` via `ctx.id`; use `ctx.id.internalID` to extract the internal identifier and load the entity:
+Node resolvers receive a `GlobalID` via `ctx.id` in Kotlin or `ctx.getId()` in Java. Read its internal identifier to load the entity. For the batching example, declare `MyNode` with `@resolver(isBatching: true)`:
 
-```kotlin
-@Resolver
-class MyNodeResolver
-    @Inject
-    constructor(
-        private val repository: MyRepository
-    ) : NodeResolvers.MyNode() {
-        override suspend fun batchResolve(contexts: List<Context>): Map<Context, FieldValue<MyNode>> {
-            val ids = contexts.map { it.id.internalID }
-            val entities = repository.findByIds(ids)
-            return contexts.associateWith { ctx ->
-                val entity = entities[ctx.id.internalID]
-                if (entity == null) {
-                    FieldValue.ofError(MissingMyNodeException("MyNode ${ctx.id} was not found"))
-                } else {
-                    FieldValue.ofValue(MyNodeBuilder(ctx).build(entity))
+=== "Kotlin"
+
+    ```kotlin
+    @Resolver
+    class MyNodeResolver
+        @Inject
+        constructor(
+            private val repository: MyRepository
+        ) : NodeResolvers.MyNode() {
+            override suspend fun batchResolve(contexts: List<Context>): Map<Context, FieldValue<MyNode>> {
+                val ids = contexts.map { it.id.internalID }.distinct()
+                val entities = repository.findByIds(ids)
+                return contexts.associateWith { ctx ->
+                    val entity = entities[ctx.id.internalID]
+                    if (entity == null) {
+                        FieldValue.ofError(MissingMyNodeException("MyNode ${ctx.id} was not found"))
+                    } else {
+                        FieldValue.ofValue(MyNode.Builder(ctx)
+                            .id(ctx.id)
+                            .id2(entity.id)
+                            .id3(ctx.id)
+                            .build())
+                    }
                 }
             }
         }
+    ```
+
+=== "Java"
+
+    ```java
+    @Resolver
+    public final class MyNodeResolver extends NodeResolvers.MyNode {
+      private final MyRepository repository;
+
+      @Inject
+      public MyNodeResolver(MyRepository repository) {
+        this.repository = repository;
+      }
+
+      @Override
+      public CompletableFuture<Map<Context, FieldValue<MyNode>>> batchResolve(
+          List<Context> contexts) {
+        List<String> ids = contexts.stream()
+            .map(ctx -> ctx.getId().getInternalID())
+            .distinct()
+            .toList();
+        var entities = repository.findByIds(ids);
+        Map<Context, FieldValue<MyNode>> results = new LinkedHashMap<>();
+        for (Context ctx : contexts) {
+          var entity = entities.get(ctx.getId().getInternalID());
+          results.put(ctx, entity == null
+              ? FieldValue.ofError(new MissingMyNodeException("MyNode " + ctx.getId() + " was not found"))
+              : FieldValue.ofValue(MyNode.builder(ctx)
+                  .id(ctx.getId())
+                  .id2(entity.id())
+                  .id3(ctx.getId())
+                  .build()));
+        }
+        return CompletableFuture.completedFuture(results);
+      }
     }
-```
+    ```
+
+
+Both examples assume `repository.findByIds` returns a map keyed by internal ID and each entity exposes its internal ID as `id` in Kotlin or `id()` in Java. `MissingMyNodeException` is an application-defined exception. Set every non-resolver field in the output selection set; both examples fill the three ID fields in the schema above.
 
 The returned map must contain every exact input `Context` object as a key. Return `FieldValue.ofError` when an ID is not found; missing or foreign context keys are rejected.
 
@@ -100,9 +166,9 @@ The returned map must contain every exact input `Context` object as a key. Retur
 
 Where field arguments and input fields hold the `ID` of a `Node` type, the `@idOf` directive should be used to bind them to the intended GraphQL type, enabling type-safe handling in resolvers and tooling:
 
-{{ codetag("demoapps/starwars/modules/filmography/src/main/viaduct/schema/Character.graphqls", "one_of_example", lang="kotlin") }}
+{{ codetag("demoapps/starwars/modules/filmography/src/main/viaduct/schema/Character.graphqls", "one_of_example", lang="graphql") }}
 
-In the Kotlin GRT for `CharacterSearchInput`, the type of `byId` will be `GlobalID<Character>`, allowing type-safe handling of that field.
+In the Kotlin and Java GRTs for `CharacterSearchInput`, the type of `byId` is `GlobalID<Character>`, allowing type-safe handling of that field.
 
 While `@idOf` may be used on the fields of GraphQL object and interface types, we do _not_ recommend using `ID` for such fields:
 
@@ -113,8 +179,8 @@ While `@idOf` may be used on the fields of GraphQL object and interface types, w
 ## Do and don't
 
 - **Do** treat Global IDs as opaque and stable across the API surface.
-- **Do** generate them in resolvers using `ctx.globalIDFor(Type.Reflection, internalId)`.
-- **Do** access the internal ID via `ctx.id.internalID` in node resolvers.
+- **Do** generate them in resolvers using `ctx.globalIDFor(MyNode.Reflection, internalId)` in either language.
+- **Do** access the internal ID via `ctx.id.internalID` in Kotlin or `ctx.getId().getInternalID()` in Java node resolvers.
 - **Do** use `@idOf` on field arguments and input fields carrying Global IDs.
 - **Don't** expose internal IDs or rely on clients decoding them.
 - **Don't** embed business logic or access control information in IDs.

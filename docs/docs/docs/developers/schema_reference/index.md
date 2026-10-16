@@ -4,7 +4,7 @@ description: Viaduct's built-in directives, types, scalars, and schema component
 ---
 
 
-Viaduct automatically provides a rich set of built-in schema components that are available in every application. This reference documents the directives, types, scalars, and other schema elements provided by the framework.
+Viaduct provides built-in schema components shared by Kotlin and Java applications. Language-specific code generation differences are called out below. This reference documents the directives, types, scalars, and other schema elements provided by the framework.
 
 ## Built-in Directives
 
@@ -18,7 +18,7 @@ Marks fields or types that require custom resolution logic. This is the primary 
 
 **Arguments:**
 
-- `isSelective: Boolean! = false` — enables selective resolution
+- `isSelective: Boolean! = false` — enables selective resolution in Kotlin; Java code generation currently rejects `true`
 - `isBatching: Boolean! = false` — when `true`, codegen generates a `batchResolve` method instead of `resolve`, enabling batch resolution for the field or type
 
 **Example:**
@@ -66,6 +66,15 @@ type User {
 ```
 
 The field's base type must be `BackingData`, and a field whose base type is `BackingData` must carry `@backingData`. Backing-data fields can only be declared directly on object types; they cannot be declared on interfaces, inherited from interfaces, or used as input fields.
+
+!!! warning "Java code generation"
+
+    Java GRT generation currently excludes `BackingData` fields. It does not generate the typed
+    getters and builders shown in the Kotlin guide, so do not implement a Java resolver that
+    depends on typed access to those fields through a GRT. A backing-data resolver base class
+    is still generated with an `Object` result. The Java demo reads backing data using an internal
+    engine accessor; that accessor is outside the public API compatibility guarantee. See the
+    [Java code generator policy](https://github.com/airbnb/viaduct/blob/main/core/javaapi/codegen/src/main/java/viaduct/x/javaapi/codegen/GraphQLSchemaParser.java).
 
 See the [`@backingData` guide](../../../getting_started/starwars/directives/backing_data.md) for a complete resolver example.
 
@@ -262,7 +271,7 @@ ISO 8601 date format (YYYY-MM-DD).
 
 **Example value:** `"2024-10-29"`
 
-**Kotlin type mapping:** `java.time.LocalDate`
+**Kotlin and Java type mapping:** `java.time.LocalDate`
 
 ### DateTime
 
@@ -270,7 +279,7 @@ ISO 8601 date-time format with timezone.
 
 **Example value:** `"2024-10-29T14:30:00Z"`
 
-**Kotlin type mapping:** `java.time.Instant`
+**Kotlin and Java type mapping:** `java.time.Instant`
 
 ### Long
 
@@ -280,13 +289,15 @@ ISO 8601 date-time format with timezone.
 
 **Kotlin type mapping:** `Long`
 
+**Java type mapping:** `long` for non-null strict getters, `Long` for nullable values, soft getters, and generic type arguments
+
 ### BigDecimal
 
 Arbitrary precision decimal number.
 
 **Example value:** `"123.456789012345"`
 
-**Kotlin type mapping:** `java.math.BigDecimal`
+**Kotlin and Java type mapping:** `java.math.BigDecimal`
 
 ### BigInteger
 
@@ -294,7 +305,7 @@ Arbitrary precision integer.
 
 **Example value:** `"12345678901234567890"`
 
-**Kotlin type mapping:** `java.math.BigInteger`
+**Kotlin and Java type mapping:** `java.math.BigInteger`
 
 ### JSON
 
@@ -388,16 +399,18 @@ extend type Mutation {
 
 ## Scalar Summary
 
-| Scalar | Description | Kotlin Type | Example Value |
-|--------|-------------|-------------|---------------|
-| Date | ISO 8601 date | `java.time.LocalDate` | `"2024-10-29"` |
-| DateTime | ISO 8601 date-time | `java.time.Instant` | `"2024-10-29T14:30:00Z"` |
-| Long | 64-bit integer | `Long` | `9223372036854775807` |
-| BigDecimal | Arbitrary precision decimal | `java.math.BigDecimal` | `"123.456789"` |
-| BigInteger | Arbitrary precision integer | `java.math.BigInteger` | `"12345678901234567890"` |
-| JSON | Generic JSON value | `Any?` | `{"key": "value"}` |
-| Upload | File upload | Implementation-specific | (binary) |
-| BackingData | Internal backing data ref | Internal | (internal) |
+| Scalar | Description | Kotlin Type | Java Type | Example Value |
+|--------|-------------|-------------|-----------|---------------|
+| Date | ISO 8601 date | `java.time.LocalDate` | `java.time.LocalDate` | `"2024-10-29"` |
+| DateTime | ISO 8601 date-time | `java.time.Instant` | `java.time.Instant` | `"2024-10-29T14:30:00Z"` |
+| Long | 64-bit integer | `Long` | `long` / `Long` | `9223372036854775807` |
+| BigDecimal | Arbitrary precision decimal | `java.math.BigDecimal` | `java.math.BigDecimal` | `"123.456789"` |
+| BigInteger | Arbitrary precision integer | `java.math.BigInteger` | `java.math.BigInteger` | `"12345678901234567890"` |
+| JSON | Generic JSON value | `Any?` | `Object` | `{"key": "value"}` |
+| Upload | File upload | Implementation-specific | Implementation-specific | (binary) |
+| BackingData | Internal backing data ref | Class named by `@backingData` | Excluded from generated GRT fields | (internal) |
+
+Java uses primitive types for non-null strict scalar getters where applicable (`int`, `double`, `boolean`, `long`), and boxed types for nullable values, soft getters, list elements, and resolver future results. GraphQL `Float` maps to Java `Double` in generic types such as `CompletableFuture<Double>`.
 
 ## Best Practices
 
