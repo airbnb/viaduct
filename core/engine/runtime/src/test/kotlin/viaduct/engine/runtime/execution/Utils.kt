@@ -127,6 +127,13 @@ internal fun mkExecutionParameters(
     return parameters
 }
 
+internal fun mkExecutionParameters(): ExecutionParameters =
+    mkExecutionParameters(
+        schemaSDL = "extend type Query { value: Int }",
+        coordinate = "Query" to "value",
+        query = "{ value }",
+    )
+
 internal fun CoroutineScope.mkObjectCompletionParameters(
     schemaSDL: String,
     coordinate: Coordinate,
