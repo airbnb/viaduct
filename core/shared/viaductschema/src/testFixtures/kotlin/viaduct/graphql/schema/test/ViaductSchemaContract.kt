@@ -285,6 +285,82 @@ interface ViaductSchemaContract {
     }
 
     @Test
+    fun `neverHasArgs accounts for directly declared arguments and input fields`() {
+        createSchema(
+            """
+                input Filter { value: String }
+                interface I { plain: String optional(arg: Int): String required(arg: Int!): String }
+                type Query { plain: String optional(arg: Filter): String required(arg: Int!): String }
+            """.trimIndent()
+        ).apply {
+            withField("Filter", "value") { assertTrue(it.neverHasArgs()) }
+            for (type in listOf("I", "Query")) {
+                withField(type, "plain") { assertTrue(it.neverHasArgs(), "$type.plain") }
+                withField(type, "optional") { assertFalse(it.neverHasArgs(), "$type.optional") }
+                withField(type, "required") { assertFalse(it.neverHasArgs(), "$type.required") }
+            }
+        }
+    }
+
+    @Test
+    fun `neverHasArgs accounts for arguments added by objects and interfaces`() {
+        createSchema(
+            """
+                type Query implements B & A {
+                    plain: String
+                    objectArgs(arg: Int = 1): String
+                    interfaceArgs: String
+                }
+                interface B implements A { plain: String objectArgs: String interfaceArgs: String }
+                interface Uninstantiated implements A {
+                    plain: String
+                    objectArgs: String
+                    interfaceArgs(arg: Int): String
+                }
+                type Plain implements A { plain: String objectArgs: String interfaceArgs: String }
+                interface A { plain: String objectArgs: String interfaceArgs: String }
+            """.trimIndent()
+        ).apply {
+            for (type in listOf("A", "B", "Query", "Plain", "Uninstantiated")) {
+                withField(type, "plain") { assertTrue(it.neverHasArgs(), "$type.plain") }
+            }
+            for (type in listOf("A", "B", "Query")) {
+                withField(type, "objectArgs") { assertFalse(it.neverHasArgs(), "$type.objectArgs") }
+            }
+            for (type in listOf("A", "Uninstantiated")) {
+                withField(type, "interfaceArgs") { assertFalse(it.neverHasArgs(), "$type.interfaceArgs") }
+            }
+            withField("B", "interfaceArgs") { assertTrue(it.neverHasArgs()) }
+            withField("Query", "interfaceArgs") { assertTrue(it.neverHasArgs()) }
+            withField("Plain", "objectArgs") { assertTrue(it.neverHasArgs()) }
+            withField("Plain", "interfaceArgs") { assertTrue(it.neverHasArgs()) }
+            withField("Uninstantiated", "objectArgs") { assertTrue(it.neverHasArgs()) }
+        }
+    }
+
+    @Test
+    fun `neverHasArgs includes fields and implementations declared in extensions`() {
+        createSchema(
+            """
+                interface A { plain: String }
+                extend interface A { objectArgs: String interfaceArgs: String }
+                type Query { plain: String }
+                extend type Query implements A { objectArgs(arg: Int): String interfaceArgs: String }
+                interface B { plain: String }
+                extend interface B implements A { objectArgs: String interfaceArgs(arg: Int): String }
+            """.trimIndent()
+        ).apply {
+            withField("A", "plain") { assertTrue(it.neverHasArgs()) }
+            withField("A", "objectArgs") { assertFalse(it.neverHasArgs()) }
+            withField("A", "interfaceArgs") { assertFalse(it.neverHasArgs()) }
+            withField("B", "objectArgs") { assertTrue(it.neverHasArgs()) }
+            withField("B", "interfaceArgs") { assertFalse(it.neverHasArgs()) }
+            withField("Query", "objectArgs") { assertFalse(it.neverHasArgs()) }
+            withField("Query", "interfaceArgs") { assertTrue(it.neverHasArgs()) }
+        }
+    }
+
+    @Test
     fun `isOverride is computed correctly`() {
         this@ViaductSchemaContract.createSchema(
             """

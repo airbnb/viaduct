@@ -44,6 +44,8 @@ internal class SchemaWithData : ViaductSchema {
         mQueryTypeDef = queryTypeDef
         mMutationTypeDef = mutationTypeDef
         mSubscriptionTypeDef = subscriptionTypeDef
+
+        Field.populateNeverHasArgs(types.values)
     }
 
     override fun toString() = types.toString()
@@ -138,6 +140,20 @@ internal class SchemaWithData : ViaductSchema {
         override val description: String? = null,
         argsFactory: (Field) -> List<FieldArg> = { emptyList() },
     ) : HasDefaultValue(), ViaductSchema.Field {
+        companion object {
+            internal fun populateNeverHasArgs(types: Collection<TypeDef>) {
+                for (type in types) {
+                    if (type !is OutputRecord) continue
+                    for (field in type.fields) {
+                        if (!field.hasArgs) continue
+                        for (supertype in type.supers) {
+                            supertype.field(field.name)?.mNeverHasArgs = false
+                        }
+                    }
+                }
+            }
+        }
+
         /** Secondary constructor for fields without arguments (e.g., input fields). */
         internal constructor(
             containingExtension: ViaductSchema.Extension<Record, Field>,
@@ -151,6 +167,9 @@ internal class SchemaWithData : ViaductSchema {
         ) : this(containingExtension, name, type, appliedDirectives, hasDefault, defaultValue, holder, description, { emptyList() })
 
         override val args: List<FieldArg> = argsFactory(this)
+        private var mNeverHasArgs: Boolean = args.isEmpty()
+
+        override fun neverHasArgs(): Boolean = mNeverHasArgs
 
         override val isOverride: Boolean by lazy { ViaductSchema.isOverride(this) }
 

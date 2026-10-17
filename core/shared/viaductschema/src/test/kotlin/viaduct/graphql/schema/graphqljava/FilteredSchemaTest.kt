@@ -143,6 +143,34 @@ class FilteredSchemaTest {
     }
 
     @Test
+    fun `neverHasArgs is recomputed after filtering implementations or arguments`() {
+        val registry = SchemaParser().parse(
+            """
+                interface A { objectArgs: String interfaceArgs: String }
+                type Query implements A { objectArgs: String interfaceArgs: String }
+                type HiddenObject implements A { objectArgs(arg: Int): String interfaceArgs: String }
+                interface HiddenInterface implements A { objectArgs: String interfaceArgs(arg: Int): String }
+            """.trimIndent()
+        )
+        val source = ViaductSchema.fromGraphQLSchema(UnExecutableSchemaGenerator.makeUnExecutableSchema(registry))
+        val withoutImplementations = source.filter(object : SchemaFilter by NoopSchemaFilter() {
+            override fun includeTypeDef(typeDef: ViaductSchema.TypeDef): Boolean = !typeDef.name.startsWith("Hidden")
+        })
+        val withoutArguments = source.filter(object : SchemaFilter by NoopSchemaFilter() {
+            override fun includeFieldArg(arg: ViaductSchema.FieldArg): Boolean = false
+        })
+
+        val sourceInterface = source.types.getValue("A") as ViaductSchema.Interface
+        for (filtered in listOf(withoutImplementations, withoutArguments)) {
+            val filteredInterface = filtered.types.getValue("A") as ViaductSchema.Interface
+            for (field in listOf("objectArgs", "interfaceArgs")) {
+                assertTrue(filteredInterface.field(field)!!.neverHasArgs(), field)
+                assertFalse(sourceInterface.field(field)!!.neverHasArgs(), field)
+            }
+        }
+    }
+
+    @Test
     fun `compare noop-filtered test schema against expected result`() {
         val noopFilteredSchema = filterSchema(unfilteredTestSchema, NoopSchemaFilter())
         SchemaDiff(unfilteredTestSchema, noopFilteredSchema).diff().assertEmpty("\n")

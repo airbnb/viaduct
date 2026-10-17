@@ -265,7 +265,7 @@ internal class FilteredSchemaDecoder(
     fun computePossibleObjectTypes(interfaceDef: SchemaWithData.Interface): Set<SchemaWithData.Object> {
         val unfilteredDef = interfaceDef.unfilteredDef
         return unfilteredDef.possibleObjectTypes
-            .filter { includePossibleSubType(it, unfilteredDef) }
+            .filter { filter.includeTypeDef(it) && includePossibleSubType(it, unfilteredDef) }
             .map { filteredTypes[it.name] as SchemaWithData.Object }
             .toSet()
     }

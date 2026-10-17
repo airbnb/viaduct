@@ -99,6 +99,43 @@ class ViaductSchemaBuilderTest {
     }
 
     @Test
+    fun `neverHasArgs includes arguments added by object and interface implementations`() {
+        val stringType = TypeExprBuilder("String")
+        val schema =
+            ViaductSchemaBuilder(noStandardDefs = true)
+                .addDefinition(ScalarTypeBuilder("String"))
+                .addDefinition(
+                    ObjectTypeBuilder("Query")
+                        .addInterface("A")
+                        .addField(
+                            OutputFieldBuilder("objectArgs", stringType)
+                                .addArgument(ArgumentBuilder("arg", stringType))
+                        ).addField(OutputFieldBuilder("interfaceArgs", stringType))
+                ).addDefinition(
+                    InterfaceTypeBuilder("B")
+                        .addInterface("A")
+                        .addField(OutputFieldBuilder("objectArgs", stringType))
+                        .addField(
+                            OutputFieldBuilder("interfaceArgs", stringType)
+                                .addArgument(ArgumentBuilder("arg", stringType))
+                        )
+                ).addDefinition(
+                    InterfaceTypeBuilder("A")
+                        .addField(OutputFieldBuilder("objectArgs", stringType))
+                        .addField(OutputFieldBuilder("interfaceArgs", stringType))
+                ).build()
+
+        val a = schema.types.getValue("A") as ViaductSchema.Interface
+        val b = schema.types.getValue("B") as ViaductSchema.Interface
+        assertFalse(a.field("objectArgs")!!.neverHasArgs())
+        assertFalse(a.field("interfaceArgs")!!.neverHasArgs())
+        assertTrue(b.field("objectArgs")!!.neverHasArgs())
+        assertFalse(b.field("interfaceArgs")!!.neverHasArgs())
+        assertFalse(schema.queryTypeDef!!.field("objectArgs")!!.neverHasArgs())
+        assertTrue(schema.queryTypeDef!!.field("interfaceArgs")!!.neverHasArgs())
+    }
+
+    @Test
     fun `type expression list wrappers are immutable and reusable`() {
         val base = TypeExprBuilder("String", nullable = false)
         val nullableList = base.list()

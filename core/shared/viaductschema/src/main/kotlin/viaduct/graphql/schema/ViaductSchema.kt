@@ -502,6 +502,10 @@ interface ViaductSchema {
 
         val hasArgs get() = args.isNotEmpty()
 
+        /** True for input fields, or output fields when the direct type and no implementing type
+         *  define the field with arguments. */
+        fun neverHasArgs(): Boolean
+
         override fun describe() = "Field<$name:$type>"
     }
 

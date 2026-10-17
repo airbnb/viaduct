@@ -210,6 +210,7 @@ class SchemaDiff(
                     cvt(expectedDef, actualDef) { exp, act ->
                         checker.isEqualTo(exp.isOverride, act.isOverride, "OVERRIDE_KIND_AGREE")
                         checker.isEqualTo(exp.hasArgs, act.hasArgs, "FIELD_HAS_ARGS_AGREE")
+                        checker.isEqualTo(exp.neverHasArgs(), act.neverHasArgs(), "FIELD_NEVER_HAS_ARGS_AGREE")
                         sameAppliedDirectiveNames(exp.containingDef, act.containingDef, "EXTENSION_APPLIED_DIRECTIVE").forEach {
                             checker.withContext(it.first.name) { visitAppliedDirective(it.first, it.second) }
                         }
