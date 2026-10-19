@@ -92,55 +92,101 @@ type Query {
 
 ## Generated Interfaces
 
-Viaduct generates Kotlin interfaces in `viaduct.api.types` that your GRTs implement:
+Generated GRTs implement pagination interfaces from `viaduct.api.types` in Kotlin or `viaduct.java.api.types` in Java. The simplified signatures below show their shape; the Java types use nullable `Integer` and `String` arguments. Java pagination APIs are marked `@ExperimentalApi`.
 
 ### Connection and Edge
 
-```kotlin
-interface Connection<E : Edge<N>, N> : Object
+=== "Kotlin"
 
-interface Edge<N> : Object
-```
+    ```kotlin
+    interface Connection<E : Edge<N>, N> : Object
+
+    interface Edge<N> : Object
+    ```
+
+=== "Java"
+
+    ```java
+    // In viaduct.java.api.types:
+    public interface Connection<E extends Edge<N>, N> extends GraphQLObject {}
+    public interface Edge<N> extends GraphQLObject {}
+    ```
+
 
 ### Pagination Arguments
 
-```kotlin
-interface ConnectionArguments : Arguments
+=== "Kotlin"
 
-interface ForwardConnectionArguments : ConnectionArguments {
-  val first: Int?
-  val after: String?
-}
+    ```kotlin
+    interface ConnectionArguments : Arguments
 
-interface BackwardConnectionArguments : ConnectionArguments {
-  val last: Int?
-  val before: String?
-}
+    interface ForwardConnectionArguments : ConnectionArguments {
+      val first: Int?
+      val after: String?
+    }
 
-interface MultidirectionalConnectionArguments
-  : ForwardConnectionArguments, BackwardConnectionArguments
-```
+    interface BackwardConnectionArguments : ConnectionArguments {
+      val last: Int?
+      val before: String?
+    }
+
+    interface MultidirectionalConnectionArguments
+      : ForwardConnectionArguments, BackwardConnectionArguments
+    ```
+
+=== "Java"
+
+    ```java
+    public interface ForwardConnectionArguments extends ConnectionArguments {
+      Integer getFirst();
+      String getAfter();
+    }
+
+    public interface BackwardConnectionArguments extends ConnectionArguments {
+      Integer getLast();
+      String getBefore();
+    }
+
+    // MultidirectionalConnectionArguments implements both interfaces
+    // and reconciles their default methods.
+    ```
+
 
 Generated argument types implement the appropriate interface based on which pagination arguments the field accepts.
 
 ### Execution Context
 
-Connection field resolvers receive a {{ kdoc("viaduct.api.context.ConnectionFieldExecutionContext") }}:
+Connection field resolvers receive a {{ kdoc("viaduct.api.context.ConnectionFieldExecutionContext") }} in Kotlin or a [`viaduct.java.api.context.ConnectionFieldExecutionContext`](https://github.com/airbnb/viaduct/blob/main/core/javaapi/api/src/main/java/viaduct/java/api/context/ConnectionFieldExecutionContext.java) in Java:
 
-```kotlin
-interface ConnectionFieldExecutionContext<
-    O : Object,
-    Q : Query,
-    A : ConnectionArguments,
-    R : Connection<*, *>,
-> : FieldExecutionContext<O, Q, A, R>
-```
+=== "Kotlin"
+
+    ```kotlin
+    interface ConnectionFieldExecutionContext<
+        O : Object,
+        Q : Query,
+        A : ConnectionArguments,
+        R : Connection<*, *>,
+    > : FieldExecutionContext<O, Q, A, R>
+    ```
+
+=== "Java"
+
+    ```java
+    // In viaduct.java.api.context:
+    public interface ConnectionFieldExecutionContext<
+        O extends GraphQLObject,
+        Q extends Query,
+        A extends ConnectionArguments,
+        R extends Connection<?, ?>>
+        extends FieldExecutionContext<O, Q, A, R> {}
+    ```
+
 
 This provides type-safe access to pagination arguments and ensures compatibility with builder utilities.
 
 ## Building Connections
 
-Connection GRT builders extend `ConnectionBuilder`, which provides utilities for common pagination scenarios.
+Connection GRT builders extend `ConnectionBuilder`, which provides utilities for common pagination scenarios. Java uses `Type.builder(ctx)` and positional method arguments. The resolver examples use `java.util.concurrent.CompletableFuture`, `java.util.List` / `ArrayList`, `viaduct.java.api.annotations.Resolver`, and pagination types from `viaduct.java.api.types`. Repository calls shown here are synchronous; compose futures if your repository is asynchronous.
 
 ### From Edges (Native Cursors or Edge Metadata)
 
@@ -148,82 +194,177 @@ Use `fromEdges()` when you need full control over edge construction. This is the
 
 **1. Backend returns native cursors:**
 
-```kotlin
-@Resolver
-class UsersResolver : QueryUsersResolver() {
-    override suspend fun resolve(ctx: Context): UserConnection {
-        val response = userService.getUsers(
-            cursor = ctx.arguments.after,
-            limit = ctx.arguments.first ?: 20
-        )
+=== "Kotlin"
 
-        return UserConnection.Builder(ctx)
-            .fromEdges(
-                edges = response.users.map { user ->
-                    UserEdge.Builder(ctx)
-                        .node(ctx.ref(user.id))
-                        .cursor(user.cursor)
-                        .build()
-                },
-                hasNextPage = response.hasMore,
-                hasPreviousPage = response.hasPrevious
+    ```kotlin
+    @Resolver
+    class UsersResolver : QueryUsersResolver() {
+        override suspend fun resolve(ctx: Context): UserConnection {
+            val response = userService.getUsers(
+                cursor = ctx.arguments.after,
+                limit = ctx.arguments.first ?: 20
             )
-            .build()
+
+            return UserConnection.Builder(ctx)
+                .fromEdges(
+                    edges = response.users.map { user ->
+                        UserEdge.Builder(ctx)
+                            .node(ctx.ref(user.id))
+                            .cursor(user.cursor)
+                            .build()
+                    },
+                    hasNextPage = response.hasMore,
+                    hasPreviousPage = response.hasPrevious
+                )
+                .build()
+        }
     }
-}
-```
+    ```
+
+=== "Java"
+
+    ```java
+    @Resolver
+    public final class UsersResolver extends QueryResolvers.Users {
+      private final UserService userService;
+
+      public UsersResolver(UserService userService) {
+        this.userService = userService;
+      }
+
+      @Override
+      public CompletableFuture<UserConnection> resolve(Context ctx) {
+        var args = ctx.getArguments();
+        var response = userService.getUsers(
+            args.getAfter(), args.getFirst() == null ? 20 : args.getFirst());
+        var edges = response.users().stream()
+            .map(user -> UserEdge.builder(ctx)
+                .node(ctx.ref(user.id()))
+                .cursor(user.cursor())
+                .build())
+            .toList();
+        return CompletableFuture.completedFuture(
+            UserConnection.builder(ctx)
+                .fromEdges(edges, response.hasMore(), response.hasPrevious())
+                .build());
+      }
+    }
+    ```
+
 
 **2. Edge type carries metadata fields beyond `node` and `cursor`:**
 
 When your edge has extra fields (such as `role`, `reason`, `score`), you must build the edges manually using `fromEdges()` since `fromSlice()` and `fromList()` only build the node. Use `OffsetCursor.fromOffset()` to encode cursors for offset/limit backends:
 
-```kotlin
-@Resolver
-class UsersByRoleResolver : QueryUsersByRoleResolver() {
-    override suspend fun resolve(ctx: Context): UserConnection {
-        val (offset, limit) = ctx.arguments.toOffsetLimit()
-        val fetched = userService.getUsers(offset, limit + 1)
-        val page = fetched.take(limit)
+=== "Kotlin"
 
-        return UserConnection.Builder(ctx)
-            .fromEdges(
-                edges = page.mapIndexed { idx, user ->
-                    UserEdge.Builder(ctx)
-                        .node(ctx.ref(user.id))
-                        .cursor(OffsetCursor.fromOffset(offset + idx).value)
-                        .role(user.role)
-                        .build()
-                },
-                hasNextPage = fetched.size > limit,
-                hasPreviousPage = offset > 0
-            )
-            .build()
+    ```kotlin
+    @Resolver
+    class UsersByRoleResolver : QueryUsersByRoleResolver() {
+        override suspend fun resolve(ctx: Context): UserConnection {
+            val (offset, limit) = ctx.arguments.toOffsetLimit()
+            val fetched = userService.getUsers(offset, limit + 1)
+            val page = fetched.take(limit)
+
+            return UserConnection.Builder(ctx)
+                .fromEdges(
+                    edges = page.mapIndexed { idx, user ->
+                        UserEdge.Builder(ctx)
+                            .node(ctx.ref(user.id))
+                            .cursor(OffsetCursor.fromOffset(offset + idx).value)
+                            .role(user.role)
+                            .build()
+                    },
+                    hasNextPage = fetched.size > limit,
+                    hasPreviousPage = offset > 0
+                )
+                .build()
+        }
     }
-}
-```
+    ```
+
+=== "Java"
+
+    ```java
+    @Resolver
+    public final class UsersByRoleResolver extends QueryResolvers.UsersByRole {
+      private final UserService userService;
+
+      public UsersByRoleResolver(UserService userService) {
+        this.userService = userService;
+      }
+
+      @Override
+      public CompletableFuture<UserConnection> resolve(Context ctx) {
+        OffsetLimit bounds = ctx.getArguments().toOffsetLimit();
+        var fetched = userService.getUsers(bounds.offset(), bounds.limit() + 1);
+        List<UserEdge> edges = new ArrayList<>();
+        int size = Math.min(bounds.limit(), fetched.size());
+        for (int index = 0; index < size; index++) {
+          var user = fetched.get(index);
+          edges.add(UserEdge.builder(ctx)
+              .node(ctx.ref(user.id()))
+              .cursor(OffsetCursor.fromOffset(bounds.offset() + index).getValue())
+              .role(user.role())
+              .build());
+        }
+        return CompletableFuture.completedFuture(
+            UserConnection.builder(ctx)
+                .fromEdges(edges, fetched.size() > bounds.limit(), bounds.offset() > 0)
+                .build());
+      }
+    }
+    ```
+
 
 ### From Slice (Offset/Limit, No Edge Metadata)
 
 When your backend uses offset/limit and your edge type has no extra fields beyond `node` and `cursor`, use `fromSlice()`. It handles cursor encoding automatically:
 
-```kotlin
-@Resolver
-class UsersResolver : QueryUsersResolver() {
-    override suspend fun resolve(ctx: Context): UserConnection {
-        val (offset, limit) = ctx.arguments.toOffsetLimit()
-        val fetched = userService.getUsers(offset, limit + 1)
+=== "Kotlin"
 
-        return UserConnection.Builder(ctx)
-            .fromSlice(
-                items = fetched,
-                hasNextPage = fetched.size > limit
-            ) { user ->
-                ctx.ref(user.id)
-            }
-            .build()
+    ```kotlin
+    @Resolver
+    class UsersResolver : QueryUsersResolver() {
+        override suspend fun resolve(ctx: Context): UserConnection {
+            val (offset, limit) = ctx.arguments.toOffsetLimit()
+            val fetched = userService.getUsers(offset, limit + 1)
+
+            return UserConnection.Builder(ctx)
+                .fromSlice(
+                    items = fetched,
+                    hasNextPage = fetched.size > limit
+                ) { user ->
+                    ctx.ref(user.id)
+                }
+                .build()
+        }
     }
-}
-```
+    ```
+
+=== "Java"
+
+    ```java
+    @Resolver
+    public final class UsersResolver extends QueryResolvers.Users {
+      private final UserService userService;
+
+      public UsersResolver(UserService userService) {
+        this.userService = userService;
+      }
+
+      @Override
+      public CompletableFuture<UserConnection> resolve(Context ctx) {
+        OffsetLimit bounds = ctx.getArguments().toOffsetLimit();
+        var fetched = userService.getUsers(bounds.offset(), bounds.limit() + 1);
+        return CompletableFuture.completedFuture(
+            UserConnection.builder(ctx)
+                .fromSlice(fetched, bounds, fetched.size() > bounds.limit(), user -> ctx.ref(user.id()))
+                .build());
+      }
+    }
+    ```
+
 
 The `fromSlice()` method:
 
@@ -238,30 +379,64 @@ The `fromSlice()` method:
 
 When your backend returns the complete dataset and you want Viaduct to handle slicing:
 
-```kotlin
-@Resolver
-class UsersResolver : QueryUsersResolver() {
-    override suspend fun resolve(ctx: Context): UserConnection {
-        val allUsers = userService.getAllUsers()
+=== "Kotlin"
 
-        return UserConnection.Builder(ctx)
-            .fromList(allUsers) { user ->
-                ctx.ref(user.id)
-            }
-            .build()
+    ```kotlin
+    @Resolver
+    class UsersResolver : QueryUsersResolver() {
+        override suspend fun resolve(ctx: Context): UserConnection {
+            val allUsers = userService.getAllUsers()
+
+            return UserConnection.Builder(ctx)
+                .fromList(allUsers) { user ->
+                    ctx.ref(user.id)
+                }
+                .build()
+        }
     }
-}
-```
+    ```
+
+=== "Java"
+
+    ```java
+    @Resolver
+    public final class UsersResolver extends QueryResolvers.Users {
+      private final UserService userService;
+
+      public UsersResolver(UserService userService) {
+        this.userService = userService;
+      }
+
+      @Override
+      public CompletableFuture<UserConnection> resolve(Context ctx) {
+        var allUsers = userService.getAllUsers();
+        return CompletableFuture.completedFuture(
+            UserConnection.builder(ctx).fromList(allUsers, user -> ctx.ref(user.id())).build());
+      }
+    }
+    ```
+
 
 `fromList()` handles backward pagination (`last` without `before`) automatically. When `toOffsetLimit()` returns a negative offset (the signal for "take from the tail"), `fromList()` resolves it against the list size — e.g. an offset of `-3` on a 10-item list becomes offset `7`, returning the last 3 items.
 
 ## Converting Arguments to Offset/Limit
 
-Use the `toOffsetLimit()` extension function to convert cursor-based arguments:
+Use `toOffsetLimit()` to convert cursor-based arguments. Kotlin provides an extension function; Java defines a method on the generated arguments interface:
 
-```kotlin
-val (offset, limit) = ctx.arguments.toOffsetLimit()
-```
+=== "Kotlin"
+
+    ```kotlin
+    val (offset, limit) = ctx.arguments.toOffsetLimit()
+    ```
+
+=== "Java"
+
+    ```java
+    OffsetLimit bounds = ctx.getArguments().toOffsetLimit();
+    int offset = bounds.offset();
+    int limit = bounds.limit();
+    ```
+
 
 **Valid argument combinations:**
 
@@ -284,17 +459,34 @@ val (offset, limit) = ctx.arguments.toOffsetLimit()
 
 When only `last` is specified (no `before` cursor), `toOffsetLimit()` returns a negative offset as a signal — the absolute value is the page size, and `fromList()` resolves it against the list size automatically.
 
-For `fromSlice()` or `fromEdges()`, you need the real offset up front. Use `requiresTotalCountForOffsetLimit()` to check whether a total count is needed, then call `toOffsetLimit(totalCount)` if so:
+For `fromSlice()` or `fromEdges()`, you need the real offset up front. Use `requiresTotalCountForOffsetLimit()` to check whether a total count is needed. Kotlin uses `toOffsetLimit(totalCount = total)`; Java requires **two** arguments, `toOffsetLimit(totalCount, defaultPageSize)`. In Java, the one-argument overload sets the default page size; it does not supply a total count. Pass the resulting bounds to Java `fromSlice(items, bounds, hasNextPage, buildNode)` so it uses the same offset as your backend request:
 
-```kotlin
-val (offset, limit) = if (ctx.arguments.requiresTotalCountForOffsetLimit()) {
-    val total = myService.count()
-    ctx.arguments.toOffsetLimit(totalCount = total)
-} else {
-    ctx.arguments.toOffsetLimit()
-}
-val fetched = myService.getItems(offset, limit + 1)
-```
+=== "Kotlin"
+
+    ```kotlin
+    val (offset, limit) = if (ctx.arguments.requiresTotalCountForOffsetLimit()) {
+        val total = myService.count()
+        ctx.arguments.toOffsetLimit(totalCount = total)
+    } else {
+        ctx.arguments.toOffsetLimit()
+    }
+    val fetched = myService.getItems(offset, limit + 1)
+    ```
+
+=== "Java"
+
+    ```java
+    OffsetLimit bounds = ctx.getArguments().requiresTotalCountForOffsetLimit()
+        ? ctx.getArguments().toOffsetLimit(myService.count(), ConnectionArguments.DEFAULT_PAGE_SIZE)
+        : ctx.getArguments().toOffsetLimit();
+    var fetched = myService.getItems(bounds.offset(), bounds.limit() + 1);
+
+    // Pass these same bounds to fromSlice when the offset depends on total count.
+    return UserConnection.builder(ctx)
+        .fromSlice(fetched, bounds, fetched.size() > bounds.limit(), item -> ctx.ref(item.id()))
+        .build();
+    ```
+
 
 ## Cursors
 
@@ -302,18 +494,28 @@ Cursors are opaque strings that identify a position in a paginated list.
 
 ### Offset Cursors
 
-For offset/limit backends, Viaduct provides `viaduct.api.types.OffsetCursor`:
+For offset/limit backends, Viaduct provides `viaduct.api.types.OffsetCursor` in Kotlin and `viaduct.java.api.types.OffsetCursor` in Java:
 
-```kotlin
-@JvmInline
-value class OffsetCursor(val value: String) {
-  fun toOffset(): Int
+=== "Kotlin"
 
-  companion object {
-    fun fromOffset(offset: Int): OffsetCursor
-  }
-}
-```
+    ```kotlin
+    @JvmInline
+    value class OffsetCursor(val value: String) {
+      fun toOffset(): Int
+
+      companion object {
+        fun fromOffset(offset: Int): OffsetCursor
+      }
+    }
+    ```
+
+=== "Java"
+
+    ```java
+    String cursor = OffsetCursor.fromOffset(10).getValue();
+    int offset = new OffsetCursor(cursor).toOffset();
+    ```
+
 
 Cursors are serialized in a format intentionally opaque to clients.
 
@@ -329,7 +531,7 @@ Offset-based cursors are best-effort and may produce duplicate or skipped result
 type Organization implements Node {
   id: ID!
   name: String!
-  members(first: Int, after: String): MemberConnection!
+  members(first: Int, after: String): MemberConnection! @resolver
 }
 
 type MemberConnection @connection {
@@ -354,40 +556,80 @@ enum MemberRole {
 
 **Resolver:**
 
-```kotlin
-@Resolver
-class OrganizationMembersResolver : OrganizationResolvers.Members() {
-  @Inject lateinit var memberService: MemberService
+=== "Kotlin"
 
-  override suspend fun resolve(ctx: Context): MemberConnection {
-    val orgId = ctx.getObjectValue().getIdOrThrow()
-    val (offset, limit) = ctx.arguments.toOffsetLimit()
+    ```kotlin
+    @Resolver
+    class OrganizationMembersResolver : OrganizationResolvers.Members() {
+      @Inject lateinit var memberService: MemberService
 
-    val response = memberService.getMembers(
-      organizationId = orgId.internalID,
-      offset = offset,
-      limit = limit + 1
-    )
+      override suspend fun resolve(ctx: Context): MemberConnection {
+        val orgId = ctx.getObjectValue().getIdOrThrow()
+        val (offset, limit) = ctx.arguments.toOffsetLimit()
 
-    val page = response.members.take(limit)
-    return MemberConnection.Builder(ctx)
-      .fromEdges(
-        edges = page.mapIndexed { idx, member ->
-          MemberEdge.Builder(ctx)
-            .node(ctx.ref(member.userId))
-            .cursor(OffsetCursor.fromOffset(offset + idx).value)
-            .role(member.role)
-            .joinedAt(member.joinedAt)
-            .build()
-        },
-        hasNextPage = response.members.size > limit,
-        hasPreviousPage = offset > 0
-      )
-      .totalCount(response.totalCount)
-      .build()
-  }
-}
-```
+        val response = memberService.getMembers(
+          organizationId = orgId.internalID,
+          offset = offset,
+          limit = limit + 1
+        )
+
+        val page = response.members.take(limit)
+        return MemberConnection.Builder(ctx)
+          .fromEdges(
+            edges = page.mapIndexed { idx, member ->
+              MemberEdge.Builder(ctx)
+                .node(ctx.ref(member.userId))
+                .cursor(OffsetCursor.fromOffset(offset + idx).value)
+                .role(member.role)
+                .joinedAt(member.joinedAt)
+                .build()
+            },
+            hasNextPage = response.members.size > limit,
+            hasPreviousPage = offset > 0
+          )
+          .totalCount(response.totalCount)
+          .build()
+      }
+    }
+    ```
+
+=== "Java"
+
+    ```java
+    @Resolver(objectValueFragment = "id")
+    public final class OrganizationMembersResolver extends OrganizationResolvers.Members {
+      private final MemberService memberService;
+
+      public OrganizationMembersResolver(MemberService memberService) {
+        this.memberService = memberService;
+      }
+
+      @Override
+      public CompletableFuture<MemberConnection> resolve(Context ctx) {
+        var orgId = ctx.getObjectValue().getId();
+        OffsetLimit bounds = ctx.getArguments().toOffsetLimit();
+        var response = memberService.getMembers(
+            orgId.getInternalID(), bounds.offset(), bounds.limit() + 1);
+        int size = Math.min(bounds.limit(), response.members().size());
+        List<MemberEdge> edges = new ArrayList<>();
+        for (int index = 0; index < size; index++) {
+          var member = response.members().get(index);
+          edges.add(MemberEdge.builder(ctx)
+              .node(ctx.ref(member.userId()))
+              .cursor(OffsetCursor.fromOffset(bounds.offset() + index).getValue())
+              .role(member.role())
+              .joinedAt(member.joinedAt())
+              .build());
+        }
+        return CompletableFuture.completedFuture(
+            MemberConnection.builder(ctx)
+                .fromEdges(edges, response.members().size() > bounds.limit(), bounds.offset() > 0)
+                .totalCount(response.totalCount())
+                .build());
+      }
+    }
+    ```
+
 
 **Query:**
 
@@ -426,35 +668,53 @@ query {
 
 ## Testing
 
-Connection resolvers are tested like any other field resolver. Extend `DefaultAbstractResolverTestBase` and use `runFieldResolver` with the generated connection arguments type:
+Connection resolvers are tested like other field resolvers. Kotlin can extend `DefaultAbstractResolverTestBase`. Java's isolated `ResolverTestBase` supports resolvers that build concrete GRTs, but the `UsersResolver` examples above create node references, which that harness does not implement. The Java example therefore executes through a real `Viaduct` instance, configured with the users query and its node resolvers and a service returning at least three users. Its Base schema must expose the query; pass your registered schema ID instead if using scoped views.
 
-```kotlin
-@OptIn(ExperimentalApi::class)
-class MyConnectionResolverTest : DefaultAbstractResolverTestBase() {
-  override fun getSchema() = mySchema
+=== "Kotlin"
 
-  @Test
-  fun `first page returns correct edges`() = runBlocking {
-    val result = runFieldResolver(
-      resolver = UsersResolver(),
-      arguments = Users_Arguments.Builder(context).first(3).build()
-    )
-    assertEquals(3, result.getEdgesOrThrow().size)
-  }
-}
-```
+    ```kotlin
+    @OptIn(ExperimentalApi::class)
+    class MyConnectionResolverTest : DefaultAbstractResolverTestBase() {
+      override fun getSchema() = mySchema
+
+      @Test
+      fun `first page returns correct edges`() = runBlocking {
+        val result = runFieldResolver(
+          resolver = UsersResolver(),
+          arguments = Users_Arguments.Builder(context).first(3).build()
+        )
+        assertEquals(3, result.getEdgesOrThrow().size)
+      }
+    }
+    ```
+
+=== "Java"
+
+    ```java
+    @Test
+    void firstPageReturnsCorrectEdges() {
+      var input = ExecutionInput.create("query { users(first: 3) { edges { cursor } } }");
+      var result = viaduct.executeAsync(input).join();
+      assertThat(result.getErrors()).isEmpty();
+      Map<?, ?> connection = (Map<?, ?>) result.getData().get("users");
+      assertThat((List<?>) connection.get("edges")).hasSize(3);
+    }
+    ```
+
 
 !!! note
     `DefaultAbstractResolverTestBase` and `runFieldResolver` are annotated `@ExperimentalApi`. Opt in with `@OptIn(ExperimentalApi::class)` on your test class or file.
 
-See the [resolver testing guide](../resolvers/index.md) for full testing documentation.
+See the [resolver testing guide](../testing/index.md) for harness setup. Use engine or application tests if the resolver creates node references, because the isolated Java harness does not implement `ctx.ref`. The [Java Star Wars integration test](https://github.com/airbnb/viaduct/blob/main/demoapps/starwars-java/src/test/java/com/example/starwars/service/StarWarsJavaIntegrationTest.java) exercises forward, backward, and adjacent connection pages.
 
 ## Best Practices
 
 - **Fetch limit + 1** items to efficiently determine `hasNextPage` without a count query
 - **Trim to `limit` before building edges for `fromEdges()`** — over-fetching is only for detecting the next page
 - **Include `totalCount`** on the connection type when it is useful for UI pagination controls
-- **Set reasonable defaults** for page size (typically 10–50 items) via `toOffsetLimit(defaultPageSize = N)`
+- **Set reasonable defaults** for page size (typically 10–50 items) via Kotlin `toOffsetLimit(defaultPageSize = N)` or Java `toOffsetLimit(N)`
 - **Keep cursors opaque** — don't parse or construct `OffsetCursor` values in client code
 - **Use `fromEdges()` for edge metadata** — if your edge type has any field beyond `node` and `cursor`, `fromSlice()` and `fromList()` cannot populate those fields
-- **Handle `last` without `before`** — call `requiresTotalCountForOffsetLimit()` first; if it returns `true`, use `toOffsetLimit(totalCount)`. With `fromList()` this is handled automatically.
+- **Handle `last` without `before`** — call `requiresTotalCountForOffsetLimit()` first; if it returns `true`, use Kotlin `toOffsetLimit(totalCount = totalCount)` or Java `toOffsetLimit(totalCount, defaultPageSize)`. With `fromList()` this is handled automatically.
+
+For complete Java implementations, see [AllCharactersConnectionQueryResolver](https://github.com/airbnb/viaduct/blob/main/demoapps/starwars-java/modules/filmography/src/main/java/com/example/starwars/modules/filmography/characters/queries/AllCharactersConnectionQueryResolver.java) (`fromList`) and [AllSpeciesConnectionQueryResolver](https://github.com/airbnb/viaduct/blob/main/demoapps/starwars-java/modules/universe/src/main/java/com/example/starwars/modules/universe/species/queries/AllSpeciesConnectionQueryResolver.java) (`fromEdges`, including `last` without `before`).

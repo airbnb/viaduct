@@ -21,22 +21,48 @@ type User implements Node {
 
 Rather than requiring the `Listing` resolver to also be responsible for resolving `User` data, the `Listing` resolver can use `Context.ref()` to create a *node reference*. The `ref` function takes a [GlobalID](../globalids/index.md) as input and returns a special [GRT](../generated_code/index.md) for that node:
 
-```kotlin
-@Resolver
-class ListingNodeResolver @Inject constructor(val client: ListingClient) : NodeResolvers.Listing() {
-  override suspend fun resolve(ctx: Context): Listing {
-    val data = client.fetch(ctx.id.internalID)
-    val hostGlobalID = ctx.globalIDFor(User.Reflection, data.hostID)
+=== "Kotlin"
 
-    // Creates a node reference as a User GRT
-    val host = ctx.ref(hostGlobalID)
-    return Listing.builder(ctx)
-      .host(host)
-      /* ... other fields populated from [data] */
-      .build()
-  }
-}
-```
+    ```kotlin
+    @Resolver
+    class ListingNodeResolver @Inject constructor(val client: ListingClient) : NodeResolvers.Listing() {
+      override suspend fun resolve(ctx: Context): Listing {
+        val data = client.fetch(ctx.id.internalID)
+        val hostGlobalID = ctx.globalIDFor(User.Reflection, data.hostID)
+
+        // Creates a node reference as a User GRT
+        val host = ctx.ref(hostGlobalID)
+        return Listing.builder(ctx)
+          .host(host)
+          /* ... other fields populated from [data] */
+          .build()
+      }
+    }
+    ```
+
+=== "Java"
+
+    ```java
+    @Resolver
+    public final class ListingNodeResolver extends NodeResolvers.Listing {
+      private final ListingClient client;
+
+      public ListingNodeResolver(ListingClient client) {
+        this.client = client;
+      }
+
+      @Override
+      public CompletableFuture<Listing> resolve(Context ctx) {
+        var data = client.fetch(ctx.getId().getInternalID());
+        var hostId = ctx.globalIDFor(Type.ofClass(User.class), data.hostID());
+        return CompletableFuture.completedFuture(
+            Listing.builder(ctx).host(ctx.ref(hostId)).build());
+      }
+    }
+    ```
+
+
+The example omits other `Listing` fields; populate every field in the resolver's output selection set. Java uses `Type.ofClass(User.class)` (or the generated `User.Reflection`) and synchronous `getId()` / `getInternalID()` accessors. The [Java Star Wars CharacterBuilder](https://github.com/airbnb/viaduct/blob/main/demoapps/starwars-java/modules/filmography/src/main/java/com/example/starwars/modules/filmography/characters/models/CharacterBuilder.java) demonstrates node references in a complete response builder.
 
 When this resolver returns, the Viaduct engine will invoke the `User` node resolver, as well as any field resolvers on the `User` type, to fetch data for the `Listing.host` field.
 

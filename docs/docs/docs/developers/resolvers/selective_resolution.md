@@ -4,14 +4,19 @@ description: Loading only the fields requested from selective resolvers
 ---
 
 
-Selective resolution is currently supported by the Kotlin Tenant API. It is temporarily disabled in
-the Java Tenant API: Java codegen rejects field and node declarations with
-`@resolver(isSelective: true)` or the legacy `@resolver(selective: true)`, including batched resolvers.
-The behavior described below applies to Kotlin resolvers.
+=== "Kotlin"
 
-Kotlin field and node resolvers may be declared as selective through an argument on the resolver directive: `@resolver(isSelective: true)`.
+    Kotlin field and node resolvers may be declared as selective through an argument on the resolver directive: `@resolver(isSelective: true)`.
 
-A selective resolver may invoke `ctx.selections()` from inside its resolve function. This method returns a `SelectionSet` describing the fields that the resolver must resolve. A resolver may use this to produce values for only the fields that are selected, improving resolver performance by skipping computationally expensive fields that were not selected.
+    A selective resolver may invoke `ctx.selections()` from inside its resolve function. This method returns a `SelectionSet` describing the fields that the resolver must resolve. A resolver may use this to produce values for only the fields that are selected, improving resolver performance by skipping computationally expensive fields that were not selected.
+
+=== "Java"
+
+    Selective resolution is temporarily disabled in the Java Tenant API. Java code generation rejects `@resolver(isSelective: true)` and the legacy `@resolver(selective: true)` on fields and nodes, including batched resolvers. The remaining examples on this page describe Kotlin behavior.
+
+    Use ordinary `@resolver` or `@resolver(isBatching: true)` declarations in Java and populate the complete output selection set. For expensive optional data, place it behind a separate field resolver so the engine invokes it when that field is needed. This is the pattern used by the Java demo's `Character.filmCount` and other derived fields.
+
+    The Java selective context interfaces currently expose selections as `Object`; there is no public typed Java `SelectionSet` API to use as a substitute. Do not cast to Kotlin or engine implementation types. See the [Java codegen rejection tests](https://github.com/airbnb/viaduct/blob/main/core/javaapi/codegen/src/test/java/viaduct/x/javaapi/codegen/GraphQLSchemaParserTest.java) for the current supported boundary.
 
 ## Resolver Outputs
 There are some do's and don'ts when it comes to what a selective resolver returns. To help frame this, let's look at the `Query.foo` resolver for this schema and query:

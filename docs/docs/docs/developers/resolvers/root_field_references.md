@@ -26,22 +26,44 @@ Reference a field by calling it on its parent type and passing the result to `ct
 
 A field is referenceable when it is declared on the root Query type or on a `@namespaceType` reachable from it, and has a non-list object type.
 
-For a field **with arguments**, set each one inside the configuration lambda:
+For a field **with arguments**, Kotlin uses a configuration lambda; Java uses fluent setters followed by `build()`:
 
-```kotlin
-val ugcText = ctx.ref(
-    UGCTextFactory.fromSourceText {
-        sourceText(sourceTextInput)
-        translateAsync(true)
-    }
-)
-```
+=== "Kotlin"
+
+    ```kotlin
+    val ugcText = ctx.ref(
+        UGCTextFactory.fromSourceText {
+            sourceText(sourceTextInput)
+            translateAsync(true)
+        }
+    )
+    ```
+
+=== "Java"
+
+    ```java
+    UGCText ugcText = ctx.ref(
+        UGCTextFactory.fromSourceText()
+            .sourceText(sourceTextInput)
+            .translateAsync(true)
+            .build());
+    ```
+
 
 For a field **with no arguments**, pass the call straight to `ctx.ref()`:
 
-```kotlin
-val product = ctx.ref(ProductFactory.create())
-```
+=== "Kotlin"
+
+    ```kotlin
+    val product = ctx.ref(ProductFactory.create())
+    ```
+
+=== "Java"
+
+    ```java
+    Product product = ctx.ref(ProductFactory.create());
+    ```
+
 
 `ctx.ref()` returns a GRT of the target field's output type. No fields are accessible on this object — attempting to read fields will throw an exception. The engine resolves the reference after your resolver returns, using the selection set from the client query.
 
@@ -77,61 +99,129 @@ extend type Query {
 
 The factory resolver owns the construction logic for `UGCText`. It receives the raw inputs, calls the translation pipeline, and builds the result. Consumers never need to know these implementation details:
 
-```kotlin
-@Resolver
-class UGCTextFromSourceTextResolver @Inject constructor(
-  val translationService: TranslationService
-) : UGCTextFactoryResolvers.FromSourceText() {
-    override suspend fun resolve(ctx: Context): UGCText? {
-        val result = translationService.translate(
-            ctx.arguments.sourceText,
-            ctx.arguments.publishingKey
-        )
-        return UGCText.of(ctx) {
-            source(result.source)
-            sourceLocale(result.sourceLocale)
-            localizedString(result.localizedString)
+=== "Kotlin"
+
+    ```kotlin
+    @Resolver
+    class UGCTextFromSourceTextResolver @Inject constructor(
+      val translationService: TranslationService
+    ) : UGCTextFactoryResolvers.FromSourceText() {
+        override suspend fun resolve(ctx: Context): UGCText? {
+            val result = translationService.translate(
+                ctx.arguments.sourceText,
+                ctx.arguments.publishingKey
+            )
+            return UGCText.of(ctx) {
+                source(result.source)
+                sourceLocale(result.sourceLocale)
+                localizedString(result.localizedString)
+            }
         }
     }
-}
-```
+    ```
+
+=== "Java"
+
+    ```java
+    @Resolver
+    public final class UGCTextFromSourceTextResolver
+        extends UGCTextFactoryResolvers.FromSourceText {
+      private final TranslationService translationService;
+
+      public UGCTextFromSourceTextResolver(TranslationService translationService) {
+        this.translationService = translationService;
+      }
+
+      @Override
+      public CompletableFuture<UGCText> resolve(Context ctx) {
+        var result = translationService.translate(
+            ctx.getArguments().getSourceText(), ctx.getArguments().getPublishingKey());
+        return CompletableFuture.completedFuture(
+            UGCText.builder(ctx)
+                .source(result.source())
+                .sourceLocale(result.sourceLocale())
+                .localizedString(result.localizedString())
+                .build());
+      }
+    }
+    ```
+
 
 ### Consumer (using `ctx.ref`)
 
 The consumer resolver needs to return a `UGCText` for a listing's title. Instead of duplicating the translation logic, it delegates to the factory:
 
-```kotlin
-@Resolver("fragment _ on Listing { description { name } }")
-class ListingTitleResolver @Inject constructor() : ListingResolvers.Title() {
-    override suspend fun resolve(ctx: Context): UGCText? {
-        val name = ctx.getObjectValue().getDescriptionOrThrow()?.getNameOrThrow() ?: return null
-        return ctx.ref(
-            UGCTextFactory.fromSourceText {
-                sourceText(
-                    UGCSourceTextInput.Builder(ctx)
-                        .sourceText(name)
-                        .build()
-                )
-            }
-        )
-    }
-}
-```
+=== "Kotlin"
 
-Set each argument inside the configuration lambda. Nested input objects are built with their own builders, using the same resolver context.
+    ```kotlin
+    @Resolver("fragment _ on Listing { description { name } }")
+    class ListingTitleResolver @Inject constructor() : ListingResolvers.Title() {
+        override suspend fun resolve(ctx: Context): UGCText? {
+            val name = ctx.getObjectValue().getDescriptionOrThrow()?.getNameOrThrow() ?: return null
+            return ctx.ref(
+                UGCTextFactory.fromSourceText {
+                    sourceText(
+                        UGCSourceTextInput.Builder(ctx)
+                            .sourceText(name)
+                            .build()
+                    )
+                }
+            )
+        }
+    }
+    ```
+
+=== "Java"
+
+    ```java
+    @Resolver(objectValueFragment = "fragment _ on Listing { description { name } }")
+    public final class ListingTitleResolver extends ListingResolvers.Title {
+      @Override
+      public CompletableFuture<UGCText> resolve(Context ctx) {
+        var description = ctx.getObjectValue().getDescription();
+        String name = description == null ? null : description.getName();
+        if (name == null) {
+          return CompletableFuture.completedFuture(null);
+        }
+        return CompletableFuture.completedFuture(
+            ctx.ref(
+                UGCTextFactory.fromSourceText()
+                    .sourceText(UGCSourceTextInput.builder(ctx).sourceText(name).build())
+                    .build()));
+      }
+    }
+    ```
+
+
+Set each argument on the generated field call. Nested input objects use their own builders with the same resolver context. Java examples use `java.util.concurrent.CompletableFuture` and `viaduct.java.api.annotations.Resolver`. The factory service shown here is synchronous; compose a future if the service is asynchronous.
 
 The consumer doesn't know how `UGCText` is constructed — it just provides the raw inputs and gets back a reference that the engine will resolve with whatever fields the client requested.
 
 ## Example: simple delegation with no arguments
 
-```kotlin
-@Resolver
-class QueryProductResolver : QueryResolvers.Product() {
-    override suspend fun resolve(ctx: Context): Product? {
-        return ctx.ref(ProductFactory.create())
+=== "Kotlin"
+
+    ```kotlin
+    @Resolver
+    class QueryProductResolver : QueryResolvers.Product() {
+        override suspend fun resolve(ctx: Context): Product? {
+            return ctx.ref(ProductFactory.create())
+        }
     }
-}
-```
+    ```
+
+=== "Java"
+
+    ```java
+    @Resolver
+    public final class QueryProductResolver extends QueryResolvers.Product {
+      @Override
+      public CompletableFuture<Product> resolve(Context ctx) {
+        return CompletableFuture.completedFuture(ctx.ref(ProductFactory.create()));
+      }
+    }
+    ```
+
 
 ## How it works
 
@@ -144,7 +234,14 @@ Because resolution is deferred, the engine can batch and optimize — the target
 
 ## Testing
 
-The test harness does not resolve references, so a test asserts the calls the resolver made rather than reading a value back from one. Pass a `ReferenceSpy` to record them. See [Verifying root field references](../testing/index.md#verifying-root-field-references-ctxref).
+=== "Kotlin"
+
+    The Kotlin test harness does not resolve references, so a test asserts the calls the resolver made rather than reading a value back from one. Pass a `ReferenceSpy` to record them. See [Verifying root field references](../testing/index.md#verifying-root-field-references-ctxref).
+
+=== "Java"
+
+    The Java `ResolverTestBase` does not implement node or root field references and has no `ReferenceSpy`. Exercise references through the engine or application. The [Java root field reference contract test](https://github.com/airbnb/viaduct/blob/main/core/javaapi/runtime/src/test/java/viaduct/tenant/runtime/execution/rootfieldref/JavaRootFieldRefContractTest.java) covers argument builders, nested namespace references, and fields with no arguments.
+
 
 ## Comparison with other context methods
 

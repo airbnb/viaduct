@@ -38,30 +38,61 @@ This is the N+1 problem, which is commonly solved by implementing a data loader 
 
 In Viaduct, you implement the generated `batchResolve` function to directly call the data source instead of going through a data loader. Under the hood, Viaduct still uses a data loader to batch requests. However, this data loader is part of Viaduct's framework, not something that application developers need to write and maintain. Here's an example `Listing` batch node resolver:
 
-```kotlin
-@Resolver
-class ListingNodeResolver @Inject constructor(val client: ListingClient) : NodeResolvers.Listing() {
-  override suspend fun batchResolve(
-    contexts: List<Context>
-  ): Map<Context, FieldValue<Listing>> {
-    val listingIDs = contexts.map { it.id.internalID }
-    val responses = client.fetch(listingIDs)
+=== "Kotlin"
 
-    return contexts.associateWith { ctx ->
-      val response = responses[ctx.id.internalID]
-      if (response == null) {
-        FieldValue.ofError(ListingNotFoundException("Listing ${ctx.id} was not found"))
-      } else {
-        FieldValue.ofValue(
-          Listing.Builder(ctx)
-            .title(response.title)
-            .build()
-        )
+    ```kotlin
+    @Resolver
+    class ListingNodeResolver @Inject constructor(val client: ListingClient) : NodeResolvers.Listing() {
+      override suspend fun batchResolve(
+        contexts: List<Context>
+      ): Map<Context, FieldValue<Listing>> {
+        val listingIDs = contexts.map { it.id.internalID }
+        val responses = client.fetch(listingIDs)
+
+        return contexts.associateWith { ctx ->
+          val response = responses[ctx.id.internalID]
+          if (response == null) {
+            FieldValue.ofError(ListingNotFoundException("Listing ${ctx.id} was not found"))
+          } else {
+            FieldValue.ofValue(
+              Listing.Builder(ctx)
+                .title(response.title)
+                .build()
+            )
+          }
+        }
       }
     }
-  }
-}
-```
+    ```
+
+=== "Java"
+
+    ```java
+    @Resolver
+    public final class ListingNodeResolver extends NodeResolvers.Listing {
+      private final ListingClient client;
+
+      public ListingNodeResolver(ListingClient client) {
+        this.client = client;
+      }
+
+      @Override
+      public CompletableFuture<Map<Context, FieldValue<Listing>>> batchResolve(
+          List<Context> contexts) {
+        var ids = contexts.stream().map(ctx -> ctx.getId().getInternalID()).toList();
+        var responses = client.fetch(ids);
+        Map<Context, FieldValue<Listing>> results = new IdentityHashMap<>();
+        for (Context ctx : contexts) {
+          var response = responses.get(ctx.getId().getInternalID());
+          results.put(ctx, response == null
+              ? FieldValue.ofError(new IllegalArgumentException("Listing not found: " + ctx.getId()))
+              : FieldValue.ofValue(Listing.builder(ctx).title(response.title()).build()));
+        }
+        return CompletableFuture.completedFuture(results);
+      }
+    }
+    ```
+
 
 ### Input
 
@@ -73,11 +104,43 @@ For node resolvers, a single invocation never contains the same decoded internal
 
 Batch node resolvers return one `FieldValue` for each input `Context`, keyed by the original `Context` object. Map order does not matter. Returning the wrong number of entries or a key that was not in the input causes the entire batch to fail. Viaduct discards the returned values and reports an error for every context in that batch.
 
-Batch field resolvers retain their positional list contract: their output list must have the same number of elements as the input list, and each output corresponds to the input context at the same index.
+=== "Kotlin"
+
+    Batch field resolvers retain their positional list contract: their output list must have the same number of elements as the input list, and each output corresponds to the input context at the same index.
+
+=== "Java"
+
+    Java batch field resolvers return `CompletableFuture<Map<Context, T>>`, keyed by the original input contexts. This differs from the Kotlin positional list. Use an `IdentityHashMap` and include exactly one entry per context. A successful entry may contain `null` when the GraphQL field is nullable.
+
+    For example, the Java demo's batched field resolver follows this shape:
+
+    ```java
+    @Resolver(objectValueFragment = "fragment _ on Character { id }")
+    public final class CharacterFilmCountResolver extends CharacterResolvers.FilmCount {
+      private final CharacterFilmsRepository repository;
+
+      public CharacterFilmCountResolver(CharacterFilmsRepository repository) {
+        this.repository = repository;
+      }
+
+      @Override
+      public CompletableFuture<Map<Context, Integer>> batchResolve(List<Context> contexts) {
+        Map<Context, Integer> results = new IdentityHashMap<>();
+        for (Context ctx : contexts) {
+          String id = ctx.getObjectValue().getId().getInternalID();
+          results.put(ctx, repository.findFilmsByCharacterId(id).size());
+        }
+        return CompletableFuture.completedFuture(results);
+      }
+    }
+    ```
+
+    The generated Java base also provides `batchResolveWithErrors(List<Context>)`, returning `CompletableFuture<Map<Context, FieldValue<T>>>`, when explicit per-field failures are needed. Override this method instead of `batchResolve` to use `FieldValue.ofError` for one context while the rest succeed. A thrown exception or failed future fails the invocation.
+
 
 #### FieldValue
 
-Resolved values and explicit per-node failures are wrapped in {{ kdoc("viaduct.api.FieldValue") }}. Use `FieldValue.ofError` with your application's appropriate exception type to report a node that was not found or another per-node failure.
+Resolved node values and explicit per-node failures are wrapped in `FieldValue`: {{ kdoc("viaduct.api.FieldValue") }} for Kotlin, or [`viaduct.java.api.resolvers.FieldValue`](https://github.com/airbnb/viaduct/blob/main/core/javaapi/api/src/main/java/viaduct/java/api/resolvers/FieldValue.java) for Java. Use `FieldValue.ofError` with your application's appropriate exception type to report a node that was not found or another per-node failure.
 
 **Usage:**
 
@@ -86,65 +149,73 @@ Resolved values and explicit per-node failures are wrapped in {{ kdoc("viaduct.a
 
 ### Selection-aware node batches
 
-Declaring a node with `@resolver(isBatching: true, isSelective: true)` combines [selective node resolution](node_resolvers.md#non-selective-and-selective-node-resolvers) with batch resolution:
+=== "Kotlin"
 
-* Selectivity gives each `Context` its own selection set. The resolver can use it to vary the data it loads and returns for that node.
-* Batching lets Viaduct pass several contexts to one `batchResolve` call.
+    Declaring a node with `@resolver(isBatching: true, isSelective: true)` combines [selective node resolution](node_resolvers.md#non-selective-and-selective-node-resolvers) with batch resolution:
 
-Together, these behaviors mean that one `batchResolve` call can contain several different selection sets. For example:
+    * Selectivity gives each `Context` its own selection set. The resolver can use it to vary the data it loads and returns for that node.
+    * Batching lets Viaduct pass several contexts to one `batchResolve` call.
 
-```text
-context 1 (listing 101): title, price
-context 2 (listing 102): title, price
-context 3 (listing 103): title, reviews { rating }
-```
+    Together, these behaviors mean that one `batchResolve` call can contain several different selection sets. For example:
 
-These contexts request two different sets of data: `title` and `price` for contexts 1 and 2, and `title` and `reviews` for context 3. The resolver decides how to handle that difference. It can load one broader data set for the whole batch, make a separate backend request for every context, or divide the contexts into groups. The first option may overfetch, while the second gives up batching. One possible grouping places contexts 1 and 2 together and context 3 in a separate group; the resolver could then make one backend request for each group.
+    ```text
+    context 1 (listing 101): title, price
+    context 2 (listing 102): title, price
+    context 3 (listing 103): title, reviews { rating }
+    ```
 
-The helpers in `viaduct.api.batch` implement this grouping pattern. Each helper divides the input contexts into groups and runs the supplied block once for each group. The helper then combines the maps returned by the block into the map returned by `batchResolve`. Choose the helper that matches how the resolver groups its backend work:
+    These contexts request two different sets of data: `title` and `price` for contexts 1 and 2, and `title` and `reviews` for context 3. The resolver decides how to handle that difference. It can load one broader data set for the whole batch, make a separate backend request for every context, or divide the contexts into groups. The first option may overfetch, while the second gives up batching. One possible grouping places contexts 1 and 2 together and context 3 in a separate group; the resolver could then make one backend request for each group.
 
-* `batchBySameSelection` groups contexts that request the same fields at every level. Aliases and field order do not affect grouping. In the example above, contexts 1 and 2 form one group and context 3 forms another.
-* `batchByOwnFields` groups contexts that request the same fields directly on the node and ignores differences beneath those fields. For example, `reviews { rating }` and `reviews { author }` produce the own-field key `{ Listing.reviews }`. The group retains both nested selections, so the resolver can account for `rating` and `author` when loading reviews.
-* `batchByCustomGrouping` derives a grouping key from each context's `SelectionSet`. Use it when neither built-in grouping matches the resolver's needs. For example, a resolver can group contexts by whether they request `reviews`, regardless of which other fields they request.
+    The helpers in `viaduct.api.batch` implement this grouping pattern. Each helper divides the input contexts into groups and runs the supplied block once for each group. The helper then combines the maps returned by the block into the map returned by `batchResolve`. Choose the helper that matches how the resolver groups its backend work:
 
-Each group is represented by a `Group` containing:
+    * `batchBySameSelection` groups contexts that request the same fields at every level. Aliases and field order do not affect grouping. In the example above, contexts 1 and 2 form one group and context 3 forms another.
+    * `batchByOwnFields` groups contexts that request the same fields directly on the node and ignores differences beneath those fields. For example, `reviews { rating }` and `reviews { author }` produce the own-field key `{ Listing.reviews }`. The group retains both nested selections, so the resolver can account for `rating` and `author` when loading reviews.
+    * `batchByCustomGrouping` derives a grouping key from each context's `SelectionSet`. Use it when neither built-in grouping matches the resolver's needs. For example, a resolver can group contexts by whether they request `reviews`, regardless of which other fields they request.
 
-* `contexts`: the original contexts in the group, in input order
-* `key`: the value used to form the group
-* `selections`: a view over all selections requested by the contexts in the group
+    Each group is represented by a `Group` containing:
 
-`group.selections` represents all selections requested across the group. Use it when building a backend request that loads data for the group as a whole. If the resolver needs to make a decision for one context, use that context's `selections()` instead.
+    * `contexts`: the original contexts in the group, in input order
+    * `key`: the value used to form the group
+    * `selections`: a view over all selections requested by the contexts in the group
 
-With `batchByOwnFields`, `group.key` is a set of `FieldCoordinate` values identifying the fields selected directly on the node. Nested selections are not part of the key, but they remain available through `group.selections`.
+    `group.selections` represents all selections requested across the group. Use it when building a backend request that loads data for the group as a whole. If the resolver needs to make a decision for one context, use that context's `selections()` instead.
 
-The following resolver makes one backend request for each group of listings that selected the same direct fields:
+    With `batchByOwnFields`, `group.key` is a set of `FieldCoordinate` values identifying the fields selected directly on the node. Nested selections are not part of the key, but they remain available through `group.selections`.
 
-```kotlin
-override suspend fun batchResolve(
-  contexts: List<Context>
-): Map<Context, FieldValue<Listing>> =
-  batchByOwnFields(contexts) { group ->
-    val responses = client.fetch(
-      ids = group.contexts.map { it.id.internalID },
-      fields = group.key,
-    )
+    The following resolver makes one backend request for each group of listings that selected the same direct fields:
 
-    group.contexts.associateWith { ctx ->
-      val response = responses[ctx.id.internalID]
-      if (response == null) {
-        FieldValue.ofError(ListingNotFoundException("Listing ${ctx.id} was not found"))
-      } else {
-        FieldValue.ofValue(
-          Listing.Builder(ctx)
-            .title(response.title)
-            .build()
+    ```kotlin
+    override suspend fun batchResolve(
+      contexts: List<Context>
+    ): Map<Context, FieldValue<Listing>> =
+      batchByOwnFields(contexts) { group ->
+        val responses = client.fetch(
+          ids = group.contexts.map { it.id.internalID },
+          fields = group.key,
         )
-      }
-    }
-  }
-```
 
-In this example, the block passed to `batchByOwnFields` runs once for each group. `group.contexts.associateWith` creates one result for every context in that group and uses the original `Context` objects as map keys. Each time the block runs, its returned map must contain exactly the `Context` objects in `group.contexts`. Viaduct fails the batch if a group context is missing or the map contains any other context.
+        group.contexts.associateWith { ctx ->
+          val response = responses[ctx.id.internalID]
+          if (response == null) {
+            FieldValue.ofError(ListingNotFoundException("Listing ${ctx.id} was not found"))
+          } else {
+            FieldValue.ofValue(
+              Listing.Builder(ctx)
+                .title(response.title)
+                .build()
+            )
+          }
+        }
+      }
+    ```
+
+    In this example, the block passed to `batchByOwnFields` runs once for each group. `group.contexts.associateWith` creates one result for every context in that group and uses the original `Context` objects as map keys. Each time the block runs, its returned map must contain exactly the `Context` objects in `group.contexts`. Viaduct fails the batch if a group context is missing or the map contains any other context.
+
+=== "Java"
+
+    Selection-aware node batching and the `viaduct.api.batch` grouping helpers described in the Kotlin tab are unavailable in Java. Java code generation currently rejects selective resolvers, including `@resolver(isBatching: true, isSelective: true)`.
+
+    Java supports non-selective batching: make a backend batch request for the IDs or parent data from the input contexts, then return the complete output selection set for every context. Keep the original contexts as map keys even when grouping backend requests by your own business key. Do not merge two different contexts simply because their IDs match. See [Selective Resolution](selective_resolution.md) for the current boundary.
 
 ### When to use `batchResolve`
 
@@ -153,3 +224,5 @@ Use batch resolution whenever you need to fetch data from an external data sourc
 If your resolver does not have external data dependencies, there is generally no benefit to batching.
 
 Those familiar with data loaders may know that they also provide an intra-request cache. In Viaduct, this memoization cache is decoupled from batching, so you do not need batch resolution for caching purposes.
+
+The [Java CharacterNodeResolver](https://github.com/airbnb/viaduct/blob/main/demoapps/starwars-java/modules/filmography/src/main/java/com/example/starwars/modules/filmography/characters/resolvers/CharacterNodeResolver.java) and [CharacterFilmCountResolver](https://github.com/airbnb/viaduct/blob/main/demoapps/starwars-java/modules/filmography/src/main/java/com/example/starwars/modules/filmography/characters/resolvers/CharacterFilmCountResolver.java) demonstrate both Java batch contracts. The examples above use synchronous repositories; return a composed client future when your backend is asynchronous.
