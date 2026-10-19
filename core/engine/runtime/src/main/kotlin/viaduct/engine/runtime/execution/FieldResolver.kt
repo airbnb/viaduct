@@ -170,6 +170,13 @@ class FieldResolver(
             fetchObjectInternal(objectType, parameters, ledgerReader, executionMode)
         }
 
+    /** Fetches the current object using the prepared scope and the plan's execution mode. */
+    private fun fetchObject(parameters: ExecutionParameters): Value<Unit> {
+        val objectType = parameters.currentObjectEngineResult.type
+        val executionMode = if (isMutationNamespace(parameters, objectType)) ExecutionMode.Serial else ExecutionMode.Normal
+        return fetchObject(objectType, parameters, executionMode = executionMode)
+    }
+
     @Suppress("UNUSED_EXPRESSION") // onCompleted calls are side-effects inside map/recover
     private fun fetchObjectInternal(
         objectType: GraphQLObjectType,
@@ -424,10 +431,7 @@ class FieldResolver(
                 parameters.executionContext.graphQLContext,
                 parameters.executionContext.locale,
             )
-            val planParameters = parameters.forChildPlan(plan, variables, target)
-            val objectType = planParameters.currentObjectEngineResult.type
-            val executionMode = if (isMutationNamespace(planParameters, objectType)) ExecutionMode.Serial else ExecutionMode.Normal
-            fetchObject(objectType, planParameters, executionMode = executionMode)
+            fetchObject(parameters.forChildPlan(plan, variables, target))
         }
     }
 
@@ -1171,17 +1175,12 @@ class FieldResolver(
             // the work it starts.
             val planParameters =
                 selectionParameters.copy(matBatchDepth = matParameters.matBatchDepth)
-            checkNotNull(planParameters.currentObjectEngineResult.matSource as? MatSource.Ledger)
-            launchQueryPlan(
-                planParameters,
-                matPlan,
-                target = ChildQueryPlanTarget.CurrentObjectResult,
-            )
+            launchMatPlan(planParameters, matPlan, keyTree)
         }
         return matSource
     }
 
-    private fun launchMatPlan(
+    internal fun launchMatPlan(
         selectionParameters: ExecutionParameters,
         matPlan: QueryPlan,
         keyTree: KeyTree,
@@ -1189,11 +1188,16 @@ class FieldResolver(
         if (keyTree.isEmpty()) return
 
         checkNotNull(selectionParameters.currentObjectEngineResult.matSource as? MatSource.Ledger)
-        launchQueryPlan(
-            selectionParameters,
-            matPlan,
-            target = ChildQueryPlanTarget.CurrentObjectResult,
-        )
+        if (!matPlan.executionCondition.shouldExecute(null)) return
+
+        selectionParameters.launchOnRootScope {
+            val parameters = selectionParameters.forChildPlan(
+                matPlan,
+                selectionParameters.coercedVariables,
+                target = ChildQueryPlanTarget.CurrentObjectResult,
+            )
+            fetchObject(parameters)
+        }
     }
 
     /**

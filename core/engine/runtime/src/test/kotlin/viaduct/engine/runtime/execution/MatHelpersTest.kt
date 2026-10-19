@@ -1,19 +1,37 @@
 package viaduct.engine.runtime.execution
 
 import graphql.execution.CoercedVariables
+import graphql.schema.idl.RuntimeWiring
+import graphql.schema.idl.SchemaGenerator
+import graphql.schema.idl.SchemaParser
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.future.await
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.ParentManagedValue
 import viaduct.engine.api.ResolvedEngineObjectData
 import viaduct.engine.api.StandardResolutionValue
+import viaduct.engine.api.VariablesResolver
+import viaduct.engine.api.mocks.EngineTestModule
+import viaduct.engine.api.mocks.runFeatureTest
+import viaduct.engine.runtime.EngineExecutionContextExtensions.materializedFieldValueReader
+import viaduct.engine.runtime.FieldResolutionResult
+import viaduct.engine.runtime.MatSource
+import viaduct.engine.runtime.ObjectEngineResultImpl
+import viaduct.engine.runtime.ObjectEngineResultImpl.Companion.RAW_VALUE_SLOT
 import viaduct.engine.runtime.mat.KeyTree
+import viaduct.engine.runtime.mat.KeyTreeFilter
 import viaduct.engine.runtime.mat.KeyTreeFilter.Result.DROP
 import viaduct.engine.runtime.mat.KeyTreeFilter.Result.KEEP_AND_RECURSE
 import viaduct.engine.runtime.mat.Mat
+import viaduct.engine.runtime.mat.MatResult
 import viaduct.engine.runtime.mat.build
 import viaduct.engine.runtime.result.ObjectEngineResult
 import viaduct.errors.TenantResolverException
@@ -288,30 +306,101 @@ class MatHelpersTest {
     @Nested
     inner class MaterializationPlan {
         @Test
-        fun `plan resolves operation variables from the reading selection`() =
+        fun `materialization reuses resolved variables instead of rerunning their resolvers`() =
+            runTest {
+                val original = mkExecutionParameters(
+                    "extend type Query { x(n: Int!): Int }",
+                    "Query" to "x",
+                    "query (${'$'}n: Int! = 2) { x(n: ${'$'}n) }",
+                )
+                val parameters = original.copy(
+                    queryPlan = original.queryPlan.copy(
+                        variablesResolvers = listOf(VariablesResolver.const(mapOf("n" to 1))),
+                    ),
+                )
+                val result = materialize(parameters, ObjectEngineResult.Key("x", arguments = mapOf("n" to 2)))
+
+                assertNull(result.engineResult)
+            }
+
+        @Test
+        fun `materialization preserves coerced enum values`() =
+            runTest {
+                val schema = EngineSchema(
+                    SchemaGenerator().makeExecutableSchema(
+                        SchemaParser().parse("type Query { x(mode: Mode!): Int } enum Mode { A }"),
+                        RuntimeWiring.newRuntimeWiring()
+                            .type("Mode") { it.enumValues { 1 } }
+                            .build(),
+                    ),
+                )
+                lateinit var parameters: ExecutionParameters
+                EngineTestModule(schema) {
+                    field("Query" to "x") {
+                        valueFromContext { context ->
+                            parameters = context.executionHandle as ExecutionParameters
+                            42
+                        }
+                    }
+                }.runFeatureTest(withoutDefaultQueryNodeResolvers = true) {
+                    runQuery("query (${'$'}mode: Mode! = A) { x(mode: ${'$'}mode) }")
+                        .assertJson("{data: {x: 42}}")
+                }
+                assertEquals(mapOf("mode" to 1), parameters.coercedVariables.toMap())
+                val result = materialize(parameters, ObjectEngineResult.Key("x", arguments = mapOf("mode" to 1)))
+
+                assertEquals(42, result.engineResult)
+            }
+
+        @Test
+        fun `materialization uses operation variables from the reading selection`() =
             runTest {
                 val parameters = mkExecutionParameters(
                     "extend type Query { x:Int, y:Int }",
                     "Query" to "x",
                     "query (${'$'}include:Boolean! = true) { x y @include(if: ${'$'}include) }",
                 )
-                val plan = materializationPlan(
-                    parameters,
-                    KeyTree.build(parameters) { field("Query", key("y")) },
-                )
+                val result = materialize(parameters, ObjectEngineResult.Key("y"))
 
-                val variables = FieldExecutionHelpers.resolveQueryPlanVariables(
-                    plan,
-                    parameters.executionStepInfo.arguments,
-                    parameters.currentObjectEngineResult,
-                    parameters.queryEngineResult,
-                    parameters.engineExecutionContext,
-                    parameters.executionContext.graphQLContext,
-                    parameters.executionContext.locale,
-                )
-
-                assertEquals(mapOf("include" to true), variables.toMap())
+                assertEquals(42, result.engineResult)
             }
+
+        private suspend fun CoroutineScope.materialize(
+            parameters: ExecutionParameters,
+            key: ObjectEngineResult.Key,
+        ): FieldResolutionResult =
+            DefaultCoroutineInterop.enterThreadLocalCoroutineContext(coroutineContext) {
+                val type = parameters.currentObjectEngineResult.type
+                val ledger = MatLedgerImpl(
+                    Mat { shape, _ ->
+                        MatResult(shape, Result.success(ResolvedEngineObjectData(type, mapOf(key.name to 42))))
+                    },
+                    parameters.engineExecutionContext.materializedFieldValueReader,
+                )
+                val objectResult = ObjectEngineResultImpl.newForType(
+                    type,
+                    MatSource.Ledger(ledger, KeyTreeFilter.KeepAll),
+                )
+                val execution = parameters.copy(
+                    constants = parameters.constants.copy(
+                        rootEngineResult = objectResult,
+                        supervisorScopeFactory = { CoroutineScope(it) },
+                        rootCoroutineContext = coroutineContext,
+                    ),
+                    currentObjectEngineResult = objectResult,
+                    queryEngineResult = objectResult,
+                )
+                val shape = KeyTree.build(parameters) { field(type.name, key) }
+                val plan = materializationPlan(execution, shape)
+
+                FieldResolver(AccessCheckRunner(DefaultCoroutineInterop), DefaultCoroutineInterop)
+                    .launchMatPlan(execution, plan, shape)
+                objectResult.fieldResolutionState.await()
+
+                val result = objectResult.getValue(key, RAW_VALUE_SLOT).getCompleted() as FieldResolutionResult
+                assertTrue(result.errors.isEmpty(), result.errors.toString())
+                result
+            }.await()
     }
 
     @Nested
