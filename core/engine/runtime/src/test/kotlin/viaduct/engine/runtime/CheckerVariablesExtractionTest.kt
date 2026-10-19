@@ -14,6 +14,50 @@ import viaduct.engine.api.spi.CheckerExecutor
 
 class CheckerVariablesExtractionTest {
     @Test
+    fun `extracts variables referenced only inside named fragments`() {
+        val required =
+            createRSS(
+                typeName = "Item",
+                selectionString =
+                    """
+                    fragment Main on Item { ...PolicyInput }
+                    fragment PolicyInput on Item { policy(argument: ${'$'}argument) }
+                    """.trimIndent(),
+                variableProviders = listOf(FromArgument("argument", listOf("arg"))),
+                forChecker = true,
+            )
+
+        val extracted = extractCheckerVariableDefinitions(mapOf("input" to required))
+
+        assertEquals(mapOf("argument" to "arg"), extracted.getValue("input").fromArguments.variables)
+    }
+
+    @Test
+    fun `follows transitive spreads without extracting variables from unused fragments`() {
+        val required =
+            createRSS(
+                typeName = "Item",
+                selectionString =
+                    """
+                    fragment Main on Item { ...PolicyInput }
+                    fragment PolicyInput on Item { ...NestedPolicyInput }
+                    fragment NestedPolicyInput on Item { policy(argument: ${'$'}argument) }
+                    fragment Unused on Item { policy(argument: ${'$'}unused) }
+                    """.trimIndent(),
+                variableProviders =
+                    listOf(
+                        FromArgument("argument", listOf("arg")),
+                        FromArgument("unused", listOf("unusedArg")),
+                    ),
+                forChecker = true,
+            )
+
+        val extracted = extractCheckerVariableDefinitions(mapOf("input" to required))
+
+        assertEquals(mapOf("argument" to "arg"), extracted.getValue("input").fromArguments.variables)
+    }
+
+    @Test
     fun `extracts the variable forms supported by runtime2`() {
         val objectDependency = createRSS("Item", "owner", forChecker = true)
         val queryDependency = createRSS("Query", "viewer", forChecker = true)

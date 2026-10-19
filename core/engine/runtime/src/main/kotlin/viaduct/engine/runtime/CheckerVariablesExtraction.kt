@@ -96,7 +96,7 @@ private class CheckerVariableDefinitionsBuilder(
 
     private fun add(requiredSelectionSet: RequiredSelectionSet) {
         requireSupportedRoot(requiredSelectionSet)
-        val referencedNames = requiredSelectionSet.selections.selections.collectVariableReferences()
+        val referencedNames = requiredSelectionSet.selections.collectVariableReferences()
         requiredSelectionSet.variablesResolvers
             .filter { resolver -> resolver.variableNames.any(referencedNames::contains) }
             .forEach { resolver ->
