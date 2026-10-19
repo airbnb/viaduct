@@ -23,18 +23,30 @@ Viaduct automatically tracks key metrics across your GraphQL operations without 
 
 Enable observability in your Viaduct instance by providing a `MeterRegistry`:
 
-```kotlin
-import io.micrometer.core.instrument.MeterRegistry
-import io.micrometer.core.instrument.simple.SimpleMeterRegistry
-import viaduct.service.ViaductBuilder
+===! "Kotlin"
 
-val meterRegistry: MeterRegistry = SimpleMeterRegistry()
+    ```kotlin
+    import io.micrometer.core.instrument.MeterRegistry
+    import io.micrometer.core.instrument.simple.SimpleMeterRegistry
+    import viaduct.service.ViaductBuilder
 
-val viaduct = ViaductBuilder()
-    .withMeterRegistry(meterRegistry)
-    .withTenantModuleInjectorFactory(myInjectorFactory)
-    .build()
-```
+    val meterRegistry: MeterRegistry = SimpleMeterRegistry()
+
+    val viaduct = ViaductBuilder()
+        .withMeterRegistry(meterRegistry)
+        .withTenantModuleInjectorFactory(myInjectorFactory)
+        .build()
+    ```
+
+=== "Java"
+
+    ```java
+    MeterRegistry meterRegistry = new SimpleMeterRegistry();
+    Viaduct viaduct = new ViaductBuilder()
+        .withMeterRegistry(meterRegistry)
+        .withTenantModuleInjectorFactory(myInjectorFactory)
+        .build();
+    ```
 
 Once configured, Viaduct automatically emits metrics for all GraphQL operations. See the [Setup Guide](setup.md) for detailed configuration options.
 

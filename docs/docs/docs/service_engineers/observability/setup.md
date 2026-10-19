@@ -10,6 +10,8 @@ This guide walks you through enabling and configuring observability in your Viad
 
 Add the Micrometer dependency for your chosen monitoring system. Viaduct works with any Micrometer-supported registry.
 
+These dependency declarations use Gradle's Kotlin DSL for both Kotlin and Java applications.
+
 For Prometheus:
 ```kotlin
 dependencies {
@@ -27,26 +29,50 @@ Choose and configure a MeterRegistry implementation based on your monitoring sys
 
 #### In-Memory Registry (for testing)
 
-```kotlin
-import io.micrometer.core.instrument.simple.SimpleMeterRegistry
+===! "Kotlin"
 
-val meterRegistry = SimpleMeterRegistry()
-```
+    ```kotlin
+    import io.micrometer.core.instrument.simple.SimpleMeterRegistry
+
+    val meterRegistry = SimpleMeterRegistry()
+    ```
+
+=== "Java"
+
+    ```java
+    SimpleMeterRegistry meterRegistry = new SimpleMeterRegistry();
+    ```
 
 #### Prometheus
 
-```kotlin
-import io.micrometer.prometheus.PrometheusConfig
-import io.micrometer.prometheus.PrometheusMeterRegistry
+===! "Kotlin"
 
-val prometheusMeterRegistry = PrometheusMeterRegistry(PrometheusConfig.DEFAULT)
+    ```kotlin
+    import io.micrometer.prometheus.PrometheusConfig
+    import io.micrometer.prometheus.PrometheusMeterRegistry
 
-// Expose metrics endpoint
-app.get("/metrics") { req, res ->
-    res.contentType("text/plain; version=0.0.4")
-    prometheusMeterRegistry.scrape()
-}
-```
+    val prometheusMeterRegistry = PrometheusMeterRegistry(PrometheusConfig.DEFAULT)
+
+    // Expose metrics endpoint
+    app.get("/metrics") { req, res ->
+        res.contentType("text/plain; version=0.0.4")
+        prometheusMeterRegistry.scrape()
+    }
+    ```
+
+=== "Java"
+
+    ```java
+    PrometheusMeterRegistry prometheusMeterRegistry =
+        new PrometheusMeterRegistry(PrometheusConfig.DEFAULT);
+
+    app.get("/metrics", (req, res) -> {
+        res.type("text/plain; version=0.0.4");
+        return prometheusMeterRegistry.scrape();
+    });
+    ```
+
+The endpoint example uses Spark-style routing, where `app` is your configured router. With Micronaut, serve the string returned by `scrape()` from your metrics controller instead. The imports above match the Prometheus registry version shown in Prerequisites.
 
 #### Other Monitoring Systems
 
@@ -56,14 +82,25 @@ Viaduct supports all Micrometer registries including Datadog, CloudWatch, StatsD
 
 Pass your MeterRegistry to the ViaductBuilder:
 
-```kotlin
-import viaduct.service.ViaductBuilder
+===! "Kotlin"
 
-val viaduct = ViaductBuilder()
-    .withMeterRegistry(meterRegistry)
-    .withTenantModuleInjectorFactory(myInjectorFactory)
-    .build()
-```
+    ```kotlin
+    import viaduct.service.ViaductBuilder
+
+    val viaduct = ViaductBuilder()
+        .withMeterRegistry(meterRegistry)
+        .withTenantModuleInjectorFactory(myInjectorFactory)
+        .build()
+    ```
+
+=== "Java"
+
+    ```java
+    Viaduct viaduct = new ViaductBuilder()
+        .withMeterRegistry(meterRegistry)
+        .withTenantModuleInjectorFactory(myInjectorFactory)
+        .build();
+    ```
 
 That's it! Viaduct will now automatically emit metrics for all GraphQL operations.
 
@@ -73,122 +110,221 @@ That's it! Viaduct will now automatically emit metrics for all GraphQL operation
 
 By default, Viaduct configures percentiles at p50, p75, p90, and p95. To customize percentiles, configure your MeterRegistry before passing it to Viaduct:
 
-```kotlin
-import io.micrometer.core.instrument.config.MeterFilter
-import io.micrometer.core.instrument.distribution.DistributionStatisticConfig
+===! "Kotlin"
 
-meterRegistry.config().meterFilter(object : MeterFilter {
-    override fun configure(id: Meter.Id, config: DistributionStatisticConfig): DistributionStatisticConfig? {
-        if (id.name.startsWith("viaduct.")) {
-            return config.merge(
-                DistributionStatisticConfig.builder()
-                    .percentiles(0.5, 0.75, 0.9, 0.95, 0.99, 0.999)
-                    .build()
-            )
+    ```kotlin
+    import io.micrometer.core.instrument.config.MeterFilter
+    import io.micrometer.core.instrument.distribution.DistributionStatisticConfig
+
+    meterRegistry.config().meterFilter(object : MeterFilter {
+        override fun configure(id: Meter.Id, config: DistributionStatisticConfig): DistributionStatisticConfig? {
+            if (id.name.startsWith("viaduct.")) {
+                return config.merge(
+                    DistributionStatisticConfig.builder()
+                        .percentiles(0.5, 0.75, 0.9, 0.95, 0.99, 0.999)
+                        .build()
+                )
+            }
+            return config
         }
-        return config
-    }
-})
-```
+    })
+    ```
+
+=== "Java"
+
+    ```java
+    meterRegistry.config().meterFilter(new MeterFilter() {
+        @Override
+        public DistributionStatisticConfig configure(Meter.Id id, DistributionStatisticConfig config) {
+            if (id.getName().startsWith("viaduct.")) {
+                return config.merge(DistributionStatisticConfig.builder()
+                    .percentiles(0.5, 0.75, 0.9, 0.95, 0.99, 0.999)
+                    .build());
+            }
+            return config;
+        }
+    });
+    ```
 
 ### Adding Common Tags
 
 Add tags to all Viaduct metrics for filtering and aggregation:
 
-```kotlin
-import io.micrometer.core.instrument.config.MeterFilter
-import io.micrometer.core.instrument.Tag
+===! "Kotlin"
 
-meterRegistry.config().commonTags(
-    Tag.of("service", "my-viaduct-service"),
-    Tag.of("environment", "production"),
-    Tag.of("region", "us-east-1")
-)
-```
+    ```kotlin
+    import io.micrometer.core.instrument.config.MeterFilter
+    import io.micrometer.core.instrument.Tag
+
+    meterRegistry.config().commonTags(listOf(
+        Tag.of("service", "my-viaduct-service"),
+        Tag.of("environment", "production"),
+        Tag.of("region", "us-east-1")
+    ))
+    ```
+
+=== "Java"
+
+    ```java
+    meterRegistry.config().commonTags(List.of(
+        Tag.of("service", "my-viaduct-service"),
+        Tag.of("environment", "production"),
+        Tag.of("region", "us-east-1")
+    ));
+    ```
 
 ### Filtering Metrics
 
 Disable specific metrics or add custom logic:
 
-```kotlin
-import io.micrometer.core.instrument.config.MeterFilter
+===! "Kotlin"
 
-// Disable field-level metrics (reduce cardinality)
-meterRegistry.config().meterFilter(
-    MeterFilter.deny { id -> id.name == "viaduct.field" }
-)
+    ```kotlin
+    import io.micrometer.core.instrument.config.MeterFilter
 
-// Only track metrics for specific operations
-meterRegistry.config().meterFilter(
-    MeterFilter.deny { id ->
-        id.name.startsWith("viaduct.") &&
-        !id.tags.any { tag ->
-            tag.key == "operation_name" &&
-            tag.value in setOf("GetUser", "SearchProducts")
+    // Disable field-level metrics (reduce cardinality)
+    meterRegistry.config().meterFilter(
+        MeterFilter.deny { id -> id.name == "viaduct.field" }
+    )
+
+    // Only track metrics for specific operations
+    meterRegistry.config().meterFilter(
+        MeterFilter.deny { id ->
+            id.name.startsWith("viaduct.") &&
+            !id.tags.any { tag ->
+                tag.key == "operation_name" &&
+                tag.value in setOf("GetUser", "SearchProducts")
+            }
         }
-    }
-)
-```
+    )
+    ```
+
+=== "Java"
+
+    ```java
+    meterRegistry.config().meterFilter(MeterFilter.deny(
+        id -> id.getName().equals("viaduct.field")));
+
+    meterRegistry.config().meterFilter(MeterFilter.deny(id ->
+        id.getName().startsWith("viaduct.") && id.getTags().stream().noneMatch(tag ->
+            tag.getKey().equals("operation_name") &&
+            Set.of("GetUser", "SearchProducts").contains(tag.getValue()))));
+    ```
 
 ### Histogram Configuration
 
 Configure histogram buckets for better distribution analysis:
 
-```kotlin
-meterRegistry.config().meterFilter(object : MeterFilter {
-    override fun configure(id: Meter.Id, config: DistributionStatisticConfig): DistributionStatisticConfig? {
-        if (id.name.startsWith("viaduct.")) {
-            return config.merge(
-                DistributionStatisticConfig.builder()
-                    .percentilesHistogram(true)
-                    .minimumExpectedValue(Duration.ofMillis(1).toNanos().toDouble())
-                    .maximumExpectedValue(Duration.ofSeconds(10).toNanos().toDouble())
-                    .build()
-            )
+===! "Kotlin"
+
+    ```kotlin
+    meterRegistry.config().meterFilter(object : MeterFilter {
+        override fun configure(id: Meter.Id, config: DistributionStatisticConfig): DistributionStatisticConfig? {
+            if (id.name.startsWith("viaduct.")) {
+                return config.merge(
+                    DistributionStatisticConfig.builder()
+                        .percentilesHistogram(true)
+                        .minimumExpectedValue(Duration.ofMillis(1).toNanos().toDouble())
+                        .maximumExpectedValue(Duration.ofSeconds(10).toNanos().toDouble())
+                        .build()
+                )
+            }
+            return config
         }
-        return config
-    }
-})
-```
+    })
+    ```
+
+=== "Java"
+
+    ```java
+    meterRegistry.config().meterFilter(new MeterFilter() {
+        @Override
+        public DistributionStatisticConfig configure(Meter.Id id, DistributionStatisticConfig config) {
+            if (id.getName().startsWith("viaduct.")) {
+                return config.merge(DistributionStatisticConfig.builder()
+                    .percentilesHistogram(true)
+                    .minimumExpectedValue((double) Duration.ofMillis(1).toNanos())
+                    .maximumExpectedValue((double) Duration.ofSeconds(10).toNanos())
+                    .build());
+            }
+            return config;
+        }
+    });
+    ```
 
 ## Composite MeterRegistry
 
 Use CompositeMeterRegistry to send metrics to multiple backends:
 
-```kotlin
-import io.micrometer.core.instrument.composite.CompositeMeterRegistry
+===! "Kotlin"
 
-val compositeMeterRegistry = CompositeMeterRegistry()
+    ```kotlin
+    import io.micrometer.core.instrument.composite.CompositeMeterRegistry
 
-// Add Prometheus for real-time querying
-val prometheusMeterRegistry = PrometheusMeterRegistry(PrometheusConfig.DEFAULT)
-compositeMeterRegistry.add(prometheusMeterRegistry)
+    val compositeMeterRegistry = CompositeMeterRegistry()
 
-// Add Datadog for long-term storage and alerting
-val datadogMeterRegistry = DatadogMeterRegistry(datadogConfig, Clock.SYSTEM)
-compositeMeterRegistry.add(datadogMeterRegistry)
+    // Add Prometheus for real-time querying
+    val prometheusMeterRegistry = PrometheusMeterRegistry(PrometheusConfig.DEFAULT)
+    compositeMeterRegistry.add(prometheusMeterRegistry)
 
-// Use composite registry with Viaduct
-val viaduct = ViaductBuilder()
-    .withMeterRegistry(compositeMeterRegistry)
-    .withTenantModuleInjectorFactory(myInjectorFactory)
-    .build()
-```
+    // Add Datadog for long-term storage and alerting
+    val datadogMeterRegistry = DatadogMeterRegistry(datadogConfig, Clock.SYSTEM)
+    compositeMeterRegistry.add(datadogMeterRegistry)
+
+    // Use composite registry with Viaduct
+    val viaduct = ViaductBuilder()
+        .withMeterRegistry(compositeMeterRegistry)
+        .withTenantModuleInjectorFactory(myInjectorFactory)
+        .build()
+    ```
+
+=== "Java"
+
+    ```java
+    CompositeMeterRegistry compositeMeterRegistry = new CompositeMeterRegistry();
+    PrometheusMeterRegistry prometheusMeterRegistry =
+        new PrometheusMeterRegistry(PrometheusConfig.DEFAULT);
+    compositeMeterRegistry.add(prometheusMeterRegistry);
+
+    DatadogMeterRegistry datadogMeterRegistry = new DatadogMeterRegistry(datadogConfig, Clock.SYSTEM);
+    compositeMeterRegistry.add(datadogMeterRegistry);
+
+    Viaduct viaduct = new ViaductBuilder()
+        .withMeterRegistry(compositeMeterRegistry)
+        .withTenantModuleInjectorFactory(myInjectorFactory)
+        .build();
+    ```
 
 ## Verification
 
 ### Verify Metrics are Being Collected
 
+The following verification runs from a test or command-line thread, where waiting with `join()` is appropriate. In an asynchronous HTTP handler, compose the future as shown in [Server Integration](../server_integration/index.md).
+
 For SimpleMeterRegistry or testing:
 
-```kotlin
-// Execute a query (executeAsync returns a future, callable from non-coroutine code)
-viaduct.executeAsync(executionInput).join()
+===! "Kotlin"
 
-// Check metrics
-meterRegistry.meters.forEach { meter ->
-    if (meter.id.name.startsWith("viaduct.")) {
-        println("${meter.id.name} - ${meter.measure()}")
+    ```kotlin
+    // Execute a query (executeAsync returns a future, callable from non-coroutine code)
+    viaduct.executeAsync(executionInput).join()
+
+    // Check metrics
+    meterRegistry.meters.forEach { meter ->
+        if (meter.id.name.startsWith("viaduct.")) {
+            println("${meter.id.name} - ${meter.measure()}")
+        }
     }
-}
-```
+    ```
+
+=== "Java"
+
+    ```java
+    viaduct.executeAsync(executionInput).join();
+
+    meterRegistry.getMeters().forEach(meter -> {
+        if (meter.getId().getName().startsWith("viaduct.")) {
+            System.out.println(meter.getId().getName() + " - " + meter.measure());
+        }
+    });
+    ```

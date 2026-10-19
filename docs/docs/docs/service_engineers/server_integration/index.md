@@ -5,22 +5,37 @@ description: Embedding Viaduct into a web framework, message consumer, or any ot
 
 {{ kdoc("viaduct.service.api.Viaduct") }} is a pure GraphQL execution engine. It does not include an HTTP server, a message broker client, or any other transport layer. Its contract is simple: call {{ kdoc("viaduct.service.api.Viaduct.execute") }} with an instance of {{ kdoc("viaduct.service.api.ExecutionInput") }} and get back an {{ kdoc("viaduct.service.api.ExecutionResult") }}.
 
-```kotlin
-// Build the input
-val input = ExecutionInput.create(
-    operationText = query,
-    variables = variables,
-    requestContext = yourRequestContext,
-)
+===! "Kotlin"
 
-// Execute
-val result = viaduct.execute(input)
+    ```kotlin
+    // Build the input
+    val input = ExecutionInput.create(
+        operationText = query,
+        variables = variables,
+        requestContext = yourRequestContext,
+    )
 
-// Format result as a GraphQL-spec-compliant JSON object
-val responseBody = result.toSpecification()
-```
+    // Execute
+    val result = viaduct.execute(input)
 
-`execute` is a Kotlin suspending function — it runs in a coroutine and does not block a thread while resolvers are executing. Use {{ kdoc("viaduct.service.api.Viaduct.executeAsync") }} if you're not using a coroutine-based server.
+    // Format result as a GraphQL-spec-compliant JSON object
+    val responseBody = result.toSpecification()
+    ```
+
+=== "Java"
+
+    ```java
+    ExecutionInput input = ExecutionInput.builder()
+        .operationText(query)
+        .variables(variables)
+        .requestContext(yourRequestContext)
+        .build();
+
+    CompletableFuture<Map<String, Object>> responseBody =
+        viaduct.executeAsync(input).thenApply(result -> result.toSpecification());
+    ```
+
+Kotlin's `execute()` suspends in the caller's coroutine. Java's {{ kdoc("viaduct.service.api.Viaduct.executeAsync") }} returns a `CompletableFuture<ExecutionResult>`; compose the future with `thenApply()` and let your server complete the response asynchronously. For a scoped application, pass the registered schema ID as the second argument. See [Viaduct API](../../developers/viaduct_api/index.md) for overloads and result handling.
 
 ## Constructing a Viaduct Instance
 
@@ -36,49 +51,79 @@ The entry point that calls Viaduct is responsible for extracting request-scoped 
 
 For production services, prefer putting this data into framework-managed request-scoped beans and consuming those beans from resolvers through [Dependency Injection](../dependency_injection/index.md). This keeps resolver access type-safe and lets the web framework manage request lifetimes.
 
-For simple integrations, `ExecutionInput.requestContext` can carry deployment-specific context directly into resolver execution. The value is exposed to resolvers as `ctx.requestContext` and is typed as `Any?`, so callers and resolvers must agree on the object shape. Values passed this way should be immutable or thread-safe because resolvers for the same operation may execute concurrently.
+For simple integrations, `ExecutionInput.requestContext` can carry deployment-specific context directly into resolver execution. The value is exposed as `ctx.requestContext` (`Any?`) in Kotlin and `context.getRequestContext()` (`Object`, possibly `null`) in Java, so callers and resolvers must agree on the object shape. Values passed this way should be immutable or thread-safe because resolvers for the same operation may execute concurrently.
 
 ## HTTP Embedding
 
-[Getting Started](../../../getting_started/index.md) demonstrates how to embed Viaduct into a Ktor HTTP server. Here is how you might embed it into a Micronaut-based one:
+[Getting Started](../../../getting_started/index.md) shows Ktor for Kotlin and Micronaut for Java. These Micronaut examples translate an HTTP request into an execution input. The Java example comes directly from the Star Wars demo and also validates the query, carries request context, and selects a registered schema from the request scopes:
 
-```kotlin
-@Controller
-class ViaductRestController(
-    private val viaduct: Viaduct,
-) {
-    @Post("/graphql")
-    suspend fun graphql(
-        @Body request: Map<String, Any>,
-    ): HttpResponse<Map<String, Any?>> {
-        val input = ExecutionInput.create(
-            operationText = request["query"] as String,
-            variables = (request["variables"] as? Map<String, Any>) ?: emptyMap(),
-        )
-        val result = viaduct.execute(input, determineSchemaId(scopesHeader))
-        return HttpResponse.ok(result.toSpecification())
+===! "Kotlin"
+
+    ```kotlin
+    @Controller
+    class ViaductRestController(
+        private val viaduct: Viaduct,
+    ) {
+        @Post("/graphql")
+        suspend fun graphql(
+            @Body request: Map<String, Any>,
+        ): HttpResponse<Map<String, Any?>> {
+            val input = ExecutionInput.create(
+                operationText = request["query"] as String,
+                variables = (request["variables"] as? Map<String, Any>) ?: emptyMap(),
+            )
+            val result = viaduct.execute(input, determineSchemaId(scopesHeader))
+            return HttpResponse.ok(result.toSpecification())
+        }
     }
-}
-```
+    ```
+
+=== "Java"
+
+    {{ codefile("demoapps/starwars-java/src/main/java/com/example/starwars/service/viaduct/ViaductRestController.java") | indent(4) }}
 
 Our [Viaduct demo apps](https://github.com/viaduct-dev) website contains integrations of Viaduct with a variety of web servers.
 
 ## Messaging Embedding
 
-Embedding Viaduct into a message-based transport is largely the same:
+Embedding Viaduct into a message-based transport is largely the same. `IncomingMessage` represents your transport adapter: it supplies the query, variables and headers, and a `reply()` method that sends the response. Import `Viaduct`, `ExecutionInput`, and Java's `CompletableFuture` as in the HTTP example:
 
-```kotlin
-class GraphQLMessageConsumer(
-    private val viaduct: Viaduct,
-) {
-    suspend fun onMessage(message: IncomingMessage) {
-        val input = ExecutionInput.create(
-            operationText = message.query,
-            variables = message.variables,
-            requestContext = message.headers,
-        )
-        val result = viaduct.execute(input)
-        message.reply(result.toSpecification())
+===! "Kotlin"
+
+    ```kotlin
+    class GraphQLMessageConsumer(
+        private val viaduct: Viaduct,
+    ) {
+        suspend fun onMessage(message: IncomingMessage) {
+            val input = ExecutionInput.create(
+                operationText = message.query,
+                variables = message.variables,
+                requestContext = message.headers,
+            )
+            val result = viaduct.execute(input)
+            message.reply(result.toSpecification())
+        }
     }
-}
-```
+    ```
+
+=== "Java"
+
+    ```java
+    public final class GraphQLMessageConsumer {
+        private final Viaduct viaduct;
+
+        public GraphQLMessageConsumer(Viaduct viaduct) {
+            this.viaduct = viaduct;
+        }
+
+        public CompletableFuture<Void> onMessage(IncomingMessage message) {
+            ExecutionInput input = ExecutionInput.builder()
+                .operationText(message.getQuery())
+                .variables(message.getVariables())
+                .requestContext(message.getHeaders())
+                .build();
+            return viaduct.executeAsync(input)
+                .thenAccept(result -> message.reply(result.toSpecification()));
+        }
+    }
+    ```

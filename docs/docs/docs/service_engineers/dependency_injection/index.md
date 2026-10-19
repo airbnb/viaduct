@@ -7,31 +7,64 @@ description: Wiring a DI framework into Viaduct so resolver classes can declare 
 
 To incorporate your preferred DI framework into Viaduct, you need to provide implementations of {{ kdoc("viaduct.service.api.spi.CodeInjector") }}:
 
-```kotlin
-interface CodeInjector {
-    fun <T> getProvider(clazz: Class<T>): Provider<T>
-}
-```
+===! "Kotlin"
+
+    ```kotlin
+    interface CodeInjector {
+        fun <T> getProvider(clazz: Class<T>): Provider<T>
+    }
+    ```
+
+=== "Java"
+
+    ```java
+    public interface CodeInjector {
+        <T> Provider<T> getProvider(Class<T> type);
+    }
+    ```
 
 Viaduct calls `getProvider(resolverClass).get()` before each resolver invocation. Implementations must be thread-safe.
 
 ### `TenantModuleInjectorFactory`
 
-```kotlin
-interface TenantModuleInjectorFactory {
-    suspend fun bootstrap(tenantName: String, tenantBootstrapClass: Class<*>?): CodeInjector
-    suspend fun onBootstrapComplete()
-}
-```
+===! "Kotlin"
+
+    ```kotlin
+    interface TenantModuleInjectorFactory {
+        suspend fun bootstrap(tenantName: String, tenantBootstrapClass: Class<*>?): CodeInjector
+        suspend fun onBootstrapComplete()
+    }
+    ```
+
+=== "Java"
+
+    ```java
+    public abstract class MyTenantModuleInjectorFactory
+        extends JavaTenantModuleInjectorFactory {
+        @Override
+        protected abstract CodeInjector bootstrapBlocking(
+            String tenantName, Class<?> tenantBootstrapClass);
+    }
+    ```
 
 Your implementations of this interface are given to {{ kdoc("viaduct.service.ViaductBuilder") }} (see [Server Integration](../server_integration/index.md)) by giving it an instance of {{ kdoc("viaduct.service.ViaductBuilder.withTenantModuleInjectorFactory") }}:
 
-```kotlin
-val viaduct: Viaduct = ViaductBuilder()
-    .withTenantModuleInjectorFactory(tenantModuleInjectorFactory)
-    ...
-    .build()
-```
+===! "Kotlin"
+
+    ```kotlin
+    val viaduct: Viaduct = ViaductBuilder()
+        .withTenantModuleInjectorFactory(tenantModuleInjectorFactory)
+        ...
+        .build()
+    ```
+
+=== "Java"
+
+    ```java
+    Viaduct viaduct = new ViaductBuilder()
+        .withTenantModuleInjectorFactory(tenantModuleInjectorFactory)
+        .build();
+    ```
 
 ({{ kdoc("viaduct.service.BasicViaductFactory.create") }} also lets you set an injector factory).
 
@@ -41,26 +74,32 @@ val viaduct: Viaduct = ViaductBuilder()
 
 ```java
 public final class MyInjectorFactory extends JavaTenantModuleInjectorFactory {
+    private final Map<String, CodeInjector> injectors;
+
+    public MyInjectorFactory(Map<String, CodeInjector> injectors) {
+        this.injectors = Map.copyOf(injectors);
+    }
+
     @Override
-    public CodeInjector bootstrapBlocking(String tenantName, Class<?> tenantBootstrapClass) {
-        return ...; // build this tenant's injector (may block)
+    protected CodeInjector bootstrapBlocking(String tenantName, Class<?> tenantBootstrapClass) {
+        return Objects.requireNonNull(injectors.get(tenantName), "No injector for " + tenantName);
     }
 }
 ```
+
+The Java example above defines the blocking hook; the coroutine hooks remain implemented by `JavaTenantModuleInjectorFactory`. `CodeInjector` uses `javax.inject.Provider`, even when your DI framework uses `jakarta.inject` annotations.
 
 The base class runs your method on an `Executor` — defaulting to `ForkJoinPool.commonPool()`, or one you pass to the constructor — so blocking work such as file IO never blocks the framework's coroutine thread.
 
 Java tenants declare their bootstrap class with the same annotation as Kotlin tenants:
 
 ```java
-import viaduct.service.api.spi.TenantBootstrapper;
-
 @TenantBootstrapper
 public final class MyTenantBindings {}
 ```
 
 The Java registry annotation processor records this class in the tenant's generated registry,
-including when its source file contains no resolvers. Viaduct loads the class and passes it to
+including when its source file contains no resolvers. The map-based factory above assumes you have already configured one injector for each tenant name; a factory that builds bindings from `tenantBootstrapClass` should validate that class before using it. Viaduct loads the class and passes it to
 `bootstrapBlocking`. Nested declarations use their JVM binary name, such as
 `MyTenant$Bindings`, so they can also be loaded by the shared bootstrap path.
 
@@ -73,21 +112,41 @@ type and construction rules; the annotation does not require a particular superc
 
 {{ kdoc("viaduct.service.api.spi.SharedTenantModuleInjectorFactory") }} is a pre-defined implementation of `TenantModuleInjectorFactory` that is adequate for most Viaduct applications.  (It's "shared" because it lets you define a single injector that's shared across all tenant modules.)  Its constructor takes an instance of {{ kdoc("viaduct.service.api.spi.CodeInjector") }}
 
-{{ codetag("core/service/api/src/main/kotlin/viaduct/service/api/spi/TenantModuleInjectorFactory.kt", "shared_bootstrapper_def", lang="kotlin") }}
+===! "Kotlin"
+
+    {{ codetag("core/service/api/src/main/kotlin/viaduct/service/api/spi/TenantModuleInjectorFactory.kt", "shared_bootstrapper_def", lang="kotlin") | indent(4) }}
+
+=== "Java"
+
+    The Java entry point uses the shared factory shown above.
 
 This class can be used to configure Viaduct to use an injector as follows:
 
-```kotlin
-val theInjector = ...configure the shared injector
-val codeInjector = object : CodeInjector {
-    override fun <T> getProvider(clazz: Class<T>): Provider<T> =
-        theInjector.getProvider(clazz)
-}
-val viaduct: Viaduct = ViaductBuilder()
-    .withTenantModuleInjectorFactory(SharedTenantModuleInjectorFactory(codeInjector))
-    ...
-    .build()
-```
+===! "Kotlin"
+
+    ```kotlin
+    val theInjector = ...configure the shared injector
+    val codeInjector = object : CodeInjector {
+        override fun <T> getProvider(clazz: Class<T>): Provider<T> =
+            theInjector.getProvider(clazz)
+    }
+    val viaduct: Viaduct = ViaductBuilder()
+        .withTenantModuleInjectorFactory(SharedTenantModuleInjectorFactory(codeInjector))
+        ...
+        .build()
+    ```
+
+=== "Java"
+
+    {{ codefile("demoapps/starwars-java/src/main/java/com/example/starwars/service/viaduct/MicronautTenantModuleInjectorFactory.java") | indent(4) }}
+
+    Configure Viaduct with this factory:
+
+    ```java
+    Viaduct viaduct = new ViaductBuilder()
+        .withTenantModuleInjectorFactory(new MicronautTenantModuleInjectorFactory(beanContext))
+        .build();
+    ```
 
 At startup time, Viaduct will call `getProvider(resolverClass)` once per resolver-containing class to obtain a provider for that class. When executing operations, it will use that provider to instantiate resolver-containing classes each time a resolver needs to be invoked.
 
@@ -105,7 +164,13 @@ Over time, the bindings of even a medium-sized application can become a source o
 
 To achieve a higher level of encapsulation than can be achieved with `SharedTenantModuleInjectorFactory`, Viaduct supports the use of a different {{ kdoc("viaduct.service.api.spi.CodeInjector") }} per tenant. Custom implementations of {{ kdoc("viaduct.service.api.spi.TenantModuleInjectorFactory") }} are the mechanism for creating per-module injectors:
 
-{{ codetag("core/service/api/src/main/kotlin/viaduct/service/api/spi/TenantModuleInjectorFactory.kt", "module_bootstrapper_def", lang="kotlin", strip_comments=True) }}
+===! "Kotlin"
+
+    {{ codetag("core/service/api/src/main/kotlin/viaduct/service/api/spi/TenantModuleInjectorFactory.kt", "module_bootstrapper_def", lang="kotlin", strip_comments=True) | indent(4) }}
+
+=== "Java"
+
+    Extend `JavaTenantModuleInjectorFactory` and override `bootstrapBlocking()` as shown above. Override `onBootstrapCompleteBlocking()` when you need to finalize bindings across all tenants before any returned injector is used.
 
 At startup time Viaduct will call the {{ kdoc("viaduct.service.api.spi.TenantModuleInjectorFactory.bootstrap") }} method once for every tenant module in the application. `tenantName` will be set to the name of the tenant module, and `tenantBootstrapClass` will be set to the class in that module (if there is one) that is annotated with {{ kdoc("service.api.spi.TenantBootstrapper") }}.
 

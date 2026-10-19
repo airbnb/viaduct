@@ -13,4 +13,6 @@ We have published a number of small applications that demonstrate different conf
 
 * [`micronaut-starter`](https://github.com/viaduct-dev/micronaut-starter): also "Hello, World!" embedded in Micronaut and using Micronaut's dependency-injection framework.
 
-* [`starwars`](https://github.com/viaduct-dev/starwars): more complete demonstration app -- see [Star Wars tutorial](../../../getting_started/starwars/index.md) for a tour of this application.
+* [`starwars`](https://github.com/viaduct-dev/starwars): more complete Kotlin demonstration app -- see [Star Wars tutorial](../../../getting_started/starwars/index.md) for a tour of this application.
+
+* [`starwars-java`](https://github.com/airbnb/viaduct/tree/master/demoapps/starwars-java): Java resolvers in a Micronaut service, with two tenant modules, GraphiQL, batching, mutations and pagination. It lives in the main Viaduct repository and currently uses snapshot artifacts. Follow the Java tabs in [Getting Started](../../../getting_started/index.md) for the JDK and repository setup. The Star Wars tutorial uses matching Kotlin/Java tabs for its examples.

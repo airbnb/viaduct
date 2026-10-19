@@ -22,12 +22,20 @@ You typically create an instance via:
 
 This is the simplest way to build an instance of Viaduct.
 
-```kotlin
-import viaduct.service.BasicViaductFactory
-import viaduct.service.api.Viaduct
+===! "Kotlin"
 
-val viaduct: Viaduct = BasicViaductFactory.create()
-```
+    ```kotlin
+    import viaduct.service.BasicViaductFactory
+    import viaduct.service.api.Viaduct
+
+    val viaduct: Viaduct = BasicViaductFactory.create()
+    ```
+
+=== "Java"
+
+    ```java
+    Viaduct viaduct = BasicViaductFactory.create();
+    ```
 
 **When to use**
 
@@ -36,29 +44,43 @@ val viaduct: Viaduct = BasicViaductFactory.create()
 
 ### Option B: `ViaductBuilder`
 
-ViaductBuilder provides full control of all the internal configurations of the Viaduct.
+ViaductBuilder provides full control of all the internal configurations of the Viaduct. Configure a tenant injector factory explicitly to load tenant modules; a bare builder has no tenant config sources. The Java example uses the naive factory for resolvers with no-argument constructors. For injected dependencies, supply your [DI factory](../../service_engineers/dependency_injection/index.md).
 
-```kotlin
-import viaduct.service.SchemaScopeInfo
-import viaduct.service.ViaductBuilder
+===! "Kotlin"
 
-val viaduct =
-  ViaductBuilder()
-    // Register exactly these executable views.
-    .withScopedSchemas(
-      listOf(
-        SchemaScopeInfo.Base,
-        SchemaScopeInfo.Scoped(id = "public", scopesToApply = setOf("public"))
-      )
-    )
-    // Optional platform hooks:
-    // .withMeterRegistry(meterRegistry)
-    // .withFlagManager(flagManager)
-    // .withResolverErrorReporter(errorReporter)
-    // .withDataFetcherErrorBuilder(resolverErrorBuilder)
-    // .withGlobalIDCodec(globalIdCodec)
-    .build()
-```
+    ```kotlin
+    import viaduct.service.SchemaScopeInfo
+    import viaduct.service.ViaductBuilder
+
+    val viaduct =
+      ViaductBuilder()
+        .withTenantModuleInjectorFactory(tenantModuleInjectorFactory)
+        // Register exactly these executable views.
+        .withScopedSchemas(
+          listOf(
+            SchemaScopeInfo.Base,
+            SchemaScopeInfo.Scoped(id = "public", scopesToApply = setOf("public"))
+          )
+        )
+        // Optional platform hooks:
+        // .withMeterRegistry(meterRegistry)
+        // .withFlagManager(flagManager)
+        // .withResolverErrorReporter(errorReporter)
+        // .withDataFetcherErrorBuilder(resolverErrorBuilder)
+        // .withGlobalIDCodec(globalIdCodec)
+        .build()
+    ```
+
+=== "Java"
+
+    ```java
+    Viaduct viaduct = new ViaductBuilder()
+        .withTenantModuleInjectorFactory(NaiveTenantModuleInjectorFactory.INSTANCE)
+        .withScopedSchemas(List.of(
+            SchemaScopeInfo.Base.INSTANCE,
+            new SchemaScopeInfo.Scoped("public", Set.of("public"))))
+        .build();
+    ```
 
 **When to use**
 
@@ -82,19 +104,34 @@ registers exactly those views:
 Base is optional under explicit configuration. For example, an application can expose only a
 public projection:
 
-```kotlin
-val viaduct =
-  ViaductBuilder()
-    .withScopedSchemas(
-      listOf(
-        SchemaScopeInfo.Scoped(
-          id = "public",
-          scopesToApply = setOf("public"),
+===! "Kotlin"
+
+    ```kotlin
+    val viaduct =
+      ViaductBuilder()
+        .withTenantModuleInjectorFactory(tenantModuleInjectorFactory)
+        .withScopedSchemas(
+          listOf(
+            SchemaScopeInfo.Scoped(
+              id = "public",
+              scopesToApply = setOf("public"),
+            )
+          )
         )
-      )
-    )
-    .build()
-```
+        .build()
+    ```
+
+=== "Java"
+
+    ```java
+    SchemaScopeInfo publicView = new SchemaScopeInfo.Scoped("public", Set.of("public"));
+    Viaduct viaduct = new ViaductBuilder()
+        .withTenantModuleInjectorFactory(NaiveTenantModuleInjectorFactory.INSTANCE)
+        .withScopedSchemas(List.of(publicView))
+        .build();
+
+    SchemaId publicSchemaId = publicView.getSchemaId();
+    ```
 
 This application must execute requests using the corresponding `SchemaId.Scoped`; `SchemaId.Base`
 is not registered. The internal Full schema still exists for planning and execution support, but
@@ -112,19 +149,31 @@ Each execution targets a **schema variant** identified by a `SchemaId`:
 - `SchemaId.Scoped(id, scopeIds)` — a schema variant derived from the full schema by applying *scope IDs*.
 - `SchemaId.None` — sentinel “non-existent schema” (typically not used for normal execution).
 
-```kotlin
-import viaduct.service.api.SchemaId
+===! "Kotlin"
 
-val base = SchemaId.Base
+    ```kotlin
+    import viaduct.service.api.SchemaId
 
-val internalOnly = SchemaId.Scoped(
-  id = "INTERNAL",
-  scopeIds = setOf("internal", "admin")
-)
-```
+    val base = SchemaId.Base
+
+    val internalOnly = SchemaId.Scoped(
+      id = "INTERNAL",
+      scopeIds = setOf("internal", "admin")
+    )
+    ```
+
+=== "Java"
+
+    ```java
+    SchemaId base = SchemaId.Base.INSTANCE;
+    SchemaId internalOnly =
+        new SchemaScopeInfo.Scoped("INTERNAL", Set.of("internal", "admin")).getSchemaId();
+    ```
 
 
 ### How Scoped Schemas Relate To Access Control
+
+`SchemaScopeInfo.Scoped(...).getSchemaId()` is the Java way to obtain the ID you registered with `withScopedSchemas()`. Use the same ID for execution; `SchemaId.Base.INSTANCE` addresses the base view only when it is registered.
 
 A scoped schema is a structural way to **hide types/fields** from a client by removing them from the executable schema. This is complementary to runtime checks inside resolvers.
 
@@ -145,35 +194,55 @@ To implement or audit access-control, you can ask `Viaduct` what scopes were app
 
 Prefer the builder for clarity and explicitness:
 
-```kotlin
-import viaduct.service.api.ExecutionInput
+===! "Kotlin"
 
-val input =
-  ExecutionInput.builder()
-    .operationText(
-      """
-      query User(${"$"}id: ID!) {
-        user(id: ${"$"}id) { id name }
-      }
-      """.trimIndent()
-    )
-    .variables(mapOf("id" to "123"))
-    .requestContext(MyRequestContext(requestId = "req-1", auth = authInfo))
-    .build()
-```
+    ```kotlin
+    import viaduct.service.api.ExecutionInput
+
+    val input =
+      ExecutionInput.builder()
+        .operationText(
+          """
+          query User(${"$"}id: ID!) {
+            user(id: ${"$"}id) { id name }
+          }
+          """.trimIndent()
+        )
+        .variables(mapOf("id" to "123"))
+        .requestContext(MyRequestContext(requestId = "req-1", auth = authInfo))
+        .build()
+    ```
+
+=== "Java"
+
+    ```java
+    ExecutionInput input = ExecutionInput.builder()
+        .operationText("query User($id: ID!) { user(id: $id) { id name } }")
+        .variables(Map.of("id", "123"))
+        .requestContext(yourRequestContext)
+        .build();
+    ```
 
 ### Convenience Factory
 
 For simple cases:
 
-```kotlin
-val input =
-  ExecutionInput.create(
-    operationText = "query { health }",
-    variables = emptyMap(),
-    requestContext = null
-  )
-```
+===! "Kotlin"
+
+    ```kotlin
+    val input =
+      ExecutionInput.create(
+        operationText = "query { health }",
+        variables = emptyMap(),
+        requestContext = null
+      )
+    ```
+
+=== "Java"
+
+    ```java
+    ExecutionInput input = ExecutionInput.create("query { health }");
+    ```
 
 **Notes**
 
@@ -184,21 +253,35 @@ val input =
 
 `Viaduct` exposes these methods:
 
-```kotlin
-interface Viaduct {
-  // Kotlin / coroutine entry point: suspends until the operation completes.
-  suspend fun execute(input: ExecutionInput, schemaId: SchemaId = SchemaId.Base): ExecutionResult
+===! "Kotlin"
 
-  // Java-friendly entry point: returns a future and runs on the given Executor
-  // (defaults to ForkJoinPool.commonPool()).
-  fun executeAsync(
-    input: ExecutionInput,
-    schemaId: SchemaId = SchemaId.Base,
-    executor: Executor = ForkJoinPool.commonPool(),
-  ): CompletableFuture<ExecutionResult>
-  fun getAppliedScopes(schemaId: SchemaId): Set<String>?
-}
-```
+    ```kotlin
+    interface Viaduct {
+      // Kotlin / coroutine entry point: suspends until the operation completes.
+      suspend fun execute(input: ExecutionInput, schemaId: SchemaId = SchemaId.Base): ExecutionResult
+
+      // Java-friendly entry point: returns a future and runs on the given Executor
+      // (defaults to ForkJoinPool.commonPool()).
+      fun executeAsync(
+        input: ExecutionInput,
+        schemaId: SchemaId = SchemaId.Base,
+        executor: Executor = ForkJoinPool.commonPool(),
+      ): CompletableFuture<ExecutionResult>
+      fun getAppliedScopes(schemaId: SchemaId): Set<String>?
+    }
+    ```
+
+=== "Java"
+
+    ```java
+    CompletableFuture<ExecutionResult> executeAsync(ExecutionInput input);
+    CompletableFuture<ExecutionResult> executeAsync(ExecutionInput input, SchemaId schemaId);
+    CompletableFuture<ExecutionResult> executeAsync(
+        ExecutionInput input, SchemaId schemaId, Executor executor);
+    Set<String> getAppliedScopes(SchemaId schemaId);
+    ```
+
+The Java signatures above are a summary of the callable API. Imports come from `viaduct.service.api`, `java.util.Set`, and `java.util.concurrent`. In Kotlin, `execute()` uses coroutines; Java callers compose `executeAsync()` with `thenApply()` or `thenCompose()` rather than blocking the HTTP handler with `join()`.
 
 In both cases the returned `ExecutionResult.errors` are **sorted** by GraphQL path and then message.
 
@@ -212,14 +295,25 @@ execution result.
 idiomatic entry point for Kotlin and coroutine-based servers, and it runs in the caller's
 coroutine context.
 
-```kotlin
-import viaduct.service.api.SchemaId
+===! "Kotlin"
 
-suspend fun handleRequest(viaduct: Viaduct, input: ExecutionInput): Map<String, Any?> {
-  val result = viaduct.execute(input, SchemaId.Base)
-  return result.toSpecification()
-}
-```
+    ```kotlin
+    import viaduct.service.api.SchemaId
+
+    suspend fun handleRequest(viaduct: Viaduct, input: ExecutionInput): Map<String, Any?> {
+      val result = viaduct.execute(input, SchemaId.Base)
+      return result.toSpecification()
+    }
+    ```
+
+=== "Java"
+
+    ```java
+    public CompletableFuture<Map<String, Object>> handleRequest(
+        Viaduct viaduct, ExecutionInput input) {
+        return viaduct.executeAsync(input).thenApply(result -> result.toSpecification());
+    }
+    ```
 
 **When to use**
 
@@ -233,15 +327,19 @@ Following the standard Java idiom, it accepts an `Executor` that controls the th
 runs on (defaulting to `ForkJoinPool.commonPool()`). It is the idiomatic entry point for Java
 callers and other non-coroutine contexts.
 
-```kotlin
-val result = viaduct.executeAsync(input, SchemaId.Base).join()
-val response = result.toSpecification()
-```
+===! "Kotlin"
 
-```java
-// From Java
-ExecutionResult result = viaduct.executeAsync(input, SchemaId.Base.INSTANCE).join();
-```
+    ```kotlin
+    val result = viaduct.executeAsync(input, SchemaId.Base).join()
+    val response = result.toSpecification()
+    ```
+
+=== "Java"
+
+    ```java
+    CompletableFuture<ExecutionResult> result = viaduct.executeAsync(input, schemaId);
+    CompletableFuture<Map<String, Object>> response = result.thenApply(ExecutionResult::toSpecification);
+    ```
 
 **When to use**
 
@@ -253,8 +351,8 @@ ExecutionResult result = viaduct.executeAsync(input, SchemaId.Base.INSTANCE).joi
 `ExecutionResult` is Viaduct’s wrapper (it does not expose GraphQL Java types directly):
 
 - `getData(): Map<String, Any?>?`
-- `errors: List<GraphQLError>` (sorted by path then message)
-- `extensions: Map<Any, Any?>?`
+- `errors: List<GraphQLError>` (Java: `getErrors()`, sorted by path then message)
+- `extensions: Map<Any, Any?>?` (Java: `getExtensions()`)
 - `toSpecification(): Map<String, Any?>` (ready to JSON-serialize for HTTP)
 
 #### Data vs Errors
@@ -267,22 +365,37 @@ GraphQL supports **partial results**:
 You should:
 
 - Always serialize both `"data"` (possibly `null`) and `"errors"` when errors exist.
-- Treat `errors.isNotEmpty()` as “something went wrong” even if data exists.
+- Treat `errors.isNotEmpty()` in Kotlin, or `!result.getErrors().isEmpty()` in Java, as “something went wrong” even if data exists.
+
+The access-control example below uses application-owned handlers, `handleUnscopedRequest()` and `rejectInternalAccess()`.
 
 
 ### `getAppliedScopes(schemaId)`
 
 This is primarily for **authorization / access-control** and auditing:
 
-```kotlin
-val scopes: Set<String>? = viaduct.getAppliedScopes(schemaId)
+===! "Kotlin"
 
-if (scopes == null) {
-  // base schema (no scopes)
-} else if ("internal" !in scopes) {
-  // reject or downgrade capabilities
-}
-```
+    ```kotlin
+    val scopes: Set<String>? = viaduct.getAppliedScopes(schemaId)
+
+    if (scopes == null) {
+      // base schema (no scopes)
+    } else if ("internal" !in scopes) {
+      // reject or downgrade capabilities
+    }
+    ```
+
+=== "Java"
+
+    ```java
+    Set<String> scopes = viaduct.getAppliedScopes(schemaId);
+    if (scopes == null) {
+        handleUnscopedRequest();
+    } else if (!scopes.contains("internal")) {
+        rejectInternalAccess();
+    }
+    ```
 
 #### Semantics
 

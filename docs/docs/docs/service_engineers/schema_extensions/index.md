@@ -6,6 +6,8 @@ description: Defining application-wide custom directives and common types using 
 Viaduct provides a set of directives and built-in types that go beyond what's defined in the GraphQL specification (see the [Developers: Schema Reference](../../developers/schema_reference/index.md)). You can define **custom directives** and **common types** that are shared across all modules by placing GraphQL schema files in a centralized location. (Viaduct does not yet support custom scalars.)
 
 
+The schema format, directory layout and validation tasks on this page apply to both Kotlin and Java applications. Generated Java types are described in [Generated Code](../../developers/generated_code/index.md).
+
 ## The schemabase directory
 
 The Viaduct [application plugin](../../../getting_started/index.md) automatically discovers and includes schema files from:

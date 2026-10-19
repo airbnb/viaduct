@@ -14,4 +14,6 @@ As a service engineer, you manage the Viaduct service itself: integrating it int
 - **[Multi-tenancy](multi_tenancy/index.md)** — Compose multiple independently-developed tenant modules into a single unified schema.
 - **[Feature Flags](feature_flags/index.md)** — Configure Viaduct feature flags.
 
-When reading this material, click through to the linked KDocs for more details on individual classes.
+The service API is shared by Kotlin and Java applications. Select your language in the examples; Java integration uses `CompletableFuture` for operation execution and Java adapters for coroutine-based SPIs. Build-script examples use Gradle's Kotlin DSL even when tenant code is Java.
+
+When reading this material, click through to the linked API documentation for more details on individual classes.
