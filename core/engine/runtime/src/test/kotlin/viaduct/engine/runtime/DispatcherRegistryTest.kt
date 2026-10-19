@@ -8,7 +8,6 @@ import kotlin.collections.count
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertThrows
@@ -364,7 +363,7 @@ class DispatcherRegistryTest {
     }
 
     @Test
-    fun `engine2 disables batching when constructing field and node dispatchers`() {
+    fun `engine2 preserves executor batching capability in field and node dispatchers`() {
         val validator = MockValidator()
         val registry = dispatcherRegistryFactory(
             listOf(Samples.mockTenantModule),
@@ -375,12 +374,12 @@ class DispatcherRegistryTest {
 
         val fieldDispatcher = registry.getFieldResolverDispatcher("TestType", "batchField")
         fieldDispatcher.shouldBeInstanceOf<FieldResolverDispatcherImpl>()
-        assertFalse(fieldDispatcher.isBatching)
+        assertTrue(fieldDispatcher.isBatching)
 
         val nodeDispatcher = registry.getNodeResolverDispatcher("TestBatchNode")
         nodeDispatcher.shouldBeInstanceOf<InstrumentedNodeResolverDispatcher>()
         val nodeDispatcherImpl = nodeDispatcher.dispatcher.shouldBeInstanceOf<NodeResolverDispatcherImpl>()
-        assertFalse(nodeDispatcherImpl.isBatching)
+        assertTrue(nodeDispatcherImpl.isBatching)
 
         assertTrue(validator.arg!!.fieldResolverExecutors.getValue("TestType" to "batchField").isBatching)
         assertTrue(validator.arg!!.nodeResolverExecutors.getValue("TestBatchNode").isBatching)

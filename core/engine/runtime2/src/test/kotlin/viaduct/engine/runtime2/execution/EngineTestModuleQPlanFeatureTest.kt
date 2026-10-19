@@ -572,7 +572,8 @@ class EngineTestModuleQPlanFeatureTest {
     }
 
     @Test
-    fun `built in Query nodes returns independently resolved node references`() {
+    fun `built in Query nodes dispatches each node in a singleton batch`() {
+        val calls = AtomicInteger()
         val firstId = java.util.Base64.getEncoder().encodeToString("User:u1".toByteArray())
         val secondId = java.util.Base64.getEncoder().encodeToString("User:u2".toByteArray())
         EngineTestModule(
@@ -584,14 +585,20 @@ class EngineTestModuleQPlanFeatureTest {
             """.trimIndent(),
         ) {
             type("User") {
-                nodeUnbatchedExecutor { id, _, _ ->
-                    createEngineObjectData(
-                        objectType,
-                        mapOf(
-                            "id" to id,
-                            "name" to if (id == firstId) "Ada" else "Grace",
-                        ),
-                    )
+                nodeBatchedExecutor { selectors, _ ->
+                    calls.incrementAndGet()
+                    assertEquals(1, selectors.size)
+                    selectors.associateWith { selector ->
+                        Result.success(
+                            createEngineObjectData(
+                                objectType,
+                                mapOf(
+                                    "id" to selector.id,
+                                    "name" to if (selector.id == firstId) "Ada" else "Grace",
+                                ),
+                            ),
+                        )
+                    }
                 }
             }
         }.runQPlanFeatureTest {
@@ -620,15 +627,17 @@ class EngineTestModuleQPlanFeatureTest {
                 result.getData(),
             )
         }
+        assertEquals(2, calls.get())
     }
 
     @Test
     fun `adapts batching executors through the production immediate dispatcher`() {
+        val calls = AtomicInteger()
         val module =
             EngineTestModule(
                 """
                 extend type Query {
-                  value: Int
+                  value(input: Int): Int
                 }
                 """.trimIndent(),
             ) {
@@ -637,7 +646,9 @@ class EngineTestModuleQPlanFeatureTest {
                         MockFieldBatchResolverExecutor(
                             resolverId = resolverId,
                             batchResolveFn = { selectors, _ ->
-                                selectors.associateWith { Result.success(7) }
+                                calls.incrementAndGet()
+                                assertEquals(1, selectors.size)
+                                selectors.associateWith { Result.success(it.arguments["input"]) }
                             },
                         )
                     }
@@ -645,7 +656,9 @@ class EngineTestModuleQPlanFeatureTest {
             }
 
         module.runQPlanFeatureTest {
-            runQuery("{ value }").assertJson("{data: {value: 7}}")
+            runQuery("{ first: value(input: 7) second: value(input: 8) }")
+                .assertJson("{data: {first: 7, second: 8}}")
         }
+        assertEquals(2, calls.get())
     }
 }

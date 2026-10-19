@@ -54,6 +54,7 @@ import viaduct.engine.runtime2.execution.QPlanCallerCoroutineContextKey
 import viaduct.engine.runtime2.execution.QPlanExecutionStrategy
 import viaduct.engine.runtime2.execution.QPlanInstrumentation
 import viaduct.engine.runtime2.execution.QPlanWiringFactory
+import viaduct.engine.runtime2.execution.Runtime2DispatchStrategy
 import viaduct.engine.runtime2.execution.Runtime2ExecutionHandle
 import viaduct.engine.runtime2.execution.instrumentForRuntime2
 import viaduct.engine.runtime2.execution.runtime2NodeReferenceOf
@@ -231,10 +232,10 @@ class Engine2(
          * production loader cache cannot merge distinct semantic occurrences. This is a
          * transitional physical-dispatch policy, not a permanent prohibition on safe reuse.
          */
-        override fun fieldDataLoader(resolver: FieldResolverExecutor): FieldDataLoader = FieldDataLoader(resolver)
+        override fun fieldDataLoader(resolver: FieldResolverExecutor): FieldDataLoader = FieldDataLoader(resolver, dispatchStrategy = Runtime2DispatchStrategy)
 
         /** See [fieldDataLoader] for the transitional per-invocation loader policy. */
-        override fun nodeDataLoader(resolver: NodeResolverExecutor): NodeDataLoader = NodeDataLoader(resolver)
+        override fun nodeDataLoader(resolver: NodeResolverExecutor): NodeDataLoader = NodeDataLoader(resolver, dispatchStrategy = Runtime2DispatchStrategy)
     }
 }
 

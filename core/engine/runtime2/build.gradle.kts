@@ -64,6 +64,7 @@ dependencies {
     testImplementation(libs.viaduct.service.api)
     testImplementation(libs.viaduct.tenant.shared)
     testImplementation(libs.viaduct.shared.arbitrary)
+    testImplementation(libs.viaduct.shared.dataloader)
     testImplementation(testFixtures(libs.viaduct.engine.api))
     testImplementation(testFixtures(libs.viaduct.engine.runtime))
     testImplementation(testFixtures(libs.viaduct.shared.arbitrary))

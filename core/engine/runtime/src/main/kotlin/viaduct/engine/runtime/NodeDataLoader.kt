@@ -19,15 +19,13 @@ import viaduct.engine.api.spi.NodeResolverExecutor
 import viaduct.engine.runtime.select.covers
 
 /**
- * If the resolver is a batch resolver, then the data loader handles batching together calls to
- * the `resolve` function of a node resolver, and caching the results.
- * If the resolver is a non-batch resolver, then the data loader only caches the results and no
- * batching is done.
- * There should be exactly one instance of this data loader per node type per request.
+ * The engine's dispatch strategy decides whether to collect calls into batches or dispatch immediately.
+ * Results are cached within this loader unless caching is disabled.
  */
 class NodeDataLoader(
     private val resolver: NodeResolverExecutor,
     private val cachingEnabled: Boolean = true,
+    private val dispatchStrategy: ResolverDispatchStrategy = RuntimeDispatchStrategy,
 ) : DataLoader<NodeResolverExecutor.Selector, Result<EngineObjectData>, NodeResolverExecutor.Selector>() {
     suspend fun loadByKey(
         key: NodeResolverExecutor.Selector,
@@ -45,7 +43,7 @@ class NodeDataLoader(
 
     override fun getDataLoaderOptions(): DataLoaderOptions = DataLoaderOptions(cachingEnabled = cachingEnabled)
 
-    override fun shouldUseImmediateDispatch(): Boolean = !resolver.isBatching
+    override fun shouldUseImmediateDispatch(): Boolean = dispatchStrategy.shouldDispatchImmediately(resolver)
 
     override val cacheKeyFn: CacheKeyFn<NodeResolverExecutor.Selector, NodeResolverExecutor.Selector> get() =
         if (resolver.isSelective) {

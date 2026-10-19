@@ -324,7 +324,7 @@ class EngineExecutionContextImpl internal constructor(
      */
     override fun fieldDataLoader(resolver: FieldResolverExecutor): FieldDataLoader =
         fieldDataLoaders.computeIfAbsent(FieldDataLoaderKey(resolver.resolverId, matBatchDepth)) {
-            FieldDataLoader(resolver)
+            FieldDataLoader(resolver, dispatchStrategy = RuntimeDispatchStrategy)
         }
 
     /**
@@ -334,7 +334,7 @@ class EngineExecutionContextImpl internal constructor(
      */
     override fun nodeDataLoader(resolver: NodeResolverExecutor): NodeDataLoader =
         nodeDataLoaders.computeIfAbsent(resolver.typeName) {
-            NodeDataLoader(resolver, cachingEnabled = nodeResolverCachingEnabled)
+            NodeDataLoader(resolver, cachingEnabled = nodeResolverCachingEnabled, dispatchStrategy = RuntimeDispatchStrategy)
         }
 
     /**

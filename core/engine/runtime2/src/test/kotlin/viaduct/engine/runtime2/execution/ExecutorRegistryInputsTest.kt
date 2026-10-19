@@ -349,16 +349,12 @@ class ExecutorRegistryInputsTest {
                         mapOf(selectors.single() to Result.success(7))
                     },
                 )
-            val effectiveExecutor =
-                object : FieldResolverExecutor by batchingExecutor {
-                    override val isBatching: Boolean = false
-                }
             val dispatcherRegistry =
                 DispatcherRegistry.Impl(
                     fieldResolverDispatchers =
                         mapOf(
                             ("Query" to "value") to
-                                FieldResolverDispatcherImpl(effectiveExecutor),
+                                FieldResolverDispatcherImpl(batchingExecutor),
                         ),
                     nodeResolverDispatchers = emptyMap(),
                     fieldCheckerDispatchers = emptyMap(),
@@ -1104,9 +1100,11 @@ class ExecutorRegistryInputsTest {
                 private val fieldLoaders = ConcurrentHashMap<String, FieldDataLoader>()
                 private val nodeLoaders = ConcurrentHashMap<String, NodeDataLoader>()
 
-                override fun fieldDataLoader(resolver: FieldResolverExecutor): FieldDataLoader = fieldLoaders.computeIfAbsent(resolver.resolverId) { FieldDataLoader(resolver) }
+                override fun fieldDataLoader(resolver: FieldResolverExecutor): FieldDataLoader =
+                    fieldLoaders.computeIfAbsent(resolver.resolverId) { FieldDataLoader(resolver, dispatchStrategy = Runtime2DispatchStrategy) }
 
-                override fun nodeDataLoader(resolver: NodeResolverExecutor): NodeDataLoader = nodeLoaders.computeIfAbsent(resolver.typeName) { NodeDataLoader(resolver) }
+                override fun nodeDataLoader(resolver: NodeResolverExecutor): NodeDataLoader =
+                    nodeLoaders.computeIfAbsent(resolver.typeName) { NodeDataLoader(resolver, dispatchStrategy = Runtime2DispatchStrategy) }
             }
         val resolutionContext =
             object : ResolutionExecutionContext by ResolutionExecutionContext.Unsupported {
