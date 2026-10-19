@@ -3,18 +3,23 @@
 package viaduct.engine.runtime
 
 import graphql.execution.instrumentation.SimplePerformantInstrumentation
+import graphql.schema.DataFetchingEnvironment
 import io.mockk.every
 import io.mockk.mockk
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNotSame
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.engine.api.Coordinate
 import viaduct.engine.api.Engine
+import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.FullSchema
 import viaduct.engine.api.mocks.MockFieldUnbatchedResolverExecutor
 import viaduct.engine.api.mocks.MockSchema
+import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.FieldSelectivityProvider
 import viaduct.engine.api.spi.MaterializedFieldValueReader
 import viaduct.engine.api.spi.NodeResolverExecutor
@@ -50,6 +55,34 @@ class EngineExecutionContextImplTest {
         assertSame(batchNodeLoader, copyBatchNodeLoader)
         assertSame(eec.engine, eecCopy.engine)
         assertTrue(eecCopy.fieldRssOriginFilteringKillSwitchEnabled)
+    }
+
+    @Test
+    fun `shadow fork isolates loaders and execution state from its parent`() {
+        val handle = mockk<EngineExecutionContext.ExecutionHandle>()
+        val environment = mockk<DataFetchingEnvironment>()
+        val parent = ContextMocks().engineExecutionContextImpl.copy(
+            executionHandle = handle,
+            dataFetchingEnvironment = environment,
+        )
+        val nodeResolver = mockk<NodeResolverExecutor> { every { typeName } returns "User" }
+        val fieldResolver = mockk<FieldResolverExecutor> { every { resolverId } returns "User.name" }
+        val parentNodeLoader = parent.nodeDataLoader(nodeResolver)
+        val parentFieldLoader = parent.fieldDataLoader(fieldResolver)
+
+        val shadow = parent.forkForShadowExecution()
+
+        assertNotSame(parentNodeLoader, shadow.nodeDataLoader(nodeResolver))
+        assertNotSame(parentFieldLoader, shadow.fieldDataLoader(fieldResolver))
+        assertSame(parentNodeLoader, parent.nodeDataLoader(nodeResolver))
+        assertSame(parentFieldLoader, parent.fieldDataLoader(fieldResolver))
+        assertSame(handle, parent.executionHandle)
+        assertSame(environment, parent.dataFetchingEnvironment)
+        assertNull(shadow.executionHandle)
+        assertNull(shadow.dataFetchingEnvironment)
+        assertSame(parent.fullSchema, shadow.fullSchema)
+        assertSame(parent.scopedSchema, shadow.scopedSchema)
+        assertSame(parent.activeSchema, shadow.activeSchema)
     }
 
     @Test

@@ -394,14 +394,8 @@ class EngineExecutionContextImpl internal constructor(
         )
     }
 
-    /**
-     * Forks mutable engine execution state for one temporary shadow field execution.
-     *
-     * Schemas, request context, registry, and instrumentation are shared. Data-loader maps start
-     * fresh; field scope, DFE, and a shadow-local execution handle are established by the shadow
-     * execution parameters.
-     */
-    internal fun forkForShadowExecution(): EngineExecutionContextImpl =
+    /** Forks execution and loader state while preserving the request's schema and configuration. */
+    fun forkForShadowExecution(): EngineExecutionContextImpl =
         EngineExecutionContextImpl(
             fullSchema = fullSchema,
             scopedSchema = scopedSchema,
