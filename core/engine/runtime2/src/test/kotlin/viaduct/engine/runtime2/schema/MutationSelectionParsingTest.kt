@@ -10,10 +10,6 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.engine.runtime2.model.InclusionCondition
 import viaduct.engine.runtime2.model.MutationSelectionForest
-import viaduct.engine.runtime2.model.ObjectSelectionForest
-import viaduct.engine.runtime2.model.Selection
-import viaduct.engine.runtime2.model.flatMapToSelectionForest
-import viaduct.engine.runtime2.model.selectionForestOf
 
 class MutationSelectionParsingTest {
     private val schemas = ViaductAndGJSchema.fromGraphQLSchema(
@@ -66,16 +62,7 @@ class MutationSelectionParsingTest {
     }
 
     @Test
-    fun `ordinary forests cannot contain mutation selections or mutation subselections`() {
-        val forest = schemas.operationSelectionsFrom("mutation { group { update { value } } }") as MutationSelectionForest
-        val member = forest.single()
-        assertThrows<IllegalArgumentException> { selectionForestOf(member) }
-        assertThrows<IllegalArgumentException> { selectionForestOf() + forest }
-        assertThrows<IllegalArgumentException> { listOf(Unit).flatMapToSelectionForest { forest } }
-        assertThrows<IllegalArgumentException> { ObjectSelectionForest.of(forest.type, listOf(member)) }
-        assertThrows<IllegalArgumentException> {
-            selectionForestOf(Selection.of(member.key, member.possibleTypes, member.subselections))
-        }
+    fun `mutation forests reject a Query root type`() {
         assertThrows<IllegalArgumentException> { MutationSelectionForest.of(schemas.loweredSchema, schemas.loweredSchema.queryTypeDef!!, emptyList()) }
     }
 }

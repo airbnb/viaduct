@@ -3,8 +3,10 @@ package viaduct.engine.runtime2.model
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
 import kotlin.test.assertNotSame
 import kotlin.test.assertSame
+import kotlin.test.assertTrue
 import viaduct.engine.runtime2.model.testing.TestWorld
 
 class RootFieldReferenceDataTest {
@@ -77,9 +79,9 @@ class RootFieldReferenceDataTest {
 
         assertSame(reference, data.outputValue("owner"))
         assertSame(reference, (data.outputValue("products") as List<*>).single())
-        assertFailsWith<IllegalArgumentException> {
-            engineObjectDataOf(query, mapOf("other" to reference))
-        }
+        assertTrue(reference.conformsToResolverOutputSchemaType(schema.requireObjectField("Query", "owner").outputType))
+        assertTrue(listOf(reference).conformsToResolverOutputSchemaType(schema.requireObjectField("Query", "products").outputType))
+        assertFalse(reference.conformsToResolverOutputSchemaType(schema.requireObjectField("Query", "other").outputType))
     }
 
     @Test

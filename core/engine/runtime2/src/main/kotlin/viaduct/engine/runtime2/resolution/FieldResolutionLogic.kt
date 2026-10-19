@@ -19,7 +19,6 @@ import viaduct.engine.runtime2.model.RootFieldReferenceData
 import viaduct.engine.runtime2.model.Selection
 import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.model.VariableBinding
-import viaduct.engine.runtime2.model.conformsToResolverOutputSchemaType
 import viaduct.engine.runtime2.model.engineObjectDataOf
 import viaduct.engine.runtime2.model.guardedBy
 import viaduct.engine.runtime2.model.materializeSelectionForestOf
@@ -144,14 +143,6 @@ internal class FieldResolutionLogic(
             val reference = fieldValue
             authoritativeNodeIdentity =
                 authoritativeNodeIdentity ?: reference.nodeReferenceIdentityOrNull()
-            require(
-                reference.conformsToResolverOutputSchemaType(
-                    sourceOccurrence.publicationExpectedType,
-                ),
-            ) {
-                "Root-field-reference target ${reference.type.name} does not conform to " +
-                    "the consumer publication type"
-            }
             val invocation =
                 prepareRootFieldReferenceInvocation(
                     reference = reference,

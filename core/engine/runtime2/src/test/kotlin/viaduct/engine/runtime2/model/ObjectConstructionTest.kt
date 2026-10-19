@@ -131,11 +131,6 @@ class ObjectConstructionTest {
             }
         }
         assertFailsWith<IllegalArgumentException> {
-            schema.objectOf("User") {
-                "name" setTo 1
-            }
-        }
-        assertFailsWith<IllegalArgumentException> {
             schema.objectOf("Status")
         }
     }

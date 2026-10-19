@@ -107,7 +107,6 @@ class QPlanEngineObjectDataTest {
         assertTrue(data.isPresent("age"))
         assertSame(error, assertFailsWith<ErroneousFieldException> { data.outputValue("age") })
         assertFalse(error.conformsToResolverOutputSchemaType(schema.requireObjectField("User", "age").outputType))
-        assertFailsWith<IllegalArgumentException> { engineObjectDataOf(userType, mapOf("age" to error)) }
     }
 
     @Test
@@ -231,16 +230,6 @@ class QPlanEngineObjectDataTest {
         assertEquals("Ada", data.get("name"))
         assertFalse(data.isPresent("nickname"))
         assertEquals(listOf("name"), data.getSelections().toList())
-    }
-
-    @Test
-    fun `rejects values that do not conform to their schema field`() {
-        assertFailsWith<IllegalArgumentException> {
-            engineObjectDataOf(
-                schemaType = userType,
-                fields = mapOf("name" to 1),
-            )
-        }
     }
 
     @Test

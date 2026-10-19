@@ -63,6 +63,7 @@ import viaduct.graphql.schema.ViaductSchema
 import viaduct.graphql.schema.isNode
 import viaduct.graphql.utils.GraphQLTypeRelation
 
+/** Assembles registrations whose definitions and targets belong to [schema]'s canonical lowered schema. */
 fun resolverRegistryOf(
     schema: ViaductAndGJSchema,
     nodeResolvers: Map<ViaductSchema.Object, NodeResolverFunction>,
@@ -426,7 +427,6 @@ private class ResolverRegistryImpl(
 
     init {
         fieldCheckers.forEach { (field, checker) ->
-            validateCanonicalField(field, "field-checker field")
             require(checker.target.field == field) {
                 "Field checker ${checker.target.field.containingDef.name}/${checker.target.field.name} does not belong to " +
                     "${field.containingDef.name}/${field.name}"
@@ -442,7 +442,6 @@ private class ResolverRegistryImpl(
         }
         val mutationNamespaces = schema.mutationNamespaceTypes()
         fieldResolverDefinitions.forEach { (field, resolver) ->
-            validateCanonicalField(field, "field-resolver field")
             if (field.containingDef in mutationNamespaces) {
                 require(resolver.objectFragment.subselections.isEmpty() && resolver.queryFragment?.subselections?.isEmpty() != false) {
                     "Mutation resolver ${field.containingDef.name}/${field.name} cannot declare object or Query fragments; use ctx.query()"
@@ -475,7 +474,6 @@ private class ResolverRegistryImpl(
         }
 
         variableDeclarations.forEach { (variable, declaration) ->
-            validateCanonicalField(variable.fieldValueResolverField, "variable-defining field")
             require(variable.fieldValueResolverField in fieldResolverDefinitions) {
                 "Variable ${variable.variableName} belongs to an unregistered resolver"
             }
@@ -540,7 +538,6 @@ private class ResolverRegistryImpl(
             }
         }
         variablesProviderTemplates.forEach { variable ->
-            validateCanonicalField(variable.fieldValueResolverField, "variables-provider field")
             val resolver = fieldResolverDefinitions.getValue(variable.fieldValueResolverField)
             val usedVariables =
                 listOfNotNull(resolver.objectFragment, resolver.queryFragment)
@@ -630,7 +627,6 @@ private class ResolverRegistryImpl(
     }
 
     override fun contains(field: ViaductSchema.ObjectField): Boolean {
-        validateCanonicalField(field)
         return field in fieldResolvers
     }
 
@@ -640,13 +636,11 @@ private class ResolverRegistryImpl(
     }
 
     override fun resolver(field: ViaductSchema.ObjectField): FieldValueResolver {
-        validateCanonicalField(field)
         return fieldResolvers[field]
             ?: throw MissingResolverException(field.containingDef.name, field.name)
     }
 
     override fun fieldChecker(field: ViaductSchema.ObjectField): FieldCheckerResolver? {
-        validateCanonicalField(field)
         return fieldCheckers[field]
     }
 
@@ -771,16 +765,6 @@ private class ResolverRegistryImpl(
                 addAll(selection.subselections.variableUses(variable))
             }
         }
-
-    private fun validateCanonicalField(
-        field: ViaductSchema.Field,
-        role: String = "field",
-    ) {
-        val typeName = field.containingDef.name
-        require(schema.requireField(typeName, field.name) == field) {
-            "$typeName/${field.name} is not the canonical $role in this registry's schema"
-        }
-    }
 
     private fun List<ObjectEngineResult.Key>.toSelection(
         possibleTypes: Set<ViaductSchema.Object>,

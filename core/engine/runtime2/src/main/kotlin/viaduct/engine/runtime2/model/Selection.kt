@@ -5,6 +5,8 @@ import viaduct.graphql.schema.ViaductSchema
 
 /**
  * A collection of opaque [Selection] members, commutative except for [MutationSelectionForest].
+ * Ordinary forest construction and concatenation require coherent selections without mutation
+ * members or mutation subselections; callers preserve this precondition without another check.
  *
  * ### Member Count
  *
@@ -96,7 +98,7 @@ sealed interface ObjectSelectionForest : SelectionForest {
             val occurrences =
                 buildList {
                     addAll(selections)
-                }.also { it.validateOrdinarySelections() }
+                }
             val byKey =
                 buildMap {
                     occurrences.forEach { selection ->
@@ -118,10 +120,10 @@ sealed interface ObjectSelectionForest : SelectionForest {
 }
 
 /** Constructs a [SelectionForest] containing the supplied occurrences. */
-fun selectionForestOf(vararg selections: Selection): SelectionForest = SelectionForestImpl(selections.asList().also { it.validateOrdinarySelections() })
+fun selectionForestOf(vararg selections: Selection): SelectionForest = SelectionForestImpl(selections.asList())
 
 /** Constructs a [SelectionForest] from these occurrences. */
-fun Iterable<Selection>.toSelectionForest(): SelectionForest = SelectionForestImpl(toList().also { it.validateOrdinarySelections() })
+fun Iterable<Selection>.toSelectionForest(): SelectionForest = SelectionForestImpl(toList())
 
 /** Maps each input to a forest and concatenates the results without comparing selections. */
 fun <T : Any> Iterable<T>.flatMapToSelectionForest(transform: (T) -> SelectionForest): SelectionForest =
@@ -129,7 +131,6 @@ fun <T : Any> Iterable<T>.flatMapToSelectionForest(transform: (T) -> SelectionFo
         buildList {
             this@flatMapToSelectionForest.forEach { element ->
                 val forest = transform(element)
-                if (forest is MutationSelectionForest) forest.orderedSelections().validateOrdinarySelections()
                 forest.forEach(::add)
             }
         },
@@ -278,7 +279,7 @@ internal fun ObjectEngineResult.Key.objectKey(type: ViaductSchema.Object): Objec
  *
  * ### Invariant: selection-local-coherence
  *
- * Selections constructed by this model use [of], which ensures:
+ * Callers supply coherent components to [of], which preserves these invariants without rechecking them:
  * - [possibleTypes] is a subset of the object types contained by [key]'s field owner.
  * - When [isLeaf] is true, [subselections] is empty. The converse does not hold: a composite
  *   selection may also have no subselections.
@@ -373,16 +374,13 @@ sealed interface Selection {
         get() = key.field.type.baseTypeDef is ViaductSchema.SimpleTypeDef
 
     companion object {
-        /**
-         * Constructs a selection that satisfies the invariant documented on [Selection].
-         */
+        /** Constructs a selection from components satisfying [Selection]'s invariants without rechecking them. */
         fun of(
             key: ObjectEngineResult.Key,
             possibleTypes: Set<ViaductSchema.Object>,
             subselections: SelectionForest,
             inclusionCondition: InclusionCondition = InclusionCondition.Always,
         ): Selection {
-            validateSelection(key, possibleTypes, subselections)
             return when (key) {
                 is ObjectEngineResult.ObjectKey ->
                     ObjectSelectionImpl(
@@ -416,18 +414,19 @@ sealed interface ObjectSelection : Selection {
     override val key: ObjectEngineResult.ObjectKey
 
     companion object {
+        /** Constructs an object selection from components satisfying [Selection]'s invariants. */
         fun of(
             key: ObjectEngineResult.ObjectKey,
             possibleTypes: Set<ViaductSchema.Object>,
             subselections: SelectionForest,
             inclusionCondition: InclusionCondition = InclusionCondition.Always,
         ): ObjectSelection {
-            validateSelection(key, possibleTypes, subselections)
             return ObjectSelectionImpl(key, possibleTypes, inclusionCondition, subselections)
         }
     }
 }
 
+@Suppress("unused")
 private fun validateSelection(
     key: ObjectEngineResult.Key,
     possibleTypes: Set<ViaductSchema.Object>,
@@ -500,7 +499,6 @@ private abstract class AbstractSelectionForest(
     override fun single(): Selection = occurrences.single()
 
     override fun plus(other: SelectionForest): SelectionForest {
-        if (other is MutationSelectionForest) other.orderedSelections().validateOrdinarySelections()
         if (other.isEmpty()) return this
         if (isEmpty()) return other
         return ConcatenatedSelectionForest(this, other)
@@ -548,7 +546,6 @@ private class ConcatenatedSelectionForest(
     }
 
     override fun plus(other: SelectionForest): SelectionForest {
-        if (other is MutationSelectionForest) other.orderedSelections().validateOrdinarySelections()
         if (other.isEmpty()) return this
         // Ordinary forests are unordered; keep an added leaf on the left for chain traversal.
         return if (other is ConcatenatedSelectionForest) {
@@ -564,7 +561,6 @@ private fun SelectionForest.flatMapSelections(transform: (Selection) -> Selectio
         buildList {
             this@flatMapSelections.forEach { selection ->
                 val forest = transform(selection)
-                if (forest is MutationSelectionForest) forest.orderedSelections().validateOrdinarySelections()
                 forest.forEach(::add)
             }
         },
@@ -593,6 +589,7 @@ private fun SelectionForest.visitWhile(predicate: (Selection) -> Boolean): Boole
     }
 }
 
+@Suppress("unused")
 private fun Iterable<Selection>.validateOrdinarySelections() {
     require(none { it is MutationSelection || it.subselections is MutationSelectionForest }) {
         "An ordinary selection forest cannot contain mutation selections or mutation subselections"

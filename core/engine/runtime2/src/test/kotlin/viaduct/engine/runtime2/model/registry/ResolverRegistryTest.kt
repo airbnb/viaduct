@@ -636,7 +636,7 @@ class ResolverRegistryTest {
         }
 
     @Test
-    fun `distinguishes missing executors from foreign schema definitions`() {
+    fun `reports missing executor coordinates`() {
         val world = TestWorld.fromSDL(SCHEMA_SDL)
         val schema = world.schemas
         val registry = world.resolverRegistry
@@ -648,11 +648,6 @@ class ResolverRegistryTest {
             }
         assertEquals("User", missingField.typeName)
         assertEquals("name", missingField.fieldName)
-
-        val foreignSchema = TestWorld.fromSDL(SCHEMA_SDL).schemas
-        assertFailsWith<IllegalArgumentException> {
-            registry.resolver(foreignSchema.loweredSchema.requireObjectField("User", "name"))
-        }
     }
 
     @Test
@@ -1252,7 +1247,7 @@ class ResolverRegistryTest {
     }
 
     @Test
-    fun `selection factory distinguishes empty composites and rejects subselections on leaves`() {
+    fun `selection factory distinguishes leaves from empty composites`() {
         val fixture = Fixture()
 
         val leaf = fixture.selection("Node", "id")
@@ -1262,13 +1257,6 @@ class ResolverRegistryTest {
         assertTrue(leaf.subselections.isEmpty())
         assertFalse(emptyComposite.isLeaf)
         assertTrue(emptyComposite.subselections.isEmpty())
-        assertFailsWith<IllegalArgumentException> {
-            Selection.of(
-                key = leaf.key,
-                possibleTypes = leaf.possibleTypes,
-                subselections = selectionForestOf(emptyComposite),
-            )
-        }
     }
 
     private fun worldWithFragmentType(fragmentType: (ViaductSchema) -> ViaductSchema.CompositeTypeDef): TestWorld =

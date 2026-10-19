@@ -14,7 +14,6 @@ import viaduct.engine.runtime2.model.ResolverOutputData
 import viaduct.engine.runtime2.model.RootFieldReferenceData
 import viaduct.engine.runtime2.model.Selection
 import viaduct.engine.runtime2.model.SelectionForest
-import viaduct.engine.runtime2.model.conformsToResolverOutputSchemaType
 import viaduct.engine.runtime2.model.isParentField
 import viaduct.engine.runtime2.model.merge
 import viaduct.engine.runtime2.model.outputType
@@ -134,9 +133,6 @@ internal abstract class SharedPassiveValueResolutionLogic<
         invocationDemand: SelectionForest,
         parent: OEROccurrence? = null,
     ): EngineResult? {
-        require(value.conformsToResolverOutputSchemaType(expectedType)) {
-            "Resolver output does not conform to $expectedType"
-        }
         if (value == null) return null
         if (value is EngineErrorData) return ErrorEngineResult.of(value)
         check(value.rootFieldReferenceDataOrNull() == null) {

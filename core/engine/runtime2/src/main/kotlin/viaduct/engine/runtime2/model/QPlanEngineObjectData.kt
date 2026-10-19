@@ -31,7 +31,7 @@ sealed interface EngineObjectDataEntry {
 /**
  * Constructs a passive object whose selections are canonical argumentless field names.
  *
- * Every supplied value conforms to its field's output type.
+ * Callers supply values conforming to their fields' output types; construction does not recheck conformance.
  */
 fun engineObjectDataOf(
     schemaType: ViaductSchema.Object,
@@ -55,8 +55,9 @@ fun engineObjectDataOf(
 /**
  * Constructs a partial synchronous EOD from schema-associated selection values.
  *
- * [schemaType] supplies qplan's canonical lowered validation definition and the Engine API witness
- * associated with it. Source-backed objects expose the exact retained source GraphQL-Java object.
+ * Callers supply values conforming to their associated fields' output types without another conformance check.
+ * [schemaType] supplies qplan's canonical lowered definition and the associated Engine API witness.
+ * Source-backed objects expose the exact retained source GraphQL-Java object.
  */
 fun engineObjectDataOf(
     schemaType: ViaductSchema.Object,
@@ -64,7 +65,7 @@ fun engineObjectDataOf(
 ): EngineObjectData.Sync = constructEngineObjectData(schemaType, fields)
 
 /**
- * Constructs tenant-visible resolver input from values already validated in the canonical schema.
+ * Constructs tenant-visible resolver input from conforming canonical values without rechecking conformance.
  */
 fun materializedEngineObjectDataOf(
     schemaType: ViaductSchema.Object,
@@ -80,10 +81,6 @@ private fun constructEngineObjectData(
         require(entry.field.containingDef == schemaType) {
             "${schemaType.name} cannot contain output field " +
                 "${entry.field.containingDef.name}/${entry.field.name}"
-        }
-        require(entry.value.conformsToResolverOutputSchemaType(entry.field.outputType)) {
-            "${schemaType.name}/${entry.field.name} value does not conform to " +
-                entry.field.type
         }
     }
     val values = entries.associate { entry -> entry.selection to entry.value }

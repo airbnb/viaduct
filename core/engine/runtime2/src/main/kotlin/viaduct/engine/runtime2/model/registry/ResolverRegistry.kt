@@ -9,6 +9,7 @@ import viaduct.graphql.schema.ViaductSchema
  * reasoning world.
  *
  * A canonical object field is an actual resolver coordinate exactly when [contains] returns true.
+ * Registration producers and field lookup callers supply definitions from the same canonical lowered schema.
  * The registry satisfies canonical schema ownership, special-field exclusions, query coverage,
  * resolver-local variable-template names, and acyclicity across object fields and
  * variable-template values. Acyclicity is intentionally checked over a conservative

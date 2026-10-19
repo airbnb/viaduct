@@ -1,7 +1,6 @@
 package viaduct.engine.runtime2.model.invariants
 
 import kotlin.test.Test
-import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import viaduct.engine.runtime2.model.RootFieldReferenceData
@@ -90,11 +89,11 @@ class SchemaConformanceTest {
     }
 
     @Test
-    fun `object value factory rejects a field value with the wrong type`() {
+    fun `schema conformance detects a field value with the wrong type`() {
         val schema = TestWorld.fromSDL(SCHEMA_SDL).schema
         val user = schema.requireType("User") as ViaductSchema.Object
 
-        assertFailsWith<IllegalArgumentException> {
+        val value =
             engineObjectDataOf(
                 schemaType = user,
                 fields =
@@ -102,7 +101,8 @@ class SchemaConformanceTest {
                         "name" to 1,
                     ),
             )
-        }
+
+        assertFalse(value.conformsToSchema())
     }
 
     private companion object {
