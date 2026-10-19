@@ -1,7 +1,6 @@
 package viaduct.tenant.codegen.kotlingen
 
 import graphql.schema.idl.SchemaParser
-import io.github.classgraph.ClassGraph
 import java.io.File
 import kotlin.io.path.Path
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -188,9 +187,11 @@ class KotlinCodegenGoldenTest {
      * usable by the Gradle-only regeneration path.
      */
     private fun listGoldenRelativePaths(): List<String> =
-        ClassGraph().acceptPaths(GOLDEN_RESOURCE_PREFIX).scan().use { scan ->
-            scan.allResources.map { it.path.removePrefix("$GOLDEN_RESOURCE_PREFIX/") }
-        }
+        (
+            this::class.java.classLoader.getResourceAsStream("$GOLDEN_RESOURCE_PREFIX.index")
+                ?: error("Golden index not found on classpath")
+        )
+            .bufferedReader().use { it.readLines() }
 
     private fun readGolden(relativePath: String): String {
         val resourcePath = "$GOLDEN_RESOURCE_PREFIX/$relativePath"

@@ -1,3 +1,6 @@
+import org.gradle.api.file.DirectoryProperty
+import org.gradle.api.file.RegularFileProperty
+
 plugins {
     id("conventions.kotlin")
     id("conventions.kotlin-static-analysis")
@@ -42,8 +45,6 @@ dependencies {
     testImplementation(libs.io.mockk.jvm)
     testImplementation(libs.javassist)
     testImplementation(libs.kotest.assertions.core.jvm)
-    // Classpath resource scanning for golden snapshots (works under both Gradle and Bazel).
-    testImplementation(libs.classgraph)
     testImplementation(testFixtures(libs.viaduct.engine.api))
     testImplementation(testFixtures(libs.viaduct.shared.viaductschema))
     testImplementation(testFixtures(libs.viaduct.tenant.api))
@@ -76,5 +77,36 @@ tasks.test {
     // KotlinCodegenGoldenTest). Without this, Gradle does not propagate the system property.
     System.getProperty("viaduct.codegen.golden.regenerate")?.let {
         systemProperty("viaduct.codegen.golden.regenerate", it)
+    }
+}
+
+abstract class GenerateGoldenIndex : DefaultTask() {
+    @get:InputDirectory
+    @get:PathSensitive(PathSensitivity.RELATIVE)
+    abstract val snapshotsDirectory: DirectoryProperty
+
+    @get:OutputFile
+    abstract val indexFile: RegularFileProperty
+
+    @TaskAction
+    fun generate() {
+        val root = snapshotsDirectory.get().asFile
+        val output = indexFile.get().asFile
+        output.parentFile.mkdirs()
+        output.writeText(
+            root.walkTopDown().filter { it.isFile }.map { it.relativeTo(root).invariantSeparatorsPath }
+                .sorted().joinToString("\n", postfix = "\n")
+        )
+    }
+}
+
+val generateGoldenIndex by tasks.registering(GenerateGoldenIndex::class) {
+    snapshotsDirectory.set(layout.projectDirectory.dir("src/test/resources/golden/expected"))
+    indexFile.set(layout.buildDirectory.file("generated/golden/expected.index"))
+}
+
+tasks.processTestResources {
+    from(generateGoldenIndex) {
+        into("golden")
     }
 }
