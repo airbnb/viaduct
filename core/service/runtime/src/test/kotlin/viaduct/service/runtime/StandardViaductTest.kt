@@ -404,6 +404,7 @@ class StandardViaductTest {
 
         StandardViaduct.Builder()
             .withTenantModuleInjectorFactory(recording)
+            .withExecutorRegistryConfigSources(emptyList())
             .withSchemaConfiguration(SchemaConfiguration.fromSdl(sdl))
             .build()
 

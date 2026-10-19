@@ -69,9 +69,7 @@ class ViaductBuilderTest {
         )
     }
 
-    // Bypasses ViaductBuilder: withScopedSchemas resolves schemas by scanning every .graphqls
-    // file on the classpath, so an unscoped fixture can't coexist there with the @scope-bearing
-    // ones used by other tests. An inline SDL string sidesteps the scan entirely.
+    // Inline SDL keeps this unscoped fixture separate from the indexed, scope-bearing schemas.
     @Test
     @Suppress("DEPRECATION")
     fun `base SchemaScopeInfo executes the base view of an unscoped schema`() {
@@ -293,7 +291,7 @@ class ViaductBuilderTest {
     }
 
     @Test
-    fun `builds with an injector factory that discovers no tenant modules on this classpath`() {
+    fun `builds with an injector factory and an empty module index`() {
         val viaduct = ViaductBuilder()
             .withFlagManager(flagManager)
             .withTenantModuleInjectorFactory(NaiveTenantModuleInjectorFactory)

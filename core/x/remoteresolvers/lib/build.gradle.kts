@@ -1,3 +1,4 @@
+import net.ltgt.gradle.errorprone.errorprone
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
@@ -5,6 +6,13 @@ plugins {
     id("conventions.kotlin")
     id("conventions.kotlin-static-analysis")
     id("com.google.protobuf") version "0.9.4"
+}
+
+// This root project's path is ":", so the path-based convention leaves the Kotlin module name empty.
+base.archivesName.set(project.name)
+
+tasks.withType<JavaCompile>().configureEach {
+    options.errorprone.excludedPaths.set(".*/generated/source/proto/.*")
 }
 
 // Treat Kotlin compiler warnings as errors, matching the Bazel build's -Werror

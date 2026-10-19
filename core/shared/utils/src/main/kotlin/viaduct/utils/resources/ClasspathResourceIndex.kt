@@ -3,18 +3,22 @@ package viaduct.utils.resources
 import java.net.URL
 import java.util.Collections
 
+fun ClassLoader.requireResourceUrl(path: String): URL {
+    val urls = Collections.list(getResources(path))
+    require(urls.size == 1) {
+        "Expected exactly one resource '$path', found ${urls.size}: " +
+            urls.sortedBy(URL::toExternalForm)
+    }
+    return urls.single()
+}
+
 class ClasspathResourceIndex private constructor(
     val paths: List<String>,
     private val classLoader: ClassLoader,
 ) {
     fun resourceUrl(path: String): URL {
         require(paths.binarySearch(path) >= 0) { "Resource '$path' is not present in this index" }
-        val urls = classLoader.resourceUrls(path)
-        require(urls.size == 1) {
-            "Expected exactly one indexed resource '$path', found ${urls.size}: " +
-                urls.sortedBy(URL::toExternalForm)
-        }
-        return urls.single()
+        return classLoader.requireResourceUrl(path)
     }
 
     companion object {

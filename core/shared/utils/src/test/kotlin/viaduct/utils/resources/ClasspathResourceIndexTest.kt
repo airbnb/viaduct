@@ -16,6 +16,19 @@ class ClasspathResourceIndexTest {
     lateinit var tempDir: Path
 
     @Test
+    fun `resolves an exact resource path without an index`() {
+        val path = "resources/a.txt"
+        writeResource(tempDir, path, "alpha")
+
+        URLClassLoader(arrayOf(tempDir.toUri().toURL()), null).use { classLoader ->
+            val url = classLoader.requireResourceUrl(path)
+
+            assertThat(url).isEqualTo(tempDir.resolve(path).toUri().toURL())
+            assertThat(url.readText()).isEqualTo("alpha")
+        }
+    }
+
+    @Test
     fun `loads sorted exact resource paths`() {
         writeResource(tempDir, INDEX_PATH, "resources/a.txt\nresources/b.txt\n")
         writeResource(tempDir, "resources/a.txt", "alpha")

@@ -1,7 +1,20 @@
+import viaduct.gradle.task.GenerateExecutionRegistryResourceIndexTask
+
 plugins {
     alias(libs.plugins.kotlinJvm)
     alias(libs.plugins.kotlinKapt)
     alias(libs.plugins.micronautApplication)
+    id("com.airbnb.viaduct.application-gradle-plugin") apply false
+}
+
+val executionRegistryResourceIndex =
+    tasks.register<GenerateExecutionRegistryResourceIndexTask>("generateViaductExecutionRegistryResourceIndex") {
+        moduleClasspath.from(configurations.named("runtimeClasspath"))
+        outputDirectory.set(layout.buildDirectory.dir("generated-resources/viaduct-execution-registry-index"))
+    }
+
+sourceSets.named("main") {
+    resources.srcDir(executionRegistryResourceIndex.flatMap { it.outputDirectory })
 }
 
 micronaut {
@@ -45,4 +58,12 @@ dependencies {
     kapt(libs.micronaut.inject.kotlin)
 
     runtimeOnly(libs.logback.classic)
+
+    testImplementation(libs.junit.jupiter)
+    testRuntimeOnly(libs.junit.platform.launcher)
+}
+
+tasks.withType<Test>().configureEach {
+    useJUnitPlatform()
+    testLogging.exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
 }

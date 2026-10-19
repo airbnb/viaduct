@@ -5,18 +5,17 @@ pluginManagement {
 
     if (gradle.parent != null) {
         includeBuild("../../gradle-plugins")
-    } else {
-        repositories {
-            if (System.getenv("USE_MAVEN_LOCAL")?.toBoolean() == true) mavenLocal()
-            if (System.getenv("USE_VIADUCT_SNAPSHOT_REPO")?.toBoolean() == true) {
-                maven("https://central.sonatype.com/repository/maven-snapshots/")
-            }
-            val artifactoryMirror = System.getenv("VIADUCT_ARTIFACTORY_MIRROR")
-            if (artifactoryMirror != null) {
-                maven { url = uri(artifactoryMirror) }
-            } else {
-                gradlePluginPortal()
-            }
+    }
+    repositories {
+        if (System.getenv("USE_MAVEN_LOCAL")?.toBoolean() == true) mavenLocal()
+        if (System.getenv("USE_VIADUCT_SNAPSHOT_REPO")?.toBoolean() == true) {
+            maven("https://central.sonatype.com/repository/maven-snapshots/")
+        }
+        val artifactoryMirror = System.getenv("VIADUCT_ARTIFACTORY_MIRROR")
+        if (artifactoryMirror != null) {
+            maven { url = uri(artifactoryMirror) }
+        } else {
+            gradlePluginPortal()
         }
     }
     plugins {

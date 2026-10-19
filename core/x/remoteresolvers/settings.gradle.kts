@@ -4,15 +4,26 @@
 // publish step is required and nothing here is published remotely.
 
 pluginManagement {
+    includeBuild("../../../gradle-plugins")
     repositories {
-        gradlePluginPortal()
-        mavenCentral()
+        val artifactoryMirror = System.getenv("VIADUCT_ARTIFACTORY_MIRROR")
+        if (artifactoryMirror != null) {
+            maven { url = uri(artifactoryMirror) }
+        } else {
+            gradlePluginPortal()
+            mavenCentral()
+        }
     }
 }
 
 dependencyResolutionManagement {
     repositories {
-        mavenCentral()
+        val artifactoryMirror = System.getenv("VIADUCT_ARTIFACTORY_MIRROR")
+        if (artifactoryMirror != null) {
+            maven { url = uri(artifactoryMirror) }
+        } else {
+            mavenCentral()
+        }
     }
     versionCatalogs {
         create("libs") {
@@ -29,7 +40,6 @@ rootProject.name = "remoteresolvers-demo"
 // Viaduct engine + published-artifact facade, from source (no Maven publish needed to run).
 includeBuild("../../../core")
 includeBuild("../../../publications")
-includeBuild("../../../gradle-plugins")
 
 // The remote-resolvers library (consumed by the servers as com.airbnb.viaduct:remoteresolvers).
 includeBuild("lib")

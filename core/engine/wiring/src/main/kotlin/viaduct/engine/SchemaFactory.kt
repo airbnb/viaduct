@@ -9,7 +9,6 @@ import graphql.schema.idl.SchemaGenerator
 import graphql.schema.idl.SchemaParser
 import graphql.schema.idl.TypeDefinitionRegistry
 import graphql.schema.idl.errors.SchemaProblem
-import io.github.classgraph.ClassGraph
 import kotlin.jvm.optionals.getOrNull
 import kotlin.time.ExperimentalTime
 import kotlin.time.measureTimedValue
@@ -75,51 +74,28 @@ class SchemaFactory(
         val resourceContents = mutableMapOf<String, String>()
 
         val (resources, elapsedTime) = measureTimedValue {
-            val index = ClasspathResourceIndex.load(ViaductResourceIndexes.SCHEMA, classLoader)
-            if (index != null) {
-                val acceptedPath = grtPackagePrefix?.replace('.', '/')
-                index.paths
-                    .filter { path ->
-                        (acceptedPath == null || path == acceptedPath || path.startsWith("$acceptedPath/")) &&
-                            filesIncluded.matches(path)
-                    }
-                    .map { path ->
-                        val url = index.resourceUrl(path)
-                        val uniqueKey = url.toExternalForm()
-                        val content = url.openStream().use { stream ->
-                            stream.reader(Charsets.UTF_8).readText().trim()
-                        }
-                        if (content.isEmpty()) {
-                            log.warn("Empty schema file found: {}", uniqueKey)
-                        }
-                        resourceContents[uniqueKey] = content
-                        uniqueKey
-                    }
-            } else {
-                log.warn(
-                    "No Viaduct schema resource index found at {}; falling back to a ClassGraph scan",
-                    ViaductResourceIndexes.SCHEMA,
-                )
-                val classGraph = ClassGraph()
-                if (grtPackagePrefix != null) {
-                    classGraph.acceptPaths(grtPackagePrefix.replace('.', '/'))
-                }
-                classGraph.scan().use {
-                    it.getResourcesMatchingPattern(filesIncluded.toPattern()).map { res ->
-                        val origin =
-                            res.classpathElementURI?.toString() ?: res.classpathElementURL?.toString() ?: "unknown"
-                        val uniqueKey = "$origin!/${res.path}"
-                        val content = res.open().use { stream ->
-                            stream.reader(Charsets.UTF_8).readText().trim()
-                        }
-                        if (content.isEmpty()) {
-                            log.warn("Empty schema file found: {}", uniqueKey)
-                        }
-                        resourceContents[uniqueKey] = content
-                        uniqueKey
-                    }
-                }
+            val index = requireNotNull(ClasspathResourceIndex.load(ViaductResourceIndexes.SCHEMA, classLoader)) {
+                "No Viaduct schema resource index found at '${ViaductResourceIndexes.SCHEMA}'. " +
+                    "Apply the Viaduct application Gradle plugin or supply schema SDL explicitly."
             }
+            val acceptedPath = grtPackagePrefix?.replace('.', '/')
+            index.paths
+                .filter { path ->
+                    (acceptedPath == null || path == acceptedPath || path.startsWith("$acceptedPath/")) &&
+                        filesIncluded.matches(path)
+                }
+                .map { path ->
+                    val url = index.resourceUrl(path)
+                    val uniqueKey = url.toExternalForm()
+                    val content = url.openStream().use { stream ->
+                        stream.reader(Charsets.UTF_8).readText().trim()
+                    }
+                    if (content.isEmpty()) {
+                        log.warn("Empty schema file found: {}", uniqueKey)
+                    }
+                    resourceContents[uniqueKey] = content
+                    uniqueKey
+                }
         }
         log.debug(
             "Got {} resources for pattern {} in {}",

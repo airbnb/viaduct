@@ -14,7 +14,7 @@ import viaduct.service.api.spi.TenantModuleInjectorFactory
  *
  * Provides the Java-specific bootstrapper wiring using the file-based execution registry: the Java
  * registry-extractor annotation processor emits `META-INF/viaduct/modules/<pkg>.json` at build
- * time, and [ExecutionRegistryConfigSourceCollector] discovers it on the test classpath. The
+ * time, and [ExecutionRegistryConfigSourceCollector] loads that exact resource from the test classpath. The
  * resulting bootstrapper instantiates the [viaduct.java.runtime.bootstrap.ViaductJavaExecutorFactory]
  * recorded in it. This mirrors the Kotlin `KotlinFeatureAppTestContractBase`.
  *
@@ -32,7 +32,10 @@ abstract class FeatureAppTestContractBase : AbstractFeatureAppTestContractBase()
 
     protected open fun featureAppPackagePrefix(): String = derivedClassPackage().substringBeforeLast('.')
 
-    override fun moduleConfigSources(): List<ModuleConfigSource> = ExecutionRegistryConfigSourceCollector.fromResources(featureAppPackagePrefix())
+    override fun moduleConfigSources(): List<ModuleConfigSource> =
+        ExecutionRegistryConfigSourceCollector.fromResourcePaths(
+            listOf("META-INF/viaduct/modules/${featureAppPackagePrefix()}.json")
+        )
 
     override fun tenantModuleInjectorFactory(): TenantModuleInjectorFactory = SharedTenantModuleInjectorFactory(CodeInjector.Naive)
 

@@ -19,8 +19,6 @@ dependencies {
     implementation(libs.jackson.module)
     implementation(libs.javax.inject)
     implementation(libs.kotlinx.coroutines.core)
-    implementation(libs.classgraph)
-
     implementation(libs.viaduct.engine.api)
     implementation(libs.viaduct.shared.bootstrap)
     implementation(libs.viaduct.shared.apiannotations)
@@ -55,6 +53,7 @@ dependencies {
     testFixturesImplementation(testFixtures(libs.viaduct.service.api))
     testFixturesImplementation(testFixtures(libs.viaduct.service.api))
 
+    testImplementation(libs.assertj.core)
     testImplementation(libs.io.mockk.dsl)
     testImplementation(libs.io.mockk.jvm)
     testImplementation(libs.jspecify)

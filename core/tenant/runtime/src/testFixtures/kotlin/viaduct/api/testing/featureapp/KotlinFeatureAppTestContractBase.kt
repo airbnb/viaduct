@@ -38,6 +38,7 @@ abstract class KotlinFeatureAppTestContractBase : AbstractFeatureAppTestContract
         this::class.java.`package`?.name ?: throw RuntimeException(
             "Unable to read package name from subclass ${this::class.simpleName}"
         )
+    private val tenantRegistryPath = "META-INF/viaduct/modules/$derivedClassPackagePrefix.json"
 
     private val overridesBootstrapper: Boolean = generateSequence<Class<*>>(this::class.java) { it.superclass }
         .takeWhile { it != KotlinFeatureAppTestContractBase::class.java }
@@ -46,10 +47,9 @@ abstract class KotlinFeatureAppTestContractBase : AbstractFeatureAppTestContract
     @BeforeEach
     fun failIfFileBasedRegistryAbsent() {
         if (overridesBootstrapper || !validateResolverCompleteness) return
-        val registryPath = "META-INF/viaduct/modules/$derivedClassPackagePrefix.json"
-        val resource = Thread.currentThread().contextClassLoader.getResource(registryPath)
+        val resource = Thread.currentThread().contextClassLoader.getResource(tenantRegistryPath)
         assertNotNull(resource) {
-            "Contract test registry not found on classpath: $registryPath. " +
+            "Contract test registry not found on classpath: $tenantRegistryPath. " +
                 "This means the KSP registry-extractor plugin did not run or its output was not wired " +
                 "as a runtime_dep. Ensure your BUILD.bazel has: (1) the viaduct_tenant_registry_extractor_ksp_plugin " +
                 "in kt_jvm_library plugins, (2) an assemble_tenant_module_config rule with the kt_jvm_library as a leaf, " +
@@ -57,7 +57,7 @@ abstract class KotlinFeatureAppTestContractBase : AbstractFeatureAppTestContract
         }
     }
 
-    override fun moduleConfigSources(): List<ModuleConfigSource> = ExecutionRegistryConfigSourceCollector.fromResources(derivedClassPackagePrefix)
+    override fun moduleConfigSources(): List<ModuleConfigSource> = ExecutionRegistryConfigSourceCollector.fromResourcePaths(listOf(tenantRegistryPath))
 
     override fun tenantModuleInjectorFactory(): TenantModuleInjectorFactory = SharedTenantModuleInjectorFactory(guiceCodeInjector)
 

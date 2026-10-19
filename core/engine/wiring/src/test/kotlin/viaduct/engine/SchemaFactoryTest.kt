@@ -244,13 +244,38 @@ class SchemaFactoryTest {
         }
 
         @Test
-        fun `test no schema files found throws ViaductSchemaLoadException`() {
+        fun `test no schema files found throws ViaductSchemaLoadException`(
+            @TempDir tempDir: Path
+        ) {
+            tempDir.resolve(ViaductResourceIndexes.SCHEMA).apply {
+                parent.createDirectories()
+                writeText("")
+            }
             val exception = assertThrows<ViaductSchemaLoadException> {
-                schemaFactory.fromResources("nonexistent.package.that.does.not.exist", Regex("nonexistent-file-pattern-xyz"))
+                URLClassLoader(arrayOf(tempDir.toUri().toURL()), null).use { classLoader ->
+                    schemaFactory.fromResources(
+                        "nonexistent.package.that.does.not.exist",
+                        Regex("nonexistent-file-pattern-xyz"),
+                        classLoader,
+                    )
+                }
             }
 
             (exception.message ?: "") shouldContain "No GraphQL schema files found matching pattern"
             (exception.message ?: "") shouldContain "Please ensure your .graphqls files are available in the classpath"
+        }
+
+        @Test
+        fun `fromResources requires a generated index`(
+            @TempDir tempDir: Path
+        ) {
+            val exception = assertThrows<IllegalArgumentException> {
+                URLClassLoader(arrayOf(tempDir.toUri().toURL()), null).use { classLoader ->
+                    schemaFactory.fromResources(null, null, classLoader)
+                }
+            }
+
+            (exception.message ?: "") shouldContain "Apply the Viaduct application Gradle plugin"
         }
 
         @Test
