@@ -1,62 +1,34 @@
+@file:Suppress("ForbiddenImport")
+
 package viaduct.engine.runtime2.contract
 
-import io.kotest.property.Arb
-import io.kotest.property.RandomSource
-import io.kotest.property.arbitrary.next
 import kotlin.test.Test
 import kotlin.test.assertTrue
-import viaduct.engine.runtime2.arbitrary.Config
-import viaduct.engine.runtime2.arbitrary.DuplicateSelectionWeight
-import viaduct.engine.runtime2.arbitrary.ExplicitFieldResolverWeight
-import viaduct.engine.runtime2.arbitrary.FieldArgumentWeight
-import viaduct.engine.runtime2.arbitrary.NodeResolversEnabled
-import viaduct.engine.runtime2.arbitrary.ObjectFieldCount
-import viaduct.engine.runtime2.arbitrary.ResolverFragmentWeight
-import viaduct.engine.runtime2.arbitrary.ResolverFragmentsEnabled
-import viaduct.engine.runtime2.arbitrary.ResolverFromArgumentVariablesEnabled
+import kotlinx.coroutines.runBlocking
 import viaduct.engine.runtime2.arbitrary.ResolverProgramMutation
-import viaduct.engine.runtime2.arbitrary.ResolverVariableWeight
-import viaduct.engine.runtime2.arbitrary.SchemaObjectCount
-import viaduct.engine.runtime2.arbitrary.TestCaseCount
-import viaduct.engine.runtime2.arbitrary.resolverTestBatch
-import viaduct.engine.runtime2.arbitrary.warnCoverageGap
 import viaduct.engine.runtime2.correctresolution.correctResolution
 import viaduct.engine.runtime2.model.sameCompletedResultAs
 import viaduct.engine.runtime2.model.testing.fragmentFrom
 import viaduct.engine.runtime2.model.testing.objectOf
+import viaduct.engine.runtime2.propertytest.ResolverTestSuiteDefinition
+import viaduct.engine.runtime2.propertytest.checkResolverTestSuite
 
 /** Mutation sensitivity of generated resolver properties. */
 interface ResolverMutationContract : ResolverContract {
     @Test
-    fun `generated properties reject independent resolver program mutations`() {
-        val counts = TestCaseCount(schemas = 12, registriesPerSchema = 3, queriesPerSchema = 5)
-        val config =
-            Config.default +
-                (SchemaObjectCount to 4..6) +
-                (ObjectFieldCount to 4..6) +
-                (FieldArgumentWeight to 0.9) +
-                (ExplicitFieldResolverWeight to 0.85) +
-                (DuplicateSelectionWeight to 1.0) +
-                (ResolverFragmentsEnabled to true) +
-                (ResolverFragmentWeight to 1.0) +
-                (ResolverFromArgumentVariablesEnabled to true) +
-                (ResolverVariableWeight to 1.0) +
-                (NodeResolversEnabled to false)
-        val random = RandomSource.seeded(303_303L)
-        val killed = ResolverProgramMutation.entries.associateWith { 0 }.toMutableMap()
-        val exercised = ResolverProgramMutation.entries.associateWith { 0 }.toMutableMap()
-        var generatedFromArgumentVariables = 0
+    fun `generated properties reject independent resolver program mutations`(): Unit =
+        runBlocking {
+            val killed = ResolverProgramMutation.entries.associateWith { 0 }.toMutableMap()
+            val exercised = ResolverProgramMutation.entries.associateWith { 0 }.toMutableMap()
+            var generatedFromArgumentVariables = 0
 
-        repeat(counts.schemas) {
-            val batch = Arb.resolverTestBatch(counts, config).next(random)
-            batch.registries.forEach { registry ->
-                generatedFromArgumentVariables += registry.features.fromArgumentVariableCount
-                val ordinaryWorld = registry.world(batch.schema)
-
-                batch.queries.forEach { query ->
+            val run =
+                checkResolverTestSuite(ResolverTestSuiteDefinition.RESOLVER_MUTATION) { ordinaryWorld, testCase ->
+                    val registry = testCase.registry
+                    generatedFromArgumentVariables += registry.features.fromArgumentVariableCount
                     val ordinaryAssumptions = ordinaryWorld.newAssumptions()
                     val ordinaryFragment =
-                        ordinaryWorld.schemas.fragmentFrom(query.source)
+                        ordinaryWorld.schemas.fragmentFrom(testCase.query.source)
                     registry.clearResolutionWitness()
                     val ordinaryResolution =
                         observeResolution(
@@ -78,14 +50,14 @@ interface ResolverMutationContract : ResolverContract {
                         .forEach { mutation ->
                             val mutantWorld =
                                 registry.world(
-                                    schema = batch.schema,
+                                    schema = testCase.schema,
                                     resolverProgramMutation = mutation,
                                 )
                             val mutantAssumptions = mutantWorld.newAssumptions()
                             registry.clearResolutionWitness()
                             val mutantResult =
                                 runCatching {
-                                    val fragment = mutantWorld.schemas.fragmentFrom(query.source)
+                                    val fragment = mutantWorld.schemas.fragmentFrom(testCase.query.source)
                                     observeResolution(
                                         mutantAssumptions,
                                         mutantAssumptions.objectOf("Query"),
@@ -116,21 +88,19 @@ interface ResolverMutationContract : ResolverContract {
                             }
                         }
                 }
-            }
-        }
 
-        ResolverProgramMutation.entries
-            .filterNot { it == ResolverProgramMutation.NONE }
-            .forEach { mutation ->
-                warnCoverageGap(
-                    exercised.getValue(mutation) >= 100,
-                    "$mutation was exercised too rarely: ${exercised.getValue(mutation)}",
-                )
-                warnCoverageGap(
-                    killed.getValue(mutation) >= 10,
-                    "$mutation survived too often: killed=${killed.getValue(mutation)}",
-                )
-            }
-        warnCoverageGap(generatedFromArgumentVariables > 0, "seed=303303: expected generatedFromArgumentVariables > 0, observed $generatedFromArgumentVariables")
-    }
+            ResolverProgramMutation.entries
+                .filterNot { it == ResolverProgramMutation.NONE }
+                .forEach { mutation ->
+                    run.warnCoverage(
+                        exercised.getValue(mutation) >= 100,
+                        "$mutation was exercised too rarely: ${exercised.getValue(mutation)}",
+                    )
+                    run.warnCoverage(
+                        killed.getValue(mutation) >= 10,
+                        "$mutation survived too often: killed=${killed.getValue(mutation)}",
+                    )
+                }
+            run.warnCoverage(generatedFromArgumentVariables > 0, "Generated no FromArgument variables")
+        }
 }

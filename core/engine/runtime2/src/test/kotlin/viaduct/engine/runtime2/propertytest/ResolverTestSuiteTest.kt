@@ -80,6 +80,30 @@ class ResolverTestSuiteTest {
         }
 
     @Test
+    fun `stored object-fragment suite loads every shard`() {
+        val definition = ResolverTestSuiteDefinition.OBJECT_FRAGMENT
+        val suite = ResolverTestSuite.load(definition)
+
+        val batches = (1..definition.counts.schemas).map(suite::loadShard)
+
+        assertEquals(
+            definition.counts.run { schemas * registriesPerSchema * queriesPerSchema },
+            batches.sumOf { batch -> batch.registries.size * batch.queries.size },
+        )
+    }
+
+    @Test
+    fun `stored object-fragment suite matches live generation for its seed`(): Unit =
+        runBlocking {
+            val definition = ResolverTestSuiteDefinition.OBJECT_FRAGMENT
+            val firstSchemaOnly = definition.counts.copy(schemas = 1)
+            val shard = ResolverTestShardCodec.encode(1, generateResolverTestBatches(firstSchemaOnly, definition.config, definition.seed).single())
+
+            assertTrue(PropertyTestJson.readResourceBytes(sdlResource(definition.id, 1)).contentEquals(shard.sdl), sdlResource(definition.id, 1))
+            assertTrue(PropertyTestJson.readResourceBytes(shardResource(definition.id, 1)).contentEquals(shard.json), shardResource(definition.id, 1))
+        }
+
+    @Test
     fun `shard codec rejects unsupported versions and mismatched schemas`() {
         val config = ResolutionBroadStressProfile.entries.first().config
         val batch = runBlocking { generateResolverTestBatches(TestCaseCount(1, 1, 1), config, seed = 3L) }.single()

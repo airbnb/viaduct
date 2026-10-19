@@ -1,34 +1,19 @@
+@file:Suppress("ForbiddenImport")
+
 package viaduct.engine.runtime2.contract
 
-import io.kotest.property.Arb
-import io.kotest.property.RandomSource
-import io.kotest.property.arbitrary.next
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
-import viaduct.engine.runtime2.arbitrary.Config
-import viaduct.engine.runtime2.arbitrary.DuplicateSelectionWeight
-import viaduct.engine.runtime2.arbitrary.ErrorValueWeight
-import viaduct.engine.runtime2.arbitrary.ExplicitFieldResolverWeight
-import viaduct.engine.runtime2.arbitrary.FieldArgumentWeight
-import viaduct.engine.runtime2.arbitrary.ListTypeWeight
-import viaduct.engine.runtime2.arbitrary.ListValueSize
-import viaduct.engine.runtime2.arbitrary.NodeResolversEnabled
-import viaduct.engine.runtime2.arbitrary.NullValueWeight
-import viaduct.engine.runtime2.arbitrary.ObjectFieldCount
-import viaduct.engine.runtime2.arbitrary.RecursiveOutputEdgesEnabled
-import viaduct.engine.runtime2.arbitrary.ResolverFragmentWeight
-import viaduct.engine.runtime2.arbitrary.ResolverFragmentsEnabled
-import viaduct.engine.runtime2.arbitrary.SchemaObjectCount
-import viaduct.engine.runtime2.arbitrary.TestCaseCount
-import viaduct.engine.runtime2.arbitrary.resolverTestBatch
-import viaduct.engine.runtime2.arbitrary.warnCoverageGap
+import kotlinx.coroutines.runBlocking
 import viaduct.engine.runtime2.correctresolution.correctResolution
 import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.model.merge
 import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.testing.fragmentFrom
 import viaduct.engine.runtime2.model.testing.objectOf
+import viaduct.engine.runtime2.propertytest.ResolverTestSuiteDefinition
+import viaduct.engine.runtime2.propertytest.checkResolverTestSuite
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 import viaduct.engine.runtime2.resolution.framework.instantiateBindings
 import viaduct.engine.runtime2.resolvers.instantiateBindings
@@ -37,36 +22,17 @@ import viaduct.graphql.schema.ViaductSchema
 /** Generated coverage for demand deepening through passive list-valued fields. */
 interface ListPassiveDeepeningGeneratedResolverContract : ResolverContract {
     @Test
-    fun `list-heavy passive deepening worlds resolve with exact witnessed applications`() {
-        val counts = TestCaseCount(schemas = 12, registriesPerSchema = 2, queriesPerSchema = 4)
-        val config =
-            Config.default +
-                (SchemaObjectCount to 4..6) +
-                (ObjectFieldCount to 4..6) +
-                (FieldArgumentWeight to 0.0) +
-                (ExplicitFieldResolverWeight to 0.8) +
-                (DuplicateSelectionWeight to 0.8) +
-                (ListTypeWeight to 1.0) +
-                (ListValueSize to 2..3) +
-                (NullValueWeight to 0.0) +
-                (ErrorValueWeight to 0.0) +
-                (RecursiveOutputEdgesEnabled to false) +
-                (ResolverFragmentsEnabled to true) +
-                (ResolverFragmentWeight to 1.0) +
-                (NodeResolversEnabled to false)
-        val random = RandomSource.seeded(817_206L)
-        var verifiedCases = 0
-        var listDeepeningCases = 0
+    fun `list-heavy passive deepening worlds resolve with exact witnessed applications`(): Unit =
+        runBlocking {
+            var listDeepeningCases = 0
 
-        repeat(counts.schemas) {
-            val batch = Arb.resolverTestBatch(counts, config).next(random)
-            batch.registries.forEach { registry ->
-                val testWorld = registry.world(batch.schema)
-                batch.queries.forEach { query ->
+            val run =
+                checkResolverTestSuite(ResolverTestSuiteDefinition.LIST_PASSIVE_DEEPENING) { testWorld, testCase ->
+                    val registry = testCase.registry
                     val world = testWorld.newAssumptions(selectiveResolvers)
                     val operation =
                         SharedOperationContext.create(world, resolverObserver = registry.resolverObserver())
-                    val fragment = testWorld.schemas.fragmentFrom(query.source)
+                    val fragment = testWorld.schemas.fragmentFrom(testCase.query.source)
                     listDeepeningCases +=
                         countListPassiveDeepening(
                             operation,
@@ -89,14 +55,10 @@ interface ListPassiveDeepeningGeneratedResolverContract : ResolverContract {
                     assertTrue(
                         result.correctResolution(operation, fragment),
                     )
-                    verifiedCases += 1
                 }
-            }
-        }
 
-        assertEquals(96, verifiedCases)
-        warnCoverageGap(listDeepeningCases > 0, "seed=817206: expected listDeepeningCases > 0, observed $listDeepeningCases")
-    }
+            run.warnCoverage(listDeepeningCases > 0, "Generated list-passive-deepening profile deepened no passive list demand")
+        }
 }
 
 private fun countListPassiveDeepening(
