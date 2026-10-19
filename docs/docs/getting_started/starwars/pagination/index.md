@@ -41,60 +41,84 @@ Connection builders provide three strategies depending on your backend:
 
 Use when your resolver has the full dataset. Viaduct handles slicing and cursor encoding automatically:
 
-```kotlin
-@Resolver
-class CharacterFilmsResolver : CharacterResolvers.Films() {
-  override suspend fun resolve(ctx: Context): FilmConnection {
-    val allFilms = filmRepository.getFilmsForCharacter(ctx.getObjectValue().getIdOrThrow().internalID)
-    return FilmConnection.Builder(ctx)
-      .fromList(allFilms) { film -> Film.Builder(ctx).title(film.title).build() }
-      .build()
-  }
-}
-```
+=== "Kotlin"
+
+    ```kotlin
+    @Resolver
+    class CharacterFilmsResolver : CharacterResolvers.Films() {
+      override suspend fun resolve(ctx: Context): FilmConnection {
+        val allFilms = filmRepository.getFilmsForCharacter(ctx.getObjectValue().getIdOrThrow().internalID)
+        return FilmConnection.Builder(ctx)
+          .fromList(allFilms) { film -> Film.Builder(ctx).title(film.title).build() }
+          .build()
+      }
+    }
+    ```
+
+=== "Java"
+
+    {{ codefile("demoapps/starwars-java/modules/filmography/src/main/java/com/example/starwars/modules/filmography/characters/queries/AllCharactersConnectionQueryResolver.java", lang="java") | indent(4) }}
+
+    The Java demo uses `allCharactersConnection` for this strategy. Generated builders use `Type.builder(context)` and a Java mapping function; the context supplies the pagination arguments.
 
 ### `fromSlice` — offset/limit backend
 
 Use when your backend accepts offset and limit. Over-fetch by one to detect `hasNextPage`:
 
-```kotlin
-@Resolver
-class CharacterFilmsResolver : CharacterResolvers.Films() {
-  override suspend fun resolve(ctx: Context): FilmConnection {
-    val (offset, limit) = ctx.arguments.toOffsetLimit()
-    val fetched = filmService.getFilms(offset, limit + 1)
-    return FilmConnection.Builder(ctx)
-      .fromSlice(fetched.take(limit), hasNextPage = fetched.size > limit) { film ->
-        Film.Builder(ctx).title(film.title).build()
+=== "Kotlin"
+
+    ```kotlin
+    @Resolver
+    class CharacterFilmsResolver : CharacterResolvers.Films() {
+      override suspend fun resolve(ctx: Context): FilmConnection {
+        val (offset, limit) = ctx.arguments.toOffsetLimit()
+        val fetched = filmService.getFilms(offset, limit + 1)
+        return FilmConnection.Builder(ctx)
+          .fromSlice(fetched.take(limit), hasNextPage = fetched.size > limit) { film ->
+            Film.Builder(ctx).title(film.title).build()
+          }
+          .build()
       }
-      .build()
-  }
-}
-```
+    }
+    ```
+
+=== "Java"
+
+    {{ codefile("demoapps/starwars-java/modules/universe/src/main/java/com/example/starwars/modules/universe/starships/queries/AllStarshipsConnectionQueryResolver.java", lang="java") | indent(4) }}
+
+    `context.getArguments().toOffsetLimit()` returns an `OffsetLimit`. Pass the slice and `hasNextPage` to the Java builder. Over-fetch by one to detect the next page.
 
 ### `fromEdges` — native cursors or edge metadata
 
 Use when your backend returns native cursors, or when your edge type carries extra fields beyond `node` and `cursor`:
 
-```kotlin
-@Resolver
-class CharacterFilmsResolver : CharacterResolvers.Films() {
-  override suspend fun resolve(ctx: Context): FilmConnection {
-    val response = filmService.getFilms(cursor = ctx.arguments.after, limit = ctx.arguments.first ?: 20)
-    return FilmConnection.Builder(ctx)
-      .fromEdges(
-        edges = response.films.map { film ->
-          FilmEdge.Builder(ctx)
-            .node(Film.Builder(ctx).title(film.title).build())
-            .cursor(film.cursor)
-            .build()
-        },
-        hasNextPage = response.hasMore
-      )
-      .build()
-  }
-}
-```
+=== "Kotlin"
+
+    ```kotlin
+    @Resolver
+    class CharacterFilmsResolver : CharacterResolvers.Films() {
+      override suspend fun resolve(ctx: Context): FilmConnection {
+        val response = filmService.getFilms(cursor = ctx.arguments.after, limit = ctx.arguments.first ?: 20)
+        return FilmConnection.Builder(ctx)
+          .fromEdges(
+            edges = response.films.map { film ->
+              FilmEdge.Builder(ctx)
+                .node(Film.Builder(ctx).title(film.title).build())
+                .cursor(film.cursor)
+                .build()
+            },
+            hasNextPage = response.hasMore
+          )
+          .build()
+      }
+    }
+    ```
+
+=== "Java"
+
+    {{ codefile("demoapps/starwars-java/modules/universe/src/main/java/com/example/starwars/modules/universe/species/queries/AllSpeciesConnectionQueryResolver.java", lang="java") | indent(4) }}
+
+    The Java demo constructs `SpeciesEdge` objects and calls `fromEdges(edges, hasNextPage, hasPreviousPage)`. For backward pagination its argument conversion uses the total item count.
 
 ## Full Documentation
 

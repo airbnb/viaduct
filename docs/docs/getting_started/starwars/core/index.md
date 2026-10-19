@@ -8,6 +8,9 @@ This section explains how Viaduct's core building blocks — schemas, resolvers,
 
 ## Topics in this section
 
+The Kotlin and Java applications use the same GraphQL concepts and SDL layout. Java resolvers return `CompletableFuture` and use types from `viaduct.java.api` and `viaduct.java.grts`; Kotlin resolvers use suspending functions and `viaduct.api`. Select either tab to follow the same sequence in your language.
+
+
 - [Global IDs](global_id.md)
 - [Node Resolvers](node_resolvers.md)
 - [Field Resolvers](field_resolvers.md)

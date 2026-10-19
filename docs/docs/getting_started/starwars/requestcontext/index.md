@@ -16,25 +16,47 @@ The recommended approach is to leverage your web framework's built-in request sc
 
 #### Example with Micronaut
 
-Create a request-scoped service:
+Compare how the demos hold per-request security state:
 
 
-{{ codetag("demoapps/starwars/common/src/main/kotlin/com/example/starwars/common/SecurityAccessContext.kt", "request_context", lang="kotlin") }}
+=== "Kotlin"
+
+    {{ codetag("demoapps/starwars/common/src/main/kotlin/com/example/starwars/common/SecurityAccessContext.kt", "request_context", lang="kotlin") | indent(4) }}
+
+=== "Java"
+
+    The Java demo uses an immutable value passed in `ExecutionInput.requestContext`, rather than a Micronaut request-scoped bean. Its helper validates the context entry before use; the next section explains this route.
+
+    {{ codefile("demoapps/starwars-java/common/src/main/java/com/example/starwars/common/SecurityAccessContext.java", lang="java") | indent(4) }}
 
 
 Populate the context in your GraphQL controller:
 
 
-{{ codetag("demoapps/starwars/src/main/kotlin/com/example/starwars/service/viaduct/ViaductRestController.kt", "viaduct_graphql_controller", lang="kotlin") }}
+=== "Kotlin"
+
+    {{ codetag("demoapps/starwars/src/main/kotlin/com/example/starwars/service/viaduct/ViaductRestController.kt", "viaduct_graphql_controller", lang="kotlin") | indent(4) }}
+
+=== "Java"
+
+    {{ codefile("demoapps/starwars-java/src/main/java/com/example/starwars/service/viaduct/ViaductRestController.java", start=31, end=58, lang="java") | indent(4) }}
 
 
-Use the context in your resolvers via dependency injection:
+Use the context in your resolvers:
 
 
-{{ codetag("demoapps/starwars/modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/characters/mutations/CreateCharacterMutation.kt", "create_example", lang="kotlin") }}
+=== "Kotlin"
+
+    {{ codetag("demoapps/starwars/modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/characters/mutations/CreateCharacterMutation.kt", "create_example", lang="kotlin") | indent(4) }}
+
+=== "Java"
+
+    The Java resolver receives repository dependencies through Micronaut but reads security state from `context.getRequestContext()`. This avoids depending on a framework request scope during asynchronous execution.
+
+    {{ codefile("demoapps/starwars-java/modules/filmography/src/main/java/com/example/starwars/modules/filmography/characters/mutations/CreateCharacterMutation.java", lang="java") | indent(4) }}
 
 
-**Benefits:**
+**Framework-scoping benefits (Kotlin example):**
 
 - Automatic lifecycle management
 - Type-safe access to context data
@@ -54,34 +76,72 @@ The `ExecutionInput` interface includes a `requestContext` property:
 When creating your `ExecutionInput`, include the request context:
 
 
-{{ codetag("demoapps/starwars/src/main/kotlin/com/example/starwars/service/viaduct/ViaductRestController.kt", "create_execution_input", lang="kotlin") }}
+=== "Kotlin"
+
+    {{ codetag("demoapps/starwars/src/main/kotlin/com/example/starwars/service/viaduct/ViaductRestController.kt", "create_execution_input", lang="kotlin") | indent(4) }}
+
+=== "Java"
+
+    {{ codefile("demoapps/starwars-java/src/main/java/com/example/starwars/service/viaduct/ViaductRestController.java", start=43, end=53, lang="java") | indent(4) }}
 
 
-```kotlin
- val requestContext = mapOf(
-  "securityAccess" to securityAccess,
-  "tenantId" to tenantId
- )
- val executionInput = ExecutionInput.create(
-  operationText = request["query"] as String,
-  variables = (request["variables"] as? Map<String, Any>) ?: emptyMap(),
-  requestContext = requestContext
- )
-```
+The context can carry application-specific values; construct it explicitly when preparing the execution input:
+
+=== "Kotlin"
+
+    ```kotlin
+     val requestContext = mapOf(
+      "securityAccess" to securityAccess,
+      "tenantId" to tenantId
+     )
+     val executionInput = ExecutionInput.create(
+      operationText = request["query"] as String,
+      variables = (request["variables"] as? Map<String, Any>) ?: emptyMap(),
+      requestContext = requestContext
+     )
+    ```
+
+=== "Java"
+
+    ```java
+    Map<String, Object> requestContext = Map.of(
+        SecurityAccessContext.REQUEST_CONTEXT_KEY,
+        new SecurityAccessContext(securityAccess));
+    ExecutionInput executionInput = ExecutionInput.builder()
+        .operationText(query)
+        .variables(variables)
+        .requestContext(requestContext)
+        .build();
+    ```
+
+    The controller creates a fresh context for each execution. Do not store request credentials in a shared singleton.
 
 #### Accessing request context in resolvers
 
 Inside your resolvers, access the request context through the resolver context:
 
-```kotlin
-@Resolver
-class FooQuery : FooResolver.Character() {
-    override suspend fun resolve(ctx: Context): Foo? {
-        val requestContext = ctx.requestContext as? Map<*, *>
-        ...
+=== "Kotlin"
+
+    ```kotlin
+    @Resolver
+    class FooQuery : FooResolver.Character() {
+        override suspend fun resolve(ctx: Context): Foo? {
+            val requestContext = ctx.requestContext as? Map<*, *>
+            ...
+        }
     }
-}
-```
+    ```
+
+=== "Java"
+
+    ```java
+    SecurityAccessContext security =
+        SecurityAccessContext.from(context.getRequestContext());
+    return CompletableFuture.completedFuture(
+        security.validateAccess(() -> characterRepository.delete(characterId)));
+    ```
+
+    This illustrates the request-context access used by `DeleteCharacterMutation.java`; the full resolver also removes relationships and handles a missing character. The context is also propagated to subqueries and submutations in the same execution.
 
 **Benefits:**
 

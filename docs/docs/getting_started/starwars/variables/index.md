@@ -12,10 +12,19 @@ Viaduct supports three approaches for dynamic field resolution:
 
 ## 1. Variables with @Variable and fromArgument
 
+Java uses `viaduct.java.api.annotations.Variable` inside `@Resolver.variables`. In the example below, `fromArgument = "includeDetails"` supplies the Boolean used by `@include`; only selected detail fields may be read when it is true.
+
+
 Variables can be bound directly to resolver arguments to control GraphQL directive evaluation:
 
 
-{{ codetag("demoapps/starwars/modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/characters/resolvers/ProfileFieldResolver.kt", "resolver_example", lang="kotlin") }}
+=== "Kotlin"
+
+    {{ codetag("demoapps/starwars/modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/characters/resolvers/ProfileFieldResolver.kt", "resolver_example", lang="kotlin") | indent(4) }}
+
+=== "Java"
+
+    {{ codefile("demoapps/starwars-java/modules/filmography/src/main/java/com/example/starwars/modules/filmography/characters/resolvers/ProfileFieldResolver.java", lang="java") | indent(4) }}
 
 
 **Benefits**: GraphQL-level optimization, declarative field selection, efficient data fetching.
@@ -24,7 +33,13 @@ Variables can be bound directly to resolver arguments to control GraphQL directi
 For practical demo purposes, the character stats use argument-based conditional logic:
 
 
-{{ codetag("demoapps/starwars/modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/characters/resolvers/CharacterStatsResolver.kt", "resolver_example", lang="kotlin") }}
+=== "Kotlin"
+
+    {{ codetag("demoapps/starwars/modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/characters/resolvers/CharacterStatsResolver.kt", "resolver_example", lang="kotlin") | indent(4) }}
+
+=== "Java"
+
+    {{ codefile("demoapps/starwars-java/modules/filmography/src/main/java/com/example/starwars/modules/filmography/characters/resolvers/CharacterStatsResolver.java", lang="java") | indent(4) }}
 
 
 **Benefits**: Simple implementation, full access to all fields, easy to debug and maintain.
@@ -35,10 +50,16 @@ For practical demo purposes, the character stats use argument-based conditional 
 For simpler cases, traditional argument processing within resolvers:
 
 
-{{ codetag("demoapps/starwars/modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/characters/resolvers/CharacterFormattedDescriptionResolver.kt", "resolver_example", lang="kotlin") }}
+=== "Kotlin"
+
+    {{ codetag("demoapps/starwars/modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/characters/resolvers/CharacterFormattedDescriptionResolver.kt", "resolver_example", lang="kotlin") | indent(4) }}
+
+=== "Java"
+
+    {{ codefile("demoapps/starwars-java/modules/filmography/src/main/java/com/example/starwars/modules/filmography/characters/resolvers/CharacterFormattedDescriptionResolver.java", lang="java") | indent(4) }}
 
 
-**Benefits**: Simplicity, full Kotlin language features, easy debugging.
+**Benefits**: Simplicity, ordinary Kotlin or Java control flow, easy debugging.
 
 **Example Schema**:
 ```graphql

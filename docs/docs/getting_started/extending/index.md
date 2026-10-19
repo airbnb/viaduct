@@ -4,7 +4,7 @@ description: Learn how to add new functionality to your Viaduct application
 ---
 
 
-Let's extend our sample application to tie its two existing fields together. Viaduct is a "schema first" GraphQL server, meaning you write your schema first, and then generate classes to write your code against.
+Let's extend the CLI application to tie its two existing fields together. The Java version follows [Build From Scratch](../setup/from_scratch/index.md); if you cloned the Java Star Wars demo, use its [field resolver exercise](../index.md#writing-a-resolver) or create the small CLI first. Viaduct is a "schema first" GraphQL server, meaning you write your schema first, and then generate classes to write your code against.
 
 ## Extending the Schema
 
@@ -28,31 +28,52 @@ We're modeling `attributedGreeting` as an object type rather than a plain `Strin
 
 ## Writing the Resolver
 
-Now you need to write a resolver for the new field. You could add it to `HelloWorldResolvers.kt`: resolvers for this application can be placed in any file as long as it's in the `com.example.viadapp.resolvers` package.
+Now you need to write a resolver for the new field. Place the resolver in the `com.example.viadapp.resolvers` package configured by this application. Kotlin can add it to `HelloWorldResolvers.kt`; Java uses a separate file for each public class.
 
-Create a file named `AttributedGreetingResolver.kt` in the same subdirectory as `HelloWorldResolvers.kt` and copy the following code into it:
+Create `AttributedGreetingResolver.kt` (Kotlin) or `AttributedGreetingResolver.java` (Java) in the resolver source directory:
 
-```kotlin
-package com.example.viadapp.resolvers
+=== "Kotlin"
 
-import viaduct.api.Resolver
-import com.example.viadapp.resolvers.resolverbases.QueryResolvers
-import viaduct.api.grts.AttributedGreeting
+    ```kotlin
+    package com.example.viadapp.resolvers
 
-@Resolver("""
-  greeting
-  author
-""")
-class AttributedGreetingResolver : QueryResolvers.AttributedGreeting() {
-    override suspend fun resolve(ctx: Context): AttributedGreeting {
-        val greeting = ctx.getObjectValue().getGreetingOrThrow()
-        val author = ctx.getObjectValue().getAuthorOrThrow()
-        return AttributedGreeting.Builder(ctx)
-            .greeting("$author says: \"$greeting\"")
-            .build()
+    import viaduct.api.resolver.Resolver
+    import com.example.viadapp.resolvers.resolverbases.QueryResolvers
+    import viaduct.api.grts.AttributedGreeting
+
+    @Resolver("""
+      greeting
+      author
+    """)
+    class AttributedGreetingResolver : QueryResolvers.AttributedGreeting() {
+        override suspend fun resolve(ctx: Context): AttributedGreeting {
+            val greeting = ctx.getObjectValue().getGreetingOrThrow()
+            val author = ctx.getObjectValue().getAuthorOrThrow()
+            return AttributedGreeting.Builder(ctx)
+                .greeting("$author says: \"$greeting\"")
+                .build()
+        }
     }
-}
-```
+    ```
+
+=== "Java"
+
+    ```java
+    package com.example.viadapp.resolvers;
+
+    @Resolver(objectValueFragment = "greeting author")
+    public final class AttributedGreetingResolver extends QueryResolvers.AttributedGreeting {
+        @Override
+        public CompletableFuture<AttributedGreeting> resolve(Context context) {
+            String greeting = context.getObjectValue().getGreetingOrThrow();
+            String author = context.getObjectValue().getAuthorOrThrow();
+            AttributedGreeting result = AttributedGreeting.builder(context)
+                .greeting(author + " says: \"" + greeting + "\"")
+                .build();
+            return CompletableFuture.completedFuture(result);
+        }
+    }
+    ```
 
 ## Understanding the Resolver
 
@@ -60,12 +81,20 @@ Let's break down what's happening in this resolver:
 
 ### The @Resolver Annotation
 
-```kotlin
-@Resolver("""
-  greeting
-  author
-""")
-```
+=== "Kotlin"
+
+    ```kotlin
+    @Resolver("""
+      greeting
+      author
+    """)
+    ```
+
+=== "Java"
+
+    ```java
+    @Resolver(objectValueFragment = "greeting author")
+    ```
 
 The `@Resolver` annotation indicates that this resolver needs access to the `greeting` and `author` fields. If the annotation didn't mention the `author` field, for example, then the attempt to read `ctx.getObjectValue().getAuthorOrThrow()` would fail at runtime.
 
@@ -73,20 +102,40 @@ This is an important feature of Viaduct: it allows you to declare dependencies b
 
 ### Accessing Field Values
 
-```kotlin
-val greeting = ctx.getObjectValue().getGreetingOrThrow()
-val author = ctx.getObjectValue().getAuthorOrThrow()
-```
+=== "Kotlin"
+
+    ```kotlin
+    val greeting = ctx.getObjectValue().getGreetingOrThrow()
+    val author = ctx.getObjectValue().getAuthorOrThrow()
+    ```
+
+=== "Java"
+
+    ```java
+    String greeting = context.getObjectValue().getGreetingOrThrow();
+    String author = context.getObjectValue().getAuthorOrThrow();
+    ```
 
 `ctx` is the per-resolver execution context — it gives you access to the parent object, arguments, and request-scoped utilities. Inside a `Query` field resolver, `ctx.getObjectValue()` represents the `Query` root, so `getGreetingOrThrow()` and `getAuthorOrThrow()` return the values produced by the sibling `GreetingResolver` and `AuthorResolver`. Viaduct ensures those run before this resolver because the `@Resolver` annotation declared a dependency on them.
 
 ### Building the Result
 
-```kotlin
-return AttributedGreeting.Builder(ctx)
-    .greeting("$author says: \"$greeting\"")
-    .build()
-```
+=== "Kotlin"
+
+    ```kotlin
+    return AttributedGreeting.Builder(ctx)
+        .greeting("$author says: \"$greeting\"")
+        .build()
+    ```
+
+=== "Java"
+
+    ```java
+    AttributedGreeting result = AttributedGreeting.builder(context)
+        .greeting(author + " says: \"" + greeting + "\"")
+        .build();
+    return CompletableFuture.completedFuture(result);
+    ```
 
 To create an instance of the `AttributedGreeting` GraphQL type, we use the generated builder class. All GraphQL object types have a corresponding builder for type-safe construction.
 
@@ -96,13 +145,20 @@ Viaduct generates two main types of code:
 
 ### 1. GraphQL Representational Types (GRTs)
 
-For every GraphQL type, Viaduct generates a Kotlin interface or class to represent it in code. We call these **GraphQL Representational Types**, or **GRTs** for short. These GRTs are all placed in the `viaduct.api.grts` package.
+For every GraphQL type, Viaduct generates a Kotlin interface or class, or a Java class, to represent it in code. We call these **GraphQL Representational Types**, or **GRTs** for short. Kotlin GRTs are in `viaduct.api.grts`; Java GRTs are in `viaduct.java.grts`.
 
 For example, our `AttributedGreeting` GraphQL type has a corresponding `AttributedGreeting` GRT that we import:
 
-```kotlin
-import viaduct.api.grts.AttributedGreeting
-```
+=== "Kotlin"
+
+    ```kotlin
+    import viaduct.api.grts.AttributedGreeting
+    ```
+
+=== "Java"
+
+    ```java
+    ```
 
 ### 2. Resolver Base Classes
 
@@ -110,13 +166,27 @@ Viaduct also generates a **resolver base class** for writing resolvers. For each
 
 As illustrated by our example, to write a resolver for that field, you subclass this base class and override the `resolve` function:
 
-```kotlin
-class AttributedGreetingResolver : QueryResolvers.AttributedGreeting() {
-    override suspend fun resolve(ctx: Context): AttributedGreeting {
-        // Implementation
+=== "Kotlin"
+
+    ```kotlin
+    class AttributedGreetingResolver : QueryResolvers.AttributedGreeting() {
+        override suspend fun resolve(ctx: Context): AttributedGreeting {
+            // Implementation
+        }
     }
-}
-```
+    ```
+
+=== "Java"
+
+    ```java
+    public final class AttributedGreetingResolver extends QueryResolvers.AttributedGreeting {
+        @Override
+        public CompletableFuture<AttributedGreeting> resolve(Context context) {
+            return CompletableFuture.completedFuture(
+                AttributedGreeting.builder(context).greeting("Hello!").build());
+        }
+    }
+    ```
 
 ## Testing the New Field
 
@@ -134,4 +204,4 @@ You should see the appropriate response with the author attribution!
 
 **Documentation.** Explore our [full documentation site](../../index.md).
 
-**Building your own application.** Pick the structure that fits your project — single project, two-project (root plus one module), or multi-module — and start from one of the [starter applications](../setup/clone/index.md) (CLI, Spring, or StarWars). Customize the schema, resolvers, and any wiring you need.
+**Building your own application.** Pick the structure that fits your project — single project, two-project (root plus one module), or multi-module — and start from one of the [starter applications](../setup/clone/index.md) (CLI, Micronaut, or Star Wars). Customize the schema, resolvers, and any wiring you need.

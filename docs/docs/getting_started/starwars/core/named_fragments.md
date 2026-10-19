@@ -11,33 +11,51 @@ Two resolvers on the `Character` type in the `filmography` tenant need the same 
 
 ## Declaring the fragment
 
-A named fragment is a Kotlin singleton `object` annotated with `@GraphQLFragment`, extending `FragmentFromAnnotation<T>` for the type it selects on — here, `Character`:
+A named fragment is annotated with `@GraphQLFragment` and extends `FragmentFromAnnotation<T>` for the type it selects on — here, `Character`. Kotlin uses a singleton `object`; Java uses a class with the Java annotation and document base class:
 
-{{ codetag("demoapps/starwars/modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/characters/fragments/CharacterIdentityFieldsFragment.kt", "named_fragment_example", lang="kotlin") }}
+=== "Kotlin"
+
+    {{ codetag("demoapps/starwars/modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/characters/fragments/CharacterIdentityFieldsFragment.kt", "named_fragment_example", lang="kotlin") | indent(4) }}
+
+=== "Java"
+
+    {{ codefile("demoapps/starwars-java/modules/filmography/src/main/java/com/example/starwars/modules/filmography/characters/fragments/CharacterIdentityFieldsFragment.java", lang="java") | indent(4) }}
 
 
-Viaduct discovers `@GraphQLFragment` objects at build time and validates them against the schema. The fragment name (`CharacterIdentityFields`) must be unique within the tenant module.
+Viaduct discovers `@GraphQLFragment` declarations at build time and validates them against the schema. The fragment name (`CharacterIdentityFields`) must be unique within the tenant module.
 
 ## Spreading it in a resolver
 
 Spread the fragment with standard `...CharacterIdentityFields` syntax inside a resolver's `objectValueFragment`. `CharacterDisplaySummaryResolver` reads exactly the two fields the fragment provides:
 
-{{ codetag("demoapps/starwars/modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/characters/resolvers/CharacterDisplaySummaryResolver.kt", "named_fragment_consumer", lang="kotlin") }}
+=== "Kotlin"
+
+    {{ codetag("demoapps/starwars/modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/characters/resolvers/CharacterDisplaySummaryResolver.kt", "named_fragment_consumer", lang="kotlin") | indent(4) }}
+
+=== "Java"
+
+    {{ codefile("demoapps/starwars-java/modules/filmography/src/main/java/com/example/starwars/modules/filmography/characters/resolvers/CharacterDisplaySummaryResolver.java", lang="java") | indent(4) }}
 
 
 ## Reusing it alongside inline selections
 
 A spread can be combined with inline fields. `CharacterRichSummaryResolver` needs the same identity fields **plus** the character's `id` for its batch lookups, so it spreads the shared fragment and adds `id` inline:
 
-```kotlin
-@Resolver(objectValueFragment = "fragment _ on Character { id ...CharacterIdentityFields }")
-class CharacterRichSummaryResolver(/* ... */) : CharacterResolvers.RichSummary() {
-    override suspend fun batchResolve(contexts: List<Context>): List<FieldValue<String>> {
-        // ctx.getObjectValue().getNameOrThrow() / .getBirthYearOrThrow() come from the shared fragment,
-        // ctx.getObjectValue().getIdOrThrow() comes from the inline selection.
+=== "Kotlin"
+
+    ```kotlin
+    @Resolver(objectValueFragment = "fragment _ on Character { id ...CharacterIdentityFields }")
+    class CharacterRichSummaryResolver(/* ... */) : CharacterResolvers.RichSummary() {
+        override suspend fun batchResolve(contexts: List<Context>): List<FieldValue<String>> {
+            // ctx.getObjectValue().getNameOrThrow() / .getBirthYearOrThrow() come from the shared fragment,
+            // ctx.getObjectValue().getIdOrThrow() comes from the inline selection.
+        }
     }
-}
-```
+    ```
+
+=== "Java"
+
+    {{ codefile("demoapps/starwars-java/modules/filmography/src/main/java/com/example/starwars/modules/filmography/characters/resolvers/CharacterRichSummaryResolver.java", lang="java") | indent(4) }}
 
 Because both resolvers now depend on the same fragment, adding a field to `CharacterIdentityFields` makes it available in both places at once — keeping the two resolvers in sync.
 
@@ -45,22 +63,34 @@ Because both resolvers now depend on the same fragment, adding a field to `Chara
 
 A selection set can spread **more than one** named fragment — that's standard GraphQL, and Viaduct merges all the spreads into the resolver's required selection set. The demo declares a second fragment for appearance fields:
 
-{{ codetag("demoapps/starwars/modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/characters/fragments/CharacterAppearanceFieldsFragment.kt", "appearance_fragment_example", lang="kotlin") }}
+=== "Kotlin"
+
+    {{ codetag("demoapps/starwars/modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/characters/fragments/CharacterAppearanceFieldsFragment.kt", "appearance_fragment_example", lang="kotlin") | indent(4) }}
+
+=== "Java"
+
+    {{ codefile("demoapps/starwars-java/modules/filmography/src/main/java/com/example/starwars/modules/filmography/characters/fragments/CharacterAppearanceFieldsFragment.java", lang="java") | indent(4) }}
 
 
 `CharacterFormattedDescriptionResolver` needs identity **and** appearance fields, so it spreads both fragments in one selection set:
 
-```kotlin
-@Resolver("fragment _ on Character { ...CharacterIdentityFields ...CharacterAppearanceFields }")
-class CharacterFormattedDescriptionResolver : CharacterResolvers.FormattedDescription() {
-    override suspend fun resolve(ctx: Context): String? {
-        val character = ctx.getObjectValue()
-        // getNameOrThrow()/getBirthYearOrThrow() come from CharacterIdentityFields,
-        // getEyeColorOrThrow()/getHairColorOrThrow() come from CharacterAppearanceFields.
-        ...
+=== "Kotlin"
+
+    ```kotlin
+    @Resolver("fragment _ on Character { ...CharacterIdentityFields ...CharacterAppearanceFields }")
+    class CharacterFormattedDescriptionResolver : CharacterResolvers.FormattedDescription() {
+        override suspend fun resolve(ctx: Context): String? {
+            val character = ctx.getObjectValue()
+            // getNameOrThrow()/getBirthYearOrThrow() come from CharacterIdentityFields,
+            // getEyeColorOrThrow()/getHairColorOrThrow() come from CharacterAppearanceFields.
+            ...
+        }
     }
-}
-```
+    ```
+
+=== "Java"
+
+    {{ codefile("demoapps/starwars-java/modules/filmography/src/main/java/com/example/starwars/modules/filmography/characters/resolvers/CharacterFormattedDescriptionResolver.java", lang="java") | indent(4) }}
 
 
 You can spread any number of fragments, mix them with inline fields (as the `id ...CharacterIdentityFields` example above does), and even spread fragments that themselves spread other fragments — Viaduct resolves the spreads transitively. The only constraints: each spread must resolve to a `@GraphQLFragment` declared in the same tenant module, and the fragment names must be distinct.

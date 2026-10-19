@@ -20,10 +20,10 @@ Typical use cases:
 ## Code definitions
 
 
-{{ codetag("demoapps/starwars/modules/filmography/src/main/viaduct/schema/Character.graphqls", "scope_example", lang="kotlin") }}
+{{ codetag("demoapps/starwars/modules/filmography/src/main/viaduct/schema/Character.graphqls", "scope_example", lang="graphql") }}
 
 
-{{ codetag("demoapps/starwars/modules/universe/src/main/viaduct/schema/Species.graphqls", "schemas_extras_example", lang="kotlin") }}
+{{ codetag("demoapps/starwars/modules/universe/src/main/viaduct/schema/Species.graphqls", "schemas_extras_example", lang="graphql") }}
 
 
 In this example, `searchCharacter` is available to any request with the `default` scope. The `culturalNotes` is defined in `extras`.
@@ -54,31 +54,61 @@ In the **Star Wars demo only**, scopes are provided via this header:
 In the file `ViaductGraphQLController`, the controller reads scopes from the header in the function
 
 
-{{ codetag("demoapps/starwars/src/main/kotlin/com/example/starwars/service/viaduct/ViaductRestController.kt", "parse_scopes", lang="kotlin") }}
+=== "Kotlin"
+
+    {{ codetag("demoapps/starwars/src/main/kotlin/com/example/starwars/service/viaduct/ViaductRestController.kt", "parse_scopes", lang="kotlin") | indent(4) }}
+
+=== "Java"
+
+    {{ codefile("demoapps/starwars-java/src/main/java/com/example/starwars/service/viaduct/ViaductRestController.java", start=59, end=66, lang="java") | indent(4) }}
 
 
 From those scopes the app extracts the specific schema limited to those scopes only :
 
 
-{{ codetag("demoapps/starwars/src/main/kotlin/com/example/starwars/service/viaduct/ViaductRestController.kt", "determine_schema", lang="kotlin") }}
+=== "Kotlin"
+
+    {{ codetag("demoapps/starwars/src/main/kotlin/com/example/starwars/service/viaduct/ViaductRestController.kt", "determine_schema", lang="kotlin") | indent(4) }}
+
+=== "Java"
+
+    {{ codefile("demoapps/starwars-java/src/main/java/com/example/starwars/service/viaduct/ViaductRestController.java", start=68, end=72, lang="java") | indent(4) }}
 
 
-Those schemas are defined in the `ViaductConfiguration.kt` file as:
+Those schemas are defined in `ViaductConfiguration.kt` (Kotlin) or `ViaductConfiguration.java` (Java):
 
 
-{{ codetag("demoapps/starwars/src/main/kotlin/com/example/starwars/service/viaduct/ViaductConfiguration.kt", "schema_registration", lang="kotlin") }}
+=== "Kotlin"
+
+    {{ codetag("demoapps/starwars/src/main/kotlin/com/example/starwars/service/viaduct/ViaductConfiguration.kt", "schema_registration", lang="kotlin") | indent(4) }}
+
+=== "Java"
+
+    {{ codefile("demoapps/starwars-java/src/main/java/com/example/starwars/service/viaduct/ViaductConfiguration.java", start=14, end=19, lang="java") | indent(4) }}
 
 
 With the correct schema, the controller builds the `ExecutionInput` for Viaduct
 
 
-{{ codetag("demoapps/starwars/src/main/kotlin/com/example/starwars/service/viaduct/ViaductRestController.kt", "execution_input", lang="kotlin") }}
+=== "Kotlin"
+
+    {{ codetag("demoapps/starwars/src/main/kotlin/com/example/starwars/service/viaduct/ViaductRestController.kt", "execution_input", lang="kotlin") | indent(4) }}
+
+=== "Java"
+
+    {{ codefile("demoapps/starwars-java/src/main/java/com/example/starwars/service/viaduct/ViaductRestController.java", start=43, end=53, lang="java") | indent(4) }}
 
 
 And runs the query, this is the entire logic of the controller:
 
 
-{{ codetag("demoapps/starwars/src/main/kotlin/com/example/starwars/service/viaduct/ViaductRestController.kt", "run_query", lang="kotlin") }}
+=== "Kotlin"
+
+    {{ codetag("demoapps/starwars/src/main/kotlin/com/example/starwars/service/viaduct/ViaductRestController.kt", "run_query", lang="kotlin") | indent(4) }}
+
+=== "Java"
+
+    {{ codefile("demoapps/starwars-java/src/main/java/com/example/starwars/service/viaduct/ViaductRestController.java", start=54, end=56, lang="java") | indent(4) }}
 
 
 ### Demo example (Star Wars)
@@ -152,6 +182,6 @@ In GraphiQL, add this to the **Headers** tab below the query pane:
 
 - In the demo, vary the header to confirm visibility; in your app, vary the scope source (claims/context).
 - Verify that restricted fields disappear from both introspection and responses.
-- Add integration tests per scope slice (see `ExtrasScopeTest.kt` in the demo).
+- Add integration tests per scope slice (Kotlin: `ExtrasScopeTest.kt`; Java: `StarWarsJavaIntegrationTest.honorsExtrasScope()`).
 
 > For the full `@scope` API, scope configuration at the service layer, and multi-tenancy patterns, see the [Scopes developer reference](../../../docs/developers/scopes/index.md).

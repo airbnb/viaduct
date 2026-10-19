@@ -1,43 +1,76 @@
 ---
 title: Clone a Starter Application
-description: Get going by cloning the CLI starter, the simplest Viaduct starter application.
+description: Clone a Kotlin starter or the Java Star Wars application.
 ---
 
 
-This guide walks you through getting started with Viaduct by cloning the **CLI starter** — the smallest starter application. We use it because it's quick to clone, has no web framework to set up, and exercises the same core Viaduct APIs you'd use in a full server.
+Choose a language below to clone and run an existing Viaduct application. The Kotlin path uses the small CLI starter. The Java path uses the complete Micronaut Star Wars demo in the main Viaduct repository.
 
-## Run the CLI starter
+## Run the starter
 
-Make a local clone of the [CLI starter](https://github.com/viaduct-dev/cli-starter):
+=== "Kotlin"
 
-```shell
-git clone https://github.com/viaduct-dev/cli-starter.git
-```
+    Make a local clone of the [CLI starter](https://github.com/viaduct-dev/cli-starter):
 
-`cd` into the clone and verify your environment:
+    ```shell
+    git clone https://github.com/viaduct-dev/cli-starter.git
+    ```
 
-```shell
-./gradlew test
-```
+    `cd` into the clone and verify your environment:
 
-Gradle should report that the build was successful.
+    ```shell
+    ./gradlew test
+    ```
 
-Although Viaduct is typically hosted in a web server, the CLI starter calls it directly from the application's `main` function so the example stays small. Run a query through Gradle:
+    Gradle should report that the build was successful.
 
-```shell
-./gradlew -q run --args="'{ greeting }'"
-```
+    Although Viaduct is typically hosted in a web server, the CLI starter calls it directly from the application's `main` function so the example stays small. Run a query through Gradle:
 
-The starter ships with a tiny schema:
+    ```shell
+    ./gradlew -q run --args="'{ greeting }'"
+    ```
 
-```graphql
-type Query {
-   greeting: String @resolver
-   author: String @resolver
-}
-```
+    The starter ships with a tiny schema:
 
-Any query that's valid against this schema can be passed via `--args`.
+    ```graphql
+    type Query {
+       greeting: String @resolver
+       author: String @resolver
+    }
+    ```
+
+    Any query that's valid against this schema can be passed via `--args`.
+
+=== "Java"
+
+    Install JDK 21+ and clone the main repository:
+
+    ```shell
+    git clone https://github.com/airbnb/viaduct.git
+    cd viaduct/demoapps/starwars-java
+    ```
+
+    Verify the application before starting the server:
+
+    ```shell
+    USE_VIADUCT_SNAPSHOT_REPO=true ./gradlew test
+    USE_VIADUCT_SNAPSHOT_REPO=true ./gradlew run
+    ```
+
+    The flag enables the snapshot repository required by the demo’s current Viaduct version. On Windows, run these commands in Git Bash.
+
+    Open [GraphiQL](http://localhost:8080/graphiql) and execute:
+
+    ```graphql
+    query {
+      allCharacters(limit: 1) {
+        name
+        displayName
+      }
+    }
+    ```
+
+    The response includes Luke Skywalker. The server exposes `/graphql` for HTTP requests and `/graphiql` for the browser. Stop it with `Ctrl+C`.
 
 ## Other starter applications
 
@@ -47,7 +80,9 @@ Besides the CLI starter, [github.com/viaduct-dev](https://github.com/viaduct-dev
 - [`ktor-starter`](https://github.com/viaduct-dev/ktor-starter) — a Ktor-based HTTP server.
 - [`jetty-starter`](https://github.com/viaduct-dev/jetty-starter) — a Jetty-based HTTP server.
 - [`micronaut-starter`](https://github.com/viaduct-dev/micronaut-starter) — a Micronaut-based HTTP server.
-- [`starwars`](https://github.com/viaduct-dev/starwars) — a fuller demonstration application built on Spring Boot, exercising most Viaduct features. The [Star Wars tutorial](../../starwars/index.md) walks through it.
+- [`starwars`](https://github.com/viaduct-dev/starwars) — a fuller demonstration application built on Micronaut, exercising most Viaduct features. The [Star Wars tutorial](../../starwars/index.md) walks through it.
+
+For Java, continue with `demoapps/starwars-java` in the main repository; the standalone starter repositories listed above use Kotlin.
 
 Pick the one that matches your target framework. Each repo's README has its own setup steps.
 

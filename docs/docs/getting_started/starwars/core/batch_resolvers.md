@@ -4,7 +4,7 @@ description: Implementing batch field resolvers in Viaduct.
 ---
 
 
-Batch field resolvers process multiple field requests **in one pass**, dramatically improving performance when the same field is selected across many parent objects. Viaduct guarantees the **input order** of contexts and expects you to return results in the **same order**.
+Batch field resolvers process multiple field requests **in one pass**, dramatically improving performance when the same field is selected across many parent objects. Kotlin returns results in the **same order** as its input contexts. Java identifies results by their original context keys in a map.
 
 ## Schema declaration
 
@@ -20,15 +20,24 @@ type Character implements Node @scope(to: ["default"]) @resolver(isBatching: tru
 
 ## Where batching fits in the execution flow
 
+For field batches, Kotlin returns a list aligned with the input list; Java returns a map whose keys are the original `Context` objects. Put an entry for every context in the batch. Java field batches return `CompletableFuture<Map<Context, T>>`. Node batches in both languages use context-keyed maps of `FieldValue<T>`, with Java wrapping the map in a `CompletableFuture`. Do not copy the Kotlin field batch's list-returning signature into a Java resolver.
+
+
 1. The planner groups identical field selections across all matching parent objects in the operation.
 2. Viaduct calls your `batchResolve(contexts: List<Context>)`.
 3. You perform **one** data fetch per unique key set (for example, character IDs).
-4. You map results **back to each context** and return a `List<FieldValue<T>>` **aligned with the input order**.
+4. You map results **back to each context**: return the ordered result list in Kotlin or a map keyed by the original contexts in Java.
 
 ## Minimal example (counts per character)
 
 
-{{ codetag("demoapps/starwars/modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/characters/resolvers/CharacterFilmCountResolver.kt", "film_count_batch_resolver", lang="kotlin") }}
+=== "Kotlin"
+
+    {{ codetag("demoapps/starwars/modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/characters/resolvers/CharacterFilmCountResolver.kt", "film_count_batch_resolver", lang="kotlin") | indent(4) }}
+
+=== "Java"
+
+    {{ codefile("demoapps/starwars-java/modules/filmography/src/main/java/com/example/starwars/modules/filmography/characters/resolvers/CharacterFilmCountResolver.java", lang="java") | indent(4) }}
 
 
 ## Choosing the fragment
@@ -37,16 +46,22 @@ The `objectValueFragment` declares the parent fields your resolver needs. Keep i
 
 ## Implementing batch resolvers in node resolvers
 
-Node resolvers can also be batched by declaring `@resolver(isBatching: true)` on the type. The pattern is similar, but you receive a list of `GlobalID`s instead of `Context`s. You can use `GlobalID.internalID` to extract your internal ID
+Node resolvers can also be batched by declaring `@resolver(isBatching: true)` on the type. Both languages receive a list of contexts: Kotlin reads each ID with `ctx.id.internalID`, and Java uses `context.getId().getInternalID()`. Return a map keyed by these original contexts, using `FieldValue.ofValue(...)` for a resolved node or `FieldValue.ofError(...)` for a missing node or other per-node failure.
 
 
-{{ codetag("demoapps/starwars/modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/characters/resolvers/CharacterNodeResolver.kt", "node_batch_resolver_example", lang="kotlin") }}
+=== "Kotlin"
+
+    {{ codetag("demoapps/starwars/modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/characters/resolvers/CharacterNodeResolver.kt", "node_batch_resolver_example", lang="kotlin") | indent(4) }}
+
+=== "Java"
+
+    {{ codefile("demoapps/starwars-java/modules/filmography/src/main/java/com/example/starwars/modules/filmography/characters/resolvers/CharacterNodeResolver.java", lang="java") | indent(4) }}
 
 ## Error handling and nullability
 
-- Return a sensible default or `FieldValue.ofNull()` for missing items (match schema nullability).
-- Avoid throwing for “not found” cases — reserve exceptions for **unexpected** failures.
-- Ensure the size of the returned list matches `contexts.size` exactly.
+- For nullable field results, Kotlin wrappers can use `FieldValue.ofValue(null)` and Java field-result maps can contain `null`. Use a Java map implementation that accepts null values when needed.
+- Node resolvers must produce a node or an error. Report a missing node with `FieldValue.ofError(...)` rather than a null node value.
+- Return one outcome per input: a Kotlin field-result list must match `contexts.size`; context-keyed result maps must contain every original context key.
 
 ## When to batch (and when not to)
 
@@ -66,7 +81,7 @@ Node resolvers can also be batched by declaring `@resolver(isBatching: true)` on
 Schema definition:
 
 
-{{ codetag("demoapps/starwars/modules/filmography/src/main/viaduct/schema/Character.graphqls", "all_characters", lang="kotlin") }}
+{{ codetag("demoapps/starwars/modules/filmography/src/main/viaduct/schema/Character.graphqls", "all_characters", lang="graphql") }}
 
 
 Executed query:
@@ -83,7 +98,7 @@ query {
 
 - **Do** request only the parent fields you need in `objectValueFragment`.
 - **Do** deduplicate keys before hitting the data layer.
-- **Do** return results in the same order as the input contexts.
+- **Do** preserve input order for Kotlin field batches and original context keys for node batches and Java field batches.
 - **Don’t** perform per-context DB calls inside `batchResolve`.
 - **Don’t** allocate large intermediate structures unnecessarily — map directly back to contexts.
 

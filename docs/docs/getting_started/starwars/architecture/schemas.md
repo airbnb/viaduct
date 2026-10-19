@@ -14,15 +14,21 @@ In Viaduct, a **schema** describes the GraphQL surface that a request can access
 
 The Star Wars demo defines two schema IDs:
 
-- `PUBLIC_SCHEMA` — the default public surface.
-- `PUBLIC_SCHEMA_WITH_EXTRAS` — includes everything from `PUBLIC_SCHEMA` plus extra fields marked with `@scope(to: ["extras"])`.
+- `PUBLIC_SCHEMA` (Kotlin) / `DEFAULT_SCHEMA` (Java) — the default public surface.
+- `PUBLIC_SCHEMA_WITH_EXTRAS` (Kotlin) / `EXTRAS_SCHEMA` (Java) — includes everything from the public schema plus extra fields marked with `@scope(to: ["extras"])`.
 
 ## Where schemas are registered
 
 Schemas are registered when creating a Viaduct instance by passing a list of [SchemaScopeInfo] descriptors. Example (excerpt from `ViaductConfiguration.kt`):
 
 
-{{ codetag("demoapps/starwars/src/main/kotlin/com/example/starwars/service/viaduct/ViaductConfiguration.kt", "schema_registration", lang="kotlin") }}
+=== "Kotlin"
+
+    {{ codetag("demoapps/starwars/src/main/kotlin/com/example/starwars/service/viaduct/ViaductConfiguration.kt", "schema_registration", lang="kotlin") | indent(4) }}
+
+=== "Java"
+
+    {{ codefile("demoapps/starwars-java/src/main/java/com/example/starwars/service/viaduct/ViaductConfiguration.java", start=14, end=19, lang="java") | indent(4) }}
 
 
 - `scopedSchemas`: a list of `SchemaScopeInfo` descriptors for schemas that use `@scope`.
@@ -36,7 +42,7 @@ Place your GraphQL SDL files under the configured resources path so they are inc
 ### Example (fragment)
 
 
-{{ codetag("demoapps/starwars/modules/universe/src/main/viaduct/schema/Planet.graphqls", "schemas_example", lang="kotlin") }}
+{{ codetag("demoapps/starwars/modules/universe/src/main/viaduct/schema/Planet.graphqls", "schemas_example", lang="graphql") }}
 
 
 > Fields like `film` are typically resolved by **field/batch resolvers**, not embedded in SDL logic.
@@ -48,7 +54,7 @@ To add a field that should exist **only** in the extras slice:
 1. Declare it in SDL with a scope:
 
 
-{{ codetag("demoapps/starwars/modules/universe/src/main/viaduct/schema/Species.graphqls", "schemas_extras_example", lang="kotlin") }}
+{{ codetag("demoapps/starwars/modules/universe/src/main/viaduct/schema/Species.graphqls", "schemas_extras_example", lang="graphql") }}
 
 
 2. Ensure the **schema ID** associated with `extras` is registered (`PUBLIC_SCHEMA_WITH_EXTRAS`).
@@ -58,7 +64,7 @@ To add a new entity:
 
 - Define the type and relationships in SDL.
 - Implement node/field (and batch if needed) resolvers.
-- Emit typed IDs with `ctx.globalIDFor(Type.Reflection, internalId)`.
+- Emit typed IDs with `ctx.globalIDFor(Type.Reflection, internalId)` in Kotlin or `context.globalIDFor(Type.ofClass(Character.class), internalId)` in Java.
 - Write integration tests that hit both schema IDs if visibility differs.
 
 ## Testing and troubleshooting

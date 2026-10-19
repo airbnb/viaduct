@@ -3,6 +3,9 @@ title: Custom Directives
 description: Learn about custom directives like @backingData, @scope, @idOf, @oneOf, @connection, and @edge in Viaduct.
 ---
 
+These schema directives apply to both Kotlin and Java tenants. SDL examples are shared; switch language tabs for resolver and service code.
+
+
 
 Custom directives in Viaduct enhance your GraphQL schema with extra behavior and validation. A **custom directive** is a schema annotation that Viaduct interprets at planning or execution time — they let you express resolver hints, identity types, and visibility rules without writing extra Kotlin. This page introduces the directives used in the Star Wars demo and links to focused pages for details and examples.
 

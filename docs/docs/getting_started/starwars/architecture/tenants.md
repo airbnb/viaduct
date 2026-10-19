@@ -16,20 +16,21 @@ A module:
 
 ### universe
 
-**Focus:** the in-universe graph of entities and their relationships. Typical modules include `characters`, `planets`, `species`, and cross-entity links (for example, a character’s homeworld or species).
+**Focus:** planets, species, starships, vehicles, and their relationships.
 
 **Common fields and patterns:**
 
-- `Character.id`, `Character.name`, `Character.homeworld`, `Character.species`.
+- `Planet.id`, `Planet.name`, `Species.id`, `Species.name`, and the starship and vehicle fields.
 
 ### filmography
 
-**Focus:** the catalog of films and character appearances. Typical modules cover `films` and derived relationships such as “which characters appear in which film”.
+**Focus:** characters, the catalog of films, and character appearances. The character resolvers also refer to types owned by `universe`, such as a character's homeworld or species.
 
 **Common fields and patterns:**
 
 - `Film.id`, `Film.title`, `Film.releaseDate`.
 - `Film.characters` (list of appearing characters).
+- `Character.id`, `Character.name`, `Character.homeworld`, `Character.species`.
 
 ## Where module SDL lives
 
@@ -55,25 +56,39 @@ During the build, these are transformed into a **central schema** that merges al
 
 ## Where module resolvers live
 
-Resolvers for each module are implemented in the module’s Kotlin sources.
+Resolvers for each module are implemented in the module’s language-specific source directory.
 
 Concrete examples (filmography):
 
-```
-modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/films/queries/AllFilmsQueryResolver.kt
-modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/films/resolvers/FilmNodeResolver.kt
-modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/films/resolvers/CharactersFieldResolver.kt
-modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/films/resolvers/PlanetsFieldResolver.kt
-modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/characters/resolvers/FilmCountBatchResolver.kt
-```
+=== "Kotlin"
 
-The `com.airbnb.viaduct.module-gradle-plugin` also generates **resolver base classes** you extend, under:
+    ```
+    modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/films/queries/AllFilmsQueryResolver.kt
+    modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/films/resolvers/FilmNodeResolver.kt
+    modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/films/resolvers/CharactersFieldResolver.kt
+    modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/films/resolvers/PlanetsFieldResolver.kt
+    modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/characters/resolvers/FilmCountBatchResolver.kt
+    ```
+
+=== "Java"
+
+    ```text
+    modules/filmography/src/main/java/com/example/starwars/modules/filmography/films/queries/AllFilmsQueryResolver.java
+    modules/filmography/src/main/java/com/example/starwars/modules/filmography/films/resolvers/FilmNodeResolver.java
+    modules/filmography/src/main/java/com/example/starwars/modules/filmography/films/resolvers/FilmCharactersResolver.java
+    modules/filmography/src/main/java/com/example/starwars/modules/filmography/films/resolvers/FilmPlanetsResolver.java
+    modules/filmography/src/main/java/com/example/starwars/modules/filmography/characters/resolvers/CharacterFilmCountResolver.java
+    ```
+
+    The Java module plugin generates Java GRTs and resolver base classes before Java compilation. Its annotation processor records resolver and document metadata for runtime discovery.
+
+The Kotlin module plugin generates **resolver base classes** you extend, under:
 
 ```
 modules/<module>/build/generated-sources/viaduct/resolverBases/...
 ```
 
-(For example: `CharacterResolvers.kt`, `FilmResolvers.kt`, `QueryResolvers.kt`, `NodeResolvers.kt`.)
+For example, Kotlin generates `CharacterResolvers.kt`, `FilmResolvers.kt`, `QueryResolvers.kt`, and `NodeResolvers.kt`. Java generates corresponding `.java` base classes in each configured module package, such as `com.example.starwars.filmography.resolverbases`.
 
 ## How modules are assembled
 

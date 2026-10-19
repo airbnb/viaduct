@@ -27,7 +27,7 @@ If the client provides zero or more than one field, the request is rejected duri
 When one of the alternatives is a Global ID, add `@idOf` to make the ID **typed** and to enable automatic decoding.
 
 
-{{ codetag("demoapps/starwars/modules/filmography/src/main/viaduct/schema/Character.graphqls", "one_of_example", lang="kotlin") }}
+{{ codetag("demoapps/starwars/modules/filmography/src/main/viaduct/schema/Character.graphqls", "one_of_example", lang="graphql") }}
 
 
 Client query examples:
@@ -57,7 +57,13 @@ With `@idOf`, Viaduct will validate that the ID is a `Character` Global ID and d
 Inside the resolver, inspect which field was set and branch accordingly. When the ID path is used, the internal ID is already validated and decoded by Viaduct.
 
 
-{{ codetag("demoapps/starwars/modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/characters/queries/SearchCharacterQueryResolver.kt", "id_of_example", lang="kotlin") }}
+=== "Kotlin"
+
+    {{ codetag("demoapps/starwars/modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/characters/queries/SearchCharacterQueryResolver.kt", "id_of_example", lang="kotlin") | indent(4) }}
+
+=== "Java"
+
+    {{ codefile("demoapps/starwars-java/modules/filmography/src/main/java/com/example/starwars/modules/filmography/characters/queries/SearchCharacterQueryResolver.java", lang="java") | indent(4) }}
 
 
 ## Error behavior

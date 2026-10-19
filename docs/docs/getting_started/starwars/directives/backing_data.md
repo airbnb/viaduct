@@ -10,7 +10,7 @@ Use `@backingData` when two or more field resolvers on the same type need the sa
 
 ## Schema declaration
 
-Apply `@backingData` on a field typed as `BackingData` (a Viaduct built-in marker type, never exposed to clients). The `class` argument points to the Kotlin data class that holds the fetched data:
+Apply `@backingData` on a field typed as `BackingData` (a Viaduct built-in marker type, never exposed to clients). The `class` argument points to the application class that holds the fetched data:
 
 
 {{ codetag("demoapps/starwars/modules/filmography/src/main/viaduct/schema/Film.graphqls", "backing_data_schema", lang="graphql") }}
@@ -27,10 +27,16 @@ Do not add `@tenantLocal` to a backing-data field. Its `BackingData` type alread
 
 ## The backing data class
 
-A simple data class holding the pre-fetched data. Keep it minimal, shared state only:
+A Kotlin data class or Java record holds the pre-fetched data. Keep it minimal, shared state only:
 
 
-{{ codetag("demoapps/starwars/modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/films/models/FilmCastData.kt", "backing_data_class", lang="kotlin") }}
+=== "Kotlin"
+
+    {{ codetag("demoapps/starwars/modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/films/models/FilmCastData.kt", "backing_data_class", lang="kotlin") | indent(4) }}
+
+=== "Java"
+
+    {{ codefile("demoapps/starwars-java/modules/filmography/src/main/java/com/example/starwars/modules/filmography/films/models/FilmCastData.java", lang="java") | indent(4) }}
 
 
 ## The backing data resolver
@@ -38,21 +44,41 @@ A simple data class holding the pre-fetched data. Keep it minimal, shared state 
 A resolver that fetches the data once per parent object. It reads the parent's ID from the object value and calls the repository:
 
 
-{{ codetag("demoapps/starwars/modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/films/resolvers/FilmCastDataResolver.kt", "backing_data_resolver", lang="kotlin") }}
+=== "Kotlin"
+
+    {{ codetag("demoapps/starwars/modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/films/resolvers/FilmCastDataResolver.kt", "backing_data_resolver", lang="kotlin") | indent(4) }}
+
+=== "Java"
+
+    {{ codefile("demoapps/starwars-java/modules/filmography/src/main/java/com/example/starwars/modules/filmography/films/resolvers/FilmCastDataResolver.java", lang="java") | indent(4) }}
 
 
 ## Consuming the backing data
 
+Java code generation excludes `BackingData` fields from generated GRT getters and builders. The demo accesses the engine-backed value through `getJavaEngineObjectData().getOrNull("castData")` and casts it to `FilmCastData`. The `objectValueFragment` dependency is still required. This uses internal engine APIs and is shown only to explain the demo implementation; it is not a supported public Java GRT accessor. A generated Java `getCastData()` method does not exist. For application code, keep shared data loading in a repository or service until a public typed Java accessor is available.
+
 Other resolvers declare `castData` in their `objectValueFragment` to receive the pre-fetched data. Viaduct automatically ensures the backing resolver completes before these consumers run:
 
 
-{{ codetag("demoapps/starwars/modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/films/resolvers/FilmCharactersResolver.kt", "backing_data_consumer", lang="kotlin") }}
+=== "Kotlin"
+
+    {{ codetag("demoapps/starwars/modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/films/resolvers/FilmCharactersResolver.kt", "backing_data_consumer", lang="kotlin") | indent(4) }}
+
+=== "Java"
+
+    {{ codefile("demoapps/starwars-java/modules/filmography/src/main/java/com/example/starwars/modules/filmography/films/resolvers/FilmCharactersResolver.java", lang="java") | indent(4) }}
 
 
 Multiple resolvers can share the same backing data, each declares it in their fragment, but the fetch happens only once:
 
 
-{{ codetag("demoapps/starwars/modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/films/resolvers/FilmCharacterCountSummaryResolver.kt", "backing_data_consumer_2", lang="kotlin") }}
+=== "Kotlin"
+
+    {{ codetag("demoapps/starwars/modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/films/resolvers/FilmCharacterCountSummaryResolver.kt", "backing_data_consumer_2", lang="kotlin") | indent(4) }}
+
+=== "Java"
+
+    {{ codefile("demoapps/starwars-java/modules/filmography/src/main/java/com/example/starwars/modules/filmography/films/resolvers/FilmCharacterCountSummaryResolver.java", lang="java") | indent(4) }}
 
 
 ## How it works at runtime
@@ -60,7 +86,7 @@ Multiple resolvers can share the same backing data, each declares it in their fr
 1. A client queries both `characters` and `characterCountSummary` on a Film.
 2. Viaduct sees both resolvers need `castData` in their `objectValueFragment`.
 3. `FilmCastDataResolver` runs **once**, fetching character IDs from the repository.
-4. The result (`FilmCastData`) is injected into both consuming resolvers via `ctx.getObjectValue().get(...)`.
+4. The result (`FilmCastData`) is injected into both consuming resolvers via `ctx.getObjectValue()` (Kotlin) or `context.getObjectValue().getJavaEngineObjectData().getOrNull("castData")` (Java).
 5. Each consumer uses the shared data without any additional repository call.
 
 ## Design guidelines

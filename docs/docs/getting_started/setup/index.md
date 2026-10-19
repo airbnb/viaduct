@@ -6,7 +6,7 @@ description: Set up your first Viaduct application
 
 ## Requirements
 
-- Java 17+
+- JDK 17+ for the Kotlin starters, or JDK 21+ for the Java walkthrough
 - `git`
 - Basic familiarity with GraphQL (see [GraphQL Foundation learning materials](https://graphql.org/learn/))
 - Linux, Mac, or Windows
@@ -16,6 +16,7 @@ description: Set up your first Viaduct application
 Viaduct is compatible with the following versions:
 
 - **Java**: 17 or newer. CI tests 17, 21 and 25.
+  Use JDK 21+ for the Java demo and the Java walkthrough below.
 - **Tenant language**: Kotlin, or Java through the [Java Tenant API](/apis/javaapi-api/) (Beta). The
   [`starwars-java`](https://github.com/airbnb/viaduct/tree/main/demoapps/starwars-java) demo app shows a Java tenant.
   Follow the Java tabs in [Getting Started](../index.md) for a working example.
@@ -27,7 +28,9 @@ Viaduct is compatible with the following versions:
 
 ## Choose Your Approach
 
-The walkthroughs below use Kotlin. For Java, follow the Java tabs in [Getting Started](../index.md).
+Both walkthroughs preserve the same steps for Kotlin and Java. Select a language tab and follow it through the application tour and extension exercise.
+
+The Java demo uses `2.1.0-SNAPSHOT`, so the commands include `USE_VIADUCT_SNAPSHOT_REPO=true` to enable the snapshot repository. Use Git Bash for these commands on Windows.
 
 There are two ways to set up your first Viaduct application based on your preference:
 

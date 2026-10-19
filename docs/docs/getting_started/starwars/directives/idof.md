@@ -22,10 +22,10 @@ This allows Viaduct to:
 Apply `@idOf` to any `ID` argument or field that represents a Global ID.
 
 
-{{ codetag("demoapps/starwars/modules/filmography/src/main/viaduct/schema/Character.graphqls", "id_example", lang="kotlin") }}
+{{ codetag("demoapps/starwars/modules/filmography/src/main/viaduct/schema/Character.graphqls", "id_example", lang="graphql") }}
 
 
-{{ codetag("demoapps/starwars/modules/filmography/src/main/viaduct/schema/Character.graphqls", "character_type", lang="kotlin") }}
+{{ codetag("demoapps/starwars/modules/filmography/src/main/viaduct/schema/Character.graphqls", "character_type", lang="graphql") }}
 
 
 ## How it works at runtime
@@ -34,7 +34,7 @@ When a client calls a query such as:
 
 ```graphql
 query {
-  searchCharacter(search: "Q2hhcmFjdGVyOjE=") {
+  searchCharacter(search: { byId: "Q2hhcmFjdGVyOjE=" }) {
     id
     name
   }
@@ -44,10 +44,16 @@ query {
 Viaduct will:
 
 1. Decode the (intentionally opaque) string `"Q2hhcmFjdGVyOjE="` into its global ID components, which happens to be  type `Character` and internal id `1`.
-2. Validate that the type for the argument to `Query.character`'s argument (which `Character`) matches the type in the encoded ID (which it does).
-3. Pass the decoded `GlobalID` value to `CharacterNodeResolver`, where you can access the `id` field type-safely as a Kotlin `GlobalID`.
+2. Validate that `CharacterSearchInput.byId` expects a `Character` ID and matches the type in the encoded ID.
+3. Pass the decoded `GlobalID` value to `SearchCharacterQueryResolver`; node contexts likewise expose an `id` value type-safely as a typed `GlobalID` (from `viaduct.api` in Kotlin or `viaduct.java.api.globalid` in Java).
 
-{{ codetag("demoapps/starwars/modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/characters/resolvers/CharacterNodeResolver.kt", "node_resolver_example", lang="kotlin") }}
+=== "Kotlin"
+
+    {{ codetag("demoapps/starwars/modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/characters/resolvers/CharacterNodeResolver.kt", "node_resolver_example", lang="kotlin") | indent(4) }}
+
+=== "Java"
+
+    {{ codefile("demoapps/starwars-java/modules/filmography/src/main/java/com/example/starwars/modules/filmography/characters/resolvers/CharacterNodeResolver.java", lang="java") | indent(4) }}
 
 
 This pattern helps ensure that only valid, correctly-typed IDs reach your business logic.
@@ -79,7 +85,7 @@ Ensure the type name in `@idOf(type: "X")` matches the GraphQL type exactly, inc
 ## Do and don’t
 
 - **Do** use `@idOf` on every `ID` field or argument that carries a Global ID.
-- **Do** rely on `ctx.id.internalID` for the decoded internal ID in resolvers.
+- **Do** use `ctx.id.internalID` (Kotlin) or `context.getId().getInternalID()` (Java) for the decoded internal ID.
 - **Don’t** attempt to parse or decode IDs manually.
 - **Don’t** use `@idOf` on non-ID fields.
 

@@ -17,19 +17,28 @@ Mutations in Viaduct follow similar patterns to queries but focus on data modifi
 
 ## Available mutations
 
+For the demo’s mutation examples, add `{"security-access": "admin"}` in GraphiQL’s **Headers** pane. Without this header the resolver returns a permission error. This is a teaching convention; a production service should derive authorization from its trusted authentication context.
+
+
 ### Create a new character
 
 
-{{ codetag("demoapps/starwars/modules/filmography/src/main/viaduct/schema/Character.graphqls", "input_example", lang="kotlin") }}
+{{ codetag("demoapps/starwars/modules/filmography/src/main/viaduct/schema/Character.graphqls", "input_example", lang="graphql") }}
 
 
-{{ codetag("demoapps/starwars/modules/filmography/src/main/viaduct/schema/Character.graphqls", "mutation_example", lang="kotlin") }}
+{{ codetag("demoapps/starwars/modules/filmography/src/main/viaduct/schema/Character.graphqls", "mutation_example", lang="graphql") }}
 
 
 Implementation:
 
 
-{{ codetag("demoapps/starwars/modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/characters/mutations/CreateCharacterMutation.kt", "create_example", lang="kotlin") }}
+=== "Kotlin"
+
+    {{ codetag("demoapps/starwars/modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/characters/mutations/CreateCharacterMutation.kt", "create_example", lang="kotlin") | indent(4) }}
+
+=== "Java"
+
+    {{ codefile("demoapps/starwars-java/modules/filmography/src/main/java/com/example/starwars/modules/filmography/characters/mutations/CreateCharacterMutation.java", lang="java") | indent(4) }}
 
 
 Execution :
@@ -67,13 +76,19 @@ mutation {
 ### Update character name
 
 
-{{ codetag("demoapps/starwars/modules/filmography/src/main/viaduct/schema/Character.graphqls", "mutation_example_2", lang="kotlin") }}
+{{ codetag("demoapps/starwars/modules/filmography/src/main/viaduct/schema/Character.graphqls", "mutation_example_2", lang="graphql") }}
 
 
 **Implementation notes:**
 
 
-{{ codetag("demoapps/starwars/modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/characters/mutations/UpdateCharacterNameMutation.kt", "update-character-name-resolver", lang="kotlin") }}
+=== "Kotlin"
+
+    {{ codetag("demoapps/starwars/modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/characters/mutations/UpdateCharacterNameMutation.kt", "update-character-name-resolver", lang="kotlin") | indent(4) }}
+
+=== "Java"
+
+    {{ codefile("demoapps/starwars-java/modules/filmography/src/main/java/com/example/starwars/modules/filmography/characters/mutations/UpdateCharacterNameMutation.java", lang="java") | indent(4) }}
 
 
 - Uses GlobalIDs for entity identification.
@@ -83,7 +98,7 @@ mutation {
 ### Add character to film
 
 
-{{ codetag("demoapps/starwars/modules/filmography/src/main/viaduct/schema/Film.graphqls", "mutation_example_3", lang="kotlin") }}
+{{ codetag("demoapps/starwars/modules/filmography/src/main/viaduct/schema/Film.graphqls", "mutation_example_3", lang="graphql") }}
 
 
 ```graphql
@@ -112,7 +127,7 @@ mutation {
 ### Delete character
 
 
-{{ codetag("demoapps/starwars/modules/filmography/src/main/viaduct/schema/Character.graphqls", "mutation_example_4", lang="kotlin") }}
+{{ codetag("demoapps/starwars/modules/filmography/src/main/viaduct/schema/Character.graphqls", "mutation_example_4", lang="graphql") }}
 
 
 **Implementation notes:**
@@ -124,7 +139,7 @@ mutation {
 
 ## Using request context
 
-Operations often need access to request-specific data like authentication, authorization, or tenant information. While this example focuses on mutations, **request context is available to all operations** — queries, mutations, and subscriptions may all use request context as needed.
+Operations often need access to request-specific data like authentication, authorization, or tenant information. While this example focuses on mutations, **request context is available to all operations** — queries and mutations can both use request context.
 
 Viaduct fully supports request context management through your framework's dependency injection. For detailed information on different approaches and best practices, see the [Request Context](../requestcontext/index.md) documentation.
 

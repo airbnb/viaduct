@@ -15,25 +15,47 @@ A Global ID combines two pieces of information:
 
 The raw form is `"<Type>:<InternalID>"`, which is then base64-encoded.
 
-```kotlin
-// Encoded form for Character with internal ID "1":
-val gid: String = Character.Reflection.globalId("1") // "Q2hhcmFjdGVyOjE="
-```
+=== "Kotlin"
+
+    ```kotlin
+    // Encoded form for Character with internal ID "1":
+    val gid: String = Character.Reflection.globalId("1") // "Q2hhcmFjdGVyOjE="
+    ```
+
+=== "Java"
+
+    ```java
+    GlobalID<Character> id = context.globalIDFor(Type.ofClass(Character.class), "1");
+    ```
+
+    Use the typed value when building a GRT. Viaduct serializes it as an opaque string in the GraphQL response; `id.getInternalID()` is for server-side lookup.
 
 When building objects in resolvers, use the execution context helper to attach a typed Global ID:
 
 
-{{ codetag("demoapps/starwars/modules/universe/src/main/kotlin/com/example/starwars/modules/universe/starships/models/StarshipBuilder.kt", "global_id_example", lang="kotlin") }}
+=== "Kotlin"
+
+    {{ codetag("demoapps/starwars/modules/universe/src/main/kotlin/com/example/starwars/modules/universe/starships/models/StarshipBuilder.kt", "global_id_example", lang="kotlin") | indent(4) }}
+
+=== "Java"
+
+    {{ codefile("demoapps/starwars-java/modules/universe/src/main/java/com/example/starwars/modules/universe/starships/models/StarshipBuilder.java", lang="java") | indent(4) }}
 
 
-> Treat Global IDs as **opaque at the network boundary**. Clients pass them around — in `node(id:)` queries, in input arguments, in cached responses — but should not parse them. Inside resolvers you can decode them through `ctx.id` or `GlobalID.toInternalID()` to recover the type and internal ID; just don't ask clients to do the same.
+> Treat Global IDs as **opaque at the network boundary**. Clients pass them around — in `node(id:)` queries, in input arguments, in cached responses — but should not parse them. Inside resolvers you can decode them through `ctx.id.internalID` in Kotlin or `context.getId().getInternalID()` in Java to recover the type and internal ID; just don't ask clients to do the same.
 
 ## Using Global IDs in node resolvers
 
 Node resolvers receive a decoded Global ID; use the internal ID to load the entity:
 
 
-{{ codetag("demoapps/starwars/modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/characters/resolvers/CharacterNodeResolver.kt", "node_resolver_example", lang="kotlin") }}
+=== "Kotlin"
+
+    {{ codetag("demoapps/starwars/modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/characters/resolvers/CharacterNodeResolver.kt", "node_resolver_example", lang="kotlin") | indent(4) }}
+
+=== "Java"
+
+    {{ codefile("demoapps/starwars-java/modules/filmography/src/main/java/com/example/starwars/modules/filmography/characters/resolvers/CharacterNodeResolver.java", lang="java") | indent(4) }}
 
 
 ## Client usage via `node(id:)`
@@ -56,10 +78,10 @@ query ($id: ID!) {
 Annotate `ID` field arguments and input fields with `@idOf` to bind them to a concrete GraphQL type, enabling type-safe handling in resolvers and tooling:
 
 
-{{ codetag("demoapps/starwars/modules/filmography/src/main/viaduct/schema/Character.graphqls", "id_example", lang="kotlin") }}
+{{ codetag("demoapps/starwars/modules/filmography/src/main/viaduct/schema/Character.graphqls", "id_example", lang="graphql") }}
 
 
-{{ codetag("demoapps/starwars/modules/filmography/src/main/viaduct/schema/Character.graphqls", "character_type", lang="kotlin") }}
+{{ codetag("demoapps/starwars/modules/filmography/src/main/viaduct/schema/Character.graphqls", "character_type", lang="graphql") }}
 
 
 ## Do and don’t

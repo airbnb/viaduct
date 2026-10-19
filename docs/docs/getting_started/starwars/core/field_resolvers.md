@@ -12,8 +12,8 @@ Field resolvers compute values for individual fields when a simple property read
 
 1. A client query selects fields on an object (for example, `Character.name`, `Character.homeworld`).
 2. Viaduct plans execution and invokes resolvers for fields that require logic beyond plain data access.
-3. Each resolver receives a typed `Context` with the **parent object** in `ctx.getObjectValue()` and any **arguments** in `ctx.arguments`.
-4. The resolver returns a value for the field (or `null`), and execution continues for the rest of the selection set.
+3. Each resolver receives a typed `Context` with the **parent object** in `ctx.getObjectValue()` and any **arguments** in `ctx.arguments` (Kotlin) or `context.getArguments()` (Java).
+4. The resolver returns a value for the field (or `null`) through a suspending function in Kotlin or `CompletableFuture<T>` in Java, and execution continues for the rest of the selection set.
 
 ## When to use field resolvers
 
@@ -26,18 +26,33 @@ Field resolvers compute values for individual fields when a simple property read
 
 ## Anatomy of a field resolver
 
+Java annotations come from `viaduct.java.api.annotations.Resolver`. The Micronaut demo also annotates resolver implementations with `@Prototype` so its injector can construct them. Generated Java getters return nullable values for nullable fields; handle those values before using them.
+
+
 A typical resolver extends the generated base class for the field and overrides `resolve`:
 
 
-{{ codetag("demoapps/starwars/modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/characters/resolvers/CharacterDisplayNameResolver.kt", "resolver_example", lang="kotlin") }}
+=== "Kotlin"
+
+    {{ codetag("demoapps/starwars/modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/characters/resolvers/CharacterDisplayNameResolver.kt", "resolver_example", lang="kotlin") | indent(4) }}
+
+=== "Java"
+
+    {{ codefile("demoapps/starwars-java/modules/filmography/src/main/java/com/example/starwars/modules/filmography/characters/resolvers/CharacterDisplayNameResolver.java", lang="java") | indent(4) }}
 
 
 ### Access to arguments
 
-Arguments declared in the schema are available via `ctx.arguments` with the appropriate getters:
+Arguments declared in the schema are available via `ctx.arguments` in Kotlin or `context.getArguments()` in Java, with the appropriate generated getters:
 
 
-{{ codetag("demoapps/starwars/modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/films/resolvers/FilmSummaryResolver.kt", "resolver_example", lang="kotlin") }}
+=== "Kotlin"
+
+    {{ codetag("demoapps/starwars/modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/films/resolvers/FilmSummaryResolver.kt", "resolver_example", lang="kotlin") | indent(4) }}
+
+=== "Java"
+
+    {{ codefile("demoapps/starwars-java/modules/filmography/src/main/java/com/example/starwars/modules/filmography/films/resolvers/FilmSummaryResolver.java", lang="java") | indent(4) }}
 
 
 ## Examples
@@ -45,7 +60,13 @@ Arguments declared in the schema are available via `ctx.arguments` with the appr
 ### 1) Simple computed value
 
 
-{{ codetag("demoapps/starwars/modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/characters/resolvers/CharacterIsAdultResolver.kt", "resolver_example", lang="kotlin") }}
+=== "Kotlin"
+
+    {{ codetag("demoapps/starwars/modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/characters/resolvers/CharacterIsAdultResolver.kt", "resolver_example", lang="kotlin") | indent(4) }}
+
+=== "Java"
+
+    {{ codefile("demoapps/starwars-java/modules/filmography/src/main/java/com/example/starwars/modules/filmography/characters/resolvers/CharacterIsAdultResolver.java", lang="java") | indent(4) }}
 
 
 ### 2) Single related lookup (non-batched)
@@ -53,7 +74,13 @@ Arguments declared in the schema are available via `ctx.arguments` with the appr
 Use for **one-off** relationships where only a few objects are in play. If many parent objects will request the same relationship in a single operation, move this to a batch resolver.
 
 
-{{ codetag("demoapps/starwars/modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/films/resolvers/FilmPlanetsResolver.kt", "resolver_example", lang="kotlin") }}
+=== "Kotlin"
+
+    {{ codetag("demoapps/starwars/modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/films/resolvers/FilmPlanetsResolver.kt", "resolver_example", lang="kotlin") | indent(4) }}
+
+=== "Java"
+
+    {{ codefile("demoapps/starwars-java/modules/filmography/src/main/java/com/example/starwars/modules/filmography/films/resolvers/FilmPlanetsResolver.java", lang="java") | indent(4) }}
 
 
 ### 3) Argument-driven behavior
@@ -61,7 +88,13 @@ Use for **one-off** relationships where only a few objects are in play. If many 
 The `format` argument controls the presentation of the returned string.
 
 
-{{ codetag("demoapps/starwars/modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/characters/resolvers/CharacterFormattedDescriptionResolver.kt", "resolver_example", lang="kotlin") }}
+=== "Kotlin"
+
+    {{ codetag("demoapps/starwars/modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/characters/resolvers/CharacterFormattedDescriptionResolver.kt", "resolver_example", lang="kotlin") | indent(4) }}
+
+=== "Java"
+
+    {{ codefile("demoapps/starwars-java/modules/filmography/src/main/java/com/example/starwars/modules/filmography/characters/resolvers/CharacterFormattedDescriptionResolver.java", lang="java") | indent(4) }}
 
 
 ## What about heavy lookups?

@@ -24,6 +24,9 @@ directive @edge on OBJECT
 
 ## Usage
 
+The SDL and validation rules are shared by Kotlin and Java. Java generates edge builders such as `SpeciesEdge.builder(context)`; use them with the connection builder’s `fromEdges(...)` method when you need explicit cursor values.
+
+
 Apply `@edge` to object types within connections:
 
 

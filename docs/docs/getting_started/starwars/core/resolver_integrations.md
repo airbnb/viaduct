@@ -24,17 +24,35 @@ Each entity type can typically implement:
 
 1. **Node resolver** for `GlobalID`-based retrieval via `node` queries.
 
-{{ codetag("demoapps/starwars/modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/characters/resolvers/CharacterNodeResolver.kt", "node_resolver_example", lang="kotlin") }}
+=== "Kotlin"
+
+    {{ codetag("demoapps/starwars/modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/characters/resolvers/CharacterNodeResolver.kt", "node_resolver_example", lang="kotlin") | indent(4) }}
+
+=== "Java"
+
+    {{ codefile("demoapps/starwars-java/modules/filmography/src/main/java/com/example/starwars/modules/filmography/characters/resolvers/CharacterNodeResolver.java", lang="java") | indent(4) }}
 
 
 2. **Single field resolvers** for lightweight computed or derived values.
 
-{{ codetag("demoapps/starwars/modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/characters/resolvers/CharacterDisplayNameResolver.kt", "resolver_example", lang="kotlin") }}
+=== "Kotlin"
+
+    {{ codetag("demoapps/starwars/modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/characters/resolvers/CharacterDisplayNameResolver.kt", "resolver_example", lang="kotlin") | indent(4) }}
+
+=== "Java"
+
+    {{ codefile("demoapps/starwars-java/modules/filmography/src/main/java/com/example/starwars/modules/filmography/characters/resolvers/CharacterDisplayNameResolver.java", lang="java") | indent(4) }}
 
 
 3. **Batch field resolvers** for expensive computed fields that benefit from batching.
 
-{{ codetag("demoapps/starwars/modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/characters/resolvers/CharacterFilmCountResolver.kt", "film_count_batch_resolver", lang="kotlin") }}
+=== "Kotlin"
+
+    {{ codetag("demoapps/starwars/modules/filmography/src/main/kotlin/com/example/starwars/modules/filmography/characters/resolvers/CharacterFilmCountResolver.kt", "film_count_batch_resolver", lang="kotlin") | indent(4) }}
+
+=== "Java"
+
+    {{ codefile("demoapps/starwars-java/modules/filmography/src/main/java/com/example/starwars/modules/filmography/characters/resolvers/CharacterFilmCountResolver.java", lang="java") | indent(4) }}
 
 
 ## The entity resolution flow
@@ -53,7 +71,7 @@ query {
   node(id: "Q2hhcmFjdGVyOjE=") {
     ... on Character {
       id
-      name                # from Field Resolver
+      displayName         # computed by a field resolver
       homeworld { name }  # via batched field resolver
       filmCount           # aggregated by batch resolver
     }
@@ -66,7 +84,7 @@ Execution flow for this query:
 | Step | Resolver | Responsibility |
 |------|-----------|----------------|
 | 1 | `CharacterNodeResolver` | Retrieve Character entity by internal ID. |
-| 2 | `DisplayNameResolver` | Compute or format the `name` field. |
+| 2 | `CharacterDisplayNameResolver` | Compute the `displayName` field. |
 | 3 | `HomeworldResolver` | Fetch related Planet; batched across all Characters. |
 | 4 | `FilmCountBatchResolver` | Compute film counts for all Characters in one call. |
 | 5 | Viaduct runtime | Assemble and serialize the final result tree. |
@@ -87,7 +105,7 @@ If a field resolver executes the same repository call per parent, migrate it to 
 
 ### 4. Misaligned ID handling
 
-Ensure all resolvers use `ctx.globalIDFor(Type.Reflection, internalId)` and consume IDs via `ctx.id.internalID`. Mixing raw IDs with Global IDs can cause type mismatches in queries.
+Use `ctx.globalIDFor(Type.Reflection, internalId)` / `ctx.id.internalID` in Kotlin and `context.globalIDFor(Type.ofClass(Character.class), internalId)` / `context.getId().getInternalID()` in Java. Mixing raw IDs with Global IDs can cause type mismatches in queries.
 
 ### 5. Incorrect nullability handling
 
