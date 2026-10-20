@@ -37,7 +37,7 @@ dependencies {
     implementation(libs.micrometer.core)
 
     testFixturesApi(libs.graphql.java)
-    testFixturesApi(libs.junit)
+    testFixturesCompileOnly(libs.junit)
     testFixturesApi(libs.kotest.property.jvm)
     testFixturesApi(libs.kotlinx.coroutines.core)
     testFixturesApi(libs.viaduct.engine.api)
