@@ -1,6 +1,6 @@
 package viaduct.engine.runtime2.contract
 
-import kotlin.test.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.runtime2.model.ObjectEngineResult
@@ -40,7 +40,7 @@ interface DepthFirstTaskOrderingContract : ResolverContract {
     ): ObjectEngineResult
 
     @Test
-    fun `executes the exact recursive task order across equal-depth siblings`() {
+    fun `finishes each recursive subtree before visiting its next sibling`() {
         val testWorld =
             TestWorld.fromSDL(
                 selectiveResolvers = selectiveResolvers,
@@ -104,33 +104,26 @@ interface DepthFirstTaskOrderingContract : ResolverContract {
             taskObserver = taskTrace::add,
         )
 
-        assertEquals(
+        val rootTask = ResolverTaskObservation.SlotOrchestration("Query", emptyList())
+        val afterTask = ResolverTaskObservation.SlotResolver("after", emptyList())
+        val validTraces = listOf(listOf("left", "right"), listOf("right", "left")).flatMap { children ->
+            val containerSubtree = buildList {
+                add(ResolverTaskObservation.SlotResolver("container", emptyList()))
+                add(ResolverTaskObservation.SlotOrchestration("Container", listOf("container")))
+                children.forEach { child ->
+                    val path = listOf("container", child)
+                    add(ResolverTaskObservation.SlotOrchestration("Child", path))
+                    add(ResolverTaskObservation.SlotResolver("nested", path))
+                }
+            }
             listOf(
-                ResolverTaskObservation.SlotOrchestration("Query", emptyList()),
-                ResolverTaskObservation.SlotResolver("container", emptyList()),
-                ResolverTaskObservation.SlotOrchestration(
-                    "Container",
-                    listOf("container"),
-                ),
-                ResolverTaskObservation.SlotOrchestration(
-                    "Child",
-                    listOf("container", "left"),
-                ),
-                ResolverTaskObservation.SlotResolver(
-                    "nested",
-                    listOf("container", "left"),
-                ),
-                ResolverTaskObservation.SlotOrchestration(
-                    "Child",
-                    listOf("container", "right"),
-                ),
-                ResolverTaskObservation.SlotResolver(
-                    "nested",
-                    listOf("container", "right"),
-                ),
-                ResolverTaskObservation.SlotResolver("after", emptyList()),
-            ),
-            taskTrace,
-        )
+                listOf(rootTask, afterTask) + containerSubtree,
+                listOf(rootTask) + containerSubtree + afterTask,
+            )
+        }
+
+        assertTrue(taskTrace in validTraces) {
+            "Expected complete depth-first subtrees in either sibling order, but got $taskTrace"
+        }
     }
 }

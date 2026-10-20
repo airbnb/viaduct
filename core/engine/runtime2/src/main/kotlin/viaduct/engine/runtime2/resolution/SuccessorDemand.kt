@@ -8,6 +8,7 @@ import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.model.containsErrorValue
 import viaduct.engine.runtime2.model.flatMapToSelectionForest
 import viaduct.engine.runtime2.model.guardedBy
+import viaduct.engine.runtime2.model.mapSelections
 import viaduct.engine.runtime2.model.merge
 import viaduct.engine.runtime2.model.objectKey
 import viaduct.engine.runtime2.model.registry.Assumptions
@@ -212,14 +213,12 @@ private fun SelectionForest.compactSuccessorDemand(): SelectionForest {
     val types = linkedSetOf<ViaductSchema.Object>()
     forEach { types += it.possibleTypes }
     return types.flatMapToSelectionForest { type ->
-        merge(type).flatMap { selection ->
-            selectionForestOf(
-                Selection.of(
-                    key = selection.key,
-                    possibleTypes = selection.possibleTypes,
-                    inclusionCondition = selection.inclusionCondition,
-                    subselections = selection.subselections.compactSuccessorDemand(),
-                ),
+        merge(type).mapSelections { selection ->
+            Selection.of(
+                key = selection.key,
+                possibleTypes = selection.possibleTypes,
+                inclusionCondition = selection.inclusionCondition,
+                subselections = selection.subselections.compactSuccessorDemand(),
             )
         }
     }

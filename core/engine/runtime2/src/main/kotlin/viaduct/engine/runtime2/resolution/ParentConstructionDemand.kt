@@ -9,6 +9,7 @@ import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.model.concatenateSelectionForests
 import viaduct.engine.runtime2.model.flatMapToSelectionForest
 import viaduct.engine.runtime2.model.guardedBy
+import viaduct.engine.runtime2.model.mapNotNullSelections
 import viaduct.engine.runtime2.model.objectKey
 import viaduct.engine.runtime2.model.registry.Assumptions
 import viaduct.engine.runtime2.model.registry.FieldCheckerResolver
@@ -339,18 +340,17 @@ private fun ParentDemandAnalysis.guardedBy(condition: InclusionCondition): Paren
 
 /** Fixed descendant demand is lifted before occurrence-local condition bindings can exist. */
 internal fun SelectionForest.withoutInclusionConditions(): SelectionForest =
-    flatMap { selection ->
+    mapNotNullSelections { selection ->
         if (selection.inclusionCondition === InclusionCondition.Never) {
-            return@flatMap selectionForestOf()
-        }
-        selectionForestOf(
+            null
+        } else {
             Selection.of(
                 key = selection.key,
                 possibleTypes = selection.possibleTypes,
                 inclusionCondition = InclusionCondition.Always,
                 subselections = selection.subselections.withoutInclusionConditions(),
-            ),
-        )
+            )
+        }
     }
 
 /** Type-checker inputs cross an unchecked boundary, with a separate recursion cut from fields. */

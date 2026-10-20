@@ -8,6 +8,51 @@ Compare measurements only when their recorded host, JVM, benchmark parameters, c
 
 ## Recorded Investigations
 
+### 2026-10-18 — optimizing merging
+
+These four commits make merging cheaper above `44682c3b8ba9a` (`codex/runtime2-hot-path-validation`); validation removal belongs to the preceding change. They retain compact forests, empty/singleton merge paths, direct mapping and guarded-child accumulation, and a one-map `LinkedHashMap` slow path. The last change groups and normalizes together using temporary `ObjectSelectionBuilder` values, standard `ArrayList` children starting at capacity three, and ordinary immutable selections after finalization. Applicability, concrete defaults, independent child guards and published inputs are preserved. Child forests remain unmerged until their runtime type is known.
+
+The fresh whole-collection result is **16.038 ± 0.076 → 14.055 ± 0.048 ms/resolution (12.36% faster)** and **25.091 → 17.539 MB allocated/resolution (30.10% less)**. Incremental results follow. The first three rows come from October 17; the final row is a fresh October 18 comparison against `0fc08a94f4d1c`, remeasured at 14.530 ± 0.109 ms and 18.580 MB. Do not subtract different series to infer incremental savings. Earlier small timing steps have overlapping uncertainty.
+
+| Commit | Change | ms/resolution | Allocated MB/resolution | Time / allocation reduction vs parent |
+| --- | --- | ---: | ---: | ---: |
+| `d75d1276cb95f` | Compact forests and mapping primitives | 15.216 | 21.866 | 6.46% / 12.85% |
+| `97522707458eb` | Empty/singleton merge paths | 14.881 | 20.033 | 2.20% / 8.38% |
+| `0fc08a94f4d1c` | General allocation reductions and demand transforms | 14.400 | 18.598 | 3.23% / 7.16% |
+| This entry's commit | One-map builder with `LinkedHashMap` | 14.055 | 17.539 | 3.27% / 5.60% |
+
+Both workloads are unchanged within their respective comparisons. Host `raymie-stata-codex` uses a Xeon 6975P-C (32 cores/64 logical CPUs), Corretto 17.0.11 and JMH 1.36. Single-shot timing uses three fresh forks, eight warmups and eight measurements/fork, 100 requests/op, and no probes. Errors are JMH's 99.9% half-widths. Direct Resolution uses one worker; allocation counters exclude setup/reporting. The service comparison uses the adapted comparison corpus, default coroutine pool, node caching enabled and deferred cycle checking. Its GC-profiler allocation numbers include invocation setup. Strict preparation reports no GraphQL errors.
+
+| StandardViaduct engine | Before, ms/request | After, ms/request | Allocated MB/request, before → after |
+| --- | ---: | ---: | ---: |
+| Old | 6.803 ± 0.067 | 7.166 ± 0.523 | 24.174 → 24.243 |
+| New | 7.900 ± 0.054 | 7.166 ± 0.050 | 36.092 → 28.509 |
+
+The new engine improves **9.29% in time and 21.01% in allocation**. The final old-engine control includes one noisy fork averaging 7.962 ms, versus 6.713 and 6.824 ms in its other forks. Every sample is retained; apparent engine parity is inconclusive.
+
+Longer profiles of `0fc08a94f4d1c` provide a starting point, not the final implementation's profile: two 6,000-resolution recordings at 1 ms sampling yielded 119,199 worker CPU samples. Shares include callees; nested categories overlap. Allocation shares use sampled byte weights, excluding the first sample per worker. Deferred GC CPU is outside the CPU denominator.
+
+| Region | Resolver-worker CPU share | Resolver allocation share |
+| --- | ---: | ---: |
+| All merge work | 15.44% | 13.14% |
+| Slow path | 12.25% | 11.48% |
+| Outside slow path, including entry/dispatch | 3.19% | 1.66% |
+| Group normalization and callees, within slow path | 6.59% | 6.00% |
+| Key specialization, within slow path | 2.49% | Unresolved by sampling |
+
+A separate probed 100-resolution batch counted 507,049 merges: 36.42% empty, 31.67% singleton and 31.91% slow. Of slow merges, 69.49% have two or three raw members. Of 600,548 output groups, 79.49% are singletons, and 81.06% of those already reuse an existing selection. Their individual simplicity does not make aggregate merging cheap.
+
+Abandoned approaches worth remembering:
+
+- Sorted argument-free traversal, including concatenation merge sort, added complexity without a demonstrated gain; its tentative result was 1.75% slower on a busy host.
+- An earlier incremental one-map implementation using Kotlin `MapBuilder` was effectively flat (0.09% mean reduction).
+- Custom array forests with builder selections saved about 5.4% allocation but were 0.8% slower in diagnostic controls. Final-map and final-selection representation changes each recovered roughly 0.1–0.2 ms; the JIT mechanism was not isolated. Array growth itself was 0.027% of CPU; capacity three fit 90.51% of newly allocated arrays.
+- Field-name grouping plus a separate argument-bearing-key map regressed 5.69% in time and 2.81% in allocation. Retaining both maps instead of transferring entries still regressed 5.65% and 2.70%. These were short six-measurement controls, not full JMH comparisons.
+
+Future work should reprofile the retained implementation before targeting specialization, hashing or downstream traversal. Field lookup was about 1.11% of baseline resolver CPU; resolved-empty `Arguments.of` already reuses the empty tuple. An argumentless interface field can specialize to a concrete field with defaults, complicating name-only grouping. Preserve independent guards, open-argument distinctions and mutation exclusion. Reducing merge frequency is a separate investigation. Lower allocation alone does not establish better sustained production throughput or total GC CPU.
+
+[One compact evidence record](2026-10-18-optimizing-merging.json) retains source/corpus identities, timing and allocation samples, and diagnostic summaries. Raw JFRs, logs and abandoned source variants remain outside Git; no new profile-export bundle is added.
+
 ### 2026-10-12 — current Resolution overhead baseline
 
 This reset establishes the workload for future measurements in [Treehouse PR #1154484](https://git.musta.ch/airbnb/treehouse/pull/1154484). The 100-query snapshot shares one schema and registry: its bulk partition preserves the existing size, depth and fragment distributions, while sixteen small deterministic sections each appear in three distinct queries. The ten added ordinary objects each contain two active and fourteen passive fields. All 64 observed feature categories meet the three-query minimum, including parent and checker-parent demand, supplied active descendants, general references, compound variable dependencies, exclusions, provider null/errors and field/type denials. This is a synthetic workload with sparse feature exercise, without production-frequency weighting or a comparison to a retired baseline.

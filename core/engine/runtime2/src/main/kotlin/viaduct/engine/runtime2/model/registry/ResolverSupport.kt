@@ -10,9 +10,9 @@ import viaduct.engine.runtime2.model.Selection
 import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.model.containsVariables
 import viaduct.engine.runtime2.model.instantiateVariables
+import viaduct.engine.runtime2.model.mapSelections
 import viaduct.engine.runtime2.model.materializeSelectionForestOf
 import viaduct.engine.runtime2.model.objectKey
-import viaduct.engine.runtime2.model.selectionForestOf
 import viaduct.engine.runtime2.model.usedVariables
 import viaduct.graphql.schema.ViaductSchema
 
@@ -115,28 +115,26 @@ private fun MaterializeSelectionForest.usedVariablesApplicableTo(type: ViaductSc
 }
 
 private fun SelectionForest.instantiateVariables(resolverOccurrenceId: ResolverOccurrenceId): SelectionForest =
-    flatMap { selection ->
-        selectionForestOf(
-            Selection.of(
-                key =
-                    ObjectEngineResult.Key.of(
-                        field = selection.key.field,
-                        arguments =
-                            selection.key.arguments.instantiateVariables(
-                                selection.key.field,
-                                resolverOccurrenceId,
-                            ),
-                    ),
-                possibleTypes = selection.possibleTypes,
-                inclusionCondition =
-                    selection.inclusionCondition.mapVariables { variable ->
-                        variable.instantiate(resolverOccurrenceId)
-                    },
-                subselections =
-                    selection.subselections.instantiateVariables(
-                        resolverOccurrenceId,
-                    ),
-            ),
+    mapSelections { selection ->
+        Selection.of(
+            key =
+                ObjectEngineResult.Key.of(
+                    field = selection.key.field,
+                    arguments =
+                        selection.key.arguments.instantiateVariables(
+                            selection.key.field,
+                            resolverOccurrenceId,
+                        ),
+                ),
+            possibleTypes = selection.possibleTypes,
+            inclusionCondition =
+                selection.inclusionCondition.mapVariables { variable ->
+                    variable.instantiate(resolverOccurrenceId)
+                },
+            subselections =
+                selection.subselections.instantiateVariables(
+                    resolverOccurrenceId,
+                ),
         )
     }
 

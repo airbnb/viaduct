@@ -10,6 +10,67 @@ import viaduct.engine.runtime2.model.testing.TestWorld
 
 class SelectionForestConcatenationTest {
     @Test
+    fun `empty and singleton forests retain their observations through transformations`() {
+        val world = TestWorld.fromSDL("type Query { value: Int }")
+        val query = world.assumptions.schema.requireQueryTypeDef()
+        val selection = Selection.of(ObjectEngineResult.Key.of(query.requireField("value"), emptyMap()), setOf(query), selectionForestOf())
+        val empty = selectionForestOf()
+
+        for (forest in listOf(empty, emptyList<Selection>().toSelectionForest())) {
+            assertTrue(forest.isEmpty())
+            assertEquals(0, forest.size)
+            assertTrue(forest.all { error("Empty predicate invoked") })
+            forest.forEach { error("Empty action invoked") }
+            assertTrue(forest.filter { error("Empty predicate invoked") }.isEmpty())
+            assertTrue(forest.flatMap { error("Empty transform invoked") }.isEmpty())
+            assertTrue(forest.mapSelections { error("Empty transform invoked") }.isEmpty())
+            assertThrows<NoSuchElementException> { forest.single() }
+        }
+        for (forest in listOf(selectionForestOf(selection), selectionForestOf(*arrayOf(selection)), listOf(selection).toSelectionForest())) {
+            assertEquals(1, forest.size)
+            assertSame(selection, forest.single())
+            assertSame(selection, forest.filter { true }.single())
+            assertTrue(forest.filter { false }.isEmpty())
+            assertTrue(forest.mapNotNullSelections { null }.isEmpty())
+            assertEquals(2, forest.flatMap { selectionForestOf(it, it) }.size)
+            var visits = 0
+            assertSame(
+                selection,
+                forest.mapSelections {
+                    visits++
+                    it
+                }.single()
+            )
+            assertEquals(1, visits)
+        }
+    }
+
+    @Test
+    fun `direct mapping preserves duplicate occurrences across ordinary concatenated and object forests`() {
+        val world = TestWorld.fromSDL("type Query { first: Int, second: Int }")
+        val query = world.assumptions.schema.requireQueryTypeDef()
+        val first = Selection.of(ObjectEngineResult.Key.of(query.requireField("first"), emptyMap()), setOf(query), selectionForestOf())
+        val second = Selection.of(ObjectEngineResult.Key.of(query.requireField("second"), emptyMap()), setOf(query), selectionForestOf())
+        val ordinary = selectionForestOf(first, first, second)
+        val concatenated = selectionForestOf(first) + selectionForestOf(second, first)
+        val normalized = selectionForestOf(first, second).merge(query)
+
+        for (forest in listOf(ordinary, concatenated, normalized)) {
+            var visits = 0
+            val mapped = forest.mapSelections {
+                visits++
+                first
+            }
+            assertEquals(forest.size, visits)
+            assertEquals(forest.size, mapped.size)
+            assertTrue(mapped.all { it === first })
+            val retained = forest.mapNotNullSelections { it.takeIf { it === first } }
+            assertEquals(if (forest === normalized) 1 else 2, retained.size)
+            assertTrue(retained.all { it === first })
+        }
+    }
+
+    @Test
     fun `deep left associated concatenation preserves forest observations`() {
         val world = TestWorld.fromSDL("type Query { value: Int }")
         val query = requireNotNull(world.assumptions.schema.queryTypeDef)

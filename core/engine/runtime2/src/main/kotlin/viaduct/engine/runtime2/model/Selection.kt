@@ -95,12 +95,9 @@ sealed interface ObjectSelectionForest : SelectionForest {
             type: ViaductSchema.Object,
             selections: Iterable<ObjectSelection>,
         ): ObjectSelectionForest {
-            val occurrences =
-                buildList {
-                    addAll(selections)
-                }
+            val occurrences = selections.toList()
             val byKey =
-                buildMap {
+                buildMap(occurrences.size) {
                     occurrences.forEach { selection ->
                         require(
                             selection.key.field.containingDef == type &&
@@ -120,15 +117,35 @@ sealed interface ObjectSelectionForest : SelectionForest {
 }
 
 /** Constructs a [SelectionForest] containing the supplied occurrences. */
-fun selectionForestOf(vararg selections: Selection): SelectionForest = SelectionForestImpl(selections.asList())
+fun selectionForestOf(vararg selections: Selection): SelectionForest = ordinarySelectionForest(selections.asList())
+
+fun selectionForestOf(): SelectionForest = EmptySelectionForest
+
+fun selectionForestOf(selection: Selection): SelectionForest = SingletonSelectionForest(selection)
 
 /** Constructs a [SelectionForest] from these occurrences. */
-fun Iterable<Selection>.toSelectionForest(): SelectionForest = SelectionForestImpl(toList())
+fun Iterable<Selection>.toSelectionForest(): SelectionForest = ordinarySelectionForest(toList())
+
+internal fun SelectionForest.mapSelections(transform: (Selection) -> Selection): SelectionForest = mapNotNullSelections(transform)
+
+internal fun SelectionForest.mapNotNullSelections(transform: (Selection) -> Selection?): SelectionForest =
+    when (this) {
+        is EmptySelectionForest -> this
+        is SingletonSelectionForest -> transform(selection)?.let(::SingletonSelectionForest) ?: EmptySelectionForest
+        else -> ordinarySelectionForest(buildList(size) { this@mapNotNullSelections.forEach { selection -> transform(selection)?.let(::add) } })
+    }
+
+private fun ordinarySelectionForest(selections: List<Selection>): SelectionForest =
+    when (selections.size) {
+        0 -> EmptySelectionForest
+        1 -> SingletonSelectionForest(selections[0])
+        else -> SelectionForestImpl(selections)
+    }
 
 /** Maps each input to a forest and concatenates the results without comparing selections. */
 fun <T : Any> Iterable<T>.flatMapToSelectionForest(transform: (T) -> SelectionForest): SelectionForest =
-    SelectionForestImpl(
-        buildList {
+    ordinarySelectionForest(
+        buildList((this as? Collection<*>)?.size ?: 0) {
             this@flatMapToSelectionForest.forEach { element ->
                 val forest = transform(element)
                 forest.forEach(::add)
@@ -159,62 +176,123 @@ fun Iterable<SelectionForest>.concatenateSelectionForests(): SelectionForest {
  */
 fun SelectionForest.merge(type: ViaductSchema.Object): ObjectSelectionForest {
     require(this !is MutationSelectionForest) { "Mutation forests must retain response-key collection and source order" }
-    val occurrencesByKey =
-        buildMap<ObjectEngineResult.ObjectKey, MutableList<Selection>> {
-            this@merge.forEach { selection ->
+    if (isEmpty()) return ObjectSelectionForestImpl(type, emptyMap())
+    if (size == 1) {
+        val occurrence = single()
+        if (type !in occurrence.possibleTypes) return ObjectSelectionForestImpl(type, emptyMap())
+        val key = occurrence.objectKey(type)
+        val selection = normalizedSingletonSelection(key, setOf(type), occurrence)
+        return ObjectSelectionForestImpl(type, mapOf(key to selection), listOf(selection))
+    }
+    return mergeSlowPath(type)
+}
+
+private fun SelectionForest.mergeSlowPath(type: ViaductSchema.Object): ObjectSelectionForest {
+    val possibleTypes = setOf(type)
+    val selectionsByKey =
+        LinkedHashMap<ObjectEngineResult.ObjectKey, Any?>(size).apply {
+            this@mergeSlowPath.forEach { selection ->
                 if (type in selection.possibleTypes) {
-                    getOrPut(selection.objectKey(type), ::mutableListOf).add(selection)
+                    val key = selection.objectKey(type)
+                    val previous = get(key)
+                    if (previous == null) {
+                        if (
+                            selection is ObjectSelection &&
+                            (selection.inclusionCondition === InclusionCondition.Always || selection.subselections.isEmpty())
+                        ) {
+                            put(key, selection)
+                        } else {
+                            put(key, ObjectSelectionBuilder(key, possibleTypes, selection, guardChildren = true))
+                        }
+                    } else {
+                        val builder =
+                            if (previous is ObjectSelectionBuilder) {
+                                previous
+                            } else {
+                                val previousSelection = previous as ObjectSelection
+                                ObjectSelectionBuilder(previousSelection.key, possibleTypes, previousSelection, guardChildren = false).also { put(key, it) }
+                            }
+                        builder.add(selection)
+                    }
+                }
+            }
+            entries.forEach { entry ->
+                val builder = entry.value
+                if (builder is ObjectSelectionBuilder) {
+                    entry.setValue(builder.build())
                 }
             }
         }
-    return normalizedObjectSelectionForest(type, occurrencesByKey)
+    @Suppress("UNCHECKED_CAST")
+    val builtSelections = selectionsByKey as Map<ObjectEngineResult.ObjectKey, ObjectSelection>
+    return ObjectSelectionForestImpl(type, builtSelections)
 }
 
-private fun normalizedObjectSelectionForest(
-    type: ViaductSchema.Object,
-    occurrencesByKey: Map<ObjectEngineResult.ObjectKey, List<Selection>>,
-): ObjectSelectionForest {
-    // Specialization preserves local validity; grouping establishes normalized unique keys.
-    val possibleTypes = setOf(type)
-    val selectionsByKey =
-        buildMap {
-            occurrencesByKey.forEach { (key, occurrences) ->
-                if (occurrences.size == 1) {
-                    val first = occurrences.single()
-                    val subselections = first.subselections.guardedBy(first.inclusionCondition)
-                    val selection = if (
-                        first is ObjectSelection && first.key === key &&
-                        first.possibleTypes.size == 1 && subselections === first.subselections
-                    ) {
-                        first
-                    } else {
-                        ObjectSelectionImpl(key, possibleTypes, first.inclusionCondition, subselections)
-                    }
-                    put(key, selection)
-                    return@forEach
-                }
-                put(
-                    key,
-                    ObjectSelectionImpl(
-                        key = key,
-                        possibleTypes = possibleTypes,
-                        inclusionCondition =
-                            InclusionCondition.anyOf(
-                                occurrences.map { it.inclusionCondition },
-                            ),
-                        subselections =
-                            occurrences
-                                .map { occurrence ->
-                                    occurrence.subselections.guardedBy(
-                                        occurrence.inclusionCondition,
-                                    )
-                                }.concatenateSelectionForests(),
+private fun normalizedSingletonSelection(
+    key: ObjectEngineResult.ObjectKey,
+    possibleTypes: Set<ViaductSchema.Object>,
+    occurrence: Selection,
+): ObjectSelection =
+    if (
+        occurrence is ObjectSelection &&
+        (occurrence.inclusionCondition === InclusionCondition.Always || occurrence.subselections.isEmpty())
+    ) {
+        occurrence
+    } else {
+        ObjectSelectionImpl(
+            key = key,
+            possibleTypes = possibleTypes,
+            inclusionCondition = occurrence.inclusionCondition,
+            subselections = occurrence.subselections.guardedBy(occurrence.inclusionCondition),
+        )
+    }
+
+private class ObjectSelectionBuilder(
+    private val key: ObjectEngineResult.ObjectKey,
+    private val possibleTypes: Set<ViaductSchema.Object>,
+    first: Selection,
+    guardChildren: Boolean,
+) {
+    private var inclusionCondition: InclusionCondition = first.inclusionCondition
+
+    private val children = if (key.field.type.baseTypeDef is ViaductSchema.SimpleTypeDef) null else ArrayList<Selection>(MERGED_CHILDREN_INITIAL_CAPACITY)
+
+    init {
+        appendChildren(first, guardChildren)
+    }
+
+    fun add(selection: Selection) {
+        inclusionCondition = inclusionCondition.or(selection.inclusionCondition)
+        appendChildren(selection, guardChildren = true)
+    }
+
+    fun build(): ObjectSelectionImpl = ObjectSelectionImpl(key, possibleTypes, inclusionCondition, children?.let(::ordinarySelectionForest) ?: EmptySelectionForest)
+
+    private fun appendChildren(
+        selection: Selection,
+        guardChildren: Boolean,
+    ) {
+        val target = children ?: return
+        SelectionForest.requireSupportedSize(target.size + selection.subselections.size)
+        val condition = selection.inclusionCondition
+        if (!guardChildren || condition === InclusionCondition.Always) {
+            selection.subselections.forEach(target::add)
+        } else {
+            selection.subselections.forEach { child ->
+                target.add(
+                    Selection.of(
+                        key = child.key,
+                        possibleTypes = child.possibleTypes,
+                        subselections = child.subselections,
+                        inclusionCondition = condition.and(child.inclusionCondition),
                     ),
                 )
             }
         }
-    return ObjectSelectionForestImpl(type, selectionsByKey)
+    }
 }
+
+private const val MERGED_CHILDREN_INITIAL_CAPACITY = 3
 
 /** Returns this selection's ground key. */
 fun ObjectSelection.groundKey(): ObjectEngineResult.GroundKey =
@@ -462,17 +540,53 @@ fun SelectionForest.guardedBy(condition: InclusionCondition): SelectionForest =
     if (this !is MutationSelectionForest && (condition === InclusionCondition.Always || isEmpty())) {
         this
     } else {
-        flatMap { selection ->
-            selectionForestOf(
-                Selection.of(
-                    key = selection.key,
-                    possibleTypes = selection.possibleTypes,
-                    subselections = selection.subselections,
-                    inclusionCondition = condition.and(selection.inclusionCondition),
-                ),
+        mapSelections { selection ->
+            Selection.of(
+                key = selection.key,
+                possibleTypes = selection.possibleTypes,
+                subselections = selection.subselections,
+                inclusionCondition = condition.and(selection.inclusionCondition),
             )
         }
     }
+
+private object EmptySelectionForest : SelectionForest {
+    override val size: Int get() = 0
+
+    override fun isEmpty(): Boolean = true
+
+    override fun all(predicate: (Selection) -> Boolean): Boolean = true
+
+    override fun filter(predicate: (Selection) -> Boolean): SelectionForest = this
+
+    override fun flatMap(transform: (Selection) -> SelectionForest): SelectionForest = this
+
+    override fun forEach(action: (Selection) -> Unit) {}
+
+    override fun single(): Selection = throw NoSuchElementException("List is empty.")
+
+    override fun plus(other: SelectionForest): SelectionForest = if (other.isEmpty()) this else other
+}
+
+private class SingletonSelectionForest(
+    val selection: Selection,
+) : SelectionForest {
+    override val size: Int get() = 1
+
+    override fun isEmpty(): Boolean = false
+
+    override fun all(predicate: (Selection) -> Boolean): Boolean = predicate(selection)
+
+    override fun filter(predicate: (Selection) -> Boolean): SelectionForest = if (predicate(selection)) this else EmptySelectionForest
+
+    override fun flatMap(transform: (Selection) -> SelectionForest): SelectionForest = flatMapSelections(transform)
+
+    override fun forEach(action: (Selection) -> Unit) = action(selection)
+
+    override fun single(): Selection = selection
+
+    override fun plus(other: SelectionForest): SelectionForest = if (other.isEmpty()) this else ConcatenatedSelectionForest(this, other)
+}
 
 private abstract class AbstractSelectionForest(
     val occurrences: List<Selection>,
@@ -488,7 +602,7 @@ private abstract class AbstractSelectionForest(
 
     override fun all(predicate: (Selection) -> Boolean): Boolean = occurrences.all(predicate)
 
-    override fun filter(predicate: (Selection) -> Boolean): SelectionForest = SelectionForestImpl(occurrences.filter(predicate))
+    override fun filter(predicate: (Selection) -> Boolean): SelectionForest = ordinarySelectionForest(occurrences.filter(predicate))
 
     override fun flatMap(transform: (Selection) -> SelectionForest): SelectionForest = flatMapSelections(transform)
 
@@ -520,8 +634,8 @@ private class ConcatenatedSelectionForest(
     override fun all(predicate: (Selection) -> Boolean): Boolean = visitWhile(predicate)
 
     override fun filter(predicate: (Selection) -> Boolean): SelectionForest =
-        SelectionForestImpl(
-            buildList {
+        ordinarySelectionForest(
+            buildList(size) {
                 this@ConcatenatedSelectionForest.forEach { selection ->
                     if (predicate(selection)) add(selection)
                 }
@@ -557,8 +671,8 @@ private class ConcatenatedSelectionForest(
 }
 
 private fun SelectionForest.flatMapSelections(transform: (Selection) -> SelectionForest): SelectionForest =
-    SelectionForestImpl(
-        buildList {
+    ordinarySelectionForest(
+        buildList(size) {
             this@flatMapSelections.forEach { selection ->
                 val forest = transform(selection)
                 forest.forEach(::add)

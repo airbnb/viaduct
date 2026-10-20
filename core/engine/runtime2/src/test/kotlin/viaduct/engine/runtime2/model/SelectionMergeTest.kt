@@ -1,13 +1,15 @@
 package viaduct.engine.runtime2.model
 
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
-import kotlin.test.assertFalse
-import kotlin.test.assertIs
-import kotlin.test.assertNotEquals
-import kotlin.test.assertSame
-import kotlin.test.assertTrue
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertInstanceOf
+import org.junit.jupiter.api.Assertions.assertNotEquals
+import org.junit.jupiter.api.Assertions.assertSame
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
 import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.testRoot
 import viaduct.graphql.schema.ViaductSchema
@@ -24,7 +26,7 @@ class SelectionMergeTest {
                 possibleTypes = setOf(fixture.item),
             )
 
-        assertIs<ObjectSelection>(concrete)
+        assertInstanceOf(ObjectSelection::class.java, concrete)
         assertFalse(abstract is ObjectSelection)
     }
 
@@ -52,12 +54,12 @@ class SelectionMergeTest {
         assertEquals(setOf(one.key, two.key), merged.keys())
         assertEquals(merged.keys(), merged.byKey().keys)
         assertSame(merged.byKey().getValue(oneKey), merged[oneKey])
-        assertFailsWith<NoSuchElementException> { merged[missingKey] }
+        assertThrows<NoSuchElementException> { merged[missingKey] }
         val filtered: ObjectSelectionForest =
             merged.filter { selection -> selection.key == oneKey }
         assertEquals(setOf(oneKey), filtered.keys())
         merged.forEach { selection ->
-            assertIs<ObjectSelection>(selection)
+            assertInstanceOf(ObjectSelection::class.java, selection)
             assertEquals(fixture.query, selection.key.field.containingDef)
             assertEquals(setOf(fixture.query), selection.possibleTypes)
             assertTrue(selection.subselections.isEmpty())
@@ -68,9 +70,9 @@ class SelectionMergeTest {
     fun `object selection forest validates parent type exclusive applicability and unique keys`() {
         val fixture = Fixture()
         val querySelection =
-            assertIs<ObjectSelection>(fixture.selection("Query", "item"))
+            assertInstanceOf(ObjectSelection::class.java, fixture.selection("Query", "item"))
         val itemSelection =
-            assertIs<ObjectSelection>(fixture.selection("ConcreteItem", "a"))
+            assertInstanceOf(ObjectSelection::class.java, fixture.selection("ConcreteItem", "a"))
         val inapplicableQuerySelection =
             ObjectSelection.of(
                 key = querySelection.key,
@@ -78,13 +80,13 @@ class SelectionMergeTest {
                 subselections = querySelection.subselections,
             )
 
-        assertFailsWith<IllegalArgumentException> {
+        assertThrows<IllegalArgumentException> {
             ObjectSelectionForest.of(fixture.query, listOf(itemSelection))
         }
-        assertFailsWith<IllegalArgumentException> {
+        assertThrows<IllegalArgumentException> {
             ObjectSelectionForest.of(fixture.query, listOf(inapplicableQuerySelection))
         }
-        assertFailsWith<IllegalArgumentException> {
+        assertThrows<IllegalArgumentException> {
             ObjectSelectionForest.of(fixture.query, listOf(querySelection, querySelection))
         }
     }
@@ -114,6 +116,82 @@ class SelectionMergeTest {
             2,
             item.subselections.merge(fixture.item).size,
         )
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = [0, 1, 3, 4, 6, 7, 12, 13, 25])
+    fun `merged child forests preserve occurrences across growth and transformations`(count: Int) {
+        val fixture = Fixture()
+        val field = fixture.schema.requireObjectField("Query", "item")
+        val children = (0 until count).map { index ->
+            fixture.selection(
+                "ConcreteItem",
+                if (index % 2 == 0) "a" else "b",
+                inclusionCondition = InclusionCondition.requires(mapOf(Arguments.Variable.of(field, "child$index") to true)),
+            )
+        }
+        val first = fixture.selection("Query", "item", subselections = children.take(count / 2).toSelectionForest())
+        val second = fixture.selection("Query", "item", subselections = children.drop(count / 2).toSelectionForest())
+        val merged = selectionForestOf(first, second).merge(fixture.query).single().subselections
+        val expected = children.map { it.key to it.inclusionCondition }.toSet()
+        val observed = mutableListOf<Selection>()
+        merged.forEach(observed::add)
+
+        assertEquals(count, merged.size)
+        assertEquals(count == 0, merged.isEmpty())
+        assertEquals(expected, observed.map { it.key to it.inclusionCondition }.toSet())
+        assertTrue(merged.all { it.key.field.containingDef == fixture.item })
+        var visits = 0
+        assertEquals(
+            count == 0,
+            merged.all {
+                visits++
+                false
+            },
+        )
+        assertEquals(if (count == 0) 0 else 1, visits)
+        assertEquals((count + 1) / 2, merged.filter { it.key.field.name == "a" }.size)
+        assertEquals(count * 2, merged.flatMap { selectionForestOf(it, it) }.size)
+        assertEquals(count, merged.mapSelections { it }.size)
+        assertEquals(count + 1, (merged + selectionForestOf(fixture.selection("ConcreteItem", "a"))).size)
+        if (count == 0) {
+            assertThrows<NoSuchElementException> { merged.single() }
+        } else if (count == 1) {
+            assertEquals(children.single().key, merged.single().key)
+            assertEquals(children.single().inclusionCondition, merged.single().inclusionCondition)
+        } else {
+            assertThrows<IllegalArgumentException> { merged.single() }
+        }
+    }
+
+    @Test
+    fun `merged simple outputs including wrapped types use the shared empty forest`() {
+        val world = TestWorld.fromSDL("type Query { scalar: Int, values: [Int!]! }")
+        val query = world.assumptions.schema.requireQueryTypeDef()
+        val empty = selectionForestOf()
+        val selections = listOf("scalar", "values").map { field ->
+            Selection.of(ObjectEngineResult.Key.of(query.requireField(field), emptyMap()), setOf(query), empty)
+        }
+
+        val merged = (selections + selections).toSelectionForest().merge(query)
+
+        assertEquals(2, merged.size)
+        merged.forEach { assertSame(empty, it.subselections) }
+    }
+
+    @Test
+    fun `merged children retain the forest member limit`() {
+        val fixture = Fixture()
+        val child = fixture.selection("ConcreteItem", "a")
+        val first = fixture.selection(
+            "Query",
+            "item",
+            subselections = List(SelectionForest.MAX_SIZE - 1) { child }.toSelectionForest(),
+        )
+        val second = fixture.selection("Query", "item", subselections = selectionForestOf(child))
+
+        assertEquals(SelectionForest.MAX_SIZE, selectionForestOf(first, second).merge(fixture.query).single().subselections.size)
+        assertThrows<IllegalArgumentException> { selectionForestOf(first, second, second).merge(fixture.query) }
     }
 
     @Test
@@ -152,16 +230,28 @@ class SelectionMergeTest {
                 arguments = mapOf("factor" to 7),
             )
 
-        val merged = selectionForestOf(abstract, concrete).merge(fixture.item)
+        listOf(selectionForestOf(abstract, concrete), selectionForestOf(abstract)).forEach { forest ->
+            val merged = forest.merge(fixture.item)
+            assertEquals(1, merged.size)
+            assertEquals(
+                ObjectEngineResult.Key.of(
+                    fixture.schema.requireField("ConcreteItem", "computed"),
+                    mapOf("factor" to 7),
+                ),
+                merged.single().key,
+            )
+        }
+    }
 
-        assertEquals(1, merged.size)
-        assertEquals(
-            ObjectEngineResult.Key.of(
-                fixture.schema.requireField("ConcreteItem", "computed"),
-                mapOf("factor" to 7),
-            ),
-            merged.single().key,
-        )
+    @Test
+    fun `merging empty input retains the concrete target type`() {
+        val fixture = Fixture()
+        val merged = selectionForestOf().merge(fixture.query)
+
+        assertEquals(fixture.query, merged.type)
+        assertEquals(0, merged.size)
+        assertTrue(merged.byKey().isEmpty())
+        assertTrue(merged.groundKeys().isEmpty())
     }
 
     @Test
@@ -191,6 +281,7 @@ class SelectionMergeTest {
             setOf(visible.key),
             item.subselections.merge(fixture.item).keys(),
         )
+        assertTrue(selectionForestOf(inapplicable).merge(fixture.query).isEmpty())
     }
 
     @Test
@@ -248,9 +339,9 @@ class SelectionMergeTest {
 
         assertEquals(3, merged.size)
         merged.forEach { selection ->
-            assertIs<ObjectSelection>(selection)
+            assertInstanceOf(ObjectSelection::class.java, selection)
         }
-        assertFailsWith<IllegalStateException> {
+        assertThrows<IllegalStateException> {
             merged.groundKeys()
         }
     }
@@ -372,7 +463,8 @@ class SelectionMergeTest {
         val variable = Arguments.Variable.of(field, "included")
         val condition = InclusionCondition.requires(mapOf(variable to true))
         val child = fixture.selection("ConcreteItem", "a")
-        val parent = assertIs<ObjectSelection>(
+        val parent = assertInstanceOf(
+            ObjectSelection::class.java,
             fixture.selection("Query", "item", subselections = selectionForestOf(child), inclusionCondition = condition),
         )
         val forest = ObjectSelectionForest.of(fixture.query, listOf(parent))
@@ -425,13 +517,39 @@ class SelectionMergeTest {
         assertFalse(merged[singleton.objectKey(fixture.query)].inclusionCondition.includeWith(::binding))
         assertEquals(listOf(z), visited)
         visited.clear()
-        assertFailsWith<IllegalStateException> {
+        assertThrows<IllegalStateException> {
             merged[first.objectKey(fixture.query)].inclusionCondition.includeWith { variable ->
                 visited += variable
                 if (variable == z) false else error("Rejected alternative failed")
             }
         }
         assertEquals(listOf(z, y), visited)
+    }
+
+    @Test
+    fun `singleton groups preserve parent and child conditions`() {
+        val fixture = Fixture()
+        val field = fixture.schema.requireObjectField("Query", "item")
+        val x = Arguments.Variable.of(field, "x")
+        val y = Arguments.Variable.of(field, "y")
+        val childCondition = InclusionCondition.requires(mapOf(y to true))
+        val child = fixture.selection("ConcreteItem", "a", inclusionCondition = childCondition)
+        val leaf = fixture.selection("Query", "scalar", arguments = mapOf("arg" to 1))
+
+        listOf(InclusionCondition.Always, InclusionCondition.Never, InclusionCondition.requires(mapOf(x to true))).forEach { condition ->
+            val parent = fixture.selection("Query", "item", subselections = selectionForestOf(child), inclusionCondition = condition)
+            listOf(selectionForestOf(parent), selectionForestOf(parent, leaf, leaf)).forEach { forest ->
+                val merged = forest.merge(fixture.query)[parent.objectKey(fixture.query)]
+                val mergedChild = merged.subselections.single()
+                listOf(false, true).forEach { xValue ->
+                    listOf(false, true).forEach { yValue ->
+                        val bindings = mapOf(x to xValue, y to yValue)
+                        assertEquals(condition.include(bindings), merged.inclusionCondition.include(bindings))
+                        assertEquals(condition.include(bindings) && childCondition.include(bindings), mergedChild.inclusionCondition.include(bindings))
+                    }
+                }
+            }
+        }
     }
 
     @Test
@@ -443,6 +561,109 @@ class SelectionMergeTest {
 
         assertEquals(1, guarded.size)
         assertSame(InclusionCondition.Never, guarded.single().inclusionCondition)
+    }
+
+    @Test
+    fun `later merges do not mutate a published duplicate group or its shared occurrences`() {
+        val fixture = Fixture()
+        val field = fixture.schema.requireObjectField("Query", "item")
+        val x = Arguments.Variable.of(field, "x")
+        val y = Arguments.Variable.of(field, "y")
+        val first = fixture.selection(
+            "Query",
+            "item",
+            subselections = selectionForestOf(fixture.selection("ConcreteItem", "a")),
+            inclusionCondition = InclusionCondition.requires(mapOf(x to true)),
+        )
+        val second = fixture.selection(
+            "Query",
+            "item",
+            subselections = selectionForestOf(fixture.selection("ConcreteItem", "b")),
+            inclusionCondition = InclusionCondition.requires(mapOf(y to true)),
+        )
+        val published = selectionForestOf(first, second).merge(fixture.query).single()
+        val originalCondition = published.inclusionCondition
+        val originalChildren = published.subselections
+        val unconditional = fixture.selection("Query", "item", subselections = first.subselections)
+        val independent = fixture.selection("Query", "scalar", mapOf("arg" to 1))
+
+        val later = selectionForestOf(published, independent, unconditional, published).merge(fixture.query)
+        val laterItem = later[published.objectKey(fixture.query)]
+
+        assertSame(InclusionCondition.Always, laterItem.inclusionCondition)
+        assertEquals(5, laterItem.subselections.size)
+        assertSame(independent, later[independent.objectKey(fixture.query)])
+        assertSame(originalCondition, published.inclusionCondition)
+        assertSame(originalChildren, published.subselections)
+        assertEquals(2, originalChildren.size)
+        assertFalse(published.inclusionCondition.include(mapOf(x to false, y to false)))
+        assertEquals(1, first.subselections.size)
+        assertEquals(1, second.subselections.size)
+    }
+
+    @Test
+    fun `unconditional duplicate leaves other occurrences children independently guarded`() {
+        val fixture = Fixture()
+        val field = fixture.schema.requireObjectField("Query", "item")
+        val x = Arguments.Variable.of(field, "x")
+        val y = Arguments.Variable.of(field, "y")
+        val first = fixture.selection(
+            "Query",
+            "item",
+            subselections = selectionForestOf(fixture.selection("ConcreteItem", "a")),
+            inclusionCondition = InclusionCondition.requires(mapOf(x to true)),
+        )
+        val unconditional = fixture.selection("Query", "item")
+        val last = fixture.selection(
+            "Query",
+            "item",
+            subselections = selectionForestOf(fixture.selection("ConcreteItem", "b")),
+            inclusionCondition = InclusionCondition.requires(mapOf(y to true)),
+        )
+
+        for (occurrences in listOf(listOf(first, unconditional, last), listOf(unconditional, first, last))) {
+            val parent = occurrences.toSelectionForest().merge(fixture.query).single()
+            val children = parent.subselections.merge(fixture.item)
+            val a = children[first.subselections.single().objectKey(fixture.item)]
+            val b = children[last.subselections.single().objectKey(fixture.item)]
+            assertSame(InclusionCondition.Always, parent.inclusionCondition)
+            assertEquals(2, parent.subselections.size)
+            for (xValue in listOf(false, true)) {
+                for (yValue in listOf(false, true)) {
+                    val bindings = mapOf(x to xValue, y to yValue)
+                    assertEquals(xValue, a.inclusionCondition.include(bindings))
+                    assertEquals(yValue, b.inclusionCondition.include(bindings))
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `incremental duplicate children retain their condition evaluation order`() {
+        val fixture = Fixture()
+        val field = fixture.schema.requireObjectField("Query", "item")
+        val variables = listOf("first", "second", "unread").map { Arguments.Variable.of(field, it) }
+        val occurrences = variables.map { variable ->
+            fixture.selection(
+                "Query",
+                "item",
+                subselections = selectionForestOf(fixture.selection("ConcreteItem", "a")),
+                inclusionCondition = InclusionCondition.requires(mapOf(variable to true)),
+            )
+        }
+        val children = occurrences.toSelectionForest().merge(fixture.query).single().subselections
+        val condition = children.merge(fixture.item).single().inclusionCondition
+        val visited = mutableListOf<Arguments.Variable>()
+
+        assertEquals(3, children.size)
+        assertTrue(
+            condition.includeWith { variable ->
+                visited += variable
+                check(variable != variables[2]) { "Short-circuited child condition was evaluated" }
+                variable == variables[1]
+            }
+        )
+        assertEquals(variables.take(2), visited)
     }
 
     private class Fixture {
