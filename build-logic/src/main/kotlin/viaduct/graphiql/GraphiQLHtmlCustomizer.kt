@@ -50,9 +50,8 @@ class GraphiQLHtmlCustomizer(
  *  Customizations applied:
  *  - Changed title to "GraphiQL - Viaduct"
  *  - Changed endpoint from demo URL to "/graphql"
- *  - Added introspection-patch.js to fix GraphQL Java compatibility with GraphiQL 5
- *    (GraphQL Java omits empty arrays that GraphiQL 5 strictly requires)
  *  - Added global-id-plugin.jsx for encoding/decoding Viaduct Global IDs
+ *  - Added Babel standalone, which jsx-loader.js uses to transpile the plugin
  *  - Modified initialization to load plugins asynchronously
  *  - Added configurable title, storage key, and default query support
  *  - Added Viaduct favicon (favicon.svg / favicon.ico)
@@ -76,6 +75,13 @@ class GraphiQLHtmlCustomizer(
     <link rel="icon" type="image/x-icon" href="/favicon.ico">"""
         )
 
+        // 2b. Load Babel standalone, which jsx-loader.js calls as a global
+        customized = customized.replaceFirst(
+            "<script type=\"importmap\">",
+            """<script src="https://unpkg.com/@babel/standalone@8.0.7/babel.min.js"></script>
+    <script type="importmap">"""
+        )
+
         // 3. Change demo endpoint to /graphql
         customized = customized.replace(
             "url: 'https://countries.trevorblades.com'",
@@ -95,16 +101,13 @@ class GraphiQLHtmlCustomizer(
             // Add our imports at the beginning of the module script
             val viaductImports = """
       import { loadJSX } from '/js/jsx-loader.js';
-      import { createPatchedFetcher } from '/js/introspection-patch.js';
 """
 
-            // Wrap the fetcher creation with our patch
             var modifiedScript = Regex("""const fetcher = createGraphiQLFetcher\(\{[\s\S]*?\}\);""")
                 .replace(scriptContent) {
-                    """const baseFetcher = createGraphiQLFetcher({
+                    """const fetcher = createGraphiQLFetcher({
         url: '/graphql',
       });
-      const fetcher = createPatchedFetcher(baseFetcher);
       const graphiQLConfig = /* VIADUCT_GRAPHIQL_CONFIG_START */ {
         title: "GraphiQL - Viaduct",
         defaultQuery: "# Welcome to Viaduct GraphiQL!\n#\n# Start typing your GraphQL query here.\n# Press Ctrl+Space for autocomplete.\n# Click the Docs button to explore the schema.\n# Use the Global ID Utils plugin (key icon) to encode/decode Viaduct Global IDs.\n\nquery {\n  # Your query here\n}\n",
