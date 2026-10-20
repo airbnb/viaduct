@@ -86,7 +86,7 @@ private class EngineObjectDataKeyTreeBuilder(
                             returnedFields[key] = KeyTree.empty
                             continue
                         }
-                        val read = fieldValueReader.read(data, key.name, key.responseKey)
+                        val read = fieldValueReader.readForCoverage(data, key.name, key.responseKey) ?: continue
                         if (read.fieldIsMissing) continue
                         keysByValue.getOrPut(read.value) { mutableListOf() } += key
                     }

@@ -73,5 +73,11 @@ class MaterializedFieldValueReaderTest {
                 runBlocking { MaterializedFieldValueReader.Default.read(source, "name", "selected") }
             }
         )
+        assertSame(
+            failure,
+            assertThrows<IllegalStateException> {
+                runBlocking { MaterializedFieldValueReader.Default.readForCoverage(source, "name", "selected") }
+            }
+        )
     }
 }

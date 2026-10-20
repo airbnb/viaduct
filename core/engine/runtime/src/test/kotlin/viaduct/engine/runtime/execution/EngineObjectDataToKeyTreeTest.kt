@@ -22,6 +22,27 @@ import viaduct.engine.runtime.mat.KeyTreeFilter.Result.KEEP_WITHOUT_CHILDREN
 import viaduct.engine.runtime.mat.build
 
 class EngineObjectDataToKeyTreeTest {
+    @Test
+    fun `coverage discovery skips fields the reader cannot inspect`() {
+        Fixture("type Foo { bar: Bar } type Bar { x: Int }") {
+            val selections = tree { field("Foo", key("bar")) { field("Bar", key("x")) } }
+            val reader = object : MaterializedFieldValueReader {
+                override suspend fun read(
+                    source: EngineObjectData,
+                    fieldName: String,
+                    responseKey: String
+                ): MaterializedFieldValueReader.ReadResult = error("Field execution must report the failure")
+
+                override suspend fun readForCoverage(
+                    source: EngineObjectData,
+                    fieldName: String,
+                    responseKey: String
+                ): MaterializedFieldValueReader.ReadResult? = null
+            }
+            assertTree(KeyTree.empty, dataWithoutReadableValues(foo, "bar"), selections, fieldValueReader = reader)
+        }
+    }
+
     @Nested
     inner class NullData {
         @Test

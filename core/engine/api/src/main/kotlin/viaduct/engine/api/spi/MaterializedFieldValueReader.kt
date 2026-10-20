@@ -28,6 +28,13 @@ fun interface MaterializedFieldValueReader {
         responseKey: String
     ): ReadResult
 
+    /** Null skips coverage discovery for a field whose failure will be reported when it is read. */
+    suspend fun readForCoverage(
+        source: EngineObjectData,
+        fieldName: String,
+        responseKey: String
+    ): ReadResult? = read(source, fieldName, responseKey)
+
     data class ReadResult(val value: Any?, val fieldIsMissing: Boolean)
 
     companion object {
