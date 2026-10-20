@@ -41,7 +41,7 @@
     "passiveAbstractOutputTypeWeight" : 0.0,
     "queryScalarFieldWeight" : 0.2,
     "recursiveOutputEdgeWeight" : 0.2,
-    "resolverArgumentErrorWeight" : 0.15,
+    "resolverArgumentErrorWeight" : 0.0,
     "resolverFragmentArgumentFieldWeight" : 0.0,
     "resolverFragmentLongTailWeight" : 0.0,
     "resolverFragmentWeight" : 0.8,

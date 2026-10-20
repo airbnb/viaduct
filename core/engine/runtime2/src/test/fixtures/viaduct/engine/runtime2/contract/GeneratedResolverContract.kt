@@ -14,6 +14,8 @@ import viaduct.engine.runtime2.arbitrary.FieldArgumentWeight
 import viaduct.engine.runtime2.arbitrary.GeneratedFieldCheckerMode
 import viaduct.engine.runtime2.arbitrary.GeneratedTypeCheckerMode
 import viaduct.engine.runtime2.arbitrary.ImplementationArgumentDefaultWeight
+import viaduct.engine.runtime2.arbitrary.InputObjectCount
+import viaduct.engine.runtime2.arbitrary.InputObjectTypeWeight
 import viaduct.engine.runtime2.arbitrary.NodeObjectWeight
 import viaduct.engine.runtime2.arbitrary.NodeResolversEnabled
 import viaduct.engine.runtime2.arbitrary.ObjectFieldCount
@@ -476,6 +478,9 @@ interface ObjectFragmentFromArgumentGeneratedResolverContract : GeneratedCaseAss
             val config =
                 Config.default +
                     (FieldArgumentWeight to 1.0) +
+                    (InputObjectCount to 1..2) +
+                    (InputObjectTypeWeight to 0.5) +
+                    (RootQueryFieldCount to 10..10) +
                     (ExplicitFieldResolverWeight to 1.0) +
                     (NodeResolversEnabled to false) +
                     (ResolverFragmentsEnabled to true) +
@@ -885,6 +890,9 @@ interface FeatureInteractionGeneratedResolverContract : GeneratedCaseAssertionPo
             val config =
                 Config.default +
                     (ImplementationArgumentDefaultWeight to 1.0) +
+                    (SchemaObjectCount to 3..4) +
+                    (QueryFieldCount to 4..6) +
+                    (RootQueryFieldCount to 10..10) +
                     (FieldArgumentWeight to 1.0) +
                     (ExplicitFieldResolverWeight to 1.0) +
                     (NodeResolversEnabled to nodeRootFieldReferencesEnabled) +

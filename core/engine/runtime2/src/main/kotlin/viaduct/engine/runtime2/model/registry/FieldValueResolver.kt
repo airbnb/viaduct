@@ -6,6 +6,7 @@ import viaduct.engine.runtime2.model.EngineErrorDataReadException
 import viaduct.engine.runtime2.model.EngineInputData
 import viaduct.engine.runtime2.model.MaterializeSelectionForest
 import viaduct.engine.runtime2.model.ObjectEngineResult
+import viaduct.engine.runtime2.model.ObjectSelectionForest
 import viaduct.engine.runtime2.model.PathComponent
 import viaduct.engine.runtime2.model.ResolverOccurrenceId
 import viaduct.engine.runtime2.model.ResolverOutputData
@@ -14,6 +15,7 @@ import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.model.arg
 import viaduct.engine.runtime2.model.engineObjectDataOf
 import viaduct.engine.runtime2.model.instantiateVariables
+import viaduct.engine.runtime2.model.merge
 import viaduct.engine.runtime2.model.outputType
 import viaduct.engine.runtime2.model.outputValue
 import viaduct.engine.runtime2.model.rootFieldReferenceDataOrNull
@@ -64,6 +66,8 @@ class ResolverFragmentTemplates(
     val variables: Map<Arguments.Variable, VariableDefinition> = variables.toMap()
 
     init {
+        objectFragmentTemplate.requireNoErroneousArguments()
+        queryFragmentTemplate.requireNoErroneousArguments()
         val providerVariables =
             variables.filterValues { definition ->
                 definition == VariableDefinition.FromProvider
@@ -105,7 +109,8 @@ class ResolverFragments(
  * ### Invariant: resolver-fixed-object-fragment-shape
  *
  * [objectFragment] is specialized to the resolver field's concrete parent type. [queryFragment]
- * is specialized to the canonical Query type.
+ * is specialized to the canonical Query type. Both are normalized at their top level, with
+ * symbolic arguments retained; subselections await their concrete runtime type.
  *
  * ### Invariant: field-resolver-variable-definitions
  *
@@ -136,11 +141,14 @@ class FieldValueResolver private constructor(
     val variablesProvider: VariablesProviderFunction?
         get() = fragmentTemplates.variablesProvider
 
-    val objectFragment: SelectionForest =
-        fragmentTemplates.objectFragmentTemplate.constructionSelections()
+    val objectFragment: ObjectSelectionForest =
+        fragmentTemplates.objectFragmentTemplate.constructionSelections().merge(target.field.containingDef)
 
-    val queryFragment: SelectionForest =
-        fragmentTemplates.queryFragmentTemplate.constructionSelections()
+    val queryFragment: ObjectSelectionForest =
+        fragmentTemplates.queryFragmentTemplate.constructionSelections().merge(queryType)
+
+    private val objectFragmentVariableTemplates = fragmentTemplates.objectFragmentTemplate.usedVariables()
+    private val queryFragmentVariableTemplates = fragmentTemplates.queryFragmentTemplate.usedVariables()
 
     private val objectFieldPathInclusionConditions =
         variables.fieldPathInclusionConditions(
@@ -175,6 +183,7 @@ class FieldValueResolver private constructor(
                 instantiateResolverFragment(
                     resolverOccurrenceId = resolverOccurrenceId,
                     constructionSelections = objectFragment,
+                    usedVariableTemplates = objectFragmentVariableTemplates,
                     variables = variables,
                     fieldPathInclusionConditions = objectFieldPathInclusionConditions,
                 ),
@@ -182,6 +191,7 @@ class FieldValueResolver private constructor(
                 instantiateResolverFragment(
                     resolverOccurrenceId = resolverOccurrenceId,
                     constructionSelections = queryFragment,
+                    usedVariableTemplates = queryFragmentVariableTemplates,
                     variables = variables,
                     fieldPathInclusionConditions = queryFieldPathInclusionConditions,
                 ),

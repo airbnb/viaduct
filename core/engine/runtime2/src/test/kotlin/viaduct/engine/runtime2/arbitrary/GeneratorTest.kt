@@ -35,6 +35,30 @@ import viaduct.graphql.schema.ViaductSchema
 
 class GeneratorTest {
     @Test
+    fun `explicitly generated declaration errors are rejected during bootstrap`() {
+        val config =
+            Config.default +
+                (FieldArgumentWeight to 1.0) +
+                (ExplicitFieldResolverWeight to 1.0) +
+                (ResolverFragmentWeight to 1.0) +
+                (ResolverArgumentErrorWeight to 1.0)
+        val random = RandomSource.seeded(1001L)
+        var rejected = 0
+
+        repeat(10) {
+            val schema = Arb.schema(config).next(random)
+            val registry = schema.registry(config).next(random)
+            if (registry.features.resolverErrorArgumentCount > 0) {
+                val failure = assertFailsWith<IllegalArgumentException> { registry.world(schema) }
+                assertTrue(failure.message.orEmpty().contains("Registry fragment contains erroneous arguments"))
+                rejected++
+            }
+        }
+
+        assertTrue(rejected > 0)
+    }
+
+    @Test
     fun `compressed corpus uses standalone SDL and preserves registry`() {
         val random = RandomSource.seeded(1L)
         val schema = Arb.schema(Config.default).next(random)
@@ -1767,7 +1791,6 @@ class GeneratorTest {
                 (DuplicateSelectionWeight to 0.8) +
                 (ResolverFragmentWeight to 1.0) +
                 (ResolverFragmentDepth to 4) +
-                (ResolverArgumentErrorWeight to 0.3) +
                 (ResolverVariablesEnabled to true) +
                 (ResolverVariableWeight to 1.0) +
                 (ResolverVariableCount to 2..3)
@@ -1803,7 +1826,7 @@ class GeneratorTest {
                 if (inputAndArgumentSensitiveResolvers > 0) {
                     reached += "input-and-argument-sensitive resolvers"
                 }
-                if (resolverErrorArgumentCount > 0) reached += "resolver argument errors"
+                assertEquals(0, resolverErrorArgumentCount)
                 if (maximumVariablesPerOwner > 1) reached += "multiple variables per owner"
                 if (maximumFromObjectFieldPathLength > 1) reached += "nested provider paths"
                 if (hasNestedInputVariable) reached += "nested input variables"
@@ -1841,7 +1864,6 @@ class GeneratorTest {
                 "input-sensitive resolvers",
                 "argument-sensitive resolvers",
                 "input-and-argument-sensitive resolvers",
-                "resolver argument errors",
                 "multiple variables per owner",
                 "nested provider paths",
                 "nested input variables",

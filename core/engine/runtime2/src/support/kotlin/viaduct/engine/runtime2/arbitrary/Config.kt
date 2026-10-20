@@ -162,7 +162,7 @@ object ResolverFragmentLongTailSelectionCount : ConfigKey<IntRange>("resolverFra
 
 object ResolverFragmentArgumentFieldWeight : ConfigKey<Double>("resolverFragmentArgumentFieldWeight", ConfigValueType.DOUBLE, 0.0, ::weight)
 
-object ResolverArgumentErrorWeight : ConfigKey<Double>("resolverArgumentErrorWeight", ConfigValueType.DOUBLE, 0.05, ::weight)
+object ResolverArgumentErrorWeight : ConfigKey<Double>("resolverArgumentErrorWeight", ConfigValueType.DOUBLE, 0.0, ::weight)
 
 object ResolverVariablesEnabled : ConfigKey<Boolean>("resolverVariablesEnabled", ConfigValueType.BOOLEAN, false, { null })
 

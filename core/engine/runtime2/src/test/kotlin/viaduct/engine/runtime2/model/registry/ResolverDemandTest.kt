@@ -1084,7 +1084,7 @@ class ResolverDemandTest {
     }
 
     @Test
-    fun `conservatively rejects coordinate cycles broken by error arguments`() {
+    fun `rejects erroneous fragment arguments before dependency cycle analysis`() {
         val exception =
             assertFailsWith<IllegalArgumentException> {
                 TestWorld.fromSDL(
@@ -1131,7 +1131,7 @@ class ResolverDemandTest {
                 )
             }
 
-        assertTrue(exception.message!!.contains("demand cycle"))
+        assertTrue(exception.message!!.contains("Registry fragment contains erroneous arguments for Query/second"))
     }
 
     private companion object {

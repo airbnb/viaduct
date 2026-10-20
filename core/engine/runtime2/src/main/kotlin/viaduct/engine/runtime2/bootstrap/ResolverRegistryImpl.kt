@@ -40,6 +40,7 @@ import viaduct.engine.runtime2.model.registry.VariableDeclaration
 import viaduct.engine.runtime2.model.registry.VariableDefinition
 import viaduct.engine.runtime2.model.registry.isCompatibleWithInclusionCondition
 import viaduct.engine.runtime2.model.registry.mapVariables
+import viaduct.engine.runtime2.model.registry.requireNoErroneousArguments
 import viaduct.engine.runtime2.model.registry.snipToDemand
 import viaduct.engine.runtime2.model.requireArg
 import viaduct.engine.runtime2.model.requireField
@@ -442,6 +443,8 @@ private class ResolverRegistryImpl(
         }
         val mutationNamespaces = schema.mutationNamespaceTypes()
         fieldResolverDefinitions.forEach { (field, resolver) ->
+            resolver.objectFragment.materializeSelections.requireNoErroneousArguments()
+            resolver.queryFragment?.materializeSelections?.requireNoErroneousArguments()
             if (field.containingDef in mutationNamespaces) {
                 require(resolver.objectFragment.subselections.isEmpty() && resolver.queryFragment?.subselections?.isEmpty() != false) {
                     "Mutation resolver ${field.containingDef.name}/${field.name} cannot declare object or Query fragments; use ctx.query()"

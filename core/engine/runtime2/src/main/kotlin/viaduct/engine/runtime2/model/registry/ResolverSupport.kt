@@ -16,21 +16,42 @@ import viaduct.engine.runtime2.model.objectKey
 import viaduct.engine.runtime2.model.usedVariables
 import viaduct.graphql.schema.ViaductSchema
 
+internal fun MaterializeSelectionForest.usedVariables(): Set<Arguments.Variable> =
+    buildSet {
+        this@usedVariables.forEach { selection ->
+            addAll(selection.key.arguments.usedVariables())
+            addAll(selection.inclusionCondition.usedVariables())
+            addAll(selection.subselections.usedVariables())
+        }
+    }
+
+internal fun MaterializeSelectionForest.requireNoErroneousArguments() {
+    forEach { selection ->
+        require(selection.key.arguments != Arguments.Error) {
+            "Registry fragment contains erroneous arguments for " +
+                "${selection.key.field.containingDef.name}/${selection.key.field.name}"
+        }
+        selection.subselections.requireNoErroneousArguments()
+    }
+}
+
 /** Instantiates one object- or Query-rooted fragment for resolution processing. */
 internal fun instantiateResolverFragment(
     resolverOccurrenceId: ResolverOccurrenceId,
     constructionSelections: SelectionForest,
+    usedVariableTemplates: Set<Arguments.Variable>,
     variables: Map<Arguments.Variable, VariableDefinition>,
     fieldPathInclusionConditions: Map<Arguments.Variable, List<InclusionCondition>>,
 ): ResolverFragment {
     val instantiatedSelections = constructionSelections.instantiateVariables(resolverOccurrenceId)
-    val usedVariables = instantiatedSelections.usedVariables()
+    // Normalization can remove conditions still needed by materialization aliases.
     val variableDefinitions =
         variables.mapNotNull { (variable, definition) ->
+            if (variable !in usedVariableTemplates) return@mapNotNull null
             VariableInstanceDefinition.of(
                 variable = variable.instantiate(resolverOccurrenceId),
                 definition = definition,
-            ).takeIf { it.variable in usedVariables }
+            )
         }
     val pathVariableDefinitions =
         fieldPathInclusionConditions.map { (variable, conditions) ->

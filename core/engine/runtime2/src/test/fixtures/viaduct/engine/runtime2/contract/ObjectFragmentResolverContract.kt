@@ -4,29 +4,24 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.runtime2.correctresolution.CorrectnessResolverObserver
-import viaduct.engine.runtime2.model.Arguments
 import viaduct.engine.runtime2.model.ErrorEngineResult
 import viaduct.engine.runtime2.model.ListEngineResult
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.emptyFragmentOf
-import viaduct.engine.runtime2.model.registry.Assumptions
 import viaduct.engine.runtime2.model.registry.fieldResolverOf
 import viaduct.engine.runtime2.model.requireField
 import viaduct.engine.runtime2.model.requireObjectField
-import viaduct.engine.runtime2.model.sameCompletedResultAs
 import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.emptyFragmentOf
 import viaduct.engine.runtime2.model.testing.fragmentFrom
 import viaduct.engine.runtime2.model.testing.objectOf
 import viaduct.engine.runtime2.resolution.framework.ResolverInvocationObservation
-import viaduct.engine.runtime2.resolvers.resolver01.resolve as resolveWithResolver01
-import viaduct.engine.runtime2.schema.operationSelectionsFrom
-import viaduct.graphql.schema.ViaductSchema
 
 /**
  * Contract for resolvers with nonempty object fragments and no variables.
@@ -541,9 +536,8 @@ interface ObjectFragmentResolverContract : ResolverContract {
     }
 
     @Test
-    fun `error-valued resolver argument does not import transitive demand`() {
-        val applicationArguments = ResolverApplicationArguments()
-        val testWorld =
+    fun `registry rejects erroneous arguments in resolver fragments`() {
+        val failure = assertFailsWith<IllegalArgumentException> {
             TestWorld.fromDSL(
                 selectiveResolvers = selectiveResolvers,
                 schemaSDL =
@@ -567,51 +561,9 @@ interface ObjectFragmentResolverContract : ResolverContract {
                     }
                     """.trimIndent(),
             )
-        val world = testWorld.assumptions
-        val selections = testWorld.schemas.operationSelectionsFrom("query { result }")
-
-        val completeWorld =
-            Assumptions.of(
-                schema = world.schema,
-                resolverRegistry = world.resolverRegistry,
-                selectiveResolvers = false,
-            )
-        val expected =
-            viaduct.engine.runtime2.resolution.framework.SharedOperationContext.create(completeWorld, resolverObserver = applicationArguments).resolveWithResolver01(selections)
-        val result = resolveAndValidate(world, selections, resolverObserver = applicationArguments)
-
-        assertEquals(
-            expected.keys.mapTo(linkedSetOf()) { key -> key.visibleIdentity() },
-            result.keys
-                .mapTo(linkedSetOf()) { key -> key.visibleIdentity() },
-        )
-        expected.keys.forEach { expectedKey ->
-            val resultKey =
-                result.keys.single { key ->
-                    key.visibleIdentity() == expectedKey.visibleIdentity()
-                }
-            assertTrue(
-                expected
-                    .getCell(expectedKey)
-                    .get()
-                    .sameCompletedResultAs(result.getCell(resultKey).get()),
-            )
         }
-        assertEquals(
-            1,
-            result.getCell(world.schema.contractKey("Query", "result")).get(),
-        )
-        applicationArguments.assertApplicationCount(
-            world.schema.requireObjectField("Query", "dependency"),
-            0,
-        )
-    }
 
-    private fun ObjectEngineResult.ObjectKey.visibleIdentity(): Pair<ViaductSchema.ObjectField, Arguments.Ground> {
-        require(this is ObjectEngineResult.GroundKey) {
-            "This variable-free contract expects grounded result keys"
-        }
-        return field to arguments
+        assertEquals("Registry fragment contains erroneous arguments for Query/dependency", failure.message)
     }
 
     @Test

@@ -66,11 +66,15 @@ class TestWorld private constructor(
         injector.getInstance(Assumptions::class.java)
 
     /** Creates another immutable world configuration over this world's schema and registry. */
-    fun newAssumptions(selectiveResolvers: Boolean = assumptions.selectiveResolvers): Assumptions =
+    fun newAssumptions(
+        selectiveResolvers: Boolean = assumptions.selectiveResolvers,
+        usePrecomputedConstructionDemand: Boolean = assumptions.usePrecomputedConstructionDemand,
+    ): Assumptions =
         Assumptions.of(
             schema = schema,
             resolverRegistry = resolverRegistry,
             selectiveResolvers = selectiveResolvers,
+            usePrecomputedConstructionDemand = usePrecomputedConstructionDemand,
         )
 
     fun <T : Any> instance(type: Class<T>): T = injector.getInstance(type)

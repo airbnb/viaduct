@@ -1,24 +1,15 @@
 package viaduct.engine.runtime2.model.testing
 
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import viaduct.engine.runtime2.model.Arguments
-import viaduct.engine.runtime2.model.ObjectEngineResult
-import viaduct.engine.runtime2.model.ResolverOccurrenceId
-import viaduct.engine.runtime2.model.registry.ProviderFragment
-import viaduct.engine.runtime2.model.registry.VariableDefinition
-import viaduct.engine.runtime2.model.requireObjectField
-import viaduct.engine.runtime2.model.usedVariables
 
 class ResolverTestDslParsingTest {
     @Test
-    fun `injected errors collapse direct and nested argument expressions`() {
+    fun `rejects injected errors in direct and nested registry argument expressions`() {
         for (value in listOf("\"ERROR\"", "{values: \"ERROR\"}", "{values: [1, \"ERROR\"]}")) {
             val selection = "dependency(arg: $value)".replace("\"", "\\\"")
-            val world =
+            val failure = assertThrows<IllegalArgumentException> {
                 TestWorld.fromDSL(
                     """
                     extend type Query {
@@ -28,15 +19,14 @@ class ResolverTestDslParsingTest {
                     input Input { values: [Int!]! }
                     """.trimIndent(),
                 )
-            val resolver = world.resolverRegistry.resolver(world.schema.requireObjectField("Query", "result"))
-            assertEquals(Arguments.Error, resolver.objectFragment.single().key.arguments)
-            assertTrue(resolver.variables.isEmpty())
+            }
+            assertTrue(failure.message.orEmpty().contains("Registry fragment contains erroneous arguments for Query/dependency"))
         }
     }
 
     @Test
-    fun `injected errors preserve aliased provider paths and real variables`() {
-        val world =
+    fun `rejects injected errors in variable bearing aliased provider paths`() {
+        val failure = assertThrows<IllegalArgumentException> {
             TestWorld.fromDSL(
                 """
                 extend type Query {
@@ -54,25 +44,13 @@ class ResolverTestDslParsingTest {
                 }
                 """.trimIndent(),
             )
-        val owner = world.schema.requireObjectField("Query", "result")
-        val resolver = world.resolverRegistry.resolver(owner)
-        val provider = assertInstanceOf(VariableDefinition.FromField::class.java, resolver.variables.getValue(Arguments.Variable.of(owner, "fromSource")))
-        val provided = resolver.objectFragment.filter { it.key.field.name == "source" }.single()
-
-        assertEquals(setOf("seed", "__resolverTestError0", "fromSource"), resolver.variables.keys.map { it.variableName }.toSet())
-        assertEquals(ProviderFragment.OBJECT, provider.providerFragment)
-        assertEquals(listOf("provided"), provider.responsePath)
-        assertEquals(Arguments.Error, provider.path.single().arguments)
-        assertEquals(provider.path.single(), provided.key)
-        assertEquals(
-            setOf(Arguments.Variable.of(owner, "__resolverTestError0")),
-            resolver.objectFragment.filter { it.key.field.name == "untouched" }.single().key.arguments.usedVariables(),
-        )
+        }
+        assertTrue(failure.message.orEmpty().contains("Registry fragment contains erroneous arguments for Query/source"))
     }
 
     @Test
-    fun `injected errors preserve nested selections aliases and symbolic guards`() {
-        val world =
+    fun `rejects injected errors beneath symbolic guards and nested selections`() {
+        val failure = assertThrows<IllegalArgumentException> {
             TestWorld.fromDSL(
                 """
                 extend type Query {
@@ -85,18 +63,8 @@ class ResolverTestDslParsingTest {
                 }
                 """.trimIndent(),
             )
-        val owner = world.schema.requireObjectField("Query", "result")
-        val resolver = world.resolverRegistry.resolver(owner)
-        val dependency = resolver.objectFragment.single().subselections.single()
-
-        assertEquals(Arguments.Error, dependency.key.arguments)
-        assertEquals(setOf(Arguments.Variable.of(owner, "show")), dependency.inclusionCondition.usedVariables())
-        assertEquals(setOf("show"), resolver.variables.keys.map { it.variableName }.toSet())
-        val materialized =
-            resolver.instantiateObjectMaterializationSelections(
-                ResolverOccurrenceId.at(world.schema.testRoot(), listOf(ObjectEngineResult.GroundKey.of(owner, mapOf("show" to true)))),
-            )
-        assertEquals("renamed", materialized.single().subselections.single().responseKey)
+        }
+        assertTrue(failure.message.orEmpty().contains("Registry fragment contains erroneous arguments for Box/dependency"))
     }
 
     @Test

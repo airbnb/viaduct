@@ -6,13 +6,14 @@ import viaduct.engine.runtime2.model.InclusionCondition
 import viaduct.engine.runtime2.model.MaterializeSelection
 import viaduct.engine.runtime2.model.MaterializeSelectionForest
 import viaduct.engine.runtime2.model.ObjectEngineResult
+import viaduct.engine.runtime2.model.ObjectSelectionForest
 import viaduct.engine.runtime2.model.PathComponent
 import viaduct.engine.runtime2.model.ResolverOccurrenceId
 import viaduct.engine.runtime2.model.ResolverTarget
-import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.model.arg
 import viaduct.engine.runtime2.model.mapVariableTemplates
 import viaduct.engine.runtime2.model.materializeSelectionForestOf
+import viaduct.engine.runtime2.model.merge
 import viaduct.engine.runtime2.model.render
 import viaduct.engine.runtime2.model.selectionForestOf
 import viaduct.engine.runtime2.model.usedVariables
@@ -81,21 +82,21 @@ abstract class CheckerResolverBase<out T : ResolverTarget> internal constructor(
         }
 
     private val loweredObjectFragment =
-        loweredNamedTemplates.combineForResolution(ProviderFragment.OBJECT)
+        loweredNamedTemplates.combineForResolution(ProviderFragment.OBJECT, target.checkerObjectType)
 
     private val loweredQueryFragment =
-        loweredNamedTemplates.combineForResolution(ProviderFragment.QUERY)
+        loweredNamedTemplates.combineForResolution(ProviderFragment.QUERY, queryType)
 
     /** The lowered variable definitions shared by the combined resolution fragments. */
     val variables: Map<Arguments.Variable, VariableDefinition>
         get() = loweredObjectFragment.variables
 
     /** The combined object-rooted fragment used for checker-resolution demand. */
-    val objectFragment: SelectionForest
+    val objectFragment: ObjectSelectionForest
         get() = loweredObjectFragment.constructionSelections
 
     /** The combined Query-rooted fragment used for checker-resolution demand. */
-    val queryFragment: SelectionForest
+    val queryFragment: ObjectSelectionForest
         get() = loweredQueryFragment.constructionSelections
 
     /** Instantiates both combined resolution fragments at one exact checker path. */
@@ -111,6 +112,7 @@ abstract class CheckerResolverBase<out T : ResolverTarget> internal constructor(
                 instantiateResolverFragment(
                     resolverOccurrenceId = resolverOccurrenceId,
                     constructionSelections = objectFragment,
+                    usedVariableTemplates = loweredObjectFragment.usedVariableTemplates,
                     variables = loweredObjectFragment.variables,
                     fieldPathInclusionConditions =
                         loweredObjectFragment.fieldPathInclusionConditions,
@@ -119,6 +121,7 @@ abstract class CheckerResolverBase<out T : ResolverTarget> internal constructor(
                 instantiateResolverFragment(
                     resolverOccurrenceId = resolverOccurrenceId,
                     constructionSelections = queryFragment,
+                    usedVariableTemplates = loweredQueryFragment.usedVariableTemplates,
                     variables = loweredQueryFragment.variables,
                     fieldPathInclusionConditions =
                         loweredQueryFragment.fieldPathInclusionConditions,
@@ -160,12 +163,16 @@ abstract class CheckerResolverBase<out T : ResolverTarget> internal constructor(
 }
 
 private class LoweredCheckerFragment(
-    val constructionSelections: SelectionForest,
+    val constructionSelections: ObjectSelectionForest,
+    val usedVariableTemplates: Set<Arguments.Variable>,
     val variables: Map<Arguments.Variable, VariableDefinition>,
     val fieldPathInclusionConditions: Map<Arguments.Variable, List<InclusionCondition>>,
 )
 
-private fun Map<String, ResolverFragmentTemplates>.combineForResolution(fragmentRoot: ProviderFragment): LoweredCheckerFragment {
+private fun Map<String, ResolverFragmentTemplates>.combineForResolution(
+    fragmentRoot: ProviderFragment,
+    type: ViaductSchema.Object,
+): LoweredCheckerFragment {
     var constructionSelections = selectionForestOf()
     val variables = linkedMapOf<Arguments.Variable, VariableDefinition>()
     val fieldPathInclusionConditions =
@@ -190,7 +197,8 @@ private fun Map<String, ResolverFragmentTemplates>.combineForResolution(fragment
         fieldPathInclusionConditions.putAll(loweredFieldPathInclusionConditions)
     }
     return LoweredCheckerFragment(
-        constructionSelections = constructionSelections,
+        constructionSelections = constructionSelections.merge(type),
+        usedVariableTemplates = constructionSelections.usedVariables(),
         variables = variables,
         fieldPathInclusionConditions = fieldPathInclusionConditions,
     )

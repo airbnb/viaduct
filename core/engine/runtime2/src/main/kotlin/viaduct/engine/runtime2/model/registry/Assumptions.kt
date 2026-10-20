@@ -20,16 +20,21 @@ sealed interface Assumptions {
     /** Whether resolver invocation and passive output traversal are selective to supplied demand. */
     val selectiveResolvers: Boolean
 
+    /** Temporary selector for precomputed depth-first construction demand. */
+    val usePrecomputedConstructionDemand: Boolean
+
     companion object {
         fun of(
             schema: ViaductSchema,
             resolverRegistry: ResolverRegistry,
             selectiveResolvers: Boolean = true,
+            usePrecomputedConstructionDemand: Boolean = false,
         ): Assumptions =
             AssumptionsImpl(
                 schema,
                 resolverRegistry,
                 selectiveResolvers,
+                usePrecomputedConstructionDemand,
             )
     }
 }
@@ -38,6 +43,7 @@ private class AssumptionsImpl(
     override val schema: ViaductSchema,
     override val resolverRegistry: ResolverRegistry,
     override val selectiveResolvers: Boolean,
+    override val usePrecomputedConstructionDemand: Boolean,
 ) : Assumptions {
     override val parentFieldRelations: Map<ViaductSchema.ObjectField, ViaductSchema.ObjectField> =
         parentFieldRelations(schema)

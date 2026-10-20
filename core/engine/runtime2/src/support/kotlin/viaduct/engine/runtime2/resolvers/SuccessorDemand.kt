@@ -5,6 +5,7 @@ import viaduct.engine.runtime2.model.EngineInputData
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.Selection
 import viaduct.engine.runtime2.model.SelectionForest
+import viaduct.engine.runtime2.model.fieldExpressions
 import viaduct.engine.runtime2.model.flatMapToSelectionForest
 import viaduct.engine.runtime2.model.objectKey
 import viaduct.engine.runtime2.model.registry.FieldCheckerResolver
@@ -13,6 +14,7 @@ import viaduct.engine.runtime2.model.registry.VariableDefinition
 import viaduct.engine.runtime2.model.requireField
 import viaduct.engine.runtime2.model.selectionForestOf
 import viaduct.engine.runtime2.model.substituteTemplates
+import viaduct.engine.runtime2.model.usedVariables
 import viaduct.engine.runtime2.resolution.framework.Demand
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 import viaduct.engine.runtime2.resolution.framework.instantiateBindings
@@ -56,7 +58,7 @@ private class SuccessorDemandContext(
     val expansionState = SuccessorExpansionState()
 }
 
-/** Grounded recursion needs only the active boundaries; symbolic expansion also memoizes inputs. */
+/** Cuts recursive input expansion at active field or type boundaries. */
 private class SuccessorExpansionState {
     private val expandingBoundaries = mutableSetOf<SuccessorBoundary>()
 
@@ -68,7 +70,7 @@ private class SuccessorExpansionState {
 }
 
 private data class SuccessorBoundary(
-    val key: ObjectEngineResult.GroundKey? = null,
+    val key: ObjectEngineResult.ObjectKey? = null,
     val kind: SuccessorBoundaryKind,
     val type: ViaductSchema.Object? = null,
 ) {
@@ -98,6 +100,7 @@ private fun Selection.requestedSuccessorDemand(
     context: SuccessorDemandContext,
     checked: Boolean,
 ): SelectionForest {
+    if (key.arguments.hasVariableTemplates()) return selectionForestOf()
     val nestedDemand =
         subselections.successorDemandWithChecks(context, checked) +
             if (checked) fixedTypeCheckerInputDemand(context) else selectionForestOf()
@@ -142,16 +145,16 @@ private fun Selection.fixedSuccessorInputDemand(
     possibleTypes.flatMapToSelectionForest { possibleType ->
         val specializedKey = objectKey(possibleType)
         val key =
-            ObjectEngineResult.GroundKey.of(
+            ObjectEngineResult.ObjectKey.of(
                 field = specializedKey.field,
                 arguments =
-                    specializedKey.arguments.instantiateBindings(
+                    specializedKey.arguments.successorArguments(
                         context.operation,
                         specializedKey.field,
                     ),
             )
         val arguments = key.arguments
-        if (arguments !is Arguments.Resolved) {
+        if (arguments == Arguments.Error) {
             selectionForestOf()
         } else {
             key.fixedResolverInputDemand(context, arguments) +
@@ -163,9 +166,9 @@ private fun Selection.fixedSuccessorInputDemand(
         }
     }
 
-private fun ObjectEngineResult.GroundKey.fixedResolverInputDemand(
+private fun ObjectEngineResult.ObjectKey.fixedResolverInputDemand(
     context: SuccessorDemandContext,
-    arguments: Arguments.Resolved,
+    arguments: Arguments,
 ): SelectionForest {
     if (field !in context.operation.world.resolverRegistry) return selectionForestOf()
     val boundary = SuccessorBoundary(this, SuccessorBoundaryKind.RESOLVER)
@@ -180,9 +183,9 @@ private fun ObjectEngineResult.GroundKey.fixedResolverInputDemand(
     }
 }
 
-private fun ObjectEngineResult.GroundKey.fixedCheckerInputDemand(
+private fun ObjectEngineResult.ObjectKey.fixedCheckerInputDemand(
     context: SuccessorDemandContext,
-    arguments: Arguments.Resolved,
+    arguments: Arguments,
 ): SelectionForest {
     val checker =
         context.operation.world.resolverRegistry.fieldChecker(field)
@@ -214,16 +217,16 @@ private fun SelectionForest.successorDemandWithoutParentLifting(operation: Share
             selection.possibleTypes.flatMapToSelectionForest { possibleType ->
                 val specializedKey = selection.objectKey(possibleType)
                 val key =
-                    ObjectEngineResult.GroundKey.of(
+                    ObjectEngineResult.ObjectKey.of(
                         field = specializedKey.field,
                         arguments =
-                            specializedKey.arguments.instantiateBindings(
+                            specializedKey.arguments.successorArguments(
                                 operation,
                                 specializedKey.field,
                             ),
                     )
                 val arguments = key.arguments
-                if (arguments !is Arguments.Resolved || key.field !in operation.world.resolverRegistry) {
+                if (arguments == Arguments.Error || key.field !in operation.world.resolverRegistry) {
                     selectionForestOf()
                 } else {
                     operation.world.resolverRegistry
@@ -232,7 +235,7 @@ private fun SelectionForest.successorDemandWithoutParentLifting(operation: Share
                         .successorDemand(operation)
                 }
             }
-        requestedDemand + resolverInputDemand
+        (if (selection.key.arguments.hasVariableTemplates()) selectionForestOf() else requestedDemand) + resolverInputDemand
     }
 
 /** Extends this demand with the paths needed to find every successor resolver boundary. */
@@ -251,23 +254,23 @@ private fun SelectionForest.successorBoundaryDemandWithoutParentLifting(operatio
                 inclusionCondition = selection.inclusionCondition,
             )
 
-        selectionForestOf(requested) + selection.successorInputBoundaries(operation)
+        (if (selection.key.arguments.hasVariableTemplates()) selectionForestOf() else selectionForestOf(requested)) + selection.successorInputBoundaries(operation)
     }
 
 private fun Selection.successorInputBoundaries(operation: SharedOperationContext<*>): SelectionForest =
     possibleTypes.flatMapToSelectionForest { possibleType ->
         val specializedKey = objectKey(possibleType)
         val key =
-            ObjectEngineResult.GroundKey.of(
+            ObjectEngineResult.ObjectKey.of(
                 field = specializedKey.field,
                 arguments =
-                    specializedKey.arguments.instantiateBindings(
+                    specializedKey.arguments.successorArguments(
                         operation,
                         specializedKey.field,
                     ),
             )
         val arguments = key.arguments
-        if (arguments !is Arguments.Resolved || key.field !in operation.world.resolverRegistry) {
+        if (arguments == Arguments.Error || key.field !in operation.world.resolverRegistry) {
             selectionForestOf()
         } else {
             operation.world.resolverRegistry
@@ -301,21 +304,42 @@ private fun SelectionForest.boundarySkeleton(operation: SharedOperationContext<*
         }
     }
 
-private fun FieldValueResolver.objectFragmentWithFromArguments(arguments: Arguments.Resolved): SelectionForest {
+private fun Arguments.hasVariableTemplates(): Boolean = this !is Arguments.Ground && usedVariables().any(Arguments.Variable::isTemplate)
+
+// Future provider occurrences have no bindings yet; only occurrence-owned variables can be grounded.
+private fun Arguments.successorArguments(
+    operation: SharedOperationContext<*>,
+    field: ViaductSchema.Field,
+): Arguments = if (hasVariableTemplates()) this else instantiateBindings(operation, field)
+
+private data class KnownArgumentValue(val value: EngineInputData?)
+
+private fun VariableDefinition.FromArgument.knownArgumentValue(arguments: Arguments): KnownArgumentValue? {
+    if (arguments is Arguments.Resolved) return KnownArgumentValue(read(arguments))
+    var value = arguments.fieldExpressions().getValue(argument.name)
+    inputPath.forEach { field ->
+        if (value is Arguments.Variable) return null
+        if (value == null) return KnownArgumentValue(null)
+        value = (value as Map<*, *>)[field.name]
+    }
+    return KnownArgumentValue(value)
+}
+
+private fun FieldValueResolver.objectFragmentWithFromArguments(arguments: Arguments): SelectionForest {
     val bindings =
         variables.mapNotNull { (variable, definition) ->
             (definition as? VariableDefinition.FromArgument)?.let {
-                variable to definition.read(arguments)
+                definition.knownArgumentValue(arguments)?.let { variable to it.value }
             }
         }.toMap()
     return objectFragment.substitute(bindings)
 }
 
-private fun FieldCheckerResolver.objectFragmentWithFromArguments(arguments: Arguments.Resolved): SelectionForest {
+private fun FieldCheckerResolver.objectFragmentWithFromArguments(arguments: Arguments): SelectionForest {
     val bindings =
         variables.mapNotNull { (variable, definition) ->
             (definition as? VariableDefinition.FromArgument)?.let {
-                variable to definition.read(arguments)
+                definition.knownArgumentValue(arguments)?.let { variable to it.value }
             }
         }.toMap()
     return objectFragment.substitute(bindings)

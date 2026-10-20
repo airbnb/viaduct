@@ -17,7 +17,6 @@ import viaduct.engine.runtime2.arbitrary.ObjectFieldCount
 import viaduct.engine.runtime2.arbitrary.ParentFieldsEnabled
 import viaduct.engine.runtime2.arbitrary.QueryFieldCount
 import viaduct.engine.runtime2.arbitrary.QueryScalarFieldWeight
-import viaduct.engine.runtime2.arbitrary.ResolverArgumentErrorWeight
 import viaduct.engine.runtime2.arbitrary.ResolverFragmentDepth
 import viaduct.engine.runtime2.arbitrary.ResolverFragmentWeight
 import viaduct.engine.runtime2.arbitrary.ResolverFragmentsEnabled
@@ -105,7 +104,6 @@ internal enum class ResolutionBroadStressProfile(
                 (NullableTypeWeight to 0.75) +
                 (NullValueWeight to 0.45) +
                 (ErrorValueWeight to 0.45) +
-                (ResolverArgumentErrorWeight to 0.15) +
                 (ResolverNestedProviderPathWeight to 1.0) +
                 (ResolverFromFieldProviderPathLength to 2..4),
     ),
@@ -197,7 +195,6 @@ private fun balancedBroadConfig(): Config =
         (ResolverQueryFragmentWeight to 0.1) +
         (ResolverFragmentWeight to 0.8) +
         (ResolverFragmentDepth to 3) +
-        (ResolverArgumentErrorWeight to 0.05) +
         (ResolverFromArgumentNestedPathWeight to 0.5) +
         (ResolverFromArgumentVariablesEnabled to true) +
         (ResolverFromProviderVariablesEnabled to true) +

@@ -25,7 +25,7 @@
       "maximumFromObjectFieldVariableUseDepth" : 0,
       "maximumVariablesPerOwner" : 2,
       "passiveTopLevelFromObjectFieldVariableUseCount" : 0,
-      "resolverErrorArgumentCount" : 3,
+      "resolverErrorArgumentCount" : 0,
       "variableCount" : 9
     },
     "fieldResolvers" : [ {
@@ -822,46 +822,38 @@
           "arguments" : [ {
             "name" : "arg",
             "value" : {
-              "elements" : [ ],
-              "fields" : [ ],
-              "kind" : "error",
-              "literal" : null,
-              "placeholder" : {
-                "elements" : [ {
-                  "elements" : [ ],
-                  "fields" : [ ],
-                  "kind" : "literal",
-                  "literal" : "true",
-                  "placeholder" : null,
-                  "type" : {
-                    "element" : null,
-                    "kind" : "scalar",
-                    "name" : null,
-                    "nullable" : false,
-                    "scalar" : "BOOLEAN"
-                  },
-                  "variableName" : null
-                } ],
+              "elements" : [ {
+                "elements" : [ ],
                 "fields" : [ ],
-                "kind" : "list",
-                "literal" : null,
+                "kind" : "literal",
+                "literal" : "true",
                 "placeholder" : null,
                 "type" : {
-                  "element" : {
-                    "element" : null,
-                    "kind" : "scalar",
-                    "name" : null,
-                    "nullable" : false,
-                    "scalar" : "BOOLEAN"
-                  },
-                  "kind" : "list",
+                  "element" : null,
+                  "kind" : "scalar",
                   "name" : null,
                   "nullable" : false,
-                  "scalar" : null
+                  "scalar" : "BOOLEAN"
                 },
                 "variableName" : null
+              } ],
+              "fields" : [ ],
+              "kind" : "list",
+              "literal" : null,
+              "placeholder" : null,
+              "type" : {
+                "element" : {
+                  "element" : null,
+                  "kind" : "scalar",
+                  "name" : null,
+                  "nullable" : false,
+                  "scalar" : "BOOLEAN"
+                },
+                "kind" : "list",
+                "name" : null,
+                "nullable" : false,
+                "scalar" : null
               },
-              "type" : null,
               "variableName" : null
             }
           } ],
@@ -875,24 +867,16 @@
             "value" : {
               "elements" : [ ],
               "fields" : [ ],
-              "kind" : "error",
-              "literal" : null,
-              "placeholder" : {
-                "elements" : [ ],
-                "fields" : [ ],
-                "kind" : "literal",
-                "literal" : "false",
-                "placeholder" : null,
-                "type" : {
-                  "element" : null,
-                  "kind" : "scalar",
-                  "name" : null,
-                  "nullable" : false,
-                  "scalar" : "BOOLEAN"
-                },
-                "variableName" : null
+              "kind" : "literal",
+              "literal" : "false",
+              "placeholder" : null,
+              "type" : {
+                "element" : null,
+                "kind" : "scalar",
+                "name" : null,
+                "nullable" : false,
+                "scalar" : "BOOLEAN"
               },
-              "type" : null,
               "variableName" : null
             }
           } ],
@@ -2180,24 +2164,16 @@
             "value" : {
               "elements" : [ ],
               "fields" : [ ],
-              "kind" : "error",
-              "literal" : null,
-              "placeholder" : {
-                "elements" : [ ],
-                "fields" : [ ],
-                "kind" : "literal",
-                "literal" : "value-1",
-                "placeholder" : null,
-                "type" : {
-                  "element" : null,
-                  "kind" : "scalar",
-                  "name" : null,
-                  "nullable" : false,
-                  "scalar" : "STRING"
-                },
-                "variableName" : null
+              "kind" : "literal",
+              "literal" : "value-1",
+              "placeholder" : null,
+              "type" : {
+                "element" : null,
+                "kind" : "scalar",
+                "name" : null,
+                "nullable" : false,
+                "scalar" : "STRING"
               },
-              "type" : null,
               "variableName" : null
             }
           } ],

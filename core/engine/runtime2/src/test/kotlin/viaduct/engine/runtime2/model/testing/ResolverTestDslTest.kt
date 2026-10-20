@@ -206,8 +206,8 @@ class ResolverTestDslTest {
     }
 
     @Test
-    fun `compiles error sentinels in object-fragment arguments`() {
-        val world =
+    fun `rejects error sentinels in object-fragment arguments`() {
+        assertThrows<IllegalArgumentException> {
             TestWorld.fromDSL(
                 """
                 extend type Query {
@@ -220,17 +220,7 @@ class ResolverTestDslTest {
                 }
                 """.trimIndent(),
             )
-        val result = world.schema.requireObjectField("Query", "result")
-        val dependency =
-            world.resolverRegistry
-                .resolver(result)
-                .objectFragment
-                .single()
-
-        assertEquals(
-            Arguments.Error,
-            dependency.key.arguments,
-        )
+        }
     }
 
     @Test

@@ -18,10 +18,15 @@ import viaduct.engine.runtime2.bootstrap.fromQueryField
 import viaduct.engine.runtime2.bootstrap.resolverRegistryOf
 import viaduct.engine.runtime2.model.Arguments
 import viaduct.engine.runtime2.model.Fragment
+import viaduct.engine.runtime2.model.InclusionCondition
+import viaduct.engine.runtime2.model.MaterializeSelection
+import viaduct.engine.runtime2.model.MaterializeSelectionForest
+import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.ResolverTarget
 import viaduct.engine.runtime2.model.RootFieldReferenceData
 import viaduct.engine.runtime2.model.emptyFragmentOf
 import viaduct.engine.runtime2.model.engineObjectDataOf
+import viaduct.engine.runtime2.model.materializeSelectionForestOf
 import viaduct.engine.runtime2.model.nodeReferenceIdentityOrNull
 import viaduct.engine.runtime2.model.nodeRootFieldReferenceOf
 import viaduct.engine.runtime2.model.requireObjectField
@@ -30,12 +35,70 @@ import viaduct.engine.runtime2.model.requireType
 import viaduct.engine.runtime2.model.schemaType
 import viaduct.engine.runtime2.model.testing.emptyFragmentOf
 import viaduct.engine.runtime2.schema.ViaductAndGJSchema
+import viaduct.engine.runtime2.schema.lowering.LOWERED_TYPENAME_FIELD
 import viaduct.engine.runtime2.schema.lowering.loweredFieldFromSourceCoordinate
 import viaduct.engine.runtime2.schema.materializeSelectionsFrom
 import viaduct.engine.runtime2.schema.selectionsFrom
 import viaduct.graphql.schema.ViaductSchema
 
 class RegistryConstructionTest {
+    @Test
+    fun `rejects erroneous object and Query fragment arguments before assembly`() {
+        val schemas = schemas("type Query { result(seed: Int): Int echo(value: Int): Int dependency(value: Int): Int box: Box } type Box { dependency(value: Int): Int }")
+        val schema = schemas.loweredSchema
+        val query = schema.requireQueryTypeDef()
+        val owner = schema.requireObjectField("Query", "result")
+        val variable = Arguments.Variable.of(owner, "seed")
+        val symbolic = fragment(schemas, "fragment Input on Query { echo(value: ${'$'}seed) }", owner).materializeSelections
+        val empty = schema.emptyFragmentOf("Query")
+        for (root in ProviderFragment.entries) {
+            for (nested in listOf(false, true)) {
+                val invalid = Fragment.of(query, symbolic + erroneousSelections(schema, nested))
+                val resolvers =
+                    query.fields.filter { it.name != LOWERED_TYPENAME_FIELD }
+                        .associateTo(mutableMapOf<ViaductSchema.Field, FieldResolverDefinition>()) { field ->
+                            field to fieldResolverOf(empty) { _, _ -> null }
+                        }
+                resolvers[owner] =
+                    fieldResolverOf(
+                        objectFragment = if (root == ProviderFragment.OBJECT) invalid else empty,
+                        queryFragment = if (root == ProviderFragment.QUERY) invalid else empty,
+                    ) { _, _, _ -> null }
+
+                val failure = assertFailsWith<IllegalArgumentException> {
+                    resolverRegistryOf(
+                        schema = schemas,
+                        nodeResolvers = emptyMap(),
+                        fieldResolvers = resolvers,
+                        variableProviders = mapOf(variable to schema.fromArgument(owner, "seed")),
+                    )
+                }
+
+                val typeName = if (nested) "Box" else "Query"
+                assertEquals("Registry fragment contains erroneous arguments for $typeName/dependency", failure.message)
+            }
+        }
+    }
+
+    @Test
+    fun `canonical templates reject erroneous arguments in either root`() {
+        val schema = schemas("type Query { dependency(value: Int): Int box: Box } type Box { dependency(value: Int): Int }").loweredSchema
+        for (root in ProviderFragment.entries) {
+            for (nested in listOf(false, true)) {
+                val invalid = erroneousSelections(schema, nested)
+                val failure = assertFailsWith<IllegalArgumentException> {
+                    ResolverFragmentTemplates(
+                        objectFragmentTemplate = if (root == ProviderFragment.OBJECT) invalid else materializeSelectionForestOf(),
+                        queryFragmentTemplate = if (root == ProviderFragment.QUERY) invalid else materializeSelectionForestOf(),
+                    )
+                }
+
+                val typeName = if (nested) "Box" else "Query"
+                assertEquals("Registry fragment contains erroneous arguments for $typeName/dependency", failure.message)
+            }
+        }
+    }
+
     @Test
     fun `constructs an executable registry and assumptions through main APIs`() =
         runBlocking {
@@ -275,6 +338,33 @@ class RegistryConstructionTest {
             }
 
         assertTrue(failure.message.orEmpty().contains("demand cycle"))
+    }
+
+    private fun erroneousSelections(
+        schema: ViaductSchema,
+        nested: Boolean,
+    ): MaterializeSelectionForest {
+        val field = schema.requireObjectField(if (nested) "Box" else "Query", "dependency")
+        val error =
+            materializeSelectionForestOf(
+                MaterializeSelection.of(
+                    responseKey = "dependency",
+                    key = ObjectEngineResult.GroundKey.of(field, Arguments.Error),
+                    possibleTypes = setOf(field.containingDef),
+                    subselections = materializeSelectionForestOf(),
+                    inclusionCondition = if (nested) InclusionCondition.Never else InclusionCondition.Always,
+                ),
+            )
+        if (!nested) return error
+        val box = schema.requireObjectField("Query", "box")
+        return materializeSelectionForestOf(
+            MaterializeSelection.of(
+                responseKey = "box",
+                key = ObjectEngineResult.GroundKey.of(box, emptyMap()),
+                possibleTypes = setOf(box.containingDef),
+                subselections = error,
+            ),
+        )
     }
 
     private fun schemas(sdl: String): ViaductAndGJSchema =

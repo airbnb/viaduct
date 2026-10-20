@@ -5,10 +5,13 @@ package viaduct.engine.runtime2.model.registry
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertTrue
 import kotlinx.coroutines.runBlocking
 import viaduct.engine.api.CheckerResult
 import viaduct.engine.runtime2.model.Arguments
+import viaduct.engine.runtime2.model.InclusionCondition
 import viaduct.engine.runtime2.model.ObjectEngineResult
+import viaduct.engine.runtime2.model.ResolverOccurrenceId
 import viaduct.engine.runtime2.model.ResolverTarget
 import viaduct.engine.runtime2.model.arg
 import viaduct.engine.runtime2.model.materializeSelectionForestOf
@@ -16,10 +19,56 @@ import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.fragmentFrom
+import viaduct.engine.runtime2.model.testing.testRoot
+import viaduct.engine.runtime2.model.usedVariables
 
 class FieldCheckerRuntimeVariablesTest {
     private val schema = TestWorld.fromSDL("type Query { checked: Int flag: Boolean echo(value: Int): Int }").schemas
     private val field = schema.loweredSchema.requireObjectField("Query", "checked")
+
+    @Test
+    fun `combined checker roots normalize after variable qualification and retain materialization conditions`() {
+        fun pair() =
+            ResolverFragmentTemplates(
+                schema.fragmentFrom(
+                    "fragment Input on Query { always: flag conditional: flag @include(if: ${'$'}v) echo(value: ${'$'}vInt) }",
+                    variableTarget = ResolverTarget.FieldCheckerTarget(field)
+                ).materializeSelections,
+                schema.fragmentFrom(
+                    "fragment Input on Query { always: flag conditional: flag @include(if: ${'$'}v) echo(value: ${'$'}vInt) }",
+                    variableTarget = ResolverTarget.FieldCheckerTarget(field)
+                ).materializeSelections,
+                mapOf(
+                    Arguments.Variable.of(ResolverTarget.FieldCheckerTarget(field), "v") to VariableDefinition.FromProvider,
+                    Arguments.Variable.of(ResolverTarget.FieldCheckerTarget(field), "vInt") to VariableDefinition.FromProvider,
+                ),
+                variablesProvider = { mapOf("v" to true, "vInt" to 1) },
+            )
+        val query = schema.loweredSchema.requireQueryTypeDef()
+        val checker = FieldCheckerResolver.of(field, query, mapOf("left" to pair(), "right" to pair())) { _, _, _ -> CheckerResult.Success }
+        val occurrence = ResolverOccurrenceId.at(schema.loweredSchema.testRoot(), listOf(ObjectEngineResult.GroundKey.of(field, emptyMap())))
+        val fragments = checker.instantiateFragments(occurrence)
+
+        listOf(checker.objectFragment, checker.queryFragment).forEach { demand ->
+            assertEquals(3, demand.size)
+            assertEquals(query, demand.type)
+            assertEquals(setOf("left:vInt", "right:vInt"), demand.usedVariables().map { it.variableName }.toSet())
+            assertEquals(InclusionCondition.Always, demand.byKey().values.single { it.key.field.name == "flag" }.inclusionCondition)
+        }
+        listOf(fragments.objectFragment, fragments.queryFragment).forEach { fragment ->
+            assertEquals(setOf("left:v", "left:vInt", "right:v", "right:vInt"), fragment.variableDefinitions.map { it.variable.variableName }.toSet())
+            assertTrue(fragment.variableDefinitions.all { it.variable.instanceId?.resolverOccurrenceId == occurrence })
+        }
+        listOf(checker.instantiateObjectMaterializationSelections(occurrence), checker.instantiateQueryMaterializationSelections(occurrence)).forEach { named ->
+            assertEquals(setOf("left", "right"), named.keys)
+            named.forEach { (name, materialization) ->
+                assertEquals(setOf("always", "conditional", "echo"), materialization.collect(query).responseKeys())
+                materialization.forEach { selection ->
+                    if (selection.responseKey == "conditional") assertEquals(setOf("$name:v"), selection.inclusionCondition.usedVariables().map { it.variableName }.toSet())
+                }
+            }
+        }
+    }
 
     @Test
     fun `parent variable validation specializes abstract branches on both input roots`() {

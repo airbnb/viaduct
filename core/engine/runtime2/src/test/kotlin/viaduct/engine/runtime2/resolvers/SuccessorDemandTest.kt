@@ -2,11 +2,14 @@ package viaduct.engine.runtime2.resolvers
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
+import viaduct.engine.runtime2.model.Arguments
 import viaduct.engine.runtime2.model.EngineErrorData
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.emptyFragmentOf
 import viaduct.engine.runtime2.model.merge
 import viaduct.engine.runtime2.model.registry.fieldResolverOf
+import viaduct.engine.runtime2.model.registry.fromArgument
 import viaduct.engine.runtime2.model.requireField
 import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireQueryTypeDef
@@ -19,6 +22,68 @@ import viaduct.engine.runtime2.resolution.framework.instantiateBindings
 import viaduct.graphql.schema.ViaductSchema
 
 class SuccessorDemandTest {
+    @Test
+    fun `successor demand distinguishes unknown nested argument paths from known null`() {
+        for (knownNull in listOf(false, true)) {
+            val fixture = TestWorld.fromSDL(
+                schemaSDL = """
+                    input Envelope { nested: Payload }
+                    input Payload { value: Int }
+                    type Query {
+                        start: Int
+                        relay(input: Envelope, stamp: Int!): Int
+                        seed(input: Payload, stamp: Int!): Int
+                        consume(value: Int): Int
+                        backing: Int
+                    }
+                """.trimIndent(),
+                fieldResolvers = { schemas ->
+                    val schema = schemas.loweredSchema
+                    mapOf(
+                        schema.requireObjectField("Query", "start") to fieldResolverOf(
+                            schemas.fragmentFrom(
+                                "fragment Input on Query { relay(input: {nested: ${if (knownNull) "null" else "${'$'}provided"}}, stamp: ${'$'}stamp) }",
+                            ),
+                        ) { _, _ -> error("Lookahead must not execute resolvers") }
+                            .withVariablesProvider(if (knownNull) setOf("stamp") else setOf("provided", "stamp")) {
+                                error("Lookahead must not invoke providers")
+                            },
+                        schema.requireObjectField("Query", "relay") to fieldResolverOf(
+                            schemas.fragmentFrom("fragment Input on Query { seed(input: ${'$'}nested, stamp: ${'$'}stamp) }"),
+                        ) { _, _ -> error("Lookahead must not execute resolvers") },
+                        schema.requireObjectField("Query", "seed") to fieldResolverOf(
+                            schemas.fragmentFrom("fragment Input on Query { consume(value: ${'$'}value) }"),
+                        ) { _, _ -> error("Lookahead must not execute resolvers") },
+                        schema.requireObjectField("Query", "consume") to fieldResolverOf(
+                            schemas.fragmentFrom("fragment Input on Query { backing }"),
+                        ) { _, _ -> error("Lookahead must not execute resolvers") },
+                    )
+                },
+                variableProviders = { schemas ->
+                    val schema = schemas.loweredSchema
+                    val relay = schema.requireObjectField("Query", "relay")
+                    val seed = schema.requireObjectField("Query", "seed")
+                    mapOf(
+                        Arguments.Variable.of(relay, "nested") to schema.fromArgument(relay, listOf("input", "nested")),
+                        Arguments.Variable.of(relay, "stamp") to schema.fromArgument(relay, "stamp"),
+                        Arguments.Variable.of(seed, "value") to schema.fromArgument(seed, listOf("input", "value")),
+                    )
+                },
+            )
+            val schema = fixture.schema
+            val operation = SharedOperationContext.create(fixture.assumptions)
+            val selections = fixture.schemas.fragmentFrom("fragment Input on Query { start }").subselections
+            val keys = selections.successorDemand(operation).merge(schema.requireQueryTypeDef()).keys()
+
+            assertTrue(schema.key(schema.requireQueryTypeDef(), "backing") in keys)
+            assertEquals(
+                knownNull,
+                ObjectEngineResult.GroundKey.of(schema.requireObjectField("Query", "consume"), mapOf("value" to null)) in keys,
+                "Unknown input must stay symbolic; only a statically null path demands consume(value: null)",
+            )
+        }
+    }
+
     @Test
     fun `successor demand lifts nested parent selections through producer fields`() {
         val worldFixture =

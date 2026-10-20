@@ -22,6 +22,16 @@ import viaduct.engine.runtime2.model.usedVariables
 
 class FragmentSelectionParsingTest {
     @Test
+    fun `invalid literal arguments fail during fragment preparation`() {
+        for (selection in listOf("echo(value: 1)", "echo(unknown: 1)", "nested(value: {values: [null]})")) {
+            val failure = assertThrows<IllegalArgumentException> {
+                schemas.materializeSelectionsFrom("fragment Input on Query { $selection }")
+            }
+            assertTrue(failure.message.orEmpty().contains("Invalid GraphQL fragment"))
+        }
+    }
+
+    @Test
     fun `fragment documents require explicit owners for unbound variables in named spreads`() {
         val document = Parser.parse("fragment Main on Query { ...Input } fragment Input on Query { echo(value: \$value) }")
         assertThrows<IllegalArgumentException> { schemas.fragmentFromDocument(document) }
