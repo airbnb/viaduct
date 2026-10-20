@@ -1,4 +1,5 @@
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+import java.util.zip.ZipFile
 
 plugins {
     id("conventions.viaduct-fat-jar")
@@ -24,6 +25,8 @@ tasks.named<ShadowJar>("shadowJar") {
     exclude("kotlinx/**")
     exclude("io/kotest/**")
     exclude("org/opentest4j/**")
+    exclude("org/junit/**")
+    exclude("META-INF/versions/**/org/junit/**")
     exclude("org/jetbrains/**")
     exclude("org/reactivestreams/**")
     exclude("reactor/**")
@@ -36,3 +39,18 @@ tasks.named<ShadowJar>("shadowJar") {
     relocate("com.fasterxml.jackson", "viaduct.shaded.jackson")
     relocate("org.slf4j", "viaduct.shaded.slf4j")
 }
+
+val checkTestFixturesPublication = tasks.register("checkTestFixturesPublication") {
+    group = "verification"
+    val fixturesJar = tasks.named<ShadowJar>("shadowJar").flatMap { it.archiveFile }
+    inputs.file(fixturesJar)
+    doLast {
+        ZipFile(fixturesJar.get().asFile).use { archive ->
+            val entries = archive.entries().asSequence().map { it.name }.toList()
+            check("viaduct/engine/runtime/execution/CoroutineContextContract.class" in entries)
+            check(entries.none { "org/junit/" in it }) { "Test fixtures fat JAR bundles JUnit" }
+        }
+    }
+}
+
+tasks.named("check") { dependsOn(checkTestFixturesPublication) }
