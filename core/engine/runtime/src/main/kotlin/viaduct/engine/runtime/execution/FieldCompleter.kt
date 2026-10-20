@@ -120,14 +120,18 @@ class FieldCompleter(
         )
         val currentOER = parameters.currentObjectEngineResult
 
-        val barrier = Value.fromDeferred(
-            waitAllDeferreds(
-                listOf(
-                    currentOER.fieldResolutionState, // Ensure all fields are resolved
-                    currentOER.lazyResolutionState, // If the OER is lazy, ensure it's been resolved
+        val barrier = if (parameters.engineExecutionContext.incrementalExecutionEnabled) {
+            Value.fromDeferred(currentOER.lazyResolutionState)
+        } else {
+            Value.fromDeferred(
+                waitAllDeferreds(
+                    listOf(
+                        currentOER.fieldResolutionState, // Ensure all fields are resolved
+                        currentOER.lazyResolutionState, // If the OER is lazy, ensure it's been resolved
+                    )
                 )
             )
-        )
+        }
         return barrier
             .thenCompose { _, throwable ->
                 ctxCompleteObject.onDispatched()
@@ -151,9 +155,9 @@ class FieldCompleter(
                         val completionParameters = parameters.withNewDeferMap(
                             GetNewDeferMap(collected.newDeferUsages, parameters.path, parameters.deferMap)
                         )
-                        executeExecutionPlan(completionParameters, collectedFields, BuildExecutionPlan(collectedFields))
+                        executeExecutionPlan(completionParameters, BuildExecutionPlan(collectedFields, parameters.deferUsageSet))
                     } else {
-                        completeCollectedFields(parameters, collectedFields)
+                        parameters.constants.fieldCompleter.completeCollectedFields(parameters, collectedFields)
                     }
                     completed.map { result ->
                         ctxCompleteObject.onCompleted(result.data, null)
@@ -164,31 +168,20 @@ class FieldCompleter(
     }
 
     /**
-     * Adapts Section 6.5, Executing an Execution Plan, using [completeCollectedFields].
+     * Completes the current fields and prepares tasks for deferred fields, as described in
+     * Section 6.5, Executing an Execution Plan.
      */
     internal fun executeExecutionPlan(
         ctx: ExecutionParameters,
-        collectedFields: CollectedFieldsMap,
         executionPlan: ExecutionPlan,
     ): Value<ExecutionPlanResult> {
-        val currentGroup = completeCollectedFields(ctx, executionPlan.collectedFieldsMap)
-        if (executionPlan.newCollectedFieldsMaps.isEmpty()) {
-            return currentGroup
-        }
+        val completion = ctx.constants.fieldCompleter.completeCollectedFields(ctx, executionPlan.collectedFieldsMap)
+        if (executionPlan.newCollectedFieldsMaps.isEmpty()) return completion
 
-        val groups = listOf(currentGroup) + executionPlan.newCollectedFieldsMaps.values.map {
-            completeCollectedFields(ctx, it)
-        }
-        // A group contains fields of this object that share the same DeferUsage set.
-        // This includes the current group and deferred groups; overlapping defers can produce a group with multiple usages.
-        // Merge completed group maps in original field order.
-        return Value.waitAll(groups).map {
-            val completedGroups = groups.map { it.getCompleted() }
-            val completedFields = completedGroups.flatMap { it.data.entries }.associate { it.toPair() }
-            ExecutionPlanResult(
-                collectedFields.mapValues { (responseName, _) -> completedFields.getValue(responseName) },
-                completedGroups.fold(Work.empty) { work, group -> work + group.work },
-            )
+        return completion.map { completed ->
+            val tasks = CollectExecutionGroups(ctx, executionPlan.newCollectedFieldsMaps)
+            val groups = tasks.flatMap { it.deferredFragments }.toSet()
+            completed.copy(work = Work(groups, tasks) + completed.work)
         }
     }
 

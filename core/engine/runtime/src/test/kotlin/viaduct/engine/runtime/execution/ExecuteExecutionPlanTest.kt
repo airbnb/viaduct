@@ -5,6 +5,8 @@ import graphql.execution.NonNullableFieldWasNullException
 import graphql.execution.ResultPath
 import graphql.execution.SimpleDataFetcherExceptionHandler
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.async
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -16,6 +18,7 @@ import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.CsvSource
 import viaduct.engine.runtime.FieldResolutionResult
+import viaduct.engine.runtime.ObjectEngineResultImpl
 import viaduct.engine.runtime.Value
 import viaduct.engine.runtime.context.CompositeLocalContext
 import viaduct.engine.runtime.dfe.engineExecutionContext
@@ -53,9 +56,14 @@ class ExecuteExecutionPlanTest {
 
         val result = completer.completeObject(ctx).await()
 
-        assertEquals(mapOf("a" to 1, "b" to 2), result.value)
+        assertEquals(if (incrementalExecutionEnabled) mapOf("a" to 1) else mapOf("a" to 1, "b" to 2), result.value)
         assertEquals(objectType == "Obj", result.isNullableField)
-        assertEquals(Work.empty, result.work)
+        if (incrementalExecutionEnabled) {
+            assertEquals(1, result.work.groups.size)
+            assertEquals(mapOf("b" to 2), result.work.tasks.single().run().data)
+        } else {
+            assertEquals(Work.empty, result.work)
+        }
     }
 
     @Test
@@ -133,7 +141,7 @@ class ExecuteExecutionPlanTest {
             setRawFieldValue(ctx, fields.getValue("first"), Value.fromValue(resolved(1)))
 
             for (selected in listOf(emptyMap(), fields)) {
-                val result = completer.executeExecutionPlan(ctx, selected, BuildExecutionPlan(selected))
+                val result = completer.executeExecutionPlan(ctx, BuildExecutionPlan(selected))
 
                 assertTrue(result is Value.Sync)
                 assertEquals(if (selected.isEmpty()) emptyMap() else mapOf("first" to 1), result.getCompleted().data)
@@ -142,7 +150,7 @@ class ExecuteExecutionPlanTest {
         }
 
     @Test
-    fun `execution plans wait for deferred fields and restore collection order across overlapping groups`() =
+    fun `object completion returns current fields without waiting for deferred groups`() =
         runTest {
             val ctx = mkObjectCompletionParameters(
                 schemaSDL = "extend type Query { obj: Obj } type Obj { a: Int, b: Int, c: Int }",
@@ -163,17 +171,24 @@ class ExecuteExecutionPlanTest {
             setRawFieldValue(ctx, fields.getValue("b"), Value.fromValue(resolved(2)))
             setRawFieldValue(ctx, fields.getValue("shared"), Value.fromValue(resolved(3)))
 
-            val completion = completer.executeExecutionPlan(ctx, fields, BuildExecutionPlan(fields))
-            assertFalse(completion.asDeferred().isCompleted)
-            deferred.complete(resolved(1))
+            val completion = completer.completeObject(ctx)
+            assertTrue(completion.asDeferred().isCompleted)
             val result = completion.await()
 
-            assertEquals(mapOf("first" to 1, "shared" to 3, "b" to 2), result.data)
-            assertEquals(listOf("first", "shared", "b"), result.data.keys.toList())
+            assertEquals(mapOf("b" to 2), result.value)
+            assertEquals(setOf("A", "B"), result.work.groups.map { it.label }.toSet())
+            val tasks = result.work.tasks.associateBy { it.deferredFragments.map { group -> group.label }.toSet() }
+            assertEquals(2, tasks.size)
+            assertEquals(mapOf("shared" to 3), tasks.getValue(setOf("A", "B")).run().data)
+            val pending = async(start = CoroutineStart.UNDISPATCHED) { tasks.getValue(setOf("A")).run() }
+            assertFalse(pending.isCompleted)
+            deferred.complete(resolved(1))
+            assertEquals(mapOf("first" to 1), pending.await().data)
+            assertFalse(ctx.currentObjectEngineResult.fieldResolutionState.isCompleted)
         }
 
     @Test
-    fun `a deferred non-null failure still fails the entire plan`() =
+    fun `a deferred non-null failure stays separate from the initial result`() =
         runTest {
             val ctx = mkObjectCompletionParameters(
                 schemaSDL = "extend type Query { obj: Obj } type Obj { a: Int, required: Int! }",
@@ -185,14 +200,104 @@ class ExecuteExecutionPlanTest {
             val deferred = CompletableDeferred<FieldResolutionResult>()
             setRawFieldValue(ctx, fields.getValue("broken"), Value.fromDeferred(deferred))
 
-            val completion = completer.executeExecutionPlan(ctx, fields, BuildExecutionPlan(fields))
+            val completion = completer.completeObject(ctx).await()
+            assertEquals(mapOf("a" to 1), completion.value)
             deferred.complete(resolved(null))
+            val result = completion.work.tasks.single().run()
 
-            assertThrows<NonNullableFieldWasNullException> { completion.await() }
-            assertEquals(listOf(listOf("obj", "broken")), ctx.errorAccumulator.toList().map { it.path })
+            assertEquals(null, result.data)
+            assertEquals(listOf(listOf("obj", "broken")), result.errors.map { it.path })
+            assertTrue(ctx.errorAccumulator.isEmpty())
         }
 
-    /** Adapted from graphql-js src/execution/__tests__/defer-test.ts (7fdd84e), asserting eager results. */
+    @Test
+    fun `object completion waits for lazy object validity before returning fields or work`() =
+        runTest {
+            val base = mkObjectCompletionParameters(
+                schemaSDL = "extend type Query { obj: Obj } type Obj { a: Int, b: Int }",
+                coordinate = "Query" to "obj",
+                query = "{ obj { a ... @defer { b } } }",
+            )
+            val oer = ObjectEngineResultImpl.newPendingForType(base.currentObjectEngineResult.type)
+            val ctx = base.copy(currentObjectEngineResult = oer)
+            val fields = FieldExecutionHelpers.collectFields(oer.type, ctx).collectedFieldsMap
+            setRawFieldValue(ctx, fields.getValue("a"), Value.fromValue(resolved(1)))
+            setRawFieldValue(ctx, fields.getValue("b"), Value.fromValue(resolved(2)))
+
+            val completion = completer.completeObject(ctx)
+            assertFalse(completion.asDeferred().isCompleted)
+            oer.resolveToValue()
+            val result = completion.await()
+
+            assertEquals(mapOf("a" to 1), result.value)
+            assertEquals(mapOf("b" to 2), result.work.tasks.single().run().data)
+        }
+
+    @Test
+    fun `lazy objects resolved to null discard fields and deferred work`() =
+        runTest {
+            val base = mkObjectCompletionParameters(
+                schemaSDL = "extend type Query { obj: Obj } type Obj { a: Int, b: Int }",
+                coordinate = "Query" to "obj",
+                query = "{ obj { a ... @defer { b } } }",
+            )
+            val oer = ObjectEngineResultImpl.newPendingForType(base.currentObjectEngineResult.type)
+            val ctx = base.copy(currentObjectEngineResult = oer)
+            val fields = FieldExecutionHelpers.collectFields(oer.type, ctx).collectedFieldsMap
+            setRawFieldValue(ctx, fields.getValue("a"), Value.fromValue(resolved(1)))
+            setRawFieldValue(ctx, fields.getValue("b"), Value.fromValue(resolved(2)))
+
+            val completion = completer.completeObject(ctx)
+            assertFalse(completion.asDeferred().isCompleted)
+            oer.resolveToNull()
+            val result = completion.await()
+
+            assertTrue(result is FieldCompletionResult.NullResult)
+            assertEquals(Work.empty, result.work)
+            assertTrue(ctx.errorAccumulator.isEmpty())
+        }
+
+    @Test
+    fun `plans preserve nested work and complete object fields in their enclosing defer context`() =
+        runTest {
+            val ctx = mkObjectCompletionParameters(
+                schemaSDL = "extend type Query { obj: Obj } type Obj { child: Child, other: Child } type Child { a: Int, b: Int }",
+                coordinate = "Query" to "obj",
+                query = """
+                    {
+                        obj {
+                            child { a ... @defer(label: "child") { b } }
+                            ... @defer(label: "outer") { other { a ... @defer(label: "inner") { b } } }
+                        }
+                    }
+                """.trimIndent(),
+            )
+            val fields = FieldExecutionHelpers.collectFields(ctx.currentObjectEngineResult.type, ctx).collectedFieldsMap
+            for (responseName in listOf("child", "other")) {
+                val field = fields.getValue(responseName)
+                val oer = ObjectEngineResultImpl.newForType(ctx.graphQLSchema.getObjectType("Child"))
+                val child = ctx.forField(ctx.currentObjectEngineResult.type, field).forObjectTraversal(field, oer, ctx.localContext, null)
+                val subfields = FieldExecutionHelpers.collectFields(oer.type, child).collectedFieldsMap
+                setRawFieldValue(child, subfields.getValue("a"), Value.fromValue(resolved(1)))
+                setRawFieldValue(child, subfields.getValue("b"), Value.fromValue(resolved(2)))
+                setRawFieldValue(ctx, field, Value.fromValue(resolved(oer)))
+            }
+
+            val result = completer.completeObject(ctx).await()
+
+            assertEquals(mapOf("child" to mapOf("a" to 1)), result.value)
+            assertEquals(setOf("outer", "child"), result.work.groups.map { it.label }.toSet())
+            val tasks = result.work.tasks.associateBy { it.deferredFragments.single().label }
+            assertEquals(mapOf("b" to 2), tasks.getValue("child").run().data)
+            val outer = tasks.getValue("outer").run()
+            assertEquals(mapOf("other" to mapOf("a" to 1)), outer.data)
+            val inner = outer.work.groups.single()
+            assertEquals("inner", inner.label)
+            assertSame(tasks.getValue("outer").deferredFragments.single(), inner.parent)
+            assertEquals(mapOf("b" to 2), outer.work.tasks.single().run().data)
+        }
+
+    /** Adapted from graphql-js src/execution/__tests__/defer-test.ts (7fdd84e). */
     @Nested
     inner class GraphQLJsTests {
         @Test
@@ -217,9 +322,10 @@ class ExecuteExecutionPlanTest {
                 val plan = BuildExecutionPlan(fields)
                 assertEquals(1, plan.newCollectedFieldsMaps.size)
 
-                val result = completer.executeExecutionPlan(ctx, fields, plan).await()
+                val result = executePlan(ctx, plan).await()
 
-                assertEquals(mapOf("id" to "1", "name" to "Luke"), result.data)
+                assertEquals(mapOf("id" to "1"), result.data)
+                assertEquals(mapOf("name" to "Luke"), result.work.tasks.single().run().data)
             }
 
         @Test
@@ -232,10 +338,11 @@ class ExecuteExecutionPlanTest {
                 )
                 val fields = FieldExecutionHelpers.collectFields(ctx.currentObjectEngineResult.type, ctx).collectedFieldsMap
 
-                val result = completer.executeExecutionPlan(ctx, fields, BuildExecutionPlan(fields))
+                val result = executePlan(ctx, BuildExecutionPlan(fields))
 
                 assertTrue(result is Value.Sync)
                 assertEquals(emptyMap<String, Any?>(), result.getCompleted().data)
+                assertEquals(Work.empty, result.getCompleted().work)
             }
 
         @Test
@@ -244,7 +351,7 @@ class ExecuteExecutionPlanTest {
                 val ctx = mkObjectCompletionParameters(
                     schemaSDL = "extend type Query { hero: Hero } type Hero { name: String }",
                     coordinate = "Query" to "hero",
-                    query = "{ hero { ... @defer { ... @defer { name } } } }",
+                    query = "{ hero { ... @defer(label: \"outer\") { ... @defer(label: \"inner\") { name } } } }",
                 )
                 val fields = FieldExecutionHelpers.collectFields(ctx.currentObjectEngineResult.type, ctx).collectedFieldsMap
                 setRawFieldValue(ctx, fields.getValue("name"), Value.fromValue(resolved("Luke")))
@@ -252,9 +359,12 @@ class ExecuteExecutionPlanTest {
                 assertTrue(plan.collectedFieldsMap.isEmpty())
                 assertEquals(1, plan.newCollectedFieldsMaps.size)
 
-                val result = completer.executeExecutionPlan(ctx, fields, plan).await()
+                val result = executePlan(ctx, plan).await()
 
-                assertEquals(mapOf("name" to "Luke"), result.data)
+                assertEquals(emptyMap<String, Any?>(), result.data)
+                assertEquals("inner", result.work.groups.single().label)
+                assertEquals("outer", result.work.groups.single().parent!!.label)
+                assertEquals(mapOf("name" to "Luke"), result.work.tasks.single().run().data)
             }
 
         @Test
@@ -281,14 +391,15 @@ class ExecuteExecutionPlanTest {
                 assertTrue(plan.collectedFieldsMap.isEmpty())
                 assertEquals(2, plan.newCollectedFieldsMaps.size)
 
-                val completion = completer.executeExecutionPlan(ctx, fields, plan)
+                val result = executePlan(ctx, plan).await()
+                assertEquals(emptyMap<String, Any?>(), result.data)
+                val tasks = result.work.tasks.associateBy { it.deferredFragments.single().label }
+                val nameCompletion = async(start = CoroutineStart.UNDISPATCHED) { tasks.getValue("DeferName").run() }
                 name.complete(resolved("Luke"))
-                assertFalse(completion.asDeferred().isCompleted)
+                assertEquals(mapOf("name" to "Luke"), nameCompletion.await().data)
+                assertFalse(id.isCompleted)
                 id.complete(resolved("1"))
-                val result = completion.await()
-
-                assertEquals(mapOf("id" to "1", "name" to "Luke"), result.data)
-                assertEquals(listOf("id", "name"), result.data.keys.toList())
+                assertEquals(mapOf("id" to "1"), tasks.getValue("DeferID").run().data)
             }
 
         @Test
@@ -311,12 +422,15 @@ class ExecuteExecutionPlanTest {
                 setRawFieldValue(ctx, fields.getValue("id"), Value.fromValue(resolved("1")))
                 setRawFieldValue(ctx, fields.getValue("name"), Value.fromThrowable(IllegalStateException("bad")))
 
-                val result = completer.executeExecutionPlan(ctx, fields, BuildExecutionPlan(fields)).await()
+                val result = executePlan(ctx, BuildExecutionPlan(fields)).await()
 
-                assertEquals(mapOf("id" to "1", "name" to null), result.data)
-                val error = ctx.errorAccumulator.toList().single()
+                assertEquals(mapOf("id" to "1"), result.data)
+                val deferred = result.work.tasks.single().run()
+                assertEquals(mapOf("name" to null), deferred.data)
+                val error = deferred.errors.single()
                 assertEquals(listOf("hero", "name"), error.path)
                 assertTrue(error.message.contains("bad"))
+                assertTrue(ctx.errorAccumulator.isEmpty())
             }
 
         @Test
@@ -340,7 +454,7 @@ class ExecuteExecutionPlanTest {
                 setRawFieldValue(ctx, fields.getValue("nonNullName"), Value.fromValue(resolved(null)))
                 setRawFieldValue(ctx, fields.getValue("id"), Value.fromDeferred(deferred))
 
-                val completion = completer.executeExecutionPlan(ctx, fields, BuildExecutionPlan(fields))
+                val completion = executePlan(ctx, BuildExecutionPlan(fields))
 
                 assertTrue(completion.asDeferred().isCompleted)
                 assertThrows<NonNullableFieldWasNullException> { completion.await() }
@@ -363,10 +477,26 @@ class ExecuteExecutionPlanTest {
             SimpleDataFetcherExceptionHandler().handleException(parameters)
         }
 
-        val result = FieldCompleter(handler, false).completeObject(ctx).await()
+        val fieldCompleter = FieldCompleter(handler, false)
+        val completionCtx = ctx.copy(constants = ctx.constants.copy(fieldCompleter = fieldCompleter))
+        val result = fieldCompleter.completeObject(completionCtx).await()
 
-        assertEquals(mapOf(responseKey to null), result.value)
+        if (result.work.tasks.isEmpty()) {
+            assertEquals(mapOf(responseKey to null), result.value)
+        } else {
+            assertEquals(emptyMap<String, Any?>(), result.value)
+            assertEquals(mapOf(responseKey to null), result.work.tasks.single().run().data)
+        }
         return deferMap
+    }
+
+    private fun executePlan(
+        ctx: ExecutionParameters,
+        plan: ExecutionPlan,
+    ): Value<ExecutionPlanResult> {
+        val collected = FieldExecutionHelpers.collectFields(ctx.currentObjectEngineResult.type, ctx)
+        val completionCtx = ctx.withNewDeferMap(GetNewDeferMap(collected.newDeferUsages, ctx.path, ctx.deferMap))
+        return completer.executeExecutionPlan(completionCtx, plan)
     }
 
     private fun resolved(value: Any?) = FieldResolutionResult(value, emptyList(), CompositeLocalContext.empty, emptyMap(), value)
