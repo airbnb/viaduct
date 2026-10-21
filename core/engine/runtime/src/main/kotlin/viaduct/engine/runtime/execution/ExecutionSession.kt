@@ -5,6 +5,8 @@ package viaduct.engine.runtime.execution
 import graphql.ExecutionResult
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.atomic.AtomicBoolean
+import kotlin.coroutines.CoroutineContext
+import kotlin.coroutines.EmptyCoroutineContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.currentCoroutineContext
@@ -12,6 +14,7 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.consumeAsFlow
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.withContext
 import viaduct.engine.api.IncrementalExecutionResult
 import viaduct.engine.api.IncrementalExecutionResult.Update
 import viaduct.engine.api.spi.CoroutineInterop
@@ -37,6 +40,7 @@ internal class ExecutionSession {
     /** Starts execution using this request's result and cancellation handles. */
     fun start(
         coroutineInterop: CoroutineInterop,
+        context: CoroutineContext = EmptyCoroutineContext,
         execute: suspend (SupervisorScopeFactory) -> ExecutionResult,
     ) {
         val started = AtomicBoolean()
@@ -45,12 +49,14 @@ internal class ExecutionSession {
             var failure: Throwable? = null
             try {
                 var synchronousResult: ExecutionResult? = null
-                RequestScope { supervisorFactory ->
-                    val result = execute(supervisorFactory)
-                    if (result is IncrementalExecutionResult) {
-                        forwardIncrementalResult(result)
-                    } else {
-                        synchronousResult = result
+                withContext(context) {
+                    RequestScope { supervisorFactory ->
+                        val result = execute(supervisorFactory)
+                        if (result is IncrementalExecutionResult) {
+                            forwardIncrementalResult(result)
+                        } else {
+                            synchronousResult = result
+                        }
                     }
                 }
                 synchronousResult?.let { initialResult.complete(it) }

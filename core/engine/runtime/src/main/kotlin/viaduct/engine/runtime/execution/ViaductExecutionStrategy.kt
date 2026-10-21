@@ -11,11 +11,14 @@ import graphql.execution.ExecutionStrategyParameters
 import graphql.execution.NonNullableFieldWasNullException
 import graphql.language.OperationDefinition
 import java.util.concurrent.CompletableFuture
+import kotlin.coroutines.EmptyCoroutineContext
 import kotlinx.coroutines.CoroutineScope
 import viaduct.engine.api.spi.CoroutineInterop
 import viaduct.engine.runtime.EngineExecutionContextImpl
 import viaduct.engine.runtime.ObjectEngineResultImpl
+import viaduct.engine.runtime.context.DispatcherLocalContext
 import viaduct.engine.runtime.context.findLocalContextForType
+import viaduct.engine.runtime.context.getLocalContextForType
 import viaduct.engine.runtime.execution.CompletionErrors.FieldCompletionException
 import viaduct.engine.runtime.execution.CompletionErrors.NonNullableFieldWithErrorException
 
@@ -182,7 +185,8 @@ class ViaductExecutionStrategy internal constructor(
         val engineExecutionContext = executionContext.findLocalContextForType<EngineExecutionContextImpl>()
         return if (engineExecutionContext.incrementalExecutionEnabled) {
             ExecutionSession().also { session ->
-                session.start(coroutineInterop) { supervisorScopeFactory ->
+                val dispatcher = executionContext.executionInput.getLocalContextForType<DispatcherLocalContext>()?.dispatcher
+                session.start(coroutineInterop, dispatcher ?: EmptyCoroutineContext) { supervisorScopeFactory ->
                     executeInternal(executionContext, gjParameters, supervisorScopeFactory)
                 }
             }.initialResult

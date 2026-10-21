@@ -16,14 +16,17 @@ import io.kotest.matchers.collections.shouldContainExactlyInAnyOrder
 import io.kotest.matchers.types.shouldBeInstanceOf
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.ObsoleteCoroutinesApi
+import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.future.await
 import kotlinx.coroutines.launch
@@ -50,10 +53,12 @@ import viaduct.dataloader.NextTickDispatcher
 import viaduct.engine.EngineConfiguration
 import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.CheckerResultContext
+import viaduct.engine.api.CompletedEntry
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.IncrementalEntry
 import viaduct.engine.api.IncrementalExecutionResult
+import viaduct.engine.api.PendingEntry
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.instrumentation.ViaductModernGJInstrumentation
 import viaduct.engine.api.mocks.EngineTestModule
@@ -68,7 +73,9 @@ import viaduct.engine.runtime.EngineExecutionContextExtensions.incrementalExecut
 import viaduct.engine.runtime.EngineObjectDataFactory
 import viaduct.engine.runtime.EngineResultLocalContext
 import viaduct.engine.runtime.RequestScopeCancellationException
+import viaduct.engine.runtime.context.DispatcherLocalContext
 import viaduct.engine.runtime.context.getLocalContextForType
+import viaduct.engine.runtime.context.updateCompositeLocalContext
 import viaduct.engine.runtime.execution.ExecutionTestHelpers.createExecutionInput
 import viaduct.engine.runtime.execution.ExecutionTestHelpers.createSchema
 import viaduct.engine.runtime.execution.ExecutionTestHelpers.createViaductGraphQL
@@ -2073,6 +2080,50 @@ class ViaductExecutionStrategyTest {
                 } finally {
                     result?.cancel()
                     future.cancel(true)
+                }
+            }
+
+        @Test
+        fun `initial execution and deferred updates use the configured dispatcher`(): Unit =
+            runExecutionTest<Unit> {
+                Executors.newSingleThreadExecutor { Thread(it, "defer-dispatcher-test") }.asCoroutineDispatcher().use { dispatcher ->
+                    val executionThread = withContext(dispatcher) { Thread.currentThread() }
+                    val release = CompletableDeferred<Unit>()
+                    val update = UpdateExecutionResultImpl(false, emptyList(), listOf(CompletedEntry("0", emptyList())), emptyList())
+                    val graphQL = graphQL { _, _ ->
+                        assertSame(executionThread, Thread.currentThread())
+                        IncrementalExecutionResultImpl(
+                            ExecutionResult.newExecutionResult().data(mapOf("value" to 2)).build(),
+                            listOf(PendingEntry("0", ResultPath.rootPath(), "later")),
+                            true,
+                            flow {
+                                release.await()
+                                assertSame(executionThread, Thread.currentThread())
+                                emit(update)
+                            },
+                        )
+                    }
+                    val input = createExecutionInput(schema, "{ value }", flagManager = MockFlagManager.create(FlagManager.Flags.ENABLE_INCREMENTAL_EXECUTION)).let { input ->
+                        input.transform { builder ->
+                            builder.localContext(input.updateCompositeLocalContext<DispatcherLocalContext> { DispatcherLocalContext(dispatcher) })
+                        }
+                    }
+                    val future = graphQL.executeAsync(input)
+                    var result: IncrementalExecutionResult? = null
+                    try {
+                        val initial = future.await().shouldBeInstanceOf<IncrementalExecutionResult>()
+                        result = initial
+                        assertEquals(mapOf("value" to 2), initial.getData<Map<String, Any?>>())
+                        assertTrue(initial.hasNext)
+
+                        release.complete(Unit)
+
+                        assertSame(update, initial.updates.toList().single())
+                    } finally {
+                        result?.cancel()
+                        release.complete(Unit)
+                        future.cancel(true)
+                    }
                 }
             }
 
