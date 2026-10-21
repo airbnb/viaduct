@@ -14,10 +14,6 @@ import viaduct.engine.runtime2.resolution.framework.OEROccurrence
 import viaduct.engine.runtime2.resolution.framework.SharedOERContext
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 import viaduct.engine.runtime2.resolvers.GroundedFieldPublicationOccurrence
-import viaduct.engine.runtime2.resolvers.resolver01.DepthFirstFieldResolverTask
-import viaduct.engine.runtime2.resolvers.resolver01.DepthFirstOperationContext
-import viaduct.engine.runtime2.resolvers.resolver01.DepthFirstOrchestrationTask
-import viaduct.engine.runtime2.resolvers.resolver01.DepthFirstTaskDispatcher
 
 class DepthFirstReactorTest {
     @Test
@@ -35,7 +31,11 @@ class DepthFirstReactorTest {
         val sourceType = source.schemaType
         val selection = selections.merge(sourceType).byGroundKey().values.single()
         val target = ObjectEngineResult.of(sourceType, emptyMap(), mutable = true)
-        val operation = DepthFirstOperationContext(SharedOperationContext.create(world), { it }, DepthFirstTaskDispatcher())
+        val operation = DepthFirstOperationContext(
+            SharedOperationContext.create(world),
+            { it },
+            DepthFirstReactor(SharedOperationContext.create(world), { it }, source, selections),
+        )
         val occurrence = OEROccurrence(target, emptyList(), target)
         val firstResolver =
             DepthFirstFieldResolverTask.prepare(

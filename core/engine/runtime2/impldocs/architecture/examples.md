@@ -69,7 +69,7 @@ producer's output.
 
 ## Output Projection
 
-This section applies to selective producers. [Resolver01](../../src/support/kotlin/viaduct/engine/runtime2/resolvers/resolver01/Resolver.kt) and Resolver02 instead consume each resolver's complete finite returned value.
+This section applies to selective producers. [Resolver06](../../src/support/kotlin/viaduct/engine/runtime2/resolvers/resolver06/Resolver.kt) and Resolver07 instead consume each resolver's complete finite returned value.
 
 For a producer `P`:
 
@@ -402,4 +402,4 @@ Child.marker -> Root.ancestorValue -> GreatGrandchild.result
 
 This order crosses occurrence boundaries in both directions. An order computed by `SiblingDependencyLogic` for sibling keys on one OER cannot express it, and a traversal that reserves an occurrence's work before recursively deepening it cannot safely re-enter that still-open occurrence. Supporting the case requires occurrence-aware suspension or orchestration across parent and child edges, not merely a different local sibling order.
 
-Resolver01–03 and Resolver06–08 intentionally retain their simple recursive and explicit-task depth-first structures, so their input domain requires a schema with no `@parent` fields. Resolver21 has the same schema precondition. This world is outside those versions' input domains; they do not define runtime rejection behavior for it. Resolver22/23 use structured suspension with exact promises, and Resolution performs parent-aware construction-demand and successor-demand fixed-point computations, so those resolvers support this world. A more elaborate graph-aware depth-first engine could be built, but adding its re-entry machinery to these reference algorithms would defeat their purpose as compact executable comparison models.
+Resolver06–08 intentionally retain their simple queue-based depth-first structure, so their input domain requires a schema with no `@parent` fields. Resolver21 has the same schema precondition. This world is outside those versions' input domains; they do not define runtime rejection behavior for it. Resolver22/23 use structured suspension with exact promises, and Resolution performs parent-aware construction-demand and successor-demand fixed-point computations, so those resolvers support this world. A more elaborate graph-aware depth-first engine could be built, but adding its re-entry machinery to these reference algorithms would defeat their purpose as compact executable comparison models.

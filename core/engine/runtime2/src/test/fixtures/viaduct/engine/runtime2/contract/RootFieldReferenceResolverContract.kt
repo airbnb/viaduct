@@ -451,7 +451,7 @@ interface CompleteOutputRootFieldReferenceResolverContract : ResolverContract {
     }
 }
 
-/** Existing depth-first families execute a reference before scheduling sibling resolver work. */
+/** The depth-first family executes a reference before scheduling sibling resolver work. */
 interface DepthFirstRootFieldReferenceOrderingContract : ResolverContract {
     @Test
     fun `executes an embedded root reference before its containing object's sibling resolver`() {

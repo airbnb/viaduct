@@ -96,7 +96,7 @@ Duplicate claims, duplicate writers, repeated lifecycle transitions, undeclared 
 
 Provider paths are compiled and validated before semantic reasoning, but provider evaluation occurs at runtime in Resolution. Provider containment, inclusion, and branch ordering are domain restrictions; they are not themselves an execution algorithm.
 
-Substitution precedes exact-key grouping in [Resolver01–23](../../impldocs/architecture/resolver-families.md#comparison-grid). Resolution retains symbolic keys: selections with the same field and variable instances coalesce, while keys containing different variable instances remain distinct even when those variables bind to equal values.
+Substitution precedes exact-key grouping in [reference resolvers](../../impldocs/architecture/resolver-families.md#comparison-grid). Resolution retains symbolic keys: selections with the same field and variable instances coalesce, while keys containing different variable instances remain distinct even when those variables bind to equal values.
 
 ## Structured Concurrency Owns Request Lifetime
 
@@ -118,11 +118,11 @@ Permission to wait does not excuse engine-created deadlocks, missing writers, or
 
 ## Use Resolver Families To Protect The Architecture
 
-Production Resolution is the end product, but maintaining Resolver01–23 is part of its architecture. The earlier families are executable refinement and comparison models: they make the same semantic roles visible in simpler algorithms and across different execution structures, isolating semantic capability from scheduling machinery before those concerns meet in production. Shared relationships deliberately constrain how Resolution decomposes and encapsulates its concerns.
+Production Resolution is the end product, but maintaining the numbered reference implementations is part of its architecture. The earlier families are executable refinement and comparison models: they make the same semantic roles visible in simpler algorithms and across different execution structures, isolating semantic capability from scheduling machinery before those concerns meet in production. Shared relationships deliberately constrain how Resolution decomposes and encapsulates its concerns.
 
 A shared interface may enforce an architectural role without a current polymorphic consumer. `SharedFieldResolverTask` preserves the relationship between a field-resolver task and its publication occurrence for this reason. Judge such an abstraction by the architectural invariant it exposes as well as by its runtime consumers.
 
-The resolver families also define the implementation ladder for new features: establish the compact semantics in Resolver01–03, expose explicit work in Resolver06–08, establish coroutine ownership in Resolver21–23, and only then complete the feature in production Resolution. [Resolver families and alignment](resolver-families.md) defines the maintained boundaries, comparison grid, naming policy, and exceptions to that progression.
+The resolver families also define the implementation ladder for new features: establish the compact semantics and explicit work in Resolver06–08, establish coroutine ownership in Resolver21–23, and only then complete the feature in production Resolution. [Resolver families and alignment](resolver-families.md) defines the maintained boundaries, comparison grid, naming policy, and exceptions to that progression.
 
 Resolver10 remains a negative design lesson rather than a maintained family. Readiness rescanning, persistent late-demand acceptance, and complete-output retention add machinery that can conceal an incomplete producing application. Do not recreate that architecture to solve a local Resolution problem.
 

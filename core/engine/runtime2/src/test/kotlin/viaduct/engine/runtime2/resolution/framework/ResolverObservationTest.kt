@@ -44,12 +44,6 @@ import viaduct.engine.runtime2.resolution.ResolutionDispatcherResource
 import viaduct.engine.runtime2.resolution.resolve
 import viaduct.engine.runtime2.resolution.resolve as resolve26
 import viaduct.engine.runtime2.resolution.startResolve
-import viaduct.engine.runtime2.resolvers.resolver01.resolve
-import viaduct.engine.runtime2.resolvers.resolver01.resolve as resolve01
-import viaduct.engine.runtime2.resolvers.resolver02.resolve
-import viaduct.engine.runtime2.resolvers.resolver02.resolve as resolve02
-import viaduct.engine.runtime2.resolvers.resolver03.resolve
-import viaduct.engine.runtime2.resolvers.resolver03.resolve as resolve03
 import viaduct.engine.runtime2.resolvers.resolver06.resolve
 import viaduct.engine.runtime2.resolvers.resolver06.resolve as resolve06
 import viaduct.engine.runtime2.resolvers.resolver07.resolve
@@ -73,9 +67,6 @@ class ResolverObservationTest : ResolutionDispatcherResource {
     )
 
     private val depthFirstSubjects = listOf(
-        Subject("Resolver01", false, false) { resolve01(it) },
-        Subject("Resolver02", false, true) { resolve02(it) },
-        Subject("Resolver03", true, true) { resolve03(it) },
         Subject("Resolver06", false, false) { resolve06(it) },
         Subject("Resolver07", false, true) { resolve07(it) },
         Subject("Resolver08", true, true) { resolve08(it) },

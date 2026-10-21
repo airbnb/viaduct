@@ -1,4 +1,4 @@
-package viaduct.engine.runtime2.resolvers.resolver01
+package viaduct.engine.runtime2.resolvers.resolver06
 
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.runtime2.model.Arguments
@@ -23,21 +23,20 @@ import viaduct.engine.runtime2.resolution.framework.descendants
 import viaduct.engine.runtime2.resolvers.GroundedFieldPublicationOccurrence
 import viaduct.engine.runtime2.resolvers.closeOrchestrationConstructionDemand
 
-/** The executable task kinds accepted by either depth-first dispatcher. */
+/** The executable task kinds accepted by the depth-first reactor. */
 internal sealed interface DepthFirstTask {
     /** Scheduling depth: the containing path for fields, and the object's own path for orchestration. */
     val path: List<PathComponent>
 
     /**
      * Number of associated Query-OER boundaries between this task's OER and its independently
-     * rooted execution. This has the same meaning for Resolver01-03 and Resolver06-08; carrying it
-     * through the recursive family keeps their task model aligned, while the reactor family uses it
-     * to run Query producers before synchronous consumers in the containing scope.
+     * rooted execution. The reactor runs Query producers before synchronous consumers in the
+     * containing scope.
      */
     val queryOERDepth: Int
 }
 
-/** Prepared grounded demand and active-field dispatch for Resolver01-03 and Resolver06-08. */
+/** Prepared grounded demand and active-field dispatch for Resolver06-08. */
 internal class DepthFirstOrchestrationTask private constructor(
     override val operation: DepthFirstOperationContext,
     override val objectOER: SharedOERContext,
@@ -47,8 +46,8 @@ internal class DepthFirstOrchestrationTask private constructor(
 ) : SharedOrchestrationTask<DepthFirstOperationContext>, DepthFirstTask {
     override val path get() = objectOER.occurrence.path
 
-    /** Resolves the associated Query OER first, then its owner-local containing OER. */
-    fun run(resolveFringe: () -> Unit = {}) {
+    /** Queues the associated Query OER before its owner-local containing OER. */
+    fun run() {
         operation.resolverObserver.onQueryOERPrepared(
             queryOER = queryOER,
             owningOccurrence = objectOER.occurrence,
@@ -72,7 +71,6 @@ internal class DepthFirstOrchestrationTask private constructor(
             runOer(
                 oer = oer,
                 querySide = oer === queryOER,
-                resolveFringe = resolveFringe,
             )
         }
     }
@@ -80,7 +78,6 @@ internal class DepthFirstOrchestrationTask private constructor(
     private fun runOer(
         oer: SharedOERContext,
         querySide: Boolean,
-        resolveFringe: () -> Unit,
     ) {
         val oerOccurrence = oer.occurrence
         val oerSource = oer.source
@@ -125,7 +122,6 @@ internal class DepthFirstOrchestrationTask private constructor(
                     ),
                 queryOERDepth = fieldQueryOERDepth,
             )
-            resolveFringe()
         }
         references.forEach { (key, reference) -> dispatch(key, reference) }
         SiblingDependencyLogic(operation, oerOccurrence, includeQueryFragments = querySide)

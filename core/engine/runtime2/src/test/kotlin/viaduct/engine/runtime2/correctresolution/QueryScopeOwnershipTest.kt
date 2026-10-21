@@ -25,7 +25,7 @@ import viaduct.engine.runtime2.model.testing.objectOf
 import viaduct.engine.runtime2.resolution.framework.OEROccurrence
 import viaduct.engine.runtime2.resolution.framework.ResolverInvocationObservation
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
-import viaduct.engine.runtime2.resolvers.resolver03.resolve
+import viaduct.engine.runtime2.resolvers.resolver08.resolve
 
 /** A malformed scope association must not bless cross-occurrence sharing and omitted work. */
 class QueryScopeOwnershipTest {

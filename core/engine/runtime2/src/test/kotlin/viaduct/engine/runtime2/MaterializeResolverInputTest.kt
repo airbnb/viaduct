@@ -31,7 +31,7 @@ import viaduct.engine.runtime2.resolution.framework.CycleTask
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 import viaduct.engine.runtime2.resolution.framework.fieldResolverCycleTask
 import viaduct.engine.runtime2.resolution.materializeResolverInput as materializeResolutionInput
-import viaduct.engine.runtime2.resolvers.materializeResolverInput as materializeResolver01To23Input
+import viaduct.engine.runtime2.resolvers.materializeResolverInput as materializeGroundedInput
 
 class MaterializeResolverInputTest {
     @Test
@@ -57,10 +57,10 @@ class MaterializeResolverInputTest {
         }
 
     @Test
-    fun `Resolver01-23 input materialization is driven by checker slot presence`() =
+    fun `numbered reference resolver input materialization is driven by checker slot presence`() =
         runBlocking {
             assertSlotDrivenMaterialization { result, operation, selections, reader ->
-                result.materializeResolver01To23Input(
+                result.materializeGroundedInput(
                     operation = operation,
                     cycleChecker = CycleCheckState.createNOP(),
                     selections = selections,

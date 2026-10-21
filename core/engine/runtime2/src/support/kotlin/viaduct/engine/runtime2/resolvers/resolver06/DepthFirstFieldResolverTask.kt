@@ -1,6 +1,6 @@
 @file:Suppress("ForbiddenImport")
 
-package viaduct.engine.runtime2.resolvers.resolver01
+package viaduct.engine.runtime2.resolvers.resolver06
 
 import kotlinx.coroutines.runBlocking
 import viaduct.engine.api.EngineObjectData
@@ -40,7 +40,7 @@ import viaduct.engine.runtime2.resolvers.prepareRootFieldReferenceInvocation
 import viaduct.engine.runtime2.resolvers.variablesProviderFailed
 
 /**
- * Invokes and publishes one field for Resolver01-03 and Resolver06-08, retaining the grounded
+ * Invokes and publishes one field for Resolver06-08, retaining the grounded
  * publication context supplied to its dispatcher.
  */
 internal class DepthFirstFieldResolverTask private constructor(
@@ -63,7 +63,7 @@ internal class DepthFirstFieldResolverTask private constructor(
                 activateOnDispatch = true,
             )
 
-        /** Claims the publication synchronously before either execution or reactor enqueue. */
+        /** Claims the publication synchronously before reactor enqueue. */
         fun prepare(
             publication: GroundedFieldPublicationOccurrence<DepthFirstOperationContext>,
             queryOERDepth: Int,
@@ -262,8 +262,12 @@ internal class DepthFirstFieldResolverTask private constructor(
             return engineObjectDataOf(operation.world.schema.requireQueryTypeDef())
         }
         val queryResult =
-            DepthFirstResolve(operation, operation.complete)
-                .resolve(queryFragment.constructionSelections, queryFragment.resolverOccurrenceId)
+            DepthFirstReactor(
+                operation = operation,
+                complete = operation.complete,
+                source = operation.world.resolverRegistry.createRootQueryInput(),
+                selections = queryFragment.constructionSelections,
+            ).resolve(queryFragment.resolverOccurrenceId)
         return queryResult.materializeInput(
             resolver.instantiateQueryMaterializationSelections(
                 queryFragment.resolverOccurrenceId,

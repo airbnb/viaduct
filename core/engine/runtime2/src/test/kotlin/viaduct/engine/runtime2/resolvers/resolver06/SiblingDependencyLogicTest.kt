@@ -1,4 +1,4 @@
-package viaduct.engine.runtime2.resolvers.resolver01
+package viaduct.engine.runtime2.resolvers.resolver06
 
 import kotlin.test.Test
 import kotlin.test.assertContains

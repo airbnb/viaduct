@@ -3,7 +3,6 @@ package viaduct.engine.runtime2.resolvers.resolver06
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
-import viaduct.engine.runtime2.resolvers.resolver01.DepthFirstTask
 
 /**
  * Resolves [selections] through a depth-first work queue when resolver object fragments are empty.

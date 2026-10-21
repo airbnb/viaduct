@@ -36,8 +36,8 @@ import viaduct.engine.runtime2.resolution.framework.SharedOERContext
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 import viaduct.engine.runtime2.resolution.framework.fieldResolverCycleTask
 import viaduct.engine.runtime2.resolution.framework.materializeResult
-import viaduct.engine.runtime2.resolvers.resolver01.DepthFirstResolve
-import viaduct.engine.runtime2.resolvers.resolver02.resolve
+import viaduct.engine.runtime2.resolvers.resolver06.DepthFirstReactor
+import viaduct.engine.runtime2.resolvers.resolver07.resolve
 
 /** The final ownership gate must distinguish ordinary owners from justified reference targets. */
 class IndependentRoleAdversarialReviewTest {
@@ -99,10 +99,12 @@ class IndependentRoleAdversarialReviewTest {
             val owner = ResolverOccurrenceId.at(result, path)
             val resolver = world.assumptions.resolverRegistry.resolver(field)
             val fragments = resolver.instantiateFragmentsAt(result, path)
-            val queryResult = DepthFirstResolve(operation) { it }.resolve(
-                fragments.queryFragment.constructionSelections,
-                queryFragmentOwner = owner,
-            )
+            val queryResult = DepthFirstReactor(
+                operation = operation,
+                complete = { it },
+                source = operation.world.resolverRegistry.createRootQueryInput(),
+                selections = fragments.queryFragment.constructionSelections,
+            ).resolve(queryFragmentOwner = owner)
             val value = runBlocking {
                 val queryValue = queryResult.materializeResult(
                     operation,

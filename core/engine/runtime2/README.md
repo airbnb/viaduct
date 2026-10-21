@@ -19,10 +19,10 @@ Major exclusions from the current Engine API integration include batching, mutat
 
 ## Resolver Families
 
-The numbered implementations under [`src/support/kotlin/viaduct/engine/runtime2/resolvers`](src/support/kotlin/viaduct/engine/runtime2/resolvers) are maintained development references, not production engine choices or superseded historical snapshots. The recursive depth-first family is resolver01–03, the explicit-task family is resolver06–08, and the coroutine family is resolver21–23; these are not a continuous sequence of versions. The [comparison grid](impldocs/architecture/resolver-families.md#comparison-grid) links each implementation and explains its capabilities. They serve two purposes:
+The numbered implementations under [`src/support/kotlin/viaduct/engine/runtime2/resolvers`](src/support/kotlin/viaduct/engine/runtime2/resolvers) are maintained development references, not production engine choices or superseded historical snapshots. The queue-based depth-first family is resolver06–08 and the coroutine family is resolver21–23; these are not a continuous sequence of versions. The [comparison grid](impldocs/architecture/resolver-families.md#comparison-grid) links each implementation and explains its capabilities. They serve two purposes:
 
 1. They impose architectural integrity on production Resolution by expressing the same semantic roles and boundaries across increasingly sophisticated execution structures while keeping essential differences explicit.
-2. They provide a feature-development ladder: establish a feature in Resolver01–03, extend it through Resolver06–08, carry it into Resolver21–23, and then implement it in production Resolution.
+2. They provide a feature-development ladder: establish a feature in Resolver06–08, carry it into Resolver21–23, and then implement it in production Resolution.
 
 See [Resolver families and alignment](impldocs/architecture/resolver-families.md) for the family comparison and maintenance rules.
 
@@ -46,7 +46,7 @@ Architecture:
 - [Execution model](impldocs/architecture/execution-model.md) describes the source-world execution model represented by Runtime2.
 - [Model](impldocs/architecture/model.md) defines semantic carriers, construction rules, equality, and factory-established invariants.
 - [Resolution](impldocs/architecture/resolution.md) describes the production resolution algorithm and its protocols.
-- [Resolver families](impldocs/architecture/resolver-families.md) explains the maintained Resolver01–23 families and their relationship to production Resolution.
+- [Resolver families](impldocs/architecture/resolver-families.md) explains the maintained resolver families and their relationship to production Resolution.
 - [Access checks](impldocs/architecture/access-checks.md) describes access-check semantics and integration.
 - [Examples](impldocs/architecture/examples.md) illustrates demand closure, output projection, expansion, and ordering constraints.
 

@@ -15,7 +15,7 @@ import viaduct.engine.runtime2.resolution.framework.SharedTaskDispatcher
 import viaduct.graphql.schema.ViaductSchema
 
 /**
- * Immutable inputs to one grounded field or list-element publication in Resolver01-23.
+ * Immutable inputs to one grounded field or list-element publication in the numbered reference resolvers.
  * Delegates the shared operation contract while retaining the concrete [operation] type;
  * family-specific dispatch remains available through `operation.dispatcher`.
  */

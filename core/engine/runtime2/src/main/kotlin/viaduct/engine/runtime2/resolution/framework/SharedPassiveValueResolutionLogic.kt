@@ -85,7 +85,7 @@ internal abstract class SharedPassiveValueResolutionLogic<
     /**
      * Dispatches executable reference work discovered during passive list resolution. Resolution uses
      * its field-task protocol, including runtime binding support; Resolver21-23 use grounded field tasks.
-     * Resolver01-03 execute synchronously, while Resolver06-08 queue tasks at their publication depth.
+     * Resolver06-08 queue tasks at their publication depth.
      * [selection] describes the containing field with this reference's construction demand. Each implementation
      * claims and publishes [cell] at this occurrence.
      */

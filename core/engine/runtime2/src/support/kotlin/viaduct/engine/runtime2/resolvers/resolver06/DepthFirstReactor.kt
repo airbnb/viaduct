@@ -6,28 +6,28 @@ import viaduct.engine.runtime2.model.EngineResultCell
 import viaduct.engine.runtime2.model.MutationObjectEngineResult
 import viaduct.engine.runtime2.model.MutationSelectionForest
 import viaduct.engine.runtime2.model.ObjectEngineResult
+import viaduct.engine.runtime2.model.ResolverOccurrenceId
 import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.model.schemaType
 import viaduct.engine.runtime2.resolution.framework.Demand
 import viaduct.engine.runtime2.resolution.framework.MutationNamespaceOccurrence
 import viaduct.engine.runtime2.resolution.framework.OEROccurrence
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
+import viaduct.engine.runtime2.resolution.framework.SharedTaskDispatcher
 import viaduct.engine.runtime2.resolvers.GroundedFieldPublicationOccurrence
-import viaduct.engine.runtime2.resolvers.resolver01.DepthFirstDispatcher
-import viaduct.engine.runtime2.resolvers.resolver01.DepthFirstFieldResolverTask
-import viaduct.engine.runtime2.resolvers.resolver01.DepthFirstMutationTask
-import viaduct.engine.runtime2.resolvers.resolver01.DepthFirstOperationContext
-import viaduct.engine.runtime2.resolvers.resolver01.DepthFirstOrchestrationTask
-import viaduct.engine.runtime2.resolvers.resolver01.DepthFirstTask
 
-/** Queues the same tasks as Resolver01-03, using depth, task kind, and insertion order for readiness. */
+/** Schedules depth-first work by Query-OER depth, publication depth, task kind, and insertion order. */
 internal class DepthFirstReactor(
     operation: SharedOperationContext<*>,
     complete: (SelectionForest) -> SelectionForest,
     private val source: EngineObjectData.Sync,
     private val selections: SelectionForest,
     private val onTaskStarted: (DepthFirstTask) -> Unit = {},
-) : DepthFirstDispatcher {
+) : SharedTaskDispatcher<
+        DepthFirstOrchestrationTask,
+        GroundedFieldPublicationOccurrence<DepthFirstOperationContext>,
+        DepthFirstFieldResolverTask,
+    > {
     private val operation = DepthFirstOperationContext(operation, complete, this)
     private val tasks = PriorityQueue(depthFirstTaskComparator)
     private val dispatchedTasks = mutableSetOf<DepthFirstTask>()
@@ -38,7 +38,7 @@ internal class DepthFirstReactor(
     private var started = false
 
     /** Constructs this reactor's result. May be called exactly once. */
-    fun resolve(): ObjectEngineResult {
+    fun resolve(queryFragmentOwner: ResolverOccurrenceId? = null): ObjectEngineResult {
         check(!started) { "DepthFirstReactor.resolve() may only be called once" }
         started = true
         val result: ObjectEngineResult
@@ -56,6 +56,7 @@ internal class DepthFirstReactor(
                 Demand.checked(selections),
             )
         }
+        queryFragmentOwner?.let { operation.resolverObserver.onIndependentQueryFragmentPrepared(it, result) }
         drainTasks()
         check(children.isEmpty() && finished == dispatchedTasks) { "Reactor returned with unfinished tasks" }
         dispatchedTasks.filterIsInstance<DepthFirstOrchestrationTask>().forEach { task ->
@@ -111,7 +112,7 @@ internal class DepthFirstReactor(
         }
     }
 
-    override fun dispatchFieldResolver(
+    fun dispatchFieldResolver(
         publication: GroundedFieldPublicationOccurrence<DepthFirstOperationContext>,
         queryOERDepth: Int,
     ) {
@@ -120,6 +121,8 @@ internal class DepthFirstReactor(
         dispatchedTasks += task
         enqueue(task)
     }
+
+    override fun dispatchFieldResolver(publication: GroundedFieldPublicationOccurrence<DepthFirstOperationContext>) = dispatchFieldResolver(publication, queryOERDepth = 0)
 
     override suspend fun dispatchMutationField(
         publication: DepthFirstFieldResolverTask,
@@ -130,7 +133,7 @@ internal class DepthFirstReactor(
         drainTasks()
     }
 
-    override fun mutationNamespacePrepared(occurrence: OEROccurrence) {
+    fun mutationNamespacePrepared(occurrence: OEROccurrence) {
         check(orchestrated.add(occurrence)) { "Mutation namespace orchestrated twice" }
         children.remove(occurrence)?.forEach(::enqueue)
     }

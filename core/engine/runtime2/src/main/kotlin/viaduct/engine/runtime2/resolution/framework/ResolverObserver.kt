@@ -38,7 +38,7 @@ interface ResolverObserver {
      * Records one shared resolver Query OER after joint closure and before field dispatch.
      * [queryOERDepth] is one for the Query OER associated with the independently rooted top-level
      * object, and increases when an object discovered inside a Query OER owns another Query OER.
-     * Depth is tracked by the depth-first families for scheduler validation and is otherwise null.
+     * Depth is tracked by the depth-first family for scheduler validation and is otherwise null.
      */
     fun onQueryOERPrepared(
         queryOER: SharedOERContext,

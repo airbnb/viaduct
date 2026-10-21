@@ -19,7 +19,7 @@ import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.testing.fragmentFrom
 import viaduct.engine.runtime2.model.testing.objectOf
-import viaduct.engine.runtime2.resolvers.resolver01.resolve as resolveObservedFields
+import viaduct.engine.runtime2.resolvers.resolver06.resolve as resolveObservedFields
 
 class ResolverCoverageAdversarialTest {
     @Test
@@ -133,7 +133,7 @@ class ResolverCoverageAdversarialTest {
         }
 
     @Test
-    fun `Resolver03 witness profile activates polymorphic passive deepening`() {
+    fun `Construction witness profile activates polymorphic passive deepening`() {
         val config =
             Config.default +
                 (SchemaObjectCount to 4..6) +
@@ -169,7 +169,7 @@ class ResolverCoverageAdversarialTest {
 
         warnCoverageGap(
             passivePolymorphicDeepenings > 0,
-            "Resolver03 witness profile generated no passive abstract continuation with concrete branches",
+            "Construction witness profile generated no passive abstract continuation with concrete branches",
         )
     }
 }

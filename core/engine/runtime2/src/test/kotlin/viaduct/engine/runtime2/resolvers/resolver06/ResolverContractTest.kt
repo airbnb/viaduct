@@ -10,14 +10,18 @@ import viaduct.engine.runtime2.contract.EmptyObjectFragmentResolverContract
 import viaduct.engine.runtime2.contract.FrozenObjectResolutionContract
 import viaduct.engine.runtime2.contract.NodeResolverContract
 import viaduct.engine.runtime2.contract.QueryFragmentVariablesResolverContract
+import viaduct.engine.runtime2.contract.ResolverResolutionObservation
 import viaduct.engine.runtime2.contract.ResolverTaskObservation
 import viaduct.engine.runtime2.contract.RootFieldReferenceResolverContract
 import viaduct.engine.runtime2.contract.SometimesPassiveResolverContract
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.SelectionForest
+import viaduct.engine.runtime2.model.registry.Assumptions
+import viaduct.engine.runtime2.resolution.framework.CheckerObserver
+import viaduct.engine.runtime2.resolution.framework.ResolverObserver
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 
-class ResolverContractTest :
+open class ResolverContractTest :
     EmptyObjectFragmentResolverContract,
     QueryFragmentVariablesResolverContract,
     NodeResolverContract,
@@ -46,5 +50,28 @@ class ResolverContractTest :
             onTaskStarted = { task ->
                 taskObserver(task.toContractObservation())
             },
+        )
+}
+
+class PrecomputedResolverContractTest : ResolverContractTest() {
+    override fun observeResolution(
+        world: Assumptions,
+        root: EngineObjectData.Sync,
+        selections: SelectionForest,
+        resolverObserver: ResolverObserver,
+        checkerObserver: CheckerObserver,
+    ): ResolverResolutionObservation =
+        super.observeResolution(
+            world =
+                Assumptions.of(
+                    schema = world.schema,
+                    resolverRegistry = world.resolverRegistry,
+                    selectiveResolvers = world.selectiveResolvers,
+                    usePrecomputedConstructionDemand = true,
+                ),
+            root = root,
+            selections = selections,
+            resolverObserver = resolverObserver,
+            checkerObserver = checkerObserver,
         )
 }

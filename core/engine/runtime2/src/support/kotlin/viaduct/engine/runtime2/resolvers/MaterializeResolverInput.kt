@@ -9,7 +9,7 @@ import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 import viaduct.engine.runtime2.resolution.framework.materializeResult
 
 /**
- * Materializes a Resolver01-23 runtime object or declared Query-fragment input.
+ * Materializes a numbered reference resolver's runtime object or declared Query-fragment input.
  *
  * Delegates to [materializeResult]: selected cells and value promises must be installed, while
  * values and selection bindings may still be pending. The caller's [operation] and [cycleChecker]

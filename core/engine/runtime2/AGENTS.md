@@ -16,7 +16,7 @@ Use `runtime2` and [`runtime`](../runtime) to distinguish the two engine impleme
 
 Production code belongs in `src/main`. The numbered reference implementations in [`src/support/kotlin/viaduct/engine/runtime2/resolvers`](src/support/kotlin/viaduct/engine/runtime2/resolvers), correctness machinery, generators, and neutral development support belong in the unpublished `src/support` source set. Reusable JUnit contracts belong in `src/test/fixtures`, concrete tests in `src/test/kotlin`, and benchmarks in `src/jmh`.
 
-The numbered implementations are maintained architectural controls as well as a feature ladder, not production engine choices or a continuous sequence of versions. For a semantic feature, establish the compact behavior in the recursive depth-first family (resolver01–03), carry it through the explicit-task family (resolver06–08), then the coroutine family (resolver21–23), and finally production Resolution. Read the [family comparison and source links](impldocs/architecture/resolver-families.md#comparison-grid) before changing decomposition, shared framework boundaries, or family naming.
+The numbered implementations are maintained architectural controls as well as a feature ladder, not production engine choices or a continuous sequence of versions. For a semantic feature, establish the compact behavior in the queue-based depth-first family (resolver06–08), then the coroutine family (resolver21–23), and finally production Resolution. Read the [family comparison and source links](impldocs/architecture/resolver-families.md#comparison-grid) before changing decomposition, shared framework boundaries, or family naming.
 
 ## Integration And Testing
 

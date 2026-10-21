@@ -31,7 +31,7 @@ import viaduct.engine.runtime2.resolution.framework.Demand
 import viaduct.engine.runtime2.resolution.framework.OEROccurrence
 import viaduct.engine.runtime2.resolution.framework.OrchestrationConstructionDemand
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
-import viaduct.engine.runtime2.resolvers.resolver01.SiblingDependencyLogic
+import viaduct.engine.runtime2.resolvers.resolver06.SiblingDependencyLogic
 
 class ConstructionDemandClosureTest {
     @Test

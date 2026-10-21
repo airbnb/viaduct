@@ -5,7 +5,7 @@ package viaduct.engine.runtime2.resolution.framework
  * A task supplies its context through [publication]; it is not itself a publication occurrence.
  * The concrete publication type preserves access to its operation and occurrence metadata.
  *
- * Resolution is the intended end product. The maintained Resolver01-23 implementations help preserve
+ * Resolution is the intended end product. The maintained numbered reference resolver implementations help preserve
  * its architectural integrity by exercising the decomposition and encapsulation of resolver concerns
  * across simpler algorithms and different execution structures. This interface keeps the central
  * field-task role and its typed publication ownership explicit across those implementations.

@@ -1,4 +1,4 @@
-package viaduct.engine.runtime2.resolvers.resolver01
+package viaduct.engine.runtime2.resolvers.resolver06
 
 import kotlin.test.assertFailsWith
 import org.junit.jupiter.api.Test
@@ -33,14 +33,18 @@ class DepthFirstOrchestrationTaskTest {
                 mutable = true,
             )
 
+        val selections = worldFixture.schemas.fragmentFrom("fragment ignored on Query { __typename }").subselections
+
         assertFailsWith<IllegalArgumentException> {
             DepthFirstOrchestrationTask.create(
-                operation = DepthFirstOperationContext(SharedOperationContext.create(world), { it }, DepthFirstTaskDispatcher()),
+                operation = DepthFirstOperationContext(
+                    SharedOperationContext.create(world),
+                    { it },
+                    DepthFirstReactor(SharedOperationContext.create(world), { it }, source, selections),
+                ),
                 occurrence = OEROccurrence(target, emptyList(), target),
                 source = source,
-                constructionDemand =
-                    worldFixture.schemas.fragmentFrom("fragment ignored on Query { __typename }")
-                        .subselections,
+                constructionDemand = selections,
                 queryOERDepth = 0,
             )
         }

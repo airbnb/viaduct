@@ -1,6 +1,6 @@
 # Access-Check Semantics
 
-This document defines Runtime2's access-check semantics. It specifies the obligations shared by the coroutine resolver families and identifies the deliberate capability boundaries of the depth-first families.
+This document defines Runtime2's access-check semantics. It specifies the obligations shared by the coroutine resolver families and identifies the deliberate capability boundaries of the depth-first family.
 
 The examples below specify the schema, value resolvers, checker registrations, required selections, and returned values. Nothing about a field's ownership, value, or access policy is left implicit.
 
@@ -37,11 +37,11 @@ Selecting a passive checked field must still create enough demand to run its che
 
 ### Resolver-Family Boundary
 
-Access checks are implemented only by the coroutine resolver families. [Resolver01–08](../../impldocs/architecture/resolver-families.md#comparison-grid) could execute the restricted case of a checker with no object- or Query-rooted required selections, but that capability would not extend to the intended semantics. Checker-required selections introduce unchecked value-demand edges, while any value resolver reached through such an edge evaluates its own dependencies as ordinary checked demand. Those edges can cross object occurrences and their associated Query OERs and need not fit the fixed local dependency order used by the recursive and queued depth-first families.
+Access checks are implemented only by the coroutine resolver families. [Resolver06–08](../../impldocs/architecture/resolver-families.md#comparison-grid) could execute the restricted case of a checker with no object- or Query-rooted required selections, but that capability would not extend to the intended semantics. Checker-required selections introduce unchecked value-demand edges, while any value resolver reached through such an edge evaluates its own dependencies as ordinary checked demand. Those edges can cross object occurrences and their associated Query OERs and need not fit the fixed local dependency order used by the queued depth-first family.
 
-Supporting that general readiness graph in Resolver01–08 would require occurrence-aware suspension, promise readiness, or graph re-entry—the machinery that distinguishes the coroutine families. Runtime2 therefore keeps Resolver01–08 value-only rather than exposing a dead-end no-RSS access-check subset. Resolver21–23 are the maintained comparison models for the access-check design, and production Resolution implements the complete Runtime2 semantics. This is an intentional architecture boundary, not a claim that every restricted checker program is impossible to execute depth-first.
+Supporting that general readiness graph in Resolver06–08 would require occurrence-aware suspension, promise readiness, or graph re-entry—the machinery that distinguishes the coroutine families. Runtime2 therefore keeps Resolver06–08 value-only rather than exposing a dead-end no-RSS access-check subset. Resolver21–23 are the maintained comparison models for the access-check design, and production Resolution implements the complete Runtime2 semantics. This is an intentional architecture boundary, not a claim that every restricted checker program is impossible to execute depth-first.
 
-Resolver01–08 require a checker-free resolver registry as an input precondition: `fieldChecker(field)` returns null for every field in their reasoning world. Shared construction-demand closure may consult the registry directly; absent checker registrations contribute no checker demand, so no checker-capability flag or filtered registry view is needed. This defines the supported input domain; it does not require runtime validation of the precondition.
+Resolver06–08 require a checker-free resolver registry as an input precondition: `fieldChecker(field)` returns null for every field in their reasoning world. Shared construction-demand closure may consult the registry directly; absent checker registrations contribute no checker demand, so no checker-capability flag or filtered registry view is needed. This defines the supported input domain; it does not require runtime validation of the precondition.
 
 ## Type Checks And Object Occurrences
 

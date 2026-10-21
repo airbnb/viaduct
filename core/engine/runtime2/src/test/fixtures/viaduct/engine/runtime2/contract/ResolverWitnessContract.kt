@@ -60,7 +60,7 @@ interface ResolverWitnessContract : ResolverContract {
                         witness.applications.all { application ->
                             application.suppliedDemandFingerprint != null
                         },
-                        "Every Resolver03 application must capture its supplied demand",
+                        "Every selective resolver application must capture its supplied demand",
                     )
                     val unrelatedApplications =
                         witness.unrelatedApplications(

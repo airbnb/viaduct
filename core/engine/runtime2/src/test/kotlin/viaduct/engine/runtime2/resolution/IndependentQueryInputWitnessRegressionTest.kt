@@ -25,13 +25,13 @@ import viaduct.engine.runtime2.model.testing.emptyFragmentOf
 import viaduct.engine.runtime2.model.testing.fragmentFrom
 import viaduct.engine.runtime2.resolution.framework.ResolverInvocationObservation
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
-import viaduct.engine.runtime2.resolvers.resolver02.resolve as resolve02
+import viaduct.engine.runtime2.resolvers.resolver07.resolve as resolve07
 import viaduct.engine.runtime2.resolvers.resolver23.resolve as resolve23
 
 /** Independent reference inputs must not disappear into global Query-root deduplication. */
 class IndependentQueryInputWitnessRegressionTest : ResolutionDispatcherResource {
     @Test
-    fun `DFS witness rejects shared Query input across independent references`() = verify(2)
+    fun `DFS witness rejects shared Query input across independent references`() = verify(7)
 
     @Test
     fun `grounded coroutine witness rejects shared Query input across independent references`() = verify(23)
@@ -41,7 +41,7 @@ class IndependentQueryInputWitnessRegressionTest : ResolutionDispatcherResource 
 
     private fun verify(resolver: Int) {
         val world = TestWorld.fromSDL(
-            selectiveResolvers = resolver != 2,
+            selectiveResolvers = resolver != 7,
             schemaSDL = "type Query { first: Int!, second: Int!, target: Int!, source: Int! }",
             fieldResolvers = { schema ->
                 val empty = schema.loweredSchema.emptyFragmentOf("Query")
@@ -80,7 +80,7 @@ class IndependentQueryInputWitnessRegressionTest : ResolutionDispatcherResource 
         val operation = SharedOperationContext.create(world.assumptions, resolverObserver = observer)
         val selections = world.schemas.fragmentFrom("fragment Test on Query { first second }").subselections
         val result = when (resolver) {
-            2 -> operation.resolve02(selections)
+            7 -> operation.resolve07(selections)
             23 -> operation.resolve23(selections)
             else -> operation.resolveWithTestDispatcher(selections)
         }

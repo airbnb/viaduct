@@ -34,7 +34,7 @@ import viaduct.graphql.schema.ViaductSchema
  * Supports ground keys and contextually grounded symbolic keys. Lookup prefers the exact symbolic
  * key and falls back to a grounded stored key; materialization never rekeys cells.
  *
- * Used by Resolver01-23's input-materialization wrapper, nested `ctx.query` execution, and
+ * Used by the numbered reference resolvers' input-materialization wrapper, nested `ctx.query` execution, and
  * correctness replay across all resolver families. Replay reconstructs resolver inputs from
  * existing results to re-evaluate deterministic resolver relations; those results can retain
  * symbolic key identities even after their bindings are resolved.

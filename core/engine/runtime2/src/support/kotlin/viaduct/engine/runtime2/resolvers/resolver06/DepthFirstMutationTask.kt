@@ -1,6 +1,6 @@
 @file:Suppress("ForbiddenImport")
 
-package viaduct.engine.runtime2.resolvers.resolver01
+package viaduct.engine.runtime2.resolvers.resolver06
 
 import kotlinx.coroutines.runBlocking
 import viaduct.engine.runtime2.resolution.framework.MutationNamespaceOccurrence

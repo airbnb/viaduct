@@ -456,8 +456,6 @@ tasks.register<JavaExec>("propertyTestProfile") {
 
 val stressResolverNames =
     listOf(
-        "resolver03",
-        "resolver08",
         "resolver23",
         "resolution",
     )
@@ -684,7 +682,7 @@ val resolverPropertyProfiles =
         "resolution-root-field-references" to
             "root field reference focused randomized worlds resolve correctly",
         "feature-interaction" to "generated full feature interactions resolve correctly",
-        "resolver03-construction-witness" to
+        "construction-witness" to
             "generated construction witness is exact minimal and permutation invariant",
     )
 val resolverPropertyReplayClass = providers.gradleProperty("resolverPropertyClass")

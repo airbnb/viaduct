@@ -30,9 +30,6 @@ import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.toEngineOutputData
 import viaduct.engine.runtime2.resolution.ResolutionDispatcherResource
 import viaduct.engine.runtime2.resolution.resolve as resolveProduction
-import viaduct.engine.runtime2.resolvers.resolver01.resolve as resolve01
-import viaduct.engine.runtime2.resolvers.resolver02.resolve as resolve02
-import viaduct.engine.runtime2.resolvers.resolver03.resolve as resolve03
 import viaduct.engine.runtime2.resolvers.resolver06.resolve as resolve06
 import viaduct.engine.runtime2.resolvers.resolver07.resolve as resolve07
 import viaduct.engine.runtime2.resolvers.resolver08.resolve as resolve08
@@ -51,9 +48,6 @@ class ScalarResolutionTest : ResolutionDispatcherResource {
     )
 
     private val subjects = listOf(
-        Subject("Resolver01", false) { resolve01(it) },
-        Subject("Resolver02", false) { resolve02(it) },
-        Subject("Resolver03", true) { resolve03(it) },
         Subject("Resolver06", false) { resolve06(it) },
         Subject("Resolver07", false) { resolve07(it) },
         Subject("Resolver08", true) { resolve08(it) },

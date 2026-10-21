@@ -1,4 +1,4 @@
-package viaduct.engine.runtime2.resolvers.resolver01
+package viaduct.engine.runtime2.resolvers.resolver06
 
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.runtime2.model.EngineResultCell
@@ -17,7 +17,7 @@ import viaduct.graphql.schema.ViaductSchema
 /**
  * Grounded selection collection and reference dispatch for the shared passive traversal. Each
  * instance carries the producing task's Query-OER depth so passively discovered work inherits the
- * same depth in both recursive and reactor-based resolvers.
+ * same scheduling depth in the reactor.
  */
 internal class DepthFirstPassiveValueResolutionLogic(
     operation: DepthFirstOperationContext,

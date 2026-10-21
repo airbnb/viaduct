@@ -23,9 +23,6 @@ import viaduct.engine.runtime2.model.requireType
 import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.fragmentFrom
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
-import viaduct.engine.runtime2.resolvers.resolver01.resolve as resolve01
-import viaduct.engine.runtime2.resolvers.resolver02.resolve as resolve02
-import viaduct.engine.runtime2.resolvers.resolver03.resolve as resolve03
 import viaduct.engine.runtime2.resolvers.resolver06.resolve as resolve06
 import viaduct.engine.runtime2.resolvers.resolver07.resolve as resolve07
 import viaduct.engine.runtime2.resolvers.resolver08.resolve as resolve08
@@ -65,9 +62,6 @@ class MutationResolutionTest : ResolutionDispatcherResource {
     )
 
     private val families = listOf(
-        Family("01", false) { op, selections -> op.resolve01(selections) },
-        Family("02", false) { op, selections -> op.resolve02(selections) },
-        Family("03", true) { op, selections -> op.resolve03(selections) },
         Family("06", false) { op, selections -> op.resolve06(selections) },
         Family("07", false) { op, selections -> op.resolve07(selections) },
         Family("08", true) { op, selections -> op.resolve08(selections) },

@@ -5,10 +5,6 @@ import viaduct.engine.runtime2.model.ListEngineResult
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.PathComponent
 import viaduct.engine.runtime2.model.groundKey
-import viaduct.engine.runtime2.resolvers.resolver01.DepthFirstFieldResolverTask
-import viaduct.engine.runtime2.resolvers.resolver01.DepthFirstMutationTask
-import viaduct.engine.runtime2.resolvers.resolver01.DepthFirstOrchestrationTask
-import viaduct.engine.runtime2.resolvers.resolver01.DepthFirstTask
 
 internal fun DepthFirstTask.toContractObservation(): ResolverTaskObservation =
     when (this) {

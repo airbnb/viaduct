@@ -35,8 +35,7 @@ interface SharedFieldPublicationOccurrence<
 }
 
 /**
- * Schedules the two resolver task kinds. Implementations own coroutine launch, queue ordering, or
- * recursive execution; task contexts retain the inputs needed by the corresponding task bodies.
+ * Schedules the resolver task kinds. Implementations own coroutine launch or queue ordering; task contexts retain the inputs needed by the corresponding task bodies.
  * [O] preserves the concrete orchestration-task type, [F] the field-publication occurrence type,
  * and [M] the prepared mutation-field type.
  */
