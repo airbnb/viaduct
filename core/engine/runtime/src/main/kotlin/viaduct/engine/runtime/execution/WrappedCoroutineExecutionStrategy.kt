@@ -9,9 +9,13 @@ import graphql.execution.ExecutionStrategy
 import graphql.execution.ExecutionStrategyParameters
 import graphql.execution.SimpleDataFetcherExceptionHandler
 import java.util.concurrent.CompletableFuture
+import kotlin.coroutines.EmptyCoroutineContext
 import kotlinx.coroutines.future.await
 import kotlinx.coroutines.supervisorScope
 import viaduct.engine.api.spi.CoroutineInterop
+import viaduct.engine.runtime.EngineExecutionContextImpl
+import viaduct.engine.runtime.context.DispatcherLocalContext
+import viaduct.engine.runtime.context.getLocalContextForType
 
 /**
  * WrappedCoroutineExecutionStrategy executes the passed-in executionStrategy within the scope of a coroutine. This
@@ -31,6 +35,15 @@ class WrappedCoroutineExecutionStrategy(
         parameters: ExecutionStrategyParameters
     ): CompletableFuture<ExecutionResult> {
         if (parameters.parent == null) {
+            val engineExecutionContext = executionContext.executionInput.getLocalContextForType<EngineExecutionContextImpl>()
+            if (engineExecutionContext?.incrementalExecutionEnabled == true) {
+                return ExecutionSession().also { session ->
+                    val dispatcher = executionContext.executionInput.getLocalContextForType<DispatcherLocalContext>()?.dispatcher
+                    session.start(coroutineInterop, dispatcher ?: EmptyCoroutineContext) {
+                        executionStrategy.execute(executionContext, parameters).await()
+                    }
+                }.initialResult
+            }
             return coroutineInterop.scopedFuture {
                 supervisorScope {
                     executionContext.executeWithDispatcher {
