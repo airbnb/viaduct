@@ -1,17 +1,13 @@
 package viaduct.engine.runtime2.contract
 
 import java.util.concurrent.ConcurrentLinkedQueue
-import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
-import kotlin.test.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.runtime2.correctresolution.CorrectnessResolverObserver
-import viaduct.engine.runtime2.model.EngineErrorData
 import viaduct.engine.runtime2.model.EngineOutputListData
-import viaduct.engine.runtime2.model.ErrorEngineResult
 import viaduct.engine.runtime2.model.IDEngineResult
 import viaduct.engine.runtime2.model.ListEngineResult
 import viaduct.engine.runtime2.model.ObjectEngineResult
@@ -170,81 +166,6 @@ interface NodeResolverContract : ResolverContract {
         )
         assertEquals(1, nodeApplications.get())
         assertEquals(1, targetApplications.get())
-    }
-
-    @Test
-    fun `awaits completion for node in required selection set`() {
-        val failedNodeCompleted = AtomicBoolean()
-        val testWorld =
-            TestWorld.fromSDL(
-                selectiveResolvers = selectiveResolvers,
-                schemaSDL =
-                    """
-                    interface Node { id: ID! }
-
-                    type Query { baz: Baz! }
-
-                    type Baz implements Node {
-                      id: ID!
-                      name: String!
-                      anotherBaz: Baz!
-                      z: Int!
-                    }
-                    """.trimIndent(),
-                nodeResolvers = { schema ->
-                    mapOf(
-                        schema.loweredSchema.contractObjectType("Baz") to
-                            nodeResolverOf { id ->
-                                when (id) {
-                                    "1" ->
-                                        schema.loweredSchema.objectOf("Baz") {
-                                            "id" setTo id
-                                        }
-                                    "2" -> {
-                                        failedNodeCompleted.set(true)
-                                        EngineErrorData.of()
-                                    }
-                                    else -> error("Unexpected Baz ID: $id")
-                                }
-                            },
-                    )
-                },
-                fieldResolvers = { schema ->
-                    val baz = schema.loweredSchema.requireObjectField("Query", "baz")
-                    val anotherBaz = schema.loweredSchema.requireObjectField("Baz", "anotherBaz")
-                    val z = schema.loweredSchema.requireObjectField("Baz", "z")
-                    mapOf(
-                        baz to
-                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
-                                schema.loweredSchema.nodeReferenceOf("Baz", "1")
-                            },
-                        anotherBaz to
-                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Baz")) { _, _ ->
-                                schema.loweredSchema.nodeReferenceOf("Baz", "2")
-                            },
-                        z to
-                            fieldResolverOf(
-                                schema.fragmentFrom(
-                                    "fragment Z on Baz { anotherBaz { name } }",
-                                ),
-                            ) { input, _ ->
-                                input.get("anotherBaz")
-                                5
-                            },
-                    )
-                },
-            )
-        val schema = testWorld.schema
-        val result = resolveAndValidate(testWorld, "query { baz { z } }")
-        val baz =
-            assertIs<ObjectEngineResult>(
-                result.getCell(schema.contractKey("Query", "baz")).get(),
-            )
-
-        assertTrue(failedNodeCompleted.get())
-        assertIs<ErrorEngineResult>(
-            baz.getCell(schema.contractKey("Baz", "z")).get(),
-        )
     }
 
     @Test

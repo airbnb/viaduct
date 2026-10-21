@@ -147,6 +147,9 @@ class FieldValueResolver private constructor(
     val queryFragment: ObjectSelectionForest =
         fragmentTemplates.queryFragmentTemplate.constructionSelections().merge(queryType)
 
+    internal val objectParentDemand = ParentConstructionDemandTemplate()
+    internal val queryParentDemand = ParentConstructionDemandTemplate()
+
     private val objectFragmentVariableTemplates = fragmentTemplates.objectFragmentTemplate.usedVariables()
     private val queryFragmentVariableTemplates = fragmentTemplates.queryFragmentTemplate.usedVariables()
 

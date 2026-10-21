@@ -31,7 +31,6 @@ import viaduct.engine.runtime2.model.testing.emptyFragmentOf
 import viaduct.engine.runtime2.model.testing.fragmentFrom
 import viaduct.engine.runtime2.model.testing.objectOf
 import viaduct.engine.runtime2.resolution.framework.CycleCheckState
-import viaduct.engine.runtime2.resolution.framework.ResolverReadCycleException
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 import viaduct.engine.runtime2.schema.operationSelectionsFrom
 import viaduct.graphql.schema.ViaductSchema
@@ -41,52 +40,50 @@ interface GroundedTypeCheckerLifecycleContract {
     val coroutineResolverSubject: CoroutineResolverTestSubject
 
     @Test
-    fun `type checker and checked parent input cycle terminates on the OER slot`() {
-        val worldFixture = TestWorld.fromSDL(
-            selectiveResolvers = coroutineResolverSubject.selectiveResolvers,
-            schemaSDL = """
+    fun `type checker and checked parent input cycles are rejected during registry construction`() {
+        val failure = assertFailsWith<IllegalArgumentException> {
+            TestWorld.fromSDL(
+                selectiveResolvers = coroutineResolverSubject.selectiveResolvers,
+                schemaSDL = """
                 directive @parent on FIELD_DEFINITION
                 type Query { root: Root! }
                 type Root { value: Int! child: Child! }
                 type Child { parent: Root! @parent derived: Int! }
-            """.trimIndent(),
-            fieldResolvers = { schema ->
-                mapOf(
-                    schema.loweredSchema.requireObjectField("Query", "root") to fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
-                        schema.loweredSchema.objectOf("Root") {
-                            "value" setTo 1
-                            "child" setTo schema.loweredSchema.objectOf("Child")
-                        }
-                    },
-                    schema.loweredSchema.requireObjectField("Child", "derived") to fieldResolverOf(schema.fragmentFrom("fragment Input on Child { parent { value } }")) { input, _ ->
-                        (input.get("parent") as viaduct.engine.api.EngineObjectData.Sync).get("value")
-                    },
-                )
-            },
-            typeCheckers = { schema ->
-                val root = schema.loweredSchema.requireType("Root") as ViaductSchema.Object
-                mapOf(
-                    root to TypeCheckerResolver.of(
-                        root,
-                        schema.loweredSchema.requireQueryTypeDef(),
-                        mapOf(
-                            "input" to ResolverFragmentTemplates(
-                                schema.fragmentFrom("fragment Input on Root { child { derived } }").materializeSelections,
-                                materializeSelectionForestOf(),
+                """.trimIndent(),
+                fieldResolvers = { schema ->
+                    mapOf(
+                        schema.loweredSchema.requireObjectField("Query", "root") to fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
+                            schema.loweredSchema.objectOf("Root") {
+                                "value" setTo 1
+                                "child" setTo schema.loweredSchema.objectOf("Child")
+                            }
+                        },
+                        schema.loweredSchema.requireObjectField("Child", "derived") to fieldResolverOf(schema.fragmentFrom("fragment Input on Child { parent { value } }")) { input, _ ->
+                            (input.get("parent") as viaduct.engine.api.EngineObjectData.Sync).get("value")
+                        },
+                    )
+                },
+                typeCheckers = { schema ->
+                    val root = schema.loweredSchema.requireType("Root") as ViaductSchema.Object
+                    mapOf(
+                        root to TypeCheckerResolver.of(
+                            root,
+                            schema.loweredSchema.requireQueryTypeDef(),
+                            mapOf(
+                                "input" to ResolverFragmentTemplates(
+                                    schema.fragmentFrom("fragment Input on Root { child { derived } }").materializeSelections,
+                                    materializeSelectionForestOf(),
+                                )
                             )
-                        )
-                    ) { inputs, _ ->
-                        (inputs.getValue("input").objectValue.get("child") as viaduct.engine.api.EngineObjectData.Sync).get("derived")
-                        CheckerResult.Success
-                    }
-                )
-            },
-        )
-        val world = worldFixture.assumptions
-        val result = coroutineResolverSubject.resolve(SharedOperationContext.create(world), worldFixture.schemas.operationSelectionsFrom("{ root { value } }"))
-        val root = assertIs<ObjectEngineResult>(result.getCell(ObjectEngineResult.GroundKey.of(world.schema.requireObjectField("Query", "root"), emptyMap())).value.get())
-        val failure = assertFailsWith<Exception> { root.typeCheckerResult.get() }
-        assertTrue(generateSequence(failure as Throwable?) { it.cause }.any { it is ResolverReadCycleException })
+                        ) { inputs, _ ->
+                            (inputs.getValue("input").objectValue.get("child") as viaduct.engine.api.EngineObjectData.Sync).get("derived")
+                            CheckerResult.Success
+                        }
+                    )
+                },
+            )
+        }
+        assertTrue(failure.message.orEmpty().contains("demand cycle"))
     }
 
     @Test

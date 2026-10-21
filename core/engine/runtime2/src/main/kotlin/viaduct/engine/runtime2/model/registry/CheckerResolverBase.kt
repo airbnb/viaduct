@@ -87,6 +87,21 @@ abstract class CheckerResolverBase<out T : ResolverTarget> internal constructor(
     private val loweredQueryFragment =
         loweredNamedTemplates.combineForResolution(ProviderFragment.QUERY, queryType)
 
+    internal val constructionDemandTemplate: CheckerConstructionDemandTemplate? =
+        if (
+            when (target) {
+                is ResolverTarget.FieldCheckerTarget -> variables.values.all { it is VariableDefinition.FromArgument }
+                is ResolverTarget.TypeCheckerTarget -> variables.isEmpty()
+                else -> false
+            }
+        ) {
+            val (staticObject, dynamicObject) = objectFragment.partitionVariableDemand()
+            val (staticQuery, dynamicQuery) = queryFragment.partitionVariableDemand()
+            CheckerConstructionDemandTemplate(staticObject, dynamicObject, staticQuery, dynamicQuery)
+        } else {
+            null
+        }
+
     /** The lowered variable definitions shared by the combined resolution fragments. */
     val variables: Map<Arguments.Variable, VariableDefinition>
         get() = loweredObjectFragment.variables

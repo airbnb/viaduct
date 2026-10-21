@@ -228,6 +228,38 @@ private fun SelectionForest.mergeSlowPath(type: ViaductSchema.Object): ObjectSel
     return ObjectSelectionForestImpl(type, builtSelections)
 }
 
+/** Merges already-specialized forests by exact object key without repeating type selection. */
+fun Iterable<ObjectSelectionForest>.flatMerge(type: ViaductSchema.Object): ObjectSelectionForest {
+    val possibleTypes = setOf(type)
+    val selectionsByKey = linkedMapOf<ObjectEngineResult.ObjectKey, Any?>()
+    forEach { forest ->
+        require(forest.type == type) { "Flat merge requires forests specialized to ${type.name}" }
+        forest.byKey().forEach { (key, selection) ->
+            val previous = selectionsByKey[key]
+            if (previous == null) {
+                selectionsByKey[key] = normalizedSingletonSelection(key, possibleTypes, selection)
+            } else {
+                val builder =
+                    if (previous is ObjectSelectionBuilder) {
+                        previous
+                    } else {
+                        val previousSelection = previous as ObjectSelection
+                        ObjectSelectionBuilder(previousSelection.key, possibleTypes, previousSelection, guardChildren = false)
+                            .also { selectionsByKey[key] = it }
+                    }
+                builder.add(selection)
+            }
+        }
+    }
+    selectionsByKey.entries.forEach { entry ->
+        val builder = entry.value
+        if (builder is ObjectSelectionBuilder) entry.setValue(builder.build())
+    }
+    @Suppress("UNCHECKED_CAST")
+    val builtSelections = selectionsByKey as Map<ObjectEngineResult.ObjectKey, ObjectSelection>
+    return ObjectSelectionForestImpl(type, builtSelections)
+}
+
 private fun normalizedSingletonSelection(
     key: ObjectEngineResult.ObjectKey,
     possibleTypes: Set<ViaductSchema.Object>,

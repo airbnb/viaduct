@@ -76,8 +76,8 @@ class RegistrySuccessorDemandCacheTest {
     }
 
     @Test
-    fun `cycle-cut type checker and resolver expansions are not retained across demand orderings`() {
-        val fixture = cyclicFixture()
+    fun `acyclic type checker and resolver expansions are reusable across demand orderings`() {
+        val fixture = recursiveFixture()
         val world = fixture.assumptions
         val uncached = uncachedWorld(world)
         val cache = (world.resolverRegistry as FixedSuccessorDemandCacheOwner).fixedSuccessorDemandCache
@@ -93,13 +93,13 @@ class RegistrySuccessorDemandCacheTest {
                 demands[index].successorDemandFromConstructionDemand(fixture.newAssumptions(), setOf(item)).shape() shouldBe expected[index]
             }
         }
-        assertNull(cache.get(SuccessorBoundary(field = value, kind = SuccessorBoundaryKind.RESOLVER)))
-        assertNull(cache.get(SuccessorBoundary(type = item, kind = SuccessorBoundaryKind.TYPE_CHECKER)))
+        assertNotNull(cache.get(SuccessorBoundary(field = value, kind = SuccessorBoundaryKind.RESOLVER)))
+        assertNotNull(cache.get(SuccessorBoundary(type = item, kind = SuccessorBoundaryKind.TYPE_CHECKER)))
     }
 
     @Test
     fun `concurrent cold computations produce the same demand as independent local analyses`() {
-        val fixture = cyclicFixture()
+        val fixture = recursiveFixture()
         val item = fixture.schema.requireType("Item") as ViaductSchema.Object
         val inputs = listOf("value", "child { marker }", "child { value }").map { fields ->
             fixture.schemas.fragmentFrom("fragment F on Item { $fields }").subselections
@@ -137,7 +137,7 @@ private fun acyclicFixture(): TestWorld =
         """.trimIndent(),
     )
 
-private fun cyclicFixture(): TestWorld =
+private fun recursiveFixture(): TestWorld =
     TestWorld.fromDSL(
         """
         extend type Query { item: Item @resolver(result: {}) }
@@ -156,7 +156,7 @@ private fun cyclicFixture(): TestWorld =
                     schemas.loweredSchema.requireQueryTypeDef(),
                     mapOf(
                         "raw" to ResolverFragmentTemplates(
-                            schemas.fragmentFrom("fragment F on Item { value raw }").materializeSelections,
+                            schemas.fragmentFrom("fragment F on Item { marker raw }").materializeSelections,
                             materializeSelectionForestOf(),
                         ),
                     ),

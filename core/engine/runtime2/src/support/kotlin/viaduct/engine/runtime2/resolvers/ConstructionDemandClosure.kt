@@ -60,6 +60,9 @@ internal fun EngineObjectData.Sync.closeOrchestrationConstructionDemand(
     require(queryOccurrence.root !== objectOccurrence.root) {
         "Resolver Query demand must not reuse the containing operation root"
     }
+    if (operation.world.usePrecomputedConstructionDemand) {
+        return closePrecomputedConstructionDemand(operation, objectOccurrence, queryOccurrence, initialDemand)
+    }
     // `accumulatedDemand` will become all construction demand rooted at this OER pair.
     var accumulatedDemand = initialDemand
 
@@ -207,7 +210,7 @@ private fun Demand<ObjectSelectionForest>.typeCheckerInputDemand(
     )
 }
 
-private fun OrchestrationConstructionDemand<SelectionForest>.groundWithLiftedParentDemand(
+internal fun OrchestrationConstructionDemand<SelectionForest>.groundWithLiftedParentDemand(
     operation: SharedOperationContext<*>,
     objectType: ViaductSchema.Object,
 ): OrchestrationConstructionDemand<ObjectSelectionForest> {

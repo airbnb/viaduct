@@ -58,17 +58,25 @@ class MutationResolutionTest : ResolutionDispatcherResource {
     private data class Family(
         val name: String,
         val selective: Boolean,
+        val precomputed: Boolean = false,
+        val supportsObjectFragments: Boolean = true,
         val resolve: (SharedOperationContext<*>, SelectionForest) -> ObjectEngineResult,
     )
 
     private val families = listOf(
-        Family("06", false) { op, selections -> op.resolve06(selections) },
+        Family("06", false, supportsObjectFragments = false) { op, selections -> op.resolve06(selections) },
         Family("07", false) { op, selections -> op.resolve07(selections) },
         Family("08", true) { op, selections -> op.resolve08(selections) },
-        Family("21", false) { op, selections -> op.resolve21(selections) },
+        Family("21", false, supportsObjectFragments = false) { op, selections -> op.resolve21(selections) },
         Family("22", false) { op, selections -> op.resolve22(selections) },
         Family("23", true) { op, selections -> op.resolve23(selections) },
         Family("Resolution", true) { op, selections -> op.resolveWithTestDispatcher(selections) },
+        Family("06 precomputed", false, precomputed = true, supportsObjectFragments = false) { op, selections -> op.resolve06(selections) },
+        Family("07 precomputed", false, precomputed = true) { op, selections -> op.resolve07(selections) },
+        Family("08 precomputed", true, precomputed = true) { op, selections -> op.resolve08(selections) },
+        Family("21 precomputed", false, precomputed = true, supportsObjectFragments = false) { op, selections -> op.resolve21(selections) },
+        Family("22 precomputed", false, precomputed = true) { op, selections -> op.resolve22(selections) },
+        Family("23 precomputed", true, precomputed = true) { op, selections -> op.resolve23(selections) },
     )
 
     @TestFactory
@@ -128,7 +136,7 @@ class MutationResolutionTest : ResolutionDispatcherResource {
                     }
                     """.trimIndent(),
                 )
-                val result = family.resolve(SharedOperationContext.create(fixture.assumptions), selections)
+                val result = family.resolve(SharedOperationContext.create(fixture.newAssumptions(usePrecomputedConstructionDemand = family.precomputed)), selections)
                 assertInstanceOf(MutationObjectEngineResult::class.java, result)
                 assertEquals((1..5).flatMap { listOf("start:$it", "end:$it") }, events)
                 assertEquals(
@@ -169,11 +177,92 @@ class MutationResolutionTest : ResolutionDispatcherResource {
                     selectiveResolvers = family.selective,
                 )
                 val result = family.resolve(
-                    SharedOperationContext.create(fixture.assumptions),
+                    SharedOperationContext.create(fixture.newAssumptions(usePrecomputedConstructionDemand = family.precomputed)),
                     fixture.schemas.operationSelectionsFrom("mutation { first: update { observed } second: update { observed } }"),
                 )
                 assertEquals(listOf(1, 2), observed)
                 assertEquals(mapOf("first" to mapOf("observed" to 1), "second" to mapOf("observed" to 2)), result.completedData())
+            }
+        }
+
+    @TestFactory
+    fun `mutation payload object dependencies finish before the next effect and respect supplied fields`(): List<DynamicTest> =
+        families.filter { it.supportsObjectFragments }.map { family ->
+            DynamicTest.dynamicTest(family.name) {
+                val count = AtomicInteger()
+                val events = mutableListOf<String>()
+                val providerReads = mutableListOf<Int>()
+                val queryReads = mutableListOf<Int>()
+                val fixture = TestWorld.fromSDL(
+                    """
+                    type Query { current: Int }
+                    type Mutation { update(supplied: Boolean!): Payload }
+                    type Payload { result: Int middle: Int seed(value: Int): Int snapshot: Int }
+                    """.trimIndent(),
+                    fieldResolvers = { schemas ->
+                        val schema = schemas.loweredSchema
+                        val payloadType = schema.requireType("Payload") as ViaductSchema.Object
+                        mapOf(
+                            schema.requireObjectField("Mutation", "update") to fieldResolverOf(schema.emptyFragmentOf("Mutation")) { _, arguments ->
+                                val value = count.incrementAndGet()
+                                events += "mutation:$value"
+                                yield()
+                                engineObjectDataOf(
+                                    payloadType,
+                                    buildMap {
+                                        put("snapshot", value)
+                                        if (arguments.fieldValues.getValue("supplied") as Boolean) put("middle", 100 + value)
+                                    },
+                                )
+                            },
+                            schema.requireObjectField("Payload", "result") to fieldResolverOf(
+                                schemas.fragmentFrom("fragment ResultInput on Payload { middle }"),
+                            ) { input, _ ->
+                                events += "payload:${count.get()}"
+                                input.get("middle")
+                            },
+                            schema.requireObjectField("Payload", "middle") to fieldResolverOf(
+                                schemas.fragmentFrom("fragment MiddleInput on Payload { seed(value: ${'$'}provided) }"),
+                                schemas.fragmentFrom("fragment MiddleQuery on Query { current }"),
+                            ) { input, queryValue, _ ->
+                                (input.get("seed") as Int) + (queryValue.get("current") as Int)
+                            }.withVariablesProvider(setOf("provided")) {
+                                val value = count.get()
+                                yield()
+                                providerReads += value
+                                mapOf("provided" to 10 * value)
+                            },
+                            schema.requireObjectField("Payload", "seed") to fieldResolverOf(
+                                schemas.fragmentFrom("fragment SeedInput on Payload { snapshot }"),
+                            ) { input, arguments ->
+                                (input.get("snapshot") as Int) + (arguments.fieldValues.getValue("value") as Int)
+                            },
+                            schema.requireObjectField("Query", "current") to fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
+                                yield()
+                                count.get().also { queryReads += it }
+                            },
+                        )
+                    },
+                    selectiveResolvers = family.selective,
+                )
+                val result = family.resolve(
+                    SharedOperationContext.create(fixture.newAssumptions(usePrecomputedConstructionDemand = family.precomputed)),
+                    fixture.schemas.operationSelectionsFrom(
+                        "mutation { first: update(supplied: false) { result } second: update(supplied: true) { result } third: update(supplied: false) { result } }",
+                    ),
+                )
+
+                assertEquals((1..3).flatMap { listOf("mutation:$it", "payload:$it") }, events)
+                assertEquals(listOf(1, 3), providerReads)
+                assertEquals(listOf(1, 3), queryReads)
+                assertEquals(
+                    mapOf(
+                        "first" to mapOf("snapshot" to 1, "seed" to 11, "middle" to 12, "result" to 12),
+                        "second" to mapOf("snapshot" to 2, "middle" to 102, "result" to 102),
+                        "third" to mapOf("snapshot" to 3, "seed" to 33, "middle" to 36, "result" to 36),
+                    ),
+                    result.completedData(),
+                )
             }
         }
 
@@ -203,7 +292,7 @@ class MutationResolutionTest : ResolutionDispatcherResource {
                         selectiveResolvers = family.selective,
                     )
                     val result = family.resolve(
-                        SharedOperationContext.create(fixture.assumptions),
+                        SharedOperationContext.create(fixture.newAssumptions(usePrecomputedConstructionDemand = family.precomputed)),
                         fixture.schemas.operationSelectionsFrom("mutation { group { first: update second: update } last: update }"),
                     )
                     assertEquals(3, calls.get())

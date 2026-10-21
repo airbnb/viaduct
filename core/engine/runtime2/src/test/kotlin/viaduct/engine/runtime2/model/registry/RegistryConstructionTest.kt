@@ -11,6 +11,8 @@ import kotlin.test.assertIs
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 import kotlinx.coroutines.runBlocking
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.EnumSource
 import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.runtime2.bootstrap.fromObjectField
@@ -27,6 +29,7 @@ import viaduct.engine.runtime2.model.RootFieldReferenceData
 import viaduct.engine.runtime2.model.emptyFragmentOf
 import viaduct.engine.runtime2.model.engineObjectDataOf
 import viaduct.engine.runtime2.model.materializeSelectionForestOf
+import viaduct.engine.runtime2.model.merge
 import viaduct.engine.runtime2.model.nodeReferenceIdentityOrNull
 import viaduct.engine.runtime2.model.nodeRootFieldReferenceOf
 import viaduct.engine.runtime2.model.requireObjectField
@@ -42,6 +45,53 @@ import viaduct.engine.runtime2.schema.selectionsFrom
 import viaduct.graphql.schema.ViaductSchema
 
 class RegistryConstructionTest {
+    @ParameterizedTest
+    @EnumSource(ProviderFragment::class)
+    fun `shared Query dependencies retain direct inputs and shared links`(root: ProviderFragment) {
+        val schemas = schemas(
+            "type Query { item: Item ${(0..28).joinToString(" ") { "f$it: Int" }} } type Item { value: Int }",
+        )
+        val schema = schemas.loweredSchema
+        val query = schema.requireQueryTypeDef()
+        val item = schema.requireObjectField("Query", "item")
+        val empty = schema.emptyFragmentOf("Query")
+        val resolvers = buildMap<ViaductSchema.Field, FieldResolverDefinition> {
+            put(item, fieldResolverOf(empty) { _, _ -> engineObjectDataOf(schema.requireType("Item") as ViaductSchema.Object, mapOf("value" to 1)) })
+            for (index in 0..28) {
+                val field = schema.requireObjectField("Query", "f$index")
+                val selections = if (index < 2) "item { value }" else "f${index - 1} f${index - 2}"
+                val input = fragment(schemas, "fragment Input on Query { $selections }", field)
+                put(
+                    field,
+                    fieldResolverOf(
+                        objectFragment = if (root == ProviderFragment.OBJECT) input else empty,
+                        queryFragment = if (root == ProviderFragment.QUERY) input else empty,
+                    ) { _, _, _ -> 1 },
+                )
+            }
+        }
+
+        val registry = resolverRegistryOf(schemas, emptyMap(), resolvers, variableProviders = emptyMap())
+
+        for (index in 0..28) {
+            val template = requireNotNull(registry.precomputedConstructionDemand(schema.requireObjectField("Query", "f$index")))
+            val input = requireNotNull(template.queryRootDemand)
+            val direct = input.reusableDemand
+            val fields = if (index < 2) setOf("item") else setOf("f${index - 1}", "f${index - 2}")
+            assertEquals(fields, direct.keys().map { it.field.name }.toSet())
+            assertEquals(direct.groundKeys(), input.dependencies.keys)
+            input.dependencies.forEach { (key, dependency) ->
+                assertSame(registry.precomputedConstructionDemand(key.field), dependency)
+            }
+            if (index < 2) {
+                val children = direct.byKey().values.single { it.key.field == item }.subselections
+                assertEquals(1, children.size)
+                assertEquals(setOf("value"), children.merge(schema.requireType("Item") as ViaductSchema.Object).keys().map { it.field.name }.toSet())
+            }
+            assertSame(query, direct.type)
+        }
+    }
+
     @Test
     fun `rejects erroneous object and Query fragment arguments before assembly`() {
         val schemas = schemas("type Query { result(seed: Int): Int echo(value: Int): Int dependency(value: Int): Int box: Box } type Box { dependency(value: Int): Int }")
@@ -338,6 +388,131 @@ class RegistryConstructionTest {
             }
 
         assertTrue(failure.message.orEmpty().contains("demand cycle"))
+    }
+
+    @Test
+    fun `rejects potential field checker cycles in both fragment roots even under static exclusion`() {
+        val schemas = schemas("type Query { checked: Int dependency: Int }")
+        val schema = schemas.loweredSchema
+        val checked = schema.requireObjectField("Query", "checked")
+        val dependency = schema.requireObjectField("Query", "dependency")
+        val empty = schema.emptyFragmentOf("Query")
+        for (root in ProviderFragment.entries) {
+            for (guard in listOf("", " @skip(if: true)")) {
+                val inputs = fragment(schemas, "fragment Input on Query { dependency$guard }", checked).materializeSelections
+                val checker = FieldCheckerResolver.of(
+                    checked,
+                    schema.requireQueryTypeDef(),
+                    fragmentTemplates = mapOf(
+                        "input" to ResolverFragmentTemplates(
+                            objectFragmentTemplate = if (root == ProviderFragment.OBJECT) inputs else materializeSelectionForestOf(),
+                            queryFragmentTemplate = if (root == ProviderFragment.QUERY) inputs else materializeSelectionForestOf(),
+                        ),
+                    ),
+                ) { _, _, _ -> CheckerResult.Success }
+
+                val failure = assertFailsWith<IllegalArgumentException>("root=$root guard=$guard") {
+                    resolverRegistryOf(
+                        schema = schemas,
+                        nodeResolvers = emptyMap(),
+                        fieldResolvers = mapOf(
+                            checked to fieldResolverOf(empty) { _, _ -> 1 },
+                            dependency to fieldResolverOf(fragment(schemas, "fragment Input on Query { checked }", dependency)) { _, _ -> 2 },
+                        ),
+                        fieldCheckers = mapOf(checked to checker),
+                        variableProviders = emptyMap(),
+                    )
+                }
+                assertTrue(failure.message.orEmpty().contains("demand cycle"))
+            }
+        }
+    }
+
+    @Test
+    fun `rejects a type checker Query dependency cycle through an abstract return type`() {
+        val schemas = schemas(
+            "type Query { item: Item dependency: Int } interface Item { value: Int } type Leaf implements Item { value: Int }",
+        )
+        val schema = schemas.loweredSchema
+        val item = schema.requireObjectField("Query", "item")
+        val dependency = schema.requireObjectField("Query", "dependency")
+        val leaf = schema.requireType("Leaf") as ViaductSchema.Object
+        val checker = TypeCheckerResolver.of(
+            leaf,
+            schema.requireQueryTypeDef(),
+            fragmentTemplates = mapOf(
+                "input" to ResolverFragmentTemplates(
+                    objectFragmentTemplate = materializeSelectionForestOf(),
+                    queryFragmentTemplate = fragment(schemas, "fragment Input on Query { dependency }", dependency).materializeSelections,
+                ),
+            ),
+        ) { _, _ -> CheckerResult.Success }
+        val failure = assertFailsWith<IllegalArgumentException> {
+            resolverRegistryOf(
+                schema = schemas,
+                nodeResolvers = emptyMap(),
+                fieldResolvers = mapOf(
+                    item to fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> null },
+                    dependency to fieldResolverOf(fragment(schemas, "fragment Input on Query { item { value } }", dependency)) { _, _ -> 1 },
+                ),
+                typeCheckers = mapOf(leaf to checker),
+                variableProviders = emptyMap(),
+            )
+        }
+        assertTrue(failure.message.orEmpty().contains("demand cycle"))
+        assertTrue(failure.message.orEmpty().contains("type-checker:Leaf"))
+    }
+
+    @Test
+    fun `checker raw self reads and mutually raw checker inputs are not dependency cycles`() {
+        val schemas = schemas("type Query { first: Int second: Int }")
+        val schema = schemas.loweredSchema
+        val fields = listOf("first", "second").map { schema.requireObjectField("Query", it) }
+        val registry = resolverRegistryOf(
+            schema = schemas,
+            nodeResolvers = emptyMap(),
+            fieldResolvers = fields.associateWith { fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> 1 } },
+            fieldCheckers = fields.associateWith { field ->
+                FieldCheckerResolver.of(
+                    field,
+                    schema.requireQueryTypeDef(),
+                    fragmentTemplates = mapOf(
+                        "input" to ResolverFragmentTemplates(
+                            objectFragmentTemplate = fragment(schemas, "fragment Input on Query { first second }", field).materializeSelections,
+                            queryFragmentTemplate = materializeSelectionForestOf(),
+                        ),
+                    ),
+                ) { _, _, _ -> CheckerResult.Success }
+            },
+            variableProviders = emptyMap(),
+        )
+        fields.forEach { assertTrue(registry.fieldChecker(it) != null) }
+    }
+
+    @Test
+    fun `recursive schema and raw type checker reads are allowed`() {
+        val schemas = schemas("type Query { node: Item } type Item { next: Item value: Int }")
+        val schema = schemas.loweredSchema
+        val node = schema.requireObjectField("Query", "node")
+        val item = schema.requireType("Item") as ViaductSchema.Object
+        val checker = TypeCheckerResolver.of(
+            item,
+            schema.requireQueryTypeDef(),
+            fragmentTemplates = mapOf(
+                "input" to ResolverFragmentTemplates(
+                    objectFragmentTemplate = fragment(schemas, "fragment Input on Item { next { value } }", node).materializeSelections,
+                    queryFragmentTemplate = materializeSelectionForestOf(),
+                ),
+            ),
+        ) { _, _ -> CheckerResult.Success }
+        val registry = resolverRegistryOf(
+            schema = schemas,
+            nodeResolvers = emptyMap(),
+            fieldResolvers = mapOf(node to fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> null }),
+            typeCheckers = mapOf(item to checker),
+            variableProviders = emptyMap(),
+        )
+        assertSame(checker, registry.typeChecker(item))
     }
 
     private fun erroneousSelections(

@@ -16,6 +16,37 @@ import viaduct.graphql.schema.ViaductSchema
 
 class SelectionMergeTest {
     @Test
+    fun `flat merge coalesces shared keys and preserves distinct arguments and children`() {
+        val fixture = Fixture()
+        val a = fixture.selection("ConcreteItem", "a")
+        val b = fixture.selection("ConcreteItem", "b")
+        val first =
+            selectionForestOf(
+                fixture.selection("Query", "scalar", mapOf("arg" to 1)),
+                fixture.selection("Query", "item", subselections = selectionForestOf(a)),
+            ).merge(fixture.query)
+        val second =
+            selectionForestOf(
+                fixture.selection("Query", "scalar", mapOf("arg" to 1)),
+                fixture.selection("Query", "scalar", mapOf("arg" to 2)),
+                fixture.selection("Query", "item", subselections = selectionForestOf(b)),
+            ).merge(fixture.query)
+
+        val merged = listOf(first, second).flatMerge(fixture.query)
+
+        assertEquals(3, merged.size)
+        assertEquals((first + second).merge(fixture.query).keys(), merged.keys())
+        assertEquals(
+            setOf(a.key, b.key),
+            merged.byKey().values.single { it.key.field.name == "item" }.subselections.merge(fixture.item).keys(),
+        )
+        assertTrue(emptyList<ObjectSelectionForest>().flatMerge(fixture.query).isEmpty())
+        assertThrows<IllegalArgumentException> {
+            listOf(first, selectionForestOf(a).merge(fixture.item)).flatMerge(fixture.query)
+        }
+    }
+
+    @Test
     fun `object keys classify selections precisely`() {
         val fixture = Fixture()
         val concrete = fixture.selection("Query", "item")
@@ -456,8 +487,9 @@ class SelectionMergeTest {
         assertTrue(child.inclusionCondition.include(mapOf(childVariable to true)))
     }
 
-    @Test
-    fun `merging a directly constructed object forest propagates the singleton guard`() {
+    @ParameterizedTest
+    @ValueSource(booleans = [false, true])
+    fun `merging a directly constructed object forest propagates the singleton guard`(flat: Boolean) {
         val fixture = Fixture()
         val field = fixture.schema.requireObjectField("Query", "item")
         val variable = Arguments.Variable.of(field, "included")
@@ -469,7 +501,8 @@ class SelectionMergeTest {
         )
         val forest = ObjectSelectionForest.of(fixture.query, listOf(parent))
 
-        val mergedChild = forest.merge(fixture.query).single().subselections.merge(fixture.item).single()
+        val merged = if (flat) listOf(forest).flatMerge(fixture.query) else forest.merge(fixture.query)
+        val mergedChild = merged.single().subselections.merge(fixture.item).single()
 
         assertFalse(mergedChild.inclusionCondition.include(mapOf(variable to false)))
         assertTrue(mergedChild.inclusionCondition.include(mapOf(variable to true)))
@@ -601,8 +634,9 @@ class SelectionMergeTest {
         assertEquals(1, second.subselections.size)
     }
 
-    @Test
-    fun `unconditional duplicate leaves other occurrences children independently guarded`() {
+    @ParameterizedTest
+    @ValueSource(booleans = [false, true])
+    fun `unconditional duplicate leaves other occurrences children independently guarded`(flat: Boolean) {
         val fixture = Fixture()
         val field = fixture.schema.requireObjectField("Query", "item")
         val x = Arguments.Variable.of(field, "x")
@@ -622,7 +656,13 @@ class SelectionMergeTest {
         )
 
         for (occurrences in listOf(listOf(first, unconditional, last), listOf(unconditional, first, last))) {
-            val parent = occurrences.toSelectionForest().merge(fixture.query).single()
+            val merged =
+                if (flat) {
+                    occurrences.map { selectionForestOf(it).merge(fixture.query) }.flatMerge(fixture.query)
+                } else {
+                    occurrences.toSelectionForest().merge(fixture.query)
+                }
+            val parent = merged.single()
             val children = parent.subselections.merge(fixture.item)
             val a = children[first.subselections.single().objectKey(fixture.item)]
             val b = children[last.subselections.single().objectKey(fixture.item)]

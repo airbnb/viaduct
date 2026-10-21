@@ -545,6 +545,26 @@ class GeneratorTest {
     }
 
     @Test
+    fun `client alias convergence excludes parent fields while resolver inputs retain them`() {
+        val config = Config.default +
+            (ParentFieldsEnabled to true) +
+            (DuplicateSelectionWeight to 1.0) +
+            (MaxSelectionDepth to 6)
+        val random = RandomSource.seeded(8485786885819996379L)
+        val schema = Arb.schema(config).next(random)
+        val registry = schema.registry(config).next(random)
+        assertTrue(registry.parentDemandOwnerFields.isNotEmpty())
+        var sawAliasConvergence = false
+        repeat(20) {
+            val query = schema.query(config).next(random)
+            sawAliasConvergence = sawAliasConvergence || query.features.hasExactKeyAliasConvergence
+            assertFalse(Regex("\\bparent\\s*\\{").containsMatchIn(query.source), query.source)
+            assertFalse(Regex("\\bparent\\s*\\{").containsMatchIn(query.permutationEquivalentSource), query.permutationEquivalentSource)
+        }
+        assertTrue(sawAliasConvergence)
+    }
+
+    @Test
     fun `random parents expose a sometimes-passive resolver with parent demand`() {
         val config =
             Config.default +

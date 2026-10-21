@@ -97,6 +97,54 @@ interface GroundedFieldCheckerCapabilityContract {
     }
 
     @Test
+    fun `checker parent demand is lifted from a value resolver input subtree`() {
+        val auditSeen = AtomicInteger()
+        val fixture = TestWorld.fromDSL(
+            schemaSDL = """
+                extend type Query {
+                  root: Parent! @resolver(result: {child: {protected: 7}})
+                }
+                type Parent {
+                  result: Int! @resolver(of: "child { protected }", result: 1)
+                  child: Child!
+                  audit: Int! @resolver(result: 9)
+                }
+                type Child {
+                  parent: Parent! @parent
+                  protected: Int!
+                }
+            """.trimIndent(),
+            selectiveResolvers = coroutineResolverSubject.selectiveResolvers,
+            fieldCheckers = { schemas ->
+                val field = schemas.loweredSchema.requireObjectField("Child", "protected")
+                mapOf(
+                    field to FieldCheckerResolver.of(
+                        field,
+                        schemas.loweredSchema.requireQueryTypeDef(),
+                        fragmentTemplates = mapOf(
+                            "input" to ResolverFragmentTemplates(
+                                objectFragmentTemplate = schemas.fragmentFrom("fragment Input on Child { parent { audit } }").materializeSelections,
+                                queryFragmentTemplate = materializeSelectionForestOf(),
+                            )
+                        ),
+                    ) { _, inputs, _ ->
+                        val parent = inputs.getValue("input").objectValue.get("parent") as EngineObjectData.Sync
+                        auditSeen.set(parent.get("audit") as Int)
+                        CheckerResult.Success
+                    }
+                )
+            },
+        )
+        val result = coroutineResolverSubject.resolve(
+            SharedOperationContext.create(fixture.assumptions),
+            fixture.schemas.operationSelectionsFrom("{ root { result } }"),
+        )
+        val parent = result.chainObjectValue(fixture.assumptions, "Query", "root")
+        assertEquals(1, parent.chainCell(fixture.assumptions, "Parent", "result").value.get())
+        assertEquals(9, auditSeen.get())
+    }
+
+    @Test
     fun `checker object input follows parent backedges raw`() {
         val auditSeen = AtomicInteger()
         val worldFixture =

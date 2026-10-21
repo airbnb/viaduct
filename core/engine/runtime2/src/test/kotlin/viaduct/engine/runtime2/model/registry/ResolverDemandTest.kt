@@ -4,6 +4,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 import viaduct.engine.runtime2.bootstrap.fromObjectField
 import viaduct.engine.runtime2.bootstrap.fromQueryField
@@ -1028,7 +1029,7 @@ class ResolverDemandTest {
     }
 
     @Test
-    fun `accepts statically excluded acyclic dependencies`() {
+    fun `accepts statically excluded acyclic dependencies and prepares Query templates`() {
         for (provider in ProviderFragment.entries) {
             for (directive in listOf("@skip(if: true)", "@include(if: false)")) {
                 val world =
@@ -1051,6 +1052,9 @@ class ResolverDemandTest {
                 val second = world.schema.requireObjectField("Query", "second")
                 assertEquals(setOf(second), world.resolverRegistry.mayDemandFrom(first))
                 assertTrue(world.resolverRegistry.mayDemandFrom(second).isEmpty())
+                if (provider == ProviderFragment.QUERY) {
+                    assertNotNull(world.resolverRegistry.precomputedConstructionDemand(first))
+                }
             }
         }
     }

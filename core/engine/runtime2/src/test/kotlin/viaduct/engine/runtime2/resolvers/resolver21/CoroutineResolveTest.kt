@@ -11,9 +11,14 @@ import viaduct.engine.runtime2.resolution.framework.CycleCheckState
 import viaduct.engine.runtime2.resolution.framework.Demand
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 
-class CoroutineResolveTest :
+class CoroutineResolveTest : BaseCoroutineResolveTest(), CoroutineResolverContract
+
+class PrecomputedCoroutineResolveTest : BaseCoroutineResolveTest() {
+    override val usePrecomputedConstructionDemand = true
+}
+
+abstract class BaseCoroutineResolveTest :
     CoroutineResolverTestSubject(),
-    CoroutineResolverContract,
     FragmentFreeCheckerProfileContract,
     FragmentFreeFieldCheckerPublicationContract {
     override val selectiveResolvers = false
@@ -24,7 +29,7 @@ class CoroutineResolveTest :
         requestScope: CoroutineScope,
         selections: SelectionForest,
         cycleChecker: CycleCheckState,
-    ): ObjectEngineResult = startCoroutineResolution(operation, requestScope, selections, cycleChecker)
+    ): ObjectEngineResult = startCoroutineResolution(constructionDemandOperation(operation), requestScope, selections, cycleChecker)
 }
 
 internal fun startCoroutineResolution(

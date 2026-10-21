@@ -254,7 +254,7 @@ class SymbolicFieldCheckerTest : ResolutionDispatcherResource {
                         mapOf(
                             "excluded" to ResolverFragmentTemplates(
                                 schema.fragmentFrom(
-                                    "fragment Input on Query { checked @include(if: ${'$'}enabled) }",
+                                    "fragment Input on Query { raw @include(if: ${'$'}enabled) }",
                                     variableTarget = ResolverTarget.FieldCheckerTarget(dependency)
                                 ).materializeSelections,
                                 viaduct.engine.runtime2.model.materializeSelectionForestOf(),

@@ -64,12 +64,31 @@ import viaduct.graphql.schema.ViaductSchema
 abstract class CoroutineResolverTestSubject {
     open val selectiveResolvers: Boolean
         get() = true
+    open val usePrecomputedConstructionDemand: Boolean get() = false
     open val coalescesGroundedKeys: Boolean get() = true
     open val usesSingularQueryOER: Boolean
         get() = false
 
     val coroutineResolverSubject: CoroutineResolverTestSubject
         get() = this
+
+    fun constructionDemandOperation(operation: SharedOperationContext<*>): SharedOperationContext<*> =
+        if (!usePrecomputedConstructionDemand) {
+            operation
+        } else {
+            SharedOperationContext.create(
+                world = Assumptions.of(
+                    schema = operation.world.schema,
+                    resolverRegistry = operation.world.resolverRegistry,
+                    selectiveResolvers = operation.world.selectiveResolvers,
+                    usePrecomputedConstructionDemand = true,
+                ),
+                variableBindings = operation.variableBindings,
+                resolverObserver = operation.resolverObserver,
+                checkerObserver = operation.checkerObserver,
+                engineExecutionContext = operation.engineExecutionContext,
+            )
+        }
 
     /** Starts a request under [requestScope] and exposes its live root for lifecycle assertions. */
     abstract fun startResolution(

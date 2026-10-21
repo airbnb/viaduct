@@ -29,7 +29,6 @@ import viaduct.engine.runtime2.model.requireType
 import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.emptyFragmentOf
 import viaduct.engine.runtime2.model.testing.fragmentFrom
-import viaduct.engine.runtime2.resolution.framework.ResolverReadCycleException
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 import viaduct.engine.runtime2.schema.operationSelectionsFrom
 import viaduct.graphql.schema.graphqljava.gjDef
@@ -39,8 +38,8 @@ interface GroundedFieldCheckerObjectFragmentContract {
     val coroutineResolverSubject: CoroutineResolverTestSubject
 
     @Test
-    fun `value and checker wait cycle fails instead of hanging`() {
-        val worldFixture =
+    fun `value and checker dependency cycles are rejected during registry construction`() {
+        val failure = assertFailsWith<IllegalArgumentException> {
             TestWorld.fromSDL(
                 schemaSDL = "type Query { checked: Int!, dependency: Int! }",
                 selectiveResolvers = coroutineResolverSubject.selectiveResolvers,
@@ -82,26 +81,8 @@ interface GroundedFieldCheckerObjectFragmentContract {
                     )
                 },
             )
-        val world = worldFixture.assumptions
-
-        val result =
-            coroutineResolverSubject.resolve(
-                SharedOperationContext.create(world),
-                worldFixture.schemas.operationSelectionsFrom("{ checked }"),
-            )
-        val failure =
-            assertFailsWith<Exception> {
-                result
-                    .getCell(
-                        ObjectEngineResult.GroundKey.of(
-                            world.schema.requireObjectField("Query", "checked"),
-                            emptyMap(),
-                        ),
-                    ).fieldCheckerResult
-                    .get()
-            }
-
-        assertTrue(failure.causeSequence().any { it is ResolverReadCycleException })
+        }
+        assertTrue(failure.message.orEmpty().contains("demand cycle"))
     }
 
     @Test
@@ -236,5 +217,3 @@ interface GroundedFieldCheckerObjectFragmentContract {
         assertNull(item.getCell(activeKey).fieldCheckerResult.get())
     }
 }
-
-private fun Throwable.causeSequence(): Sequence<Throwable> = generateSequence(this) { it.cause }

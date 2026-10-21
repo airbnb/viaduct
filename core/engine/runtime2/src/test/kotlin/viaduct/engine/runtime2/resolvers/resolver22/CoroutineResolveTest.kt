@@ -19,9 +19,14 @@ import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 import viaduct.engine.runtime2.resolvers.resolver21.startCoroutineResolution
 import viaduct.engine.runtime2.resolvers.successorBoundaryDemand
 
-class CoroutineResolveTest :
+class CoroutineResolveTest : BaseCoroutineResolveTest(), CoroutineResolverContract
+
+class PrecomputedCoroutineResolveTest : BaseCoroutineResolveTest() {
+    override val usePrecomputedConstructionDemand = true
+}
+
+abstract class BaseCoroutineResolveTest :
     CoroutineResolverTestSubject(),
-    CoroutineResolverContract,
     FragmentFreeCheckerProfileContract,
     FragmentFreeFieldCheckerPublicationContract,
     FragmentFreeFieldCheckerEnforcementContract,
@@ -39,12 +44,14 @@ class CoroutineResolveTest :
         requestScope: CoroutineScope,
         selections: SelectionForest,
         cycleChecker: CycleCheckState,
-    ): ObjectEngineResult =
-        startCoroutineResolution(
-            operation,
+    ): ObjectEngineResult {
+        val closureOperation = constructionDemandOperation(operation)
+        return startCoroutineResolution(
+            closureOperation,
             requestScope,
             selections,
             cycleChecker,
-            complete = { demand, _ -> demand.values.successorBoundaryDemand(operation) },
+            complete = { demand, _ -> demand.values.successorBoundaryDemand(closureOperation) },
         )
+    }
 }

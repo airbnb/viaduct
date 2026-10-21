@@ -417,7 +417,7 @@ private class QueryGenerator(
         val directDemand =
             schema
                 .fieldsOn(field.type.namedType)
-                .filterNot(FieldDefinitionSpec::isGeneratedHashField)
+                .filterNot { it.isGeneratedHashField() || it.isParentField }
                 .shuffled(random)
                 .firstOrNull()
                 ?.let { demandedField ->
@@ -439,7 +439,7 @@ private class QueryGenerator(
                     val demandedField =
                         schema
                             .fieldsOn(concrete.name)
-                            .filterNot(FieldDefinitionSpec::isGeneratedHashField)
+                            .filterNot { it.isGeneratedHashField() || it.isParentField }
                             .shuffled(random)
                             .first()
                     InlineFragment

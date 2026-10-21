@@ -4,10 +4,15 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
+import kotlin.test.assertIs
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 import viaduct.engine.api.EngineObjectData
+import viaduct.engine.runtime2.contract.get
+import viaduct.engine.runtime2.contract.selectionValues
 import viaduct.engine.runtime2.model.Arguments
 import viaduct.engine.runtime2.model.EngineObjectDataEntry
+import viaduct.engine.runtime2.model.ErrorEngineResult
 import viaduct.engine.runtime2.model.ListEngineResult
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.ObjectSelectionForest
@@ -18,22 +23,507 @@ import viaduct.engine.runtime2.model.VariableBinding
 import viaduct.engine.runtime2.model.emptyFragmentOf
 import viaduct.engine.runtime2.model.engineObjectDataOf
 import viaduct.engine.runtime2.model.merge
+import viaduct.engine.runtime2.model.registry.VariablesProviderFunction
 import viaduct.engine.runtime2.model.registry.fieldResolverOf
+import viaduct.engine.runtime2.model.registry.fromArgument
 import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireQueryTypeDef
+import viaduct.engine.runtime2.model.requireType
 import viaduct.engine.runtime2.model.schemaType
 import viaduct.engine.runtime2.model.selectionForestOf
 import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.emptyFragmentOf
 import viaduct.engine.runtime2.model.testing.fragmentFrom
 import viaduct.engine.runtime2.model.testing.objectOf
+import viaduct.engine.runtime2.model.usedVariables
 import viaduct.engine.runtime2.resolution.framework.Demand
 import viaduct.engine.runtime2.resolution.framework.OEROccurrence
 import viaduct.engine.runtime2.resolution.framework.OrchestrationConstructionDemand
+import viaduct.engine.runtime2.resolution.framework.ResolverInvocationObservation
+import viaduct.engine.runtime2.resolution.framework.ResolverObserver
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 import viaduct.engine.runtime2.resolvers.resolver06.SiblingDependencyLogic
+import viaduct.engine.runtime2.resolvers.resolver06.resolve
+import viaduct.graphql.schema.ViaductSchema
 
 class ConstructionDemandClosureTest {
+    @Test
+    fun `distinct normalized symbolic and literal seeds coalesce after grounding`() {
+        for (precomputed in listOf(false, true)) {
+            val providerCalls = mutableListOf<Int>()
+            val fixture = TestWorld.fromSDL(
+                selectiveResolvers = false,
+                schemaSDL = "type Query { consumer(seed: Int): Int middle(value: Int): Int base(value: Int): Int }",
+                fieldResolvers = { schemas ->
+                    val schema = schemas.loweredSchema
+                    mapOf(
+                        schema.requireObjectField("Query", "consumer") to fieldResolverOf(
+                            objectFragment = schema.emptyFragmentOf("Query"),
+                            queryFragment = schemas.fragmentFrom("fragment Input on Query { literal: middle(value: 7) symbolic: middle(value: ${'$'}value) }"),
+                        ) { _, query, _ ->
+                            val values = query.selectionValues()
+                            (values.getValue("literal") as Int) + (values.getValue("symbolic") as Int)
+                        },
+                        schema.requireObjectField("Query", "middle") to fieldResolverOf(
+                            objectFragment = schema.emptyFragmentOf("Query"),
+                            queryFragment = schemas.fragmentFrom("fragment Input on Query { base(value: ${'$'}provided) }"),
+                        ) { _, query, _ -> query.selectionValues().getValue("base") }
+                            .withVariablesProvider(setOf("provided")) { arguments ->
+                                val value = arguments.fieldValues.getValue("value") as Int
+                                providerCalls += value
+                                mapOf("provided" to value * 2)
+                            },
+                        schema.requireObjectField("Query", "base") to fieldResolverOf(schema.emptyFragmentOf("Query")) { _, arguments -> arguments.fieldValues.getValue("value") },
+                    )
+                },
+                variableProviders = { schemas ->
+                    val consumer = schemas.loweredSchema.requireObjectField("Query", "consumer")
+                    mapOf(Arguments.Variable.of(consumer, "value") to schemas.loweredSchema.fromArgument(consumer, "seed"))
+                },
+            )
+            val consumer = fixture.schema.requireObjectField("Query", "consumer")
+            val resolver = fixture.resolverRegistry.resolver(consumer)
+            assertEquals(2, resolver.queryFragment.size)
+            val template = requireNotNull(fixture.resolverRegistry.precomputedConstructionDemand(consumer)).queryDemand
+            assertEquals(1, template.reusableDemand.size)
+            assertEquals(1, template.templatedDemand.size)
+
+            val world = fixture.newAssumptions(usePrecomputedConstructionDemand = precomputed)
+            val result = SharedOperationContext.create(world).resolve(fixture.schemas.fragmentFrom("fragment F on Query { consumer(seed: 7) }").subselections)
+
+            assertEquals(28, result.getCell(key(world, "Query", "consumer", mapOf("seed" to 7))).get())
+            assertEquals(listOf(7), providerCalls)
+        }
+    }
+
+    @Test
+    fun `precomputed closure retains initial provenance and merges transitive Query inputs`() {
+        val fixture = precomputedClosureFixture()
+        val query = fixture.schema.requireQueryTypeDef()
+        val item = fixture.schema.requireType("Item") as ViaductSchema.Object
+        val initial =
+            OrchestrationConstructionDemand(
+                objectRooted =
+                    Demand(
+                        checked = fixture.schemas.fragmentFrom("fragment F on Query { first item { right } }").subselections,
+                        unchecked = fixture.schemas.fragmentFrom("fragment F on Query { second }").subselections,
+                        typeCheckDemanded = true,
+                    ),
+                queryRooted =
+                    Demand.unchecked(fixture.schemas.fragmentFrom("fragment F on Query { item { right } }").subselections),
+            )
+
+        for (precomputed in listOf(false, true)) {
+            val closed = fixture.closeOrchestrationDemand(initial, usePrecomputedConstructionDemand = precomputed)
+            assertEquals(setOf("first", "item"), closed.objectRooted.checked.fieldNames())
+            assertEquals(setOf("second"), closed.objectRooted.unchecked.fieldNames())
+            assertTrue(closed.objectRooted.typeCheckDemanded)
+            assertEquals(
+                setOf(
+                    key(fixture.assumptions, "Query", "middle"),
+                    key(fixture.assumptions, "Query", "base", mapOf("value" to 7)),
+                    key(fixture.assumptions, "Query", "base", mapOf("value" to 9)),
+                    key(fixture.assumptions, "Query", "item"),
+                ),
+                closed.queryRooted.checked.groundKeys(),
+            )
+            assertEquals(setOf("item"), closed.queryRooted.unchecked.fieldNames())
+            assertEquals(
+                setOf("left", "right"),
+                closed.queryRooted.checked[key(fixture.assumptions, "Query", "item")].subselections.merge(item).fieldNames(),
+            )
+            assertEquals(
+                setOf("right"),
+                closed.objectRooted.checked[key(fixture.assumptions, "Query", "item")].subselections.merge(item).fieldNames(),
+            )
+        }
+        val first = query.fields.single { it.name == "first" }
+        val template = fixture.resolverRegistry.precomputedConstructionDemand(first)?.queryDemand
+        assertSame(template, fixture.newAssumptions().resolverRegistry.precomputedConstructionDemand(first)?.queryDemand)
+        assertEquals(setOf("middle", "item"), requireNotNull(template).reusableDemand.fieldNames())
+        assertTrue(template.templatedDemand.isEmpty())
+        assertEquals(template.reusableDemand.groundKeys(), template.dependencies.keys)
+    }
+
+    @Test
+    fun `precomputed closure suppresses passive and errored seeds but still expands Query seeds`() {
+        val fixture = precomputedClosureFixture()
+        val world = fixture.newAssumptions(usePrecomputedConstructionDemand = true)
+        val query = world.schema.requireQueryTypeDef()
+        val source = world.schema.objectOf("Query") { "first" setTo 99 }
+        val objectRoot = ObjectEngineResult.of(query, emptyMap())
+        val queryRoot = ObjectEngineResult.of(query, emptyMap())
+        val first = fixture.schemas.fragmentFrom("fragment F on Query { first }").subselections
+        val errored = ObjectEngineResult.GroundKey.of(world.schema.requireObjectField("Query", "second"), Arguments.Error)
+        val demand = first + selectionForestOf(Selection.of(errored, setOf(query), selectionForestOf()))
+
+        fun close(queryDemand: Demand<SelectionForest>) =
+            source.closeOrchestrationConstructionDemand(
+                operation = SharedOperationContext.create(world),
+                objectOccurrence = OEROccurrence(objectRoot, emptyList(), objectRoot),
+                queryOccurrence = OEROccurrence(queryRoot, emptyList(), queryRoot),
+                initialDemand = OrchestrationConstructionDemand(Demand.checked(demand), queryDemand),
+            )
+
+        val passive = close(Demand.EMPTY)
+        assertEquals(setOf(key(world, "Query", "first"), errored), passive.objectRooted.checked.groundKeys())
+        assertTrue(passive.queryRooted.checked.isEmpty())
+        assertEquals(setOf("first", "middle", "base", "item"), close(Demand.checked(first)).queryRooted.checked.fieldNames())
+    }
+
+    @Test
+    fun `precomputed closure preserves object and Query input contributions`() {
+        val fixture = queryClosureFixture()
+        val initial =
+            OrchestrationConstructionDemand.checkedObject(
+                fixture.schemas.fragmentFrom("fragment F on Query { entry }").subselections,
+            )
+        val baseline = fixture.closeOrchestrationDemand(initial)
+        val precomputed = fixture.closeOrchestrationDemand(initial, usePrecomputedConstructionDemand = true)
+        assertEquals(setOf("entry", "objectOnly", "shared"), precomputed.objectRooted.checked.fieldNames())
+        assertEquals(baseline.objectRooted.checked.groundKeys(), precomputed.objectRooted.checked.groundKeys())
+        assertEquals(baseline.queryRooted.checked.groundKeys(), precomputed.queryRooted.checked.groundKeys())
+        assertEquals(baseline.objectRooted.unchecked.groundKeys(), precomputed.objectRooted.unchecked.groundKeys())
+        assertEquals(baseline.queryRooted.unchecked.groundKeys(), precomputed.queryRooted.unchecked.groundKeys())
+    }
+
+    @Test
+    fun `object closure links a diamond and grounds residuals only for unsupplied dependencies`() {
+        for (precomputed in listOf(false, true)) {
+            for (supplied in listOf(false, true)) {
+                val providerCalls = mutableListOf<Int>()
+                val fixture = TestWorld.fromSDL(
+                    schemaSDL = """
+                        type Query { base(value: Int): Int constant: Int }
+                        type Item { leftResult: Int rightResult: Int middle: Leaf fixed: Int seed(value: Int): Int }
+                        type Leaf { left: Int right: Int }
+                    """.trimIndent(),
+                    fieldResolvers = { schemas ->
+                        val schema = schemas.loweredSchema
+                        mapOf(
+                            schema.requireObjectField("Item", "leftResult") to fieldResolverOf(
+                                schemas.fragmentFrom("fragment Input on Item { middle { left } }"),
+                            ) { _, _ -> error("Closure must not invoke resolvers") },
+                            schema.requireObjectField("Item", "rightResult") to fieldResolverOf(
+                                schemas.fragmentFrom("fragment Input on Item { middle { right } }"),
+                            ) { _, _ -> error("Closure must not invoke resolvers") },
+                            schema.requireObjectField("Item", "middle") to fieldResolverOf(
+                                objectFragment = schemas.fragmentFrom("fragment Input on Item { fixed seed(value: ${'$'}value) }"),
+                                queryFragment = schemas.fragmentFrom("fragment Input on Query { constant base(value: ${'$'}value) }"),
+                            ) { _, _, _ -> error("Closure must not invoke resolvers") }.withVariablesProvider(setOf("value")) {
+                                providerCalls += 4
+                                mapOf("value" to 4)
+                            },
+                            schema.requireObjectField("Item", "fixed") to fieldResolverOf(schema.emptyFragmentOf("Item")) { _, _ -> 3 },
+                            schema.requireObjectField("Item", "seed") to fieldResolverOf(schema.emptyFragmentOf("Item")) { _, _ -> 4 },
+                        )
+                    },
+                )
+                val world = fixture.newAssumptions(usePrecomputedConstructionDemand = precomputed)
+                val itemType = world.schema.requireType("Item") as ViaductSchema.Object
+                val leafType = world.schema.requireType("Leaf") as ViaductSchema.Object
+                val source = world.schema.objectOf("Item") {
+                    if (supplied) {
+                        "middle" setTo world.schema.objectOf("Leaf") {
+                            "left" setTo 7
+                            "right" setTo 9
+                        }
+                    }
+                }
+                val objectRoot = ObjectEngineResult.of(itemType, emptyMap())
+                val queryRoot = ObjectEngineResult.of(world.schema.requireQueryTypeDef(), emptyMap())
+                val left = world.schema.requireObjectField("Item", "leftResult")
+                val right = world.schema.requireObjectField("Item", "rightResult")
+                val middle = key(world, "Item", "middle")
+                val template = requireNotNull(world.resolverRegistry.precomputedConstructionDemand(left))
+                assertSame(
+                    template.objectDemand.dependencies.getValue(middle),
+                    requireNotNull(world.resolverRegistry.precomputedConstructionDemand(right)).objectDemand.dependencies.getValue(middle),
+                )
+                assertTrue(providerCalls.isEmpty())
+                val closed = source.closeOrchestrationConstructionDemand(
+                    operation = SharedOperationContext.create(world),
+                    objectOccurrence = OEROccurrence(objectRoot, emptyList(), objectRoot),
+                    queryOccurrence = OEROccurrence(queryRoot, emptyList(), queryRoot),
+                    initialDemand = OrchestrationConstructionDemand(
+                        Demand(
+                            checked = fixture.schemas.fragmentFrom("fragment F on Item { leftResult }").subselections,
+                            unchecked = fixture.schemas.fragmentFrom("fragment F on Item { rightResult }").subselections,
+                            typeCheckDemanded = false,
+                        ),
+                        Demand.EMPTY,
+                    ),
+                )
+                assertEquals(if (supplied) emptyList() else listOf(4), providerCalls)
+                assertEquals(
+                    if (supplied) setOf("leftResult", "middle") else setOf("leftResult", "middle", "fixed", "seed"),
+                    closed.objectRooted.checked.fieldNames(),
+                )
+                assertEquals(setOf("rightResult"), closed.objectRooted.unchecked.fieldNames())
+                assertEquals(setOf("left", "right"), closed.objectRooted.checked[middle].subselections.merge(leafType).fieldNames())
+                assertEquals(if (supplied) emptySet() else setOf("constant", "base"), closed.queryRooted.checked.fieldNames())
+                if (!supplied) {
+                    assertTrue(key(world, "Item", "seed", mapOf("value" to 4)) in closed.objectRooted.checked.groundKeys())
+                    assertTrue(key(world, "Query", "base", mapOf("value" to 4)) in closed.queryRooted.checked.groundKeys())
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `resolver06 with precomputed closure resolves a Query diamond once per exact key`() {
+        val fixture = precomputedClosureFixture()
+        for (precomputed in listOf(false, true)) {
+            val calls = mutableListOf<ObjectEngineResult.GroundKey>()
+            val observer = object : ResolverObserver {
+                override fun onResolverInvocation(observation: ResolverInvocationObservation) {
+                    calls += ObjectEngineResult.GroundKey.of(observation.field, observation.arguments)
+                }
+            }
+            val operation =
+                SharedOperationContext.create(
+                    fixture.newAssumptions(usePrecomputedConstructionDemand = precomputed),
+                    resolverObserver = observer,
+                )
+            val result = operation.resolve(fixture.schemas.fragmentFrom("fragment F on Query { first second }").subselections)
+
+            assertEquals(8, result.getCell(key(operation.world, "Query", "first")).get())
+            assertEquals(11, result.getCell(key(operation.world, "Query", "second")).get())
+            assertEquals(
+                listOf("base", "base", "first", "item", "middle", "second"),
+                calls.map { it.field.name }.sorted(),
+            )
+            assertEquals(6, calls.toSet().size)
+        }
+    }
+
+    @Test
+    fun `variable templates distinguish object and associated Query occurrences`() {
+        for (precomputed in listOf(false, true)) {
+            val consumerCalls = mutableListOf<Int>()
+            val middleCalls = mutableListOf<Int>()
+            val fixture =
+                queryVariableClosureFixture(
+                    consumerProvider = { arguments ->
+                        val seed = arguments.fieldValues.getValue("seed") as Int
+                        consumerCalls += seed
+                        mapOf("value" to seed + 1)
+                    },
+                    middleProvider = { arguments ->
+                        val value = arguments.fieldValues.getValue("value") as Int
+                        middleCalls += value
+                        mapOf("value" to value * 2)
+                    },
+                )
+            assertTrue(consumerCalls.isEmpty())
+            assertTrue(middleCalls.isEmpty())
+            val world = fixture.newAssumptions(usePrecomputedConstructionDemand = precomputed)
+            val result =
+                SharedOperationContext.create(world)
+                    .resolve(fixture.schemas.fragmentFrom("fragment F on Query { consumer(seed: 4) reuse }").subselections)
+
+            assertEquals(10, result.getCell(key(world, "Query", "consumer", mapOf("seed" to 4))).get())
+            assertEquals(10, result.getCell(key(world, "Query", "reuse")).get())
+            assertEquals(listOf(4, 4), consumerCalls)
+            assertEquals(listOf(5), middleCalls)
+        }
+    }
+
+    @Test
+    fun `variable templates coalesce grounded dependencies before invoking their providers`() {
+        for (precomputed in listOf(false, true)) {
+            val consumerCalls = mutableListOf<Int>()
+            val middleCalls = mutableListOf<Int>()
+            val fixture =
+                queryVariableClosureFixture(
+                    consumerProvider = { arguments ->
+                        consumerCalls += arguments.fieldValues.getValue("seed") as Int
+                        mapOf("value" to 7)
+                    },
+                    middleProvider = { arguments ->
+                        val value = arguments.fieldValues.getValue("value") as Int
+                        middleCalls += value
+                        mapOf("value" to value * 2)
+                    },
+                )
+            val world = fixture.newAssumptions(usePrecomputedConstructionDemand = precomputed)
+            val result =
+                SharedOperationContext.create(world)
+                    .resolve(
+                        fixture.schemas.fragmentFrom(
+                            "fragment F on Query { first: consumer(seed: 4) same: consumer(seed: 4) second: consumer(seed: 5) }",
+                        ).subselections,
+                    )
+
+            assertEquals(14, result.getCell(key(world, "Query", "consumer", mapOf("seed" to 4))).get())
+            assertEquals(14, result.getCell(key(world, "Query", "consumer", mapOf("seed" to 5))).get())
+            assertEquals(listOf(4, 5), consumerCalls.sorted())
+            assertEquals(listOf(7), middleCalls)
+        }
+    }
+
+    @Test
+    fun `hybrid templates preserve static siblings and split a partially variable bearing subtree`() {
+        val fixture = mixedQueryClosureFixture { error("registry construction must not invoke providers") }
+        val template = requireNotNull(fixture.resolverRegistry.precomputedConstructionDemand(fixture.schema.requireObjectField("Query", "consumer"))).queryDemand
+        val bar = fixture.schema.requireType("Bar") as ViaductSchema.Object
+
+        assertTrue(template.reusableDemand.usedVariables().isEmpty())
+        assertEquals(setOf("foo", "bar", "baz"), template.reusableDemand.fieldNames())
+        assertEquals(setOf("fixed"), template.reusableDemand[key(fixture.assumptions, "Query", "bar")].subselections.merge(bar).fieldNames())
+        assertEquals(setOf("bar"), template.templatedDemand.fieldNames())
+        assertEquals(setOf("f1"), template.templatedDemand[key(fixture.assumptions, "Query", "bar")].subselections.merge(bar).fieldNames())
+        assertEquals(setOf(Arguments.Variable.of(fixture.schema.requireObjectField("Query", "consumer"), "value")), template.templatedDemand.usedVariables())
+        assertEquals(template.reusableDemand.groundKeys(), template.dependencies.keys)
+    }
+
+    @Test
+    fun `hybrid templates keep conditional dependencies and descendants in residual demand`() {
+        val fixture = TestWorld.fromSDL(
+            selectiveResolvers = false,
+            schemaSDL = "type Query { consumer(flag: Boolean!): Int stable: Int middle: Int base: Int branch: Branch } type Branch { fixed: Int conditional: Int }",
+            fieldResolvers = { schemas ->
+                val schema = schemas.loweredSchema
+                mapOf(
+                    schema.requireObjectField("Query", "consumer") to fieldResolverOf(
+                        objectFragment = schema.emptyFragmentOf("Query"),
+                        queryFragment = schemas.fragmentFrom(
+                            "fragment Input on Query { stable middle @include(if: ${'$'}flag) branch { fixed conditional @skip(if: ${'$'}flag) } }",
+                        ),
+                    ) { _, _, _ -> 0 },
+                    schema.requireObjectField("Query", "middle") to fieldResolverOf(
+                        objectFragment = schema.emptyFragmentOf("Query"),
+                        queryFragment = schemas.fragmentFrom("fragment Input on Query { base }"),
+                    ) { _, query, _ -> query.selectionValues().getValue("base") },
+                )
+            },
+            variableProviders = { schemas ->
+                val consumer = schemas.loweredSchema.requireObjectField("Query", "consumer")
+                mapOf(Arguments.Variable.of(consumer, "flag") to schemas.loweredSchema.fromArgument(consumer, "flag"))
+            },
+        )
+        val consumer = fixture.schema.requireObjectField("Query", "consumer")
+        val template = requireNotNull(fixture.resolverRegistry.precomputedConstructionDemand(consumer)).queryDemand
+        val branchType = fixture.schema.requireType("Branch") as ViaductSchema.Object
+        val branchKey = key(fixture.assumptions, "Query", "branch")
+        val middleKey = key(fixture.assumptions, "Query", "middle")
+        val variable = Arguments.Variable.of(consumer, "flag")
+
+        assertEquals(setOf("stable", "branch"), template.reusableDemand.fieldNames())
+        assertTrue(template.reusableDemand.usedVariables().isEmpty())
+        assertEquals(setOf("fixed"), template.reusableDemand[branchKey].subselections.merge(branchType).fieldNames())
+        assertEquals(setOf("middle", "branch"), template.templatedDemand.fieldNames())
+        assertEquals(setOf(variable), template.templatedDemand[middleKey].inclusionCondition.usedVariables())
+        val conditionalChildren = template.templatedDemand[branchKey].subselections.merge(branchType)
+        assertEquals(setOf("conditional"), conditionalChildren.fieldNames())
+        assertEquals(setOf(variable), conditionalChildren[key(fixture.assumptions, "Branch", "conditional")].inclusionCondition.usedVariables())
+        assertEquals(template.reusableDemand.groundKeys(), template.dependencies.keys)
+    }
+
+    @Test
+    fun `hybrid closure combines static and dynamic subselections before sharing Query production`() {
+        for (precomputed in listOf(false, true)) {
+            val providers = mutableListOf<Int>()
+            val calls = mutableListOf<ObjectEngineResult.GroundKey>()
+            val fixture = mixedQueryClosureFixture { arguments ->
+                val value = arguments.fieldValues.getValue("seed") as Int
+                providers += value
+                mapOf("value" to value)
+            }
+            assertTrue(providers.isEmpty())
+            val world = fixture.newAssumptions(usePrecomputedConstructionDemand = precomputed)
+            val observer = object : ResolverObserver {
+                override fun onResolverInvocation(observation: ResolverInvocationObservation) {
+                    calls += ObjectEngineResult.GroundKey.of(observation.field, observation.arguments)
+                }
+            }
+            val result = SharedOperationContext.create(world, resolverObserver = observer)
+                .resolve(fixture.schemas.fragmentFrom("fragment F on Query { first: consumer(seed: 4) second: consumer(seed: 5) }").subselections)
+
+            assertEquals(23, result.getCell(key(world, "Query", "consumer", mapOf("seed" to 4))).get())
+            assertEquals(25, result.getCell(key(world, "Query", "consumer", mapOf("seed" to 5))).get())
+            assertEquals(listOf(4, 5), providers.sorted())
+            assertEquals(listOf("bar", "base", "baz", "consumer", "consumer", "f1", "f1", "foo"), calls.map { it.field.name }.sorted())
+            assertEquals(setOf(4, 5), calls.filter { it.field.name == "f1" }.map { (it.arguments as Arguments.Resolved).fieldValues.getValue("arg") }.toSet())
+        }
+    }
+
+    @Test
+    fun `failed nested variable bindings retain static siblings and suppress variable bearing resolution`() {
+        for (precomputed in listOf(false, true)) {
+            val calls = mutableListOf<String>()
+            val fixture = mixedQueryClosureFixture { error("provider failed") }
+            val world = fixture.newAssumptions(usePrecomputedConstructionDemand = precomputed)
+            val observer = object : ResolverObserver {
+                override fun onResolverInvocation(observation: ResolverInvocationObservation) {
+                    calls += observation.field.name
+                }
+            }
+            val result = SharedOperationContext.create(world, resolverObserver = observer)
+                .resolve(fixture.schemas.fragmentFrom("fragment F on Query { consumer(seed: 4) }").subselections)
+
+            assertIs<ErrorEngineResult>(result.getCell(key(world, "Query", "consumer", mapOf("seed" to 4))).get())
+            assertEquals(listOf("bar", "base", "baz", "foo"), calls.sorted())
+        }
+    }
+
+    @Test
+    fun `hybrid closure binds argument distinct occurrences of one dependency separately`() {
+        for (precomputed in listOf(false, true)) {
+            val middleCalls = mutableListOf<Int>()
+            val fixture =
+                queryVariableClosureFixture(
+                    consumerProvider = { arguments -> mapOf("value" to (arguments.fieldValues.getValue("seed") as Int) + 1) },
+                    middleProvider = { arguments ->
+                        val value = arguments.fieldValues.getValue("value") as Int
+                        middleCalls += value
+                        mapOf("value" to value * 2)
+                    },
+                    consumerQuery = "middle(value: ${'$'}value) fixed: middle(value: 11)",
+                )
+            val world = fixture.newAssumptions(usePrecomputedConstructionDemand = precomputed)
+            val template = requireNotNull(fixture.resolverRegistry.precomputedConstructionDemand(world.schema.requireObjectField("Query", "consumer"))).queryDemand
+            assertEquals(setOf(key(world, "Query", "middle", mapOf("value" to 11))), template.reusableDemand.groundKeys())
+            assertEquals(setOf(key(world, "Query", "middle", mapOf("value" to 11))), template.dependencies.keys)
+            val result = SharedOperationContext.create(world)
+                .resolve(fixture.schemas.fragmentFrom("fragment F on Query { consumer(seed: 4) }").subselections)
+
+            assertEquals(10, result.getCell(key(world, "Query", "consumer", mapOf("seed" to 4))).get())
+            assertEquals(listOf(5, 11), middleCalls.sorted())
+        }
+    }
+
+    @Test
+    fun `failed variable bindings suppress dependency providers without rejecting the registry`() {
+        for (precomputed in listOf(false, true)) {
+            val middleCalls = mutableListOf<Int>()
+            val echoCalls = mutableListOf<Int>()
+            val fixture =
+                queryVariableClosureFixture(
+                    consumerProvider = { error("provider failed") },
+                    middleProvider = { arguments ->
+                        middleCalls += arguments.fieldValues.getValue("value") as Int
+                        mapOf("value" to 1)
+                    },
+                    middleQuery = "echo(value: ${'$'}value) fixed: echo(value: 11)",
+                )
+            val world = fixture.newAssumptions(usePrecomputedConstructionDemand = precomputed)
+            val observer = object : ResolverObserver {
+                override fun onResolverInvocation(observation: ResolverInvocationObservation) {
+                    if (observation.field.name == "echo") echoCalls += observation.arguments.fieldValues.getValue("value") as Int
+                }
+            }
+            val result =
+                SharedOperationContext.create(world, resolverObserver = observer)
+                    .resolve(fixture.schemas.fragmentFrom("fragment F on Query { consumer(seed: 4) echo(value: 8) }").subselections)
+
+            assertIs<ErrorEngineResult>(result.getCell(key(world, "Query", "consumer", mapOf("seed" to 4))).get())
+            assertEquals(8, result.getCell(key(world, "Query", "echo", mapOf("value" to 8))).get())
+            assertTrue(middleCalls.isEmpty())
+            assertEquals(listOf(8), echoCalls)
+        }
+    }
+
     @Test
     fun `empty object closure produces no Query rooted demand`() {
         val fixture = queryClosureFixture()
@@ -121,22 +611,25 @@ class ConstructionDemandClosureTest {
         val fixture = parentClosureFixture()
         val childResult =
             fixture.schemas.fragmentFrom("fragment F on Root { child { result } }").subselections
-        val closed =
-            fixture.closeOrchestrationDemand(
-                OrchestrationConstructionDemand.checkedObject(childResult),
-                objectTypeName = "Root",
-            )
+        for (precomputed in listOf(false, true)) {
+            val closed =
+                fixture.closeOrchestrationDemand(
+                    OrchestrationConstructionDemand.checkedObject(childResult),
+                    objectTypeName = "Root",
+                    usePrecomputedConstructionDemand = precomputed,
+                )
 
-        assertEquals(
-            setOf("child", "lifted", "local"),
-            closed.objectRooted.checked.fieldNames(),
-        )
-        assertTrue(closed.objectRooted.unchecked.isEmpty())
-        assertEquals(
-            setOf("queryInput", "transitive"),
-            closed.queryRooted.checked.fieldNames(),
-        )
-        assertTrue(closed.queryRooted.unchecked.isEmpty())
+            assertEquals(
+                setOf("child", "lifted", "local"),
+                closed.objectRooted.checked.fieldNames(),
+            )
+            assertTrue(closed.objectRooted.unchecked.isEmpty())
+            assertEquals(
+                setOf("queryInput", "transitive"),
+                closed.queryRooted.checked.fieldNames(),
+            )
+            assertTrue(closed.queryRooted.unchecked.isEmpty())
+        }
     }
 
     @Test
@@ -145,24 +638,27 @@ class ConstructionDemandClosureTest {
         val schema = fixture.assumptions.schema
         val childResult =
             fixture.schemas.fragmentFrom("fragment F on Query { root { child { result } } }").subselections
-        val closed =
-            fixture.closeOrchestrationDemand(
-                OrchestrationConstructionDemand(
-                    objectRooted = Demand.EMPTY,
-                    queryRooted = Demand.unchecked(childResult),
-                ),
-            )
+        for (precomputed in listOf(false, true)) {
+            val closed =
+                fixture.closeOrchestrationDemand(
+                    OrchestrationConstructionDemand(
+                        objectRooted = Demand.EMPTY,
+                        queryRooted = Demand.unchecked(childResult),
+                    ),
+                    usePrecomputedConstructionDemand = precomputed,
+                )
 
-        assertTrue(closed.objectRooted.checked.isEmpty())
-        assertTrue(closed.objectRooted.unchecked.isEmpty())
-        assertTrue(closed.queryRooted.checked.isEmpty())
-        assertFalse(closed.queryRooted.typeCheckDemanded)
-        assertEquals(setOf("root"), closed.queryRooted.unchecked.fieldNames())
-        val root = closed.queryRooted.unchecked.byGroundKey().values.single()
-        assertEquals(
-            setOf("child", "lifted"),
-            root.subselections.merge(schema.requireObjectField("Query", "root").type.baseTypeDef as viaduct.graphql.schema.ViaductSchema.Object).fieldNames(),
-        )
+            assertTrue(closed.objectRooted.checked.isEmpty())
+            assertTrue(closed.objectRooted.unchecked.isEmpty())
+            assertTrue(closed.queryRooted.checked.isEmpty())
+            assertFalse(closed.queryRooted.typeCheckDemanded)
+            assertEquals(setOf("root"), closed.queryRooted.unchecked.fieldNames())
+            val root = closed.queryRooted.unchecked.byGroundKey().values.single()
+            assertEquals(
+                setOf("child", "lifted"),
+                root.subselections.merge(schema.requireObjectField("Query", "root").type.baseTypeDef as viaduct.graphql.schema.ViaductSchema.Object).fieldNames(),
+            )
+        }
     }
 
     @Test
@@ -391,6 +887,116 @@ class ConstructionDemandClosureTest {
                 """.trimIndent(),
         )
 
+    private fun mixedQueryClosureFixture(provider: VariablesProviderFunction): TestWorld =
+        TestWorld.fromSDL(
+            selectiveResolvers = false,
+            schemaSDL = """
+                type Query { consumer(seed: Int!): Int! foo: Leaf! bar: Bar! baz: Leaf! base(value: Int!): Int! }
+                type Leaf { value: Int! }
+                type Bar { fixed: Int! f1(arg: Int!): Leaf! }
+            """.trimIndent(),
+            fieldResolvers = { schemas ->
+                val schema = schemas.loweredSchema
+                val empty = schema.emptyFragmentOf("Query")
+                mapOf(
+                    schema.requireObjectField("Query", "consumer") to
+                        fieldResolverOf(
+                            empty,
+                            schemas.fragmentFrom("fragment F on Query { foo { value } bar { fixed f1(arg: ${'$'}value) { value } } baz { value } }"),
+                        ) { _, query, _ ->
+                            val values = query.selectionValues()
+                            val foo = (values.getValue("foo") as EngineObjectData.Sync).selectionValues()
+                            val bar = (values.getValue("bar") as EngineObjectData.Sync).selectionValues()
+                            val baz = (values.getValue("baz") as EngineObjectData.Sync).selectionValues()
+                            val f1 = (bar.getValue("f1") as EngineObjectData.Sync).selectionValues()
+                            (foo.getValue("value") as Int) + (bar.getValue("fixed") as Int) + (baz.getValue("value") as Int) + (f1.getValue("value") as Int)
+                        }.withVariablesProvider(setOf("value"), provider),
+                    schema.requireObjectField("Query", "foo") to
+                        fieldResolverOf(empty, schemas.fragmentFrom("fragment F on Query { base(value: 7) }")) { _, query, _ ->
+                            schema.objectOf("Leaf") { "value" setTo query.selectionValues().getValue("base") }
+                        },
+                    schema.requireObjectField("Query", "bar") to
+                        fieldResolverOf(empty) { _, _ -> schema.objectOf("Bar") { "fixed" setTo 5 } },
+                    schema.requireObjectField("Query", "baz") to
+                        fieldResolverOf(empty) { _, _ -> schema.objectOf("Leaf") { "value" setTo 3 } },
+                    schema.requireObjectField("Query", "base") to
+                        fieldResolverOf(empty) { _, arguments -> arguments.fieldValues.getValue("value") },
+                    schema.requireObjectField("Bar", "f1") to
+                        fieldResolverOf(schema.emptyFragmentOf("Bar")) { _, arguments ->
+                            schema.objectOf("Leaf") { "value" setTo (arguments.fieldValues.getValue("arg") as Int) * 2 }
+                        },
+                )
+            },
+        )
+
+    private fun queryVariableClosureFixture(
+        consumerProvider: VariablesProviderFunction,
+        middleProvider: VariablesProviderFunction,
+        consumerQuery: String = "middle(value: ${'$'}value)",
+        middleQuery: String = "echo(value: ${'$'}value)",
+    ): TestWorld =
+        TestWorld.fromSDL(
+            selectiveResolvers = false,
+            schemaSDL = "type Query { consumer(seed: Int!): Int! middle(value: Int!): Int! echo(value: Int!): Int! reuse: Int! }",
+            fieldResolvers = { schemas ->
+                val schema = schemas.loweredSchema
+                val empty = schema.emptyFragmentOf("Query")
+                mapOf(
+                    schema.requireObjectField("Query", "consumer") to
+                        fieldResolverOf(empty, schemas.fragmentFrom("fragment F on Query { $consumerQuery }")) { _, query, _ ->
+                            query.selectionValues().getValue("middle")
+                        }.withVariablesProvider(setOf("value"), consumerProvider),
+                    schema.requireObjectField("Query", "middle") to
+                        fieldResolverOf(empty, schemas.fragmentFrom("fragment F on Query { $middleQuery }")) { _, query, _ ->
+                            query.selectionValues().getValue("echo")
+                        }.withVariablesProvider(setOf("value"), middleProvider),
+                    schema.requireObjectField("Query", "echo") to
+                        fieldResolverOf(empty) { _, arguments -> arguments.fieldValues.getValue("value") },
+                    schema.requireObjectField("Query", "reuse") to
+                        fieldResolverOf(empty, schemas.fragmentFrom("fragment F on Query { consumer(seed: 4) }")) { _, query, _ ->
+                            query.selectionValues().getValue("consumer")
+                        },
+                )
+            },
+        )
+
+    private fun precomputedClosureFixture(): TestWorld =
+        TestWorld.fromSDL(
+            selectiveResolvers = false,
+            schemaSDL = """
+                type Query { base(value: Int!): Int! middle: Int! first: Int! second: Int! item: Item! }
+                type Item { left: Int! right: Int! }
+            """.trimIndent(),
+            fieldResolvers = { schema ->
+                val empty = schema.loweredSchema.emptyFragmentOf("Query")
+                mapOf(
+                    schema.loweredSchema.requireObjectField("Query", "base") to
+                        fieldResolverOf(empty) { _, arguments -> arguments.fieldValues.getValue("value") },
+                    schema.loweredSchema.requireObjectField("Query", "item") to
+                        fieldResolverOf(empty) { _, _ ->
+                            schema.loweredSchema.objectOf("Item") {
+                                "left" setTo 1
+                                "right" setTo 2
+                            }
+                        },
+                    schema.loweredSchema.requireObjectField("Query", "middle") to
+                        fieldResolverOf(empty, schema.fragmentFrom("fragment F on Query { base(value: 7) }")) { _, queryValue, _ ->
+                            queryValue.selectionValues().getValue("base")
+                        },
+                    schema.loweredSchema.requireObjectField("Query", "first") to
+                        fieldResolverOf(empty, schema.fragmentFrom("fragment F on Query { middle item { left } }")) { _, queryValue, _ ->
+                            val item = queryValue.selectionValues().getValue("item") as EngineObjectData.Sync
+                            (queryValue.selectionValues().getValue("middle") as Int) + (item.selectionValues().getValue("left") as Int)
+                        },
+                    schema.loweredSchema.requireObjectField("Query", "second") to
+                        fieldResolverOf(empty, schema.fragmentFrom("fragment F on Query { base(value: 9) item { right } }")) { _, queryValue, _ ->
+                            val item = queryValue.selectionValues().getValue("item") as EngineObjectData.Sync
+                            (queryValue.selectionValues().getValue("base") as Int) + (item.selectionValues().getValue("right") as Int)
+                        },
+                )
+            },
+        )
+
     private fun queryClosureFixture(): TestWorld =
         TestWorld.fromSDL(
             schemaSDL =
@@ -532,8 +1138,9 @@ class ConstructionDemandClosureTest {
     private fun TestWorld.closeOrchestrationDemand(
         initialDemand: OrchestrationConstructionDemand<SelectionForest>,
         objectTypeName: String = "Query",
+        usePrecomputedConstructionDemand: Boolean = false,
     ): OrchestrationConstructionDemand<ObjectSelectionForest> {
-        val world = assumptions
+        val world = newAssumptions(usePrecomputedConstructionDemand = usePrecomputedConstructionDemand)
         val query = world.schema.requireQueryTypeDef()
         val source = world.schema.objectOf(objectTypeName)
         val objectRoot = ObjectEngineResult.of(source.schemaType, emptyMap())
@@ -561,5 +1168,5 @@ class ConstructionDemandClosureTest {
         ).objectRooted.values.merge(schemaType)
     }
 
-    private fun ObjectSelectionForest.fieldNames(): Set<String> = groundKeys().mapTo(linkedSetOf()) { key -> key.field.name }
+    private fun ObjectSelectionForest.fieldNames(): Set<String> = keys().mapTo(linkedSetOf()) { key -> key.field.name }
 }

@@ -27,6 +27,65 @@ interface ParentFieldResolverContract : ResolverContract {
         get() = false
 
     @Test
+    fun `parent demand binds an ancestor provider only when the source does not supply its field`() {
+        for (supplied in listOf(false, true)) {
+            var providerCalls = 0
+            val invocations = linkedMapOf<String, Int>()
+            val observer = object : CorrectnessResolverObserver() {
+                override fun onResolverInvocation(observation: ResolverInvocationObservation) {
+                    super.onResolverInvocation(observation)
+                    invocations.compute(observation.field.name) { _, count -> (count ?: 0) + 1 }
+                }
+            }
+            val fixture = TestWorld.fromSDL(
+                selectiveResolvers = selectiveResolvers,
+                schemaSDL =
+                    """
+                    directive @parent on FIELD_DEFINITION
+                    type Query { root: Root marker: Int leaf: Int }
+                    type Root { child: Child lifted: Int seed(value: Int): Int }
+                    type Child { parent: Root @parent result: Int }
+                    """.trimIndent(),
+                fieldResolvers = { schemas ->
+                    val schema = schemas.loweredSchema
+                    mapOf(
+                        schema.requireObjectField("Query", "root") to fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
+                            schema.objectOf("Root") { if (supplied) "lifted" setTo 99 }
+                        },
+                        schema.requireObjectField("Root", "child") to fieldResolverOf(schema.emptyFragmentOf("Root")) { _, _ -> schema.objectOf("Child") },
+                        schema.requireObjectField("Child", "result") to fieldResolverOf(
+                            schemas.fragmentFrom("fragment Input on Child { parent { lifted } }"),
+                        ) { input, _ -> assertIs<EngineObjectData.Sync>(input.outputValue("parent")).outputValue("lifted") },
+                        schema.requireObjectField("Root", "lifted") to fieldResolverOf(
+                            objectFragment = schemas.fragmentFrom("fragment Input on Root { seed(value: ${'$'}provided) }"),
+                            queryFragment = schemas.fragmentFrom("fragment Input on Query { marker }"),
+                        ) { input, query, _ -> (input.outputValue("seed") as Int) + (query.outputValue("marker") as Int) }
+                            .withVariablesProvider(setOf("provided")) {
+                                providerCalls++
+                                mapOf("provided" to 7)
+                            },
+                        schema.requireObjectField("Root", "seed") to fieldResolverOf(schema.emptyFragmentOf("Root")) { _, arguments -> arguments.fieldValues.getValue("value") },
+                        schema.requireObjectField("Query", "marker") to fieldResolverOf(
+                            objectFragment = schema.emptyFragmentOf("Query"),
+                            queryFragment = schemas.fragmentFrom("fragment Input on Query { leaf }"),
+                        ) { _, query, _ -> query.outputValue("leaf") },
+                        schema.requireObjectField("Query", "leaf") to fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> 11 },
+                    )
+                },
+            )
+
+            val result = resolveAndValidate(fixture, "{ root { child { result } } }", resolverObserver = observer)
+            val root = assertIs<ObjectEngineResult>(result.getCell(fixture.schema.contractKey("Query", "root")).get())
+            val child = assertIs<ObjectEngineResult>(root.getCell(fixture.schema.contractKey("Root", "child")).get())
+            assertEquals(if (supplied) 99 else 18, child.getCell(fixture.schema.contractKey("Child", "result")).get())
+            assertEquals(if (supplied) 0 else 1, providerCalls)
+            val expectedInvocations = mapOf("root" to 1, "child" to 1, "result" to 1) +
+                if (supplied) emptyMap() else mapOf("lifted" to 1, "seed" to 1, "marker" to 1, "leaf" to 1)
+            assertEquals(expectedInvocations, invocations)
+        }
+    }
+
+    @Test
     fun `Query-rooted parent demand activates one ancestor resolver and its Query input`() {
         assumeTrue(usesSingularQueryOERForParentDemand)
         val invocations = linkedMapOf<String, Int>()
@@ -288,7 +347,7 @@ interface ParentFieldResolverContract : ResolverContract {
                     """
                     directive @parent on FIELD_DEFINITION
                     type Query { root: Link }
-                    type Link { name: String, child: Link, parent: Link @parent }
+                    type Link { name: String, child: Link, parent: Link @parent, ancestorName: String }
                     """.trimIndent(),
                 fieldResolvers = { schema ->
                     mapOf(
@@ -300,6 +359,11 @@ interface ParentFieldResolverContract : ResolverContract {
                             fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Link")) { _, _ ->
                                 schema.loweredSchema.objectOf("Link") { "name" setTo "child" }
                             },
+                        schema.loweredSchema.requireObjectField("Link", "ancestorName") to
+                            fieldResolverOf(schema.fragmentFrom("fragment F on Link { parent { parent { name } } }")) { input, _ ->
+                                val parent = assertIs<EngineObjectData.Sync>(input.outputValue("parent"))
+                                assertIs<EngineObjectData.Sync>(parent.outputValue("parent")).outputValue("name")
+                            },
                     )
                 },
             )
@@ -308,7 +372,7 @@ interface ParentFieldResolverContract : ResolverContract {
         val result =
             resolveAndValidate(
                 worldFixture,
-                "query { root { child { child { parent { parent { name } } } } } }",
+                "query { root { child { child { ancestorName } } } }",
             )
         val root =
             assertIs<ObjectEngineResult>(
@@ -326,6 +390,7 @@ interface ParentFieldResolverContract : ResolverContract {
 
         assertSame(firstChild, secondChild.getCell(parentKey).get())
         assertSame(root, firstChild.getCell(parentKey).get())
+        assertEquals("root", secondChild.getCell(world.schema.contractKey("Link", "ancestorName")).get())
     }
 
     @Test
@@ -408,7 +473,7 @@ interface ParentFieldResolverContract : ResolverContract {
                     type Query { root: Root }
                     type Root { child: Child }
                     type Child { parent: Root @parent, grandchild: Grandchild }
-                    type Grandchild { parent: Child @parent }
+                    type Grandchild { parent: Child @parent, lineage: String }
                     """.trimIndent(),
                 fieldResolvers = { schema ->
                     mapOf(
@@ -428,6 +493,11 @@ interface ParentFieldResolverContract : ResolverContract {
                                     "parent" setTo schema.loweredSchema.objectOf("Child")
                                 }
                             },
+                        schema.loweredSchema.requireObjectField("Grandchild", "lineage") to
+                            fieldResolverOf(schema.fragmentFrom("fragment F on Grandchild { parent { parent { __typename } } }")) { input, _ ->
+                                val parent = assertIs<EngineObjectData.Sync>(input.outputValue("parent"))
+                                assertIs<EngineObjectData.Sync>(parent.outputValue("parent")).type.name
+                            },
                     )
                 },
             )
@@ -436,7 +506,7 @@ interface ParentFieldResolverContract : ResolverContract {
         val result =
             resolveAndValidate(
                 worldFixture,
-                "query { root { child { grandchild { parent { parent { __typename } } } } } }",
+                "query { root { child { grandchild { lineage } } } }",
             )
         val root =
             assertIs<ObjectEngineResult>(
@@ -460,6 +530,7 @@ interface ParentFieldResolverContract : ResolverContract {
             root,
             grandchildParent.getCell(world.schema.contractKey("Child", "parent")).get(),
         )
+        assertEquals("Root", grandchild.getCell(world.schema.contractKey("Grandchild", "lineage")).get())
     }
 
     @Test

@@ -1,15 +1,19 @@
 package viaduct.engine.runtime2.contract
 
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertNotSame
+import kotlin.test.assertTrue
 import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.Test
 import viaduct.engine.api.ResolvedEngineObjectData
 import viaduct.engine.runtime2.correctresolution.CorrectnessResolverObserver
 import viaduct.engine.runtime2.model.Arguments
+import viaduct.engine.runtime2.model.EngineErrorData
+import viaduct.engine.runtime2.model.ErrorEngineResult
 import viaduct.engine.runtime2.model.ListEngineResult
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.RootFieldReferenceData
@@ -19,12 +23,14 @@ import viaduct.engine.runtime2.model.merge
 import viaduct.engine.runtime2.model.outputValue
 import viaduct.engine.runtime2.model.registry.fieldResolverOf
 import viaduct.engine.runtime2.model.registry.fromArgument
+import viaduct.engine.runtime2.model.registry.nodeResolverOf
 import viaduct.engine.runtime2.model.registry.selectiveFieldResolverOf
 import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireType
 import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.emptyFragmentOf
 import viaduct.engine.runtime2.model.testing.fragmentFrom
+import viaduct.engine.runtime2.model.testing.nodeReferenceOf
 import viaduct.engine.runtime2.model.testing.objectOf
 import viaduct.engine.runtime2.resolution.framework.ResolverInvocationObservation
 import viaduct.graphql.schema.ViaductSchema
@@ -510,8 +516,83 @@ interface DepthFirstRootFieldReferenceOrderingContract : ResolverContract {
     }
 }
 
-/** Supplied references suppress the standard resolver and its object-fragment demand. */
+/** Root-field-reference behavior involving nonempty object fragments. */
 interface ObjectFragmentRootFieldReferenceResolverContract : ResolverContract {
+    @Test
+    fun `awaits completion for node in required selection set`() {
+        val failedNodeCompleted = AtomicBoolean()
+        val testWorld =
+            TestWorld.fromSDL(
+                selectiveResolvers = selectiveResolvers,
+                schemaSDL =
+                    """
+                    interface Node { id: ID! }
+
+                    type Query { baz: Baz! }
+
+                    type Baz implements Node {
+                      id: ID!
+                      name: String!
+                      anotherBaz: Baz!
+                      z: Int!
+                    }
+                    """.trimIndent(),
+                nodeResolvers = { schema ->
+                    mapOf(
+                        schema.loweredSchema.contractObjectType("Baz") to
+                            nodeResolverOf { id ->
+                                when (id) {
+                                    "1" ->
+                                        schema.loweredSchema.objectOf("Baz") {
+                                            "id" setTo id
+                                        }
+                                    "2" -> {
+                                        failedNodeCompleted.set(true)
+                                        EngineErrorData.of()
+                                    }
+                                    else -> error("Unexpected Baz ID: $id")
+                                }
+                            },
+                    )
+                },
+                fieldResolvers = { schema ->
+                    val baz = schema.loweredSchema.requireObjectField("Query", "baz")
+                    val anotherBaz = schema.loweredSchema.requireObjectField("Baz", "anotherBaz")
+                    val z = schema.loweredSchema.requireObjectField("Baz", "z")
+                    mapOf(
+                        baz to
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
+                                schema.loweredSchema.nodeReferenceOf("Baz", "1")
+                            },
+                        anotherBaz to
+                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Baz")) { _, _ ->
+                                schema.loweredSchema.nodeReferenceOf("Baz", "2")
+                            },
+                        z to
+                            fieldResolverOf(
+                                schema.fragmentFrom(
+                                    "fragment Z on Baz { anotherBaz { name } }",
+                                ),
+                            ) { input, _ ->
+                                input.get("anotherBaz")
+                                5
+                            },
+                    )
+                },
+            )
+        val schema = testWorld.schema
+        val result = resolveAndValidate(testWorld, "query { baz { z } }")
+        val baz =
+            assertIs<ObjectEngineResult>(
+                result.getCell(schema.contractKey("Query", "baz")).get(),
+            )
+
+        assertTrue(failedNodeCompleted.get())
+        assertIs<ErrorEngineResult>(
+            baz.getCell(schema.contractKey("Baz", "z")).get(),
+        )
+    }
+
     @Test
     fun `root-field reference override does not activate registered resolver input demand`() {
         val dependencyApplications = AtomicInteger()

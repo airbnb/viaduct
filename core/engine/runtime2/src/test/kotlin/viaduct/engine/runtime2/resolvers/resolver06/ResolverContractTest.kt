@@ -62,16 +62,38 @@ class PrecomputedResolverContractTest : ResolverContractTest() {
         checkerObserver: CheckerObserver,
     ): ResolverResolutionObservation =
         super.observeResolution(
-            world =
-                Assumptions.of(
-                    schema = world.schema,
-                    resolverRegistry = world.resolverRegistry,
-                    selectiveResolvers = world.selectiveResolvers,
-                    usePrecomputedConstructionDemand = true,
-                ),
+            world = world.withPrecomputedConstructionDemand(),
             root = root,
             selections = selections,
             resolverObserver = resolverObserver,
             checkerObserver = checkerObserver,
+        )
+
+    override fun resolveAndObserveTasks(
+        operation: SharedOperationContext<*>,
+        root: EngineObjectData.Sync,
+        selections: SelectionForest,
+        taskObserver: (ResolverTaskObservation) -> Unit,
+    ): ObjectEngineResult =
+        super.resolveAndObserveTasks(
+            operation =
+                SharedOperationContext.create(
+                    world = operation.world.withPrecomputedConstructionDemand(),
+                    variableBindings = operation.variableBindings,
+                    resolverObserver = operation.resolverObserver,
+                    checkerObserver = operation.checkerObserver,
+                    engineExecutionContext = operation.engineExecutionContext,
+                ),
+            root = root,
+            selections = selections,
+            taskObserver = taskObserver,
+        )
+
+    private fun Assumptions.withPrecomputedConstructionDemand(): Assumptions =
+        Assumptions.of(
+            schema = schema,
+            resolverRegistry = resolverRegistry,
+            selectiveResolvers = selectiveResolvers,
+            usePrecomputedConstructionDemand = true,
         )
 }

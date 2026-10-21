@@ -2,6 +2,7 @@ package viaduct.engine.runtime2.resolvers
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.runtime2.model.Arguments
@@ -241,9 +242,11 @@ class FieldCheckerDemandClosureTest {
     }
 
     @Test
-    fun `checker value cycle reaches a demand fixed point even when the schema has parents`() {
-        val world = parentWorld(aInput = "b", bInput = "a")
-        assertDemand(close(world, checked = "a"), checked = setOf("a"), unchecked = setOf("b"))
+    fun `checker value cycles are rejected even when the schema has parents`() {
+        val failure = assertFailsWith<IllegalArgumentException> {
+            parentWorld(aInput = "b", bInput = "a")
+        }
+        assertTrue(failure.message.orEmpty().contains("demand cycle"))
     }
 
     @Test
@@ -316,7 +319,7 @@ class FieldCheckerDemandClosureTest {
     }
 
     @Test
-    fun `cyclic parent analysis is independent of which input is visited first`() {
+    fun `parent analysis is independent of which input is visited first`() {
         val world = TestWorld.fromDSL(
             """
             extend type Query { boxes: [Box] @resolver(result: []) }
@@ -331,7 +334,7 @@ class FieldCheckerDemandClosureTest {
             type Child {
               parent: Box @parent
               a: Int
-              b: Int @resolver(of: "a parent { checkedB }", result: 1)
+              b: Int @resolver(of: "parent { checkedB }", result: 1)
             }
             """.trimIndent(),
             fieldCheckers = { schema ->

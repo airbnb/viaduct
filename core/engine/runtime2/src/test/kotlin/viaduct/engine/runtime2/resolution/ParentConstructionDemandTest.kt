@@ -1,5 +1,8 @@
 package viaduct.engine.runtime2.resolution
 
+import java.util.concurrent.CyclicBarrier
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -7,19 +10,332 @@ import kotlin.test.assertFalse
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
+import viaduct.engine.api.CheckerResult
+import viaduct.engine.api.EngineObjectData
+import viaduct.engine.runtime2.bootstrap.ParentConstructionDemandCompiler
+import viaduct.engine.runtime2.bootstrap.resolverRegistryOf
 import viaduct.engine.runtime2.model.Arguments
 import viaduct.engine.runtime2.model.InclusionCondition
+import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.ObjectSelectionForest
 import viaduct.engine.runtime2.model.Selection
+import viaduct.engine.runtime2.model.SelectionForest
+import viaduct.engine.runtime2.model.emptyFragmentOf
+import viaduct.engine.runtime2.model.engineObjectDataOf
+import viaduct.engine.runtime2.model.guardedBy
+import viaduct.engine.runtime2.model.isParentField
+import viaduct.engine.runtime2.model.materializeSelectionForestOf
 import viaduct.engine.runtime2.model.merge
+import viaduct.engine.runtime2.model.registry.Assumptions
+import viaduct.engine.runtime2.model.registry.CheckerInput
+import viaduct.engine.runtime2.model.registry.FieldCheckerResolver
+import viaduct.engine.runtime2.model.registry.FieldResolverDefinition
+import viaduct.engine.runtime2.model.registry.ResolverFragmentTemplates
+import viaduct.engine.runtime2.model.registry.ResolverRegistry
+import viaduct.engine.runtime2.model.registry.TypeCheckerResolver
+import viaduct.engine.runtime2.model.registry.fieldResolverOf
 import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireQueryTypeDef
+import viaduct.engine.runtime2.model.requireType
 import viaduct.engine.runtime2.model.selectionForestOf
 import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.fragmentFrom
 import viaduct.engine.runtime2.resolution.framework.Demand
+import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
+import viaduct.engine.runtime2.resolution.liftParentConstructionDemand as liftDynamicParentDemand
+import viaduct.engine.runtime2.resolvers.resolver23.resolve as resolve23
+import viaduct.graphql.schema.ViaductSchema
 
 class ParentConstructionDemandTest {
+    @Test
+    fun `shared field and type checkers keep each registry's parent requirements`() =
+        runTest {
+            assertSharedCheckerOwnership { resolve23(it) }
+        }
+
+    private suspend fun assertSharedCheckerOwnership(executeResolution: suspend SharedOperationContext<*>.(SelectionForest) -> ObjectEngineResult) {
+        for (fieldChecker in listOf(false, true)) {
+            val fixture = TestWorld.fromSDL(
+                """
+            directive @parent on FIELD_DEFINITION
+            type Query { root: Container }
+            type Container { branch: Root checked: Int }
+            type Root { a: Int b: Int child: Child }
+            type Child { parent: Root @parent demand: Int }
+                """.trimIndent(),
+            )
+            val schema = fixture.schema
+            val query = schema.requireQueryTypeDef()
+            val rootType = schema.requireType("Container") as ViaductSchema.Object
+            val checked = schema.requireObjectField("Container", "checked")
+            val templates = mapOf(
+                "input" to ResolverFragmentTemplates(
+                    objectFragmentTemplate = fixture.schemas.fragmentFrom("fragment F on Container { branch { child { demand } } }").materializeSelections,
+                    queryFragmentTemplate = materializeSelectionForestOf(),
+                ),
+            )
+            val checkerCalls = mutableListOf<Int>()
+
+            fun check(inputs: Map<String, CheckerInput>): CheckerResult {
+                val branch = inputs.getValue("input").objectValue.get("branch") as EngineObjectData.Sync
+                val child = branch.get("child") as EngineObjectData.Sync
+                checkerCalls += child.get("demand") as Int
+                return CheckerResult.Success
+            }
+            val sharedFieldChecker = FieldCheckerResolver.of(checked, query, templates) { _, inputs, _ -> check(inputs) }
+            val sharedTypeChecker = TypeCheckerResolver.of(rootType, query, templates) { inputs, _ -> check(inputs) }
+
+            fun registry(required: String): Pair<ResolverRegistry, MutableList<String>> {
+                val calls = mutableListOf<String>()
+                val definitions = buildMap<ViaductSchema.Field, FieldResolverDefinition> {
+                    for ((type, field, value) in listOf(Triple("Root", "a", 10), Triple("Root", "b", 20), Triple("Container", "checked", 1))) {
+                        put(
+                            schema.requireObjectField(type, field),
+                            fieldResolverOf(schema.emptyFragmentOf(type)) { _, _ ->
+                                calls += "$type.$field"
+                                value
+                            }
+                        )
+                    }
+                    for ((type, field, output) in listOf(Triple("Query", "root", "Container"), Triple("Container", "branch", "Root"), Triple("Root", "child", "Child"))) {
+                        put(
+                            schema.requireObjectField(type, field),
+                            fieldResolverOf(schema.emptyFragmentOf(type)) { _, _ ->
+                                calls += "$type.$field"
+                                engineObjectDataOf(schema.requireType(output) as ViaductSchema.Object)
+                            }
+                        )
+                    }
+                    put(
+                        schema.requireObjectField("Child", "demand"),
+                        fieldResolverOf(fixture.schemas.fragmentFrom("fragment F on Child { parent { $required } }")) { input, _ ->
+                            calls += "Child.demand"
+                            (input.get("parent") as EngineObjectData.Sync).get(required)
+                        },
+                    )
+                }
+                return resolverRegistryOf(
+                    fixture.schemas,
+                    emptyMap(),
+                    definitions,
+                    fieldCheckers = if (fieldChecker) mapOf(checked to sharedFieldChecker) else emptyMap(),
+                    typeCheckers = if (fieldChecker) emptyMap() else mapOf(rootType to sharedTypeChecker),
+                    variableProviders = emptyMap(),
+                ) to calls
+            }
+
+            suspend fun execute(
+                registry: ResolverRegistry,
+                calls: MutableList<String>,
+                required: String,
+                precomputed: Boolean
+            ) {
+                calls.clear()
+                checkerCalls.clear()
+                val operation = SharedOperationContext.create(Assumptions.of(schema, registry, usePrecomputedConstructionDemand = precomputed))
+                val result = executeResolution(operation, fixture.schemas.fragmentFrom("fragment F on Query { root { checked } }").subselections)
+
+                fun ObjectEngineResult.value(
+                    type: String,
+                    field: String
+                ) = getCell(ObjectEngineResult.GroundKey.of(schema.requireObjectField(type, field), emptyMap())).value.get()
+                val rootResult = result.value("Query", "root") as ObjectEngineResult
+                assertEquals(1, rootResult.value("Container", "checked"))
+                assertEquals(listOf("Container.checked", "Container.branch", "Child.demand", "Query.root", "Root.$required", "Root.child").sorted(), calls.sorted())
+                assertEquals(listOf(if (required == "a") 10 else 20), checkerCalls)
+            }
+
+            for (precomputed in listOf(false, true)) {
+                val (registryA, callsA) = registry("a")
+                execute(registryA, callsA, "a", precomputed)
+                val (registryB, callsB) = registry("b")
+                execute(registryA, callsA, "a", precomputed)
+                execute(registryB, callsB, "b", precomputed)
+                execute(registryA, callsA, "a", precomputed)
+            }
+        }
+    }
+
+    @Test
+    fun `request matching prunes unrelated recursive branches in a schema with parent demand`() {
+        val fixture = TestWorld.fromDSL(
+            """
+            extend type Query {
+              root: Root @resolver(result: {})
+              tree: Tree @resolver(result: {})
+            }
+            type Root { seed: Int child: Child @resolver(result: {}) }
+            type Child {
+              parent: Root @parent
+              derived: Int @resolver(of: "parent { seed }", result: 1)
+              plain: Int
+            }
+            type Tree { next: Tree value: Int }
+            """.trimIndent(),
+        )
+        val registry = fixture.resolverRegistry
+        val query = fixture.schema.requireQueryTypeDef()
+        assertEquals(setOf("root"), registry.parentSelectionDemand(query).keys)
+        val tree = fixture.schema.requireObjectField("Tree", "value").containingDef
+        assertTrue(registry.parentSelectionDemand(tree).isEmpty())
+
+        val visitedTypes = mutableListOf<ViaductSchema.Object>()
+        val preparedOnly = object : ResolverRegistry by registry {
+            override fun parentSelectionDemand(type: ViaductSchema.Object) =
+                registry.parentSelectionDemand(type).also {
+                    assertFalse(type == tree, "Unrelated recursive branches must not be traversed")
+                    visitedTypes += type
+                }
+
+            override fun contains(field: ViaductSchema.ObjectField): Boolean = error("Runtime resolver lookup: $field")
+
+            override fun resolver(field: ViaductSchema.ObjectField) = error("Runtime resolver lookup: $field")
+
+            override fun fieldChecker(field: ViaductSchema.ObjectField) = error("Runtime checker lookup: $field")
+
+            override fun typeChecker(type: ViaductSchema.Object) = error("Runtime checker lookup: $type")
+        }
+        val world = Assumptions.of(fixture.schema, preparedOnly)
+        val unrelated = fixture.schemas.fragmentFrom("fragment F on Query { tree { next { next { value } } } }").subselections
+        assertTrue(Demand.checked(unrelated).liftPrecomputedParentConstructionDemand(world).values.isEmpty())
+        assertEquals(listOf(query), visitedTypes)
+
+        for (field in listOf("plain", "derived")) {
+            val input = fixture.schemas.fragmentFrom("fragment F on Query { root { child { $field } } }").subselections
+            for (checked in listOf(false, true)) {
+                val demand = if (checked) Demand.checked(input) else Demand.unchecked(input)
+                val actual = demand.liftPrecomputedParentConstructionDemand(world)
+                assertSameDemand(demand.liftDynamicParentDemand(fixture.assumptions), actual)
+                assertEquals(field == "plain", actual.values.isEmpty())
+            }
+        }
+    }
+
+    @Test
+    fun `eager registry summaries compose parent demand without reading fixed resolver fragments`() {
+        val fixture = parentSummaryFixture()
+        val registry = fixture.resolverRegistry
+        val result = fixture.schema.requireObjectField("Child", "result")
+        val parent = fixture.schema.requireObjectField("Child", "parent")
+        val template = registry.resolver(result).objectParentDemand
+        assertTrue(template.usesParent)
+        assertFalse(registry.resolver(result).queryParentDemand.usesParent)
+        val summary = template.summary
+        assertTrue(summary.localDemand.values.isEmpty())
+        assertEquals(setOf(parent), summary.requests.keys)
+        val parentType = fixture.schema.requireObjectField("Parent", "bridge").containingDef
+        assertEquals(setOf("bridge"), summary.requests.getValue(parent).demand.checkedDemand.merge(parentType).fieldNames())
+
+        val consumer = fixture.schema.requireObjectField("Query", "consumer")
+        val consumerResolver = registry.resolver(consumer)
+        assertFalse(consumerResolver.objectParentDemand.usesParent)
+        assertTrue(consumerResolver.objectParentDemand.mayInduceParentDemand)
+        assertFalse(consumerResolver.queryParentDemand.mayInduceParentDemand)
+        val static = requireNotNull(requireNotNull(registry.precomputedConstructionDemand(consumer)).queryRootDemand)
+        val expectedStatic = Demand.checked(static.reusableDemand).liftParentConstructionDemand(fixture.assumptions)
+        assertSameDemand(expectedStatic, static.reusableParentDemand.parentDemand())
+        parentSummaryInputs(fixture).forEach { input ->
+            for (checked in listOf(false, true)) {
+                val demand = if (checked) Demand.checked(input) else Demand.unchecked(input)
+                val expected = demand.liftParentConstructionDemand(fixture.assumptions)
+                val actual = demand.liftPrecomputedParentConstructionDemand(fixture.assumptions)
+                assertSameDemand(expected, actual)
+            }
+        }
+    }
+
+    @Test
+    fun `parent summaries are immutable across concurrent worlds and incoming provenance`() {
+        val fixture = parentSummaryFixture()
+        val result = fixture.schema.requireObjectField("Child", "result")
+        val template = fixture.resolverRegistry.resolver(result).objectParentDemand
+        val demands = parentSummaryInputs(fixture).flatMap { listOf(Demand.checked(it), Demand.unchecked(it)) }
+        val expected = demands.map { it.liftParentConstructionDemand(fixture.assumptions) }
+        val executor = Executors.newFixedThreadPool(4)
+        val barrier = CyclicBarrier(4)
+        try {
+            val tasks = (0 until 4).map { worker ->
+                executor.submit {
+                    barrier.await(10, TimeUnit.SECONDS)
+                    repeat(24) { iteration ->
+                        val index = (iteration + worker) % demands.size
+                        val world = fixture.newAssumptions()
+                        assertSame(template, world.resolverRegistry.resolver(result).objectParentDemand)
+                        assertSameDemand(expected[index], demands[index].liftPrecomputedParentConstructionDemand(world))
+                    }
+                }
+            }
+            tasks.forEach { it.get(30, TimeUnit.SECONDS) }
+        } finally {
+            executor.shutdownNow()
+        }
+    }
+
+    @Test
+    fun `object and Query fragments retain independent parent-demand metadata`() {
+        val fixture = TestWorld.fromSDL(
+            """
+            directive @parent on FIELD_DEFINITION
+            type Query { objectConsumer: Int queryConsumer: Int root: Root }
+            type Root { seed: Int child: Child }
+            type Child { parent: Root @parent }
+            """.trimIndent(),
+            fieldResolvers = { schemas ->
+                val fragment = schemas.fragmentFrom("fragment F on Query { root { child { parent { seed } } } }")
+                val empty = schemas.loweredSchema.emptyFragmentOf("Query")
+                mapOf(
+                    schemas.loweredSchema.requireObjectField("Query", "objectConsumer") to fieldResolverOf(fragment) { _, _ -> 1 },
+                    schemas.loweredSchema.requireObjectField("Query", "queryConsumer") to fieldResolverOf(empty, fragment) { _, _, _ -> 1 },
+                )
+            },
+        )
+        val objectConsumer = fixture.resolverRegistry.resolver(fixture.schema.requireObjectField("Query", "objectConsumer"))
+        val queryConsumer = fixture.resolverRegistry.resolver(fixture.schema.requireObjectField("Query", "queryConsumer"))
+        assertTrue(objectConsumer.objectParentDemand.usesParent)
+        assertFalse(objectConsumer.queryParentDemand.mayInduceParentDemand)
+        assertFalse(queryConsumer.objectParentDemand.mayInduceParentDemand)
+        assertTrue(queryConsumer.queryParentDemand.usesParent)
+        val lifted = queryConsumer.queryParentDemand.parentDemand()
+        val root = fixture.schema.requireObjectField("Root", "seed").containingDef
+        assertEquals(setOf("seed"), lifted.checked.single().subselections.merge(root).fieldNames())
+        assertSameDemand(objectConsumer.objectParentDemand.parentDemand(), lifted)
+    }
+
+    @Test
+    fun `rejects potential type checker cycles through parents even with source supplied values`() {
+        val failure = assertFailsWith<IllegalArgumentException> {
+            TestWorld.fromDSL(
+                """
+                extend type Query {
+                  root: Root @resolver(result: {seed: 1})
+                  consumer: Int @resolver(of: "root { child { leaf } }", result: 1)
+                }
+                type Root {
+                  child: Child @resolver(result: {})
+                  seed: Int @resolver(of: "child { leaf }", result: 1)
+                }
+                type Child { parent: Root @parent leaf: Int }
+                """.trimIndent(),
+                typeCheckers = { schemas ->
+                    val type = schemas.loweredSchema.requireObjectField("Child", "leaf").containingDef
+                    mapOf(
+                        type to TypeCheckerResolver.of(
+                            type,
+                            schemas.loweredSchema.requireQueryTypeDef(),
+                            fragmentTemplates = mapOf(
+                                "input" to ResolverFragmentTemplates(
+                                    objectFragmentTemplate = schemas.fragmentFrom("fragment F on Child { parent { seed } }").materializeSelections,
+                                    queryFragmentTemplate = materializeSelectionForestOf(),
+                                ),
+                            ),
+                        ) { _, _ -> CheckerResult.Success },
+                    )
+                },
+            )
+        }
+        assertTrue(failure.message.orEmpty().contains("demand cycle"))
+    }
+
     @Test
     fun `selections without parent demand contribute nothing`() {
         val worldFixture =
@@ -684,7 +1000,83 @@ class ParentConstructionDemandTest {
         assertSame(InclusionCondition.Never, raw.typeCheckCondition)
     }
 
+    private fun Demand<SelectionForest>.liftParentConstructionDemand(world: Assumptions): Demand<SelectionForest> {
+        val expected = liftDynamicParentDemand(world)
+        val compiler = ParentConstructionDemandCompiler(world)
+        val checkedTemplate = compiler.compile(checked, checked = true)
+        val uncheckedTemplate = compiler.compile(unchecked, checked = false)
+        compiler.finish()
+        val actual = ParentDemandNormalizer().combine(checkedTemplate.parentDemand(), uncheckedTemplate.parentDemand())
+        assertSameDemand(expected, actual)
+        if (!checked.hasParentSelections() && !unchecked.hasParentSelections()) {
+            assertSameDemand(expected, liftPrecomputedParentConstructionDemand(world))
+        }
+        return expected
+    }
+
+    private fun SelectionForest.liftParentConstructionDemand(world: Assumptions): SelectionForest {
+        val expected = liftDynamicParentDemand(world)
+        val actual = Demand.checked(this).liftParentConstructionDemand(world)
+        assertEquals(expected.shape(), actual.checked.shape())
+        return expected
+    }
+
+    private fun SelectionForest.hasParentSelections(): Boolean = !all { !it.key.field.isParentField() && !it.subselections.hasParentSelections() }
+
     private fun ObjectSelectionForest.field(name: String) = byKey().values.single { selection -> selection.key.field.name == name }
 
     private fun ObjectSelectionForest.fieldNames(): Set<String> = keys().mapTo(linkedSetOf()) { key -> key.field.name }
+
+    private fun parentSummaryFixture(): TestWorld =
+        TestWorld.fromDSL(
+            """
+            extend type Query {
+              grand: Grand @resolver(result: {})
+              consumer: Int @resolver(of: "grand { middle { child { result } } }", result: 1)
+            }
+            type Grand {
+              grandValue: Int @resolver(result: 1)
+              middle: Parent @resolver(result: {})
+            }
+            type Parent {
+              parent: Grand @parent
+              bridge: Int @resolver(of: "parent { grandValue }", result: 1)
+              child: Child @resolver(result: {})
+            }
+            type Child {
+              parent: Parent @parent
+              result: Int @resolver(of: "parent { bridge }", result: 1)
+            }
+            """.trimIndent(),
+        )
+
+    private fun parentSummaryInputs(fixture: TestWorld): List<SelectionForest> {
+        val consumer = fixture.schema.requireObjectField("Query", "consumer")
+        val static = requireNotNull(requireNotNull(fixture.resolverRegistry.precomputedConstructionDemand(consumer)).queryRootDemand).reusableDemand
+        val requested = fixture.schemas.fragmentFrom("fragment F on Query { grand { middle { child { result } } } }").subselections
+        return listOf(static, requested, requested.guardedBy(InclusionCondition.Never))
+    }
+
+    private fun assertSameDemand(
+        expected: Demand<SelectionForest>,
+        actual: Demand<SelectionForest>,
+    ) {
+        assertEquals(expected.checked.shape(), actual.checked.shape())
+        assertEquals(expected.unchecked.shape(), actual.unchecked.shape())
+        assertEquals(expected.typeCheckDemanded, actual.typeCheckDemanded)
+        assertEquals(expected.typeCheckCondition, actual.typeCheckCondition)
+    }
+
+    private data class ParentSelectionShape(
+        val condition: InclusionCondition,
+        val children: Map<ViaductSchema.Object, Map<ObjectEngineResult.ObjectKey, ParentSelectionShape>>,
+    )
+
+    private fun SelectionForest.shape(): Map<ViaductSchema.Object, Map<ObjectEngineResult.ObjectKey, ParentSelectionShape>> {
+        val types = linkedSetOf<ViaductSchema.Object>()
+        forEach { types += it.possibleTypes }
+        return types.associateWith { type ->
+            merge(type).byKey().mapValues { (_, selection) -> ParentSelectionShape(selection.inclusionCondition, selection.subselections.shape()) }
+        }
+    }
 }

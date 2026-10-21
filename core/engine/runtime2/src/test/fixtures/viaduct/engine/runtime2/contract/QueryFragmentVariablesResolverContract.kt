@@ -12,6 +12,7 @@ import viaduct.engine.api.EngineObjectData
 import viaduct.engine.runtime2.correctresolution.CorrectnessResolverObserver
 import viaduct.engine.runtime2.model.Arguments
 import viaduct.engine.runtime2.model.ErrorEngineResult
+import viaduct.engine.runtime2.model.ListEngineResult
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.ResolverOccurrenceId
 import viaduct.engine.runtime2.model.RootFieldReferenceData
@@ -396,6 +397,46 @@ interface QueryFragmentVariablesResolverContract : ResolverContract {
 
         val item = assertIs<ObjectEngineResult>(result.getCell(fixture.schema.contractKey("Query", "item")).get())
         assertEquals(42, item.getCell(fixture.schema.contractKey("Item", "computed")).get())
+    }
+
+    @Test
+    fun `Query providers bind separately for equal keys in distinct list items`() {
+        val providerCalls = AtomicInteger()
+        val fixture =
+            TestWorld.fromSDL(
+                selectiveResolvers = selectiveResolvers,
+                schemaSDL = "type Query { items: [Item!]!, echo(value: Int): Int } type Item { computed(seed: Int!): Int }",
+                fieldResolvers = { schemas ->
+                    val schema = schemas.loweredSchema
+                    mapOf(
+                        schema.requireObjectField("Query", "items") to fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
+                            List(2) { schema.objectOf("Item") }
+                        },
+                        schema.requireObjectField("Item", "computed") to
+                            fieldResolverOf(
+                                objectFragment = schema.emptyFragmentOf("Item"),
+                                queryFragment = schemas.fragmentFrom("fragment Input on Query { echo(value: ${'$'}value) }"),
+                            ) { _, query, _ -> query.selectionValues().getValue("echo") }
+                                .withVariablesProvider(setOf("value")) { arguments ->
+                                    providerCalls.incrementAndGet()
+                                    mapOf("value" to (arguments.fieldValues.getValue("seed") as Int) * 2)
+                                },
+                        schema.requireObjectField("Query", "echo") to
+                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, arguments -> arguments.fieldValues.getValue("value") },
+                    )
+                },
+            )
+        val result = resolveAndValidate(fixture, "{ items { computed(seed: 4) } }")
+        val items = assertIs<ListEngineResult>(result.getCell(fixture.schema.contractKey("Query", "items")).get())
+
+        assertEquals(
+            listOf(8, 8),
+            items.map { cell ->
+                assertIs<ObjectEngineResult>(cell.get())
+                    .getCell(fixture.schema.contractKey("Item", "computed", mapOf("seed" to 4))).get()
+            },
+        )
+        assertEquals(2, providerCalls.get())
     }
 
     private fun queryVariablesWorld(provider: VariablesProviderFunction? = null): TestWorld =

@@ -21,15 +21,28 @@ import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 class ParentDemandProvenanceTest {
     @Test
     fun `nested checked object parent demand remains checked`() {
-        assertNestedCheckedParentDemand(queryRooted = false)
+        assertNestedParentDemand(queryRooted = false, checked = true)
     }
 
     @Test
     fun `nested checked Query parent demand remains checked`() {
-        assertNestedCheckedParentDemand(queryRooted = true)
+        assertNestedParentDemand(queryRooted = true, checked = true)
     }
 
-    private fun assertNestedCheckedParentDemand(queryRooted: Boolean) {
+    @Test
+    fun `nested unchecked object parent demand remains unchecked`() {
+        assertNestedParentDemand(queryRooted = false, checked = false)
+    }
+
+    @Test
+    fun `nested unchecked Query parent demand remains unchecked`() {
+        assertNestedParentDemand(queryRooted = true, checked = false)
+    }
+
+    private fun assertNestedParentDemand(
+        queryRooted: Boolean,
+        checked: Boolean,
+    ) {
         val worldFixture = TestWorld.fromDSL(
             """
             extend type Query {
@@ -41,40 +54,44 @@ class ParentDemandProvenanceTest {
             }
             type Company {
               parent: Organization @parent
+              displayName: String @resolver(of: "parent { name }", result: null)
             }
             """.trimIndent(),
         )
-        val world = worldFixture.assumptions
         val schema = worldFixture.schemas
         val queryType = schema.loweredSchema.requireQueryTypeDef()
         val organizationType = schema.loweredSchema.requireObjectField("Organization", "company").containingDef
-        val objectRoot = ObjectEngineResult.of(queryType, emptyMap())
-        val queryRoot = ObjectEngineResult.of(queryType, emptyMap())
         val original = schema.fragmentFrom(
-            "fragment F on Query { organization { company { parent { name } } } }",
+            "fragment F on Query { organization { company { displayName } } }",
         ).subselections
+        val demand = if (checked) Demand.checked(original) else Demand.unchecked(original)
         val initial: OrchestrationConstructionDemand<SelectionForest> =
             if (queryRooted) {
-                OrchestrationConstructionDemand(Demand.EMPTY, Demand.checked(original))
+                OrchestrationConstructionDemand(Demand.EMPTY, demand)
             } else {
-                OrchestrationConstructionDemand.checkedObject(original)
+                OrchestrationConstructionDemand(demand, Demand.EMPTY)
             }
 
-        val closed = schema.loweredSchema.objectOf("Query").closeOrchestrationConstructionDemand(
-            operation = SharedOperationContext.create(world),
-            objectOccurrence = OEROccurrence(objectRoot, emptyList(), objectRoot),
-            queryOccurrence = OEROccurrence(queryRoot, emptyList(), queryRoot),
-            initialDemand = initial,
-        )
-        val selected = if (queryRooted) closed.queryRooted else closed.objectRooted
-        val other = if (queryRooted) closed.objectRooted else closed.queryRooted
+        for (precomputed in listOf(false, true)) {
+            val world = worldFixture.newAssumptions(usePrecomputedConstructionDemand = precomputed)
+            val objectRoot = ObjectEngineResult.of(queryType, emptyMap())
+            val queryRoot = ObjectEngineResult.of(queryType, emptyMap())
+            val closed = schema.loweredSchema.objectOf("Query").closeOrchestrationConstructionDemand(
+                operation = SharedOperationContext.create(world),
+                objectOccurrence = OEROccurrence(objectRoot, emptyList(), objectRoot),
+                queryOccurrence = OEROccurrence(queryRoot, emptyList(), queryRoot),
+                initialDemand = initial,
+            )
+            val selected = if (queryRooted) closed.queryRooted else closed.objectRooted
+            val other = if (queryRooted) closed.objectRooted else closed.queryRooted
 
-        // This is checked client demand throughout. Lifting the parent name read back across
-        // Organization.company must produce checked organization { name }, not unchecked work.
-        val checkedOrganization = selected.checked.single().subselections.merge(organizationType)
-        assertEquals(setOf("company", "name"), checkedOrganization.fieldNames())
-        assertTrue(selected.unchecked.isEmpty(), "Checked parent demand acquired unchecked provenance")
-        assertTrue(other.values.isEmpty(), "Parent lifting escaped its object/Query root component")
+            val retained = if (checked) selected.checked else selected.unchecked
+            val otherProvenance = if (checked) selected.unchecked else selected.checked
+            val organization = retained.single().subselections.merge(organizationType)
+            assertEquals(setOf("company", "name"), organization.fieldNames())
+            assertTrue(otherProvenance.isEmpty(), "Parent lifting changed checking provenance")
+            assertTrue(other.values.isEmpty(), "Parent lifting escaped its object/Query root component")
+        }
     }
 
     private fun ObjectSelectionForest.fieldNames(): Set<String> = groundKeys().mapTo(linkedSetOf()) { it.field.name }

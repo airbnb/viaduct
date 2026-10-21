@@ -96,13 +96,13 @@ private class ParentDemandAnalysis(
         }
 }
 
-private class ParentRequest(
+internal class ParentRequest(
     val parentField: ViaductSchema.ObjectField,
     val demand: Demand<SelectionForest>,
 )
 
 /** Exact keys, applicability and provenance bound additions, including nested requirements. */
-private class ParentDemandNormalizer {
+internal class ParentDemandNormalizer {
     // Forest identity only reuses immutable normalization within this lookahead computation.
     private val normalized = IdentityHashMap<SelectionForest, SelectionForest>()
     private val descendantGuardIds = IdentityHashMap<InclusionCondition, Int>()

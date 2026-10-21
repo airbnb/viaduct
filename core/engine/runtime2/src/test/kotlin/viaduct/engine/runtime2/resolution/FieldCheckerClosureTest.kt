@@ -111,27 +111,26 @@ class FieldCheckerClosureTest : ResolutionDispatcherResource {
     }
 
     @Test
-    fun `unbounded symbolic checker expansion fails during preparation`() {
-        val world = TestWorld.fromDSL(
-            """
+    fun `rejects symbolic checker value dependency cycles during registry construction`() {
+        val failure = assertFailsWith<IllegalArgumentException> {
+            TestWorld.fromDSL(
+                """
             extend type Query {
               checked(seed: Int!): Int! @resolver(result: 1)
               bridge(seed: Int!): Int! @resolver(of: "checked(seed: ${'$'}seed)", result: 2)
             }
-            """.trimIndent(),
-            fieldCheckers = { schema ->
-                val checked = schema.loweredSchema.requireObjectField("Query", "checked")
-                val pair = ResolverFragmentTemplates(
-                    schema.fragmentFrom("fragment Input on Query { bridge(seed: ${'$'}seed) }", variableTarget = ResolverTarget.FieldCheckerTarget(checked)).materializeSelections,
-                    materializeSelectionForestOf(),
-                    mapOf(Arguments.Variable.of(ResolverTarget.FieldCheckerTarget(checked), "seed") to VariableDefinition.FromArgument.of(checkNotNull(checked.arg("seed")))),
-                )
-                mapOf(checked to FieldCheckerResolver.of(checked, schema.loweredSchema.requireQueryTypeDef(), mapOf("input" to pair)) { _, _, _ -> CheckerResult.Success })
-            },
-        )
-        val failure = assertFailsWith<IllegalArgumentException> {
-            SharedOperationContext.create(world.assumptions).resolveWithTestDispatcher(world.schemas.operationSelectionsFrom("{ checked(seed: 1) }"))
+                """.trimIndent(),
+                fieldCheckers = { schema ->
+                    val checked = schema.loweredSchema.requireObjectField("Query", "checked")
+                    val pair = ResolverFragmentTemplates(
+                        schema.fragmentFrom("fragment Input on Query { bridge(seed: ${'$'}seed) }", variableTarget = ResolverTarget.FieldCheckerTarget(checked)).materializeSelections,
+                        materializeSelectionForestOf(),
+                        mapOf(Arguments.Variable.of(ResolverTarget.FieldCheckerTarget(checked), "seed") to VariableDefinition.FromArgument.of(checkNotNull(checked.arg("seed")))),
+                    )
+                    mapOf(checked to FieldCheckerResolver.of(checked, schema.loweredSchema.requireQueryTypeDef(), mapOf("input" to pair)) { _, _, _ -> CheckerResult.Success })
+                },
+            )
         }
-        assertTrue(failure.message.orEmpty().contains("Unbounded symbolic"))
+        assertTrue(failure.message.orEmpty().contains("demand cycle"))
     }
 }

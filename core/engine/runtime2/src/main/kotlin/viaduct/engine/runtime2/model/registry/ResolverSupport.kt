@@ -5,6 +5,8 @@ import viaduct.engine.runtime2.model.InclusionCondition
 import viaduct.engine.runtime2.model.MaterializeSelection
 import viaduct.engine.runtime2.model.MaterializeSelectionForest
 import viaduct.engine.runtime2.model.ObjectEngineResult
+import viaduct.engine.runtime2.model.ObjectSelection
+import viaduct.engine.runtime2.model.ObjectSelectionForest
 import viaduct.engine.runtime2.model.ResolverOccurrenceId
 import viaduct.engine.runtime2.model.Selection
 import viaduct.engine.runtime2.model.SelectionForest
@@ -13,8 +15,40 @@ import viaduct.engine.runtime2.model.instantiateVariables
 import viaduct.engine.runtime2.model.mapSelections
 import viaduct.engine.runtime2.model.materializeSelectionForestOf
 import viaduct.engine.runtime2.model.objectKey
+import viaduct.engine.runtime2.model.toSelectionForest
 import viaduct.engine.runtime2.model.usedVariables
 import viaduct.graphql.schema.ViaductSchema
+
+internal fun ObjectSelectionForest.partitionVariableDemand(): Pair<ObjectSelectionForest, ObjectSelectionForest> {
+    val (static, dynamic) = partitionVariableSelections()
+    // Partitioning preserves concrete keys and root uniqueness in each part.
+    return ObjectSelectionForest.of(type, static.map { it as ObjectSelection }) to
+        ObjectSelectionForest.of(type, dynamic.map { it as ObjectSelection })
+}
+
+private fun SelectionForest.partitionVariableDemand(): Pair<SelectionForest, SelectionForest> {
+    val (static, dynamic) = partitionVariableSelections()
+    return static.toSelectionForest() to dynamic.toSelectionForest()
+}
+
+private fun SelectionForest.partitionVariableSelections(): Pair<List<Selection>, List<Selection>> {
+    val static = mutableListOf<Selection>()
+    val dynamic = mutableListOf<Selection>()
+    forEach { selection ->
+        if (selection.key.arguments.usedVariables().isNotEmpty() || selection.inclusionCondition !== InclusionCondition.Always) {
+            dynamic += selection
+        } else {
+            val (staticChildren, dynamicChildren) = selection.subselections.partitionVariableDemand()
+            if (dynamicChildren.isEmpty()) {
+                static += selection
+            } else {
+                static += Selection.of(selection.key, selection.possibleTypes, staticChildren)
+                dynamic += Selection.of(selection.key, selection.possibleTypes, dynamicChildren)
+            }
+        }
+    }
+    return static to dynamic
+}
 
 internal fun MaterializeSelectionForest.usedVariables(): Set<Arguments.Variable> =
     buildSet {
@@ -135,7 +169,7 @@ private fun MaterializeSelectionForest.usedVariablesApplicableTo(type: ViaductSc
     return variables
 }
 
-private fun SelectionForest.instantiateVariables(resolverOccurrenceId: ResolverOccurrenceId): SelectionForest =
+internal fun SelectionForest.instantiateVariables(resolverOccurrenceId: ResolverOccurrenceId): SelectionForest =
     mapSelections { selection ->
         Selection.of(
             key =
