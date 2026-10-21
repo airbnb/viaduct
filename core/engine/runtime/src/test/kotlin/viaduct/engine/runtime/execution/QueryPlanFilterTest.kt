@@ -17,6 +17,8 @@ import io.kotest.matchers.maps.shouldContainExactly as shouldContainExactlyEntri
 import io.kotest.matchers.shouldNotBe
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
 import viaduct.arbitrary.graphql.asDocument
 import viaduct.arbitrary.graphql.asSchema
 import viaduct.engine.api.EngineSchema
@@ -156,6 +158,37 @@ class QueryPlanFilterTest {
                         2 to listOf("y"),
                     ),
                 )
+        }
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = [true, false])
+    fun `filterTo preserves occurrences from distinct defer contexts`(incrementalExecutionEnabled: Boolean) {
+        Fixture("type Query { foo: Foo } type Foo { x: Int, y: Int }") {
+            val plan = buildPlan(
+                """
+                    {
+                      ...FooFields @defer(label: "first")
+                      ...FooFields @defer(label: "second")
+                    }
+                    fragment FooFields on Query { foo { x y } }
+                """.trimIndent()
+            )
+
+            val filtered = plan.filterTo(
+                KeyTree.build(viaductSchema) {
+                    field("Query", key("foo")) {
+                        field("Foo", key("x"))
+                    }
+                },
+                incrementalExecutionEnabled = incrementalExecutionEnabled,
+            )
+
+            val expectedOccurrences = if (incrementalExecutionEnabled) 2 else 1
+            filtered.selectionSet.toAstSelectionSet().selections
+                .filterIsInstance<GJField>()
+                .map { it.name to it.selectionSet.fieldNames() }
+                .shouldContainExactly(List(expectedOccurrences) { "foo" to listOf("x") })
         }
     }
 
@@ -967,10 +1000,12 @@ class QueryPlanFilterTest {
             shape: KeyTree,
             source: QueryPlan.SelectionSet? = null,
             variables: Map<String, Any?> = emptyMap(),
+            incrementalExecutionEnabled: Boolean = false,
         ): QueryPlan {
             val context = QueryPlanFilterCtx(
                 schema = viaductSchema,
                 variables = CoercedVariables.of(variables),
+                incrementalExecutionEnabled = incrementalExecutionEnabled,
             )
             return filterTo(
                 shape = shape,

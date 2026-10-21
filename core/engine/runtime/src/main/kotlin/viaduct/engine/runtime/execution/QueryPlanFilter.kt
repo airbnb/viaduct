@@ -17,7 +17,6 @@ import viaduct.engine.runtime.execution.constraints.Constraints
 import viaduct.engine.runtime.mat.KeyTree
 import viaduct.engine.runtime.result.ObjectEngineResult
 import viaduct.graphql.utils.collectVariableReferences
-import viaduct.utils.collections.MaskedSet
 import viaduct.utils.memoize.IdentityTriple
 import viaduct.utils.memoize.memoize
 
@@ -153,7 +152,6 @@ private class QueryPlanFilter(
         concreteType: GraphQLObjectType,
         fields: Map<ObjectEngineResult.Key, KeyTree>,
     ): FilteredSelectionSet {
-        val fieldSources = activeFieldSourcesByResponseKey(selectionSet, concreteType)
         val collected = context.collectFields(
             schema = context.schema,
             selectionSet = selectionSet,
@@ -163,10 +161,9 @@ private class QueryPlanFilter(
             fieldRssOriginFilteringKillSwitchEnabled = context.fieldRssOriginFilteringKillSwitchEnabled,
             incrementalExecutionEnabled = context.incrementalExecutionEnabled,
             deferUsage = null,
-        )
+        ).collectedFieldsMap
         val selections = mutableListOf<QueryPlan.Selection>()
-
-        for (field in collected.collectedFieldsMap.values) {
+        for (field in collected.values) {
             val resolvedField = field.resolveField(
                 schema = context.schema.schema,
                 parentType = concreteType,
@@ -181,10 +178,8 @@ private class QueryPlanFilter(
             require(childShape.isEmpty() || childType != null) {
                 "Field `${concreteType.name}.${field.fieldName}` has child selections but is not composite"
             }
-            val sources = fieldSources.getValue(field.responseKey)
             val projection = projectFieldOccurrences(
                 field = field,
-                sourceFields = sources,
                 concreteType = concreteType,
                 childShape = childShape,
                 childType = childType,
@@ -209,14 +204,14 @@ private class QueryPlanFilter(
 
     private fun projectFieldOccurrences(
         field: CollectedField,
-        sourceFields: List<QueryPlan.Field>,
         concreteType: GraphQLObjectType,
         childShape: KeyTree,
         childType: GraphQLCompositeType?,
     ): FilteredSelectionSet {
         val selections = mutableListOf<QueryPlan.Selection>()
 
-        for (sourceField in sourceFields) {
+        for (details in field.occurrences) {
+            val sourceField = details.field
             val childProjection = if (childType == null) {
                 null
             } else {
@@ -260,43 +255,6 @@ private class QueryPlanFilter(
                     )
                 ),
         )
-    }
-
-    private fun activeFieldSourcesByResponseKey(
-        selectionSet: QueryPlan.SelectionSet,
-        concreteType: GraphQLObjectType,
-    ): Map<String, List<QueryPlan.Field>> {
-        val result = linkedMapOf<String, MutableList<QueryPlan.Field>>()
-        val pending = ArrayDeque(selectionSet.selections)
-        val visitedFragments = mutableSetOf<String>()
-        val constraintsCtx = Constraints.Ctx(context.variables, MaskedSet(listOf(concreteType)))
-
-        while (pending.isNotEmpty()) {
-            val selection = pending.removeFirst()
-            when (selection.constraints.solve(constraintsCtx)) {
-                Constraints.Resolution.Drop -> continue
-                Constraints.Resolution.Unsolved -> error("Could not project selection: $selection")
-                Constraints.Resolution.Collect -> Unit
-            }
-
-            when (selection) {
-                is QueryPlan.Field -> {
-                    val sources = result.getOrPut(selection.resultKey) { mutableListOf() }
-                    sources += selection
-                }
-                is QueryPlan.InlineFragment ->
-                    pending.addAll(0, selection.selectionSet.selections)
-                is QueryPlan.FragmentSpread -> {
-                    if (!visitedFragments.add(selection.name)) continue
-                    pending.addAll(
-                        0,
-                        sourcePlan.fragments.getValue(selection.name).selectionSet.selections,
-                    )
-                }
-            }
-        }
-
-        return result
     }
 }
 
