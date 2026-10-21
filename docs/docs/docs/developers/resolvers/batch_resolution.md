@@ -166,7 +166,7 @@ Resolved node values and explicit per-node failures are wrapped in `FieldValue`:
 
     These contexts request two different sets of data: `title` and `price` for contexts 1 and 2, and `title` and `reviews` for context 3. The resolver decides how to handle that difference. It can load one broader data set for the whole batch, make a separate backend request for every context, or divide the contexts into groups. The first option may overfetch, while the second gives up batching. One possible grouping places contexts 1 and 2 together and context 3 in a separate group; the resolver could then make one backend request for each group.
 
-    The helpers in `viaduct.api.batch` implement this grouping pattern. Each helper divides the input contexts into groups and runs the supplied block once for each group. The helper then combines the maps returned by the block into the map returned by `batchResolve`. Choose the helper that matches how the resolver groups its backend work:
+    The helpers in `viaduct.api.batch` implement this grouping pattern. Each helper divides the input contexts into groups and runs the supplied block once for each group. Blocks for different groups may run concurrently, so a block should not mutate shared state. The helper then combines the maps returned by the block into the map returned by `batchResolve`. Choose the helper that matches how the resolver groups its backend work:
 
     * `batchBySameSelection` groups contexts that request the same fields at every level. Aliases and field order do not affect grouping. In the example above, contexts 1 and 2 form one group and context 3 forms another.
     * `batchByOwnFields` groups contexts that request the same fields directly on the node and ignores differences beneath those fields. For example, `reviews { rating }` and `reviews { author }` produce the own-field key `{ Listing.reviews }`. The group retains both nested selections, so the resolver can account for `rating` and `author` when loading reviews.
@@ -209,7 +209,9 @@ Resolved node values and explicit per-node failures are wrapped in `FieldValue`:
       }
     ```
 
-    In this example, the block passed to `batchByOwnFields` runs once for each group. `group.contexts.associateWith` creates one result for every context in that group and uses the original `Context` objects as map keys. Each time the block runs, its returned map must contain exactly the `Context` objects in `group.contexts`. Viaduct fails the batch if a group context is missing or the map contains any other context.
+    In this example, the block passed to `batchByOwnFields` runs once for each group. `group.contexts.associateWith` creates one result for every context in that group and uses the original `Context` objects as map keys. Each time the block runs, its returned map must contain exactly the `Context` objects in `group.contexts`.
+
+    Groups fail independently. If the block throws an exception or times out for a group, each context in that group resolves to an error and the other groups are unaffected. A missing context is different: Viaduct fails the whole batch if any group's map leaves out one of its contexts.
 
 === "Java"
 

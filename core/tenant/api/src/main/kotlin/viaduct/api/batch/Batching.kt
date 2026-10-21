@@ -2,6 +2,9 @@
 
 package viaduct.api.batch
 
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import viaduct.api.FieldValue
 import viaduct.api.context.SelectiveNodeExecutionContext
 import viaduct.api.internal.InternalSelectionSet
@@ -14,6 +17,7 @@ import viaduct.api.types.CompositeOutput
 import viaduct.api.types.NodeObject
 import viaduct.apiannotations.ExperimentalApi
 import viaduct.apiannotations.InternalApi
+import viaduct.errors.resultOfSuspend
 
 /**
  * Partitions [contexts] by structurally equal complete selection sets and invokes [resolve] once
@@ -21,6 +25,9 @@ import viaduct.apiannotations.InternalApi
  *
  * Each result key must match a context in the current group under normal map-key equality.
  * Contexts omitted from the returned map remain omitted from the combined result.
+ *
+ * Blocks for different groups may run concurrently, so [resolve] should not mutate shared state.
+ * Failures are handled as described in [batchByCustomGrouping].
  */
 @ExperimentalApi
 suspend fun <T : NodeObject, C : SelectiveNodeExecutionContext<T>> batchBySameSelection(
@@ -64,6 +71,9 @@ suspend fun <T : NodeObject, C : SelectiveNodeExecutionContext<T>> batchBySameSe
  *   selections:
  *     name
  * ```
+ *
+ * Blocks for different groups may run concurrently, so [resolve] should not mutate shared state.
+ * Failures are handled as described in [batchByCustomGrouping].
  */
 @ExperimentalApi
 suspend fun <T : NodeObject, C : SelectiveNodeExecutionContext<T>> batchByOwnFields(
@@ -79,9 +89,13 @@ suspend fun <T : NodeObject, C : SelectiveNodeExecutionContext<T>> batchByOwnFie
 /**
  * Partitions [contexts] by a tenant-defined key derived from each context's selection set.
  *
- * Groups are visited in first-key input order, and each [Group.contexts] list retains input order.
- * The [resolve] result may contain only keys that match contexts in the current group under
- * normal map-key equality. Out-of-group keys are rejected.
+ * - [Group.contexts] keeps the input order.
+ * - Blocks for different groups may run concurrently, so [resolve] should not mutate shared state.
+ * - [resolve] should return a value for every context in its group. If it leaves one out, that
+ *   context is missing from the result and Viaduct fails the whole batch.
+ * - If a block throws an exception or times out, every context in its group gets an error.
+ *   Other groups are not affected.
+ * - If the caller is cancelled or [groupBy] throws, the whole call fails.
  */
 @ExperimentalApi
 suspend fun <T : NodeObject, C : SelectiveNodeExecutionContext<T>, K> batchByCustomGrouping(
@@ -89,18 +103,32 @@ suspend fun <T : NodeObject, C : SelectiveNodeExecutionContext<T>, K> batchByCus
     groupBy: (SelectionSet<T>) -> K,
     resolve: suspend (Group<T, C, K>) -> Map<C, FieldValue<T>>,
 ): Map<C, FieldValue<T>> {
-    val combined = mutableMapOf<C, FieldValue<T>>()
-    contexts.groupBy { groupBy(it.selections()) }.forEach { (key, groupContexts) ->
-        val group = GroupImpl(groupContexts, key)
-        val allowedContexts = groupContexts.toSet()
-        resolve(group).forEach { (context, value) ->
+    val groups = contexts.groupBy { groupBy(it.selections()) }
+    if (groups.isEmpty()) return emptyMap()
+    if (groups.size == 1) {
+        val (key, groupContexts) = groups.entries.single()
+        return resolveGroup(key, groupContexts, resolve)
+    }
+    val groupResults = coroutineScope {
+        groups.map { (key, groupContexts) -> async { resolveGroup(key, groupContexts, resolve) } }.awaitAll()
+    }
+    return linkedMapOf<C, FieldValue<T>>().apply { groupResults.forEach { putAll(it) } }
+}
+
+private suspend fun <T : NodeObject, C : SelectiveNodeExecutionContext<T>, K> resolveGroup(
+    key: K,
+    groupContexts: List<C>,
+    resolve: suspend (Group<T, C, K>) -> Map<C, FieldValue<T>>,
+): Map<C, FieldValue<T>> {
+    val allowedContexts = groupContexts.toSet()
+    // resultOfSuspend catches only Exception, so the cast below cannot fail.
+    return resultOfSuspend {
+        resolve(GroupImpl(groupContexts, key)).onEach { (context, _) ->
             require(context in allowedContexts) {
                 "Batch group returned a context that was not a member of that group"
             }
-            combined[context] = value
         }
-    }
-    return combined
+    }.getOrElse { failure -> groupContexts.associateWith { FieldValue.ofError(failure as Exception) } }
 }
 
 /**

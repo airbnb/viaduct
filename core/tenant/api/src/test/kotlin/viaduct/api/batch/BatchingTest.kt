@@ -3,7 +3,19 @@
 package viaduct.api.batch
 
 import io.mockk.mockk
+import java.util.concurrent.ConcurrentLinkedQueue
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.yield
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertSame
@@ -37,7 +49,7 @@ class BatchingTest {
     private val ratingField = TestField("rating", detailsType)
 
     @Test
-    fun `same-selection batching preserves group order, context keys, and omissions`() =
+    fun `same-selection batching groups equal selections and preserves context order, keys, and omissions`() =
         runTest {
             val firstSelection = TestSelectionSet(nodeType, setOf(nameField))
             val equalSelection = TestSelectionSet(nodeType, setOf(nameField))
@@ -47,7 +59,7 @@ class BatchingTest {
             val third = TestContext("third", equalSelection)
             val firstValue = value("first")
             val secondValue = value("second")
-            val groups = mutableListOf<List<TestContext>>()
+            val groups = ConcurrentLinkedQueue<List<TestContext>>()
 
             val result = batchBySameSelection(listOf(first, second, third)) { group ->
                 groups += group.contexts
@@ -59,9 +71,7 @@ class BatchingTest {
             }
 
             assertEquals(2, groups.size)
-            assertSame(first, groups[0][0])
-            assertSame(third, groups[0][1])
-            assertSame(second, groups[1][0])
+            assertEquals(setOf(listOf(first, third), listOf(second)), groups.toSet())
             assertEquals(2, result.size)
             assertSame(firstValue, result[first])
             assertSame(secondValue, result[second])
@@ -85,16 +95,172 @@ class BatchingTest {
         }
 
     @Test
-    fun `result keys from another group are rejected`() =
+    fun `result keys from another group fail every context of the returning group only`() =
+        runTest {
+            val first = TestContext("first", TestSelectionSet(nodeType, setOf(nameField)))
+            val firstSibling = TestContext("first-sibling", TestSelectionSet(nodeType, setOf(nameField)))
+            val second = TestContext("second", TestSelectionSet(nodeType, setOf(priceField)))
+            val secondValue = value("second")
+
+            val result = batchBySameSelection(listOf(first, second, firstSibling)) {
+                mapOf(second to secondValue)
+            }
+
+            listOf(first, firstSibling).forEach { context ->
+                val failure = assertThrows<IllegalArgumentException> { result.getValue(context).get() }
+                assertEquals("Batch group returned a context that was not a member of that group", failure.message)
+            }
+            assertSame(secondValue, result[second])
+        }
+
+    @Test
+    fun `a failing group resolves its contexts to the failure without affecting other groups`() =
+        runTest {
+            val failing = TestContext("failing", TestSelectionSet(nodeType, setOf(nameField)))
+            val failingSibling = TestContext("failing-sibling", TestSelectionSet(nodeType, setOf(nameField)))
+            val succeeding = TestContext("succeeding", TestSelectionSet(nodeType, setOf(priceField)))
+            val failure = IllegalStateException("backend unavailable")
+            val succeedingValue = value("succeeding")
+
+            val result = batchBySameSelection(listOf(failing, succeeding, failingSibling)) { group ->
+                if (group.contexts.first() === failing) throw failure
+                yield()
+                mapOf(succeeding to succeedingValue)
+            }
+
+            assertSame(failure, assertThrows<IllegalStateException> { result.getValue(failing).get() })
+            assertSame(failure, assertThrows<IllegalStateException> { result.getValue(failingSibling).get() })
+            assertSame(succeedingValue, result[succeeding])
+        }
+
+    @Test
+    fun `a timeout in one group resolves only that group to the timeout`() =
+        runTest {
+            val timingOut = TestContext("timing-out", TestSelectionSet(nodeType, setOf(nameField)))
+            val succeeding = TestContext("succeeding", TestSelectionSet(nodeType, setOf(priceField)))
+            val succeedingValue = value("succeeding")
+            val timeout = CompletableDeferred<TimeoutCancellationException>()
+
+            val result = batchBySameSelection(listOf(timingOut, succeeding)) { group ->
+                if (group.contexts.single() === timingOut) {
+                    timeOutRecording(timeout)
+                }
+                mapOf(succeeding to succeedingValue)
+            }
+
+            assertSame(timeout.await(), assertThrows<TimeoutCancellationException> { result.getValue(timingOut).get() })
+            assertSame(succeedingValue, result[succeeding])
+        }
+
+    @Test
+    fun `a timeout in a single group resolves its contexts to the timeout`() =
+        runTest {
+            val context = TestContext("only", TestSelectionSet(nodeType, setOf(nameField)))
+            val timeout = CompletableDeferred<TimeoutCancellationException>()
+
+            val result = batchBySameSelection(listOf(context)) {
+                timeOutRecording(timeout)
+                emptyMap()
+            }
+
+            assertSame(timeout.await(), assertThrows<TimeoutCancellationException> { result.getValue(context).get() })
+        }
+
+    @Test
+    fun `an exception from groupBy fails the whole call`() =
+        runTest {
+            val failure = IllegalStateException("bad grouping key")
+            var called = false
+
+            val thrown = assertThrows<IllegalStateException> {
+                batchByCustomGrouping<TestNode, TestContext, Unit>(
+                    contexts = listOf(TestContext("only", TestSelectionSet(nodeType, setOf(nameField)))),
+                    groupBy = { throw failure },
+                ) {
+                    called = true
+                    emptyMap()
+                }
+            }
+
+            assertSame(failure, thrown)
+            assertFalse(called)
+        }
+
+    @Test
+    fun `an error from a group's block fails the whole call`() =
         runTest {
             val first = TestContext("first", TestSelectionSet(nodeType, setOf(nameField)))
             val second = TestContext("second", TestSelectionSet(nodeType, setOf(priceField)))
 
-            assertThrows<IllegalArgumentException> {
-                batchBySameSelection(listOf(first, second)) {
-                    mapOf(second to value("second"))
+            val thrown = assertThrows<NotImplementedError> {
+                batchBySameSelection(listOf(first, second)) { group ->
+                    if (group.contexts.single() === first) TODO("unimplemented group")
+                    emptyMap()
                 }
             }
+
+            assertEquals("An operation is not implemented: unimplemented group", thrown.message)
+        }
+
+    @Test
+    fun `cancelling the caller cancels every group`() =
+        runTest {
+            val first = TestContext("first", TestSelectionSet(nodeType, setOf(nameField)))
+            val second = TestContext("second", TestSelectionSet(nodeType, setOf(priceField)))
+            val started = mapOf(first to CompletableDeferred<Unit>(), second to CompletableDeferred())
+            val cancelled = mapOf(first to CompletableDeferred<Unit>(), second to CompletableDeferred())
+            var completed = false
+
+            val job = launch {
+                batchBySameSelection(listOf(first, second)) { group ->
+                    val context = group.contexts.single()
+                    started.getValue(context).complete(Unit)
+                    try {
+                        awaitCancellation()
+                    } finally {
+                        cancelled.getValue(context).complete(Unit)
+                    }
+                }
+                completed = true
+            }
+            started.values.awaitAll()
+            job.cancelAndJoin()
+
+            assertTrue(job.isCancelled)
+            assertFalse(completed)
+            assertTrue(cancelled.values.all { it.isCompleted })
+        }
+
+    @Test
+    fun `cancelling the caller during a single group's block stops the batch call`() =
+        runTest {
+            val context = TestContext("only", TestSelectionSet(nodeType, setOf(nameField)))
+            val started = CompletableDeferred<Unit>()
+            var completed = false
+
+            val job = launch {
+                batchBySameSelection(listOf(context)) {
+                    started.complete(Unit)
+                    awaitCancellation()
+                }
+                completed = true
+            }
+            started.await()
+            job.cancelAndJoin()
+
+            assertTrue(job.isCancelled)
+            assertFalse(completed)
+        }
+
+    @Test
+    fun `a failing single group resolves its contexts to the failure`() =
+        runTest {
+            val context = TestContext("only", TestSelectionSet(nodeType, setOf(nameField)))
+            val failure = IllegalStateException("backend unavailable")
+
+            val result = batchBySameSelection(listOf(context)) { throw failure }
+
+            assertSame(failure, assertThrows<IllegalStateException> { result.getValue(context).get() })
         }
 
     @Test
@@ -137,12 +303,12 @@ class BatchingTest {
         }
 
     @Test
-    fun `custom batching groups by tenant key in first-key order`() =
+    fun `custom batching groups by tenant key and preserves context order`() =
         runTest {
             val first = TestContext("first", TestSelectionSet(nodeType, setOf(detailsField)))
             val second = TestContext("second", TestSelectionSet(nodeType, setOf(nameField)))
             val third = TestContext("third", TestSelectionSet(nodeType, setOf(detailsField, priceField)))
-            val groups = mutableListOf<Pair<Boolean, List<TestContext>>>()
+            val groups = ConcurrentLinkedQueue<Pair<Boolean, List<TestContext>>>()
 
             val result = batchByCustomGrouping(
                 contexts = listOf(first, second, third),
@@ -154,11 +320,43 @@ class BatchingTest {
 
             assertTrue(result.isEmpty())
             assertEquals(2, groups.size)
-            assertTrue(groups[0].first)
-            assertSame(first, groups[0].second[0])
-            assertSame(third, groups[0].second[1])
-            assertFalse(groups[1].first)
-            assertSame(second, groups[1].second[0])
+            assertEquals(setOf(true to listOf(first, third), false to listOf(second)), groups.toSet())
+        }
+
+    @Test
+    fun `groups resolve concurrently`() =
+        runTest {
+            val first = TestContext("first", TestSelectionSet(nodeType, setOf(nameField)))
+            val second = TestContext("second", TestSelectionSet(nodeType, setOf(priceField)))
+
+            var inFlight = 0
+            var maxInFlight = 0
+
+            val result = batchBySameSelection(listOf(first, second)) { group ->
+                maxInFlight = maxOf(maxInFlight, ++inFlight)
+                yield()
+                inFlight--
+                group.contexts.associateWith { value("resolved") }
+            }
+
+            assertEquals(2, maxInFlight)
+            assertEquals(setOf(first, second), result.keys)
+        }
+
+    @Test
+    fun `a single group resolves in the caller's coroutine`() =
+        runTest {
+            val first = TestContext("first", TestSelectionSet(nodeType, setOf(nameField)))
+            val second = TestContext("second", TestSelectionSet(nodeType, setOf(nameField)))
+            val callerJob = currentCoroutineContext()[Job]
+            var resolveJob: Job? = null
+
+            batchBySameSelection(listOf(first, second)) {
+                resolveJob = currentCoroutineContext()[Job]
+                emptyMap()
+            }
+
+            assertSame(callerJob, resolveJob)
         }
 
     @Test
@@ -268,6 +466,15 @@ class BatchingTest {
         }
 
     private fun value(value: String): FieldValue<TestNode> = FieldValue.ofValue(TestNode(value))
+
+    private suspend fun timeOutRecording(timeout: CompletableDeferred<TimeoutCancellationException>) {
+        try {
+            withTimeout(1) { delay(1_000) }
+        } catch (e: TimeoutCancellationException) {
+            timeout.complete(e)
+            throw e
+        }
+    }
 
     private open class TestNode(val value: String = "") : NodeObject
 
