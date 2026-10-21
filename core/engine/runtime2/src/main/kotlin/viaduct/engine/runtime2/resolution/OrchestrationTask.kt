@@ -95,7 +95,7 @@ internal class OrchestrationTask private constructor(
             val queryResult = ObjectEngineResult.of(queryType, mutable = true)
             val queryOccurrence = OEROccurrence(queryResult, emptyList(), queryResult)
             val closedConstructionDemand =
-                source.closeOrchestrationConstructionDemand(
+                source.closeSelectedConstructionDemand(
                     world = operation.world,
                     objectOccurrence = occurrence,
                     queryOccurrence = queryOccurrence,

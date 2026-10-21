@@ -37,7 +37,7 @@ internal class ParentConstructionDemandCompiler(private val world: Assumptions) 
             val parents = world.resolverRegistry.checkerParentDemand(checker)
             prepare(parents.objectParentDemand, checker.objectFragment.withoutInclusionConditions(), checked = false)
             prepare(parents.queryParentDemand, checker.queryFragment.withoutInclusionConditions(), checked = false)
-            checker.constructionDemandTemplate?.let { template ->
+            checker.constructionDemandTemplate.let { template ->
                 prepare(parents.staticObjectParentDemand, template.staticObjectDemand, checked = false)
                 prepare(parents.dynamicObjectParentDemand, template.dynamicObjectDemand, checked = false)
                 prepare(parents.staticQueryParentDemand, template.staticQueryDemand, checked = false)

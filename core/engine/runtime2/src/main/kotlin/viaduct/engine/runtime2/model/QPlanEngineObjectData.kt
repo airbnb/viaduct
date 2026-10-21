@@ -76,22 +76,24 @@ private fun constructEngineObjectData(
     schemaType: ViaductSchema.Object,
     fields: Iterable<EngineObjectDataEntry>,
 ): EngineObjectData.Sync {
-    val entries = fields.toList()
-    entries.forEach { entry ->
+    val size = (fields as? Collection<*>)?.size ?: 0
+    val values = LinkedHashMap<String, ResolverOutputData?>(size)
+    val selectionFields = LinkedHashMap<String, ViaductSchema.ObjectField>(size)
+    fields.forEach { entry ->
         require(entry.field.containingDef == schemaType) {
             "${schemaType.name} cannot contain output field " +
                 "${entry.field.containingDef.name}/${entry.field.name}"
         }
-    }
-    val values = entries.associate { entry -> entry.selection to entry.value }
-    require(values.size == entries.size) {
-        "Object ${schemaType.name} contains duplicate string selections"
+        require(selectionFields.put(entry.selection, entry.field) == null) {
+            "Object ${schemaType.name} contains duplicate string selections"
+        }
+        values[entry.selection] = entry.value
     }
     return QPlanEngineObjectDataImpl(
         type = schemaType.engineObjectDataType,
         schemaType = schemaType,
         values = values,
-        selectionFields = entries.associate { it.selection to it.field },
+        selectionFields = selectionFields,
     )
 }
 

@@ -28,7 +28,9 @@ import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 import viaduct.engine.runtime2.schema.operationSelectionsFrom
 import viaduct.graphql.schema.ViaductSchema
 
-class TypeCheckerDemandOracleConditionTest : ResolutionDispatcherResource {
+open class TypeCheckerDemandOracleConditionTest : ResolutionDispatcherResource {
+    protected open val precomputedConstructionDemand = false
+
     @Test
     fun `oracle retains a successful alternative beside a failed binding`() {
         val world = TestWorld.fromSDL("type Query { value: Boolean! }")
@@ -37,7 +39,7 @@ class TypeCheckerDemandOracleConditionTest : ResolutionDispatcherResource {
         val field = world.schema.requireObjectField("Query", "value")
         val failed = Arguments.Variable.of(field, "failed").instantiate(owner)
         val enabled = Arguments.Variable.of(field, "enabled").instantiate(owner)
-        val operation = SharedOperationContext.create(world.assumptions)
+        val operation = SharedOperationContext.create(world.newAssumptions(usePrecomputedConstructionDemand = precomputedConstructionDemand))
         operation.variableBindings.bindVariable(requireNotNull(failed.instanceId), VariableBinding.Error)
         operation.variableBindings.bindVariable(requireNotNull(enabled.instanceId), true)
         val condition =
@@ -100,7 +102,7 @@ class TypeCheckerDemandOracleConditionTest : ResolutionDispatcherResource {
         val applications = CheckerApplicationRecorder()
         val checkerObserver = CorrectnessCheckerObserver(applications)
         val operation = SharedOperationContext.create(
-            world.assumptions,
+            world.newAssumptions(usePrecomputedConstructionDemand = precomputedConstructionDemand),
             resolverObserver = CorrectnessResolverObserver(),
             checkerObserver = checkerObserver,
         )
@@ -166,7 +168,7 @@ class TypeCheckerDemandOracleConditionTest : ResolutionDispatcherResource {
         val applications = CheckerApplicationRecorder()
         val operation =
             SharedOperationContext.create(
-                world.assumptions,
+                world.newAssumptions(usePrecomputedConstructionDemand = precomputedConstructionDemand),
                 resolverObserver = CorrectnessResolverObserver(),
                 checkerObserver = CorrectnessCheckerObserver(applications),
             )
@@ -180,4 +182,8 @@ class TypeCheckerDemandOracleConditionTest : ResolutionDispatcherResource {
             "The generated exactness oracle must retain the excluded owner's condition",
         )
     }
+}
+
+class PrecomputedTypeCheckerDemandOracleConditionTest : TypeCheckerDemandOracleConditionTest() {
+    override val precomputedConstructionDemand = true
 }

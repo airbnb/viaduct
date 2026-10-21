@@ -12,8 +12,9 @@ import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
-import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
 import viaduct.engine.runtime2.model.emptyFragmentOf
 import viaduct.engine.runtime2.model.registry.fieldResolverOf
 import viaduct.engine.runtime2.model.requireObjectField
@@ -23,14 +24,15 @@ import viaduct.engine.runtime2.schema.operationSelectionsFrom
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class MutationOrchestrationTaskTest {
-    @Test
-    fun `cancellation before orchestration entry terminates every prepared cell`() =
+    @ParameterizedTest
+    @ValueSource(booleans = [false, true])
+    fun `cancellation before orchestration entry terminates every prepared cell`(precomputed: Boolean) =
         runTest {
             var calls = 0
             val fixture = fixture { ++calls }
             val job = Job()
             val scope = CoroutineScope(StandardTestDispatcher(testScheduler) + job)
-            val result = SharedOperationContext.create(fixture.assumptions).startResolve(
+            val result = SharedOperationContext.create(fixture.newAssumptions(usePrecomputedConstructionDemand = precomputed)).startResolve(
                 fixture.schemas.operationSelectionsFrom("mutation { first: update second: update }"),
                 scope,
             )
@@ -47,8 +49,9 @@ class MutationOrchestrationTaskTest {
             }
         }
 
-    @Test
-    fun `suspended mutation prevents its successor from starting and cancels locally`() =
+    @ParameterizedTest
+    @ValueSource(booleans = [false, true])
+    fun `suspended mutation prevents its successor from starting and cancels locally`(precomputed: Boolean) =
         runTest {
             var calls = 0
             val fixture = fixture {
@@ -57,7 +60,7 @@ class MutationOrchestrationTaskTest {
             }
             val job = Job()
             val scope = CoroutineScope(StandardTestDispatcher(testScheduler) + job)
-            val result = SharedOperationContext.create(fixture.assumptions).startResolve(
+            val result = SharedOperationContext.create(fixture.newAssumptions(usePrecomputedConstructionDemand = precomputed)).startResolve(
                 fixture.schemas.operationSelectionsFrom("mutation { first: update second: update }"),
                 scope,
             )

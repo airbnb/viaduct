@@ -3,6 +3,7 @@ package viaduct.engine.runtime2.resolution
 import viaduct.engine.runtime2.model.InclusionCondition
 import viaduct.engine.runtime2.model.Selection
 import viaduct.engine.runtime2.model.SelectionForest
+import viaduct.engine.runtime2.model.containsVariables
 import viaduct.engine.runtime2.model.objectKey
 import viaduct.engine.runtime2.model.registry.Assumptions
 import viaduct.engine.runtime2.model.registry.ParentConstructionDemandTemplate
@@ -29,7 +30,7 @@ internal fun Demand<SelectionForest>.liftPrecomputedParentConstructionDemand(wor
 internal fun ParentConstructionDemandTemplate.parentDemand(): Demand<SelectionForest> = summary.localDemand
 
 internal class ParentDemandApplication(private val world: Assumptions) {
-    private val normalizer = ParentDemandNormalizer()
+    private val normalizer by lazy(LazyThreadSafetyMode.NONE) { ParentDemandNormalizer() }
 
     fun apply(
         selection: Selection,
@@ -57,7 +58,7 @@ internal class ParentDemandApplication(private val world: Assumptions) {
                 result = combine(result, parentDemandOf(normalizer.combine(guardedRequest.demand.localDemand, ancestor.localDemand), ancestor.requests))
             }
         }
-        return combine(result, fixed.guardedBy(condition))
+        return combine(result, fixed.reusableInputs().guardedBy(condition))
     }
 
     fun combine(
@@ -146,3 +147,6 @@ internal fun parentDemandOf(
 
 internal val PreparedParentDemand.localDemand: Demand<SelectionForest>
     get() = if (this === PreparedParentDemand.EMPTY) Demand.EMPTY else Demand(checkedDemand, uncheckedDemand, typeCheckDemanded, typeCheckCondition)
+
+private fun PreparedParentDemand.reusableInputs(): PreparedParentDemand =
+    if (!checkedDemand.containsVariables() && !uncheckedDemand.containsVariables()) this else parentDemandOf(localDemand.reusableParentDemand(), requests)

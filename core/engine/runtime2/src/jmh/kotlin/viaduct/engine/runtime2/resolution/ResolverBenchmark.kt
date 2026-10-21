@@ -1,5 +1,6 @@
 package viaduct.engine.runtime2.resolution
 
+import java.lang.management.ManagementFactory
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.concurrent.TimeUnit
@@ -43,16 +44,24 @@ open class ResolverBenchmark {
     @Param("$DEFAULT_OVERHEAD_LOOP_COUNT")
     var loopCount: Int = DEFAULT_OVERHEAD_LOOP_COUNT
 
+    @JvmField
+    @Param("false", "true")
+    var precomputedConstructionDemand: Boolean = false
+
     private lateinit var resolverDispatcher: ExecutorCoroutineDispatcher
 
     private val support =
         CurrentProfileBenchmarkSupport(
+            usePrecomputedConstructionDemand = { precomputedConstructionDemand },
             subject = ResolverBenchmarkSubject { operation, _, selections ->
                 operation.resolve(selections, resolverDispatcher)
             },
         )
 
     private var profileRecording: Recording? = null
+    private val allocationBean = ManagementFactory.getThreadMXBean() as com.sun.management.ThreadMXBean
+    private val runtimeAllocations = mutableListOf<Long>()
+    private var allocationStart: Long? = null
 
     @Setup(Level.Trial)
     fun prepareTrial() {
@@ -68,11 +77,18 @@ open class ResolverBenchmark {
         if (parameters.benchmark.endsWith(".overhead")) {
             support.prepareOverheadInvocation(loopCount)
             startOverheadProfile(iterationParams)
+            if (iterationParams.type == IterationType.MEASUREMENT) {
+                allocationStart = allocationBean.totalThreadAllocatedBytes
+            }
         }
     }
 
     @TearDown(Level.Invocation)
     fun stopOverheadProfile() {
+        allocationStart?.let { start ->
+            runtimeAllocations += allocationBean.totalThreadAllocatedBytes - start
+            allocationStart = null
+        }
         profileRecording?.let { recording ->
             profileRecording = null
             recording.stop()
@@ -85,11 +101,21 @@ open class ResolverBenchmark {
         try {
             if (parameters.benchmark.endsWith(".overhead")) {
                 support.reportOverheadStatistics()
+                if (runtimeAllocations.isNotEmpty()) {
+                    println("Runtime allocated bytes per batch: $runtimeAllocations")
+                }
             }
         } finally {
             resolverDispatcher.close()
         }
     }
+
+    @Benchmark
+    @BenchmarkMode(Mode.AverageTime)
+    @OutputTimeUnit(TimeUnit.MILLISECONDS)
+    @Warmup(iterations = 3, time = 1)
+    @Measurement(iterations = 5, time = 1)
+    fun registryStartup(): Any = support.registryStartup()
 
     @Benchmark
     fun full(): Int = support.full()

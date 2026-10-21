@@ -20,7 +20,7 @@ sealed interface Assumptions {
     /** Whether resolver invocation and passive output traversal are selective to supplied demand. */
     val selectiveResolvers: Boolean
 
-    /** Temporary selector for precomputed depth-first construction demand. */
+    /** Selects precomputed closure; false retains the independent dynamic expansion algorithm. */
     val usePrecomputedConstructionDemand: Boolean
 
     companion object {

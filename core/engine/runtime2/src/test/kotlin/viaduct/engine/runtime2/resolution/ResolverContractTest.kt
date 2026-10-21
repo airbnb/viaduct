@@ -30,9 +30,10 @@ import viaduct.engine.runtime2.contract.VariableSelectionIdentityResolverContrac
 import viaduct.engine.runtime2.contract.VariablesProviderResolverContract
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.SelectionForest
+import viaduct.engine.runtime2.model.registry.Assumptions
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 
-class ResolverContractTest :
+open class ResolverContractTest :
     FrozenObjectResolutionContract,
     EmptyObjectFragmentResolverContract,
     NodeResolverContract,
@@ -61,6 +62,8 @@ class ResolverContractTest :
     FieldCheckerCorrectResolutionContract,
     CorrectResolutionPostTestPolicy,
     ResolutionDispatcherResource {
+    protected open val precomputedConstructionDemand = false
+
     override val usesSingularQueryOER: Boolean = true
     override val usesSingularQueryOERForParentDemand: Boolean = true
     override val singularQueryExpansionDepth: Int = 27
@@ -69,5 +72,12 @@ class ResolverContractTest :
         operation: SharedOperationContext<*>,
         root: EngineObjectData.Sync,
         selections: SelectionForest,
-    ): ObjectEngineResult = operation.resolveWithTestDispatcher(selections)
+    ): ObjectEngineResult =
+        SharedOperationContext.create(
+            Assumptions.of(operation.world.schema, operation.world.resolverRegistry, operation.world.selectiveResolvers, precomputedConstructionDemand),
+            variableBindings = operation.variableBindings,
+            resolverObserver = operation.resolverObserver,
+            checkerObserver = operation.checkerObserver,
+            engineExecutionContext = operation.engineExecutionContext,
+        ).resolveWithTestDispatcher(selections)
 }

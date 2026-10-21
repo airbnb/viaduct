@@ -77,6 +77,7 @@ class MutationResolutionTest : ResolutionDispatcherResource {
         Family("21 precomputed", false, precomputed = true, supportsObjectFragments = false) { op, selections -> op.resolve21(selections) },
         Family("22 precomputed", false, precomputed = true) { op, selections -> op.resolve22(selections) },
         Family("23 precomputed", true, precomputed = true) { op, selections -> op.resolve23(selections) },
+        Family("Resolution precomputed", true, precomputed = true) { op, selections -> op.resolveWithTestDispatcher(selections) },
     )
 
     @TestFactory

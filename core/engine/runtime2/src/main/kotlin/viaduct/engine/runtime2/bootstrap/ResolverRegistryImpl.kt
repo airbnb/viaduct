@@ -683,7 +683,7 @@ private class ResolverRegistryImpl(
 
     override fun parentSelectionDemand(type: ViaductSchema.Object): Map<String, ParentSelectionDemand> = parentSelectionDemand[type].orEmpty()
 
-    private fun precomputeConstructionDemand(parentCompiler: ParentConstructionDemandCompiler): Map<ViaductSchema.ObjectField, ConstructionDemandTemplate?> {
+    private fun precomputeConstructionDemand(parentCompiler: ParentConstructionDemandCompiler): Map<ViaductSchema.ObjectField, ConstructionDemandTemplate> {
         val queryType = schema.requireQueryTypeDef()
         return buildMap {
             // Dependency order links direct templates without flattening their closures.
@@ -700,18 +700,6 @@ private class ResolverRegistryImpl(
                     )
                 }
                 val objectField = field as ViaductSchema.ObjectField
-                if (
-                    resolver.variables.values.any { it !is VariableDefinition.FromArgument && it != VariableDefinition.FromProvider }
-                ) {
-                    put(objectField, null)
-                    return@forEach
-                }
-                val dependencies = (resolver.objectFragment.keys() + resolver.queryFragment.keys())
-                    .filter { it.field in fieldResolvers }.map { getValue(it.field) }
-                if (dependencies.any { it == null }) {
-                    put(objectField, null)
-                    return@forEach
-                }
                 val objectDemand = fragmentDemand(resolver.objectFragment)
                 val queryDemand = fragmentDemand(resolver.queryFragment)
                 put(

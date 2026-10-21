@@ -11,6 +11,7 @@ import viaduct.engine.runtime2.model.PathComponent
 import viaduct.engine.runtime2.model.ResolverOccurrenceId
 import viaduct.engine.runtime2.model.ResolverTarget
 import viaduct.engine.runtime2.model.arg
+import viaduct.engine.runtime2.model.containsVariables
 import viaduct.engine.runtime2.model.mapVariableTemplates
 import viaduct.engine.runtime2.model.materializeSelectionForestOf
 import viaduct.engine.runtime2.model.merge
@@ -73,6 +74,11 @@ abstract class CheckerResolverBase<out T : ResolverTarget> internal constructor(
     private val loweredNamedTemplates =
         this.fragmentTemplates.mapValues { (name, templates) -> templates.lowerForResolution(name) }
 
+    private val objectMaterializationTemplates = loweredNamedTemplates.mapValues { it.value.objectFragmentTemplate }
+    private val queryMaterializationTemplates = loweredNamedTemplates.mapValues { it.value.queryFragmentTemplate }
+    private val objectMaterializationHasVariables = objectMaterializationTemplates.values.any { it.containsVariables() }
+    private val queryMaterializationHasVariables = queryMaterializationTemplates.values.any { it.containsVariables() }
+
     private val providerVariableNames =
         this.fragmentTemplates.mapValues { (_, templates) ->
             templates.variables
@@ -87,20 +93,11 @@ abstract class CheckerResolverBase<out T : ResolverTarget> internal constructor(
     private val loweredQueryFragment =
         loweredNamedTemplates.combineForResolution(ProviderFragment.QUERY, queryType)
 
-    internal val constructionDemandTemplate: CheckerConstructionDemandTemplate? =
-        if (
-            when (target) {
-                is ResolverTarget.FieldCheckerTarget -> variables.values.all { it is VariableDefinition.FromArgument }
-                is ResolverTarget.TypeCheckerTarget -> variables.isEmpty()
-                else -> false
-            }
-        ) {
-            val (staticObject, dynamicObject) = objectFragment.partitionVariableDemand()
-            val (staticQuery, dynamicQuery) = queryFragment.partitionVariableDemand()
-            CheckerConstructionDemandTemplate(staticObject, dynamicObject, staticQuery, dynamicQuery)
-        } else {
-            null
-        }
+    internal val constructionDemandTemplate: CheckerConstructionDemandTemplate = run {
+        val (staticObject, dynamicObject) = objectFragment.partitionVariableDemand()
+        val (staticQuery, dynamicQuery) = queryFragment.partitionVariableDemand()
+        CheckerConstructionDemandTemplate(staticObject, dynamicObject, staticQuery, dynamicQuery)
+    }
 
     /** The lowered variable definitions shared by the combined resolution fragments. */
     val variables: Map<Arguments.Variable, VariableDefinition>
@@ -145,19 +142,11 @@ abstract class CheckerResolverBase<out T : ResolverTarget> internal constructor(
 
     /** Instantiates each named object template without combining its response-key namespace. */
     fun instantiateObjectMaterializationSelections(resolverOccurrenceId: ResolverOccurrenceId): Map<String, MaterializeSelectionForest> =
-        loweredNamedTemplates.mapValues { (_, templates) ->
-            templates
-                .objectFragmentTemplate
-                .instantiateVariables(resolverOccurrenceId)
-        }
+        if (!objectMaterializationHasVariables) objectMaterializationTemplates else objectMaterializationTemplates.mapValues { it.value.instantiateVariables(resolverOccurrenceId) }
 
     /** Instantiates each named Query template without combining its response-key namespace. */
     fun instantiateQueryMaterializationSelections(resolverOccurrenceId: ResolverOccurrenceId): Map<String, MaterializeSelectionForest> =
-        loweredNamedTemplates.mapValues { (_, templates) ->
-            templates
-                .queryFragmentTemplate
-                .instantiateVariables(resolverOccurrenceId)
-        }
+        if (!queryMaterializationHasVariables) queryMaterializationTemplates else queryMaterializationTemplates.mapValues { it.value.instantiateVariables(resolverOccurrenceId) }
 
     /** Runs each named provider once and returns its pair-qualified variable names. */
     protected open suspend fun provideVariables(arguments: Arguments.Resolved): Map<String, viaduct.engine.runtime2.model.EngineInputData?> =

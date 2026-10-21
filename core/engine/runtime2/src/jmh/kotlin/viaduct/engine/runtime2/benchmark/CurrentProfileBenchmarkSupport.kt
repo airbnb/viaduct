@@ -4,6 +4,7 @@ package viaduct.engine.runtime2.benchmark
 
 import java.nio.file.Files
 import java.nio.file.Path
+import java.nio.file.StandardOpenOption
 import java.util.Collections
 import java.util.Locale
 import kotlin.math.ceil
@@ -71,6 +72,7 @@ internal data class ResolverBenchmarkInvocationObservation(
 
 internal class CurrentProfileBenchmarkSupport(
     private val subject: ResolverBenchmarkSubject,
+    private val usePrecomputedConstructionDemand: () -> Boolean,
 ) {
     private val corpus: ResolverBenchmarkCorpus =
         ResolverBenchmarkCorpus.load(SCHEMA_RESOURCE, REGISTRY_RESOURCE)
@@ -89,7 +91,7 @@ internal class CurrentProfileBenchmarkSupport(
         val discovery = PrecomputedResolverOutputs()
         val testWorld = corpus.benchmarkWorld(discovery)
         querySources.forEach { source ->
-            val world = testWorld.newAssumptions(selectiveResolvers = true)
+            val world = testWorld.newAssumptions(selectiveResolvers = true, usePrecomputedConstructionDemand = usePrecomputedConstructionDemand())
             subject.resolve(
                 operation = SharedOperationContext.create(world),
                 root = world.objectOf("Query"),
@@ -98,6 +100,8 @@ internal class CurrentProfileBenchmarkSupport(
         }
         discovery.prepared()
     }
+
+    fun registryStartup(): TestWorld = corpus.benchmarkWorld(PrecomputedResolverOutputs())
 
     fun prepareOverheadInvocation(loopCount: Int) {
         require(loopCount > 0) { "Resolver benchmark loop count must be positive" }
@@ -109,7 +113,7 @@ internal class CurrentProfileBenchmarkSupport(
         overheadCases =
             Array(loopCount * parsedQueries.size) { index ->
                 val selections = parsedQueries[index % parsedQueries.size]
-                val world = testWorld.newAssumptions(selectiveResolvers = true)
+                val world = testWorld.newAssumptions(selectiveResolvers = true, usePrecomputedConstructionDemand = usePrecomputedConstructionDemand())
                 PreparedResolution(
                     operation = SharedOperationContext.create(world),
                     root = world.objectOf("Query"),
@@ -140,7 +144,7 @@ internal class CurrentProfileBenchmarkSupport(
         val variableArgumentCounts = mutableListOf<Long>()
         val samples =
             querySources.mapIndexed { queryIndex, source ->
-                val world = testWorld.newAssumptions(selectiveResolvers = true)
+                val world = testWorld.newAssumptions(selectiveResolvers = true, usePrecomputedConstructionDemand = usePrecomputedConstructionDemand())
                 val selections = testWorld.schemas.fragmentFrom(source).subselections
                 corpus.registry.clearResolutionWitness()
                 val applicationObservations =
@@ -230,7 +234,7 @@ internal class CurrentProfileBenchmarkSupport(
             buildString {
                 appendLine(
                     "Resolver overhead corpus statistics " +
-                        "(${querySources.size} queries):",
+                        "(${querySources.size} queries, precomputedConstructionDemand=${usePrecomputedConstructionDemand()}):",
                 )
                 appendLine(
                     "  fields returned: " +
@@ -302,7 +306,7 @@ internal class CurrentProfileBenchmarkSupport(
         } else {
             val path = Path.of(reportFile)
             path.parent?.let { parent -> Files.createDirectories(parent) }
-            Files.writeString(path, report + System.lineSeparator())
+            Files.writeString(path, report + System.lineSeparator(), StandardOpenOption.CREATE, StandardOpenOption.APPEND)
         }
     }
 
@@ -319,7 +323,7 @@ internal class CurrentProfileBenchmarkSupport(
                     typeCheckerMode = GeneratedTypeCheckerMode.RUNTIME_SUCCESS,
                 ) { testWorld, testCase ->
                     check(testCase.query.selectionDepth >= 4)
-                    val world = testWorld.newAssumptions(selectiveResolvers = true)
+                    val world = testWorld.newAssumptions(selectiveResolvers = true, usePrecomputedConstructionDemand = usePrecomputedConstructionDemand())
                     val observer = testCase.registry.resolverObserver()
                     val operation =
                         SharedOperationContext.create(

@@ -27,6 +27,8 @@ class MaterializeSelectionInstantiationTest {
         val source = schema.fragmentFrom("fragment Input on Query { child { flag } echo(value: 1) }", variableTarget = target).materializeSelections
         assertSame(source, source.instantiateVariables(occurrence()))
         assertSame(source, source.instantiateVariables(occurrence()))
+        val construction = source.constructionSelections()
+        assertSame(construction, construction.instantiateVariables(occurrence()))
     }
 
     @Test
@@ -43,6 +45,14 @@ class MaterializeSelectionInstantiationTest {
         assertSame(firstLayout, first.collect(type))
         assertSame(secondLayout, second.collect(type))
         assertNotEquals(firstLayout["echo"].key.arguments, secondLayout["echo"].key.arguments)
+        val construction = source.constructionSelections()
+        val firstConstruction = construction.instantiateVariables(occurrence())
+        val secondConstruction = construction.instantiateVariables(occurrence())
+        assertSame(
+            construction.filter { it.key.field.name == "child" }.single().subselections,
+            firstConstruction.filter { it.key.field.name == "child" }.single().subselections,
+        )
+        assertNotEquals(firstConstruction.usedVariables(), secondConstruction.usedVariables())
     }
 
     @Test
@@ -52,5 +62,10 @@ class MaterializeSelectionInstantiationTest {
         val second = source.instantiateVariables(occurrence())
         assertTrue(first.constructionSelections().usedVariables().all { it.isInstantiated })
         assertNotEquals(first.constructionSelections().usedVariables(), second.constructionSelections().usedVariables())
+        val construction = source.constructionSelections()
+        val firstConstruction = construction.instantiateVariables(occurrence())
+        val secondConstruction = construction.instantiateVariables(occurrence())
+        assertTrue(firstConstruction.usedVariables().all { it.isInstantiated })
+        assertNotEquals(firstConstruction.usedVariables(), secondConstruction.usedVariables())
     }
 }

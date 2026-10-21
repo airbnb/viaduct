@@ -239,63 +239,63 @@ private fun OrchestrationConstructionDemand<SelectionForest>.withLiftedParentDem
     )
 
 /** Discover expansion events separately from collecting their fixed fragment contributions. */
-private fun Demand<SelectionForest>.newResolverKeyInclusions(
+internal fun Demand<SelectionForest>.newResolverKeyInclusions(
     world: Assumptions,
     occurrence: OEROccurrence,
     resolverContexts: MutableMap<ObjectEngineResult.ObjectKey, ResolverContext>,
     expansionState: SymbolicExpansionState,
     requiresStandardResolution: (ObjectEngineResult.ObjectKey) -> Boolean,
 ): List<Pair<ObjectEngineResult.ObjectKey, InclusionCondition>> =
-    values.applicableKeyConditions(occurrence.target.type).mapNotNull { (key, inclusion) ->
-        if (key.field !in world.resolverRegistry || !requiresStandardResolution(key)) {
-            return@mapNotNull null
+    buildList {
+        values.forEach { selection ->
+            if (occurrence.target.type !in selection.possibleTypes) return@forEach
+            val key = selection.objectKey(occurrence.target.type)
+            val inclusion = selection.inclusionCondition
+            if (key.field !in world.resolverRegistry || !requiresStandardResolution(key)) {
+                return@forEach
+            }
+            // Retain one description even when this occurrence is excluded or has argument errors.
+            val resolverContext = resolverContexts.getOrPut(key) { createResolverContext(world, occurrence, key) }
+            if (key is ObjectEngineResult.GroundKey && key.arguments.argumentsContainErrorValue()) {
+                return@forEach
+            }
+            if (inclusion === InclusionCondition.Never || !resolverContext.accumulatedKeyInclusions.add(inclusion)) {
+                return@forEach
+            }
+            if (resolverContext.accumulatedKeyInclusions.size == 1) {
+                // A reserved but statically excluded occurrence cannot extend a fragment cycle.
+                expansionState.register(occurrence.root, key, checker = false, resolverContext.variableDefinitions)
+            }
+            add(key to inclusion)
         }
-        // Retain one description even when this occurrence is excluded or has argument errors.
-        val resolverContext = resolverContexts.getOrPut(key) { createResolverContext(world, occurrence, key) }
-        if (key is ObjectEngineResult.GroundKey && key.arguments.argumentsContainErrorValue()) {
-            return@mapNotNull null
-        }
-        if (inclusion === InclusionCondition.Never || !resolverContext.accumulatedKeyInclusions.add(inclusion)) {
-            return@mapNotNull null
-        }
-        if (resolverContext.accumulatedKeyInclusions.size == 1) {
-            // A reserved but statically excluded occurrence cannot extend a fragment cycle.
-            expansionState.register(occurrence.root, key, checker = false, resolverContext.variableDefinitions)
-        }
-        key to inclusion
     }
 
-private fun Demand<SelectionForest>.newCheckerKeyInclusions(
+internal fun Demand<SelectionForest>.newCheckerKeyInclusions(
     world: Assumptions,
     occurrence: OEROccurrence,
     checkerContexts: MutableMap<ObjectEngineResult.ObjectKey, CheckerContext>,
     expansionState: SymbolicExpansionState,
 ): List<Pair<ObjectEngineResult.ObjectKey, InclusionCondition>> =
-    checked.applicableKeyConditions(occurrence.target.type).mapNotNull { (key, inclusion) ->
-        if (key is ObjectEngineResult.ParentKey) return@mapNotNull null
-        val checker = world.resolverRegistry.fieldChecker(key.field) ?: return@mapNotNull null
-        if (inclusion === InclusionCondition.Never) return@mapNotNull null
-        val checkerContext = checkerContexts.getOrPut(key) {
-            CheckerContext(checker, checker.instantiateFragmentsAt(occurrence.root, occurrence.coordinate(key))).also { context ->
-                expansionState.register(
-                    occurrence.root,
-                    key,
-                    checker = true,
-                    context.fragments.objectFragment.variableDefinitions + context.fragments.queryFragment.variableDefinitions,
-                )
-            }
-        }
-        if (key is ObjectEngineResult.GroundKey && key.arguments.argumentsContainErrorValue()) return@mapNotNull null
-        (key to inclusion).takeIf { checkerContext.accumulatedKeyInclusions.add(inclusion) }
-    }
-
-/** Preserves the additive occurrence boundary that merge would collapse into a Boolean disjunction. */
-private fun SelectionForest.applicableKeyConditions(type: ViaductSchema.Object): List<Pair<ObjectEngineResult.ObjectKey, InclusionCondition>> =
     buildList {
-        this@applicableKeyConditions.forEach { selection ->
-            if (type in selection.possibleTypes) {
-                add(selection.objectKey(type) to selection.inclusionCondition)
+        checked.forEach { selection ->
+            if (occurrence.target.type !in selection.possibleTypes) return@forEach
+            val key = selection.objectKey(occurrence.target.type)
+            val inclusion = selection.inclusionCondition
+            if (key is ObjectEngineResult.ParentKey) return@forEach
+            val checker = world.resolverRegistry.fieldChecker(key.field) ?: return@forEach
+            if (inclusion === InclusionCondition.Never) return@forEach
+            val checkerContext = checkerContexts.getOrPut(key) {
+                CheckerContext(checker, checker.instantiateFragmentsAt(occurrence.root, occurrence.coordinate(key))).also { context ->
+                    expansionState.register(
+                        occurrence.root,
+                        key,
+                        checker = true,
+                        context.fragments.objectFragment.variableDefinitions + context.fragments.queryFragment.variableDefinitions,
+                    )
+                }
             }
+            if (key is ObjectEngineResult.GroundKey && key.arguments.argumentsContainErrorValue()) return@forEach
+            if (checkerContext.accumulatedKeyInclusions.add(inclusion)) add(key to inclusion)
         }
     }
 
@@ -333,7 +333,7 @@ private fun List<Pair<ObjectEngineResult.ObjectKey, InclusionCondition>>.checker
  * Finalizes demand for task preparation. Symbolic closure retains the occurrences and provider
  * descriptions it discovered; this step neither expands demand nor installs tasks or promises.
  */
-private fun finalizeClosedOERConstructionDemand(
+internal fun finalizeClosedOERConstructionDemand(
     world: Assumptions,
     passiveSource: EngineObjectData.Sync?,
     occurrence: OEROccurrence,
@@ -348,13 +348,10 @@ private fun finalizeClosedOERConstructionDemand(
     val type = passiveSource?.schemaType(world.schema) ?: occurrence.target.type
     val constructionDemand = accumulatedDemand.merge(type)
     val closedValueSelections = constructionDemand.values.merge(type)
-    val requiredResolverSelections =
-        closedValueSelections
-            .byKey()
-            .filter { (objectKey, _) ->
-                objectKey.field in world.resolverRegistry && requiresStandardResolution(objectKey)
-            }
-    check(requiredResolverSelections.keys == resolverContexts.keys) {
+    check(
+        closedValueSelections.keys().count { key -> key.field in world.resolverRegistry && requiresStandardResolution(key) } == resolverContexts.size &&
+            resolverContexts.keys.all { it in closedValueSelections.byKey() },
+    ) {
         "Resolution closed demand and required resolvers are misaligned"
     }
     val fieldResolverOccurrences =
@@ -366,7 +363,7 @@ private fun finalizeClosedOERConstructionDemand(
         }
     val referenceOccurrences =
         passiveSource?.discoverRootFieldReferences(world, occurrence, closedValueSelections, constructionDemand).orEmpty()
-    check(fieldResolverOccurrences.keys.intersect(referenceOccurrences.keys).isEmpty()) {
+    check(referenceOccurrences.keys.none { it in fieldResolverOccurrences }) {
         "Resolution classified one field as both an ordinary resolver and a root reference"
     }
     return ClosedOERConstructionDemandContext(
@@ -387,7 +384,11 @@ private fun finalizeClosedOERConstructionDemand(
             val selection = fieldResolverOccurrence.selection
             val key = selection.key
             val providerReads =
-                if (key is ObjectEngineResult.GroundKey && key.arguments.argumentsContainErrorValue()) {
+                if (
+                    key is ObjectEngineResult.GroundKey && key.arguments.argumentsContainErrorValue() ||
+                    fieldResolverOccurrence.fragments.objectFragment.pathVariableDefinitions.isEmpty() &&
+                    fieldResolverOccurrence.fragments.queryFragment.pathVariableDefinitions.isEmpty()
+                ) {
                     emptyList()
                 } else {
                     fieldResolverOccurrence.fragments.variableProviderReads(
@@ -416,7 +417,7 @@ private fun ResolverFragments.variableProviderReads(
     }
 
 // Closure inputs and bookkeeping for one required standard resolver occurrence.
-private data class ResolverContext(
+internal data class ResolverContext(
     val invocationRoot: ObjectEngineResult,
     val invocationPath: List<PathComponent>,
     val resolverOccurrenceId: ResolverOccurrenceId,
@@ -481,7 +482,7 @@ private fun EngineObjectData.Sync.discoverRootFieldReferences(
         }
     }
 
-private fun createResolverContext(
+internal fun createResolverContext(
     world: Assumptions,
     occurrence: OEROccurrence,
     objectKey: ObjectEngineResult.ObjectKey,
@@ -527,7 +528,7 @@ internal class FieldCheckerOccurrence(
         .distinctBy { it.variable }
 }
 
-private class CheckerContext(
+internal class CheckerContext(
     val checker: FieldCheckerResolver,
     val fragments: ResolverFragments
 ) {
@@ -552,7 +553,7 @@ private class CheckerContext(
  * an existing key is finite; creating a new key through variables owned by the same root, field,
  * and executor kind again would instantiate the same fragment cycle indefinitely.
  */
-private class SymbolicExpansionState {
+internal class SymbolicExpansionState {
     private data class Site(
         val root: ObjectEngineResult,
         val field: ViaductSchema.ObjectField,
@@ -588,7 +589,7 @@ internal class TypeCheckerOccurrence(
         .distinctBy { it.variable }
 }
 
-private class TypeCheckerContext(
+internal class TypeCheckerContext(
     val checker: TypeCheckerResolver,
     val fragments: ResolverFragments,
 ) {
@@ -608,12 +609,12 @@ private class TypeCheckerContext(
     }
 }
 
-private fun OEROccurrence.typeCheckerContext(world: Assumptions): TypeCheckerContext? =
+internal fun OEROccurrence.typeCheckerContext(world: Assumptions): TypeCheckerContext? =
     world.resolverRegistry.typeChecker(target.type)?.let { checker ->
         TypeCheckerContext(checker, checker.instantiateFragmentsAt(root, path))
     }
 
-private fun TypeCheckerContext?.addInclusion(condition: InclusionCondition): InclusionCondition? {
+internal fun TypeCheckerContext?.addInclusion(condition: InclusionCondition): InclusionCondition? {
     if (this == null || condition === InclusionCondition.Never) return null
     val combined = inclusionCondition.or(condition)
     if (combined == inclusionCondition) return null

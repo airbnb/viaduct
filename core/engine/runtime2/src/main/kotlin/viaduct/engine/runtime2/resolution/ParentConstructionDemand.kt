@@ -7,6 +7,7 @@ import viaduct.engine.runtime2.model.ObjectSelection
 import viaduct.engine.runtime2.model.Selection
 import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.model.concatenateSelectionForests
+import viaduct.engine.runtime2.model.containsVariables
 import viaduct.engine.runtime2.model.flatMapToSelectionForest
 import viaduct.engine.runtime2.model.guardedBy
 import viaduct.engine.runtime2.model.mapNotNullSelections
@@ -14,6 +15,7 @@ import viaduct.engine.runtime2.model.objectKey
 import viaduct.engine.runtime2.model.registry.Assumptions
 import viaduct.engine.runtime2.model.registry.FieldCheckerResolver
 import viaduct.engine.runtime2.model.registry.TypeCheckerResolver
+import viaduct.engine.runtime2.model.registry.partitionVariableDemand
 import viaduct.engine.runtime2.model.selectionForestOf
 import viaduct.engine.runtime2.resolution.framework.Demand
 import viaduct.engine.runtime2.resolution.framework.guardedBy
@@ -282,7 +284,7 @@ private fun ObjectSelection.findParentDemandInObjectSelection(
                 ParentDemandAnalysis(context.normalizer)
             }
     val guardedFixedInputs = fixedInputs.guardedBy(inclusionCondition)
-    localDemand = context.normalizer.combine(localDemand, guardedFixedInputs.localDemand)
+    localDemand = context.normalizer.combine(localDemand, fixedInputs.localDemand.reusableParentDemand().guardedBy(inclusionCondition))
     parentRequests = context.normalizer.combineRequests(parentRequests, guardedFixedInputs.parentRequests)
     reusable = reusable && guardedFixedInputs.reusable
     return ParentDemandAnalysis(context.normalizer, localDemand, parentRequests, reusable)
@@ -369,3 +371,16 @@ private fun ViaductSchema.Object.findParentDemandInTypeFragment(
     if (result.reusable) context.parentDemandByType[this] = result
     return result
 }
+
+// Variable-bearing local inputs need their boundary's occurrence; closure will lift them after instantiation.
+internal fun Demand<SelectionForest>.reusableParentDemand(): Demand<SelectionForest> =
+    if (!checked.containsVariables() && !unchecked.containsVariables()) {
+        this
+    } else {
+        Demand(
+            checked = checked.partitionVariableDemand().first,
+            unchecked = unchecked.partitionVariableDemand().first,
+            typeCheckDemanded = typeCheckDemanded,
+            typeCheckCondition = typeCheckCondition,
+        )
+    }

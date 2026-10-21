@@ -23,6 +23,10 @@ class OccurrenceIdsTest {
         assertEquals(first.hashCode(), equalFirst.hashCode())
         assertNotEquals(first, second)
         assertNotEquals(first, ResolverOccurrenceId.at(secondRoot, firstPath))
+        val collision = ResolverOccurrenceId.at(firstRoot, listOf(ListEngineResult.Index.of(1), ListEngineResult.Index.of(32)))
+        val otherCollision = ResolverOccurrenceId.at(firstRoot, listOf(ListEngineResult.Index.of(2), ListEngineResult.Index.of(1)))
+        assertEquals(collision.hashCode(), otherCollision.hashCode())
+        assertNotEquals(collision, otherCollision)
         assertEquals(
             "ResolverOccurrenceId(root=${System.identityHashCode(firstRoot)}, path=[index=1])",
             first.toString(),
@@ -79,6 +83,10 @@ class OccurrenceIdsTest {
             first,
             VariableInstanceId.of(firstOccurrence, firstTarget, "other"),
         )
+        val collision = VariableInstanceId.of(firstOccurrence, firstTarget, "Aa")
+        val otherCollision = VariableInstanceId.of(firstOccurrence, firstTarget, "BB")
+        assertEquals(collision.hashCode(), otherCollision.hashCode())
+        assertNotEquals(collision, otherCollision)
         assertEquals(
             "VariableInstanceId(" +
                 "resolver=ResolverOccurrenceId(" +

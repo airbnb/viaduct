@@ -67,21 +67,31 @@ internal class Demand<out S : SelectionForest>(
 
 /** Adds checked and unchecked demand independently. */
 internal operator fun Demand<SelectionForest>.plus(other: Demand<SelectionForest>): Demand<SelectionForest> =
-    Demand(
-        checked = checked + other.checked,
-        unchecked = unchecked + other.unchecked,
-        typeCheckDemanded = typeCheckDemanded || other.typeCheckDemanded,
-        typeCheckCondition = typeCheckCondition.or(other.typeCheckCondition),
-    )
+    if (this === Demand.EMPTY) {
+        other
+    } else if (other === Demand.EMPTY) {
+        this
+    } else {
+        Demand(
+            checked = checked + other.checked,
+            unchecked = unchecked + other.unchecked,
+            typeCheckDemanded = typeCheckDemanded || other.typeCheckDemanded,
+            typeCheckCondition = typeCheckCondition.or(other.typeCheckCondition),
+        )
+    }
 
 /** Applies the same inclusion guard without losing demand provenance. */
 internal fun Demand<SelectionForest>.guardedBy(condition: InclusionCondition): Demand<SelectionForest> =
-    Demand(
-        checked = checked.guardedBy(condition),
-        unchecked = unchecked.guardedBy(condition),
-        typeCheckDemanded = typeCheckDemanded,
-        typeCheckCondition = typeCheckCondition.and(condition),
-    )
+    if (condition === InclusionCondition.Always) {
+        this
+    } else {
+        Demand(
+            checked = checked.guardedBy(condition),
+            unchecked = unchecked.guardedBy(condition),
+            typeCheckDemanded = typeCheckDemanded,
+            typeCheckCondition = typeCheckCondition.and(condition),
+        )
+    }
 
 /** Normalizes each demand component independently for one concrete object type. */
 internal fun Demand<SelectionForest>.merge(type: ViaductSchema.Object): Demand<ObjectSelectionForest> =

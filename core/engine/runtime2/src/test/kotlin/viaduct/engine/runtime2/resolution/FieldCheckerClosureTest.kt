@@ -24,7 +24,9 @@ import viaduct.engine.runtime2.resolution.framework.OEROccurrence
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 import viaduct.engine.runtime2.schema.operationSelectionsFrom
 
-class FieldCheckerClosureTest : ResolutionDispatcherResource {
+open class FieldCheckerClosureTest : ResolutionDispatcherResource {
+    protected open val precomputedConstructionDemand = false
+
     @Test
     fun `closure restores checked demand at raw value resolver boundaries on both roots`() =
         runBlocking {
@@ -52,7 +54,7 @@ class FieldCheckerClosureTest : ResolutionDispatcherResource {
                     )
                 },
             )
-            val operation = OperationContext.create(SharedOperationContext.create(world.assumptions), this)
+            val operation = OperationContext.create(SharedOperationContext.create(world.newAssumptions(usePrecomputedConstructionDemand = precomputedConstructionDemand)), this)
             val root = ObjectEngineResult.of(world.schema.requireQueryTypeDef(), mutable = true)
             val task = OrchestrationTask.create(
                 operation,
@@ -133,4 +135,8 @@ class FieldCheckerClosureTest : ResolutionDispatcherResource {
         }
         assertTrue(failure.message.orEmpty().contains("demand cycle"))
     }
+}
+
+class PrecomputedFieldCheckerClosureTest : FieldCheckerClosureTest() {
+    override val precomputedConstructionDemand = true
 }

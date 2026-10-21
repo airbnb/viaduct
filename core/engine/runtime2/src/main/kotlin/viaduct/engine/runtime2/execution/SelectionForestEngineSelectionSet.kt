@@ -20,7 +20,6 @@ import viaduct.engine.runtime2.model.InclusionCondition
 import viaduct.engine.runtime2.model.Selection
 import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.model.objectKey
-import viaduct.engine.runtime2.schema.SourceSchemaAdapter
 import viaduct.graphql.schema.ViaductSchema as QPlanSchema
 import viaduct.graphql.utils.ParsedSelections
 
@@ -40,7 +39,6 @@ import viaduct.graphql.utils.ParsedSelections
 internal fun SelectionForest.toEngineSelectionSet(
     type: QPlanSchema.CompositeTypeDef,
     schema: EngineSchema,
-    sourceSchema: SourceSchemaAdapter,
 ): EngineSelectionSet {
     require(schema.schema.getType(type.name) != null) {
         "Qplan selection type ${type.name} is absent from the Engine schema"
@@ -49,7 +47,7 @@ internal fun SelectionForest.toEngineSelectionSet(
         parsedSelections =
             ParsedSelections(
                 typeName = type.name,
-                selections = toConcreteSelectionSet(schema, sourceSchema),
+                selections = toConcreteSelectionSet(schema),
                 fragmentMap = emptyMap(),
             ),
         schema = schema,
@@ -57,10 +55,7 @@ internal fun SelectionForest.toEngineSelectionSet(
     )
 }
 
-private fun SelectionForest.toConcreteSelectionSet(
-    schema: EngineSchema,
-    sourceSchema: SourceSchemaAdapter,
-): SelectionSet {
+private fun SelectionForest.toConcreteSelectionSet(schema: EngineSchema): SelectionSet {
     val fieldsByConcreteType = linkedMapOf<String, MutableList<Field>>()
     forEach { selection ->
         selection.possibleTypes
@@ -68,7 +63,7 @@ private fun SelectionForest.toConcreteSelectionSet(
             .forEach { concreteType ->
                 fieldsByConcreteType
                     .getOrPut(concreteType.name, ::mutableListOf)
-                    .add(selection.toField(concreteType, schema, sourceSchema))
+                    .add(selection.toField(concreteType, schema))
             }
     }
 
@@ -80,7 +75,7 @@ private fun SelectionForest.toConcreteSelectionSet(
                     .typeCondition(TypeName(typeName))
                     .selectionSet(
                         SelectionSet(
-                            fields.sortedBy(AstPrinter::printAstCompact),
+                            fields.sortedWith(compareBy<Field> { it.name }.thenBy(AstPrinter::printAstCompact)),
                         ),
                     ).build()
             }
@@ -90,15 +85,11 @@ private fun SelectionForest.toConcreteSelectionSet(
 private fun Selection.toField(
     concreteType: QPlanSchema.Object,
     schema: EngineSchema,
-    sourceSchema: SourceSchemaAdapter,
 ): Field {
     val loweredFieldName = key.field.name
     val concreteField = objectKey(concreteType).field
     val sourceObject = requireNotNull(schema.schema.getObjectType(concreteType.name))
-    val sourceField =
-        sourceObject.fieldDefinitions.singleOrNull { candidate ->
-            sourceSchema.field(concreteType.name, candidate.name) == concreteField
-        }
+    val sourceField = sourceObject.getFieldDefinition(concreteField.name)
     val fieldName =
         if (loweredFieldName == LOWERED_TYPENAME_FIELD) {
             "__typename"
@@ -155,7 +146,7 @@ private fun Selection.toField(
                     ).build()
             },
     )
-    val children = subselections.toConcreteSelectionSet(schema, sourceSchema)
+    val children = subselections.toConcreteSelectionSet(schema)
     if (children.selections.isNotEmpty()) {
         field.selectionSet(children)
     }

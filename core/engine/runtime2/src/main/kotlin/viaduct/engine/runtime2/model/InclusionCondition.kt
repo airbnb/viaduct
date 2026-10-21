@@ -181,6 +181,7 @@ private fun disjunction(
  * a satisfiability decision or complete DNF normalization for arbitrary formulas.
  */
 internal fun InclusionCondition.pruneContradictions(): InclusionCondition {
+    if (this === InclusionCondition.Always || this === InclusionCondition.Never || this is InclusionCondition.Requires) return this
     val polarities = mutableMapOf<Arguments.Variable, Int>()
     val occurrences = mutableMapOf<Arguments.Variable, Int>()
     val visited = java.util.Collections.newSetFromMap(java.util.IdentityHashMap<InclusionCondition, Boolean>())

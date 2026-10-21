@@ -56,7 +56,7 @@ interface ResolverRegistry {
     /** Returns the checker for [type], or null when no type checker applies. */
     fun typeChecker(type: ViaductSchema.Object): TypeCheckerResolver? = null
 
-    /** Precomputed construction inputs for argument/provider variable sources, or null outside that domain. */
+    /** Precomputed construction inputs, or null when this registry does not supply templates. */
     fun precomputedConstructionDemand(field: ViaductSchema.ObjectField): ConstructionDemandTemplate? = null
 
     /** Registry-owned summaries for fixed checker inputs. */

@@ -5,14 +5,18 @@ import kotlin.test.assertIs
 import kotlin.test.assertNotSame
 import kotlin.test.assertSame
 import org.junit.jupiter.api.Assumptions.assumeTrue
+import org.junit.jupiter.api.DynamicTest.dynamicTest
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.TestFactory
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.runtime2.correctresolution.CorrectnessResolverObserver
+import viaduct.engine.runtime2.model.Arguments
 import viaduct.engine.runtime2.model.ListEngineResult
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.emptyFragmentOf
 import viaduct.engine.runtime2.model.outputValue
 import viaduct.engine.runtime2.model.registry.fieldResolverOf
+import viaduct.engine.runtime2.model.registry.fromArgument
 import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.emptyFragmentOf
@@ -25,6 +29,69 @@ import viaduct.engine.runtime2.schema.operationSelectionsFrom
 interface ParentFieldResolverContract : ResolverContract {
     val usesSingularQueryOERForParentDemand: Boolean
         get() = false
+
+    @TestFactory
+    fun `parent demand retains argument ownership on a selection spine`() =
+        listOf(false, true).map { composed ->
+            dynamicTest(if (composed) "composed consumer" else "direct consumer") {
+                val invocations = linkedMapOf<String, Int>()
+                val observer = object : CorrectnessResolverObserver() {
+                    override fun onResolverInvocation(observation: ResolverInvocationObservation) {
+                        super.onResolverInvocation(observation)
+                        invocations.compute(observation.field.name) { _, count -> (count ?: 0) + 1 }
+                    }
+                }
+                val fixture = TestWorld.fromSDL(
+                    selectiveResolvers = selectiveResolvers,
+                    schemaSDL = """
+                        directive @parent on FIELD_DEFINITION
+                        type Query { root: Root }
+                        type Root { middle(seed: Int): Int composed: Int branch(x: Int): Branch }
+                        type Branch { seed: Int child: Child }
+                        type Child { parent: Branch @parent leaf: Int }
+                    """.trimIndent(),
+                    fieldResolvers = { schemas ->
+                        val schema = schemas.loweredSchema
+                        mapOf(
+                            schema.requireObjectField("Query", "root") to fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> schema.objectOf("Root") },
+                            schema.requireObjectField("Root", "composed") to fieldResolverOf(
+                                schemas.fragmentFrom("fragment Input on Root { middle(seed: 3) }"),
+                            ) { input, _ -> input.outputValue("middle") },
+                            schema.requireObjectField("Root", "middle") to fieldResolverOf(
+                                schemas.fragmentFrom("fragment Input on Root { branch(x: ${'$'}seed) { child { leaf } } }"),
+                            ) { input, _ ->
+                                val branch = assertIs<EngineObjectData.Sync>(input.outputValue("branch"))
+                                val child = assertIs<EngineObjectData.Sync>(branch.outputValue("child"))
+                                child.outputValue("leaf")
+                            },
+                            schema.requireObjectField("Root", "branch") to fieldResolverOf(schema.emptyFragmentOf("Root")) { _, arguments ->
+                                assertEquals(3, arguments.fieldValues.getValue("x"))
+                                schema.objectOf("Branch") { "seed" setTo 11 }
+                            },
+                            schema.requireObjectField("Branch", "child") to fieldResolverOf(schema.emptyFragmentOf("Branch")) { _, _ -> schema.objectOf("Child") },
+                            schema.requireObjectField("Child", "leaf") to fieldResolverOf(
+                                schemas.fragmentFrom("fragment Input on Child { parent { seed } }"),
+                            ) { input, _ -> assertIs<EngineObjectData.Sync>(input.outputValue("parent")).outputValue("seed") },
+                        )
+                    },
+                    variableProviders = { schemas ->
+                        val schema = schemas.loweredSchema
+                        val middle = schema.requireObjectField("Root", "middle")
+                        mapOf(Arguments.Variable.of(middle, "seed") to schema.fromArgument(middle, "seed"))
+                    },
+                )
+                val field = if (composed) "composed" else "middle"
+                val selection = if (composed) field else "middle(seed: 3)"
+                val result = resolveAndValidate(fixture, "{ root { $selection } }", resolverObserver = observer)
+                val root = assertIs<ObjectEngineResult>(result.getCell(fixture.schema.contractKey("Query", "root")).get())
+                val key = if (composed) fixture.schema.contractKey("Root", field) else ObjectEngineResult.GroundKey.of(fixture.schema.requireObjectField("Root", field), mapOf("seed" to 3))
+                assertEquals(11, root.getCell(key).get())
+                assertEquals(
+                    mapOf("root" to 1, "middle" to 1, "branch" to 1, "child" to 1, "leaf" to 1) + if (composed) mapOf("composed" to 1) else emptyMap(),
+                    invocations,
+                )
+            }
+        }
 
     @Test
     fun `parent demand binds an ancestor provider only when the source does not supply its field`() {

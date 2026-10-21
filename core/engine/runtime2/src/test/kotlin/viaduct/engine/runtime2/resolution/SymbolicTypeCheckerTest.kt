@@ -34,7 +34,9 @@ import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 import viaduct.engine.runtime2.schema.operationSelectionsFrom
 import viaduct.graphql.schema.ViaductSchema
 
-class SymbolicTypeCheckerTest : ResolutionDispatcherResource {
+open class SymbolicTypeCheckerTest : ResolutionDispatcherResource {
+    protected open val precomputedConstructionDemand = false
+
     @Test
     fun `checker field bindings preserve null intermediates terminals and nested errors on both roots`() {
         for (providerRoot in ProviderFragment.entries) {
@@ -445,7 +447,7 @@ class SymbolicTypeCheckerTest : ResolutionDispatcherResource {
             bindVariable(definition.variable.instanceId!!, VariableBinding.of(99))
         }
         val forged = SharedOperationContext.create(
-            world.assumptions,
+            world.newAssumptions(usePrecomputedConstructionDemand = precomputedConstructionDemand),
             variableBindings = forgedBindings,
             resolverObserver = resolution.resolvers,
             checkerObserver = resolution.checkers
@@ -510,7 +512,7 @@ class SymbolicTypeCheckerTest : ResolutionDispatcherResource {
         val recorder = CheckerApplicationRecorder()
         val checkers = CorrectnessCheckerObserver(recorder)
         val resolvers = CorrectnessResolverObserver()
-        val operation = SharedOperationContext.create(world.assumptions, resolverObserver = resolvers, checkerObserver = checkers)
+        val operation = SharedOperationContext.create(world.newAssumptions(usePrecomputedConstructionDemand = precomputedConstructionDemand), resolverObserver = resolvers, checkerObserver = checkers)
         val selections = world.schemas.operationSelectionsFrom(query)
         val result = operation.resolveWithTestDispatcher(selections)
         beforeReplay()
@@ -530,4 +532,8 @@ class SymbolicTypeCheckerTest : ResolutionDispatcherResource {
         val resolvers: CorrectnessResolverObserver,
         val operation: SharedOperationContext<*>,
     )
+}
+
+class PrecomputedSymbolicTypeCheckerTest : SymbolicTypeCheckerTest() {
+    override val precomputedConstructionDemand = true
 }

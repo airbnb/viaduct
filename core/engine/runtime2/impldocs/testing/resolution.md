@@ -32,6 +32,8 @@ Run all non-stress model-level Resolution tests with the default single-thread d
 ./gradlew :core:engine:runtime2:test --tests 'viaduct.engine.runtime2.resolution.*'
 ```
 
+Production resolver contracts, the mutation-family matrix, and mutation cancellation tests explicitly exercise both algorithms. Set `-Pruntime2PrecomputedConstructionDemand=true` or `false` to select the algorithm for other `TestWorld`-based suites, including generated tests, stress, and lifecycle tests. The selector does not override explicit test subjects. Run separate executions for each algorithm so tenant effects and operation-local bindings are not reused.
+
 Run the same static, generated, witness, and mutation suite with five resolution threads:
 
 ```shell

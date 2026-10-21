@@ -46,11 +46,17 @@ import viaduct.engine.runtime2.resolution.liftParentConstructionDemand as liftDy
 import viaduct.engine.runtime2.resolvers.resolver23.resolve as resolve23
 import viaduct.graphql.schema.ViaductSchema
 
-class ParentConstructionDemandTest {
+class ParentConstructionDemandTest : ResolutionDispatcherResource {
     @Test
     fun `shared field and type checkers keep each registry's parent requirements`() =
         runTest {
             assertSharedCheckerOwnership { resolve23(it) }
+        }
+
+    @Test
+    fun `production shared checkers keep each registry's parent requirements`() =
+        runTest {
+            assertSharedCheckerOwnership { resolveWithTestDispatcher(it) }
         }
 
     private suspend fun assertSharedCheckerOwnership(executeResolution: suspend SharedOperationContext<*>.(SelectionForest) -> ObjectEngineResult) {

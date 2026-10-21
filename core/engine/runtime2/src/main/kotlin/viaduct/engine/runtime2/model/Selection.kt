@@ -176,6 +176,11 @@ fun Iterable<SelectionForest>.concatenateSelectionForests(): SelectionForest {
  */
 fun SelectionForest.merge(type: ViaductSchema.Object): ObjectSelectionForest {
     require(this !is MutationSelectionForest) { "Mutation forests must retain response-key collection and source order" }
+    (this as? CachedSelectionForest)?.merged?.let { if (it.type == type) return it }
+    return mergeUncached(type).also { (this as? CachedSelectionForest)?.merged = it }
+}
+
+private fun SelectionForest.mergeUncached(type: ViaductSchema.Object): ObjectSelectionForest {
     if (isEmpty()) return ObjectSelectionForestImpl(type, emptyMap())
     if (size == 1) {
         val occurrence = single()
@@ -600,9 +605,27 @@ private object EmptySelectionForest : SelectionForest {
     override fun plus(other: SelectionForest): SelectionForest = if (other.isEmpty()) this else other
 }
 
+internal fun SelectionForest.containsVariables(): Boolean {
+    (this as? CachedSelectionForest)?.containsVariables?.let { return it }
+    val result = !all { selection ->
+        (selection.key.arguments is Arguments.Ground || selection.key.arguments.usedVariables().isEmpty()) &&
+            selection.inclusionCondition.usedVariables().isEmpty() &&
+            !selection.subselections.containsVariables()
+    }
+    (this as? CachedSelectionForest)?.containsVariables = result
+    return result
+}
+
+private interface CachedSelectionForest : SelectionForest {
+    var merged: ObjectSelectionForest?
+    var containsVariables: Boolean?
+}
+
 private class SingletonSelectionForest(
     val selection: Selection,
-) : SelectionForest {
+) : CachedSelectionForest {
+    @Volatile override var merged: ObjectSelectionForest? = null
+    @Volatile override var containsVariables: Boolean? = null
     override val size: Int get() = 1
 
     override fun isEmpty(): Boolean = false
@@ -622,7 +645,10 @@ private class SingletonSelectionForest(
 
 private abstract class AbstractSelectionForest(
     val occurrences: List<Selection>,
-) : SelectionForest {
+) : CachedSelectionForest {
+    @Volatile override var merged: ObjectSelectionForest? = null
+    @Volatile override var containsVariables: Boolean? = null
+
     init {
         SelectionForest.requireSupportedSize(occurrences.size)
     }
@@ -654,7 +680,9 @@ private abstract class AbstractSelectionForest(
 private class ConcatenatedSelectionForest(
     val left: SelectionForest,
     val right: SelectionForest,
-) : SelectionForest {
+) : CachedSelectionForest {
+    @Volatile override var merged: ObjectSelectionForest? = null
+    @Volatile override var containsVariables: Boolean? = null
     override val size: Int = left.size + right.size
 
     init {

@@ -240,6 +240,7 @@ private class TestWorldModule(
             schema = schemas.loweredSchema,
             resolverRegistry = resolverRegistry,
             selectiveResolvers = selectiveResolvers,
+            usePrecomputedConstructionDemand = System.getProperty("viaduct.runtime2.precomputedConstructionDemand")?.toBooleanStrict() ?: false,
         )
 
     private fun fallbackQueryResolvers(schemas: ViaductAndGJSchema): Map<ViaductSchema.Field, FieldResolverDefinition> {

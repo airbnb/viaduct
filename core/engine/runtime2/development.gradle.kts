@@ -4,6 +4,8 @@ val resolverBenchmarkQueryCount =
     providers.gradleProperty("resolverBenchmarkQueryCount").orElse("100")
 val resolverBenchmarkQuerySeed =
     providers.gradleProperty("resolverBenchmarkQuerySeed").orElse("1")
+val resolverBenchmarkPrecomputedConstructionDemand =
+    providers.gradleProperty("resolverBenchmarkPrecomputedConstructionDemand")
 val resolverBenchmarkLoopCount =
     providers.gradleProperty("resolverBenchmarkLoopCount").orElse("1")
 val standardViaductBenchmarkEngine =
@@ -155,6 +157,7 @@ fun registerResolverBenchmarkTask(
         classpath = files(benchmarkJar.flatMap { jar -> jar.archiveFile })
         mainClass.set("org.openjdk.jmh.Main")
         inputs.property("loopCount", resolverBenchmarkLoopCount)
+        inputs.property("precomputedConstructionDemand", resolverBenchmarkPrecomputedConstructionDemand.orElse("false,true"))
         outputs.upToDateWhen { false }
         val statisticsFile =
             layout.buildDirectory.file(
@@ -180,6 +183,8 @@ fun registerResolverBenchmarkTask(
                     "true",
                     "-p",
                     "loopCount=${resolverBenchmarkLoopCount.get()}",
+                    "-p",
+                    "precomputedConstructionDemand=${resolverBenchmarkPrecomputedConstructionDemand.orElse("false,true").get()}",
                 ) + reportArguments
         }
         doLast {
@@ -311,6 +316,8 @@ tasks.register<JavaExec>("resolutionOverheadProfile") {
                 "viaduct\\.engine\\.runtime2\\.resolution\\.ResolverBenchmark\\.overhead",
                 "-p",
                 "loopCount=${resolverBenchmarkLoopCount.get()}",
+                "-p",
+                "precomputedConstructionDemand=${resolverBenchmarkPrecomputedConstructionDemand.orElse("false").get()}",
                 "-wi",
                 "1",
                 "-i",
@@ -474,6 +481,11 @@ val configuredResolutionThreadCount =
         .orElse(providers.environmentVariable("viaduct.resolution.threadcount"))
 
 tasks.withType<org.gradle.api.tasks.testing.Test>().configureEach {
+    providers.gradleProperty("runtime2PrecomputedConstructionDemand").orNull?.let { configured ->
+        require(configured == "true" || configured == "false") { "runtime2PrecomputedConstructionDemand must be true or false" }
+        systemProperty("viaduct.runtime2.precomputedConstructionDemand", configured)
+    }
+
     val resolutionThreadCount =
         configuredResolutionThreadCount.orElse(
             if (name == "resolutionMultithreadedStress") "100" else "1",

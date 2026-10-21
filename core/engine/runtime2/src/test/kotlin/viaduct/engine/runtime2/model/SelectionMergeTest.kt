@@ -1,5 +1,6 @@
 package viaduct.engine.runtime2.model
 
+import java.util.stream.IntStream
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertInstanceOf
@@ -15,6 +16,29 @@ import viaduct.engine.runtime2.model.testing.testRoot
 import viaduct.graphql.schema.ViaductSchema
 
 class SelectionMergeTest {
+    @Test
+    fun `repeated concurrent specialization preserves each concrete types defaults`() {
+        val schema = TestWorld.fromSDL(
+            "type Query { item: Item } interface Item { value: Int } " +
+                "type A implements Item { value(scale: Int = 7): Int } " +
+                "type B implements Item { value(scale: Int = 9): Int }",
+        ).schema
+        val types = listOf("A", "B").map { schema.requireType(it) as ViaductSchema.Object }
+        val forest = selectionForestOf(
+            Selection.of(
+                ObjectEngineResult.Key.of(schema.requireField("Item", "value"), emptyMap()),
+                types.toSet(),
+                selectionForestOf(),
+            ),
+        )
+
+        IntStream.range(0, 1_000).parallel().forEach { index ->
+            val type = types[index % 2]
+            val expected = ObjectEngineResult.GroundKey.of(type.requireField("value"), mapOf("scale" to if (index % 2 == 0) 7 else 9))
+            assertEquals(setOf(expected), forest.merge(type).keys())
+        }
+    }
+
     @Test
     fun `flat merge coalesces shared keys and preserves distinct arguments and children`() {
         val fixture = Fixture()

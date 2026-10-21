@@ -111,17 +111,20 @@ internal class TypeCheckerTask private constructor(
         if (occurrence.providerReads.isNotEmpty()) {
             scope.launch { completeProviderBindings(operation, occurrence.providerReads) }
         }
-        val variables =
-            withVariablesProviderResolutionContext(this) {
-                occurrence.checker.provideVariables()
+        val providerDefinitions = occurrence.variableDefinitions.filter { it.definition == VariableDefinition.FromProvider }
+        if (providerDefinitions.isNotEmpty()) {
+            val variables =
+                withVariablesProviderResolutionContext(this) {
+                    occurrence.checker.provideVariables()
+                }
+            providerDefinitions.forEach { definition ->
+                check(
+                    operation.variableBindings.completeBinding(
+                        requireNotNull(definition.variable.instanceId),
+                        VariableBinding.of(variables.getValue(definition.variable.variableName)),
+                    )
+                ) { "Checker provider binding was completed twice" }
             }
-        occurrence.variableDefinitions.filter { it.definition == VariableDefinition.FromProvider }.forEach { definition ->
-            check(
-                operation.variableBindings.completeBinding(
-                    requireNotNull(definition.variable.instanceId),
-                    VariableBinding.of(variables.getValue(definition.variable.variableName)),
-                )
-            ) { "Checker provider binding was completed twice" }
         }
         val id = occurrence.fragments.objectFragment.resolverOccurrenceId
         val objectSelections = occurrence.checker.instantiateObjectMaterializationSelections(id)

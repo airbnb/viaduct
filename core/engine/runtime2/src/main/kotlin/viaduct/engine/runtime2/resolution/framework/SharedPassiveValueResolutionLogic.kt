@@ -244,19 +244,18 @@ internal abstract class SharedPassiveValueResolutionLogic<
         val invocationByKey = collect(invocationDemand, type).byKey()
         val passiveByKey = collect(invocationDemand + closedConstructionDemand.values, type).byKey()
         val passiveKeysByField = passiveByKey.keys.groupBy { it.field }
+        val sourceFields = source.getSelections().map { type.requireField(it) }.filterNot { it.isParentField() }
         if (operation.world.selectiveResolvers) {
             val selectedNames = invocationByKey.keys.mapTo(linkedSetOf()) { it.field.name }
             val unselectedFields =
-                source.getSelections()
-                    .filterNot { type.requireField(it).isParentField() }.toSet() - selectedNames
+                sourceFields.mapTo(linkedSetOf()) { it.name } - selectedNames
             require(unselectedFields.isEmpty()) {
                 "Selective resolver output ${type.name} contains unselected fields: " +
                     unselectedFields.joinToString()
             }
         }
-        source.getSelections().forEach { fieldName ->
-            val field = type.requireField(fieldName)
-            if (field.isParentField()) return@forEach
+        sourceFields.forEach { field ->
+            val fieldName = field.name
             require(field.args.isEmpty()) {
                 "Resolver output must not supply argument-bearing field ${type.name}/$fieldName"
             }

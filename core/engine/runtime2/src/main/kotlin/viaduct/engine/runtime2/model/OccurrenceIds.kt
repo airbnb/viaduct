@@ -60,6 +60,10 @@ private data class ResolverOccurrenceIdImpl(
 
     override fun hashCode(): Int = addressHash
 
+    override fun equals(other: Any?): Boolean =
+        this === other || other is ResolverOccurrenceIdImpl &&
+            addressHash == other.addressHash && root === other.root && path == other.path
+
     override fun toString(): String =
         "ResolverOccurrenceId(" +
             "root=${System.identityHashCode(root)}, " +
@@ -112,10 +116,11 @@ private class VariableInstanceIdImpl(
         31 * (31 * resolverOccurrenceId.hashCode() + resolverTarget.hashCode()) + variableName.hashCode()
 
     override fun equals(other: Any?): Boolean =
-        other is VariableInstanceIdImpl &&
-            resolverOccurrenceId == other.resolverOccurrenceId &&
+        this === other || other is VariableInstanceIdImpl &&
+            identityHash == other.identityHash &&
+            variableName == other.variableName &&
             resolverTarget == other.resolverTarget &&
-            variableName == other.variableName
+            resolverOccurrenceId == other.resolverOccurrenceId
 
     override fun hashCode(): Int = identityHash
 

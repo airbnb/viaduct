@@ -75,6 +75,7 @@ class Engine2(
     dataFetcherExceptionHandler: DataFetcherExceptionHandler,
     additionalInstrumentation: Instrumentation? = null,
     private val coroutineInterop: CoroutineInterop = DefaultCoroutineInterop,
+    usePrecomputedConstructionDemand: Boolean = true,
 ) : Engine {
     private val schemas = ViaductAndGJSchema.fromGraphQLSchema(fullSchema.schema)
     private val engineSelectionSetFactory = EngineSelectionSetFactoryImpl(fullSchema)
@@ -97,6 +98,7 @@ class Engine2(
                     typeCheckers = inputs.typeCheckers,
                     variableProviders = inputs.variableProviders,
                 ),
+                usePrecomputedConstructionDemand = usePrecomputedConstructionDemand,
             )
         }
     private val requestContextKey = RequestContextKey(this)

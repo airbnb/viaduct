@@ -3,6 +3,7 @@ package viaduct.engine.runtime2.model.registry
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.runtime2.model.Arguments
 import viaduct.engine.runtime2.model.EngineErrorData
+import viaduct.engine.runtime2.model.EngineObjectDataEntry
 import viaduct.engine.runtime2.model.ResolverOutputData
 import viaduct.engine.runtime2.model.RootFieldReferenceData
 import viaduct.engine.runtime2.model.RootFieldReferenceDataCarrier
@@ -85,7 +86,7 @@ internal fun EngineObjectData.Sync.snipToDemand(
                     true
                 }
             }
-            .byGroundKey()
+            .byKey()
             .map { (key, selection) ->
                 val concreteField = key.field
                 val arguments = key.arguments
@@ -95,8 +96,7 @@ internal fun EngineObjectData.Sync.snipToDemand(
                 }
                 val value = outputValue(concreteField.name)
                 val selectedValue = value.snipToDemand(selection.subselections, concreteField.outputType)
-                concreteField.name to selectedValue
+                EngineObjectDataEntry.of(concreteField.name, concreteField, selectedValue)
             }
-            .toMap()
     return engineObjectDataOf(schemaType, selectedFields)
 }

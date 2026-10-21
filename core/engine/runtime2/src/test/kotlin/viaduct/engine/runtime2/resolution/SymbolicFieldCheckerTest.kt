@@ -29,7 +29,9 @@ import viaduct.engine.runtime2.model.testing.fragmentFrom
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 import viaduct.engine.runtime2.schema.operationSelectionsFrom
 
-class SymbolicFieldCheckerTest : ResolutionDispatcherResource {
+open class SymbolicFieldCheckerTest : ResolutionDispatcherResource {
+    protected open val precomputedConstructionDemand = false
+
     @Test
     fun `checker field bindings preserve null intermediates terminals and nested errors on both roots`() {
         for (providerRoot in ProviderFragment.entries) {
@@ -322,7 +324,7 @@ class SymbolicFieldCheckerTest : ResolutionDispatcherResource {
         val recorder = CheckerApplicationRecorder()
         val checkers = CorrectnessCheckerObserver(recorder)
         val resolvers = CorrectnessResolverObserver()
-        val operation = SharedOperationContext.create(world.assumptions, resolverObserver = resolvers, checkerObserver = checkers)
+        val operation = SharedOperationContext.create(world.newAssumptions(usePrecomputedConstructionDemand = precomputedConstructionDemand), resolverObserver = resolvers, checkerObserver = checkers)
         val selections = world.schemas.operationSelectionsFrom(query)
         val result = operation.resolveWithTestDispatcher(selections)
         beforeReplay()
@@ -338,4 +340,8 @@ class SymbolicFieldCheckerTest : ResolutionDispatcherResource {
         val resolvers: CorrectnessResolverObserver,
         val operation: SharedOperationContext<*>,
     )
+}
+
+class PrecomputedSymbolicFieldCheckerTest : SymbolicFieldCheckerTest() {
+    override val precomputedConstructionDemand = true
 }

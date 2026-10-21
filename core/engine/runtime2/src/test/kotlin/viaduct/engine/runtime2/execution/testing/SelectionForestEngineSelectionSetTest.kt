@@ -11,7 +11,6 @@ import viaduct.engine.runtime2.model.emptyFragmentOf
 import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.emptyFragmentOf
 import viaduct.engine.runtime2.model.testing.fragmentFrom
-import viaduct.engine.runtime2.schema.SourceSchemaAdapter
 
 class SelectionForestEngineSelectionSetTest {
     @Test
@@ -23,12 +22,27 @@ class SelectionForestEngineSelectionSetTest {
             fragment.subselections.toEngineSelectionSet(
                 type = fragment.nominalType,
                 schema = fixture.engineSchema,
-                sourceSchema = fixture.sourceSchema,
             )
 
         assertEquals("Foo", selections.type)
         assertTrue(selections.isEmpty())
         assertTrue(selections.isTransitivelyEmpty())
+    }
+
+    @Test
+    fun `canonical demand rendering is independent of occurrence order`() {
+        val fixture = Fixture(CONCRETE_SCHEMA)
+        val sources = listOf(
+            "child { value } first: calculated(scale: 3, labels: [\"a\"]) second: calculated(scale: 2, labels: [])",
+            "second: calculated(scale: 2, labels: []) first: calculated(scale: 3, labels: [\"a\"]) child { value }",
+        )
+        val selections = sources.map { source ->
+            val fragment = fixture.world.schemas.fragmentFrom("fragment _ on Foo { $source }")
+            fragment.subselections.toEngineSelectionSet(fragment.nominalType, fixture.engineSchema)
+        }
+
+        assertEquals(selections[0].document, selections[1].document)
+        assertTrue(selections[0].selectionSetForField("Foo", "child").containsField("Child", "value"))
     }
 
     @Test
@@ -48,7 +62,6 @@ class SelectionForestEngineSelectionSetTest {
             fragment.subselections.toEngineSelectionSet(
                 type = fragment.nominalType,
                 schema = fixture.engineSchema,
-                sourceSchema = fixture.sourceSchema,
             )
 
         assertEquals("Foo", selections.type)
@@ -82,7 +95,6 @@ class SelectionForestEngineSelectionSetTest {
             fragment.subselections.toEngineSelectionSet(
                 type = fragment.nominalType,
                 schema = fixture.engineSchema,
-                sourceSchema = fixture.sourceSchema,
             )
 
         assertEquals(
@@ -121,7 +133,6 @@ class SelectionForestEngineSelectionSetTest {
             fragment.subselections.toEngineSelectionSet(
                 type = fragment.nominalType,
                 schema = fixture.engineSchema,
-                sourceSchema = fixture.sourceSchema,
             )
 
         assertTrue(selections.containsField("Alpha", "__typename"))
@@ -140,7 +151,6 @@ class SelectionForestEngineSelectionSetTest {
             fragment.subselections.toEngineSelectionSet(
                 type = fragment.nominalType,
                 schema = fixture.engineSchema,
-                sourceSchema = fixture.sourceSchema,
             )
 
         assertTrue(selections.containsField("User", "friend"))
@@ -156,7 +166,6 @@ class SelectionForestEngineSelectionSetTest {
         engineSchemaSDL: String = schemaSDL,
     ) {
         val world = TestWorld.fromSDL(schemaSDL)
-        val sourceSchema = SourceSchemaAdapter(world.schema)
         val engineSchema = createSchema(engineSchemaSDL.replaceFirst("type Query", "extend type Query"))
     }
 

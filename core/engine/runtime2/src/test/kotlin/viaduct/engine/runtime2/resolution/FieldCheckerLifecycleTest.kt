@@ -38,13 +38,15 @@ import viaduct.engine.runtime2.model.testing.fragmentFrom
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 import viaduct.engine.runtime2.schema.operationSelectionsFrom
 
-class FieldCheckerLifecycleTest : ResolutionDispatcherResource {
+open class FieldCheckerLifecycleTest : ResolutionDispatcherResource {
+    protected open val precomputedConstructionDemand = false
+
     @Test
     fun `failed checker provider terminates bindings and dependent values without invoking the checker`() {
         val failure = IllegalStateException("checker provider failed")
         val world = providerWorld { throw failure }
         val recorder = CheckerApplicationRecorder()
-        val operation = SharedOperationContext.create(world.assumptions, checkerObserver = recorder)
+        val operation = SharedOperationContext.create(world.newAssumptions(usePrecomputedConstructionDemand = precomputedConstructionDemand), checkerObserver = recorder)
         val result = operation.resolveWithTestDispatcher(world.schemas.operationSelectionsFrom("{ checked }"))
         val key = ObjectEngineResult.GroundKey.of(world.schema.requireObjectField("Query", "checked"), emptyMap())
         assertEquals(1, result.getCell(key).value.get())
@@ -65,7 +67,7 @@ class FieldCheckerLifecycleTest : ResolutionDispatcherResource {
             val world = providerWorld { error("Canceled provider must not run") }
             val queued = QueuedDispatcher()
             val job = Job()
-            val operation = SharedOperationContext.create(world.assumptions)
+            val operation = SharedOperationContext.create(world.newAssumptions(usePrecomputedConstructionDemand = precomputedConstructionDemand))
             val result = operation.startResolve(world.schemas.operationSelectionsFrom("{ checked }"), CoroutineScope(job + queued))
             job.cancel()
             queued.drain()
@@ -81,7 +83,7 @@ class FieldCheckerLifecycleTest : ResolutionDispatcherResource {
                 entered.complete(Unit)
                 awaitCancellation()
             }
-            val operation = SharedOperationContext.create(world.assumptions)
+            val operation = SharedOperationContext.create(world.newAssumptions(usePrecomputedConstructionDemand = precomputedConstructionDemand))
             val job = Job()
             val result = operation.startResolve(world.schemas.operationSelectionsFrom("{ checked }"), CoroutineScope(job + resolverDispatcher))
             withTimeout(2_000) { entered.await() }
@@ -128,7 +130,11 @@ class FieldCheckerLifecycleTest : ResolutionDispatcherResource {
                 roots += queryOER.occurrence.root
             }
         }
-        val operation = SharedOperationContext.create(world.assumptions, checkerObserver = recorder, resolverObserver = resolverObserver)
+        val operation = SharedOperationContext.create(
+            world.newAssumptions(usePrecomputedConstructionDemand = precomputedConstructionDemand),
+            checkerObserver = recorder,
+            resolverObserver = resolverObserver
+        )
         operation.resolveWithTestDispatcher(world.schemas.operationSelectionsFrom("{ checked dependency }"))
         assertEquals(5, recorder.checkerApplications().size)
         assertEquals(3, recorder.checkerApplications().count { it.checkedCoordinate.name == "protected" })
@@ -194,4 +200,8 @@ class FieldCheckerLifecycleTest : ResolutionDispatcherResource {
             while (queue.isNotEmpty()) queue.removeFirst().run()
         }
     }
+}
+
+class PrecomputedFieldCheckerLifecycleTest : FieldCheckerLifecycleTest() {
+    override val precomputedConstructionDemand = true
 }

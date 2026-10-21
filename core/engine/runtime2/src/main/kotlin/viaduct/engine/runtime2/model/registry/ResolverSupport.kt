@@ -26,7 +26,7 @@ internal fun ObjectSelectionForest.partitionVariableDemand(): Pair<ObjectSelecti
         ObjectSelectionForest.of(type, dynamic.map { it as ObjectSelection })
 }
 
-private fun SelectionForest.partitionVariableDemand(): Pair<SelectionForest, SelectionForest> {
+internal fun SelectionForest.partitionVariableDemand(): Pair<SelectionForest, SelectionForest> {
     val (static, dynamic) = partitionVariableSelections()
     return static.toSelectionForest() to dynamic.toSelectionForest()
 }
@@ -77,7 +77,8 @@ internal fun instantiateResolverFragment(
     variables: Map<Arguments.Variable, VariableDefinition>,
     fieldPathInclusionConditions: Map<Arguments.Variable, List<InclusionCondition>>,
 ): ResolverFragment {
-    val instantiatedSelections = constructionSelections.instantiateVariables(resolverOccurrenceId)
+    val instantiatedSelections =
+        if (usedVariableTemplates.isEmpty()) constructionSelections else constructionSelections.instantiateVariables(resolverOccurrenceId)
     // Normalization can remove conditions still needed by materialization aliases.
     val variableDefinitions =
         variables.mapNotNull { (variable, definition) ->
@@ -169,18 +170,23 @@ private fun MaterializeSelectionForest.usedVariablesApplicableTo(type: ViaductSc
     return variables
 }
 
-internal fun SelectionForest.instantiateVariables(resolverOccurrenceId: ResolverOccurrenceId): SelectionForest =
-    mapSelections { selection ->
+internal fun SelectionForest.instantiateVariables(resolverOccurrenceId: ResolverOccurrenceId): SelectionForest {
+    if (!containsVariables()) return this
+    return mapSelections { selection ->
         Selection.of(
             key =
-                ObjectEngineResult.Key.of(
-                    field = selection.key.field,
-                    arguments =
-                        selection.key.arguments.instantiateVariables(
-                            selection.key.field,
-                            resolverOccurrenceId,
-                        ),
-                ),
+                if (selection.key.arguments is Arguments.Ground) {
+                    selection.key
+                } else {
+                    ObjectEngineResult.Key.of(
+                        field = selection.key.field,
+                        arguments =
+                            selection.key.arguments.instantiateVariables(
+                                selection.key.field,
+                                resolverOccurrenceId,
+                            ),
+                    )
+                },
             possibleTypes = selection.possibleTypes,
             inclusionCondition =
                 selection.inclusionCondition.mapVariables { variable ->
@@ -192,6 +198,7 @@ internal fun SelectionForest.instantiateVariables(resolverOccurrenceId: Resolver
                 ),
         )
     }
+}
 
 internal fun MaterializeSelectionForest.instantiateVariables(resolverOccurrenceId: ResolverOccurrenceId): MaterializeSelectionForest {
     if (!containsVariables()) return this
@@ -200,14 +207,18 @@ internal fun MaterializeSelectionForest.instantiateVariables(resolverOccurrenceI
             MaterializeSelection.of(
                 responseKey = selection.responseKey,
                 key =
-                    ObjectEngineResult.Key.of(
-                        field = selection.key.field,
-                        arguments =
-                            selection.key.arguments.instantiateVariables(
-                                selection.key.field,
-                                resolverOccurrenceId,
-                            ),
-                    ),
+                    if (selection.key.arguments is Arguments.Ground) {
+                        selection.key
+                    } else {
+                        ObjectEngineResult.Key.of(
+                            field = selection.key.field,
+                            arguments =
+                                selection.key.arguments.instantiateVariables(
+                                    selection.key.field,
+                                    resolverOccurrenceId,
+                                ),
+                        )
+                    },
                 possibleTypes = selection.possibleTypes,
                 inclusionCondition =
                     selection.inclusionCondition.mapVariables { variable ->

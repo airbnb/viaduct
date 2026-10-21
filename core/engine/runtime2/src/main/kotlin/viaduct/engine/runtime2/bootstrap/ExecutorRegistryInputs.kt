@@ -180,7 +180,7 @@ private fun executorRegistryInputs(
                         (field.type.baseTypeDef as? QPlanSchema.CompositeTypeDef)?.let {
                                 type ->
                             type.takeIf { fullSchema.schema.getType(it.name) != null }
-                                ?.let { selections.toEngineSelectionSet(it, fullSchema, sourceSchema) }
+                                ?.let { selections.toEngineSelectionSet(it, fullSchema) }
                         }
                     invokeExecutor(
                         input,
@@ -895,7 +895,6 @@ private fun qplanNodeResolvers(
     contextForInvocation: (ResolutionExecutionContext) -> EngineExecutionContext,
 ): Map<QPlanSchema.Object, NodeResolverFunction> {
     val schema = schemas.loweredSchema
-    val sourceSchema = SourceSchemaAdapter(schema)
     val supplied =
         nodeResolverExecutors.associate { (typeName, executor) ->
             val type = schema.requireType(typeName) as QPlanSchema.Object
@@ -956,7 +955,7 @@ private fun qplanNodeResolvers(
                     selectiveNodeResolverOf { id, selections, resolutionContext ->
                         invokeExecutor(
                             id,
-                            selections.toEngineSelectionSet(type, fullSchema, sourceSchema),
+                            selections.toEngineSelectionSet(type, fullSchema),
                             QPlanEngineExecutionContext(
                                 contextForInvocation(resolutionContext),
                                 schemas,
