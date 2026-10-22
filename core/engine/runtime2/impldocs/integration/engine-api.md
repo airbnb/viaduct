@@ -8,6 +8,12 @@ The `QPlan` prefix is inherited from the upstream `qplan` development branch and
 
 `Engine2` implements `Engine.execute` and handle-based `Engine.resolveSelectionSet` and is selected by `StandardViaduct` when `ENGINE2_ENABLED` is enabled. The existing engine remains the default. Direct `Engine.resolveRootFieldReference` calls are intentionally unsupported: Runtime2 instead interprets `RootFieldReference` values returned by resolvers inside Resolution. Production integration reuses the service-built `DispatcherRegistry`; field, node, and checker invocation remains dispatcher-backed and receives a request-owned `EngineExecutionContext`. The direct executor adapter remains for focused integration fixtures; copied feature tests use production service wiring.
 
+`Engine2.execute` returns a complete `graphql.ExecutionResult` for both values of `incrementalExecution`, including operations containing `@defer`. It does not enable GraphQL Java's incremental support. Direct GraphQL Java integrations using the QPlan execution components support incremental delivery when incremental support is explicitly enabled for the execution.
+
+QPlan's incremental results implement `graphql.incremental.IncrementalExecutionResult` and use graphql-java's v0.1, path-based payload format. Deferred entries contain `path`, an optional `label`, and `data`, without an `id`. Consumers subscribe to `incrementalItemPublisher` for updates.
+
+The `runtime` engine uses [`viaduct.engine.api.IncrementalExecutionResult`](../../../api/src/main/kotlin/viaduct/engine/api/IncrementalExecutionResult.kt), which models the v0.2, ID-based format. Its `pending` records associate IDs with response paths; later `incremental` and `completed` entries refer to those IDs. Consumers collect the `updates` Flow once or cancel the result. `Engine2` provides no translation between the two formats.
+
 Interoperability between engine selections across `StandardViaduct.Builder.buildWithReusedSchemas` rebuilds is not part of the Runtime2 integration contract. A deployment must not rely on rebuilding a `StandardViaduct` using the [`runtime`](../../../runtime) engine as an `Engine2` instance, or the reverse, merely because the new instance reuses the previous instance's schema objects.
 
 ## Schema And Bootstrap Boundaries
@@ -25,7 +31,7 @@ The returned direct-adapter resolver functions retain the supplied execution con
 
 ## Request Execution
 
-The GraphQL execution path is:
+The Engine2 execution path is:
 
 ```text
 GraphQL Java parsing, validation, and input coercion
@@ -36,12 +42,12 @@ GraphQL Java parsing, validation, and input coercion
   → Resolution.startResolve in a request-owned coroutine scope
   → live ObjectEngineResult graph with frozen cell shape and possibly pending values
   → QPlanWiringFactory immediate values or CompletionStage bridges
-  → GraphQL Java completion and @defer payload delivery
+  → GraphQL Java completion
   → QPlanInstrumentation request-lifetime cleanup
-  → ExecutionResult or IncrementalExecutionResult
+  → complete graphql.ExecutionResult
 ```
 
-`Engine2.execute` uses the service-configured `CoroutineInterop.scopedFuture` to capture the caller's coroutine context at the Java/coroutine boundary and passes that context to `QPlanExecutionStrategy`. The strategy preserves caller context elements, including framework request scope and thread-local coroutine bridging, while layering the borrowed Resolution dispatcher and an independently owned request job over them. The caller's job is not retained as the request parent, so incremental execution can outlive the initial response. The strategy never closes the borrowed dispatcher. `ExecutionTestFixture` owns and closes its default dispatcher or borrows an explicitly supplied context; fixture construction also closes a newly created dispatcher if setup fails.
+`Engine2.execute` uses the service-configured `CoroutineInterop.scopedFuture` to capture the caller's coroutine context at the Java/coroutine boundary and passes that context to `QPlanExecutionStrategy`. The strategy preserves caller context elements, including framework request scope and thread-local coroutine bridging, while layering the borrowed Resolution dispatcher and an independently owned request job over them. The caller's job is not retained as the request parent, allowing direct GraphQL Java integrations with incremental support enabled to keep executing after the initial response. The strategy never closes the borrowed dispatcher. `ExecutionTestFixture` owns and closes its default dispatcher or borrows an explicitly supplied context; fixture construction also closes a newly created dispatcher if setup fails.
 
 The strategy places a `QPlanRequestLifetime` in the GraphQL context and starts Resolution once for the complete operation demand, including deferred selections. Query completion consumes the live result graph; mutation completion waits for ordered effects and payload resolution first. The operation context owns request-local bindings, cycle state, binding declarations, observer, and dispatcher references; immutable schema and registry configuration remains in `Assumptions`. `Engine2` supplies `Dispatchers.Default` to both strategies; the configurable fixed dispatcher used by focused test fixtures is not the service dispatcher.
 
@@ -115,7 +121,7 @@ The execution layer supports:
 - namespace traversal, built-in `Query.node` and `Query.nodes`, and canonical `__typename` lowering;
 - scoped public schemas with full-schema resolver inputs;
 - nested `ctx.query()` and `ctx.mutation()` execution;
-- GraphQL Java 26 `@defer`, conditional defer, nested deferred values, deferred errors, and incremental publisher lifetime ownership;
+- GraphQL Java 26 `@defer`, conditional defer, nested deferred values, deferred errors, and incremental publisher lifetime ownership in direct GraphQL Java integrations with incremental support explicitly enabled; `Engine2.execute` completes deferred selections in one result;
 - generic field-directive context for checker applicability, without built-in policy-specific directive meaning.
 
 The execution layer rejects or does not provide:

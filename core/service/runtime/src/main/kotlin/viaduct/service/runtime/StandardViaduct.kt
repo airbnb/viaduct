@@ -489,7 +489,10 @@ class StandardViaduct
             } catch (_: EngineRegistry.SchemaNotFoundException) {
                 return schemaNotFoundResult(schemaId)
             }
-            val executionResult = engine.execute(executionInput.toEngineExecutionInput())
+            val executionResult = engine.execute(
+                executionInput.toEngineExecutionInput(),
+                incrementalExecution = false,
+            )
             return sortExecutionResult(executionResult).toExecutionResult()
         }
 

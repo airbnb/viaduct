@@ -6,7 +6,9 @@ The production field-resolution implementation is [`Resolution`](src/main/kotlin
 
 ## Alpha Scope
 
-Runtime2 executes queries and ordered mutations with selective and non-selective field and node resolvers, field and type access checks, object- and Query-rooted required selections, resolver variables, root-field references, nested `ctx.query()` and `ctx.mutation()` execution, GraphQL completion, and incremental `@defer` delivery. Mutation namespace checkers and mutation resolver required selections remain excluded. The detailed supported and rejected surface is maintained in [Engine API integration](impldocs/integration/engine-api.md).
+Runtime2 executes queries and ordered mutations with selective and non-selective field and node resolvers, field and type access checks, object- and Query-rooted required selections, resolver variables, root-field references, nested `ctx.query()` and `ctx.mutation()` execution, and GraphQL completion. Mutation namespace checkers and mutation resolver required selections remain excluded. The detailed supported and rejected surface is maintained in [Engine API integration](impldocs/integration/engine-api.md).
+
+`Engine2.execute` returns complete results for both values of `incrementalExecution`, including queries containing `@defer`. The lower-level QPlan integration supports incremental delivery when GraphQL Java's incremental support is explicitly enabled for the execution. QPlan uses graphql-java's v0.1, path-based payload format, where deferred entries carry `path` and an optional `label`. The `runtime` engine uses Viaduct's v0.2, ID-based format, where deferred entries refer to work by `id`.
 
 Major exclusions from the current Engine API integration include batching, mutation namespace checkers, subscriptions, application-defined custom scalars, `@stream`, and some resolver combinations documented with the integration boundary. Runtime2 reuses the production dispatcher bootstrap and service wiring behind an opt-in feature flag; that path is not yet the default.
 

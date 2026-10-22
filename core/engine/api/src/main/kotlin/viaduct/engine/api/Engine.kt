@@ -10,12 +10,21 @@ interface Engine {
     val schema: EngineSchema
 
     /**
-     * Executes a GraphQL operation.
+     * Executes a GraphQL operation, permitting incremental delivery when [incrementalExecution]
+     * and the engine's feature gate allow it. Otherwise, treats @defer as if it were absent.
+     * Engines without incremental support execute the operation to completion.
+     * When an [IncrementalExecutionResult] is returned, collect its updates once or cancel it.
      *
      * @param executionInput The GraphQL operation to execute, including query text and variables
-     * @return The completed GraphQL execution result containing data and errors
+     * @param incrementalExecution Whether incremental delivery is permitted (defaults to true).
+     *        False requires a complete result, while true allows either complete or incremental
+     *        result types.
+     * @return The initial or complete GraphQL execution result containing data and errors
      */
-    suspend fun execute(executionInput: ExecutionInput): ExecutionResult
+    suspend fun execute(
+        executionInput: ExecutionInput,
+        incrementalExecution: Boolean = true,
+    ): ExecutionResult
 
     /**
      * Executes a selection set from within a resolver using an existing execution context,

@@ -450,6 +450,35 @@ class StandardViaductTest {
 
     @ParameterizedTest
     @ValueSource(booleans = [false, true])
+    fun `execution returns deferred fields when incremental execution is enabled`(asynchronous: Boolean) {
+        val sdl = "extend type Query { value: Int @resolver }"
+        val suppliedModule = EngineTestModule(sdl) { fieldWithValue("Query" to "value", 42) }
+        every { flagManager.isEnabled(FlagManager.Flags.ENABLE_INCREMENTAL_EXECUTION) } returns true
+        val viaduct = StandardViaduct.Builder()
+            .withTenantModuleInjectorFactory(MockExecutorCodeInjector(suppliedModule.mockExecutorRegistry))
+            .withExecutorRegistryConfigSources(listOf(suppliedModule.toModuleConfigSource()))
+            .withSchemaConfiguration(SchemaConfiguration.fromSdl(sdl))
+            .withFlagManager(flagManager)
+            .build()
+        val input = ExecutionInput.create(
+            operationText = "{ __typename ... @defer { value } }",
+            requestContext = Any(),
+        )
+
+        val result = runBlocking {
+            if (asynchronous) {
+                viaduct.executeAsync(input, SchemaId.Base).join()
+            } else {
+                viaduct.execute(input, SchemaId.Base)
+            }
+        }
+
+        assertEquals(emptyList<GraphQLError>(), result.errors)
+        assertEquals(mapOf("__typename" to "Query", "value" to 42), result.getData())
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = [false, true])
     fun `configured materialized reader reaches nested field execution`(customReader: Boolean) {
         val sdl = """
             extend type Query { outer: Outer @resolver }

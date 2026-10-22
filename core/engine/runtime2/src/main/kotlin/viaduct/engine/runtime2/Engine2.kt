@@ -134,7 +134,10 @@ class Engine2(
                 } ?: qplanInstrumentation,
             ).build()
 
-    override suspend fun execute(executionInput: ExecutionInput): ExecutionResult {
+    override suspend fun execute(
+        executionInput: ExecutionInput,
+        incrementalExecution: Boolean,
+    ): ExecutionResult {
         val engineContext = RequestEngineExecutionContext(executionInput.requestContext)
         val callerCancellation = QPlanCallerCancellation()
         return try {

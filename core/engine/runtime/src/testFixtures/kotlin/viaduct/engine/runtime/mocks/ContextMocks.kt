@@ -104,7 +104,10 @@ class ContextMocks(
 private object NoOpEngine : Engine {
     override val schema: EngineSchema get() = error("NoOpEngine: schema not configured")
 
-    override suspend fun execute(executionInput: ExecutionInput): ExecutionResult = error("NoOpEngine: execute not configured")
+    override suspend fun execute(
+        executionInput: ExecutionInput,
+        incrementalExecution: Boolean,
+    ): ExecutionResult = error("NoOpEngine: execute not configured")
 
     override suspend fun resolveSelectionSet(
         executionHandle: EngineExecutionContext.ExecutionHandle,

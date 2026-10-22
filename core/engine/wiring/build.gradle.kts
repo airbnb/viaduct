@@ -34,4 +34,5 @@ dependencies {
     testImplementation(libs.io.mockk.dsl)
     testImplementation(libs.kotest.assertions.core.jvm)
     testImplementation(testFixtures(libs.viaduct.engine.api))
+    testImplementation(testFixtures(libs.viaduct.service.api))
 }

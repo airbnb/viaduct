@@ -6,12 +6,14 @@ import graphql.language.Directive
 import graphql.schema.GraphQLObjectType
 import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.future.await
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import viaduct.arbitrary.graphql.dump
 import viaduct.engine.api.Coordinate
 import viaduct.engine.api.EngineObjectData
+import viaduct.engine.api.IncrementalExecutionResult
 import viaduct.engine.api.mocks.EngineTestModule
 import viaduct.engine.api.mocks.FeatureTest
 import viaduct.engine.api.mocks.MockTenantModuleDSL
@@ -43,6 +45,7 @@ internal fun FeatureTest.runQueryWithTimeout(
     query: String,
     variables: Map<String, Any?> = emptyMap(),
     timeout: kotlin.time.Duration = 2.seconds,
+    incrementalExecution: Boolean = true,
 ): graphql.ExecutionResult {
     val input =
         viaduct.engine.api.ExecutionInput(
@@ -54,7 +57,7 @@ internal fun FeatureTest.runQueryWithTimeout(
     return runBlocking {
         withTimeout(timeout) {
             DefaultCoroutineInterop.enterThreadLocalCoroutineContext(coroutineContext) {
-                engine.execute(input)
+                engine.execute(input, incrementalExecution = incrementalExecution)
             }.await()
         }
     }
@@ -100,6 +103,16 @@ fun MockTenantModuleDSL<*>.createEngineObjectData(
     data: Map<String, Any?>,
 ): EngineObjectData = createEngineObjectData(objectType(name), data)
 
+internal suspend fun graphql.ExecutionResult.maybeCollectUpdates() {
+    if (this is IncrementalExecutionResult) {
+        try {
+            updates.collect()
+        } finally {
+            cancel()
+        }
+    }
+}
+
 /**
  * Create a real [ExecutionParameters] representing the ExecutionParameters
  * used to execute the resolver at [coordinate] when executing [query].
@@ -121,7 +134,12 @@ internal fun mkExecutionParameters(
             }
         }
     }.runFeatureTest {
-        runQuery(query)
+        runBlocking {
+            DefaultCoroutineInterop.enterThreadLocalCoroutineContext(coroutineContext) {
+                val input = viaduct.engine.api.ExecutionInput(query, requestContext = Any())
+                engine.execute(input).maybeCollectUpdates()
+            }.await()
+        }
     }
 
     return parameters

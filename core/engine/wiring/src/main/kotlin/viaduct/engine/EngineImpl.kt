@@ -172,8 +172,11 @@ class EngineImpl(
         return graphql
     }
 
-    override suspend fun execute(executionInput: ExecutionInput): ExecutionResult {
-        val gjExecutionInput = mkGJExecutionInput(executionInput)
+    override suspend fun execute(
+        executionInput: ExecutionInput,
+        incrementalExecution: Boolean,
+    ): ExecutionResult {
+        val gjExecutionInput = mkGJExecutionInput(executionInput, incrementalExecution)
         return graphql.executeAsync(gjExecutionInput).await()
     }
 
@@ -520,7 +523,10 @@ class EngineImpl(
             dispatcherRegistry = dispatcherRegistry,
         )
 
-    private fun mkGJExecutionInput(executionInput: ExecutionInput): GJExecutionInput {
+    private fun mkGJExecutionInput(
+        executionInput: ExecutionInput,
+        incrementalExecution: Boolean,
+    ): GJExecutionInput {
         val executionInputBuilder =
             GJExecutionInput
                 .newExecutionInput()
@@ -529,7 +535,9 @@ class EngineImpl(
 
         executionInput.operationName?.let { executionInputBuilder.operationName(it) }
         executionInputBuilder.variables(executionInput.variables)
-        val localContext = CompositeLocalContext.withContexts(createEngineExecutionContext(executionInput.requestContext))
+        val localContext = CompositeLocalContext.withContexts(
+            engineExecutionContextFactory.create(schema, executionInput.requestContext, incrementalExecution)
+        )
 
         @Suppress("DEPRECATION")
         return executionInputBuilder

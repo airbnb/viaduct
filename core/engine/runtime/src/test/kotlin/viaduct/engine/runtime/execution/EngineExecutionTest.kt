@@ -24,6 +24,7 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Timeout
 import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.CsvSource
 import org.junit.jupiter.params.provider.ValueSource
 import viaduct.engine.EngineConfiguration
 import viaduct.engine.api.ExecutionInput
@@ -150,8 +151,12 @@ class EngineExecutionTest {
         }
     }
 
-    @Test
-    fun `disabled incremental execution waits for deferred fields and returns a complete result`() {
+    @ParameterizedTest
+    @CsvSource("false, false", "false, true", "true, false")
+    fun `execution waits for deferred fields unless both the option and feature flag allow incremental delivery`(
+        flagEnabled: Boolean,
+        incremental: Boolean,
+    ) {
         val started = CompletableDeferred<Unit>()
         val release = CompletableDeferred<Unit>()
         EngineTestModule("extend type Query { value: Int }") {
@@ -164,11 +169,12 @@ class EngineExecutionTest {
                     }
                 }
             }
-        }.runFeatureTest(engineConfig = EngineConfiguration.featureTestDefault.copy(flagManager = MockFlagManager.Disabled)) {
+        }.runFeatureTest(engineConfig = if (flagEnabled) incrementalConfig else EngineConfiguration.featureTestDefault.copy(flagManager = MockFlagManager.Disabled)) {
             runExecutionTest {
                 try {
                     val request = async {
-                        engine.execute(ExecutionInput("{ __typename ... @defer { value } }", requestContext = Any()))
+                        val input = ExecutionInput("{ __typename ... @defer { value } }", requestContext = Any())
+                        engine.execute(input, incrementalExecution = incremental)
                     }
                     withTimeout(2_000) { started.await() }
                     assertFalse(request.isCompleted)
@@ -214,8 +220,7 @@ class EngineExecutionTest {
                         builder.localContext(executionInput.updateCompositeLocalContext<DispatcherLocalContext> { DispatcherLocalContext(dispatcher) })
                     }
             }
-            val config = EngineConfiguration.featureTestDefault.copy(
-                flagManager = if (incremental) incrementalConfig.flagManager else MockFlagManager.Disabled,
+            val config = incrementalConfig.copy(
                 additionalInstrumentation = instrumentation,
             )
             EngineTestModule("extend type Query { initial: Int, later: Int }") {
@@ -233,7 +238,8 @@ class EngineExecutionTest {
                 runExecutionTest {
                     val executionThread = withContext(dispatcher) { Thread.currentThread() }
                     val result = withTimeout(2_000) {
-                        engine.execute(ExecutionInput("{ initial ... @defer { later } }", requestContext = Any()))
+                        val input = ExecutionInput("{ initial ... @defer { later } }", requestContext = Any())
+                        engine.execute(input, incrementalExecution = incremental)
                     }
                     assertTrue(result.errors.isEmpty())
                     if (incremental) {

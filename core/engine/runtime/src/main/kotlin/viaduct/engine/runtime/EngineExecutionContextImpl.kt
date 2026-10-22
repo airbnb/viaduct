@@ -73,7 +73,8 @@ class EngineExecutionContextFactory(
 
     fun create(
         scopedSchema: EngineSchema,
-        requestContext: Any?
+        requestContext: Any?,
+        incrementalExecution: Boolean = true,
     ): EngineExecutionContext {
         val isResolverSelective = fieldSelectivity
 
@@ -96,7 +97,7 @@ class EngineExecutionContextFactory(
             isResolverSelective,
             ownedSelectionProjector,
             materializedFieldValueReader,
-            incrementalExecutionEnabled = flagManager.isEnabled(FlagManager.Flags.ENABLE_INCREMENTAL_EXECUTION),
+            incrementalExecutionEnabled = incrementalExecution && flagManager.isEnabled(FlagManager.Flags.ENABLE_INCREMENTAL_EXECUTION),
             nodeResolverCachingEnabled = nodeResolverCachingEnabled,
         )
     }
