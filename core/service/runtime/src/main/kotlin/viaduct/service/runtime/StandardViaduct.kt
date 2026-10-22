@@ -462,14 +462,14 @@ class StandardViaduct
             }
         }
 
-        private fun schemaNotFoundResult(schemaId: SchemaId): ExecutionResult {
+        private fun schemaNotFoundResult(schemaId: SchemaId): ExecutionResult.Standard {
             val error: GJGraphQLError = GraphqlErrorBuilder.newError()
                 .message("Schema not found for schemaId=$schemaId")
                 .build()
             return GJExecutionResultImpl.newExecutionResult()
                 .addError(error)
                 .build()
-                .toExecutionResult()
+                .toStandardExecutionResult()
         }
 
         /**
@@ -483,7 +483,7 @@ class StandardViaduct
         private suspend fun executeOnEngine(
             executionInput: ExecutionInput,
             schemaId: SchemaId
-        ): ExecutionResult {
+        ): ExecutionResult.Standard {
             val engine = try {
                 engineRegistry.getEngine(schemaId)
             } catch (_: EngineRegistry.SchemaNotFoundException) {
@@ -493,7 +493,7 @@ class StandardViaduct
                 executionInput.toEngineExecutionInput(),
                 incrementalExecution = false,
             )
-            return sortExecutionResult(executionResult).toExecutionResult()
+            return sortExecutionResult(executionResult).toStandardExecutionResult()
         }
 
         /**
@@ -508,7 +508,7 @@ class StandardViaduct
         override suspend fun execute(
             executionInput: ExecutionInput,
             schemaId: SchemaId
-        ): ExecutionResult =
+        ): ExecutionResult.Standard =
             coroutineInterop.enterThreadLocalCoroutineContext(coroutineContext) {
                 executeOnEngine(executionInput, schemaId)
             }.await()
@@ -527,7 +527,7 @@ class StandardViaduct
             executionInput: ExecutionInput,
             schemaId: SchemaId,
             executor: Executor
-        ): CompletableFuture<ExecutionResult> =
+        ): CompletableFuture<ExecutionResult.Standard> =
             coroutineInterop.enterThreadLocalCoroutineContext(executor) {
                 executeOnEngine(executionInput, schemaId)
             }
@@ -558,11 +558,9 @@ class StandardViaduct
                     compareBy({ it.path?.joinToString(separator = ".") ?: "" }, { it.message })
                 )
 
-            return GJExecutionResultImpl(
-                executionResult.getData(),
-                sortedErrors,
-                executionResult.extensions
-            )
+            return executionResult.transform {
+                it.data(executionResult.getData<Any?>()).errors(sortedErrors)
+            }
         }
 
         /**

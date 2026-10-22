@@ -34,7 +34,7 @@ import viaduct.service.api.Viaduct
 internal fun Viaduct.runQueryWithTimeout(
     input: ExecutionInput,
     timeout: kotlin.time.Duration = 2.seconds,
-): ExecutionResult =
+): ExecutionResult.Standard =
     runBlocking {
         withTimeout(timeout) {
             executeAsync(input).await()

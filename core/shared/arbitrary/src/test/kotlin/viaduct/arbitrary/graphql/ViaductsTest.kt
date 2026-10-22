@@ -403,7 +403,7 @@ class ViaductsTest : KotestPropertyBase(iterations = 100) {
 
         @Test
         fun `NodeResolverExceptionWeight`() {
-            fun arbExecutionResult(exceptionWeight: Double): Arb<ExecutionResult> {
+            fun arbExecutionResult(exceptionWeight: Double): Arb<ExecutionResult.Standard> {
                 val schema = "type Foo implements Node @resolver { id:ID! x:Int! }".asViaductSchema
                 val cfg = cfg + (NodeResolverExceptionWeight to exceptionWeight)
                 return arbitrary {

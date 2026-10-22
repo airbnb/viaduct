@@ -34,10 +34,14 @@ public final class viaduct/service/api/ExecutionInput$Companion {
 }
 
 public abstract interface class viaduct/service/api/ExecutionResult {
+	public abstract fun toSpecification ()Ljava/util/Map;
+}
+
+public abstract interface class viaduct/service/api/ExecutionResult$Standard : viaduct/service/api/ExecutionResult {
 	public abstract fun getData ()Ljava/util/Map;
 	public abstract fun getErrors ()Ljava/util/List;
 	public abstract fun getExtensions ()Ljava/util/Map;
-	public abstract fun toSpecification ()Ljava/util/Map;
+	public abstract fun isDataPresent ()Z
 }
 
 public final class viaduct/service/api/GraphQLError {

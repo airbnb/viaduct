@@ -132,30 +132,22 @@ class StandardViaductTest {
     }
 
     @Test
-    fun `sortExecutionResult sorts result with empty details`() {
+    fun `sortExecutionResult sorts errors and includes null data for request errors`() {
         createStandardViaduct()
+        val errors = listOf(
+            GraphQLError.newError().message("z").path(listOf("z")).build(),
+            GraphQLError.newError().message("b").path(listOf("a")).build(),
+            GraphQLError.newError().message("a").path(listOf("a")).build(),
+        )
+        val result = graphql.ExecutionResult.newExecutionResult().errors(errors).extensions(mapOf("trace" to "id")).build()
 
-        val executionResult = mockk<ExecutionResult>()
+        val sorted = subject.sortExecutionResult(result)
 
-        val graphqlErrors = listOf(GraphQLError.newError().message("Error").build())
-
-        every {
-            executionResult.getData<Map<String, Any?>>()
-        } returns mapOf("field" to "Test")
-
-        every {
-            executionResult.errors
-        } returns graphqlErrors
-
-        every {
-            executionResult.extensions
-        } returns mapOf()
-
-        val executionResultImpl = subject.sortExecutionResult(executionResult)
-
-        assertEquals(mapOf("field" to "Test"), executionResultImpl.getData())
-        assertEquals(graphqlErrors, executionResultImpl.errors)
-        assertEquals(emptyMap<String, Any>(), executionResultImpl.extensions)
+        assertEquals(listOf(errors[2], errors[1], errors[0]), sorted.errors)
+        assertTrue(sorted.isDataPresent)
+        assertTrue(sorted.toSpecification().containsKey("data"))
+        assertNull(sorted.toSpecification()["data"])
+        assertEquals(result.extensions, sorted.extensions)
     }
 
     @Test

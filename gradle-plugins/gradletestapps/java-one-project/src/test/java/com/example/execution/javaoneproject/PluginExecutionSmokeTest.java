@@ -111,7 +111,7 @@ public class PluginExecutionSmokeTest {
   void queriesAndMutationsExecuteThroughViaduct() {
     Viaduct viaduct = BasicViaductFactory.create();
 
-    ExecutionResult queryResult =
+    ExecutionResult.Standard queryResult =
         viaduct.executeAsync(ExecutionInput.create("query { greeting author }")).join();
     assertTrue(
         queryResult.getErrors().isEmpty(),
@@ -122,7 +122,7 @@ public class PluginExecutionSmokeTest {
             "author", "gradletestapps"),
         queryResult.getData());
 
-    ExecutionResult mutationResult =
+    ExecutionResult.Standard mutationResult =
         viaduct
             .executeAsync(ExecutionInput.create("mutation { echo(message: \"plugin e2e\") }"))
             .join();

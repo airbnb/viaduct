@@ -55,7 +55,8 @@ class ServiceApiJavaCoverageTest {
     final var viaduct = buildMinimalViaduct();
     final var input =
         ExecutionInput.Companion.create("{ __typename }", null, Collections.emptyMap(), null);
-    final ExecutionResult result = viaduct.executeAsync(input, SchemaId.Base.INSTANCE).join();
+    final ExecutionResult.Standard result =
+        viaduct.executeAsync(input, SchemaId.Base.INSTANCE).join();
 
     final Map<String, Object> data = result.getData();
     assertNotNull(data, "expected data for { __typename }");
@@ -70,10 +71,10 @@ class ServiceApiJavaCoverageTest {
     final var input = ExecutionInput.Companion.builder().operationText("{ __typename }").build();
 
     // All three executeAsync overloads are Java-callable
-    final CompletableFuture<ExecutionResult> f1 = viaduct.executeAsync(input);
-    final CompletableFuture<ExecutionResult> f2 =
+    final CompletableFuture<ExecutionResult.Standard> f1 = viaduct.executeAsync(input);
+    final CompletableFuture<ExecutionResult.Standard> f2 =
         viaduct.executeAsync(input, SchemaId.Base.INSTANCE);
-    final CompletableFuture<ExecutionResult> f3 =
+    final CompletableFuture<ExecutionResult.Standard> f3 =
         viaduct.executeAsync(input, SchemaId.Base.INSTANCE, ForkJoinPool.commonPool());
     assertEquals("Query", Objects.requireNonNull(f1.join().getData()).get("__typename"));
     assertEquals("Query", Objects.requireNonNull(f2.join().getData()).get("__typename"));

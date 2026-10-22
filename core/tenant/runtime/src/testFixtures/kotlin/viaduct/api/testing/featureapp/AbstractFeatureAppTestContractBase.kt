@@ -129,7 +129,7 @@ abstract class AbstractFeatureAppTestContractBase {
         variables: Map<String, Any?> = mapOf(),
         schemaId: SchemaId = defaultSchemaId(),
         requestContext: Any? = null,
-    ): ExecutionResult {
+    ): ExecutionResult.Standard {
         return runBlocking {
             tryBuildViaductService()
             val executionInput = ExecutionInput.create(

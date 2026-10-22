@@ -48,7 +48,7 @@ class ViaductRestController(
         )
     }
 
-    private fun statusCode(result: ExecutionResult) =
+    private fun statusCode(result: ExecutionResult.Standard) =
         when {
             result.errors.isNotEmpty() -> HttpStatus.BAD_REQUEST
             else -> HttpStatus.OK

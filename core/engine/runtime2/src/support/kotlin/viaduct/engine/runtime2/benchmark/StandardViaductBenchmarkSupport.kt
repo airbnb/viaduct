@@ -143,9 +143,9 @@ internal class StandardViaductBenchmarkSupport(
         return requests.size
     }
 
-    fun executeQuery(index: Int): ExecutionResult = execute(ExecutionInput.create(operationText = operations[index]))
+    fun executeQuery(index: Int): ExecutionResult.Standard = execute(ExecutionInput.create(operationText = operations[index]))
 
-    private fun execute(request: ExecutionInput): ExecutionResult = runBlocking { viaduct.execute(request, SchemaId.Base) }
+    private fun execute(request: ExecutionInput): ExecutionResult.Standard = runBlocking { viaduct.execute(request, SchemaId.Base) }
 
     private fun world(outputs: PrecomputedResolverOutputs): TestWorld =
         corpus.registry.world(

@@ -16,20 +16,19 @@ import viaduct.apiannotations.StableApi
 @StableApi
 interface Viaduct {
     /**
-     * Executes an operation on this Viaduct instance, suspending until it completes.
+     * Executes an operation on this Viaduct instance, suspending until its complete result is available.
      *
      * This is the idiomatic entry point for Kotlin callers. Java callers, and callers that want to
      * control the threads on which execution runs, should use [executeAsync] instead.
      *
      * @param executionInput the execution input for this operation
      * @param schemaId the id of the schema against which to execute, defaults to [SchemaId.Base]
-     * @return the [ExecutionResult] whose [errors][ExecutionResult.errors] are sorted by path
-     *         then by message
+     * @return the complete result, with errors sorted by path then by message
      */
     suspend fun execute(
         executionInput: ExecutionInput,
         schemaId: SchemaId = SchemaId.Base
-    ): ExecutionResult
+    ): ExecutionResult.Standard
 
     /**
      * Executes an operation on this Viaduct instance asynchronously, returning a [CompletableFuture].
@@ -41,21 +40,20 @@ interface Viaduct {
      * @param executionInput the execution input for this operation
      * @param schemaId the id of the schema against which to execute
      * @param executor the executor on which to run the operation
-     * @return a [CompletableFuture] of [ExecutionResult] whose [errors][ExecutionResult.errors]
-     *         are sorted by path then by message
+     * @return a [CompletableFuture] of the complete result
      */
     fun executeAsync(
         executionInput: ExecutionInput,
         schemaId: SchemaId,
         executor: Executor
-    ): CompletableFuture<ExecutionResult>
+    ): CompletableFuture<ExecutionResult.Standard>
 
     /**
      * Executes an operation against [SchemaId.Base] on the [ForkJoinPool.commonPool].
      *
      * @see executeAsync
      */
-    fun executeAsync(executionInput: ExecutionInput): CompletableFuture<ExecutionResult> = executeAsync(executionInput, SchemaId.Base, ForkJoinPool.commonPool())
+    fun executeAsync(executionInput: ExecutionInput): CompletableFuture<ExecutionResult.Standard> = executeAsync(executionInput, SchemaId.Base, ForkJoinPool.commonPool())
 
     /**
      * Executes an operation against [schemaId] on the [ForkJoinPool.commonPool].
@@ -65,7 +63,7 @@ interface Viaduct {
     fun executeAsync(
         executionInput: ExecutionInput,
         schemaId: SchemaId
-    ): CompletableFuture<ExecutionResult> = executeAsync(executionInput, schemaId, ForkJoinPool.commonPool())
+    ): CompletableFuture<ExecutionResult.Standard> = executeAsync(executionInput, schemaId, ForkJoinPool.commonPool())
 
     /**
      * Returns the set of scope IDs applied to the given [schemaId], or `null` if no
