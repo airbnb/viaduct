@@ -1,12 +1,14 @@
 package viaduct.engine.runtime.execution
 
 import graphql.ExecutionInput as GJExecutionInput
+import graphql.ExecutionResult
 import graphql.GraphQL
 import graphql.execution.AsyncExecutionStrategy
 import graphql.execution.instrumentation.InstrumentationState
 import graphql.execution.instrumentation.SimplePerformantInstrumentation
 import graphql.execution.instrumentation.parameters.InstrumentationExecutionParameters
 import graphql.schema.DataFetcher
+import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.Executors
 import kotlinx.coroutines.CompletableDeferred
@@ -103,6 +105,48 @@ class EngineExecutionTest {
                     }
                 } finally {
                     release.complete(Unit)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `instrumentation can add an extension without losing deferred results`() {
+        val instrumentation = object : SimplePerformantInstrumentation() {
+            override fun instrumentExecutionResult(
+                executionResult: ExecutionResult,
+                parameters: InstrumentationExecutionParameters,
+                state: InstrumentationState?,
+            ): CompletableFuture<ExecutionResult> = CompletableFuture.completedFuture(executionResult.transform { it.addExtension("traceId", "test-trace-id") })
+        }
+        EngineTestModule("extend type Query { value: Int }") {
+            fieldWithValue("Query" to "value", 42)
+        }.runFeatureTest(
+            engineConfig = incrementalConfig.copy(additionalInstrumentation = instrumentation),
+        ) {
+            runExecutionTest {
+                val result = assertInstanceOf(
+                    IncrementalExecutionResult::class.java,
+                    engine.execute(ExecutionInput("{ ... @defer(label: \"later\") { value } }", requestContext = Any())),
+                )
+                try {
+                    assertEquals(mapOf("traceId" to "test-trace-id"), result.extensions)
+                    assertEquals(emptyMap<String, Any?>(), result.getData<Map<String, Any?>>())
+                    assertTrue(result.errors.isEmpty())
+                    assertTrue(result.hasNext)
+                    assertEquals(mapOf("id" to "0", "path" to emptyList<String>(), "label" to "later"), result.pending.single().toSpecification())
+
+                    val updates = result.updates.toList()
+                    val patch = assertInstanceOf(IncrementalEntry.Object::class.java, updates.flatMap { it.incremental }.single())
+                    assertEquals("0", patch.id)
+                    assertEquals(mapOf("value" to 42), patch.data)
+                    assertTrue(patch.errors.isEmpty())
+                    val completed = updates.flatMap { it.completed }.single()
+                    assertEquals("0", completed.id)
+                    assertTrue(completed.errors.isEmpty())
+                    assertFalse(updates.last().hasNext)
+                } finally {
+                    result.cancel()
                 }
             }
         }
