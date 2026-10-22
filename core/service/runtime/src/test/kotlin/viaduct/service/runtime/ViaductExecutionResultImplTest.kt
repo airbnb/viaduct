@@ -8,8 +8,12 @@ import graphql.execution.ResultPath
 import graphql.incremental.IncrementalExecutionResultImpl
 import graphql.language.SourceLocation
 import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertInstanceOf
+import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -51,6 +55,25 @@ class ViaductExecutionResultImplTest {
         assertThrows<IllegalStateException> { result.toStandardExecutionResult() }
         assertTrue(cancelled)
     }
+
+    @Test
+    fun `update failures propagate and release execution`() =
+        runTest {
+            val failure = IllegalStateException("deferred execution failed")
+            var cancelled = false
+            val result = object : IncrementalExecutionResult by mkIncrementalExecutionResult(emptyMap(), emptyList(), emptyList(), true) {
+                override val updates = flow<IncrementalExecutionResult.Update> { throw failure }
+
+                override fun cancel() {
+                    cancelled = true
+                }
+            }
+
+            val thrown = assertThrows<IllegalStateException> { result.toExecutionResults().toList() }
+
+            assertSame(failure, thrown)
+            assertTrue(cancelled)
+        }
 
     @Test
     fun `converts standard results with data errors and extensions`() {

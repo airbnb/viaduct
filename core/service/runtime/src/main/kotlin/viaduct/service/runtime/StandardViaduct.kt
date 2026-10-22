@@ -17,6 +17,8 @@ import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executor
 import javax.inject.Inject
 import kotlin.coroutines.coroutineContext
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.future.await
 import viaduct.apiannotations.VisibleForTest
 import viaduct.engine.EngineConfiguration
@@ -512,6 +514,35 @@ class StandardViaduct
             coroutineInterop.enterThreadLocalCoroutineContext(coroutineContext) {
                 executeOnEngine(executionInput, schemaId)
             }.await()
+
+        override fun reactiveExecute(
+            executionInput: ExecutionInput,
+            schemaId: SchemaId
+        ): Flow<ExecutionResult> =
+            // CoroutineInterop runs execution in a separate coroutine, potentially on NextTickDispatcher.
+            // A regular flow requires results to be emitted in the context collecting it; emitting
+            // directly from that execution coroutine would throw a Flow invariant violation.
+            // channelFlow connects the two contexts through a channel: execution sends results,
+            // and the caller receives them in its original coroutine context.
+            channelFlow {
+                val future = coroutineInterop.enterThreadLocalCoroutineContext(coroutineContext) {
+                    val engine = try {
+                        engineRegistry.getEngine(schemaId)
+                    } catch (_: EngineRegistry.SchemaNotFoundException) {
+                        send(schemaNotFoundResult(schemaId))
+                        return@enterThreadLocalCoroutineContext
+                    }
+                    engine
+                        .execute(executionInput.toEngineExecutionInput(), incrementalExecution = true)
+                        .toExecutionResults()
+                        .collect(::send)
+                }
+
+                // Awaiting the interop future keeps the flow open until execution finishes.
+                // Results continue streaming while suspended; failures propagate through await,
+                // and cancelling collection cancels the future.
+                future.await()
+            }
 
         /**
          * Asynchronously executes an operation (found in ExecutionInput) on the given [executor],

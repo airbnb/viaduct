@@ -3,6 +3,8 @@ package viaduct.service.api
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executor
 import java.util.concurrent.ForkJoinPool
+import kotlinx.coroutines.flow.Flow
+import viaduct.apiannotations.ExperimentalApi
 import viaduct.apiannotations.StableApi
 
 /**
@@ -11,7 +13,7 @@ import viaduct.apiannotations.StableApi
  * Instances are created via [ViaductBuilder][viaduct.service.ViaductBuilder] (for full SPI control) or
  * [BasicViaductFactory][viaduct.service.BasicViaductFactory] (for simpler use cases).
  * A typical integration creates a single [Viaduct] instance at startup and routes incoming
- * GraphQL requests through [execute] or [executeAsync].
+ * GraphQL requests through [execute], [executeAsync], or [reactiveExecute].
  */
 @StableApi
 interface Viaduct {
@@ -29,6 +31,22 @@ interface Viaduct {
         executionInput: ExecutionInput,
         schemaId: SchemaId = SchemaId.Base
     ): ExecutionResult.Standard
+
+    /**
+     * Returns a cold flow that starts a new execution on each collection. Emits either one
+     * [ExecutionResult.Standard], or an [ExecutionResult.Initial] followed by [ExecutionResult.Update]
+     * payloads in delivery order.
+     *
+     * Cancelling collection cancels execution.
+     *
+     * @param executionInput the execution input for this operation
+     * @param schemaId the id of the schema against which to execute, defaults to [SchemaId.Base]
+     */
+    @ExperimentalApi
+    fun reactiveExecute(
+        executionInput: ExecutionInput,
+        schemaId: SchemaId = SchemaId.Base
+    ): Flow<ExecutionResult>
 
     /**
      * Executes an operation on this Viaduct instance asynchronously, returning a [CompletableFuture].

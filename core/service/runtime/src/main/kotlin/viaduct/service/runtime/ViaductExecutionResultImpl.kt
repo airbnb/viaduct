@@ -3,6 +3,8 @@ package viaduct.service.runtime
 import graphql.ExecutionResult as GJExecutionResult
 import graphql.GraphQLError as GJGraphQLError
 import graphql.incremental.IncrementalExecutionResult as GJIncrementalExecutionResult
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
 import viaduct.engine.api.CompletedEntry as EngineCompletedEntry
 import viaduct.engine.api.IncrementalEntry as EngineIncrementalEntry
 import viaduct.engine.api.IncrementalExecutionResult
@@ -94,6 +96,18 @@ internal class ObjectIncrementalEntryImpl(
 internal fun Update.toExecutionResult(): ExecutionResult.Update = IncrementalUpdateImpl(this)
 
 internal fun IncrementalExecutionResult.toExecutionResult(): ExecutionResult.Initial = InitialResultImpl(this)
+
+internal fun GJExecutionResult.toExecutionResults(): Flow<ExecutionResult> =
+    flow {
+        try {
+            emit(toExecutionResult())
+            if (this@toExecutionResults is IncrementalExecutionResult) {
+                updates.collect { emit(it.toExecutionResult()) }
+            }
+        } finally {
+            if (this@toExecutionResults is IncrementalExecutionResult) cancel()
+        }
+    }
 
 internal fun GJExecutionResult.toStandardExecutionResult(): ExecutionResult.Standard {
     if (this is IncrementalExecutionResult) {

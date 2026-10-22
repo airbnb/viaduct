@@ -89,6 +89,7 @@ public final class viaduct/service/api/Viaduct$DefaultImpls {
 	public static synthetic fun execute$default (Lviaduct/service/api/Viaduct;Lviaduct/service/api/ExecutionInput;Lviaduct/service/api/SchemaId;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
 	public static fun executeAsync (Lviaduct/service/api/Viaduct;Lviaduct/service/api/ExecutionInput;)Ljava/util/concurrent/CompletableFuture;
 	public static fun executeAsync (Lviaduct/service/api/Viaduct;Lviaduct/service/api/ExecutionInput;Lviaduct/service/api/SchemaId;)Ljava/util/concurrent/CompletableFuture;
+	public static synthetic fun reactiveExecute$default (Lviaduct/service/api/Viaduct;Lviaduct/service/api/ExecutionInput;Lviaduct/service/api/SchemaId;ILjava/lang/Object;)Lkotlinx/coroutines/flow/Flow;
 }
 
 public abstract interface class viaduct/service/api/spi/CodeInjector {

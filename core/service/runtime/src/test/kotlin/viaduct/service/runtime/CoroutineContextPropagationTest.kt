@@ -4,9 +4,11 @@ package viaduct.service.runtime
 
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.coroutineContext
+import kotlinx.coroutines.flow.single
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
-import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
 import viaduct.engine.api.mocks.EngineTestModule
 import viaduct.engine.api.mocks.MockExecutorCodeInjector
 import viaduct.graphql.test.assertJson
@@ -20,8 +22,9 @@ class CoroutineContextPropagationTest {
         override val key: CoroutineContext.Key<*> = Key
     }
 
-    @Test
-    fun `coroutine context is propagated to resolver functions`() {
+    @ParameterizedTest
+    @ValueSource(booleans = [false, true])
+    fun `coroutine context is propagated to resolver functions`(reactive: Boolean) {
         val sdl = "extend type Query { result: Int }"
         val module = EngineTestModule(sdl) {
             field("Query" to "result") {
@@ -40,7 +43,7 @@ class CoroutineContextPropagationTest {
         runBlocking {
             withContext(TestContext(42)) {
                 val input = ExecutionInput.create("{result}")
-                val result = subject.execute(input, SchemaId.Base)
+                val result = if (reactive) subject.reactiveExecute(input, SchemaId.Base).single() else subject.execute(input, SchemaId.Base)
                 result.assertJson("{data: {result: 42}}")
             }
         }

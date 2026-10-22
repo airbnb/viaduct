@@ -5,17 +5,42 @@ package viaduct.service.runtime
 import graphql.ExecutionResult
 import graphql.GraphQLError
 import graphql.execution.DataFetcherExceptionHandler
+import graphql.execution.ResultPath
 import graphql.schema.GraphQLObjectType
 import graphql.schema.idl.SchemaParser
 import graphql.schema.idl.UnExecutableSchemaGenerator
 import io.mockk.clearAllMocks
+import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.coroutines.CoroutineContext
+import kotlin.time.Duration.Companion.seconds
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.asCoroutineDispatcher
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.flow.buffer
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.single
+import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.future.await
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -29,27 +54,36 @@ import viaduct.bootstrap.ExecutionRegistryConfigFile
 import viaduct.bootstrap.FieldEntryConfig
 import viaduct.bootstrap.NodeEntryConfig
 import viaduct.engine.EngineImpl
+import viaduct.engine.api.Engine
 import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.GraphQLBuildError
+import viaduct.engine.api.IncrementalEntry
+import viaduct.engine.api.PendingEntry
 import viaduct.engine.api.bootstrap.executionregistry.ModuleConfigSource
 import viaduct.engine.api.mocks.EngineTestModule
 import viaduct.engine.api.mocks.MockExecutorCodeInjector
 import viaduct.engine.api.mocks.MockFieldUnbatchedResolverExecutor
 import viaduct.engine.api.mocks.createEngineObjectData
+import viaduct.engine.api.spi.CoroutineInterop
 import viaduct.engine.api.spi.ExecutorFactory
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.MaterializedFieldValueReader
 import viaduct.engine.api.spi.NodeResolverExecutor
+import viaduct.engine.runtime.execution.DefaultCoroutineInterop
+import viaduct.engine.runtime.execution.IncrementalExecutionResultImpl
 import viaduct.engine.runtime.execution.TenantNameResolver
+import viaduct.engine.runtime.execution.UpdateExecutionResultImpl
 import viaduct.engine.runtime2.Engine2
 import viaduct.graphql.utils.DefaultSchemaFactory
 import viaduct.service.api.ExecutionInput
+import viaduct.service.api.ExecutionResult as ServiceExecutionResult
 import viaduct.service.api.SchemaId
 import viaduct.service.api.spi.CodeInjector
 import viaduct.service.api.spi.FlagManager
 import viaduct.service.api.spi.InputStreamSource
 import viaduct.service.api.spi.SharedTenantModuleInjectorFactory
 import viaduct.service.api.spi.TenantModuleInjectorFactory
+import viaduct.service.api.spi.mocks.MockFlagManager
 
 class StandardViaductTest {
     private lateinit var subject: StandardViaduct
@@ -148,6 +182,373 @@ class StandardViaductTest {
         assertTrue(sorted.toSpecification().containsKey("data"))
         assertNull(sorted.toSpecification()["data"])
         assertEquals(result.extensions, sorted.extensions)
+    }
+
+    @Test
+    fun `execute and executeAsync wait for deferred fields and return complete responses`() =
+        runBlocking {
+            withTimeout(5.seconds) {
+                for (asynchronous in listOf(false, true)) {
+                    val started = CompletableDeferred<Unit>()
+                    val release = CompletableDeferred<Unit>()
+                    val viaduct = streamingViaduct {
+                        started.complete(Unit)
+                        release.await()
+                        "later"
+                    }
+                    val input = ExecutionInput.create("{ __typename ... @defer { test } }", requestContext = Any())
+                    val result = async {
+                        if (asynchronous) viaduct.executeAsync(input).await() else viaduct.execute(input)
+                    }
+                    started.await()
+                    assertEquals(false, result.isCompleted)
+                    release.complete(Unit)
+                    assertEquals(
+                        mapOf("data" to mapOf("__typename" to "Query", "test" to "later")),
+                        result.await().toSpecification(),
+                    )
+                }
+            }
+        }
+
+    @Test
+    fun `reactiveExecute delivers initial data before deferred work completes`() =
+        runBlocking<Unit> {
+            withTimeout(5.seconds) {
+                var calls = 0
+                val release = CompletableDeferred<Unit>()
+                val viaduct = streamingViaduct {
+                    calls++
+                    release.await()
+                    "later"
+                }
+                val input = ExecutionInput.create("{ __typename ... @defer(label: \"details\") { test } }", requestContext = Any())
+                val results = viaduct.reactiveExecute(input).onEach { result ->
+                    if (result is ServiceExecutionResult.Initial) {
+                        assertEquals(mapOf("__typename" to "Query"), result.getData())
+                        assertTrue(result.hasNext)
+                        assertEquals(false, release.isCompleted)
+                        release.complete(Unit)
+                    }
+                }.toList()
+                assertEquals(1, calls)
+                assertEquals(
+                    listOf(
+                        mapOf(
+                            "data" to mapOf("__typename" to "Query"),
+                            "pending" to listOf(mapOf("id" to "0", "path" to emptyList<Any>(), "label" to "details")),
+                            "hasNext" to true,
+                        ),
+                        mapOf(
+                            "incremental" to listOf(mapOf("id" to "0", "data" to mapOf("test" to "later"))),
+                            "completed" to listOf(mapOf("id" to "0")),
+                            "hasNext" to false,
+                        ),
+                    ),
+                    results.map { it.toSpecification() },
+                )
+            }
+        }
+
+    @ParameterizedTest
+    @ValueSource(booleans = [false, true])
+    fun `reactiveExecute delivers multiple updates across the coroutine interop boundary`(useConfiguredExecutor: Boolean) {
+        Executors.newSingleThreadExecutor { Thread(it, "reactive-execution-test") }.asCoroutineDispatcher().use { dispatcher ->
+            runBlocking {
+                withTimeout(5.seconds) {
+                    val collectorThread = Thread.currentThread()
+                    val executionThread = withContext(dispatcher) { Thread.currentThread() }
+                    val releases = mapOf("first" to CompletableDeferred<Unit>(), "second" to CompletableDeferred<Unit>())
+                    val sdl = "extend type Query { initial: String @resolver, first: String @resolver, second: String @resolver }"
+                    val module = EngineTestModule(sdl) {
+                        for (fieldName in listOf("initial", "first", "second")) {
+                            field("Query" to fieldName) {
+                                resolverExecutor {
+                                    MockFieldUnbatchedResolverExecutor(resolverId = "Query.$fieldName") { _, _, _, _, _ ->
+                                        if (useConfiguredExecutor) assertSame(executionThread, Thread.currentThread())
+                                        releases[fieldName]?.await()
+                                        if (useConfiguredExecutor) assertSame(executionThread, Thread.currentThread())
+                                        fieldName
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    val interop = if (useConfiguredExecutor) {
+                        object : CoroutineInterop by DefaultCoroutineInterop {
+                            override fun <T> enterThreadLocalCoroutineContext(
+                                callerContext: CoroutineContext,
+                                block: suspend CoroutineScope.() -> T,
+                            ): CompletableFuture<T> = DefaultCoroutineInterop.enterThreadLocalCoroutineContext(dispatcher.executor, callerContext, block)
+                        }
+                    } else {
+                        DefaultCoroutineInterop
+                    }
+                    val viaduct = StandardViaduct.Builder()
+                        .withFlagManager(MockFlagManager.create(FlagManager.Flags.ENABLE_INCREMENTAL_EXECUTION))
+                        .withCoroutineInterop(interop)
+                        .withTenantModuleInjectorFactory(MockExecutorCodeInjector(module.mockExecutorRegistry))
+                        .withExecutorRegistryConfigSources(listOf(module.toModuleConfigSource()))
+                        .withSchemaConfiguration(SchemaConfiguration.fromSdl(sdl))
+                        .build()
+                    val expected = listOf(
+                        mapOf(
+                            "data" to mapOf("initial" to "initial"),
+                            "pending" to listOf(
+                                mapOf("id" to "0", "path" to emptyList<Any>(), "label" to "first"),
+                                mapOf("id" to "1", "path" to emptyList<Any>(), "label" to "second"),
+                            ),
+                            "hasNext" to true,
+                        ),
+                        mapOf(
+                            "incremental" to listOf(mapOf("id" to "0", "data" to mapOf("first" to "first"))),
+                            "completed" to listOf(mapOf("id" to "0")),
+                            "hasNext" to true,
+                        ),
+                        mapOf(
+                            "incremental" to listOf(mapOf("id" to "1", "data" to mapOf("second" to "second"))),
+                            "completed" to listOf(mapOf("id" to "1")),
+                            "hasNext" to false,
+                        ),
+                    )
+                    val input = ExecutionInput.create(
+                        "{ initial ... @defer(label: \"first\") { first } ... @defer(label: \"second\") { second } }",
+                        requestContext = Any(),
+                    )
+                    var received = 0
+                    viaduct.reactiveExecute(input).collect { result ->
+                        assertSame(collectorThread, Thread.currentThread())
+                        assertEquals(expected[received], result.toSpecification())
+                        when (received++) {
+                            0 -> {
+                                assertFalse(releases.getValue("first").isCompleted)
+                                releases.getValue("first").complete(Unit)
+                            }
+                            1 -> {
+                                assertFalse(releases.getValue("second").isCompleted)
+                                releases.getValue("second").complete(Unit)
+                            }
+                        }
+                    }
+                    assertEquals(expected.size, received)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `reactiveExecute propagates upstream failure while updates are buffered`() =
+        runBlocking {
+            withTimeout(5.seconds) {
+                val failure = IllegalStateException("deferred execution failed")
+                val updatesBuffered = CompletableDeferred<Unit>()
+                val failUpdates = CompletableDeferred<Unit>()
+                val cancelled = CompletableDeferred<Unit>()
+                val result = IncrementalExecutionResultImpl(
+                    initialResult = ExecutionResult.newExecutionResult().data(mapOf("__typename" to "Query")).build(),
+                    pending = listOf(PendingEntry("0", ResultPath.rootPath(), "details")),
+                    hasNext = true,
+                    updates = flow {
+                        for (name in listOf("first", "second")) {
+                            emit(
+                                UpdateExecutionResultImpl(
+                                    hasNext = true,
+                                    incremental = listOf(IncrementalEntry.Object("0", mapOf(name to name), emptyList(), null)),
+                                    completed = emptyList(),
+                                    pending = emptyList(),
+                                )
+                            )
+                        }
+                        updatesBuffered.complete(Unit)
+                        failUpdates.await()
+                        throw failure
+                    },
+                    cancelExecution = { cancelled.complete(Unit) },
+                )
+                val engine = mockk<Engine>()
+                coEvery { engine.execute(any(), incrementalExecution = true) } returns result
+                val registry = mockk<EngineRegistry>()
+                every { registry.getEngine(SchemaId.Base) } returns engine
+                val viaduct = StandardViaduct(registry, standardViaductFactory = mockk())
+                val received = mutableListOf<ServiceExecutionResult>()
+
+                val thrown = assertThrows<IllegalStateException> {
+                    viaduct.reactiveExecute(ExecutionInput.create("{ __typename ... @defer { first second } }", requestContext = Any()))
+                        .buffer(capacity = 2)
+                        .collect {
+                            received += it
+                            updatesBuffered.await()
+                            failUpdates.complete(Unit)
+                            awaitCancellation()
+                        }
+                }
+
+                assertEquals(failure.message, thrown.message)
+                val initial = assertInstanceOf(ServiceExecutionResult.Initial::class.java, received.single())
+                assertEquals(mapOf("__typename" to "Query"), initial.getData())
+                assertTrue(cancelled.isCompleted)
+            }
+        }
+
+    @Test
+    fun `reactiveExecute returns Standard when defer is disabled or absent`() =
+        runBlocking {
+            for (deferEnabled in listOf(false, true)) {
+                val viaduct = streamingViaduct(deferEnabled) { "value" }
+                val query = if (deferEnabled) "{ test }" else "{ ... @defer { test } }"
+                val result = assertInstanceOf(
+                    ServiceExecutionResult.Standard::class.java,
+                    viaduct.reactiveExecute(ExecutionInput.create(query, requestContext = Any())).single(),
+                )
+                assertEquals(mapOf("data" to mapOf("test" to "value")), result.toSpecification())
+            }
+        }
+
+    @Test
+    fun `reactiveExecute returns request errors without resolving fields`() =
+        runBlocking {
+            var calls = 0
+            val viaduct = streamingViaduct {
+                calls++
+                "value"
+            }
+            val input = ExecutionInput.create("{ test }", requestContext = Any())
+            val results = listOf(
+                viaduct.reactiveExecute(input, SchemaId.None).single(),
+                viaduct.reactiveExecute(ExecutionInput.create("{ missingField }", requestContext = Any())).single(),
+                viaduct.reactiveExecute(ExecutionInput.create("{", requestContext = Any())).single(),
+            )
+            for (payload in results) {
+                val result = assertInstanceOf(ServiceExecutionResult.Standard::class.java, payload)
+                assertTrue(result.errors.isNotEmpty())
+                assertEquals(false, result.isDataPresent)
+                assertEquals(false, result.toSpecification().containsKey("data"))
+            }
+            assertEquals(0, calls)
+        }
+
+    @Test
+    fun `cancelling updates cancels deferred resolution`() =
+        runBlocking {
+            withTimeout(5.seconds) {
+                val started = CompletableDeferred<Unit>()
+                val cancelled = CompletableDeferred<Unit>()
+                val viaduct = streamingViaduct {
+                    started.complete(Unit)
+                    try {
+                        awaitCancellation()
+                    } finally {
+                        cancelled.complete(Unit)
+                    }
+                }
+                val collection = launch(start = CoroutineStart.UNDISPATCHED) {
+                    viaduct.reactiveExecute(ExecutionInput.create("{ __typename ... @defer { test } }", requestContext = Any())).collect {}
+                }
+                started.await()
+                collection.cancelAndJoin()
+                cancelled.await()
+            }
+        }
+
+    @Test
+    fun `taking only the initial payload cancels deferred resolution`() =
+        runBlocking {
+            withTimeout(5.seconds) {
+                val cancelled = CompletableDeferred<Unit>()
+                val started = CompletableDeferred<Unit>()
+                val viaduct = streamingViaduct {
+                    started.complete(Unit)
+                    try {
+                        awaitCancellation()
+                    } finally {
+                        cancelled.complete(Unit)
+                    }
+                }
+                val initial = viaduct.reactiveExecute(ExecutionInput.create("{ __typename ... @defer { test } }", requestContext = Any()))
+                    .onEach { started.await() }.first()
+                assertInstanceOf(ServiceExecutionResult.Initial::class.java, initial)
+                cancelled.await()
+            }
+        }
+
+    @Test
+    fun `collector failure cancels deferred resolution`() =
+        runBlocking {
+            withTimeout(5.seconds) {
+                val started = CompletableDeferred<Unit>()
+                val cancelled = CompletableDeferred<Unit>()
+                val failure = IllegalStateException("consumer failed")
+                val viaduct = streamingViaduct {
+                    started.complete(Unit)
+                    try {
+                        awaitCancellation()
+                    } finally {
+                        cancelled.complete(Unit)
+                    }
+                }
+                val thrown = assertThrows<IllegalStateException> {
+                    viaduct.reactiveExecute(ExecutionInput.create("{ ... @defer { test } }", requestContext = Any())).collect {
+                        started.await()
+                        throw failure
+                    }
+                }
+                assertEquals(failure.message, thrown.message)
+                cancelled.await()
+            }
+        }
+
+    @Test
+    fun `reactiveExecute is cold and each collection executes again`() =
+        runBlocking {
+            var calls = 0
+            val viaduct = streamingViaduct { (++calls).toString() }
+            val results = viaduct.reactiveExecute(ExecutionInput.create("{ test }", requestContext = Any()))
+            assertEquals(0, calls)
+            assertEquals(mapOf("test" to "1"), assertInstanceOf(ServiceExecutionResult.Standard::class.java, results.single()).getData())
+            assertEquals(mapOf("test" to "2"), assertInstanceOf(ServiceExecutionResult.Standard::class.java, results.single()).getData())
+        }
+
+    @Test
+    fun `cancelling reactiveExecute before the initial result cancels resolution`() =
+        runBlocking {
+            withTimeout(5.seconds) {
+                val started = CompletableDeferred<Unit>()
+                val cancelled = CompletableDeferred<Unit>()
+                val viaduct = streamingViaduct {
+                    started.complete(Unit)
+                    try {
+                        awaitCancellation()
+                    } finally {
+                        cancelled.complete(Unit)
+                    }
+                }
+                val execution = launch { viaduct.reactiveExecute(ExecutionInput.create("{ test }", requestContext = Any())).collect {} }
+                started.await()
+                execution.cancelAndJoin()
+                cancelled.await()
+            }
+        }
+
+    private fun streamingViaduct(
+        deferEnabled: Boolean = true,
+        resolve: suspend () -> String,
+    ): StandardViaduct {
+        val sdl = "extend type Query { test: String @resolver }"
+        val module = EngineTestModule(sdl) {
+            field("Query" to "test") {
+                resolverExecutor {
+                    MockFieldUnbatchedResolverExecutor(resolverId = "Query.test") { _, _, _, _, _ -> resolve() }
+                }
+            }
+        }
+        return StandardViaduct.Builder()
+            .withFlagManager(
+                MockFlagManager(if (deferEnabled) setOf(FlagManager.Flags.ENABLE_INCREMENTAL_EXECUTION) else emptySet()),
+            )
+            .withTenantModuleInjectorFactory(MockExecutorCodeInjector(module.mockExecutorRegistry))
+            .withExecutorRegistryConfigSources(listOf(module.toModuleConfigSource()))
+            .withSchemaConfiguration(SchemaConfiguration.fromSdl(sdl))
+            .build()
     }
 
     @Test
