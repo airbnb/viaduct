@@ -1,11 +1,14 @@
 package viaduct.engine.runtime2.execution
 
-import graphql.ExceptionWhileDataFetching
 import graphql.TypeResolutionEnvironment
+import graphql.execution.DataFetcherExceptionHandler
+import graphql.execution.DataFetcherExceptionHandlerParameters
 import graphql.execution.DataFetcherResult
 import graphql.execution.ResultPath
+import graphql.execution.SimpleDataFetcherExceptionHandler
 import graphql.schema.DataFetcher
 import graphql.schema.DataFetchingEnvironment
+import graphql.schema.DataFetchingEnvironmentImpl
 import graphql.schema.FieldCoordinates
 import graphql.schema.GraphQLCodeRegistry
 import graphql.schema.GraphQLInterfaceType
@@ -26,8 +29,10 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.future.await
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import viaduct.apiannotations.InternalApi
 import viaduct.engine.runtime2.model.EngineErrorData
 import viaduct.engine.runtime2.model.EngineResult
 import viaduct.engine.runtime2.model.EngineResultCell
@@ -89,8 +94,17 @@ class QPlanWiringFactory(
 /** One qplan object occurrence and the request scope that owns its pending promise bridges. */
 internal data class QPlanExecutionSource(
     val objectResult: ObjectEngineResult,
-    val requestScope: CoroutineScope?,
+    val requestScope: CoroutineScope,
+    val exceptionHandler: DataFetcherExceptionHandler = SimpleDataFetcherExceptionHandler(),
 )
+
+/**
+ * Lets instrumentation retain the DataFetcher that obtains field values from qplan results.
+ * This helper lives beside [QPlanExecutionSource] because that class is internal to runtime2;
+ * instrumentation in other modules cannot reference it directly to perform this type check.
+ */
+@InternalApi
+fun isQPlanCompletionSource(value: Any?): Boolean = value is QPlanExecutionSource
 
 private class ObjectEngineResultDataFetcher(
     private val schema: ViaductSchema,
@@ -130,14 +144,8 @@ private fun resolveType(environment: TypeResolutionEnvironment): GraphQLObjectTy
 }
 
 private fun qplanSource(source: Any?): QPlanExecutionSource =
-    when (source) {
-        is QPlanExecutionSource -> source
-        is ObjectEngineResult -> QPlanExecutionSource(source, requestScope = null)
-        else ->
-            throw IllegalStateException(
-                "QPlan completion requires an ObjectEngineResult source",
-            )
-    }
+    source as? QPlanExecutionSource
+        ?: error("QPlan field access requires a QPlanExecutionSource with a request scope")
 
 private fun EngineResultCell.toGraphQLJavaValue(
     source: QPlanExecutionSource,
@@ -148,11 +156,7 @@ private fun EngineResultCell.toGraphQLJavaValue(
     if (attempt !== EngineResultIsPending) {
         return attempt.toGraphQLJavaValue(source, environment, path)
     }
-    val requestScope =
-        requireNotNull(source.requestScope) {
-            "Pending qplan values require a request-owned coroutine scope"
-        }
-    return requestScope.asCompletableFuture(
+    return source.requestScope.asCompletableFuture(
         preferredFailure = this::preferredTerminalFailureOrNull,
     ) {
         awaitCheckedValue { true }
@@ -167,48 +171,19 @@ private fun EngineResult?.toGraphQLJavaValue(
 ): Any? =
     when (this) {
         null -> null
-        is ErrorEngineResult -> errorResult(errorData, environment, path)
-        is ObjectEngineResult -> source.copy(objectResult = this)
-        is ListEngineResult -> {
-            if (isGraphQLJavaValueReady()) {
-                mapIndexed { index, cell ->
-                    val attempt = cell.materializeCheckedValue { true }
-                    check(attempt !== EngineResultIsPending)
-                    attempt.toGraphQLJavaValue(source, environment, path.segment(index))
-                }
-            } else {
-                val requestScope =
-                    requireNotNull(source.requestScope) {
-                        "Pending qplan list values require a request-owned coroutine scope"
-                    }
-                requestScope.asCompletableFuture(
-                    preferredFailure = this::preferredTerminalFailureOrNull,
-                ) {
-                    this@toGraphQLJavaValue.toGraphQLJavaValueAwaiting(
-                        source,
-                        environment,
-                        path,
-                    )
-                }
-            }
+        is ErrorEngineResult -> {
+            val result = errorResult(errorData, source.exceptionHandler, environment, path)
+            if (result.isDone) result.join() else result
         }
+        is ObjectEngineResult -> source.copy(objectResult = this)
+        is ListEngineResult ->
+            source.requestScope.asCompletableFuture(
+                preferredFailure = this::preferredTerminalFailureOrNull,
+            ) {
+                this@toGraphQLJavaValue.toGraphQLJavaListAwaiting(source, environment, path)
+            }
         is ViaductSchema.EnumValue -> name
         else -> scalarResultValue()
-    }
-
-private fun EngineResult?.isGraphQLJavaValueReady(): Boolean =
-    when (this) {
-        is ListEngineResult ->
-            all { cell ->
-                val attempt =
-                    try {
-                        cell.materializeCheckedValue { true }
-                    } catch (_: Exception) {
-                        return@all false
-                    }
-                attempt !== EngineResultIsPending && attempt.isGraphQLJavaValueReady()
-            }
-        else -> true
     }
 
 private suspend fun EngineResult?.toGraphQLJavaValueAwaiting(
@@ -218,7 +193,7 @@ private suspend fun EngineResult?.toGraphQLJavaValueAwaiting(
 ): Any? =
     when (this) {
         null -> null
-        is ErrorEngineResult -> errorResult(errorData, environment, path)
+        is ErrorEngineResult -> errorResult(errorData, source.exceptionHandler, environment, path).await()
         is ObjectEngineResult -> source.copy(objectResult = this)
         is ListEngineResult -> toGraphQLJavaListAwaiting(source, environment, path)
         is ViaductSchema.EnumValue -> name
@@ -356,18 +331,35 @@ internal class CoroutineCancellationBridgeException(
 
 private fun errorResult(
     errorData: EngineErrorData,
+    handler: DataFetcherExceptionHandler,
     environment: DataFetchingEnvironment,
     path: ResultPath,
-): DataFetcherResult<Any> =
-    DataFetcherResult
-        .newResult<Any>()
-        .error(
-            ExceptionWhileDataFetching(
-                path,
-                errorData.cause ?: QPlanFieldResolutionException(),
-                environment.field.sourceLocation,
-            ),
-        ).build()
+): CompletableFuture<DataFetcherResult<Any>> {
+    // A list element's error belongs to its indexed path, not the enclosing field's path.
+    val errorEnvironment =
+        DataFetchingEnvironmentImpl.newDataFetchingEnvironment(environment)
+            .executionStepInfo(environment.executionStepInfo.transform { it.path(path) })
+            .build()
+    val handled = try {
+        handler.handleException(
+            DataFetcherExceptionHandlerParameters.newExceptionParameters()
+                .dataFetchingEnvironment(errorEnvironment)
+                .exception(errorData.cause ?: QPlanFieldResolutionException())
+                .build(),
+        )
+    } catch (handlerException: Exception) {
+        // Keep handler failures at the element's indexed path, matching GraphQL Java's fallback.
+        SimpleDataFetcherExceptionHandler().handleException(
+            DataFetcherExceptionHandlerParameters.newExceptionParameters()
+                .dataFetchingEnvironment(errorEnvironment)
+                .exception(handlerException)
+                .build(),
+        )
+    }
+    return handled.thenApply { result ->
+        DataFetcherResult.newResult<Any>().errors(result.errors).build()
+    }
+}
 
 private class QPlanFieldResolutionException :
     RuntimeException("QPlan field resolution failed")

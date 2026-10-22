@@ -3,6 +3,9 @@
 package viaduct.engine.runtime2.execution
 
 import graphql.GraphQLError
+import graphql.GraphqlErrorBuilder
+import graphql.execution.DataFetcherExceptionHandler
+import graphql.execution.DataFetcherExceptionHandlerResult
 import graphql.execution.preparsed.PreparsedDocumentProvider
 import java.util.Base64
 import java.util.concurrent.CompletableFuture
@@ -68,6 +71,62 @@ class Engine2StandardViaductTest {
 
         assertEquals(mapOf("attributed" to null), result.getData())
         assertEquals(listOf("attributed"), result.errors.single().path)
+    }
+
+    @Test
+    fun `engine2 sends stored resolver failures through the configured exception handler`() {
+        val sdl = "extend type Query { failure: String @resolver }"
+        val failure = IllegalStateException("private resolver failure")
+        val suppliedModule =
+            EngineTestModule(sdl) {
+                field("Query" to "failure") {
+                    resolver {
+                        fn { _, _, _, _, _ -> throw failure }
+                    }
+                }
+            }
+        val handlerCalls = AtomicInteger()
+        val handler =
+            DataFetcherExceptionHandler { parameters ->
+                handlerCalls.incrementAndGet()
+                assertSame(failure, parameters.exception)
+                val errors =
+                    listOf("FIRST", "SECOND").map { code ->
+                        GraphqlErrorBuilder.newError(parameters.dataFetchingEnvironment)
+                            .message("Public message $code")
+                            .extensions(mapOf("code" to code))
+                            .build()
+                    }
+                CompletableFuture.completedFuture(
+                    DataFetcherExceptionHandlerResult.newResult().errors(errors).build(),
+                )
+            }
+        val viaduct =
+            StandardViaduct.Builder()
+                .withTenantModuleInjectorFactory(
+                    MockExecutorCodeInjector(suppliedModule.mockExecutorRegistry),
+                ).withExecutorRegistryConfigSources(listOf(suppliedModule.toModuleConfigSource()))
+                .withSchemaConfiguration(SchemaConfiguration.fromSdl(sdl))
+                .withDataFetcherExceptionHandler(handler)
+                .withFlagManager(
+                    object : FlagManager {
+                        override fun isEnabled(flag: FlagManager.Flag): Boolean = flag == FlagManager.Flags.ENGINE2_ENABLED
+                    },
+                ).build()
+
+        val result =
+            runBlocking {
+                viaduct.execute(
+                    ExecutionInput.create(operationText = "{ attributed: failure }"),
+                    SchemaId.Base,
+                )
+            }
+
+        assertEquals(1, handlerCalls.get())
+        assertEquals(mapOf("attributed" to null), result.getData())
+        assertEquals(listOf("Public message FIRST", "Public message SECOND"), result.errors.map { it.message })
+        assertEquals(listOf(mapOf("code" to "FIRST"), mapOf("code" to "SECOND")), result.errors.map { it.extensions })
+        assertEquals(listOf(listOf("attributed"), listOf("attributed")), result.errors.map { it.path })
     }
 
     @Test

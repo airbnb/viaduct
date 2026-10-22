@@ -18,7 +18,9 @@ import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
 import java.util.concurrent.ExecutorService
 import kotlin.coroutines.CoroutineContext
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExecutorCoroutineDispatcher
+import viaduct.engine.runtime2.execution.QPlanExecutionSource
 import viaduct.engine.runtime2.execution.QPlanExecutionStrategy
 import viaduct.engine.runtime2.execution.QPlanInstrumentation
 import viaduct.engine.runtime2.execution.QPlanWiringFactory
@@ -34,7 +36,7 @@ import viaduct.graphql.schema.ViaductSchema
  */
 class ExecutionTestFixture private constructor(
     private val graphQL: GraphQL,
-    private val root: ObjectEngineResult? = null,
+    private val root: QPlanExecutionSource? = null,
     private val ownedResolverDispatcher: ExecutorCoroutineDispatcher? = null,
 ) : AutoCloseable {
     fun runQuery(
@@ -209,6 +211,7 @@ class ExecutionTestFixture private constructor(
             schemaSDL: String,
             schema: ViaductSchema,
             root: ObjectEngineResult,
+            requestScope: CoroutineScope,
         ): ExecutionTestFixture {
             val runtimeWiring =
                 RuntimeWiring
@@ -222,7 +225,7 @@ class ExecutionTestFixture private constructor(
                 ).transform { builder -> builder.additionalDirective(Directives.DeferDirective) }
             return ExecutionTestFixture(
                 graphQL = GraphQL.newGraphQL(graphQLSchema).build(),
-                root = root,
+                root = QPlanExecutionSource(root, requestScope),
             )
         }
     }

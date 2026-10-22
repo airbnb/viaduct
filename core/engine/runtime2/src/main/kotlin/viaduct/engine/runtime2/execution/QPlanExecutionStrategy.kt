@@ -48,7 +48,7 @@ class QPlanExecutionStrategy(
     private val sourceSchema: GraphQLSchema,
     private val resolverCoroutineContext: CoroutineContext,
     private val engineExecutionContextFactory: (ExecutionContext) -> EngineExecutionContext? = { null },
-    dataFetcherExceptionHandler: DataFetcherExceptionHandler =
+    private val dataFetcherExceptionHandler: DataFetcherExceptionHandler =
         SimpleDataFetcherExceptionHandler(),
 ) : AsyncExecutionStrategy(dataFetcherExceptionHandler) {
     override fun execute(
@@ -113,7 +113,7 @@ class QPlanExecutionStrategy(
             try {
                 val completionParameters =
                     parameters.transform { builder ->
-                        builder.source(QPlanExecutionSource(resolution.root, requestScope))
+                        builder.source(QPlanExecutionSource(resolution.root, requestScope, dataFetcherExceptionHandler))
                     }
                 if (executionContext.operationDefinition.operation == OperationDefinition.Operation.MUTATION) {
                     // Null propagation can finish GraphQL completion early. Every mutation must
