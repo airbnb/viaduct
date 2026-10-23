@@ -182,40 +182,6 @@ class SelectiveNodeResolversExecutionTest {
     @Nested
     inner class BasicExecutionTests {
         @Test
-        fun `simple selective node`() {
-            MockTenantModuleBootstrapper(
-                """
-                    extend type Query { foo: Foo }
-                    type Foo implements Node { id: ID!, x:Int, y:Int }
-                """.trimIndent()
-            ) {
-                field("Query" to "foo") {
-                    valueFromContext { it.createNodeReference("id", objectType("Foo")) }
-                }
-                type("Foo") {
-                    nodeUnbatchedExecutor(selective = true) { _, sels, _ ->
-                        createEngineObjectData(
-                            objectType,
-                            buildMap {
-                                if (sels!!.containsField("Foo", "x")) {
-                                    put("x", 2)
-                                }
-                            }
-                        )
-                    }
-                }
-                field("Foo" to "y") {
-                    resolver {
-                        objectSelections("x")
-                        fn { _, obj, _, _, _ -> obj.fetchAs<Int>("x") * 3 }
-                    }
-                }
-            }.runFeatureTest {
-                runQuery("{ foo { y } }").assertJson("{data: {foo: {y: 6}}}")
-            }
-        }
-
-        @Test
         fun `engine-managed node fields still resolve the node reference`() {
             val nodeCalls = AtomicInteger(0)
             lateinit var nodeReference: NodeEngineObjectData
@@ -280,91 +246,6 @@ class SelectiveNodeResolversExecutionTest {
             }
 
             assertEquals(1, nodeCalls.get())
-        }
-
-        @Test
-        fun `list of selective nodes`() {
-            MockTenantModuleBootstrapper(
-                """
-                    extend type Query { foos: [Foo] }
-                    type Foo implements Node { id: ID!, x:Int, y:Int }
-                """.trimIndent()
-            ) {
-                field("Query" to "foos") {
-                    valueFromContext {
-                        listOf(
-                            it.createNodeReference("1", objectType("Foo")),
-                            it.createNodeReference("2", objectType("Foo")),
-                        )
-                    }
-                }
-                type("Foo") {
-                    nodeUnbatchedExecutor(selective = true) { id, sels, _ ->
-                        createEngineObjectData(
-                            objectType,
-                            buildMap {
-                                if (sels!!.containsField("Foo", "x")) {
-                                    put("x", id.toInt() * 2)
-                                }
-                            }
-                        )
-                    }
-                }
-                field("Foo" to "y") {
-                    resolver {
-                        objectSelections("x")
-                        fn { _, obj, _, _, _ -> obj.fetchAs<Int>("x") * 3 }
-                    }
-                }
-            }.runFeatureTest {
-                runQuery("{ foos { y } }").assertJson("{data: {foos: [{y:6}, {y:12}]}}")
-            }
-        }
-
-        @Test
-        fun `nested list of selective nodes`() {
-            MockTenantModuleBootstrapper(
-                """
-                    extend type Query { foos: [[Foo]] }
-                    type Foo implements Node { id: ID!, x:Int, y:Int }
-                """.trimIndent()
-            ) {
-                field("Query" to "foos") {
-                    valueFromContext {
-                        listOf(
-                            listOf(
-                                it.createNodeReference("1", objectType("Foo")),
-                                it.createNodeReference("2", objectType("Foo")),
-                            ),
-                            listOf(
-                                it.createNodeReference("3", objectType("Foo")),
-                                it.createNodeReference("4", objectType("Foo")),
-                            )
-                        )
-                    }
-                }
-                type("Foo") {
-                    nodeUnbatchedExecutor(selective = true) { id, sels, _ ->
-                        createEngineObjectData(
-                            objectType,
-                            buildMap {
-                                if (sels!!.containsField("Foo", "x")) {
-                                    put("x", id.toInt() * 2)
-                                }
-                            }
-                        )
-                    }
-                }
-                field("Foo" to "y") {
-                    resolver {
-                        objectSelections("x")
-                        fn { _, obj, _, _, _ -> obj.fetchAs<Int>("x") * 3 }
-                    }
-                }
-            }.runFeatureTest {
-                runQuery("{ foos { y } }")
-                    .assertJson("{data: {foos: [[{y:6}, {y:12}], [{y:18}, {y:24}]]}}")
-            }
         }
 
         @Test
@@ -471,62 +352,6 @@ class SelectiveNodeResolversExecutionTest {
                         }
                     """.trimIndent()
                 ).assertJson("{data: {foo: {self: {id: \"foo\"}}}}")
-            }
-        }
-
-        @Test
-        fun `same node resolves different fields`() {
-            MockTenantModuleBootstrapper(
-                """
-                    extend type Query { foo: Foo }
-                    type Foo { barA: Bar, barB:Bar, x:Int  }
-                    type Bar implements Node { id: ID!, x: Int, y: Int }
-                """.trimIndent()
-            ) {
-                field("Query" to "foo") {
-                    valueFromContext {
-                        createEngineObjectData(schema.schema.getObjectType("Foo")!!, emptyMap())
-                    }
-                }
-
-                field("Foo" to "barA") {
-                    valueFromContext { ctx ->
-                        ctx.createNodeReference("bar", schema.schema.getObjectType("Bar")!!)
-                    }
-                }
-                field("Foo" to "barB") {
-                    valueFromContext { ctx ->
-                        ctx.createNodeReference("bar", schema.schema.getObjectType("Bar")!!)
-                    }
-                }
-                field("Foo" to "x") {
-                    resolver {
-                        objectSelections("barA { x } barB { y }")
-                        fn { _, obj, _, _, _ ->
-                            val barA = obj.fetchAs<EngineObjectData>("barA")
-                            val barB = obj.fetchAs<EngineObjectData>("barB")
-                            barA.fetchAs<Int>("x") * barB.fetchAs<Int>("y")
-                        }
-                    }
-                }
-
-                type("Bar") {
-                    nodeUnbatchedExecutor(selective = true) { _, sels, _ ->
-                        val values = buildMap {
-                            if (sels!!.containsField("Bar", "x")) {
-                                put("x", 2)
-                            }
-                            if (sels.containsField("Bar", "y")) {
-                                put("y", 3)
-                            }
-                        }
-
-                        createEngineObjectData(objectType, values)
-                    }
-                }
-            }.runFeatureTest(withoutDefaultQueryNodeResolvers = true) {
-                runQueryWithTimeout("{ foo { x } }")
-                    .assertJson("{ data: { foo: { x: 6 } } }")
             }
         }
 
