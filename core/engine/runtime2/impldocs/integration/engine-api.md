@@ -141,7 +141,7 @@ Unsupported input fails explicitly during registry construction, operation decod
 
 `EngineTestModule.runQPlanFeatureTest` is a test-only wrapper in `src/test/fixtures` that runs through production `StandardViaduct` wiring with `ENGINE2_ENABLED`. It bootstraps the mock module's field, node, and checker executors through module configs and the production dispatcher registry, and executes against an optionally scoped GraphQL schema. The wrapper converts legacy mock concrete-object maps, synchronous EOD implementations, and scalar representations into `ResolvedEngineObjectData` and compliant scalar values before returning executor results; Runtime2-owned EODs pass through unchanged. It also supplies fixture conveniences such as missing Query defaults, nullable-node completion, and synthetic inline Node IDs.
 
-Copied `runtime` engine tests live under `src/test/kotlin/viaduct/engine/runtime2/execution/viaductfeaturetests`. [Feature tests](feature-tests.md) defines how those tests are preserved and how intentional differences are recorded. Adapter-specific tests cover execution strategy, completion, cancellation, defer, schema scoping, registry construction, selection conversion, and variable declaration compilation.
+Shared `runtime` engine behavior lives in contracts under `engine/api/src/testFixtures`, with Runtime2 runners under `src/test/kotlin/viaduct/engine/runtime2/execution`. [Feature tests](feature-tests.md) defines how those tests are preserved and how intentional differences are recorded. Adapter-specific tests cover execution strategy, completion, cancellation, defer, schema scoping, registry construction, selection conversion, and variable declaration compilation.
 
 ## Resolver Observation
 

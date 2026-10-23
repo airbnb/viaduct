@@ -259,7 +259,7 @@ The focused mutation gate covers response-key collection, the full maintained-fa
 Run the service-backed nested execution and lifetime gate with:
 
 ```shell
-./gradlew :core:engine:runtime2:test --tests 'viaduct.engine.runtime2.execution.viaductfeaturetests.SubqueryExecutionTest*' --tests 'viaduct.engine.runtime2.execution.viaductfeaturetests.SubquerySchemaTest' --tests 'viaduct.engine.runtime2.execution.Engine2RequestLifetimeTest'
+./gradlew :core:engine:runtime2:test --tests 'viaduct.engine.runtime2.execution.SubqueryExecutionContractTest*' --tests 'viaduct.engine.runtime2.execution.Engine2SubquerySchemaTest' --tests 'viaduct.engine.runtime2.execution.Engine2RequestLifetimeTest'
 ```
 
 The subquery suites exercise nested Query and Mutation results, serial effects within each mutation call, concurrent independent mutation calls, parallel Query namespace work from a mutation resolver, variable isolation, selective materialization, and scoped schemas with full-schema resolver inputs. `Engine2RequestLifetimeTest` checks public-future and suspending-call cancellation, nested execution cancellation, mutation completion waiting, and concurrent request isolation. `QPlanDeferTest` separately checks incremental publisher lifetime. The `ALTERNATIVE` coroutine cases use structured Kotlin coroutines because Runtime2 supplies explicit invocation-local execution capabilities rather than the thread-local context required by the [`runtime`](../../../runtime) engine's `scopedAsync` helper.

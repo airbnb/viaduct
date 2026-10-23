@@ -8,6 +8,7 @@ import viaduct.engine.api.mocks.createEngineObjectData
 import viaduct.engine.api.mocks.fetchAs
 import viaduct.engine.api.mocks.getAs
 
+/** Examples of using EngineTestModule in shared engine tests. */
 interface BasicFeatureExecutionContract : QueryExecutionContract {
     val resolverSchemaSDL get() =
         """
@@ -128,6 +129,13 @@ interface BasicFeatureExecutionContract : QueryExecutionContract {
             }
             """.trimIndent()
 
+        // Here we can also do:
+        // ```
+        // val testSchema = mkSchemaWithWiring(schemaSDL)
+        // val testNodeType = testSchema.schema.getObjectType("TestNode")
+        // EngineTestModule(testSchema) { ... }
+        // ```
+        // then `testSchema` and `testNodeType` can be reused in the test.
         val module = EngineTestModule(schemaSDL) {
             field("Query" to "node") {
                 resolver {
@@ -152,7 +160,7 @@ interface BasicFeatureExecutionContract : QueryExecutionContract {
             module,
             "{ node(id: 123) { id ... on TestNode { name } } }",
             """{data: { node: { id: "123", name: "Test Node 123"} } }""",
-            withoutDefaultQueryNodeResolvers = true,
+            withoutDefaultQueryNodeResolvers = true, // Disabling system level node resolvers for test
         )
     }
 

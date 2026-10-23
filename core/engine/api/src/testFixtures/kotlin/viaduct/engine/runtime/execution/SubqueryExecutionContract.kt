@@ -2,6 +2,8 @@ package viaduct.engine.runtime.execution
 
 import graphql.language.Argument as GJArgument
 import graphql.language.StringValue as GJStringValue
+import java.util.Collections
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.withTimeout
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -17,6 +19,30 @@ import viaduct.engine.api.mocks.getAs
 import viaduct.graphql.test.assertJson
 import viaduct.service.api.spi.FlagManager
 
+/**
+ * Test harness for subquery execution via ExecutionHandle.
+ *
+ * This test suite validates the ctx.query() and ctx.mutation() APIs that enable
+ * resolvers to execute subqueries against the same GraphQL schema without rebuilding
+ * GraphQL-Java state.
+ *
+ * ## Architecture
+ *
+ * The subquery execution flow uses ExecutionHandle to maintain execution context:
+ * 1. Resolver calls ctx.query(selections)
+ * 2. ExecutionHandle provides access to ExecutionParameters (opaque to tenant code)
+ * 3. Engine builds QueryPlan from EngineSelectionSet
+ * 4. Engine resolves fields with proper access checks and variable scoping
+ * 5. Returns EngineObjectData with resolved fields
+ *
+ * ## Test Coverage
+ *
+ * - Basic ctx.query() from nested resolvers
+ * - Basic ctx.mutation() from nested resolvers
+ * - Variable scoping in subqueries
+ * - Error handling and propagation
+ * - Access check execution during subqueries
+ */
 interface SubqueryExecutionContract : QueryExecutionContract {
     val flagManager: FlagManager
 
@@ -1113,6 +1139,395 @@ interface SubqueryExecutionContract : QueryExecutionContract {
         }.runSubqueryTest {
             runQuery("{ container { selectiveValue } }")
                 .assertJson("""{"data": {"container": {"selectiveValue": 3}}}""")
+        }
+    }
+
+    @Test
+    fun `ctx query fails when selection type does not match Query root`() {
+        EngineTestModule(
+            """
+            extend type Query {
+                container: Container
+            }
+
+            type Container {
+                tryMismatchedSelection: Int
+            }
+
+            type User {
+                id: ID
+                name: String
+            }
+            """.trimIndent()
+        ) {
+            field("Query" to "container") {
+                resolver {
+                    fn { _, _, _, _, _ ->
+                        createEngineObjectData(
+                            schema.schema.getObjectType("Container"),
+                            mapOf()
+                        )
+                    }
+                }
+            }
+
+            field("Container" to "tryMismatchedSelection") {
+                resolver {
+                    fn { _, _, _, _, ctx ->
+                        // Create a EngineSelectionSet for User type, but try to execute as Query
+                        val rss = ctx.engineSelectionSetFactory
+                            .engineSelectionSet("User", "id name", emptyMap())
+
+                        ctx.query(
+                            selectionSet = rss
+                        )
+
+                        0
+                    }
+                }
+            }
+        }.runSubqueryTest {
+            val result = runQuery("{ container { tryMismatchedSelection } }")
+
+            assertEquals(1, result.errors.size)
+            assertTrue(
+                result.errors.first().message.contains("Cannot execute selections with type User on schema root type Query")
+            )
+        }
+    }
+
+    @Test
+    fun `ctx mutation executes fields serially`() {
+        val events = Collections.synchronizedList(mutableListOf<String>())
+
+        EngineTestModule(
+            """
+            extend type Query {
+                container: Container
+            }
+
+            extend type Mutation {
+                field1: Int
+                field2: Int
+            }
+
+            type Container {
+                triggerMutations: MutationResult
+            }
+
+            type MutationResult {
+                result1: Int
+                result2: Int
+            }
+            """.trimIndent()
+        ) {
+            field("Mutation" to "field1") {
+                resolver {
+                    fn { _, _, _, _, _ ->
+                        events.add("field1:start")
+                        events.add("field1:end")
+                        1
+                    }
+                }
+            }
+
+            field("Mutation" to "field2") {
+                resolver {
+                    fn { _, _, _, _, _ ->
+                        events.add("field2:start")
+                        events.add("field2:end")
+                        2
+                    }
+                }
+            }
+
+            field("Query" to "container") {
+                resolver {
+                    fn { _, _, _, _, _ ->
+                        createEngineObjectData(
+                            schema.schema.getObjectType("Container"),
+                            mapOf()
+                        )
+                    }
+                }
+            }
+
+            field("Container" to "triggerMutations") {
+                resolver {
+                    fn { _, _, _, _, ctx ->
+                        val rss = ctx.engineSelectionSetFactory
+                            .engineSelectionSet("Mutation", "field1 field2", emptyMap())
+
+                        val mutationResult = ctx.mutation(
+                            selectionSet = rss
+                        )
+
+                        val result1 = mutationResult.fetchAs<Int>("field1")
+                        val result2 = mutationResult.fetchAs<Int>("field2")
+
+                        createEngineObjectData(
+                            schema.schema.getObjectType("MutationResult"),
+                            mapOf("result1" to result1, "result2" to result2)
+                        )
+                    }
+                }
+            }
+        }.runSubqueryTest {
+            runQuery("{ container { triggerMutations { result1 result2 } } }")
+                .assertJson("""{"data": {"container": {"triggerMutations": {"result1": 1, "result2": 2}}}}""")
+
+            assertEquals(
+                listOf("field1:start", "field1:end", "field2:start", "field2:end"),
+                events,
+                "Mutation fields should execute serially: field1 must complete before field2 starts"
+            )
+        }
+    }
+
+    @Test
+    fun `ctx query from mutation resolver does not serialize namespaced query fields`() {
+        val q1Started = CompletableDeferred<Unit>()
+        val q2Started = CompletableDeferred<Unit>()
+        val q1CanFinish = CompletableDeferred<Unit>()
+        val parallelObservations = Collections.synchronizedList(mutableListOf<String>())
+
+        EngineTestModule(
+            """
+            extend type Query {
+                namespace: QueryNamespace
+            }
+
+            extend type Mutation {
+                triggerQuery: String
+            }
+
+            type QueryNamespace @namespaceType {
+                q1: Int
+                q2: Int
+            }
+            """.trimIndent()
+        ) {
+            field("Query" to "namespace") {
+                resolver {
+                    fn { _, _, _, _, _ ->
+                        createEngineObjectData(
+                            schema.schema.getObjectType("QueryNamespace"),
+                            mapOf()
+                        )
+                    }
+                }
+            }
+
+            field("QueryNamespace" to "q1") {
+                resolver {
+                    fn { _, _, _, _, _ ->
+                        q1Started.complete(Unit)
+                        q1CanFinish.await()
+                        1
+                    }
+                }
+            }
+
+            field("QueryNamespace" to "q2") {
+                resolver {
+                    fn { _, _, _, _, _ ->
+                        if (!q1CanFinish.isCompleted) {
+                            parallelObservations.add("q2 started before q1 completed")
+                        }
+                        q2Started.complete(Unit)
+                        2
+                    }
+                }
+            }
+
+            field("Mutation" to "triggerQuery") {
+                resolver {
+                    fn { _, _, _, _, ctx ->
+                        val rss = ctx.engineSelectionSetFactory
+                            .engineSelectionSet("Query", "namespace { q1 q2 }", emptyMap())
+
+                        val queryResult = scopedAsync {
+                            ctx.query(selectionSet = rss)
+                        }
+
+                        withTimeout(1000) { q1Started.await() }
+                        withTimeout(1000) { q2Started.await() }
+                        q1CanFinish.complete(Unit)
+
+                        val namespace = queryResult.await().fetchAs<EngineObjectData>("namespace")
+                        "${namespace.fetchAs<Int>("q1")}:${namespace.fetchAs<Int>("q2")}"
+                    }
+                }
+            }
+        }.runSubqueryTest {
+            runQuery("mutation { triggerQuery }")
+                .assertJson("""{"data": {"triggerQuery": "1:2"}}""")
+
+            assertEquals(
+                listOf("q2 started before q1 completed"),
+                parallelObservations,
+                "Query namespace fields should stay parallel when selected by ctx.query from a mutation resolver"
+            )
+        }
+    }
+
+    @Test
+    fun `regression -- ctx query hangs when a resolver reads an aliased object selection`() {
+        EngineTestModule(
+            """
+            extend type Query {
+                run: Int
+                read: Int
+                value: Int
+            }
+            """.trimIndent()
+        ) {
+            fieldWithValue("Query" to "value", 1)
+            field("Query" to "read") {
+                resolver {
+                    objectSelections("aliasedValue: value")
+                    fn { _, obj, _, _, _ ->
+                        obj.fetchAs<Int>("aliasedValue")
+                    }
+                }
+            }
+            field("Query" to "run") {
+                resolver {
+                    fn { _, _, _, _, ctx ->
+                        ctx
+                            .query(ctx.engineSelectionSetFactory.engineSelectionSet("Query", "read", emptyMap()))
+                            .fetchAs<Int>("read")
+                    }
+                }
+            }
+        }.runSubqueryTest {
+            withTimeout("{ run }").assertJson("{data: {run: 1}}")
+        }
+    }
+
+    @Test
+    fun `regression -- ctx query hangs when a resolver reads an object selection with arguments`() {
+        EngineTestModule(
+            """
+            extend type Query {
+                run: Int
+                read: Int
+                value(n: Int!): Int
+            }
+            """.trimIndent()
+        ) {
+            field("Query" to "value") {
+                resolver {
+                    fn { args, _, _, _, _ ->
+                        args.getAs<Int>("n")
+                    }
+                }
+            }
+
+            field("Query" to "read") {
+                resolver {
+                    objectSelections("value(n: 1)")
+                    fn { _, obj, _, _, _ ->
+                        obj.fetchAs<Int>("value")
+                    }
+                }
+            }
+
+            field("Query" to "run") {
+                resolver {
+                    fn { _, _, _, _, ctx ->
+                        ctx
+                            .query(ctx.engineSelectionSetFactory.engineSelectionSet("Query", "read", emptyMap()))
+                            .fetchAs<Int>("read")
+                    }
+                }
+            }
+        }.runSubqueryTest {
+            withTimeout("{ run }").assertJson("{data: {run: 1}}")
+        }
+    }
+
+    @Test
+    fun `regression -- ctx query hangs when a resolver reads a plain object selection`() {
+        EngineTestModule(
+            """
+            extend type Query {
+                run: Int
+                read: Int
+                value: Int
+            }
+            """.trimIndent()
+        ) {
+            fieldWithValue("Query" to "value", 1)
+            field("Query" to "read") {
+                resolver {
+                    objectSelections("value")
+                    fn { _, obj, _, _, _ ->
+                        obj.fetchAs<Int>("value")
+                    }
+                }
+            }
+            field("Query" to "run") {
+                resolver {
+                    fn { _, _, _, _, ctx ->
+                        ctx
+                            .query(ctx.engineSelectionSetFactory.engineSelectionSet("Query", "read", emptyMap()))
+                            .fetchAs<Int>("read")
+                    }
+                }
+            }
+        }.runSubqueryTest {
+            withTimeout("{ run }").assertJson("{data: {run: 1}}")
+        }
+    }
+
+    @Test
+    fun `ctx query into selective field with nested composite does not hang`() {
+        EngineTestModule(
+            """
+            extend type Query {
+                foo: Foo
+                entry: Int
+            }
+
+            type Foo { bar: Bar }
+
+            type Bar { baz: Int }
+            """.trimIndent()
+        ) {
+            field("Query" to "foo") {
+                resolverExecutor {
+                    MockFieldUnbatchedResolverExecutor(
+                        isSelective = true,
+                        resolverId = resolverId,
+                        unbatchedResolveFn = { _, _, _, _, _ ->
+                            createEngineObjectData(
+                                schema.schema.getObjectType("Foo"),
+                                mapOf("bar" to mapOf("baz" to 7))
+                            )
+                        }
+                    )
+                }
+            }
+
+            field("Query" to "entry") {
+                resolver {
+                    fn { _, _, _, _, ctx ->
+                        val rss = ctx.engineSelectionSetFactory
+                            .engineSelectionSet("Query", "foo { bar { baz } }", emptyMap())
+                        val queryResult = ctx.query(selectionSet = rss)
+                        withTimeout(1_000) {
+                            queryResult
+                                .fetchAs<EngineObjectData>("foo")
+                                .fetchAs<EngineObjectData>("bar")
+                                .fetchAs<Int>("baz")
+                        }
+                    }
+                }
+            }
+        }.runSubqueryTest {
+            runQuery("{ entry }")
+                .assertJson("""{"data": {"entry": 7}}""")
         }
     }
 }

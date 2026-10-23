@@ -1,6 +1,6 @@
 @file:Suppress("ForbiddenImport")
 
-package viaduct.engine.runtime2.execution.viaductfeaturetests
+package viaduct.engine.runtime2.execution
 
 import graphql.schema.GraphQLObjectType
 import kotlin.time.Duration.Companion.seconds
