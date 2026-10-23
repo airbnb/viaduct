@@ -38,6 +38,30 @@ The full Resolution benchmark intentionally has no dedicated profiling task. It 
 
 Profile timings include JFR overhead and only one measured iteration. Use the matching JMH benchmark, not the profile duration, to report an improvement. Increase the target's loop-count property when more samples are needed without admitting setup work.
 
+## Optimization Workflow
+
+Performance optimization follows a probe-first methodology that separates hypothesis testing from implementation:
+
+### Iteration cadence
+
+Use `compileKotlin` (~7s) as a fast syntax check during development. The benchmark task itself is a strong smoke test: it runs 100 real queries with full correctness verification via the reporting pass. Reserve `runtime2:check` (full test suite, lint, detekt, boundary checks) and `resolutionStress` (10K generated cases) for commit-time validation, not per-edit feedback.
+
+### Probe-driven hypothesis testing
+
+Before implementing a speculative optimization, add temporary counters to the hot path that measure how often the optimization's precondition holds. Run the benchmark once with probes and read the hit rates. This answers "is this optimization worth building?" in minutes rather than hours.
+
+Typical probes include: fast-path hit rate (empty, singleton, or trivially compact inputs), cache hit rate, branch frequency for rare features (parent fields, variables), and per-call input sizes. Make each probe a single counter increment at the relevant call site. Report probes by adding their output to the benchmark's reporting pass (e.g., in `ResolverBenchmark.reportOverheadStatistics`). Remove probes before committing.
+
+Explore multiple hypotheses simultaneously. One probed benchmark run can test five to ten hypotheses at once, which is faster than implementing and benchmarking each optimization separately. Prioritize hypotheses that probe data shows have >80% hit rates, then implement those and discard the rest.
+
+### Before/after measurement
+
+For a controlled comparison, stage or stash the change, run the benchmark task (not the profile task) on the baseline, restore the change, and run the same benchmark again. Use `resolutionOverheadBenchmark` which runs three measured iterations and reports mean ± error. Single-iteration profile timings are insufficient for improvement claims; they include JFR overhead and run-to-run variance. Record the exact commit, parameter overrides, and host for both runs.
+
+### Structural changes
+
+When a structural refactor (e.g., traversal fusion) creates a new code shape that does not immediately improve benchmarks, commit it with its measured results and then search for optimizations enabled by the new structure. Structural changes often expose new fast paths (empty checks, singleton specialization, cache opportunities) that produce larger cumulative gains than the structural change alone.
+
 ## Inspecting And Preserving Profiles
 
 The JDK `jfr` command provides useful first-pass reports:
@@ -86,7 +110,7 @@ About 42% of business field policies add privacy inputs, with occasional three-i
 
 Changing the checker profile or deterministic feature sections changes hidden engine demand, resolver activations, and projection counts. Treat the timing difference as a workload correction, not an engine optimization. The report counts activated fields in the primary result, including its hidden object demand, and stops at parent backedges. Excluded cells contribute no fields. Associated Query roots contribute to resolver and checker execution statistics; field counts are not the final client response size. A fixed-corpus regression compares the generated client-selected values across all queries before and after the checker replacement. Each deterministic feature section separately passes independent result correctness, exact application accounting with its known supplied-field exemptions, and from-field binding validation. Whole-corpus coverage and binding checks run against fresh prepared registries; the bulk corpus is not claimed to pass whole-result correctness replay, whose closed Query-OER validation currently encounters failed guards on non-invoked checker owners. Reports include actual installed checker counts, named inputs and populated roots per query, and composite input sizes so comparisons across that boundary remain interpretable.
 
-The direct Resolution full and overhead benchmarks compare both closure algorithms through the `precomputedConstructionDemand=false,true` JMH parameter. Restrict the comparison with `-PresolverBenchmarkPrecomputedConstructionDemand=false` or `true`. Both use identical corpus resources and eagerly compiled registries. Overhead measurement also reports JVM-wide allocated bytes sampled after invocation setup and before teardown, excluding query parsing, registry construction, and operation preparation. Small unrelated JVM allocations can contribute to that counter. The `ResolverBenchmark.registryStartup` JMH method measures complete fixture schema/registry assembly, including eager templates and prepared field outputs; use the GC profiler to measure its allocation cost. Startup is independent of the execution selector.
+The direct Resolution full and overhead benchmarks accept a `precomputedConstructionDemand` JMH parameter. The benchmark and profile tasks default to `true`, measuring the production precomputed construction-demand path. Override with `-PresolverBenchmarkPrecomputedConstructionDemand=false` to measure the non-precomputed path, or `-PresolverBenchmarkPrecomputedConstructionDemand=false,true` to compare both closure algorithms in separate JMH forks. Always use `precomputedConstructionDemand=true` for optimization work and regression detection: it is the production path, and the non-precomputed path is a correctness reference, not a performance target. Both use identical corpus resources and eagerly compiled registries. Overhead measurement also reports JVM-wide allocated bytes sampled after invocation setup and before teardown, excluding query parsing, registry construction, and operation preparation. Small unrelated JVM allocations can contribute to that counter. The `ResolverBenchmark.registryStartup` JMH method measures complete fixture schema/registry assembly, including eager templates and prepared field outputs; use the GC profiler to measure its allocation cost. Startup is independent of the execution selector.
 
 Control the repetition count with `-PresolverBenchmarkLoopCount=M`. One overhead JMH operation contains exactly `100 * M` top-level resolutions.
 

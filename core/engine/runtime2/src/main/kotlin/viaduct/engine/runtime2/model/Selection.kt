@@ -616,9 +616,29 @@ internal fun SelectionForest.containsVariables(): Boolean {
     return result
 }
 
+internal fun SelectionForest.containsParentKeys(): Boolean {
+    (this as? CachedSelectionForest)?.containsParentKeys?.let { return it }
+    val result = !all { selection ->
+        selection.key !is ObjectEngineResult.ParentKey &&
+            !selection.subselections.containsParentKeys()
+    }
+    (this as? CachedSelectionForest)?.containsParentKeys = result
+    return result
+}
+
+internal fun SelectionForest.containsParentKeys(interfaceParentFields: Set<ViaductSchema.Field>): Boolean {
+    if (interfaceParentFields.isEmpty()) return containsParentKeys()
+    return !all { selection ->
+        selection.key !is ObjectEngineResult.ParentKey &&
+            (selection.key is ObjectEngineResult.ObjectKey || selection.key.field !in interfaceParentFields) &&
+            !selection.subselections.containsParentKeys(interfaceParentFields)
+    }
+}
+
 private interface CachedSelectionForest : SelectionForest {
     var merged: ObjectSelectionForest?
     var containsVariables: Boolean?
+    var containsParentKeys: Boolean?
 }
 
 private class SingletonSelectionForest(
@@ -626,6 +646,7 @@ private class SingletonSelectionForest(
 ) : CachedSelectionForest {
     @Volatile override var merged: ObjectSelectionForest? = null
     @Volatile override var containsVariables: Boolean? = null
+    @Volatile override var containsParentKeys: Boolean? = null
     override val size: Int get() = 1
 
     override fun isEmpty(): Boolean = false
@@ -648,6 +669,7 @@ private abstract class AbstractSelectionForest(
 ) : CachedSelectionForest {
     @Volatile override var merged: ObjectSelectionForest? = null
     @Volatile override var containsVariables: Boolean? = null
+    @Volatile override var containsParentKeys: Boolean? = null
 
     init {
         SelectionForest.requireSupportedSize(occurrences.size)
@@ -683,6 +705,7 @@ private class ConcatenatedSelectionForest(
 ) : CachedSelectionForest {
     @Volatile override var merged: ObjectSelectionForest? = null
     @Volatile override var containsVariables: Boolean? = null
+    @Volatile override var containsParentKeys: Boolean? = null
     override val size: Int = left.size + right.size
 
     init {

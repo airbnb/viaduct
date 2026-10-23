@@ -1,5 +1,6 @@
 package viaduct.engine.runtime2.model.registry
 
+import viaduct.engine.runtime2.model.interfaceParentFields
 import viaduct.engine.runtime2.model.parentFieldRelations
 import viaduct.graphql.schema.ViaductSchema
 
@@ -16,6 +17,9 @@ sealed interface Assumptions {
 
     /** The validated parent-field-to-producer-field relation for [schema]. */
     val parentFieldRelations: Map<ViaductSchema.ObjectField, ViaductSchema.ObjectField>
+
+    /** Interface fields where at least one concrete implementation declares `@parent`. */
+    val interfaceParentFields: Set<ViaductSchema.Field>
 
     /** Whether resolver invocation and passive output traversal are selective to supplied demand. */
     val selectiveResolvers: Boolean
@@ -47,4 +51,6 @@ private class AssumptionsImpl(
 ) : Assumptions {
     override val parentFieldRelations: Map<ViaductSchema.ObjectField, ViaductSchema.ObjectField> =
         parentFieldRelations(schema)
+    override val interfaceParentFields: Set<ViaductSchema.Field> =
+        interfaceParentFields(schema)
 }

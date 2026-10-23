@@ -2,7 +2,9 @@ package viaduct.engine.runtime2.resolution.framework
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.ObjectSelectionForest
 import viaduct.engine.runtime2.model.merge
 import viaduct.engine.runtime2.model.requireObjectField
@@ -82,6 +84,41 @@ class ParentSuccessorDemandTest {
                 }
             }
         }
+    }
+
+    @Test
+    fun `abstract interface key becomes ParentKey after merge specialization`() {
+        val interfaceFixture = TestWorld.fromSDL(
+            schemaSDL = """
+                directive @parent on FIELD_DEFINITION
+                type Query { root: Root }
+                type Root { seed: Int child: Child }
+                type Child implements HasParent { parent: Root @parent }
+                interface HasParent { parent: Root }
+            """.trimIndent(),
+        )
+        val root = interfaceFixture.schema.requireObjectField("Root", "seed").containingDef
+        val child = interfaceFixture.schema.requireObjectField("Child", "parent").containingDef
+        val selections = interfaceFixture.schemas.fragmentFrom(
+            "fragment F on Root { child { ... on HasParent { parent { seed } } } }",
+        ).subselections
+
+        // Verify the precondition: the outer forest should see a ParentKey after merge
+        val childDemand = selections.merge(root).byKey().values.single { it.key.field.name == "child" }
+            .subselections.merge(child)
+        val parentKey = childDemand.byKey().values.singleOrNull { it.key.field.name == "parent" }?.key
+        assertTrue(
+            parentKey is ObjectEngineResult.ParentKey,
+            "Expected ParentKey after merge but got ${parentKey?.javaClass?.simpleName}",
+        )
+
+        val additions = selections.liftParentSuccessorDemand(interfaceFixture.assumptions)
+        assertFalse(additions.isEmpty(), "Interface parent field should produce lifted additions after specialization")
+        val rootDemand = (selections + additions).merge(root)
+        assertTrue(
+            rootDemand.fieldNames().contains("seed"),
+            "Expected seed in lifted demand but got ${rootDemand.fieldNames()}",
+        )
     }
 
     private fun ObjectSelectionForest.field(name: String) = byKey().values.single { it.key.field.name == name }

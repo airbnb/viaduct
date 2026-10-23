@@ -304,13 +304,20 @@ private fun ViaductSchema.ObjectField.findParentDemandInObjectFragment(
 ): ParentDemandAnalysis {
     val objectFragmentId = ObjectFragmentId(this, checked)
     context.parentDemandByObjectFragmentId[objectFragmentId]?.let { return it }
+    val registry = world.resolverRegistry
+    if (checked) {
+        if (this in registry && !registry.resolver(this).objectParentDemand.mayInduceParentDemand) {
+            return ParentDemandAnalysis(context.normalizer)
+        }
+    } else {
+        val checker = registry.fieldChecker(this)
+        if (checker != null && !registry.checkerParentDemand(checker).objectParentDemand.mayInduceParentDemand) {
+            return ParentDemandAnalysis(context.normalizer)
+        }
+    }
     val selections =
         if (checked) {
-            if (this in world.resolverRegistry) {
-                world.resolverRegistry.resolver(this).objectFragment
-            } else {
-                null
-            }
+            if (this in registry) registry.resolver(this).objectFragment else null
         } else {
             context.fieldChecker(this)?.objectFragment
         } ?: return ParentDemandAnalysis(context.normalizer)
@@ -362,6 +369,9 @@ private fun ViaductSchema.Object.findParentDemandInTypeFragment(
 ): ParentDemandAnalysis {
     context.parentDemandByType[this]?.let { return it }
     val checker = context.typeChecker(this) ?: return ParentDemandAnalysis(context.normalizer)
+    if (!world.resolverRegistry.checkerParentDemand(checker).objectParentDemand.mayInduceParentDemand) {
+        return ParentDemandAnalysis(context.normalizer)
+    }
     if (!context.expandingTypes.add(this)) return ParentDemandAnalysis(context.normalizer, reusable = false)
     val result = try {
         checker.objectFragment.withoutInclusionConditions().findParentDemandInSelectionForest(world, context, checked = false)

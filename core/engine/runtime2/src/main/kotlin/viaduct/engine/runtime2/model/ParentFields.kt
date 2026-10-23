@@ -64,4 +64,27 @@ internal fun parentFieldRelations(schema: ViaductSchema): Map<ViaductSchema.Obje
         }
 }
 
+/**
+ * Returns the set of non-[ViaductSchema.ObjectField] fields (interface/union fields) where at
+ * least one concrete implementation declares the same field with `@parent`. These abstract keys
+ * may become [ObjectEngineResult.ParentKey] after type specialization.
+ */
+internal fun interfaceParentFields(schema: ViaductSchema): Set<ViaductSchema.Field> {
+    val parentFieldNames = schema.types.values
+        .filterIsInstance<ViaductSchema.Object>()
+        .flatMap { it.fields }
+        .filter { it.isParentField() }
+        .mapTo(mutableSetOf()) { it.name }
+    if (parentFieldNames.isEmpty()) return emptySet()
+    return schema.types.values
+        .filterIsInstance<ViaductSchema.Interface>()
+        .flatMap { iface ->
+            iface.fields.filter { field ->
+                field.name in parentFieldNames &&
+                    iface.possibleObjectTypes.any { obj -> obj.field(field.name)?.isParentField() == true }
+            }
+        }
+        .toSet()
+}
+
 private fun ViaductSchema.Field.coordinate(): String = "${containingDef.name}.$name"

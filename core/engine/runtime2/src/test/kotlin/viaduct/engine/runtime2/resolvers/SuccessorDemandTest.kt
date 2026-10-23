@@ -234,6 +234,37 @@ class SuccessorDemandTest {
         )
     }
 
+    @Test
+    fun `grounded successor demand lifts interface parent field after specialization`() {
+        val worldFixture = TestWorld.fromSDL(
+            schemaSDL = """
+                directive @parent on FIELD_DEFINITION
+                type Query { root: Root }
+                type Root { seed: Int consumer: Int child: Child }
+                type Child implements HasParent { parent: Root @parent }
+                interface HasParent { parent: Root }
+            """.trimIndent(),
+            fieldResolvers = { schema ->
+                mapOf(
+                    schema.loweredSchema.requireObjectField("Root", "consumer") to
+                        fieldResolverOf(
+                            schema.fragmentFrom("fragment Input on Root { child { ... on HasParent { parent { seed } } } }"),
+                        ) { _, _ -> 0 },
+                )
+            },
+        )
+        val schema = worldFixture.schemas
+        val root = schema.loweredSchema.requireObjectField("Root", "seed").containingDef
+        val selections = schema.fragmentFrom("fragment F on Root { consumer }").subselections
+        val completed = SharedOperationContext.create(worldFixture.assumptions).let { op -> selections.successorDemand(op) }
+        val rootDemand = completed.merge(root)
+        val fieldNames = rootDemand.keys().objectKeyFieldNames()
+        assertTrue(
+            "seed" in fieldNames,
+            "Expected { consumer, child, seed } from interface parent lift but got $fieldNames",
+        )
+    }
+
     private fun Set<ObjectEngineResult.GroundKey>.fieldNames(): Set<String> = mapTo(mutableSetOf()) { key -> key.field.name }
 
     private fun Set<ObjectEngineResult.ObjectKey>.objectKeyFieldNames(): Set<String> = mapTo(mutableSetOf()) { key -> key.field.name }

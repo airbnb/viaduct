@@ -184,7 +184,7 @@ fun registerResolverBenchmarkTask(
                     "-p",
                     "loopCount=${resolverBenchmarkLoopCount.get()}",
                     "-p",
-                    "precomputedConstructionDemand=${resolverBenchmarkPrecomputedConstructionDemand.orElse("false,true").get()}",
+                    "precomputedConstructionDemand=${resolverBenchmarkPrecomputedConstructionDemand.orElse("true").get()}",
                 ) + reportArguments
         }
         doLast {
@@ -317,7 +317,7 @@ tasks.register<JavaExec>("resolutionOverheadProfile") {
                 "-p",
                 "loopCount=${resolverBenchmarkLoopCount.get()}",
                 "-p",
-                "precomputedConstructionDemand=${resolverBenchmarkPrecomputedConstructionDemand.orElse("false").get()}",
+                "precomputedConstructionDemand=${resolverBenchmarkPrecomputedConstructionDemand.orElse("true").get()}",
                 "-wi",
                 "1",
                 "-i",

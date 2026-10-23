@@ -3,6 +3,7 @@ package viaduct.engine.runtime2.resolution.framework
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.Selection
 import viaduct.engine.runtime2.model.SelectionForest
+import viaduct.engine.runtime2.model.containsParentKeys
 import viaduct.engine.runtime2.model.flatMapToSelectionForest
 import viaduct.engine.runtime2.model.guardedBy
 import viaduct.engine.runtime2.model.merge
@@ -19,7 +20,12 @@ import viaduct.graphql.schema.ViaductSchema
  * the next producer boundary, so grandparent selections continue to propagate outward. Only the
  * additions and their containing field paths are returned, with their inclusion conditions intact.
  */
-internal fun SelectionForest.liftParentSuccessorDemand(world: Assumptions): SelectionForest =
+internal fun SelectionForest.liftParentSuccessorDemand(world: Assumptions): SelectionForest {
+    if (world.parentFieldRelations.isEmpty() || !containsParentKeys(world.interfaceParentFields)) return selectionForestOf()
+    return liftParentSuccessorDemandWalk(world)
+}
+
+private fun SelectionForest.liftParentSuccessorDemandWalk(world: Assumptions): SelectionForest =
     flatMap { selection ->
         val nestedAdditions = selection.subselections.liftParentSuccessorDemand(world)
         val nestedDemand = selection.subselections + nestedAdditions
