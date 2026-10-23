@@ -6,7 +6,6 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.engine.api.mocks.EngineTestModule
 import viaduct.engine.api.mocks.createEngineObjectData
-import viaduct.engine.api.mocks.fetchAs
 import viaduct.engine.api.mocks.getAs
 import viaduct.engine.api.mocks.runFeatureTest
 import viaduct.engine.runtime.tenantloading.RequiredSelectionsAreInvalid
@@ -15,60 +14,6 @@ import viaduct.engine.runtime.tenantloading.RequiredSelectionsAreInvalid
  * Example test demonstrating the EngineFeatureTest framework usage.
  */
 class EngineFeatureTestExample {
-    @Test
-    fun `simple resolver test`() {
-        val schemaSDL = """
-            extend type Query {
-                hello: String
-                number: Int
-                withArgs(name: String!): String
-            }
-        """.trimIndent()
-
-        EngineTestModule(schemaSDL) {
-            fieldWithValue("Query" to "hello", "world")
-            fieldWithValue("Query" to "number", 42)
-            field("Query" to "withArgs") {
-                resolver {
-                    fn { args, _, _, _, _ ->
-                        "Hello, ${args["name"]}!"
-                    }
-                }
-            }
-        }.runFeatureTest {
-            runQuery("""{ hello number withArgs(name: "Alice") }""")
-                .assertJson("""{"data": {"hello": "world", "number": 42, "withArgs": "Hello, Alice!"}}""")
-        }
-    }
-
-    @Test
-    fun `simple query selections test`() {
-        EngineTestModule(
-            """
-            extend type Query {
-                one: Int
-                twoContainer: TwoContainer
-            }
-
-            type TwoContainer {
-                two: Int
-            }
-            """.trimIndent()
-        ) {
-            fieldWithValue("Query" to "one", 1)
-            fieldWithValue("Query" to "twoContainer", createEngineObjectData(queryType, mapOf()))
-            field("TwoContainer" to "two") {
-                resolver {
-                    querySelections("one")
-                    fn { _, _, qry, _, _ -> qry.fetchAs<Int>("one") + 1 }
-                }
-            }
-        }.runFeatureTest {
-            runQuery("""{ twoContainer { two } }""")
-                .assertJson("""{"data": {"twoContainer": {"two": 2}}}""")
-        }
-    }
-
     @Disabled("Test loops due to bug in engine - exposes issue with fieldWithValue + checker on same field")
     @Test
     fun `resolver with checker test`() {

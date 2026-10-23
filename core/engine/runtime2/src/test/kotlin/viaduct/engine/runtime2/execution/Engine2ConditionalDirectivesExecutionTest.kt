@@ -1,0 +1,5 @@
+package viaduct.engine.runtime2.execution
+
+import viaduct.engine.runtime.execution.ConditionalDirectivesExecutionContract
+
+class Engine2ConditionalDirectivesExecutionTest : ConditionalDirectivesExecutionContract, Engine2QueryExecutionContract

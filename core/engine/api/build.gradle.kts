@@ -26,6 +26,7 @@ dependencies {
     implementation(libs.jackson.module)
     implementation(libs.kotlin.reflect)
     implementation(libs.kotlinx.coroutines.core)
+    testFixturesApi(libs.junit)
 
     /** Viaduct dependencies **/
     api(libs.viaduct.service.api)

@@ -1,7 +1,4 @@
-package viaduct.engine.runtime2.execution.viaductfeaturetests
-
-// core/engine/runtime/src/test/kotlin/viaduct/engine/runtime/execution/SubquerySchemaTest.kt
-// Copied 3 out of 3 tests as of 2026-09-18
+package viaduct.engine.runtime.execution
 
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
@@ -9,9 +6,6 @@ import viaduct.engine.api.mocks.EngineTestModule
 import viaduct.engine.api.mocks.createEngineObjectData
 import viaduct.engine.api.mocks.createSchemaWithWiring
 import viaduct.engine.api.mocks.fetchAs
-import viaduct.engine.runtime.execution.mutation
-import viaduct.engine.runtime.execution.query
-import viaduct.engine.runtime2.execution.testing.runQPlanFeatureTest
 
 /**
  * Tests that verify subquery execution uses the correct schema.
@@ -41,18 +35,11 @@ import viaduct.engine.runtime2.execution.testing.runQPlanFeatureTest
  * 3. Subqueries are internal server-side calls that shouldn't be constrained by
  *    the client-visible schema scope
  */
-class SubquerySchemaTest {
-    /**
-     * Tests that subqueries can access fields from fullSchema even when the outer
-     * operation is executed with a scopedSchema that doesn't contain those fields.
-     *
-     * This simulates the scenario where:
-     * 1. The scopedSchema is a subset that doesn't include certain fields
-     * 2. A resolver executes a subquery requesting a field from fullSchema
-     * 3. The subquery should succeed because it uses fullSchema, not scopedSchema
-     */
-    @Test
-    fun `subquery uses fullSchema even when outer query uses scopedSchema`() {
+interface SubquerySchemaContract : QueryExecutionContract {
+    fun assertScopedQuery(
+        query: String,
+        expectedJson: String
+    ) {
         val fullSchemaSDL = """
             extend type Query {
                 publicField: String
@@ -79,7 +66,7 @@ class SubquerySchemaTest {
         val fullSchema = createSchemaWithWiring(fullSchemaSDL)
         val scopedSchema = createSchemaWithWiring(scopedSchemaSDL)
 
-        EngineTestModule(fullSchema) {
+        val module = EngineTestModule(fullSchema) {
             fieldWithValue("Query" to "publicField", "public value")
             fieldWithValue("Query" to "internalField", "internal value")
 
@@ -109,18 +96,14 @@ class SubquerySchemaTest {
                     }
                 }
             }
-        }.runQPlanFeatureTest(schema = scopedSchema) {
-            runQuery("{ container { derivedFromInternal } }")
-                .assertJson("""{"data": {"container": {"derivedFromInternal": "derived: internal value"}}}""")
         }
+        assertQuery(module, scopedSchema, query, expectedJson)
     }
 
-    /**
-     * Tests that ctx.mutation() subqueries use fullSchema even when executing
-     * with a scopedSchema that has a different mutation type.
-     */
-    @Test
-    fun `mutation subquery uses fullSchema even when outer query uses scopedSchema`() {
+    fun assertScopedMutation(
+        query: String,
+        expectedJson: String
+    ): Int {
         val fullSchemaSDL = """
             extend type Query {
                 container: Container
@@ -155,7 +138,7 @@ class SubquerySchemaTest {
 
         var internalCounter = 0
 
-        EngineTestModule(fullSchema) {
+        val module = EngineTestModule(fullSchema) {
             fieldWithValue("Mutation" to "publicMutation", 0)
 
             field("Mutation" to "internalMutation") {
@@ -191,21 +174,16 @@ class SubquerySchemaTest {
                     }
                 }
             }
-        }.runQPlanFeatureTest(schema = scopedSchema) {
-            runQuery("{ container { triggerInternalMutation } }")
-                .assertJson("""{"data": {"container": {"triggerInternalMutation": 1}}}""")
-
-            assertEquals(1, internalCounter, "Internal mutation should have been called")
         }
+        assertQuery(module, scopedSchema, query, expectedJson)
+        return internalCounter
     }
 
-    /**
-     * Regression test: Ensure non-scoped queries still work correctly.
-     * When fullSchema == scopedSchema (the common case), subqueries should work as before.
-     */
-    @Test
-    fun `subquery works normally when fullSchema equals scopedSchema`() {
-        EngineTestModule(
+    fun assertUnscopedQuery(
+        query: String,
+        expectedJson: String
+    ) {
+        val module = EngineTestModule(
             """
             extend type Query {
                 rootValue: Int
@@ -244,9 +222,50 @@ class SubquerySchemaTest {
                     }
                 }
             }
-        }.runQPlanFeatureTest {
-            runQuery("{ container { derivedFromQuery } }")
-                .assertJson("""{"data": {"container": {"derivedFromQuery": 84}}}""")
         }
+        assertQuery(module, query, expectedJson)
+    }
+
+    /**
+     * Tests that subqueries can access fields from fullSchema even when the outer
+     * operation is executed with a scopedSchema that doesn't contain those fields.
+     *
+     * This simulates the scenario where:
+     * 1. The scopedSchema is a subset that doesn't include certain fields
+     * 2. A resolver executes a subquery requesting a field from fullSchema
+     * 3. The subquery should succeed because it uses fullSchema, not scopedSchema
+     */
+    @Test
+    fun `subquery uses fullSchema even when outer query uses scopedSchema`() {
+        assertScopedQuery(
+            "{ container { derivedFromInternal } }",
+            """{"data": {"container": {"derivedFromInternal": "derived: internal value"}}}""",
+        )
+    }
+
+    /**
+     * Tests that ctx.mutation() subqueries use fullSchema even when executing
+     * with a scopedSchema that has a different mutation type.
+     */
+    @Test
+    fun `mutation subquery uses fullSchema even when outer query uses scopedSchema`() {
+        val internalMutationCalls =
+            assertScopedMutation(
+                "{ container { triggerInternalMutation } }",
+                """{"data": {"container": {"triggerInternalMutation": 1}}}""",
+            )
+        assertEquals(1, internalMutationCalls, "Internal mutation should have been called")
+    }
+
+    /**
+     * Regression test: Ensure non-scoped queries still work correctly.
+     * When fullSchema == scopedSchema (the common case), subqueries should work as before.
+     */
+    @Test
+    fun `subquery works normally when fullSchema equals scopedSchema`() {
+        assertUnscopedQuery(
+            "{ container { derivedFromQuery } }",
+            """{"data": {"container": {"derivedFromQuery": 84}}}""",
+        )
     }
 }

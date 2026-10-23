@@ -33,30 +33,6 @@ class NodeResolverTest {
     }
 
     @Test
-    fun `node resolver returns value`() {
-        EngineTestModule(schemaSDL) {
-            field("Query" to "baz") {
-                resolver {
-                    fn { _, _, _, _, ctx ->
-                        ctx.createNodeReference("1", schema.schema.getObjectType("Baz"))
-                    }
-                }
-            }
-            type("Baz") {
-                nodeUnbatchedExecutor { _, _, _ ->
-                    createEngineObjectData(
-                        objectType,
-                        mapOf("x" to 42)
-                    )
-                }
-            }
-        }.runFeatureTest {
-            runQuery("{baz {x}}")
-                .assertJson("""{"data": {"baz": {"x": 42}}}""")
-        }
-    }
-
-    @Test
     fun `node reference nested inside resolver response`() {
         EngineTestModule(schemaSDL) {
             field("Query" to "baz") {
@@ -83,51 +59,6 @@ class NodeResolverTest {
         }.runFeatureTest {
             runQuery("{baz { x anotherBaz { x } }}")
                 .assertJson("""{"data": {"baz": {"x": 1, "anotherBaz": {"x": 99}}}}""")
-        }
-    }
-
-    @Test
-    fun `node resolver is invoked for id-only resolution`() {
-        var invoked = false
-        EngineTestModule(schemaSDL) {
-            field("Query" to "baz") {
-                resolver {
-                    fn { _, _, _, _, ctx ->
-                        ctx.createNodeReference("1", schema.schema.getObjectType("Baz"))
-                    }
-                }
-            }
-            type("Baz") {
-                nodeUnbatchedExecutor { _, _, _ ->
-                    invoked = true
-                    createEngineObjectData(objectType, mapOf())
-                }
-            }
-        }.runFeatureTest {
-            runQuery("{ baz { id } }")
-            assertTrue(invoked)
-        }
-    }
-
-    @Test
-    fun `node resolver throws`() {
-        EngineTestModule(schemaSDL) {
-            field("Query" to "baz") {
-                resolver {
-                    fn { _, _, _, _, ctx ->
-                        ctx.createNodeReference("1", schema.schema.getObjectType("Baz"))
-                    }
-                }
-            }
-            type("Baz") {
-                nodeUnbatchedExecutor { _, _, _ ->
-                    throw RuntimeException("msg")
-                }
-            }
-        }.runFeatureTest {
-            val result = runQuery("{ baz { x } }")
-            assertEquals(mapOf("baz" to null), result.getData())
-            assertTrue(result.errors.any { it.path == listOf("baz") })
         }
     }
 

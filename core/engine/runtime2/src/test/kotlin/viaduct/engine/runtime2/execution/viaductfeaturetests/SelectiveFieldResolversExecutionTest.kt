@@ -61,6 +61,7 @@ import viaduct.engine.api.mocks.getAs
 import viaduct.engine.api.select.SelectionsParser
 import viaduct.engine.api.spi.FieldSelectivityProvider
 import viaduct.engine.api.spi.VariableFromFieldDefinitions
+import viaduct.engine.runtime.execution.RecordingInstrumentation
 import viaduct.engine.runtime2.execution.testing.QPlanFeatureTest
 import viaduct.engine.runtime2.execution.testing.runQPlanFeatureTest as runWithQPlan
 import viaduct.graphql.test.assertMatches

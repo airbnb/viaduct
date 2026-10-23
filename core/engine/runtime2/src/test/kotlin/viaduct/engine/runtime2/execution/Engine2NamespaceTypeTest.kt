@@ -1,0 +1,7 @@
+package viaduct.engine.runtime2.execution
+
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import viaduct.engine.runtime.execution.NamespaceTypeContract
+
+@ExperimentalCoroutinesApi
+class Engine2NamespaceTypeTest : NamespaceTypeContract, Engine2QueryExecutionContract

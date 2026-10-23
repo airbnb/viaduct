@@ -1,7 +1,4 @@
-package viaduct.engine.runtime2.execution.viaductfeaturetests
-
-// core/engine/runtime/src/test/kotlin/viaduct/engine/runtime/fixtures/EngineFeatureTestExample.kt
-// Copied 8 out of 8 tests as of 2026-08-21
+package viaduct.engine.runtime.execution
 
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -10,55 +7,40 @@ import viaduct.engine.api.mocks.EngineTestModule
 import viaduct.engine.api.mocks.createEngineObjectData
 import viaduct.engine.api.mocks.fetchAs
 import viaduct.engine.api.mocks.getAs
-import viaduct.engine.runtime2.execution.testing.runQPlanFeatureTest
 
-/**
- * Example test demonstrating the EngineFeatureTest framework usage.
- */
-class EngineFeatureTestExample {
-    @Test
-    fun `simple resolver test`() {
-        val schemaSDL =
-            """
-            extend type Query {
-                hello: String
-                number: Int
-                withArgs(name: String!): String
-            }
-            """.trimIndent()
+interface BasicFeatureExecutionContract : QueryExecutionContract {
+    val resolverSchemaSDL get() =
+        """
+        extend type Query {
+            hello: String
+            number: Int
+            withArgs(name: String!): String
+        }
+        """.trimIndent()
 
-        EngineTestModule(schemaSDL) {
+    val querySelectionSchemaSDL get() =
+        """
+        extend type Query {
+            one: Int
+            twoContainer: TwoContainer
+        }
+
+        type TwoContainer {
+            two: Int
+        }
+        """.trimIndent()
+
+    fun createResolverTestModule() =
+        EngineTestModule(resolverSchemaSDL) {
             fieldWithValue("Query" to "hello", "world")
             fieldWithValue("Query" to "number", 42)
             field("Query" to "withArgs") {
-                resolver {
-                    fn { args, _, _, _, _ ->
-                        "Hello, ${args["name"]}!"
-                    }
-                }
+                resolver { fn { args, _, _, _, _ -> "Hello, ${args["name"]}!" } }
             }
-        }.runQPlanFeatureTest {
-            runQuery("""{ hello number withArgs(name: "Alice") }""")
-                .assertJson(
-                    """{"data": {"hello": "world", "number": 42, "withArgs": "Hello, Alice!"}}""",
-                )
         }
-    }
 
-    @Test
-    fun `simple query selections test`() {
-        EngineTestModule(
-            """
-            extend type Query {
-                one: Int
-                twoContainer: TwoContainer
-            }
-
-            type TwoContainer {
-                two: Int
-            }
-            """.trimIndent()
-        ) {
+    fun createQuerySelectionTestModule() =
+        EngineTestModule(querySelectionSchemaSDL) {
             fieldWithValue("Query" to "one", 1)
             fieldWithValue("Query" to "twoContainer", createEngineObjectData(queryType, mapOf()))
             field("TwoContainer" to "two") {
@@ -67,10 +49,24 @@ class EngineFeatureTestExample {
                     fn { _, _, qry, _, _ -> qry.fetchAs<Int>("one") + 1 }
                 }
             }
-        }.runQPlanFeatureTest {
-            runQuery("""{ twoContainer { two } }""")
-                .assertJson("""{"data": {"twoContainer": {"two": 2}}}""")
         }
+
+    @Test
+    fun `simple resolver test`() {
+        assertQuery(
+            createResolverTestModule(),
+            """{ hello number withArgs(name: "Alice") }""",
+            """{"data": {"hello": "world", "number": 42, "withArgs": "Hello, Alice!"}}""",
+        )
+    }
+
+    @Test
+    fun `simple query selections test`() {
+        assertQuery(
+            createQuerySelectionTestModule(),
+            """{ twoContainer { two } }""",
+            """{"data": {"twoContainer": {"two": 2}}}""",
+        )
     }
 
     @Test
@@ -83,7 +79,7 @@ class EngineFeatureTestExample {
             }
         """.trimIndent()
 
-        EngineTestModule(schemaSDL) {
+        val module = EngineTestModule(schemaSDL) {
             fieldWithValue("Query" to "secureField", "secure data")
             field("Query" to "secureField") {
                 checker {
@@ -93,10 +89,8 @@ class EngineFeatureTestExample {
                     }
                 }
             }
-        }.runQPlanFeatureTest {
-            runQuery("{ secureField }")
-                .assertJson("""{"data": {"secureField": "secure data"}}""")
         }
+        assertQuery(module, "{ secureField }", """{"data": {"secureField": "secure data"}}""")
         assertTrue(checkerExecuted)
     }
 
@@ -110,7 +104,7 @@ class EngineFeatureTestExample {
             }
         """.trimIndent()
 
-        EngineTestModule(schemaSDL) {
+        val module = EngineTestModule(schemaSDL) {
             fieldWithValue("Query" to "secureField", "secure data")
             field("Query" to "secureField") {
                 checker {
@@ -119,10 +113,8 @@ class EngineFeatureTestExample {
                     }
                 }
             }
-        }.runQPlanFeatureTest {
-            runQuery("{ secureField }")
-                .assertJson("""{"data": {"secureField": "secure data"}}""")
         }
+        assertQuery(module, "{ secureField }", """{"data": {"secureField": "secure data"}}""")
         assertTrue(checkerExecuted)
     }
 
@@ -136,7 +128,7 @@ class EngineFeatureTestExample {
             }
             """.trimIndent()
 
-        EngineTestModule(schemaSDL) {
+        val module = EngineTestModule(schemaSDL) {
             field("Query" to "node") {
                 resolver {
                     fn { _, _, _, _, ctx ->
@@ -155,15 +147,18 @@ class EngineFeatureTestExample {
                     )
                 }
             }
-        }.runQPlanFeatureTest {
-            runQuery("{ node(id: 123) { id ... on TestNode { name } } }")
-                .assertJson("""{data: { node: { id: "123", name: "Test Node 123"} } }""")
         }
+        assertQuery(
+            module,
+            "{ node(id: 123) { id ... on TestNode { name } } }",
+            """{data: { node: { id: "123", name: "Test Node 123"} } }""",
+            withoutDefaultQueryNodeResolvers = true,
+        )
     }
 
     @Test
     fun `test from kdoc`() {
-        EngineTestModule(
+        val module = EngineTestModule(
             """
            extend type Query {
                hello: String
@@ -204,56 +199,39 @@ class EngineFeatureTestExample {
                     fn { _, _ -> /* validation logic */ }
                 }
             }
-        }.runQPlanFeatureTest {
-            runQuery("{ answer greeting }")
-                .assertJson("""{ data: { answer: 42, greeting: "Hello, World!" } }""")
         }
+        assertQuery(module, "{ answer greeting }", """{ data: { answer: 42, greeting: "Hello, World!" } }""")
     }
 
     @Test
     fun `test invalid object fragment`() {
-        val err = assertThrows<IllegalArgumentException> {
-            EngineTestModule(
-                """
-                extend type Query {
-                    foo: Int
-                }
-                """.trimIndent()
-            ) {
+        val error = assertThrows<Exception> {
+            val module = EngineTestModule("extend type Query { foo: Int }") {
                 field("Query" to "foo") {
                     resolver {
                         objectSelections("bar")
                         fn { _, _, _, _, _ -> null }
                     }
                 }
-            }.runQPlanFeatureTest {
-                runQuery("{ foo }")
             }
+            executeQuery(module, "{ foo }")
         }
-        assertTrue(err.message.orEmpty().contains("Invalid GraphQL fragment"), err.message.orEmpty())
+        assertTrue(error.message.orEmpty().contains("bar"), error.message.orEmpty())
     }
 
     @Test
     fun `test invalid query fragment`() {
-        val err = assertThrows<IllegalArgumentException> {
-            EngineTestModule(
-                """
-                extend type Query {
-                    foo: Int
-                }
-                """.trimIndent()
-            ) {
+        val error = assertThrows<Exception> {
+            val module = EngineTestModule("extend type Query { foo: Int }") {
                 field("Query" to "foo") {
                     resolver {
                         querySelections("bar")
                         fn { _, _, _, _, _ -> null }
                     }
                 }
-            }.runQPlanFeatureTest {
-                runQuery("{ foo }")
-                    .assertJson("""{ data: { answer: 42, greeting: "Hello, World!" } }""")
             }
+            executeQuery(module, "{ foo }")
         }
-        assertTrue(err.message.orEmpty().contains("Invalid GraphQL fragment"), err.message.orEmpty())
+        assertTrue(error.message.orEmpty().contains("bar"), error.message.orEmpty())
     }
 }

@@ -1,0 +1,5 @@
+package viaduct.engine.runtime2.execution
+
+import viaduct.engine.runtime.execution.BasicFeatureExecutionContract
+
+class Engine2BasicFeatureExecutionTest : BasicFeatureExecutionContract, Engine2QueryExecutionContract

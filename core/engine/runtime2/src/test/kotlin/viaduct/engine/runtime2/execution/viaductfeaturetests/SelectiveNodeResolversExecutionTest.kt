@@ -60,6 +60,7 @@ import viaduct.engine.api.mocks.fetchAs
 import viaduct.engine.api.mocks.getAs
 import viaduct.engine.api.select.SelectionsParser
 import viaduct.engine.api.spi.VariableFromFieldDefinitions
+import viaduct.engine.runtime.execution.RecordingInstrumentation
 import viaduct.engine.runtime.execution.query
 import viaduct.engine.runtime2.execution.testing.runQPlanFeatureTest
 import viaduct.engine.runtime2.model.EngineErrorData
