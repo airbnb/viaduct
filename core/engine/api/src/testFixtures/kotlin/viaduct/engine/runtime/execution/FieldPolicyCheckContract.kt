@@ -107,6 +107,8 @@ interface FieldPolicyCheckContract : QueryExecutionContract {
         assertEquals(1, result.errors.size)
         assertEquals(listOf("canNotAccessType"), result.errors.single().path)
         assertTrue(result.errors.single().message.contains("This field is not accessible"))
+        // TODO: should this be true? Will it change?
+        // The type checker should not be called because the field checker fails first.
         assertFalse(checkerCalled)
     }
 

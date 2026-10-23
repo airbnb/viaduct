@@ -6,6 +6,17 @@ import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.mocks.EngineTestModule
 
 interface QueryExecutionContract {
+    fun EngineTestModule.runContractTest(
+        withoutDefaultQueryNodeResolvers: Boolean = false,
+        schema: EngineSchema? = null,
+        engineConfig: EngineConfiguration? = null,
+        block: QueryRunner.() -> Unit,
+    ) {
+        runQueryTest(this, withoutDefaultQueryNodeResolvers, schema, engineConfig) { runner ->
+            runner.block()
+        }
+    }
+
     fun executeQuery(
         module: EngineTestModule,
         query: String,
@@ -50,6 +61,11 @@ class QueryRunner(
     private val execute: (String, Map<String, Any?>) -> ExecutionResult,
     private val executeWithin: (String, Map<String, Any?>, Long) -> ExecutionResult,
 ) {
+    fun runQuery(
+        query: String,
+        variables: Map<String, Any?> = emptyMap(),
+    ): ExecutionResult = invoke(query, variables)
+
     operator fun invoke(
         query: String,
         variables: Map<String, Any?> = emptyMap()

@@ -1,0 +1,1118 @@
+package viaduct.engine.runtime.execution
+
+import graphql.language.Argument as GJArgument
+import graphql.language.StringValue as GJStringValue
+import kotlinx.coroutines.withTimeout
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Test
+import viaduct.engine.EngineConfiguration
+import viaduct.engine.api.EngineObjectData
+import viaduct.engine.api.mocks.EngineTestModule
+import viaduct.engine.api.mocks.MockFieldUnbatchedResolverExecutor
+import viaduct.engine.api.mocks.createEngineObjectData
+import viaduct.engine.api.mocks.featureTestDefault
+import viaduct.engine.api.mocks.fetchAs
+import viaduct.engine.api.mocks.getAs
+import viaduct.graphql.test.assertJson
+import viaduct.service.api.spi.FlagManager
+
+interface SubqueryExecutionContract : QueryExecutionContract {
+    val flagManager: FlagManager
+
+    fun EngineTestModule.runSubqueryTest(
+        withoutDefaultQueryNodeResolvers: Boolean = false,
+        block: QueryRunner.() -> Unit,
+    ) {
+        runContractTest(
+            withoutDefaultQueryNodeResolvers = withoutDefaultQueryNodeResolvers,
+            engineConfig = EngineConfiguration.featureTestDefault.copy(flagManager = flagManager),
+            block = block,
+        )
+    }
+
+    @Test
+    fun `ctx query executes subquery against Query root`() {
+        EngineTestModule(
+            """
+            extend type Query {
+                rootValue: Int
+                container: Container
+            }
+
+            type Container {
+                derivedFromQuery: Int
+            }
+            """.trimIndent()
+        ) {
+            fieldWithValue("Query" to "rootValue", 42)
+
+            field("Query" to "container") {
+                resolver {
+                    fn { _, _, _, _, _ ->
+                        createEngineObjectData(
+                            schema.schema.getObjectType("Container"),
+                            mapOf()
+                        )
+                    }
+                }
+            }
+
+            field("Container" to "derivedFromQuery") {
+                resolver {
+                    fn { _, _, _, _, ctx ->
+                        // Create EngineSelectionSet to fetch from Query root
+                        val rss = ctx.engineSelectionSetFactory
+                            .engineSelectionSet("Query", "rootValue", emptyMap())
+
+                        // Execute subquery via ctx.query()
+                        val queryResult = ctx.query(
+                            selectionSet = rss
+                        )
+
+                        // Access resolved field and derive value
+                        val rootValue = queryResult.fetchAs<Int>("rootValue")
+                        rootValue * 2
+                    }
+                }
+            }
+        }.runSubqueryTest {
+            runQuery("{ container { derivedFromQuery } }")
+                .assertJson("""{"data": {"container": {"derivedFromQuery": 84}}}""")
+        }
+    }
+
+    @Test
+    fun `ctx query accepts resolver selection set`() {
+        EngineTestModule(
+            """
+            extend type Query {
+                foo: Foo
+            }
+
+            type Foo implements Node {
+                id: ID!
+                value: Int
+            }
+            """.trimIndent()
+        ) {
+            field("Query" to "node") {
+                resolver {
+                    fn { _, _, _, _, ctx ->
+                        ctx.createNodeReference("foo-1", schema.schema.getObjectType("Foo"))
+                    }
+                }
+            }
+
+            field("Query" to "foo") {
+                resolver {
+                    fn { _, _, _, selections, ctx ->
+                        val nodeSelections = selections!!.toNodelikeSelectionSet(
+                            "node",
+                            listOf(GJArgument("id", GJStringValue("foo-1")))
+                        )
+                        ctx.query(nodeSelections).fetchAs<EngineObjectData>("node")
+                    }
+                }
+            }
+
+            type("Foo") {
+                nodeUnbatchedExecutor(selective = true) { id, _, _ ->
+                    createEngineObjectData(
+                        objectType,
+                        mapOf(
+                            "id" to id,
+                            "value" to 42
+                        )
+                    )
+                }
+            }
+        }.runSubqueryTest(withoutDefaultQueryNodeResolvers = true) {
+            runQuery("{ foo { id value } }")
+                .assertJson("""{"data": {"foo": {"id": "foo-1", "value": 42}}}""")
+        }
+    }
+
+    @Test
+    fun `ctx query accesses multiple Query fields`() {
+        EngineTestModule(
+            """
+            extend type Query {
+                firstName: String
+                lastName: String
+                user: User
+            }
+
+            type User {
+                fullName: String
+            }
+            """.trimIndent()
+        ) {
+            fieldWithValue("Query" to "firstName", "Alice")
+            fieldWithValue("Query" to "lastName", "Smith")
+
+            field("Query" to "user") {
+                resolver {
+                    fn { _, _, _, _, _ ->
+                        createEngineObjectData(
+                            schema.schema.getObjectType("User"),
+                            mapOf()
+                        )
+                    }
+                }
+            }
+
+            field("User" to "fullName") {
+                resolver {
+                    fn { _, _, _, _, ctx ->
+                        // Fetch multiple fields from Query root in one subquery
+                        val rss = ctx.engineSelectionSetFactory
+                            .engineSelectionSet("Query", "firstName lastName", emptyMap())
+
+                        val queryResult = ctx.query(
+                            selectionSet = rss
+                        )
+
+                        val first = queryResult.fetchAs<String>("firstName")
+                        val last = queryResult.fetchAs<String>("lastName")
+                        "$first $last"
+                    }
+                }
+            }
+        }.runSubqueryTest {
+            runQuery("{ user { fullName } }")
+                .assertJson("""{"data": {"user": {"fullName": "Alice Smith"}}}""")
+        }
+    }
+
+    @Test
+    fun `ctx query with field arguments`() {
+        EngineTestModule(
+            """
+            extend type Query {
+                multiply(n: Int!): Int
+                calculator: Calculator
+            }
+
+            type Calculator {
+                double(input: Int!): Int
+            }
+            """.trimIndent()
+        ) {
+            field("Query" to "multiply") {
+                resolver {
+                    fn { args, _, _, _, _ ->
+                        args.getAs<Int>("n") * 2
+                    }
+                }
+            }
+
+            field("Query" to "calculator") {
+                resolver {
+                    fn { _, _, _, _, _ ->
+                        createEngineObjectData(
+                            schema.schema.getObjectType("Calculator"),
+                            mapOf()
+                        )
+                    }
+                }
+            }
+
+            field("Calculator" to "double") {
+                resolver {
+                    fn { args, _, _, _, ctx ->
+                        val input = args.getAs<Int>("input")
+
+                        // Execute subquery with field arguments
+                        val rss = ctx.engineSelectionSetFactory
+                            .engineSelectionSet("Query", "multiply(n: $input)", emptyMap())
+
+                        val queryResult = ctx.query(
+                            selectionSet = rss
+                        )
+
+                        queryResult.fetchAs<Int>("multiply")
+                    }
+                }
+            }
+        }.runSubqueryTest {
+            runQuery("{ calculator { double(input: 21) } }")
+                .assertJson("""{"data": {"calculator": {"double": 42}}}""")
+        }
+    }
+
+    @Test
+    fun `ctx query with GraphQL variables`() {
+        EngineTestModule(
+            """
+            extend type Query {
+                multiply(n: Int!): Int
+                calculator: Calculator
+            }
+
+            type Calculator {
+                double(input: Int!): Int
+            }
+            """.trimIndent()
+        ) {
+            field("Query" to "multiply") {
+                resolver {
+                    fn { args, _, _, _, _ ->
+                        args.getAs<Int>("n") * 2
+                    }
+                }
+            }
+
+            field("Query" to "calculator") {
+                resolver {
+                    fn { _, _, _, _, _ ->
+                        createEngineObjectData(
+                            schema.schema.getObjectType("Calculator"),
+                            mapOf()
+                        )
+                    }
+                }
+            }
+
+            field("Calculator" to "double") {
+                resolver {
+                    fn { args, _, _, _, ctx ->
+                        val input = args.getAs<Int>("input")
+
+                        val rss = ctx.engineSelectionSetFactory
+                            .engineSelectionSet("Query", "multiply(n: \$myVar)", mapOf("myVar" to input))
+
+                        val queryResult = ctx.query(
+                            selectionSet = rss
+                        )
+
+                        queryResult.fetchAs<Int>("multiply")
+                    }
+                }
+            }
+        }.runSubqueryTest {
+            runQuery("{ calculator { double(input: 21) } }")
+                .assertJson("""{"data": {"calculator": {"double": 42}}}""")
+        }
+    }
+
+    @Test
+    fun `ctx mutation with GraphQL variables`() {
+        EngineTestModule(
+            """
+            extend type Query {
+                container: Container
+            }
+
+            extend type Mutation {
+                addToCounter(amount: Int!): Int
+            }
+
+            type Container {
+                addAmount(value: Int!): Int
+            }
+            """.trimIndent()
+        ) {
+            var counter = 0
+
+            field("Mutation" to "addToCounter") {
+                resolver {
+                    fn { args, _, _, _, _ ->
+                        val amount = args.getAs<Int>("amount")
+                        counter += amount
+                        counter
+                    }
+                }
+            }
+
+            field("Query" to "container") {
+                resolver {
+                    fn { _, _, _, _, _ ->
+                        createEngineObjectData(
+                            schema.schema.getObjectType("Container"),
+                            mapOf()
+                        )
+                    }
+                }
+            }
+
+            field("Container" to "addAmount") {
+                resolver {
+                    fn { args, _, _, _, ctx ->
+                        val value = args.getAs<Int>("value")
+
+                        val rss = ctx.engineSelectionSetFactory
+                            .engineSelectionSet("Mutation", "addToCounter(amount: \$amt)", mapOf("amt" to value))
+
+                        val mutationResult = ctx.mutation(
+                            selectionSet = rss
+                        )
+
+                        mutationResult.fetchAs<Int>("addToCounter")
+                    }
+                }
+            }
+        }.runSubqueryTest {
+            runQuery("{ container { addAmount(value: 10) } }")
+                .assertJson("""{"data": {"container": {"addAmount": 10}}}""")
+
+            runQuery("{ container { addAmount(value: 5) } }")
+                .assertJson("""{"data": {"container": {"addAmount": 15}}}""")
+        }
+    }
+
+    @Test
+    fun `ctx mutation executes subquery against Mutation root`() {
+        EngineTestModule(
+            """
+            extend type Query {
+                container: Container
+            }
+
+            extend type Mutation {
+                incrementCounter: Int
+            }
+
+            type Container {
+                triggerMutation: Int
+            }
+            """.trimIndent()
+        ) {
+            var counter = 0
+
+            field("Mutation" to "incrementCounter") {
+                resolver {
+                    fn { _, _, _, _, _ ->
+                        ++counter
+                    }
+                }
+            }
+
+            field("Query" to "container") {
+                resolver {
+                    fn { _, _, _, _, _ ->
+                        createEngineObjectData(
+                            schema.schema.getObjectType("Container"),
+                            mapOf()
+                        )
+                    }
+                }
+            }
+
+            field("Container" to "triggerMutation") {
+                resolver {
+                    fn { _, _, _, _, ctx ->
+                        // Execute mutation subquery via ctx.mutation()
+                        val rss = ctx.engineSelectionSetFactory
+                            .engineSelectionSet("Mutation", "incrementCounter", emptyMap())
+
+                        val mutationResult = ctx.mutation(
+                            selectionSet = rss
+                        )
+
+                        mutationResult.fetchAs<Int>("incrementCounter")
+                    }
+                }
+            }
+        }.runSubqueryTest {
+            // First query: counter should be 1
+            runQuery("{ container { triggerMutation } }")
+                .assertJson("""{"data": {"container": {"triggerMutation": 1}}}""")
+
+            // Second query: counter should be 2
+            runQuery("{ container { triggerMutation } }")
+                .assertJson("""{"data": {"container": {"triggerMutation": 2}}}""")
+        }
+    }
+
+    @Test
+    fun `query resolver can execute mutation subquery at engine level`() {
+        // This tests an edge case: a Query field resolver calling ctx.mutation().
+        // While the generated tenant API prevents this (ctx.mutation() is only
+        // available in mutation resolvers), the engine itself supports this.
+        // This behavior is not recommended but is documented in subquery-execution.md.
+
+        EngineTestModule(
+            """
+            extend type Query {
+                queryFieldThatMutates: Int
+            }
+
+            extend type Mutation {
+                incrementCounter: Int
+            }
+            """.trimIndent()
+        ) {
+            var counter = 0
+
+            field("Mutation" to "incrementCounter") {
+                resolver {
+                    fn { _, _, _, _, _ ->
+                        ++counter
+                    }
+                }
+            }
+
+            field("Query" to "queryFieldThatMutates") {
+                resolver {
+                    fn { _, _, _, _, ctx ->
+                        // Execute mutation subquery from a query resolver
+                        // This is not recommended but the engine supports it
+                        val rss = ctx.engineSelectionSetFactory
+                            .engineSelectionSet("Mutation", "incrementCounter", emptyMap())
+
+                        val mutationResult = ctx.mutation(
+                            selectionSet = rss
+                        )
+
+                        mutationResult.fetchAs<Int>("incrementCounter")
+                    }
+                }
+            }
+        }.runSubqueryTest {
+            runQuery("{ queryFieldThatMutates }")
+                .assertJson("""{"data": {"queryFieldThatMutates": 1}}""")
+
+            // Verify mutation was actually executed
+            runQuery("{ queryFieldThatMutates }")
+                .assertJson("""{"data": {"queryFieldThatMutates": 2}}""")
+        }
+    }
+
+    @Test
+    fun `querySelections provides alternative to ctx query for simple cases`() {
+        // This test documents that querySelections() is the existing pattern for
+        // accessing Query root fields. ctx.query() is an alternative that provides
+        // more explicit control and works with ExecutionHandle.
+
+        EngineTestModule(
+            """
+            extend type Query {
+                rootValue: Int
+                container: Container
+            }
+
+            type Container {
+                viaQuerySelections: Int
+                viaCtxQuery: Int
+            }
+            """.trimIndent()
+        ) {
+            fieldWithValue("Query" to "rootValue", 100)
+
+            field("Query" to "container") {
+                resolver {
+                    fn { _, _, _, _, _ ->
+                        createEngineObjectData(
+                            schema.schema.getObjectType("Container"),
+                            mapOf()
+                        )
+                    }
+                }
+            }
+
+            // Pattern 1: Using querySelections (existing approach)
+            field("Container" to "viaQuerySelections") {
+                resolver {
+                    querySelections("rootValue")
+                    fn { _, _, qry, _, _ ->
+                        qry.fetchAs<Int>("rootValue")
+                    }
+                }
+            }
+
+            // Pattern 2: Using ctx.query() (new approach via ExecutionHandle)
+            field("Container" to "viaCtxQuery") {
+                resolver {
+                    fn { _, _, _, _, ctx ->
+                        val rss = ctx.engineSelectionSetFactory
+                            .engineSelectionSet("Query", "rootValue", emptyMap())
+
+                        val result = ctx.query(
+                            selectionSet = rss
+                        )
+
+                        result.fetchAs<Int>("rootValue")
+                    }
+                }
+            }
+        }.runSubqueryTest {
+            runQuery("{ container { viaQuerySelections viaCtxQuery } }")
+                .assertJson("""{"data": {"container": {"viaQuerySelections": 100, "viaCtxQuery": 100}}}""")
+        }
+    }
+
+    @Test
+    fun `nested subquery execution`() {
+        // Test that subqueries can themselves trigger additional subqueries
+        EngineTestModule(
+            """
+            extend type Query {
+                level1: Level1
+                baseValue: Int
+            }
+
+            type Level1 {
+                level2: Level2
+            }
+
+            type Level2 {
+                derivedValue: Int
+            }
+            """.trimIndent()
+        ) {
+            fieldWithValue("Query" to "baseValue", 10)
+
+            field("Query" to "level1") {
+                resolver {
+                    fn { _, _, _, _, _ ->
+                        createEngineObjectData(
+                            schema.schema.getObjectType("Level1"),
+                            mapOf()
+                        )
+                    }
+                }
+            }
+
+            field("Level1" to "level2") {
+                resolver {
+                    fn { _, _, _, _, _ ->
+                        createEngineObjectData(
+                            schema.schema.getObjectType("Level2"),
+                            mapOf()
+                        )
+                    }
+                }
+            }
+
+            field("Level2" to "derivedValue") {
+                resolver {
+                    fn { _, _, _, _, ctx ->
+                        // Nested resolver executing subquery
+                        val rss = ctx.engineSelectionSetFactory
+                            .engineSelectionSet("Query", "baseValue", emptyMap())
+
+                        val result = ctx.query(
+                            selectionSet = rss
+                        )
+
+                        result.fetchAs<Int>("baseValue") * 3
+                    }
+                }
+            }
+        }.runSubqueryTest {
+            runQuery("{ level1 { level2 { derivedValue } } }")
+                .assertJson("""{"data": {"level1": {"level2": {"derivedValue": 30}}}}""")
+        }
+    }
+
+    @Test
+    fun `nested subqueries with different variables are isolated`() {
+        EngineTestModule(
+            """
+            extend type Query {
+                multiply(n: Int!): Int
+                container: Container
+            }
+
+            type Container {
+                first: Int
+                second: Int
+            }
+            """.trimIndent()
+        ) {
+            field("Query" to "multiply") {
+                resolver {
+                    fn { args, _, _, _, _ ->
+                        args.getAs<Int>("n") * 2
+                    }
+                }
+            }
+
+            field("Query" to "container") {
+                resolver {
+                    fn { _, _, _, _, _ ->
+                        createEngineObjectData(
+                            schema.schema.getObjectType("Container"),
+                            mapOf()
+                        )
+                    }
+                }
+            }
+
+            field("Container" to "first") {
+                resolver {
+                    fn { _, _, _, _, ctx ->
+                        val rss = ctx.engineSelectionSetFactory
+                            .engineSelectionSet("Query", "multiply(n: \$myVar)", mapOf("myVar" to 10))
+
+                        val result = ctx.query(
+                            selectionSet = rss
+                        )
+
+                        result.fetchAs<Int>("multiply")
+                    }
+                }
+            }
+
+            field("Container" to "second") {
+                resolver {
+                    fn { _, _, _, _, ctx ->
+                        val rss = ctx.engineSelectionSetFactory
+                            .engineSelectionSet("Query", "multiply(n: \$myVar)", mapOf("myVar" to 25))
+
+                        val result = ctx.query(
+                            selectionSet = rss
+                        )
+
+                        result.fetchAs<Int>("multiply")
+                    }
+                }
+            }
+        }.runSubqueryTest {
+            runQuery("{ container { first second } }")
+                .assertJson("""{"data": {"container": {"first": 20, "second": 50}}}""")
+        }
+    }
+
+    @Test
+    fun `subquery variables do not leak to parent query`() {
+        EngineTestModule(
+            """
+            extend type Query {
+                valueFromVar(v: Int!): Int
+                container: Container
+            }
+
+            type Container {
+                useSubqueryVar: Int
+            }
+            """.trimIndent()
+        ) {
+            field("Query" to "valueFromVar") {
+                resolver {
+                    fn { args, _, _, _, _ ->
+                        args.getAs<Int>("v")
+                    }
+                }
+            }
+
+            field("Query" to "container") {
+                resolver {
+                    fn { _, _, _, _, _ ->
+                        createEngineObjectData(
+                            schema.schema.getObjectType("Container"),
+                            mapOf()
+                        )
+                    }
+                }
+            }
+
+            field("Container" to "useSubqueryVar") {
+                resolver {
+                    fn { _, _, _, _, ctx ->
+                        val rss = ctx.engineSelectionSetFactory
+                            .engineSelectionSet("Query", "valueFromVar(v: \$subVar)", mapOf("subVar" to 42))
+
+                        val result = ctx.query(
+                            selectionSet = rss
+                        )
+
+                        result.fetchAs<Int>("valueFromVar")
+                    }
+                }
+            }
+        }.runSubqueryTest {
+            runQuery("{ container { useSubqueryVar } }")
+                .assertJson("""{"data": {"container": {"useSubqueryVar": 42}}}""")
+        }
+    }
+
+    @Test
+    fun `ctx query with fragment spreads and variables`() {
+        EngineTestModule(
+            """
+            extend type Query {
+                user(id: ID!): User
+                aggregator: Aggregator
+            }
+
+            type User {
+                id: ID!
+                name: String
+                email: String
+                age: Int
+            }
+
+            type Aggregator {
+                fetchUserDetails(userId: ID!): UserSummary
+            }
+
+            type UserSummary {
+                userId: ID!
+                displayName: String
+                contactEmail: String
+                userAge: Int
+            }
+            """.trimIndent()
+        ) {
+            field("Query" to "user") {
+                resolver {
+                    fn { args, _, _, _, _ ->
+                        val id = args.getAs<String>("id")
+                        createEngineObjectData(
+                            schema.schema.getObjectType("User"),
+                            mapOf(
+                                "id" to id,
+                                "name" to "User$id",
+                                "email" to "user$id@example.com",
+                                "age" to (20 + id.toInt())
+                            )
+                        )
+                    }
+                }
+            }
+
+            field("Query" to "aggregator") {
+                resolver {
+                    fn { _, _, _, _, _ ->
+                        createEngineObjectData(
+                            schema.schema.getObjectType("Aggregator"),
+                            mapOf()
+                        )
+                    }
+                }
+            }
+
+            field("Aggregator" to "fetchUserDetails") {
+                resolver {
+                    fn { args, _, _, _, ctx ->
+                        val userId = args.getAs<String>("userId")
+
+                        // Use fragment spreads with variables in subquery selection
+                        // Fragment spreads are inlined by toSelectionSet()
+                        val rss = ctx.engineSelectionSetFactory.engineSelectionSet(
+                            "Query",
+                            """
+                            fragment UserBasicInfo on User { id name }
+                            fragment UserContactInfo on User { email }
+                            fragment UserDemographics on User { age }
+                            fragment Main on Query {
+                                user(id: ${'$'}uid) {
+                                    ...UserBasicInfo
+                                    ...UserContactInfo
+                                    ...UserDemographics
+                                }
+                            }
+                            """,
+                            mapOf("uid" to userId)
+                        )
+
+                        val queryResult = ctx.query(
+                            selectionSet = rss
+                        )
+
+                        // Fetch the nested EngineObjectData and extract fields
+                        val user = queryResult.fetchAs<EngineObjectData>("user")
+                        createEngineObjectData(
+                            schema.schema.getObjectType("UserSummary"),
+                            mapOf(
+                                "userId" to user.fetch("id"),
+                                "displayName" to user.fetch("name"),
+                                "contactEmail" to user.fetch("email"),
+                                "userAge" to user.fetch("age")
+                            )
+                        )
+                    }
+                }
+            }
+        }.runSubqueryTest {
+            runQuery("{ aggregator { fetchUserDetails(userId: \"5\") { userId displayName contactEmail userAge } } }")
+                .assertJson(
+                    """
+                    {
+                        "data": {
+                            "aggregator": {
+                                "fetchUserDetails": {
+                                    "userId": "5",
+                                    "displayName": "User5",
+                                    "contactEmail": "user5@example.com",
+                                    "userAge": 25
+                                }
+                            }
+                        }
+                    }
+                    """
+                )
+        }
+    }
+
+    @Test
+    fun `ctx mutation returns error when schema has no mutation type`() {
+        EngineTestModule(
+            """
+            extend type Query {
+                container: Container
+            }
+
+            extend type Mutation {
+                dummyMutation: Int
+            }
+
+            type Container {
+                tryMutation: Int
+            }
+            """.trimIndent()
+        ) {
+            fieldWithValue("Mutation" to "dummyMutation", 0)
+
+            field("Query" to "container") {
+                resolver {
+                    fn { _, _, _, _, _ ->
+                        createEngineObjectData(
+                            schema.schema.getObjectType("Container"),
+                            mapOf()
+                        )
+                    }
+                }
+            }
+
+            field("Container" to "tryMutation") {
+                resolver {
+                    fn { _, _, _, _, ctx ->
+                        val rss = ctx.engineSelectionSetFactory
+                            .engineSelectionSet("Mutation", "nonExistentMutation", emptyMap())
+
+                        ctx.mutation(
+                            selectionSet = rss
+                        )
+
+                        0
+                    }
+                }
+            }
+        }.runSubqueryTest {
+            val result = runQuery("{ container { tryMutation } }")
+
+            assertEquals(1, result.errors.size)
+            val error = result.errors.first()
+            assertTrue(
+                error.message.contains("Failed to build QueryPlan") ||
+                    error.message.contains("nonExistentMutation"),
+                "Expected error about QueryPlan build failure or missing field, got: ${error.message}"
+            )
+        }
+    }
+
+    @Test
+    fun `ctx query returns error with fieldResolutionFailed when resolver throws`() {
+        EngineTestModule(
+            """
+            extend type Query {
+                failingField: String
+                container: Container
+            }
+
+            type Container {
+                callFailingField: String
+            }
+            """.trimIndent()
+        ) {
+            field("Query" to "failingField") {
+                resolver {
+                    fn { _, _, _, _, _ ->
+                        throw RuntimeException("Resolver intentionally failed")
+                    }
+                }
+            }
+
+            field("Query" to "container") {
+                resolver {
+                    fn { _, _, _, _, _ ->
+                        createEngineObjectData(
+                            schema.schema.getObjectType("Container"),
+                            mapOf()
+                        )
+                    }
+                }
+            }
+
+            field("Container" to "callFailingField") {
+                resolver {
+                    fn { _, _, _, _, ctx ->
+                        val rss = ctx.engineSelectionSetFactory
+                            .engineSelectionSet("Query", "failingField", emptyMap())
+
+                        val result = ctx.query(
+                            selectionSet = rss
+                        )
+
+                        result.fetchAs<String>("failingField")
+                    }
+                }
+            }
+        }.runSubqueryTest {
+            val result = runQuery("{ container { callFailingField } }")
+
+            assertEquals(1, result.errors.size)
+            val error = result.errors.first()
+            assertTrue(
+                error.message.contains("Failed to resolve fields during subquery execution") ||
+                    error.message.contains("Resolver intentionally failed"),
+                "Expected error about field resolution failure, got: ${error.message}"
+            )
+        }
+    }
+
+    @Test
+    fun `ctx query preserves selective resolver materialization in returned EngineObjectData`() {
+        EngineTestModule(
+            """
+            extend type Query {
+                details: Details
+                container: Container
+            }
+
+            type Details {
+                a: Int
+                b: Int
+            }
+
+            type Container {
+                selectiveValue: Int
+            }
+            """.trimIndent()
+        ) {
+            field("Query" to "details") {
+                resolverExecutor {
+                    MockFieldUnbatchedResolverExecutor(
+                        isSelective = true,
+                        resolverId = resolverId,
+                        unbatchedResolveFn = { _, _, _, selections, _ ->
+                            val requestedSelections = selections
+                                ?.selections()
+                                ?.map { it.selectionName }
+                                ?.toSet()
+                                .orEmpty()
+                            createEngineObjectData(
+                                schema.schema.getObjectType("Details"),
+                                buildMap {
+                                    if ("a" in requestedSelections) put("a", 1)
+                                    if ("b" in requestedSelections) put("b", 2)
+                                }
+                            )
+                        }
+                    )
+                }
+            }
+
+            field("Query" to "container") {
+                resolver {
+                    fn { _, _, _, _, _ ->
+                        createEngineObjectData(
+                            schema.schema.getObjectType("Container"),
+                            mapOf()
+                        )
+                    }
+                }
+            }
+
+            field("Container" to "selectiveValue") {
+                resolver {
+                    fn { _, _, _, _, ctx ->
+                        val rss = ctx.engineSelectionSetFactory
+                            .engineSelectionSet("Query", "details { a }", emptyMap())
+
+                        val queryResult = ctx.query(selectionSet = rss)
+
+                        withTimeout(1_000) {
+                            queryResult
+                                .fetchAs<EngineObjectData>("details")
+                                .fetchAs<Int>("a")
+                        }
+                    }
+                }
+            }
+        }.runSubqueryTest {
+            runQuery("{ container { selectiveValue } }")
+                .assertJson("""{"data": {"container": {"selectiveValue": 1}}}""")
+        }
+    }
+
+    @Test
+    fun `ctx query preserves selective resolver materialization for merged root selections in returned EngineObjectData`() {
+        EngineTestModule(
+            """
+            extend type Query {
+                details: Details
+                container: Container
+            }
+
+            type Details {
+                a: Int
+                b: Int
+            }
+
+            type Container {
+                selectiveValue: Int
+            }
+            """.trimIndent()
+        ) {
+            field("Query" to "details") {
+                resolverExecutor {
+                    MockFieldUnbatchedResolverExecutor(
+                        isSelective = true,
+                        resolverId = resolverId,
+                        unbatchedResolveFn = { _, _, _, selections, _ ->
+                            val requestedSelections = selections
+                                ?.selections()
+                                ?.map { it.selectionName }
+                                ?.toSet()
+                                .orEmpty()
+                            createEngineObjectData(
+                                schema.schema.getObjectType("Details"),
+                                buildMap {
+                                    if ("a" in requestedSelections) put("a", 1)
+                                    if ("b" in requestedSelections) put("b", 2)
+                                }
+                            )
+                        }
+                    )
+                }
+            }
+
+            field("Query" to "container") {
+                resolver {
+                    fn { _, _, _, _, _ ->
+                        createEngineObjectData(
+                            schema.schema.getObjectType("Container"),
+                            mapOf()
+                        )
+                    }
+                }
+            }
+
+            field("Container" to "selectiveValue") {
+                resolver {
+                    fn { _, _, _, _, ctx ->
+                        val rss = ctx.engineSelectionSetFactory.engineSelectionSet(
+                            "Query",
+                            "details { a } details { b }",
+                            emptyMap()
+                        )
+
+                        val queryResult = ctx.query(selectionSet = rss)
+
+                        withTimeout(1_000) {
+                            val details = queryResult.fetchAs<EngineObjectData>("details")
+                            details.fetchAs<Int>("a") + details.fetchAs<Int>("b")
+                        }
+                    }
+                }
+            }
+        }.runSubqueryTest {
+            runQuery("{ container { selectiveValue } }")
+                .assertJson("""{"data": {"container": {"selectiveValue": 3}}}""")
+        }
+    }
+}

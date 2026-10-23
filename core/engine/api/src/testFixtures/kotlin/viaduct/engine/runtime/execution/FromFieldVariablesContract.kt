@@ -1,11 +1,7 @@
-package viaduct.engine.runtime2.execution.viaductfeaturetests
-
-// core/engine/runtime/src/test/kotlin/viaduct/engine/runtime/execution/FromFieldVariablesFeatureTest.kt
-// Copied 43 out of 43 tests as of 2026-08-21
+package viaduct.engine.runtime.execution
 
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
-import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.engine.api.FromArgumentVariable
@@ -25,10 +21,25 @@ import viaduct.engine.api.mocks.getAs
 import viaduct.engine.api.select.SelectionsParser
 import viaduct.engine.api.spi.VariableFromArgumentDefinitions
 import viaduct.engine.api.spi.VariableFromFieldDefinitions
-import viaduct.engine.runtime.tenantloading.InvalidVariableException
-import viaduct.engine.runtime2.execution.testing.runQPlanFeatureTest
+import viaduct.graphql.test.assertJson
 
-class FromFieldVariablesFeatureTest {
+interface FromFieldVariablesContract : QueryExecutionContract {
+    fun invalidVariableName(error: Throwable): String
+
+    fun isRequiredSelectionsCycle(error: Throwable): Boolean
+
+    fun assertIncompatibleVariableError(
+        error: Throwable,
+        variableName: String,
+        providerPath: String
+    ) {
+        assertEquals(variableName, invalidVariableName(error.unwrap()))
+    }
+
+    fun assertRequiredSelectionsCycleError(error: Throwable) {
+        assertTrue(isRequiredSelectionsCycle(error.unwrap()))
+    }
+
     @Test
     fun `from object field -- simple`() =
         EngineTestModule("extend type Query { x:Int, y(b:Int):Int, z:Int }") {
@@ -45,7 +56,7 @@ class FromFieldVariablesFeatureTest {
                 }
             }
             fieldWithValue("Query" to "z", 2)
-        }.runQPlanFeatureTest {
+        }.runContractTest {
             runQuery("{x}").assertJson("{data: {x: 30}}")
         }
 
@@ -53,9 +64,9 @@ class FromFieldVariablesFeatureTest {
     fun `from object field -- variables used by field on non-root object`() =
         EngineTestModule(
             """
-            type Obj { x:Int, y(b:Int):Int, z:Int }
-            extend type Query { obj:Obj }
-            """.trimIndent(),
+                type Obj { x:Int, y(b:Int):Int, z:Int }
+                extend type Query { obj:Obj }
+            """.trimIndent()
         ) {
             fieldWithFromFieldVariables(
                 coord = "Obj" to "x",
@@ -73,41 +84,12 @@ class FromFieldVariablesFeatureTest {
             field("Query" to "obj") {
                 resolver {
                     fn { _, _, _, _, _ ->
-                        createEngineObjectData(
-                            requireNotNull(schema.schema.getObjectType("Obj")),
-                            emptyMap(),
-                        )
+                        createEngineObjectData(schema.schema.getObjectType("Obj"), emptyMap())
                     }
                 }
             }
-        }.runQPlanFeatureTest {
+        }.runContractTest {
             runQuery("{ obj { x } }").assertJson("{data: {obj: {x: 30}}}")
-        }
-
-    @Disabled("TODO: Mutation")
-    @Test
-    fun `from object field -- simple mutation field`() =
-        EngineTestModule(
-            """
-                extend type Mutation { x:Int, y(b:Int):Int, z:Int }
-                extend type Query { empty:Int }
-            """.trimIndent()
-        ) {
-            fieldWithFromFieldVariables(
-                coord = "Mutation" to "x",
-                objectSelectionsText = "y(b:\$b), z",
-                variables = listOf(FromObjectFieldVariable("b", "z")),
-            ) { _, obj, _, _, _ ->
-                obj.fetchAs<Int>("y") * 5
-            }
-            field("Mutation" to "y") {
-                resolver {
-                    fn { args, _, _, _, _ -> args.getAs<Int>("b") * 3 }
-                }
-            }
-            fieldWithValue("Mutation" to "z", 2)
-        }.runQPlanFeatureTest {
-            runQuery("mutation { x }").assertJson("{data: {x: 30}}")
         }
 
     @Test
@@ -130,7 +112,7 @@ class FromFieldVariablesFeatureTest {
                     fn { args, _, _, _, _ -> args.getAs<Int>("c") * 3 }
                 }
             }
-        }.runQPlanFeatureTest {
+        }.runContractTest {
             runQuery("{ x }").assertJson("{data: {x: 210}}")
         }
 
@@ -154,7 +136,7 @@ class FromFieldVariablesFeatureTest {
                     fn { args, _, _, _, _ -> args.getAs<Int>("c") * 3 }
                 }
             }
-        }.runQPlanFeatureTest {
+        }.runContractTest {
             runQuery("{x}").assertJson("{data: {x: 210}}")
         }
 
@@ -178,7 +160,7 @@ class FromFieldVariablesFeatureTest {
                     fn { args, _, _, _, _ -> (args["c"] as? Int) ?: -1 }
                 }
             }
-        }.runQPlanFeatureTest {
+        }.runContractTest {
             runQuery("{ x }").assertJson("{data: {x: -6}}")
         }
 
@@ -198,7 +180,7 @@ class FromFieldVariablesFeatureTest {
                 }
             }
             fieldWithValue("Query" to "z", 2)
-        }.runQPlanFeatureTest {
+        }.runContractTest {
             runQuery("{x}").assertJson("{data: {x: 30}}")
         }
 
@@ -220,7 +202,7 @@ class FromFieldVariablesFeatureTest {
                 }
             }
             fieldWithValue("Query" to "z", listOf(2, 3, 5))
-        }.runQPlanFeatureTest {
+        }.runContractTest {
             runQuery("{x}").assertJson("{data: {x: 210}}")
         }
 
@@ -246,7 +228,7 @@ class FromFieldVariablesFeatureTest {
             }
             fieldWithValue("Query" to "z", 3)
             fieldWithValue("Query" to "w", 2)
-        }.runQPlanFeatureTest {
+        }.runContractTest {
             runQuery("{x}").assertJson("{data: {x: 210}}")
         }
 
@@ -274,7 +256,7 @@ class FromFieldVariablesFeatureTest {
                 }
             }
             fieldWithValue("Query" to "w", 2)
-        }.runQPlanFeatureTest {
+        }.runContractTest {
             runQuery("{x}").assertJson("{data: {x: 210}}")
         }
 
@@ -282,9 +264,9 @@ class FromFieldVariablesFeatureTest {
     fun `from object field -- selection traverses through object`() =
         EngineTestModule(
             """
-            extend type Query { x:Int, y(b:Int):Int, z:Obj }
-            type Obj { w:Int }
-            """.trimIndent(),
+                extend type Query { x:Int, y(b:Int):Int, z:Obj }
+                type Obj { w:Int }
+            """.trimIndent()
         ) {
             fieldWithFromFieldVariables(
                 coord = "Query" to "x",
@@ -301,14 +283,11 @@ class FromFieldVariablesFeatureTest {
             field("Query" to "z") {
                 resolver {
                     fn { _, _, _, _, _ ->
-                        createEngineObjectData(
-                            requireNotNull(schema.schema.getObjectType("Obj")),
-                            mapOf("w" to 2),
-                        )
+                        createEngineObjectData(schema.schema.getObjectType("Obj"), mapOf("w" to 2))
                     }
                 }
             }
-        }.runQPlanFeatureTest {
+        }.runContractTest {
             runQuery("{x}").assertJson("{data: {x: 30}}")
         }
 
@@ -316,9 +295,9 @@ class FromFieldVariablesFeatureTest {
     fun `from object field -- selection traverses through null object`() =
         EngineTestModule(
             """
-            extend type Query { x:Int, y(b:Int):Int!, z:Obj }
-            type Obj { w:Int }
-            """.trimIndent(),
+                extend type Query { x:Int, y(b:Int):Int!, z:Obj }
+                type Obj { w:Int }
+            """.trimIndent()
         ) {
             fieldWithFromFieldVariables(
                 coord = "Query" to "x",
@@ -333,7 +312,7 @@ class FromFieldVariablesFeatureTest {
                 }
             }
             fieldWithValue("Query" to "z", null)
-        }.runQPlanFeatureTest {
+        }.runContractTest {
             runQuery("{ x }").assertJson("{data: {x: -15}}")
         }
 
@@ -362,19 +341,19 @@ class FromFieldVariablesFeatureTest {
                 field("Query" to "iface") {
                     resolver {
                         fn { _, _, _, _, _ ->
-                            createEngineObjectData(requireNotNull(schema.schema.getObjectType("Foo")), mapOf("value" to "FOO"))
+                            createEngineObjectData(schema.schema.getObjectType("Foo"), mapOf("value" to "FOO"))
                         }
                     }
                 }
-            }.runQPlanFeatureTest { }
-        }.unwrapAs<InvalidVariableException>()
+            }.runContractTest { }
+        }.unwrap()
 
-        assertEquals("x", err.variableName)
+        assertEquals("x", invalidVariableName(err))
     }
 
     @Test
     fun `invalid from object field -- selection output type is not compatible with variable input type -- nullability mismatch`() {
-        val err = assertThrows<IllegalArgumentException> {
+        val err = assertThrows<Throwable> {
             EngineTestModule("extend type Query { x:Int, y(b:Int!):Int!, z:Int }") {
                 fieldWithFromFieldVariables(
                     coord = "Query" to "x",
@@ -383,19 +362,15 @@ class FromFieldVariablesFeatureTest {
                 ) { _, _, _, _, _ -> 0 }
                 fieldWithValue("Query" to "y", 0)
                 fieldWithValue("Query" to "z", null)
-            }.runQPlanFeatureTest { }
+            }.runContractTest { }
         }
-        assertTrue(
-            err.message.orEmpty().contains(
-                "Variable b object provider path z is incompatible with one of its argument locations",
-            ),
-            err.message.orEmpty(),
-        )
+
+        assertIncompatibleVariableError(err, "b", "z")
     }
 
     @Test
     fun `invalid from object field -- selection output type is not compatible with variable input type -- type mismatch`() {
-        val err = assertThrows<IllegalArgumentException> {
+        val err = assertThrows<Throwable> {
             EngineTestModule("extend type Query { x:Int, y(b:Int!):Int!, z:String! }") {
                 fieldWithFromFieldVariables(
                     coord = "Query" to "x",
@@ -404,14 +379,10 @@ class FromFieldVariablesFeatureTest {
                 ) { _, _, _, _, _ -> 0 }
                 fieldWithValue("Query" to "y", 0)
                 fieldWithValue("Query" to "z", "")
-            }.runQPlanFeatureTest { }
+            }.runContractTest { }
         }
-        assertTrue(
-            err.message.orEmpty().contains(
-                "Variable b object provider path z is incompatible with one of its argument locations",
-            ),
-            err.message.orEmpty(),
-        )
+
+        assertIncompatibleVariableError(err, "b", "z")
     }
 
     @Test
@@ -430,7 +401,7 @@ class FromFieldVariablesFeatureTest {
                 }
             }
             fieldWithValue("Query" to "z", 3)
-        }.runQPlanFeatureTest {
+        }.runContractTest {
             runQuery(
                 "query Q(\$vara:Int!) {x(a:\$vara)}",
                 mapOf("vara" to 2),
@@ -454,12 +425,8 @@ class FromFieldVariablesFeatureTest {
             ) { _, obj, _, _, _ ->
                 obj.fetchAs<Int>("z") * 3
             }
-            field("Query" to "z") {
-                resolver {
-                    fn { _, _, _, _, _ -> 2 }
-                }
-            }
-        }.runQPlanFeatureTest {
+            fieldWithValue("Query" to "z", 2)
+        }.runContractTest {
             runQuery("{x, y}").assertJson("{data: {x: 10, y: 6}}")
         }
 
@@ -474,10 +441,10 @@ class FromFieldVariablesFeatureTest {
                 ) { _, _, _, _, _ -> error("should not execute") }
                 fieldWithValue("Query" to "y", true)
                 fieldWithValue("Query" to "z", true)
-            }.runQPlanFeatureTest { }
-        }.unwrapAs<InvalidVariableException>()
+            }.runContractTest { }
+        }.unwrap()
 
-        assertEquals("z", err.variableName)
+        assertEquals("z", invalidVariableName(err))
     }
 
     @Test
@@ -494,7 +461,7 @@ class FromFieldVariablesFeatureTest {
                         fn { _, _, _, _, _ -> error("should not execute") }
                     }
                 }
-            }.runQPlanFeatureTest { }
+            }.runContractTest { }
         }.unwrap()
 
         assertTrue(err is VariableCycleException)
@@ -509,7 +476,7 @@ class FromFieldVariablesFeatureTest {
                     objectSelectionsText = "x(a:\$a)",
                     variables = listOf(FromObjectFieldVariable("a", "x")),
                 ) { _, _, _, _, _ -> error("should not execute") }
-            }.runQPlanFeatureTest { }
+            }.runContractTest { }
         }.unwrap()
 
         assertTrue(err is VariableCycleException)
@@ -532,7 +499,7 @@ class FromFieldVariablesFeatureTest {
                         fn { _, _, _, _, _ -> error("should not execute") }
                     }
                 }
-            }.runQPlanFeatureTest { }
+            }.runContractTest { }
         }.unwrap()
 
         assertTrue(err is VariableCycleException)
@@ -540,7 +507,7 @@ class FromFieldVariablesFeatureTest {
 
     @Test
     fun `invalid from object field -- deadlock between 2 variables -- diff selection sets`() {
-        val err = assertThrows<IllegalArgumentException> {
+        val err = assertThrows<Throwable> {
             EngineTestModule("extend type Query { x(a:Int):Int, y(b:Int):Int, z:Int }") {
                 fieldWithFromFieldVariables(
                     coord = "Query" to "x",
@@ -552,12 +519,10 @@ class FromFieldVariablesFeatureTest {
                     objectSelectionsText = "x(a:\$a), z",
                     variables = listOf(FromObjectFieldVariable("a", "z")),
                 ) { _, _, _, _, _ -> error("should not execute") }
-            }.runQPlanFeatureTest { }
+            }.runContractTest { }
         }
-        assertTrue(
-            err.message.orEmpty().contains("Resolver object fragments contain a demand cycle"),
-            err.message.orEmpty(),
-        )
+
+        assertRequiredSelectionsCycleError(err)
     }
 
     @Test
@@ -570,7 +535,7 @@ class FromFieldVariablesFeatureTest {
                     variables = listOf(FromQueryFieldVariable("b", "invalidField")),
                 ) { _, _, _, _, _ -> error("should not execute") }
                 fieldWithValue("Query" to "y", 2)
-            }.runQPlanFeatureTest { }
+            }.runContractTest { }
         }.unwrapAs<IllegalArgumentException>()
 
         assertTrue(checkNotNull(err.message).contains("No selections found for path"), err.message.orEmpty())
@@ -578,7 +543,7 @@ class FromFieldVariablesFeatureTest {
 
     @Test
     fun `invalid from query field -- path ends on object`() {
-        val err = assertThrows<IllegalArgumentException> {
+        val err = assertThrows<Throwable> {
             EngineTestModule("extend type Query { x:Int, y(b:Int):Int, z:Query, w:Int }") {
                 fieldWithFromFieldVariables(
                     coord = "Query" to "x",
@@ -595,12 +560,10 @@ class FromFieldVariablesFeatureTest {
                         fn { _, _, _, _, _ -> error("should not execute") }
                     }
                 }
-            }.runQPlanFeatureTest { }
-        }
-        assertTrue(
-            err.message.orEmpty().contains("from-field path z must terminate at a scalar or enum"),
-            err.message.orEmpty(),
-        )
+            }.runContractTest { }
+        }.unwrap()
+
+        assertEquals("b", invalidVariableName(err))
     }
 
     @Test
@@ -619,7 +582,7 @@ class FromFieldVariablesFeatureTest {
                 }
             }
             fieldWithValue("Query" to "z", 2)
-        }.runQPlanFeatureTest {
+        }.runContractTest {
             runQuery("{x}").assertJson("{data: {x: 30}}")
         }
 
@@ -647,39 +610,12 @@ class FromFieldVariablesFeatureTest {
             field("Query" to "obj") {
                 resolver {
                     fn { _, _, _, _, _ ->
-                        createEngineObjectData(requireNotNull(schema.schema.getObjectType("Obj")), emptyMap())
+                        createEngineObjectData(schema.schema.getObjectType("Obj"), emptyMap())
                     }
                 }
             }
-        }.runQPlanFeatureTest {
+        }.runContractTest {
             runQuery("{ obj { x } }").assertJson("{data: {obj: {x: 30}}}")
-        }
-
-    @Disabled("TODO: Mutation")
-    @Test
-    fun `from query field -- simple mutation field`() =
-        EngineTestModule(
-            """
-                extend type Mutation { x:Int, y(b:Int):Int }
-                extend type Query { z:Int }
-            """.trimIndent()
-        ) {
-            fieldWithFromFieldVariables(
-                coord = "Mutation" to "x",
-                objectSelectionsText = "y(b:\$z)",
-                querySelectionsText = "z",
-                variables = listOf(FromQueryFieldVariable("z", "z")),
-            ) { _, obj, _, _, _ ->
-                obj.fetchAs<Int>("y") * 5
-            }
-            field("Mutation" to "y") {
-                resolver {
-                    fn { args, _, _, _, _ -> args.getAs<Int>("b") * 3 }
-                }
-            }
-            fieldWithValue("Query" to "z", 2)
-        }.runQPlanFeatureTest {
-            runQuery("mutation {x}").assertJson("{data: {x: 30}}")
         }
 
     @Test
@@ -698,7 +634,7 @@ class FromFieldVariablesFeatureTest {
                 }
             }
             fieldWithValue("Query" to "z", 2)
-        }.runQPlanFeatureTest {
+        }.runContractTest {
             runQuery("{x}").assertJson("{data: {x: 30}}")
         }
 
@@ -719,7 +655,7 @@ class FromFieldVariablesFeatureTest {
                 }
             }
             fieldWithValue("Query" to "z", null)
-        }.runQPlanFeatureTest {
+        }.runContractTest {
             runQuery("{x}").assertJson("{data:{x:-2}}")
         }
 
@@ -745,7 +681,7 @@ class FromFieldVariablesFeatureTest {
             }
             fieldWithValue("Query" to "z", 3)
             fieldWithValue("Query" to "w", 2)
-        }.runQPlanFeatureTest {
+        }.runContractTest {
             runQuery("{x}").assertJson("{data: {x: 210}}")
         }
 
@@ -763,7 +699,7 @@ class FromFieldVariablesFeatureTest {
                     ),
                 ) { _, _, _, _, _ -> "result" }
                 fieldWithValue("Query" to "foo", "test")
-            }.runQPlanFeatureTest { }
+            }.runContractTest { }
         }.unwrap()
 
         val msg = checkNotNull(err.message)
@@ -787,7 +723,7 @@ class FromFieldVariablesFeatureTest {
                     ),
                 ) { _, _, _, _, _ -> "result" }
                 fieldWithValue("Query" to "foo", "test")
-            }.runQPlanFeatureTest { }
+            }.runContractTest { }
         }.unwrap()
 
         val msg = checkNotNull(err.message)
@@ -820,7 +756,7 @@ class FromFieldVariablesFeatureTest {
                 }
             }
             fieldWithValue("Query" to "z", 3)
-        }.runQPlanFeatureTest {
+        }.runContractTest {
             runQuery("{x(a:2)}").assertJson("{data: {x: 210}}")
         }
 
@@ -850,7 +786,7 @@ class FromFieldVariablesFeatureTest {
                     fn { args, _, _, _, _ -> args.getAs<Int>("w") * 2 }
                 }
             }
-        }.runQPlanFeatureTest {
+        }.runContractTest {
             runQuery("{x}").assertJson("{data: {x: 4620}}")
         }
 
@@ -865,7 +801,7 @@ class FromFieldVariablesFeatureTest {
             field("Query" to "bar") {
                 resolver { fn { args, _, _, _, _ -> args.getAs<Int>("x") * 3 } }
             }
-        }.runQPlanFeatureTest {
+        }.runContractTest {
             runQuery("{foo(y:2)}").assertJson("{data: {foo: 30}}")
         }
 
@@ -880,7 +816,7 @@ class FromFieldVariablesFeatureTest {
             field("Query" to "bar") {
                 resolver { fn { args, _, _, _, _ -> args.getAs<Int>("x") * 3 } }
             }
-        }.runQPlanFeatureTest {
+        }.runContractTest {
             runQuery("{foo(y:2)}").assertJson("{data: {foo: 30}}")
         }
 
@@ -900,7 +836,7 @@ class FromFieldVariablesFeatureTest {
             field("Query" to "bar") {
                 resolver { fn { args, _, _, _, _ -> args.getAs<Int>("x") * 3 } }
             }
-        }.runQPlanFeatureTest {
+        }.runContractTest {
             runQuery("{foo(inp:{x:2})}").assertJson("{data: {foo: 30}}")
         }
 
@@ -920,7 +856,7 @@ class FromFieldVariablesFeatureTest {
             field("Query" to "bar") {
                 resolver { fn { args, _, _, _, _ -> (args["x"] as? Int)?.let { it * 3 } } }
             }
-        }.runQPlanFeatureTest {
+        }.runContractTest {
             runQuery("{foo(inp:null)}").assertJson("{data: {foo: 7}}")
         }
 
@@ -935,7 +871,7 @@ class FromFieldVariablesFeatureTest {
             field("Query" to "bar") {
                 resolver { fn { args, _, _, _, _ -> args.getAs<Int>("x") * 3 } }
             }
-        }.runQPlanFeatureTest {
+        }.runContractTest {
             runQuery("{foo}").assertJson("{data: {foo: 30}}")
             runQuery("{foo(x:3)}").assertJson("{data: {foo: 45}}")
         }
@@ -951,11 +887,8 @@ class FromFieldVariablesFeatureTest {
             field("Query" to "bar") {
                 resolver { fn { args, _, _, _, _ -> args.getAs<Int>("x") * 3 } }
             }
-        }.runQPlanFeatureTest {
-            runQuery(
-                "query Q(\$vary:Int!) {foo(y:\$vary)}",
-                mapOf("vary" to 2),
-            ).assertJson("{data: {foo: 30}}")
+        }.runContractTest {
+            runQuery("query Q(\$vary:Int!) {foo(y:\$vary)}", mapOf("vary" to 2)).assertJson("{data: {foo: 30}}")
         }
 
     @Test
@@ -974,7 +907,7 @@ class FromFieldVariablesFeatureTest {
             field("Query" to "baz") {
                 resolver { fn { args, _, _, _, _ -> args.getAs<Int>("x") * 5 } }
             }
-        }.runQPlanFeatureTest {
+        }.runContractTest {
             runQuery("{foo(x:2) bar(x:3)}").assertJson("{data:{foo:110, bar:105}}")
         }
 
@@ -993,7 +926,7 @@ class FromFieldVariablesFeatureTest {
             field("Query" to "baz") {
                 resolver { fn { args, _, _, _, _ -> (args["x"] as? Int)?.let { it * 5 } ?: 0 } }
             }
-        }.runQPlanFeatureTest {
+        }.runContractTest {
             runQuery("{foo(x:2) bar(x:3)}").assertJson("{data:{foo:110, bar:7}}")
         }
 
@@ -1008,7 +941,7 @@ class FromFieldVariablesFeatureTest {
             field("Query" to "obj") {
                 resolver {
                     fn { _, _, _, _, _ ->
-                        createEngineObjectData(requireNotNull(schema.schema.getObjectType("Obj")), emptyMap())
+                        createEngineObjectData(schema.schema.getObjectType("Obj"), emptyMap())
                     }
                 }
             }
@@ -1026,12 +959,12 @@ class FromFieldVariablesFeatureTest {
                 qry.fetchAs<Int>("x") * 3
             }
             fieldWithValue("Obj" to "y", 2)
-        }.runQPlanFeatureTest {
+        }.runContractTest {
             runQuery("{obj{x}}").assertJson("{data: {obj: {x: 30}}}")
         }
 }
 
-private fun MockTenantModuleDSL<Unit>.fieldWithFromFieldVariables(
+fun MockTenantModuleDSL<Unit>.fieldWithFromFieldVariables(
     coord: Pair<String, String>,
     objectSelectionsText: String? = null,
     querySelectionsText: String? = null,
