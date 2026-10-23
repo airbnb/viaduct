@@ -80,13 +80,13 @@ internal class GeneratedFieldCheckerCoverage(
         }
     }
 
-    fun warnMissingRequired(
+    fun requireCovered(
         run: ResolverTestRun,
         required: Set<GeneratedFieldCheckerCoverageSignature>,
     ) {
         val missingGenerated = required.filterTo(linkedSetOf()) { generatedCases.getValue(it) == 0 }
         val missingActivated = required.filterTo(linkedSetOf()) { activatedCases.getValue(it) == 0 }
-        run.warnCoverage(
+        run.requireCoverage(
             missingGenerated.isEmpty() && missingActivated.isEmpty(),
             buildString {
                 append("Generated field-checker profile missed required coverage signatures")
@@ -97,11 +97,6 @@ internal class GeneratedFieldCheckerCoverage(
             },
         )
     }
-
-    fun covers(required: Set<GeneratedFieldCheckerCoverageSignature>): Boolean =
-        required.all { signature ->
-            generatedCases.getValue(signature) > 0 && activatedCases.getValue(signature) > 0
-        }
 
     fun summary(): String =
         "generatedCases=$generatedCases, " +

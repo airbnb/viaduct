@@ -22,13 +22,11 @@ import viaduct.engine.runtime2.arbitrary.ResolverFromProviderVariablesEnabled
 import viaduct.engine.runtime2.arbitrary.ResolverFromQueryFieldVariablesEnabled
 import viaduct.engine.runtime2.arbitrary.ResolverQueryFragmentWeight
 import viaduct.engine.runtime2.arbitrary.ResolverQueryFragmentsEnabled
-import viaduct.engine.runtime2.arbitrary.ResolverTestCase
 import viaduct.engine.runtime2.arbitrary.ResolverVariableWeight
 import viaduct.engine.runtime2.arbitrary.ResolverVariablesEnabled
 import viaduct.engine.runtime2.arbitrary.RootFieldReferenceWeight
 import viaduct.engine.runtime2.arbitrary.RootFieldReferencesEnabled
 import viaduct.engine.runtime2.arbitrary.SometimesPassiveFieldWeight
-import viaduct.engine.runtime2.model.testing.TestWorld
 
 /** Grounded and symbolic field-checker coverage with independent exact application accounting. */
 interface GeneratedFieldCheckerContract : GeneratedCaseAssertionPolicy {
@@ -95,10 +93,9 @@ interface GeneratedFieldCheckerContract : GeneratedCaseAssertionPolicy {
             val assertions =
                 generatedCaseAssertions + GeneratedCaseAssertions.exactCheckerApplications
             val run =
-                checkGeneratedProfile(
+                checkStoredProfile(
                     profile = checkerProfile(PASSIVE_PROFILE),
                     config = config,
-                    seed = PASSIVE_ACTIVATION_SEED,
                     fieldCheckerMode = checkerMode(GeneratedFieldCheckerMode.SUCCESS),
                 ) { testWorld, testCase ->
                     val observation =
@@ -110,7 +107,7 @@ interface GeneratedFieldCheckerContract : GeneratedCaseAssertionPolicy {
                     coverage.record(testCase.registry, observation)
                 }
 
-            coverage.warnMissingRequired(
+            coverage.requireCovered(
                 run = run,
                 required =
                     setOf(
@@ -138,10 +135,9 @@ interface GeneratedFieldCheckerContract : GeneratedCaseAssertionPolicy {
             val assertions =
                 generatedCaseAssertions + GeneratedCaseAssertions.exactCheckerApplications
             val run =
-                checkGeneratedProfile(
+                checkStoredProfile(
                     profile = checkerProfile(ROOT_REFERENCE_PROFILE),
                     config = config,
-                    seed = ROOT_REFERENCE_ACTIVATION_SEED,
                     fieldCheckerMode = checkerMode(GeneratedFieldCheckerMode.SUCCESS),
                 ) { testWorld, testCase ->
                     val observation =
@@ -153,7 +149,7 @@ interface GeneratedFieldCheckerContract : GeneratedCaseAssertionPolicy {
                     coverage.record(testCase.registry, observation)
                 }
 
-            coverage.warnMissingRequired(
+            coverage.requireCovered(
                 run = run,
                 required =
                     setOf(
@@ -212,8 +208,13 @@ interface GeneratedFieldCheckerContract : GeneratedCaseAssertionPolicy {
                     } else {
                         emptySet()
                     }
-            val property: suspend (GeneratedFieldCheckerCoverage, TestWorld, ResolverTestCase) -> Unit =
-                { coverage, testWorld, testCase ->
+            val coverage = GeneratedFieldCheckerCoverage(effectiveMode)
+            val run =
+                checkStoredProfile(
+                    profile = checkerProfile(profile),
+                    config = config,
+                    fieldCheckerMode = effectiveMode,
+                ) { testWorld, testCase ->
                     val registry = testCase.registry
                     assertTrue(registry.nodeResolverTypes.isEmpty())
                     assertTrue(registry.generatedFieldCheckerCoordinates.isNotEmpty())
@@ -225,50 +226,15 @@ interface GeneratedFieldCheckerContract : GeneratedCaseAssertionPolicy {
                         )
                     coverage.record(registry, observation)
                 }
-            val sampledCoverage = GeneratedFieldCheckerCoverage(effectiveMode)
-            val run =
-                checkGeneratedProfile(
-                    profile = checkerProfile(profile),
-                    config = config,
-                    fieldCheckerMode = effectiveMode,
-                ) { testWorld, testCase ->
-                    property(sampledCoverage, testWorld, testCase)
-                }
-            val (coverageRun, requiredCoverage) =
-                if (
-                    run.selectedCase == null &&
-                    run.seed != REQUIRED_COVERAGE_ACTIVATION_SEED &&
-                    !sampledCoverage.covers(required)
-                ) {
-                    val activationCoverage = GeneratedFieldCheckerCoverage(effectiveMode)
-                    val activationRun =
-                        checkGeneratedProfile(
-                            profile = checkerProfile(profile),
-                            config = config,
-                            seed = REQUIRED_COVERAGE_ACTIVATION_SEED,
-                            fieldCheckerMode = effectiveMode,
-                        ) { testWorld, testCase ->
-                            property(activationCoverage, testWorld, testCase)
-                        }
-                    activationRun to activationCoverage
-                } else {
-                    run to sampledCoverage
-                }
 
-            requiredCoverage.warnMissingRequired(
-                run = coverageRun,
+            coverage.requireCovered(
+                run = run,
                 required = required,
             )
             println(
                 "Field-checker coverage profile=${checkerProfile(profile)} " +
-                    "seed=${run.seed} ${sampledCoverage.summary()}",
+                    "seed=${run.seed} ${coverage.summary()}",
             )
-            if (requiredCoverage !== sampledCoverage) {
-                println(
-                    "Field-checker activation coverage profile=${checkerProfile(profile)} " +
-                        "seed=${coverageRun.seed} ${requiredCoverage.summary()}",
-                )
-            }
         }
 
     companion object {
@@ -277,9 +243,6 @@ interface GeneratedFieldCheckerContract : GeneratedCaseAssertionPolicy {
         const val MIXED_PROFILE = "resolver23-field-checker-mixed"
         const val PASSIVE_PROFILE = "resolver23-field-checker-passive"
         const val ROOT_REFERENCE_PROFILE = "resolver23-field-checker-root-reference"
-        private const val PASSIVE_ACTIVATION_SEED = 1L
-        private const val ROOT_REFERENCE_ACTIVATION_SEED = 424242L
-        private const val REQUIRED_COVERAGE_ACTIVATION_SEED = 424242L
 
         private val REQUIRED_COVERAGE_SIGNATURES =
             setOf(

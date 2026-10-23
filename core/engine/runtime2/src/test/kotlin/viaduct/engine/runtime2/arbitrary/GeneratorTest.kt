@@ -138,8 +138,8 @@ class GeneratorTest {
                     }
         }
 
-        warnCoverageGap(generatedProviderPlans > 0, "The sampled registries contained no provider plans")
-        warnCoverageGap(
+        assertTrue(generatedProviderPlans > 0, "The sampled registries contained no provider plans")
+        assertTrue(
             generatedTypeCheckerProviderVariables > 0,
             "Runtime type-checker profiles generated no FromProvider variables",
         )
@@ -393,9 +393,9 @@ class GeneratorTest {
             }
         }
 
-        warnCoverageGap(generatedVariables > 0, "Generator sample expected generatedVariables > 0, observed $generatedVariables")
-        warnCoverageGap(argumentSensitiveVariables > 0, "Generator sample expected argumentSensitiveVariables > 0, observed $argumentSensitiveVariables")
-        warnCoverageGap(roundTrippedProviderPlans, "Generator sample expected roundTrippedProviderPlans, observed $roundTrippedProviderPlans")
+        assertTrue(generatedVariables > 0, "Generator sample expected generatedVariables > 0, observed $generatedVariables")
+        assertTrue(argumentSensitiveVariables > 0, "Generator sample expected argumentSensitiveVariables > 0, observed $argumentSensitiveVariables")
+        assertTrue(roundTrippedProviderPlans, "Generator sample expected roundTrippedProviderPlans, observed $roundTrippedProviderPlans")
     }
 
     @Test
@@ -490,13 +490,13 @@ class GeneratorTest {
                 }
         }
 
-        warnCoverageGap(listProducers > 0, "Generator sample expected listProducers > 0, observed $listProducers")
-        warnCoverageGap(abstractTargets > 0, "Generator sample expected abstractTargets > 0, observed $abstractTargets")
-        warnCoverageGap(maximumDepth >= 4, "Generator sample expected maximumDepth >= 4, observed $maximumDepth")
-        warnCoverageGap(parentDemandResolvers > 0, "Generator sample expected parentDemandResolvers > 0, observed $parentDemandResolvers")
-        warnCoverageGap(argumentBearingParentScalars > 0, "Generator sample expected argumentBearingParentScalars > 0, observed $argumentBearingParentScalars")
-        warnCoverageGap(boundedDiagonalResolvers > 0, "Generator sample expected boundedDiagonalResolvers > 0, observed $boundedDiagonalResolvers")
-        warnCoverageGap(
+        assertTrue(listProducers > 0, "Generator sample expected listProducers > 0, observed $listProducers")
+        assertTrue(abstractTargets > 0, "Generator sample expected abstractTargets > 0, observed $abstractTargets")
+        assertTrue(maximumDepth >= 4, "Generator sample expected maximumDepth >= 4, observed $maximumDepth")
+        assertTrue(parentDemandResolvers > 0, "Generator sample expected parentDemandResolvers > 0, observed $parentDemandResolvers")
+        assertTrue(argumentBearingParentScalars > 0, "Generator sample expected argumentBearingParentScalars > 0, observed $argumentBearingParentScalars")
+        assertTrue(boundedDiagonalResolvers > 0, "Generator sample expected boundedDiagonalResolvers > 0, observed $boundedDiagonalResolvers")
+        assertTrue(
             recursivelyComposedDiagonalResolvers > 0,
             "Generator sample expected recursivelyComposedDiagonalResolvers > 0, observed $recursivelyComposedDiagonalResolvers"
         )
@@ -746,7 +746,7 @@ class GeneratorTest {
             }
         }
 
-        warnCoverageGap(suppliedFieldCount > 0, "Generator sample expected suppliedFieldCount > 0, observed $suppliedFieldCount")
+        assertTrue(suppliedFieldCount > 0, "Generator sample expected suppliedFieldCount > 0, observed $suppliedFieldCount")
     }
 
     @Test
@@ -885,8 +885,8 @@ class GeneratorTest {
                 }
         }
 
-        warnCoverageGap(sawDistinctTuples, "Generator sample expected sawDistinctTuples, observed $sawDistinctTuples")
-        warnCoverageGap(sawAliasedDistinctTuple, "Generator sample expected sawAliasedDistinctTuple, observed $sawAliasedDistinctTuple")
+        assertTrue(sawDistinctTuples, "Generator sample expected sawDistinctTuples, observed $sawDistinctTuples")
+        assertTrue(sawAliasedDistinctTuple, "Generator sample expected sawAliasedDistinctTuple, observed $sawAliasedDistinctTuple")
     }
 
     @Test
@@ -910,7 +910,7 @@ class GeneratorTest {
                 }
         }
 
-        warnCoverageGap(sawArgumentDemand, "Generator sample expected sawArgumentDemand, observed $sawArgumentDemand")
+        assertTrue(sawArgumentDemand, "Generator sample expected sawArgumentDemand, observed $sawArgumentDemand")
     }
 
     @Test
@@ -937,12 +937,12 @@ class GeneratorTest {
                 }
             }.sorted()
 
-        warnCoverageGap(counts.average() >= 4.0, "Generator sample expected counts.average() >= 4.0, observed ${counts.average()}")
-        warnCoverageGap(
+        assertTrue(counts.average() >= 4.0, "Generator sample expected counts.average() >= 4.0, observed ${counts.average()}")
+        assertTrue(
             counts[(counts.size * 0.9).toInt()] >= 10,
             "Generator sample expected counts[(counts.size * 0.9).toInt()] >= 10, observed ${counts[(counts.size * 0.9).toInt()]}"
         )
-        warnCoverageGap(counts.max() >= 30, "Generator sample expected counts.max() >= 30, observed ${counts.max()}")
+        assertTrue(counts.max() >= 30, "Generator sample expected counts.max() >= 30, observed ${counts.max()}")
     }
 
     @Test
@@ -967,8 +967,8 @@ class GeneratorTest {
             }
         }
 
-        warnCoverageGap(generatedSchemas > 0, "Generator sample expected generatedSchemas > 0, observed $generatedSchemas")
-        warnCoverageGap(activatedQueries > 0, "Generator sample expected activatedQueries > 0, observed $activatedQueries")
+        assertTrue(generatedSchemas > 0, "Generator sample expected generatedSchemas > 0, observed $generatedSchemas")
+        assertTrue(activatedQueries > 0, "Generator sample expected activatedQueries > 0, observed $activatedQueries")
     }
 
     @Test
@@ -1023,8 +1023,8 @@ class GeneratorTest {
             }
         }
 
-        warnCoverageGap(complexResolvers > 0, "Generator sample expected complexResolvers > 0, observed $complexResolvers")
-        warnCoverageGap(
+        assertTrue(complexResolvers > 0, "Generator sample expected complexResolvers > 0, observed $complexResolvers")
+        assertTrue(
             sensitiveComplexResolvers > 0,
             "Generated no input- or argument-sensitive object/list resolver",
         )
@@ -1088,7 +1088,7 @@ class GeneratorTest {
                 }
             }
 
-            warnCoverageGap(checkedResolvers > 0, "Generator sample expected checkedResolvers > 0, observed $checkedResolvers")
+            assertTrue(checkedResolvers > 0, "Generator sample expected checkedResolvers > 0, observed $checkedResolvers")
         }
 
     @Test
@@ -1166,7 +1166,7 @@ class GeneratorTest {
             }
         }
 
-        warnCoverageGap(generatedVariables > 0, "Generator sample expected generatedVariables > 0, observed $generatedVariables")
+        assertTrue(generatedVariables > 0, "Generator sample expected generatedVariables > 0, observed $generatedVariables")
     }
 
     @Test
@@ -1206,7 +1206,7 @@ class GeneratorTest {
                 }
         }
 
-        warnCoverageGap(queryVariableUses > 0, "Generator sample expected queryVariableUses > 0, observed $queryVariableUses")
+        assertTrue(queryVariableUses > 0, "Generator sample expected queryVariableUses > 0, observed $queryVariableUses")
     }
 
     @Test
@@ -1246,7 +1246,7 @@ class GeneratorTest {
                 }
         }
 
-        warnCoverageGap(sharedVariableUses > 0, "Generator sample expected sharedVariableUses > 0, observed $sharedVariableUses")
+        assertTrue(sharedVariableUses > 0, "Generator sample expected sharedVariableUses > 0, observed $sharedVariableUses")
     }
 
     @Test
@@ -1293,7 +1293,7 @@ class GeneratorTest {
             registry.world(schema)
         }
 
-        warnCoverageGap(queryVariableUses > 0, "Generator sample expected queryVariableUses > 0, observed $queryVariableUses")
+        assertTrue(queryVariableUses > 0, "Generator sample expected queryVariableUses > 0, observed $queryVariableUses")
     }
 
     @Test
@@ -1322,7 +1322,7 @@ class GeneratorTest {
             }
         }
 
-        warnCoverageGap(
+        assertTrue(
             registriesWithNestedProviders >= 10,
             "Expected nested providers regularly, found $registriesWithNestedProviders/100",
         )
@@ -1365,7 +1365,7 @@ class GeneratorTest {
             assertTrue(providers.all { provider -> provider.useDepth in 1..3 })
         }
 
-        warnCoverageGap(
+        assertTrue(
             generatedProviderFragments.containsAll(ProviderFragment.entries),
             "Provider fragment sample missing ${ProviderFragment.entries.toSet() - generatedProviderFragments}",
         )
@@ -1401,7 +1401,7 @@ class GeneratorTest {
             assertTrue(providers.all { provider -> provider.owner.typeName != "Query" })
         }
 
-        warnCoverageGap(generatedVariables > 0, "Generator sample expected generatedVariables > 0, observed $generatedVariables")
+        assertTrue(generatedVariables > 0, "Generator sample expected generatedVariables > 0, observed $generatedVariables")
     }
 
     @Test
@@ -1433,7 +1433,7 @@ class GeneratorTest {
             ownerDependencies += registry.fromObjectFieldVariableOwnerDependencies.size
         }
 
-        warnCoverageGap(ownerDependencies > 0, "Generator sample expected ownerDependencies > 0, observed $ownerDependencies")
+        assertTrue(ownerDependencies > 0, "Generator sample expected ownerDependencies > 0, observed $ownerDependencies")
     }
 
     @Test
@@ -1463,7 +1463,7 @@ class GeneratorTest {
             )
         }
 
-        warnCoverageGap(generatedVariables > 0, "Generator sample expected generatedVariables > 0, observed $generatedVariables")
+        assertTrue(generatedVariables > 0, "Generator sample expected generatedVariables > 0, observed $generatedVariables")
     }
 
     @Test
@@ -1499,8 +1499,8 @@ class GeneratorTest {
                 registry.features.fromArgumentNullableTraversalVariableCount
         }
 
-        warnCoverageGap(nestedPaths > 0, "variables=$variables nestedPaths=$nestedPaths")
-        warnCoverageGap(
+        assertTrue(nestedPaths > 0, "variables=$variables nestedPaths=$nestedPaths")
+        assertTrue(
             nullableTraversals > 0,
             "variables=$variables nullableTraversals=$nullableTraversals",
         )
@@ -1533,7 +1533,7 @@ class GeneratorTest {
             generatedConvergences += registry.features.literalVariableConvergenceCount
         }
 
-        warnCoverageGap(generatedConvergences > 0, "Generator sample expected generatedConvergences > 0, observed $generatedConvergences")
+        assertTrue(generatedConvergences > 0, "Generator sample expected generatedConvergences > 0, observed $generatedConvergences")
     }
 
     @Test
@@ -1565,7 +1565,7 @@ class GeneratorTest {
                 registry.features.fromObjectFieldLiteralVariableConvergenceCount
         }
 
-        warnCoverageGap(generatedConvergences > 0, "Generator sample expected generatedConvergences > 0, observed $generatedConvergences")
+        assertTrue(generatedConvergences > 0, "Generator sample expected generatedConvergences > 0, observed $generatedConvergences")
     }
 
     @Test
@@ -1594,7 +1594,7 @@ class GeneratorTest {
             reusedVariables += registry.features.sameFragmentVariableReuseCount
         }
 
-        warnCoverageGap(reusedVariables > 0, "Generator sample expected reusedVariables > 0, observed $reusedVariables")
+        assertTrue(reusedVariables > 0, "Generator sample expected reusedVariables > 0, observed $reusedVariables")
     }
 
     @Test
@@ -1633,8 +1633,8 @@ class GeneratorTest {
                 maxOf(maximumVariablesPerOwner, registry.features.maximumVariablesPerOwner)
         }
 
-        warnCoverageGap(generatedPassiveUses > 0, "Generator sample expected generatedPassiveUses > 0, observed $generatedPassiveUses")
-        warnCoverageGap(maximumVariablesPerOwner > 1, "Generator sample expected maximumVariablesPerOwner > 1, observed $maximumVariablesPerOwner")
+        assertTrue(generatedPassiveUses > 0, "Generator sample expected generatedPassiveUses > 0, observed $generatedPassiveUses")
+        assertTrue(maximumVariablesPerOwner > 1, "Generator sample expected maximumVariablesPerOwner > 1, observed $maximumVariablesPerOwner")
     }
 
     @Test
@@ -1666,7 +1666,7 @@ class GeneratorTest {
             }
         }
 
-        warnCoverageGap(
+        assertTrue(
             registriesWithProviderArgumentVariables >= 10,
             "Only $registriesWithProviderArgumentVariables of 100 registries " +
                 "contained a provider-argument variable dependency",
@@ -1788,7 +1788,7 @@ class GeneratorTest {
             singletonCoercions += registry.features.singletonCoercionVariableCount
         }
 
-        warnCoverageGap(singletonCoercions > 0, "Generator sample expected singletonCoercions > 0, observed $singletonCoercions")
+        assertTrue(singletonCoercions > 0, "Generator sample expected singletonCoercions > 0, observed $singletonCoercions")
     }
 
     @Test
@@ -1896,7 +1896,7 @@ class GeneratorTest {
                 "multiple abstract branches",
                 "abstract implementation defaults",
             )
-        warnCoverageGap((expected - reached).isEmpty(), "Generator sample unreached categories ${expected - reached}")
+        assertTrue((expected - reached).isEmpty(), "Generator sample unreached categories ${expected - reached}")
     }
 
     private companion object {

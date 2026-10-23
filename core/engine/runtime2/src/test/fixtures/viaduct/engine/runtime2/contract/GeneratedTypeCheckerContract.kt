@@ -81,7 +81,7 @@ interface GeneratedTypeCheckerContract : GeneratedCaseAssertionPolicy {
             val coverage = GeneratedTypeCheckerCoverage()
             val profile = "$typeCheckerProfilePrefix-type-checker-${mode.name.lowercase()}"
             val effectiveMode = typeCheckerMode(mode)
-            val run = checkGeneratedProfile(
+            val run = checkStoredProfile(
                 profile = profile,
                 config = typeCheckerConfig,
                 fieldCheckerMode = if (runtimeTypeCheckerVariables) GeneratedFieldCheckerMode.RUNTIME_MIXED else GeneratedFieldCheckerMode.MIXED,
@@ -94,7 +94,7 @@ interface GeneratedTypeCheckerContract : GeneratedCaseAssertionPolicy {
                 )
                 coverage.record(observation.ordinary)
             }
-            coverage.warnMissingRequired(run, effectiveMode)
+            coverage.requireCovered(run, effectiveMode)
             println("Type-checker coverage profile=$profile seed=${run.seed} cases=${run.attemptedCases} ${coverage.summary()}")
         }
 }

@@ -74,14 +74,6 @@ data class ResolverTestCase(
         """.trimMargin()
 }
 
-fun warnCoverageGap(
-    condition: Boolean,
-    message: String,
-    report: (String) -> Unit = System.err::println,
-) {
-    if (!condition) report("WARNING: Generated coverage gap\n$message")
-}
-
 /** Coordinates and execution count shared by aggregate assertions after one generated run. */
 data class ResolverTestRun(
     val profile: String,
@@ -90,11 +82,15 @@ data class ResolverTestRun(
     val counts: TestCaseCount,
     val selectedCase: ResolverTestCaseCoordinate?,
     val sizeOverridden: Boolean,
+    val storedSuite: String? = null,
 ) {
     init {
         require(profile.isNotBlank())
         require(attemptedCases > 0)
     }
+
+    val stored: Boolean
+        get() = storedSuite != null
 
     val expectedCases: Int
         get() =
@@ -110,7 +106,16 @@ data class ResolverTestRun(
         report: (String) -> Unit = System.err::println,
     ) {
         if (selectedCase != null || condition) return
-        warnCoverageGap(condition, aggregateMessage(message), report)
+        report("WARNING: Generated coverage gap\n${aggregateMessage(message)}")
+    }
+
+    /** Fails on a stored suite, whose cases are fixed; warns on live generation, where a seed may simply miss. */
+    fun requireCoverage(
+        condition: Boolean,
+        message: String,
+        report: (String) -> Unit = System.err::println,
+    ) {
+        if (stored) assertAggregate(condition, message) else warnCoverage(condition, message, report)
     }
 
     fun assertAggregate(
@@ -124,12 +129,20 @@ data class ResolverTestRun(
     }
 
     private fun aggregateMessage(message: String): String =
-        """
-        |$message
-        |Coordinates: profile=$profile seed=$seed S=all R=all Q=all
-        |Size: ${counts.summary()}
-        |Replay seed: -PresolverPropertySeed=$seed
-        """.trimMargin()
+        if (stored) {
+            """
+            |$message
+            |Stored suite: $storedSuite (profile=$profile seed=$seed size=${counts.summary()})
+            |Change its ResolverTestSuiteDefinition and run materializeResolverTestSuites to restore coverage
+            """.trimMargin()
+        } else {
+            """
+            |$message
+            |Coordinates: profile=$profile seed=$seed S=all R=all Q=all
+            |Size: ${counts.summary()}
+            |Replay seed: -PresolverPropertySeed=$seed
+            """.trimMargin()
+        }
 }
 
 data class ResolverTestBatch(

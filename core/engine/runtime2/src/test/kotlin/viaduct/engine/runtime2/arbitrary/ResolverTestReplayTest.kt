@@ -55,6 +55,66 @@ class ResolverTestReplayTest {
     }
 
     @Test
+    fun `required coverage fails a stored suite with its rebuild hint`() {
+        val run = ResolverTestRun(
+            profile = "stored-coverage",
+            seed = 1L,
+            attemptedCases = 8,
+            counts = TestCaseCount(schemas = 2, registriesPerSchema = 2, queriesPerSchema = 2),
+            selectedCase = null,
+            sizeOverridden = false,
+            storedSuite = "stored-coverage",
+        )
+        val warnings = mutableListOf<String>()
+
+        run.requireCoverage(true, "Covered feature", warnings::add)
+        val failure = assertFailsWith<AssertionError> {
+            run.requireCoverage(false, "No activated node loaders", warnings::add)
+        }
+
+        assertEquals(emptyList(), warnings)
+        assertContains(failure.message.orEmpty(), "No activated node loaders")
+        assertContains(failure.message.orEmpty(), "Stored suite: stored-coverage (profile=stored-coverage seed=1 size=2:2:2)")
+        assertContains(failure.message.orEmpty(), "materializeResolverTestSuites")
+    }
+
+    @Test
+    fun `required coverage warns on live generation`() {
+        val run = ResolverTestRun(
+            profile = "live-coverage",
+            seed = 31415926L,
+            attemptedCases = 8,
+            counts = TestCaseCount(schemas = 2, registriesPerSchema = 2, queriesPerSchema = 2),
+            selectedCase = null,
+            sizeOverridden = false,
+        )
+        val warnings = mutableListOf<String>()
+
+        run.requireCoverage(false, "No activated node loaders", warnings::add)
+
+        assertContains(warnings.single(), "WARNING: Generated coverage gap")
+        assertContains(warnings.single(), "-PresolverPropertySeed=31415926")
+    }
+
+    @Test
+    fun `required coverage skips single case replay of a stored suite`() {
+        val run = ResolverTestRun(
+            profile = "stored-coverage",
+            seed = 1L,
+            attemptedCases = 1,
+            counts = TestCaseCount(schemas = 2, registriesPerSchema = 2, queriesPerSchema = 2),
+            selectedCase = ResolverTestCaseCoordinate(1, 1, 1),
+            sizeOverridden = false,
+            storedSuite = "stored-coverage",
+        )
+        val warnings = mutableListOf<String>()
+
+        run.requireCoverage(false, "Missing feature outside the selected case", warnings::add)
+
+        assertEquals(emptyList(), warnings)
+    }
+
+    @Test
     fun `same seed reproduces generated cases and coordinates`(): Unit =
         runBlocking {
             val first = generatedCases(seed = 8675309L)

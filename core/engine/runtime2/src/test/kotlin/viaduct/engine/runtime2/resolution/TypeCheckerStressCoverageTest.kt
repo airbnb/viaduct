@@ -3,10 +3,12 @@
 package viaduct.engine.runtime2.resolution
 
 import kotlin.test.Test
+import kotlin.test.assertTrue
 import kotlinx.coroutines.runBlocking
 import viaduct.engine.runtime2.arbitrary.GeneratedTypeCheckerMode
+import viaduct.engine.runtime2.arbitrary.ResolverTestExecution
 import viaduct.engine.runtime2.arbitrary.TestCaseCount
-import viaduct.engine.runtime2.arbitrary.checkResolverTestCases
+import viaduct.engine.runtime2.arbitrary.executeResolverTestCases
 import viaduct.graphql.schema.ViaductSchema
 
 class TypeCheckerStressCoverageTest {
@@ -16,8 +18,8 @@ class TypeCheckerStressCoverageTest {
             val campaign = ResolverMultithreadedStressTest()
             var foundTypeChecker = false
 
-            val run = checkResolverTestCases(
-                counts = TestCaseCount(1, 1, 1),
+            val run = executeResolverTestCases(
+                execution = ResolverTestExecution(TestCaseCount(1, 1, 1)),
                 config = campaign.typeCheckerConfig,
                 typeCheckerMode = campaign.typeCheckerMode(GeneratedTypeCheckerMode.MIXED),
                 profile = "resolution-multithreaded-type-checker-coverage",
@@ -30,9 +32,6 @@ class TypeCheckerStressCoverageTest {
                         .any { type -> world.resolverRegistry.typeChecker(type) != null }
             }
 
-            run.warnCoverage(
-                foundTypeChecker,
-                "ResolutionMultithreadedStress generated no type checker",
-            )
+            assertTrue(foundTypeChecker, "Fixed seed ${run.seed} generated no type checker for ResolutionMultithreadedStress")
         }
 }

@@ -33,11 +33,9 @@ data class ResolverTestSuiteManifest(
 
 /**
  * Replays [definition]'s stored suite, or generates it live when a seed or size is configured for exploration.
- * A live run uses [seed] instead of the configured seed when one is given.
  */
 suspend fun checkResolverTestSuite(
     definition: ResolverTestSuiteDefinition,
-    seed: Long? = null,
     property: suspend (TestWorld, ResolverTestCase) -> Unit,
 ): ResolverTestRun {
     val run =
@@ -45,19 +43,15 @@ suspend fun checkResolverTestSuite(
             checkResolverTestCases(
                 counts = definition.counts,
                 config = definition.config,
-                profile = definition.id,
-                seed = seed,
+                profile = definition.profile,
                 fieldCheckerMode = definition.fieldCheckerMode,
                 typeCheckerMode = definition.typeCheckerMode,
                 property = property,
             )
         } else {
-            require(seed == null || seed == definition.seed) {
-                "Resolver test suite ${definition.id} is stored for seed ${definition.seed}; configure a seed to generate seed $seed"
-            }
             ResolverTestSuite
                 .load(definition)
-                .replay(configuredResolverTestExecution(definition.counts, definition.id), property)
+                .replay(configuredResolverTestExecution(definition.counts, definition.profile), property)
         }
     run.assertAggregate(
         run.attemptedCases == run.expectedCases,
@@ -108,7 +102,7 @@ class ResolverTestSuite private constructor(
                     batch = loadShard(schemaIndex),
                     schemaIndex = schemaIndex,
                     execution = execution,
-                    profile = definition.id,
+                    profile = definition.profile,
                     seed = definition.seed,
                     selectiveNodeResolvers = definition.config[SelectiveNodeResolversEnabled],
                     fieldCheckerMode = definition.fieldCheckerMode,
@@ -117,12 +111,13 @@ class ResolverTestSuite private constructor(
                 )
         }
         return ResolverTestRun(
-            profile = definition.id,
+            profile = definition.profile,
             seed = definition.seed,
             attemptedCases = attemptedCases,
             counts = counts,
             selectedCase = execution.selectedCase,
             sizeOverridden = false,
+            storedSuite = definition.id,
         )
     }
 

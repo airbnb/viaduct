@@ -151,27 +151,27 @@ interface ResolverWitnessContract : ResolverContract {
                     )
                 }
 
-            run.warnCoverage(
+            run.requireCoverage(
                 inputSensitiveApplications >= 10,
                 "Too few input-sensitive applications: $inputSensitiveApplications",
             )
-            run.warnCoverage(
+            run.requireCoverage(
                 argumentSensitiveApplications >= 10,
                 "Too few argument-sensitive applications: $argumentSensitiveApplications",
             )
-            run.warnCoverage(
+            run.requireCoverage(
                 exactAliasCases >= 10,
                 "Too few exact-alias cases: $exactAliasCases",
             )
-            run.warnCoverage(
+            run.requireCoverage(
                 activatedExactAliasCases >= 10,
                 "Too few activated exact-alias cases: $activatedExactAliasCases",
             )
-            run.warnCoverage(
+            run.requireCoverage(
                 activatedDistinctArgumentCases >= 10,
                 "Too few activated distinct-argument cases: $activatedDistinctArgumentCases",
             )
-            run.warnCoverage(
+            run.requireCoverage(
                 generatedFromArgumentVariables > 0,
                 "Generated no FromArgument variables",
             )

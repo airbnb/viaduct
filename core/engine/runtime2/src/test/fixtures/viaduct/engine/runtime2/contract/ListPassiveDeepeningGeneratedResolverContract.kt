@@ -57,7 +57,7 @@ interface ListPassiveDeepeningGeneratedResolverContract : ResolverContract {
                     )
                 }
 
-            run.warnCoverage(listDeepeningCases > 0, "Generated list-passive-deepening profile deepened no passive list demand")
+            run.requireCoverage(listDeepeningCases > 0, "Generated list-passive-deepening profile deepened no passive list demand")
         }
 }
 

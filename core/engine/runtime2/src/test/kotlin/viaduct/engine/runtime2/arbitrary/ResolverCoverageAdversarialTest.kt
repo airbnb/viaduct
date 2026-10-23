@@ -9,6 +9,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
+import kotlin.test.fail
 import kotlinx.coroutines.runBlocking
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.runtime2.model.Arguments
@@ -103,11 +104,8 @@ class ResolverCoverageAdversarialTest {
                             }
                         sourceField?.let { Triple(schema, registry, it) }
                     }.firstNotNullOfOrNull { it }
-                if (generated == null) {
-                    warnCoverageGap(false, "seed=${817_208L + index}: no Node-valued resolver with list=$listOutput in 200 samples")
-                    return@forEachIndexed
-                }
-                val (schema, registry, sourceField) = generated
+                val (schema, registry, sourceField) =
+                    generated ?: fail("seed=${817_208L + index}: no Node-valued resolver with list=$listOutput in 200 samples")
                 val world = registry.world(schema)
                 val producerField =
                     world.schema.requireObjectField(sourceField.typeName, sourceField.fieldName)
@@ -167,7 +165,7 @@ class ResolverCoverageAdversarialTest {
             }
         }
 
-        warnCoverageGap(
+        assertTrue(
             passivePolymorphicDeepenings > 0,
             "Construction witness profile generated no passive abstract continuation with concrete branches",
         )

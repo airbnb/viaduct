@@ -92,15 +92,15 @@ interface ResolverMutationContract : ResolverContract {
             ResolverProgramMutation.entries
                 .filterNot { it == ResolverProgramMutation.NONE }
                 .forEach { mutation ->
-                    run.warnCoverage(
+                    run.requireCoverage(
                         exercised.getValue(mutation) >= 100,
                         "$mutation was exercised too rarely: ${exercised.getValue(mutation)}",
                     )
-                    run.warnCoverage(
+                    run.requireCoverage(
                         killed.getValue(mutation) >= 10,
                         "$mutation survived too often: killed=${killed.getValue(mutation)}",
                     )
                 }
-            run.warnCoverage(generatedFromArgumentVariables > 0, "Generated no FromArgument variables")
+            run.requireCoverage(generatedFromArgumentVariables > 0, "Generated no FromArgument variables")
         }
 }

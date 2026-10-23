@@ -90,13 +90,13 @@ internal class GeneratedTypeCheckerCoverage {
         execution.typeCheckerCoverage().forEach { signature -> counts[signature] = counts.getValue(signature) + 1 }
     }
 
-    fun warnMissingRequired(
+    fun requireCovered(
         run: ResolverTestRun,
         mode: GeneratedTypeCheckerMode
     ) {
         val required = requiredGeneratedTypeCheckerSignatures(mode, run.sizeOverridden)
         val missing = required.filter { counts.getValue(it) == 0 }
-        run.warnCoverage(missing.isEmpty(), "Type-checker profile missed activated coverage $missing; ${summary()}")
+        run.requireCoverage(missing.isEmpty(), "Type-checker profile missed activated coverage $missing; ${summary()}")
     }
 
     fun summary(): String = "activatedCases=$counts"

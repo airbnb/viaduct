@@ -77,6 +77,25 @@ class ResolverTestSuiteTest {
 
             assertEquals(1, run.attemptedCases)
             assertEquals(listOf("profile=object-fragment seed=1 S=7 R=2 Q=3 true"), visited)
+            assertTrue(run.stored)
+        }
+
+    @Test
+    fun `stored suite fails when its cases miss a required feature`(): Unit =
+        runBlocking {
+            val suite = ResolverTestSuite.load(ResolverTestSuiteDefinition.OBJECT_FRAGMENT)
+            var generatedNodeResolvers = 0
+
+            val run =
+                suite.replay(ResolverTestExecution(suite.definition.counts, selectedCase = null)) { _, testCase ->
+                    generatedNodeResolvers += testCase.registry.nodeResolverTypes.size
+                }
+
+            assertTrue(run.stored)
+            assertEquals(run.expectedCases, run.attemptedCases)
+            assertFailsWith<AssertionError> {
+                run.requireCoverage(generatedNodeResolvers > 0, "Object-fragment suite disables node resolvers")
+            }
         }
 
     @Test

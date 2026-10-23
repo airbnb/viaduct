@@ -38,8 +38,6 @@ import viaduct.engine.runtime2.arbitrary.ResolverVariableWeight
 import viaduct.engine.runtime2.arbitrary.ResolverVariablesEnabled
 import viaduct.engine.runtime2.arbitrary.RootQueryFieldCount
 import viaduct.engine.runtime2.arbitrary.SchemaObjectCount
-import viaduct.engine.runtime2.arbitrary.TestCaseCount
-import viaduct.engine.runtime2.arbitrary.checkResolverTestCases
 import viaduct.engine.runtime2.arbitrary.resolutionDigest
 import viaduct.engine.runtime2.correctresolution.CorrectnessResolverObserver
 import viaduct.engine.runtime2.model.requireObjectField
@@ -90,16 +88,14 @@ interface RootFieldReferenceGeneratedResolverContract : GeneratedCaseAssertionPo
                             .rootFieldReferenceInvocations()
                             .size
                 }
-            if (run.selectedCase == null) {
-                run.warnCoverage(
-                    generatedReferences > 0,
-                    "Root-field-reference profile generated no references",
-                )
-                run.warnCoverage(
-                    activatedReferences > 0,
-                    "Root-field-reference profile activated no references",
-                )
-            }
+            run.requireCoverage(
+                generatedReferences > 0,
+                "Root-field-reference profile generated no references",
+            )
+            run.requireCoverage(
+                activatedReferences > 0,
+                "Root-field-reference profile activated no references",
+            )
         }
 }
 
@@ -114,8 +110,9 @@ interface SometimesPassiveGeneratedResolverContract : GeneratedCaseAssertionPoli
                 }
             val definition = ResolverTestSuiteDefinition.SOMETIMES_PASSIVE
 
-            fun property(coverage: SometimesPassiveCoverage): suspend (TestWorld, ResolverTestCase) -> Unit =
-                { testWorld, testCase ->
+            val coverage = SometimesPassiveCoverage()
+            val run =
+                checkResolverTestSuite(definition) { testWorld, testCase ->
                     coverage.generatedFields +=
                         testCase.registry.features.sometimesPassiveFieldCount
                     val observation =
@@ -143,29 +140,14 @@ interface SometimesPassiveGeneratedResolverContract : GeneratedCaseAssertionPoli
                     coverage.activatedOccurrences +=
                         occurrenceCounts.values.sum() - observation.ordinaryApplications.size
                 }
-
-            val sampledCoverage = SometimesPassiveCoverage()
-            val sampledRun = checkResolverTestSuite(definition, property = property(sampledCoverage))
-            if (sampledRun.selectedCase == null) {
-                val activationCoverage: SometimesPassiveCoverage
-                val activationRun: ResolverTestRun
-                if (sampledRun.seed == definition.seed) {
-                    activationCoverage = sampledCoverage
-                    activationRun = sampledRun
-                } else {
-                    activationCoverage = SometimesPassiveCoverage()
-                    activationRun = checkResolverTestSuite(definition, definition.seed, property(activationCoverage))
-                }
-
-                activationRun.warnCoverage(
-                    activationCoverage.generatedFields > 0,
-                    "Sometimes-passive activation corpus produced no source-owned fields",
-                )
-                activationRun.warnCoverage(
-                    activationCoverage.activatedOccurrences > 0,
-                    "Sometimes-passive activation corpus activated no source-owned fields",
-                )
-            }
+            run.requireCoverage(
+                coverage.generatedFields > 0,
+                "Sometimes-passive suite produced no source-owned fields",
+            )
+            run.requireCoverage(
+                coverage.activatedOccurrences > 0,
+                "Sometimes-passive suite activated no source-owned fields",
+            )
         }
 }
 
@@ -179,8 +161,9 @@ interface NodeGeneratedResolverContract : GeneratedCaseAssertionPolicy {
             assertTrue(nodeRootFieldReferencesEnabled, "The stored node suite generates node resolvers")
             val definition = ResolverTestSuiteDefinition.NODE
 
-            fun property(coverage: NodeCoverage): suspend (TestWorld, ResolverTestCase) -> Unit =
-                { testWorld, testCase ->
+            val coverage = NodeCoverage()
+            val run =
+                checkResolverTestSuite(definition) { testWorld, testCase ->
                     assertTrue(testCase.registry.objectFragmentSources.values.all(String::isEmpty))
                     assertEquals(0, testCase.registry.features.variableCount)
                     coverage.generatedNodeResolvers += testCase.registry.nodeResolverTypes.size
@@ -215,37 +198,22 @@ interface NodeGeneratedResolverContract : GeneratedCaseAssertionPolicy {
                         coverage.activatedMixedTopologyCases += 1
                     }
                 }
-
-            val sampledCoverage = NodeCoverage()
-            val run = checkResolverTestSuite(definition, property = property(sampledCoverage))
-            if (run.selectedCase == null) {
-                val activationCoverage: NodeCoverage
-                val activationRun: ResolverTestRun
-                if (run.seed == definition.seed) {
-                    activationCoverage = sampledCoverage
-                    activationRun = run
-                } else {
-                    activationCoverage = NodeCoverage()
-                    activationRun = checkResolverTestSuite(definition, definition.seed, property(activationCoverage))
-                }
-
-                activationRun.warnCoverage(
-                    activationCoverage.generatedNodeResolvers > 0,
-                    "Node activation corpus produced no node resolvers",
-                )
-                activationRun.warnCoverage(
-                    activationCoverage.nodeLoaderApplications > 0,
-                    "Node activation corpus activated no fixture-lowered node loaders",
-                )
-                activationRun.warnCoverage(
-                    activationCoverage.generatedMixedTopologyCases > 0,
-                    "Node activation corpus produced no mixed node/non-node schemas",
-                )
-                activationRun.warnCoverage(
-                    activationCoverage.activatedMixedTopologyCases > 0,
-                    "Node activation corpus activated no node loaders in mixed schemas",
-                )
-            }
+            run.requireCoverage(
+                coverage.generatedNodeResolvers > 0,
+                "Node suite produced no node resolvers",
+            )
+            run.requireCoverage(
+                coverage.nodeLoaderApplications > 0,
+                "Node suite activated no fixture-lowered node loaders",
+            )
+            run.requireCoverage(
+                coverage.generatedMixedTopologyCases > 0,
+                "Node suite produced no mixed node/non-node schemas",
+            )
+            run.requireCoverage(
+                coverage.activatedMixedTopologyCases > 0,
+                "Node suite activated no node loaders in mixed schemas",
+            )
         }
 }
 
@@ -258,8 +226,9 @@ interface SelectiveNodeGeneratedResolverContract : GeneratedCaseAssertionPolicy 
             val definition = ResolverTestSuiteDefinition.SELECTIVE_NODE
             val emptyDemand = selectionForestOf().resolutionDigest()
 
-            fun property(coverage: SelectiveNodeCoverage): suspend (TestWorld, ResolverTestCase) -> Unit =
-                { testWorld, testCase ->
+            val coverage = SelectiveNodeCoverage()
+            val run =
+                checkResolverTestSuite(definition) { testWorld, testCase ->
                     coverage.generatedNodeResolvers += testCase.registry.nodeResolverTypes.size
                     val observation =
                         observeGeneratedCaseWithCurrentAssertions(testWorld, testCase, captureSuppliedDemand = true)
@@ -285,33 +254,18 @@ interface SelectiveNodeGeneratedResolverContract : GeneratedCaseAssertionPolicy 
                             demand != emptyDemand
                         }
                 }
-
-            val sampledCoverage = SelectiveNodeCoverage()
-            val run = checkResolverTestSuite(definition, property = property(sampledCoverage))
-            if (run.selectedCase == null) {
-                val activationCoverage: SelectiveNodeCoverage
-                val activationRun: ResolverTestRun
-                if (run.seed == definition.seed) {
-                    activationCoverage = sampledCoverage
-                    activationRun = run
-                } else {
-                    activationCoverage = SelectiveNodeCoverage()
-                    activationRun = checkResolverTestSuite(definition, definition.seed, property(activationCoverage))
-                }
-
-                activationRun.warnCoverage(
-                    activationCoverage.generatedNodeResolvers > 0,
-                    "Selective-node activation corpus produced no node resolvers",
-                )
-                activationRun.warnCoverage(
-                    activationCoverage.nodeLoaderApplications > 0,
-                    "Selective-node activation corpus activated no fixture-lowered node loaders",
-                )
-                activationRun.warnCoverage(
-                    activationCoverage.nonemptyDemandApplications > 0,
-                    "Selective-node activation corpus supplied no nonempty node payload demand",
-                )
-            }
+            run.requireCoverage(
+                coverage.generatedNodeResolvers > 0,
+                "Selective-node suite produced no node resolvers",
+            )
+            run.requireCoverage(
+                coverage.nodeLoaderApplications > 0,
+                "Selective-node suite activated no fixture-lowered node loaders",
+            )
+            run.requireCoverage(
+                coverage.nonemptyDemandApplications > 0,
+                "Selective-node suite supplied no nonempty node payload demand",
+            )
         }
 }
 
@@ -338,11 +292,11 @@ interface ObjectFragmentGeneratedResolverContract : GeneratedCaseAssertionPolicy
                     }
             }
 
-            run.warnCoverage(
+            run.requireCoverage(
                 generatedNonemptyFragments > 0,
                 "Generated object-fragment profile produced no nonempty fragments",
             )
-            run.warnCoverage(
+            run.requireCoverage(
                 activatedNonemptyFragments > 0,
                 "Generated object-fragment profile activated no nonempty fragments",
             )
@@ -391,7 +345,7 @@ interface QueryFragmentGeneratedResolverContract : GeneratedCaseAssertionPolicy 
                     generatedResolverConfigOverrides
 
             val run =
-                checkGeneratedProfile("query-fragment", config) { testWorld, testCase ->
+                checkStoredProfile("query-fragment", config) { testWorld, testCase ->
                     generatedQueryFragments += testCase.registry.features.queryFragmentCount
                     generatedArgumentVariables +=
                         testCase.registry.features.fromArgumentVariableCount
@@ -429,39 +383,39 @@ interface QueryFragmentGeneratedResolverContract : GeneratedCaseAssertionPolicy 
                         }
                 }
 
-            run.warnCoverage(
+            run.requireCoverage(
                 generatedQueryFragments > 0,
                 "Generated query-fragment profile produced no query fragments",
             )
-            run.warnCoverage(
+            run.requireCoverage(
                 generatedArgumentVariables > 0,
                 "Generated query-fragment profile produced no FromArgument variables",
             )
             if (queryFragmentObjectPathVariablesEnabled) {
-                run.warnCoverage(
+                run.requireCoverage(
                     generatedObjectPathVariables > 0,
                     "Generated query-fragment profile produced no FromObjectField variables",
                 )
             }
             if (queryFragmentQueryPathVariablesEnabled) {
-                run.warnCoverage(
+                run.requireCoverage(
                     generatedQueryPathVariables > 0,
                     "Generated query-fragment profile produced no FromQueryField variables",
                 )
-                run.warnCoverage(
+                run.requireCoverage(
                     activatedQueryPathVariableApplications > 0,
                     "Generated query-fragment profile activated no FromQueryField variables",
                 )
             }
-            run.warnCoverage(
+            run.requireCoverage(
                 activatedQueryFragments > 0,
                 "Generated query-fragment profile activated no query fragments",
             )
-            run.warnCoverage(
+            run.requireCoverage(
                 activatedArgumentVariableApplications > 0,
                 "Generated query-fragment profile activated no FromArgument variables",
             )
-            run.warnCoverage(
+            run.requireCoverage(
                 queryValueWitnesses > 0,
                 "Generated query-fragment profile produced no query-value witnesses",
             )
@@ -491,8 +445,9 @@ interface ObjectFragmentFromArgumentGeneratedResolverContract : GeneratedCaseAss
                     (ResolverVariablesEnabled to false) +
                     generatedResolverConfigOverrides
 
-            fun property(coverage: FromArgumentCoverage): suspend (TestWorld, ResolverTestCase) -> Unit =
-                { testWorld, testCase ->
+            val coverage = FromArgumentCoverage()
+            val run =
+                checkStoredProfile("object-fragment-from-argument", config) { testWorld, testCase ->
                     assertTrue(testCase.registry.nodeResolverTypes.isEmpty())
                     assertEquals(
                         testCase.registry.features.fromArgumentVariableCount,
@@ -525,56 +480,30 @@ interface ObjectFragmentFromArgumentGeneratedResolverContract : GeneratedCaseAss
                                     .nullableTraversalFromArgumentVariableOwnerFields
                         }
                 }
-
-            val sampledCoverage = FromArgumentCoverage()
-            val run =
-                checkGeneratedProfile(
-                    profile = "object-fragment-from-argument",
-                    config = config,
-                    property = property(sampledCoverage),
-                )
-            if (run.selectedCase == null) {
-                val activationCoverage: FromArgumentCoverage
-                val activationRun: ResolverTestRun
-                if (run.seed == FROM_ARGUMENT_ACTIVATION_SEED) {
-                    activationCoverage = sampledCoverage
-                    activationRun = run
-                } else {
-                    activationCoverage = FromArgumentCoverage()
-                    activationRun =
-                        checkGeneratedProfile(
-                            profile = "object-fragment-from-argument",
-                            config = config,
-                            seed = FROM_ARGUMENT_ACTIVATION_SEED,
-                            property = property(activationCoverage),
-                        )
-                }
-
-                activationRun.warnCoverage(
-                    activationCoverage.generatedVariables > 0,
-                    "FromArgument activation corpus produced no FromArgument variables",
-                )
-                activationRun.warnCoverage(
-                    activationCoverage.activatedApplications > 0,
-                    "FromArgument activation corpus activated no variable-bearing resolvers",
-                )
-                activationRun.warnCoverage(
-                    activationCoverage.generatedNestedPaths > 0,
-                    "FromArgument activation corpus produced no nested argument paths",
-                )
-                activationRun.warnCoverage(
-                    activationCoverage.activatedNestedPathApplications > 0,
-                    "FromArgument activation corpus activated no nested argument paths",
-                )
-                activationRun.warnCoverage(
-                    activationCoverage.generatedNullableTraversals > 0,
-                    "FromArgument activation corpus produced no nullable input traversal",
-                )
-                activationRun.warnCoverage(
-                    activationCoverage.activatedNullableTraversalApplications > 0,
-                    "FromArgument activation corpus activated no nullable input traversal",
-                )
-            }
+            run.requireCoverage(
+                coverage.generatedVariables > 0,
+                "FromArgument suite produced no FromArgument variables",
+            )
+            run.requireCoverage(
+                coverage.activatedApplications > 0,
+                "FromArgument suite activated no variable-bearing resolvers",
+            )
+            run.requireCoverage(
+                coverage.generatedNestedPaths > 0,
+                "FromArgument suite produced no nested argument paths",
+            )
+            run.requireCoverage(
+                coverage.activatedNestedPathApplications > 0,
+                "FromArgument suite activated no nested argument paths",
+            )
+            run.requireCoverage(
+                coverage.generatedNullableTraversals > 0,
+                "FromArgument suite produced no nullable input traversal",
+            )
+            run.requireCoverage(
+                coverage.activatedNullableTraversalApplications > 0,
+                "FromArgument suite activated no nullable input traversal",
+            )
         }
 }
 
@@ -613,7 +542,7 @@ interface ObjectFragmentFromObjectPathGeneratedResolverContract : GeneratedCaseA
                     generatedResolverConfigOverrides
 
             val run =
-                checkGeneratedProfile(
+                checkStoredProfile(
                     "object-fragment-from-object-field",
                     config,
                 ) { testWorld, testCase ->
@@ -650,27 +579,27 @@ interface ObjectFragmentFromObjectPathGeneratedResolverContract : GeneratedCaseA
                         }
                 }
 
-            run.warnCoverage(
+            run.requireCoverage(
                 generatedVariables > 0,
                 "Generated FromObjectField profile produced no path variables",
             )
-            run.warnCoverage(
+            run.requireCoverage(
                 generatedNestedProviderPaths > 0,
                 "Generated FromObjectField profile produced no nested provider paths",
             )
-            run.warnCoverage(
+            run.requireCoverage(
                 generatedProviderArgumentVariables > 0,
                 "Generated FromObjectField profile produced no provider-argument dependencies",
             )
-            run.warnCoverage(
+            run.requireCoverage(
                 activatedApplications > 0,
                 "Generated FromObjectField profile activated no variable-bearing resolvers",
             )
-            run.warnCoverage(
+            run.requireCoverage(
                 activatedNestedProviderApplications > 0,
                 "Generated FromObjectField profile activated no resolver with a nested provider path",
             )
-            run.warnCoverage(
+            run.requireCoverage(
                 activatedProviderArgumentApplications > 0,
                 "Generated FromObjectField profile activated no provider-argument dependency",
             )
@@ -707,7 +636,7 @@ interface FromProviderGeneratedResolverContract : GeneratedCaseAssertionPolicy {
                     generatedResolverConfigOverrides
 
             val run =
-                checkGeneratedProfile(
+                checkStoredProfile(
                     "from-provider",
                     config,
                 ) { testWorld, testCase ->
@@ -766,23 +695,23 @@ interface FromProviderGeneratedResolverContract : GeneratedCaseAssertionPolicy {
                         }
                 }
 
-            run.warnCoverage(
+            run.requireCoverage(
                 generatedVariables > 0,
                 "Generated FromProvider profile produced no provider variables",
             )
-            run.warnCoverage(
+            run.requireCoverage(
                 generatedArgumentSensitiveVariables > 0,
                 "Generated FromProvider profile produced no argument-sensitive providers",
             )
-            run.warnCoverage(
+            run.requireCoverage(
                 activatedApplications > 0,
                 "Generated FromProvider profile activated no provider-bearing resolvers",
             )
-            run.warnCoverage(
+            run.requireCoverage(
                 activatedArgumentSensitiveApplications > 0,
                 "Generated FromProvider profile activated no argument-sensitive provider",
             )
-            run.warnCoverage(
+            run.requireCoverage(
                 observedArgumentSensitiveValues > 0,
                 "Generated FromProvider profile observed no argument-dependent callback values",
             )
@@ -810,8 +739,9 @@ interface MixedVariableGeneratedResolverContract : GeneratedCaseAssertionPolicy 
                     (ResolverVariablesEnabled to true) +
                     generatedResolverConfigOverrides
 
-            fun property(coverage: MixedVariableCoverage): suspend (TestWorld, ResolverTestCase) -> Unit =
-                { testWorld, testCase ->
+            val coverage = MixedVariableCoverage()
+            val run =
+                checkStoredProfile("mixed-variables", config) { testWorld, testCase ->
                     coverage.generatedFromArgument +=
                         testCase.registry.features.fromArgumentVariableCount
                     coverage.generatedFromObjectField +=
@@ -834,41 +764,15 @@ interface MixedVariableGeneratedResolverContract : GeneratedCaseAssertionPolicy 
                         coverage.coactivatedCases += 1
                     }
                 }
-
-            val sampledCoverage = MixedVariableCoverage()
-            val run =
-                checkGeneratedProfile(
-                    profile = "mixed-variables",
-                    config = config,
-                    property = property(sampledCoverage),
-                )
-            if (run.selectedCase == null) {
-                val activationCoverage: MixedVariableCoverage
-                val activationRun: ResolverTestRun
-                if (run.seed == MIXED_VARIABLE_ACTIVATION_SEED) {
-                    activationCoverage = sampledCoverage
-                    activationRun = run
-                } else {
-                    activationCoverage = MixedVariableCoverage()
-                    activationRun =
-                        checkGeneratedProfile(
-                            profile = "mixed-variables",
-                            config = config,
-                            seed = MIXED_VARIABLE_ACTIVATION_SEED,
-                            property = property(activationCoverage),
-                        )
-                }
-
-                activationRun.warnCoverage(
-                    activationCoverage.generatedFromArgument > 0 &&
-                        activationCoverage.generatedFromObjectField > 0,
-                    "Mixed-variable activation corpus did not generate both variable kinds",
-                )
-                activationRun.warnCoverage(
-                    activationCoverage.coactivatedCases > 0,
-                    "Mixed-variable activation corpus did not coactivate both variable kinds",
-                )
-            }
+            run.requireCoverage(
+                coverage.generatedFromArgument > 0 &&
+                    coverage.generatedFromObjectField > 0,
+                "Mixed-variable suite did not generate both variable kinds",
+            )
+            run.requireCoverage(
+                coverage.coactivatedCases > 0,
+                "Mixed-variable suite did not coactivate both variable kinds",
+            )
         }
 }
 
@@ -904,7 +808,7 @@ interface FeatureInteractionGeneratedResolverContract : GeneratedCaseAssertionPo
                     (ResolverVariablesEnabled to false) +
                     generatedResolverConfigOverrides
 
-            val run = checkGeneratedFeatureInteractionProfile(config) { testWorld, testCase ->
+            val run = checkStoredProfile("feature-interaction", config) { testWorld, testCase ->
                 val registry = testCase.registry
                 val nonNodeTypes =
                     testCase.schema.domainObjectTypeNames - registry.nodeResolverTypes
@@ -949,49 +853,30 @@ interface FeatureInteractionGeneratedResolverContract : GeneratedCaseAssertionPo
                 }
             }
 
-            run.warnCoverage(
+            run.requireCoverage(
                 generatedFromArgumentVariables > 0,
                 "Feature-interaction profile produced no FromArgument variables",
             )
             if (nodeRootFieldReferencesEnabled) {
-                run.warnCoverage(
+                run.requireCoverage(
                     generatedMixedTopologyCases > 0,
                     "Feature-interaction profile produced no mixed node/non-node schemas",
                 )
-                run.warnCoverage(
+                run.requireCoverage(
                     activatedMixedTopologyCases > 0,
                     "Feature-interaction profile activated no mixed node/non-node schemas",
                 )
-                run.warnCoverage(
+                run.requireCoverage(
                     coactivatedNodeAndFromArgumentCases > 0,
                     "Feature-interaction profile never coactivated a node loader and FromArgument",
                 )
             }
-            run.warnCoverage(
+            run.requireCoverage(
                 activatedImplementationDefaults > 0,
                 "Feature-interaction profile activated no abstract implementation defaults",
             )
         }
 }
-
-private const val GENERATED_PROFILE_CASE_BUDGET = 150
-private const val FEATURE_INTERACTION_CASE_BUDGET = 300
-private const val FROM_ARGUMENT_ACTIVATION_SEED = 1L
-private const val MIXED_VARIABLE_ACTIVATION_SEED = 1L
-
-private val GENERATED_PROFILE_COUNTS =
-    TestCaseCount(
-        schemas = 10,
-        registriesPerSchema = 3,
-        queriesPerSchema = 5,
-    )
-
-private val FEATURE_INTERACTION_PROFILE_COUNTS =
-    TestCaseCount(
-        schemas = 20,
-        registriesPerSchema = 3,
-        queriesPerSchema = 5,
-    )
 
 private data class NodeCoverage(
     var generatedNodeResolvers: Int = 0,
@@ -1026,68 +911,17 @@ private data class SometimesPassiveCoverage(
     var activatedOccurrences: Int = 0,
 )
 
-internal suspend fun checkGeneratedProfile(
+internal suspend fun checkStoredProfile(
     profile: String,
     config: Config,
-    seed: Long? = null,
     fieldCheckerMode: GeneratedFieldCheckerMode = GeneratedFieldCheckerMode.NONE,
     typeCheckerMode: GeneratedTypeCheckerMode = GeneratedTypeCheckerMode.NONE,
     property: suspend (TestWorld, ResolverTestCase) -> Unit,
 ): ResolverTestRun =
-    checkGeneratedCases(
-        profile = profile,
-        counts = GENERATED_PROFILE_COUNTS,
-        expectedCases = GENERATED_PROFILE_CASE_BUDGET,
-        config = config,
-        seed = seed,
-        fieldCheckerMode = fieldCheckerMode,
-        typeCheckerMode = typeCheckerMode,
+    checkResolverTestSuite(
+        ResolverTestSuiteDefinition.forProfile(profile, config, fieldCheckerMode, typeCheckerMode),
         property = property,
     )
-
-private suspend fun checkGeneratedFeatureInteractionProfile(
-    config: Config,
-    property: suspend (TestWorld, ResolverTestCase) -> Unit,
-): ResolverTestRun =
-    checkGeneratedCases(
-        profile = "feature-interaction",
-        counts = FEATURE_INTERACTION_PROFILE_COUNTS,
-        expectedCases = FEATURE_INTERACTION_CASE_BUDGET,
-        config = config,
-        property = property,
-    )
-
-private suspend fun checkGeneratedCases(
-    profile: String,
-    counts: TestCaseCount,
-    expectedCases: Int,
-    config: Config,
-    seed: Long? = null,
-    fieldCheckerMode: GeneratedFieldCheckerMode = GeneratedFieldCheckerMode.NONE,
-    typeCheckerMode: GeneratedTypeCheckerMode = GeneratedTypeCheckerMode.NONE,
-    property: suspend (TestWorld, ResolverTestCase) -> Unit,
-): ResolverTestRun =
-    checkResolverTestCases(
-        counts = counts,
-        config = config,
-        profile = profile,
-        seed = seed,
-        fieldCheckerMode = fieldCheckerMode,
-        typeCheckerMode = typeCheckerMode,
-        property = property,
-    ).also { run ->
-        val effectiveExpectedCases =
-            if (run.sizeOverridden) {
-                run.expectedCases
-            } else {
-                expectedCases
-            }
-        run.assertAggregate(
-            run.attemptedCases == effectiveExpectedCases,
-            "Generated $profile profile ran ${run.attemptedCases} cases; " +
-                "expected $effectiveExpectedCases",
-        )
-    }
 
 internal fun GeneratedCaseAssertionPolicy.observeGeneratedCaseWithCurrentAssertions(
     testWorld: TestWorld,
