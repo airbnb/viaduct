@@ -76,8 +76,12 @@ private fun CtClass.addPropertyGetter(
     getterWrapper.function.let { getter ->
         ctx.withContext(getter.name) {
             val bc = Bytecode(cp)
-            bc.addAload(0)
-            bc.addGetfield(this, property.backingFieldName, property.fieldJvmDesc)
+            if (propWrapper.static) {
+                bc.addGetstatic(this, property.backingFieldName, property.fieldJvmDesc)
+            } else {
+                bc.addAload(0)
+                bc.addGetfield(this, property.backingFieldName, property.fieldJvmDesc)
+            }
             bc.addReturn(typeCtClass)
             bc.maxLocals = 1
             val minfo =
@@ -125,10 +129,14 @@ private fun CtClass.addPropertySetter(
                 "(Ljava/lang/Object;Ljava/lang/String;)V"
             )
         }
-        bc.addAload(0) // "this"
+        if (!propWrapper.static) bc.addAload(0) // "this"
         val argSize = bc.addLoad(1, typeCtClass)
         bc.maxLocals = argSize + 1 // +1 for "this"
-        bc.addPutfield(this, property.backingFieldName, property.fieldJvmDesc)
+        if (propWrapper.static) {
+            bc.addPutstatic(this, property.backingFieldName, property.fieldJvmDesc)
+        } else {
+            bc.addPutfield(this, property.backingFieldName, property.fieldJvmDesc)
+        }
         bc.addReturn(CtClass.voidType)
         val minfo =
             MethodInfo(cp, setter.name, setterWrapper.jvmDesc).apply {

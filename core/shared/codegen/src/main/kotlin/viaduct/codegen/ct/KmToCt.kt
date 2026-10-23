@@ -77,6 +77,11 @@ fun buildCtClasses(
     }
 
     timer.time("compile behaviors") {
+        for ((wrapper, cls) in results.values) {
+            wrapper.classInitializerBody?.let { body ->
+                ctCtx.addCompilable(body, cls.makeClassInitializer())
+            }
+        }
         ctCtx.compileCompilables()
     }
 

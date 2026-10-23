@@ -226,6 +226,30 @@ class ObjectTest {
     }
 
     @Test
+    fun `class initializer initializes shared object properties`() {
+        Fixture {
+            val subject = addBuilder()
+            subject.addProperty(
+                KmPropertyBuilder(
+                    JavaIdName("prop"),
+                    String::class.kmType,
+                    String::class.kmType,
+                    isVariable = true,
+                    constructorProperty = false,
+                )
+            )
+            subject.classInitializerBody("""{ prop = new String("INITIALIZED"); }""")
+
+            val kcls = loadKClass()
+            val instance = kcls.objectInstance!!
+            assertEquals("INITIALIZED", instance::class.java.getDeclaredMethod("getProp").invoke(instance))
+            assertEquals(instance, kcls.java.getField("INSTANCE").get(null))
+            instance::class.java.getDeclaredMethod("setProp", String::class.java).invoke(instance, "CHANGED")
+            assertEquals("CHANGED", instance::class.java.getDeclaredMethod("getProp").invoke(kcls.objectInstance))
+        }
+    }
+
+    @Test
     fun `top-level companion object is invalid`() {
         Fixture {
             addBuilder(kmKind = ClassKind.COMPANION_OBJECT)

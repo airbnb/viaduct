@@ -54,6 +54,7 @@ class CustomClassBuilder internal constructor(
     private val nestedClasses = mutableListOf<CustomClassBuilder>()
     private val enumEntries = mutableListOf<String>()
     private var companionObjectName: String? = null
+    private var classInitializerBody: String? = null
 
     init {
         if (tier != 0 && tier != 1) {
@@ -119,7 +120,8 @@ class CustomClassBuilder internal constructor(
                 functions,
                 properties,
                 classAnnotations,
-                tier
+                tier,
+                classInitializerBody,
             )
 
         val nested =
@@ -229,6 +231,11 @@ class CustomClassBuilder internal constructor(
 
     fun addProperty(builder: KmPropertyBuilder): CustomClassBuilder {
         addPropertyInternal(builder)
+        return this
+    }
+
+    fun classInitializerBody(body: String): CustomClassBuilder {
+        classInitializerBody = body
         return this
     }
 

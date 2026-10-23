@@ -91,7 +91,8 @@ class KmClassWrapper(
     val functions: Iterable<KmFunctionWrapper> = emptyList(),
     val properties: Iterable<KmPropertyWrapper> = emptyList(),
     annotations: Set<Pair<KmAnnotation, Boolean>> = emptySet(),
-    val tier: Int = 1
+    val tier: Int = 1,
+    val classInitializerBody: String? = null,
 ) : KmWrapper(annotations) {
     val refs: Set<KmName>
 
