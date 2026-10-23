@@ -370,9 +370,7 @@ If you are evaluating Viaduct for real adoption, the next question is usually no
 
     `src/main/kotlin/com/example/viadapp/ViaductService.kt` is the Ktor entry point: it contains the server's `main` function and configures `io.ktor.server.application.Application`.
 
-    An application declares which scoped schemas it serves in `src/main/viaduct/scopes.yaml`. The build
-    validates these against the `@scope` directives in your schema and packages them beside it, so the
-    running service selects from what the build already checked:
+    An application declares which scoped schemas can be built from its schema in `src/main/viaduct/scopes.yaml`. The build validates these against the `@scope` directives in your schema and packages them beside it, so the running service selects from what the build already checked:
 
     ```yaml
     version: 1
@@ -388,7 +386,7 @@ If you are evaluating Viaduct for real adoption, the next question is usually no
     `Routing.kt` contains the GraphQL and GraphiQL routes, and reads that declaration by id:
 
     ```kotlin
-    private val defaultSchema = SchemaScopeInfo.fromResources(setOf(SCHEMA_ID)).single()
+    private val defaultSchema by lazy { SchemaScopeInfo.fromResources(setOf(SCHEMA_ID)).single() }
 
     // Create and initialize the [Viaduct] instance used to execute GraphQL operations
     private val viaduct by lazy {
@@ -437,7 +435,7 @@ If you are evaluating Viaduct for real adoption, the next question is usually no
 
     The `starwars-java` project illustrates how Viaduct fits into a Micronaut serving stack. `src/main/java/com/example/starwars/service/Application.java` is the server's entry point.
 
-    The application declares which scoped schemas it serves in `src/main/viaduct/scopes.yaml`:
+    The application declares which scoped schemas can be built from its schema in `src/main/viaduct/scopes.yaml`:
 
     ```yaml
     version: 1
@@ -458,15 +456,22 @@ If you are evaluating Viaduct for real adoption, the next question is usually no
     ```java
     @Bean
     public Viaduct providesViaduct() {
-      return BasicViaductFactory.create(tenantModuleInjectorFactory, SchemaScopeInfo.fromResources());
+      return new ViaductBuilder()
+          .withTenantModuleInjectorFactory(tenantModuleInjectorFactory)
+          .withScopedSchemas(SchemaScopeInfo.fromResources())
+          .withFlagManager(
+              flag ->
+                  flag == FlagManager.Flags.ENGINE2_ENABLED
+                      || FlagManager.Default.INSTANCE.isEnabled(flag))
+          .build();
     }
     ```
 
-    `ViaductRestController.java` handles requests to `/graphql`. It builds an `ExecutionInput` from the HTTP request, chooses a schema based on the request's scopes, and executes the operation:
+    `ViaductRestController.java` serves `publicSchema` on `/graphql` and `publicSchemaWithExtras` on `/extras/graphql`. Each route builds an `ExecutionInput` from the HTTP request and executes the operation against its schema:
 
     ```java
     return viaduct
-        .executeAsync(executionInput, determineSchemaId(parseScopes(scopesHeader)))
+        .executeAsync(executionInput, schemaId)
         .thenApply(result -> HttpResponse.ok(result.toSpecification()));
     ```
 

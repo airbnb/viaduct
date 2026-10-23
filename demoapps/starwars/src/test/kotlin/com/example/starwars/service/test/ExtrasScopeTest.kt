@@ -1,5 +1,7 @@
 package com.example.starwars.service.test
 
+import io.kotest.matchers.collections.shouldContain
+import io.kotest.matchers.collections.shouldNotContain
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
 import io.kotest.matchers.string.shouldContain
@@ -21,7 +23,17 @@ class ExtrasScopeTest {
     @field:Client("/")
     lateinit var client: HttpClient
 
-    // tag::header_execution_example[22] Example of executing a GraphQL query with custom headers
+    @Test
+    fun `introspection on each route describes that route's schema`() {
+        val query = """{ __type(name: "Species") { fields { name } } }"""
+
+        fun fieldNames(path: String) =
+            client.executeGraphQLQuery(query, path = path)
+                .get("data").get("__type").get("fields").map { it.get("name").asText() }
+
+        fieldNames("/graphql") shouldNotContain "culturalNotes"
+        fieldNames("/extras/graphql") shouldContain "culturalNotes"
+    }
 
     @Test
     fun `test extras scope data is available when scope is present`() {
@@ -40,9 +52,7 @@ class ExtrasScopeTest {
             }
         """.trimIndent()
 
-        // Add extras scope header
-        val headers = mapOf("X-Viaduct-Scopes" to "extras")
-        val response = client.executeGraphQLQuery(query, headers)
+        val response = client.executeGraphQLQuery(query, path = "/extras/graphql")
 
         // Verify the query executed successfully
         val errors = response.get("errors")
@@ -81,7 +91,6 @@ class ExtrasScopeTest {
             }
         """.trimIndent()
 
-        // No scopes provided - should not include extras scope
         val response = client.executeGraphQLQuery(query)
 
         // Verify the query has errors due to restricted fields
@@ -122,7 +131,6 @@ class ExtrasScopeTest {
             }
         """.trimIndent()
 
-        // No scopes provided
         val response = client.executeGraphQLQuery(query)
 
         // Verify the query executed successfully for non-scoped fields

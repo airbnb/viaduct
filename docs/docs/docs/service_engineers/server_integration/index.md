@@ -55,7 +55,7 @@ For simple integrations, `ExecutionInput.requestContext` can carry deployment-sp
 
 ## HTTP Embedding
 
-[Getting Started](../../../getting_started/index.md) shows Ktor for Kotlin and Micronaut for Java. These Micronaut examples translate an HTTP request into an execution input. The Java example comes directly from the Star Wars demo and also validates the query, carries request context, and selects a registered schema from the request scopes:
+[Getting Started](../../../getting_started/index.md) shows Ktor for Kotlin and Micronaut for Java. These Micronaut examples translate an HTTP request into an execution input. The Java example comes directly from the Star Wars demo and also validates the query, carries request context, and serves each scoped schema on its own route:
 
 ===! "Kotlin"
 
@@ -72,7 +72,7 @@ For simple integrations, `ExecutionInput.requestContext` can carry deployment-sp
                 operationText = request["query"] as String,
                 variables = (request["variables"] as? Map<String, Any>) ?: emptyMap(),
             )
-            val result = viaduct.execute(input, determineSchemaId(scopesHeader))
+            val result = viaduct.execute(input)
             return HttpResponse.ok(result.toSpecification())
         }
     }
@@ -80,7 +80,7 @@ For simple integrations, `ExecutionInput.requestContext` can carry deployment-sp
 
 === "Java"
 
-    {{ codefile("demoapps/starwars-java/src/main/java/com/example/starwars/service/viaduct/ViaductRestController.java") | indent(4) }}
+    {{ codetag("demoapps/starwars-java/src/main/java/com/example/starwars/service/viaduct/ViaductRestController.java", "viaduct_graphql_controller", lang="java", strip_comments=True) | indent(4) }}
 
 Our [Viaduct demo apps](https://github.com/viaduct-dev) website contains integrations of Viaduct with a variety of web servers.
 

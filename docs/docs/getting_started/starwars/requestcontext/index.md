@@ -35,11 +35,11 @@ Populate the context in your GraphQL controller:
 
 === "Kotlin"
 
-    {{ codetag("demoapps/starwars/src/main/kotlin/com/example/starwars/service/viaduct/ViaductRestController.kt", "viaduct_graphql_controller", lang="kotlin") | indent(4) }}
+    {{ codetag("demoapps/starwars/src/main/kotlin/com/example/starwars/service/viaduct/ViaductRestController.kt", "viaduct_graphql_controller", lang="kotlin", strip_comments=True) | indent(4) }}
 
 === "Java"
 
-    {{ codefile("demoapps/starwars-java/src/main/java/com/example/starwars/service/viaduct/ViaductRestController.java", start=31, end=58, lang="java") | indent(4) }}
+    {{ codetag("demoapps/starwars-java/src/main/java/com/example/starwars/service/viaduct/ViaductRestController.java", "viaduct_graphql_controller", lang="java", strip_comments=True) | indent(4) }}
 
 
 Use the context in your resolvers:
@@ -78,11 +78,11 @@ When creating your `ExecutionInput`, include the request context:
 
 === "Kotlin"
 
-    {{ codetag("demoapps/starwars/src/main/kotlin/com/example/starwars/service/viaduct/ViaductRestController.kt", "create_execution_input", lang="kotlin") | indent(4) }}
+    {{ codetag("demoapps/starwars/src/main/kotlin/com/example/starwars/service/viaduct/ViaductRestController.kt", "execution_input", lang="kotlin") | indent(4) }}
 
 === "Java"
 
-    {{ codefile("demoapps/starwars-java/src/main/java/com/example/starwars/service/viaduct/ViaductRestController.java", start=43, end=53, lang="java") | indent(4) }}
+    {{ codetag("demoapps/starwars-java/src/main/java/com/example/starwars/service/viaduct/ViaductRestController.java", "execution_input", lang="java") | indent(4) }}
 
 
 The context can carry application-specific values; construct it explicitly when preparing the execution input:

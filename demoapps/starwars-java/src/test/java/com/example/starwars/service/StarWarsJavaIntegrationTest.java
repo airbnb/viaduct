@@ -113,7 +113,8 @@ final class StarWarsJavaIntegrationTest {
     assertNoErrors(ids);
 
     JsonNode response =
-        execute(
+        executeAt(
+            "/extras/graphql",
             """
             query Nodes($planet: ID!, $species: ID!, $starship: ID!, $vehicle: ID!) {
               planet: node(id: $planet) {
@@ -135,7 +136,7 @@ final class StarWarsJavaIntegrationTest {
                 "species", ids.at("/data/allSpecies/0/id").asText(),
                 "starship", ids.at("/data/allStarships/0/id").asText(),
                 "vehicle", ids.at("/data/allVehicles/0/id").asText()),
-            Map.of("X-Viaduct-Scopes", "extras"));
+            Map.of());
 
     assertNoErrors(response);
     assertThat(response.at("/data/planet/name").asText()).isEqualTo("Tatooine");
@@ -289,7 +290,7 @@ final class StarWarsJavaIntegrationTest {
     JsonNode withoutScope = execute(query, Map.of());
     assertThat(withoutScope.path("errors").isArray()).isTrue();
 
-    JsonNode withScope = execute(query, Map.of("X-Viaduct-Scopes", "extras"));
+    JsonNode withScope = executeAt("/extras/graphql", query, Map.of(), Map.of());
     assertNoErrors(withScope);
     assertThat(withScope.at("/data/allSpecies/0/name").asText()).isEqualTo("Human");
     assertThat(withScope.at("/data/allSpecies/0/rarityLevel").asText()).isEqualTo("Common");
@@ -434,9 +435,15 @@ final class StarWarsJavaIntegrationTest {
 
   private JsonNode execute(String query, Map<String, Object> variables, Map<String, String> headers)
       throws Exception {
+    return executeAt("/graphql", query, variables, headers);
+  }
+
+  private JsonNode executeAt(
+      String path, String query, Map<String, Object> variables, Map<String, String> headers)
+      throws Exception {
     Map<String, Object> body = Map.of("query", query, "variables", variables);
     MutableHttpRequest<Map<String, Object>> request =
-        HttpRequest.POST("/graphql", body).contentType(MediaType.APPLICATION_JSON_TYPE);
+        HttpRequest.POST(path, body).contentType(MediaType.APPLICATION_JSON_TYPE);
     for (Map.Entry<String, String> header : headers.entrySet()) {
       request.header(header.getKey(), header.getValue());
     }

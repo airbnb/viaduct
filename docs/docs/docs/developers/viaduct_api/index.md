@@ -55,13 +55,8 @@ ViaductBuilder provides full control of all the internal configurations of the V
     val viaduct =
       ViaductBuilder()
         .withTenantModuleInjectorFactory(tenantModuleInjectorFactory)
-        // Register exactly these executable views.
-        .withScopedSchemas(
-          listOf(
-            SchemaScopeInfo.Base,
-            SchemaScopeInfo.Scoped(id = "public", scopesToApply = setOf("public"))
-          )
-        )
+        // Requires src/main/viaduct/scopes.yaml (see Scope Schemas). Registers Base plus every declared scoped schema.
+        .withScopedSchemas(listOf(SchemaScopeInfo.Base) + SchemaScopeInfo.fromResources())
         // Optional platform hooks:
         // .withMeterRegistry(meterRegistry)
         // .withFlagManager(flagManager)
@@ -74,11 +69,12 @@ ViaductBuilder provides full control of all the internal configurations of the V
 === "Java"
 
     ```java
+    List<SchemaScopeInfo> schemas = new ArrayList<>(SchemaScopeInfo.fromResources());
+    schemas.add(SchemaScopeInfo.Base.INSTANCE);
+
     Viaduct viaduct = new ViaductBuilder()
         .withTenantModuleInjectorFactory(NaiveTenantModuleInjectorFactory.INSTANCE)
-        .withScopedSchemas(List.of(
-            SchemaScopeInfo.Base.INSTANCE,
-            new SchemaScopeInfo.Scoped("public", Set.of("public"))))
+        .withScopedSchemas(schemas)
         .build();
     ```
 
@@ -89,20 +85,14 @@ ViaductBuilder provides full control of all the internal configurations of the V
 
 ### Registering executable schema views
 
-If you do not explicitly configure schema views, Viaduct's convenience construction paths register
-Base by default. This preserves the normal single-schema setup for both unscoped and scope-aware
-schemas.
+If you do not explicitly configure schema views, Viaduct's convenience construction paths register Base by default. This preserves the normal single-schema setup for both unscoped and scope-aware schemas.
 
-When you call `withScopedSchemas(...)`, however, the supplied list is authoritative. Viaduct
-registers exactly those views:
+When you call `withScopedSchemas(...)`, however, the supplied list is authoritative. Viaduct registers exactly those views:
 
-- `SchemaScopeInfo.Base` registers `SchemaId.Base`. It contains every non-tenant-local field
-  without filtering to specific scopes.
-- `SchemaScopeInfo.Scoped` registers its named `SchemaId.Scoped`. It contains fields visible to
-  at least one configured scope and excludes tenant-local fields.
+- `SchemaScopeInfo.Base` registers `SchemaId.Base`. It contains every non-tenant-local field without filtering to specific scopes.
+- `SchemaScopeInfo.Scoped` registers its named `SchemaId.Scoped`. It contains fields visible to at least one configured scope and excludes tenant-local fields.
 
-Base is optional under explicit configuration. For example, an application can expose only a
-public projection:
+Base is optional under explicit configuration. For example, an application can expose only a public projection:
 
 ===! "Kotlin"
 
@@ -133,13 +123,9 @@ public projection:
     SchemaId publicSchemaId = publicView.getSchemaId();
     ```
 
-This application must execute requests using the corresponding `SchemaId.Scoped`; `SchemaId.Base`
-is not registered. The internal Full schema still exists for planning and execution support, but
-it is not a client execution target.
+This application must execute requests using the corresponding `SchemaId.Scoped`; `SchemaId.Base` is not registered. The internal Full schema still exists for planning and execution support, but it is not a client execution target.
 
-`SchemaScopeInfo` selects executable views; it does not declare which scope IDs are valid. For a
-schema loaded from resources, Viaduct reads those from the scope definitions the build packaged, and
-infers them from the schema when no definitions are present. A Scoped view requires one or the other.
+`SchemaScopeInfo` selects executable views; it does not declare which scope IDs are valid. For a schema loaded from resources, Viaduct reads those from the scope definitions the build packaged, and infers them from the schema when no definitions are present. A Scoped view requires one or the other. See [Scope Schemas](../../service_engineers/scope_schemas/index.md) for declaring scope definitions in `scopes.yaml` and reading them with `SchemaScopeInfo.fromResources`.
 
 ## Choosing The Schema: `SchemaId`
 
@@ -285,15 +271,11 @@ The Java signatures above are a summary of the callable API. Imports come from `
 
 In both cases the returned `ExecutionResult.errors` are **sorted** by GraphQL path and then message.
 
-Both methods default to `SchemaId.Base`. If explicit schema configuration omitted Base, callers
-must pass a registered `SchemaId.Scoped`; using the default returns the existing schema-not-found
-execution result.
+Both methods default to `SchemaId.Base`. If explicit schema configuration omitted Base, callers must pass a registered `SchemaId.Scoped`; using the default returns the existing schema-not-found execution result.
 
 ### `execute(...)`
 
-`execute` is a `suspend` function that returns the `ExecutionResult` directly. It is the
-idiomatic entry point for Kotlin and coroutine-based servers, and it runs in the caller's
-coroutine context.
+`execute` is a `suspend` function that returns the `ExecutionResult` directly. It is the idiomatic entry point for Kotlin and coroutine-based servers, and it runs in the caller's coroutine context.
 
 ===! "Kotlin"
 
@@ -322,10 +304,7 @@ coroutine context.
 
 ### `executeAsync(...)`
 
-`executeAsync` is a **non-suspending** function that returns a `CompletableFuture<ExecutionResult>`.
-Following the standard Java idiom, it accepts an `Executor` that controls the threads execution
-runs on (defaulting to `ForkJoinPool.commonPool()`). It is the idiomatic entry point for Java
-callers and other non-coroutine contexts.
+`executeAsync` is a **non-suspending** function that returns a `CompletableFuture<ExecutionResult>`. Following the standard Java idiom, it accepts an `Executor` that controls the threads execution runs on (defaulting to `ForkJoinPool.commonPool()`). It is the idiomatic entry point for Java callers and other non-coroutine contexts.
 
 ===! "Kotlin"
 

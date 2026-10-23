@@ -73,9 +73,8 @@ class SpeciesScopeHttpTest {
             }
         """.trimIndent()
 
-        val response = client.executeGraphQLQuery(query, scopes = setOf("extras"))
+        val response = client.executeGraphQLQuery(query, path = "/extras/graphql")
 
-        // This query should work since we're passing the extras scope
         val hasErrors = response.has("errors") && !response.get("errors").isNull
         hasErrors shouldBe false
 
@@ -108,7 +107,7 @@ class SpeciesScopeHttpTest {
             }
         """.trimIndent()
 
-        val response = client.executeGraphQLQuery(query) // No extras scope provided
+        val response = client.executeGraphQLQuery(query)
 
         // With proper scoping, querying extras fields without scope should result in errors
         val hasErrors = response.has("errors") && !response.get("errors").isNull

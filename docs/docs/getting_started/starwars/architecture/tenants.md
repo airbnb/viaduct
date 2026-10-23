@@ -96,8 +96,8 @@ The **builder** :
 
 1. Discovers all SDL files per module (schema partitions).
 2. Registers **schema IDs** that point to a concrete surface (public vs extras).
-3. At runtime, the **controller** chooses a `schemaId` (see `determineSchemaId(scopes)`) and builds an `ExecutionInput`.
-4. Viaduct executes the request against that schema, applying `@scope` visibility during planning.
+3. At runtime, the **controller** serves each `schemaId` on its own route and builds an `ExecutionInput`.
+4. Viaduct executes the request against that schema, which contains only the fields its scopes allow.
 
 See the **Schemas** and **Scope** pages for runtime selection and visibility rules.
 

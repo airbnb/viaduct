@@ -7,7 +7,7 @@ import viaduct.service.SchemaScopeInfo
 import viaduct.service.api.Viaduct
 
 val SCHEMA_ID = "publicSchema"
-val DEFAULT_SCHEMA = SchemaScopeInfo.fromResources(setOf(SCHEMA_ID)).single()
+val DEFAULT_SCHEMA by lazy { SchemaScopeInfo.fromResources(setOf(SCHEMA_ID)).single() }
 
 /**
  * Micronaut factory that provides the Viaduct instance.

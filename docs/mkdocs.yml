@@ -168,6 +168,7 @@ nav:
       - Error Handling: docs/service_engineers/observability/error_handling.md
       - Setup: docs/service_engineers/observability/setup.md
     - Multi-tenancy: docs/service_engineers/multi_tenancy/index.md
+    - Scope Schemas: docs/service_engineers/scope_schemas/index.md
     - Feature Flags: docs/service_engineers/feature_flags/index.md
     - Demonstration Apps: docs/service_engineers/demonstration_apps/index.md
   - Contributors:

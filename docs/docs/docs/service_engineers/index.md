@@ -12,6 +12,7 @@ As a service engineer, you manage the Viaduct service itself: integrating it int
 - **[Dependency Injection](dependency_injection/index.md)** — Wire a DI framework (e.g., Guice, Koin, Spring) into Viaduct so resolver classes can declare constructor dependencies.
 - **[Observability](observability/index.md)** — Configure metrics, error reporting, and monitoring.
 - **[Multi-tenancy](multi_tenancy/index.md)** — Compose multiple independently-developed tenant modules into a single unified schema.
+- **[Scope Schemas](scope_schemas/index.md)** — Declare the scope IDs and scoped schemas an application can build in `scopes.yaml`.
 - **[Feature Flags](feature_flags/index.md)** — Configure Viaduct feature flags.
 
 The service API is shared by Kotlin and Java applications. Select your language in the examples; Java integration uses `CompletableFuture` for operation execution and Java adapters for coroutine-based SPIs. Build-script examples use Gradle's Kotlin DSL even when tenant code is Java.

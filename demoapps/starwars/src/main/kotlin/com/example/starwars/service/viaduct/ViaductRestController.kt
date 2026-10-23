@@ -17,31 +17,31 @@ import viaduct.service.api.Viaduct
 private const val QUERY_FIELD = "query"
 private const val VARIABLES_FIELD = "variables"
 
-/**
- * This demo includes a custom header to handle business rules.
- * X-Viaduct-Scopes represents additional scopes to include in the query
- * to filter which schemas to use in the Viaduct query to resolve the request.
- *
- * This is not part of the GraphQL spec, but is used here to demonstrate
- * how Viaduct can handle multi-schema scenarios based on request context.
- */
-private const val SCOPES_HEADER = "X-Viaduct-Scopes"
-
-/**
- * This controller handles incoming GraphQL requests and routes them to the appropriate Viaduct schema
- * based on the scopes provided in the request headers.
- */
-// tag::viaduct_graphql_controller[20] Viaduct GraphQL Controller
+// tag::viaduct_graphql_controller Viaduct GraphQL Controller
 @Controller
 class ViaductRestController(
     private val viaduct: Viaduct,
+    private val schemas: StarWarsSchemas,
     private val securityAccessService: SecurityAccessContext
 ) {
+    // tag::schema_routes
     @Post("/graphql")
     suspend fun graphql(
         @Body request: Map<String, Any>,
-        @Header(SCOPES_HEADER) scopesHeader: String?,
         @Header("security-access") securityAccess: String?
+    ): HttpResponse<Map<String, Any?>> = execute(request, schemas.default.schemaId, securityAccess)
+
+    @Post("/extras/graphql")
+    suspend fun extrasGraphql(
+        @Body request: Map<String, Any>,
+        @Header("security-access") securityAccess: String?
+    ): HttpResponse<Map<String, Any?>> = execute(request, schemas.extras.schemaId, securityAccess)
+    // end::schema_routes
+
+    private suspend fun execute(
+        request: Map<String, Any>,
+        schemaId: SchemaId,
+        securityAccess: String?
     ): HttpResponse<Map<String, Any?>> {
         val query = request[QUERY_FIELD] as? String
             ?: return HttpResponse.badRequest(
@@ -49,45 +49,15 @@ class ViaductRestController(
             )
         securityAccessService.setSecurityAccess(securityAccess)
         val executionInput = createExecutionInput(query, request)
-        // tag::run_query[6] Runs the query example
-        val scopes = parseScopes(scopesHeader)
-        val schemaId = determineSchemaId(scopes)
+        // tag::run_query
         val result = viaduct.execute(executionInput, schemaId)
         return HttpResponse.ok(result.toSpecification())
+        // end::run_query
     }
 
-    // tag::parse_scopes[7] Parse scopes example
+    // end::viaduct_graphql_controller
 
-    /**
-     * Extract the scopes from the request headers. If no scopes are provided, default to [DEFAULT_SCOPE].
-     */
-    private fun parseScopes(scopesHeader: String?): Set<String> {
-        return scopesHeader?.split(",")?.map { it.trim() }?.toSet() ?: setOf(DEFAULT_SCOPE_ID)
-    }
-
-    // tag::determine_schema[12] Determine schema example
-
-    /**
-     * Based on the scopes received in the request, determine which schema ID to use.
-     * If the "extras" scope is included, use the schema that includes extra fields.
-     */
-    private fun determineSchemaId(scopes: Set<String>): SchemaId =
-        if (scopes.contains(EXTRAS_SCOPE_ID)) {
-            EXTRAS_SCHEMA.schemaId
-        } else {
-            DEFAULT_SCHEMA.schemaId
-        }
-
-    // tag::execution_input[17] Create ExecutionInput example
-
-    /**
-     * Create an [ExecutionInput] object from the incoming request map and the determined schema ID.
-     *
-     * Viaduct ExecutionInput is similar to the standard GraphQL ExecutionInput,
-     * but includes the schema ID to specify which schema to use for execution.
-     */
-
-    // # tag::create_execution_input[8] How to create ExecutionInput
+    // tag::execution_input
     private fun createExecutionInput(
         query: String,
         request: Map<String, Any>
@@ -99,4 +69,5 @@ class ViaductRestController(
             requestContext = emptyMap<String, Any>(),
         )
     }
+    // end::execution_input
 }

@@ -1,10 +1,10 @@
 ---
 title: Scope Directive
-description: Control schema visibility and multi-module access with @scope; Star Wars demo uses an app-level header.
+description: Control schema visibility and multi-module access with @scope; the Star Wars demo serves each scoped schema on its own route.
 ---
 
 
-The `@scope` directive is part of **Viaduct’s security and multi-tenancy model**. It restricts which GraphQL types, fields, or directives are visible and executable to a given request, depending on the **active scopes** provided by your application to the Viaduct runtime.
+The `@scope` directive is part of **Viaduct’s security and multi-tenancy model**. It restricts which GraphQL types, fields, or directives are visible and executable to a given request, depending on which **scoped schema** your application selects for that request.
 
 ## Purpose and context
 
@@ -26,65 +26,56 @@ Typical use cases:
 {{ codetag("demoapps/starwars/modules/universe/src/main/viaduct/schema/Species.graphqls", "schemas_extras_example", lang="graphql") }}
 
 
-In this example, `searchCharacter` is available to any request with the `default` scope. The `culturalNotes` is defined in `extras`.
+In this example, `searchCharacter` is in every scoped schema that includes the `default` scope. The `culturalNotes` is defined in `extras`.
 
-This demo app will hide `extras` for queries that do not include the header `X-Viaduct-Scopes: extras`.
+This demo app hides `extras` from requests to `/graphql` and serves it on `/extras/graphql`.
 
 ## How scopes are evaluated
 
-At runtime, **your application** should determine which scopes apply to the request and passes them to Viaduct’s execution context. The framework then includes or excludes schema elements accordingly **at planning time**.
+A request does not carry scopes into Viaduct. It selects a registered scoped schema by its `SchemaId`, and that schema contains only the fields visible to its scopes. **Your application** decides which scoped schema each request gets.
 
-In the **Star Wars demo only**, scopes are provided via this header:
+In the Star Wars demo, the route decides. Each declared scoped schema is served on its own path:
 
-```json
-{
-  "X-Viaduct-Scopes": "default,extras"
-}
-```
+- `POST /graphql` runs against `publicSchema` (scope `default`).
+- `POST /extras/graphql` runs against `publicSchemaWithExtras` (scopes `default` and `extras`).
+- A field is in a scoped schema if **any** of the schema's scopes appears in the field's `to:` list. Fields outside it cannot be queried and are omitted from introspection.
 
-- Multiple scopes can be supplied (comma-separated in the demo).
-- Access is granted if **any** of the active scopes match the element’s `to:` list.
-- Non-matching fields are not planned or executed and are omitted from introspection.
-
-> If the header is absent in the demo, the app assumes `default`. In your service, choose the convention that fits your auth model (for example, from JWT claims or request context).
+Because each route serves one fixed schema, introspection on a route describes exactly what that route executes. The demo leaves both routes open to every caller; a real service authorizes callers per route.
 
 
-## How the Star Wars passes scopes to Viaduct
+## How the Star Wars demo routes requests to a scoped schema
 
-In the file `ViaductGraphQLController`, the controller reads scopes from the header in the function
+`ViaductRestController` declares one route per scoped schema, and each passes its schema ID to a shared handler:
 
 
 === "Kotlin"
 
-    {{ codetag("demoapps/starwars/src/main/kotlin/com/example/starwars/service/viaduct/ViaductRestController.kt", "parse_scopes", lang="kotlin") | indent(4) }}
+    {{ codetag("demoapps/starwars/src/main/kotlin/com/example/starwars/service/viaduct/ViaductRestController.kt", "schema_routes", lang="kotlin") | indent(4) }}
 
 === "Java"
 
-    {{ codefile("demoapps/starwars-java/src/main/java/com/example/starwars/service/viaduct/ViaductRestController.java", start=59, end=66, lang="java") | indent(4) }}
+    {{ codetag("demoapps/starwars-java/src/main/java/com/example/starwars/service/viaduct/ViaductRestController.java", "schema_routes", lang="java") | indent(4) }}
 
 
-From those scopes the app extracts the specific schema limited to those scopes only :
+Those schemas are declared in `src/main/viaduct/scopes.yaml`:
+
+
+{{ codefile("demoapps/starwars/src/main/viaduct/scopes.yaml") }}
+
+
+`ViaductConfiguration.kt` (Kotlin) or `ViaductConfiguration.java` (Java) reads them back by id, so the controller never restates their scopes:
 
 
 === "Kotlin"
 
-    {{ codetag("demoapps/starwars/src/main/kotlin/com/example/starwars/service/viaduct/ViaductRestController.kt", "determine_schema", lang="kotlin") | indent(4) }}
+    {{ codetag("demoapps/starwars/src/main/kotlin/com/example/starwars/service/viaduct/ViaductConfiguration.kt", "declared_schemas", lang="kotlin") | indent(4) }}
 
 === "Java"
 
-    {{ codefile("demoapps/starwars-java/src/main/java/com/example/starwars/service/viaduct/ViaductRestController.java", start=68, end=72, lang="java") | indent(4) }}
+    {{ codetag("demoapps/starwars-java/src/main/java/com/example/starwars/service/viaduct/ViaductConfiguration.java", "declared_schemas", lang="java") | indent(4) }}
 
 
-Those schemas are defined in `ViaductConfiguration.kt` (Kotlin) or `ViaductConfiguration.java` (Java):
-
-
-=== "Kotlin"
-
-    {{ codetag("demoapps/starwars/src/main/kotlin/com/example/starwars/service/viaduct/ViaductConfiguration.kt", "schema_registration", lang="kotlin") | indent(4) }}
-
-=== "Java"
-
-    {{ codefile("demoapps/starwars-java/src/main/java/com/example/starwars/service/viaduct/ViaductConfiguration.java", start=14, end=19, lang="java") | indent(4) }}
+See [Scope Schemas](../../../docs/service_engineers/scope_schemas/index.md) for the syntax of `scopes.yaml`.
 
 
 With the correct schema, the controller builds the `ExecutionInput` for Viaduct
@@ -96,7 +87,7 @@ With the correct schema, the controller builds the `ExecutionInput` for Viaduct
 
 === "Java"
 
-    {{ codefile("demoapps/starwars-java/src/main/java/com/example/starwars/service/viaduct/ViaductRestController.java", start=43, end=53, lang="java") | indent(4) }}
+    {{ codetag("demoapps/starwars-java/src/main/java/com/example/starwars/service/viaduct/ViaductRestController.java", "execution_input", lang="java") | indent(4) }}
 
 
 And runs the query, this is the entire logic of the controller:
@@ -108,20 +99,19 @@ And runs the query, this is the entire logic of the controller:
 
 === "Java"
 
-    {{ codefile("demoapps/starwars-java/src/main/java/com/example/starwars/service/viaduct/ViaductRestController.java", start=54, end=56, lang="java") | indent(4) }}
+    {{ codetag("demoapps/starwars-java/src/main/java/com/example/starwars/service/viaduct/ViaductRestController.java", "run_query", lang="java") | indent(4) }}
 
 
 ### Demo example (Star Wars)
 
-| Active scopes (demo) | Accessible types/fields |
-|----------------------|-------------------------|
-| `default`            | All default types and fields. |
-| `extras`             | Extras-only fields; your app can also include default by convention. |
-| `default,extras`     | Union of default plus extras fields. |
+| Route (demo)      | Schema ID                | Accessible types/fields |
+|-------------------|--------------------------|-------------------------|
+| `/graphql`        | `publicSchema`           | All default types and fields. |
+| `/extras/graphql` | `publicSchemaWithExtras` | Default plus extras types and fields. |
 
 ## Multi-tenancy and security boundaries
 
-`@scope` provides a **soft isolation layer** between modules or schema segments. Unlike role-based access control, it operates at **schema compilation** and **execution-planning** levels — unauthorized elements are not planned nor run.
+`@scope` provides a **soft isolation layer** between modules or schema segments. Unlike role-based access control, it operates when each **scoped schema is built**: elements outside its scopes are absent from it, so they are never planned or run.
 
 In the Star Wars demo:
 
@@ -134,16 +124,16 @@ In the Star Wars demo:
 - Define a `default` scope for general availability.
 - Keep scopes orthogonal — avoid overlapping responsibilities.
 - Apply `@scope` explicitly to sensitive fields.
-- Choose a single source of truth for scopes (JWT claims, session, config) and pass it to Viaduct consistently.
-- Log active scopes per request for auditability.
+- Decide from a single source of truth (JWT claims, session, config) which callers may reach each scoped schema's route.
+- Log the route and `schemaId` each request runs against.
 - Define other scopes like `internal`, `admin`, or `beta` as needed, and limit the usage as described above.
 
 > See [Best Practices](../../../docs/developers/best_practices/index.md) for the consolidated reference.
 
 ## Common mistakes
 
-### 1. Treating the demo header as a platform requirement
-Viaduct does not require an HTTP header. The Star Wars header is **demo-specific**. Pick a mechanism aligned with your auth stack and bind it to the request context.
+### 1. Selecting the scoped schema with a request header
+A header makes one URL answer with several schemas, so a tool that introspects the URL sees only one of them. Serve each scoped schema on its own route instead.
 
 ### 2. Missing `default` scope
 If no scope is declared where you expected one, the field may be invisible to all requests.
@@ -156,7 +146,7 @@ Prefer clear, non-overlapping boundaries to reduce confusion and accidental expo
 
 ## Query example
 
-culturalNotes and specialAbilities are only visible when the "extras" scope is provided :
+`culturalNotes` and `specialAbilities` are only visible on `/extras/graphql`:
 
 ```graphql
 query {
@@ -170,18 +160,18 @@ query {
 }
 ```
 
-In GraphiQL, add this to the **Headers** tab below the query pane:
+The demo's GraphiQL page sends queries to `/graphql`, so run this one against the extras route directly:
 
-```json
-{
-  "X-Viaduct-Scopes": "extras"
-}
+```shell
+curl -s http://localhost:8080/extras/graphql \
+  -H 'Content-Type: application/json' \
+  -d '{"query": "{ node(id: \"U3BlY2llczox\") { ... on Species { name culturalNotes specialAbilities } } }"}'
 ```
 
 ## Debugging and testing
 
-- In the demo, vary the header to confirm visibility; in your app, vary the scope source (claims/context).
+- In the demo, send the same query to `/graphql` and `/extras/graphql` to confirm visibility.
 - Verify that restricted fields disappear from both introspection and responses.
 - Add integration tests per scope slice (Kotlin: `ExtrasScopeTest.kt`; Java: `StarWarsJavaIntegrationTest.honorsExtrasScope()`).
 
-> For the full `@scope` API, scope configuration at the service layer, and multi-tenancy patterns, see the [Scopes developer reference](../../../docs/developers/scopes/index.md).
+> For the full `@scope` API and multi-tenancy patterns, see the [Scopes developer reference](../../../docs/developers/scopes/index.md). For declaring scoped schemas in `scopes.yaml`, see [Scope Schemas](../../../docs/service_engineers/scope_schemas/index.md).

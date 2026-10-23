@@ -56,7 +56,7 @@ Viaduct models schema construction with two separate concepts:
 - `SchemaView.Base` contains all non-tenant-local fields without projecting to particular scopes.
 - `SchemaView.Scoped(scopes)` contains fields visible to at least one selected scope and excludes tenant-local fields.
 
-A schema ID identifies a registered executable Base or Scoped view. The particular view used by a request is selected by the `schemaId` argument to {{ kdoc("viaduct.service.api.Viaduct.execute") }} or {{ kdoc("viaduct.service.api.Viaduct.executeAsync") }}. Construction and registration are separate: deriving a Full schema does not make Base executable, and applications may register Base, one or more Scoped views, both, or neither. See the [Viaduct API](https://viaduct.airbnb.tech/docs/developers/viaduct_api/#registering-executable-schema-views) for configuration examples.
+A schema ID identifies a registered executable Base or Scoped view. The particular view used by a request is selected by the `schemaId` argument to {{ kdoc("viaduct.service.api.Viaduct.execute") }} or {{ kdoc("viaduct.service.api.Viaduct.executeAsync") }}. Construction and registration are separate: deriving a Full schema does not make Base executable, and applications may register Base, one or more Scoped views, both, or neither. See the [Viaduct API](https://viaduct.airbnb.tech/docs/developers/viaduct_api/#registering-executable-schema-views) for registration examples, and [Scope Schemas](https://viaduct.airbnb.tech/docs/service_engineers/scope_schemas/) for declaring the valid scope IDs and scoped schemas in `scopes.yaml`.
 
 ### Tenant-local fields
 

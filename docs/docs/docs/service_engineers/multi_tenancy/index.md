@@ -107,7 +107,7 @@ The application project is also where service-engineering concerns usually live:
 - constructing the `Viaduct` instance with `BasicViaductFactory` or `ViaductBuilder`
 - integrating with the web framework or message consumer
 - configuring dependency injection for resolver classes
-- configuring schema variants, observability, feature flags, and deployment packaging
+- declaring [scope schemas](../scope_schemas/index.md), and configuring observability, feature flags, and deployment packaging
 
 Tenant projects should normally be listed in the Viaduct settings topology rather than manually added as application project dependencies. The application plugin adds topology modules to the application runtime classpath so Viaduct can discover their generated metadata and resolver classes, while keeping tenant implementation code out of the application project's compilation classpath.
 
@@ -241,7 +241,7 @@ Application project:
 - web server or message consumer entry point
 - `BasicViaductFactory` or `ViaductBuilder` configuration
 - dependency injection integration
-- schema scoping configuration
+- scope definitions in `src/main/viaduct/scopes.yaml` (see [Scope Schemas](../scope_schemas/index.md))
 - observability and error handling configuration
 
 Tenant project:
@@ -296,4 +296,5 @@ Use normal Gradle dependencies only for ordinary JVM code dependencies.
 - [Star Wars Architecture: Tenants](../../../getting_started/starwars/architecture/tenants.md)
 - [Server Integration](../server_integration/index.md)
 - [Developers: Scopes](../../developers/scopes/index.md)
+- [Scope Schemas](../scope_schemas/index.md)
 - [Dependency Injection](../dependency_injection/index.md)

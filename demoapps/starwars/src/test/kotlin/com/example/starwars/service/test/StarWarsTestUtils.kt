@@ -24,19 +24,13 @@ fun Type<NodeCompositeOutput>.globalId(internalId: String): String {
 fun HttpClient.executeGraphQLQuery(
     query: String,
     headers: Map<String, String> = emptyMap(),
-    scopes: Set<String>? = null
+    path: String = "/graphql"
 ): JsonNode {
-    var request: MutableHttpRequest<Map<String, String>> = HttpRequest.POST("/graphql", mapOf("query" to query))
+    var request: MutableHttpRequest<Map<String, String>> = HttpRequest.POST(path, mapOf("query" to query))
         .contentType(MediaType.APPLICATION_JSON_TYPE)
 
-    // Add any custom headers (for scopes, etc.)
     headers.forEach { (key, value) ->
         request = request.header(key, value)
-    }
-
-    // Add scope header if scopes are provided
-    if (scopes != null) {
-        request = request.header("X-Viaduct-Scopes", scopes.joinToString(","))
     }
 
     // Use exchange() instead of retrieve() to get the full response
@@ -72,12 +66,12 @@ fun HttpClient.executeGraphQLQuery(
  */
 fun HttpClient.executeGraphQLQueryWithAdminAccess(
     query: String,
-    scopes: Set<String>? = null
+    path: String = "/graphql"
 ): JsonNode {
     return executeGraphQLQuery(
         query = query,
         headers = mapOf("security-access" to "admin"),
-        scopes = scopes
+        path = path
     )
 }
 
@@ -87,11 +81,11 @@ fun HttpClient.executeGraphQLQueryWithAdminAccess(
 fun HttpClient.executeGraphQLQueryWithCustomAccess(
     query: String,
     securityAccess: String,
-    scopes: Set<String>? = null
+    path: String = "/graphql"
 ): JsonNode {
     return executeGraphQLQuery(
         query = query,
         headers = mapOf("security-access" to securityAccess),
-        scopes = scopes
+        path = path
     )
 }

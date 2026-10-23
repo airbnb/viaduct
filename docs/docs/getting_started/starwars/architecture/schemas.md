@@ -10,16 +10,20 @@ In Viaduct, a **schema** describes the GraphQL surface that a request can access
 
 - A **set of SDL files** (`*.graphqls`) under src/main/viaduct/schema.
 - A **schema ID** that names a concrete slice of the overall SDL (for example, public vs. public-with-extras).
-- A **scope configuration** that controls which requests can see each slice.
+- A set of **scope IDs**, declared in `src/main/viaduct/scopes.yaml`, that controls which fields each slice contains.
 
-The Star Wars demo defines two schema IDs:
+The Star Wars demo declares two schema IDs:
 
-- `PUBLIC_SCHEMA` (Kotlin) / `DEFAULT_SCHEMA` (Java) — the default public surface.
-- `PUBLIC_SCHEMA_WITH_EXTRAS` (Kotlin) / `EXTRAS_SCHEMA` (Java) — includes everything from the public schema plus extra fields marked with `@scope(to: ["extras"])`.
+{{ codefile("demoapps/starwars/src/main/viaduct/scopes.yaml") }}
+
+- `publicSchema` — the default public surface.
+- `publicSchemaWithExtras` — includes everything from `publicSchema` plus extra fields marked with `@scope(to: ["extras"])`.
+
+The build checks every `@scope` name against `schemaScopes` and builds both scoped schemas. See [Scope Schemas](../../../docs/service_engineers/scope_schemas/index.md) for the file's syntax.
 
 ## Where schemas are registered
 
-Schemas are registered when creating a Viaduct instance by passing a list of [SchemaScopeInfo] descriptors. Example (excerpt from `ViaductConfiguration.kt`):
+Schemas are registered when creating a Viaduct instance. The demo reads the scoped schemas the build declared with `SchemaScopeInfo.fromResources()` and registers all of them (excerpt from `ViaductConfiguration.kt`):
 
 
 === "Kotlin"
@@ -28,16 +32,14 @@ Schemas are registered when creating a Viaduct instance by passing a list of [Sc
 
 === "Java"
 
-    {{ codefile("demoapps/starwars-java/src/main/java/com/example/starwars/service/viaduct/ViaductConfiguration.java", start=14, end=19, lang="java") | indent(4) }}
+    {{ codetag("demoapps/starwars-java/src/main/java/com/example/starwars/service/viaduct/ViaductConfiguration.java", "schema_registration", lang="java") | indent(4) }}
 
 
-- `scopedSchemas`: a list of `SchemaScopeInfo` descriptors for schemas that use `@scope`.
-  `SchemaScopeInfo.Scoped` binds a schema name to scope IDs; `SchemaScopeInfo.Base` exposes the
-  unfiltered base view. Schemas without `@scope` need no descriptors.
+- `withScopedSchemas` registers exactly the listed views. Each declared scoped schema becomes a `SchemaScopeInfo.Scoped`; add `SchemaScopeInfo.Base` to also serve the unfiltered base view. Schemas without `@scope` need neither `scopes.yaml` nor `withScopedSchemas`.
 
 ## Organizing SDL files
 
-Place your GraphQL SDL files under the configured resources path so they are included by `resourcesIncluded`. Keep entities modular (for example, `character.graphqls`, `film.graphqls`, `species.graphqls`) and use **directives** like `@scope`, `@idOf`, and `@oneOf` where appropriate.
+Place each tenant's GraphQL SDL files under its `src/main/viaduct/schema` directory. Keep entities modular (for example, `character.graphqls`, `film.graphqls`, `species.graphqls`) and use **directives** like `@scope`, `@idOf`, and `@oneOf` where appropriate.
 
 ### Example (fragment)
 
@@ -57,8 +59,8 @@ To add a field that should exist **only** in the extras slice:
 {{ codetag("demoapps/starwars/modules/universe/src/main/viaduct/schema/Species.graphqls", "schemas_extras_example", lang="graphql") }}
 
 
-2. Ensure the **schema ID** associated with `extras` is registered (`PUBLIC_SCHEMA_WITH_EXTRAS`).
-3. The controller will route requests that include the extras scope to that schema ID.
+2. Ensure a scoped schema that includes `extras` is declared in `scopes.yaml` (`publicSchemaWithExtras`).
+3. Serve that schema ID on a route in the controller, as the demo does with `/extras/graphql`.
 
 To add a new entity:
 
@@ -72,7 +74,7 @@ To add a new entity:
 - Validate that the expected fields appear in **introspection** under each schema ID.
 - Run end-to-end queries for both public and extras slices.
 - Confirm that resolvers are wired and **batched** correctly when many parents are selected.
-- Log the chosen `schemaId` and active scopes for each request.
+- Log the route and `schemaId` each request runs against.
 
 ## Do and don’t
 

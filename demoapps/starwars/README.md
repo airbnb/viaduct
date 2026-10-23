@@ -47,9 +47,9 @@ query {
 
 #### Scoped queries
 
-The `ViaductGraphQLController.kt` applies scope metadata from the `X-Viaduct-Scopes` header into the GraphQL context.
+`ViaductRestController.kt` serves each of the two scoped schemas declared in `src/main/viaduct/scopes.yaml` on its own route: `POST /graphql` runs against `publicSchema`, and `POST /extras/graphql` runs against `publicSchemaWithExtras`.
 
-Some fields—like `Species.culturalNotes` are marked with `@scope(to: ["extras"])`. These will only resolve if the `"extras"` scope is present in the context.
+Some fields, like `Species.culturalNotes`, are marked with `@scope(to: ["extras"])`. They exist only in `publicSchemaWithExtras`.
 
 Use a query like:
 
@@ -65,12 +65,12 @@ query {
 }
 ```
 
-In GraphiQL, add this to the **Headers** tab below the query pane:
+GraphiQL sends queries to `/graphql`, so run this one against the extras route directly:
 
-```json
-{
-  "X-Viaduct-Scopes": "extras"
-}
+```shell
+curl -s http://localhost:8080/extras/graphql \
+  -H 'Content-Type: application/json' \
+  -d '{"query": "{ node(id: \"U3BlY2llczox\") { ... on Species { name culturalNotes specialAbilities } } }"}'
 ```
 
 #### Complex query with batch resolution
@@ -89,8 +89,7 @@ query {
 }
 ```
 
-> Fields such as `filmCount` and `richSummary` are computed by Character resolvers. @See `CharacterResolvers.kt`,
-`SpeciesBatchResolver.kt` and `FilmCountBatchResolver.kt`.
+> Fields such as `filmCount` and `richSummary` are computed by Character resolvers. @See `CharacterResolvers.kt`, `SpeciesBatchResolver.kt` and `FilmCountBatchResolver.kt`.
 
 Resolution is batched by Viaduct’s resolver execution model (and/or DataLoaders if configured), which helps avoid N+1 patterns when the query asks these derived fields across multiple characters.
 

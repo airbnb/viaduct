@@ -24,7 +24,7 @@ Kotlin Star Wars resolver tests use `ResolverTestBase`. The Java demo uses JUnit
 
     The Java examples share this HTTP helper and response assertions:
 
-    {{ codefile("demoapps/starwars-java/src/test/java/com/example/starwars/service/StarWarsJavaIntegrationTest.java", start=431, end=455, lang="java") | indent(4) }}
+    {{ codefile("demoapps/starwars-java/src/test/java/com/example/starwars/service/StarWarsJavaIntegrationTest.java", start=432, end=462, lang="java") | indent(4) }}
 
 ## Field resolver
 
@@ -38,7 +38,7 @@ Kotlin Star Wars resolver tests use `ResolverTestBase`. The Java demo uses JUnit
 
     The Java integration test selects computed fields and asserts the returned values. It exercises real resolver wiring rather than constructing a Kotlin resolver-test spec.
 
-    {{ codefile("demoapps/starwars-java/src/test/java/com/example/starwars/service/StarWarsJavaIntegrationTest.java", start=241, end=272, lang="java") | indent(4) }}
+    {{ codefile("demoapps/starwars-java/src/test/java/com/example/starwars/service/StarWarsJavaIntegrationTest.java", start=242, end=273, lang="java") | indent(4) }}
 
 ### With arguments
 
@@ -52,7 +52,7 @@ Kotlin Star Wars resolver tests use `ResolverTestBase`. The Java demo uses JUnit
 
     Select the field with different arguments in one operation. The aliases distinguish the two results, including the `includeDetails` branches.
 
-    {{ codefile("demoapps/starwars-java/src/test/java/com/example/starwars/service/StarWarsJavaIntegrationTest.java", start=241, end=272, lang="java") | indent(4) }}
+    {{ codefile("demoapps/starwars-java/src/test/java/com/example/starwars/service/StarWarsJavaIntegrationTest.java", start=242, end=273, lang="java") | indent(4) }}
 
 ---
 
@@ -116,4 +116,4 @@ Kotlin Star Wars resolver tests use `ResolverTestBase`. The Java demo uses JUnit
 
     The Java test checks denied access, creates a character with the admin header, then executes a typed submutation and verifies the result. The suite also covers duplicate relationships, deletion cleanup, and invalid IDs.
 
-    {{ codefile("demoapps/starwars-java/src/test/java/com/example/starwars/service/StarWarsJavaIntegrationTest.java", start=298, end=322, lang="java") | indent(4) }}
+    {{ codefile("demoapps/starwars-java/src/test/java/com/example/starwars/service/StarWarsJavaIntegrationTest.java", start=299, end=323, lang="java") | indent(4) }}
