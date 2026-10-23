@@ -30,6 +30,7 @@ import viaduct.engine.runtime2.model.registry.VariableDefinition
 import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.rootFieldReferenceDataOrNull
 import viaduct.engine.runtime2.model.schemaType
+import viaduct.engine.runtime2.resolution.framework.CycleSlotKind
 import viaduct.engine.runtime2.resolution.framework.CycleTask
 import viaduct.engine.runtime2.resolution.framework.Demand
 import viaduct.engine.runtime2.resolution.framework.OEROccurrence
@@ -38,7 +39,6 @@ import viaduct.engine.runtime2.resolution.framework.SharedOERContext
 import viaduct.engine.runtime2.resolution.framework.argumentsContainErrorValue
 import viaduct.engine.runtime2.resolution.framework.fieldResolverCycleTask
 import viaduct.engine.runtime2.resolution.framework.materializeResult
-import viaduct.engine.runtime2.resolution.framework.valueCycleSlot
 
 /**
  * One field or list-element value publication: its operation, containing object occurrence,
@@ -76,6 +76,9 @@ internal class FieldResolverTask private constructor(
     override val engineExecutionContext get() = publication.operation.engineExecutionContext
 
     private val resolutionLogic = FieldResolutionLogic(this)
+    private val publicationCycleTask =
+        publication.oerOccurrence.root
+            .fieldResolverCycleTask(publication.sourceOccurrence.publicationPath)
 
     companion object {
         fun prepareMutation(
@@ -155,7 +158,8 @@ internal class FieldResolverTask private constructor(
         ) {
             publicationCell.value.claim()
             operation.cycleChecker.registerWriter(
-                slot = publicationCell.valueCycleSlot,
+                owner = publicationCell,
+                kind = CycleSlotKind.VALUE,
                 writer = oerOccurrence.root.fieldResolverCycleTask(sourceOccurrence.publicationPath),
             )
             operation.dispatcher.dispatchFieldResolver(
@@ -197,7 +201,8 @@ internal class FieldResolverTask private constructor(
             val publicationCell = oerOccurrence.target.reserveCell(objectKey)
             publicationCell.value.claim()
             operation.cycleChecker.registerWriter(
-                slot = publicationCell.valueCycleSlot,
+                owner = publicationCell,
+                kind = CycleSlotKind.VALUE,
                 writer = oerOccurrence.fieldResolverCycleTask(objectKey),
             )
             return SymbolicFieldPublicationOccurrence(
@@ -304,9 +309,7 @@ internal class FieldResolverTask private constructor(
         return result.materializeResult(
             operation = childOperation,
             selections = selections,
-            reader =
-                publication.oerOccurrence.root
-                    .fieldResolverCycleTask(publication.sourceOccurrence.publicationPath),
+            reader = publicationCycleTask,
             cycleChecker = childOperation.cycleChecker,
         )
     }
@@ -322,7 +325,7 @@ internal class FieldResolverTask private constructor(
         return result.materializeResult(
             operation = publication.operation,
             selections = selections,
-            reader = publication.oerOccurrence.root.fieldResolverCycleTask(publication.sourceOccurrence.publicationPath),
+            reader = publicationCycleTask,
             cycleChecker = publication.operation.cycleChecker,
         )
     }
@@ -363,9 +366,7 @@ internal class FieldResolverTask private constructor(
                             fieldResolverOccurrence.resolver.resolveQueryFragment(
                                 queryFragment = fieldResolverOccurrence.fragments.queryFragment,
                                 operation = publication.operation,
-                                reader =
-                                    fieldResolverOccurrence.invocationRoot
-                                        .fieldResolverCycleTask(fieldResolverOccurrence.invocationPath),
+                                reader = fieldResolverOccurrence.cycleTask,
                                 inclusionCondition =
                                     fieldResolverOccurrence.selection.inclusionCondition,
                             )

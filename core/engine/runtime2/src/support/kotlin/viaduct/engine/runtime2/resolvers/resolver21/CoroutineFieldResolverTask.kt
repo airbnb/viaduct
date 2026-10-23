@@ -24,13 +24,13 @@ import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.rootFieldReferenceDataOrNull
 import viaduct.engine.runtime2.resolution.CoroutineFieldResolverTaskBase
 import viaduct.engine.runtime2.resolution.CoroutinePublicationOccurrence
+import viaduct.engine.runtime2.resolution.framework.CycleSlotKind
 import viaduct.engine.runtime2.resolution.framework.CycleTask
 import viaduct.engine.runtime2.resolution.framework.Demand
 import viaduct.engine.runtime2.resolution.framework.OEROccurrence
 import viaduct.engine.runtime2.resolution.framework.SharedOERContext
 import viaduct.engine.runtime2.resolution.framework.descendants
 import viaduct.engine.runtime2.resolution.framework.fieldResolverCycleTask
-import viaduct.engine.runtime2.resolution.framework.valueCycleSlot
 import viaduct.engine.runtime2.resolvers.GroundedFieldPublicationOccurrence
 import viaduct.engine.runtime2.resolvers.materializeResolverInput
 import viaduct.graphql.schema.ViaductSchema
@@ -139,7 +139,8 @@ internal class CoroutineFieldResolverTask private constructor(
                 // List cells are activated when the shared traversal allocates their list.
                 prepareActivation()
                 operation.cycleChecker.registerWriter(
-                    slot = publicationCell.valueCycleSlot,
+                    owner = publicationCell,
+                    kind = CycleSlotKind.VALUE,
                     writer = oerOccurrence.root.fieldResolverCycleTask(publicationPath),
                 )
             }

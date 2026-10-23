@@ -195,7 +195,7 @@ private class MaterializationLogic(
                 cycleChecker = cycleChecker,
             )
         } else {
-            cycleChecker.cycleCheck(reader, valueCycleSlot)
+            cycleChecker.cycleCheck(reader, this, CycleSlotKind.VALUE)
             value.await()
         }
 }
@@ -206,17 +206,17 @@ internal suspend fun EngineResultCell.materializeCheckedValueForResolver(
     reader: CycleTask,
     cycleChecker: CycleCheckState,
 ): EngineResult? {
-    cycleChecker.cycleCheck(reader, fieldCheckerCycleSlot)
+    cycleChecker.cycleCheck(reader, this, CycleSlotKind.FIELD_CHECKER)
     fieldCheckerResult.await()
 
     suspend fun awaitTypeChecker(value: EngineResult?) {
         if (value is ObjectEngineResult) {
-            cycleChecker.cycleCheck(reader, value.typeCheckerCycleSlot)
+            cycleChecker.cycleCheck(reader, value, CycleSlotKind.TYPE_CHECKER)
             value.typeCheckerResult.await()
         }
     }
 
-    cycleChecker.cycleCheck(reader, valueCycleSlot)
+    cycleChecker.cycleCheck(reader, this, CycleSlotKind.VALUE)
     val valuePromise = value
     if (valuePromise.isCompleted) awaitTypeChecker(valuePromise.get())
     var attempt =

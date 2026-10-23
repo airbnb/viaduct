@@ -14,11 +14,11 @@ import viaduct.engine.runtime2.model.registry.ResolutionExecutionContext
 import viaduct.engine.runtime2.model.registry.VariableDefinition
 import viaduct.engine.runtime2.resolution.framework.CheckerInvocationObservation
 import viaduct.engine.runtime2.resolution.framework.CheckerKind
+import viaduct.engine.runtime2.resolution.framework.CycleSlotKind
 import viaduct.engine.runtime2.resolution.framework.Demand
 import viaduct.engine.runtime2.resolution.framework.OEROccurrence
 import viaduct.engine.runtime2.resolution.framework.SharedOERContext
 import viaduct.engine.runtime2.resolution.framework.materializeResult
-import viaduct.engine.runtime2.resolution.framework.typeCheckerCycleSlot
 import viaduct.engine.runtime2.resolution.framework.typeCheckerCycleTask
 
 /** One concrete OER owns this publication and all of its runtime checker bindings. */
@@ -62,8 +62,9 @@ internal class TypeCheckerTask private constructor(
                 "Applicable type-checker result was completed before orchestration preparation"
             }
             orchestrationTask.operation.cycleChecker.registerWriter(
-                oer.occurrence.target.typeCheckerCycleSlot,
-                oer.occurrence.typeCheckerCycleTask(),
+                owner = oer.occurrence.target,
+                kind = CycleSlotKind.TYPE_CHECKER,
+                writer = oer.occurrence.typeCheckerCycleTask(),
             )
             return listOf(SymbolicTypeCheckerPublicationOccurrence(orchestrationTask.operation, oer.occurrence, checker, orchestrationTask.queryOER))
         }

@@ -3,7 +3,7 @@
 package viaduct.engine.runtime2.contract
 
 import java.util.Collections
-import java.util.concurrent.ConcurrentHashMap
+import java.util.IdentityHashMap
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.Test
@@ -41,7 +41,6 @@ import viaduct.engine.runtime2.model.testing.emptyFragmentOf
 import viaduct.engine.runtime2.model.testing.fragmentFrom
 import viaduct.engine.runtime2.model.testing.objectOf
 import viaduct.engine.runtime2.resolution.framework.CycleCheckState
-import viaduct.engine.runtime2.resolution.framework.CycleSlot
 import viaduct.engine.runtime2.resolution.framework.CycleSlotKind
 import viaduct.engine.runtime2.resolution.framework.CycleTask
 import viaduct.engine.runtime2.resolution.framework.CycleTaskKind
@@ -337,24 +336,30 @@ interface GroundedFieldCheckerQueryFragmentContract {
         assertEquals(1, protectedCheckerCalls.get())
     }
 
+    private data class SlotRead(val reader: CycleTask, val owner: Any, val kind: CycleSlotKind)
+
     @Test
     fun `object and Query inputs read exact value slots as the field checker`() {
-        val writers = ConcurrentHashMap<CycleSlot, CycleTask>()
-        val reads = Collections.synchronizedList(mutableListOf<Pair<CycleTask, CycleSlot>>())
+        val writersBySlot = IdentityHashMap<Any, Array<CycleTask?>>()
+        val reads = Collections.synchronizedList(mutableListOf<SlotRead>())
         val cycleChecker =
             object : CycleCheckState {
                 override fun registerWriter(
-                    slot: CycleSlot,
+                    owner: Any,
+                    kind: CycleSlotKind,
                     writer: CycleTask,
                 ) {
-                    assertEquals(null, writers.putIfAbsent(slot, writer))
+                    val slots = writersBySlot.getOrPut(owner) { arrayOfNulls(CycleSlotKind.entries.size) }
+                    assertEquals(null, slots[kind.ordinal])
+                    slots[kind.ordinal] = writer
                 }
 
                 override fun cycleCheck(
                     reader: CycleTask,
-                    slot: CycleSlot,
+                    owner: Any,
+                    kind: CycleSlotKind,
                 ) {
-                    reads += reader to slot
+                    reads += SlotRead(reader, owner, kind)
                 }
             }
         val worldFixture = pairedInputWorld()
@@ -367,13 +372,16 @@ interface GroundedFieldCheckerQueryFragmentContract {
                 cycleChecker,
             )
 
+        val allWriters = writersBySlot.flatMap { (_, slots) -> slots.filterNotNull() }
         val checkerWriter =
-            writers.values.single { writer ->
+            allWriters.single { writer ->
                 writer.kind == CycleTaskKind.FIELD_CHECKER && writer.lastFieldName() == "checked"
             }
-        val checkerReads = reads.filter { (reader) -> reader == checkerWriter }
-        assertEquals(setOf(CycleSlotKind.VALUE), checkerReads.map { (_, slot) -> slot.kind }.toSet())
-        val inputWriters = checkerReads.map { (_, slot) -> writers.getValue(slot) }
+        val checkerReads = reads.filter { it.reader == checkerWriter }
+        assertEquals(setOf(CycleSlotKind.VALUE), checkerReads.map { it.kind }.toSet())
+        val inputWriters = checkerReads.map { read ->
+            requireNotNull(writersBySlot[read.owner]?.get(read.kind.ordinal))
+        }
         assertEquals(
             setOf("objectDependency", "queryDependency"),
             inputWriters.map { it.lastFieldName() }.toSet(),
@@ -392,21 +400,23 @@ interface GroundedFieldCheckerQueryFragmentContract {
     @Test
     fun `Query input materialization failures complete the checker slot exceptionally`() {
         val failure = IllegalStateException("Query input materialization failed")
-        val writers = ConcurrentHashMap<CycleSlot, CycleTask>()
+        val writersBySlot = IdentityHashMap<Any, Array<CycleTask?>>()
         val cycleChecker =
             object : CycleCheckState {
                 override fun registerWriter(
-                    slot: CycleSlot,
+                    owner: Any,
+                    kind: CycleSlotKind,
                     writer: CycleTask,
                 ) {
-                    writers[slot] = writer
+                    writersBySlot.getOrPut(owner) { arrayOfNulls(CycleSlotKind.entries.size) }[kind.ordinal] = writer
                 }
 
                 override fun cycleCheck(
                     reader: CycleTask,
-                    slot: CycleSlot,
+                    owner: Any,
+                    kind: CycleSlotKind,
                 ) {
-                    val writer = writers.getValue(slot)
+                    val writer = writersBySlot[owner]?.get(kind.ordinal) ?: return
                     if (
                         reader.kind == CycleTaskKind.FIELD_CHECKER &&
                         writer.lastFieldName() == "queryDependency"

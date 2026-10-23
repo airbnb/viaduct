@@ -39,12 +39,12 @@ import viaduct.engine.runtime2.model.requireType
 import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.fragmentFrom
 import viaduct.engine.runtime2.resolution.framework.CycleCheckState
+import viaduct.engine.runtime2.resolution.framework.CycleSlotKind
 import viaduct.engine.runtime2.resolution.framework.ResolverReadCycleException
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 import viaduct.engine.runtime2.resolution.framework.fieldCheckerCycleTask
 import viaduct.engine.runtime2.resolution.framework.fieldResolverCycleTask
 import viaduct.engine.runtime2.resolution.framework.materializeResult
-import viaduct.engine.runtime2.resolution.framework.valueCycleSlot
 import viaduct.graphql.schema.ViaductSchema
 import viaduct.graphql.schema.graphqljava.gjDef
 
@@ -256,7 +256,8 @@ class MaterializeTest {
         val cycleChecker = CycleCheckState.create()
         val readerIdentity = result.fieldResolverCycleTask(reader)
         cycleChecker.registerWriter(
-            slot = valueCell.valueCycleSlot,
+            owner = valueCell,
+            kind = CycleSlotKind.VALUE,
             writer = readerIdentity,
         )
 
@@ -597,7 +598,7 @@ class MaterializeTest {
         val checker = cell.fieldCheckerResult
         val reader = result.fieldCheckerCycleTask(listOf(key))
         val cycleChecker = CycleCheckState.create()
-        cycleChecker.registerWriter(cell.valueCycleSlot, reader)
+        cycleChecker.registerWriter(cell, CycleSlotKind.VALUE, reader)
         val selections =
             worldFixture.schemas.fragmentFrom("fragment ignored on Query { value }")
                 .materializeSelections

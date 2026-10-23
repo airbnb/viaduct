@@ -27,11 +27,13 @@ class CycleCheckStateTest {
         fixture.register("third")
         fixture.checker.cycleCheck(
             reader = fixture.task("first"),
-            slot = fixture.slot("second"),
+            owner = fixture.cell("second"),
+            kind = CycleSlotKind.VALUE,
         )
         fixture.checker.cycleCheck(
             reader = fixture.task("second"),
-            slot = fixture.slot("third"),
+            owner = fixture.cell("third"),
+            kind = CycleSlotKind.VALUE,
         )
     }
 
@@ -44,7 +46,8 @@ class CycleCheckStateTest {
             assertFailsWith<ResolverReadCycleException> {
                 fixture.checker.cycleCheck(
                     reader = fixture.task("first"),
-                    slot = fixture.slot("first"),
+                    owner = fixture.cell("first"),
+                    kind = CycleSlotKind.VALUE,
                 )
             }
 
@@ -59,7 +62,8 @@ class CycleCheckStateTest {
         val fixture = Fixture()
         fixture.checker.cycleCheck(
             reader = fixture.task("first"),
-            slot = fixture.slot("first"),
+            owner = fixture.cell("first"),
+            kind = CycleSlotKind.VALUE,
         )
 
         val failure =
@@ -81,18 +85,21 @@ class CycleCheckStateTest {
         fixture.register("third")
         fixture.checker.cycleCheck(
             reader = fixture.task("first"),
-            slot = fixture.slot("second"),
+            owner = fixture.cell("second"),
+            kind = CycleSlotKind.VALUE,
         )
         fixture.checker.cycleCheck(
             reader = fixture.task("second"),
-            slot = fixture.slot("third"),
+            owner = fixture.cell("third"),
+            kind = CycleSlotKind.VALUE,
         )
 
         val failure =
             assertFailsWith<ResolverReadCycleException> {
                 fixture.checker.cycleCheck(
                     reader = fixture.task("third"),
-                    slot = fixture.slot("first"),
+                    owner = fixture.cell("first"),
+                    kind = CycleSlotKind.VALUE,
                 )
             }
 
@@ -121,7 +128,8 @@ class CycleCheckStateTest {
         assertFailsWith<ResolverReadCycleException> {
             fixture.checker.cycleCheck(
                 reader = fixture.task("first"),
-                slot = fixture.target.getCell(key).valueCycleSlot,
+                owner = fixture.target.getCell(key),
+                kind = CycleSlotKind.VALUE,
             )
         }
     }
@@ -134,7 +142,8 @@ class CycleCheckStateTest {
         repeat(2) {
             fixture.checker.cycleCheck(
                 reader = fixture.task("first"),
-                slot = fixture.slot("second"),
+                owner = fixture.cell("second"),
+                kind = CycleSlotKind.VALUE,
             )
         }
     }
@@ -159,21 +168,21 @@ class CycleCheckStateTest {
                 listOf(ObjectEngineResult.GroundKey.of(countedField, emptyMap())),
             )
         val reader = fixture.task("first")
-        val slot = fixture.slot("second")
-        fixture.checker.registerWriter(slot, writer)
+        val slotOwner = fixture.cell("second")
+        fixture.checker.registerWriter(slotOwner, CycleSlotKind.VALUE, writer)
         fixture.register("first")
 
         // pathFrom compares its endpoints before traversing. Observe that comparison without
         // adding instrumentation to production or relying on the task's hash implementation.
-        fixture.checker.cycleCheck(reader, slot)
+        fixture.checker.cycleCheck(reader, slotOwner, CycleSlotKind.VALUE)
         assertTrue(endpointComparisons > 0)
         endpointComparisons = 0
-        repeat(10) { fixture.checker.cycleCheck(reader, slot) }
+        repeat(10) { fixture.checker.cycleCheck(reader, slotOwner, CycleSlotKind.VALUE) }
         assertEquals(0, endpointComparisons)
 
         val failure =
             assertFailsWith<ResolverReadCycleException> {
-                fixture.checker.cycleCheck(writer, fixture.slot("first"))
+                fixture.checker.cycleCheck(writer, fixture.cell("first"), CycleSlotKind.VALUE)
             }
         assertEquals(listOf(writer, reader, writer), failure.cycle)
     }
@@ -183,12 +192,12 @@ class CycleCheckStateTest {
         val fixture = Fixture()
         fixture.register("first")
         fixture.register("second")
-        fixture.checker.cycleCheck(fixture.task("first"), fixture.slot("second"))
+        fixture.checker.cycleCheck(fixture.task("first"), fixture.cell("second"), CycleSlotKind.VALUE)
 
         repeat(3) {
             val failure =
                 assertFailsWith<ResolverReadCycleException> {
-                    fixture.checker.cycleCheck(fixture.task("second"), fixture.slot("first"))
+                    fixture.checker.cycleCheck(fixture.task("second"), fixture.cell("first"), CycleSlotKind.VALUE)
                 }
             assertEquals(listOf(fixture.task("second"), fixture.task("first"), fixture.task("second")), failure.cycle)
         }
@@ -199,14 +208,14 @@ class CycleCheckStateTest {
         val fixture = Fixture()
         fixture.register("first")
         fixture.register("second")
-        fixture.checker.cycleCheck(fixture.task("first"), fixture.slot("second"))
+        fixture.checker.cycleCheck(fixture.task("first"), fixture.cell("second"), CycleSlotKind.VALUE)
         assertFailsWith<ResolverReadCycleException> {
-            fixture.checker.cycleCheck(fixture.task("second"), fixture.slot("first"))
+            fixture.checker.cycleCheck(fixture.task("second"), fixture.cell("first"), CycleSlotKind.VALUE)
         }
 
         val failure =
             assertFailsWith<ResolverReadCycleException> {
-                fixture.checker.cycleCheck(fixture.task("first"), fixture.slot("second"))
+                fixture.checker.cycleCheck(fixture.task("first"), fixture.cell("second"), CycleSlotKind.VALUE)
             }
         assertEquals(listOf(fixture.task("first"), fixture.task("second"), fixture.task("first")), failure.cycle)
     }
@@ -219,7 +228,7 @@ class CycleCheckStateTest {
         repeat(3) {
             val failure =
                 assertFailsWith<ResolverReadCycleException> {
-                    fixture.checker.cycleCheck(fixture.task("first"), fixture.slot("first"))
+                    fixture.checker.cycleCheck(fixture.task("first"), fixture.cell("first"), CycleSlotKind.VALUE)
                 }
             assertEquals(listOf(fixture.task("first"), fixture.task("first")), failure.cycle)
         }
@@ -240,15 +249,18 @@ class CycleCheckStateTest {
         val fixture = Fixture()
 
         fixture.checker.registerWriter(
-            slot = fixture.slot("first", CycleSlotKind.VALUE),
+            owner = fixture.cell("first"),
+            kind = CycleSlotKind.VALUE,
             writer = fixture.task("first", CycleTaskKind.FIELD_RESOLVER),
         )
         fixture.checker.registerWriter(
-            slot = fixture.slot("first", CycleSlotKind.FIELD_CHECKER),
+            owner = fixture.cell("first"),
+            kind = CycleSlotKind.FIELD_CHECKER,
             writer = fixture.task("first", CycleTaskKind.FIELD_CHECKER),
         )
         fixture.checker.registerWriter(
-            slot = fixture.target.typeCheckerCycleSlot,
+            owner = fixture.target,
+            kind = CycleSlotKind.TYPE_CHECKER,
             writer = fixture.task("first", CycleTaskKind.TYPE_CHECKER),
         )
     }
@@ -258,20 +270,20 @@ class CycleCheckStateTest {
         val fixture = Fixture()
         val resolver = fixture.task("first", CycleTaskKind.FIELD_RESOLVER)
         val checker = fixture.task("first", CycleTaskKind.FIELD_CHECKER)
-        fixture.checker.registerWriter(fixture.slot("first", CycleSlotKind.VALUE), resolver)
-        fixture.checker.registerWriter(fixture.slot("first", CycleSlotKind.FIELD_CHECKER), checker)
-        fixture.checker.cycleCheck(resolver, fixture.slot("first", CycleSlotKind.FIELD_CHECKER))
+        fixture.checker.registerWriter(fixture.cell("first"), CycleSlotKind.VALUE, resolver)
+        fixture.checker.registerWriter(fixture.cell("first"), CycleSlotKind.FIELD_CHECKER, checker)
+        fixture.checker.cycleCheck(resolver, fixture.cell("first"), CycleSlotKind.FIELD_CHECKER)
 
         val failure =
             assertFailsWith<ResolverReadCycleException> {
-                fixture.checker.cycleCheck(checker, fixture.slot("first", CycleSlotKind.VALUE))
+                fixture.checker.cycleCheck(checker, fixture.cell("first"), CycleSlotKind.VALUE)
             }
 
         assertEquals(listOf(checker, resolver, checker), failure.cycle)
     }
 
     @Test
-    fun `immutable task identity hash is computed once`() {
+    fun `task identity hash is computed once at construction`() {
         val fixture = Fixture()
         var fieldHashes = 0
         val field = fixture.world.schema.requireObjectField("Query", "first")
@@ -283,13 +295,11 @@ class CycleCheckStateTest {
                 }
             }
         val key = ObjectEngineResult.GroundKey.of(countedField, emptyMap())
-        val path = mutableListOf<PathComponent>(key)
-        val task = CycleTask.fieldResolver(fixture.target, path)
+        val task = CycleTask.fieldResolver(fixture.target, listOf(key))
         val equalTask = CycleTask.fieldResolver(fixture.target, listOf(key))
         assertTrue(fieldHashes > 0)
         val expectedHash = task.hashCode()
         fieldHashes = 0
-        path.clear()
 
         repeat(10) {
             assertEquals(expectedHash, task.hashCode())
@@ -308,7 +318,7 @@ class CycleCheckStateTest {
         val reader = fixture.task("first", root = otherRoot)
         fixture.register("first")
 
-        fixture.checker.cycleCheck(reader, fixture.slot("first"))
+        fixture.checker.cycleCheck(reader, fixture.cell("first"), CycleSlotKind.VALUE)
 
         assertTrue(writer != reader)
     }
@@ -323,16 +333,16 @@ class CycleCheckStateTest {
         val failures = ConcurrentLinkedQueue<Throwable>()
         val checks =
             listOf(
-                fixture.task("first") to fixture.slot("second"),
-                fixture.task("second") to fixture.slot("first"),
+                Triple(fixture.task("first"), fixture.cell("second"), CycleSlotKind.VALUE),
+                Triple(fixture.task("second"), fixture.cell("first"), CycleSlotKind.VALUE),
             )
         val workers =
-            checks.map { (reader, slot) ->
+            checks.map { (reader, owner, kind) ->
                 thread {
                     ready.countDown()
                     start.await()
                     try {
-                        fixture.checker.cycleCheck(reader, slot)
+                        fixture.checker.cycleCheck(reader, owner, kind)
                     } catch (throwable: Throwable) {
                         failures += throwable
                     }
@@ -362,11 +372,11 @@ class CycleCheckStateTest {
             fixture.register("first")
             val reader = fixture.task("first")
             val writer = fixture.task("second")
-            val slot = fixture.slot("second")
+            val slotOwner = fixture.cell("second")
             val actions =
                 listOf<() -> Unit>(
-                    { fixture.checker.cycleCheck(reader, slot) },
-                    { fixture.checker.registerWriter(slot, writer) },
+                    { fixture.checker.cycleCheck(reader, slotOwner, CycleSlotKind.VALUE) },
+                    { fixture.checker.registerWriter(slotOwner, CycleSlotKind.VALUE, writer) },
                 )
             val failures = concurrently(if (iteration % 2 == 0) actions else actions.reversed())
             assertTrue(failures.isEmpty(), "Concurrent registration failed: $failures")
@@ -375,7 +385,7 @@ class CycleCheckStateTest {
             // concurrently registered first -> second dependency was actually recorded.
             val failure =
                 assertFailsWith<ResolverReadCycleException> {
-                    fixture.checker.cycleCheck(writer, fixture.slot("first"))
+                    fixture.checker.cycleCheck(writer, fixture.cell("first"), CycleSlotKind.VALUE)
                 }
             assertEquals(listOf(writer, reader, writer), failure.cycle)
         }
@@ -391,12 +401,12 @@ class CycleCheckStateTest {
             val first = fixture.task("first")
             val second = fixture.task("second")
             val writer = fixture.task("third")
-            val slot = fixture.slot("third")
+            val slotOwner = fixture.cell("third")
             val actions =
                 listOf<() -> Unit>(
-                    { fixture.checker.cycleCheck(first, slot) },
-                    { fixture.checker.cycleCheck(second, slot) },
-                    { fixture.checker.registerWriter(slot, writer) },
+                    { fixture.checker.cycleCheck(first, slotOwner, CycleSlotKind.VALUE) },
+                    { fixture.checker.cycleCheck(second, slotOwner, CycleSlotKind.VALUE) },
+                    { fixture.checker.registerWriter(slotOwner, CycleSlotKind.VALUE, writer) },
                 )
             val failures = concurrently(if (iteration % 2 == 0) actions else actions.reversed())
             assertTrue(failures.isEmpty(), "Concurrent registration failed: $failures")
@@ -404,7 +414,7 @@ class CycleCheckStateTest {
             for (name in listOf("first", "second")) {
                 val failure =
                     assertFailsWith<ResolverReadCycleException> {
-                        fixture.checker.cycleCheck(writer, fixture.slot(name))
+                        fixture.checker.cycleCheck(writer, fixture.cell(name), CycleSlotKind.VALUE)
                     }
                 assertEquals(listOf(writer, fixture.task(name), writer), failure.cycle)
             }
@@ -420,14 +430,14 @@ class CycleCheckStateTest {
             fixture.register("second")
             val reader = fixture.task("first")
             val writer = fixture.task("second")
-            val slot = fixture.slot("second")
+            val slotOwner = fixture.cell("second")
             val failures =
-                concurrently(List(4) { { fixture.checker.cycleCheck(reader, slot) } })
+                concurrently(List(4) { { fixture.checker.cycleCheck(reader, slotOwner, CycleSlotKind.VALUE) } })
             assertTrue(failures.isEmpty(), "Concurrent duplicate read failed: $failures")
 
             val failure =
                 assertFailsWith<ResolverReadCycleException> {
-                    fixture.checker.cycleCheck(writer, fixture.slot("first"))
+                    fixture.checker.cycleCheck(writer, fixture.cell("first"), CycleSlotKind.VALUE)
                 }
             assertEquals(listOf(writer, reader, writer), failure.cycle)
         }
@@ -436,10 +446,10 @@ class CycleCheckStateTest {
     @Test
     fun `concurrent writer registration still rejects duplicate ownership`() {
         val fixture = Fixture()
-        val slot = fixture.slot("first")
+        val slotOwner = fixture.cell("first")
         val writer = fixture.task("first")
         val failures =
-            concurrently(List(2) { { fixture.checker.registerWriter(slot, writer) } })
+            concurrently(List(2) { { fixture.checker.registerWriter(slotOwner, CycleSlotKind.VALUE, writer) } })
 
         assertEquals(1, failures.size)
         val failure = assertIs<IllegalStateException>(failures.single())
@@ -452,12 +462,14 @@ class CycleCheckStateTest {
         val checker = CycleCheckState.createNOP()
 
         checker.registerWriter(
-            slot = fixture.slot("first"),
+            owner = fixture.cell("first"),
+            kind = CycleSlotKind.VALUE,
             writer = fixture.task("first"),
         )
         checker.cycleCheck(
             reader = fixture.task("first"),
-            slot = fixture.slot("first"),
+            owner = fixture.cell("first"),
+            kind = CycleSlotKind.VALUE,
         )
     }
 
@@ -518,14 +530,10 @@ class CycleCheckStateTest {
 
         fun cell(name: String): EngineResultCell = target.reserveCell(key(name))
 
-        fun slot(
-            name: String,
-            kind: CycleSlotKind = CycleSlotKind.VALUE,
-        ): CycleSlot = CycleSlot(kind, cell(name))
-
         fun register(name: String) {
             checker.registerWriter(
-                slot = slot(name),
+                owner = cell(name),
+                kind = CycleSlotKind.VALUE,
                 writer = task(name),
             )
         }

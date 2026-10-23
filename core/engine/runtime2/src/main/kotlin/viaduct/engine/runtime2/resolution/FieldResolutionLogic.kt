@@ -32,7 +32,6 @@ import viaduct.engine.runtime2.resolution.framework.ResolverInvocationObservatio
 import viaduct.engine.runtime2.resolution.framework.RootFieldReferenceInvocationObservation
 import viaduct.engine.runtime2.resolution.framework.argumentsContainErrorValue
 import viaduct.engine.runtime2.resolution.framework.fetchGroundedArguments
-import viaduct.engine.runtime2.resolution.framework.fieldResolverCycleTask
 import viaduct.engine.runtime2.resolution.framework.withAuthoritativeNodeId
 import viaduct.graphql.schema.ViaductSchema
 
@@ -271,8 +270,7 @@ internal class FieldResolutionLogic(
                 cycleChecker = publication.operation.cycleChecker,
                 selections = objectMaterializationSelections,
                 reader =
-                    fieldResolverOccurrence.invocationRoot
-                        .fieldResolverCycleTask(fieldResolverOccurrence.invocationPath),
+                    fieldResolverOccurrence.cycleTask,
                 resultPath = publication.oerOccurrence.path,
             )
         val queryMaterializationSelections =
@@ -320,9 +318,7 @@ internal class FieldResolutionLogic(
             operation = publication.operation,
             cycleChecker = publication.operation.cycleChecker,
             selections = materializationSelections,
-            reader =
-                fieldResolverOccurrence.invocationRoot
-                    .fieldResolverCycleTask(fieldResolverOccurrence.invocationPath),
+            reader = fieldResolverOccurrence.cycleTask,
             resultPath = emptyList(),
         )
     }

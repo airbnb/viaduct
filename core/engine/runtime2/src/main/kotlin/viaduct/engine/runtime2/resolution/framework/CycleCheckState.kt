@@ -1,6 +1,5 @@
 package viaduct.engine.runtime2.resolution.framework
 
-import viaduct.engine.runtime2.model.EngineResultCell
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.PathComponent
 
@@ -20,10 +19,9 @@ enum class CycleTaskKind {
 class CycleTask(
     val kind: CycleTaskKind,
     val root: ObjectEngineResult,
-    path: List<PathComponent>,
+    val path: List<PathComponent>,
 ) {
-    val path: List<PathComponent> = path.toList()
-    private val cachedHashCode = 31 * (31 * kind.hashCode() + System.identityHashCode(root)) + this.path.hashCode()
+    private val cachedHashCode = 31 * (31 * kind.hashCode() + System.identityHashCode(root)) + path.hashCode()
 
     override fun equals(other: Any?): Boolean =
         other is CycleTask &&
@@ -65,64 +63,25 @@ internal fun OEROccurrence.fieldCheckerCycleTask(key: ObjectEngineResult.ObjectK
 
 internal fun OEROccurrence.typeCheckerCycleTask(): CycleTask = root.typeCheckerCycleTask(path)
 
-/** The independent result slot read or written by a task. */
+/** The kind of independently readable result slot in the cycle-dependency graph. */
 enum class CycleSlotKind {
     VALUE,
     FIELD_CHECKER,
     TYPE_CHECKER,
 }
 
-/** Exact identity of one independently readable result slot. */
-class CycleSlot private constructor(
-    val kind: CycleSlotKind,
-    private val owner: Any,
-) {
-    internal val cellOwner: EngineResultCell?
-        get() = owner as? EngineResultCell
-
-    constructor(
-        kind: CycleSlotKind,
-        cell: EngineResultCell,
-    ) : this(kind, cell as Any) {
-        require(kind != CycleSlotKind.TYPE_CHECKER) {
-            "A type-checker cycle slot belongs to an ObjectEngineResult"
-        }
-    }
-
-    override fun equals(other: Any?): Boolean = other is CycleSlot && kind == other.kind && owner === other.owner
-
-    override fun hashCode(): Int = 31 * kind.hashCode() + System.identityHashCode(owner)
-
-    override fun toString(): String = "$kind@${System.identityHashCode(owner)}"
-
-    companion object {
-        fun value(cell: EngineResultCell): CycleSlot = CycleSlot(CycleSlotKind.VALUE, cell)
-
-        fun fieldChecker(cell: EngineResultCell): CycleSlot = CycleSlot(CycleSlotKind.FIELD_CHECKER, cell)
-
-        fun typeChecker(result: ObjectEngineResult): CycleSlot = CycleSlot(CycleSlotKind.TYPE_CHECKER, result)
-    }
-}
-
-internal val EngineResultCell.valueCycleSlot: CycleSlot
-    get() = CycleSlot.value(this)
-
-internal val EngineResultCell.fieldCheckerCycleSlot: CycleSlot
-    get() = CycleSlot.fieldChecker(this)
-
-internal val ObjectEngineResult.typeCheckerCycleSlot: CycleSlot
-    get() = CycleSlot.typeChecker(this)
-
 /** Tracks exact task-to-slot reads with eager rejection or explicit deferred cycle diagnosis. */
 interface CycleCheckState {
     fun registerWriter(
-        slot: CycleSlot,
+        owner: Any,
+        kind: CycleSlotKind,
         writer: CycleTask,
     )
 
     fun cycleCheck(
         reader: CycleTask,
-        slot: CycleSlot,
+        owner: Any,
+        kind: CycleSlotKind,
     )
 
     companion object {
@@ -142,13 +101,15 @@ internal class ResolverReadCycleException(
 
 private object NOPCycleCheckState : CycleCheckState {
     override fun registerWriter(
-        slot: CycleSlot,
+        owner: Any,
+        kind: CycleSlotKind,
         writer: CycleTask,
     ) {}
 
     override fun cycleCheck(
         reader: CycleTask,
-        slot: CycleSlot,
+        owner: Any,
+        kind: CycleSlotKind,
     ) {}
 }
 

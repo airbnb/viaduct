@@ -29,6 +29,7 @@ import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.fragmentFrom
 import viaduct.engine.runtime2.model.testing.objectOf
 import viaduct.engine.runtime2.resolution.framework.CycleCheckState
+import viaduct.engine.runtime2.resolution.framework.CycleSlotKind
 import viaduct.engine.runtime2.resolution.framework.Demand
 import viaduct.engine.runtime2.resolution.framework.OEROccurrence
 import viaduct.engine.runtime2.resolution.framework.OrchestrationConstructionDemand
@@ -36,7 +37,6 @@ import viaduct.engine.runtime2.resolution.framework.ResolverInvocationObservatio
 import viaduct.engine.runtime2.resolution.framework.ResolverObserver
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 import viaduct.engine.runtime2.resolution.framework.fieldResolverCycleTask
-import viaduct.engine.runtime2.resolution.framework.valueCycleSlot
 import viaduct.engine.runtime2.schema.operationSelectionsFrom
 import viaduct.graphql.schema.ViaductSchema
 
@@ -608,13 +608,14 @@ class SuperlinearGrowthTest : ResolutionDispatcherResource {
             val cells = keys.map { root.reserveCell(it) }
             val checker = CycleCheckState.create()
             keys.forEachIndexed { index, key ->
-                checker.registerWriter(cells[index].valueCycleSlot, root.fieldResolverCycleTask(listOf(key)))
+                checker.registerWriter(cells[index], CycleSlotKind.VALUE, root.fieldResolverCycleTask(listOf(key)))
             }
             fieldHashes = 0
             for (index in depth - 1 downTo 0) {
                 checker.cycleCheck(
                     root.fieldResolverCycleTask(listOf(keys[index])),
-                    cells[index + 1].valueCycleSlot,
+                    cells[index + 1],
+                    CycleSlotKind.VALUE,
                 )
             }
             assertTrue(

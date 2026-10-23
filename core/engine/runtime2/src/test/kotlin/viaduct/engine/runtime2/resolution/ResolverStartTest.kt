@@ -45,12 +45,12 @@ import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.emptyFragmentOf
 import viaduct.engine.runtime2.model.testing.fragmentFrom
 import viaduct.engine.runtime2.resolution.framework.CycleCheckState
+import viaduct.engine.runtime2.resolution.framework.CycleSlotKind
 import viaduct.engine.runtime2.resolution.framework.DeferredCycleCheckState
 import viaduct.engine.runtime2.resolution.framework.ResolverInvocationObservation
 import viaduct.engine.runtime2.resolution.framework.ResolverObserver
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 import viaduct.engine.runtime2.resolution.framework.fieldResolverCycleTask
-import viaduct.engine.runtime2.resolution.framework.valueCycleSlot
 import viaduct.engine.runtime2.schema.operationSelectionsFrom
 
 class ResolverStartTest : ResolutionDispatcherResource {
@@ -254,7 +254,8 @@ class ResolverStartTest : ResolutionDispatcherResource {
 
             observedChecker.cycleCheck(
                 reader = innerRoot.fieldResolverCycleTask(listOf(innerKey)),
-                slot = outerCell.valueCycleSlot,
+                owner = outerCell,
+                kind = CycleSlotKind.VALUE,
             )
             val cycle = checkNotNull(assertIs<DeferredCycleCheckState>(observedChecker).findCycle())
             assertEquals(cycle.first(), cycle.last())

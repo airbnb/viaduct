@@ -17,12 +17,12 @@ import viaduct.engine.runtime2.model.outputType
 import viaduct.engine.runtime2.model.registry.emptyResolverInput
 import viaduct.engine.runtime2.model.toEngineOutputData
 import viaduct.engine.runtime2.resolution.framework.CycleCheckState
+import viaduct.engine.runtime2.resolution.framework.CycleSlotKind
 import viaduct.engine.runtime2.resolution.framework.CycleTask
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 import viaduct.engine.runtime2.resolution.framework.fetchGroundedArguments
 import viaduct.engine.runtime2.resolution.framework.fetchIncluded
 import viaduct.engine.runtime2.resolution.framework.materializeCheckedValueForResolver
-import viaduct.engine.runtime2.resolution.framework.valueCycleSlot
 import viaduct.graphql.schema.ViaductSchema
 
 /**
@@ -164,7 +164,7 @@ private class ResolverInputMaterializationLogic(
         if (checked) {
             materializeCheckedValueForResolver(fieldDirectives, reader, cycleChecker)
         } else {
-            cycleChecker.cycleCheck(reader, valueCycleSlot)
+            cycleChecker.cycleCheck(reader, this, CycleSlotKind.VALUE)
             value.await()
         }
 }

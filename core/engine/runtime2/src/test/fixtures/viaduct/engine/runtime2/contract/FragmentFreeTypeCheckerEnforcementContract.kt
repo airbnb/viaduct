@@ -41,7 +41,6 @@ import viaduct.engine.runtime2.model.testing.fragmentFrom
 import viaduct.engine.runtime2.model.testing.objectOf
 import viaduct.engine.runtime2.resolution.framework.CheckerKind
 import viaduct.engine.runtime2.resolution.framework.CycleCheckState
-import viaduct.engine.runtime2.resolution.framework.CycleSlot
 import viaduct.engine.runtime2.resolution.framework.CycleSlotKind
 import viaduct.engine.runtime2.resolution.framework.CycleTask
 import viaduct.engine.runtime2.resolution.framework.CycleTaskKind
@@ -695,26 +694,28 @@ interface FragmentFreeTypeCheckerEnforcementContract {
 
     @Test
     fun `type-checker writer and resolver read use the OER-owned type slot`() {
-        data class Writer(val slot: CycleSlot, val task: CycleTask)
+        data class Writer(val owner: Any, val kind: CycleSlotKind, val task: CycleTask)
 
-        data class Read(val slot: CycleSlot, val task: CycleTask)
+        data class Read(val owner: Any, val kind: CycleSlotKind, val task: CycleTask)
 
         val writers = mutableListOf<Writer>()
         val reads = mutableListOf<Read>()
         val cycleChecker =
             object : CycleCheckState {
                 override fun registerWriter(
-                    slot: CycleSlot,
+                    owner: Any,
+                    kind: CycleSlotKind,
                     writer: CycleTask,
                 ) {
-                    if (slot.kind == CycleSlotKind.TYPE_CHECKER) writers += Writer(slot, writer)
+                    if (kind == CycleSlotKind.TYPE_CHECKER) writers += Writer(owner, kind, writer)
                 }
 
                 override fun cycleCheck(
                     reader: CycleTask,
-                    slot: CycleSlot,
+                    owner: Any,
+                    kind: CycleSlotKind,
                 ) {
-                    if (slot.kind == CycleSlotKind.TYPE_CHECKER) reads += Read(slot, reader)
+                    if (kind == CycleSlotKind.TYPE_CHECKER) reads += Read(owner, kind, reader)
                 }
             }
         val worldFixture =
@@ -762,7 +763,8 @@ interface FragmentFreeTypeCheckerEnforcementContract {
         assertEquals(1, reads.size)
         assertEquals(CycleTaskKind.TYPE_CHECKER, writers.single().task.kind)
         assertEquals(CycleTaskKind.FIELD_RESOLVER, reads.single().task.kind)
-        assertEquals(writers.single().slot, reads.single().slot)
+        assertSame(writers.single().owner, reads.single().owner)
+        assertEquals(writers.single().kind, reads.single().kind)
     }
 
     private fun resolveT2(

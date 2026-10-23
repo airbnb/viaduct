@@ -43,13 +43,13 @@ class CycleCheckBookkeepingTest {
             for ((reader, writer) in reads) {
                 val checker = factory()
                 val earlyWriters = listOf(values[0], values[1], fieldChecker, typeChecker)
-                earlyWriters.forEach { checker.registerWriter(it.slot, it.task) }
-                repeat(3) { reads.forEach { (r, w) -> checker.cycleCheck(r.task, w.slot) } }
-                (writers - earlyWriters.toSet()).forEach { checker.registerWriter(it.slot, it.task) }
-                reads.forEach { (r, w) -> checker.cycleCheck(r.task, w.slot) }
+                earlyWriters.forEach { checker.registerWriter(it.owner, it.kind, it.task) }
+                repeat(3) { reads.forEach { (r, w) -> checker.cycleCheck(r.task, w.owner, w.kind) } }
+                (writers - earlyWriters.toSet()).forEach { checker.registerWriter(it.owner, it.kind, it.task) }
+                reads.forEach { (r, w) -> checker.cycleCheck(r.task, w.owner, w.kind) }
                 if (checker is DeferredCycleCheckState) assertNull(checker.findCycle())
 
-                val cycle = closeCycle(checker, writer.task, reader.slot)
+                val cycle = closeCycle(checker, writer.task, reader.owner, reader.kind)
                 val cycleEdges = cycle.zipWithNext().toSet()
                 val closingEdge = writer.task to reader.task
                 assertEquals(cycle.first(), cycle.last())
@@ -66,14 +66,14 @@ class CycleCheckBookkeepingTest {
         val second = fixture.node(1)
         for (factory in factories) {
             val checker = factory()
-            checker.registerWriter(first.slot, first.task)
-            checker.registerWriter(second.slot, second.task)
-            val duplicate = assertFailsWith<IllegalStateException> { checker.registerWriter(second.slot, second.task) }
-            val replacement = assertFailsWith<IllegalStateException> { checker.registerWriter(second.slot, first.task) }
+            checker.registerWriter(first.owner, first.kind, first.task)
+            checker.registerWriter(second.owner, second.kind, second.task)
+            val duplicate = assertFailsWith<IllegalStateException> { checker.registerWriter(second.owner, second.kind, second.task) }
+            val replacement = assertFailsWith<IllegalStateException> { checker.registerWriter(second.owner, second.kind, first.task) }
             assertTrue(duplicate.message.orEmpty().startsWith("Writer already registered for slot:"))
             assertTrue(replacement.message.orEmpty().startsWith("Writer already registered for slot:"))
-            checker.cycleCheck(first.task, second.slot)
-            val cycle = closeCycle(checker, second.task, first.slot)
+            checker.cycleCheck(first.task, second.owner, second.kind)
+            val cycle = closeCycle(checker, second.task, first.owner, first.kind)
             assertEquals(setOf(first.task, second.task), cycle.dropLast(1).toSet())
             assertEquals(3, cycle.size)
         }
@@ -88,11 +88,11 @@ class CycleCheckBookkeepingTest {
         val second = fixture.node(1)
         for (factory in factories) {
             val checker = factory()
-            checker.registerWriter(first.slot, first.task)
-            checker.registerWriter(second.slot, otherTask)
-            checker.cycleCheck(otherTask, first.slot)
+            checker.registerWriter(first.owner, first.kind, first.task)
+            checker.registerWriter(second.owner, second.kind, otherTask)
+            checker.cycleCheck(otherTask, first.owner, first.kind)
             if (checker is DeferredCycleCheckState) assertNull(checker.findCycle())
-            val cycle = closeCycle(checker, first.task, second.slot)
+            val cycle = closeCycle(checker, first.task, second.owner, second.kind)
             assertEquals(setOf(first.task, otherTask), cycle.dropLast(1).toSet())
             assertEquals(3, cycle.size)
         }
@@ -105,17 +105,17 @@ class CycleCheckBookkeepingTest {
         val eager = CycleCheckState.create()
         val deferred = CycleCheckState.createDeferred()
         listOf(eager, deferred).forEach { checker ->
-            repeat(3) { checker.cycleCheck(node.task, node.slot) }
+            repeat(3) { checker.cycleCheck(node.task, node.owner, node.kind) }
         }
         assertNull(deferred.findCycle())
-        val failure = assertFailsWith<ResolverReadCycleException> { eager.registerWriter(node.slot, node.task) }
+        val failure = assertFailsWith<ResolverReadCycleException> { eager.registerWriter(node.owner, node.kind, node.task) }
         assertEquals(listOf(node.task, node.task), failure.cycle)
         // Rejection preserves the installed writer and edge, including duplicate-edge rejection.
-        assertFailsWith<IllegalStateException> { eager.registerWriter(node.slot, node.task) }
-        assertFailsWith<ResolverReadCycleException> { eager.cycleCheck(node.task, node.slot) }
+        assertFailsWith<IllegalStateException> { eager.registerWriter(node.owner, node.kind, node.task) }
+        assertFailsWith<ResolverReadCycleException> { eager.cycleCheck(node.task, node.owner, node.kind) }
 
-        deferred.registerWriter(node.slot, node.task)
-        repeat(3) { deferred.cycleCheck(node.task, node.slot) }
+        deferred.registerWriter(node.owner, node.kind, node.task)
+        repeat(3) { deferred.cycleCheck(node.task, node.owner, node.kind) }
         assertEquals(listOf(node.task, node.task), deferred.findCycle())
     }
 
@@ -137,14 +137,14 @@ class CycleCheckBookkeepingTest {
         val secondKey = ObjectEngineResult.GroundKey.of(countedField, emptyMap())
         val reader = CycleTask.fieldResolver(root, listOf(firstKey))
         val writer = CycleTask.fieldResolver(root, listOf(secondKey))
-        val slot = CycleSlot.value(root.reserveCell(secondKey))
+        val slotOwner = root.reserveCell(secondKey)
         for (registerEarly in listOf(true, false)) {
             val checker = CycleCheckState.createDeferred()
             endpointComparisons = 0
-            if (registerEarly) checker.registerWriter(slot, writer)
-            repeat(3) { checker.cycleCheck(reader, slot) }
-            if (!registerEarly) checker.registerWriter(slot, writer)
-            repeat(3) { checker.cycleCheck(reader, slot) }
+            if (registerEarly) checker.registerWriter(slotOwner, CycleSlotKind.VALUE, writer)
+            repeat(3) { checker.cycleCheck(reader, slotOwner, CycleSlotKind.VALUE) }
+            if (!registerEarly) checker.registerWriter(slotOwner, CycleSlotKind.VALUE, writer)
+            repeat(3) { checker.cycleCheck(reader, slotOwner, CycleSlotKind.VALUE) }
             // This witness observes the endpoint comparison made by eager pathFrom, as in
             // CycleCheckStateTest, without adding a production search counter.
             assertEquals(0, endpointComparisons)
@@ -157,11 +157,11 @@ class CycleCheckBookkeepingTest {
         val first = fixture.node(0)
         val second = fixture.node(1)
         val graph = RecordingGraph()
-        graph.registerWriter(first.slot, first.task)
-        repeat(3) { graph.cycleCheck(first.task, second.slot) }
+        graph.registerWriter(first.owner, first.kind, first.task)
+        repeat(3) { graph.cycleCheck(first.task, second.owner, second.kind) }
         assertTrue(graph.attempts.isEmpty())
-        graph.registerWriter(second.slot, second.task)
-        repeat(3) { graph.cycleCheck(first.task, second.slot) }
+        graph.registerWriter(second.owner, second.kind, second.task)
+        repeat(3) { graph.cycleCheck(first.task, second.owner, second.kind) }
         assertEquals(listOf(true, false, false, false), graph.attempts.map { it.added })
         assertEquals(setOf(first.task to second.task), graph.edges())
     }
@@ -172,27 +172,28 @@ class CycleCheckBookkeepingTest {
         val readers = (0..2).map(fixture::node)
         val writer = fixture.node(3)
         val graph = RecordingGraph(reject = true)
-        readers.forEach { graph.cycleCheck(it.task, writer.slot) }
-        assertFailsWith<PolicyFailure> { graph.registerWriter(writer.slot, writer.task) }
+        readers.forEach { graph.cycleCheck(it.task, writer.owner, writer.kind) }
+        assertFailsWith<PolicyFailure> { graph.registerWriter(writer.owner, writer.kind, writer.task) }
         assertEquals(1, graph.attempts.size)
         val attempted = graph.attempts.single()
         assertTrue(attempted.added)
         assertTrue(attempted.reader in readers.map { it.task })
         assertEquals(setOf(attempted.reader to writer.task), graph.edges())
-        assertFailsWith<IllegalStateException> { graph.registerWriter(writer.slot, writer.task) }
+        assertFailsWith<IllegalStateException> { graph.registerWriter(writer.owner, writer.kind, writer.task) }
         assertEquals(1, graph.attempts.size)
     }
 
     private fun closeCycle(
         checker: CycleCheckState,
         reader: CycleTask,
-        slot: CycleSlot,
+        owner: Any,
+        kind: CycleSlotKind,
     ): List<CycleTask> =
         if (checker is DeferredCycleCheckState) {
-            checker.cycleCheck(reader, slot)
+            checker.cycleCheck(reader, owner, kind)
             checkNotNull(checker.findCycle())
         } else {
-            assertFailsWith<ResolverReadCycleException> { checker.cycleCheck(reader, slot) }.cycle
+            assertFailsWith<ResolverReadCycleException> { checker.cycleCheck(reader, owner, kind) }.cycle
         }
 
     private class PolicyFailure : IllegalStateException()
@@ -217,7 +218,7 @@ class CycleCheckBookkeepingTest {
         fun edges(): Set<Pair<CycleTask, CycleTask>> = readsByReader.flatMap { (reader, writers) -> writers.map { reader to it } }.toSet()
     }
 
-    private class Node(val task: CycleTask, val slot: CycleSlot)
+    private class Node(val task: CycleTask, val owner: Any, val kind: CycleSlotKind)
 
     private class Fixture {
         private val world = TestWorld.fromSDL("type Query { field(index: Int): Int }").assumptions
@@ -233,9 +234,9 @@ class CycleCheckBookkeepingTest {
             val key = ObjectEngineResult.GroundKey.of(world.schema.requireObjectField("Query", "field"), mapOf("index" to index))
             val cell = cells.getOrPut(index) { root.reserveCell(key) }
             return when (kind) {
-                CycleTaskKind.FIELD_RESOLVER -> Node(CycleTask.fieldResolver(root, listOf(key)), CycleSlot.value(cell))
-                CycleTaskKind.FIELD_CHECKER -> Node(CycleTask.fieldChecker(root, listOf(key)), CycleSlot.fieldChecker(cell))
-                CycleTaskKind.TYPE_CHECKER -> Node(CycleTask.typeChecker(root, emptyList()), CycleSlot.typeChecker(root))
+                CycleTaskKind.FIELD_RESOLVER -> Node(CycleTask.fieldResolver(root, listOf(key)), cell, CycleSlotKind.VALUE)
+                CycleTaskKind.FIELD_CHECKER -> Node(CycleTask.fieldChecker(root, listOf(key)), cell, CycleSlotKind.FIELD_CHECKER)
+                CycleTaskKind.TYPE_CHECKER -> Node(CycleTask.typeChecker(root, emptyList()), root, CycleSlotKind.TYPE_CHECKER)
             }
         }
     }

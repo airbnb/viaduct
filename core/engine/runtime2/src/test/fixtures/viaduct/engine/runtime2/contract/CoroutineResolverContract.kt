@@ -51,7 +51,7 @@ import viaduct.engine.runtime2.model.testing.fragmentFrom
 import viaduct.engine.runtime2.model.testing.objectOf
 import viaduct.engine.runtime2.model.toCanonicalMaterializeSelectionForest
 import viaduct.engine.runtime2.resolution.framework.CycleCheckState
-import viaduct.engine.runtime2.resolution.framework.CycleSlot
+import viaduct.engine.runtime2.resolution.framework.CycleSlotKind
 import viaduct.engine.runtime2.resolution.framework.CycleTask
 import viaduct.engine.runtime2.resolution.framework.ResolverInvocationObservation
 import viaduct.engine.runtime2.resolution.framework.ResolverObserver
@@ -150,7 +150,8 @@ interface CoroutineResolverContract {
         val cycleChecker =
             object : CycleCheckState {
                 override fun registerWriter(
-                    slot: CycleSlot,
+                    owner: Any,
+                    kind: CycleSlotKind,
                     writer: CycleTask,
                 ) {
                     registeredKeys += writer.path.last() as ObjectEngineResult.GroundKey
@@ -158,7 +159,8 @@ interface CoroutineResolverContract {
 
                 override fun cycleCheck(
                     reader: CycleTask,
-                    slot: CycleSlot,
+                    owner: Any,
+                    kind: CycleSlotKind,
                 ) {}
             }
         val selections =
@@ -210,11 +212,12 @@ interface CoroutineResolverContract {
         val cycleChecker =
             object : CycleCheckState {
                 override fun registerWriter(
-                    slot: CycleSlot,
+                    owner: Any,
+                    kind: CycleSlotKind,
                     writer: CycleTask,
                 ) {
                     if (writer.path.size == 1) {
-                        rootCell = requireNotNull(slot.cellOwner)
+                        rootCell = owner as EngineResultCell
                     } else {
                         assertFailsWith<UncompletedPromiseException> {
                             assertNotNull(rootCell).value.get()
@@ -225,7 +228,8 @@ interface CoroutineResolverContract {
 
                 override fun cycleCheck(
                     reader: CycleTask,
-                    slot: CycleSlot,
+                    owner: Any,
+                    kind: CycleSlotKind,
                 ) {}
             }
         val selections =
@@ -369,7 +373,8 @@ interface CoroutineResolverContract {
                 val world = worldFixture.assumptions
                 val cycleChecker = object : CycleCheckState {
                     override fun registerWriter(
-                        slot: CycleSlot,
+                        owner: Any,
+                        kind: CycleSlotKind,
                         writer: CycleTask
                     ) {
                         if ((writer.path.last() as ObjectEngineResult.ObjectKey).field.name == failedField) throw failure
@@ -377,7 +382,8 @@ interface CoroutineResolverContract {
 
                     override fun cycleCheck(
                         reader: CycleTask,
-                        slot: CycleSlot
+                        owner: Any,
+                        kind: CycleSlotKind
                     ) {}
                 }
                 val observed = CompletableDeferred<Throwable>()

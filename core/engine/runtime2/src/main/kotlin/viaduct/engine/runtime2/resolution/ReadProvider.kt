@@ -18,10 +18,10 @@ import viaduct.engine.runtime2.model.registry.InstantiatedFieldPathDefinition
 import viaduct.engine.runtime2.model.registry.InstantiatedFieldPathElement
 import viaduct.engine.runtime2.model.selectionForestOf
 import viaduct.engine.runtime2.model.toEngineSimpleData
+import viaduct.engine.runtime2.resolution.framework.CycleSlotKind
 import viaduct.engine.runtime2.resolution.framework.CycleTask
 import viaduct.engine.runtime2.resolution.framework.fetchGroundedArguments
 import viaduct.engine.runtime2.resolution.framework.fetchIncluded
-import viaduct.engine.runtime2.resolution.framework.valueCycleSlot
 import viaduct.graphql.schema.ViaductSchema
 
 // Traverses a provider path through OER promises and returns its terminal input-compatible value.
@@ -76,7 +76,7 @@ private suspend fun ObjectEngineResult.readProvider(
         val objectKey = specializedKey
         objectKey.fetchGroundedArguments(operation)
         val cell = current.reserveCell(objectKey)
-        operation.cycleChecker.cycleCheck(reader, cell.valueCycleSlot)
+        operation.cycleChecker.cycleCheck(reader, cell, CycleSlotKind.VALUE)
         val value = cell.value.await()
         if (index == path.lastIndex) {
             return value.toProviderBinding(objectKey.field.outputType)

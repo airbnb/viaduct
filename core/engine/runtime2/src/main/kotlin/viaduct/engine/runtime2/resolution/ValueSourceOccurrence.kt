@@ -11,6 +11,7 @@ import viaduct.engine.runtime2.model.outputType
 import viaduct.engine.runtime2.model.registry.FieldValueResolver
 import viaduct.engine.runtime2.model.registry.ResolverFragments
 import viaduct.engine.runtime2.model.registry.VariableInstanceDefinition
+import viaduct.engine.runtime2.resolution.framework.CycleTask
 import viaduct.engine.runtime2.resolution.framework.Demand
 import viaduct.graphql.schema.ViaductSchema
 
@@ -44,6 +45,8 @@ internal data class FieldResolverOccurrence(
 ) : ValueSourceOccurrence {
     override val publicationPath: List<PathComponent>
         get() = invocationPath
+
+    val cycleTask: CycleTask = CycleTask.fieldResolver(invocationRoot, invocationPath)
 }
 
 /** A source-provided symbolic reference waiting to be converted into a resolver occurrence. */

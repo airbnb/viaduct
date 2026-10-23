@@ -1600,6 +1600,47 @@ class RootFieldReferenceResolutionTest : ResolutionDispatcherResource {
         return SharedOperationContext.create(testWorld.assumptions).resolveWithTestDispatcher(fragment.subselections)
     }
 
+    @Test
+    fun `list-element reference target that calls ctx_query completes without error`() {
+        val testWorld =
+            TestWorld.fromSDL(
+                schemaSDL = """
+                    type Query {
+                      numbers: [Int]
+                      target: Int
+                      dependency: Int
+                    }
+                """.trimIndent(),
+                fieldResolvers = { schemas ->
+                    val schema = schemas.loweredSchema
+                    val empty = schema.emptyFragmentOf("Query")
+                    val target = schema.requireObjectField("Query", "target")
+                    val nestedFragment = schemas.fragmentFrom("fragment Nested on Query { dependency }")
+                    mapOf(
+                        schema.requireObjectField("Query", "numbers") to
+                            fieldResolverOf(empty) { _, _ ->
+                                listOf(RootFieldReferenceData.of(listOf(target), emptyMap()))
+                            },
+                        target to
+                            fieldResolverOf(empty) { _, _, executionContext ->
+                                executionContext.resolveSelectionSet(nestedFragment.materializeSelections).get("dependency")
+                            },
+                        schema.requireObjectField("Query", "dependency") to
+                            fieldResolverOf(empty) { _, _ -> 7 },
+                    )
+                },
+            )
+        val operation = SharedOperationContext.create(testWorld.assumptions)
+        val result = operation.resolveWithTestDispatcher(
+            testWorld.schemas.fragmentFrom("fragment Result on Query { numbers }").subselections,
+        )
+        val numbers =
+            assertIs<ListEngineResult>(
+                result.getCell(testWorld.schema.contractKey("Query", "numbers")).value.get(),
+            )
+        assertEquals(7, numbers[0].value.get())
+    }
+
     private data class ConditionalPassiveListResolution(
         val result: ObjectEngineResult,
         val operation: SharedOperationContext<*>,

@@ -18,9 +18,9 @@ import viaduct.engine.runtime2.model.registry.ResolverFragments
 import viaduct.engine.runtime2.resolution.CoroutinePublicationOccurrence
 import viaduct.engine.runtime2.resolution.framework.CheckerInvocationObservation
 import viaduct.engine.runtime2.resolution.framework.CheckerKind
+import viaduct.engine.runtime2.resolution.framework.CycleSlotKind
 import viaduct.engine.runtime2.resolution.framework.OEROccurrence
 import viaduct.engine.runtime2.resolution.framework.SharedOERContext
-import viaduct.engine.runtime2.resolution.framework.fieldCheckerCycleSlot
 import viaduct.engine.runtime2.resolution.framework.fieldCheckerCycleTask
 import viaduct.engine.runtime2.resolution.framework.materializeResult
 
@@ -98,7 +98,8 @@ internal class CoroutineFieldCheckerTask private constructor(
             )
             if (checker != null) {
                 publication.operation.cycleChecker.registerWriter(
-                    slot = cell.fieldCheckerCycleSlot,
+                    owner = cell,
+                    kind = CycleSlotKind.FIELD_CHECKER,
                     writer = publication.oerOccurrence.fieldCheckerCycleTask(key),
                 )
             }

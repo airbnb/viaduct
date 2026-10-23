@@ -2,7 +2,7 @@
 
 package viaduct.engine.runtime2.contract
 
-import java.util.concurrent.ConcurrentHashMap
+import java.util.IdentityHashMap
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.Test
@@ -30,7 +30,7 @@ import viaduct.engine.runtime2.model.testing.emptyFragmentOf
 import viaduct.engine.runtime2.model.testing.fragmentFrom
 import viaduct.engine.runtime2.model.testing.objectOf
 import viaduct.engine.runtime2.resolution.framework.CycleCheckState
-import viaduct.engine.runtime2.resolution.framework.CycleSlot
+import viaduct.engine.runtime2.resolution.framework.CycleSlotKind
 import viaduct.engine.runtime2.resolution.framework.CycleTask
 import viaduct.engine.runtime2.resolution.framework.CycleTaskKind
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
@@ -375,21 +375,23 @@ interface GroundedTypeCheckerFragmentContract {
     fun `Query input materialization failure completes the type-checker slot exceptionally`() {
         val failure = IllegalStateException("Query input materialization failed")
         val checkerInvoked = AtomicBoolean()
-        val writers = ConcurrentHashMap<CycleSlot, CycleTask>()
+        val writersBySlot = IdentityHashMap<Any, Array<CycleTask?>>()
         val cycleChecker =
             object : CycleCheckState {
                 override fun registerWriter(
-                    slot: CycleSlot,
+                    owner: Any,
+                    kind: CycleSlotKind,
                     writer: CycleTask,
                 ) {
-                    writers[slot] = writer
+                    writersBySlot.getOrPut(owner) { arrayOfNulls(CycleSlotKind.entries.size) }[kind.ordinal] = writer
                 }
 
                 override fun cycleCheck(
                     reader: CycleTask,
-                    slot: CycleSlot,
+                    owner: Any,
+                    kind: CycleSlotKind,
                 ) {
-                    val writer = writers.getValue(slot)
+                    val writer = writersBySlot[owner]?.get(kind.ordinal) ?: return
                     if (
                         reader.kind == CycleTaskKind.TYPE_CHECKER &&
                         (writer.path.lastOrNull() as? ObjectEngineResult.ObjectKey)?.field?.name ==

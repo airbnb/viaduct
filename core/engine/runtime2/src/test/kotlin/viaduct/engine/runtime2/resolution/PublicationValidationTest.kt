@@ -21,7 +21,7 @@ import viaduct.engine.runtime2.model.VariableBinding
 import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.resolution.framework.CycleCheckState
-import viaduct.engine.runtime2.resolution.framework.CycleSlot
+import viaduct.engine.runtime2.resolution.framework.CycleSlotKind
 import viaduct.engine.runtime2.resolution.framework.CycleTask
 import viaduct.engine.runtime2.resolution.framework.OEROccurrence
 import viaduct.engine.runtime2.resolution.framework.ResolverInvocationObservation
@@ -111,12 +111,13 @@ class PublicationValidationTest : ResolutionDispatcherResource {
                     val cycleChecker = object : CycleCheckState by cycleState {
                         override fun cycleCheck(
                             reader: CycleTask,
-                            slot: CycleSlot
+                            owner: Any,
+                            kind: CycleSlotKind,
                         ) {
                             if ((reader.path.lastOrNull() as? ObjectEngineResult.ObjectKey)?.field?.name == "invalid") {
                                 providerReads.incrementAndGet()
                             }
-                            cycleState.cycleCheck(reader, slot)
+                            cycleState.cycleCheck(reader, owner, kind)
                         }
                     }
                     val operation = OperationContext.create(

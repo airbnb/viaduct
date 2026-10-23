@@ -31,7 +31,7 @@ import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.emptyFragmentOf
 import viaduct.engine.runtime2.resolution.framework.CycleCheckState
-import viaduct.engine.runtime2.resolution.framework.CycleSlot
+import viaduct.engine.runtime2.resolution.framework.CycleSlotKind
 import viaduct.engine.runtime2.resolution.framework.CycleTask
 import viaduct.engine.runtime2.resolution.framework.ResolverInvocationObservation
 import viaduct.engine.runtime2.resolution.framework.ResolverObserver
@@ -84,16 +84,18 @@ interface FragmentFreeFieldCheckerPublicationContract {
         val cycleChecker =
             object : CycleCheckState {
                 override fun registerWriter(
-                    slot: CycleSlot,
+                    owner: Any,
+                    kind: CycleSlotKind,
                     writer: CycleTask,
                 ) {
                     cells[(writer.path.last() as ObjectEngineResult.ObjectKey).field.name] =
-                        requireNotNull(slot.cellOwner)
+                        owner as EngineResultCell
                 }
 
                 override fun cycleCheck(
                     reader: CycleTask,
-                    slot: CycleSlot,
+                    owner: Any,
+                    kind: CycleSlotKind,
                 ) {}
             }
 

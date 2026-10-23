@@ -19,11 +19,11 @@ import viaduct.engine.runtime2.model.registry.ResolutionExecutionContext
 import viaduct.engine.runtime2.model.registry.VariableDefinition
 import viaduct.engine.runtime2.resolution.framework.CheckerInvocationObservation
 import viaduct.engine.runtime2.resolution.framework.CheckerKind
+import viaduct.engine.runtime2.resolution.framework.CycleSlotKind
 import viaduct.engine.runtime2.resolution.framework.Demand
 import viaduct.engine.runtime2.resolution.framework.OEROccurrence
 import viaduct.engine.runtime2.resolution.framework.SharedOERContext
 import viaduct.engine.runtime2.resolution.framework.fetchGroundedArguments
-import viaduct.engine.runtime2.resolution.framework.fieldCheckerCycleSlot
 import viaduct.engine.runtime2.resolution.framework.fieldCheckerCycleTask
 import viaduct.engine.runtime2.resolution.framework.materializeResult
 
@@ -106,8 +106,9 @@ internal class FieldCheckerTask private constructor(
             // Absence is published at the existing activation boundary, without a checker task.
             if (checkerOccurrence == null) return PreparedFieldCheckerSlot(cell, null)
             orchestrationTask.operation.cycleChecker.registerWriter(
-                cell.fieldCheckerCycleSlot,
-                oer.occurrence.fieldCheckerCycleTask(key),
+                owner = cell,
+                kind = CycleSlotKind.FIELD_CHECKER,
+                writer = oer.occurrence.fieldCheckerCycleTask(key),
             )
             val publication = SymbolicFieldCheckerPublicationOccurrence(
                 orchestrationTask.operation,

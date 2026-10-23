@@ -14,10 +14,10 @@ import viaduct.engine.runtime2.model.registry.TypeCheckerResolver
 import viaduct.engine.runtime2.resolution.CoroutinePublicationOccurrence
 import viaduct.engine.runtime2.resolution.framework.CheckerInvocationObservation
 import viaduct.engine.runtime2.resolution.framework.CheckerKind
+import viaduct.engine.runtime2.resolution.framework.CycleSlotKind
 import viaduct.engine.runtime2.resolution.framework.OEROccurrence
 import viaduct.engine.runtime2.resolution.framework.SharedOERContext
 import viaduct.engine.runtime2.resolution.framework.materializeResult
-import viaduct.engine.runtime2.resolution.framework.typeCheckerCycleSlot
 import viaduct.engine.runtime2.resolution.framework.typeCheckerCycleTask
 
 /** Immutable inputs to one grounded OER-owned type-checker publication in Resolver21-23. */
@@ -71,7 +71,8 @@ internal class CoroutineTypeCheckerTask private constructor(
                     queryOER = orchestrationTask.queryOER,
                 )
             orchestrationTask.operation.cycleChecker.registerWriter(
-                slot = publication.publicationResult.typeCheckerCycleSlot,
+                owner = publication.publicationResult,
+                kind = CycleSlotKind.TYPE_CHECKER,
                 writer = publication.oerOccurrence.typeCheckerCycleTask(),
             )
             return listOf(publication)

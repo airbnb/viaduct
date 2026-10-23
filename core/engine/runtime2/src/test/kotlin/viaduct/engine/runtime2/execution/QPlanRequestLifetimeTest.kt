@@ -32,9 +32,9 @@ import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.resolution.FieldResolverTask
 import viaduct.engine.runtime2.resolution.framework.CycleCheckState
+import viaduct.engine.runtime2.resolution.framework.CycleSlotKind
 import viaduct.engine.runtime2.resolution.framework.ResolverReadCycleException
 import viaduct.engine.runtime2.resolution.framework.fieldResolverCycleTask
-import viaduct.engine.runtime2.resolution.framework.valueCycleSlot
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class QPlanRequestLifetimeTest {
@@ -88,7 +88,7 @@ class QPlanRequestLifetimeTest {
                                 val publication = task.publication
                                 val reader = publication.oerOccurrence.root.fieldResolverCycleTask(publication.sourceOccurrence.publicationPath)
                                 try {
-                                    publication.operation.cycleChecker.cycleCheck(reader, publication.publicationCell.valueCycleSlot)
+                                    publication.operation.cycleChecker.cycleCheck(reader, publication.publicationCell, CycleSlotKind.VALUE)
                                 } catch (failure: ResolverReadCycleException) {
                                     cycleFailure = failure
                                     throw failure
@@ -133,7 +133,7 @@ class QPlanRequestLifetimeTest {
                                     val publication = assertIs<FieldResolverTask>(context).publication
                                     val reader = publication.oerOccurrence.root.fieldResolverCycleTask(publication.sourceOccurrence.publicationPath)
                                     try {
-                                        publication.operation.cycleChecker.cycleCheck(reader, publication.publicationCell.valueCycleSlot)
+                                        publication.operation.cycleChecker.cycleCheck(reader, publication.publicationCell, CycleSlotKind.VALUE)
                                         publication.publicationCell.value.await()
                                     } finally {
                                         stopped = true

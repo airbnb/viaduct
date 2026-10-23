@@ -120,14 +120,14 @@ class DeferredCycleCheckStateTest {
         fixture.register(second)
         val fieldChecker = CycleTask.fieldChecker(fixture.root, first.task.path)
         val typeChecker = CycleTask.typeChecker(fixture.root, emptyList())
-        fixture.checker.registerWriter(CycleSlot.fieldChecker(first.cell), fieldChecker)
-        fixture.checker.registerWriter(CycleSlot.typeChecker(fixture.root), typeChecker)
-        fixture.checker.cycleCheck(first.task, CycleSlot.fieldChecker(first.cell))
-        fixture.checker.cycleCheck(first.task, CycleSlot.typeChecker(fixture.root))
-        fixture.checker.cycleCheck(fieldChecker, second.slot)
-        fixture.checker.cycleCheck(typeChecker, second.slot)
+        fixture.checker.registerWriter(first.cell, CycleSlotKind.FIELD_CHECKER, fieldChecker)
+        fixture.checker.registerWriter(fixture.root, CycleSlotKind.TYPE_CHECKER, typeChecker)
+        fixture.checker.cycleCheck(first.task, first.cell, CycleSlotKind.FIELD_CHECKER)
+        fixture.checker.cycleCheck(first.task, fixture.root, CycleSlotKind.TYPE_CHECKER)
+        fixture.checker.cycleCheck(fieldChecker, second.cell, CycleSlotKind.VALUE)
+        fixture.checker.cycleCheck(typeChecker, second.cell, CycleSlotKind.VALUE)
         assertNull(fixture.checker.findCycle())
-        fixture.checker.cycleCheck(second.task, first.slot)
+        fixture.checker.cycleCheck(second.task, first.cell, CycleSlotKind.VALUE)
         assertTrue(checkNotNull(fixture.checker.findCycle()).size >= 4)
     }
 
@@ -137,7 +137,7 @@ class DeferredCycleCheckStateTest {
         val node = fixture.node(0)
         val otherRoot = ObjectEngineResult.of(fixture.root.type)
         fixture.register(node)
-        fixture.checker.cycleCheck(CycleTask.fieldResolver(otherRoot, node.task.path), node.slot)
+        fixture.checker.cycleCheck(CycleTask.fieldResolver(otherRoot, node.task.path), node.cell, CycleSlotKind.VALUE)
         assertNull(fixture.checker.findCycle())
     }
 
@@ -163,12 +163,12 @@ class DeferredCycleCheckStateTest {
             val first = fixture.node(index * 2)
             val second = fixture.node(index * 2 + 1)
             val checker = CycleCheckState.createDeferred()
-            checker.registerWriter(first.slot, first.task)
+            checker.registerWriter(first.cell, CycleSlotKind.VALUE, first.task)
             val start = CountDownLatch(1)
             val done = CountDownLatch(2)
             val actions = listOf(
-                { checker.cycleCheck(first.task, second.slot) },
-                { checker.registerWriter(second.slot, second.task) },
+                { checker.cycleCheck(first.task, second.cell, CycleSlotKind.VALUE) },
+                { checker.registerWriter(second.cell, CycleSlotKind.VALUE, second.task) },
             )
             val failures = ConcurrentLinkedQueue<Throwable>()
             actions.forEach { action ->
@@ -188,7 +188,7 @@ class DeferredCycleCheckStateTest {
             assertTrue(failures.isEmpty(), failures.toString())
             assertNull(checker.findCycle())
             // Closing the reverse edge proves that the overlapping dependency was recorded.
-            checker.cycleCheck(second.task, first.slot)
+            checker.cycleCheck(second.task, first.cell, CycleSlotKind.VALUE)
             val cycle = checkNotNull(checker.findCycle())
             assertEquals(3, cycle.size)
             assertEquals(cycle.first(), cycle.last())
@@ -199,9 +199,7 @@ class DeferredCycleCheckStateTest {
     private class Node(
         val task: CycleTask,
         val cell: EngineResultCell,
-    ) {
-        val slot = CycleSlot.value(cell)
-    }
+    )
 
     private class Fixture {
         private val world = TestWorld.fromSDL("type Query { field(index: Int): Int }").assumptions
@@ -216,11 +214,11 @@ class DeferredCycleCheckStateTest {
             return Node(CycleTask.fieldResolver(root, listOf(key)), cell)
         }
 
-        fun register(node: Node) = checker.registerWriter(node.slot, node.task)
+        fun register(node: Node) = checker.registerWriter(node.cell, CycleSlotKind.VALUE, node.task)
 
         fun read(
             reader: Node,
             writer: Node
-        ) = checker.cycleCheck(reader.task, writer.slot)
+        ) = checker.cycleCheck(reader.task, writer.cell, CycleSlotKind.VALUE)
     }
 }

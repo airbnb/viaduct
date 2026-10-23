@@ -10,7 +10,7 @@ class OEROccurrence(
     val target: ObjectEngineResult,
     val parent: OEROccurrence? = null,
 ) {
-    val path: List<PathComponent> = path.toList()
+    val path: List<PathComponent> = path
 
     fun coordinate(key: ObjectEngineResult.ObjectKey): List<PathComponent> = path + key
 }
