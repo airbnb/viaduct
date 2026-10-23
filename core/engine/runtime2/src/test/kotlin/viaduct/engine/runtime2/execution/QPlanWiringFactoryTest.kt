@@ -6,18 +6,26 @@ import graphql.GraphqlErrorBuilder
 import graphql.execution.DataFetcherExceptionHandler
 import graphql.execution.DataFetcherExceptionHandlerParameters
 import graphql.execution.DataFetcherExceptionHandlerResult
+import graphql.execution.ExecutionStepInfo
+import graphql.execution.ResultPath
+import graphql.schema.DataFetchingEnvironmentImpl
 import graphql.schema.idl.RuntimeWiring
 import graphql.schema.idl.SchemaGenerator
 import graphql.schema.idl.SchemaParser
 import graphql.schema.idl.UnExecutableSchemaGenerator
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.CompletionException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.future.await
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
 import viaduct.engine.api.CheckerResult
@@ -38,6 +46,106 @@ import viaduct.engine.runtime2.schema.ViaductAndGJSchema
 import viaduct.graphql.schema.ViaductSchema
 
 class QPlanWiringFactoryTest {
+    @Test
+    fun `fully resolved nested lists convert without dispatching coroutine work`() =
+        runTest {
+            val sdl = "type Query { values: [[String]] }"
+            val world = TestWorld.fromSDL(sdl).assumptions
+            val expected = listOf(listOf("before", null, "after"), emptyList(), null)
+            val root = world.engineResultOf("Query") { "values" resolvesTo expected }
+
+            val result = fetchValues(sdl, world.schema, root, backgroundScope)
+
+            assertEquals(expected, result)
+        }
+
+    @Test
+    fun `a pending list element preserves ready siblings and their order`() =
+        runTest {
+            val sdl = "type Query { values: [String] }"
+            val schema = TestWorld.fromSDL(sdl).assumptions.schema
+            val field = schema.requireObjectField("Query", "values")
+            val list = ListEngineResult.ofPendingValues(field.outputType.unwrapList()!!, 3)
+            list[0].value.set("before")
+            list[2].value.set("after")
+            val root = ObjectEngineResult.of(
+                schema.requireQueryTypeDef(),
+                mapOf(ObjectEngineResult.GroundKey.of(field, emptyMap()) to list),
+            )
+
+            val result = fetchValues(sdl, schema, root, backgroundScope) as CompletableFuture<*>
+            testScheduler.runCurrent()
+            assertFalse(result.isDone)
+            list[1].value.set("middle")
+
+            assertEquals(listOf("before", "middle", "after"), result.await())
+        }
+
+    @Test
+    fun `ready lists respect request cancellation before conversion`() =
+        runTest {
+            val sdl = "type Query { values: [String] }"
+            val world = TestWorld.fromSDL(sdl).assumptions
+            val root = world.engineResultOf("Query") { "values" resolvesTo listOf("ready") }
+            val requestJob = Job().apply { cancel() }
+            val requestScope = CoroutineScope(coroutineContext + requestJob)
+
+            val result = fetchValues(sdl, world.schema, root, requestScope) as CompletableFuture<*>
+            testScheduler.runCurrent()
+
+            val failure = assertThrows<CompletionException> { result.join() }
+            assertInstanceOf(CoroutineCancellationBridgeException::class.java, failure.cause)
+        }
+
+    @Test
+    fun `list objects wait for their type checker before exposing data`() =
+        runTest {
+            val sdl = "type Query { values: [Item] } type Item { name: String }"
+            val world = TestWorld.fromSDL(sdl).assumptions
+            val checker = Promise.ofDeferred<CheckerResult?>()
+            val item = ObjectEngineResult.of(
+                world.schema.requireType("Item") as ViaductSchema.Object,
+                values = mapOf(ObjectEngineResult.GroundKey.of(world.schema.requireObjectField("Item", "name"), emptyMap()) to "visible"),
+                typeCheckerResult = checker,
+            )
+            val root = world.engineResultOf("Query") { "values" resolvesTo listOf(item) }
+            val fixture = ExecutionTestFixture.fromResolvedRoot(sdl, world.schema, root, backgroundScope)
+
+            val result = fixture.runQueryAsync("{ values { name } }")
+            testScheduler.runCurrent()
+            assertFalse(result.isDone)
+            checker.complete(CheckerResult.Success)
+
+            val completed = result.await()
+            assertTrue(completed.errors.isEmpty())
+            assertEquals(mapOf("values" to listOf(mapOf("name" to "visible"))), completed.getData())
+        }
+
+    @Test
+    fun `a failed type checker terminates a list with an earlier pending element`() =
+        runTest {
+            val sdl = "type Query { values: [Item] } type Item { name: String }"
+            val schema = TestWorld.fromSDL(sdl).assumptions.schema
+            val field = schema.requireObjectField("Query", "values")
+            val checker = Promise.ofDeferred<CheckerResult?>()
+            val failure = IllegalStateException("checker failed")
+            checker.fail(failure)
+            val item = ObjectEngineResult.of(schema.requireType("Item") as ViaductSchema.Object, typeCheckerResult = checker)
+            val list = ListEngineResult.ofPendingValues(field.outputType.unwrapList()!!, 2)
+            list[1].value.set(item)
+            val root = ObjectEngineResult.of(
+                schema.requireQueryTypeDef(),
+                mapOf(ObjectEngineResult.GroundKey.of(field, emptyMap()) to list),
+            )
+
+            val result = fetchValues(sdl, schema, root, backgroundScope) as CompletableFuture<*>
+            testScheduler.runCurrent()
+
+            val thrown = assertThrows<CompletionException> { result.join() }
+            assertSame(failure, thrown.cause)
+            assertFalse(list[0].value.isCompleted)
+        }
+
     @Test
     fun `a throwing error handler preserves nullable list element isolation`() =
         runTest {
@@ -390,6 +498,29 @@ class QPlanWiringFactoryTest {
                 result.getData(),
             )
         }
+
+    private fun fetchValues(
+        sdl: String,
+        schema: ViaductSchema,
+        root: ObjectEngineResult,
+        requestScope: CoroutineScope,
+    ): Any? {
+        val sourceSchema = UnExecutableSchemaGenerator.makeUnExecutableSchema(SchemaParser().parse(sdl))
+        val executable = QPlanWiringFactory(schema).wire(sourceSchema)
+        val field = executable.queryType.getFieldDefinition("values")
+        val environment = DataFetchingEnvironmentImpl.newDataFetchingEnvironment()
+            .source(QPlanExecutionSource(root, requestScope))
+            .arguments(emptyMap())
+            .fieldDefinition(field)
+            .executionStepInfo(
+                ExecutionStepInfo.newExecutionStepInfo()
+                    .type(field.type)
+                    .path(ResultPath.rootPath().segment("values"))
+                    .build(),
+            )
+            .build()
+        return executable.codeRegistry.getDataFetcher(executable.queryType, field).get(environment)
+    }
 
     private companion object {
         val SCHEMA =

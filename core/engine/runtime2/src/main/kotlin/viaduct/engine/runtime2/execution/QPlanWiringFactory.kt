@@ -176,12 +176,14 @@ private fun EngineResult?.toGraphQLJavaValue(
             if (result.isDone) result.join() else result
         }
         is ObjectEngineResult -> source.copy(objectResult = this)
-        is ListEngineResult ->
-            source.requestScope.asCompletableFuture(
+        is ListEngineResult -> {
+            val ready = if (source.requestScope.isActive) toGraphQLJavaListIfReady(source, environment, path) else null
+            ready?.takeIf { source.requestScope.isActive } ?: source.requestScope.asCompletableFuture(
                 preferredFailure = this::preferredTerminalFailureOrNull,
             ) {
                 this@toGraphQLJavaValue.toGraphQLJavaListAwaiting(source, environment, path)
             }
+        }
         is ViaductSchema.EnumValue -> name
         else -> scalarResultValue()
     }
@@ -195,10 +197,37 @@ private suspend fun EngineResult?.toGraphQLJavaValueAwaiting(
         null -> null
         is ErrorEngineResult -> errorResult(errorData, source.exceptionHandler, environment, path).await()
         is ObjectEngineResult -> source.copy(objectResult = this)
-        is ListEngineResult -> toGraphQLJavaListAwaiting(source, environment, path)
+        is ListEngineResult ->
+            toGraphQLJavaListIfReady(source, environment, path)
+                ?: toGraphQLJavaListAwaiting(source, environment, path)
         is ViaductSchema.EnumValue -> name
         else -> scalarResultValue()
     }
+
+private fun ListEngineResult.toGraphQLJavaListIfReady(
+    source: QPlanExecutionSource,
+    environment: DataFetchingEnvironment,
+    path: ResultPath,
+): List<Any?>? {
+    val values = ArrayList<Any?>(size)
+    forEachIndexed { index, cell ->
+        val attempt = try {
+            cell.materializeCheckedValue { true }
+        } catch (_: Exception) {
+            // Preserve terminal-failure selection and cancellation in the asynchronous path.
+            return null
+        }
+        val value = when (attempt) {
+            // Error handling can suspend and must only run once, in the asynchronous path.
+            EngineResultIsPending, is ErrorEngineResult -> return null
+            is ListEngineResult ->
+                attempt.toGraphQLJavaListIfReady(source, environment, path.segment(index)) ?: return null
+            else -> attempt.toGraphQLJavaValue(source, environment, path.segment(index))
+        }
+        values.add(value)
+    }
+    return values
+}
 
 private suspend fun ListEngineResult.toGraphQLJavaListAwaiting(
     source: QPlanExecutionSource,
