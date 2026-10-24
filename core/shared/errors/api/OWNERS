@@ -2,3 +2,7 @@ approvers:
 - raymie-stata
 - airbnb/viaduct
 - aileen-chen
+
+approve-only:
+- whitney-rogers
+- johannes-tuchscherer

@@ -2,3 +2,7 @@ approvers:
 - raymie-stata
 - skevy
 - airbnb/viaduct
+
+approve-only:
+- whitney-rogers
+- johannes-tuchscherer
