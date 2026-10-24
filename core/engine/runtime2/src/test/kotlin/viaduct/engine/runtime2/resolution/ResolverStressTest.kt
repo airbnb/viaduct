@@ -1,5 +1,6 @@
 package viaduct.engine.runtime2.resolution
 
+import org.junit.jupiter.api.Tag
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.runtime2.arbitrary.Config
 import viaduct.engine.runtime2.arbitrary.MaxSelectionDepth
@@ -13,6 +14,7 @@ import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 
+@Tag("BazelIgnore")
 class ResolverStressTest : DeepResolverStressContract, ResolutionDispatcherResource {
     override val resolverName: String = "resolution"
 

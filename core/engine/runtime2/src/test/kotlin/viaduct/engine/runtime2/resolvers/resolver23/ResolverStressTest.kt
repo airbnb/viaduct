@@ -1,5 +1,6 @@
 package viaduct.engine.runtime2.resolvers.resolver23
 
+import org.junit.jupiter.api.Tag
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.runtime2.arbitrary.Config
 import viaduct.engine.runtime2.arbitrary.ParentFieldsEnabled
@@ -8,6 +9,7 @@ import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 
+@Tag("BazelIgnore")
 class ResolverStressTest : DeepResolverStressContract {
     override val resolverName: String = "resolver23"
 

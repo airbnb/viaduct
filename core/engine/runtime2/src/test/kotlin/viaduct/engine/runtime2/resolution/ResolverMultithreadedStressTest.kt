@@ -10,6 +10,7 @@ import kotlin.test.assertTrue
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.runtime2.arbitrary.Config
@@ -31,6 +32,7 @@ import viaduct.engine.runtime2.model.testing.fragmentFrom
 import viaduct.engine.runtime2.resolution.framework.ResolverInvocationObservation
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 
+@Tag("BazelIgnore")
 class ResolverMultithreadedStressTest : GeneratedTypeCheckerContract, ResolutionDispatcherResource {
     override val typeCheckerProfilePrefix = "resolution"
     override val runtimeTypeCheckerVariables = true

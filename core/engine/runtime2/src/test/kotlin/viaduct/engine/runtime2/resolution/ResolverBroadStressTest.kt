@@ -4,6 +4,7 @@ package viaduct.engine.runtime2.resolution
 
 import kotlin.test.assertEquals
 import kotlinx.coroutines.runBlocking
+import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import viaduct.engine.runtime2.arbitrary.Config
 import viaduct.engine.runtime2.arbitrary.ErrorValueWeight
@@ -39,6 +40,7 @@ import viaduct.engine.runtime2.arbitrary.configuredResolverTestExecution
 /**
  * Unfiltered Resolution stress: every generated registry/query product is resolved and validated.
  */
+@Tag("BazelIgnore")
 class ResolverBroadStressTest : ResolutionDispatcherResource {
     @Test
     fun `root field reference focused randomized worlds resolve correctly`(): Unit =

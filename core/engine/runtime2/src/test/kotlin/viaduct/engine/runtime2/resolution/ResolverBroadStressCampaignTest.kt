@@ -3,6 +3,7 @@
 package viaduct.engine.runtime2.resolution
 
 import kotlinx.coroutines.runBlocking
+import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import viaduct.engine.runtime2.arbitrary.RESOLVER_TEST_CASE_PROPERTY
 import viaduct.engine.runtime2.arbitrary.parseResolverTestCase
@@ -12,6 +13,7 @@ import viaduct.engine.runtime2.propertytest.PropertyTestRoundExecution
 import viaduct.engine.runtime2.propertytest.PropertyTestRoundRunner
 import viaduct.engine.runtime2.propertytest.roundConfig
 
+@Tag("BazelIgnore")
 class ResolverBroadStressCampaignTest {
     @Test
     fun `campaign round resolves every case in five broad profiles`(): Unit =
