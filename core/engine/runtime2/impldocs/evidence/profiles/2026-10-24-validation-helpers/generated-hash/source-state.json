@@ -1,0 +1,43 @@
+{
+  "parent_revision": "cb052b6de776573f906397b51886d1ae441ee7ff",
+  "source_state": "Parent revision plus source.patch; measurements made before committing this candidate. Patch includes implementation and tests only. All benchmark probes removed.",
+  "recorded_at_utc": "2026-10-24T22:09:25.595667+00:00",
+  "worktree": "/home/raymie_stata/repos/1ht",
+  "branch": "rstata--validate",
+  "host": "raymie-stata-codex",
+  "cpu": "Intel Xeon Platinum 8375C @ 2.90GHz; 32 cores / 64 logical CPUs",
+  "jvm": "Corretto 17.0.11+9-LTS",
+  "jmh": "1.36",
+  "blackholes": "compiler",
+  "session_id": "01a16f8d-0ac7-7fb3-805d-8fe2daf78f79",
+  "source_sha256": {
+    "projects/viaduct/oss/core/engine/runtime2/src/support/kotlin/viaduct/engine/runtime2/arbitrary/RegistryGenerator.kt": "c5ac70350ddec718025db7de18890d9fe1436dd3563ca9f4d1e464009ab62dcc",
+    "projects/viaduct/oss/core/engine/runtime2/src/test/kotlin/viaduct/engine/runtime2/arbitrary/GeneratorTest.kt": "5c618db842c7d67a511fb292d25a8d4fb85f715b98992dd5848a560f237243cf"
+  },
+  "corpus_sha256": {
+    "projects/viaduct/oss/core/engine/runtime2/src/jmh/resources/viaduct/engine/runtime2/benchmark/property-test/provenance.txt": "2a51dd9050bfc94296e55d94713baf0619e5b67be40855dbe0833723f805df99",
+    "projects/viaduct/oss/core/engine/runtime2/src/jmh/resources/viaduct/engine/runtime2/benchmark/property-test/query.graphql": "7d90bd953b1106983b9c2acf91839d825a995c96f22b1ccb771315a099bf7bd8",
+    "projects/viaduct/oss/core/engine/runtime2/src/jmh/resources/viaduct/engine/runtime2/benchmark/property-test/registry.json": "cee12a6fa91ead8b5b04ca97c5234679bfecefbd618b77fc05bf06ea6f0e81be",
+    "projects/viaduct/oss/core/engine/runtime2/src/jmh/resources/viaduct/engine/runtime2/benchmark/property-test/schema.graphqls": "7ecadf0878fcb8aa2e913ba7500ce5b4de245439c20a235088bd9b7df949fc25"
+  },
+  "parameters": {
+    "loopCount": 1,
+    "cases_per_operation": 1,
+    "top_level_resolutions_per_case": 1,
+    "resolver_applications_per_case": 12777,
+    "warmups_per_fork": 5,
+    "measurements_per_fork": 8,
+    "forks": 3,
+    "jmh_threads": 1,
+    "resolution_threads": 1,
+    "order": "before then after, serial; builds, tests and probes outside controls"
+  },
+  "validation": {
+    "full_check": "./gradlew :core:engine:runtime2:check",
+    "exit_code": 0,
+    "tests": 3687,
+    "skipped": 168,
+    "failures": 0,
+    "errors": 0
+  }
+}

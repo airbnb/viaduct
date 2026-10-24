@@ -1,0 +1,279 @@
+
+GROUP input materialization 341 12.63 self 50 middle 341 phases {'correctResolution': 172, 'application identity oracle': 169, 'from-field binding oracle': 0}
+CALLERS
+341 ['viaduct.engine.runtime2.resolution.framework.MaterializeResultKt.materializeResult$default', 52]
+LEAVES
+26 viaduct.engine.runtime2.model.ScalarValuesKt.nativeScalarTypeNameOrNull
+20 viaduct.engine.runtime2.model.CheckedEngineResultKt.materializeCheckedValue
+19 viaduct.engine.runtime2.resolution.framework.MaterializationLogic.materializeSelectedObjectValue
+19 viaduct.engine.runtime2.resolution.framework.MaterializationLogic.materializeEngineResultValue
+18 java.util.HashMap.resize
+17 kotlin.jvm.internal.Intrinsics.areEqual
+17 java.util.Arrays.copyOf
+17 viaduct.engine.runtime2.model.CellImpl.checkActivated
+16 kotlin.collections.CollectionsKt___CollectionsKt.dropLast
+15 viaduct.engine.runtime2.resolution.framework.StoredObjectKeyKt.findStoredKey
+13 viaduct.engine.runtime2.model.ArgumentExpressionsKt.variables
+11 java.util.HashMap.getNode
+RUNTIME2 DESCENDANTS
+341 viaduct.engine.runtime2.resolution.framework.MaterializationLogic.materialize
+305 viaduct.engine.runtime2.resolution.framework.MaterializationLogic.materializeSelectedObjectValue
+221 viaduct.engine.runtime2.resolution.framework.MaterializationLogic.materializeEngineResultValue
+204 viaduct.engine.runtime2.resolution.framework.MaterializationLogic.materializeValues
+87 viaduct.engine.runtime2.resolution.framework.MaterializationLogic.materializeValueForConsumer
+78 viaduct.engine.runtime2.resolution.framework.MaterializeResultKt.materializeCheckedValueForResolver
+42 viaduct.engine.runtime2.resolution.framework.StoredObjectKeyKt.findStoredKey
+39 viaduct.engine.runtime2.model.QPlanEngineObjectDataKt.constructEngineObjectData
+39 viaduct.engine.runtime2.model.QPlanEngineObjectDataKt.materializedEngineObjectDataOf
+31 viaduct.engine.runtime2.model.CheckedEngineResultKt.materializeCheckedValue
+26 viaduct.engine.runtime2.model.ScalarValuesKt.nativeScalarTypeNameOrNull
+26 viaduct.engine.runtime2.model.ScalarValuesKt.scalarResultValue
+26 viaduct.engine.runtime2.model.EngineValueDataKt.toEngineOutputData
+22 viaduct.engine.runtime2.model.ActivationAwarePromise.await
+21 viaduct.engine.runtime2.model.ArgumentExpressionsKt.variables
+21 viaduct.engine.runtime2.model.ArgumentExpressionsKt.usedVariables
+19 viaduct.engine.runtime2.resolution.framework.GroundObjectKeyKt.isContextuallyGrounded
+17 viaduct.engine.runtime2.model.DeferredPromiseImpl.await
+
+GROUP selection conformance 313 11.59 self 114 middle 313 phases {'correctResolution': 188, 'application identity oracle': 125, 'from-field binding oracle': 0}
+CALLERS
+125 ['viaduct.engine.runtime2.contract.ResolverWitnessOracleKt.objectFragmentSatisfiedBy', 328]
+119 ['viaduct.engine.runtime2.correctresolution.ResolverDemandValidationLogic.objectIsClosedUnderResolverDemand', 106]
+65 ['viaduct.engine.runtime2.correctresolution.ConformsToResolversKt.fragmentsSatisfiedBy', 276]
+4 ['viaduct.engine.runtime2.correctresolution.CorrectResolutionKt.correctResolution', 86]
+LEAVES
+98 viaduct.engine.runtime2.correctresolution.ConformsToSelectionsKt.objectConformsToSelections
+55 viaduct.engine.runtime2.model.CellImpl.checkActivated
+26 java.util.Collections.eq
+24 java.util.HashMap.getNode
+17 viaduct.engine.runtime2.model.SelectionKt.merge
+16 viaduct.engine.runtime2.correctresolution.ConformsToSelectionsKt.engineResultConformsToSelections
+16 kotlin.ranges.IntProgressionIterator.nextInt
+9 kotlin.jvm.internal.Intrinsics.areEqual
+9 java.util.HashMap.putVal
+8 viaduct.engine.runtime2.model.ArgumentExpressionsKt.variables
+8 viaduct.engine.runtime2.resolution.framework.StoredObjectKeyKt.findStoredKey
+6 java.util.ArrayList.addAll
+RUNTIME2 DESCENDANTS
+313 viaduct.engine.runtime2.correctresolution.ConformsToSelectionsKt.objectConformsToSelections
+231 viaduct.engine.runtime2.correctresolution.ConformsToSelectionsKt.engineResultConformsToSelections
+71 viaduct.engine.runtime2.resolution.framework.StoredObjectKeyKt.findStoredKey
+59 viaduct.engine.runtime2.model.CellImpl.checkActivated
+59 viaduct.engine.runtime2.model.ActivationAwareReservablePromise.get
+24 viaduct.engine.runtime2.model.ObjectResultImpl.getCell
+23 viaduct.engine.runtime2.resolution.framework.GroundObjectKeyKt.isContextuallyGrounded
+22 viaduct.engine.runtime2.model.ArgumentExpressionsKt.variables
+22 viaduct.engine.runtime2.model.ArgumentExpressionsKt.usedVariables
+19 viaduct.engine.runtime2.model.SelectionKt.merge
+19 viaduct.engine.runtime2.model.ObjectCellStore.readOrNull
+6 viaduct.engine.runtime2.model.ObjectKeyImpl.equals
+5 viaduct.engine.runtime2.model.EngineResultKt.access$validateObjectField
+5 viaduct.engine.runtime2.model.EngineResultKt.validateObjectField
+5 viaduct.engine.runtime2.model.ArgumentsImpl.equals
+4 viaduct.engine.runtime2.correctresolution.ConformsToSelectionsKt.conformsToSelectionsAt
+4 viaduct.engine.runtime2.model.DeferredPromiseImpl.get
+3 viaduct.engine.runtime2.model.InstanceVariableImpl.equals
+
+GROUP generated hash object 245 9.07 self 1 middle 245 phases {'correctResolution': 245, 'application identity oracle': 0, 'from-field binding oracle': 0}
+CALLERS
+245 ['viaduct.engine.runtime2.arbitrary.RegistryGeneratorKt.access$generatedHashObject', 1]
+LEAVES
+43 viaduct.engine.runtime2.schema.SourceSchemaAdapter.lowerOrdinaryOutput
+28 viaduct.engine.runtime2.schema.lowering.LoweredSourceCoordinatesKt.loweredFieldFromSourceCoordinate
+24 java.util.HashMap.resize
+20 java.util.HashMap.getNode
+20 java.lang.StringLatin1.hashCode
+18 viaduct.engine.runtime2.model.SchemaLookupsKt.requireOutputType
+14 kotlin.jvm.internal.Intrinsics.areEqual
+12 java.util.HashMap.putVal
+10 viaduct.engine.runtime2.schema.SourceSchemaAdapter.lowerOutput
+9 viaduct.graphql.schema.UtilsKt.isNode
+7 viaduct.engine.runtime2.model.testing.ObjectConstructionKt.objectOf
+6 kotlin.text.StringsKt__StringsKt.indexOf
+RUNTIME2 DESCENDANTS
+245 viaduct.engine.runtime2.model.testing.ObjectConstructionKt.objectOf
+226 viaduct.engine.runtime2.arbitrary.RegistryGeneratorKt$generatedHashObject$1.invoke
+170 viaduct.engine.runtime2.arbitrary.RegistryGeneratorKt.generatedHashObject
+170 viaduct.engine.runtime2.arbitrary.RegistryGeneratorKt.access$generatedHashObject
+165 viaduct.engine.runtime2.model.testing.ObjectValueScope.setTo
+80 viaduct.engine.runtime2.schema.SourceSchemaAdapter.lowerOutput
+72 viaduct.engine.runtime2.model.testing.ObjectValueScope.field
+59 viaduct.engine.runtime2.model.testing.ObjectValueScope.build$engine_runtime2_compileSupportKotlin
+59 viaduct.engine.runtime2.model.QPlanEngineObjectDataKt.engineObjectDataOf
+58 viaduct.engine.runtime2.schema.SourceSchemaAdapter.field
+58 viaduct.engine.runtime2.model.QPlanEngineObjectDataKt.constructEngineObjectData
+57 viaduct.engine.runtime2.schema.lowering.LoweredSourceCoordinatesKt.loweredFieldFromSourceCoordinate
+43 viaduct.engine.runtime2.schema.SourceSchemaAdapter.lowerOrdinaryOutput
+18 viaduct.engine.runtime2.model.SchemaLookupsKt.requireOutputType
+12 viaduct.engine.runtime2.model.SchemaLookupsKt.requireType
+10 viaduct.engine.runtime2.schema.lowering.LoweredSourceCoordinatesKt.sourceTypeExpr
+10 viaduct.engine.runtime2.schema.SourceSchemaAdapter.typeExpr
+9 viaduct.engine.runtime2.schema.SourceSchemaAdapter.isLoweredNodeField
+
+GROUP fixture object construction 278 10.3 self 8 middle 277 phases {'correctResolution': 278, 'application identity oracle': 0, 'from-field binding oracle': 0}
+CALLERS
+278 ['viaduct.engine.runtime2.arbitrary.ObjectPlan.materializeObject', 4121]
+LEAVES
+48 viaduct.engine.runtime2.schema.SourceSchemaAdapter.lowerOrdinaryOutput
+31 viaduct.engine.runtime2.schema.lowering.LoweredSourceCoordinatesKt.loweredFieldFromSourceCoordinate
+27 java.util.HashMap.resize
+25 viaduct.engine.runtime2.model.SchemaLookupsKt.requireOutputType
+24 java.lang.StringLatin1.hashCode
+21 java.util.HashMap.getNode
+18 kotlin.jvm.internal.Intrinsics.areEqual
+13 java.util.HashMap.putVal
+10 viaduct.engine.runtime2.schema.SourceSchemaAdapter.lowerOutput
+10 viaduct.graphql.schema.UtilsKt.isNode
+8 viaduct.engine.runtime2.model.testing.ObjectConstructionKt.objectOf
+6 kotlin.text.StringsKt__StringsKt.indexOf
+RUNTIME2 DESCENDANTS
+269 viaduct.engine.runtime2.arbitrary.ObjectPlan$materializeObject$1.invoke
+245 viaduct.engine.runtime2.arbitrary.GeneratedHashPlan.materialize
+245 viaduct.engine.runtime2.arbitrary.RegistryGeneratorKt.generatedHashObject
+245 viaduct.engine.runtime2.arbitrary.RegistryGeneratorKt.access$generatedHashObject
+245 viaduct.engine.runtime2.model.testing.ObjectConstructionKt.objectOf
+226 viaduct.engine.runtime2.arbitrary.RegistryGeneratorKt$generatedHashObject$1.invoke
+180 viaduct.engine.runtime2.model.testing.ObjectValueScope.setTo
+93 viaduct.engine.runtime2.schema.SourceSchemaAdapter.lowerOutput
+75 viaduct.engine.runtime2.model.testing.ObjectValueScope.field
+65 viaduct.engine.runtime2.model.testing.ObjectValueScope.build$engine_runtime2_compileSupportKotlin
+65 viaduct.engine.runtime2.model.QPlanEngineObjectDataKt.engineObjectDataOf
+63 viaduct.engine.runtime2.schema.SourceSchemaAdapter.field
+63 viaduct.engine.runtime2.model.QPlanEngineObjectDataKt.constructEngineObjectData
+62 viaduct.engine.runtime2.schema.lowering.LoweredSourceCoordinatesKt.loweredFieldFromSourceCoordinate
+48 viaduct.engine.runtime2.schema.SourceSchemaAdapter.lowerOrdinaryOutput
+25 viaduct.engine.runtime2.model.SchemaLookupsKt.requireOutputType
+14 viaduct.engine.runtime2.model.SchemaLookupsKt.requireType
+14 viaduct.engine.runtime2.schema.lowering.LoweredSourceCoordinatesKt.sourceTypeExpr
+
+GROUP variable enumeration 165 6.11 self 74 middle 163 phases {'correctResolution': 97, 'application identity oracle': 52, 'from-field binding oracle': 16}
+CALLERS
+116 ['viaduct.engine.runtime2.resolution.framework.GroundObjectKeyKt.isContextuallyGrounded', 9]
+17 ['viaduct.engine.runtime2.contract.ResolverWitnessOracleKt.objectFragmentSatisfiedBy', 325]
+14 ['viaduct.engine.runtime2.correctresolution.ResolverDemandValidationLogic.objectIsClosedUnderResolverDemand', 102]
+7 ['viaduct.engine.runtime2.correctresolution.ConformsToResolversKt.fromArgumentBindingsAgree', 290]
+7 ['viaduct.engine.runtime2.correctresolution.ConformsToResolversKt.fragmentsSatisfiedBy', 273]
+3 ['viaduct.engine.runtime2.resolution.framework.GroundObjectKeyKt.fetchGroundedArguments', 24]
+1 ['viaduct.engine.runtime2.correctresolution.ConformsToResolversKt.fromArgumentBindingsAgree', 291]
+LEAVES
+66 viaduct.engine.runtime2.model.ArgumentExpressionsKt.variables
+35 java.util.HashMap.putVal
+21 java.util.AbstractCollection.addAll
+9 kotlin.reflect.jvm.internal.impl.util.AbstractArrayMapOwner.iterator
+8 viaduct.engine.runtime2.model.SelectionKt.usedVariables
+8 java.util.HashMap$HashIterator.<init>
+6 kotlin.collections.SetsKt___SetsKt.plus
+3 kotlin.jvm.internal.Intrinsics.areEqual
+2 viaduct.engine.runtime2.model.SelectionKt$usedVariables$1.invoke
+2 viaduct.engine.runtime2.model.ObjectSelectionImpl.getKey
+1 viaduct.engine.runtime2.model.AbstractSelectionForest.forEach
+1 java.util.HashMap.hash
+RUNTIME2 DESCENDANTS
+136 viaduct.engine.runtime2.model.ArgumentExpressionsKt.variables
+43 viaduct.engine.runtime2.model.SelectionKt$usedVariables$1.invoke
+40 viaduct.engine.runtime2.model.AbstractSelectionForest.forEach
+37 viaduct.engine.runtime2.model.SelectionKt.access$usedVariables
+37 viaduct.engine.runtime2.model.SelectionKt.usedVariables
+17 viaduct.engine.runtime2.model.SingletonSelectionForest.forEach
+17 viaduct.engine.runtime2.model.ArgumentExpressionsKt.usedVariables
+4 viaduct.engine.runtime2.model.ArgumentExpressionsKt.fieldExpressions
+2 viaduct.engine.runtime2.model.ObjectSelectionImpl.getKey
+1 viaduct.engine.runtime2.model.InstanceVariableImpl.hashCode
+1 viaduct.engine.runtime2.model.ResolvedArgumentsImpl.equals
+
+GROUP stored-key lookup 122 4.52 self 23 middle 99 phases {'correctResolution': 71, 'application identity oracle': 51, 'from-field binding oracle': 0}
+CALLERS
+71 ['viaduct.engine.runtime2.correctresolution.ConformsToSelectionsKt.objectConformsToSelections', 54]
+42 ['viaduct.engine.runtime2.resolution.framework.MaterializationLogic.materializeSelectedObjectValue', 94]
+9 ['viaduct.engine.runtime2.correctresolution.ConformsToCheckedSelectionsKt.conformsToCheckedSelectionsAt', 38]
+LEAVES
+34 java.util.Collections.eq
+23 viaduct.engine.runtime2.resolution.framework.StoredObjectKeyKt.findStoredKey
+20 viaduct.engine.runtime2.model.ArgumentExpressionsKt.variables
+15 java.util.HashMap.putVal
+10 java.util.HashMap.getNode
+8 java.util.AbstractCollection.addAll
+3 kotlin.reflect.jvm.internal.impl.util.AbstractArrayMapOwner.iterator
+2 viaduct.engine.runtime2.resolution.framework.GroundObjectKeyKt.isContextuallyGrounded
+2 viaduct.engine.runtime2.model.ResolvedArgumentsImpl.equals
+2 kotlin.jvm.internal.Intrinsics.areEqual
+1 java.util.Objects.equals
+1 java.util.HashMap.hash
+RUNTIME2 DESCENDANTS
+49 viaduct.engine.runtime2.resolution.framework.GroundObjectKeyKt.isContextuallyGrounded
+47 viaduct.engine.runtime2.model.ArgumentExpressionsKt.variables
+47 viaduct.engine.runtime2.model.ArgumentExpressionsKt.usedVariables
+3 viaduct.engine.runtime2.model.ObjectKeyImpl.equals
+3 viaduct.engine.runtime2.model.ResolvedArgumentsImpl.equals
+3 viaduct.engine.runtime2.model.GroundKeyImpl.equals
+2 viaduct.engine.runtime2.model.ArgumentsImpl.equals
+1 viaduct.engine.runtime2.model.ResolverOccurrenceIdImpl.equals
+1 viaduct.engine.runtime2.model.InstanceVariableImpl.equals
+1 viaduct.engine.runtime2.model.VariableInstanceIdImpl.equals
+1 viaduct.engine.runtime2.model.ArgumentExpressionsKt.fieldExpressions
+
+GROUP materialized value equality 130 4.81 self 61 middle 97 phases {'correctResolution': 130, 'application identity oracle': 0, 'from-field binding oracle': 0}
+CALLERS
+76 ['viaduct.engine.runtime2.correctresolution.ResolverInputConformanceLogic.objectInputConforms', 70]
+49 ['viaduct.engine.runtime2.correctresolution.ResolverInputReplayKt.resolverInputsForReplay', 53]
+5 ['viaduct.engine.runtime2.correctresolution.ResolverInputReplayKt.resolverInputsForReplay', 54]
+LEAVES
+61 viaduct.engine.runtime2.correctresolution.ResolverInputReplayKt.sameMaterializedValueAs
+24 kotlin.collections.CollectionsKt___CollectionsKt.toSet
+20 kotlin.jvm.internal.Intrinsics.areEqual
+13 kotlin.ranges.IntProgressionIterator.nextInt
+5 java.lang.StringLatin1.hashCode
+3 java.util.AbstractSet.equals
+2 java.util.Collections.eq
+2 java.util.HashMap.getNode
+RUNTIME2 DESCENDANTS
+81 viaduct.engine.runtime2.correctresolution.ResolverInputReplayKt.sameMaterializedValueAs
+7 viaduct.engine.runtime2.model.QPlanEngineObjectDataKt.outputValue
+7 viaduct.engine.runtime2.model.QPlanEngineObjectDataImpl.outputValue
+2 viaduct.engine.runtime2.model.QPlanEngineObjectDataImpl.isPresent
+
+GROUP input fingerprints 120 4.44 self 2 middle 118 phases {'correctResolution': 70, 'application identity oracle': 50, 'from-field binding oracle': 0}
+CALLERS
+108 ['viaduct.engine.runtime2.arbitrary.ResolutionWitnessKt.resolutionFingerprint$default', 282]
+12 ['viaduct.engine.runtime2.arbitrary.ResolutionWitnessKt.resolutionFingerprint$default', 274]
+LEAVES
+49 viaduct.engine.runtime2.arbitrary.FingerprintBudget.output
+11 kotlin.collections.CollectionsKt___CollectionsKt.joinTo
+9 viaduct.engine.runtime2.arbitrary.FingerprintBudget.node
+7 kotlin.collections.CollectionsKt___CollectionsKt.joinToString
+7 java.lang.Integer.getChars
+5 java.util.LinkedHashMap$LinkedKeySet.iterator
+5 java.util.Arrays.copyOf
+5 jdk.internal.misc.Unsafe.allocateUninitializedArray
+4 kotlin.collections.CollectionsKt___CollectionsKt.toList
+4 java.lang.StringLatin1.hashCode
+2 java.util.LinkedHashMap.keySet
+2 viaduct.engine.runtime2.arbitrary.ResolutionWitnessKt.resolutionFingerprint
+RUNTIME2 DESCENDANTS
+106 viaduct.engine.runtime2.arbitrary.FingerprintBudget.output
+53 viaduct.engine.runtime2.arbitrary.FingerprintBudget$output$1.invoke
+12 viaduct.engine.runtime2.arbitrary.FingerprintBudget.arguments
+9 viaduct.engine.runtime2.arbitrary.FingerprintBudget.node
+7 viaduct.engine.runtime2.arbitrary.FingerprintBudget.atom
+6 viaduct.engine.runtime2.arbitrary.FingerprintBudget$arguments$2.invoke
+5 viaduct.engine.runtime2.arbitrary.FingerprintBudget.access$input
+4 viaduct.engine.runtime2.model.QPlanEngineObjectDataImpl.isPresent
+4 viaduct.engine.runtime2.model.QPlanEngineObjectDataKt.outputValue
+4 viaduct.engine.runtime2.model.QPlanEngineObjectDataImpl.outputValue
+3 viaduct.engine.runtime2.arbitrary.FingerprintBudget.input
+2 viaduct.engine.runtime2.model.QPlanEngineObjectDataImpl.getSelections
+1 viaduct.engine.runtime2.arbitrary.FingerprintBudget.access$atom
+
+GROUP resolver invocation lookup 56 2.07 self 1 middle 55 phases {'correctResolution': 56, 'application identity oracle': 0, 'from-field binding oracle': 0}
+CALLERS
+56 ['viaduct.engine.runtime2.correctresolution.ResolverInputReplayKt.resolverInputsForReplay', 46]
+LEAVES
+19 java.util.concurrent.ConcurrentHashMap.get
+13 java.util.Objects.equals
+12 java.util.concurrent.ConcurrentLinkedQueue.size
+7 kotlin.collections.CollectionsKt___CollectionsKt.toList
+3 kotlin.jvm.internal.Intrinsics.areEqual
+1 viaduct.engine.runtime2.correctresolution.CorrectnessResolverObserver.resolverInvocations
+1 java.util.ArrayList.equalsArrayList
+RUNTIME2 DESCENDANTS
+17 viaduct.engine.runtime2.model.ResolverOccurrenceIdImpl.equals

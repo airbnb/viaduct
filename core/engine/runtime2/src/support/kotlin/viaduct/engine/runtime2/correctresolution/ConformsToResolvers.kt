@@ -51,11 +51,20 @@ internal fun ObjectEngineResult.conformsToResolvers(
     resolverApplicationCache: ResolverApplicationCache,
 ): Boolean = ResolverConformanceLogic(operation, resolverApplicationCache).conforms(this)
 
+internal fun ObjectEngineResult.conformsToResolversAndDemand(
+    operation: SharedOperationContext<*>,
+    resolverApplicationCache: ResolverApplicationCache,
+): Boolean = ResolverConformanceLogic(operation, resolverApplicationCache, validateDemand = true).conforms(this)
+
 /** Checks resolver conformance for one result using its operation and existing replay cache. */
 private class ResolverConformanceLogic(
     private val operation: SharedOperationContext<*>,
     private val resolverApplicationCache: ResolverApplicationCache,
+    validateDemand: Boolean = false,
 ) {
+    private val demandValidation =
+        if (validateDemand) ResolverDemandValidationLogic(operation, resolverApplicationCache) else null
+
     fun conforms(result: ObjectEngineResult): Boolean =
         result.objectConformsToResolvers(
             path = emptyList(),
@@ -69,14 +78,16 @@ private class ResolverConformanceLogic(
         source: EngineObjectData.Sync?,
         structuralParent: ObjectEngineResult?,
         producerField: ViaductSchema.ObjectField?,
-    ): Boolean =
-        keys.all { key ->
+    ): Boolean {
+        if (demandValidation?.typeCheckerDemandIsClosed(this, path) == false) return false
+        return keys.all { key ->
             if (!getCell(key).value.isCompleted) return@all true
             if (!key.isContextuallyGrounded(operation)) return@all false
             val value = getCell(key).value.get()
             val arguments = key.groundedArguments(operation)
             val fieldName = key.field.name
             source.requireArgumentlessField(key)
+            if (demandValidation?.fieldCheckerDemandIsClosed(this, key, arguments, path) == false) return@all false
             when {
                 key is ObjectEngineResult.ParentKey ->
                     value === structuralParent &&
@@ -100,16 +111,17 @@ private class ResolverConformanceLogic(
                         )
 
                 key.field in operation.world.resolverRegistry ->
-                    reapplyResolver(operation, resolverApplicationCache, key, path)
-                        ?.let { application ->
-                            value.engineResultConformsToResolverValue(
-                                resolverValue = application.output,
-                                expectedType = key.field.outputType,
-                                path = path + key,
-                                structuralParent = this,
-                                producerField = key.field,
-                            )
-                        } == true
+                    demandValidation?.resolverDemandIsClosed(this, key, path) != false &&
+                        reapplyResolver(operation, resolverApplicationCache, key, path)
+                            ?.let { application ->
+                                value.engineResultConformsToResolverValue(
+                                    resolverValue = application.output,
+                                    expectedType = key.field.outputType,
+                                    path = path + key,
+                                    structuralParent = this,
+                                    producerField = key.field,
+                                )
+                            } == true
 
                 source == null ->
                     value.engineResultConformsToResolvers(
@@ -121,6 +133,7 @@ private class ResolverConformanceLogic(
                 else -> false
             }
         }
+    }
 
     private fun ObjectEngineResult.errorArgumentQueryFragmentConforms(
         key: ObjectEngineResult.ObjectKey,
@@ -189,7 +202,7 @@ private class ResolverConformanceLogic(
                 reference = reference,
                 publicationRoot = resolverApplicationCache.root,
                 publicationPath = path,
-                validationDemand = completedOutputDemand(),
+                validationDemand = resolverApplicationCache.completedOutputDemand(this),
             )?.let { application ->
                 engineResultConformsToResolverValue(
                     resolverValue = application.output,

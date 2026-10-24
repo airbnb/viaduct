@@ -1,0 +1,13 @@
+diff --git a/projects/viaduct/oss/core/engine/runtime2/src/jmh/resources/viaduct/engine/runtime2/benchmark/property-test/registry.json b/projects/viaduct/oss/core/engine/runtime2/src/jmh/resources/viaduct/engine/runtime2/benchmark/property-test/registry.json
+index 275afccd699549..10becfdb9819a3 100644
+--- a/projects/viaduct/oss/core/engine/runtime2/src/jmh/resources/viaduct/engine/runtime2/benchmark/property-test/registry.json
++++ b/projects/viaduct/oss/core/engine/runtime2/src/jmh/resources/viaduct/engine/runtime2/benchmark/property-test/registry.json
+@@ -5,7 +5,7 @@
+     "propertySeed" : 2026081300464,
+     "queryIndex" : 3,
+     "registryIndex" : 4,
+-    "resolverApplications" : 12763,
++    "resolverApplications" : 12777,
+     "schemaIndex" : 10
+   },
+   "registry" : {

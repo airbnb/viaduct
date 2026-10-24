@@ -15,8 +15,11 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNotEquals
+import kotlin.test.assertNotSame
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 import kotlinx.coroutines.runBlocking
+import viaduct.engine.api.EngineObjectData
 import viaduct.engine.runtime2.model.Arguments
 import viaduct.engine.runtime2.model.conformsToResolverOutputSchemaType
 import viaduct.engine.runtime2.model.engineObjectDataOf
@@ -28,6 +31,8 @@ import viaduct.engine.runtime2.model.registry.VariableDefinition
 import viaduct.engine.runtime2.model.requireField
 import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireQueryTypeDef
+import viaduct.engine.runtime2.model.requireType
+import viaduct.engine.runtime2.model.schemaType
 import viaduct.engine.runtime2.model.testing.fragmentFrom
 import viaduct.engine.runtime2.model.testing.objectOf
 import viaduct.engine.runtime2.resolvers.resolver06.resolve as resolveObservedField
@@ -1135,6 +1140,35 @@ class GeneratorTest {
             first.outputResolutionFingerprint(),
             differentSalt.outputResolutionFingerprint(),
         )
+
+        val chains =
+            mapOf(
+                0 to listOf(17, -1640531000, -957384975),
+                1 to listOf(48, -1640530039, -957355184, -1253771159),
+                2 to listOf(79, -1640529078, -957325393, -1252847638, -1824102641),
+                3 to listOf(110),
+                4 to listOf(141, -1640527156),
+                -1 to listOf(-14, -1640531961),
+                Int.MAX_VALUE to listOf(2147483634, 506951687, 1190068882, 891865447, 237493554),
+            )
+        chains.forEach { (seed, expected) ->
+            var actual = plan.materialize(world.schema, hashField.outputType, generatedHashSeed = seed)
+            var repeatedValue = plan.materialize(world.schema, hashField.outputType, generatedHashSeed = seed)
+            expected.forEachIndexed { index, hash ->
+                assertNotSame(actual, repeatedValue)
+                assertSame(world.schema.requireType(GENERATED_HASH_TYPE), actual.schemaType)
+                assertEquals(hash, actual.get(GENERATED_HASH_FIELD))
+                val hasNested = index < expected.lastIndex
+                assertEquals(
+                    if (hasNested) listOf(GENERATED_HASH_FIELD, GENERATED_HASH_NESTED_FIELD) else listOf(GENERATED_HASH_FIELD),
+                    actual.getSelections().toList(),
+                )
+                if (hasNested) {
+                    actual = assertIs<EngineObjectData.Sync>(actual.get(GENERATED_HASH_NESTED_FIELD))
+                    repeatedValue = assertIs<EngineObjectData.Sync>(repeatedValue.get(GENERATED_HASH_NESTED_FIELD))
+                }
+            }
+        }
     }
 
     @Test

@@ -1,0 +1,73 @@
+{
+  "revision": "f44da2cfb48962f36fb5d29cd9cf044a4f9804fd",
+  "branch": "rstata--validate",
+  "worktree": "/home/raymie_stata/repos/1ht",
+  "host": "raymie-stata-codex",
+  "cpu": "Intel Xeon Platinum 8375C @ 2.90GHz; 32 cores / 64 logical CPUs",
+  "jvm": "Corretto 17.0.11+9-LTS (Gradle-selected benchmark JVM)",
+  "jmh": "1.36",
+  "session_id": "01a16f8d-0ac7-7fb3-805d-8fe2daf78f79",
+  "recorded_at_utc": "2026-10-24T20:37:22.522251+00:00",
+  "source_state": "Both measured variants are uncommitted: recorded revision plus baseline.patch or candidate.patch. The candidate patch contains all six changed tracked files at measurement; this evidence directory and performance-history entry were added afterward.",
+  "source_sha256": {
+    "projects/viaduct/oss/core/engine/runtime2/impldocs/testing/performance.md": "d011c4128455a3c18a14c5ea974b9bc02e292683271af26b547cde9f30fe0479",
+    "projects/viaduct/oss/core/engine/runtime2/src/jmh/kotlin/viaduct/engine/runtime2/benchmark/PropertyTestBenchmarkSupport.kt": "0f32b5cf7cdb6ecf2f4a4aaa7cc2536ffc80ddb8b2fc21c3fcfb96482137d10d",
+    "projects/viaduct/oss/core/engine/runtime2/src/jmh/resources/viaduct/engine/runtime2/benchmark/property-test/registry.json": "cee12a6fa91ead8b5b04ca97c5234679bfecefbd618b77fc05bf06ea6f0e81be",
+    "projects/viaduct/oss/core/engine/runtime2/src/support/kotlin/viaduct/engine/runtime2/contract/ResolverWitnessOracle.kt": "a12bf60b03a306769fb161634c68f9618cab1da067d2342ef32b9097ade7f194",
+    "projects/viaduct/oss/core/engine/runtime2/src/support/kotlin/viaduct/engine/runtime2/correctresolution/CorrectResolution.kt": "3c5c28197fcd6c8e56bf21a800a1344b3e980c119cabc057d2a5fee2c64d9638",
+    "projects/viaduct/oss/core/engine/runtime2/src/test/kotlin/viaduct/engine/runtime2/correctresolution/CorrectResolutionTest.kt": "f6bcf383ade50dff22fc46228ff9db3f07c98e4a7c5153b6042da5abc2d99ce9"
+  },
+  "corpus_sha256": {
+    "projects/viaduct/oss/core/engine/runtime2/src/jmh/resources/viaduct/engine/runtime2/benchmark/property-test/provenance.txt": "2a51dd9050bfc94296e55d94713baf0619e5b67be40855dbe0833723f805df99",
+    "projects/viaduct/oss/core/engine/runtime2/src/jmh/resources/viaduct/engine/runtime2/benchmark/property-test/query.graphql": "7d90bd953b1106983b9c2acf91839d825a995c96f22b1ccb771315a099bf7bd8",
+    "projects/viaduct/oss/core/engine/runtime2/src/jmh/resources/viaduct/engine/runtime2/benchmark/property-test/registry.json": "cee12a6fa91ead8b5b04ca97c5234679bfecefbd618b77fc05bf06ea6f0e81be",
+    "projects/viaduct/oss/core/engine/runtime2/src/jmh/resources/viaduct/engine/runtime2/benchmark/property-test/schema.graphqls": "7ecadf0878fcb8aa2e913ba7500ce5b4de245439c20a235088bd9b7df949fc25"
+  },
+  "artifact_sha256": {
+    "/tmp/runtime2-validation-20261024/duplicate-replay-baseline.jar": "392ef35c64bae969f979259fb86e64577b9f1e815cec433bb4b6db67691254d5",
+    "/tmp/runtime2-validation-20261024/duplicate-replay-candidate.jar": "cd6fbd6918a8ae81c2a1ba01931c16d4f3a1002eb485f2d91f980801a25067e0",
+    "/tmp/runtime2-validation-20261024/property-standard.jfr": "5aadef7ade150087c93529a5de7472b66eeab1f8f682f0e4b44fd4ad4156ff0f",
+    "/tmp/runtime2-validation-20261024/duplicate-replay-candidate.jfr": "82a2c4e98677650a812a4c406c2a4397ed0ca4f6c08ba0374b782462bfc4ab47"
+  },
+  "controlled_parameters": {
+    "mode": "single shot",
+    "loopCount": 1,
+    "cases_per_operation": 1,
+    "resolver_applications_per_case": 12777,
+    "warmups_per_fork": 5,
+    "measurements_per_fork": 8,
+    "forks": 3,
+    "jmh_threads": 1,
+    "resolution_threads": 1,
+    "blackhole": "compiler",
+    "order": "before then after, serial; builds/tests/profiling outside the control pair"
+  },
+  "profile_parameters": {
+    "loopCount": 30,
+    "cases_per_operation": 30,
+    "warmups": 1,
+    "measurements": 1,
+    "forks": 1,
+    "diagnostic_only": true
+  },
+  "validation": {
+    "full_check": {
+      "command": "./gradlew :core:engine:runtime2:check",
+      "exit_code": 0,
+      "duration": "4m 59s",
+      "totals": {
+        "tests": 3684,
+        "skipped": 168,
+        "failures": 0,
+        "errors": 0
+      },
+      "suites": 276
+    },
+    "focused_tests": 78,
+    "regression_red": "18 tests, one expected failure: two resolver replays instead of one",
+    "documentation_check": {
+      "command": "./gradlew :core:engine:runtime2:checkDocumentationLabels --no-configuration-cache --console=plain",
+      "exit_code": 0
+    }
+  }
+}

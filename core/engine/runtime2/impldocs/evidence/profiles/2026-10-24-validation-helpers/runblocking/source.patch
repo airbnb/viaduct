@@ -1,0 +1,84 @@
+diff --git a/projects/viaduct/oss/core/engine/runtime2/src/support/kotlin/viaduct/engine/runtime2/contract/RegisteredResolverOccurrence.kt b/projects/viaduct/oss/core/engine/runtime2/src/support/kotlin/viaduct/engine/runtime2/contract/RegisteredResolverOccurrence.kt
+index a65741e8203111..ba1b830fd4726e 100644
+--- a/projects/viaduct/oss/core/engine/runtime2/src/support/kotlin/viaduct/engine/runtime2/contract/RegisteredResolverOccurrence.kt
++++ b/projects/viaduct/oss/core/engine/runtime2/src/support/kotlin/viaduct/engine/runtime2/contract/RegisteredResolverOccurrence.kt
+@@ -86,10 +86,10 @@ private fun EngineResult?.visitRegisteredResolverOccurrences(
+     canonicalOrder: Boolean,
+     initialPath: List<PathComponent> = emptyList(),
+     visitOccurrence: (RegisteredResolverOccurrence) -> Unit,
+-) {
++) = runBlocking {
+     var visitedNodes = 0
+
+-    fun visit(
++    suspend fun visit(
+         value: EngineResult?,
+         path: List<PathComponent>,
+     ) {
+@@ -109,7 +109,7 @@ private fun EngineResult?.visitRegisteredResolverOccurrences(
+                     }
+                 keys.forEach { key ->
+                     val cell = value.getCell(key)
+-                    if (!runBlocking { cell.fetchActivated() }) return@forEach
++                    if (!cell.fetchActivated()) return@forEach
+                     val fieldPath = path + key
+                     require(key.isContextuallyGrounded(operation)) {
+                         "Resolver occurrence key is not contextually grounded: $key"
+@@ -141,7 +141,7 @@ private fun EngineResult?.visitRegisteredResolverOccurrences(
+
+             is ListEngineResult ->
+                 value.forEachIndexed { index, cell ->
+-                    if (runBlocking { cell.fetchActivated() }) {
++                    if (cell.fetchActivated()) {
+                         visit(cell.value.get(), path + ListEngineResult.Index.of(index))
+                     }
+                 }
+@@ -150,7 +150,7 @@ private fun EngineResult?.visitRegisteredResolverOccurrences(
+         }
+     }
+
+-    visit(this, initialPath)
++    visit(this@visitRegisteredResolverOccurrences, initialPath)
+ }
+
+ fun EngineResult?.registeredResolverOccurrenceCounts(
+diff --git a/projects/viaduct/oss/core/engine/runtime2/src/test/kotlin/viaduct/engine/runtime2/arbitrary/ResolutionWitnessTest.kt b/projects/viaduct/oss/core/engine/runtime2/src/test/kotlin/viaduct/engine/runtime2/arbitrary/ResolutionWitnessTest.kt
+index 99c2717e25e68f..1e9d22f2f0045a 100644
+--- a/projects/viaduct/oss/core/engine/runtime2/src/test/kotlin/viaduct/engine/runtime2/arbitrary/ResolutionWitnessTest.kt
++++ b/projects/viaduct/oss/core/engine/runtime2/src/test/kotlin/viaduct/engine/runtime2/arbitrary/ResolutionWitnessTest.kt
+@@ -2,6 +2,9 @@ package viaduct.engine.runtime2.arbitrary
+
+ import java.util.concurrent.CountDownLatch
+ import java.util.concurrent.Executors
++import kotlinx.coroutines.Dispatchers
++import kotlinx.coroutines.launch
++import kotlinx.coroutines.test.runTest
+ import org.junit.jupiter.api.Assertions.assertEquals
+ import org.junit.jupiter.api.Assertions.assertFalse
+ import org.junit.jupiter.api.Assertions.assertNotEquals
+@@ -32,6 +35,25 @@ import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
+ import viaduct.graphql.schema.ViaductSchema
+
+ class ResolutionWitnessTest {
++    @Test
++    fun `occurrence traversal awaits activation and skips excluded cells`() =
++        runTest {
++            val world = traversalWorld()
++            val helper = ObjectEngineResult.GroundKey.of(world.schema.requireObjectField("Query", "helper"), emptyMap())
++            val dead = ObjectEngineResult.GroundKey.of(world.schema.requireObjectField("Query", "dead"), emptyMap())
++            val result = ObjectEngineResult.of(world.schema.requireQueryTypeDef(), mapOf(helper to 1), mutable = true)
++            val excluded = result.reserveCell(dead)
++            launch(Dispatchers.Default) { excluded.setActivated(false) }
++            val operation = SharedOperationContext.create(world.assumptions)
++
++            val occurrences = result.registeredResolverOccurrences(operation, world.resolverRegistry)
++            val streamed = mutableListOf<RegisteredResolverOccurrence>()
++            result.forEachRegisteredResolverOccurrence(operation, world.resolverRegistry, visitOccurrence = streamed::add)
++
++            assertEquals(listOf(FieldCoordinate("Query", "helper")), occurrences.map { it.canonicalField })
++            assertEquals(occurrences, streamed)
++        }
++
+     @Test
+     fun `fingerprints ignore permutations and discriminate semantic input differences`() {
+         val world = fingerprintWorld()

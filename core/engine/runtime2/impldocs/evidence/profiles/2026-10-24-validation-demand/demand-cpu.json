@@ -1,0 +1,46 @@
+{
+  "before": {
+    "correctResolution": {
+      "cpu_samples": 1330,
+      "demand_cpu_samples": 346,
+      "demand_cpu_percent": 26.015037593984964
+    },
+    "application identity oracle": {
+      "cpu_samples": 389,
+      "demand_cpu_samples": 0,
+      "demand_cpu_percent": 0.0
+    },
+    "from-field binding oracle": {
+      "cpu_samples": 140,
+      "demand_cpu_samples": 0,
+      "demand_cpu_percent": 0.0
+    },
+    "Resolution": {
+      "cpu_samples": 796,
+      "demand_cpu_samples": 0,
+      "demand_cpu_percent": 0.0
+    }
+  },
+  "after": {
+    "correctResolution": {
+      "cpu_samples": 1020,
+      "demand_cpu_samples": 19,
+      "demand_cpu_percent": 1.8627450980392157
+    },
+    "application identity oracle": {
+      "cpu_samples": 403,
+      "demand_cpu_samples": 0,
+      "demand_cpu_percent": 0.0
+    },
+    "from-field binding oracle": {
+      "cpu_samples": 149,
+      "demand_cpu_samples": 0,
+      "demand_cpu_percent": 0.0
+    },
+    "Resolution": {
+      "cpu_samples": 778,
+      "demand_cpu_samples": 0,
+      "demand_cpu_percent": 0.0
+    }
+  }
+}

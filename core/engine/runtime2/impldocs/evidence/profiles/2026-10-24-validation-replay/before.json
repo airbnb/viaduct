@@ -1,0 +1,83 @@
+[
+    {
+        "jmhVersion" : "1.36",
+        "benchmark" : "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest",
+        "mode" : "ss",
+        "threads" : 1,
+        "forks" : 3,
+        "jvm" : "/opt/mise/installs/java/corretto-17.0.11.9.1/bin/java",
+        "jvmArgs" : [
+            "-Dfile.encoding=UTF-8",
+            "-Duser.country",
+            "-Duser.language=en",
+            "-Duser.variant"
+        ],
+        "jdkVersion" : "17.0.11",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "17.0.11+9-LTS",
+        "warmupIterations" : 5,
+        "warmupTime" : "single-shot",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 8,
+        "measurementTime" : "single-shot",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "loopCount" : "1"
+        },
+        "primaryMetric" : {
+            "score" : 0.8015992583333335,
+            "scoreError" : 0.0186075487648609,
+            "scoreConfidence" : [
+                0.7829917095684725,
+                0.8202068070981944
+            ],
+            "scorePercentiles" : {
+                "0.0" : 0.762887456,
+                "50.0" : 0.8089222819999999,
+                "90.0" : 0.8300528445,
+                "95.0" : 0.8354695995,
+                "99.0" : 0.836361512,
+                "99.9" : 0.836361512,
+                "99.99" : 0.836361512,
+                "99.999" : 0.836361512,
+                "99.9999" : 0.836361512,
+                "100.0" : 0.836361512
+            },
+            "scoreUnit" : "s/op",
+            "rawData" : [
+                [
+                    0.827233445,
+                    0.810618659,
+                    0.787242417,
+                    0.762887456,
+                    0.814207249,
+                    0.832793862,
+                    0.807225905,
+                    0.785591147
+                ],
+                [
+                    0.836361512,
+                    0.819537346,
+                    0.788018866,
+                    0.764898735,
+                    0.812675627,
+                    0.821015807,
+                    0.791989903,
+                    0.763435056
+                ],
+                [
+                    0.827311827,
+                    0.820570874,
+                    0.789297066,
+                    0.765005013,
+                    0.820698788,
+                    0.82558294,
+                    0.793887975,
+                    0.770294725
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    }
+]

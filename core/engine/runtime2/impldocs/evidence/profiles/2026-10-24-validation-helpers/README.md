@@ -1,0 +1,30 @@
+# Sequential validation helper optimizations
+
+These experiments start from the retained duplicate-replay and completed-output-demand optimizations and change one helper family at a time. Every comparison runs before and after serially on `raymie-stata-codex`, Intel Xeon Platinum 8375C at 2.90 GHz, 32 cores/64 logical CPUs, with Corretto 17.0.11+9-LTS, JMH 1.36 and compiler blackholes. Session is `01a16f8d-0ac7-7fb3-805d-8fe2daf78f79`. One operation is one frozen property case and top-level resolution, with 12,777 resolver applications and all correctness, identity and binding oracles enabled. Each variant has three forks, five warmup iterations and eight measured iterations per fork, one JMH thread and one Resolution thread. These explicit iteration/fork overrides match the preceding extended controls. Errors below are JMH's 99.9% confidence half-widths. Every fork and measured iteration is retained in the linked JSON and console output; no measurements are discarded.
+
+Commands run from `/home/raymie_stata/repos/1ht/projects/viaduct/oss`. For each candidate, build with `./gradlew :core:engine:runtime2:jmhJar --no-configuration-cache --console=plain`, preserve the JAR outside Git, and use [run-pair.py](run-pair.py) with the before/after JAR paths. Each round's `comparison.json` records both exact Java invocations and JAR SHA-256 hashes; `source-state.json` records the parent revision, source/corpus hashes, parameters and validation totals, and `source.patch` preserves the candidate's uncommitted implementation/tests. The recorded parent alone is insufficient to reproduce an uncommitted candidate. Raw JARs, probes, build logs and measurements remain in `/tmp/runtime2-validation-four-20261024`; the initial baseline JAR is `/tmp/runtime2-validation-20261024/demand-cache-candidate.jar`. Probes and their timings are excluded from performance controls. No executable corpus resources are changed by these experiments.
+
+## Lift the occurrence walk's blocking boundary
+
+The temporary one-case probe counted two occurrence walks, each with 13,408 object-cell and 8,650 list-cell activation reads: **44,116 blocking bridges per case**, with no inactive object cells in this corpus. The retained change makes the recursive walk suspending and starts one blocking coroutine per complete walk. It still awaits activation, skips false decisions, preserves exact paths and parent-backedge handling, and applies the same grounding, traversal bounds and callback behavior. A new test covers asynchronous activation exclusion; existing witness tests cover nested list paths, occurrence counts, canonical/streaming equivalence and bound failures.
+
+The controlled result is **0.569954422 ± 0.011934370 → 0.544041641 ± 0.012318229 s/case**, a **4.55% reduction**. [runblocking](runblocking) retains measurements, the temporary probe and patch, implementation/test patch, focused-test output, full-check output, suite totals and source identities. Production engine source is unchanged by this optimization.
+
+## Construct generated hash objects directly
+
+The one-case probe counted 16,572 root materializations by depth `[1048, 146, 358, 656, 14364]`, producing 76,858 object nodes. The retained implementation resolves the canonical object and its argumentless hash/nested fields once per root, then constructs fresh EODs through the existing entry factory throughout the chain. It avoids the general object DSL's repeated source-schema adaptation and key construction. Seed/salt mixing, Int overflow, depths zero through four, field order and terminal omission are preserved; input-sensitive callbacks remain active. The existing generator test now checks literal chains at all depths, negative and overflowing seeds, canonical schema identity and fresh objects at every level.
+
+The controlled result is **0.540492038 ± 0.012647310 → 0.513988380 ± 0.022129472 s/case**, a **4.90% reduction** in the mean, with overlapping confidence intervals. [generated-hash](generated-hash) retains all measurements, the temporary probe and patch, implementation/test patch and validation. Focused generator/replay tests and the full check pass: 3,687 reported tests, 168 skipped and no failures/errors. The parent is `cb052b6de77657`; production engine source is unchanged.
+
+## Final validation phase timings
+
+A final 30-case profile at clean revision `c86257f45b0b4f` measures the retained duplicate-replay, demand-cache, blocking-boundary and hash-construction improvements. Variable enumeration (0.65% lower mean) and materialized equality (1.72%) were tried and discarded because their gains were small and inconclusive. The final profile uses the preserved hash-construction JAR, one 30-case warmup, one measured iteration and stack depth 256. [final-validation/source-state.json](final-validation/source-state.json) retains its exact command, timestamp, source/corpus/JAR identities and environment. The host, JVM, corpus, thread count and 30-case batch match the original baseline profile; phase timings include JFR overhead and have no JMH error estimate.
+
+| Validation phase | Original baseline, ms/case | Final, ms/case |
+| --- | ---: | ---: |
+| Correctness judgment | 245.762 | 219.994 |
+| Application identity oracle | 318.512 | 73.219 |
+| From-field binding oracle | 27.287 | 18.896 |
+| Combined validation | 591.561 | 312.109 |
+
+Observed combined validation time is **47.24% lower**. These are diagnostic phase measurements; the unprofiled whole-case benchmark, which also includes request preparation and Resolution, changes from **0.801599258 ± 0.018607549 to 0.513988380 ± 0.022129472 s/case (35.88% lower mean)** across the retained work. Final profiled Resolution is 251.181 ms/case, preparation 6.727 ms/case and witness snapshotting 0.013 ms/case. [final-validation](final-validation) retains the measured iteration, every phase duration, standard profile exports and recording checksum; the original baseline remains in [validation-replay](../2026-10-24-validation-replay/README.md). The raw final JFR remains outside Git in `/tmp/runtime2-validation-four-20261024/final-validation.jfr`.

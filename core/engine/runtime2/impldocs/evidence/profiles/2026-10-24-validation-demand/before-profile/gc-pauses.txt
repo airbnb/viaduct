@@ -1,0 +1,23 @@
+
+GC Pauses
+---------
+
+Total Pause Time: 287 ms
+
+Number of Pauses: 59
+
+Minimum Pause Time: 0.0632 ms
+
+Median Pause Time: 4.84 ms
+
+Average Pause Time: 4.87 ms
+
+P90 Pause Time: 6.62 ms
+
+P95 Pause Time: 10.1 ms
+
+P99 Pause Time: 11.3 ms
+
+P99.9% Pause Time: 11.3 ms
+
+Maximum Pause Time: 11.3 ms

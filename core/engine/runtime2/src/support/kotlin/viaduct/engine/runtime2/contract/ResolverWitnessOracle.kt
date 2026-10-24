@@ -13,6 +13,7 @@ import viaduct.engine.runtime2.arbitrary.ResolverOccurrenceApplicationKey
 import viaduct.engine.runtime2.arbitrary.resolutionFingerprint
 import viaduct.engine.runtime2.correctresolution.CorrectnessCheckerObserver
 import viaduct.engine.runtime2.correctresolution.CorrectnessResolverObserver
+import viaduct.engine.runtime2.correctresolution.ValidatedResolution
 import viaduct.engine.runtime2.correctresolution.conformsToSelectionsAt
 import viaduct.engine.runtime2.correctresolution.ownedRootFieldReferenceInvocations
 import viaduct.engine.runtime2.model.Arguments
@@ -38,9 +39,24 @@ import viaduct.engine.runtime2.resolution.framework.materializeResult
  * occurrences necessarily use invocation observations for their fresh roots and paths, but only
  * after source-ownership replay justifies each observed hop from the completed results under test.
  */
-fun EngineResult?.registeredResolverApplicationIdentityCounts(operation: SharedOperationContext<*>): Map<ResolverApplicationIdentity, Int> {
+fun EngineResult?.registeredResolverApplicationIdentityCounts(operation: SharedOperationContext<*>): Map<ResolverApplicationIdentity, Int> =
+    registeredResolverApplicationIdentityCounts(operation, rootFieldReferenceOccurrences(operation))
+
+internal fun EngineResult?.registeredResolverApplicationIdentityCounts(
+    operation: SharedOperationContext<*>,
+    validation: ValidatedResolution,
+): Map<ResolverApplicationIdentity, Int> {
+    return registeredResolverApplicationIdentityCounts(
+        operation,
+        validation.referenceInvocationsFor(this as? ObjectEngineResult, operation),
+    )
+}
+
+private fun EngineResult?.registeredResolverApplicationIdentityCounts(
+    operation: SharedOperationContext<*>,
+    referenceOccurrences: List<RootFieldReferenceInvocationObservation>,
+): Map<ResolverApplicationIdentity, Int> {
     val counts = linkedMapOf<ResolverApplicationIdentity, Int>()
-    val referenceOccurrences = rootFieldReferenceOccurrences(operation)
 
     fun record(
         root: ObjectEngineResult,

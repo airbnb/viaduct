@@ -2,6 +2,9 @@ package viaduct.engine.runtime2.arbitrary
 
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotEquals
@@ -32,6 +35,25 @@ import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 import viaduct.graphql.schema.ViaductSchema
 
 class ResolutionWitnessTest {
+    @Test
+    fun `occurrence traversal awaits activation and skips excluded cells`() =
+        runTest {
+            val world = traversalWorld()
+            val helper = ObjectEngineResult.GroundKey.of(world.schema.requireObjectField("Query", "helper"), emptyMap())
+            val dead = ObjectEngineResult.GroundKey.of(world.schema.requireObjectField("Query", "dead"), emptyMap())
+            val result = ObjectEngineResult.of(world.schema.requireQueryTypeDef(), mapOf(helper to 1), mutable = true)
+            val excluded = result.reserveCell(dead)
+            launch(Dispatchers.Default) { excluded.setActivated(false) }
+            val operation = SharedOperationContext.create(world.assumptions)
+
+            val occurrences = result.registeredResolverOccurrences(operation, world.resolverRegistry)
+            val streamed = mutableListOf<RegisteredResolverOccurrence>()
+            result.forEachRegisteredResolverOccurrence(operation, world.resolverRegistry, visitOccurrence = streamed::add)
+
+            assertEquals(listOf(FieldCoordinate("Query", "helper")), occurrences.map { it.canonicalField })
+            assertEquals(occurrences, streamed)
+        }
+
     @Test
     fun `fingerprints ignore permutations and discriminate semantic input differences`() {
         val world = fingerprintWorld()

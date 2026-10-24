@@ -1,0 +1,139 @@
+diff --git a/projects/viaduct/oss/core/engine/runtime2/src/support/kotlin/viaduct/engine/runtime2/arbitrary/RegistryGenerator.kt b/projects/viaduct/oss/core/engine/runtime2/src/support/kotlin/viaduct/engine/runtime2/arbitrary/RegistryGenerator.kt
+index d0bfc2a9a14283..f6b28b3228caf8 100644
+--- a/projects/viaduct/oss/core/engine/runtime2/src/support/kotlin/viaduct/engine/runtime2/arbitrary/RegistryGenerator.kt
++++ b/projects/viaduct/oss/core/engine/runtime2/src/support/kotlin/viaduct/engine/runtime2/arbitrary/RegistryGenerator.kt
+@@ -18,6 +18,7 @@ import viaduct.engine.runtime2.correctresolution.CorrectnessResolverObserver
+ import viaduct.engine.runtime2.model.Arguments
+ import viaduct.engine.runtime2.model.EngineErrorData
+ import viaduct.engine.runtime2.model.EngineInputData
++import viaduct.engine.runtime2.model.EngineObjectDataEntry
+ import viaduct.engine.runtime2.model.EngineOutputData
+ import viaduct.engine.runtime2.model.Fragment
+ import viaduct.engine.runtime2.model.MaterializeSelection
+@@ -28,6 +29,7 @@ import viaduct.engine.runtime2.model.RootFieldReferenceData
+ import viaduct.engine.runtime2.model.Selection
+ import viaduct.engine.runtime2.model.SelectionForest
+ import viaduct.engine.runtime2.model.arg
++import viaduct.engine.runtime2.model.engineObjectDataOf
+ import viaduct.engine.runtime2.model.inputType
+ import viaduct.engine.runtime2.model.nodeRootFieldReferenceOf
+ import viaduct.engine.runtime2.model.outputType
+@@ -4161,9 +4163,15 @@ internal data class GeneratedHashPlan(
+         generatedHashSeed: Int,
+     ): EngineObjectData.Sync {
+         require(typeExpr.baseTypeDef.name == GENERATED_HASH_TYPE)
++        val type = schema.requireType(GENERATED_HASH_TYPE) as ViaductSchema.Object
++        val hashField = type.field(GENERATED_HASH_FIELD) as ViaductSchema.ObjectField
++        val nestedField = type.field(GENERATED_HASH_NESTED_FIELD) as ViaductSchema.ObjectField
++        require(hashField.args.isEmpty() && nestedField.args.isEmpty())
+         val rootHash = mixGeneratedHash(generatedHashSeed, salt)
+         return generatedHashObject(
+-            schema = schema,
++            type = type,
++            hashField = hashField,
++            nestedField = nestedField,
+             hash = rootHash,
+             remainingDepth = depth(generatedHashSeed),
+         )
+@@ -4222,21 +4230,31 @@ internal fun List<FieldCoordinate>.withGeneratedParentResultAfterAncestor(parent
+ }
+
+ private fun generatedHashObject(
+-    schema: ViaductSchema,
++    type: ViaductSchema.Object,
++    hashField: ViaductSchema.ObjectField,
++    nestedField: ViaductSchema.ObjectField,
+     hash: Int,
+     remainingDepth: Int,
+-): EngineObjectData.Sync =
+-    schema.objectOf(GENERATED_HASH_TYPE) {
+-        GENERATED_HASH_FIELD setTo hash
+-        if (remainingDepth > 0) {
+-            GENERATED_HASH_NESTED_FIELD setTo
++): EngineObjectData.Sync {
++    val fields = ArrayList<EngineObjectDataEntry>(2)
++    fields.add(EngineObjectDataEntry.of(GENERATED_HASH_FIELD, hashField, hash))
++    if (remainingDepth > 0) {
++        fields.add(
++            EngineObjectDataEntry.of(
++                GENERATED_HASH_NESTED_FIELD,
++                nestedField,
+                 generatedHashObject(
+-                    schema = schema,
++                    type = type,
++                    hashField = hashField,
++                    nestedField = nestedField,
+                     hash = mixGeneratedHash(hash, GENERATED_HASH_NESTED_SALT),
+                     remainingDepth = remainingDepth - 1,
+-                )
+-        }
++                ),
++            ),
++        )
+     }
++    return engineObjectDataOf(type, fields)
++}
+
+ private fun mixGeneratedHash(
+     hash: Int,
+diff --git a/projects/viaduct/oss/core/engine/runtime2/src/test/kotlin/viaduct/engine/runtime2/arbitrary/GeneratorTest.kt b/projects/viaduct/oss/core/engine/runtime2/src/test/kotlin/viaduct/engine/runtime2/arbitrary/GeneratorTest.kt
+index 229cafc8f91d6a..aef46cef477d8b 100644
+--- a/projects/viaduct/oss/core/engine/runtime2/src/test/kotlin/viaduct/engine/runtime2/arbitrary/GeneratorTest.kt
++++ b/projects/viaduct/oss/core/engine/runtime2/src/test/kotlin/viaduct/engine/runtime2/arbitrary/GeneratorTest.kt
+@@ -15,8 +15,11 @@ import kotlin.test.assertFailsWith
+ import kotlin.test.assertFalse
+ import kotlin.test.assertIs
+ import kotlin.test.assertNotEquals
++import kotlin.test.assertNotSame
++import kotlin.test.assertSame
+ import kotlin.test.assertTrue
+ import kotlinx.coroutines.runBlocking
++import viaduct.engine.api.EngineObjectData
+ import viaduct.engine.runtime2.model.Arguments
+ import viaduct.engine.runtime2.model.conformsToResolverOutputSchemaType
+ import viaduct.engine.runtime2.model.engineObjectDataOf
+@@ -28,6 +31,8 @@ import viaduct.engine.runtime2.model.registry.VariableDefinition
+ import viaduct.engine.runtime2.model.requireField
+ import viaduct.engine.runtime2.model.requireObjectField
+ import viaduct.engine.runtime2.model.requireQueryTypeDef
++import viaduct.engine.runtime2.model.requireType
++import viaduct.engine.runtime2.model.schemaType
+ import viaduct.engine.runtime2.model.testing.fragmentFrom
+ import viaduct.engine.runtime2.model.testing.objectOf
+ import viaduct.engine.runtime2.resolvers.resolver06.resolve as resolveObservedField
+@@ -1135,6 +1140,35 @@ class GeneratorTest {
+             first.outputResolutionFingerprint(),
+             differentSalt.outputResolutionFingerprint(),
+         )
++
++        val chains =
++            mapOf(
++                0 to listOf(17, -1640531000, -957384975),
++                1 to listOf(48, -1640530039, -957355184, -1253771159),
++                2 to listOf(79, -1640529078, -957325393, -1252847638, -1824102641),
++                3 to listOf(110),
++                4 to listOf(141, -1640527156),
++                -1 to listOf(-14, -1640531961),
++                Int.MAX_VALUE to listOf(2147483634, 506951687, 1190068882, 891865447, 237493554),
++            )
++        chains.forEach { (seed, expected) ->
++            var actual = plan.materialize(world.schema, hashField.outputType, generatedHashSeed = seed)
++            var repeatedValue = plan.materialize(world.schema, hashField.outputType, generatedHashSeed = seed)
++            expected.forEachIndexed { index, hash ->
++                assertNotSame(actual, repeatedValue)
++                assertSame(world.schema.requireType(GENERATED_HASH_TYPE), actual.schemaType)
++                assertEquals(hash, actual.get(GENERATED_HASH_FIELD))
++                val hasNested = index < expected.lastIndex
++                assertEquals(
++                    if (hasNested) listOf(GENERATED_HASH_FIELD, GENERATED_HASH_NESTED_FIELD) else listOf(GENERATED_HASH_FIELD),
++                    actual.getSelections().toList(),
++                )
++                if (hasNested) {
++                    actual = assertIs<EngineObjectData.Sync>(actual.get(GENERATED_HASH_NESTED_FIELD))
++                    repeatedValue = assertIs<EngineObjectData.Sync>(repeatedValue.get(GENERATED_HASH_NESTED_FIELD))
++                }
++            }
++        }
+     }
+
+     @Test

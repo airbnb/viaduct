@@ -1,0 +1,538 @@
+diff --git a/projects/viaduct/oss/core/engine/runtime2/impldocs/evidence/profiles/performance-history.md b/projects/viaduct/oss/core/engine/runtime2/impldocs/evidence/profiles/performance-history.md
+index f357423fa341a9..bb7af27c4ffb00 100644
+--- a/projects/viaduct/oss/core/engine/runtime2/impldocs/evidence/profiles/performance-history.md
++++ b/projects/viaduct/oss/core/engine/runtime2/impldocs/evidence/profiles/performance-history.md
+@@ -8,6 +8,16 @@ # Performance History
+
+ ## Recorded Investigations
+
++### 2026-10-24 — eliminating duplicate property-test validation replay
++
++The frozen property-test benchmark's identity oracle replayed resolver conformance to discover owned root references, then `correctResolution` replayed the same resolver relations. The retained change runs full correctness validation first and passes its validated reference ownership to identity reconstruction. It preserves independent ordinary-application reconstruction and the standalone oracle's ownership replay. Skipping replay merely because no references were observed was rejected because missing observations must remain detectable. Adoption is limited to the property-test benchmark; the generated full benchmark and other contract callers retain their existing composition.
++
++The controlled serial comparison is **0.801599258 ± 0.018607549 → 0.598834811 ± 0.016978228 s/case**, a **25.29% reduction**. One operation is one frozen case with 12,777 resolver applications. Each variant uses three forks, five warmups and eight measured iterations per fork, one JMH thread, one Resolution thread, Corretto 17.0.11+9-LTS and JMH 1.36. Host `raymie-stata-codex` has an Intel Xeon Platinum 8375C at 2.90 GHz, 32 cores and 64 logical CPUs. JMH errors are 99.9% confidence half-widths. The longer controls deliberately override the short benchmark's iteration/fork defaults; all raw measurements are retained.
++
++Thirty-case JFR profiles locate the saving in validation: application identity reconstruction falls from 318.512 to 84.882 ms/case, combined validation from 591.561 to 383.829 ms/case, and Resolution remains near 279 ms/case. The redundant ownership-only replay disappears from CPU samples. These phase timings are diagnostic and include recording overhead. Adjusted allocation sample weights also decrease; they are estimates, and the first allocation sample per thread must be excluded because it includes pre-recording allocations.
++
++The tested source is `f44da2cfb48962f36fb5d29cd9cf044a4f9804fd` plus the retained baseline or candidate patch. The baseline corrects only the stale expected application count from 12,763 to 12,777, as requested; both measured variants use the same executable corpus. Runs occurred on 2026-10-24, approximately 20:20–20:34 UTC, in session `01a16f8d-0ac7-7fb3-805d-8fe2daf78f79`. Targets were `propertyTestBenchmark`, `propertyTestProfile`, the same JMH method with extended controls, focused correctness/contract/reference tests and `:core:engine:runtime2:check`. All 78 focused tests passed; the full check passed with 3,684 reported tests, 168 skipped and no failures or errors. Exact commands, workload/source/JAR hashes, measurements, test outcomes and exported profiles are retained in [2026-10-24-validation-replay](2026-10-24-validation-replay/README.md).
++
+ ### 2026-10-18 — optimizing merging
+
+ These four commits make merging cheaper above `44682c3b8ba9a` (`codex/runtime2-hot-path-validation`); validation removal belongs to the preceding change. They retain compact forests, empty/singleton merge paths, direct mapping and guarded-child accumulation, and a one-map `LinkedHashMap` slow path. The last change groups and normalizes together using temporary `ObjectSelectionBuilder` values, standard `ArrayList` children starting at capacity three, and ordinary immutable selections after finalization. Applicability, concrete defaults, independent child guards and published inputs are preserved. Child forests remain unmerged until their runtime type is known.
+diff --git a/projects/viaduct/oss/core/engine/runtime2/impldocs/testing/performance.md b/projects/viaduct/oss/core/engine/runtime2/impldocs/testing/performance.md
+index f5da6c45ca351d..7208574dbcc0b6 100644
+--- a/projects/viaduct/oss/core/engine/runtime2/impldocs/testing/performance.md
++++ b/projects/viaduct/oss/core/engine/runtime2/impldocs/testing/performance.md
+@@ -173,6 +173,8 @@ ## Correct Resolution Benchmark
+
+ Control the input corpus with `-PcorrectResolutionBenchmarkInputCount=N` and `-PcorrectResolutionBenchmarkQuerySeed=S`, and repeat the prepared corpus with `-PcorrectResolutionBenchmarkLoopCount=M`. One JMH operation contains exactly `N * M` correctness judgments. The prepared results and operation contexts are reused because `correctResolution` is read-only; changing that purity contract requires changing the benchmark setup.
+
++Each correctness judgment scopes resolver replay and completed-output-demand memoization to its own validation state. Output demand is reconstructed from result cells, with object and list subtrees cached by identity and parent backedges excluded. A fresh judgment reconstructs demand again, including any fields completed since an earlier judgment.
++
+ To profile only the correctness judgments, run `./gradlew :core:engine:runtime2:correctResolutionProfile --console=plain`. This runs one unrecorded warmup iteration, then starts a JFR recording after trial setup and immediately before the single measured iteration. The recording therefore excludes query generation, Resolution execution, correctness-witness preparation, and the warmup. It is written to `core/engine/runtime2/build/reports/resolver-benchmarks/correct-resolution.jfr`; override that location with `-PcorrectResolutionProfileOutput=PATH`. Resolver and object-materialization frames can still legitimately appear: `conformsToResolvers` invokes each activated field resolver as part of the correctness judgment.
+
+ Inspect the recording with `jfr view hot-methods core/engine/runtime2/build/reports/resolver-benchmarks/correct-resolution.jfr`, `jfr view allocation-by-site core/engine/runtime2/build/reports/resolver-benchmarks/correct-resolution.jfr`, and `jfr view gc-pauses core/engine/runtime2/build/reports/resolver-benchmarks/correct-resolution.jfr`.
+@@ -181,7 +183,7 @@ ## Property Test Benchmark
+
+ `propertyTestBenchmark` replays one checked-in snapshot of Resolution broad campaign round 46's `symbolic-identity` case at `S=10 R=4 Q=3`. The resource records property seed `2026081300464`, the exact generated schema, executable registry recipe, and exact query source. It therefore remains the same workload when property-test generators, profiles, and random-consumption order change.
+
+-One measured property case creates a fresh immutable `Assumptions` value and semantic operation context, parses the frozen query, invokes Resolution, reconstructs and compares all 12,763 resolver-application identities, runs `correctResolution`, and validates from-field bindings. Resource decoding and `TestWorld` assembly happen once during trial setup. Two warmup cases precede five measured cases. Repeat the frozen case within each measured JMH operation with `-PpropertyTestBenchmarkLoopCount=M`; the default is one.
++One measured property case creates a fresh immutable `Assumptions` value and semantic operation context, parses the frozen query, invokes Resolution, runs `correctResolution`, reconstructs and compares all 12,777 resolver-application identities, and validates from-field bindings. Identity reconstruction reuses reference ownership established by that case's successful correctness judgment, avoiding a second resolver-conformance replay; ordinary application identities and inputs are still reconstructed independently. The standalone identity oracle performs its own ownership replay. Resource decoding and `TestWorld` assembly happen once during trial setup. Two warmup cases precede five measured cases. Repeat the frozen case within each measured JMH operation with `-PpropertyTestBenchmarkLoopCount=M`; the default is one.
+
+ To profile the full measured property case, run `./gradlew :core:engine:runtime2:propertyTestProfile --console=plain`. This runs one unrecorded warmup case, then records one measured case to `core/engine/runtime2/build/reports/resolver-benchmarks/property-test.jfr`. Override the output with `-PpropertyTestProfileOutput=PATH`, and repeat the case inside the recording with `-PpropertyTestBenchmarkLoopCount=M`. The recording includes `qplan.PropertyTestPhase` duration events for request preparation, Resolution, witness snapshotting, application-identity reconstruction, `correctResolution`, and from-field binding validation.
+
+diff --git a/projects/viaduct/oss/core/engine/runtime2/src/jmh/kotlin/viaduct/engine/runtime2/benchmark/PropertyTestBenchmarkSupport.kt b/projects/viaduct/oss/core/engine/runtime2/src/jmh/kotlin/viaduct/engine/runtime2/benchmark/PropertyTestBenchmarkSupport.kt
+index c2f5720e4eb8a0..2e512b84ee6236 100644
+--- a/projects/viaduct/oss/core/engine/runtime2/src/jmh/kotlin/viaduct/engine/runtime2/benchmark/PropertyTestBenchmarkSupport.kt
++++ b/projects/viaduct/oss/core/engine/runtime2/src/jmh/kotlin/viaduct/engine/runtime2/benchmark/PropertyTestBenchmarkSupport.kt
+@@ -12,7 +12,7 @@ import viaduct.engine.runtime2.arbitrary.ResolutionWitness
+ import viaduct.engine.runtime2.arbitrary.ResolverBenchmarkCorpus
+ import viaduct.engine.runtime2.contract.registeredResolverApplicationIdentityCounts
+ import viaduct.engine.runtime2.contract.validateFromFieldBindings
+-import viaduct.engine.runtime2.correctresolution.correctResolution
++import viaduct.engine.runtime2.correctresolution.ValidatedResolution
+ import viaduct.engine.runtime2.model.Fragment
+ import viaduct.engine.runtime2.model.ObjectEngineResult
+ import viaduct.engine.runtime2.model.merge
+@@ -116,19 +116,21 @@ internal class PropertyTestBenchmarkSupport(
+                     "Expected $expectedResolverApplications resolver applications, " +
+                         "observed ${witness.applications.size}"
+                 }
++                val validation =
++                    profilePhase(profilePhases, "correctResolution") {
++                        checkNotNull(
++                            ValidatedResolution.create(
++                                result,
++                                operation,
++                                fragment.subselections
++                                    .merge(world.schema.requireQueryTypeDef())
++                                    .instantiateBindings(operation),
++                            ),
++                        )
++                    }
+                 profilePhase(profilePhases, "application identity oracle") {
+                     check(
+-                        result.registeredResolverApplicationIdentityCounts(operation) == witness.applicationIdentityCounts(),
+-                    )
+-                }
+-                profilePhase(profilePhases, "correctResolution") {
+-                    check(
+-                        result.correctResolution(
+-                            operation,
+-                            fragment.subselections
+-                                .merge(world.schema.requireQueryTypeDef())
+-                                .instantiateBindings(operation),
+-                        ),
++                        result.registeredResolverApplicationIdentityCounts(operation, validation) == witness.applicationIdentityCounts(),
+                     )
+                 }
+                 profilePhase(profilePhases, "from-field binding oracle") {
+diff --git a/projects/viaduct/oss/core/engine/runtime2/src/jmh/resources/viaduct/engine/runtime2/benchmark/property-test/registry.json b/projects/viaduct/oss/core/engine/runtime2/src/jmh/resources/viaduct/engine/runtime2/benchmark/property-test/registry.json
+index 275afccd699549..10becfdb9819a3 100644
+--- a/projects/viaduct/oss/core/engine/runtime2/src/jmh/resources/viaduct/engine/runtime2/benchmark/property-test/registry.json
++++ b/projects/viaduct/oss/core/engine/runtime2/src/jmh/resources/viaduct/engine/runtime2/benchmark/property-test/registry.json
+@@ -5,7 +5,7 @@
+     "propertySeed" : 2026081300464,
+     "queryIndex" : 3,
+     "registryIndex" : 4,
+-    "resolverApplications" : 12763,
++    "resolverApplications" : 12777,
+     "schemaIndex" : 10
+   },
+   "registry" : {
+diff --git a/projects/viaduct/oss/core/engine/runtime2/src/support/kotlin/viaduct/engine/runtime2/contract/ResolverWitnessOracle.kt b/projects/viaduct/oss/core/engine/runtime2/src/support/kotlin/viaduct/engine/runtime2/contract/ResolverWitnessOracle.kt
+index 4d3f4f10a50203..67b72a59043868 100644
+--- a/projects/viaduct/oss/core/engine/runtime2/src/support/kotlin/viaduct/engine/runtime2/contract/ResolverWitnessOracle.kt
++++ b/projects/viaduct/oss/core/engine/runtime2/src/support/kotlin/viaduct/engine/runtime2/contract/ResolverWitnessOracle.kt
+@@ -13,6 +13,7 @@ import viaduct.engine.runtime2.arbitrary.ResolverOccurrenceApplicationKey
+ import viaduct.engine.runtime2.arbitrary.resolutionFingerprint
+ import viaduct.engine.runtime2.correctresolution.CorrectnessCheckerObserver
+ import viaduct.engine.runtime2.correctresolution.CorrectnessResolverObserver
++import viaduct.engine.runtime2.correctresolution.ValidatedResolution
+ import viaduct.engine.runtime2.correctresolution.conformsToSelectionsAt
+ import viaduct.engine.runtime2.correctresolution.ownedRootFieldReferenceInvocations
+ import viaduct.engine.runtime2.model.Arguments
+@@ -38,9 +39,24 @@ import viaduct.engine.runtime2.resolution.framework.materializeResult
+  * occurrences necessarily use invocation observations for their fresh roots and paths, but only
+  * after source-ownership replay justifies each observed hop from the completed results under test.
+  */
+-fun EngineResult?.registeredResolverApplicationIdentityCounts(operation: SharedOperationContext<*>): Map<ResolverApplicationIdentity, Int> {
++fun EngineResult?.registeredResolverApplicationIdentityCounts(operation: SharedOperationContext<*>): Map<ResolverApplicationIdentity, Int> =
++    registeredResolverApplicationIdentityCounts(operation, rootFieldReferenceOccurrences(operation))
++
++internal fun EngineResult?.registeredResolverApplicationIdentityCounts(
++    operation: SharedOperationContext<*>,
++    validation: ValidatedResolution,
++): Map<ResolverApplicationIdentity, Int> {
++    return registeredResolverApplicationIdentityCounts(
++        operation,
++        validation.referenceInvocationsFor(this as? ObjectEngineResult, operation),
++    )
++}
++
++private fun EngineResult?.registeredResolverApplicationIdentityCounts(
++    operation: SharedOperationContext<*>,
++    referenceOccurrences: List<RootFieldReferenceInvocationObservation>,
++): Map<ResolverApplicationIdentity, Int> {
+     val counts = linkedMapOf<ResolverApplicationIdentity, Int>()
+-    val referenceOccurrences = rootFieldReferenceOccurrences(operation)
+
+     fun record(
+         root: ObjectEngineResult,
+diff --git a/projects/viaduct/oss/core/engine/runtime2/src/support/kotlin/viaduct/engine/runtime2/correctresolution/ConformsToResolvers.kt b/projects/viaduct/oss/core/engine/runtime2/src/support/kotlin/viaduct/engine/runtime2/correctresolution/ConformsToResolvers.kt
+index b091b497d37893..a19630c6708a09 100644
+--- a/projects/viaduct/oss/core/engine/runtime2/src/support/kotlin/viaduct/engine/runtime2/correctresolution/ConformsToResolvers.kt
++++ b/projects/viaduct/oss/core/engine/runtime2/src/support/kotlin/viaduct/engine/runtime2/correctresolution/ConformsToResolvers.kt
+@@ -189,7 +189,7 @@ private class ResolverConformanceLogic(
+                 reference = reference,
+                 publicationRoot = resolverApplicationCache.root,
+                 publicationPath = path,
+-                validationDemand = completedOutputDemand(),
++                validationDemand = resolverApplicationCache.completedOutputDemand(this),
+             )?.let { application ->
+                 engineResultConformsToResolverValue(
+                     resolverValue = application.output,
+diff --git a/projects/viaduct/oss/core/engine/runtime2/src/support/kotlin/viaduct/engine/runtime2/correctresolution/CorrectResolution.kt b/projects/viaduct/oss/core/engine/runtime2/src/support/kotlin/viaduct/engine/runtime2/correctresolution/CorrectResolution.kt
+index 2695614b9c51f9..d5981603c6b4cb 100644
+--- a/projects/viaduct/oss/core/engine/runtime2/src/support/kotlin/viaduct/engine/runtime2/correctresolution/CorrectResolution.kt
++++ b/projects/viaduct/oss/core/engine/runtime2/src/support/kotlin/viaduct/engine/runtime2/correctresolution/CorrectResolution.kt
+@@ -3,6 +3,7 @@ package viaduct.engine.runtime2.correctresolution
+ import viaduct.engine.runtime2.model.ObjectEngineResult
+ import viaduct.engine.runtime2.model.ObjectSelectionForest
+ import viaduct.engine.runtime2.model.requireQueryTypeDef
++import viaduct.engine.runtime2.resolution.framework.RootFieldReferenceInvocationObservation
+ import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
+
+ /**
+@@ -38,15 +39,34 @@ import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
+ fun ObjectEngineResult.correctResolution(
+     operation: SharedOperationContext<*>,
+     selections: ObjectSelectionForest,
+-): Boolean {
+-    val rootFieldReferenceWitness = operation.rootFieldReferenceWitness(this)
+-    return correctResolution(
+-        operation,
+-        selections,
+-        rootFieldReferenceWitness,
+-        QueryOERValidationState(),
+-    ) &&
+-        rootFieldReferenceWitness.isComplete()
++): Boolean = ValidatedResolution.create(this, operation, selections) != null
++
++internal class ValidatedResolution private constructor(
++    private val result: ObjectEngineResult,
++    private val operation: SharedOperationContext<*>,
++    private val references: List<RootFieldReferenceInvocationObservation>,
++) {
++    fun referenceInvocationsFor(
++        result: ObjectEngineResult?,
++        operation: SharedOperationContext<*>,
++    ): List<RootFieldReferenceInvocationObservation> {
++        require(this.result === result && this.operation === operation) {
++            "Resolution validation belongs to a different result or operation"
++        }
++        return references
++    }
++
++    companion object {
++        fun create(
++            result: ObjectEngineResult,
++            operation: SharedOperationContext<*>,
++            selections: ObjectSelectionForest,
++        ): ValidatedResolution? {
++            val witness = operation.rootFieldReferenceWitness(result)
++            if (!result.correctResolution(operation, selections, witness) || !witness.isComplete()) return null
++            return ValidatedResolution(result, operation, witness.validatedObservations())
++        }
++    }
+ }
+
+ internal fun ObjectEngineResult.correctResolution(
+diff --git a/projects/viaduct/oss/core/engine/runtime2/src/support/kotlin/viaduct/engine/runtime2/correctresolution/IsClosedUnderResolverDemand.kt b/projects/viaduct/oss/core/engine/runtime2/src/support/kotlin/viaduct/engine/runtime2/correctresolution/IsClosedUnderResolverDemand.kt
+index 5a8d53ce467858..51c729d7a3a43f 100644
+--- a/projects/viaduct/oss/core/engine/runtime2/src/support/kotlin/viaduct/engine/runtime2/correctresolution/IsClosedUnderResolverDemand.kt
++++ b/projects/viaduct/oss/core/engine/runtime2/src/support/kotlin/viaduct/engine/runtime2/correctresolution/IsClosedUnderResolverDemand.kt
+@@ -188,7 +188,7 @@ private class ResolverDemandValidationLogic(
+                 reference = reference,
+                 publicationRoot = resolverApplicationCache.root,
+                 publicationPath = path,
+-                validationDemand = completedOutputDemand(),
++                validationDemand = resolverApplicationCache.completedOutputDemand(this),
+             )?.let { application ->
+                 engineResultIsClosedUnderResolverDemand(
+                     path = path,
+diff --git a/projects/viaduct/oss/core/engine/runtime2/src/support/kotlin/viaduct/engine/runtime2/correctresolution/ResolverApplication.kt b/projects/viaduct/oss/core/engine/runtime2/src/support/kotlin/viaduct/engine/runtime2/correctresolution/ResolverApplication.kt
+index 359d09f486532c..79d3e5587b3386 100644
+--- a/projects/viaduct/oss/core/engine/runtime2/src/support/kotlin/viaduct/engine/runtime2/correctresolution/ResolverApplication.kt
++++ b/projects/viaduct/oss/core/engine/runtime2/src/support/kotlin/viaduct/engine/runtime2/correctresolution/ResolverApplication.kt
+@@ -60,6 +60,9 @@ internal class ResolverApplicationCache(
+     private val typeCheckerApplications = IdentityHashMap<ObjectEngineResult, CachedCheckerApplication>()
+     private val rootFieldReferenceApplications =
+         mutableMapOf<List<PathComponent>, CachedRootFieldReferenceApplication>()
++    private val outputDemands = IdentityHashMap<EngineResult, SelectionForest>()
++
++    fun completedOutputDemand(value: EngineResult?): SelectionForest = value.completedOutputDemand(outputDemands)
+
+     fun getOrPut(
+         result: ObjectEngineResult,
+@@ -486,7 +489,7 @@ private class ResolverReplayLogic(
+                         input = replayInputs.objectValue,
+                         queryValue = replayInputs.queryValue,
+                         arguments = resolverArguments,
+-                        selections = getCell(key).value.get().completedOutputDemand(),
++                        selections = resolverApplicationCache.completedOutputDemand(getCell(key).value.get()),
+                         selectiveResolvers = operation.world.selectiveResolvers,
+                         executionContext = ResolutionExecutionContext.Unsupported,
+                     )
+@@ -695,31 +698,37 @@ private class ResolverReplayLogic(
+  * different demands, so this demand is sufficient for completed-result correctness without adding
+  * scheduler witnesses to the judgment.
+  */
+-internal fun EngineResult?.completedOutputDemand(): SelectionForest =
++internal fun EngineResult?.completedOutputDemand(): SelectionForest = completedOutputDemand(IdentityHashMap())
++
++private fun EngineResult?.completedOutputDemand(cache: MutableMap<EngineResult, SelectionForest>): SelectionForest =
+     when (this) {
+         is ObjectEngineResult ->
+-            keys
+-                .filter { key ->
+-                    key !is ObjectEngineResult.ParentKey &&
+-                        getCell(key).value.isCompleted
+-                }
+-                .map { key ->
+-                    selectionForestOf(
+-                        Selection.of(
+-                            key = key,
+-                            possibleTypes = setOf(type),
+-                            subselections =
+-                                getCell(key)
+-                                    .value
+-                                    .get()
+-                                    .completedOutputDemand(),
+-                        ),
+-                    )
+-                }.concatenateSelectionForests()
++            cache.getOrPut(this) {
++                keys
++                    .filter { key ->
++                        key !is ObjectEngineResult.ParentKey &&
++                            getCell(key).value.isCompleted
++                    }
++                    .map { key ->
++                        selectionForestOf(
++                            Selection.of(
++                                key = key,
++                                possibleTypes = setOf(type),
++                                subselections =
++                                    getCell(key)
++                                        .value
++                                        .get()
++                                        .completedOutputDemand(cache),
++                            ),
++                        )
++                    }.concatenateSelectionForests()
++            }
+         is ListEngineResult ->
+-            indices
+-                .map { index -> get(index).value.get().completedOutputDemand() }
+-                .concatenateSelectionForests()
++            cache.getOrPut(this) {
++                indices
++                    .map { index -> get(index).value.get().completedOutputDemand(cache) }
++                    .concatenateSelectionForests()
++            }
+         else -> selectionForestOf()
+     }
+
+diff --git a/projects/viaduct/oss/core/engine/runtime2/src/test/kotlin/viaduct/engine/runtime2/correctresolution/CorrectResolutionTest.kt b/projects/viaduct/oss/core/engine/runtime2/src/test/kotlin/viaduct/engine/runtime2/correctresolution/CorrectResolutionTest.kt
+index add38d954e4d81..a17aa18ffe2989 100644
+--- a/projects/viaduct/oss/core/engine/runtime2/src/test/kotlin/viaduct/engine/runtime2/correctresolution/CorrectResolutionTest.kt
++++ b/projects/viaduct/oss/core/engine/runtime2/src/test/kotlin/viaduct/engine/runtime2/correctresolution/CorrectResolutionTest.kt
+@@ -7,22 +7,33 @@ import kotlin.test.Test
+ import kotlin.test.assertEquals
+ import kotlin.test.assertFailsWith
+ import kotlin.test.assertFalse
++import kotlin.test.assertNotNull
++import kotlin.test.assertNull
++import kotlin.test.assertSame
+ import kotlin.test.assertTrue
+ import kotlinx.coroutines.runBlocking
+ import viaduct.engine.api.CheckerResult
+ import viaduct.engine.api.CheckerResultContext
++import viaduct.engine.runtime2.arbitrary.FieldCoordinate
++import viaduct.engine.runtime2.arbitrary.ResolverApplicationIdentity
++import viaduct.engine.runtime2.arbitrary.ResolverApplicationKey
++import viaduct.engine.runtime2.arbitrary.resolutionFingerprint
++import viaduct.engine.runtime2.contract.registeredResolverApplicationIdentityCounts
+ import viaduct.engine.runtime2.model.Arguments
+ import viaduct.engine.runtime2.model.EngineErrorData
+ import viaduct.engine.runtime2.model.EngineObjectDataEntry
++import viaduct.engine.runtime2.model.ListEngineResult
+ import viaduct.engine.runtime2.model.ObjectEngineResult
+ import viaduct.engine.runtime2.model.ObjectSelectionForest
+ import viaduct.engine.runtime2.model.ResolverOccurrenceId
+ import viaduct.engine.runtime2.model.ResolverTarget
++import viaduct.engine.runtime2.model.RootFieldReferenceData
+ import viaduct.engine.runtime2.model.emptyFragmentOf
+ import viaduct.engine.runtime2.model.engineObjectDataOf
+ import viaduct.engine.runtime2.model.materializeSelectionForestOf
+ import viaduct.engine.runtime2.model.materializedEngineObjectDataOf
+ import viaduct.engine.runtime2.model.merge
++import viaduct.engine.runtime2.model.outputType
+ import viaduct.engine.runtime2.model.registry.FieldCheckerResolver
+ import viaduct.engine.runtime2.model.registry.ResolutionExecutionContext
+ import viaduct.engine.runtime2.model.registry.ResolverFragmentTemplates
+@@ -40,11 +51,115 @@ import viaduct.engine.runtime2.model.testing.objectOf
+ import viaduct.engine.runtime2.resolution.ResolutionDispatcherResource
+ import viaduct.engine.runtime2.resolution.framework.OEROccurrence
+ import viaduct.engine.runtime2.resolution.framework.ResolverInvocationObservation
++import viaduct.engine.runtime2.resolution.framework.RootFieldReferenceInvocationObservation
+ import viaduct.engine.runtime2.resolution.framework.SharedOERContext
+ import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
+ import viaduct.graphql.schema.ViaductSchema
+
+ class CorrectResolutionTest : ResolutionDispatcherResource {
++    @Test
++    fun `application identities reuse validated references without replaying relations again`() {
++        var applications = 0
++        val fixture = TestWorld.fromSDL(
++            "type Query { value: Int! }",
++            fieldResolvers = { schema ->
++                mapOf(
++                    schema.loweredSchema.requireObjectField("Query", "value") to
++                        fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
++                            applications += 1
++                            7
++                        },
++                )
++            },
++        )
++        val world = fixture.assumptions
++        val operation = SharedOperationContext.create(world, resolverObserver = CorrectnessResolverObserver())
++        val selections = fixture.schemas.fragmentFrom("fragment Result on Query { value }").subselections.merge(world.schema.requireQueryTypeDef())
++        val result = operation.resolveWithTestDispatcher(selections)
++        val value = world.schema.requireObjectField("Query", "value")
++        val expected = mapOf(
++            ResolverApplicationIdentity(
++                ResolverApplicationKey(FieldCoordinate("Query", "value"), Arguments.Resolved.of(value, emptyMap())),
++                engineObjectDataOf(world.schema.requireQueryTypeDef()).resolutionFingerprint(),
++            ) to 1,
++        )
++        applications = 0
++
++        repeat(2) {
++            val validation = assertNotNull(ValidatedResolution.create(result, operation, selections))
++            assertEquals(expected, result.registeredResolverApplicationIdentityCounts(operation, validation))
++            assertEquals(it + 1, applications, "Each combined judgment must replay the relation exactly once")
++        }
++        assertEquals(expected, result.registeredResolverApplicationIdentityCounts(operation))
++        assertEquals(3, applications, "The standalone oracle must still replay independently")
++    }
++
++    @Test
++    fun `validated references cannot be used with a different result or operation`() {
++        val fixture = TestWorld.fromSDL("type Query { value: Int! }")
++        val world = fixture.assumptions
++        val result = world.engineResultOf("Query")
++        val operation = SharedOperationContext.create(world, resolverObserver = CorrectnessResolverObserver())
++        val validation = assertNotNull(ValidatedResolution.create(result, operation, selectionForestOf().merge(world.schema.requireQueryTypeDef())))
++
++        assertFailsWith<IllegalArgumentException> {
++            world.engineResultOf("Query").registeredResolverApplicationIdentityCounts(operation, validation)
++        }
++        assertFailsWith<IllegalArgumentException> {
++            result.registeredResolverApplicationIdentityCounts(SharedOperationContext.create(world), validation)
++        }
++    }
++
++    @Test
++    fun `invalid results cannot supply validated reference evidence`() {
++        val fixture = TestWorld.fromDSL("extend type Query { value: Int! @resolver(result: 7) }")
++        val world = fixture.assumptions
++        val result = world.engineResultOf("Query") { "value" resolvesTo 8 }
++        val selections = fixture.schemas.fragmentFrom("fragment Result on Query { value }").subselections.merge(world.schema.requireQueryTypeDef())
++
++        assertNull(ValidatedResolution.create(result, SharedOperationContext.create(world), selections))
++    }
++
++    @Test
++    fun `validated references preserve target identities and reject missing or duplicate hops`() {
++        val fixture = TestWorld.fromSDL(
++            "type Query { reference: Int! target: Int! }",
++            fieldResolvers = { schema ->
++                val target = schema.loweredSchema.requireObjectField("Query", "target")
++                val empty = schema.loweredSchema.emptyFragmentOf("Query")
++                mapOf(
++                    schema.loweredSchema.requireObjectField("Query", "reference") to
++                        fieldResolverOf(empty) { _, _ -> RootFieldReferenceData.of(listOf(target), emptyMap()) },
++                    target to fieldResolverOf(empty) { _, _ -> 7 },
++                )
++            },
++        )
++        val world = fixture.assumptions
++        val selections = fixture.schemas.fragmentFrom("fragment Result on Query { reference }").subselections.merge(world.schema.requireQueryTypeDef())
++        for (hopCopies in 0..2) {
++            val observer = object : CorrectnessResolverObserver() {
++                override fun onRootFieldReferenceInvocation(observation: RootFieldReferenceInvocationObservation) {
++                    repeat(hopCopies) { super.onRootFieldReferenceInvocation(observation) }
++                }
++            }
++            val operation = SharedOperationContext.create(world, resolverObserver = observer)
++            val result = operation.resolveWithTestDispatcher(selections)
++            val validation = ValidatedResolution.create(result, operation, selections)
++            if (hopCopies != 1) {
++                assertNull(validation, "Missing and duplicate reference hops must fail ownership replay")
++            } else {
++                val expected = listOf("reference", "target").associate { name ->
++                    val field = world.schema.requireObjectField("Query", name)
++                    ResolverApplicationIdentity(
++                        ResolverApplicationKey(FieldCoordinate("Query", name), Arguments.Resolved.of(field, emptyMap())),
++                        engineObjectDataOf(world.schema.requireQueryTypeDef()).resolutionFingerprint(),
++                    ) to 1
++                }
++                assertEquals(expected, result.registeredResolverApplicationIdentityCounts(operation, assertNotNull(validation)))
++            }
++        }
++    }
++
+     @Test
+     fun `direct resolve invocation and invocation through correctness replay do not cause invocation observations`() =
+         runBlocking {
+@@ -136,6 +251,77 @@ class CorrectResolutionTest : ResolutionDispatcherResource {
+         assertEquals(5, observedFields.size)
+     }
+
++    @Test
++    fun `completed output demand preserves list members and excludes parent backedges`() {
++        val fixture = TestWorld.fromSDL(
++            """
++                directive @parent on FIELD_DEFINITION
++                type Query { group: Group }
++                type Group { users: [User] }
++                type User { name: String age: Int parent: Group @parent }
++            """.trimIndent(),
++        )
++        val world = fixture.assumptions
++        val nameOnly = ObjectEngineResult.of(
++            world.schema.requireType("User") as ViaductSchema.Object,
++            values = mapOf(ObjectEngineResult.GroundKey.of(world.schema.requireObjectField("User", "name"), emptyMap()) to "Ada"),
++            mutable = true,
++        )
++        val ageOnly = world.engineResultOf("User") { "age" resolvesTo 37 }
++        val list = ListEngineResult.of(requireNotNull(world.schema.requireObjectField("Group", "users").outputType.unwrapList()), listOf(nameOnly, ageOnly, null))
++        val group = world.engineResultOf("Group") { "users" resolvesTo list }
++        val result = world.engineResultOf("Query") { "group" resolvesTo group }
++        nameOnly.setCellValue(ObjectEngineResult.ParentKey.of(world.schema.requireObjectField("User", "parent")), group)
++        val operation = SharedOperationContext.create(world)
++        val cache = operation.resolverApplicationCache(result)
++
++        val demand = cache.completedOutputDemand(group).merge(world.schema.requireType("Group") as ViaductSchema.Object)
++        val users = demand.byKey().values.single()
++        val elementDemand = users.subselections.merge(world.schema.requireType("User") as ViaductSchema.Object)
++
++        assertEquals(setOf("name", "age"), elementDemand.byKey().keys.map { it.field.name }.toSet())
++        assertSame(cache.completedOutputDemand(nameOnly), cache.completedOutputDemand(nameOnly))
++    }
++
++    @Test
++    fun `fresh correctness judgments reconstruct newly completed output fields`() {
++        val observedFields = mutableListOf<Set<String>>()
++        val fixture = TestWorld.fromSDL(
++            "type Query { user: User } type User { name: String age: Int }",
++            fieldResolvers = { schema ->
++                mapOf(
++                    schema.loweredSchema.requireObjectField("Query", "user") to
++                        selectiveFieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _, demand ->
++                            val fields = mutableSetOf<String>()
++                            demand.forEach { fields += it.key.field.name }
++                            observedFields += fields
++                            schema.loweredSchema.objectOf("User") {
++                                if ("name" in fields) "name" setTo "Ada"
++                                if ("age" in fields) "age" setTo 37
++                            }
++                        },
++                )
++            },
++        )
++        val world = fixture.assumptions
++        val name = ObjectEngineResult.GroundKey.of(world.schema.requireObjectField("User", "name"), emptyMap())
++        val age = ObjectEngineResult.GroundKey.of(world.schema.requireObjectField("User", "age"), emptyMap())
++        val user = ObjectEngineResult.of(
++            world.schema.requireType("User") as ViaductSchema.Object,
++            values = mapOf(name to "Ada"),
++            fieldCheckerResults = mapOf(name to null, age to null),
++            mutable = true,
++        )
++        val result = world.engineResultOf("Query") { "user" resolvesTo user }
++        val selections = fixture.schemas.fragmentFrom("fragment Result on Query { user { name } }").subselections.merge(world.schema.requireQueryTypeDef())
++        val operation = SharedOperationContext.create(world)
++
++        assertTrue(result.correctResolution(operation, selections))
++        user.setCellValue(age, 37)
++        assertTrue(result.correctResolution(operation, selections))
++        assertEquals(listOf(setOf("name"), setOf("name", "age")), observedFields)
++    }
++
+     @Test
+     fun `selections must be rooted at Query`() {
+         val worldFixture = TestWorld.fromSDL(SCHEMA_SDL)

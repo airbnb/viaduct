@@ -1,0 +1,109 @@
+# JMH version: 1.36
+# VM version: JDK 17.0.11, OpenJDK 64-Bit Server VM, 17.0.11+9-LTS
+# VM invoker: /opt/mise/installs/java/corretto-17.0.11.9.1/bin/java
+# VM options: -Dfile.encoding=UTF-8 -Duser.country -Duser.language=en -Duser.variant
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 5 iterations, single-shot each
+# Measurement: 8 iterations, single-shot each
+# Timeout: 10 min per iteration
+# Threads: 1 thread
+# Benchmark mode: Single shot invocation time
+# Benchmark: viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest
+# Parameters: (loopCount = 1)
+
+# Run progress: 0.00% complete, ETA 00:00:00
+# Fork: 1 of 3
+# Warmup Iteration   1: 1.654 s/op
+# Warmup Iteration   2: 0.872 s/op
+# Warmup Iteration   3: 0.541 s/op
+# Warmup Iteration   4: 0.484 s/op
+# Warmup Iteration   5: 0.481 s/op
+Iteration   1: 0.483 s/op
+Iteration   2: 0.491 s/op
+Iteration   3: 0.508 s/op
+Iteration   4: 0.493 s/op
+Iteration   5: 0.469 s/op
+Iteration   6: 0.467 s/op
+Iteration   7: 0.480 s/op
+Iteration   8: 0.498 s/op
+
+# Run progress: 33.33% complete, ETA 00:00:18
+# Fork: 2 of 3
+# Warmup Iteration   1: 1.591 s/op
+# Warmup Iteration   2: 0.825 s/op
+# Warmup Iteration   3: 0.563 s/op
+# Warmup Iteration   4: 0.489 s/op
+# Warmup Iteration   5: 0.481 s/op
+Iteration   1: 0.489 s/op
+Iteration   2: 0.493 s/op
+Iteration   3: 0.511 s/op
+Iteration   4: 0.500 s/op
+Iteration   5: 0.473 s/op
+Iteration   6: 0.465 s/op
+Iteration   7: 0.512 s/op
+Iteration   8: 0.560 s/op
+
+# Run progress: 66.67% complete, ETA 00:00:09
+# Fork: 3 of 3
+# Warmup Iteration   1: 1.683 s/op
+# Warmup Iteration   2: 0.830 s/op
+# Warmup Iteration   3: 0.548 s/op
+# Warmup Iteration   4: 0.482 s/op
+# Warmup Iteration   5: 0.505 s/op
+Iteration   1: 0.493 s/op
+Iteration   2: 0.484 s/op
+Iteration   3: 0.500 s/op
+Iteration   4: 0.494 s/op
+Iteration   5: 0.465 s/op
+Iteration   6: 0.468 s/op
+Iteration   7: 0.475 s/op
+Iteration   8: 0.490 s/op
+
+
+Result "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest":
+  N = 24
+  mean =      0.490 ±(99.9%) 0.016 s/op
+
+  Histogram, s/op:
+    [0.460, 0.470) = 5
+    [0.470, 0.480) = 3
+    [0.480, 0.490) = 3
+    [0.490, 0.500) = 9
+    [0.500, 0.510) = 1
+    [0.510, 0.520) = 2
+    [0.520, 0.530) = 0
+    [0.530, 0.540) = 0
+    [0.540, 0.550) = 0
+    [0.550, 0.560) = 1
+
+  Percentiles, s/op:
+      p(0.0000) =      0.465 s/op
+     p(50.0000) =      0.491 s/op
+     p(90.0000) =      0.511 s/op
+     p(95.0000) =      0.548 s/op
+     p(99.0000) =      0.560 s/op
+     p(99.9000) =      0.560 s/op
+     p(99.9900) =      0.560 s/op
+     p(99.9990) =      0.560 s/op
+     p(99.9999) =      0.560 s/op
+    p(100.0000) =      0.560 s/op
+
+
+# Run complete. Total time: 00:00:28
+
+REMEMBER: The numbers below are just data. To gain reusable insights, you need to follow up on
+why the numbers are the way they are. Use profilers (see -prof, -lprof), design factorial
+experiments, perform baseline and negative tests that provide experimental control, make sure
+the benchmarking environment is safe on JVM/OS/HW level, ask for reviews from the domain experts.
+Do not assume the numbers tell you what you want them to tell.
+
+NOTE: Current JVM experimentally supports Compiler Blackholes, and they are in use. Please exercise
+extra caution when trusting the results, look into the generated code to check the benchmark still
+works, and factor in a small probability of new VM bugs. Additionally, while comparisons between
+different JVMs are already problematic, the performance difference caused by different Blackhole
+modes can be very significant. Please make sure you use the consistent Blackhole mode for comparisons.
+
+Benchmark                           (loopCount)  Mode  Cnt  Score   Error  Units
+PropertyTestBenchmark.propertyTest            1    ss   24  0.490 ± 0.016   s/op
+
+Benchmark result is saved to /tmp/runtime2-validation-algorithms-20261024/fusion-reverse-before.json

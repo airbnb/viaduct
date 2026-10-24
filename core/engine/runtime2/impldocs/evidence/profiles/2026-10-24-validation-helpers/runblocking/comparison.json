@@ -1,0 +1,137 @@
+{
+  "commands": [
+    {
+      "variant": "before",
+      "command": [
+        "/opt/mise/installs/java/corretto-17.0.11.9.1/bin/java",
+        "-Dfile.encoding=UTF-8",
+        "-Duser.country",
+        "-Duser.language=en",
+        "-Duser.variant",
+        "-jar",
+        "/tmp/runtime2-validation-20261024/demand-cache-candidate.jar",
+        "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest",
+        "-p",
+        "loopCount=1",
+        "-wi",
+        "5",
+        "-i",
+        "8",
+        "-f",
+        "3",
+        "-foe",
+        "true",
+        "-rf",
+        "json",
+        "-rff",
+        "/tmp/runtime2-validation-four-20261024/runblocking-before.json"
+      ],
+      "jar_sha256": "ca092c8ccebac150d01d65afe91101fef27219578fe52a6e44e4d3063f98a417"
+    },
+    {
+      "variant": "after",
+      "command": [
+        "/opt/mise/installs/java/corretto-17.0.11.9.1/bin/java",
+        "-Dfile.encoding=UTF-8",
+        "-Duser.country",
+        "-Duser.language=en",
+        "-Duser.variant",
+        "-jar",
+        "/tmp/runtime2-validation-four-20261024/runblocking.jar",
+        "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest",
+        "-p",
+        "loopCount=1",
+        "-wi",
+        "5",
+        "-i",
+        "8",
+        "-f",
+        "3",
+        "-foe",
+        "true",
+        "-rf",
+        "json",
+        "-rff",
+        "/tmp/runtime2-validation-four-20261024/runblocking-after.json"
+      ],
+      "jar_sha256": "7e461d95533eede12d41bedb8bbcb0c441f1a6114ab74e98216c5a7600e8f836"
+    }
+  ],
+  "scores": {
+    "before": {
+      "score": 0.5699544215,
+      "error": 0.011934370324953555,
+      "unit": "s/op",
+      "raw": [
+        [
+          0.553662698,
+          0.547114867,
+          0.558245831,
+          0.567595074,
+          0.579400127,
+          0.587137427,
+          0.586662387,
+          0.565387117
+        ],
+        [
+          0.567712207,
+          0.549549832,
+          0.563521678,
+          0.563093499,
+          0.581855331,
+          0.586749796,
+          0.594421669,
+          0.593112612
+        ],
+        [
+          0.555523736,
+          0.54325047,
+          0.557952783,
+          0.560301121,
+          0.578899404,
+          0.588183502,
+          0.585702999,
+          0.563869949
+        ]
+      ]
+    },
+    "after": {
+      "score": 0.544041640625,
+      "error": 0.012318228955315027,
+      "unit": "s/op",
+      "raw": [
+        [
+          0.533164552,
+          0.521079541,
+          0.530865996,
+          0.539647429,
+          0.552206536,
+          0.561566763,
+          0.564050728,
+          0.562319519
+        ],
+        [
+          0.533923997,
+          0.521284385,
+          0.535687646,
+          0.53500756,
+          0.572019512,
+          0.56425466,
+          0.562092975,
+          0.542825305
+        ],
+        [
+          0.530183647,
+          0.519338162,
+          0.5318989,
+          0.533862754,
+          0.553193698,
+          0.559674274,
+          0.559463479,
+          0.537387357
+        ]
+      ]
+    }
+  },
+  "reduction_percent": 4.5464654536415345
+}

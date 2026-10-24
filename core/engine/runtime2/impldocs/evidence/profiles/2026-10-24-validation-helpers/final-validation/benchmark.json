@@ -1,0 +1,58 @@
+[
+    {
+        "jmhVersion" : "1.36",
+        "benchmark" : "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest",
+        "mode" : "ss",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "/opt/mise/installs/java/corretto-17.0.11.9.1/bin/java",
+        "jvmArgs" : [
+            "-Dfile.encoding=UTF-8",
+            "-Duser.country",
+            "-Duser.language=en",
+            "-Duser.variant",
+            "-DpropertyTestProfileOutput=/tmp/runtime2-validation-four-20261024/final-validation.jfr",
+            "-XX:FlightRecorderOptions=stackdepth=256"
+        ],
+        "jdkVersion" : "17.0.11",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "17.0.11+9-LTS",
+        "warmupIterations" : 1,
+        "warmupTime" : "single-shot",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 1,
+        "measurementTime" : "single-shot",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "loopCount" : "30"
+        },
+        "primaryMetric" : {
+            "score" : 17.110088017,
+            "scoreError" : "NaN",
+            "scoreConfidence" : [
+                "NaN",
+                "NaN"
+            ],
+            "scorePercentiles" : {
+                "0.0" : 17.110088017,
+                "50.0" : 17.110088017,
+                "90.0" : 17.110088017,
+                "95.0" : 17.110088017,
+                "99.0" : 17.110088017,
+                "99.9" : 17.110088017,
+                "99.99" : 17.110088017,
+                "99.999" : 17.110088017,
+                "99.9999" : 17.110088017,
+                "100.0" : 17.110088017
+            },
+            "scoreUnit" : "s/op",
+            "rawData" : [
+                [
+                    17.110088017
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    }
+]

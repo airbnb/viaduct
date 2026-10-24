@@ -1,0 +1,2802 @@
+{
+  "before": {
+    "source": "/tmp/runtime2-validation-algorithms-20261024/current-analysis-samples.json",
+    "validation_samples": 2359,
+    "samples_by_phase": {
+      "correctResolution": 1636,
+      "application identity oracle": 572,
+      "from-field binding oracle": 151
+    },
+    "max_stack_depth": 107,
+    "samples_reaching_configured_depth_256": 0,
+    "self": [
+      [
+        "kotlin.jvm.internal.Intrinsics.areEqual",
+        170
+      ],
+      [
+        "java.util.HashMap.getNode",
+        161
+      ],
+      [
+        "viaduct.engine.runtime2.model.CellImpl.checkActivated",
+        155
+      ],
+      [
+        "viaduct.engine.runtime2.model.ArgumentExpressionsKt.variables",
+        111
+      ],
+      [
+        "viaduct.engine.runtime2.correctresolution.ConformsToSelectionsKt.objectConformsToSelections",
+        109
+      ],
+      [
+        "java.lang.StringLatin1.hashCode",
+        69
+      ],
+      [
+        "java.util.HashMap.putVal",
+        62
+      ],
+      [
+        "java.util.Arrays.copyOf",
+        62
+      ],
+      [
+        "viaduct.engine.runtime2.correctresolution.ResolverConformanceLogic.objectConformsToResolvers",
+        53
+      ],
+      [
+        "viaduct.engine.runtime2.arbitrary.FingerprintBudget.output",
+        52
+      ],
+      [
+        "viaduct.engine.runtime2.correctresolution.ResolverInputReplayKt.sameMaterializedValueAs",
+        47
+      ],
+      [
+        "viaduct.engine.runtime2.contract.RegisteredResolverOccurrenceKt$visitRegisteredResolverOccurrences$1.invokeSuspend$visit",
+        46
+      ],
+      [
+        "kotlin.ranges.IntProgressionIterator.nextInt",
+        45
+      ],
+      [
+        "kotlinx.coroutines.internal.ThreadContextKt$countAll$1.invoke",
+        42
+      ],
+      [
+        "java.util.HashMap.resize",
+        37
+      ],
+      [
+        "java.util.Collections.eq",
+        36
+      ],
+      [
+        "viaduct.engine.runtime2.correctresolution.ResolverDemandValidationLogic.objectIsClosedUnderResolverDemand",
+        36
+      ],
+      [
+        "java.util.ArrayList.addAll",
+        35
+      ],
+      [
+        "java.util.concurrent.ConcurrentHashMap.get",
+        34
+      ],
+      [
+        "viaduct.engine.runtime2.correctresolution.ConformsToSelectionsKt.engineResultConformsToSelections",
+        27
+      ],
+      [
+        "viaduct.engine.runtime2.resolution.framework.MaterializationLogic.materializeEngineResultValue",
+        27
+      ],
+      [
+        "viaduct.engine.runtime2.model.SelectionKt.merge",
+        26
+      ],
+      [
+        "kotlin.reflect.jvm.internal.impl.util.AbstractArrayMapOwner.iterator",
+        22
+      ],
+      [
+        "kotlin.coroutines.CoroutineContext$DefaultImpls.plus$lambda$0",
+        22
+      ],
+      [
+        "viaduct.utils.collections.BitVector.lsr",
+        21
+      ],
+      [
+        "kotlin.coroutines.CoroutineContext$DefaultImpls$$Lambda$425+0x00007fd0983b4ba0.1629637283.invoke",
+        21
+      ],
+      [
+        "viaduct.engine.runtime2.model.SchemaLookupsKt.requireOutputType",
+        20
+      ],
+      [
+        "java.util.HashMap.hash",
+        19
+      ],
+      [
+        "kotlin.collections.CollectionsKt___CollectionsKt.joinTo",
+        18
+      ],
+      [
+        "viaduct.engine.runtime2.correctresolution.ConformsToCheckedSelectionsKt.conformsToCheckedSelectionsAt",
+        17
+      ],
+      [
+        "java.util.IdentityHashMap.resize",
+        16
+      ],
+      [
+        "kotlin.collections.CollectionsKt___CollectionsKt.dropLast",
+        16
+      ],
+      [
+        "java.util.IdentityHashMap.get",
+        15
+      ],
+      [
+        "kotlinx.coroutines.CoroutineContextKt$hasCopyableElements$1.invoke",
+        15
+      ],
+      [
+        "java.util.ArrayList.add",
+        15
+      ],
+      [
+        "viaduct.engine.runtime2.model.DeferredPromiseImpl.await",
+        15
+      ],
+      [
+        "viaduct.engine.runtime2.model.QPlanEngineObjectDataKt.constructEngineObjectData",
+        15
+      ],
+      [
+        "kotlinx.coroutines.JobSupport.tryFinalizeSimpleState",
+        14
+      ],
+      [
+        "java.util.AbstractMap.hashCode",
+        13
+      ],
+      [
+        "viaduct.engine.runtime2.resolution.framework.StoredObjectKeyKt.findStoredKey",
+        13
+      ]
+    ],
+    "inclusive_runtime2": [
+      [
+        "viaduct.engine.runtime2.resolution.jmh_generated.PropertyTestBenchmark_propertyTest_jmhTest.propertyTest_ss_jmhStub",
+        2359
+      ],
+      [
+        "viaduct.engine.runtime2.benchmark.PropertyTestBenchmarkSupport$propertyTest$1.invokeSuspend",
+        2359
+      ],
+      [
+        "viaduct.engine.runtime2.resolution.jmh_generated.PropertyTestBenchmark_propertyTest_jmhTest.propertyTest_SingleShotTime",
+        2359
+      ],
+      [
+        "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest",
+        2359
+      ],
+      [
+        "viaduct.engine.runtime2.benchmark.PropertyTestBenchmarkSupport.propertyTest",
+        2359
+      ],
+      [
+        "viaduct.engine.runtime2.correctresolution.CorrectResolutionKt.correctResolution",
+        1635
+      ],
+      [
+        "viaduct.engine.runtime2.correctresolution.CorrectResolutionKt.correctResolution$default",
+        1635
+      ],
+      [
+        "viaduct.engine.runtime2.correctresolution.ValidatedResolution$Companion.create",
+        1635
+      ],
+      [
+        "viaduct.engine.runtime2.correctresolution.IsClosedUnderResolverDemandKt.isClosedUnderResolverDemand",
+        1406
+      ],
+      [
+        "viaduct.engine.runtime2.correctresolution.ResolverDemandValidationLogic.isClosed",
+        1406
+      ],
+      [
+        "viaduct.engine.runtime2.correctresolution.ResolverDemandValidationLogic.objectIsClosedUnderResolverDemand",
+        1406
+      ],
+      [
+        "viaduct.engine.runtime2.correctresolution.ResolverDemandValidationLogic.engineResultIsClosedUnderResolverDemand",
+        1395
+      ],
+      [
+        "viaduct.engine.runtime2.correctresolution.ResolverReplayLogic.reapply",
+        1137
+      ],
+      [
+        "viaduct.engine.runtime2.correctresolution.ResolverApplicationKt.reapplyResolver",
+        1137
+      ],
+      [
+        "viaduct.engine.runtime2.correctresolution.ResolverApplicationCache.getOrPut",
+        1135
+      ],
+      [
+        "viaduct.engine.runtime2.correctresolution.ResolverReplayLogic.reapplyResolver",
+        1135
+      ],
+      [
+        "viaduct.engine.runtime2.correctresolution.ResolverReplayLogic$reapplyResolver$1.invoke",
+        1085
+      ],
+      [
+        "viaduct.engine.runtime2.contract.RegisteredResolverOccurrenceKt.forEachRegisteredResolverOccurrence",
+        681
+      ],
+      [
+        "viaduct.engine.runtime2.contract.RegisteredResolverOccurrenceKt$visitRegisteredResolverOccurrences$1.invokeSuspend",
+        681
+      ],
+      [
+        "viaduct.engine.runtime2.contract.RegisteredResolverOccurrenceKt.visitRegisteredResolverOccurrences",
+        681
+      ],
+      [
+        "viaduct.engine.runtime2.contract.RegisteredResolverOccurrenceKt$visitRegisteredResolverOccurrences$1.invokeSuspend$visit",
+        681
+      ],
+      [
+        "viaduct.engine.runtime2.contract.RegisteredResolverOccurrenceKt.forEachRegisteredResolverOccurrence$default",
+        681
+      ],
+      [
+        "viaduct.engine.runtime2.contract.ResolverWitnessOracleKt.registeredResolverApplicationIdentityCounts",
+        547
+      ],
+      [
+        "viaduct.engine.runtime2.contract.ResolverWitnessOracleKt.access$registeredResolverApplicationIdentityCounts$record",
+        460
+      ],
+      [
+        "viaduct.engine.runtime2.contract.ResolverWitnessOracleKt.registeredResolverApplicationIdentityCounts$record",
+        460
+      ],
+      [
+        "viaduct.engine.runtime2.contract.ResolverWitnessOracleKt$registeredResolverApplicationIdentityCounts$1$1.invoke",
+        460
+      ],
+      [
+        "viaduct.engine.runtime2.resolution.framework.MaterializeResultKt.materializeResult$default",
+        342
+      ],
+      [
+        "viaduct.engine.runtime2.resolution.framework.MaterializationLogic.materialize",
+        342
+      ],
+      [
+        "viaduct.engine.runtime2.resolution.framework.MaterializeResultKt.materializeResult",
+        342
+      ],
+      [
+        "viaduct.engine.runtime2.resolution.framework.MaterializationLogic.materializeSelectedObjectValue",
+        315
+      ],
+      [
+        "viaduct.engine.runtime2.correctresolution.ConformsToSelectionsKt.conformsToSelectionsAt",
+        309
+      ],
+      [
+        "viaduct.engine.runtime2.correctresolution.ConformsToSelectionsKt.objectConformsToSelections",
+        308
+      ],
+      [
+        "viaduct.engine.runtime2.correctresolution.ResolverReplayLogic$reapplyResolver$1$2.invokeSuspend",
+        305
+      ],
+      [
+        "viaduct.engine.runtime2.model.registry.FieldValueResolver.evaluateRelation",
+        270
+      ],
+      [
+        "viaduct.engine.runtime2.correctresolution.ConformsToSelectionsKt.engineResultConformsToSelections",
+        239
+      ],
+      [
+        "viaduct.engine.runtime2.correctresolution.ConformsToResolversKt.conformsToResolvers",
+        226
+      ],
+      [
+        "viaduct.engine.runtime2.correctresolution.ResolverConformanceLogic.objectFieldsConformToResolverValue",
+        226
+      ],
+      [
+        "viaduct.engine.runtime2.correctresolution.ResolverConformanceLogic.engineResultConformsToResolverValue",
+        226
+      ],
+      [
+        "viaduct.engine.runtime2.correctresolution.ResolverConformanceLogic.objectConformsToResolvers",
+        226
+      ],
+      [
+        "viaduct.engine.runtime2.correctresolution.ResolverConformanceLogic.conforms",
+        226
+      ],
+      [
+        "viaduct.engine.runtime2.contract.ResolverWitnessOracleKt$registeredResolverApplicationIdentityCounts$record$identity$1.invokeSuspend",
+        224
+      ],
+      [
+        "viaduct.engine.runtime2.resolution.framework.MaterializationLogic.materializeEngineResultValue",
+        215
+      ],
+      [
+        "viaduct.engine.runtime2.resolution.framework.MaterializationLogic.materializeValues",
+        209
+      ],
+      [
+        "viaduct.engine.runtime2.model.registry.FieldValueResolver$Companion$of$2.invoke",
+        199
+      ],
+      [
+        "viaduct.engine.runtime2.model.registry.FieldResolverDefinition$assemble$3.invoke",
+        197
+      ],
+      [
+        "viaduct.engine.runtime2.model.registry.FieldResolverDefinition$assemble$3.invokeSuspend",
+        197
+      ],
+      [
+        "viaduct.engine.runtime2.model.registry.FieldValueResolver$Companion$of$2.invokeSuspend",
+        197
+      ],
+      [
+        "viaduct.engine.runtime2.model.registry.FieldResolverDefinition$Companion$of$1.invokeSuspend",
+        197
+      ],
+      [
+        "viaduct.engine.runtime2.model.registry.FieldResolverDefinition$Companion$of$1.invoke",
+        197
+      ],
+      [
+        "viaduct.engine.runtime2.arbitrary.ArbitraryRegistry$world$world$2$1$function$2.invoke",
+        195
+      ],
+      [
+        "viaduct.engine.runtime2.model.registry.FieldResolverDefinitionKt$fieldResolverOf$1.invokeSuspend",
+        195
+      ],
+      [
+        "viaduct.engine.runtime2.model.registry.FieldResolverDefinitionKt$fieldResolverOf$1.invoke",
+        195
+      ],
+      [
+        "viaduct.engine.runtime2.arbitrary.ArbitraryRegistry$world$world$2$1$function$2.invokeSuspend",
+        191
+      ],
+      [
+        "viaduct.engine.runtime2.correctresolution.ResolverReplayLogic$reapplyResolver$1$input$1.invokeSuspend",
+        178
+      ],
+      [
+        "viaduct.engine.runtime2.correctresolution.ResolverInputReplayKt.resolverInputsForReplay",
+        173
+      ],
+      [
+        "viaduct.engine.runtime2.model.CellImpl.checkActivated",
+        161
+      ],
+      [
+        "viaduct.engine.runtime2.model.ArgumentExpressionsKt.usedVariables",
+        156
+      ],
+      [
+        "viaduct.engine.runtime2.model.ArgumentExpressionsKt.variables",
+        151
+      ],
+      [
+        "viaduct.engine.runtime2.contract.ResolverWitnessOracleKt.objectFragmentSatisfiedBy",
+        148
+      ],
+      [
+        "viaduct.engine.runtime2.resolution.framework.GroundObjectKeyKt.isContextuallyGrounded",
+        148
+      ],
+      [
+        "viaduct.engine.runtime2.model.ActivationAwareReservablePromise.get",
+        147
+      ],
+      [
+        "viaduct.engine.runtime2.correctresolution.ConformsToResolversKt.fragmentsSatisfiedBy",
+        141
+      ],
+      [
+        "viaduct.engine.runtime2.contract.ResolverFromFieldBindingOracleKt.validateFromFieldBindings",
+        134
+      ],
+      [
+        "viaduct.engine.runtime2.arbitrary.ResolutionWitnessKt.resolutionFingerprint$default",
+        125
+      ],
+      [
+        "viaduct.engine.runtime2.arbitrary.ResolutionWitnessKt.resolutionFingerprint",
+        125
+      ],
+      [
+        "viaduct.engine.runtime2.correctresolution.ResolverInputReplayKt.sameMaterializedValueAs",
+        112
+      ],
+      [
+        "viaduct.engine.runtime2.arbitrary.FingerprintBudget.output",
+        109
+      ],
+      [
+        "viaduct.engine.runtime2.resolution.framework.StoredObjectKeyKt.findStoredKey",
+        108
+      ],
+      [
+        "viaduct.engine.runtime2.resolution.framework.GroundObjectKeyKt.groundedArguments",
+        106
+      ],
+      [
+        "viaduct.engine.runtime2.arbitrary.ValuePlan.materialize$default",
+        106
+      ],
+      [
+        "viaduct.engine.runtime2.arbitrary.ListPlan.materialize",
+        106
+      ],
+      [
+        "viaduct.engine.runtime2.arbitrary.ObjectPlan.materialize",
+        104
+      ],
+      [
+        "viaduct.engine.runtime2.resolution.framework.MaterializationLogic.materializeValueForConsumer",
+        103
+      ],
+      [
+        "viaduct.engine.runtime2.arbitrary.ObjectPlan.materializeObject",
+        102
+      ],
+      [
+        "viaduct.engine.runtime2.model.testing.ObjectConstructionKt.objectOf",
+        102
+      ],
+      [
+        "viaduct.engine.runtime2.model.QPlanEngineObjectDataKt.constructEngineObjectData",
+        101
+      ],
+      [
+        "viaduct.engine.runtime2.resolution.framework.MaterializeResultKt.materializeCheckedValueForResolver",
+        96
+      ],
+      [
+        "viaduct.engine.runtime2.model.ObjectResultImpl.getCell",
+        91
+      ],
+      [
+        "viaduct.engine.runtime2.arbitrary.ObjectPlan$materializeObject$1.invoke",
+        89
+      ],
+      [
+        "viaduct.engine.runtime2.correctresolution.ResolverInputConformanceLogic.objectInputConforms",
+        68
+      ],
+      [
+        "viaduct.engine.runtime2.correctresolution.ConformsToCheckedSelectionsKt.conformsToCheckedSelectionsAt",
+        67
+      ],
+      [
+        "viaduct.engine.runtime2.correctresolution.ConformsToCheckedSelectionsKt.conformsToCheckedSelectionsAt$default",
+        65
+      ],
+      [
+        "viaduct.engine.runtime2.model.QPlanEngineObjectDataKt.engineObjectDataOf",
+        64
+      ],
+      [
+        "viaduct.engine.runtime2.arbitrary.GeneratedHashPlan.materialize",
+        62
+      ],
+      [
+        "viaduct.engine.runtime2.model.ObjectCellStore.readOrNull",
+        59
+      ],
+      [
+        "viaduct.engine.runtime2.model.AbstractSelectionForest.forEach",
+        58
+      ],
+      [
+        "viaduct.engine.runtime2.arbitrary.FingerprintBudget$output$1.invoke",
+        58
+      ],
+      [
+        "viaduct.engine.runtime2.model.SelectionKt.merge",
+        57
+      ],
+      [
+        "viaduct.engine.runtime2.model.registry.SnipToDemandKt.snipToDemand",
+        56
+      ],
+      [
+        "viaduct.engine.runtime2.correctresolution.CorrectnessResolverObserver.resolverInvocations",
+        52
+      ],
+      [
+        "viaduct.engine.runtime2.model.registry.FieldValueResolver.instantiateFragmentsAt",
+        51
+      ],
+      [
+        "viaduct.engine.runtime2.arbitrary.RegistryGeneratorKt.generatedHashObject",
+        51
+      ],
+      [
+        "viaduct.engine.runtime2.arbitrary.RegistryGeneratorKt.access$generatedHashObject",
+        51
+      ],
+      [
+        "viaduct.engine.runtime2.correctresolution.ConformsToCheckedSelectionsKt.engineResultConformsToCheckedSelections",
+        47
+      ],
+      [
+        "viaduct.engine.runtime2.resolution.framework.ArgumentGroundingKt.instantiateBindings",
+        46
+      ],
+      [
+        "viaduct.engine.runtime2.model.ArgumentGroundingKt.groundWithBindings",
+        46
+      ],
+      [
+        "viaduct.engine.runtime2.model.ResolverOccurrenceId$Companion.at",
+        45
+      ],
+      [
+        "viaduct.engine.runtime2.model.SelectionKt.usedVariables",
+        43
+      ],
+      [
+        "viaduct.engine.runtime2.bootstrap.ResolverRegistryImpl.contains",
+        41
+      ],
+      [
+        "viaduct.engine.runtime2.model.QPlanEngineObjectDataKt.materializedEngineObjectDataOf",
+        37
+      ]
+    ],
+    "groups": {
+      "demand closure walk": {
+        "samples": 1406,
+        "percent": 59.6015260703688,
+        "self": 36,
+        "middle": 1406,
+        "by_phase": {
+          "correctResolution": 1406
+        },
+        "callers": [
+          [
+            "['viaduct.engine.runtime2.correctresolution.ResolverDemandValidationLogic.isClosed', 48]",
+            1406
+          ]
+        ],
+        "leaves": [
+          [
+            "kotlin.jvm.internal.Intrinsics.areEqual",
+            110
+          ],
+          [
+            "viaduct.engine.runtime2.correctresolution.ConformsToSelectionsKt.objectConformsToSelections",
+            67
+          ],
+          [
+            "viaduct.engine.runtime2.model.ArgumentExpressionsKt.variables",
+            66
+          ],
+          [
+            "viaduct.engine.runtime2.model.CellImpl.checkActivated",
+            59
+          ],
+          [
+            "java.util.HashMap.getNode",
+            56
+          ],
+          [
+            "viaduct.engine.runtime2.correctresolution.ResolverInputReplayKt.sameMaterializedValueAs",
+            47
+          ],
+          [
+            "java.util.HashMap.putVal",
+            45
+          ],
+          [
+            "viaduct.engine.runtime2.correctresolution.ResolverDemandValidationLogic.objectIsClosedUnderResolverDemand",
+            36
+          ],
+          [
+            "java.util.Arrays.copyOf",
+            34
+          ],
+          [
+            "java.util.concurrent.ConcurrentHashMap.get",
+            33
+          ],
+          [
+            "java.util.Collections.eq",
+            32
+          ],
+          [
+            "java.util.HashMap.resize",
+            30
+          ]
+        ]
+      },
+      "value conformance walk (includes demand after fusion)": {
+        "samples": 226,
+        "percent": 9.580330648579906,
+        "self": 63,
+        "middle": 226,
+        "by_phase": {
+          "correctResolution": 226
+        },
+        "callers": [
+          [
+            "['viaduct.engine.runtime2.correctresolution.ConformsToResolversKt.conformsToResolvers', 52]",
+            226
+          ]
+        ],
+        "leaves": [
+          [
+            "viaduct.engine.runtime2.correctresolution.ResolverConformanceLogic.objectConformsToResolvers",
+            53
+          ],
+          [
+            "java.util.HashMap.getNode",
+            45
+          ],
+          [
+            "kotlin.jvm.internal.Intrinsics.areEqual",
+            38
+          ],
+          [
+            "viaduct.engine.runtime2.model.CellImpl.checkActivated",
+            19
+          ],
+          [
+            "java.lang.StringLatin1.hashCode",
+            11
+          ],
+          [
+            "viaduct.engine.runtime2.model.ScalarValuesKt.nativeScalarTypeNameOrNull",
+            10
+          ],
+          [
+            "viaduct.engine.runtime2.correctresolution.ResolverConformanceLogic.engineResultConformsToResolverValue",
+            10
+          ],
+          [
+            "viaduct.engine.runtime2.model.ArgumentExpressionsKt.variables",
+            10
+          ],
+          [
+            "java.util.HashMap.putVal",
+            6
+          ],
+          [
+            "kotlin.ranges.IntProgressionIterator.nextInt",
+            5
+          ],
+          [
+            "java.util.ArrayList.addAll",
+            3
+          ],
+          [
+            "java.util.IdentityHashMap.get",
+            2
+          ]
+        ]
+      },
+      "resolver replay": {
+        "samples": 1137,
+        "percent": 48.19838914794404,
+        "self": 2,
+        "middle": 1135,
+        "by_phase": {
+          "correctResolution": 1137
+        },
+        "callers": [
+          [
+            "['viaduct.engine.runtime2.correctresolution.ResolverApplicationKt.reapplyResolver', 364]",
+            1137
+          ]
+        ],
+        "leaves": [
+          [
+            "kotlin.jvm.internal.Intrinsics.areEqual",
+            70
+          ],
+          [
+            "java.util.HashMap.getNode",
+            63
+          ],
+          [
+            "java.util.HashMap.putVal",
+            50
+          ],
+          [
+            "viaduct.engine.runtime2.correctresolution.ResolverInputReplayKt.sameMaterializedValueAs",
+            47
+          ],
+          [
+            "viaduct.engine.runtime2.model.ArgumentExpressionsKt.variables",
+            44
+          ],
+          [
+            "java.util.concurrent.ConcurrentHashMap.get",
+            32
+          ],
+          [
+            "java.util.HashMap.resize",
+            30
+          ],
+          [
+            "viaduct.engine.runtime2.arbitrary.FingerprintBudget.output",
+            28
+          ],
+          [
+            "java.lang.StringLatin1.hashCode",
+            28
+          ],
+          [
+            "viaduct.engine.runtime2.model.CellImpl.checkActivated",
+            28
+          ],
+          [
+            "kotlinx.coroutines.internal.ThreadContextKt$countAll$1.invoke",
+            28
+          ],
+          [
+            "java.util.Arrays.copyOf",
+            27
+          ]
+        ]
+      },
+      "occurrence walk including callbacks": {
+        "samples": 681,
+        "percent": 28.868164476473083,
+        "self": 46,
+        "middle": 681,
+        "by_phase": {
+          "application identity oracle": 547,
+          "from-field binding oracle": 134
+        },
+        "callers": [
+          [
+            "['viaduct.engine.runtime2.contract.ResolverWitnessOracleKt.registeredResolverApplicationIdentityCounts', 92]",
+            547
+          ],
+          [
+            "['viaduct.engine.runtime2.contract.ResolverFromFieldBindingOracleKt.validateFromFieldBindings', 109]",
+            134
+          ]
+        ],
+        "leaves": [
+          [
+            "viaduct.engine.runtime2.model.CellImpl.checkActivated",
+            75
+          ],
+          [
+            "java.util.HashMap.getNode",
+            59
+          ],
+          [
+            "viaduct.engine.runtime2.contract.RegisteredResolverOccurrenceKt$visitRegisteredResolverOccurrences$1.invokeSuspend$visit",
+            46
+          ],
+          [
+            "viaduct.engine.runtime2.correctresolution.ConformsToSelectionsKt.objectConformsToSelections",
+            42
+          ],
+          [
+            "viaduct.engine.runtime2.model.ArgumentExpressionsKt.variables",
+            35
+          ],
+          [
+            "java.util.Arrays.copyOf",
+            26
+          ],
+          [
+            "viaduct.engine.runtime2.arbitrary.FingerprintBudget.output",
+            24
+          ],
+          [
+            "kotlin.jvm.internal.Intrinsics.areEqual",
+            22
+          ],
+          [
+            "java.util.ArrayList.addAll",
+            17
+          ],
+          [
+            "kotlinx.coroutines.internal.ThreadContextKt$countAll$1.invoke",
+            14
+          ],
+          [
+            "viaduct.engine.runtime2.resolution.framework.MaterializationLogic.materializeEngineResultValue",
+            12
+          ],
+          [
+            "java.lang.StringLatin1.hashCode",
+            12
+          ]
+        ]
+      },
+      "identity reconstruction": {
+        "samples": 548,
+        "percent": 23.230182280627385,
+        "self": 0,
+        "middle": 548,
+        "by_phase": {
+          "application identity oracle": 547,
+          "from-field binding oracle": 1
+        },
+        "callers": [
+          [
+            "['viaduct.engine.runtime2.benchmark.PropertyTestBenchmarkSupport$propertyTest$1.invokeSuspend', 133]",
+            547
+          ],
+          [
+            "['viaduct.engine.runtime2.contract.ResolverWitnessOracleKt.access$registeredResolverApplicationIdentityCounts$record', 1]",
+            1
+          ]
+        ],
+        "leaves": [
+          [
+            "viaduct.engine.runtime2.model.CellImpl.checkActivated",
+            53
+          ],
+          [
+            "viaduct.engine.runtime2.correctresolution.ConformsToSelectionsKt.objectConformsToSelections",
+            42
+          ],
+          [
+            "java.util.HashMap.getNode",
+            29
+          ],
+          [
+            "viaduct.engine.runtime2.model.ArgumentExpressionsKt.variables",
+            27
+          ],
+          [
+            "java.util.Arrays.copyOf",
+            25
+          ],
+          [
+            "viaduct.engine.runtime2.arbitrary.FingerprintBudget.output",
+            24
+          ],
+          [
+            "viaduct.engine.runtime2.contract.RegisteredResolverOccurrenceKt$visitRegisteredResolverOccurrences$1.invokeSuspend$visit",
+            20
+          ],
+          [
+            "java.util.ArrayList.addAll",
+            14
+          ],
+          [
+            "kotlinx.coroutines.internal.ThreadContextKt$countAll$1.invoke",
+            14
+          ],
+          [
+            "kotlin.jvm.internal.Intrinsics.areEqual",
+            14
+          ],
+          [
+            "viaduct.engine.runtime2.resolution.framework.MaterializationLogic.materializeEngineResultValue",
+            12
+          ],
+          [
+            "java.lang.StringLatin1.hashCode",
+            11
+          ]
+        ]
+      },
+      "selection presence": {
+        "samples": 309,
+        "percent": 13.098770665536245,
+        "self": 137,
+        "middle": 308,
+        "by_phase": {
+          "correctResolution": 197,
+          "application identity oracle": 112
+        },
+        "callers": [
+          [
+            "['viaduct.engine.runtime2.correctresolution.ResolverDemandValidationLogic.objectIsClosedUnderResolverDemand', 106]",
+            138
+          ],
+          [
+            "['viaduct.engine.runtime2.contract.ResolverWitnessOracleKt.objectFragmentSatisfiedBy', 328]",
+            112
+          ],
+          [
+            "['viaduct.engine.runtime2.correctresolution.ConformsToResolversKt.fragmentsSatisfiedBy', 276]",
+            58
+          ],
+          [
+            "['viaduct.engine.runtime2.correctresolution.CorrectResolutionKt.correctResolution', 86]",
+            1
+          ]
+        ],
+        "leaves": [
+          [
+            "viaduct.engine.runtime2.correctresolution.ConformsToSelectionsKt.objectConformsToSelections",
+            109
+          ],
+          [
+            "viaduct.engine.runtime2.model.CellImpl.checkActivated",
+            54
+          ],
+          [
+            "viaduct.engine.runtime2.correctresolution.ConformsToSelectionsKt.engineResultConformsToSelections",
+            27
+          ],
+          [
+            "java.util.Collections.eq",
+            22
+          ],
+          [
+            "kotlin.ranges.IntProgressionIterator.nextInt",
+            22
+          ],
+          [
+            "viaduct.engine.runtime2.model.SelectionKt.merge",
+            19
+          ],
+          [
+            "viaduct.engine.runtime2.model.ArgumentExpressionsKt.variables",
+            16
+          ],
+          [
+            "java.util.HashMap.getNode",
+            8
+          ],
+          [
+            "java.util.ArrayList.addAll",
+            6
+          ],
+          [
+            "viaduct.engine.runtime2.model.DeferredPromiseImpl.get",
+            6
+          ],
+          [
+            "kotlin.jvm.internal.Intrinsics.areEqual",
+            4
+          ],
+          [
+            "java.util.ArrayList.add",
+            3
+          ]
+        ]
+      },
+      "checked selections": {
+        "samples": 67,
+        "percent": 2.840186519711742,
+        "self": 21,
+        "middle": 67,
+        "by_phase": {
+          "correctResolution": 67
+        },
+        "callers": [
+          [
+            "['viaduct.engine.runtime2.correctresolution.ResolverReplayLogic$reapplyResolver$1.invoke', 419]",
+            65
+          ],
+          [
+            "['viaduct.engine.runtime2.correctresolution.CorrectResolutionKt.correctResolution', 89]",
+            2
+          ]
+        ],
+        "leaves": [
+          [
+            "viaduct.engine.runtime2.correctresolution.ConformsToCheckedSelectionsKt.conformsToCheckedSelectionsAt",
+            17
+          ],
+          [
+            "java.lang.StringLatin1.hashCode",
+            9
+          ],
+          [
+            "viaduct.engine.runtime2.model.CellImpl.checkActivated",
+            6
+          ],
+          [
+            "viaduct.engine.runtime2.model.SelectionKt.merge",
+            6
+          ],
+          [
+            "viaduct.engine.runtime2.model.ArgumentExpressionsKt.variables",
+            6
+          ],
+          [
+            "kotlin.ranges.IntProgressionIterator.nextInt",
+            5
+          ],
+          [
+            "viaduct.engine.runtime2.correctresolution.ConformsToCheckedSelectionsKt.engineResultConformsToCheckedSelections",
+            4
+          ],
+          [
+            "kotlin.reflect.jvm.internal.impl.util.AbstractArrayMapOwner.iterator",
+            2
+          ],
+          [
+            "java.util.HashMap.getNode",
+            2
+          ],
+          [
+            "java.util.Collections.eq",
+            2
+          ],
+          [
+            "kotlin.jvm.internal.Intrinsics.areEqual",
+            2
+          ],
+          [
+            "java.util.ArrayList.add",
+            2
+          ]
+        ]
+      },
+      "input materialization": {
+        "samples": 342,
+        "percent": 14.497668503603222,
+        "self": 63,
+        "middle": 342,
+        "by_phase": {
+          "application identity oracle": 169,
+          "correctResolution": 173
+        },
+        "callers": [
+          [
+            "['viaduct.engine.runtime2.resolution.framework.MaterializeResultKt.materializeResult$default', 52]",
+            342
+          ]
+        ],
+        "leaves": [
+          [
+            "viaduct.engine.runtime2.model.CellImpl.checkActivated",
+            33
+          ],
+          [
+            "viaduct.engine.runtime2.resolution.framework.MaterializationLogic.materializeEngineResultValue",
+            27
+          ],
+          [
+            "viaduct.engine.runtime2.model.ArgumentExpressionsKt.variables",
+            16
+          ],
+          [
+            "kotlin.collections.CollectionsKt___CollectionsKt.dropLast",
+            16
+          ],
+          [
+            "java.util.HashMap.hash",
+            15
+          ],
+          [
+            "java.util.Arrays.copyOf",
+            13
+          ],
+          [
+            "kotlin.jvm.internal.Intrinsics.areEqual",
+            13
+          ],
+          [
+            "viaduct.engine.runtime2.resolution.framework.MaterializationLogic.materializeSelectedObjectValue",
+            13
+          ],
+          [
+            "java.util.HashMap.resize",
+            12
+          ],
+          [
+            "java.util.HashMap.getNode",
+            11
+          ],
+          [
+            "viaduct.engine.runtime2.model.ActivationAwareReservablePromise.isCompleted",
+            11
+          ],
+          [
+            "viaduct.engine.runtime2.model.DeferredPromiseImpl.await",
+            11
+          ]
+        ]
+      },
+      "input fingerprints": {
+        "samples": 125,
+        "percent": 5.2988554472234,
+        "self": 1,
+        "middle": 124,
+        "by_phase": {
+          "application identity oracle": 51,
+          "correctResolution": 74
+        },
+        "callers": [
+          [
+            "['viaduct.engine.runtime2.arbitrary.ResolutionWitnessKt.resolutionFingerprint$default', 282]",
+            110
+          ],
+          [
+            "['viaduct.engine.runtime2.arbitrary.ResolutionWitnessKt.resolutionFingerprint$default', 274]",
+            15
+          ]
+        ],
+        "leaves": [
+          [
+            "viaduct.engine.runtime2.arbitrary.FingerprintBudget.output",
+            52
+          ],
+          [
+            "kotlin.collections.CollectionsKt___CollectionsKt.joinTo",
+            18
+          ],
+          [
+            "viaduct.engine.runtime2.arbitrary.FingerprintBudget.node",
+            9
+          ],
+          [
+            "java.util.Arrays.copyOf",
+            7
+          ],
+          [
+            "kotlin.collections.CollectionsKt___CollectionsKt.joinToString",
+            6
+          ],
+          [
+            "java.util.LinkedHashMap.keySet",
+            5
+          ],
+          [
+            "java.util.LinkedHashMap$LinkedHashIterator.nextNode",
+            5
+          ],
+          [
+            "java.lang.Integer.getChars",
+            3
+          ],
+          [
+            "kotlin.collections.CollectionsKt___CollectionsKt.sortedWith",
+            3
+          ],
+          [
+            "kotlin.collections.CollectionsKt___CollectionsKt.toList",
+            3
+          ],
+          [
+            "java.lang.AbstractStringBuilder.<init>",
+            2
+          ],
+          [
+            "viaduct.engine.runtime2.arbitrary.FingerprintBudget.access$input",
+            2
+          ]
+        ]
+      },
+      "variable enumeration": {
+        "samples": 186,
+        "percent": 7.884696905468418,
+        "self": 128,
+        "middle": 173,
+        "by_phase": {
+          "application identity oracle": 55,
+          "correctResolution": 118,
+          "from-field binding oracle": 13
+        },
+        "callers": [
+          [
+            "['viaduct.engine.runtime2.resolution.framework.GroundObjectKeyKt.isContextuallyGrounded', 9]",
+            142
+          ],
+          [
+            "['viaduct.engine.runtime2.contract.ResolverWitnessOracleKt.objectFragmentSatisfiedBy', 325]",
+            15
+          ],
+          [
+            "['viaduct.engine.runtime2.correctresolution.ResolverDemandValidationLogic.objectIsClosedUnderResolverDemand', 102]",
+            13
+          ],
+          [
+            "['viaduct.engine.runtime2.correctresolution.ConformsToResolversKt.fromArgumentBindingsAgree', 290]",
+            10
+          ],
+          [
+            "['viaduct.engine.runtime2.correctresolution.ConformsToResolversKt.fragmentsSatisfiedBy', 273]",
+            5
+          ],
+          [
+            "['viaduct.engine.runtime2.resolution.framework.GroundObjectKeyKt.fetchGroundedArguments', 24]",
+            1
+          ]
+        ],
+        "leaves": [
+          [
+            "viaduct.engine.runtime2.model.ArgumentExpressionsKt.variables",
+            111
+          ],
+          [
+            "kotlin.reflect.jvm.internal.impl.util.AbstractArrayMapOwner.iterator",
+            22
+          ],
+          [
+            "viaduct.engine.runtime2.model.SelectionKt.usedVariables",
+            12
+          ],
+          [
+            "kotlin.collections.SetsKt___SetsKt.plus",
+            9
+          ],
+          [
+            "kotlin.jvm.internal.Intrinsics.areEqual",
+            6
+          ],
+          [
+            "java.util.AbstractCollection.addAll",
+            6
+          ],
+          [
+            "viaduct.engine.runtime2.model.ArgumentExpressionsKt.usedVariables",
+            5
+          ],
+          [
+            "java.util.HashMap$HashIterator.<init>",
+            4
+          ],
+          [
+            "viaduct.engine.runtime2.model.ResolverTarget$FieldValueResolverTarget.hashCode",
+            3
+          ],
+          [
+            "java.util.HashMap.putVal",
+            2
+          ],
+          [
+            "viaduct.engine.runtime2.model.SingletonSelectionForest.forEach",
+            2
+          ],
+          [
+            "viaduct.engine.runtime2.model.AbstractSelectionForest.forEach",
+            1
+          ]
+        ]
+      },
+      "stored-key lookup": {
+        "samples": 108,
+        "percent": 4.578211106401017,
+        "self": 13,
+        "middle": 95,
+        "by_phase": {
+          "application identity oracle": 31,
+          "correctResolution": 77
+        },
+        "callers": [
+          [
+            "['viaduct.engine.runtime2.correctresolution.ConformsToSelectionsKt.objectConformsToSelections', 54]",
+            51
+          ],
+          [
+            "['viaduct.engine.runtime2.resolution.framework.MaterializationLogic.materializeSelectedObjectValue', 94]",
+            45
+          ],
+          [
+            "['viaduct.engine.runtime2.correctresolution.ConformsToCheckedSelectionsKt.conformsToCheckedSelectionsAt', 38]",
+            12
+          ]
+        ],
+        "leaves": [
+          [
+            "viaduct.engine.runtime2.model.ArgumentExpressionsKt.variables",
+            36
+          ],
+          [
+            "java.util.Collections.eq",
+            30
+          ],
+          [
+            "viaduct.engine.runtime2.resolution.framework.StoredObjectKeyKt.findStoredKey",
+            13
+          ],
+          [
+            "kotlin.reflect.jvm.internal.impl.util.AbstractArrayMapOwner.iterator",
+            8
+          ],
+          [
+            "kotlin.jvm.internal.Intrinsics.areEqual",
+            7
+          ],
+          [
+            "java.util.HashMap.getNode",
+            4
+          ],
+          [
+            "viaduct.engine.runtime2.model.ArgumentExpressionsKt.usedVariables",
+            3
+          ],
+          [
+            "java.util.AbstractCollection.addAll",
+            2
+          ],
+          [
+            "java.util.HashMap.putVal",
+            2
+          ],
+          [
+            "java.lang.StringLatin1.hashCode",
+            1
+          ],
+          [
+            "java.util.Objects.equals",
+            1
+          ],
+          [
+            "java.util.AbstractMap.equals",
+            1
+          ]
+        ]
+      },
+      "materialized equality": {
+        "samples": 112,
+        "percent": 4.747774480712166,
+        "self": 47,
+        "middle": 86,
+        "by_phase": {
+          "correctResolution": 112
+        },
+        "callers": [
+          [
+            "['viaduct.engine.runtime2.correctresolution.ResolverInputConformanceLogic.objectInputConforms', 70]",
+            68
+          ],
+          [
+            "['viaduct.engine.runtime2.correctresolution.ResolverInputReplayKt.resolverInputsForReplay', 53]",
+            40
+          ],
+          [
+            "['viaduct.engine.runtime2.correctresolution.ResolverInputReplayKt.resolverInputsForReplay', 54]",
+            4
+          ]
+        ],
+        "leaves": [
+          [
+            "viaduct.engine.runtime2.correctresolution.ResolverInputReplayKt.sameMaterializedValueAs",
+            47
+          ],
+          [
+            "kotlin.jvm.internal.Intrinsics.areEqual",
+            30
+          ],
+          [
+            "java.util.HashMap.putVal",
+            13
+          ],
+          [
+            "kotlin.ranges.IntProgressionIterator.nextInt",
+            9
+          ],
+          [
+            "java.util.HashMap.getNode",
+            4
+          ],
+          [
+            "kotlin.collections.CollectionsKt___CollectionsKt.toSet",
+            3
+          ],
+          [
+            "java.lang.StringLatin1.hashCode",
+            2
+          ],
+          [
+            "java.util.AbstractSet.equals",
+            2
+          ],
+          [
+            "java.util.Collections.eq",
+            1
+          ],
+          [
+            "viaduct.engine.runtime2.model.QPlanEngineObjectDataImpl.isPresent",
+            1
+          ]
+        ]
+      },
+      "root-reference witness lookup": {
+        "samples": 0,
+        "percent": 0.0,
+        "self": 0,
+        "middle": 0,
+        "by_phase": {},
+        "callers": [],
+        "leaves": []
+      }
+    }
+  },
+  "after": {
+    "source": "/tmp/runtime2-validation-algorithms-20261024/fusion-analysis-samples.json",
+    "validation_samples": 2065,
+    "samples_by_phase": {
+      "correctResolution": 1343,
+      "application identity oracle": 564,
+      "from-field binding oracle": 158
+    },
+    "max_stack_depth": 124,
+    "samples_reaching_configured_depth_256": 0,
+    "self": [
+      [
+        "kotlin.jvm.internal.Intrinsics.areEqual",
+        145
+      ],
+      [
+        "java.util.HashMap.getNode",
+        128
+      ],
+      [
+        "viaduct.engine.runtime2.model.CellImpl.checkActivated",
+        124
+      ],
+      [
+        "viaduct.engine.runtime2.correctresolution.ConformsToSelectionsKt.objectConformsToSelections",
+        96
+      ],
+      [
+        "java.util.HashMap.putVal",
+        93
+      ],
+      [
+        "viaduct.engine.runtime2.model.ArgumentExpressionsKt.variables",
+        65
+      ],
+      [
+        "viaduct.engine.runtime2.correctresolution.ResolverInputReplayKt.sameMaterializedValueAs",
+        62
+      ],
+      [
+        "java.lang.StringLatin1.hashCode",
+        60
+      ],
+      [
+        "java.util.Arrays.copyOf",
+        60
+      ],
+      [
+        "viaduct.engine.runtime2.arbitrary.FingerprintBudget.output",
+        50
+      ],
+      [
+        "java.util.Collections.eq",
+        43
+      ],
+      [
+        "java.util.HashMap.resize",
+        41
+      ],
+      [
+        "viaduct.engine.runtime2.contract.RegisteredResolverOccurrenceKt$visitRegisteredResolverOccurrences$1.invokeSuspend$visit",
+        30
+      ],
+      [
+        "kotlin.ranges.IntProgressionIterator.nextInt",
+        29
+      ],
+      [
+        "java.util.ArrayList.addAll",
+        27
+      ],
+      [
+        "viaduct.engine.runtime2.model.ScalarValuesKt.nativeScalarTypeNameOrNull",
+        27
+      ],
+      [
+        "viaduct.engine.runtime2.resolution.framework.GroundObjectKeyKt.isContextuallyGrounded",
+        26
+      ],
+      [
+        "kotlinx.coroutines.internal.ThreadContextKt$countAll$1.invoke",
+        24
+      ],
+      [
+        "viaduct.engine.runtime2.resolution.framework.MaterializationLogic.materializeEngineResultValue",
+        23
+      ],
+      [
+        "viaduct.utils.collections.BitVector.lsr",
+        22
+      ],
+      [
+        "viaduct.engine.runtime2.model.CellImpl.fetchActivated",
+        22
+      ],
+      [
+        "kotlin.coroutines.CoroutineContext$DefaultImpls.plus$lambda$0",
+        21
+      ],
+      [
+        "java.util.concurrent.ConcurrentHashMap.get",
+        19
+      ],
+      [
+        "kotlin.collections.CollectionsKt___CollectionsKt.take",
+        19
+      ],
+      [
+        "kotlinx.coroutines.CoroutineContextKt$hasCopyableElements$1.invoke",
+        19
+      ],
+      [
+        "viaduct.engine.runtime2.model.DeferredPromiseImpl.await",
+        18
+      ],
+      [
+        "viaduct.engine.runtime2.correctresolution.ConformsToSelectionsKt.engineResultConformsToSelections",
+        18
+      ],
+      [
+        "kotlin.coroutines.CombinedContext.fold",
+        17
+      ],
+      [
+        "viaduct.engine.runtime2.model.SchemaLookupsKt.requireOutputType",
+        17
+      ],
+      [
+        "kotlinx.coroutines.JobSupport.tryFinalizeSimpleState",
+        17
+      ],
+      [
+        "kotlin.collections.CollectionsKt___CollectionsKt.joinTo",
+        16
+      ],
+      [
+        "viaduct.engine.runtime2.resolution.framework.MaterializationLogic.materializeSelectedObjectValue",
+        16
+      ],
+      [
+        "viaduct.engine.runtime2.correctresolution.ConformsToCheckedSelectionsKt.conformsToCheckedSelectionsAt",
+        16
+      ],
+      [
+        "kotlin.coroutines.CoroutineContext$DefaultImpls$$Lambda$425+0x00007f4bf03b4ba0.1629637283.invoke",
+        15
+      ],
+      [
+        "kotlinx.coroutines.DispatchedTask.run",
+        15
+      ],
+      [
+        "kotlin.reflect.jvm.internal.impl.util.AbstractArrayMapOwner.iterator",
+        15
+      ],
+      [
+        "viaduct.engine.runtime2.model.SelectionKt.merge",
+        15
+      ],
+      [
+        "viaduct.engine.runtime2.arbitrary.FingerprintBudget.node",
+        14
+      ],
+      [
+        "viaduct.engine.runtime2.correctresolution.ResolverConformanceLogic.objectConformsToResolvers",
+        14
+      ],
+      [
+        "viaduct.engine.runtime2.model.QPlanEngineObjectDataKt.constructEngineObjectData",
+        14
+      ]
+    ],
+    "inclusive_runtime2": [
+      [
+        "viaduct.engine.runtime2.resolution.jmh_generated.PropertyTestBenchmark_propertyTest_jmhTest.propertyTest_ss_jmhStub",
+        2065
+      ],
+      [
+        "viaduct.engine.runtime2.benchmark.PropertyTestBenchmarkSupport$propertyTest$1.invokeSuspend",
+        2065
+      ],
+      [
+        "viaduct.engine.runtime2.resolution.jmh_generated.PropertyTestBenchmark_propertyTest_jmhTest.propertyTest_SingleShotTime",
+        2065
+      ],
+      [
+        "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest",
+        2065
+      ],
+      [
+        "viaduct.engine.runtime2.benchmark.PropertyTestBenchmarkSupport.propertyTest",
+        2065
+      ],
+      [
+        "viaduct.engine.runtime2.correctresolution.CorrectResolutionKt.correctResolution",
+        1343
+      ],
+      [
+        "viaduct.engine.runtime2.correctresolution.CorrectResolutionKt.correctResolution$default",
+        1343
+      ],
+      [
+        "viaduct.engine.runtime2.correctresolution.ValidatedResolution$Companion.create",
+        1343
+      ],
+      [
+        "viaduct.engine.runtime2.correctresolution.ConformsToResolversKt.conformsToResolversAndDemand",
+        1337
+      ],
+      [
+        "viaduct.engine.runtime2.correctresolution.ResolverConformanceLogic.objectConformsToResolvers",
+        1337
+      ],
+      [
+        "viaduct.engine.runtime2.correctresolution.ResolverConformanceLogic.conforms",
+        1337
+      ],
+      [
+        "viaduct.engine.runtime2.correctresolution.ResolverConformanceLogic.objectFieldsConformToResolverValue",
+        1326
+      ],
+      [
+        "viaduct.engine.runtime2.correctresolution.ResolverConformanceLogic.engineResultConformsToResolverValue",
+        1326
+      ],
+      [
+        "viaduct.engine.runtime2.correctresolution.ResolverApplicationCache.getOrPut",
+        1058
+      ],
+      [
+        "viaduct.engine.runtime2.correctresolution.ResolverReplayLogic.reapply",
+        1058
+      ],
+      [
+        "viaduct.engine.runtime2.correctresolution.ResolverApplicationKt.reapplyResolver",
+        1058
+      ],
+      [
+        "viaduct.engine.runtime2.correctresolution.ResolverReplayLogic.reapplyResolver",
+        1058
+      ],
+      [
+        "viaduct.engine.runtime2.correctresolution.ResolverReplayLogic$reapplyResolver$1.invoke",
+        1044
+      ],
+      [
+        "viaduct.engine.runtime2.contract.RegisteredResolverOccurrenceKt.forEachRegisteredResolverOccurrence",
+        682
+      ],
+      [
+        "viaduct.engine.runtime2.contract.RegisteredResolverOccurrenceKt$visitRegisteredResolverOccurrences$1.invokeSuspend",
+        682
+      ],
+      [
+        "viaduct.engine.runtime2.contract.RegisteredResolverOccurrenceKt.visitRegisteredResolverOccurrences",
+        682
+      ],
+      [
+        "viaduct.engine.runtime2.contract.RegisteredResolverOccurrenceKt$visitRegisteredResolverOccurrences$1.invokeSuspend$visit",
+        682
+      ],
+      [
+        "viaduct.engine.runtime2.contract.RegisteredResolverOccurrenceKt.forEachRegisteredResolverOccurrence$default",
+        682
+      ],
+      [
+        "viaduct.engine.runtime2.contract.ResolverWitnessOracleKt.registeredResolverApplicationIdentityCounts",
+        535
+      ],
+      [
+        "viaduct.engine.runtime2.contract.ResolverWitnessOracleKt.access$registeredResolverApplicationIdentityCounts$record",
+        456
+      ],
+      [
+        "viaduct.engine.runtime2.contract.ResolverWitnessOracleKt.registeredResolverApplicationIdentityCounts$record",
+        456
+      ],
+      [
+        "viaduct.engine.runtime2.contract.ResolverWitnessOracleKt$registeredResolverApplicationIdentityCounts$1$1.invoke",
+        456
+      ],
+      [
+        "viaduct.engine.runtime2.resolution.framework.MaterializeResultKt.materializeResult$default",
+        317
+      ],
+      [
+        "viaduct.engine.runtime2.resolution.framework.MaterializationLogic.materialize",
+        317
+      ],
+      [
+        "viaduct.engine.runtime2.resolution.framework.MaterializeResultKt.materializeResult",
+        317
+      ],
+      [
+        "viaduct.engine.runtime2.correctresolution.ConformsToSelectionsKt.objectConformsToSelections",
+        299
+      ],
+      [
+        "viaduct.engine.runtime2.correctresolution.ConformsToSelectionsKt.conformsToSelectionsAt",
+        299
+      ],
+      [
+        "viaduct.engine.runtime2.resolution.framework.MaterializationLogic.materializeSelectedObjectValue",
+        288
+      ],
+      [
+        "viaduct.engine.runtime2.correctresolution.ResolverReplayLogic$reapplyResolver$1$2.invokeSuspend",
+        285
+      ],
+      [
+        "viaduct.engine.runtime2.model.registry.FieldValueResolver.evaluateRelation",
+        262
+      ],
+      [
+        "viaduct.engine.runtime2.correctresolution.ConformsToSelectionsKt.engineResultConformsToSelections",
+        217
+      ],
+      [
+        "viaduct.engine.runtime2.resolution.framework.MaterializationLogic.materializeEngineResultValue",
+        215
+      ],
+      [
+        "viaduct.engine.runtime2.contract.ResolverWitnessOracleKt$registeredResolverApplicationIdentityCounts$record$identity$1.invokeSuspend",
+        207
+      ],
+      [
+        "viaduct.engine.runtime2.model.registry.FieldResolverDefinition$assemble$3.invoke",
+        200
+      ],
+      [
+        "viaduct.engine.runtime2.model.registry.FieldResolverDefinition$assemble$3.invokeSuspend",
+        200
+      ],
+      [
+        "viaduct.engine.runtime2.model.registry.FieldValueResolver$Companion$of$2.invokeSuspend",
+        200
+      ],
+      [
+        "viaduct.engine.runtime2.model.registry.FieldResolverDefinition$Companion$of$1.invokeSuspend",
+        200
+      ],
+      [
+        "viaduct.engine.runtime2.model.registry.FieldValueResolver$Companion$of$2.invoke",
+        200
+      ],
+      [
+        "viaduct.engine.runtime2.model.registry.FieldResolverDefinitionKt$fieldResolverOf$1.invoke",
+        200
+      ],
+      [
+        "viaduct.engine.runtime2.model.registry.FieldResolverDefinition$Companion$of$1.invoke",
+        200
+      ],
+      [
+        "viaduct.engine.runtime2.arbitrary.ArbitraryRegistry$world$world$2$1$function$2.invoke",
+        194
+      ],
+      [
+        "viaduct.engine.runtime2.model.registry.FieldResolverDefinitionKt$fieldResolverOf$1.invokeSuspend",
+        194
+      ],
+      [
+        "viaduct.engine.runtime2.arbitrary.ArbitraryRegistry$world$world$2$1$function$2.invokeSuspend",
+        194
+      ],
+      [
+        "viaduct.engine.runtime2.resolution.framework.MaterializationLogic.materializeValues",
+        194
+      ],
+      [
+        "viaduct.engine.runtime2.correctresolution.ResolverInputReplayKt.resolverInputsForReplay",
+        183
+      ],
+      [
+        "viaduct.engine.runtime2.correctresolution.ResolverReplayLogic$reapplyResolver$1$input$1.invokeSuspend",
+        168
+      ],
+      [
+        "viaduct.engine.runtime2.correctresolution.ResolverDemandValidationLogic.resolverDemandIsClosed",
+        163
+      ],
+      [
+        "viaduct.engine.runtime2.contract.ResolverWitnessOracleKt.objectFragmentSatisfiedBy",
+        161
+      ],
+      [
+        "viaduct.engine.runtime2.contract.ResolverFromFieldBindingOracleKt.validateFromFieldBindings",
+        147
+      ],
+      [
+        "viaduct.engine.runtime2.resolution.framework.GroundObjectKeyKt.isContextuallyGrounded",
+        141
+      ],
+      [
+        "viaduct.engine.runtime2.correctresolution.ResolverInputReplayKt.sameMaterializedValueAs",
+        135
+      ],
+      [
+        "viaduct.engine.runtime2.model.ArgumentExpressionsKt.usedVariables",
+        132
+      ],
+      [
+        "viaduct.engine.runtime2.model.ArgumentExpressionsKt.variables",
+        132
+      ],
+      [
+        "viaduct.engine.runtime2.correctresolution.ConformsToResolversKt.fragmentsSatisfiedBy",
+        131
+      ],
+      [
+        "viaduct.engine.runtime2.model.CellImpl.checkActivated",
+        124
+      ],
+      [
+        "viaduct.engine.runtime2.arbitrary.ResolutionWitnessKt.resolutionFingerprint$default",
+        123
+      ],
+      [
+        "viaduct.engine.runtime2.arbitrary.ResolutionWitnessKt.resolutionFingerprint",
+        123
+      ],
+      [
+        "viaduct.engine.runtime2.model.ActivationAwareReservablePromise.get",
+        119
+      ],
+      [
+        "viaduct.engine.runtime2.resolution.framework.StoredObjectKeyKt.findStoredKey",
+        119
+      ],
+      [
+        "viaduct.engine.runtime2.arbitrary.ValuePlan.materialize$default",
+        115
+      ],
+      [
+        "viaduct.engine.runtime2.arbitrary.ObjectPlan.materialize",
+        114
+      ],
+      [
+        "viaduct.engine.runtime2.arbitrary.ListPlan.materialize",
+        113
+      ],
+      [
+        "viaduct.engine.runtime2.arbitrary.FingerprintBudget.output",
+        108
+      ],
+      [
+        "viaduct.engine.runtime2.arbitrary.ObjectPlan.materializeObject",
+        107
+      ],
+      [
+        "viaduct.engine.runtime2.model.testing.ObjectConstructionKt.objectOf",
+        107
+      ],
+      [
+        "viaduct.engine.runtime2.model.QPlanEngineObjectDataKt.constructEngineObjectData",
+        92
+      ],
+      [
+        "viaduct.engine.runtime2.resolution.framework.MaterializationLogic.materializeValueForConsumer",
+        92
+      ],
+      [
+        "viaduct.engine.runtime2.resolution.framework.MaterializeResultKt.materializeCheckedValueForResolver",
+        89
+      ],
+      [
+        "viaduct.engine.runtime2.arbitrary.ObjectPlan$materializeObject$1.invoke",
+        88
+      ],
+      [
+        "viaduct.engine.runtime2.correctresolution.ResolverInputConformanceLogic.objectInputConforms",
+        87
+      ],
+      [
+        "viaduct.engine.runtime2.model.AbstractSelectionForest.forEach",
+        81
+      ],
+      [
+        "viaduct.engine.runtime2.model.ObjectResultImpl.getCell",
+        80
+      ],
+      [
+        "viaduct.engine.runtime2.resolution.framework.GroundObjectKeyKt.groundedArguments",
+        67
+      ],
+      [
+        "viaduct.engine.runtime2.correctresolution.ConformsToCheckedSelectionsKt.conformsToCheckedSelectionsAt",
+        67
+      ],
+      [
+        "viaduct.engine.runtime2.correctresolution.ConformsToCheckedSelectionsKt.conformsToCheckedSelectionsAt$default",
+        67
+      ],
+      [
+        "viaduct.engine.runtime2.model.QPlanEngineObjectDataKt.engineObjectDataOf",
+        65
+      ],
+      [
+        "viaduct.engine.runtime2.arbitrary.FingerprintBudget$output$1.invoke",
+        64
+      ],
+      [
+        "viaduct.engine.runtime2.model.registry.SnipToDemandKt.snipToDemand",
+        55
+      ],
+      [
+        "viaduct.engine.runtime2.model.SelectionKt.usedVariables",
+        55
+      ],
+      [
+        "viaduct.engine.runtime2.model.SelectionKt.merge",
+        54
+      ],
+      [
+        "viaduct.engine.runtime2.arbitrary.GeneratedHashPlan.materialize",
+        54
+      ],
+      [
+        "viaduct.engine.runtime2.model.registry.FieldValueResolver.instantiateFragmentsAt",
+        54
+      ],
+      [
+        "viaduct.engine.runtime2.model.ObjectCellStore.readOrNull",
+        51
+      ],
+      [
+        "viaduct.engine.runtime2.arbitrary.RegistryGeneratorKt.access$generatedHashObject",
+        50
+      ],
+      [
+        "viaduct.engine.runtime2.bootstrap.ResolverRegistryImpl.contains",
+        49
+      ],
+      [
+        "viaduct.engine.runtime2.arbitrary.RegistryGeneratorKt.generatedHashObject",
+        48
+      ],
+      [
+        "viaduct.engine.runtime2.model.SelectionKt.access$usedVariables",
+        48
+      ],
+      [
+        "viaduct.engine.runtime2.model.SelectionKt$usedVariables$1.invoke",
+        48
+      ],
+      [
+        "viaduct.engine.runtime2.correctresolution.ConformsToCheckedSelectionsKt.engineResultConformsToCheckedSelections",
+        47
+      ],
+      [
+        "viaduct.engine.runtime2.model.SelectionKt.mergeUncached",
+        39
+      ],
+      [
+        "viaduct.engine.runtime2.model.SelectionKt.mergeSlowPath",
+        38
+      ],
+      [
+        "viaduct.engine.runtime2.correctresolution.CorrectnessResolverObserver.resolverInvocations",
+        37
+      ],
+      [
+        "viaduct.engine.runtime2.model.CellImpl.fetchActivated",
+        37
+      ],
+      [
+        "viaduct.engine.runtime2.model.ResolverOccurrenceId$Companion.at",
+        35
+      ],
+      [
+        "viaduct.engine.runtime2.resolution.framework.ArgumentGroundingKt.instantiateBindings",
+        31
+      ]
+    ],
+    "groups": {
+      "demand closure walk": {
+        "samples": 0,
+        "percent": 0.0,
+        "self": 0,
+        "middle": 0,
+        "by_phase": {},
+        "callers": [],
+        "leaves": []
+      },
+      "value conformance walk (includes demand after fusion)": {
+        "samples": 1337,
+        "percent": 64.7457627118644,
+        "self": 15,
+        "middle": 1337,
+        "by_phase": {
+          "correctResolution": 1337
+        },
+        "callers": [
+          [
+            "['viaduct.engine.runtime2.correctresolution.ConformsToResolversKt.conformsToResolversAndDemand', 57]",
+            1337
+          ]
+        ],
+        "leaves": [
+          [
+            "kotlin.jvm.internal.Intrinsics.areEqual",
+            106
+          ],
+          [
+            "java.util.HashMap.putVal",
+            76
+          ],
+          [
+            "viaduct.engine.runtime2.model.CellImpl.checkActivated",
+            70
+          ],
+          [
+            "viaduct.engine.runtime2.correctresolution.ResolverInputReplayKt.sameMaterializedValueAs",
+            62
+          ],
+          [
+            "viaduct.engine.runtime2.correctresolution.ConformsToSelectionsKt.objectConformsToSelections",
+            53
+          ],
+          [
+            "java.util.HashMap.getNode",
+            44
+          ],
+          [
+            "java.util.Arrays.copyOf",
+            36
+          ],
+          [
+            "java.util.HashMap.resize",
+            35
+          ],
+          [
+            "viaduct.engine.runtime2.model.ArgumentExpressionsKt.variables",
+            34
+          ],
+          [
+            "java.util.Collections.eq",
+            30
+          ],
+          [
+            "viaduct.engine.runtime2.arbitrary.FingerprintBudget.output",
+            27
+          ],
+          [
+            "java.lang.StringLatin1.hashCode",
+            26
+          ]
+        ]
+      },
+      "resolver replay": {
+        "samples": 1058,
+        "percent": 51.23486682808716,
+        "self": 0,
+        "middle": 1058,
+        "by_phase": {
+          "correctResolution": 1058
+        },
+        "callers": [
+          [
+            "['viaduct.engine.runtime2.correctresolution.ResolverApplicationKt.reapplyResolver', 364]",
+            1058
+          ]
+        ],
+        "leaves": [
+          [
+            "kotlin.jvm.internal.Intrinsics.areEqual",
+            69
+          ],
+          [
+            "viaduct.engine.runtime2.correctresolution.ResolverInputReplayKt.sameMaterializedValueAs",
+            62
+          ],
+          [
+            "java.util.HashMap.putVal",
+            60
+          ],
+          [
+            "viaduct.engine.runtime2.model.CellImpl.checkActivated",
+            37
+          ],
+          [
+            "java.util.HashMap.resize",
+            35
+          ],
+          [
+            "viaduct.engine.runtime2.arbitrary.FingerprintBudget.output",
+            27
+          ],
+          [
+            "viaduct.engine.runtime2.model.ArgumentExpressionsKt.variables",
+            26
+          ],
+          [
+            "java.util.Arrays.copyOf",
+            25
+          ],
+          [
+            "java.lang.StringLatin1.hashCode",
+            22
+          ],
+          [
+            "java.util.Collections.eq",
+            21
+          ],
+          [
+            "java.util.HashMap.getNode",
+            19
+          ],
+          [
+            "kotlinx.coroutines.internal.ThreadContextKt$countAll$1.invoke",
+            19
+          ]
+        ]
+      },
+      "occurrence walk including callbacks": {
+        "samples": 682,
+        "percent": 33.026634382566584,
+        "self": 30,
+        "middle": 682,
+        "by_phase": {
+          "application identity oracle": 535,
+          "from-field binding oracle": 147
+        },
+        "callers": [
+          [
+            "['viaduct.engine.runtime2.contract.ResolverWitnessOracleKt.registeredResolverApplicationIdentityCounts', 92]",
+            535
+          ],
+          [
+            "['viaduct.engine.runtime2.contract.ResolverFromFieldBindingOracleKt.validateFromFieldBindings', 109]",
+            147
+          ]
+        ],
+        "leaves": [
+          [
+            "java.util.HashMap.getNode",
+            81
+          ],
+          [
+            "viaduct.engine.runtime2.model.CellImpl.checkActivated",
+            53
+          ],
+          [
+            "viaduct.engine.runtime2.correctresolution.ConformsToSelectionsKt.objectConformsToSelections",
+            43
+          ],
+          [
+            "kotlin.jvm.internal.Intrinsics.areEqual",
+            39
+          ],
+          [
+            "viaduct.engine.runtime2.contract.RegisteredResolverOccurrenceKt$visitRegisteredResolverOccurrences$1.invokeSuspend$visit",
+            30
+          ],
+          [
+            "viaduct.engine.runtime2.model.ArgumentExpressionsKt.variables",
+            29
+          ],
+          [
+            "java.util.Arrays.copyOf",
+            24
+          ],
+          [
+            "viaduct.engine.runtime2.arbitrary.FingerprintBudget.output",
+            23
+          ],
+          [
+            "viaduct.engine.runtime2.model.CellImpl.fetchActivated",
+            22
+          ],
+          [
+            "java.lang.StringLatin1.hashCode",
+            14
+          ],
+          [
+            "java.util.HashMap.putVal",
+            13
+          ],
+          [
+            "java.util.Collections.eq",
+            13
+          ]
+        ]
+      },
+      "identity reconstruction": {
+        "samples": 538,
+        "percent": 26.053268765133172,
+        "self": 0,
+        "middle": 538,
+        "by_phase": {
+          "application identity oracle": 535,
+          "from-field binding oracle": 3
+        },
+        "callers": [
+          [
+            "['viaduct.engine.runtime2.benchmark.PropertyTestBenchmarkSupport$propertyTest$1.invokeSuspend', 133]",
+            535
+          ],
+          [
+            "['viaduct.engine.runtime2.contract.ResolverWitnessOracleKt.access$registeredResolverApplicationIdentityCounts$record', 1]",
+            3
+          ]
+        ],
+        "leaves": [
+          [
+            "java.util.HashMap.getNode",
+            48
+          ],
+          [
+            "viaduct.engine.runtime2.correctresolution.ConformsToSelectionsKt.objectConformsToSelections",
+            43
+          ],
+          [
+            "viaduct.engine.runtime2.model.CellImpl.checkActivated",
+            35
+          ],
+          [
+            "viaduct.engine.runtime2.arbitrary.FingerprintBudget.output",
+            23
+          ],
+          [
+            "viaduct.engine.runtime2.model.ArgumentExpressionsKt.variables",
+            22
+          ],
+          [
+            "java.util.Arrays.copyOf",
+            19
+          ],
+          [
+            "kotlin.jvm.internal.Intrinsics.areEqual",
+            17
+          ],
+          [
+            "viaduct.engine.runtime2.contract.RegisteredResolverOccurrenceKt$visitRegisteredResolverOccurrences$1.invokeSuspend$visit",
+            15
+          ],
+          [
+            "java.lang.StringLatin1.hashCode",
+            14
+          ],
+          [
+            "java.util.Collections.eq",
+            13
+          ],
+          [
+            "viaduct.engine.runtime2.resolution.framework.GroundObjectKeyKt.isContextuallyGrounded",
+            13
+          ],
+          [
+            "viaduct.engine.runtime2.resolution.framework.MaterializationLogic.materializeSelectedObjectValue",
+            12
+          ]
+        ]
+      },
+      "selection presence": {
+        "samples": 299,
+        "percent": 14.479418886198546,
+        "self": 114,
+        "middle": 299,
+        "by_phase": {
+          "correctResolution": 176,
+          "application identity oracle": 123
+        },
+        "callers": [
+          [
+            "['viaduct.engine.runtime2.contract.ResolverWitnessOracleKt.objectFragmentSatisfiedBy', 328]",
+            123
+          ],
+          [
+            "['viaduct.engine.runtime2.correctresolution.ResolverDemandValidationLogic.resolverDemandIsClosed', 139]",
+            115
+          ],
+          [
+            "['viaduct.engine.runtime2.correctresolution.ConformsToResolversKt.fragmentsSatisfiedBy', 289]",
+            57
+          ],
+          [
+            "['viaduct.engine.runtime2.correctresolution.CorrectResolutionKt.correctResolution', 86]",
+            4
+          ]
+        ],
+        "leaves": [
+          [
+            "viaduct.engine.runtime2.correctresolution.ConformsToSelectionsKt.objectConformsToSelections",
+            96
+          ],
+          [
+            "viaduct.engine.runtime2.model.CellImpl.checkActivated",
+            50
+          ],
+          [
+            "java.util.HashMap.getNode",
+            25
+          ],
+          [
+            "java.util.Collections.eq",
+            22
+          ],
+          [
+            "viaduct.engine.runtime2.correctresolution.ConformsToSelectionsKt.engineResultConformsToSelections",
+            18
+          ],
+          [
+            "viaduct.engine.runtime2.model.ArgumentExpressionsKt.variables",
+            14
+          ],
+          [
+            "viaduct.engine.runtime2.model.SelectionKt.merge",
+            13
+          ],
+          [
+            "java.util.HashMap.putVal",
+            10
+          ],
+          [
+            "kotlin.ranges.IntProgressionIterator.nextInt",
+            10
+          ],
+          [
+            "java.util.HashMap.hash",
+            9
+          ],
+          [
+            "kotlin.ranges.IntProgression.iterator",
+            8
+          ],
+          [
+            "viaduct.engine.runtime2.resolution.framework.GroundObjectKeyKt.isContextuallyGrounded",
+            6
+          ]
+        ]
+      },
+      "checked selections": {
+        "samples": 68,
+        "percent": 3.2929782082324457,
+        "self": 24,
+        "middle": 67,
+        "by_phase": {
+          "correctResolution": 68
+        },
+        "callers": [
+          [
+            "['viaduct.engine.runtime2.correctresolution.ResolverReplayLogic$reapplyResolver$1.invoke', 419]",
+            67
+          ],
+          [
+            "['viaduct.engine.runtime2.correctresolution.CorrectResolutionKt.correctResolution', 89]",
+            1
+          ]
+        ],
+        "leaves": [
+          [
+            "viaduct.engine.runtime2.correctresolution.ConformsToCheckedSelectionsKt.conformsToCheckedSelectionsAt",
+            16
+          ],
+          [
+            "viaduct.engine.runtime2.model.CellImpl.checkActivated",
+            11
+          ],
+          [
+            "viaduct.engine.runtime2.correctresolution.ConformsToCheckedSelectionsKt.engineResultConformsToCheckedSelections",
+            7
+          ],
+          [
+            "java.util.Collections.eq",
+            5
+          ],
+          [
+            "kotlin.ranges.IntProgressionIterator.nextInt",
+            5
+          ],
+          [
+            "viaduct.engine.runtime2.model.ArgumentExpressionsKt.variables",
+            4
+          ],
+          [
+            "java.util.ArrayList.add",
+            4
+          ],
+          [
+            "java.util.ArrayList.addAll",
+            4
+          ],
+          [
+            "java.lang.StringLatin1.hashCode",
+            3
+          ],
+          [
+            "java.util.HashMap.hash",
+            2
+          ],
+          [
+            "viaduct.engine.runtime2.correctresolution.ConformsToCheckedSelectionsKt.conformsToCheckedSelectionsAt$default",
+            1
+          ],
+          [
+            "java.util.concurrent.ConcurrentHashMap.get",
+            1
+          ]
+        ]
+      },
+      "input materialization": {
+        "samples": 317,
+        "percent": 15.351089588377723,
+        "self": 45,
+        "middle": 317,
+        "by_phase": {
+          "correctResolution": 162,
+          "application identity oracle": 155
+        },
+        "callers": [
+          [
+            "['viaduct.engine.runtime2.resolution.framework.MaterializeResultKt.materializeResult$default', 52]",
+            317
+          ]
+        ],
+        "leaves": [
+          [
+            "viaduct.engine.runtime2.model.CellImpl.checkActivated",
+            31
+          ],
+          [
+            "viaduct.engine.runtime2.resolution.framework.MaterializationLogic.materializeEngineResultValue",
+            23
+          ],
+          [
+            "viaduct.engine.runtime2.model.ScalarValuesKt.nativeScalarTypeNameOrNull",
+            21
+          ],
+          [
+            "viaduct.engine.runtime2.resolution.framework.GroundObjectKeyKt.isContextuallyGrounded",
+            18
+          ],
+          [
+            "viaduct.engine.runtime2.resolution.framework.MaterializationLogic.materializeSelectedObjectValue",
+            16
+          ],
+          [
+            "viaduct.engine.runtime2.model.DeferredPromiseImpl.await",
+            13
+          ],
+          [
+            "java.util.HashMap.getNode",
+            13
+          ],
+          [
+            "kotlin.collections.CollectionsKt___CollectionsKt.take",
+            11
+          ],
+          [
+            "kotlin.jvm.internal.Intrinsics.areEqual",
+            10
+          ],
+          [
+            "java.util.Arrays.copyOf",
+            10
+          ],
+          [
+            "viaduct.engine.runtime2.model.ArgumentExpressionsKt.variables",
+            10
+          ],
+          [
+            "viaduct.engine.runtime2.resolution.framework.MaterializeResultKt.materializeCheckedValueForResolver",
+            10
+          ]
+        ]
+      },
+      "input fingerprints": {
+        "samples": 123,
+        "percent": 5.956416464891041,
+        "self": 2,
+        "middle": 121,
+        "by_phase": {
+          "application identity oracle": 51,
+          "correctResolution": 72
+        },
+        "callers": [
+          [
+            "['viaduct.engine.runtime2.arbitrary.ResolutionWitnessKt.resolutionFingerprint$default', 282]",
+            110
+          ],
+          [
+            "['viaduct.engine.runtime2.arbitrary.ResolutionWitnessKt.resolutionFingerprint$default', 274]",
+            13
+          ]
+        ],
+        "leaves": [
+          [
+            "viaduct.engine.runtime2.arbitrary.FingerprintBudget.output",
+            50
+          ],
+          [
+            "kotlin.collections.CollectionsKt___CollectionsKt.joinTo",
+            16
+          ],
+          [
+            "viaduct.engine.runtime2.arbitrary.FingerprintBudget.node",
+            14
+          ],
+          [
+            "java.util.Arrays.copyOf",
+            10
+          ],
+          [
+            "kotlin.collections.CollectionsKt___CollectionsKt.joinToString",
+            7
+          ],
+          [
+            "java.lang.Integer.getChars",
+            6
+          ],
+          [
+            "kotlin.collections.CollectionsKt___CollectionsKt.toList",
+            3
+          ],
+          [
+            "viaduct.utils.collections.BitVector.lsr",
+            3
+          ],
+          [
+            "java.lang.StringLatin1.hashCode",
+            2
+          ],
+          [
+            "viaduct.engine.runtime2.arbitrary.ResolutionWitnessKt.resolutionFingerprint",
+            2
+          ],
+          [
+            "kotlin.collections.CollectionsKt___CollectionsKt.sortedWith",
+            2
+          ],
+          [
+            "java.util.LinkedHashMap.keySet",
+            2
+          ]
+        ]
+      },
+      "variable enumeration": {
+        "samples": 170,
+        "percent": 8.232445520581114,
+        "self": 75,
+        "middle": 165,
+        "by_phase": {
+          "application identity oracle": 49,
+          "correctResolution": 108,
+          "from-field binding oracle": 13
+        },
+        "callers": [
+          [
+            "['viaduct.engine.runtime2.resolution.framework.GroundObjectKeyKt.isContextuallyGrounded', 9]",
+            112
+          ],
+          [
+            "['viaduct.engine.runtime2.contract.ResolverWitnessOracleKt.objectFragmentSatisfiedBy', 325]",
+            16
+          ],
+          [
+            "['viaduct.engine.runtime2.correctresolution.ConformsToResolversKt.fromArgumentBindingsAgree', 303]",
+            14
+          ],
+          [
+            "['viaduct.engine.runtime2.correctresolution.ConformsToResolversKt.fragmentsSatisfiedBy', 286]",
+            13
+          ],
+          [
+            "['viaduct.engine.runtime2.correctresolution.ResolverDemandValidationLogic.resolverDemandIsClosed', 138]",
+            11
+          ],
+          [
+            "['viaduct.engine.runtime2.resolution.framework.GroundObjectKeyKt.fetchGroundedArguments', 24]",
+            3
+          ],
+          [
+            "['viaduct.engine.runtime2.correctresolution.ConformsToResolversKt.fromArgumentBindingsAgree', 304]",
+            1
+          ]
+        ],
+        "leaves": [
+          [
+            "viaduct.engine.runtime2.model.ArgumentExpressionsKt.variables",
+            65
+          ],
+          [
+            "java.util.HashMap.putVal",
+            37
+          ],
+          [
+            "kotlin.reflect.jvm.internal.impl.util.AbstractArrayMapOwner.iterator",
+            15
+          ],
+          [
+            "java.util.AbstractCollection.addAll",
+            14
+          ],
+          [
+            "kotlin.collections.SetsKt___SetsKt.plus",
+            11
+          ],
+          [
+            "viaduct.engine.runtime2.model.SelectionKt.usedVariables",
+            10
+          ],
+          [
+            "java.util.HashMap$HashIterator.<init>",
+            7
+          ],
+          [
+            "java.util.HashMap.resize",
+            3
+          ],
+          [
+            "viaduct.engine.runtime2.model.ObjectSelectionImpl.getKey",
+            3
+          ],
+          [
+            "kotlin.jvm.internal.Intrinsics.areEqual",
+            2
+          ],
+          [
+            "viaduct.engine.runtime2.model.AbstractSelectionForest.forEach",
+            2
+          ],
+          [
+            "java.util.LinkedHashMap.newNode",
+            1
+          ]
+        ]
+      },
+      "stored-key lookup": {
+        "samples": 119,
+        "percent": 5.762711864406779,
+        "self": 0,
+        "middle": 119,
+        "by_phase": {
+          "application identity oracle": 45,
+          "correctResolution": 74
+        },
+        "callers": [
+          [
+            "['viaduct.engine.runtime2.correctresolution.ConformsToSelectionsKt.objectConformsToSelections', 54]",
+            66
+          ],
+          [
+            "['viaduct.engine.runtime2.resolution.framework.MaterializationLogic.materializeSelectedObjectValue', 94]",
+            40
+          ],
+          [
+            "['viaduct.engine.runtime2.correctresolution.ConformsToCheckedSelectionsKt.conformsToCheckedSelectionsAt', 38]",
+            13
+          ]
+        ],
+        "leaves": [
+          [
+            "java.util.Collections.eq",
+            30
+          ],
+          [
+            "viaduct.engine.runtime2.model.ArgumentExpressionsKt.variables",
+            26
+          ],
+          [
+            "viaduct.engine.runtime2.resolution.framework.GroundObjectKeyKt.isContextuallyGrounded",
+            24
+          ],
+          [
+            "java.util.HashMap.putVal",
+            15
+          ],
+          [
+            "java.util.HashMap.getNode",
+            8
+          ],
+          [
+            "kotlin.reflect.jvm.internal.impl.util.AbstractArrayMapOwner.iterator",
+            5
+          ],
+          [
+            "java.util.AbstractCollection.addAll",
+            5
+          ],
+          [
+            "kotlin.jvm.internal.Intrinsics.areEqual",
+            3
+          ],
+          [
+            "java.util.HashMap.hash",
+            1
+          ],
+          [
+            "java.util.concurrent.ConcurrentHashMap.get",
+            1
+          ],
+          [
+            "java.util.Objects.equals",
+            1
+          ]
+        ]
+      },
+      "materialized equality": {
+        "samples": 135,
+        "percent": 6.5375302663438255,
+        "self": 62,
+        "middle": 98,
+        "by_phase": {
+          "correctResolution": 135
+        },
+        "callers": [
+          [
+            "['viaduct.engine.runtime2.correctresolution.ResolverInputConformanceLogic.objectInputConforms', 70]",
+            87
+          ],
+          [
+            "['viaduct.engine.runtime2.correctresolution.ResolverInputReplayKt.resolverInputsForReplay', 53]",
+            41
+          ],
+          [
+            "['viaduct.engine.runtime2.correctresolution.ResolverInputReplayKt.resolverInputsForReplay', 54]",
+            7
+          ]
+        ],
+        "leaves": [
+          [
+            "viaduct.engine.runtime2.correctresolution.ResolverInputReplayKt.sameMaterializedValueAs",
+            62
+          ],
+          [
+            "kotlin.jvm.internal.Intrinsics.areEqual",
+            32
+          ],
+          [
+            "java.util.HashMap.putVal",
+            27
+          ],
+          [
+            "kotlin.ranges.IntProgressionIterator.nextInt",
+            6
+          ],
+          [
+            "java.util.AbstractSet.equals",
+            3
+          ],
+          [
+            "java.util.HashMap.getNode",
+            2
+          ],
+          [
+            "java.util.LinkedHashMap$LinkedKeySet.size",
+            1
+          ],
+          [
+            "java.util.LinkedHashMap.keySet",
+            1
+          ],
+          [
+            "java.util.Collections.eq",
+            1
+          ]
+        ]
+      },
+      "root-reference witness lookup": {
+        "samples": 0,
+        "percent": 0.0,
+        "self": 0,
+        "middle": 0,
+        "by_phase": {},
+        "callers": [],
+        "leaves": []
+      }
+    }
+  }
+}

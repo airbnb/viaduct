@@ -1,0 +1,173 @@
+diff --git a/projects/viaduct/oss/core/engine/runtime2/src/jmh/kotlin/viaduct/engine/runtime2/benchmark/PropertyTestBenchmarkSupport.kt b/projects/viaduct/oss/core/engine/runtime2/src/jmh/kotlin/viaduct/engine/runtime2/benchmark/PropertyTestBenchmarkSupport.kt
+index 2e512b84ee6236..d7b8d127d0fb54 100644
+--- a/projects/viaduct/oss/core/engine/runtime2/src/jmh/kotlin/viaduct/engine/runtime2/benchmark/PropertyTestBenchmarkSupport.kt
++++ b/projects/viaduct/oss/core/engine/runtime2/src/jmh/kotlin/viaduct/engine/runtime2/benchmark/PropertyTestBenchmarkSupport.kt
+@@ -12,6 +12,7 @@ import viaduct.engine.runtime2.arbitrary.ResolutionWitness
+ import viaduct.engine.runtime2.arbitrary.ResolverBenchmarkCorpus
+ import viaduct.engine.runtime2.contract.registeredResolverApplicationIdentityCounts
+ import viaduct.engine.runtime2.contract.validateFromFieldBindings
++import viaduct.engine.runtime2.correctresolution.TraversalFusionProbe
+ import viaduct.engine.runtime2.correctresolution.ValidatedResolution
+ import viaduct.engine.runtime2.model.Fragment
+ import viaduct.engine.runtime2.model.ObjectEngineResult
+@@ -86,6 +87,7 @@ internal class PropertyTestBenchmarkSupport(
+             check(expectedResolverApplications > 0) {
+                 "Property-test benchmark trial was not prepared"
+             }
++            TraversalFusionProbe.reset()
+             repeat(loopCount) {
+                 val preparationEvent =
+                     profilePhaseEvent(profilePhases, "request preparation")
+@@ -138,6 +140,7 @@ internal class PropertyTestBenchmarkSupport(
+                 }
+                 blackhole.consume(result)
+             }
++            TraversalFusionProbe.report()
+             loopCount
+         }
+
+diff --git a/projects/viaduct/oss/core/engine/runtime2/src/support/kotlin/viaduct/engine/runtime2/correctresolution/ConformsToCheckedSelections.kt b/projects/viaduct/oss/core/engine/runtime2/src/support/kotlin/viaduct/engine/runtime2/correctresolution/ConformsToCheckedSelections.kt
+index 3df2043c59fa26..ad8bd9c4ffd47e 100644
+--- a/projects/viaduct/oss/core/engine/runtime2/src/support/kotlin/viaduct/engine/runtime2/correctresolution/ConformsToCheckedSelections.kt
++++ b/projects/viaduct/oss/core/engine/runtime2/src/support/kotlin/viaduct/engine/runtime2/correctresolution/ConformsToCheckedSelections.kt
+@@ -31,8 +31,9 @@ internal fun ObjectEngineResult.conformsToCheckedSelectionsAt(
+     path: List<PathComponent>,
+     resolverApplicationCache: ResolverApplicationCache,
+     typeCheckDemanded: Boolean = false,
+-): Boolean =
+-    (!typeCheckDemanded || conformsToTypeChecker(operation, resolverApplicationCache, path)) &&
++): Boolean {
++    TraversalFusionProbe.checkedObjects++
++    return (!typeCheckDemanded || conformsToTypeChecker(operation, resolverApplicationCache, path)) &&
+         selections.merge(type).byKey().values.all { selection ->
+             if (!selection.inclusionCondition.isIncluded(operation)) return@all true
+             val key = findStoredKey(operation, selection.key) ?: return@all false
+@@ -72,6 +73,8 @@ internal fun ObjectEngineResult.conformsToCheckedSelectionsAt(
+             )
+         }
+
++}
++
+ private fun EngineResult?.engineResultConformsToCheckedSelections(
+     operation: SharedOperationContext<*>,
+     selections: SelectionForest,
+diff --git a/projects/viaduct/oss/core/engine/runtime2/src/support/kotlin/viaduct/engine/runtime2/correctresolution/ConformsToResolvers.kt b/projects/viaduct/oss/core/engine/runtime2/src/support/kotlin/viaduct/engine/runtime2/correctresolution/ConformsToResolvers.kt
+index a19630c6708a09..cd9e969c204eba 100644
+--- a/projects/viaduct/oss/core/engine/runtime2/src/support/kotlin/viaduct/engine/runtime2/correctresolution/ConformsToResolvers.kt
++++ b/projects/viaduct/oss/core/engine/runtime2/src/support/kotlin/viaduct/engine/runtime2/correctresolution/ConformsToResolvers.kt
+@@ -69,8 +69,10 @@ private class ResolverConformanceLogic(
+         source: EngineObjectData.Sync?,
+         structuralParent: ObjectEngineResult?,
+         producerField: ViaductSchema.ObjectField?,
+-    ): Boolean =
+-        keys.all { key ->
++    ): Boolean {
++        TraversalFusionProbe.objectVisit("conformance", this)
++        return keys.all { key ->
++            TraversalFusionProbe.conformanceKeys++
+             if (!getCell(key).value.isCompleted) return@all true
+             if (!key.isContextuallyGrounded(operation)) return@all false
+             val value = getCell(key).value.get()
+@@ -122,6 +124,8 @@ private class ResolverConformanceLogic(
+             }
+         }
+
++    }
++
+     private fun ObjectEngineResult.errorArgumentQueryFragmentConforms(
+         key: ObjectEngineResult.ObjectKey,
+         path: List<PathComponent>,
+diff --git a/projects/viaduct/oss/core/engine/runtime2/src/support/kotlin/viaduct/engine/runtime2/correctresolution/ConformsToSelections.kt b/projects/viaduct/oss/core/engine/runtime2/src/support/kotlin/viaduct/engine/runtime2/correctresolution/ConformsToSelections.kt
+index 5559698e502a66..d2c09c1e2789ad 100644
+--- a/projects/viaduct/oss/core/engine/runtime2/src/support/kotlin/viaduct/engine/runtime2/correctresolution/ConformsToSelections.kt
++++ b/projects/viaduct/oss/core/engine/runtime2/src/support/kotlin/viaduct/engine/runtime2/correctresolution/ConformsToSelections.kt
+@@ -48,8 +48,10 @@ private fun ObjectEngineResult.objectConformsToSelections(
+     operation: SharedOperationContext<*>,
+     selections: SelectionForest,
+     path: List<PathComponent>,
+-): Boolean =
+-    selections.merge(type).byKey().values.all { selection ->
++): Boolean {
++    TraversalFusionProbe.selectionVisit(this, selections)
++    return selections.merge(type).byKey().values.all { selection ->
++        TraversalFusionProbe.selectionKeys++
+         if (!selection.inclusionCondition.isIncluded(operation)) return@all true
+         val key = findStoredKey(operation, selection.key)
+         key != null &&
+@@ -63,6 +65,8 @@ private fun ObjectEngineResult.objectConformsToSelections(
+                 )
+     }
+
++}
++
+ private fun EngineResult?.engineResultConformsToSelections(
+     operation: SharedOperationContext<*>,
+     selections: SelectionForest,
+diff --git a/projects/viaduct/oss/core/engine/runtime2/src/support/kotlin/viaduct/engine/runtime2/correctresolution/IsClosedUnderResolverDemand.kt b/projects/viaduct/oss/core/engine/runtime2/src/support/kotlin/viaduct/engine/runtime2/correctresolution/IsClosedUnderResolverDemand.kt
+index 51c729d7a3a43f..645baceff1b036 100644
+--- a/projects/viaduct/oss/core/engine/runtime2/src/support/kotlin/viaduct/engine/runtime2/correctresolution/IsClosedUnderResolverDemand.kt
++++ b/projects/viaduct/oss/core/engine/runtime2/src/support/kotlin/viaduct/engine/runtime2/correctresolution/IsClosedUnderResolverDemand.kt
+@@ -58,6 +58,7 @@ private class ResolverDemandValidationLogic(
+         structuralParent: ObjectEngineResult?,
+         producerField: ViaductSchema.ObjectField?,
+     ): Boolean {
++        TraversalFusionProbe.objectVisit("demand", this)
+         val registry = operation.world.resolverRegistry
+
+         val typeChecker = registry.typeChecker(type)
+@@ -67,6 +68,7 @@ private class ResolverDemandValidationLogic(
+         }
+
+         return keys.all { key ->
++            TraversalFusionProbe.demandKeys++
+             if (!getCell(key).value.isCompleted) return@all true
+             if (!key.isContextuallyGrounded(operation)) return@all false
+             val arguments = key.groundedArguments(operation)
+diff --git a/projects/viaduct/oss/core/engine/runtime2/src/support/kotlin/viaduct/engine/runtime2/correctresolution/ResolverApplication.kt b/projects/viaduct/oss/core/engine/runtime2/src/support/kotlin/viaduct/engine/runtime2/correctresolution/ResolverApplication.kt
+index 79d3e5587b3386..827f23be79cbba 100644
+--- a/projects/viaduct/oss/core/engine/runtime2/src/support/kotlin/viaduct/engine/runtime2/correctresolution/ResolverApplication.kt
++++ b/projects/viaduct/oss/core/engine/runtime2/src/support/kotlin/viaduct/engine/runtime2/correctresolution/ResolverApplication.kt
+@@ -69,8 +69,10 @@ internal class ResolverApplicationCache(
+         key: ObjectEngineResult.ObjectKey,
+         compute: () -> ReappliedResolver?,
+     ): ReappliedResolver? {
++        TraversalFusionProbe.replayLookups++
+         val byKey = applications.getOrPut(result, ::linkedMapOf)
+         return byKey.getOrPut(key) {
++            TraversalFusionProbe.replayComputations++
+             CachedResolverApplication(compute())
+         }.application
+     }
+@@ -740,3 +742,32 @@ internal fun EngineObjectData.Sync?.requireArgumentlessField(key: ObjectEngineRe
+         }
+     }
+ }
++
++internal object TraversalFusionProbe {
++    private val objectVisits = linkedMapOf<String, IdentityHashMap<ObjectEngineResult, Int>>()
++    private val selections = IdentityHashMap<ObjectEngineResult, IdentityHashMap<SelectionForest, Int>>()
++    var demandKeys = 0L
++    var conformanceKeys = 0L
++    var selectionKeys = 0L
++    var checkedObjects = 0L
++    var replayLookups = 0L
++    var replayComputations = 0L
++    fun objectVisit(label: String, result: ObjectEngineResult) {
++        val byObject = objectVisits.getOrPut(label) { IdentityHashMap() }
++        byObject[result] = (byObject[result] ?: 0) + 1
++    }
++    fun selectionVisit(result: ObjectEngineResult, forest: SelectionForest) {
++        val byForest = selections.getOrPut(result) { IdentityHashMap() }
++        byForest[forest] = (byForest[forest] ?: 0) + 1
++    }
++    fun reset() {
++        objectVisits.clear(); selections.clear()
++        demandKeys = 0; conformanceKeys = 0; selectionKeys = 0; checkedObjects = 0; replayLookups = 0; replayComputations = 0
++    }
++    fun report() {
++        val demand = objectVisits.getValue("demand")
++        val conformance = objectVisits.getValue("conformance")
++        println("FUSION_PROBE demandObjects=${demand.values.sum()} uniqueDemandObjects=${demand.size} conformanceObjects=${conformance.values.sum()} uniqueConformanceObjects=${conformance.size} sharedObjects=${demand.keys.count { conformance.containsKey(it) }} demandKeys=$demandKeys conformanceKeys=$conformanceKeys")
++        println("FUSION_PROBE selectionObjects=${selections.values.sumOf { it.values.sum() }} uniqueObjectForestPairs=${selections.values.sumOf { it.size }} selectionKeys=$selectionKeys checkedObjects=$checkedObjects replayLookups=$replayLookups replayComputations=$replayComputations")
++    }
++}

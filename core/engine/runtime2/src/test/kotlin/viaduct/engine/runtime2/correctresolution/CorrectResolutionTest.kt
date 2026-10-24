@@ -7,22 +7,33 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 import kotlinx.coroutines.runBlocking
 import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.CheckerResultContext
+import viaduct.engine.runtime2.arbitrary.FieldCoordinate
+import viaduct.engine.runtime2.arbitrary.ResolverApplicationIdentity
+import viaduct.engine.runtime2.arbitrary.ResolverApplicationKey
+import viaduct.engine.runtime2.arbitrary.resolutionFingerprint
+import viaduct.engine.runtime2.contract.registeredResolverApplicationIdentityCounts
 import viaduct.engine.runtime2.model.Arguments
 import viaduct.engine.runtime2.model.EngineErrorData
 import viaduct.engine.runtime2.model.EngineObjectDataEntry
+import viaduct.engine.runtime2.model.ListEngineResult
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.ObjectSelectionForest
 import viaduct.engine.runtime2.model.ResolverOccurrenceId
 import viaduct.engine.runtime2.model.ResolverTarget
+import viaduct.engine.runtime2.model.RootFieldReferenceData
 import viaduct.engine.runtime2.model.emptyFragmentOf
 import viaduct.engine.runtime2.model.engineObjectDataOf
 import viaduct.engine.runtime2.model.materializeSelectionForestOf
 import viaduct.engine.runtime2.model.materializedEngineObjectDataOf
 import viaduct.engine.runtime2.model.merge
+import viaduct.engine.runtime2.model.outputType
 import viaduct.engine.runtime2.model.registry.FieldCheckerResolver
 import viaduct.engine.runtime2.model.registry.ResolutionExecutionContext
 import viaduct.engine.runtime2.model.registry.ResolverFragmentTemplates
@@ -40,11 +51,169 @@ import viaduct.engine.runtime2.model.testing.objectOf
 import viaduct.engine.runtime2.resolution.ResolutionDispatcherResource
 import viaduct.engine.runtime2.resolution.framework.OEROccurrence
 import viaduct.engine.runtime2.resolution.framework.ResolverInvocationObservation
+import viaduct.engine.runtime2.resolution.framework.RootFieldReferenceInvocationObservation
 import viaduct.engine.runtime2.resolution.framework.SharedOERContext
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 import viaduct.graphql.schema.ViaductSchema
 
 class CorrectResolutionTest : ResolutionDispatcherResource {
+    @Test
+    fun `fused demand and value validation rejects independent nested list mutations`() {
+        val fixture = TestWorld.fromSDL(
+            "type Query { items: [[Item]] } type Item { source: Int computed: Int }",
+            fieldResolvers = { schemas ->
+                val schema = schemas.loweredSchema
+                mapOf(
+                    schema.requireObjectField("Query", "items") to
+                        fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
+                            listOf(
+                                listOf(
+                                    schema.objectOf("Item") { "source" setTo 7 },
+                                    schema.objectOf("Item") { "source" setTo 9 },
+                                ),
+                                null,
+                            )
+                        },
+                    schema.requireObjectField("Item", "computed") to
+                        fieldResolverOf(schemas.fragmentFrom("fragment Input on Item { source }")) { input, _ ->
+                            (input.get("source") as Int) + 1
+                        },
+                )
+            },
+        )
+        val world = fixture.assumptions
+        val nestedListType = requireNotNull(world.schema.requireObjectField("Query", "items").outputType.unwrapList())
+        val itemType = requireNotNull(nestedListType.unwrapList())
+        val selections = fixture.schemas.fragmentFrom("fragment Result on Query { items { computed } }")
+
+        listOf("valid", "missing input", "wrong computed", "wrong source", "wrong list size").forEach { mutation ->
+            val first = world.engineResultOf("Item") {
+                if (mutation != "missing input") "source" resolvesTo if (mutation == "wrong source") 8 else 7
+                "computed" resolvesTo if (mutation == "wrong computed") 9 else 8
+            }
+            val second = world.engineResultOf("Item") {
+                "source" resolvesTo 9
+                "computed" resolvesTo 10
+            }
+            val inner = ListEngineResult.of(itemType, if (mutation == "wrong list size") listOf(first) else listOf(first, second))
+            val result = world.engineResultOf("Query") {
+                "items" resolvesTo ListEngineResult.of(nestedListType, listOf(inner, null))
+            }
+            val operation = SharedOperationContext.create(world)
+            val cache = operation.resolverApplicationCache(result)
+            val separate = result.isClosedUnderResolverDemand(operation, cache) && result.conformsToResolvers(operation, cache)
+            val fused = result.conformsToResolversAndDemand(operation, operation.resolverApplicationCache(result))
+            val expected = mutation == "valid"
+
+            assertEquals(expected, separate, mutation)
+            assertEquals(expected, fused, mutation)
+            assertEquals(expected, result.correctResolution(operation, selections), mutation)
+        }
+    }
+
+    @Test
+    fun `application identities reuse validated references without replaying relations again`() {
+        var applications = 0
+        val fixture = TestWorld.fromSDL(
+            "type Query { value: Int! }",
+            fieldResolvers = { schema ->
+                mapOf(
+                    schema.loweredSchema.requireObjectField("Query", "value") to
+                        fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
+                            applications += 1
+                            7
+                        },
+                )
+            },
+        )
+        val world = fixture.assumptions
+        val operation = SharedOperationContext.create(world, resolverObserver = CorrectnessResolverObserver())
+        val selections = fixture.schemas.fragmentFrom("fragment Result on Query { value }").subselections.merge(world.schema.requireQueryTypeDef())
+        val result = operation.resolveWithTestDispatcher(selections)
+        val value = world.schema.requireObjectField("Query", "value")
+        val expected = mapOf(
+            ResolverApplicationIdentity(
+                ResolverApplicationKey(FieldCoordinate("Query", "value"), Arguments.Resolved.of(value, emptyMap())),
+                engineObjectDataOf(world.schema.requireQueryTypeDef()).resolutionFingerprint(),
+            ) to 1,
+        )
+        applications = 0
+
+        repeat(2) {
+            val validation = assertNotNull(ValidatedResolution.create(result, operation, selections))
+            assertEquals(expected, result.registeredResolverApplicationIdentityCounts(operation, validation))
+            assertEquals(it + 1, applications, "Each combined judgment must replay the relation exactly once")
+        }
+        assertEquals(expected, result.registeredResolverApplicationIdentityCounts(operation))
+        assertEquals(3, applications, "The standalone oracle must still replay independently")
+    }
+
+    @Test
+    fun `validated references cannot be used with a different result or operation`() {
+        val fixture = TestWorld.fromSDL("type Query { value: Int! }")
+        val world = fixture.assumptions
+        val result = world.engineResultOf("Query")
+        val operation = SharedOperationContext.create(world, resolverObserver = CorrectnessResolverObserver())
+        val validation = assertNotNull(ValidatedResolution.create(result, operation, selectionForestOf().merge(world.schema.requireQueryTypeDef())))
+
+        assertFailsWith<IllegalArgumentException> {
+            world.engineResultOf("Query").registeredResolverApplicationIdentityCounts(operation, validation)
+        }
+        assertFailsWith<IllegalArgumentException> {
+            result.registeredResolverApplicationIdentityCounts(SharedOperationContext.create(world), validation)
+        }
+    }
+
+    @Test
+    fun `invalid results cannot supply validated reference evidence`() {
+        val fixture = TestWorld.fromDSL("extend type Query { value: Int! @resolver(result: 7) }")
+        val world = fixture.assumptions
+        val result = world.engineResultOf("Query") { "value" resolvesTo 8 }
+        val selections = fixture.schemas.fragmentFrom("fragment Result on Query { value }").subselections.merge(world.schema.requireQueryTypeDef())
+
+        assertNull(ValidatedResolution.create(result, SharedOperationContext.create(world), selections))
+    }
+
+    @Test
+    fun `validated references preserve target identities and reject missing or duplicate hops`() {
+        val fixture = TestWorld.fromSDL(
+            "type Query { reference: Int! target: Int! }",
+            fieldResolvers = { schema ->
+                val target = schema.loweredSchema.requireObjectField("Query", "target")
+                val empty = schema.loweredSchema.emptyFragmentOf("Query")
+                mapOf(
+                    schema.loweredSchema.requireObjectField("Query", "reference") to
+                        fieldResolverOf(empty) { _, _ -> RootFieldReferenceData.of(listOf(target), emptyMap()) },
+                    target to fieldResolverOf(empty) { _, _ -> 7 },
+                )
+            },
+        )
+        val world = fixture.assumptions
+        val selections = fixture.schemas.fragmentFrom("fragment Result on Query { reference }").subselections.merge(world.schema.requireQueryTypeDef())
+        for (hopCopies in 0..2) {
+            val observer = object : CorrectnessResolverObserver() {
+                override fun onRootFieldReferenceInvocation(observation: RootFieldReferenceInvocationObservation) {
+                    repeat(hopCopies) { super.onRootFieldReferenceInvocation(observation) }
+                }
+            }
+            val operation = SharedOperationContext.create(world, resolverObserver = observer)
+            val result = operation.resolveWithTestDispatcher(selections)
+            val validation = ValidatedResolution.create(result, operation, selections)
+            if (hopCopies != 1) {
+                assertNull(validation, "Missing and duplicate reference hops must fail ownership replay")
+            } else {
+                val expected = listOf("reference", "target").associate { name ->
+                    val field = world.schema.requireObjectField("Query", name)
+                    ResolverApplicationIdentity(
+                        ResolverApplicationKey(FieldCoordinate("Query", name), Arguments.Resolved.of(field, emptyMap())),
+                        engineObjectDataOf(world.schema.requireQueryTypeDef()).resolutionFingerprint(),
+                    ) to 1
+                }
+                assertEquals(expected, result.registeredResolverApplicationIdentityCounts(operation, assertNotNull(validation)))
+            }
+        }
+    }
+
     @Test
     fun `direct resolve invocation and invocation through correctness replay do not cause invocation observations`() =
         runBlocking {
@@ -134,6 +303,77 @@ class CorrectResolutionTest : ResolutionDispatcherResource {
         assertEquals(4, observedFields.size)
         assertTrue(result.conformsToResolvers(operation))
         assertEquals(5, observedFields.size)
+    }
+
+    @Test
+    fun `completed output demand preserves list members and excludes parent backedges`() {
+        val fixture = TestWorld.fromSDL(
+            """
+                directive @parent on FIELD_DEFINITION
+                type Query { group: Group }
+                type Group { users: [User] }
+                type User { name: String age: Int parent: Group @parent }
+            """.trimIndent(),
+        )
+        val world = fixture.assumptions
+        val nameOnly = ObjectEngineResult.of(
+            world.schema.requireType("User") as ViaductSchema.Object,
+            values = mapOf(ObjectEngineResult.GroundKey.of(world.schema.requireObjectField("User", "name"), emptyMap()) to "Ada"),
+            mutable = true,
+        )
+        val ageOnly = world.engineResultOf("User") { "age" resolvesTo 37 }
+        val list = ListEngineResult.of(requireNotNull(world.schema.requireObjectField("Group", "users").outputType.unwrapList()), listOf(nameOnly, ageOnly, null))
+        val group = world.engineResultOf("Group") { "users" resolvesTo list }
+        val result = world.engineResultOf("Query") { "group" resolvesTo group }
+        nameOnly.setCellValue(ObjectEngineResult.ParentKey.of(world.schema.requireObjectField("User", "parent")), group)
+        val operation = SharedOperationContext.create(world)
+        val cache = operation.resolverApplicationCache(result)
+
+        val demand = cache.completedOutputDemand(group).merge(world.schema.requireType("Group") as ViaductSchema.Object)
+        val users = demand.byKey().values.single()
+        val elementDemand = users.subselections.merge(world.schema.requireType("User") as ViaductSchema.Object)
+
+        assertEquals(setOf("name", "age"), elementDemand.byKey().keys.map { it.field.name }.toSet())
+        assertSame(cache.completedOutputDemand(nameOnly), cache.completedOutputDemand(nameOnly))
+    }
+
+    @Test
+    fun `fresh correctness judgments reconstruct newly completed output fields`() {
+        val observedFields = mutableListOf<Set<String>>()
+        val fixture = TestWorld.fromSDL(
+            "type Query { user: User } type User { name: String age: Int }",
+            fieldResolvers = { schema ->
+                mapOf(
+                    schema.loweredSchema.requireObjectField("Query", "user") to
+                        selectiveFieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _, demand ->
+                            val fields = mutableSetOf<String>()
+                            demand.forEach { fields += it.key.field.name }
+                            observedFields += fields
+                            schema.loweredSchema.objectOf("User") {
+                                if ("name" in fields) "name" setTo "Ada"
+                                if ("age" in fields) "age" setTo 37
+                            }
+                        },
+                )
+            },
+        )
+        val world = fixture.assumptions
+        val name = ObjectEngineResult.GroundKey.of(world.schema.requireObjectField("User", "name"), emptyMap())
+        val age = ObjectEngineResult.GroundKey.of(world.schema.requireObjectField("User", "age"), emptyMap())
+        val user = ObjectEngineResult.of(
+            world.schema.requireType("User") as ViaductSchema.Object,
+            values = mapOf(name to "Ada"),
+            fieldCheckerResults = mapOf(name to null, age to null),
+            mutable = true,
+        )
+        val result = world.engineResultOf("Query") { "user" resolvesTo user }
+        val selections = fixture.schemas.fragmentFrom("fragment Result on Query { user { name } }").subselections.merge(world.schema.requireQueryTypeDef())
+        val operation = SharedOperationContext.create(world)
+
+        assertTrue(result.correctResolution(operation, selections))
+        user.setCellValue(age, 37)
+        assertTrue(result.correctResolution(operation, selections))
+        assertEquals(listOf(setOf("name"), setOf("name", "age")), observedFields)
     }
 
     @Test

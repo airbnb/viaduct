@@ -1,0 +1,43 @@
+diff --git a/projects/viaduct/oss/core/engine/runtime2/src/support/kotlin/viaduct/engine/runtime2/contract/RegisteredResolverOccurrence.kt b/projects/viaduct/oss/core/engine/runtime2/src/support/kotlin/viaduct/engine/runtime2/contract/RegisteredResolverOccurrence.kt
+index a65741e8203111..7601314db57df0 100644
+--- a/projects/viaduct/oss/core/engine/runtime2/src/support/kotlin/viaduct/engine/runtime2/contract/RegisteredResolverOccurrence.kt
++++ b/projects/viaduct/oss/core/engine/runtime2/src/support/kotlin/viaduct/engine/runtime2/contract/RegisteredResolverOccurrence.kt
+@@ -88,6 +88,9 @@ private fun EngineResult?.visitRegisteredResolverOccurrences(
+     visitOccurrence: (RegisteredResolverOccurrence) -> Unit,
+ ) {
+     var visitedNodes = 0
++    var objectReads = 0
++    var listReads = 0
++    var inactive = 0
+
+     fun visit(
+         value: EngineResult?,
+@@ -109,7 +112,11 @@ private fun EngineResult?.visitRegisteredResolverOccurrences(
+                     }
+                 keys.forEach { key ->
+                     val cell = value.getCell(key)
+-                    if (!runBlocking { cell.fetchActivated() }) return@forEach
++                    objectReads += 1
++                    if (!runBlocking { cell.fetchActivated() }) {
++                        inactive += 1
++                        return@forEach
++                    }
+                     val fieldPath = path + key
+                     require(key.isContextuallyGrounded(operation)) {
+                         "Resolver occurrence key is not contextually grounded: $key"
+@@ -141,6 +148,7 @@ private fun EngineResult?.visitRegisteredResolverOccurrences(
+
+             is ListEngineResult ->
+                 value.forEachIndexed { index, cell ->
++                    listReads += 1
+                     if (runBlocking { cell.fetchActivated() }) {
+                         visit(cell.value.get(), path + ListEngineResult.Index.of(index))
+                     }
+@@ -151,6 +159,7 @@ private fun EngineResult?.visitRegisteredResolverOccurrences(
+     }
+
+     visit(this, initialPath)
++    println("OCCURRENCE_PROBE objectReads=$objectReads listReads=$listReads inactiveObjects=$inactive")
+ }
+
+ fun EngineResult?.registeredResolverOccurrenceCounts(

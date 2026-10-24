@@ -18,6 +18,7 @@ import viaduct.engine.runtime2.correctresolution.CorrectnessResolverObserver
 import viaduct.engine.runtime2.model.Arguments
 import viaduct.engine.runtime2.model.EngineErrorData
 import viaduct.engine.runtime2.model.EngineInputData
+import viaduct.engine.runtime2.model.EngineObjectDataEntry
 import viaduct.engine.runtime2.model.EngineOutputData
 import viaduct.engine.runtime2.model.Fragment
 import viaduct.engine.runtime2.model.MaterializeSelection
@@ -28,6 +29,7 @@ import viaduct.engine.runtime2.model.RootFieldReferenceData
 import viaduct.engine.runtime2.model.Selection
 import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.model.arg
+import viaduct.engine.runtime2.model.engineObjectDataOf
 import viaduct.engine.runtime2.model.inputType
 import viaduct.engine.runtime2.model.nodeRootFieldReferenceOf
 import viaduct.engine.runtime2.model.outputType
@@ -4161,9 +4163,15 @@ internal data class GeneratedHashPlan(
         generatedHashSeed: Int,
     ): EngineObjectData.Sync {
         require(typeExpr.baseTypeDef.name == GENERATED_HASH_TYPE)
+        val type = schema.requireType(GENERATED_HASH_TYPE) as ViaductSchema.Object
+        val hashField = type.field(GENERATED_HASH_FIELD) as ViaductSchema.ObjectField
+        val nestedField = type.field(GENERATED_HASH_NESTED_FIELD) as ViaductSchema.ObjectField
+        require(hashField.args.isEmpty() && nestedField.args.isEmpty())
         val rootHash = mixGeneratedHash(generatedHashSeed, salt)
         return generatedHashObject(
-            schema = schema,
+            type = type,
+            hashField = hashField,
+            nestedField = nestedField,
             hash = rootHash,
             remainingDepth = depth(generatedHashSeed),
         )
@@ -4222,21 +4230,31 @@ internal fun List<FieldCoordinate>.withGeneratedParentResultAfterAncestor(parent
 }
 
 private fun generatedHashObject(
-    schema: ViaductSchema,
+    type: ViaductSchema.Object,
+    hashField: ViaductSchema.ObjectField,
+    nestedField: ViaductSchema.ObjectField,
     hash: Int,
     remainingDepth: Int,
-): EngineObjectData.Sync =
-    schema.objectOf(GENERATED_HASH_TYPE) {
-        GENERATED_HASH_FIELD setTo hash
-        if (remainingDepth > 0) {
-            GENERATED_HASH_NESTED_FIELD setTo
+): EngineObjectData.Sync {
+    val fields = ArrayList<EngineObjectDataEntry>(2)
+    fields.add(EngineObjectDataEntry.of(GENERATED_HASH_FIELD, hashField, hash))
+    if (remainingDepth > 0) {
+        fields.add(
+            EngineObjectDataEntry.of(
+                GENERATED_HASH_NESTED_FIELD,
+                nestedField,
                 generatedHashObject(
-                    schema = schema,
+                    type = type,
+                    hashField = hashField,
+                    nestedField = nestedField,
                     hash = mixGeneratedHash(hash, GENERATED_HASH_NESTED_SALT),
                     remainingDepth = remainingDepth - 1,
-                )
-        }
+                ),
+            ),
+        )
     }
+    return engineObjectDataOf(type, fields)
+}
 
 private fun mixGeneratedHash(
     hash: Int,

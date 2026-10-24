@@ -40,7 +40,7 @@ internal fun ObjectEngineResult.isClosedUnderResolverDemand(
 ): Boolean = ResolverDemandValidationLogic(operation, resolverApplicationCache).isClosed(this)
 
 /** Checks resolver demand for one result using its operation and existing replay cache. */
-private class ResolverDemandValidationLogic(
+internal class ResolverDemandValidationLogic(
     private val operation: SharedOperationContext<*>,
     private val resolverApplicationCache: ResolverApplicationCache,
 ) {
@@ -60,11 +60,7 @@ private class ResolverDemandValidationLogic(
     ): Boolean {
         val registry = operation.world.resolverRegistry
 
-        val typeChecker = registry.typeChecker(type)
-        if (typeCheckerResult.get() != null && typeChecker != null) {
-            val fragments = typeChecker.instantiateFragmentsAt(resolverApplicationCache.root, path)
-            if (!conformsToSelectionsAt(operation, fragments.objectFragment.constructionSelections, path)) return false
-        }
+        if (!typeCheckerDemandIsClosed(this, path)) return false
 
         return keys.all { key ->
             if (!getCell(key).value.isCompleted) return@all true
@@ -86,65 +82,10 @@ private class ResolverDemandValidationLogic(
                             ?.fieldValues
                             ?.isEmpty() == true
                     key.field !in registry -> source == null
-                    else ->
-                        registry
-                            .resolver(key.field)
-                            .let { resolver ->
-                                val coordinate = path + key
-                                val instantiatedSelections =
-                                    resolver
-                                        .instantiateFragmentsAt(
-                                            resolverApplicationCache.root,
-                                            coordinate,
-                                        ).objectFragment
-                                        .constructionSelections
-                                if (
-                                    instantiatedSelections.usedVariables().all { variable ->
-                                        operation.variableBindings.isBound(variable.instanceId!!)
-                                    }
-                                ) {
-                                    conformsToSelectionsAt(
-                                        operation,
-                                        selections = instantiatedSelections,
-                                        path = path,
-                                    )
-                                } else {
-                                    val instantiatedFragment =
-                                        resolver.objectFragmentAt(
-                                            operation,
-                                            resolverApplicationCache.root,
-                                            coordinate,
-                                        )
-                                    conformsToSelectionsAt(
-                                        operation,
-                                        instantiatedFragment,
-                                        path,
-                                    )
-                                }
-                            }
-                }
-            val fieldCheckerDemandIsClosed =
-                when {
-                    key is ObjectEngineResult.ParentKey -> true
-                    argumentsContainError -> true
-                    getCell(key).fieldCheckerResult.get() == null -> true
-                    else ->
-                        registry.fieldChecker(key.field)?.let { checker ->
-                            val coordinate = path + key
-                            val fragments =
-                                checker.instantiateFragmentsAt(
-                                    resolverApplicationCache.root,
-                                    coordinate,
-                                )
-                            conformsToSelectionsAt(
-                                operation = operation,
-                                selections = fragments.objectFragment.constructionSelections,
-                                path = path,
-                            )
-                        } ?: true
+                    else -> resolverDemandIsClosed(this, key, path)
                 }
 
-            fieldResolverDemandIsClosed && fieldCheckerDemandIsClosed &&
+            fieldResolverDemandIsClosed && fieldCheckerDemandIsClosed(this, key, arguments, path) &&
                 when {
                     key is ObjectEngineResult.ParentKey -> true
                     argumentsContainError -> true
@@ -175,6 +116,52 @@ private class ResolverDemandValidationLogic(
         }
     }
 
+    fun typeCheckerDemandIsClosed(
+        result: ObjectEngineResult,
+        path: List<PathComponent>,
+    ): Boolean {
+        val checker = operation.world.resolverRegistry.typeChecker(result.type)
+        if (result.typeCheckerResult.get() == null || checker == null) return true
+        val fragments = checker.instantiateFragmentsAt(resolverApplicationCache.root, path)
+        return result.conformsToSelectionsAt(operation, fragments.objectFragment.constructionSelections, path)
+    }
+
+    fun resolverDemandIsClosed(
+        result: ObjectEngineResult,
+        key: ObjectEngineResult.ObjectKey,
+        path: List<PathComponent>,
+    ): Boolean {
+        val resolver = operation.world.resolverRegistry.resolver(key.field)
+        val coordinate = path + key
+        val selections = resolver.instantiateFragmentsAt(resolverApplicationCache.root, coordinate)
+            .objectFragment.constructionSelections
+        return if (selections.usedVariables().all { operation.variableBindings.isBound(it.instanceId!!) }) {
+            result.conformsToSelectionsAt(operation, selections, path)
+        } else {
+            result.conformsToSelectionsAt(
+                operation,
+                resolver.objectFragmentAt(operation, resolverApplicationCache.root, coordinate),
+                path,
+            )
+        }
+    }
+
+    fun fieldCheckerDemandIsClosed(
+        result: ObjectEngineResult,
+        key: ObjectEngineResult.ObjectKey,
+        arguments: Arguments.Ground,
+        path: List<PathComponent>,
+    ): Boolean {
+        if (key is ObjectEngineResult.ParentKey || arguments.argumentsContainErrorValue() ||
+            result.getCell(key).fieldCheckerResult.get() == null
+        ) {
+            return true
+        }
+        val checker = operation.world.resolverRegistry.fieldChecker(key.field) ?: return true
+        val fragments = checker.instantiateFragmentsAt(resolverApplicationCache.root, path + key)
+        return result.conformsToSelectionsAt(operation, fragments.objectFragment.constructionSelections, path)
+    }
+
     private fun EngineResult?.engineResultIsClosedUnderResolverDemand(
         path: List<PathComponent>,
         source: ResolverOutputData?,
@@ -188,7 +175,7 @@ private class ResolverDemandValidationLogic(
                 reference = reference,
                 publicationRoot = resolverApplicationCache.root,
                 publicationPath = path,
-                validationDemand = completedOutputDemand(),
+                validationDemand = resolverApplicationCache.completedOutputDemand(this),
             )?.let { application ->
                 engineResultIsClosedUnderResolverDemand(
                     path = path,

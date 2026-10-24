@@ -1,0 +1,305 @@
+diff --git a/projects/viaduct/oss/core/engine/runtime2/src/support/kotlin/viaduct/engine/runtime2/correctresolution/ConformsToResolvers.kt b/projects/viaduct/oss/core/engine/runtime2/src/support/kotlin/viaduct/engine/runtime2/correctresolution/ConformsToResolvers.kt
+index a19630c6708a09..d29e8616f3a61a 100644
+--- a/projects/viaduct/oss/core/engine/runtime2/src/support/kotlin/viaduct/engine/runtime2/correctresolution/ConformsToResolvers.kt
++++ b/projects/viaduct/oss/core/engine/runtime2/src/support/kotlin/viaduct/engine/runtime2/correctresolution/ConformsToResolvers.kt
+@@ -51,11 +51,20 @@ internal fun ObjectEngineResult.conformsToResolvers(
+     resolverApplicationCache: ResolverApplicationCache,
+ ): Boolean = ResolverConformanceLogic(operation, resolverApplicationCache).conforms(this)
+
++internal fun ObjectEngineResult.conformsToResolversAndDemand(
++    operation: SharedOperationContext<*>,
++    resolverApplicationCache: ResolverApplicationCache,
++): Boolean = ResolverConformanceLogic(operation, resolverApplicationCache, validateDemand = true).conforms(this)
++
+ /** Checks resolver conformance for one result using its operation and existing replay cache. */
+ private class ResolverConformanceLogic(
+     private val operation: SharedOperationContext<*>,
+     private val resolverApplicationCache: ResolverApplicationCache,
++    validateDemand: Boolean = false,
+ ) {
++    private val demandValidation =
++        if (validateDemand) ResolverDemandValidationLogic(operation, resolverApplicationCache) else null
++
+     fun conforms(result: ObjectEngineResult): Boolean =
+         result.objectConformsToResolvers(
+             path = emptyList(),
+@@ -69,14 +78,16 @@ private class ResolverConformanceLogic(
+         source: EngineObjectData.Sync?,
+         structuralParent: ObjectEngineResult?,
+         producerField: ViaductSchema.ObjectField?,
+-    ): Boolean =
+-        keys.all { key ->
++    ): Boolean {
++        if (demandValidation?.typeCheckerDemandIsClosed(this, path) == false) return false
++        return keys.all { key ->
+             if (!getCell(key).value.isCompleted) return@all true
+             if (!key.isContextuallyGrounded(operation)) return@all false
+             val value = getCell(key).value.get()
+             val arguments = key.groundedArguments(operation)
+             val fieldName = key.field.name
+             source.requireArgumentlessField(key)
++            if (demandValidation?.fieldCheckerDemandIsClosed(this, key, arguments, path) == false) return@all false
+             when {
+                 key is ObjectEngineResult.ParentKey ->
+                     value === structuralParent &&
+@@ -100,16 +111,17 @@ private class ResolverConformanceLogic(
+                         )
+
+                 key.field in operation.world.resolverRegistry ->
+-                    reapplyResolver(operation, resolverApplicationCache, key, path)
+-                        ?.let { application ->
+-                            value.engineResultConformsToResolverValue(
+-                                resolverValue = application.output,
+-                                expectedType = key.field.outputType,
+-                                path = path + key,
+-                                structuralParent = this,
+-                                producerField = key.field,
+-                            )
+-                        } == true
++                    demandValidation?.resolverDemandIsClosed(this, key, path) != false &&
++                        reapplyResolver(operation, resolverApplicationCache, key, path)
++                            ?.let { application ->
++                                value.engineResultConformsToResolverValue(
++                                    resolverValue = application.output,
++                                    expectedType = key.field.outputType,
++                                    path = path + key,
++                                    structuralParent = this,
++                                    producerField = key.field,
++                                )
++                            } == true
+
+                 source == null ->
+                     value.engineResultConformsToResolvers(
+@@ -121,6 +133,7 @@ private class ResolverConformanceLogic(
+                 else -> false
+             }
+         }
++    }
+
+     private fun ObjectEngineResult.errorArgumentQueryFragmentConforms(
+         key: ObjectEngineResult.ObjectKey,
+diff --git a/projects/viaduct/oss/core/engine/runtime2/src/support/kotlin/viaduct/engine/runtime2/correctresolution/CorrectResolution.kt b/projects/viaduct/oss/core/engine/runtime2/src/support/kotlin/viaduct/engine/runtime2/correctresolution/CorrectResolution.kt
+index d5981603c6b4cb..1e564863906b8a 100644
+--- a/projects/viaduct/oss/core/engine/runtime2/src/support/kotlin/viaduct/engine/runtime2/correctresolution/CorrectResolution.kt
++++ b/projects/viaduct/oss/core/engine/runtime2/src/support/kotlin/viaduct/engine/runtime2/correctresolution/CorrectResolution.kt
+@@ -94,7 +94,5 @@ internal fun ObjectEngineResult.correctResolution(
+                         typeCheckDemanded = true,
+                     )
+             )
+-    return structurallyValid &&
+-        isClosedUnderResolverDemand(operation, resolverApplicationCache) &&
+-        conformsToResolvers(operation, resolverApplicationCache)
++    return structurallyValid && conformsToResolversAndDemand(operation, resolverApplicationCache)
+ }
+diff --git a/projects/viaduct/oss/core/engine/runtime2/src/support/kotlin/viaduct/engine/runtime2/correctresolution/IsClosedUnderResolverDemand.kt b/projects/viaduct/oss/core/engine/runtime2/src/support/kotlin/viaduct/engine/runtime2/correctresolution/IsClosedUnderResolverDemand.kt
+index 51c729d7a3a43f..8fd82f7a40df91 100644
+--- a/projects/viaduct/oss/core/engine/runtime2/src/support/kotlin/viaduct/engine/runtime2/correctresolution/IsClosedUnderResolverDemand.kt
++++ b/projects/viaduct/oss/core/engine/runtime2/src/support/kotlin/viaduct/engine/runtime2/correctresolution/IsClosedUnderResolverDemand.kt
+@@ -40,7 +40,7 @@ internal fun ObjectEngineResult.isClosedUnderResolverDemand(
+ ): Boolean = ResolverDemandValidationLogic(operation, resolverApplicationCache).isClosed(this)
+
+ /** Checks resolver demand for one result using its operation and existing replay cache. */
+-private class ResolverDemandValidationLogic(
++internal class ResolverDemandValidationLogic(
+     private val operation: SharedOperationContext<*>,
+     private val resolverApplicationCache: ResolverApplicationCache,
+ ) {
+@@ -60,11 +60,7 @@ private class ResolverDemandValidationLogic(
+     ): Boolean {
+         val registry = operation.world.resolverRegistry
+
+-        val typeChecker = registry.typeChecker(type)
+-        if (typeCheckerResult.get() != null && typeChecker != null) {
+-            val fragments = typeChecker.instantiateFragmentsAt(resolverApplicationCache.root, path)
+-            if (!conformsToSelectionsAt(operation, fragments.objectFragment.constructionSelections, path)) return false
+-        }
++        if (!typeCheckerDemandIsClosed(this, path)) return false
+
+         return keys.all { key ->
+             if (!getCell(key).value.isCompleted) return@all true
+@@ -86,65 +82,10 @@ private class ResolverDemandValidationLogic(
+                             ?.fieldValues
+                             ?.isEmpty() == true
+                     key.field !in registry -> source == null
+-                    else ->
+-                        registry
+-                            .resolver(key.field)
+-                            .let { resolver ->
+-                                val coordinate = path + key
+-                                val instantiatedSelections =
+-                                    resolver
+-                                        .instantiateFragmentsAt(
+-                                            resolverApplicationCache.root,
+-                                            coordinate,
+-                                        ).objectFragment
+-                                        .constructionSelections
+-                                if (
+-                                    instantiatedSelections.usedVariables().all { variable ->
+-                                        operation.variableBindings.isBound(variable.instanceId!!)
+-                                    }
+-                                ) {
+-                                    conformsToSelectionsAt(
+-                                        operation,
+-                                        selections = instantiatedSelections,
+-                                        path = path,
+-                                    )
+-                                } else {
+-                                    val instantiatedFragment =
+-                                        resolver.objectFragmentAt(
+-                                            operation,
+-                                            resolverApplicationCache.root,
+-                                            coordinate,
+-                                        )
+-                                    conformsToSelectionsAt(
+-                                        operation,
+-                                        instantiatedFragment,
+-                                        path,
+-                                    )
+-                                }
+-                            }
+-                }
+-            val fieldCheckerDemandIsClosed =
+-                when {
+-                    key is ObjectEngineResult.ParentKey -> true
+-                    argumentsContainError -> true
+-                    getCell(key).fieldCheckerResult.get() == null -> true
+-                    else ->
+-                        registry.fieldChecker(key.field)?.let { checker ->
+-                            val coordinate = path + key
+-                            val fragments =
+-                                checker.instantiateFragmentsAt(
+-                                    resolverApplicationCache.root,
+-                                    coordinate,
+-                                )
+-                            conformsToSelectionsAt(
+-                                operation = operation,
+-                                selections = fragments.objectFragment.constructionSelections,
+-                                path = path,
+-                            )
+-                        } ?: true
++                    else -> resolverDemandIsClosed(this, key, path)
+                 }
+
+-            fieldResolverDemandIsClosed && fieldCheckerDemandIsClosed &&
++            fieldResolverDemandIsClosed && fieldCheckerDemandIsClosed(this, key, arguments, path) &&
+                 when {
+                     key is ObjectEngineResult.ParentKey -> true
+                     argumentsContainError -> true
+@@ -175,6 +116,52 @@ private class ResolverDemandValidationLogic(
+         }
+     }
+
++    fun typeCheckerDemandIsClosed(
++        result: ObjectEngineResult,
++        path: List<PathComponent>,
++    ): Boolean {
++        val checker = operation.world.resolverRegistry.typeChecker(result.type)
++        if (result.typeCheckerResult.get() == null || checker == null) return true
++        val fragments = checker.instantiateFragmentsAt(resolverApplicationCache.root, path)
++        return result.conformsToSelectionsAt(operation, fragments.objectFragment.constructionSelections, path)
++    }
++
++    fun resolverDemandIsClosed(
++        result: ObjectEngineResult,
++        key: ObjectEngineResult.ObjectKey,
++        path: List<PathComponent>,
++    ): Boolean {
++        val resolver = operation.world.resolverRegistry.resolver(key.field)
++        val coordinate = path + key
++        val selections = resolver.instantiateFragmentsAt(resolverApplicationCache.root, coordinate)
++            .objectFragment.constructionSelections
++        return if (selections.usedVariables().all { operation.variableBindings.isBound(it.instanceId!!) }) {
++            result.conformsToSelectionsAt(operation, selections, path)
++        } else {
++            result.conformsToSelectionsAt(
++                operation,
++                resolver.objectFragmentAt(operation, resolverApplicationCache.root, coordinate),
++                path,
++            )
++        }
++    }
++
++    fun fieldCheckerDemandIsClosed(
++        result: ObjectEngineResult,
++        key: ObjectEngineResult.ObjectKey,
++        arguments: Arguments.Ground,
++        path: List<PathComponent>,
++    ): Boolean {
++        if (key is ObjectEngineResult.ParentKey || arguments.argumentsContainErrorValue() ||
++            result.getCell(key).fieldCheckerResult.get() == null
++        ) {
++            return true
++        }
++        val checker = operation.world.resolverRegistry.fieldChecker(key.field) ?: return true
++        val fragments = checker.instantiateFragmentsAt(resolverApplicationCache.root, path + key)
++        return result.conformsToSelectionsAt(operation, fragments.objectFragment.constructionSelections, path)
++    }
++
+     private fun EngineResult?.engineResultIsClosedUnderResolverDemand(
+         path: List<PathComponent>,
+         source: ResolverOutputData?,
+diff --git a/projects/viaduct/oss/core/engine/runtime2/src/test/kotlin/viaduct/engine/runtime2/correctresolution/CorrectResolutionTest.kt b/projects/viaduct/oss/core/engine/runtime2/src/test/kotlin/viaduct/engine/runtime2/correctresolution/CorrectResolutionTest.kt
+index a17aa18ffe2989..3267fe2796a586 100644
+--- a/projects/viaduct/oss/core/engine/runtime2/src/test/kotlin/viaduct/engine/runtime2/correctresolution/CorrectResolutionTest.kt
++++ b/projects/viaduct/oss/core/engine/runtime2/src/test/kotlin/viaduct/engine/runtime2/correctresolution/CorrectResolutionTest.kt
+@@ -57,6 +57,60 @@ import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
+ import viaduct.graphql.schema.ViaductSchema
+
+ class CorrectResolutionTest : ResolutionDispatcherResource {
++    @Test
++    fun `fused demand and value validation rejects independent nested list mutations`() {
++        val fixture = TestWorld.fromSDL(
++            "type Query { items: [[Item]] } type Item { source: Int computed: Int }",
++            fieldResolvers = { schemas ->
++                val schema = schemas.loweredSchema
++                mapOf(
++                    schema.requireObjectField("Query", "items") to
++                        fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
++                            listOf(
++                                listOf(
++                                    schema.objectOf("Item") { "source" setTo 7 },
++                                    schema.objectOf("Item") { "source" setTo 9 },
++                                ),
++                                null,
++                            )
++                        },
++                    schema.requireObjectField("Item", "computed") to
++                        fieldResolverOf(schemas.fragmentFrom("fragment Input on Item { source }")) { input, _ ->
++                            (input.get("source") as Int) + 1
++                        },
++                )
++            },
++        )
++        val world = fixture.assumptions
++        val nestedListType = requireNotNull(world.schema.requireObjectField("Query", "items").outputType.unwrapList())
++        val itemType = requireNotNull(nestedListType.unwrapList())
++        val selections = fixture.schemas.fragmentFrom("fragment Result on Query { items { computed } }")
++
++        listOf("valid", "missing input", "wrong computed", "wrong source", "wrong list size").forEach { mutation ->
++            val first = world.engineResultOf("Item") {
++                if (mutation != "missing input") "source" resolvesTo if (mutation == "wrong source") 8 else 7
++                "computed" resolvesTo if (mutation == "wrong computed") 9 else 8
++            }
++            val second = world.engineResultOf("Item") {
++                "source" resolvesTo 9
++                "computed" resolvesTo 10
++            }
++            val inner = ListEngineResult.of(itemType, if (mutation == "wrong list size") listOf(first) else listOf(first, second))
++            val result = world.engineResultOf("Query") {
++                "items" resolvesTo ListEngineResult.of(nestedListType, listOf(inner, null))
++            }
++            val operation = SharedOperationContext.create(world)
++            val cache = operation.resolverApplicationCache(result)
++            val separate = result.isClosedUnderResolverDemand(operation, cache) && result.conformsToResolvers(operation, cache)
++            val fused = result.conformsToResolversAndDemand(operation, operation.resolverApplicationCache(result))
++            val expected = mutation == "valid"
++
++            assertEquals(expected, separate, mutation)
++            assertEquals(expected, fused, mutation)
++            assertEquals(expected, result.correctResolution(operation, selections), mutation)
++        }
++    }
++
+     @Test
+     fun `application identities reuse validated references without replaying relations again`() {
+         var applications = 0

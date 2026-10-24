@@ -1,0 +1,137 @@
+{
+  "commands": [
+    {
+      "variant": "before",
+      "command": [
+        "/opt/mise/installs/java/corretto-17.0.11.9.1/bin/java",
+        "-Dfile.encoding=UTF-8",
+        "-Duser.country",
+        "-Duser.language=en",
+        "-Duser.variant",
+        "-jar",
+        "/tmp/runtime2-validation-four-20261024/runblocking.jar",
+        "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest",
+        "-p",
+        "loopCount=1",
+        "-wi",
+        "5",
+        "-i",
+        "8",
+        "-f",
+        "3",
+        "-foe",
+        "true",
+        "-rf",
+        "json",
+        "-rff",
+        "/tmp/runtime2-validation-four-20261024/generated-hash-before.json"
+      ],
+      "jar_sha256": "7e461d95533eede12d41bedb8bbcb0c441f1a6114ab74e98216c5a7600e8f836"
+    },
+    {
+      "variant": "after",
+      "command": [
+        "/opt/mise/installs/java/corretto-17.0.11.9.1/bin/java",
+        "-Dfile.encoding=UTF-8",
+        "-Duser.country",
+        "-Duser.language=en",
+        "-Duser.variant",
+        "-jar",
+        "/tmp/runtime2-validation-four-20261024/generated-hash.jar",
+        "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest",
+        "-p",
+        "loopCount=1",
+        "-wi",
+        "5",
+        "-i",
+        "8",
+        "-f",
+        "3",
+        "-foe",
+        "true",
+        "-rf",
+        "json",
+        "-rff",
+        "/tmp/runtime2-validation-four-20261024/generated-hash-after.json"
+      ],
+      "jar_sha256": "766e5033c923c9b72823d7a467c29ad732a93d823606467c35c45876126ae296"
+    }
+  ],
+  "scores": {
+    "before": {
+      "score": 0.5404920381249999,
+      "error": 0.01264730994917265,
+      "unit": "s/op",
+      "raw": [
+        [
+          0.553089792,
+          0.564563534,
+          0.565531899,
+          0.550980754,
+          0.521696986,
+          0.512806658,
+          0.522741168,
+          0.529506429
+        ],
+        [
+          0.527614303,
+          0.524197251,
+          0.532598828,
+          0.540122789,
+          0.560327345,
+          0.558358837,
+          0.55689262,
+          0.534701029
+        ],
+        [
+          0.525201179,
+          0.517754077,
+          0.53238131,
+          0.543252853,
+          0.558017363,
+          0.558285209,
+          0.55137564,
+          0.529811062
+        ]
+      ]
+    },
+    "after": {
+      "score": 0.5139883800833334,
+      "error": 0.022129472096807188,
+      "unit": "s/op",
+      "raw": [
+        [
+          0.491772968,
+          0.493836,
+          0.527834406,
+          0.529799573,
+          0.554260107,
+          0.494297199,
+          0.48297171,
+          0.48880343
+        ],
+        [
+          0.530856272,
+          0.522368936,
+          0.497406604,
+          0.496408568,
+          0.493918849,
+          0.517046975,
+          0.522815169,
+          0.514195594
+        ],
+        [
+          0.487490379,
+          0.495483247,
+          0.522117803,
+          0.5366909,
+          0.616441893,
+          0.493496217,
+          0.520493116,
+          0.504915207
+        ]
+      ]
+    }
+  },
+  "reduction_percent": 4.903616736633043
+}

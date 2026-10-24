@@ -1,0 +1,1799 @@
+qplan.PropertyTestPhase {
+  startTime = 20:21:32.289 (2026-10-24)
+  duration = 68.2 ms
+  phase = "request preparation"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:32.358 (2026-10-24)
+  duration = 737 ms
+  phase = "Resolution"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:33.095 (2026-10-24)
+  duration = 0.0110 ms
+  phase = "witness snapshot"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:33.095 (2026-10-24)
+  duration = 473 ms
+  phase = "application identity oracle"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:33.568 (2026-10-24)
+  duration = 251 ms
+  phase = "correctResolution"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:33.819 (2026-10-24)
+  duration = 29.1 ms
+  phase = "from-field binding oracle"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:33.849 (2026-10-24)
+  duration = 27.8 ms
+  phase = "request preparation"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:33.876 (2026-10-24)
+  duration = 271 ms
+  phase = "Resolution"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:34.147 (2026-10-24)
+  duration = 0.0121 ms
+  phase = "witness snapshot"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:34.147 (2026-10-24)
+  duration = 286 ms
+  phase = "application identity oracle"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:34.433 (2026-10-24)
+  duration = 237 ms
+  phase = "correctResolution"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:34.670 (2026-10-24)
+  duration = 26.8 ms
+  phase = "from-field binding oracle"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:34.697 (2026-10-24)
+  duration = 6.49 ms
+  phase = "request preparation"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:34.704 (2026-10-24)
+  duration = 269 ms
+  phase = "Resolution"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:34.972 (2026-10-24)
+  duration = 0.0128 ms
+  phase = "witness snapshot"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:34.973 (2026-10-24)
+  duration = 318 ms
+  phase = "application identity oracle"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:35.291 (2026-10-24)
+  duration = 261 ms
+  phase = "correctResolution"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:35.552 (2026-10-24)
+  duration = 26.1 ms
+  phase = "from-field binding oracle"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:35.578 (2026-10-24)
+  duration = 5.94 ms
+  phase = "request preparation"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:35.584 (2026-10-24)
+  duration = 254 ms
+  phase = "Resolution"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:35.838 (2026-10-24)
+  duration = 0.0120 ms
+  phase = "witness snapshot"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:35.838 (2026-10-24)
+  duration = 330 ms
+  phase = "application identity oracle"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:36.168 (2026-10-24)
+  duration = 241 ms
+  phase = "correctResolution"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:36.409 (2026-10-24)
+  duration = 26.1 ms
+  phase = "from-field binding oracle"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:36.435 (2026-10-24)
+  duration = 4.64 ms
+  phase = "request preparation"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:36.440 (2026-10-24)
+  duration = 254 ms
+  phase = "Resolution"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:36.694 (2026-10-24)
+  duration = 0.0132 ms
+  phase = "witness snapshot"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:36.694 (2026-10-24)
+  duration = 313 ms
+  phase = "application identity oracle"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:37.006 (2026-10-24)
+  duration = 234 ms
+  phase = "correctResolution"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:37.240 (2026-10-24)
+  duration = 26.2 ms
+  phase = "from-field binding oracle"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:37.266 (2026-10-24)
+  duration = 4.32 ms
+  phase = "request preparation"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:37.271 (2026-10-24)
+  duration = 268 ms
+  phase = "Resolution"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:37.539 (2026-10-24)
+  duration = 0.0115 ms
+  phase = "witness snapshot"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:37.539 (2026-10-24)
+  duration = 282 ms
+  phase = "application identity oracle"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:37.821 (2026-10-24)
+  duration = 234 ms
+  phase = "correctResolution"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:38.056 (2026-10-24)
+  duration = 26.8 ms
+  phase = "from-field binding oracle"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:38.083 (2026-10-24)
+  duration = 4.40 ms
+  phase = "request preparation"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:38.087 (2026-10-24)
+  duration = 278 ms
+  phase = "Resolution"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:38.365 (2026-10-24)
+  duration = 0.0129 ms
+  phase = "witness snapshot"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:38.365 (2026-10-24)
+  duration = 321 ms
+  phase = "application identity oracle"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:38.686 (2026-10-24)
+  duration = 263 ms
+  phase = "correctResolution"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:38.949 (2026-10-24)
+  duration = 26.6 ms
+  phase = "from-field binding oracle"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:38.976 (2026-10-24)
+  duration = 4.61 ms
+  phase = "request preparation"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:38.980 (2026-10-24)
+  duration = 258 ms
+  phase = "Resolution"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:39.238 (2026-10-24)
+  duration = 0.0117 ms
+  phase = "witness snapshot"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:39.238 (2026-10-24)
+  duration = 330 ms
+  phase = "application identity oracle"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:39.569 (2026-10-24)
+  duration = 253 ms
+  phase = "correctResolution"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:39.822 (2026-10-24)
+  duration = 26.0 ms
+  phase = "from-field binding oracle"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:39.848 (2026-10-24)
+  duration = 3.84 ms
+  phase = "request preparation"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:39.852 (2026-10-24)
+  duration = 253 ms
+  phase = "Resolution"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:40.105 (2026-10-24)
+  duration = 0.0117 ms
+  phase = "witness snapshot"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:40.105 (2026-10-24)
+  duration = 323 ms
+  phase = "application identity oracle"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:40.428 (2026-10-24)
+  duration = 232 ms
+  phase = "correctResolution"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:40.661 (2026-10-24)
+  duration = 26.1 ms
+  phase = "from-field binding oracle"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:40.687 (2026-10-24)
+  duration = 3.82 ms
+  phase = "request preparation"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:40.691 (2026-10-24)
+  duration = 254 ms
+  phase = "Resolution"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:40.945 (2026-10-24)
+  duration = 0.0121 ms
+  phase = "witness snapshot"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:40.945 (2026-10-24)
+  duration = 292 ms
+  phase = "application identity oracle"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:41.237 (2026-10-24)
+  duration = 231 ms
+  phase = "correctResolution"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:41.468 (2026-10-24)
+  duration = 26.0 ms
+  phase = "from-field binding oracle"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:41.494 (2026-10-24)
+  duration = 3.79 ms
+  phase = "request preparation"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:41.498 (2026-10-24)
+  duration = 258 ms
+  phase = "Resolution"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:41.756 (2026-10-24)
+  duration = 0.0110 ms
+  phase = "witness snapshot"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:41.756 (2026-10-24)
+  duration = 306 ms
+  phase = "application identity oracle"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:42.061 (2026-10-24)
+  duration = 259 ms
+  phase = "correctResolution"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:42.321 (2026-10-24)
+  duration = 31.0 ms
+  phase = "from-field binding oracle"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:42.352 (2026-10-24)
+  duration = 3.87 ms
+  phase = "request preparation"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:42.356 (2026-10-24)
+  duration = 260 ms
+  phase = "Resolution"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:42.616 (2026-10-24)
+  duration = 0.0126 ms
+  phase = "witness snapshot"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:42.616 (2026-10-24)
+  duration = 347 ms
+  phase = "application identity oracle"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:42.963 (2026-10-24)
+  duration = 279 ms
+  phase = "correctResolution"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:43.241 (2026-10-24)
+  duration = 27.4 ms
+  phase = "from-field binding oracle"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:43.269 (2026-10-24)
+  duration = 5.89 ms
+  phase = "request preparation"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:43.275 (2026-10-24)
+  duration = 275 ms
+  phase = "Resolution"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:43.550 (2026-10-24)
+  duration = 0.0115 ms
+  phase = "witness snapshot"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:43.550 (2026-10-24)
+  duration = 342 ms
+  phase = "application identity oracle"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:43.892 (2026-10-24)
+  duration = 235 ms
+  phase = "correctResolution"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:44.127 (2026-10-24)
+  duration = 26.2 ms
+  phase = "from-field binding oracle"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:44.153 (2026-10-24)
+  duration = 4.32 ms
+  phase = "request preparation"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:44.158 (2026-10-24)
+  duration = 256 ms
+  phase = "Resolution"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:44.414 (2026-10-24)
+  duration = 0.0119 ms
+  phase = "witness snapshot"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:44.414 (2026-10-24)
+  duration = 314 ms
+  phase = "application identity oracle"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:44.728 (2026-10-24)
+  duration = 235 ms
+  phase = "correctResolution"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:44.963 (2026-10-24)
+  duration = 27.3 ms
+  phase = "from-field binding oracle"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:44.990 (2026-10-24)
+  duration = 3.87 ms
+  phase = "request preparation"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:44.994 (2026-10-24)
+  duration = 275 ms
+  phase = "Resolution"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:45.269 (2026-10-24)
+  duration = 0.0119 ms
+  phase = "witness snapshot"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:45.269 (2026-10-24)
+  duration = 296 ms
+  phase = "application identity oracle"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:45.565 (2026-10-24)
+  duration = 252 ms
+  phase = "correctResolution"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:45.817 (2026-10-24)
+  duration = 29.7 ms
+  phase = "from-field binding oracle"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:45.847 (2026-10-24)
+  duration = 4.43 ms
+  phase = "request preparation"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:45.852 (2026-10-24)
+  duration = 273 ms
+  phase = "Resolution"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:46.125 (2026-10-24)
+  duration = 0.0130 ms
+  phase = "witness snapshot"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:46.125 (2026-10-24)
+  duration = 320 ms
+  phase = "application identity oracle"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:46.444 (2026-10-24)
+  duration = 268 ms
+  phase = "correctResolution"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:46.712 (2026-10-24)
+  duration = 26.8 ms
+  phase = "from-field binding oracle"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:46.739 (2026-10-24)
+  duration = 3.74 ms
+  phase = "request preparation"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:46.743 (2026-10-24)
+  duration = 275 ms
+  phase = "Resolution"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:47.018 (2026-10-24)
+  duration = 0.0127 ms
+  phase = "witness snapshot"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:47.018 (2026-10-24)
+  duration = 336 ms
+  phase = "application identity oracle"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:47.354 (2026-10-24)
+  duration = 243 ms
+  phase = "correctResolution"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:47.597 (2026-10-24)
+  duration = 26.3 ms
+  phase = "from-field binding oracle"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:47.623 (2026-10-24)
+  duration = 3.67 ms
+  phase = "request preparation"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:47.627 (2026-10-24)
+  duration = 262 ms
+  phase = "Resolution"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:47.889 (2026-10-24)
+  duration = 0.0124 ms
+  phase = "witness snapshot"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:47.889 (2026-10-24)
+  duration = 327 ms
+  phase = "application identity oracle"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:48.216 (2026-10-24)
+  duration = 232 ms
+  phase = "correctResolution"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:48.448 (2026-10-24)
+  duration = 25.8 ms
+  phase = "from-field binding oracle"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:48.474 (2026-10-24)
+  duration = 3.59 ms
+  phase = "request preparation"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:48.477 (2026-10-24)
+  duration = 257 ms
+  phase = "Resolution"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:48.735 (2026-10-24)
+  duration = 0.0115 ms
+  phase = "witness snapshot"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:48.735 (2026-10-24)
+  duration = 277 ms
+  phase = "application identity oracle"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:49.012 (2026-10-24)
+  duration = 230 ms
+  phase = "correctResolution"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:49.242 (2026-10-24)
+  duration = 25.8 ms
+  phase = "from-field binding oracle"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:49.268 (2026-10-24)
+  duration = 3.62 ms
+  phase = "request preparation"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:49.272 (2026-10-24)
+  duration = 253 ms
+  phase = "Resolution"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:49.525 (2026-10-24)
+  duration = 0.0115 ms
+  phase = "witness snapshot"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:49.525 (2026-10-24)
+  duration = 305 ms
+  phase = "application identity oracle"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:49.831 (2026-10-24)
+  duration = 264 ms
+  phase = "correctResolution"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:50.094 (2026-10-24)
+  duration = 27.0 ms
+  phase = "from-field binding oracle"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:50.121 (2026-10-24)
+  duration = 3.70 ms
+  phase = "request preparation"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:50.125 (2026-10-24)
+  duration = 253 ms
+  phase = "Resolution"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:50.378 (2026-10-24)
+  duration = 0.0124 ms
+  phase = "witness snapshot"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:50.378 (2026-10-24)
+  duration = 327 ms
+  phase = "application identity oracle"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:50.705 (2026-10-24)
+  duration = 251 ms
+  phase = "correctResolution"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:50.956 (2026-10-24)
+  duration = 25.8 ms
+  phase = "from-field binding oracle"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:50.982 (2026-10-24)
+  duration = 3.68 ms
+  phase = "request preparation"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:50.986 (2026-10-24)
+  duration = 263 ms
+  phase = "Resolution"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:51.249 (2026-10-24)
+  duration = 0.0115 ms
+  phase = "witness snapshot"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:51.249 (2026-10-24)
+  duration = 325 ms
+  phase = "application identity oracle"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:51.574 (2026-10-24)
+  duration = 231 ms
+  phase = "correctResolution"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:51.805 (2026-10-24)
+  duration = 25.9 ms
+  phase = "from-field binding oracle"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:51.831 (2026-10-24)
+  duration = 3.80 ms
+  phase = "request preparation"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:51.835 (2026-10-24)
+  duration = 256 ms
+  phase = "Resolution"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:52.090 (2026-10-24)
+  duration = 0.0121 ms
+  phase = "witness snapshot"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:52.090 (2026-10-24)
+  duration = 286 ms
+  phase = "application identity oracle"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:52.376 (2026-10-24)
+  duration = 228 ms
+  phase = "correctResolution"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:52.605 (2026-10-24)
+  duration = 25.6 ms
+  phase = "from-field binding oracle"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:52.630 (2026-10-24)
+  duration = 3.80 ms
+  phase = "request preparation"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:52.634 (2026-10-24)
+  duration = 258 ms
+  phase = "Resolution"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:52.893 (2026-10-24)
+  duration = 0.0539 ms
+  phase = "witness snapshot"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:52.893 (2026-10-24)
+  duration = 299 ms
+  phase = "application identity oracle"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:53.192 (2026-10-24)
+  duration = 254 ms
+  phase = "correctResolution"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:53.446 (2026-10-24)
+  duration = 29.5 ms
+  phase = "from-field binding oracle"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:53.475 (2026-10-24)
+  duration = 3.78 ms
+  phase = "request preparation"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:53.479 (2026-10-24)
+  duration = 253 ms
+  phase = "Resolution"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:53.732 (2026-10-24)
+  duration = 0.0112 ms
+  phase = "witness snapshot"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:53.732 (2026-10-24)
+  duration = 324 ms
+  phase = "application identity oracle"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:54.056 (2026-10-24)
+  duration = 260 ms
+  phase = "correctResolution"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:54.316 (2026-10-24)
+  duration = 26.0 ms
+  phase = "from-field binding oracle"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:54.342 (2026-10-24)
+  duration = 3.72 ms
+  phase = "request preparation"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:54.346 (2026-10-24)
+  duration = 322 ms
+  phase = "Resolution"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:54.668 (2026-10-24)
+  duration = 0.0123 ms
+  phase = "witness snapshot"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:54.668 (2026-10-24)
+  duration = 326 ms
+  phase = "application identity oracle"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:54.994 (2026-10-24)
+  duration = 230 ms
+  phase = "correctResolution"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:55.224 (2026-10-24)
+  duration = 25.6 ms
+  phase = "from-field binding oracle"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:55.250 (2026-10-24)
+  duration = 3.75 ms
+  phase = "request preparation"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:55.253 (2026-10-24)
+  duration = 253 ms
+  phase = "Resolution"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:55.507 (2026-10-24)
+  duration = 0.0118 ms
+  phase = "witness snapshot"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:55.507 (2026-10-24)
+  duration = 307 ms
+  phase = "application identity oracle"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:55.814 (2026-10-24)
+  duration = 229 ms
+  phase = "correctResolution"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:56.043 (2026-10-24)
+  duration = 25.8 ms
+  phase = "from-field binding oracle"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:56.068 (2026-10-24)
+  duration = 3.55 ms
+  phase = "request preparation"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:56.072 (2026-10-24)
+  duration = 257 ms
+  phase = "Resolution"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:56.329 (2026-10-24)
+  duration = 0.0237 ms
+  phase = "witness snapshot"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:56.329 (2026-10-24)
+  duration = 281 ms
+  phase = "application identity oracle"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:56.610 (2026-10-24)
+  duration = 252 ms
+  phase = "correctResolution"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:56.863 (2026-10-24)
+  duration = 43.6 ms
+  phase = "from-field binding oracle"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:56.906 (2026-10-24)
+  duration = 6.56 ms
+  phase = "request preparation"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:56.913 (2026-10-24)
+  duration = 256 ms
+  phase = "Resolution"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:57.169 (2026-10-24)
+  duration = 0.0240 ms
+  phase = "witness snapshot"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:57.169 (2026-10-24)
+  duration = 315 ms
+  phase = "application identity oracle"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:57.484 (2026-10-24)
+  duration = 261 ms
+  phase = "correctResolution"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:57.744 (2026-10-24)
+  duration = 26.0 ms
+  phase = "from-field binding oracle"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:57.770 (2026-10-24)
+  duration = 3.64 ms
+  phase = "request preparation"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:57.774 (2026-10-24)
+  duration = 256 ms
+  phase = "Resolution"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:58.030 (2026-10-24)
+  duration = 0.0120 ms
+  phase = "witness snapshot"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:58.030 (2026-10-24)
+  duration = 327 ms
+  phase = "application identity oracle"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:58.356 (2026-10-24)
+  duration = 242 ms
+  phase = "correctResolution"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}
+
+qplan.PropertyTestPhase {
+  startTime = 20:21:58.598 (2026-10-24)
+  duration = 25.8 ms
+  phase = "from-field binding oracle"
+  eventThread = "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest-jmh-worker-1" (javaThreadId = 30)
+  stackTrace = [
+    ...
+  ]
+}

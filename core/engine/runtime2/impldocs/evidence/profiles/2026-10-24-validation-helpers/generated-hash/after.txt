@@ -1,0 +1,111 @@
+# JMH version: 1.36
+# VM version: JDK 17.0.11, OpenJDK 64-Bit Server VM, 17.0.11+9-LTS
+# VM invoker: /opt/mise/installs/java/corretto-17.0.11.9.1/bin/java
+# VM options: -Dfile.encoding=UTF-8 -Duser.country -Duser.language=en -Duser.variant
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 5 iterations, single-shot each
+# Measurement: 8 iterations, single-shot each
+# Timeout: 10 min per iteration
+# Threads: 1 thread
+# Benchmark mode: Single shot invocation time
+# Benchmark: viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest
+# Parameters: (loopCount = 1)
+
+# Run progress: 0.00% complete, ETA 00:00:00
+# Fork: 1 of 3
+# Warmup Iteration   1: 1.630 s/op
+# Warmup Iteration   2: 0.893 s/op
+# Warmup Iteration   3: 0.586 s/op
+# Warmup Iteration   4: 0.521 s/op
+# Warmup Iteration   5: 0.509 s/op
+Iteration   1: 0.492 s/op
+Iteration   2: 0.494 s/op
+Iteration   3: 0.528 s/op
+Iteration   4: 0.530 s/op
+Iteration   5: 0.554 s/op
+Iteration   6: 0.494 s/op
+Iteration   7: 0.483 s/op
+Iteration   8: 0.489 s/op
+
+# Run progress: 33.33% complete, ETA 00:00:19
+# Fork: 2 of 3
+# Warmup Iteration   1: 1.621 s/op
+# Warmup Iteration   2: 0.726 s/op
+# Warmup Iteration   3: 0.630 s/op
+# Warmup Iteration   4: 0.501 s/op
+# Warmup Iteration   5: 0.538 s/op
+Iteration   1: 0.531 s/op
+Iteration   2: 0.522 s/op
+Iteration   3: 0.497 s/op
+Iteration   4: 0.496 s/op
+Iteration   5: 0.494 s/op
+Iteration   6: 0.517 s/op
+Iteration   7: 0.523 s/op
+Iteration   8: 0.514 s/op
+
+# Run progress: 66.67% complete, ETA 00:00:09
+# Fork: 3 of 3
+# Warmup Iteration   1: 1.685 s/op
+# Warmup Iteration   2: 0.891 s/op
+# Warmup Iteration   3: 0.581 s/op
+# Warmup Iteration   4: 0.516 s/op
+# Warmup Iteration   5: 0.506 s/op
+Iteration   1: 0.487 s/op
+Iteration   2: 0.495 s/op
+Iteration   3: 0.522 s/op
+Iteration   4: 0.537 s/op
+Iteration   5: 0.616 s/op
+Iteration   6: 0.493 s/op
+Iteration   7: 0.520 s/op
+Iteration   8: 0.505 s/op
+
+
+Result "viaduct.engine.runtime2.resolution.PropertyTestBenchmark.propertyTest":
+  N = 24
+  mean =      0.514 ±(99.9%) 0.022 s/op
+
+  Histogram, s/op:
+    [0.400, 0.425) = 0
+    [0.425, 0.450) = 0
+    [0.450, 0.475) = 0
+    [0.475, 0.500) = 11
+    [0.500, 0.525) = 7
+    [0.525, 0.550) = 4
+    [0.550, 0.575) = 1
+    [0.575, 0.600) = 0
+    [0.600, 0.625) = 1
+    [0.625, 0.650) = 0
+    [0.650, 0.675) = 0
+    [0.675, 0.700) = 0
+
+  Percentiles, s/op:
+      p(0.0000) =      0.483 s/op
+     p(50.0000) =      0.510 s/op
+     p(90.0000) =      0.545 s/op
+     p(95.0000) =      0.601 s/op
+     p(99.0000) =      0.616 s/op
+     p(99.9000) =      0.616 s/op
+     p(99.9900) =      0.616 s/op
+     p(99.9990) =      0.616 s/op
+     p(99.9999) =      0.616 s/op
+    p(100.0000) =      0.616 s/op
+
+
+# Run complete. Total time: 00:00:29
+
+REMEMBER: The numbers below are just data. To gain reusable insights, you need to follow up on
+why the numbers are the way they are. Use profilers (see -prof, -lprof), design factorial
+experiments, perform baseline and negative tests that provide experimental control, make sure
+the benchmarking environment is safe on JVM/OS/HW level, ask for reviews from the domain experts.
+Do not assume the numbers tell you what you want them to tell.
+
+NOTE: Current JVM experimentally supports Compiler Blackholes, and they are in use. Please exercise
+extra caution when trusting the results, look into the generated code to check the benchmark still
+works, and factor in a small probability of new VM bugs. Additionally, while comparisons between
+different JVMs are already problematic, the performance difference caused by different Blackhole
+modes can be very significant. Please make sure you use the consistent Blackhole mode for comparisons.
+
+Benchmark                           (loopCount)  Mode  Cnt  Score   Error  Units
+PropertyTestBenchmark.propertyTest            1    ss   24  0.514 ± 0.022   s/op
+
+Benchmark result is saved to /tmp/runtime2-validation-four-20261024/generated-hash-after.json

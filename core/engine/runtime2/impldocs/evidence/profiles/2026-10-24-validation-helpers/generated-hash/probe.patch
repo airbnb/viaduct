@@ -1,0 +1,51 @@
+diff --git a/projects/viaduct/oss/core/engine/runtime2/src/jmh/kotlin/viaduct/engine/runtime2/benchmark/PropertyTestBenchmarkSupport.kt b/projects/viaduct/oss/core/engine/runtime2/src/jmh/kotlin/viaduct/engine/runtime2/benchmark/PropertyTestBenchmarkSupport.kt
+index 2e512b84ee6236..4bf0c136920b08 100644
+--- a/projects/viaduct/oss/core/engine/runtime2/src/jmh/kotlin/viaduct/engine/runtime2/benchmark/PropertyTestBenchmarkSupport.kt
++++ b/projects/viaduct/oss/core/engine/runtime2/src/jmh/kotlin/viaduct/engine/runtime2/benchmark/PropertyTestBenchmarkSupport.kt
+@@ -86,6 +86,7 @@ internal class PropertyTestBenchmarkSupport(
+             check(expectedResolverApplications > 0) {
+                 "Property-test benchmark trial was not prepared"
+             }
++            viaduct.engine.runtime2.arbitrary.GeneratedHashProbe.reset()
+             repeat(loopCount) {
+                 val preparationEvent =
+                     profilePhaseEvent(profilePhases, "request preparation")
+@@ -138,6 +139,7 @@ internal class PropertyTestBenchmarkSupport(
+                 }
+                 blackhole.consume(result)
+             }
++            viaduct.engine.runtime2.arbitrary.GeneratedHashProbe.report()
+             loopCount
+         }
+
+diff --git a/projects/viaduct/oss/core/engine/runtime2/src/support/kotlin/viaduct/engine/runtime2/arbitrary/RegistryGenerator.kt b/projects/viaduct/oss/core/engine/runtime2/src/support/kotlin/viaduct/engine/runtime2/arbitrary/RegistryGenerator.kt
+index d0bfc2a9a14283..1efa7ab920740d 100644
+--- a/projects/viaduct/oss/core/engine/runtime2/src/support/kotlin/viaduct/engine/runtime2/arbitrary/RegistryGenerator.kt
++++ b/projects/viaduct/oss/core/engine/runtime2/src/support/kotlin/viaduct/engine/runtime2/arbitrary/RegistryGenerator.kt
+@@ -4162,6 +4162,7 @@ internal data class GeneratedHashPlan(
+     ): EngineObjectData.Sync {
+         require(typeExpr.baseTypeDef.name == GENERATED_HASH_TYPE)
+         val rootHash = mixGeneratedHash(generatedHashSeed, salt)
++        GeneratedHashProbe.depths[depth(generatedHashSeed)] += 1
+         return generatedHashObject(
+             schema = schema,
+             hash = rootHash,
+@@ -4227,6 +4228,7 @@ private fun generatedHashObject(
+     remainingDepth: Int,
+ ): EngineObjectData.Sync =
+     schema.objectOf(GENERATED_HASH_TYPE) {
++        GeneratedHashProbe.nodes += 1
+         GENERATED_HASH_FIELD setTo hash
+         if (remainingDepth > 0) {
+             GENERATED_HASH_NESTED_FIELD setTo
+@@ -4249,3 +4251,10 @@ private fun stableGeneratedHash(vararg components: String): Int =
+             mixGeneratedHash(hash, character.code)
+         }
+     }
++
++internal object GeneratedHashProbe {
++    val depths = IntArray(5)
++    var nodes = 0
++    fun reset() { depths.fill(0); nodes = 0 }
++    fun report() { println("HASH_PROBE rootsByDepth=${depths.toList()} nodes=$nodes") }
++}

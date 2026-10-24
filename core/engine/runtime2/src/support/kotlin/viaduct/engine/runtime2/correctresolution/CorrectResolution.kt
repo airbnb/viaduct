@@ -3,6 +3,7 @@ package viaduct.engine.runtime2.correctresolution
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.ObjectSelectionForest
 import viaduct.engine.runtime2.model.requireQueryTypeDef
+import viaduct.engine.runtime2.resolution.framework.RootFieldReferenceInvocationObservation
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 
 /**
@@ -38,15 +39,34 @@ import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 fun ObjectEngineResult.correctResolution(
     operation: SharedOperationContext<*>,
     selections: ObjectSelectionForest,
-): Boolean {
-    val rootFieldReferenceWitness = operation.rootFieldReferenceWitness(this)
-    return correctResolution(
-        operation,
-        selections,
-        rootFieldReferenceWitness,
-        QueryOERValidationState(),
-    ) &&
-        rootFieldReferenceWitness.isComplete()
+): Boolean = ValidatedResolution.create(this, operation, selections) != null
+
+internal class ValidatedResolution private constructor(
+    private val result: ObjectEngineResult,
+    private val operation: SharedOperationContext<*>,
+    private val references: List<RootFieldReferenceInvocationObservation>,
+) {
+    fun referenceInvocationsFor(
+        result: ObjectEngineResult?,
+        operation: SharedOperationContext<*>,
+    ): List<RootFieldReferenceInvocationObservation> {
+        require(this.result === result && this.operation === operation) {
+            "Resolution validation belongs to a different result or operation"
+        }
+        return references
+    }
+
+    companion object {
+        fun create(
+            result: ObjectEngineResult,
+            operation: SharedOperationContext<*>,
+            selections: ObjectSelectionForest,
+        ): ValidatedResolution? {
+            val witness = operation.rootFieldReferenceWitness(result)
+            if (!result.correctResolution(operation, selections, witness) || !witness.isComplete()) return null
+            return ValidatedResolution(result, operation, witness.validatedObservations())
+        }
+    }
 }
 
 internal fun ObjectEngineResult.correctResolution(
@@ -74,7 +94,5 @@ internal fun ObjectEngineResult.correctResolution(
                         typeCheckDemanded = true,
                     )
             )
-    return structurallyValid &&
-        isClosedUnderResolverDemand(operation, resolverApplicationCache) &&
-        conformsToResolvers(operation, resolverApplicationCache)
+    return structurallyValid && conformsToResolversAndDemand(operation, resolverApplicationCache)
 }

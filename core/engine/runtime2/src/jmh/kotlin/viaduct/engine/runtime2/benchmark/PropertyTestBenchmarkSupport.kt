@@ -12,7 +12,7 @@ import viaduct.engine.runtime2.arbitrary.ResolutionWitness
 import viaduct.engine.runtime2.arbitrary.ResolverBenchmarkCorpus
 import viaduct.engine.runtime2.contract.registeredResolverApplicationIdentityCounts
 import viaduct.engine.runtime2.contract.validateFromFieldBindings
-import viaduct.engine.runtime2.correctresolution.correctResolution
+import viaduct.engine.runtime2.correctresolution.ValidatedResolution
 import viaduct.engine.runtime2.model.Fragment
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.merge
@@ -116,19 +116,21 @@ internal class PropertyTestBenchmarkSupport(
                     "Expected $expectedResolverApplications resolver applications, " +
                         "observed ${witness.applications.size}"
                 }
+                val validation =
+                    profilePhase(profilePhases, "correctResolution") {
+                        checkNotNull(
+                            ValidatedResolution.create(
+                                result,
+                                operation,
+                                fragment.subselections
+                                    .merge(world.schema.requireQueryTypeDef())
+                                    .instantiateBindings(operation),
+                            ),
+                        )
+                    }
                 profilePhase(profilePhases, "application identity oracle") {
                     check(
-                        result.registeredResolverApplicationIdentityCounts(operation) == witness.applicationIdentityCounts(),
-                    )
-                }
-                profilePhase(profilePhases, "correctResolution") {
-                    check(
-                        result.correctResolution(
-                            operation,
-                            fragment.subselections
-                                .merge(world.schema.requireQueryTypeDef())
-                                .instantiateBindings(operation),
-                        ),
+                        result.registeredResolverApplicationIdentityCounts(operation, validation) == witness.applicationIdentityCounts(),
                     )
                 }
                 profilePhase(profilePhases, "from-field binding oracle") {

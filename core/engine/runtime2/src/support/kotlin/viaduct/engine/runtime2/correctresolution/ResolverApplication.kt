@@ -60,6 +60,9 @@ internal class ResolverApplicationCache(
     private val typeCheckerApplications = IdentityHashMap<ObjectEngineResult, CachedCheckerApplication>()
     private val rootFieldReferenceApplications =
         mutableMapOf<List<PathComponent>, CachedRootFieldReferenceApplication>()
+    private val outputDemands = IdentityHashMap<EngineResult, SelectionForest>()
+
+    fun completedOutputDemand(value: EngineResult?): SelectionForest = value.completedOutputDemand(outputDemands)
 
     fun getOrPut(
         result: ObjectEngineResult,
@@ -486,7 +489,7 @@ private class ResolverReplayLogic(
                         input = replayInputs.objectValue,
                         queryValue = replayInputs.queryValue,
                         arguments = resolverArguments,
-                        selections = getCell(key).value.get().completedOutputDemand(),
+                        selections = resolverApplicationCache.completedOutputDemand(getCell(key).value.get()),
                         selectiveResolvers = operation.world.selectiveResolvers,
                         executionContext = ResolutionExecutionContext.Unsupported,
                     )
@@ -695,31 +698,37 @@ private class ResolverReplayLogic(
  * different demands, so this demand is sufficient for completed-result correctness without adding
  * scheduler witnesses to the judgment.
  */
-internal fun EngineResult?.completedOutputDemand(): SelectionForest =
+internal fun EngineResult?.completedOutputDemand(): SelectionForest = completedOutputDemand(IdentityHashMap())
+
+private fun EngineResult?.completedOutputDemand(cache: MutableMap<EngineResult, SelectionForest>): SelectionForest =
     when (this) {
         is ObjectEngineResult ->
-            keys
-                .filter { key ->
-                    key !is ObjectEngineResult.ParentKey &&
-                        getCell(key).value.isCompleted
-                }
-                .map { key ->
-                    selectionForestOf(
-                        Selection.of(
-                            key = key,
-                            possibleTypes = setOf(type),
-                            subselections =
-                                getCell(key)
-                                    .value
-                                    .get()
-                                    .completedOutputDemand(),
-                        ),
-                    )
-                }.concatenateSelectionForests()
+            cache.getOrPut(this) {
+                keys
+                    .filter { key ->
+                        key !is ObjectEngineResult.ParentKey &&
+                            getCell(key).value.isCompleted
+                    }
+                    .map { key ->
+                        selectionForestOf(
+                            Selection.of(
+                                key = key,
+                                possibleTypes = setOf(type),
+                                subselections =
+                                    getCell(key)
+                                        .value
+                                        .get()
+                                        .completedOutputDemand(cache),
+                            ),
+                        )
+                    }.concatenateSelectionForests()
+            }
         is ListEngineResult ->
-            indices
-                .map { index -> get(index).value.get().completedOutputDemand() }
-                .concatenateSelectionForests()
+            cache.getOrPut(this) {
+                indices
+                    .map { index -> get(index).value.get().completedOutputDemand(cache) }
+                    .concatenateSelectionForests()
+            }
         else -> selectionForestOf()
     }
 

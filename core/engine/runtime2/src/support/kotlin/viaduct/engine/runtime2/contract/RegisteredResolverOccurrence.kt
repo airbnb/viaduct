@@ -86,10 +86,10 @@ private fun EngineResult?.visitRegisteredResolverOccurrences(
     canonicalOrder: Boolean,
     initialPath: List<PathComponent> = emptyList(),
     visitOccurrence: (RegisteredResolverOccurrence) -> Unit,
-) {
+) = runBlocking {
     var visitedNodes = 0
 
-    fun visit(
+    suspend fun visit(
         value: EngineResult?,
         path: List<PathComponent>,
     ) {
@@ -109,7 +109,7 @@ private fun EngineResult?.visitRegisteredResolverOccurrences(
                     }
                 keys.forEach { key ->
                     val cell = value.getCell(key)
-                    if (!runBlocking { cell.fetchActivated() }) return@forEach
+                    if (!cell.fetchActivated()) return@forEach
                     val fieldPath = path + key
                     require(key.isContextuallyGrounded(operation)) {
                         "Resolver occurrence key is not contextually grounded: $key"
@@ -141,7 +141,7 @@ private fun EngineResult?.visitRegisteredResolverOccurrences(
 
             is ListEngineResult ->
                 value.forEachIndexed { index, cell ->
-                    if (runBlocking { cell.fetchActivated() }) {
+                    if (cell.fetchActivated()) {
                         visit(cell.value.get(), path + ListEngineResult.Index.of(index))
                     }
                 }
@@ -150,7 +150,7 @@ private fun EngineResult?.visitRegisteredResolverOccurrences(
         }
     }
 
-    visit(this, initialPath)
+    visit(this@visitRegisteredResolverOccurrences, initialPath)
 }
 
 fun EngineResult?.registeredResolverOccurrenceCounts(
