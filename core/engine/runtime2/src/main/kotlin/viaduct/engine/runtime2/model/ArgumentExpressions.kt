@@ -11,13 +11,25 @@ import viaduct.graphql.schema.ViaductSchema
  */
 internal typealias ArgumentExpression = Any
 
-private data class ArgumentsImpl(
+private class ArgumentsImpl(
     val fieldValues: Map<String, ArgumentExpression?>,
-) : Arguments
+) : Arguments {
+    private val cachedHashCode: Int = fieldValues.hashCode()
 
-private data class ArgumentsTemplateImpl(
+    override fun equals(other: Any?): Boolean =
+        this === other ||
+            (other is ArgumentsImpl && fieldValues == other.fieldValues)
+
+    override fun hashCode(): Int = cachedHashCode
+
+    override fun toString(): String = "ArgumentsImpl(fieldValues=$fieldValues)"
+}
+
+private class ArgumentsTemplateImpl(
     val fieldValues: Map<String, ArgumentExpression?>,
 ) : Arguments.Template {
+    private val cachedHashCode: Int = fieldValues.hashCode()
+
     override fun instantiate(
         expectedField: ViaductSchema.Field,
         resolverOccurrenceId: ResolverOccurrenceId,
@@ -27,6 +39,14 @@ private data class ArgumentsTemplateImpl(
                 value.instantiateVariables(resolverOccurrenceId)
             },
         ).validatedAgainst(expectedField)
+
+    override fun equals(other: Any?): Boolean =
+        this === other ||
+            (other is ArgumentsTemplateImpl && fieldValues == other.fieldValues)
+
+    override fun hashCode(): Int = cachedHashCode
+
+    override fun toString(): String = "ArgumentsTemplateImpl(fieldValues=$fieldValues)"
 }
 
 internal fun argumentsOf(

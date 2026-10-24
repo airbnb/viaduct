@@ -26,19 +26,23 @@ class ObjectEngineResultKeyTest {
             )
         val precise = ObjectEngineResult.GroundKey.of(field, emptyMap())
 
+        assertSame(general, general.objectKey(user))
+        assertSame(precise, precise.objectKey(user))
         assertIs<ObjectEngineResult.GroundKey>(general)
         assertEquals(precise, general)
         assertSame(field, general.field)
     }
 
     @Test
-    fun `abstract fields construct plain keys`() {
+    fun `abstract fields construct plain keys that specialize to concrete fields`() {
         val schema = TestWorld.fromSDL(SCHEMA_SDL).schema
         val field = schema.requireField("Node", "id")
 
         val key = ObjectEngineResult.Key.of(field, emptyMap())
 
         assertFalse(key is ObjectEngineResult.GroundKey)
+        val user = schema.requireType("User") as ViaductSchema.Object
+        assertEquals(ObjectEngineResult.GroundKey.of(user.requireField("id"), emptyMap()), key.objectKey(user))
     }
 
     @Test
@@ -53,6 +57,7 @@ class ObjectEngineResultKeyTest {
                 arguments = Arguments.of(field, mapOf("id" to variable)),
             )
 
+        assertSame(key, key.objectKey(field.containingDef))
         assertIs<ObjectEngineResult.ObjectKey>(key)
         assertFalse(key is ObjectEngineResult.GroundKey)
         assertSame(field, key.field)

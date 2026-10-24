@@ -86,8 +86,7 @@ private class ClosureHelper(
         if (pending.isEmpty()) return
         val frontier = pending.combine()
         pending = mutableListOf()
-        val resolverKeys = frontier.newResolverKeyInclusions(world, occurrence, resolvers, expansion, requiresResolver)
-        val checkerKeys = frontier.newCheckerKeyInclusions(world, occurrence, checkers, expansion)
+        val (resolverKeys, checkerKeys) = frontier.newKeyInclusions(world, occurrence, resolvers, checkers, expansion, requiresResolver)
         resolverKeys.forEach { (key, condition) ->
             val context = resolvers.getValue(key)
             val template = requireNotNull(registry.precomputedConstructionDemand(key.field))

@@ -10,7 +10,6 @@ import viaduct.engine.runtime2.model.RootFieldReferenceDataCarrier
 import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.model.engineObjectDataOf
 import viaduct.engine.runtime2.model.merge
-import viaduct.engine.runtime2.model.objectKey
 import viaduct.engine.runtime2.model.outputType
 import viaduct.engine.runtime2.model.outputValue
 import viaduct.engine.runtime2.model.qplanSchemaTypeOrNull
@@ -71,32 +70,23 @@ internal fun EngineObjectData.Sync.snipToDemand(
     val schemaType = qplanSchemaTypeOrNull ?: schemaType(
         requireNotNull(declaredType as? ViaductSchema.CompositeTypeDef) { "Object projection requires a declared composite type" },
     )
-    val selectedFields =
-        demand
-            .merge(schemaType)
-            .filter { selection ->
-                val field = selection.objectKey(schemaType).field
-                if (!isPresent(field.name)) {
-                    false
-                } else {
-                    require(field.args.isEmpty()) {
-                        "Resolver output must not supply argument-bearing field " +
-                            "${schemaType.name}/${field.name}"
-                    }
-                    true
-                }
-            }
-            .byKey()
-            .map { (key, selection) ->
-                val concreteField = key.field
-                val arguments = key.arguments
-                require(arguments is Arguments.Resolved && arguments.fieldValues.isEmpty()) {
-                    "Passive object field ${schemaType.name}/${concreteField.name} " +
-                        "must be argumentless"
-                }
-                val value = outputValue(concreteField.name)
-                val selectedValue = value.snipToDemand(selection.subselections, concreteField.outputType)
-                EngineObjectDataEntry.of(concreteField.name, concreteField, selectedValue)
-            }
+    val merged = demand.merge(schemaType).byKey()
+    val selectedFields = ArrayList<EngineObjectDataEntry>(merged.size)
+    for ((key, selection) in merged) {
+        val concreteField = key.field
+        if (!isPresent(concreteField.name)) continue
+        require(concreteField.args.isEmpty()) {
+            "Resolver output must not supply argument-bearing field " +
+                "${schemaType.name}/${concreteField.name}"
+        }
+        val arguments = key.arguments
+        require(arguments is Arguments.Resolved && arguments.fieldValues.isEmpty()) {
+            "Passive object field ${schemaType.name}/${concreteField.name} " +
+                "must be argumentless"
+        }
+        val value = outputValue(concreteField.name)
+        val selectedValue = value.snipToDemand(selection.subselections, concreteField.outputType)
+        selectedFields += EngineObjectDataEntry.of(concreteField.name, concreteField, selectedValue)
+    }
     return engineObjectDataOf(schemaType, selectedFields)
 }

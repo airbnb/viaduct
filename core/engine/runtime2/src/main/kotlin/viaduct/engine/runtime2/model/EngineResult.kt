@@ -135,13 +135,23 @@ sealed interface ObjectEngineResult {
      *
      * A key's [field] is a [ViaductSchema.ObjectField] exactly when the key is an [ObjectKey].
      *
-     * Key equality is structural over [field] and [arguments], using canonical schema equality;
+     * Key equality compares [field] by schema-canonical identity (reference equality within
+     * the canonical schema) and [arguments] by structural value equality;
      * [MutationKey] also compares its response key.
      * Variable-instance identity is carried by variables recursively contained in [arguments].
      */
     sealed interface Key {
         val field: ViaductSchema.Field
         val arguments: Arguments
+
+        /** Specializes this key to concrete parent [type], to which the key must apply. */
+        fun objectKey(type: ViaductSchema.Object): ObjectKey {
+            val concreteField = type.requireField(field.name)
+            return ObjectKey.of(
+                field = concreteField,
+                arguments = arguments.retarget(concreteField),
+            )
+        }
 
         companion object {
             /**
@@ -202,6 +212,8 @@ sealed interface ObjectEngineResult {
     sealed interface ObjectKey : Key, PathComponent {
         override val field: ViaductSchema.ObjectField
         override val arguments: Arguments
+
+        override fun objectKey(type: ViaductSchema.Object): ObjectKey = this
 
         companion object {
             fun of(
@@ -1016,31 +1028,68 @@ private data class ListIndexImpl(
     override val index: Int,
 ) : ListEngineResult.Index
 
-private data class KeyImpl(
+private class KeyImpl(
     override val field: ViaductSchema.Field,
     override val arguments: Arguments,
-) : ObjectEngineResult.Key
+) : ObjectEngineResult.Key {
+    private val cachedHashCode: Int = 31 * field.hashCode() + arguments.hashCode()
 
-private data class ObjectKeyImpl(
+    override fun equals(other: Any?): Boolean =
+        this === other ||
+            (other is KeyImpl && field == other.field && arguments == other.arguments)
+
+    override fun hashCode(): Int = cachedHashCode
+
+    override fun toString(): String = "Key(field=${field.containingDef.name}.${field.name}, arguments=$arguments)"
+}
+
+private class ObjectKeyImpl(
     override val field: ViaductSchema.ObjectField,
     override val arguments: Arguments,
-) : ObjectEngineResult.ObjectKey
+) : ObjectEngineResult.ObjectKey {
+    private val cachedHashCode: Int = 31 * field.hashCode() + arguments.hashCode()
 
-private data class GroundKeyImpl(
+    override fun equals(other: Any?): Boolean =
+        this === other ||
+            (other is ObjectKeyImpl && field == other.field && arguments == other.arguments)
+
+    override fun hashCode(): Int = cachedHashCode
+
+    override fun toString(): String = "ObjectKey(field=${field.containingDef.name}.${field.name}, arguments=$arguments)"
+}
+
+private class GroundKeyImpl(
     override val field: ViaductSchema.ObjectField,
     override val arguments: Arguments.Ground,
-) : ObjectEngineResult.GroundKey
+) : ObjectEngineResult.GroundKey {
+    private val cachedHashCode: Int = 31 * field.hashCode() + arguments.hashCode()
 
-private data class ParentKeyImpl(
+    override fun equals(other: Any?): Boolean =
+        this === other ||
+            (other is GroundKeyImpl && field == other.field && arguments == other.arguments)
+
+    override fun hashCode(): Int = cachedHashCode
+
+    override fun toString(): String = "GroundKey(field=${field.containingDef.name}.${field.name}, arguments=$arguments)"
+}
+
+private class ParentKeyImpl(
     override val field: ViaductSchema.ObjectField,
 ) : ObjectEngineResult.ParentKey {
     override val arguments: Arguments.Resolved = argumentsOfGround(emptyMap())
+    private val cachedHashCode: Int = field.hashCode()
 
     init {
         require(field.isParentField()) {
             "Parent key field must carry @$PARENT_DIRECTIVE_NAME"
         }
     }
+
+    override fun equals(other: Any?): Boolean = this === other || (other is ParentKeyImpl && field == other.field)
+
+    override fun hashCode(): Int = cachedHashCode
+
+    override fun toString(): String = "ParentKey(field=${field.containingDef.name}.${field.name})"
 }
 
 private data class CompletedCell(
@@ -1266,11 +1315,21 @@ private fun EngineResult.isScalarResultMember(): Boolean =
     scalarResultTypeNameOrNull() != null ||
         this is ViaductSchema.EnumValue
 
-private data class MutationKeyImpl(
+private class MutationKeyImpl(
     override val field: ViaductSchema.ObjectField,
     override val arguments: Arguments.Ground,
     override val responseKey: String,
-) : ObjectEngineResult.MutationKey
+) : ObjectEngineResult.MutationKey {
+    private val cachedHashCode: Int = (31 * field.hashCode() + arguments.hashCode()) * 31 + responseKey.hashCode()
+
+    override fun equals(other: Any?): Boolean =
+        this === other ||
+            (other is MutationKeyImpl && field == other.field && arguments == other.arguments && responseKey == other.responseKey)
+
+    override fun hashCode(): Int = cachedHashCode
+
+    override fun toString(): String = "MutationKey(field=${field.containingDef.name}.${field.name}, arguments=$arguments, responseKey=$responseKey)"
+}
 
 /** Compares fields and arguments modulo occurrence-root identity, retaining mutation response keys. */
 internal fun ObjectEngineResult.ObjectKey.hasSameRootRelativeStructureAs(other: ObjectEngineResult.ObjectKey): Boolean =

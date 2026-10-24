@@ -10,7 +10,6 @@ import kotlin.test.assertTrue
 import kotlinx.coroutines.runBlocking
 import viaduct.engine.runtime2.model.Arguments
 import viaduct.engine.runtime2.model.merge
-import viaduct.engine.runtime2.model.objectKey
 import viaduct.engine.runtime2.model.registry.ResolutionExecutionContext
 import viaduct.engine.runtime2.model.requireField
 import viaduct.engine.runtime2.model.requireObjectField

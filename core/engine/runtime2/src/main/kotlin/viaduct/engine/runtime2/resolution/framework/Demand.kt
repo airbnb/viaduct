@@ -32,8 +32,7 @@ internal class Demand<out S : SelectionForest>(
     val typeCheckCondition: InclusionCondition = if (typeCheckDemanded) InclusionCondition.Always else InclusionCondition.Never,
 ) {
     /** All values that must be constructed, independent of how their consumers read them. */
-    val values: SelectionForest
-        get() = checked + unchecked
+    val values: SelectionForest = checked + unchecked
 
     companion object {
         /** No field or root-occurrence demand; the identity element for [plus]. */

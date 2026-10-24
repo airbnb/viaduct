@@ -155,9 +155,19 @@ sealed interface Arguments {
  */
 data object ArgumentResolutionError
 
-private data class ResolvedArgumentsImpl(
+private class ResolvedArgumentsImpl(
     override val fieldValues: EngineInputObjectData,
-) : Arguments.Resolved
+) : Arguments.Resolved {
+    private val cachedHashCode: Int = fieldValues.hashCode()
+
+    override fun equals(other: Any?): Boolean =
+        this === other ||
+            (other is ResolvedArgumentsImpl && fieldValues == other.fieldValues)
+
+    override fun hashCode(): Int = cachedHashCode
+
+    override fun toString(): String = "ResolvedArgumentsImpl(fieldValues=$fieldValues)"
+}
 
 private val emptyResolvedArguments = ResolvedArgumentsImpl(emptyMap())
 

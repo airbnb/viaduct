@@ -239,6 +239,73 @@ private fun OrchestrationConstructionDemand<SelectionForest>.withLiftedParentDem
     )
 
 /** Discover expansion events separately from collecting their fixed fragment contributions. */
+internal data class NewKeyInclusions(
+    val resolverKeys: List<Pair<ObjectEngineResult.ObjectKey, InclusionCondition>>,
+    val checkerKeys: List<Pair<ObjectEngineResult.ObjectKey, InclusionCondition>>,
+)
+
+internal fun Demand<SelectionForest>.newKeyInclusions(
+    world: Assumptions,
+    occurrence: OEROccurrence,
+    resolverContexts: MutableMap<ObjectEngineResult.ObjectKey, ResolverContext>,
+    checkerContexts: MutableMap<ObjectEngineResult.ObjectKey, CheckerContext>,
+    expansionState: SymbolicExpansionState,
+    requiresStandardResolution: (ObjectEngineResult.ObjectKey) -> Boolean,
+): NewKeyInclusions {
+    val resolverKeys = mutableListOf<Pair<ObjectEngineResult.ObjectKey, InclusionCondition>>()
+    val checkerKeys = mutableListOf<Pair<ObjectEngineResult.ObjectKey, InclusionCondition>>()
+    val type = occurrence.target.type
+
+    fun processResolverKey(
+        key: ObjectEngineResult.ObjectKey,
+        inclusion: InclusionCondition
+    ) {
+        if (key.field !in world.resolverRegistry || !requiresStandardResolution(key)) return
+        val resolverContext = resolverContexts.getOrPut(key) { createResolverContext(world, occurrence, key) }
+        if (key is ObjectEngineResult.GroundKey && key.arguments.argumentsContainErrorValue()) return
+        if (inclusion === InclusionCondition.Never || !resolverContext.accumulatedKeyInclusions.add(inclusion)) return
+        if (resolverContext.accumulatedKeyInclusions.size == 1) {
+            expansionState.register(occurrence.root, key, checker = false, resolverContext.variableDefinitions)
+        }
+        resolverKeys += key to inclusion
+    }
+
+    fun processCheckerKey(
+        key: ObjectEngineResult.ObjectKey,
+        inclusion: InclusionCondition
+    ) {
+        if (key is ObjectEngineResult.ParentKey) return
+        val checker = world.resolverRegistry.fieldChecker(key.field) ?: return
+        if (inclusion === InclusionCondition.Never) return
+        val checkerContext = checkerContexts.getOrPut(key) {
+            CheckerContext(checker, checker.instantiateFragmentsAt(occurrence.root, occurrence.coordinate(key))).also { context ->
+                expansionState.register(
+                    occurrence.root,
+                    key,
+                    checker = true,
+                    context.fragments.objectFragment.variableDefinitions + context.fragments.queryFragment.variableDefinitions,
+                )
+            }
+        }
+        if (key is ObjectEngineResult.GroundKey && key.arguments.argumentsContainErrorValue()) return
+        if (checkerContext.accumulatedKeyInclusions.add(inclusion)) checkerKeys += key to inclusion
+    }
+
+    checked.forEach { selection ->
+        if (type !in selection.possibleTypes) return@forEach
+        val key = selection.objectKey(type)
+        val inclusion = selection.inclusionCondition
+        processResolverKey(key, inclusion)
+        processCheckerKey(key, inclusion)
+    }
+    unchecked.forEach { selection ->
+        if (type !in selection.possibleTypes) return@forEach
+        val key = selection.objectKey(type)
+        processResolverKey(key, selection.inclusionCondition)
+    }
+    return NewKeyInclusions(resolverKeys, checkerKeys)
+}
+
 internal fun Demand<SelectionForest>.newResolverKeyInclusions(
     world: Assumptions,
     occurrence: OEROccurrence,
@@ -254,7 +321,6 @@ internal fun Demand<SelectionForest>.newResolverKeyInclusions(
             if (key.field !in world.resolverRegistry || !requiresStandardResolution(key)) {
                 return@forEach
             }
-            // Retain one description even when this occurrence is excluded or has argument errors.
             val resolverContext = resolverContexts.getOrPut(key) { createResolverContext(world, occurrence, key) }
             if (key is ObjectEngineResult.GroundKey && key.arguments.argumentsContainErrorValue()) {
                 return@forEach
@@ -263,7 +329,6 @@ internal fun Demand<SelectionForest>.newResolverKeyInclusions(
                 return@forEach
             }
             if (resolverContext.accumulatedKeyInclusions.size == 1) {
-                // A reserved but statically excluded occurrence cannot extend a fragment cycle.
                 expansionState.register(occurrence.root, key, checker = false, resolverContext.variableDefinitions)
             }
             add(key to inclusion)

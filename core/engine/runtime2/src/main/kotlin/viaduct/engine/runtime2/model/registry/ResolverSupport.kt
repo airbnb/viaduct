@@ -14,7 +14,6 @@ import viaduct.engine.runtime2.model.containsVariables
 import viaduct.engine.runtime2.model.instantiateVariables
 import viaduct.engine.runtime2.model.mapSelections
 import viaduct.engine.runtime2.model.materializeSelectionForestOf
-import viaduct.engine.runtime2.model.objectKey
 import viaduct.engine.runtime2.model.toSelectionForest
 import viaduct.engine.runtime2.model.usedVariables
 import viaduct.graphql.schema.ViaductSchema
