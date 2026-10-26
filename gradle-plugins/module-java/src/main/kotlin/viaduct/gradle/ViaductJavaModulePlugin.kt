@@ -39,6 +39,9 @@ class ViaductJavaModulePlugin : Plugin<Project> {
             val generateResolverBasesTask = setupGenerateResolverBasesTask(moduleLayout, centralSchemaIncomingCfg)
             val assembleModuleConfigTask = setupAptRegistryExtractor(moduleLayout, centralSchemaIncomingCfg)
 
+            conventions.moduleManifests.configure {
+                outgoing.artifact(assembleModuleConfigTask.flatMap { it.outputDir })
+            }
             wireJavaGrtToApplication(conventions, grtDependencies.get())
 
             // GRT classes into source sets

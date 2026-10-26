@@ -223,7 +223,7 @@ class ViaductModulePluginFunctionalTest {
                     val projectDependencyType = ProjectDependency::class.java
                     val viaductApplicationDependency =
                         configurations.getByName("viaductApplication")
-                            .dependencies
+                            .allDependencies
                             .withType(projectDependencyType)
                             .single()
                     val centralSchemaExtends =
@@ -242,15 +242,15 @@ class ViaductModulePluginFunctionalTest {
                             .withType(projectDependencyType)
                             .map { it.path }
                             .sorted()
-                    val directGrtDeps =
+                    val grtDeps =
                         configurations.getByName("viaductKotlinGRTClassesIn")
-                            .dependencies
+                            .allDependencies
                             .withType(projectDependencyType)
                             .map { it.path }
                             .sorted()
-                    val directGrtConfigurations =
+                    val grtConfigurations =
                         configurations.getByName("viaductKotlinGRTClassesIn")
-                            .dependencies
+                            .allDependencies
                             .withType(projectDependencyType)
                             .mapNotNull { it.targetConfiguration }
                             .sorted()
@@ -259,20 +259,22 @@ class ViaductModulePluginFunctionalTest {
                         configurations.getByName("viaductCentralSchemaIn")
                             .attributes
                             .getAttribute(viaductKindAttribute)
-                    val grtKind =
-                        configurations.getByName("viaductKotlinGRTClassesIn")
-                            .attributes
-                            .getAttribute(viaductKindAttribute)
+                    val grtUsage = configurations.getByName("viaductKotlinGRTClassesIn")
+                        .attributes.getAttribute(org.gradle.api.attributes.Usage.USAGE_ATTRIBUTE)?.name
+                    val grtCapabilities = configurations.getByName("viaductKotlinGRTClassesIn")
+                        .allDependencies.withType(projectDependencyType)
+                        .flatMap { it.requestedCapabilities.map { capability -> capability.name } }.sorted()
 
                     println("VIADUCT_APPLICATION_PROJECT=${'$'}{viaductApplicationDependency.path}")
                     println("VIADUCT_APPLICATION_CONFIGURATION=${'$'}{viaductApplicationDependency.targetConfiguration}")
                     println("CENTRAL_SCHEMA_EXTENDS=${'$'}centralSchemaExtends")
                     println("KOTLIN_GRT_EXTENDS=${'$'}grtExtends")
                     println("DIRECT_CENTRAL_SCHEMA_DEPS=${'$'}directCentralSchemaDeps")
-                    println("DIRECT_KOTLIN_GRT_DEPS=${'$'}directGrtDeps")
-                    println("DIRECT_KOTLIN_GRT_CONFIGURATIONS=${'$'}directGrtConfigurations")
+                    println("KOTLIN_GRT_DEPS=${'$'}grtDeps")
+                    println("KOTLIN_GRT_CONFIGURATIONS=${'$'}grtConfigurations")
                     println("CENTRAL_SCHEMA_KIND=${'$'}centralSchemaKind")
-                    println("KOTLIN_GRT_KIND=${'$'}grtKind")
+                    println("KOTLIN_GRT_USAGE=${'$'}grtUsage")
+                    println("KOTLIN_GRT_CAPABILITIES=${'$'}grtCapabilities")
                 }
             }
             """.trimIndent()
@@ -289,15 +291,15 @@ class ViaductModulePluginFunctionalTest {
         assertTrue(result.output.contains("VIADUCT_APPLICATION_PROJECT=:app"), "Expected viaductApplication dependency to target ':app'")
         assertTrue(result.output.contains("VIADUCT_APPLICATION_CONFIGURATION=null"), result.output)
         assertTrue(result.output.contains("CENTRAL_SCHEMA_EXTENDS=[viaductApplication]"), result.output)
-        assertTrue(result.output.contains("KOTLIN_GRT_EXTENDS=[]"), result.output)
         assertTrue(result.output.contains("DIRECT_CENTRAL_SCHEMA_DEPS=[]"), result.output)
-        assertTrue(result.output.contains("DIRECT_KOTLIN_GRT_DEPS=[:app]"), result.output)
+        assertTrue(result.output.contains("KOTLIN_GRT_DEPS=[:app]"), result.output)
         assertTrue(
-            result.output.contains("DIRECT_KOTLIN_GRT_CONFIGURATIONS=[viaductKotlinGRTClasses]"),
+            result.output.contains("KOTLIN_GRT_CONFIGURATIONS=[]"),
             result.output
         )
         assertTrue(result.output.contains("CENTRAL_SCHEMA_KIND=central-schema"), result.output)
-        assertTrue(result.output.contains("KOTLIN_GRT_KIND=kotlin-grt-classes"), result.output)
+        assertTrue(result.output.contains("KOTLIN_GRT_USAGE=java-api"), result.output)
+        assertTrue(result.output.contains("KOTLIN_GRT_CAPABILITIES=[kotlin-grt]"), result.output)
     }
 
     @Test
@@ -318,7 +320,7 @@ class ViaductModulePluginFunctionalTest {
                     val projectDependencyType = org.gradle.api.artifacts.ProjectDependency::class.java
                     val selfProjectDeps =
                         configurations.getByName("viaductApplication")
-                            .dependencies
+                            .allDependencies
                             .withType(projectDependencyType)
                             .map { it.path }
                             .sorted()
@@ -330,18 +332,18 @@ class ViaductModulePluginFunctionalTest {
                             .sorted()
                     val grtProjectDeps =
                         configurations.getByName("viaductKotlinGRTClassesIn")
-                            .dependencies
+                            .allDependencies
                             .withType(projectDependencyType)
                             .map { it.path }
                             .sorted()
                     val centralSchemaFileDeps =
                         configurations.getByName("viaductCentralSchemaIn")
-                            .dependencies
+                            .allDependencies
                             .filterIsInstance<org.gradle.api.artifacts.FileCollectionDependency>()
                             .size
                     val grtFileDeps =
                         configurations.getByName("viaductKotlinGRTClassesIn")
-                            .dependencies
+                            .allDependencies
                             .filterIsInstance<org.gradle.api.artifacts.FileCollectionDependency>()
                             .size
 
@@ -420,7 +422,7 @@ class ViaductModulePluginFunctionalTest {
                         val projectDependencyType = ProjectDependency::class.java
                         val viaductModuleDeps =
                             configurations.getByName("viaductModules")
-                                .dependencies
+                                .allDependencies
                                 .withType(projectDependencyType)
                                 .map { it.path }
                                 .sorted()

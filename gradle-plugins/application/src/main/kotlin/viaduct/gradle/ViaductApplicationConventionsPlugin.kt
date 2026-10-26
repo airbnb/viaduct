@@ -74,8 +74,8 @@ abstract class ViaductApplicationConventionsPlugin : Plugin<Project> {
                 centralSchemaDirectory = schema.flatMap { it.outputDirectory },
             ),
         )
-        val runtime = setupModuleRuntimeClasspathForResourceIndex(modules)
-        val registryIndex = setupGenerateExecutionRegistryResourceIndexTask(topology, runtime)
+        val runtime = setupModuleRuntimeClasspathForSharedLibraries(modules)
+        val registryIndex = setupGenerateExecutionRegistryResourceIndexTask(manifests.get())
         setupExecutionRegistryResourceIndexSource(registryIndex)
         val schemaResources = setupSchemaResourcesJar(
             schema,
@@ -167,9 +167,9 @@ abstract class ViaductApplicationConventionsPlugin : Plugin<Project> {
             }
         }
 
-    private fun Project.setupModuleRuntimeClasspathForResourceIndex(viaductModules: Configuration): Configuration =
-        configurations.create("viaductModuleRuntimeForResourceIndex").apply {
-            description = "Runtime artifacts inspected to index generated Viaduct module configs."
+    private fun Project.setupModuleRuntimeClasspathForSharedLibraries(viaductModules: Configuration): Configuration =
+        configurations.create("viaductModuleRuntimeForSharedLibraries").apply {
+            description = "Module runtime variants used to locate application-owned shared libraries."
             isCanBeConsumed = false
             isCanBeResolved = true
             isCanBeDeclared = false
@@ -191,29 +191,15 @@ abstract class ViaductApplicationConventionsPlugin : Plugin<Project> {
         }
 
     private fun Project.setupGenerateExecutionRegistryResourceIndexTask(
-        topology: ViaductApplicationTopology,
-        moduleRuntimeClasspath: Configuration,
+        moduleManifests: Configuration,
     ): TaskProvider<GenerateExecutionRegistryResourceIndexTask> {
         val task = tasks.register<GenerateExecutionRegistryResourceIndexTask>("generateViaductExecutionRegistryResourceIndex") {
-            moduleClasspath.from(moduleRuntimeClasspath.incoming.artifactView {}.files)
+            moduleClasspath.from(moduleManifests)
             outputDirectory.set(layout.buildDirectory.dir("generated-resources/viaduct-execution-registry-index"))
         }
-        if (path in topology.modulePackageSuffixes) {
-            listOf(
-                "com.airbnb.viaduct.module-gradle-plugin",
-                "com.airbnb.viaduct.module-java-gradle-plugin",
-            ).forEach { pluginId ->
-                pluginManager.withPlugin(pluginId) {
-                    task.configure {
-                        moduleClasspath.from(
-                            tasks.named(
-                                "assembleViaductModuleConfigFile",
-                                AssembleTenantModuleConfigFileTask::class.java,
-                            ).flatMap { it.outputDir }
-                        )
-                    }
-                }
-            }
+        configurations.matching { it.name == "viaductModuleManifests" }.configureEach {
+            val localManifests = outgoing.artifacts.files
+            task.configure { moduleClasspath.from(localManifests) }
         }
         return task
     }

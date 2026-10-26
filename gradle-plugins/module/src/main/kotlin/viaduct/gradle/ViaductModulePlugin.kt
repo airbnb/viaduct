@@ -163,6 +163,10 @@ class ViaductModulePlugin : Plugin<Project> {
                 dependsOn(extractKspDescriptors)
             }
 
+            extensions.getByType(ViaductModuleConventions::class.java).moduleManifests.configure {
+                outgoing.artifact(assembleTask.flatMap { it.outputDir })
+            }
+
             // Wire assembly output into main resources so it lands in the module's JAR
             pluginManager.withPlugin("java") {
                 project.extensions

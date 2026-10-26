@@ -49,6 +49,49 @@ class ViaductApplicationPluginTest {
     }
 
     @Test
+    fun `manifest index drops removed directory contributions`() {
+        val root = tempDir.resolve("manifest-output").toFile()
+        val manifest = root.resolve("META-INF/viaduct/modules/example.json").apply {
+            parentFile.mkdirs()
+            writeText(registryJson("example/tenant"))
+        }
+        val indexTask = project.tasks.register("testManifestRemoval", GenerateExecutionRegistryResourceIndexTask::class.java).get().apply {
+            moduleClasspath.from(root)
+            outputDirectory.set(project.layout.buildDirectory.dir("manifest-removal-index"))
+        }
+
+        indexTask.generate()
+        val index = indexTask.outputDirectory.get().asFile.resolve(ViaductResourceIndexes.EXECUTION_REGISTRY)
+        assertEquals("META-INF/viaduct/modules/example.json\n", index.readText())
+
+        manifest.delete()
+        indexTask.generate()
+
+        assertEquals("", index.readText())
+    }
+
+    @Test
+    fun `manifest index rejects duplicate paths across directory contributions`() {
+        val roots = listOf("first", "second").map { name ->
+            tempDir.resolve(name).toFile().also { root ->
+                root.resolve("META-INF/viaduct/modules/shared.json").apply {
+                    parentFile.mkdirs()
+                    writeText(registryJson("example/$name"))
+                }
+            }
+        }
+        val indexTask = project.tasks.register("testDuplicateManifestPaths", GenerateExecutionRegistryResourceIndexTask::class.java).get().apply {
+            moduleClasspath.from(roots)
+            outputDirectory.set(project.layout.buildDirectory.dir("duplicate-path-index"))
+        }
+
+        val exception = assertThrows<IllegalArgumentException> { indexTask.generate() }
+
+        assertTrue(exception.message.orEmpty().contains("Duplicate execution registry resource contributors"))
+        assertTrue(exception.message.orEmpty().contains("META-INF/viaduct/modules/shared.json"))
+    }
+
+    @Test
     fun `public application conventions expose producer backed schema and manifest collection`() {
         project.pluginManager.apply("java-library")
         project.registerViaductTopology(":")
