@@ -10,7 +10,9 @@ import graphql.schema.GraphQLTypeUtil
 import java.util.IdentityHashMap
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.NodeEngineObjectData
+import viaduct.engine.api.ResolutionPolicy
 import viaduct.engine.api.spi.MaterializedFieldValueReader
+import viaduct.engine.runtime.HasResolver
 import viaduct.engine.runtime.mat.KeyTree
 import viaduct.engine.runtime.mat.KeyTreeFilter
 import viaduct.engine.runtime.mat.KeyTreeFilter.Result.DROP
@@ -34,12 +36,14 @@ internal suspend fun EngineObjectData?.toKeyTree(
     selections: KeyTree,
     filter: KeyTreeFilter,
     fieldValueReader: MaterializedFieldValueReader,
+    resolutionPolicy: ResolutionPolicy = ResolutionPolicy.STANDARD,
 ): KeyTree =
     EngineObjectDataKeyTreeBuilder(schema, filter, fieldValueReader)
         .build(
             data = this,
             selections = selections,
             atOutputSelectionSetRoot = true,
+            inheritedResolutionPolicy = resolutionPolicy,
         )
 
 private class EngineObjectDataKeyTreeBuilder(
@@ -51,12 +55,21 @@ private class EngineObjectDataKeyTreeBuilder(
         data: EngineObjectData?,
         selections: KeyTree,
         atOutputSelectionSetRoot: Boolean,
+        inheritedResolutionPolicy: ResolutionPolicy,
     ): KeyTree {
+        val resolutionPolicy = if (data == null || atOutputSelectionSetRoot) {
+            inheritedResolutionPolicy
+        } else {
+            fieldValueReader.resolutionPolicy(data, inheritedResolutionPolicy)
+        }
+        if (!atOutputSelectionSetRoot && inheritedResolutionPolicy == ResolutionPolicy.PARENT_MANAGED && resolutionPolicy == ResolutionPolicy.STANDARD) {
+            return KeyTree.empty
+        }
         if (data == null) {
-            return selections.withinOutputSelectionSet(atOutputSelectionSetRoot)
+            return selections.withinOutputSelectionSet(atOutputSelectionSetRoot, resolutionPolicy)
         }
         if (data is NodeEngineObjectData) {
-            return buildNodeReference(data, selections, atOutputSelectionSetRoot)
+            return buildNodeReference(data, selections, atOutputSelectionSetRoot, resolutionPolicy)
         }
 
         val type = schema.getObjectType(data.type.name) ?: return KeyTree.empty
@@ -71,7 +84,7 @@ private class EngineObjectDataKeyTreeBuilder(
                 selections = selectionsForType,
             )
             val decisions = returnedSelections.mapValues { (key, _) ->
-                outputSelectionSetFilter(type, key, atOutputSelectionSetRoot)
+                coverageFilter(resolutionPolicy)(type, key, atOutputSelectionSetRoot)
             }
             val isComposite = GraphQLTypeUtil.unwrapAll(fieldDefinition.type) is GraphQLCompositeType
             // Aliases that get the same object share one walk, using all of their requested fields.
@@ -93,7 +106,7 @@ private class EngineObjectDataKeyTreeBuilder(
                 }
             }
             for ((value, keys) in keysByValue) {
-                val subtree = buildValue(value, keys.map(returnedSelections::getValue).fold(KeyTree.empty, KeyTree::plus))
+                val subtree = buildValue(value, keys.map(returnedSelections::getValue).fold(KeyTree.empty, KeyTree::plus), resolutionPolicy)
                 keys.forEach { returnedFields[it] = subtree }
             }
         }
@@ -125,20 +138,23 @@ private class EngineObjectDataKeyTreeBuilder(
     private suspend fun buildValue(
         value: Any?,
         selections: KeyTree,
+        resolutionPolicy: ResolutionPolicy,
     ): KeyTree =
         when (value) {
-            null -> selections.withinOutputSelectionSet(atOutputSelectionSetRoot = false)
-            is EngineObjectData -> build(value, selections, atOutputSelectionSetRoot = false)
-            is Iterable<*> -> buildIterable(value, selections)
+            null -> selections.withinOutputSelectionSet(atOutputSelectionSetRoot = false, resolutionPolicy)
+            is EngineObjectData -> build(value, selections, atOutputSelectionSetRoot = false, resolutionPolicy)
+            is Iterable<*> -> buildIterable(value, selections, resolutionPolicy)
             else -> KeyTree.empty
         }
 
     private suspend fun buildIterable(
         values: Iterable<*>,
         selections: KeyTree,
+        resolutionPolicy: ResolutionPolicy,
     ): KeyTree {
         val commonFieldsByType = selections.withinOutputSelectionSet(
             atOutputSelectionSetRoot = false,
+            resolutionPolicy = resolutionPolicy,
         ).keysByType().toMutableMap()
         val seenTypes = mutableSetOf<GraphQLObjectType>()
 
@@ -152,6 +168,7 @@ private class EngineObjectDataKeyTreeBuilder(
                         data = value,
                         selections = selections,
                         atOutputSelectionSetRoot = false,
+                        inheritedResolutionPolicy = resolutionPolicy,
                     ).fieldsFor(type)
                     commonFieldsByType[type] =
                         if (seenTypes.add(type)) {
@@ -175,6 +192,7 @@ private class EngineObjectDataKeyTreeBuilder(
         data: NodeEngineObjectData,
         selections: KeyTree,
         atOutputSelectionSetRoot: Boolean,
+        resolutionPolicy: ResolutionPolicy,
     ): KeyTree {
         val type = schema.getObjectType(data.type.name) ?: return KeyTree.empty
         val idDefinition = type.getFieldDefinition("id") ?: return KeyTree.empty
@@ -182,15 +200,21 @@ private class EngineObjectDataKeyTreeBuilder(
             fieldDefinition = idDefinition,
             selections = selections.fieldsFor(type),
         ).filterKeys { key ->
-            outputSelectionSetFilter(type, key, atOutputSelectionSetRoot) != DROP
+            coverageFilter(resolutionPolicy)(type, key, atOutputSelectionSetRoot) != DROP
         }
         return KeyTree(mapOf(type to returnedSelections.mapValues { KeyTree.empty }))
             .withoutEmptyTypeBranches()
     }
 
-    private fun KeyTree.withinOutputSelectionSet(atOutputSelectionSetRoot: Boolean): KeyTree =
+    private fun coverageFilter(resolutionPolicy: ResolutionPolicy): KeyTreeFilter =
+        if (resolutionPolicy == ResolutionPolicy.PARENT_MANAGED) FieldOutputSelectionSetFilter(HasResolver.Never) else outputSelectionSetFilter
+
+    private fun KeyTree.withinOutputSelectionSet(
+        atOutputSelectionSetRoot: Boolean,
+        resolutionPolicy: ResolutionPolicy
+    ): KeyTree =
         filter { type, key, atKeyTreeRoot ->
-            outputSelectionSetFilter(
+            coverageFilter(resolutionPolicy)(
                 type,
                 key,
                 atOutputSelectionSetRoot && atKeyTreeRoot,

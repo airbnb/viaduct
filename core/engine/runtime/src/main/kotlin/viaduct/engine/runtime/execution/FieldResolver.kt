@@ -938,6 +938,7 @@ class FieldResolver(
         val mat = FieldMatImpl(
             parameters,
             ossFilter,
+            resolutionPolicy = resolutionPolicy,
             materialize = { keyTree, selectionParameters ->
                 matFieldObject(
                     originalParameters = parameters,

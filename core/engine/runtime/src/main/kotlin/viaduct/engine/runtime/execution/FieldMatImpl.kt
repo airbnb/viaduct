@@ -3,6 +3,7 @@ package viaduct.engine.runtime.execution
 import kotlinx.coroutines.CancellationException
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
+import viaduct.engine.api.ResolutionPolicy
 import viaduct.engine.runtime.EngineExecutionContextExtensions.materializedFieldValueReader
 import viaduct.engine.runtime.mat.KeyTree
 import viaduct.engine.runtime.mat.KeyTreeFilter
@@ -21,6 +22,7 @@ import viaduct.engine.runtime.mat.MatResult
 internal class FieldMatImpl(
     private val parameters: ExecutionParameters,
     private val outputSelectionSetFilter: KeyTreeFilter,
+    private val resolutionPolicy: ResolutionPolicy = ResolutionPolicy.STANDARD,
     private val materialize: MatFn,
 ) : Mat {
     /**
@@ -105,6 +107,7 @@ internal class FieldMatImpl(
             selections = requestedCoverage,
             filter = outputSelectionSetFilter,
             fieldValueReader = selectionParameters.engineExecutionContext.materializedFieldValueReader,
+            resolutionPolicy = resolutionPolicy,
         )
         return MatResult(
             coverage = requestedCoverage + returnedCoverage,

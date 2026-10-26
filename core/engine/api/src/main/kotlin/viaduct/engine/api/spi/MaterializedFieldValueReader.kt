@@ -2,6 +2,7 @@ package viaduct.engine.api.spi
 
 import kotlinx.coroutines.CancellationException
 import viaduct.engine.api.EngineObjectData
+import viaduct.engine.api.ResolutionPolicy
 
 /** Reads field values from materialized object data. */
 @Deprecated("For Airbnb use only", level = DeprecationLevel.WARNING)
@@ -34,6 +35,12 @@ fun interface MaterializedFieldValueReader {
         fieldName: String,
         responseKey: String
     ): ReadResult? = read(source, fieldName, responseKey)
+
+    /** Classifies a nested materialized object using the same ownership rules as field execution. */
+    fun resolutionPolicy(
+        source: EngineObjectData,
+        inherited: ResolutionPolicy
+    ): ResolutionPolicy = inherited
 
     data class ReadResult(val value: Any?, val fieldIsMissing: Boolean)
 

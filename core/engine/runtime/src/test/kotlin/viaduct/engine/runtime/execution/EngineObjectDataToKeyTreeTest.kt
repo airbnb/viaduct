@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import viaduct.arbitrary.graphql.asViaductSchema
 import viaduct.engine.api.EngineObjectData
+import viaduct.engine.api.ResolutionPolicy
 import viaduct.engine.api.ResolvedEngineObjectData
 import viaduct.engine.api.spi.MaterializedFieldValueReader
 import viaduct.engine.runtime.DispatcherRegistry
@@ -22,6 +23,110 @@ import viaduct.engine.runtime.mat.KeyTreeFilter.Result.KEEP_WITHOUT_CHILDREN
 import viaduct.engine.runtime.mat.build
 
 class EngineObjectDataToKeyTreeTest {
+    @Nested
+    inner class ResolutionPolicies {
+        @Test
+        fun `parent-managed root keeps supplied fields and stops at standard children`() {
+            Fixture("type Foo { x: Int bar: Bar } type Bar { x: Int }") {
+                val independent = dataWithoutReadableSelections(bar)
+                val expected = tree {
+                    field("Foo", key("x"))
+                    field("Foo", key("bar"))
+                }
+
+                assertTree(
+                    expected,
+                    data(foo, "x" to 1, "bar" to independent),
+                    filter = FieldOutputSelectionSetFilter { _, name -> name == "x" },
+                    fieldValueReader = policyReader(independent to ResolutionPolicy.STANDARD),
+                    resolutionPolicy = ResolutionPolicy.PARENT_MANAGED,
+                )
+            }
+        }
+
+        @Test
+        fun `nested parent-managed objects cover supplied resolver fields and inherit ownership`() {
+            Fixture("type Foo { bars: [Bar] } type Bar { x: Int child: Bar }") {
+                val child = data(bar, "x" to 2)
+                val value = data(bar, "x" to 1, "child" to child)
+                val expected = tree {
+                    field("Foo", key("bars")) {
+                        field("Bar", key("x"))
+                        field("Bar", key("child")) { field("Bar", key("x")) }
+                    }
+                }
+
+                assertTree(
+                    expected,
+                    data(foo, "bars" to listOf(value, null)),
+                    filter = FieldOutputSelectionSetFilter { _, name -> name == "x" },
+                    fieldValueReader = policyReader(value to ResolutionPolicy.PARENT_MANAGED),
+                )
+            }
+        }
+
+        @Test
+        fun `standard resolution children of parent-managed objects keep independent ownership`() {
+            Fixture("type Foo { bar: Bar } type Bar { x: Int child: Bar }") {
+                val independent = dataWithoutReadableSelections(bar)
+                val value = data(bar, "x" to 1, "child" to independent)
+                val expected = tree {
+                    field("Foo", key("bar")) {
+                        field("Bar", key("x"))
+                        field("Bar", key("child"))
+                    }
+                }
+
+                assertTree(
+                    expected,
+                    data(foo, "bar" to value),
+                    filter = FieldOutputSelectionSetFilter { _, name -> name == "x" },
+                    fieldValueReader = policyReader(
+                        value to ResolutionPolicy.PARENT_MANAGED,
+                        independent to ResolutionPolicy.STANDARD,
+                    ),
+                )
+            }
+        }
+
+        @Test
+        fun `parent-managed nulls and empty lists keep requested resolver fields`() {
+            Fixture("type Foo { bar: Bar } type Bar { x: Int child: Bar children: [Bar] }") {
+                val value = data(bar, "child" to null, "children" to emptyList<Any?>())
+                val expected = tree {
+                    field("Foo", key("bar")) {
+                        field("Bar", key("child")) { field("Bar", key("x")) }
+                        field("Bar", key("children")) { field("Bar", key("x")) }
+                    }
+                }
+
+                assertTree(
+                    expected,
+                    data(foo, "bar" to value),
+                    selections = expected,
+                    filter = FieldOutputSelectionSetFilter { _, name -> name == "x" },
+                    fieldValueReader = policyReader(value to ResolutionPolicy.PARENT_MANAGED),
+                )
+            }
+        }
+
+        @Test
+        fun `mixed ownership list items only cover fields common to every item`() {
+            Fixture("type Foo { bars: [Bar] } type Bar { x: Int }") {
+                val value = data(bar, "x" to 1)
+                val independent = data(bar, "x" to 2)
+                val expected = tree { field("Foo", key("bars")) }
+
+                assertTree(
+                    expected,
+                    data(foo, "bars" to listOf(value, independent)),
+                    filter = FieldOutputSelectionSetFilter { _, name -> name == "x" },
+                    fieldValueReader = policyReader(value to ResolutionPolicy.PARENT_MANAGED),
+                )
+            }
+        }
+    }
+
     @Test
     fun `coverage discovery skips fields the reader cannot inspect`() {
         Fixture("type Foo { bar: Bar } type Bar { x: Int }") {
@@ -1012,6 +1117,20 @@ class EngineObjectDataToKeyTreeTest {
             vararg values: Pair<String, Any?>,
         ): EngineObjectData = ResolvedEngineObjectData(type, mapOf(*values))
 
+        fun policyReader(vararg policies: Pair<EngineObjectData, ResolutionPolicy>): MaterializedFieldValueReader =
+            object : MaterializedFieldValueReader {
+                override suspend fun read(
+                    source: EngineObjectData,
+                    fieldName: String,
+                    responseKey: String,
+                ) = MaterializedFieldValueReader.Default.read(source, fieldName, responseKey)
+
+                override fun resolutionPolicy(
+                    source: EngineObjectData,
+                    inherited: ResolutionPolicy
+                ): ResolutionPolicy = policies.firstOrNull { it.first === source }?.second ?: inherited
+            }
+
         fun node(type: GraphQLObjectType): EngineObjectData =
             NodeEngineObjectDataImpl(
                 "1",
@@ -1050,6 +1169,7 @@ class EngineObjectDataToKeyTreeTest {
             selections: KeyTree = KeyTree.empty,
             filter: KeyTreeFilter = KeyTreeFilter.KeepAll,
             fieldValueReader: MaterializedFieldValueReader = MaterializedFieldValueReader.Default,
+            resolutionPolicy: ResolutionPolicy = ResolutionPolicy.STANDARD,
         ) = runTest {
             assertEquals(
                 expected,
@@ -1058,6 +1178,7 @@ class EngineObjectDataToKeyTreeTest {
                     selections = selections,
                     filter = filter,
                     fieldValueReader = fieldValueReader,
+                    resolutionPolicy = resolutionPolicy,
                 ),
             )
         }

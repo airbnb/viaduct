@@ -12,9 +12,19 @@ import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.engine.api.EngineObjectData
+import viaduct.engine.api.ResolutionPolicy
 import viaduct.engine.api.spi.MaterializedFieldValueReader.ReadResult
 
 class MaterializedFieldValueReaderTest {
+    @Test
+    fun `default coverage policy preserves inherited ownership`() {
+        val source = mockk<EngineObjectData>()
+
+        for (inherited in ResolutionPolicy.entries) {
+            assertEquals(inherited, MaterializedFieldValueReader.Default.resolutionPolicy(source, inherited))
+        }
+    }
+
     @Test
     fun `default reads schema name without enumerating selections for a value`() =
         runBlocking {
