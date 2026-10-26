@@ -5,9 +5,12 @@ import io.kotest.matchers.shouldBe
 import org.gradle.api.GradleException
 import org.gradle.api.Plugin
 import org.gradle.api.Project
+import org.gradle.api.artifacts.ProjectDependency
 import org.gradle.api.attributes.Usage
 import org.gradle.testfixtures.ProjectBuilder
 import org.junit.jupiter.api.Test
+import viaduct.gradle.task.AssembleCentralSchemaTask
+import viaduct.gradle.task.AssembleSchemaPartitionTask
 
 class ViaductMetamodulePluginTest {
     @Test
@@ -30,6 +33,34 @@ class ViaductMetamodulePluginTest {
             attributes.getAttribute(ViaductArtifacts.KIND) shouldBe ViaductArtifacts.MODULE_MANIFEST
             attributes.getAttribute(Usage.USAGE_ATTRIBUTE)?.name shouldBe ViaductArtifacts.USAGE
         }
+    }
+
+    @Test
+    fun `same project neutral conventions wire schema when application is applied first`() {
+        assertSameProjectSchemaWiring(applicationFirst = true)
+    }
+
+    @Test
+    fun `same project neutral conventions wire schema when module is applied first`() {
+        assertSameProjectSchemaWiring(applicationFirst = false)
+    }
+
+    private fun assertSameProjectSchemaWiring(applicationFirst: Boolean) {
+        val project = ProjectBuilder.builder().build()
+        project.registerViaductTopology(modules = mapOf(":" to "resolvers"))
+        val plugins = listOf(ViaductApplicationConventionsPlugin::class.java, ViaductModuleConventionsPlugin::class.java)
+        (if (applicationFirst) plugins else plugins.reversed()).forEach { project.pluginManager.apply(it) }
+
+        val module = project.extensions.getByType(ViaductModuleConventions::class.java)
+        val centralSchema = project.tasks.named("assembleViaductCentralSchema", AssembleCentralSchemaTask::class.java).get()
+        val partition = project.tasks.named("prepareViaductSchemaPartition", AssembleSchemaPartitionTask::class.java).get()
+        val contributions = project.tasks.named("assembleViaductSchemaContributions").get()
+
+        module.application.get().dependencies.withType(ProjectDependency::class.java).size shouldBe 0
+        module.centralSchemaIn.get().files shouldBe setOf(centralSchema.outputDirectory.get().asFile)
+        centralSchema.schemaPartitions.files shouldBe setOf(partition.outputDirectory.get().asFile)
+        centralSchema.schemaPartitions.buildDependencies.getDependencies(centralSchema) shouldBe setOf(partition)
+        centralSchema.schemaContributionFiles.buildDependencies.getDependencies(centralSchema) shouldBe setOf(contributions)
     }
 
     @Test

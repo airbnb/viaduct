@@ -1,9 +1,9 @@
 package viaduct.gradle
 
 import org.gradle.api.GradleException
+import org.gradle.api.IsolatedAction
 import org.gradle.api.Plugin
 import org.gradle.api.Project
-import org.gradle.api.IsolatedAction
 import org.gradle.api.initialization.ProjectDescriptor
 import org.gradle.api.initialization.Settings
 
@@ -37,32 +37,33 @@ open class IncludeViaductApplicationHandler(private val settings: Settings) {
         declarations += declaration
     }
 
-    internal fun projectInstallations(): Map<String, ViaductProjectPluginInstallation> = buildMap {
-        val registry = settings.viaductPluginRegistry().registrations
-        declarations.forEach { application ->
-            val registrations = application.enabledPlugins.map { registry.getValue(it) }
-            put(
-                application.projectPath!!,
-                ViaductProjectPluginInstallation(
-                    application = true,
-                    module = application.modules.any { it.projectPath == application.projectPath },
-                    applicationPlugins = registrations.map { it.applicationPlugin },
-                    modulePlugins = registrations.mapNotNull { it.moduleStubPlugin },
-                ),
-            )
-            application.modules.filter { it.projectPath != application.projectPath }.forEach { module ->
+    internal fun projectInstallations(): Map<String, ViaductProjectPluginInstallation> =
+        buildMap {
+            val registry = settings.viaductPluginRegistry().registrations
+            declarations.forEach { application ->
+                val registrations = application.enabledPlugins.map { registry.getValue(it) }
                 put(
-                    module.projectPath!!,
+                    application.projectPath!!,
                     ViaductProjectPluginInstallation(
-                        application = false,
-                        module = true,
-                        applicationPlugins = emptyList(),
+                        application = true,
+                        module = application.modules.any { it.projectPath == application.projectPath },
+                        applicationPlugins = registrations.map { it.applicationPlugin },
                         modulePlugins = registrations.mapNotNull { it.moduleStubPlugin },
                     ),
                 )
+                application.modules.filter { it.projectPath != application.projectPath }.forEach { module ->
+                    put(
+                        module.projectPath!!,
+                        ViaductProjectPluginInstallation(
+                            application = false,
+                            module = true,
+                            applicationPlugins = emptyList(),
+                            modulePlugins = registrations.mapNotNull { it.moduleStubPlugin },
+                        ),
+                    )
+                }
             }
         }
-    }
 
     internal fun buildTopology(): ViaductApplicationMap {
         val errors = ViaductTopologyValidator.validate(declarations)

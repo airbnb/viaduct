@@ -11,7 +11,6 @@ import org.gradle.api.tasks.TaskProvider
 import schemaPartitionDirectory
 import viaduct.apiannotations.InternalApi
 import viaduct.apiannotations.StableApi
-import viaduct.gradle.ViaductPluginCommon.APPLICATION_PLUGIN_IDS
 import viaduct.gradle.ViaductPluginCommon.prettyPath
 import viaduct.gradle.ViaductPluginCommon.requireViaductTopology
 import viaduct.gradle.ViaductPluginCommon.requireViaductTopologyModuleProjectPaths
@@ -165,16 +164,8 @@ object ViaductModulePluginSupport {
         centralSchemaIncomingCfg: Configuration,
     ) {
         if (topology.applicationProjectPath == project.path) {
-            val localConventions = project.extensions.findByType(ViaductApplicationConventions::class.java)
-            if (localConventions != null) {
-                project.dependencies.add(viaductApplication.name, project.files(localConventions.centralSchemaDirectory))
-            } else {
-                APPLICATION_PLUGIN_IDS.forEach { pluginId ->
-                    project.pluginManager.withPlugin(pluginId) {
-                        val conventions = project.extensions.getByType(ViaductApplicationConventions::class.java)
-                        project.dependencies.add(viaductApplication.name, project.files(conventions.centralSchemaDirectory))
-                    }
-                }
+            project.configurations.matching { it.name == ViaductPluginCommon.Configs.CENTRAL_SCHEMA_OUTGOING }.configureEach { outgoing ->
+                project.dependencies.add(viaductApplication.name, project.files(outgoing.outgoing.artifacts.files))
             }
             return
         }

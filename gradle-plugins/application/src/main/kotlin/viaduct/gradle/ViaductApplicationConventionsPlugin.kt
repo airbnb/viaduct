@@ -1,45 +1,27 @@
 package viaduct.gradle
 
 import centralSchemaDirectory
-import grtClassesDirectory
-import javaGrtClassesDirectory
-import javaGrtSourcesDirectory
-import org.gradle.api.artifacts.component.ProjectComponentIdentifier
-import viaduct.apiannotations.StableApi
-import viaduct.gradle.ViaductApplicationPlugin.Companion.BUILTIN_SCHEMA_FILE
-import org.gradle.api.GradleException
 import org.gradle.api.NamedDomainObjectProvider
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.artifacts.Configuration
+import org.gradle.api.artifacts.component.ProjectComponentIdentifier
 import org.gradle.api.attributes.Category
 import org.gradle.api.attributes.LibraryElements
 import org.gradle.api.attributes.Usage
 import org.gradle.api.file.Directory
-import org.gradle.api.file.RegularFile
 import org.gradle.api.plugins.JavaPluginExtension
 import org.gradle.api.provider.Provider
-import org.gradle.api.tasks.Sync
 import org.gradle.api.tasks.TaskProvider
 import org.gradle.api.tasks.bundling.Jar
-import org.gradle.api.tasks.compile.JavaCompile
-import org.gradle.jvm.toolchain.JavaToolchainService
 import org.gradle.kotlin.dsl.register
 import schemaScopingManifestDirectory
 import viaduct.apiannotations.InternalApi
-import viaduct.gradle.ViaductPluginCommon.configureIdeaIntegration
-import viaduct.gradle.ViaductPluginCommon.createOrGetCodegenClasspath
-import viaduct.gradle.ViaductPluginCommon.createOrGetJavaCodegenClasspath
-import viaduct.gradle.ViaductPluginCommon.createOrGetJavaGRTCompileClasspath
-import viaduct.gradle.ViaductPluginCommon.pluginVersion
-import viaduct.gradle.ViaductPluginCommon.prettyPath
+import viaduct.apiannotations.StableApi
+import viaduct.gradle.ViaductApplicationPlugin.Companion.BUILTIN_SCHEMA_FILE
 import viaduct.gradle.ViaductPluginCommon.validateApplicationProjectPlacement
 import viaduct.gradle.task.AssembleCentralSchemaTask
-import viaduct.gradle.task.AssembleSchemaPartitionTask
-import viaduct.gradle.task.AssembleTenantModuleConfigFileTask
 import viaduct.gradle.task.GenerateExecutionRegistryResourceIndexTask
-import viaduct.gradle.task.GenerateGRTClassFilesTask
-import viaduct.gradle.task.GenerateJavaGRTSourcesTask
 import viaduct.gradle.task.GenerateSchemaResourceIndexTask
 import viaduct.gradle.task.GenerateSchemaScopingManifestTask
 import viaduct.gradle.task.ValidateSchemaExtensionsTask
@@ -47,54 +29,55 @@ import viaduct.scoping.SchemaScopeDefinitions
 
 @StableApi
 abstract class ViaductApplicationConventionsPlugin : Plugin<Project> {
-    override fun apply(project: Project): Unit = with(project) {
-        val topology = validateApplicationProjectPlacement()
-        val applicationExtension = extensions.create("viaductApplication", ViaductApplicationExtension::class.java, objects)
-        val modules = setupViaductModulesConfiguration()
-        val contributions = setupSchemaContributionsConfiguration(modules)
-        val schema = setupAssembleCentralSchemaTask(modules, contributions)
-        setupValidateSchemaExtensionsTask(contributions)
-        setupOutgoingConfigurationForCentralSchema(schema)
-        setupIncomingDependenciesFromTopology(topology, modules)
-        val manifests = configurations.resolvable("viaductAllModuleManifestsIn") {
-            extendsFrom(modules)
-            isTransitive = false
-            attributes {
-                attribute(ViaductArtifacts.KIND, ViaductArtifacts.MODULE_MANIFEST)
-                attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage::class.java, ViaductArtifacts.USAGE))
+    override fun apply(project: Project): Unit =
+        with(project) {
+            val topology = validateApplicationProjectPlacement()
+            val applicationExtension = extensions.create("viaductApplication", ViaductApplicationExtension::class.java, objects)
+            val modules = setupViaductModulesConfiguration()
+            val contributions = setupSchemaContributionsConfiguration(modules)
+            val schema = setupAssembleCentralSchemaTask(modules, contributions)
+            setupValidateSchemaExtensionsTask(contributions)
+            setupOutgoingConfigurationForCentralSchema(schema)
+            setupIncomingDependenciesFromTopology(topology, modules)
+            val manifests = configurations.resolvable("viaductAllModuleManifestsIn") {
+                extendsFrom(modules)
+                isTransitive = false
+                attributes {
+                    attribute(ViaductArtifacts.KIND, ViaductArtifacts.MODULE_MANIFEST)
+                    attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage::class.java, ViaductArtifacts.USAGE))
+                }
+            }
+            applicationExtension.initializeConventions(
+                DefaultViaductApplicationConventions(
+                    modules = configurations.named(modules.name),
+                    allSchemaPartitionsIn = configurations.named(ViaductPluginCommon.Configs.ALL_SCHEMA_PARTITIONS_INCOMING),
+                    centralSchema = configurations.named(ViaductPluginCommon.Configs.CENTRAL_SCHEMA_OUTGOING),
+                    allModuleManifestsIn = configurations.named(manifests.name),
+                    modulePackagePrefix = topology.modulePackagePrefix,
+                    centralSchemaDirectory = schema.flatMap { it.outputDirectory },
+                ),
+            )
+            val runtime = setupModuleRuntimeClasspathForSharedLibraries(modules)
+            val registryIndex = setupGenerateExecutionRegistryResourceIndexTask(manifests.get())
+            setupExecutionRegistryResourceIndexSource(registryIndex)
+            val schemaResources = setupSchemaResourcesJar(
+                schema,
+                setupGenerateSchemaScopingManifestTask(),
+                setupGenerateSchemaResourceIndexTask(schema),
+            )
+            configurations.matching { it.name == "runtimeOnly" }.configureEach {
+                project.dependencies.add(name, files(schemaResources.flatMap { it.archiveFile }))
+            }
+            val applicationPath = buildTreePath
+            val sharedLibraries = runtime.incoming.artifactView {
+                componentFilter { component ->
+                    component is ProjectComponentIdentifier && component.buildTreePath == applicationPath
+                }
+            }.files
+            configurations.matching { it.name == "api" }.configureEach {
+                project.dependencies.add(name, files(sharedLibraries))
             }
         }
-        applicationExtension.initializeConventions(
-            DefaultViaductApplicationConventions(
-                modules = configurations.named(modules.name),
-                allSchemaPartitionsIn = configurations.named(ViaductPluginCommon.Configs.ALL_SCHEMA_PARTITIONS_INCOMING),
-                centralSchema = configurations.named(ViaductPluginCommon.Configs.CENTRAL_SCHEMA_OUTGOING),
-                allModuleManifestsIn = configurations.named(manifests.name),
-                modulePackagePrefix = topology.modulePackagePrefix,
-                centralSchemaDirectory = schema.flatMap { it.outputDirectory },
-            ),
-        )
-        val runtime = setupModuleRuntimeClasspathForSharedLibraries(modules)
-        val registryIndex = setupGenerateExecutionRegistryResourceIndexTask(manifests.get())
-        setupExecutionRegistryResourceIndexSource(registryIndex)
-        val schemaResources = setupSchemaResourcesJar(
-            schema,
-            setupGenerateSchemaScopingManifestTask(),
-            setupGenerateSchemaResourceIndexTask(schema),
-        )
-        configurations.matching { it.name == "runtimeOnly" }.configureEach {
-            project.dependencies.add(name, files(schemaResources.flatMap { it.archiveFile }))
-        }
-        val applicationPath = path
-        val sharedLibraries = runtime.incoming.artifactView {
-            componentFilter { component ->
-                component is ProjectComponentIdentifier && component.projectPath == applicationPath
-            }
-        }.files
-        configurations.matching { it.name == "api" }.configureEach {
-            project.dependencies.add(name, files(sharedLibraries))
-        }
-    }
 
     private fun Project.setupIncomingDependenciesFromTopology(
         topology: ViaductApplicationTopology,
@@ -107,13 +90,16 @@ abstract class ViaductApplicationConventionsPlugin : Plugin<Project> {
                     dependencies.project(mapOf("path" to modulePath)),
                 )
             } else {
-                pluginManager.withPlugin("com.airbnb.viaduct.metamodule-gradle-plugin") {
+                configurations.matching { it.name == ViaductPluginCommon.Configs.SCHEMA_PARTITION_OUTGOING }.configureEach {
+                    val localPartitions = outgoing.artifacts.files
                     tasks.named("assembleViaductCentralSchema", AssembleCentralSchemaTask::class.java).configure {
-                        schemaPartitions.from(
-                            tasks.named("prepareViaductSchemaPartition", AssembleSchemaPartitionTask::class.java)
-                                .flatMap { it.outputDirectory },
-                        )
-                        schemaContributionFiles.from(files(tasks.named("assembleViaductSchemaContributions", Sync::class.java)))
+                        schemaPartitions.from(localPartitions)
+                    }
+                }
+                configurations.matching { it.name == ViaductPluginCommon.Configs.SCHEMA_CONTRIBUTIONS_OUTGOING }.configureEach {
+                    val localContributions = outgoing.artifacts.files
+                    tasks.named("assembleViaductCentralSchema", AssembleCentralSchemaTask::class.java).configure {
+                        schemaContributionFiles.from(localContributions)
                     }
                 }
             }
@@ -190,9 +176,7 @@ abstract class ViaductApplicationConventionsPlugin : Plugin<Project> {
             outputDirectory.set(layout.buildDirectory.dir("generated-resources/viaduct-schema-index"))
         }
 
-    private fun Project.setupGenerateExecutionRegistryResourceIndexTask(
-        moduleManifests: Configuration,
-    ): TaskProvider<GenerateExecutionRegistryResourceIndexTask> {
+    private fun Project.setupGenerateExecutionRegistryResourceIndexTask(moduleManifests: Configuration): TaskProvider<GenerateExecutionRegistryResourceIndexTask> {
         val task = tasks.register<GenerateExecutionRegistryResourceIndexTask>("generateViaductExecutionRegistryResourceIndex") {
             moduleClasspath.from(moduleManifests)
             outputDirectory.set(layout.buildDirectory.dir("generated-resources/viaduct-execution-registry-index"))
