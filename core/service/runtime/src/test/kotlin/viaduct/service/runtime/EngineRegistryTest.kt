@@ -4,6 +4,7 @@ package viaduct.service.runtime
 
 import graphql.ExecutionInput
 import graphql.execution.preparsed.NoOpPreparsedDocumentProvider
+import graphql.execution.preparsed.PreparsedDocumentProvider
 import graphql.schema.idl.SchemaParser
 import graphql.schema.idl.UnExecutableSchemaGenerator
 import io.mockk.every
@@ -20,6 +21,7 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.engine.EngineFactory
 import viaduct.engine.EngineImpl
+import viaduct.engine.EngineKind
 import viaduct.engine.SchemaFactory
 import viaduct.engine.api.Engine
 import viaduct.engine.api.EngineSchema
@@ -86,8 +88,12 @@ class EngineRegistryTest {
 
         fun createEngineFactory(): EngineFactory {
             return mockk<EngineFactory> {
+                every { defaultEngineKind } returns EngineKind.CURRENT
                 every { create(any(), any(), any()) } answers {
                     createEngine(firstArg())
+                }
+                every { create(any<EngineKind>(), any(), any(), any()) } answers {
+                    createEngine(secondArg())
                 }
             }
         }
@@ -382,10 +388,11 @@ class EngineRegistryTest {
         var selectedSchema: EngineSchema? = null
         var fullSchema: FullSchema? = null
         val engineFactory = mockk<EngineFactory> {
-            every { create(any(), any(), any()) } answers {
-                selectedSchema = firstArg()
-                fullSchema = thirdArg()
-                createEngine(firstArg())
+            every { defaultEngineKind } returns EngineKind.CURRENT
+            every { create(any<EngineKind>(), any(), any(), any()) } answers {
+                selectedSchema = secondArg()
+                fullSchema = arg(3)
+                createEngine(secondArg())
             }
         }
         val registry = factory.create(SchemaConfiguration.fromSdl(sdl))
@@ -694,6 +701,57 @@ class EngineRegistryTest {
         assertNotSame(adminEngine, publicEngine, "Admin and public engines should be different")
         assertNotSame(adminEngine, internalEngine, "Admin and internal engines should be different")
         assertNotSame(publicEngine, internalEngine, "Public and internal engines should be different")
+    }
+
+    @Test
+    fun `getEngine - builds and caches one engine per schema ID and kind`() {
+        val createdKinds = mutableListOf<EngineKind>()
+        val engineFactory = mockk<EngineFactory> {
+            every { create(any<EngineKind>(), any(), any(), any()) } answers {
+                createdKinds += firstArg<EngineKind>()
+                createEngine(secondArg())
+            }
+        }
+        val registry = EngineRegistry.Factory(createSchemaFactory(), createDocumentProviderFactory())
+            .create(SchemaConfiguration.fromSdl(SIMPLE_SDL))
+        registry.setEngineFactory(engineFactory)
+
+        val current = registry.getEngine(SchemaId.Base, EngineKind.CURRENT)
+        val engine2 = registry.getEngine(SchemaId.Base, EngineKind.ENGINE2)
+
+        assertNotSame(current, engine2)
+        assertSame(current, registry.getEngine(SchemaId.Base, EngineKind.CURRENT))
+        assertSame(engine2, registry.getEngine(SchemaId.Base, EngineKind.ENGINE2))
+        assertEquals(listOf(EngineKind.CURRENT, EngineKind.ENGINE2), createdKinds)
+    }
+
+    @Test
+    fun `getEngine - without a kind returns the cached engine of the default kind`() {
+        val registry = EngineRegistry.Factory(createSchemaFactory(), createDocumentProviderFactory())
+            .create(SchemaConfiguration.fromSdl(SIMPLE_SDL))
+        registry.setEngineFactory(createEngineFactory())
+
+        assertSame(registry.getEngine(SchemaId.Base, EngineKind.CURRENT), registry.getEngine(SchemaId.Base))
+        assertNotSame(registry.getEngine(SchemaId.Base, EngineKind.ENGINE2), registry.getEngine(SchemaId.Base))
+    }
+
+    @Test
+    fun `getEngine - each kind of a schema gets its own document provider`() {
+        val providersByKind = mutableMapOf<EngineKind, PreparsedDocumentProvider>()
+        val engineFactory = mockk<EngineFactory> {
+            every { create(any<EngineKind>(), any(), any(), any()) } answers {
+                providersByKind[firstArg()] = thirdArg()
+                createEngine(secondArg())
+            }
+        }
+        val registry = EngineRegistry.Factory(createSchemaFactory(), DocumentProviderFactory { _, _ -> NoOpPreparsedDocumentProvider() })
+            .create(SchemaConfiguration.fromSdl(SIMPLE_SDL))
+        registry.setEngineFactory(engineFactory)
+
+        registry.getEngine(SchemaId.Base, EngineKind.CURRENT)
+        registry.getEngine(SchemaId.Base, EngineKind.ENGINE2)
+
+        assertNotSame(providersByKind.getValue(EngineKind.CURRENT), providersByKind.getValue(EngineKind.ENGINE2))
     }
 
     // Tests for deprecated registerSchema() API

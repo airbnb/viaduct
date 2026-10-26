@@ -14,6 +14,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import viaduct.engine.EngineFactory
+import viaduct.engine.EngineKind
 import viaduct.engine.SchemaFactory
 import viaduct.engine.api.Engine
 import viaduct.engine.api.EngineSchema
@@ -191,7 +192,7 @@ class EngineRegistry private constructor(
         this.engineFactory = engineFactory
     }
 
-    private val enginesById = ConcurrentHashMap<SchemaId, Engine>()
+    private val enginesBySchemaIdAndKind = ConcurrentHashMap<Pair<SchemaId, EngineKind>, Engine>()
     private val internalFullSchemaEngine: Engine by lazy {
         log.info("Initializing full-schema engine")
         createFullSchemaEngine().also {
@@ -205,20 +206,31 @@ class EngineRegistry private constructor(
     fun getRegisteredSchemaIds(): Set<SchemaId> = schemasById.keys
 
     /**
-     * Retrieve the [Engine] associated with the given [schemaId].
+     * Retrieve the [Engine] of the factory's default kind associated with the given [schemaId].
      * If the engine was registered for lazy initialization, a warning is logged.
      *
      * @throws SchemaNotFoundException if no engine is registered for the provided [schemaId].
      * @return the [Engine] instance for the specified [schemaId].
      */
     fun getEngine(schemaId: SchemaId): Engine {
-        if (!::engineFactory.isInitialized) {
-            throw IllegalStateException("EngineRegistry not fully initialized as engine factory has not been set. This is fatal and should never happen.")
-        }
-        return enginesById.computeIfAbsent(schemaId) {
-            log.info("Initializing engine for schema ID {}", schemaId)
-            createEngine(schemaId).also {
-                log.info("Engine for schema ID {} initialized successfully.", schemaId)
+        checkEngineFactoryInitialized()
+        return getEngine(schemaId, engineFactory.defaultEngineKind)
+    }
+
+    /**
+     * Returns the [kind] engine for [schemaId].
+     *
+     * @throws SchemaNotFoundException if no engine is registered for the provided [schemaId].
+     */
+    fun getEngine(
+        schemaId: SchemaId,
+        kind: EngineKind
+    ): Engine {
+        checkEngineFactoryInitialized()
+        return enginesBySchemaIdAndKind.computeIfAbsent(schemaId to kind) {
+            log.info("Initializing {} engine for schema ID {}", kind, schemaId)
+            createEngine(schemaId, kind).also {
+                log.info("{} engine for schema ID {} initialized successfully.", kind, schemaId)
             }
         }
     }
@@ -231,9 +243,7 @@ class EngineRegistry private constructor(
      * provider fragments, may still need to validate and execute against tenant-local fields.
      */
     fun getFullSchemaEngine(): Engine {
-        if (!::engineFactory.isInitialized) {
-            throw IllegalStateException("EngineRegistry not fully initialized as engine factory has not been set. This is fatal and should never happen.")
-        }
+        checkEngineFactoryInitialized()
         return internalFullSchemaEngine
     }
 
@@ -294,10 +304,19 @@ class EngineRegistry private constructor(
             ?: throw IllegalStateException("Full-schema engine does not directly expose the GraphQL object.")
     }
 
-    private fun createEngine(schemaId: SchemaId): Engine {
+    private fun checkEngineFactoryInitialized() {
+        if (!::engineFactory.isInitialized) {
+            throw IllegalStateException("EngineRegistry not fully initialized as engine factory has not been set. This is fatal and should never happen.")
+        }
+    }
+
+    private fun createEngine(
+        schemaId: SchemaId,
+        kind: EngineKind
+    ): Engine {
         val schema = getSchema(schemaId)
         val documentProvider = documentProviderFactory.create(schemaId, schema)
-        return engineFactory.create(schema, documentProvider, fullSchema)
+        return engineFactory.create(kind, schema, documentProvider, fullSchema)
     }
 
     private fun createFullSchemaEngine(): Engine {

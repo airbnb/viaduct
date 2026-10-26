@@ -22,6 +22,7 @@ import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.future.await
 import viaduct.apiannotations.VisibleForTest
 import viaduct.engine.EngineConfiguration
+import viaduct.engine.EngineKind
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.GraphQLBuildError
@@ -66,7 +67,8 @@ class StandardViaduct
     internal constructor(
         val engineRegistry: EngineRegistry,
         private val coroutineInterop: CoroutineInterop = DefaultCoroutineInterop,
-        private val standardViaductFactory: Factory
+        private val standardViaductFactory: Factory,
+        private val flagManager: FlagManager,
     ) : Viaduct {
         /**
          * Factory for creating StandardViaduct instances with different schema configurations.
@@ -338,6 +340,7 @@ class StandardViaduct
                         FrozenFlagManager(
                             builder.flagManager ?: flagManager,
                             FlagManager.Flags.ENGINE2_ENABLED,
+                            FlagManager.Flags.ENGINE2_PER_REQUEST,
                             FlagManager.Flags.ENGINE2_BATCHING,
                         )
                     copy(
@@ -474,6 +477,13 @@ class StandardViaduct
             }
         }
 
+        private fun engineKindForRequest(): EngineKind =
+            when {
+                flagManager.isEnabled(FlagManager.Flags.ENGINE2_ENABLED) -> EngineKind.ENGINE2
+                flagManager.isEnabled(FlagManager.Flags.ENGINE2_PER_REQUEST) && flagManager.isEnabled(FlagManager.Flags.USE_ENGINE2) -> EngineKind.ENGINE2
+                else -> EngineKind.CURRENT
+            }
+
         private fun schemaNotFoundResult(schemaId: SchemaId): ExecutionResult.Standard {
             val error: GJGraphQLError = GraphqlErrorBuilder.newError()
                 .message("Schema not found for schemaId=$schemaId")
@@ -497,7 +507,7 @@ class StandardViaduct
             schemaId: SchemaId
         ): ExecutionResult.Standard {
             val engine = try {
-                engineRegistry.getEngine(schemaId)
+                engineRegistry.getEngine(schemaId, engineKindForRequest())
             } catch (_: EngineRegistry.SchemaNotFoundException) {
                 return schemaNotFoundResult(schemaId)
             }
@@ -537,7 +547,7 @@ class StandardViaduct
             channelFlow {
                 val future = coroutineInterop.enterThreadLocalCoroutineContext(coroutineContext) {
                     val engine = try {
-                        engineRegistry.getEngine(schemaId)
+                        engineRegistry.getEngine(schemaId, engineKindForRequest())
                     } catch (_: EngineRegistry.SchemaNotFoundException) {
                         send(schemaNotFoundResult(schemaId))
                         return@enterThreadLocalCoroutineContext

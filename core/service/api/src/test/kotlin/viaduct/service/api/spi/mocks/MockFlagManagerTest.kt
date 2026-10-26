@@ -44,6 +44,7 @@ class MockFlagManagerTest {
         val constructionTimeFlags =
             setOf(
                 Flags.ENGINE2_ENABLED,
+                Flags.ENGINE2_PER_REQUEST,
                 Flags.ENGINE2_BATCHING,
             )
 

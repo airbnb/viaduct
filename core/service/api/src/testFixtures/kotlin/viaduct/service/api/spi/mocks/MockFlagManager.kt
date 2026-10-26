@@ -1,5 +1,6 @@
 package viaduct.service.api.spi.mocks
 
+import viaduct.apiannotations.InternalApi
 import viaduct.service.api.spi.FlagManager
 import viaduct.service.api.spi.FlagManager.Flag
 
@@ -18,9 +19,11 @@ class MockFlagManager(
     override fun isEnabled(flag: Flag): Boolean = enabled.contains(flag)
 
     companion object {
+        @OptIn(InternalApi::class)
         private val constructionTimeFlags =
             setOf(
                 FlagManager.Flags.ENGINE2_ENABLED,
+                FlagManager.Flags.ENGINE2_PER_REQUEST,
                 FlagManager.Flags.ENGINE2_BATCHING,
             )
 

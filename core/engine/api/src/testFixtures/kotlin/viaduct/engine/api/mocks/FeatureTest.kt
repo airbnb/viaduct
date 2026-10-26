@@ -120,6 +120,7 @@ fun EngineTestModule.runStandardViaductFeatureTest(
                     override fun isEnabled(flag: FlagManager.Flag): Boolean =
                         when (flag) {
                             FlagManager.Flags.ENGINE2_ENABLED -> engine2Enabled
+                            FlagManager.Flags.ENGINE2_PER_REQUEST -> false
                             FlagManager.Flags.ENGINE2_BATCHING -> false
                             else -> config.flagManager.isEnabled(flag)
                         }

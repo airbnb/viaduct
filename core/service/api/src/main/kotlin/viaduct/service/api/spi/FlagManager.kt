@@ -1,5 +1,6 @@
 package viaduct.service.api.spi
 
+import viaduct.apiannotations.InternalApi
 import viaduct.apiannotations.StableApi
 
 /**
@@ -51,6 +52,14 @@ interface FlagManager {
     ) : Flag {
         /** Selects the engine implementation based on `core/engine/runtime2`. */
         ENGINE2_ENABLED("engine2_enabled"),
+
+        /** Chooses the engine for each request. */
+        @InternalApi
+        ENGINE2_PER_REQUEST("engine2_per_request"),
+
+        /** Runs the request on Engine2. */
+        @InternalApi
+        USE_ENGINE2("use_engine2"),
 
         /**
          * Reserved gate for engine2 dispatcher batching.

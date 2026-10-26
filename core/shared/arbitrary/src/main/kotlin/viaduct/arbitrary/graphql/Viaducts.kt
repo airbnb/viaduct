@@ -134,6 +134,7 @@ private class ViaductGen(private val env: ViaductGenEnv) {
             .withFlagManager(object : FlagManager {
                 override fun isEnabled(flag: FlagManager.Flag): Boolean =
                     flag != FlagManager.Flags.ENGINE2_ENABLED &&
+                        flag != FlagManager.Flags.ENGINE2_PER_REQUEST &&
                         flag != FlagManager.Flags.ENGINE2_BATCHING
             })
             .build()

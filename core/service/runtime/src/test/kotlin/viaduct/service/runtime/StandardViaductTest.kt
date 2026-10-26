@@ -54,6 +54,7 @@ import viaduct.bootstrap.ExecutionRegistryConfigFile
 import viaduct.bootstrap.FieldEntryConfig
 import viaduct.bootstrap.NodeEntryConfig
 import viaduct.engine.EngineImpl
+import viaduct.engine.EngineKind
 import viaduct.engine.api.Engine
 import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.GraphQLBuildError
@@ -163,6 +164,119 @@ class StandardViaductTest {
         val (legacyViaduct, legacyFlags) = buildWithMutableFlag(initiallyEnabled = false)
         legacyFlags.engine2Enabled = true
         assertTrue(legacyViaduct.engineRegistry.getEngine(SchemaId.Base) is EngineImpl)
+    }
+
+    @Test
+    fun `per-request mode runs each request on the engine chosen by USE_ENGINE2`() {
+        val flags = EngineFlags(perRequest = true)
+        val viaduct = contextPackageViaductBuilder().withFlagManager(flags).build()
+
+        flags.useEngine2 = true
+        val engine2Package = viaduct.executeContextPackageQuery("OnEngine2")
+        flags.useEngine2 = false
+        val currentPackage = viaduct.executeContextPackageQuery("OnCurrent")
+
+        assertTrue(engine2Package.startsWith(RUNTIME2_PACKAGE), engine2Package)
+        assertFalse(currentPackage.startsWith(RUNTIME2_PACKAGE), currentPackage)
+    }
+
+    @Test
+    fun `per-request mode runs each reactive request on the engine chosen by USE_ENGINE2`() {
+        val flags = EngineFlags(perRequest = true)
+        val viaduct = contextPackageViaductBuilder().withFlagManager(flags).build()
+
+        flags.useEngine2 = true
+        val engine2Package = viaduct.reactiveExecuteContextPackageQuery("OnEngine2")
+        flags.useEngine2 = false
+        val currentPackage = viaduct.reactiveExecuteContextPackageQuery("OnCurrent")
+
+        assertTrue(engine2Package.startsWith(RUNTIME2_PACKAGE), engine2Package)
+        assertFalse(currentPackage.startsWith(RUNTIME2_PACKAGE), currentPackage)
+    }
+
+    @Test
+    fun `ENGINE2_ENABLED runs every request on Engine2 even in per-request mode`() {
+        val viaduct = contextPackageViaductBuilder()
+            .withFlagManager(EngineFlags(engine2Enabled = true, perRequest = true, useEngine2 = false))
+            .build()
+
+        val contextPackage = viaduct.executeContextPackageQuery("Query")
+
+        assertTrue(contextPackage.startsWith(RUNTIME2_PACKAGE), contextPackage)
+    }
+
+    @Test
+    fun `USE_ENGINE2 is ignored outside per-request mode`() {
+        val viaduct = contextPackageViaductBuilder()
+            .withFlagManager(EngineFlags(useEngine2 = true))
+            .build()
+
+        val contextPackage = viaduct.executeContextPackageQuery("Query")
+
+        assertFalse(contextPackage.startsWith(RUNTIME2_PACKAGE), contextPackage)
+    }
+
+    @Test
+    fun `graphql-java entry points use the current engine in per-request mode`() {
+        val viaduct = contextPackageViaductBuilder()
+            .withFlagManager(EngineFlags(perRequest = true, useEngine2 = true))
+            .build()
+
+        assertDoesNotThrow { viaduct.getEngine(SchemaId.Base) }
+        assertDoesNotThrow { viaduct.engineRegistry.getGraphQLEngine_DONOTUSE(SchemaId.Base) }
+        assertDoesNotThrow { viaduct.createEngineExecutionContext(SchemaId.Base, null) }
+        assertInstanceOf(EngineImpl::class.java, viaduct.engineRegistry.getEngine(SchemaId.Base))
+    }
+
+    @Test
+    fun `per-request mode is fixed when the Viaduct is built`() {
+        val flags = EngineFlags()
+        val viaduct = contextPackageViaductBuilder().withFlagManager(flags).build()
+
+        flags.perRequest = true
+        flags.useEngine2 = true
+        val contextPackage = viaduct.executeContextPackageQuery("Query")
+
+        assertFalse(contextPackage.startsWith(RUNTIME2_PACKAGE), contextPackage)
+    }
+
+    private fun contextPackageViaductBuilder(): StandardViaduct.Builder {
+        val sdl = "extend type Query { contextPackage: String @resolver }"
+        val module = EngineTestModule(sdl) {
+            field("Query" to "contextPackage") {
+                resolverExecutor {
+                    MockFieldUnbatchedResolverExecutor(resolverId = resolverId) { _, _, _, _, context ->
+                        context.javaClass.packageName
+                    }
+                }
+            }
+        }
+        return StandardViaduct.Builder()
+            .withTenantModuleInjectorFactory(MockExecutorCodeInjector(module.mockExecutorRegistry))
+            .withExecutorRegistryConfigSources(listOf(module.toModuleConfigSource()))
+            .withSchemaConfiguration(SchemaConfiguration.fromSdl(sdl))
+    }
+
+    private fun StandardViaduct.executeContextPackageQuery(operationName: String): String {
+        val result = runBlocking {
+            execute(
+                ExecutionInput.create(operationText = "query $operationName { contextPackage }", operationName = operationName, requestContext = Any()),
+                SchemaId.Base,
+            )
+        }
+        assertEquals(emptyList<GraphQLError>(), result.errors)
+        return result.getData()!!.getValue("contextPackage").toString()
+    }
+
+    private fun StandardViaduct.reactiveExecuteContextPackageQuery(operationName: String): String {
+        val result = runBlocking {
+            reactiveExecute(
+                ExecutionInput.create(operationText = "query $operationName { contextPackage }", operationName = operationName, requestContext = Any()),
+                SchemaId.Base,
+            ).toList().single()
+        }
+        val data = result.toSpecification()["data"] as Map<*, *>
+        return data["contextPackage"].toString()
     }
 
     @Test
@@ -368,8 +482,8 @@ class StandardViaductTest {
                 val engine = mockk<Engine>()
                 coEvery { engine.execute(any(), incrementalExecution = true) } returns result
                 val registry = mockk<EngineRegistry>()
-                every { registry.getEngine(SchemaId.Base) } returns engine
-                val viaduct = StandardViaduct(registry, standardViaductFactory = mockk())
+                every { registry.getEngine(SchemaId.Base, EngineKind.CURRENT) } returns engine
+                val viaduct = StandardViaduct(registry, standardViaductFactory = mockk(), flagManager = FlagManager.Disabled)
                 val received = mutableListOf<ServiceExecutionResult>()
 
                 val thrown = assertThrows<IllegalStateException> {
@@ -974,6 +1088,22 @@ class StandardViaductTest {
         assertEquals(emptyList<GraphQLError>(), result.errors)
         assertEquals(mapOf("generatedRegistryTestField" to "new-registry"), result.getData())
     }
+}
+
+private const val RUNTIME2_PACKAGE = "viaduct.engine.runtime2"
+
+private class EngineFlags(
+    var engine2Enabled: Boolean = false,
+    var perRequest: Boolean = false,
+    var useEngine2: Boolean = false,
+) : FlagManager {
+    override fun isEnabled(flag: FlagManager.Flag): Boolean =
+        when (flag) {
+            FlagManager.Flags.ENGINE2_ENABLED -> engine2Enabled
+            FlagManager.Flags.ENGINE2_PER_REQUEST -> perRequest
+            FlagManager.Flags.USE_ENGINE2 -> useEngine2
+            else -> false
+        }
 }
 
 private class MutableEngine2FlagManager(
