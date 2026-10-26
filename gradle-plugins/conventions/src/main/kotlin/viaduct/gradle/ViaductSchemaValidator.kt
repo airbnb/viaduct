@@ -11,12 +11,14 @@ import java.io.File
 import java.io.StringReader
 import java.nio.file.Path
 import org.slf4j.Logger
+import viaduct.apiannotations.InternalApi
 import viaduct.graphql.schema.ViaductSchema
 import viaduct.graphql.schema.graphqljava.extensions.fromTypeDefinitionRegistry
 import viaduct.graphql.schema.validation.SchemaValidationError
 import viaduct.graphql.schema.validation.rules.DefaultSchemaValidator
 import viaduct.graphql.schema.validation.rules.SchemaExtensionsValidator
 
+@InternalApi
 class ViaductSchemaValidator(
     private val logger: Logger,
     private val extensionsOnly: Boolean = false,

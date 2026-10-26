@@ -8,18 +8,20 @@ import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
 import org.slf4j.LoggerFactory
+import viaduct.apiannotations.InternalApi
 import viaduct.gradle.SchemaContributionReconciler
-import viaduct.gradle.ViaductApplicationPlugin
+import viaduct.gradle.ViaductApplicationConventionsPlugin
 import viaduct.gradle.ViaductSchemaValidator
 import viaduct.graphql.utils.DefaultSchemaFactory
 
+@InternalApi
 abstract class ValidateSchemaExtensionsTask : DefaultTask() {
     init {
         group = "viaduct"
         description = "Validate schema extension files (schemabase + common) against Viaduct rules in isolation, without requiring module partitions. Run this to quickly check your schema extensions are well-formed."
     }
 
-    private val logger = LoggerFactory.getLogger(ViaductApplicationPlugin::class.java)
+    private val logger = LoggerFactory.getLogger(ViaductApplicationConventionsPlugin::class.java)
 
     @get:InputFiles
     @get:PathSensitive(PathSensitivity.RELATIVE)
@@ -47,7 +49,7 @@ abstract class ValidateSchemaExtensionsTask : DefaultTask() {
         ).toList()
 
         val sdl = DefaultSchemaFactory.getDefaultSDL(existingSDLFiles = userFiles)
-        val builtinFile = temporaryDir.resolve(ViaductApplicationPlugin.BUILTIN_SCHEMA_FILE)
+        val builtinFile = temporaryDir.resolve(ViaductApplicationConventionsPlugin.BUILTIN_SCHEMA_FILE)
         builtinFile.writeText(sdl)
 
         val allFiles = userFiles + builtinFile

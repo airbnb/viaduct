@@ -36,6 +36,6 @@ abstract class ViaductApplicationPlugin : Plugin<Project> {
     }
 
     companion object {
-        const val BUILTIN_SCHEMA_FILE = "BUILTIN_SCHEMA.graphqls"
+        const val BUILTIN_SCHEMA_FILE = ViaductApplicationConventionsPlugin.BUILTIN_SCHEMA_FILE
     }
 }

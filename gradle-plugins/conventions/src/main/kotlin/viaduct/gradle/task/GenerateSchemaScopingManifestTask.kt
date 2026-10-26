@@ -13,6 +13,7 @@ import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
 import viaduct.apiannotations.ExperimentalApi
+import viaduct.apiannotations.InternalApi
 import viaduct.gradle.ViaductScopesYaml
 import viaduct.scoping.SchemaScopeDefinitions
 import viaduct.scoping.SchemaScopingManifest
@@ -26,6 +27,7 @@ import viaduct.scoping.SchemaScopingManifest
  */
 @OptIn(ExperimentalApi::class)
 @CacheableTask
+@InternalApi
 abstract class GenerateSchemaScopingManifestTask
     @Inject
     constructor(

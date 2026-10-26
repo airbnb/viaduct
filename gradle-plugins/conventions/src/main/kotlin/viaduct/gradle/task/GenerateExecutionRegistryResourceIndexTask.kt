@@ -10,11 +10,13 @@ import org.gradle.api.tasks.CacheableTask
 import org.gradle.api.tasks.Classpath
 import org.gradle.api.tasks.OutputDirectory
 import org.gradle.api.tasks.TaskAction
+import viaduct.apiannotations.InternalApi
 import viaduct.bootstrap.ConfigKey
 import viaduct.bootstrap.ExecutionRegistryConfigFile
 import viaduct.bootstrap.ViaductResourceIndexes
 
 @CacheableTask
+@InternalApi
 abstract class GenerateExecutionRegistryResourceIndexTask : DefaultTask() {
     @get:Classpath
     abstract val moduleClasspath: ConfigurableFileCollection

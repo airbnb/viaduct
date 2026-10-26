@@ -15,7 +15,7 @@ java {
 
 dependencies {
     implementation(project(":common"))
-    implementation(project(":application"))
+    implementation(project(":conventions"))
     implementation(project(":metamodule"))
 
     // Libraries the plugin source imports directly (binary schema generation).
@@ -31,6 +31,7 @@ dependencies {
     // Testing
     testImplementation(gradleTestKit())
     testImplementation(project(":settings"))
+    testImplementation(project(":application"))
     testImplementation(libs.kotest.assertions.core.jvm)
     testImplementation(libs.ksp.gradle.plugin)
     testImplementation(libs.kotlin.gradle.plugin)
@@ -78,12 +79,6 @@ gradlePlugin {
     vcsUrl = "https://github.com/airbnb/viaduct"
 
     plugins {
-        create("viaductKotlinSettings") {
-            id = "${libs.versions.pluginIdPrefix.get()}.kotlinapi"
-            implementationClass = "viaduct.gradle.ViaductKotlinSettingsPlugin"
-            displayName = "Viaduct :: Kotlin Tenant API"
-            description = "Enable the Kotlin tenant API for a Viaduct application."
-        }
         create("viaductModule") {
             id = "${libs.versions.pluginIdPrefix.get()}.module-gradle-plugin"
             implementationClass = "viaduct.gradle.ViaductModulePlugin"

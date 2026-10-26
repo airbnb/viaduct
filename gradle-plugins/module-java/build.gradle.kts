@@ -14,7 +14,7 @@ java {
 
 dependencies {
     implementation(project(":common"))
-    implementation(project(":application"))
+    implementation(project(":conventions"))
     implementation(project(":metamodule"))
 
     // Classes bundled directly into this plugin JAR via conventions.viaduct-fat-plugin.
@@ -23,6 +23,7 @@ dependencies {
 
     testImplementation(gradleTestKit())
     testImplementation(project(":settings"))
+    testImplementation(project(":application"))
     testImplementation(libs.viaduct.javaapi.runtime)
 }
 
@@ -40,12 +41,6 @@ gradlePlugin {
     vcsUrl = "https://github.com/airbnb/viaduct"
 
     plugins {
-        create("viaductJavaSettings") {
-            id = "${libs.versions.pluginIdPrefix.get()}.javaapi"
-            implementationClass = "viaduct.gradle.ViaductJavaSettingsPlugin"
-            displayName = "Viaduct :: Java Tenant API"
-            description = "Enable the Java tenant API for a Viaduct application."
-        }
         create("viaductJavaModule") {
             id = "${libs.versions.pluginIdPrefix.get()}.module-java-gradle-plugin"
             implementationClass = "viaduct.gradle.ViaductJavaModulePlugin"

@@ -41,7 +41,7 @@ class ValidateSchemaExtensionsTaskTest {
             .build()
         project.pluginManager.apply("java-library")
         root.registerViaductTopology(":app")
-        project.pluginManager.apply(ViaductApplicationPlugin::class.java)
+        project.pluginManager.apply(ViaductApplicationConventionsPlugin::class.java)
     }
 
     @Test

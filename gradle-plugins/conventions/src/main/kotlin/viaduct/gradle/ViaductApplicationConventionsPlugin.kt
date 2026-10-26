@@ -18,7 +18,7 @@ import org.gradle.kotlin.dsl.register
 import schemaScopingManifestDirectory
 import viaduct.apiannotations.InternalApi
 import viaduct.apiannotations.StableApi
-import viaduct.gradle.ViaductApplicationPlugin.Companion.BUILTIN_SCHEMA_FILE
+import viaduct.gradle.ViaductApplicationConventionsPlugin.Companion.BUILTIN_SCHEMA_FILE
 import viaduct.gradle.ViaductPluginCommon.validateApplicationProjectPlacement
 import viaduct.gradle.task.AssembleCentralSchemaTask
 import viaduct.gradle.task.GenerateExecutionRegistryResourceIndexTask
@@ -78,6 +78,10 @@ abstract class ViaductApplicationConventionsPlugin : Plugin<Project> {
                 project.dependencies.add(name, files(sharedLibraries))
             }
         }
+
+    companion object {
+        const val BUILTIN_SCHEMA_FILE = "BUILTIN_SCHEMA.graphqls"
+    }
 
     private fun Project.setupIncomingDependenciesFromTopology(
         topology: ViaductApplicationTopology,

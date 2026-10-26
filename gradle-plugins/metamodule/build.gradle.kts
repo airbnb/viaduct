@@ -7,7 +7,7 @@ plugins {
 }
 
 dependencies {
-    api(project(":common"))
+    api(project(":conventions"))
 
     testImplementation(gradleTestKit())
     testImplementation(project(":application"))
