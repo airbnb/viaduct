@@ -50,7 +50,7 @@ cd viaduct-hello-world
 
     ```toml
     [versions]
-    viaduct = "0.7.0"
+    viaduct = "3.0.0"
 
     [plugins]
     viaduct-application = { id = "com.airbnb.viaduct.application-gradle-plugin", version.ref = "viaduct" }
@@ -69,19 +69,17 @@ cd viaduct-hello-world
     ```kotlin
     pluginManagement {
         repositories {
-            maven("https://central.sonatype.com/repository/maven-snapshots/")
             mavenCentral()
             gradlePluginPortal()
         }
     }
 
     plugins {
-        id("com.airbnb.viaduct.settings-gradle-plugin") version "2.1.0-SNAPSHOT"
+        id("com.airbnb.viaduct.settings-gradle-plugin") version "3.0.0"
     }
 
     dependencyResolutionManagement {
         repositories {
-            maven("https://central.sonatype.com/repository/maven-snapshots/")
             mavenCentral()
         }
     }
@@ -106,8 +104,8 @@ cd viaduct-hello-world
     plugins {
         application
         `java-library`
-        id("com.airbnb.viaduct.application-gradle-plugin") version "2.1.0-SNAPSHOT"
-        id("com.airbnb.viaduct.module-java-gradle-plugin") version "2.1.0-SNAPSHOT"
+        id("com.airbnb.viaduct.application-gradle-plugin") version "3.0.0"
+        id("com.airbnb.viaduct.module-java-gradle-plugin") version "3.0.0"
     }
 
     java {
@@ -117,11 +115,14 @@ cd viaduct-hello-world
     }
 
     dependencies {
-        implementation("com.airbnb.viaduct:api:2.1.0-SNAPSHOT")
-        implementation("com.airbnb.viaduct:runtime:2.1.0-SNAPSHOT")
-        implementation("com.airbnb.viaduct:javaapi-api:2.1.0-SNAPSHOT")
-        implementation("com.airbnb.viaduct:javaapi-runtime:2.1.0-SNAPSHOT")
-        runtimeOnly("org.jetbrains.kotlin:kotlin-reflect:2.2.21")
+        implementation("com.airbnb.viaduct:api:3.0.0")
+        implementation("com.airbnb.viaduct:runtime:3.0.0")
+        implementation("com.airbnb.viaduct:javaapi-api:3.0.0")
+        implementation("com.airbnb.viaduct:javaapi-runtime:3.0.0")
+        runtimeOnly("org.jetbrains.kotlin:kotlin-reflect:2.3.21")
+        runtimeOnly("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.5.2")
+        runtimeOnly("org.jetbrains.kotlinx:kotlinx-coroutines-jdk8:1.5.2")
+        runtimeOnly("org.reactivestreams:reactive-streams:1.0.4")
     }
 
     application {
@@ -129,7 +130,7 @@ cd viaduct-hello-world
     }
     ```
 
-    Use the same Viaduct version for the settings, application, and Java module plugins and all Viaduct dependencies. This example enables the snapshot repository directly, so it does not need the demo’s environment flag. `kotlin-reflect` is a runtime dependency of Viaduct; you do not need Kotlin source files or the Kotlin JVM plugin.
+    Use the same Viaduct version for the settings, application, and Java module plugins and all Viaduct dependencies. Viaduct does not bundle `kotlin-reflect`, `kotlinx-coroutines`, or `reactive-streams`, so the application declares them as runtime dependencies; you do not need Kotlin source files or the Kotlin JVM plugin.
 
 ### Creating the Schema
 
@@ -200,6 +201,11 @@ extend type Query {
     ```java
     package com.example.viadapp;
 
+    import viaduct.service.BasicViaductFactory;
+    import viaduct.service.api.ExecutionInput;
+    import viaduct.service.api.SchemaId;
+    import viaduct.service.api.Viaduct;
+
     public final class ViaductApplication {
         public static void main(String[] args) {
             Viaduct viaduct = BasicViaductFactory.create();
@@ -218,6 +224,10 @@ extend type Query {
     ```java
     package com.example.viadapp.resolvers;
 
+    import com.example.viadapp.resolvers.resolverbases.QueryResolvers;
+    import java.util.concurrent.CompletableFuture;
+    import viaduct.java.api.annotations.Resolver;
+
     @Resolver
     public final class GreetingResolver extends QueryResolvers.Greeting {
         @Override
@@ -231,6 +241,10 @@ extend type Query {
 
     ```java
     package com.example.viadapp.resolvers;
+
+    import com.example.viadapp.resolvers.resolverbases.QueryResolvers;
+    import java.util.concurrent.CompletableFuture;
+    import viaduct.java.api.annotations.Resolver;
 
     @Resolver
     public final class AuthorResolver extends QueryResolvers.Author {

@@ -15,7 +15,7 @@ Kotlin Star Wars resolver tests use `ResolverTestBase`. The Java demo uses JUnit
     Run the existing integration suite from `demoapps/starwars-java`:
 
     ```shell
-    USE_VIADUCT_SNAPSHOT_REPO=true ./gradlew test
+    ./gradlew test
     ```
 
     `StarWarsJavaIntegrationTest` starts a Micronaut server on an available port, injects an HTTP client, and sends requests through the real `/graphql` controller. This exercises generated types, resolver discovery, dependency injection, scopes, and request context together.

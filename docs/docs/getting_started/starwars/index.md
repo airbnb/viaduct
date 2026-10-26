@@ -39,7 +39,7 @@ Both language versions showcase the following patterns. Select a language tab on
     The Java demo is part of the main Viaduct repository. It uses Micronaut and the Java tenant API.
 
     ```shell
-    git clone https://github.com/airbnb/viaduct.git
+    git clone --branch v3.0.0 https://github.com/airbnb/viaduct.git
     cd viaduct/demoapps/starwars-java
     ```
 
@@ -57,11 +57,11 @@ Follow the instructions in the repository's README to build and run the applicat
 
 === "Java"
 
-    The demo currently uses `2.1.0-SNAPSHOT`. The environment flag enables the snapshot repository for both plugins and dependencies. On Windows, use Git Bash for these commands.
+    On Windows, use Git Bash for these commands.
 
     ```shell
-    USE_VIADUCT_SNAPSHOT_REPO=true ./gradlew test
-    USE_VIADUCT_SNAPSHOT_REPO=true ./gradlew run
+    ./gradlew test
+    ./gradlew run
     ```
 
     Open [GraphiQL](http://localhost:8080/graphiql) and try:

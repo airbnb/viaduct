@@ -160,8 +160,8 @@ At the top of `build.gradle.kts` you'll see:
     plugins {
         application
         `java-library`
-        id("com.airbnb.viaduct.application-gradle-plugin") version "2.1.0-SNAPSHOT"
-        id("com.airbnb.viaduct.module-java-gradle-plugin") version "2.1.0-SNAPSHOT"
+        id("com.airbnb.viaduct.application-gradle-plugin") version "3.0.0"
+        id("com.airbnb.viaduct.module-java-gradle-plugin") version "3.0.0"
     }
     ```
 

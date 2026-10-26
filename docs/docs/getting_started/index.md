@@ -64,17 +64,17 @@ Choose **Kotlin** or **Java** below. Your selection applies to the examples thro
     - Git
     - Linux, Mac, or Windows (use Git Bash for the commands below on Windows)
 
-    Clone the public Viaduct repository, which contains the Java example:
+    Clone the public Viaduct repository at the 3.0.0 release, which contains the Java example:
 
     ```shell
-    git clone --depth 1 https://github.com/airbnb/viaduct.git
+    git clone --depth 1 --branch v3.0.0 https://github.com/airbnb/viaduct.git
     cd viaduct/demoapps/starwars-java
     ```
 
-    The Java API is in Beta. This example currently uses a snapshot version of Viaduct, so enable the snapshot repository when running Gradle:
+    The Java API is in Beta. Start the server:
 
     ```shell
-    USE_VIADUCT_SNAPSHOT_REPO=true ./gradlew run
+    ./gradlew run
     ```
 
     Wait for the server to start, then open [http://localhost:8080/graphiql](http://localhost:8080/graphiql) in your browser. Keep the server running while you use GraphiQL.
@@ -327,7 +327,7 @@ Now that we have a working service, let's look at how it is structured: where th
     After making these changes, stop the running server with `Ctrl+C`, then rebuild and run from `demoapps/starwars-java`:
 
     ```shell
-    USE_VIADUCT_SNAPSHOT_REPO=true ./gradlew run
+    ./gradlew run
     ```
 
     The build generates `CharacterResolvers.WelcomeMessage` from the new schema field before compiling your Java class. You do not write that base class yourself. If your editor initially marks it as missing, let the build finish and reload the Gradle project.
