@@ -4,18 +4,32 @@ package viaduct.engine.runtime2.execution
 
 import graphql.GraphQLError
 import graphql.execution.preparsed.NoOpPreparsedDocumentProvider
+import graphql.execution.preparsed.PreparsedDocumentEntry
 import graphql.execution.preparsed.PreparsedDocumentProvider
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.Executors
+import kotlin.coroutines.ContinuationInterceptor
+import kotlin.coroutines.CoroutineContext
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.asContextElement
+import kotlinx.coroutines.asCoroutineDispatcher
+import kotlinx.coroutines.async
 import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.future.await
 import kotlinx.coroutines.job
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.yield
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
 import viaduct.engine.api.mocks.EngineTestModule
 import viaduct.engine.api.mocks.MockExecutorCodeInjector
 import viaduct.engine.api.mocks.MockFieldBatchResolverExecutor
@@ -93,6 +107,103 @@ class Engine2CoroutineContextTest : CoroutineContextContract() {
                 )
                 assertEquals(emptyList<GraphQLError>(), result.errors)
                 assertEquals(mapOf("requestIdentity" to "configured-interop"), result.getData())
+            }
+        }
+
+    @Test
+    fun `engine2 inherits the configured service dispatcher across suspension`(): Unit =
+        runBlocking {
+            Executors.newSingleThreadExecutor().asCoroutineDispatcher().use { dispatcher ->
+                val interop = object : CoroutineInterop by DefaultCoroutineInterop {
+                    override fun <T> enterThreadLocalCoroutineContext(
+                        callerContext: CoroutineContext,
+                        block: suspend CoroutineScope.() -> T,
+                    ): CompletableFuture<T> =
+                        DefaultCoroutineInterop.enterThreadLocalCoroutineContext(callerContext) {
+                            withContext(dispatcher, block)
+                        }
+                }
+                val viaduct = createViaduct(
+                    schemaSDL =
+                        """
+                        extend type Query { requestIdentity: String @resolver }
+                        extend type Mutation { requestIdentity: String @resolver }
+                        """.trimIndent(),
+                    resolveField = {
+                        assertSame(dispatcher, currentCoroutineContext()[ContinuationInterceptor])
+                        yield()
+                        assertSame(dispatcher, currentCoroutineContext()[ContinuationInterceptor])
+                        "resolved"
+                    },
+                    documentProvider = NoOpPreparsedDocumentProvider(),
+                    coroutineInterop = interop,
+                )
+                for (operation in listOf("query", "mutation")) {
+                    val result = viaduct.execute(ExecutionInput.create("$operation { requestIdentity }"), SchemaId.Base)
+                    assertEquals(emptyList<GraphQLError>(), result.errors)
+                    assertEquals(mapOf("requestIdentity" to "resolved"), result.getData())
+                }
+            }
+        }
+
+    @ParameterizedTest
+    @ValueSource(strings = ["query", "mutation"])
+    fun `pending document loading preserves configured dispatcher and request context`(operation: String): Unit =
+        runBlocking {
+            withTimeout(30_000) {
+                val executor = Executors.newSingleThreadExecutor()
+                executor.asCoroutineDispatcher().use { dispatcher ->
+                    val requestIdentity = ThreadLocal<String>()
+                    val parsedDocument = CompletableFuture<PreparsedDocumentEntry>()
+                    val pendingDocument = CompletableFuture<PreparsedDocumentEntry>()
+                    val interop = object : CoroutineInterop by DefaultCoroutineInterop {
+                        override fun <T> enterThreadLocalCoroutineContext(
+                            callerContext: CoroutineContext,
+                            block: suspend CoroutineScope.() -> T,
+                        ): CompletableFuture<T> =
+                            DefaultCoroutineInterop.enterThreadLocalCoroutineContext(callerContext) {
+                                withContext(dispatcher, block)
+                            }
+                    }
+                    val viaduct = createViaduct(
+                        schemaSDL =
+                            """
+                            extend type Query { requestIdentity: String @resolver }
+                            extend type Mutation { requestIdentity: String @resolver }
+                            """.trimIndent(),
+                        resolveField = {
+                            assertSame(dispatcher, currentCoroutineContext()[ContinuationInterceptor])
+                            assertEquals("request-context", requestIdentity.get())
+                            assertEquals("async-document-request", currentCoroutineContext()[CoroutineName]?.name)
+                            yield()
+                            assertSame(dispatcher, currentCoroutineContext()[ContinuationInterceptor])
+                            assertEquals("request-context", requestIdentity.get())
+                            assertEquals("async-document-request", currentCoroutineContext()[CoroutineName]?.name)
+                            requestIdentity.get()
+                        },
+                        documentProvider = PreparsedDocumentProvider { input, parseAndValidate ->
+                            assertEquals("request-context", requestIdentity.get())
+                            parsedDocument.complete(parseAndValidate.apply(input))
+                            pendingDocument
+                        },
+                        coroutineInterop = interop,
+                    )
+                    val execution = async(CoroutineName("async-document-request") + requestIdentity.asContextElement("request-context")) {
+                        viaduct.execute(ExecutionInput.create("$operation { requestIdentity }"), SchemaId.Base)
+                    }
+                    val document = parsedDocument.await()
+                    // The sentinel runs after GraphQL registers its continuation and the request suspends.
+                    val requestSuspended = CompletableFuture<Unit>()
+                    executor.execute { requestSuspended.complete(Unit) }
+                    requestSuspended.await()
+                    assertNull(requestIdentity.get())
+                    pendingDocument.complete(document)
+
+                    val result = execution.await()
+                    assertEquals(emptyList<GraphQLError>(), result.errors)
+                    assertEquals(mapOf("requestIdentity" to "request-context"), result.getData())
+                    assertNull(requestIdentity.get())
+                }
             }
         }
 

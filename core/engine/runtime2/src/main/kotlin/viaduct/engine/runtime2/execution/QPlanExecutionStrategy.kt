@@ -16,7 +16,6 @@ import java.util.concurrent.CancellationException
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.coroutines.CoroutineContext
-import kotlin.coroutines.EmptyCoroutineContext
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -38,8 +37,7 @@ import viaduct.engine.runtime2.schema.selectionsFrom
  *
  * Each request decodes its validated operation into qplan selections, starts Resolution, and
  * delegates GraphQL completion with a live promise-backed OER as the root source.
- * The embedding service owns [resolverCoroutineContext] for its service lifetime; this strategy
- * borrows and retains the context across requests without closing it.
+ * The resolver context is borrowed; the strategy owns only its request job.
  * [QPlanInstrumentation] must be installed on the enclosing `GraphQL` instance so incremental
  * publisher termination owns final request cleanup.
  */
@@ -75,15 +73,10 @@ class QPlanExecutionStrategy(
         val requestFailure = CompletableFuture<Throwable>()
         val cycleChecker = executionContext.graphQLContext.get<CycleCheckState>(CycleCheckState::class.java)
             ?: CycleCheckState.create()
-        val callerCoroutineContext = executionContext.graphQLContext.getOrDefault<CoroutineContext>(
-            QPlanCallerCoroutineContextKey,
-            EmptyCoroutineContext,
-        )
-        // Preserve request-context elements while retaining the borrowed resolver dispatcher
-        // and independent request job needed to outlive initial incremental completion.
+        // The independent job lets incremental work outlive initial response completion.
         val requestScope =
             CoroutineScope(
-                callerCoroutineContext + resolverCoroutineContext +
+                resolverCoroutineContext +
                     requestJob +
                     CoroutineExceptionHandler { _, throwable ->
                         requestFailure.complete(throwable)
@@ -270,6 +263,3 @@ internal class QPlanCallerCancellation {
 }
 
 internal data object QPlanCallerCancellationKey
-
-/** Caller context captured by the configured CoroutineInterop at the Engine API boundary. */
-internal data object QPlanCallerCoroutineContextKey

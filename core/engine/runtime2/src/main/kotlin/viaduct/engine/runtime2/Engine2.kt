@@ -16,9 +16,11 @@ import graphql.execution.preparsed.PreparsedDocumentProvider
 import graphql.language.FragmentDefinition
 import graphql.schema.GraphQLObjectType
 import java.util.concurrent.CompletableFuture
+import kotlin.coroutines.CoroutineContext
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.future.await
+import kotlinx.coroutines.future.future
 import viaduct.engine.airbnb.EngineGraphQLJavaCompat
 import viaduct.engine.api.CompleteSelectionSetOptions
 import viaduct.engine.api.Engine
@@ -47,12 +49,12 @@ import viaduct.engine.runtime.FieldDataLoader
 import viaduct.engine.runtime.NodeDataLoader
 import viaduct.engine.runtime.context.CompositeLocalContext
 import viaduct.engine.runtime.execution.DefaultCoroutineInterop
+import viaduct.engine.runtime.execution.WrappedCoroutineExecutionStrategy
 import viaduct.engine.runtime.select.EngineSelectionSetFactoryImpl
 import viaduct.engine.runtime2.airbnb.DispatcherResolverRegistryFactory
 import viaduct.engine.runtime2.airbnb.Engine2ResolverRegistryFactory
 import viaduct.engine.runtime2.execution.QPlanCallerCancellation
 import viaduct.engine.runtime2.execution.QPlanCallerCancellationKey
-import viaduct.engine.runtime2.execution.QPlanCallerCoroutineContextKey
 import viaduct.engine.runtime2.execution.QPlanExecutionStrategy
 import viaduct.engine.runtime2.execution.QPlanInstrumentation
 import viaduct.engine.runtime2.execution.QPlanWiringFactory
@@ -74,7 +76,7 @@ class Engine2(
     private val globalIDCodec: GlobalIDCodec,
     fieldSelectivityProvider: FieldSelectivityProvider = FieldSelectivityProvider.Never,
     resolverInstrumentation: ViaductResolverInstrumentation = ViaductResolverInstrumentation.DEFAULT,
-    dataFetcherExceptionHandler: DataFetcherExceptionHandler,
+    private val dataFetcherExceptionHandler: DataFetcherExceptionHandler,
     additionalInstrumentation: Instrumentation? = null,
     private val coroutineInterop: CoroutineInterop = DefaultCoroutineInterop,
     resolverRegistryFactory: Engine2ResolverRegistryFactory = DispatcherResolverRegistryFactory,
@@ -97,30 +99,52 @@ class Engine2(
         GraphQL
             .newGraphQL(QPlanWiringFactory(schemas.loweredSchema).wire(schema.schema))
             .preparsedDocumentProvider(documentProvider)
-            .queryExecutionStrategy(
-                QPlanExecutionStrategy(
-                    world = world,
-                    sourceSchema = schemas.graphQLSchema,
-                    resolverCoroutineContext = Dispatchers.Default,
-                    engineExecutionContextFactory = ::invocationContext,
-                    dataFetcherExceptionHandler = dataFetcherExceptionHandler,
-                    worldForExecution = ::worldForExecution,
-                ),
-            ).mutationExecutionStrategy(
-                QPlanExecutionStrategy(
-                    world = world,
-                    sourceSchema = schemas.graphQLSchema,
-                    resolverCoroutineContext = Dispatchers.Default,
-                    engineExecutionContextFactory = ::invocationContext,
-                    dataFetcherExceptionHandler = dataFetcherExceptionHandler,
-                    worldForExecution = ::worldForExecution,
-                ),
-            ).subscriptionExecutionStrategy(UnsupportedSubscriptionExecutionStrategy)
+            .queryExecutionStrategy(createExecutionStrategy())
+            .mutationExecutionStrategy(createExecutionStrategy())
+            .subscriptionExecutionStrategy(UnsupportedSubscriptionExecutionStrategy)
             .instrumentation(
                 additionalInstrumentation?.let {
                     ChainedInstrumentation(listOf(qplanInstrumentation, it))
                 } ?: qplanInstrumentation,
             ).build()
+
+    private fun createExecutionStrategy(): ExecutionStrategy {
+        val wrappedStrategy =
+            WrappedCoroutineExecutionStrategy(
+                object : ExecutionStrategy(dataFetcherExceptionHandler) {
+                    override fun execute(
+                        context: ExecutionContext,
+                        parameters: ExecutionStrategyParameters,
+                    ): CompletableFuture<ExecutionResult> =
+                        coroutineInterop.scopedFuture {
+                            // Capture the context after the wrapper selects the request's dispatcher.
+                            QPlanExecutionStrategy(
+                                world = world,
+                                sourceSchema = schemas.graphQLSchema,
+                                resolverCoroutineContext = coroutineContext,
+                                engineExecutionContextFactory = ::invocationContext,
+                                dataFetcherExceptionHandler = dataFetcherExceptionHandler,
+                                worldForExecution = ::worldForExecution,
+                            ).execute(context, parameters).await()
+                        }
+                },
+                coroutineInterop,
+                dataFetcherExceptionHandler,
+            )
+        return object : ExecutionStrategy(dataFetcherExceptionHandler) {
+            override fun execute(
+                context: ExecutionContext,
+                parameters: ExecutionStrategyParameters,
+            ): CompletableFuture<ExecutionResult> {
+                val requestContext = context.graphQLContext.get<RequestContext?>(requestContextKey)
+                    ?: return wrappedStrategy.execute(context, parameters)
+                // Document loading may resume GraphQL outside the request coroutine.
+                return CoroutineScope(requestContext.coroutineContext).future {
+                    wrappedStrategy.execute(context, parameters).await()
+                }
+            }
+        }
+    }
 
     private fun worldForExecution(invocation: ExecutionContext): Assumptions {
         val registry = resolverRegistries.forExecution(invocation)
@@ -162,9 +186,8 @@ class Engine2(
                         .query(executionInput.operationText)
                         .variables(executionInput.variables)
                         .graphQLContext { context ->
-                            context.put(requestContextKey, RequestContext(engineContext))
+                            context.put(requestContextKey, RequestContext(engineContext, coroutineContext))
                             context.put(QPlanCallerCancellationKey, callerCancellation)
-                            context.put(QPlanCallerCoroutineContextKey, coroutineContext)
                         }
                 executionInput.operationName?.let(builder::operationName)
                 executionInput.requestContext?.let(builder::context)
@@ -262,6 +285,7 @@ private data class RequestContextKey(
 
 private data class RequestContext(
     val engineExecutionContext: DispatcherExecutionContext,
+    val coroutineContext: CoroutineContext,
 )
 
 private object UnsupportedSubscriptionExecutionStrategy : ExecutionStrategy() {
