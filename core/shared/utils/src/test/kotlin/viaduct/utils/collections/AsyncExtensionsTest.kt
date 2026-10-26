@@ -9,9 +9,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.ObsoleteCoroutinesApi
 import kotlinx.coroutines.async
-import kotlinx.coroutines.channels.BroadcastChannel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collect
@@ -131,9 +129,7 @@ class AsyncExtensionsTest {
         }
     }
 
-    @OptIn(ObsoleteCoroutinesApi::class)
     @Test
-    @Suppress("DEPRECATION")
     fun testParallelMapBuffered() {
         runBlocking {
             val testList = listOf(1, 2, 3, 4)
@@ -141,19 +137,19 @@ class AsyncExtensionsTest {
             val inspectionChannel2 = Channel<Int>()
             var currentInspectionChannel = inspectionChannel1
 
-            val semaphoreChannel = BroadcastChannel<Boolean>(1)
+            var batchComplete = CompletableDeferred<Unit>()
             val results =
                 async {
                     testList
                         .parallelMap(2, 2) {
                             // start listening for termination signal
-                            val semaphore = semaphoreChannel.openSubscription()
+                            val currentBatch = batchComplete
 
                             // send my value in for inspection
                             currentInspectionChannel.send(it)
 
                             // wait for the go-ahead to move on
-                            semaphore.receive()
+                            currentBatch.await()
 
                             it
                         }.toList()
@@ -172,7 +168,9 @@ class AsyncExtensionsTest {
                     currentInspectionChannel = inspectionChannel2
 
                     // raise the semaphore so the first set of things can move on
-                    semaphoreChannel.send(true)
+                    val completedBatch = batchComplete
+                    batchComplete = CompletableDeferred()
+                    completedBatch.complete(Unit)
                 }
             }
 
@@ -186,7 +184,7 @@ class AsyncExtensionsTest {
                     setOf(val1, val2) shouldBe setOf(3, 4)
 
                     // raise the semaphore so the second set of things can move on
-                    semaphoreChannel.send(true)
+                    batchComplete.complete(Unit)
                 }
             }
 

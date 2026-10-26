@@ -22,6 +22,8 @@ import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withTimeout
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNotSame
@@ -1194,9 +1196,14 @@ class QueryPlanTest {
         runExecutionTest {
             factory.build(firstParams, firstQuery.asDocument)
             factory.build(secondParams, secondQuery.asDocument)
-            val cacheStats = factory.cacheStats
 
-            assertEquals(1L, cacheStats.evictionCount())
+            withTimeout(5_000) {
+                while (factory.cacheStats.evictionCount() == 0L) {
+                    delay(10)
+                }
+            }
+
+            assertEquals(1L, factory.cacheStats.evictionCount())
         }
     }
 

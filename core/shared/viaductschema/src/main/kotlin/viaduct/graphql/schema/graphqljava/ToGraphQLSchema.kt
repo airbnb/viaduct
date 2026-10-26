@@ -553,11 +553,26 @@ private fun toGraphQLValue(value: ViaductSchema.Literal): Value<*> = value.toGra
  * This is suitable for creating an unexecutable schema representation.
  */
 private object PassthroughCoercing : Coercing<Any, Any> {
+    @Deprecated("Use serialize(dataFetcherResult, graphQLContext, locale)")
     override fun serialize(dataFetcherResult: Any): Any = dataFetcherResult
 
+    @Deprecated("Use parseValue(input, graphQLContext, locale)")
     override fun parseValue(input: Any): Any = input
 
+    @Deprecated("Use parseLiteral(input, variables, graphQLContext, locale)")
     override fun parseLiteral(input: Any): Any = input
+
+    override fun serialize(
+        dataFetcherResult: Any,
+        graphQLContext: GraphQLContext,
+        locale: java.util.Locale
+    ): Any = dataFetcherResult
+
+    override fun parseValue(
+        input: Any,
+        graphQLContext: GraphQLContext,
+        locale: java.util.Locale
+    ): Any = input
 
     override fun parseLiteral(
         input: Value<*>,

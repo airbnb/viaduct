@@ -419,11 +419,13 @@ class QueryPlanFactoryStats(
         loadFailureTimer?.record(loadTime, TimeUnit.NANOSECONDS)
     }
 
+    @Deprecated("Use recordEviction(weight, cause)", ReplaceWith("recordEviction(1, RemovalCause.SIZE)"))
     override fun recordEviction() {
         delegate.recordEviction(1, RemovalCause.SIZE)
         evictionCounter?.increment()
     }
 
+    @Deprecated("Use recordEviction(weight, cause)", ReplaceWith("recordEviction(weight, RemovalCause.SIZE)"))
     override fun recordEviction(weight: Int) {
         delegate.recordEviction(weight, RemovalCause.SIZE)
         evictionCounter?.increment()

@@ -1,8 +1,13 @@
 package viaduct.graphql.schema.graphqljava
 
+import graphql.GraphQLContext
+import graphql.language.StringValue
+import graphql.schema.GraphQLScalarType
 import graphql.schema.idl.RuntimeWiring
 import graphql.schema.idl.SchemaGenerator
 import graphql.schema.idl.SchemaParser
+import java.util.Locale
+import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Test
 import viaduct.graphql.schema.ViaductSchema
 import viaduct.graphql.schema.graphqljava.extensions.fromGraphQLSchema
@@ -202,6 +207,39 @@ class ToGraphQLSchemaGlassBoxTest {
             type Query @configure(config: { enabled: true, name: "test" }) { foo: String }
         """.trimIndent()
         roundTrip(sdl)
+    }
+
+    @Test
+    fun `custom scalars pass through runtime values using contextual coercing methods`() {
+        val tdr = SchemaParser().parse("$builtins\nscalar JSON\ntype Query { value: JSON }")
+        val schema = ViaductSchema.fromTypeDefinitionRegistry(tdr).toGraphQLSchema(setOf("JSON"))
+        val coercing = (schema.getType("JSON") as GraphQLScalarType).coercing
+        val value = mapOf("enabled" to true)
+        val context = GraphQLContext.getDefault()
+
+        val serialized = coercing.serialize(value, context, Locale.ROOT)
+        val parsed = coercing.parseValue(value, context, Locale.ROOT)
+
+        assertSame(value, serialized)
+        assertSame(value, parsed)
+    }
+
+    @Test
+    @Suppress("DEPRECATION")
+    fun `custom scalars preserve legacy passthrough coercing methods`() {
+        val tdr = SchemaParser().parse("$builtins\nscalar JSON\ntype Query { value: JSON }")
+        val schema = ViaductSchema.fromTypeDefinitionRegistry(tdr).toGraphQLSchema(setOf("JSON"))
+        val coercing = (schema.getType("JSON") as GraphQLScalarType).coercing
+        val value = mapOf("enabled" to true)
+        val literal = StringValue.newStringValue("legacy").build()
+
+        val serialized = coercing.serialize(value)
+        val parsed = coercing.parseValue(value)
+        val parsedLiteral = coercing.parseLiteral(literal)
+
+        assertSame(value, serialized)
+        assertSame(value, parsed)
+        assertSame(literal, parsedLiteral)
     }
 
     // ==================== SOURCE LOCATION TESTS ====================

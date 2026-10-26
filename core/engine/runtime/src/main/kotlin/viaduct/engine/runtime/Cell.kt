@@ -39,12 +39,13 @@ import kotlinx.coroutines.Deferred
  * Implementation note: elements of [slots] are all either Value<*> when the
  * slot is set before it's read, or CompletableDeferred<Value<*>> when the
  * slot is read before it's claimed. Except the last element, which is set
- * to true once it's claimed.
+ * to a sentinel once it's claimed.
  */
 @JvmInline
 value class Cell private constructor(private val slots: AtomicReferenceArray<Any?>) {
     companion object {
         internal const val MAX_SLOTS = 32
+        private val claimed = Any()
 
         /**
          * Creates a new cell with the given number of slots
@@ -133,7 +134,7 @@ value class Cell private constructor(private val slots: AtomicReferenceArray<Any
      */
     @Suppress("Detekt.TooGenericExceptionCaught")
     private fun compute(block: (SlotSetter) -> Unit): Boolean {
-        if (slots.compareAndSet(slots.length() - 1, null, true)) {
+        if (slots.compareAndSet(slots.length() - 1, null, claimed)) {
             // Successfully claimed
             val setter = SlotSetterImpl(slots)
             try {
