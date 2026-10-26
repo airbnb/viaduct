@@ -44,3 +44,8 @@ public abstract interface class viaduct/gradle/ViaductModulePackageLayout {
 	public abstract fun getSchemaPartitionPrefixPath ()Ljava/lang/String;
 }
 
+public final class viaduct/gradle/ViaductPluginRegistrationKt {
+	public static final fun registerViaductPlugin (Lorg/gradle/api/initialization/Settings;Ljava/lang/String;Ljava/lang/Class;Ljava/lang/Class;)V
+	public static synthetic fun registerViaductPlugin$default (Lorg/gradle/api/initialization/Settings;Ljava/lang/String;Ljava/lang/Class;Ljava/lang/Class;ILjava/lang/Object;)V
+}
+

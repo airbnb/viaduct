@@ -13,6 +13,8 @@ java {
 
 dependencies {
     implementation(project(":common"))
+    implementation(project(":application"))
+    implementation(project(":metamodule"))
 
     testImplementation(gradleTestKit())
     testImplementation(libs.kotest.assertions.core.jvm)

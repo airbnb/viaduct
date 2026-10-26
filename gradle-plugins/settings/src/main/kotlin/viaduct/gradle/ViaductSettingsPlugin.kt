@@ -2,6 +2,8 @@ package viaduct.gradle
 
 import org.gradle.api.GradleException
 import org.gradle.api.Plugin
+import org.gradle.api.Project
+import org.gradle.api.IsolatedAction
 import org.gradle.api.initialization.ProjectDescriptor
 import org.gradle.api.initialization.Settings
 
@@ -18,6 +20,9 @@ abstract class ViaductSettingsPlugin : Plugin<Settings> {
             ) {
                 parameters.topologyJson.set(ViaductTopologyJson.encode(topology))
             }
+            settings.gradle.lifecycle.beforeProject(
+                InstallViaductProjectPlugins(includeViaductApplication.projectInstallations()),
+            )
         }
     }
 }
@@ -30,6 +35,33 @@ open class IncludeViaductApplicationHandler(private val settings: Settings) {
         val spec = ViaductApplicationSpec(settings, declaration)
         spec.configure()
         declarations += declaration
+    }
+
+    internal fun projectInstallations(): Map<String, ViaductProjectPluginInstallation> = buildMap {
+        val registry = settings.viaductPluginRegistry().registrations
+        declarations.forEach { application ->
+            val registrations = application.enabledPlugins.map { registry.getValue(it) }
+            put(
+                application.projectPath!!,
+                ViaductProjectPluginInstallation(
+                    application = true,
+                    module = application.modules.any { it.projectPath == application.projectPath },
+                    applicationPlugins = registrations.map { it.applicationPlugin },
+                    modulePlugins = registrations.mapNotNull { it.moduleStubPlugin },
+                ),
+            )
+            application.modules.filter { it.projectPath != application.projectPath }.forEach { module ->
+                put(
+                    module.projectPath!!,
+                    ViaductProjectPluginInstallation(
+                        application = false,
+                        module = true,
+                        applicationPlugins = emptyList(),
+                        modulePlugins = registrations.mapNotNull { it.moduleStubPlugin },
+                    ),
+                )
+            }
+        }
     }
 
     internal fun buildTopology(): ViaductApplicationMap {
@@ -65,6 +97,14 @@ open class ViaductApplicationSpec internal constructor(
     private val settings: Settings,
     private val declaration: ViaductApplicationDeclaration,
 ) {
+    fun usePlugin(id: String) {
+        settings.pluginManager.apply(id)
+        if (id !in settings.viaductPluginRegistry().registrations) {
+            throw GradleException("Viaduct settings plugin '$id' did not call registerViaductPlugin before apply returned")
+        }
+        declaration.enabledPlugins += id
+    }
+
     fun project(path: String): ProjectDescriptor {
         val normalized = ViaductProjectPaths.normalize(path)
         if (declaration.projectPath != null) {
@@ -116,7 +156,35 @@ internal data class ViaductApplicationDeclaration(
     var projectPath: String? = null,
     var modulePackagePrefix: String? = null,
     val modules: MutableList<ViaductModuleDeclaration> = mutableListOf(),
+    val enabledPlugins: MutableSet<String> = linkedSetOf(),
 )
+
+internal data class ViaductProjectPluginInstallation(
+    val application: Boolean,
+    val module: Boolean,
+    val applicationPlugins: List<Class<out Plugin<Project>>>,
+    val modulePlugins: List<Class<out Plugin<Project>>>,
+)
+
+private class InstallViaductProjectPlugins(
+    private val installations: Map<String, ViaductProjectPluginInstallation>,
+) : IsolatedAction<Project> {
+    override fun execute(project: Project) {
+        val installation = installations[project.path] ?: return
+        if (installation.application) {
+            project.pluginManager.apply(ViaductApplicationConventionsPlugin::class.java)
+        }
+        if (installation.module) {
+            project.pluginManager.apply(ViaductModuleConventionsPlugin::class.java)
+        }
+        if (installation.application) {
+            installation.applicationPlugins.forEach { project.pluginManager.apply(it) }
+        }
+        if (installation.module) {
+            installation.modulePlugins.forEach { project.pluginManager.apply(it) }
+        }
+    }
+}
 
 internal data class ViaductModuleDeclaration(
     var projectPath: String? = null,

@@ -1,6 +1,5 @@
 plugins {
     id("conventions.kotlin")
-    id("com.airbnb.viaduct.application-gradle-plugin")
 }
 
 dependencies {
@@ -12,11 +11,11 @@ tasks.withType<Test>().configureEach {
     systemProperty("projectBuildDir", layout.buildDirectory.asFile.get().absolutePath)
     systemProperty(
         "alphaBuildDir",
-        project(":multi-project:alpha").layout.buildDirectory.asFile.get().absolutePath
+        layout.projectDirectory.dir("alpha/build").asFile.absolutePath
     )
     systemProperty(
         "betaBuildDir",
-        project(":multi-project:beta").layout.buildDirectory.asFile.get().absolutePath
+        layout.projectDirectory.dir("beta/build").asFile.absolutePath
     )
 }
 

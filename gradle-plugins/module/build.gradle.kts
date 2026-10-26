@@ -78,6 +78,12 @@ gradlePlugin {
     vcsUrl = "https://github.com/airbnb/viaduct"
 
     plugins {
+        create("viaductKotlinSettings") {
+            id = "${libs.versions.pluginIdPrefix.get()}.kotlinapi"
+            implementationClass = "viaduct.gradle.ViaductKotlinSettingsPlugin"
+            displayName = "Viaduct :: Kotlin Tenant API"
+            description = "Enable the Kotlin tenant API for a Viaduct application."
+        }
         create("viaductModule") {
             id = "${libs.versions.pluginIdPrefix.get()}.module-gradle-plugin"
             implementationClass = "viaduct.gradle.ViaductModulePlugin"

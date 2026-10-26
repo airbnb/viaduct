@@ -40,6 +40,12 @@ gradlePlugin {
     vcsUrl = "https://github.com/airbnb/viaduct"
 
     plugins {
+        create("viaductJavaSettings") {
+            id = "${libs.versions.pluginIdPrefix.get()}.javaapi"
+            implementationClass = "viaduct.gradle.ViaductJavaSettingsPlugin"
+            displayName = "Viaduct :: Java Tenant API"
+            description = "Enable the Java tenant API for a Viaduct application."
+        }
         create("viaductJavaModule") {
             id = "${libs.versions.pluginIdPrefix.get()}.module-java-gradle-plugin"
             implementationClass = "viaduct.gradle.ViaductJavaModulePlugin"

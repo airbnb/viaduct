@@ -4,7 +4,6 @@ plugins {
     `java-library`
     id("conventions.java")
     id("conventions.test-retry")
-    id("com.airbnb.viaduct.application-gradle-plugin")
     id("com.airbnb.viaduct.module-java-gradle-plugin")
 }
 
