@@ -43,21 +43,21 @@ Choose a language below to clone and run an existing Viaduct application. The Ko
 
 === "Java"
 
-    Install JDK 21+ and clone the main repository at the 3.0.0 release:
+    Install JDK 21+ and clone the main repository:
 
     ```shell
-    git clone --branch v3.0.0 https://github.com/airbnb/viaduct.git
+    git clone https://github.com/airbnb/viaduct.git
     cd viaduct/demoapps/starwars-java
     ```
 
     Verify the application before starting the server:
 
     ```shell
-    ./gradlew test
-    ./gradlew run
+    USE_VIADUCT_SNAPSHOT_REPO=true ./gradlew test
+    USE_VIADUCT_SNAPSHOT_REPO=true ./gradlew run
     ```
 
-    On Windows, run these commands in Git Bash.
+    The flag enables the snapshot repository required by the demo’s current Viaduct version. On Windows, run these commands in Git Bash.
 
     Open [GraphiQL](http://localhost:8080/graphiql) and execute:
 

@@ -25,42 +25,66 @@ cd viaduct-hello-world
 
 === "Kotlin"
 
-    Create a `settings.gradle.kts` file with the following content:
+    Create `settings.gradle.kts`:
 
     ```kotlin
     pluginManagement {
-       repositories {
-           mavenCentral()
-           gradlePluginPortal()
-       }
+        repositories {
+            mavenCentral()
+            gradlePluginPortal()
+        }
+    }
+
+    plugins {
+        id("com.airbnb.viaduct.settings-gradle-plugin") version "3.0.0"
     }
 
     dependencyResolutionManagement {
-       repositories {
-           mavenCentral()
-       }
-       versionCatalogs {
-           create("libs")
-       }
+        repositories {
+            mavenCentral()
+        }
+    }
+
+    rootProject.name = "viaduct-hello-world"
+
+    includeViaductApplication {
+        project(":")
+        modulePackagePrefix("com.example.viadapp")
+        includeModule {
+            project(":")
+            modulePackageSuffix("resolvers")
+        }
     }
     ```
 
+    The settings plugin registers the application and tenant module. Here both are in the same Gradle project. The package prefix and suffix put generated resolver bases in `com.example.viadapp.resolvers.resolverbases`.
 
-    You'll need to create a `gradle/libs.versions.toml` file:
+    Create `build.gradle.kts`:
 
-    ```toml
-    [versions]
-    viaduct = "3.0.0"
+    ```kotlin
+    plugins {
+        kotlin("jvm") version "2.3.21"
+        id("com.google.devtools.ksp") version "2.3.7"
+        id("com.airbnb.viaduct.application-gradle-plugin") version "3.0.0"
+        id("com.airbnb.viaduct.module-gradle-plugin") version "3.0.0"
+        application
+    }
 
-    [plugins]
-    viaduct-application = { id = "com.airbnb.viaduct.application-gradle-plugin", version.ref = "viaduct" }
-    viaduct-module = { id = "com.airbnb.viaduct.module-gradle-plugin", version.ref = "viaduct" }
+    dependencies {
+        implementation("com.airbnb.viaduct:api:3.0.0")
+        implementation("com.airbnb.viaduct:runtime:3.0.0")
+        implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")
+        implementation("com.fasterxml.jackson.core:jackson-databind:2.17.3")
+        implementation("ch.qos.logback:logback-classic:1.5.21")
+        runtimeOnly("org.jetbrains.kotlin:kotlin-reflect:2.3.21")
+    }
+
+    application {
+        mainClass.set("com.example.viadapp.ViaductApplicationKt")
+    }
     ```
 
-    Create a `build.gradle.kts` file. The key requirement is to include both Viaduct plugins:
-
-
-    {{ codetag("demoapps/cli-starter/build.gradle.kts", "gradle-config", lang="kotlin", count=38) | indent(4) }}
+    Use the same Viaduct version for the settings, application, and module plugins and all Viaduct dependencies. Viaduct does not bundle `kotlin-reflect` or `kotlinx-coroutines`, so the application declares them.
 
 === "Java"
 
@@ -120,9 +144,7 @@ cd viaduct-hello-world
         implementation("com.airbnb.viaduct:javaapi-api:3.0.0")
         implementation("com.airbnb.viaduct:javaapi-runtime:3.0.0")
         runtimeOnly("org.jetbrains.kotlin:kotlin-reflect:2.3.21")
-        runtimeOnly("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.5.2")
-        runtimeOnly("org.jetbrains.kotlinx:kotlinx-coroutines-jdk8:1.5.2")
-        runtimeOnly("org.reactivestreams:reactive-streams:1.0.4")
+        runtimeOnly("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")
     }
 
     application {
@@ -130,7 +152,7 @@ cd viaduct-hello-world
     }
     ```
 
-    Use the same Viaduct version for the settings, application, and Java module plugins and all Viaduct dependencies. Viaduct does not bundle `kotlin-reflect`, `kotlinx-coroutines`, or `reactive-streams`, so the application declares them as runtime dependencies; you do not need Kotlin source files or the Kotlin JVM plugin.
+    Use the same Viaduct version for the settings, application, and Java module plugins and all Viaduct dependencies. Viaduct does not bundle `kotlin-reflect` or `kotlinx-coroutines`, so the application declares them as runtime dependencies; you do not need Kotlin source files or the Kotlin JVM plugin.
 
 ### Creating the Schema
 

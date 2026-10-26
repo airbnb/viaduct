@@ -131,6 +131,10 @@ Each resolver is a class that extends a generated base class and overrides the `
     ```java
     package com.example.viadapp.resolvers;
 
+    import com.example.viadapp.resolvers.resolverbases.QueryResolvers;
+    import java.util.concurrent.CompletableFuture;
+    import viaduct.java.api.annotations.Resolver;
+
     @Resolver
     public final class GreetingResolver extends QueryResolvers.Greeting {
         @Override
