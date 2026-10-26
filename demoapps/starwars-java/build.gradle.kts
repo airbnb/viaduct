@@ -1,7 +1,6 @@
 plugins {
     `java-library`
     alias(libs.plugins.micronautApplication)
-    alias(libs.plugins.viaduct.application)
     jacoco
 }
 
