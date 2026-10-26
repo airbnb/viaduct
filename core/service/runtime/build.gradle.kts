@@ -18,6 +18,7 @@ dependencies {
     implementation(libs.viaduct.shared.bootstrap)
     implementation(libs.viaduct.shared.scoping)
     implementation(libs.viaduct.engine.runtime)
+    api(libs.viaduct.engine.runtime2)
     implementation(libs.viaduct.engine.wiring)
 
     implementation(libs.viaduct.shared.graphql)
@@ -33,7 +34,6 @@ dependencies {
     testImplementation(testFixtures(libs.viaduct.engine.api))
     testImplementation(testFixtures(libs.viaduct.service.api))
     testImplementation(testFixtures(libs.viaduct.shared.graphql))
-    testImplementation(libs.viaduct.engine.runtime2)
     testImplementation(libs.io.mockk.jvm)
     testImplementation(libs.io.mockk.dsl)
     testImplementation(libs.jspecify)

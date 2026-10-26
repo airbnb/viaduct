@@ -22,7 +22,6 @@ import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.future.await
 import viaduct.apiannotations.VisibleForTest
 import viaduct.engine.EngineConfiguration
-import viaduct.engine.EngineImpl
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.GraphQLBuildError
@@ -40,6 +39,7 @@ import viaduct.engine.runtime.tenantloading.AbstractDispatcherRegistryFactory
 import viaduct.engine.runtime.tenantloading.ExecutionRegistryConfigSourceCollector
 import viaduct.engine.runtime.tenantloading.MissingResolversException
 import viaduct.engine.runtime.tenantloading.RequiredSelectionsAreInvalid
+import viaduct.engine.runtime2.airbnb.Engine2ResolverRegistryFactory
 import viaduct.service.api.ExecutionInput
 import viaduct.service.api.ExecutionResult
 import viaduct.service.api.SchemaId
@@ -132,6 +132,7 @@ class StandardViaduct
             private var meterRegistry: MeterRegistry? = null
             private var resolverInstrumentation: ViaductResolverInstrumentation? = null
             private var fieldSelectivityProvider: FieldSelectivityProvider? = null
+            private var engine2ResolverRegistryFactory: Engine2ResolverRegistryFactory? = null
             private var materializedFieldValueReader: MaterializedFieldValueReader? = null
             private var allowSubscriptions: Boolean = false
             private var globalIDCodec: GlobalIDCodec? = null
@@ -256,6 +257,14 @@ class StandardViaduct
                     this.fieldSelectivityProvider = fieldSelectivityProvider
                 }
 
+            /**
+             * Configures the Airbnb-only Engine2 registry hook, replacing the default dispatcher adapter.
+             * The factory runs once per schema-scoped Engine2 instance; its provider may select a registry per invocation.
+             * This option has no effect when Engine1 is selected.
+             */
+            @Deprecated("Airbnb use only")
+            fun withEngine2ResolverRegistryFactory(factory: Engine2ResolverRegistryFactory): Builder = apply { engine2ResolverRegistryFactory = factory }
+
             @Deprecated("For Airbnb use only", level = DeprecationLevel.WARNING)
             fun withMaterializedFieldValueReader(materializedFieldValueReader: MaterializedFieldValueReader): Builder =
                 apply {
@@ -344,6 +353,7 @@ class StandardViaduct
                         chainInstrumentationWithDefaults = builder.chainInstrumentationWithDefaults,
                         resolverInstrumentation = builder.resolverInstrumentation ?: resolverInstrumentation,
                         fieldSelectivityProvider = builder.fieldSelectivityProvider ?: fieldSelectivityProvider,
+                        engine2ResolverRegistryFactory = builder.engine2ResolverRegistryFactory ?: engine2ResolverRegistryFactory,
                         materializedFieldValueReader =
                             builder.materializedFieldValueReader ?: materializedFieldValueReader,
                         globalIDCodec = finalGlobalIDCodec,
@@ -629,7 +639,7 @@ class StandardViaduct
         @Suppress("DEPRECATION")
         fun getEngine(schemaId: SchemaId): GraphQL =
             (
-                engineRegistry.getEngine(schemaId) as? viaduct.engine.EngineGraphQLJavaCompat
+                engineRegistry.getEngine(schemaId) as? viaduct.engine.airbnb.EngineGraphQLJavaCompat
                     ?: throw IllegalStateException("Engine is not GraphQL compatible")
             ).getGraphQL()
 
@@ -645,7 +655,8 @@ class StandardViaduct
             schemaId: SchemaId,
             requestContext: Any?
         ): EngineExecutionContext {
-            val engine = engineRegistry.getEngine(schemaId) as? EngineImpl ?: throw IllegalStateException("Engine is not EngineImpl")
+            val engine = engineRegistry.getEngine(schemaId) as? viaduct.engine.airbnb.EngineGraphQLJavaCompat
+                ?: throw IllegalStateException("Engine does not support GraphQL Java context creation")
             return engine.createEngineExecutionContext(requestContext)
         }
     }

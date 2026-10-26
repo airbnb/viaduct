@@ -13,6 +13,8 @@ import viaduct.engine.api.spi.MaterializedFieldValueReader
 import viaduct.engine.runtime.execution.DefaultCoroutineInterop
 import viaduct.engine.runtime.execution.TenantNameResolver
 import viaduct.engine.runtime.execution.ViaductDataFetcherExceptionHandler
+import viaduct.engine.runtime2.airbnb.DispatcherResolverRegistryFactory
+import viaduct.engine.runtime2.airbnb.Engine2ResolverRegistryFactory
 import viaduct.service.api.spi.ErrorReporter
 import viaduct.service.api.spi.FlagManager
 import viaduct.service.api.spi.GlobalIDCodec
@@ -50,6 +52,9 @@ data class EngineConfiguration(
     val tenantNameResolver: TenantNameResolver = TenantNameResolver(),
     val materializedFieldValueReader: MaterializedFieldValueReader = MaterializedFieldValueReader.Default,
     val nodeResolverCachingEnabled: Boolean = true,
+    /** Airbnb-only Engine2 registry hook; defaults to adapting tenant dispatchers and is ignored by Engine1. */
+    @Deprecated("Airbnb use only")
+    val engine2ResolverRegistryFactory: Engine2ResolverRegistryFactory = DispatcherResolverRegistryFactory,
 ) {
     companion object {
         val default = EngineConfiguration()

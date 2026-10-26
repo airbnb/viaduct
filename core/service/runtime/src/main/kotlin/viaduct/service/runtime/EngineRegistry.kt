@@ -277,7 +277,7 @@ class EngineRegistry private constructor(
     fun getGraphQLEngine_DONOTUSE(schemaId: SchemaId): GraphQL {
         val engine = getEngine(schemaId)
         @Suppress("DEPRECATION")
-        return (engine as? viaduct.engine.EngineGraphQLJavaCompat)?.getGraphQL()
+        return (engine as? viaduct.engine.airbnb.EngineGraphQLJavaCompat)?.getGraphQL()
             ?: throw IllegalStateException("Engine for schema ID $schemaId does not directly expose the GraphQL object.")
     }
 
@@ -290,7 +290,7 @@ class EngineRegistry private constructor(
     fun getFullSchemaGraphQLEngine_DONOTUSE(): GraphQL {
         val engine = getFullSchemaEngine()
         @Suppress("DEPRECATION")
-        return (engine as? viaduct.engine.EngineGraphQLJavaCompat)?.getGraphQL()
+        return (engine as? viaduct.engine.airbnb.EngineGraphQLJavaCompat)?.getGraphQL()
             ?: throw IllegalStateException("Full-schema engine does not directly expose the GraphQL object.")
     }
 

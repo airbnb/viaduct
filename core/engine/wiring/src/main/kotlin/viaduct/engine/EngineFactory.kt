@@ -1,3 +1,5 @@
+@file:Suppress("DEPRECATION")
+
 package viaduct.engine
 
 import graphql.execution.preparsed.NoOpPreparsedDocumentProvider
@@ -43,6 +45,7 @@ class EngineFactory(
                 dataFetcherExceptionHandler = config.dataFetcherExceptionHandler,
                 additionalInstrumentation = config.additionalInstrumentation,
                 coroutineInterop = config.coroutineInterop,
+                resolverRegistryFactory = config.engine2ResolverRegistryFactory,
             )
         }
         return EngineImpl(

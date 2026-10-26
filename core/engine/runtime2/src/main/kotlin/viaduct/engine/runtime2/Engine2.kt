@@ -19,6 +19,7 @@ import java.util.concurrent.CompletableFuture
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.future.await
+import viaduct.engine.airbnb.EngineGraphQLJavaCompat
 import viaduct.engine.api.CompleteSelectionSetOptions
 import viaduct.engine.api.Engine
 import viaduct.engine.api.EngineExecutionContext
@@ -44,10 +45,11 @@ import viaduct.engine.runtime.DispatcherExecutionContext
 import viaduct.engine.runtime.DispatcherRegistry
 import viaduct.engine.runtime.FieldDataLoader
 import viaduct.engine.runtime.NodeDataLoader
+import viaduct.engine.runtime.context.CompositeLocalContext
 import viaduct.engine.runtime.execution.DefaultCoroutineInterop
 import viaduct.engine.runtime.select.EngineSelectionSetFactoryImpl
-import viaduct.engine.runtime2.bootstrap.dispatcherRegistryInputs
-import viaduct.engine.runtime2.bootstrap.resolverRegistryOf
+import viaduct.engine.runtime2.airbnb.DispatcherResolverRegistryFactory
+import viaduct.engine.runtime2.airbnb.Engine2ResolverRegistryFactory
 import viaduct.engine.runtime2.execution.QPlanCallerCancellation
 import viaduct.engine.runtime2.execution.QPlanCallerCancellationKey
 import viaduct.engine.runtime2.execution.QPlanCallerCoroutineContextKey
@@ -75,32 +77,20 @@ class Engine2(
     dataFetcherExceptionHandler: DataFetcherExceptionHandler,
     additionalInstrumentation: Instrumentation? = null,
     private val coroutineInterop: CoroutineInterop = DefaultCoroutineInterop,
+    resolverRegistryFactory: Engine2ResolverRegistryFactory = DispatcherResolverRegistryFactory,
     usePrecomputedConstructionDemand: Boolean = true,
-) : Engine {
+) : Engine, EngineGraphQLJavaCompat {
     private val schemas = ViaductAndGJSchema.fromGraphQLSchema(fullSchema.schema)
     private val engineSelectionSetFactory = EngineSelectionSetFactoryImpl(fullSchema)
     private val runtime2DispatcherRegistry =
         dispatcherRegistry.instrumentForRuntime2(resolverInstrumentation)
-    private val world =
-        dispatcherRegistryInputs(
-            fullSchema = fullSchema,
-            schemas = schemas,
-            dispatcherRegistry = runtime2DispatcherRegistry,
-            fieldSelectivityProvider = fieldSelectivityProvider,
-        ).let { inputs ->
-            Assumptions.of(
-                schemas.loweredSchema,
-                resolverRegistryOf(
-                    schema = schemas,
-                    fieldResolvers = inputs.fieldResolvers,
-                    nodeResolvers = inputs.nodeResolvers,
-                    fieldCheckers = inputs.fieldCheckers,
-                    typeCheckers = inputs.typeCheckers,
-                    variableProviders = inputs.variableProviders,
-                ),
-                usePrecomputedConstructionDemand = usePrecomputedConstructionDemand,
-            )
-        }
+    private val resolverRegistries = resolverRegistryFactory.create(fullSchema, schemas, runtime2DispatcherRegistry, fieldSelectivityProvider)
+    private val bootstrapRegistry = resolverRegistries.forBootstrap()
+    private val world = Assumptions.of(
+        schemas.loweredSchema,
+        bootstrapRegistry,
+        usePrecomputedConstructionDemand = usePrecomputedConstructionDemand,
+    )
     private val requestContextKey = RequestContextKey(this)
     private val qplanInstrumentation = QPlanInstrumentation()
     private val graphql =
@@ -112,20 +102,18 @@ class Engine2(
                     world = world,
                     sourceSchema = schemas.graphQLSchema,
                     resolverCoroutineContext = Dispatchers.Default,
-                    engineExecutionContextFactory = { executionContext ->
-                        executionContext.graphQLContext.get<RequestContext>(requestContextKey).engineExecutionContext
-                    },
+                    engineExecutionContextFactory = ::invocationContext,
                     dataFetcherExceptionHandler = dataFetcherExceptionHandler,
+                    worldForExecution = ::worldForExecution,
                 ),
             ).mutationExecutionStrategy(
                 QPlanExecutionStrategy(
                     world = world,
                     sourceSchema = schemas.graphQLSchema,
                     resolverCoroutineContext = Dispatchers.Default,
-                    engineExecutionContextFactory = { executionContext ->
-                        executionContext.graphQLContext.get<RequestContext>(requestContextKey).engineExecutionContext
-                    },
+                    engineExecutionContextFactory = ::invocationContext,
                     dataFetcherExceptionHandler = dataFetcherExceptionHandler,
+                    worldForExecution = ::worldForExecution,
                 ),
             ).subscriptionExecutionStrategy(UnsupportedSubscriptionExecutionStrategy)
             .instrumentation(
@@ -133,6 +121,30 @@ class Engine2(
                     ChainedInstrumentation(listOf(qplanInstrumentation, it))
                 } ?: qplanInstrumentation,
             ).build()
+
+    private fun worldForExecution(invocation: ExecutionContext): Assumptions {
+        val registry = resolverRegistries.forExecution(invocation)
+        return if (registry === bootstrapRegistry) {
+            world
+        } else {
+            Assumptions.of(
+                schemas.loweredSchema,
+                registry,
+                usePrecomputedConstructionDemand = world.usePrecomputedConstructionDemand,
+            )
+        }
+    }
+
+    override fun getGraphQL(): GraphQL = graphql
+
+    override fun createEngineExecutionContext(requestContext: Any?): EngineExecutionContext = RequestEngineExecutionContext(requestContext)
+
+    private fun invocationContext(invocation: ExecutionContext): DispatcherExecutionContext =
+        invocation.graphQLContext.get<RequestContext?>(requestContextKey)?.engineExecutionContext
+            ?: (invocation.getLocalContext<Any?>() as? CompositeLocalContext)
+                ?.get<RequestEngineExecutionContext>()
+                ?.takeIf { it.engine === this }
+            ?: RequestEngineExecutionContext(invocation.getContext<Any?>())
 
     override suspend fun execute(
         executionInput: ExecutionInput,

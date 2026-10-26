@@ -50,14 +50,16 @@ class QPlanExecutionStrategy(
     private val engineExecutionContextFactory: (ExecutionContext) -> EngineExecutionContext? = { null },
     private val dataFetcherExceptionHandler: DataFetcherExceptionHandler =
         SimpleDataFetcherExceptionHandler(),
+    private val worldForExecution: ((ExecutionContext) -> Assumptions)? = null,
 ) : AsyncExecutionStrategy(dataFetcherExceptionHandler) {
     override fun execute(
         executionContext: ExecutionContext,
         parameters: ExecutionStrategyParameters,
     ): CompletableFuture<ExecutionResult> {
+        val executionWorld = worldForExecution?.invoke(executionContext) ?: world
         // Query Planniing: Convert operation to be executed into a [SelectionForest]
         val selections =
-            world.selectionsFrom(
+            executionWorld.selectionsFrom(
                 sourceSchema = sourceSchema,
                 operation = executionContext.operationDefinition,
                 variables = executionContext.coercedVariables,
@@ -96,7 +98,7 @@ class QPlanExecutionStrategy(
         val resolution =
             try {
                 SharedOperationContext.create(
-                    world,
+                    executionWorld,
                     engineExecutionContext = engineExecutionContextFactory(executionContext),
                     resolverObserver = executionContext.graphQLContext.getOrDefault<ResolverObserver>(
                         ResolverObserver::class.java,

@@ -14,6 +14,7 @@ import graphql.schema.GraphQLCompositeType
 import graphql.schema.GraphQLObjectType
 import io.micrometer.core.instrument.MeterRegistry
 import kotlinx.coroutines.future.await
+import viaduct.engine.airbnb.EngineGraphQLJavaCompat
 import viaduct.engine.api.CompleteSelectionSetOptions
 import viaduct.engine.api.Engine
 import viaduct.engine.api.EngineExecutionContext
@@ -59,11 +60,6 @@ import viaduct.engine.runtime.instrumentation.TaggedMetricInstrumentation
 import viaduct.engine.runtime.result.ObjectEngineResult
 import viaduct.service.api.spi.FlagManager
 import viaduct.utils.string.sha256Hash
-
-@Deprecated("Airbnb use only")
-interface EngineGraphQLJavaCompat {
-    fun getGraphQL(): GraphQL
-}
 
 @Suppress("DEPRECATION")
 class EngineImpl(
@@ -551,7 +547,7 @@ class EngineImpl(
      * Creates an instance of EngineExecutionContext. This should be called exactly once
      * per request and set in the graphql-java execution input's local context.
      */
-    fun createEngineExecutionContext(requestContext: Any?): EngineExecutionContext {
+    override fun createEngineExecutionContext(requestContext: Any?): EngineExecutionContext {
         return engineExecutionContextFactory.create(schema, requestContext)
     }
 }

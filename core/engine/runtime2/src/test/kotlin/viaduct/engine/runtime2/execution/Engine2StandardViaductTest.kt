@@ -6,13 +6,16 @@ import graphql.GraphQLError
 import graphql.GraphqlErrorBuilder
 import graphql.execution.DataFetcherExceptionHandler
 import graphql.execution.DataFetcherExceptionHandlerResult
+import graphql.execution.ExecutionContext
 import graphql.execution.preparsed.PreparsedDocumentProvider
+import graphql.parser.Parser
 import java.util.Base64
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertSame
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.ResolveSelectionSetOptions
@@ -25,6 +28,13 @@ import viaduct.engine.api.mocks.MockCheckerExecutorFactory
 import viaduct.engine.api.mocks.MockExecutorCodeInjector
 import viaduct.engine.api.mocks.MockFieldUnbatchedResolverExecutor
 import viaduct.engine.api.mocks.createEngineObjectData
+import viaduct.engine.runtime2.airbnb.Engine2ResolverRegistryFactory
+import viaduct.engine.runtime2.airbnb.ResolverRegistryProvider
+import viaduct.engine.runtime2.bootstrap.dispatcherRegistryInputs
+import viaduct.engine.runtime2.bootstrap.resolverRegistryOf
+import viaduct.engine.runtime2.model.registry.fieldResolverOf
+import viaduct.engine.runtime2.model.requireObjectField
+import viaduct.engine.runtime2.schema.fragmentFromDocument
 import viaduct.service.api.ExecutionInput
 import viaduct.service.api.SchemaId
 import viaduct.service.api.spi.FlagManager
@@ -33,6 +43,91 @@ import viaduct.service.runtime.SchemaConfiguration
 import viaduct.service.runtime.StandardViaduct
 
 class Engine2StandardViaductTest {
+    @Test
+    fun `registry provider selects implementations and their dependencies before each request`() {
+        val defaultCalls = AtomicInteger()
+        val alternativeCalls = AtomicInteger()
+        val factoryCalls = AtomicInteger()
+        val sdl = "extend type Query { adapted: String @resolver dependency: String @resolver alternativeDependency: String @resolver }"
+        val module = EngineTestModule(sdl) {
+            field("Query" to "dependency") {
+                resolver {
+                    fn { _, _, _, _, _ ->
+                        defaultCalls.incrementAndGet()
+                        "default"
+                    }
+                }
+            }
+            field("Query" to "alternativeDependency") {
+                resolver {
+                    fn { _, _, _, _, _ ->
+                        alternativeCalls.incrementAndGet()
+                        "alternative"
+                    }
+                }
+            }
+            field("Query" to "adapted") {
+                resolver {
+                    objectSelections("dependency")
+                    fn { _, objectValue, _, _, _ -> objectValue.get("dependency") }
+                }
+            }
+        }
+        val viaduct = StandardViaduct.Builder()
+            .withSchemaConfiguration(SchemaConfiguration.fromSdl(sdl))
+            .withTenantModuleInjectorFactory(MockExecutorCodeInjector(module.mockExecutorRegistry))
+            .withExecutorRegistryConfigSources(listOf(module.toModuleConfigSource()))
+            .withFlagManager(object : FlagManager {
+                override fun isEnabled(flag: FlagManager.Flag): Boolean = flag == FlagManager.Flags.ENGINE2_ENABLED
+            })
+            .withEngine2ResolverRegistryFactory(
+                Engine2ResolverRegistryFactory { fullSchema, schemas, dispatchers, selectivity ->
+                    factoryCalls.incrementAndGet()
+                    val inputs = dispatcherRegistryInputs(fullSchema, schemas, dispatchers, selectivity)
+                    val field = schemas.loweredSchema.requireObjectField("Query", "adapted")
+                    val alternative = fieldResolverOf(
+                        schemas.fragmentFromDocument(
+                            Parser.parse("fragment Alternative on Query { alternativeDependency }"),
+                            variableField = field,
+                        ),
+                    ) { input, _ -> input.get("alternativeDependency") }
+
+                    fun registry(alternativeEnabled: Boolean) =
+                        resolverRegistryOf(
+                            schema = schemas,
+                            fieldResolvers = if (alternativeEnabled) inputs.fieldResolvers + (field to alternative) else inputs.fieldResolvers,
+                            nodeResolvers = inputs.nodeResolvers,
+                            fieldCheckers = inputs.fieldCheckers,
+                            typeCheckers = inputs.typeCheckers,
+                            variableProviders = inputs.variableProviders,
+                        )
+                    val defaultRegistry = registry(false)
+                    val alternativeRegistry = registry(true)
+                    object : ResolverRegistryProvider {
+                        override fun forBootstrap() = defaultRegistry
+
+                        override fun forExecution(invocation: ExecutionContext) = if (invocation.getContext<Any?>() == "alternative") alternativeRegistry else defaultRegistry
+                    }
+                },
+            ).build()
+        viaduct.engineRegistry.getEngine(SchemaId.Base)
+        val requestContext = Any()
+        assertSame(requestContext, viaduct.createEngineExecutionContext(SchemaId.Base, requestContext).requestContext)
+        val createdFactories = factoryCalls.get()
+        assertTrue(createdFactories > 0)
+
+        for ((index, mode) in listOf("default", "alternative", "default").withIndex()) {
+            val result = runBlocking {
+                viaduct.execute(ExecutionInput.create("{ adapted }", requestContext = mode), SchemaId.Base)
+            }
+            assertEquals(emptyList<GraphQLError>(), result.errors)
+            assertEquals(mapOf("adapted" to mode), result.getData())
+            assertEquals(if (index == 2) 2 else 1, defaultCalls.get())
+            assertEquals(if (index == 0) 0 else 1, alternativeCalls.get())
+            assertEquals(createdFactories, factoryCalls.get(), "Factories belong to the schema, not individual requests")
+        }
+    }
+
     @Test
     fun `engine2 attributes production resolver failures to their response path`() {
         val sdl =
