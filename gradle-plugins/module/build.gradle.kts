@@ -15,6 +15,7 @@ java {
 
 dependencies {
     implementation(project(":common"))
+    implementation(project(":application"))
     implementation(project(":metamodule"))
 
     // Libraries the plugin source imports directly (binary schema generation).
@@ -29,7 +30,6 @@ dependencies {
 
     // Testing
     testImplementation(gradleTestKit())
-    testImplementation(project(":application"))
     testImplementation(project(":settings"))
     testImplementation(libs.kotest.assertions.core.jvm)
     testImplementation(libs.ksp.gradle.plugin)

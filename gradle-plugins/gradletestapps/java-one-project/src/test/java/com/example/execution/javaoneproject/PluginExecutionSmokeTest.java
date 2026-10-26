@@ -3,6 +3,7 @@ package com.example.execution.javaoneproject;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
@@ -105,6 +106,13 @@ public class PluginExecutionSmokeTest {
     assertTrue(
         Files.readAllLines(schemaIndex)
             .contains("viaduct/centralSchema/partition/resolvers/graphql/schema.graphqls"));
+  }
+
+  @Test
+  void runtimeContainsOnlyTheParticipatingLanguageGrts() {
+    ClassLoader loader = getClass().getClassLoader();
+    assertNotNull(loader.getResource("viaduct/java/grts/Query.class"));
+    assertNull(loader.getResource("viaduct/api/grts/Query.class"));
   }
 
   @Test

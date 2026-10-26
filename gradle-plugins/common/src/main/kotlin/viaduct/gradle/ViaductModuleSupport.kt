@@ -165,13 +165,15 @@ object ViaductModulePluginSupport {
         centralSchemaIncomingCfg: Configuration,
     ) {
         if (topology.applicationProjectPath == project.path) {
-            APPLICATION_PLUGIN_IDS.forEach { pluginId ->
-                project.pluginManager.withPlugin(pluginId) {
-                    val outputs = project.extensions.getByType(ViaductApplicationOutputProviders::class.java)
-                    project.dependencies.add(
-                        centralSchemaIncomingCfg.name,
-                        project.files(outputs.centralSchemaDirectory),
-                    )
+            val localConventions = project.extensions.findByType(ViaductApplicationConventions::class.java)
+            if (localConventions != null) {
+                project.dependencies.add(viaductApplication.name, project.files(localConventions.centralSchemaDirectory))
+            } else {
+                APPLICATION_PLUGIN_IDS.forEach { pluginId ->
+                    project.pluginManager.withPlugin(pluginId) {
+                        val conventions = project.extensions.getByType(ViaductApplicationConventions::class.java)
+                        project.dependencies.add(viaductApplication.name, project.files(conventions.centralSchemaDirectory))
+                    }
                 }
             }
             return

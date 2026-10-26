@@ -14,6 +14,7 @@ java {
 
 dependencies {
     implementation(project(":common"))
+    implementation(project(":application"))
     implementation(project(":metamodule"))
 
     // Classes bundled directly into this plugin JAR via conventions.viaduct-fat-plugin.
@@ -21,7 +22,6 @@ dependencies {
     bundled(libs.viaduct.shared.viaductschema)
 
     testImplementation(gradleTestKit())
-    testImplementation(project(":application"))
     testImplementation(project(":settings"))
     testImplementation(libs.viaduct.javaapi.runtime)
 }

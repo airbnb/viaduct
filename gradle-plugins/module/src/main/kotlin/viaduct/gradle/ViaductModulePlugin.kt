@@ -5,10 +5,15 @@ import org.gradle.api.GradleException
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.artifacts.Configuration
+import org.gradle.api.artifacts.ProjectDependency
+import org.gradle.api.attributes.Usage
+import org.gradle.api.attributes.Category
+import org.gradle.api.attributes.LibraryElements
 import org.gradle.api.plugins.JavaPluginExtension
 import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.Sync
 import org.gradle.api.tasks.TaskProvider
+import org.gradle.api.tasks.bundling.Jar
 import org.gradle.kotlin.dsl.register
 import org.jetbrains.kotlin.gradle.dsl.KotlinJvmProjectExtension
 import viaduct.apiannotations.InternalApi
@@ -23,28 +28,31 @@ class ViaductModulePlugin : Plugin<Project> {
     override fun apply(project: Project): Unit =
         with(project) {
             pluginManager.apply(ViaductMetamodulePlugin.ID)
-            val metamodule = extensions.getByType(ViaductMetamoduleExtension::class.java)
-            val moduleLayout = metamodule.layout
-            val grtIncomingCfg = ViaductModulePluginSupport.createGRTIncomingConfiguration(
-                this,
-                ViaductPluginCommon.Configs.GRT_CLASSES_KOTLIN_INCOMING,
-                ViaductPluginCommon.Kind.KOTLIN_GRT_CLASSES,
-            )
-
-            val centralSchemaIncomingCfg = metamodule.centralSchemaConfiguration
+            val conventions = extensions.getByType(ViaductModuleConventions::class.java)
+            val moduleLayout = conventions.layout
+            val grtDependencies = configurations.dependencyScope("viaductKotlinGrtDependencies")
+            configurations.resolvable("viaductKotlinGRTClassesIn") {
+                extendsFrom(grtDependencies.get())
+                attributes {
+                    attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage::class.java, Usage.JAVA_API))
+                    attribute(Category.CATEGORY_ATTRIBUTE, objects.named(Category::class.java, Category.LIBRARY))
+                    attribute(LibraryElements.LIBRARY_ELEMENTS_ATTRIBUTE, objects.named(LibraryElements::class.java, LibraryElements.JAR))
+                }
+            }
+            val centralSchemaIncomingCfg = conventions.centralSchemaIn.get()
             val generateResolverBasesTask = setupGenerateResolverBasesTask(moduleLayout, centralSchemaIncomingCfg)
 
             setupKspRegistryExtractor(moduleLayout, generateResolverBasesTask, centralSchemaIncomingCfg)
 
-            wireKotlinGrtToApplication(metamodule.applicationProjectPath, grtIncomingCfg)
+            wireKotlinGrtToApplication(conventions, grtDependencies.get())
 
             // GRT classes into source sets
             plugins.withId("java") {
-                configurations.named("implementation").configure { extendsFrom(grtIncomingCfg) }
-                configurations.named("testImplementation").configure { extendsFrom(grtIncomingCfg) }
+                configurations.named("implementation").configure { extendsFrom(grtDependencies.get()) }
+                configurations.named("testImplementation").configure { extendsFrom(grtDependencies.get()) }
             }
             pluginManager.withPlugin("java-test-fixtures") {
-                configurations.named("testFixturesImplementation").configure { extendsFrom(grtIncomingCfg) }
+                configurations.named("testFixturesImplementation").configure { extendsFrom(grtDependencies.get()) }
             }
 
             // Generated resolver bases into Kotlin source set
@@ -66,27 +74,26 @@ class ViaductModulePlugin : Plugin<Project> {
         }
 
     private fun Project.wireKotlinGrtToApplication(
-        applicationProjectPath: String,
-        grtIncomingCfg: Configuration,
+        conventions: ViaductModuleConventions,
+        grtDependencies: Configuration,
     ) {
-        if (applicationProjectPath == path) {
-            ViaductPluginCommon.APPLICATION_PLUGIN_IDS.forEach { pluginId ->
-                pluginManager.withPlugin(pluginId) {
-                    val outputs = extensions.getByType(ViaductApplicationOutputProviders::class.java)
-                    dependencies.add(grtIncomingCfg.name, files(outputs.kotlinGrtJar))
-                }
+        if (conventions.application.get().dependencies.withType(ProjectDependency::class.java).isEmpty()) {
+            plugins.withType(ViaductKotlinApplicationPlugin::class.java).configureEach {
+                dependencies.add(
+                    grtDependencies.name,
+                    files(tasks.named("generateViaductGRTs", Jar::class.java).flatMap { it.archiveFile }),
+                )
             }
             return
         }
-
-        dependencies.add(
-            grtIncomingCfg.name,
-            dependencies.project(
-                mapOf(
-                    "path" to applicationProjectPath,
-                    "configuration" to ViaductPluginCommon.Configs.GRT_CLASSES_KOTLIN_OUTGOING,
-                ),
-            ),
+        grtDependencies.dependencies.addAllLater(
+            conventions.application.map { application ->
+                application.dependencies.withType(ProjectDependency::class.java).map { dependency ->
+                    dependency.copy().apply {
+                        capabilities { requireCapability("com.airbnb.viaduct:kotlin-grt") }
+                    }
+                }
+            },
         )
     }
 
