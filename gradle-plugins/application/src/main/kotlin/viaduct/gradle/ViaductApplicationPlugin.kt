@@ -68,9 +68,15 @@ abstract class ViaductApplicationPlugin : Plugin<Project> {
             setupExecutionRegistryResourceIndexSource(executionRegistryResourceIndex)
             val kotlinGRTJar = setupKotlinGenerateGRTsTask(
                 assembleCentralSchemaTask,
+            )
+            val schemaResources = setupSchemaResourcesJar(
+                assembleCentralSchemaTask,
                 schemaScopingManifestTask,
                 schemaResourceIndex,
             )
+            configurations.matching { it.name == "runtimeOnly" }.configureEach {
+                project.dependencies.add(name, files(schemaResources.flatMap { it.archiveFile }))
+            }
             val javaGRTJar = setupJavaGenerateGRTsTask(assembleCentralSchemaTask)
             extensions.add(
                 VIADUCT_APPLICATION_OUTPUTS_EXTENSION_NAME,
@@ -311,8 +317,6 @@ abstract class ViaductApplicationPlugin : Plugin<Project> {
     /** Call the bytecode-generator to generate Kotlin GRT files. */
     private fun Project.setupKotlinGenerateGRTsTask(
         assembleCentralSchemaTask: TaskProvider<AssembleCentralSchemaTask>,
-        schemaScopingManifestTask: TaskProvider<GenerateSchemaScopingManifestTask>,
-        schemaResourceIndex: TaskProvider<GenerateSchemaResourceIndexTask>,
     ): TaskProvider<Jar> {
         val version = pluginVersion(ViaductApplicationPlugin::class.java)
         val codegenClasspath = createOrGetCodegenClasspath(version)
@@ -326,12 +330,26 @@ abstract class ViaductApplicationPlugin : Plugin<Project> {
         }
 
         val generateGRTsTask = tasks.register<Jar>("generateViaductGRTs") {
-            description = "Package compiled GraphQL Runtime Type (GRT) classes and the merged schema into a jar. This jar is added to your compile classpath automatically."
+            description = "Package compiled Kotlin GraphQL Runtime Type (GRT) classes into a jar."
 
             archiveBaseName.set("viaduct-grt")
             includeEmptyDirs = false
 
             from(generateGRTClassesTask.flatMap { it.grtClassesDirectory })
+        }
+
+        return generateGRTsTask
+    }
+
+    private fun Project.setupSchemaResourcesJar(
+        assembleCentralSchemaTask: TaskProvider<AssembleCentralSchemaTask>,
+        schemaScopingManifestTask: TaskProvider<GenerateSchemaScopingManifestTask>,
+        schemaResourceIndex: TaskProvider<GenerateSchemaResourceIndexTask>,
+    ): TaskProvider<Jar> =
+        tasks.register<Jar>("generateViaductSchemaResources") {
+            description = "Package the application schema, resource index, and scope definitions."
+            archiveBaseName.set("viaduct-schema")
+            includeEmptyDirs = false
 
             from(assembleCentralSchemaTask.flatMap { it.outputDirectory }) {
                 into("viaduct/centralSchema")
@@ -339,16 +357,11 @@ abstract class ViaductApplicationPlugin : Plugin<Project> {
                 includeEmptyDirs = false
             }
 
-            // The scope definitions travel with the schema they describe, so runtime cannot read one
-            // without the other.
             from(schemaScopingManifestTask.flatMap { it.outputDirectory }) {
                 includeEmptyDirs = false
             }
             from(schemaResourceIndex.flatMap { it.outputDirectory })
         }
-
-        return generateGRTsTask
-    }
 
     /**
      * Generate Java GRT source files from the central schema, compile them with javac,
@@ -389,7 +402,7 @@ abstract class ViaductApplicationPlugin : Plugin<Project> {
         }
 
         val generateGRTsTask = tasks.register<Jar>("generateViaductJavaGRTs") {
-            description = "Package compiled Java GraphQL Runtime Type (GRT) classes into a jar. The schema is already bundled in the Kotlin GRT jar."
+            description = "Package compiled Java GraphQL Runtime Type (GRT) classes into a jar."
 
             archiveBaseName.set("viaduct-java-grt")
             includeEmptyDirs = false

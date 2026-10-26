@@ -19,10 +19,12 @@ dependencies {
 // `jar`, and the raw APT descriptors must not be. `test` does not build the jar on its own, and
 // build/libs also holds the application plugin's GRT jars, so hand the test the exact path.
 val moduleJar = tasks.named<Jar>("jar").flatMap { it.archiveFile }
+val schemaJar = tasks.named<Jar>("generateViaductSchemaResources").flatMap { it.archiveFile }
 
 tasks.withType<Test>().configureEach {
     systemProperty("projectBuildDir", layout.buildDirectory.asFile.get().absolutePath)
     systemProperty("moduleJar", moduleJar.get().asFile.absolutePath)
+    systemProperty("schemaJar", schemaJar.get().asFile.absolutePath)
 
     inputs.file(moduleJar)
 }

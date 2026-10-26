@@ -108,6 +108,18 @@ public class PluginExecutionSmokeTest {
   }
 
   @Test
+  void schemaResourcesAreIndependentOfGeneratedClasses() throws IOException {
+    try (JarFile jar = new JarFile(System.getProperty("schemaJar"))) {
+      assertNotNull(jar.getJarEntry("META-INF/viaduct/indexes/schema-v1.index"));
+      assertNotNull(
+          jar.getJarEntry(
+              "viaduct/centralSchema/partition/resolvers/graphql/schema.graphqls"));
+      assertFalse(jar.stream().anyMatch(entry -> entry.getName().endsWith(".class")));
+      assertFalse(jar.stream().anyMatch(entry -> entry.getName().endsWith("BUILTIN_SCHEMA.graphqls")));
+    }
+  }
+
+  @Test
   void queriesAndMutationsExecuteThroughViaduct() {
     Viaduct viaduct = BasicViaductFactory.create();
 
