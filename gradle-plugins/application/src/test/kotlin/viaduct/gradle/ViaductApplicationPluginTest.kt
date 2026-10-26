@@ -8,6 +8,7 @@ import kotlin.io.path.readLines
 import org.gradle.api.GradleException
 import org.gradle.api.Project
 import org.gradle.api.artifacts.ProjectDependency
+import org.gradle.api.attributes.Usage
 import org.gradle.testfixtures.ProjectBuilder
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
@@ -45,6 +46,27 @@ class ViaductApplicationPluginTest {
         // Create the task directly instead of applying the full plugin
         task = project.tasks.register("testAssembleCentralSchema", AssembleCentralSchemaTask::class.java).get()
         task.outputDirectory.set(project.layout.buildDirectory.dir("test-output"))
+    }
+
+    @Test
+    fun `public application conventions expose producer backed schema and manifest collection`() {
+        project.pluginManager.apply("java-library")
+        project.registerViaductTopology(":")
+
+        project.pluginManager.apply(ViaductApplicationConventionsPlugin::class.java)
+
+        val conventions = project.extensions.getByType(ViaductApplicationConventions::class.java)
+        assertEquals("com.example.test", conventions.modulePackagePrefix)
+        assertEquals(setOf(conventions.modules.get()), conventions.allModuleManifestsIn.get().extendsFrom)
+        assertTrue(!conventions.allModuleManifestsIn.get().isTransitive)
+        assertEquals(
+            ViaductArtifacts.USAGE,
+            conventions.centralSchema.get().attributes.getAttribute(Usage.USAGE_ATTRIBUTE)?.name,
+        )
+        assertEquals(
+            project.tasks.named("assembleViaductCentralSchema", AssembleCentralSchemaTask::class.java).get().outputDirectory.get(),
+            conventions.centralSchemaDirectory.get(),
+        )
     }
 
     @Test

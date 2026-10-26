@@ -5,10 +5,33 @@ import io.kotest.matchers.shouldBe
 import org.gradle.api.GradleException
 import org.gradle.api.Plugin
 import org.gradle.api.Project
+import org.gradle.api.attributes.Usage
 import org.gradle.testfixtures.ProjectBuilder
 import org.junit.jupiter.api.Test
 
 class ViaductMetamodulePluginTest {
+    @Test
+    fun `public conventions supply an empty manifest variant and isolated schema inputs`() {
+        val project = ProjectBuilder.builder().build()
+        project.registerViaductTopology(modules = mapOf(":" to "resolvers"))
+
+        project.pluginManager.apply(ViaductModuleConventionsPlugin::class.java)
+
+        val conventions = project.extensions.getByType(ViaductModuleConventions::class.java)
+        conventions.layout.fullTenantPackage shouldBe "com.example.test.resolvers"
+        conventions.application.get().isCanBeConsumed shouldBe false
+        conventions.application.get().isCanBeResolved shouldBe false
+        conventions.centralSchemaIn.get().extendsFrom shouldBe setOf(conventions.application.get())
+        conventions.centralSchemaIn.get().isTransitive shouldBe false
+        conventions.moduleManifests.get().run {
+            isCanBeConsumed shouldBe true
+            isCanBeResolved shouldBe false
+            outgoing.artifacts.size shouldBe 0
+            attributes.getAttribute(ViaductArtifacts.KIND) shouldBe ViaductArtifacts.MODULE_MANIFEST
+            attributes.getAttribute(Usage.USAGE_ATTRIBUTE)?.name shouldBe ViaductArtifacts.USAGE
+        }
+    }
+
     @Test
     fun `configures neutral module contract`() {
         val project = ProjectBuilder.builder().build()

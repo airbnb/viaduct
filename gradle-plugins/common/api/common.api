@@ -1,5 +1,37 @@
-public class viaduct/gradle/ViaductApplicationExtension {
+public abstract interface class viaduct/gradle/ViaductApplicationConventions {
+	public abstract fun getAllModuleManifestsIn ()Lorg/gradle/api/NamedDomainObjectProvider;
+	public abstract fun getAllSchemaPartitionsIn ()Lorg/gradle/api/NamedDomainObjectProvider;
+	public abstract fun getCentralSchema ()Lorg/gradle/api/NamedDomainObjectProvider;
+	public abstract fun getCentralSchemaDirectory ()Lorg/gradle/api/provider/Provider;
+	public abstract fun getModulePackagePrefix ()Ljava/lang/String;
+	public abstract fun getModules ()Lorg/gradle/api/NamedDomainObjectProvider;
+}
+
+public class viaduct/gradle/ViaductApplicationExtension : viaduct/gradle/ViaductApplicationConventions {
 	public fun <init> (Lorg/gradle/api/model/ObjectFactory;)V
+	public fun getAllModuleManifestsIn ()Lorg/gradle/api/NamedDomainObjectProvider;
+	public fun getAllSchemaPartitionsIn ()Lorg/gradle/api/NamedDomainObjectProvider;
+	public fun getCentralSchema ()Lorg/gradle/api/NamedDomainObjectProvider;
+	public fun getCentralSchemaDirectory ()Lorg/gradle/api/provider/Provider;
+	public fun getModulePackagePrefix ()Ljava/lang/String;
+	public fun getModules ()Lorg/gradle/api/NamedDomainObjectProvider;
+}
+
+public final class viaduct/gradle/ViaductArtifacts {
+	public static final field CENTRAL_SCHEMA Ljava/lang/String;
+	public static final field INSTANCE Lviaduct/gradle/ViaductArtifacts;
+	public static final field MODULE_MANIFEST Ljava/lang/String;
+	public static final field SCHEMA_PARTITION Ljava/lang/String;
+	public static final field USAGE Ljava/lang/String;
+	public final fun getKIND ()Lorg/gradle/api/attributes/Attribute;
+}
+
+public abstract interface class viaduct/gradle/ViaductModuleConventions {
+	public abstract fun getApplication ()Lorg/gradle/api/NamedDomainObjectProvider;
+	public abstract fun getCentralSchemaIn ()Lorg/gradle/api/NamedDomainObjectProvider;
+	public abstract fun getLayout ()Lviaduct/gradle/ViaductModulePackageLayout;
+	public abstract fun getModuleManifests ()Lorg/gradle/api/NamedDomainObjectProvider;
+	public abstract fun getSchemaPartition ()Lorg/gradle/api/NamedDomainObjectProvider;
 }
 
 public abstract interface class viaduct/gradle/ViaductModulePackageLayout {

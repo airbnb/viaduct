@@ -5,12 +5,14 @@ import grtClassesDirectory
 import javaGrtClassesDirectory
 import javaGrtSourcesDirectory
 import org.gradle.api.GradleException
+import org.gradle.api.NamedDomainObjectProvider
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.artifacts.Configuration
 import org.gradle.api.attributes.Category
 import org.gradle.api.attributes.LibraryElements
 import org.gradle.api.attributes.Usage
+import org.gradle.api.file.Directory
 import org.gradle.api.file.RegularFile
 import org.gradle.api.plugins.JavaPluginExtension
 import org.gradle.api.provider.Provider
@@ -45,7 +47,7 @@ abstract class ViaductApplicationPlugin : Plugin<Project> {
         with(project) {
             val topology = validateApplicationProjectPlacement()
 
-            extensions.create(
+            val applicationExtension = extensions.create(
                 "viaductApplication",
                 ViaductApplicationExtension::class.java,
                 objects,
@@ -57,6 +59,24 @@ abstract class ViaductApplicationPlugin : Plugin<Project> {
             setupValidateSchemaExtensionsTask(schemaContributions)
             setupOutgoingConfigurationForCentralSchema(assembleCentralSchemaTask)
             setupIncomingDependenciesFromTopology(topology, viaductModules)
+            val manifests = configurations.resolvable("viaductAllModuleManifestsIn") {
+                extendsFrom(viaductModules)
+                isTransitive = false
+                attributes {
+                    attribute(ViaductArtifacts.KIND, ViaductArtifacts.MODULE_MANIFEST)
+                    attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage::class.java, ViaductArtifacts.USAGE))
+                }
+            }
+            applicationExtension.initializeConventions(
+                DefaultViaductApplicationConventions(
+                    modules = configurations.named(viaductModules.name),
+                    allSchemaPartitionsIn = configurations.named(ViaductPluginCommon.Configs.ALL_SCHEMA_PARTITIONS_INCOMING),
+                    centralSchema = configurations.named(ViaductPluginCommon.Configs.CENTRAL_SCHEMA_OUTGOING),
+                    allModuleManifestsIn = configurations.named(manifests.name),
+                    modulePackagePrefix = topology.modulePackagePrefix,
+                    centralSchemaDirectory = assembleCentralSchemaTask.flatMap { it.outputDirectory },
+                ),
+            )
 
             val schemaScopingManifestTask = setupGenerateSchemaScopingManifestTask()
             val moduleRuntimeClasspath = setupModuleRuntimeClasspathForResourceIndex(viaductModules)
@@ -194,6 +214,7 @@ abstract class ViaductApplicationPlugin : Plugin<Project> {
             description = "Schema definitions contributed by Viaduct module-extension plugins."
             isCanBeConsumed = false
             isCanBeResolved = true
+            isCanBeDeclared = false
             extendsFrom(viaductModules)
             attributes {
                 attribute(
@@ -208,6 +229,7 @@ abstract class ViaductApplicationPlugin : Plugin<Project> {
             description = "Runtime artifacts inspected to index generated Viaduct module configs."
             isCanBeConsumed = false
             isCanBeResolved = true
+            isCanBeDeclared = false
             extendsFrom(viaductModules)
             attributes {
                 attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage::class.java, Usage.JAVA_RUNTIME))
@@ -270,8 +292,13 @@ abstract class ViaductApplicationPlugin : Plugin<Project> {
             description = "Resolvable configuration where all viaduct-module plugins send their schema partitions."
             isCanBeConsumed = false
             isCanBeResolved = true
+            isCanBeDeclared = false
+            isTransitive = false
             extendsFrom(viaductModules)
-            attributes { attribute(ViaductPluginCommon.VIADUCT_KIND, ViaductPluginCommon.Kind.SCHEMA_PARTITION) }
+            attributes {
+                attribute(ViaductArtifacts.KIND, ViaductArtifacts.SCHEMA_PARTITION)
+                attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage::class.java, ViaductArtifacts.USAGE))
+            }
         }
 
         val assembleCentralSchemaTask = tasks.register<AssembleCentralSchemaTask>("assembleViaductCentralSchema") {
@@ -315,9 +342,7 @@ abstract class ViaductApplicationPlugin : Plugin<Project> {
         }
 
     /** Call the bytecode-generator to generate Kotlin GRT files. */
-    private fun Project.setupKotlinGenerateGRTsTask(
-        assembleCentralSchemaTask: TaskProvider<AssembleCentralSchemaTask>,
-    ): TaskProvider<Jar> {
+    private fun Project.setupKotlinGenerateGRTsTask(assembleCentralSchemaTask: TaskProvider<AssembleCentralSchemaTask>,): TaskProvider<Jar> {
         val version = pluginVersion(ViaductApplicationPlugin::class.java)
         val codegenClasspath = createOrGetCodegenClasspath(version)
 
@@ -422,8 +447,12 @@ abstract class ViaductApplicationPlugin : Plugin<Project> {
               not present if the suffix is blank).
             """.trimIndent()
             isCanBeConsumed = true
+            isCanBeDeclared = false
             isCanBeResolved = false
-            attributes { attribute(ViaductPluginCommon.VIADUCT_KIND, ViaductPluginCommon.Kind.CENTRAL_SCHEMA) }
+            attributes {
+                attribute(ViaductArtifacts.KIND, ViaductArtifacts.CENTRAL_SCHEMA)
+                attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage::class.java, ViaductArtifacts.USAGE))
+            }
             outgoing.artifact(assembleCentralSchemaTask)
         }
     }
@@ -437,6 +466,7 @@ abstract class ViaductApplicationPlugin : Plugin<Project> {
             description =
                 "Consumable configuration for the jar file containing the GRT classes plus the central schema's graphqls file."
             isCanBeConsumed = true
+            isCanBeDeclared = false
             isCanBeResolved = false
             attributes {
                 attribute(ViaductPluginCommon.VIADUCT_KIND, kind)
@@ -456,3 +486,12 @@ abstract class ViaductApplicationPlugin : Plugin<Project> {
         const val BUILTIN_SCHEMA_FILE = "BUILTIN_SCHEMA.graphqls"
     }
 }
+
+internal data class DefaultViaductApplicationConventions(
+    override val modules: NamedDomainObjectProvider<Configuration>,
+    override val allSchemaPartitionsIn: NamedDomainObjectProvider<Configuration>,
+    override val centralSchema: NamedDomainObjectProvider<Configuration>,
+    override val allModuleManifestsIn: NamedDomainObjectProvider<Configuration>,
+    override val modulePackagePrefix: String,
+    override val centralSchemaDirectory: Provider<Directory>,
+) : ViaductApplicationConventions

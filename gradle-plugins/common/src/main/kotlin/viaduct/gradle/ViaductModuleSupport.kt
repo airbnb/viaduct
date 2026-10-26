@@ -132,9 +132,11 @@ object ViaductModulePluginSupport {
             project.configurations.create(ViaductPluginCommon.Configs.SCHEMA_PARTITION_OUTGOING).apply {
                 description = "Consumable configuration containing the module's schema partition (aka, 'local schema')."
                 isCanBeConsumed = true
+                isCanBeDeclared = false
                 isCanBeResolved = false
                 attributes { attrs ->
-                    attrs.attribute(ViaductPluginCommon.VIADUCT_KIND, ViaductPluginCommon.Kind.SCHEMA_PARTITION)
+                    attrs.attribute(ViaductArtifacts.KIND, ViaductArtifacts.SCHEMA_PARTITION)
+                    attrs.attribute(Usage.USAGE_ATTRIBUTE, project.objects.named(Usage::class.java, ViaductArtifacts.USAGE))
                 }
             }
         schemaPartitionCfg.outgoing.artifact(assembleSchemaPartitionTask.flatMap { it.outputDirectory })
@@ -148,9 +150,11 @@ object ViaductModulePluginSupport {
             description = "Resolvable configuration for the central schema (used to generate resolver base classes)."
             isCanBeConsumed = false
             isCanBeResolved = true
+            isTransitive = false
             extendsFrom(viaductApplication)
             attributes { attrs ->
-                attrs.attribute(ViaductPluginCommon.VIADUCT_KIND, ViaductPluginCommon.Kind.CENTRAL_SCHEMA)
+                attrs.attribute(ViaductArtifacts.KIND, ViaductArtifacts.CENTRAL_SCHEMA)
+                attrs.attribute(Usage.USAGE_ATTRIBUTE, project.objects.named(Usage::class.java, ViaductArtifacts.USAGE))
             }
         }
 
