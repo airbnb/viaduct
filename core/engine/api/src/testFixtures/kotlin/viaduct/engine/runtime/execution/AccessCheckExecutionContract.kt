@@ -1,5 +1,6 @@
 package viaduct.engine.runtime.execution
 
+import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicReference
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -7,15 +8,21 @@ import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.CsvSource
 import viaduct.engine.EngineConfiguration
 import viaduct.engine.api.EngineObjectData
+import viaduct.engine.api.FromFieldVariablesResolver
 import viaduct.engine.api.mocks.EngineTestModule
+import viaduct.engine.api.mocks.MockCheckerExecutor
 import viaduct.engine.api.mocks.MockTenantModuleBootstrapper
+import viaduct.engine.api.mocks.MockVariablesResolver
 import viaduct.engine.api.mocks.createEngineObjectData
 import viaduct.engine.api.mocks.createRSS
 import viaduct.engine.api.mocks.createSchemaWithWiring
 import viaduct.engine.api.mocks.featureTestDefault
 import viaduct.engine.api.mocks.getAs
+import viaduct.engine.runtime.QueryPlanExecutionCondition
 import viaduct.graphql.test.assertJson
 import viaduct.service.api.spi.ErrorBuilder
 import viaduct.service.api.spi.ErrorReporter
@@ -25,6 +32,375 @@ import viaduct.service.api.spi.ResolverErrorBuilder
 @ExperimentalCoroutinesApi
 interface AccessCheckExecutionContract : QueryExecutionContract {
     val schemaSDL get() = "extend type Query { boo: Boo } type Boo { value: Int }"
+
+    @Test
+    fun `checker object selections resolve interface fields on the concrete type`() = assertCheckerInterfaceSelections(queryRoot = false)
+
+    @Test
+    fun `checker Query selections resolve interface fields on Query`() = assertCheckerInterfaceSelections(queryRoot = true)
+
+    @Test
+    fun `checker object selections discard variables from pruned branches`() = assertCheckerInterfaceSelections(queryRoot = false, variables = CheckerInterfaceVariables.PRUNED)
+
+    @Test
+    fun `checker Query selections discard variables from pruned branches`() = assertCheckerInterfaceSelections(queryRoot = true, variables = CheckerInterfaceVariables.PRUNED)
+
+    @Test
+    fun `checker object selections retain only surviving provider variables`() = assertCheckerInterfaceSelections(queryRoot = false, variables = CheckerInterfaceVariables.PROVIDER)
+
+    @Test
+    fun `checker Query selections retain only surviving provider variables`() = assertCheckerInterfaceSelections(queryRoot = true, variables = CheckerInterfaceVariables.PROVIDER)
+
+    @Test
+    fun `checker object selections omit independent providers from pruned branches`() = assertCheckerInterfaceSelections(queryRoot = false, variables = CheckerInterfaceVariables.INDEPENDENT)
+
+    @Test
+    fun `checker Query selections omit independent providers from pruned branches`() = assertCheckerInterfaceSelections(queryRoot = true, variables = CheckerInterfaceVariables.INDEPENDENT)
+
+    @Test
+    fun `checker object selections retain field variable dependencies after pruning`() = assertCheckerInterfaceSelections(queryRoot = false, variables = CheckerInterfaceVariables.FIELD)
+
+    @Test
+    fun `checker Query selections retain field variable dependencies after pruning`() = assertCheckerInterfaceSelections(queryRoot = true, variables = CheckerInterfaceVariables.FIELD)
+
+    @ParameterizedTest(name = "{0}: excluded {1} with {2}, shared callback = {3}")
+    @CsvSource(
+        "Item, FIELD, @skip(if: true), false",
+        "Item, FIELD, @include(if: false), false",
+        "Item, INLINE_FRAGMENT, @skip(if: true), false",
+        "Item, INLINE_FRAGMENT, @include(if: false), false",
+        "Item, NAMED_SPREAD, @skip(if: true), false",
+        "Item, NAMED_SPREAD, @include(if: false), false",
+        "Query, FIELD, @skip(if: true), false",
+        "Query, FIELD, @include(if: false), false",
+        "Query, INLINE_FRAGMENT, @skip(if: true), false",
+        "Query, INLINE_FRAGMENT, @include(if: false), false",
+        "Query, NAMED_SPREAD, @skip(if: true), false",
+        "Query, NAMED_SPREAD, @include(if: false), false",
+        "Item, FIELD, @skip(if: true), true",
+        "Query, FIELD, @skip(if: true), true",
+    )
+    fun `checker skips callbacks used only by statically excluded selections`(
+        rootType: String,
+        exclusionLocation: String,
+        directive: String,
+        sharedCallback: Boolean,
+    ) {
+        val schema = createSchemaWithWiring(
+            """
+                interface Named { policy(prefix: String): String }
+                extend type Query implements Named { item: Item policy(prefix: String): String }
+                type Item implements Named { policy(prefix: String): String checked: Int }
+            """.trimIndent()
+        )
+        val ignored = "ignored: policy(prefix: \$unused)"
+        val excludedSelection = when (exclusionLocation) {
+            "FIELD" -> "$ignored $directive"
+            "INLINE_FRAGMENT" -> "... on Named $directive { $ignored }"
+            "NAMED_SPREAD" -> "...Ignored $directive"
+            else -> error("Unknown exclusion location: $exclusionLocation")
+        }
+        val selections = """
+            fragment Main on $rootType {
+                ... on Named {
+                    selected: policy(prefix: ${'$'}prefix)
+                    $excludedSelection
+                }
+            }
+            ${if (exclusionLocation == "NAMED_SPREAD") "fragment Ignored on Named { $ignored }" else ""}
+        """.trimIndent()
+        val providerValues = if (sharedCallback) mapOf("prefix" to "selected", "unused" to "ignored") else mapOf("prefix" to "selected")
+        val activeProvider = MockVariablesResolver(*providerValues.keys.toTypedArray()) { _, _ -> providerValues }
+        val required = createRSS(
+            rootType,
+            selections,
+            variableProviders = buildList {
+                add(activeProvider)
+                if (!sharedCallback) add(MockVariablesResolver("unused") { _, _ -> error("Statically excluded callback must not run") })
+            },
+            forChecker = true,
+        )
+        val checkerInputs = ConcurrentLinkedQueue<EngineObjectData.Sync>()
+        val checker = MockCheckerExecutor(mapOf("input" to required)) { _, inputs -> checkerInputs += inputs.getValue("input") }
+        val resolvers = EngineTestModule(schema) {
+            fieldWithValue("Query" to "item", createEngineObjectData(schema.schema.getObjectType("Item"), emptyMap()))
+            fieldWithValue("Item" to "checked", 7)
+            field(rootType to "policy") {
+                resolver {
+                    fn { arguments, _, _, _, _ ->
+                        assertEquals("selected", arguments["prefix"])
+                        "selected-policy"
+                    }
+                }
+            }
+        }
+        val module = EngineTestModule(
+            fullSchema = schema,
+            fieldResolverExecutors = resolvers.fieldResolverExecutors,
+            checkerExecutors = mapOf(("Item" to "checked") to checker),
+            typeCheckerExecutors = mapOf("Item" to checker),
+        )
+
+        module.runContractTest {
+            val result = withTimeout("{ item { checked } }", timeoutMillis = 5_000)
+
+            assertTrue(result.errors.isEmpty(), result.errors.toString())
+            assertEquals(mapOf("item" to mapOf("checked" to 7)), result.getData())
+            assertEquals(2, checkerInputs.size)
+            checkerInputs.forEach { input -> assertEquals("selected-policy", input.get("selected")) }
+        }
+    }
+
+    @ParameterizedTest(name = "{0}: shared callback = {1}, directive variable = {2}")
+    @CsvSource(
+        "Item, false, false",
+        "Item, true, false",
+        "Query, false, false",
+        "Query, true, false",
+        "Item, false, true",
+        "Item, true, true",
+        "Query, false, true",
+        "Query, true, true",
+    )
+    fun `checker skips disabled RSS callbacks while retaining callbacks needed by enabled inputs`(
+        rootType: String,
+        sharedCallback: Boolean,
+        directiveVariable: Boolean,
+    ) {
+        val schema = createSchemaWithWiring(
+            """
+                extend type Query { item: Item policy(prefix: String): String }
+                type Item { checked: Int policy(prefix: String): String }
+            """.trimIndent()
+        )
+        val callbackCalls = ConcurrentLinkedQueue<String>()
+        val activeValues = if (sharedCallback) {
+            mapOf("prefix" to "selected", "unused" to if (directiveVariable) true else "ignored")
+        } else {
+            mapOf("prefix" to "selected")
+        }
+        val activeCallback = MockVariablesResolver(*activeValues.keys.toTypedArray()) { _, _ ->
+            callbackCalls += "active"
+            activeValues
+        }
+        val disabledCallback = if (sharedCallback) {
+            activeCallback
+        } else {
+            MockVariablesResolver("unused") { _, _ -> error("Disabled RSS callback must not run") }
+        }
+        val required = mapOf(
+            "active" to createRSS(
+                rootType,
+                "selected: policy(prefix: \$prefix)",
+                variableProviders = listOf(activeCallback),
+                forChecker = true,
+            ),
+            "disabled" to createRSS(
+                rootType,
+                if (directiveVariable) "ignored: policy(prefix: \"ignored\") @include(if: \$unused)" else "ignored: policy(prefix: \$unused)",
+                variableProviders = listOf(disabledCallback),
+                forChecker = true,
+                executionCondition = QueryPlanExecutionCondition { false },
+            ),
+        )
+        val resolvers = EngineTestModule(schema) {
+            fieldWithValue("Query" to "item", createEngineObjectData(schema.schema.getObjectType("Item"), emptyMap()))
+            fieldWithValue("Item" to "checked", 7)
+            field(rootType to "policy") {
+                resolver {
+                    fn { arguments, _, _, _, _ ->
+                        assertEquals("selected", arguments["prefix"])
+                        "selected-policy"
+                    }
+                }
+            }
+        }
+
+        fun execute(includeDisabled: Boolean): Int {
+            callbackCalls.clear()
+            val checkerInputs = ConcurrentLinkedQueue<Map<String, EngineObjectData.Sync>>()
+            val inputsToLoad = if (includeDisabled) required else required.filterKeys { it == "active" }
+            val checker = MockCheckerExecutor(inputsToLoad) { _, inputs -> checkerInputs += inputs }
+            val module = EngineTestModule(
+                fullSchema = schema,
+                fieldResolverExecutors = resolvers.fieldResolverExecutors,
+                checkerExecutors = mapOf(("Item" to "checked") to checker),
+            )
+
+            module.runContractTest {
+                val result = withTimeout("{ item { checked } }", timeoutMillis = 5_000)
+
+                assertTrue(result.errors.isEmpty(), result.errors.toString())
+                assertEquals(mapOf("item" to mapOf("checked" to 7)), result.getData())
+                val inputs = checkerInputs.single()
+                assertEquals("selected-policy", inputs.getValue("active").get("selected"))
+                if (includeDisabled) assertTrue(inputs.getValue("disabled").getSelections().none())
+            }
+            return callbackCalls.size
+        }
+
+        val enabledOnlyCalls = execute(includeDisabled = false)
+        assertTrue(enabledOnlyCalls > 0)
+        assertEquals(enabledOnlyCalls, execute(includeDisabled = true), "A disabled RSS must not add callback invocations")
+    }
+
+    @ParameterizedTest
+    @CsvSource("Item", "Query")
+    fun `disabled checker RSS skips its field dependencies and their callbacks`(rootType: String) {
+        val schema = createSchemaWithWiring(
+            """
+                extend type Query { item: Item policy(prefix: String): String prefixSeed(value: String): String }
+                type Item { checked: Int policy(prefix: String): String prefixSeed(value: String): String }
+            """.trimIndent()
+        )
+        val seedProvider = MockVariablesResolver("seed") { _, _ -> error("Disabled dependency callback must not run") }
+        val dependency = createRSS(
+            rootType,
+            "prefixSeed(value: \$seed)",
+            variableProviders = listOf(seedProvider),
+            forChecker = true,
+            executionCondition = QueryPlanExecutionCondition { error("Disabled dependency condition must not run") },
+        )
+        val required = createRSS(
+            rootType,
+            "prefixSeed(value: \$seed) policy(prefix: \$prefix)",
+            variableProviders = listOf(seedProvider, FromFieldVariablesResolver("prefix", listOf("prefixSeed"), dependency)),
+            forChecker = true,
+            executionCondition = QueryPlanExecutionCondition { false },
+        )
+        val checkerInputs = ConcurrentLinkedQueue<EngineObjectData.Sync>()
+        val checker = MockCheckerExecutor(mapOf("input" to required)) { _, inputs -> checkerInputs += inputs.getValue("input") }
+        val resolvers = EngineTestModule(schema) {
+            fieldWithValue("Query" to "item", createEngineObjectData(schema.schema.getObjectType("Item"), emptyMap()))
+            fieldWithValue("Item" to "checked", 7)
+            listOf("policy", "prefixSeed").forEach { fieldName ->
+                field(rootType to fieldName) {
+                    resolver { fn { _, _, _, _, _ -> error("Disabled dependency field must not run") } }
+                }
+            }
+        }
+        val module = EngineTestModule(
+            fullSchema = schema,
+            fieldResolverExecutors = resolvers.fieldResolverExecutors,
+            checkerExecutors = mapOf(("Item" to "checked") to checker),
+        )
+
+        module.runContractTest {
+            val result = withTimeout("{ item { checked } }", timeoutMillis = 5_000)
+
+            assertTrue(result.errors.isEmpty(), result.errors.toString())
+            assertEquals(mapOf("item" to mapOf("checked" to 7)), result.getData())
+            assertTrue(checkerInputs.single().getSelections().none())
+        }
+    }
+
+    private enum class CheckerInterfaceVariables { NONE, PRUNED, PROVIDER, INDEPENDENT, FIELD }
+
+    private fun assertCheckerInterfaceSelections(
+        queryRoot: Boolean,
+        variables: CheckerInterfaceVariables = CheckerInterfaceVariables.NONE,
+    ) {
+        val schema = createSchemaWithWiring(
+            """
+                interface Named { owner(prefix: String): Owner }
+                extend type Query implements Named { item: Item owner(prefix: String): Owner prefixSeed(suffix: String): String }
+                type Item implements Named { owner(prefix: String): Owner checked: Int prefixSeed(suffix: String): String }
+                type Other implements Named { owner(prefix: String): Owner other: String }
+                type Owner { name: String }
+            """.trimIndent()
+        )
+        val rootType = if (queryRoot) "Query" else "Item"
+        val ownerArguments = ConcurrentLinkedQueue<Map<String, Any?>>()
+        val seedArguments = ConcurrentLinkedQueue<Map<String, Any?>>()
+        val checkerInputs = ConcurrentLinkedQueue<EngineObjectData.Sync>()
+        val providerValues = when (variables) {
+            CheckerInterfaceVariables.NONE, CheckerInterfaceVariables.INDEPENDENT -> emptyMap()
+            CheckerInterfaceVariables.PRUNED -> mapOf("onlyOther" to true)
+            CheckerInterfaceVariables.PROVIDER -> mapOf("onlyOther" to true, "prefix" to "selected")
+            CheckerInterfaceVariables.FIELD -> mapOf("onlyOther" to true, "seed" to "selected")
+        }
+        val provider = providerValues.takeIf { it.isNotEmpty() }?.let { values ->
+            MockVariablesResolver(*values.keys.toTypedArray()) { _, _ -> values }
+        }
+        val variableProviders = buildList {
+            addAll(listOfNotNull(provider))
+            if (variables == CheckerInterfaceVariables.INDEPENDENT) {
+                add(MockVariablesResolver("onlyOther") { _, _ -> error("Pruned provider must not run") })
+                add(MockVariablesResolver("prefix") { _, _ -> mapOf("prefix" to "selected") })
+            }
+            if (variables == CheckerInterfaceVariables.FIELD) {
+                val dependency = createRSS(
+                    rootType,
+                    "prefixSeed(suffix: \$seed)",
+                    variableProviders = listOf(requireNotNull(provider)),
+                    forChecker = true,
+                )
+                add(FromFieldVariablesResolver("prefix", listOf("prefixSeed"), dependency))
+            }
+        }
+        val prefix = when (variables) {
+            CheckerInterfaceVariables.NONE, CheckerInterfaceVariables.PRUNED -> "\"selected\""
+            else -> "\$prefix"
+        }
+        val otherCondition = if (variables == CheckerInterfaceVariables.NONE) "" else "@include(if: \$onlyOther)"
+        val seedSelection = if (variables == CheckerInterfaceVariables.FIELD) "prefixSeed(suffix: \$seed)" else ""
+        val selections = """
+            $seedSelection
+            ... on Named {
+                selected: owner(prefix: $prefix) { name }
+                ignored: owner(prefix: "ignored") @skip(if: true) { name }
+                ... on Other { other $otherCondition }
+            }
+        """.trimIndent()
+        val checker = MockCheckerExecutor(
+            requiredSelectionSets = mapOf("input" to createRSS(rootType, selections, variableProviders, forChecker = true)),
+        ) { _, inputs -> checkerInputs += inputs.getValue("input") }
+        val resolvers = EngineTestModule(schema) {
+            fieldWithValue("Query" to "item", createEngineObjectData(schema.schema.getObjectType("Item"), emptyMap()))
+            fieldWithValue("Item" to "checked", 7)
+            field(rootType to "owner") {
+                resolver {
+                    fn { arguments, _, _, _, _ ->
+                        ownerArguments += arguments
+                        createEngineObjectData(schema.schema.getObjectType("Owner"), mapOf("name" to "${arguments["prefix"]}-owner"))
+                    }
+                }
+            }
+            field("Other" to "other") {
+                resolver { fn { _, _, _, _, _ -> error("An unrelated type's dependency must not execute") } }
+            }
+            field(rootType to "prefixSeed") {
+                resolver {
+                    fn { arguments, _, _, _, _ ->
+                        seedArguments += arguments
+                        arguments.getValue("suffix")
+                    }
+                }
+            }
+        }
+        val module = EngineTestModule(
+            fullSchema = schema,
+            fieldResolverExecutors = resolvers.fieldResolverExecutors,
+            checkerExecutors = mapOf(("Item" to "checked") to checker),
+            typeCheckerExecutors = mapOf("Item" to checker),
+        )
+
+        module.runContractTest {
+            val result = withTimeout("{ item { checked } }", timeoutMillis = 5_000)
+
+            assertTrue(result.errors.isEmpty(), result.errors.toString())
+            assertEquals(mapOf("item" to mapOf("checked" to 7)), result.getData())
+            assertEquals(setOf(mapOf("prefix" to "selected")), ownerArguments.toSet())
+            assertEquals(
+                if (variables == CheckerInterfaceVariables.FIELD) setOf(mapOf("suffix" to "selected")) else emptySet(),
+                seedArguments.toSet(),
+            )
+            assertEquals(2, checkerInputs.size)
+            checkerInputs.forEach { input ->
+                assertEquals("selected-owner", input.getAs<EngineObjectData.Sync>("selected").get("name"))
+            }
+        }
+    }
 
     enum class CheckerBehavior { NONE, ALLOW_BOTH, DENY_PARENT, DENY_CHILD }
 

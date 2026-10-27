@@ -1,18 +1,97 @@
 package viaduct.engine.runtime
 
+import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import viaduct.apiannotations.InternalApi
+import viaduct.engine.api.EngineExecutionContext
+import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.FromArgument
 import viaduct.engine.api.FromFieldVariablesResolver
 import viaduct.engine.api.mocks.MockCheckerExecutor
 import viaduct.engine.api.mocks.MockVariablesResolver
+import viaduct.engine.api.mocks.createEngineObjectData
 import viaduct.engine.api.mocks.createRSS
+import viaduct.engine.api.mocks.createSchemaWithWiring
 import viaduct.engine.api.spi.CheckerExecutor
+import viaduct.engine.api.spi.VariableFromFunctionDefinitions
+import viaduct.engine.runtime.mocks.ContextMocks
 
+@OptIn(InternalApi::class)
 class CheckerVariablesExtractionTest {
+    @Test
+    fun `retains callback identity and validates its complete output before projection`() =
+        runTest {
+            val required = createRSS(
+                "Query",
+                "policy(prefix: \$prefix, other: \$onlyOther)",
+                variableProviders = listOf(
+                    MockVariablesResolver("onlyOther") { _, _ -> error("Pruned provider must not run") },
+                    MockVariablesResolver("prefix", "unused") { _, _ -> mapOf("prefix" to "selected", "unused" to true) },
+                ),
+                forChecker = true,
+            )
+            val original = requireNotNull(extractCheckerVariableDefinitions(mapOf("input" to required)).getValue("input").fromFunction)
+
+            val retained = requireNotNull(original.retainCheckerVariables(setOf("prefix")))
+
+            assertEquals(setOf("prefix"), retained.variableNames)
+            assertEquals(mapOf("prefix" to "selected"), invokeProvider(retained))
+            assertEquals(setOf("prefix", "onlyOther"), original.variableNames)
+            assertNull(original.retainCheckerVariables(emptySet()))
+        }
+
+    @Test
+    fun `retained callback must return even its pruned output keys`() =
+        runTest {
+            listOf(
+                mapOf("prefix" to "selected"),
+                mapOf("prefix" to "selected", "onlyOther" to true, "unexpected" to true),
+            ).forEach { invalidValues ->
+                val required = createRSS(
+                    "Query",
+                    "policy(prefix: \$prefix, other: \$onlyOther)",
+                    variableProviders = listOf(MockVariablesResolver("prefix", "onlyOther") { _, _ -> invalidValues }),
+                    forChecker = true,
+                )
+                val original = requireNotNull(extractCheckerVariableDefinitions(mapOf("input" to required)).getValue("input").fromFunction)
+                val retained = requireNotNull(original.retainCheckerVariables(setOf("prefix")))
+
+                val failure = assertThrows<IllegalStateException> { invokeProvider(retained) }
+
+                assertTrue(failure.message.orEmpty().contains("returned invalid variables"))
+            }
+        }
+
+    @Test
+    fun `an opaque provider remains indivisible when any declared variable survives`() {
+        val provider = object : VariableFromFunctionDefinitions {
+            override val variableNames = setOf("prefix", "onlyOther")
+
+            override suspend fun provideVariables(
+                objectData: EngineObjectData.Sync,
+                arguments: Map<String, Any?>,
+                context: EngineExecutionContext,
+            ): Map<String, Any?> = error("Selecting a provider must not invoke it")
+        }
+
+        assertSame(provider, provider.retainCheckerVariables(setOf("prefix")))
+        assertNull(provider.retainCheckerVariables(setOf("unrelated")))
+    }
+
+    private suspend fun invokeProvider(provider: VariableFromFunctionDefinitions): Map<String, Any?> {
+        val schema = createSchemaWithWiring("extend type Query { value: String }")
+        return provider.provideVariables(
+            createEngineObjectData(schema.schema.queryType, emptyMap()),
+            emptyMap(),
+            ContextMocks(myFullSchema = schema).engineExecutionContext,
+        )
+    }
+
     @Test
     fun `extracts variables referenced only inside named fragments`() {
         val required =

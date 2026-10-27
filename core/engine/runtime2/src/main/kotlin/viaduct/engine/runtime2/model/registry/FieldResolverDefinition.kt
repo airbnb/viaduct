@@ -3,8 +3,6 @@ package viaduct.engine.runtime2.model.registry
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.runtime2.model.Arguments
 import viaduct.engine.runtime2.model.Fragment
-import viaduct.engine.runtime2.model.MaterializeSelection
-import viaduct.engine.runtime2.model.MaterializeSelectionForest
 import viaduct.engine.runtime2.model.ResolverOutputData
 import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.model.materializeSelectionForestOf
@@ -130,42 +128,11 @@ class FieldResolverDefinition private constructor(
     ): FieldValueResolver {
         val objectType = field.containingDef
 
-        fun normalize(
-            fragment: Fragment,
-            expectedType: ViaductSchema.Object,
-            role: String,
-        ): MaterializeSelectionForest {
-            require(fragment.nominalType == expectedType) {
-                "$role type ${fragment.nominalType.name} does not match ${expectedType.name}"
-            }
-            return fragment.materializeSelections.flatMap { selection ->
-                if (expectedType !in selection.possibleTypes) {
-                    materializeSelectionForestOf()
-                } else {
-                    materializeSelectionForestOf(
-                        MaterializeSelection.of(
-                            responseKey = selection.responseKey,
-                            key = selection.key.objectKey(expectedType),
-                            possibleTypes = setOf(expectedType),
-                            inclusionCondition = selection.inclusionCondition,
-                            fieldDirectives = selection.fieldDirectives,
-                            subselections = selection.subselections,
-                        ),
-                    )
-                }
-            }
-        }
-
         validateObjectFragment(objectFragment)
         val normalizedQueryFragment =
-            queryFragment?.let { fragment ->
-                require(fragment.nominalType == queryType) {
-                    "Query fragment type ${fragment.nominalType.name} does not match ${queryType.name}"
-                }
-                normalize(fragment, queryType, "Query fragment")
-            } ?: materializeSelectionForestOf()
+            queryFragment?.normalizeRoot(queryType, "Query fragment") ?: materializeSelectionForestOf()
 
-        val normalizedObjectFragment = normalize(objectFragment, objectType, "Object fragment")
+        val normalizedObjectFragment = objectFragment.normalizeRoot(objectType, "Object fragment")
         val fragmentTemplates =
             ResolverFragmentTemplates(
                 objectFragmentTemplate = normalizedObjectFragment,

@@ -1,6 +1,7 @@
 package viaduct.engine.runtime2.model.registry
 
 import viaduct.engine.runtime2.model.Arguments
+import viaduct.engine.runtime2.model.Fragment
 import viaduct.engine.runtime2.model.InclusionCondition
 import viaduct.engine.runtime2.model.MaterializeSelection
 import viaduct.engine.runtime2.model.MaterializeSelectionForest
@@ -17,6 +18,32 @@ import viaduct.engine.runtime2.model.materializeSelectionForestOf
 import viaduct.engine.runtime2.model.toSelectionForest
 import viaduct.engine.runtime2.model.usedVariables
 import viaduct.graphql.schema.ViaductSchema
+
+// Canonical registries require concrete field keys even when source selections use interfaces.
+internal fun Fragment.normalizeRoot(
+    expectedType: ViaductSchema.Object,
+    role: String,
+): MaterializeSelectionForest {
+    require(nominalType == expectedType) {
+        "$role type ${nominalType.name} does not match ${expectedType.name}"
+    }
+    return materializeSelections.flatMap { selection ->
+        if (expectedType !in selection.possibleTypes) {
+            materializeSelectionForestOf()
+        } else {
+            materializeSelectionForestOf(
+                MaterializeSelection.of(
+                    responseKey = selection.responseKey,
+                    key = selection.key.objectKey(expectedType),
+                    possibleTypes = setOf(expectedType),
+                    inclusionCondition = selection.inclusionCondition,
+                    fieldDirectives = selection.fieldDirectives,
+                    subselections = selection.subselections,
+                ),
+            )
+        }
+    }
+}
 
 internal fun ObjectSelectionForest.partitionVariableDemand(): Pair<ObjectSelectionForest, ObjectSelectionForest> {
     val (static, dynamic) = partitionVariableSelections()

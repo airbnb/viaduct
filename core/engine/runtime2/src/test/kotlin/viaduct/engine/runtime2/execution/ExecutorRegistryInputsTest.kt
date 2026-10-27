@@ -17,6 +17,7 @@ import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertInstanceOf
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -604,6 +605,40 @@ class ExecutorRegistryInputsTest {
             )
         assertEquals(ProviderFragment.OBJECT, fromField.providerFragment)
         assertEquals(listOf("owner"), fromField.responsePath)
+    }
+
+    @Test
+    fun `production checker inputs discard pruned field paths and execution guards`() {
+        val fixture = Fixture(
+            "interface Named { name: String } type Query { item: Item } " +
+                "type Item implements Named { name: String checked: Int } " +
+                "type Other implements Named { name: String flag: Boolean other: String }",
+        )
+        val dependency = createRSS("Item", "... on Named { ... on Other { flag } }", forChecker = true)
+        val required = createRSS(
+            "Item",
+            "... on Named { ... on Other { other @include(if: \$onlyOther) } }",
+            variableProviders = listOf(FromFieldVariablesResolver("onlyOther", listOf("flag"), dependency)),
+            forChecker = true,
+            executionCondition = QueryPlanExecutionCondition { error("A pruned requirement must not evaluate its guard") },
+        )
+        val dispatchers = DispatcherRegistry.Impl(
+            fieldResolverDispatchers = emptyMap(),
+            nodeResolverDispatchers = emptyMap(),
+            fieldCheckerDispatchers = mapOf(
+                ("Item" to "checked") to CheckerDispatcherImpl(MockCheckerExecutor(mapOf("input" to required))),
+            ),
+            typeCheckerDispatchers = emptyMap(),
+        )
+
+        val inputs = dispatcherRegistryInputs(fixture.engineSchema, fixture.schemas, dispatchers)
+        val checked = fixture.schemas.loweredSchema.requireObjectField("Item", "checked")
+        val templates = inputs.fieldCheckers.getValue(checked).fragmentTemplates.getValue("input")
+
+        assertTrue(templates.objectFragmentTemplate.isEmpty())
+        assertTrue(templates.queryFragmentTemplate.isEmpty())
+        assertTrue(templates.variables.isEmpty())
+        assertNull(templates.variablesProvider)
     }
 
     @Test

@@ -1,5 +1,6 @@
 package viaduct.engine.runtime
 
+import viaduct.apiannotations.InternalApi
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.FromArgument
@@ -32,6 +33,14 @@ internal fun extractCheckerVariableDefinitions(
     }
 
 private const val DEFAULT_QUERY_TYPE_NAME = "Query"
+
+// Keep callback boundaries so pruning a variable also removes its otherwise-unused callback.
+@InternalApi
+fun VariableFromFunctionDefinitions.retainCheckerVariables(retainedNames: Set<String>): VariableFromFunctionDefinitions? =
+    when (this) {
+        is CheckerVariablesProviderDefinitions -> retainingVariables(retainedNames)
+        else -> takeIf { variableNames.any(retainedNames::contains) }
+    }
 
 private class CheckerVariableDefinitionsBuilder(
     private val inputName: String,
@@ -188,6 +197,13 @@ private class CheckerVariablesProviderDefinitions(
     private val providers: List<Pair<VariablesResolver, Set<String>>>,
 ) : VariableFromFunctionDefinitions {
     override val variableNames: Set<String> = providers.flatMapTo(linkedSetOf()) { it.second }
+
+    fun retainingVariables(retainedNames: Set<String>): VariableFromFunctionDefinitions? {
+        val retainedProviders = providers.mapNotNull { (provider, selectedNames) ->
+            selectedNames.intersect(retainedNames).takeIf { it.isNotEmpty() }?.let { provider to it }
+        }
+        return retainedProviders.takeIf { it.isNotEmpty() }?.let { CheckerVariablesProviderDefinitions(inputName, it) }
+    }
 
     override suspend fun provideVariables(
         objectData: EngineObjectData.Sync,

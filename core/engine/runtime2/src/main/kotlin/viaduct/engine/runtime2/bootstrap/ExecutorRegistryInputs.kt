@@ -21,12 +21,14 @@ import viaduct.engine.runtime.FieldResolverDispatcher
 import viaduct.engine.runtime.NodeResolverDispatcher
 import viaduct.engine.runtime.QueryPlanExecutionCondition
 import viaduct.engine.runtime.ResolverVariableDefinitions
+import viaduct.engine.runtime.retainCheckerVariables
 import viaduct.engine.runtime2.execution.QPlanEngineExecutionContext
 import viaduct.engine.runtime2.execution.toEngineSelectionSet
 import viaduct.engine.runtime2.model.Arguments
 import viaduct.engine.runtime2.model.EngineErrorData
 import viaduct.engine.runtime2.model.Fragment
 import viaduct.engine.runtime2.model.InclusionCondition
+import viaduct.engine.runtime2.model.MaterializeSelection
 import viaduct.engine.runtime2.model.MaterializeSelectionForest
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.ResolverOutputData
@@ -52,15 +54,18 @@ import viaduct.engine.runtime2.model.registry.VariableDeclaration
 import viaduct.engine.runtime2.model.registry.VariableDefinition
 import viaduct.engine.runtime2.model.registry.fieldResolverOf
 import viaduct.engine.runtime2.model.registry.nodeResolverOf
+import viaduct.engine.runtime2.model.registry.normalizeRoot
 import viaduct.engine.runtime2.model.registry.selectionAwareFieldResolverOf
 import viaduct.engine.runtime2.model.registry.selectiveFieldResolverOf
 import viaduct.engine.runtime2.model.registry.selectiveNodeResolverOf
+import viaduct.engine.runtime2.model.registry.usedVariables
 import viaduct.engine.runtime2.model.requireArg
 import viaduct.engine.runtime2.model.requireField
 import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.requireType
 import viaduct.engine.runtime2.model.rootFieldReferenceDataOrNull
 import viaduct.engine.runtime2.model.schemaType
+import viaduct.engine.runtime2.model.usedVariables
 import viaduct.engine.runtime2.resolution.currentVariablesProviderResolutionContext
 import viaduct.engine.runtime2.schema.SourceSchemaAdapter
 import viaduct.engine.runtime2.schema.ViaductAndGJSchema
@@ -495,7 +500,8 @@ private class CheckerInputCompiler(
     private var objectSelections: MaterializeSelectionForest = materializeSelectionForestOf()
     private var querySelections: MaterializeSelectionForest = materializeSelectionForestOf()
     private val variables = linkedMapOf<Arguments.Variable, VariableDefinition>()
-    private val conditionProviders = linkedMapOf<String, QueryPlanExecutionCondition>()
+    private val conditionProviders = linkedMapOf<String, Pair<InclusionCondition, QueryPlanExecutionCondition>>()
+    private val variableConditions = linkedMapOf<String, InclusionCondition>()
     private val reservedVariableNames =
         mutableSetOf<String>().apply {
             addAll(variableDefinitions.fromArguments.variableNames)
@@ -512,84 +518,121 @@ private class CheckerInputCompiler(
         return outerRoot
     }
 
-    private fun addSelections(required: RequiredSelectionSet) {
+    private fun addSelections(
+        required: RequiredSelectionSet,
+        enclosingCondition: InclusionCondition = InclusionCondition.Always,
+    ) {
         val fragment =
             schemas.fragmentFromDocument(
                 document = required.selections.toDocument(),
                 variableTarget = target,
             )
-        val selections = fragment.materializeSelections.guardedBy(conditionFor(required.executionCondition))
-        when (rootOf(required)) {
-            CheckerInputRoot.OBJECT -> objectSelections += selections
-            CheckerInputRoot.QUERY -> querySelections += selections
+        val root = rootOf(required)
+        val rootType = when (root) {
+            CheckerInputRoot.OBJECT -> target.checkerObjectType()
+            CheckerInputRoot.QUERY -> schemas.loweredSchema.requireQueryTypeDef()
+        }
+        val selections = fragment.normalizeRoot(rootType, "Checker fragment").withoutStaticallyExcludedSelections()
+        if (selections.isEmpty()) return
+        val condition = enclosingCondition.and(conditionFor(required.executionCondition, enclosingCondition))
+        val referencedNames = selections.usedVariables().mapTo(linkedSetOf()) { it.variableName }
+        referencedNames.forEach { name ->
+            variableConditions[name] = variableConditions[name]?.or(condition) ?: condition
+        }
+        when (root) {
+            CheckerInputRoot.OBJECT -> objectSelections += selections.guardedBy(condition)
+            CheckerInputRoot.QUERY -> querySelections += selections.guardedBy(condition)
         }
         // Variable declarations come from the dispatcher. The legacy graph is traversed only to
         // retain the nested selection templates on which from-field declarations depend.
-        required.variablesResolvers.mapNotNull { it.requiredSelectionSet }.forEach(::addSelections)
+        required.variablesResolvers
+            .filter { resolver -> resolver.variableNames.any(referencedNames::contains) }
+            .mapNotNull { it.requiredSelectionSet }
+            .forEach { addSelections(it, condition) }
     }
 
     private fun addVariableDefinitions() {
-        variableDefinitions.fromArguments.variables.forEach { (name, path) ->
+        // Root normalization can remove the only reference to a dispatcher's variable.
+        val usedNames =
+            (objectSelections.usedVariables() + querySelections.usedVariables())
+                .mapTo(linkedSetOf()) { it.variableName }
+        variableDefinitions.fromArguments.variables.filterKeys { it in usedNames }.forEach { (name, path) ->
             addFromArgument(name, path)
         }
-        variableDefinitions.fromObjectFields.variables.forEach { (name, path) ->
+        variableDefinitions.fromObjectFields.variables.filterKeys { it in usedNames }.forEach { (name, path) ->
             addFromField(name, path, CheckerInputRoot.OBJECT)
         }
-        variableDefinitions.fromQueryFields.variables.forEach { (name, path) ->
+        variableDefinitions.fromQueryFields.variables.filterKeys { it in usedNames }.forEach { (name, path) ->
             addFromField(name, path, CheckerInputRoot.QUERY)
         }
-        variableDefinitions.fromFunction?.variableNames.orEmpty().forEach { name ->
+        (variableDefinitions.fromFunction?.variableNames.orEmpty() + conditionProviders.keys).filter { it in usedNames }.forEach { name ->
             putVariable(name, VariableDefinition.FromProvider)
         }
     }
 
-    fun templates(): ResolverFragmentTemplates =
-        ResolverFragmentTemplates(
+    fun templates(): ResolverFragmentTemplates {
+        val retainedNames = variables.keys.mapTo(linkedSetOf()) { it.variableName }
+        val conditions = conditionProviders.filterKeys { it in retainedNames }
+        val provider = variableDefinitions.fromFunction?.retainCheckerVariables(retainedNames)
+        val providedNames = provider?.variableNames.orEmpty().intersect(retainedNames)
+        return ResolverFragmentTemplates(
             objectFragmentTemplate = objectSelections,
             queryFragmentTemplate = querySelections,
             variables = variables,
             variablesProvider =
-                if (variableDefinitions.fromFunction == null && conditionProviders.isEmpty()) {
+                if (providedNames.isEmpty() && conditions.isEmpty()) {
                     null
                 } else {
                     { arguments ->
-                        val resolutionContext = currentVariablesProviderResolutionContext()
-                        buildMap {
-                            conditionProviders.forEach { (name, condition) ->
+                        val conditionValues = buildMap<String, Boolean> {
+                            conditions.forEach { (name, guardedCondition) ->
+                                val (enclosingCondition, condition) = guardedCondition
                                 // A null DFE is valid when execution has no field environment.
-                                put(name, condition.shouldExecute(null))
+                                put(name, enclosingCondition.includeWith { getValue(it.variableName) } && condition.shouldExecute(null))
                             }
-                            variableDefinitions.fromFunction?.let { provider ->
-                                val values =
-                                    provider.provideVariables(
-                                        engineObjectDataOf(target.checkerObjectType()),
-                                        arguments.fieldValues,
-                                        checkerInvocationContext(
-                                            schemas,
-                                            resolutionContext,
-                                            contextForInvocation,
-                                        ),
-                                    )
-                                check(values.keys == provider.variableNames) {
-                                    "Checker variables provider $inputName returned invalid variables: " +
-                                        "expected ${provider.variableNames}, got ${values.keys}"
-                                }
-                                provider.variableNames.forEach { name -> put(name, values.getValue(name)) }
+                        }
+                        val activeNames = providedNames.filterTo(linkedSetOf()) { name ->
+                            variableConditions.getValue(name).includeWith { conditionValues.getValue(it.variableName) }
+                        }
+                        val activeProvider = provider?.retainCheckerVariables(activeNames)
+                        val values = activeProvider?.let {
+                            val resolved =
+                                it.provideVariables(
+                                    engineObjectDataOf(target.checkerObjectType()),
+                                    arguments.fieldValues,
+                                    checkerInvocationContext(
+                                        schemas,
+                                        currentVariablesProviderResolutionContext(),
+                                        contextForInvocation,
+                                    ),
+                                )
+                            check(resolved.keys == it.variableNames) {
+                                "Checker variables provider $inputName returned invalid variables: " +
+                                    "expected ${it.variableNames}, got ${resolved.keys}"
                             }
+                            resolved
+                        }.orEmpty()
+                        buildMap {
+                            putAll(conditionValues)
+                            // Inactive bindings retain the provider's key contract; their guarded selections cannot read them.
+                            providedNames.forEach { name -> put(name, values[name]) }
                         }
                     }
                 },
         )
+    }
 
-    private fun conditionFor(condition: QueryPlanExecutionCondition): InclusionCondition {
+    private fun conditionFor(
+        condition: QueryPlanExecutionCondition,
+        enclosingCondition: InclusionCondition,
+    ): InclusionCondition {
         if (condition === QueryPlanExecutionCondition.ALWAYS_EXECUTE) return InclusionCondition.Always
         val name =
             generateSequence { "__engine2ExecutionCondition${nextConditionVariable++}" }
                 .first { it !in reservedVariableNames }
         reservedVariableNames += name
-        conditionProviders[name] = condition
+        conditionProviders[name] = enclosingCondition to condition
         val variable = Arguments.Variable.of(target, name)
-        putVariable(name, VariableDefinition.FromProvider)
         return InclusionCondition.requires(mapOf(variable to true))
     }
 
@@ -674,6 +717,24 @@ private class CheckerInputCompiler(
         variables[variable] = definition
     }
 }
+
+private fun MaterializeSelectionForest.withoutStaticallyExcludedSelections(): MaterializeSelectionForest =
+    flatMap { selection ->
+        if (selection.inclusionCondition === InclusionCondition.Never) {
+            materializeSelectionForestOf()
+        } else {
+            materializeSelectionForestOf(
+                MaterializeSelection.of(
+                    responseKey = selection.responseKey,
+                    key = selection.key,
+                    possibleTypes = selection.possibleTypes,
+                    inclusionCondition = selection.inclusionCondition,
+                    fieldDirectives = selection.fieldDirectives,
+                    subselections = selection.subselections.withoutStaticallyExcludedSelections(),
+                ),
+            )
+        }
+    }
 
 private fun ResolverTarget.checkerObjectTypeName(): String =
     when (this) {
