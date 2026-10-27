@@ -2,7 +2,7 @@
 
 ## Role And Boundary
 
-Runtime2's main-source execution layer adapts validated GraphQL Java query and mutation execution and Engine API field, node, and checker dispatchers to production Resolution. It decodes source operations into the canonical model, constructs the request-local operation state, starts Resolution, and exposes the promise-backed result graph to GraphQL Java for ordinary and incremental completion.
+Runtime2's main-source execution layer adapts validated GraphQL Java query, mutation, and single-result subscription execution and Engine API field, node, and checker dispatchers to production Resolution. It decodes source operations into the canonical model, constructs the request-local operation state, starts Resolution, and exposes the promise-backed result graph to GraphQL Java for ordinary and incremental completion.
 
 The `QPlan` prefix is inherited from the upstream `qplan` development branch and build layout; see the [upstream source context](../evidence/profiles/README.md#upstream-source-context). The names still identify current Runtime2 code: [`QPlanExecutionStrategy`](../../src/main/kotlin/viaduct/engine/runtime2/execution/QPlanExecutionStrategy.kt), [`QPlanWiringFactory`](../../src/main/kotlin/viaduct/engine/runtime2/execution/QPlanWiringFactory.kt), [`QPlanInstrumentation`](../../src/main/kotlin/viaduct/engine/runtime2/execution/QPlanInstrumentation.kt), and [`runQPlanFeatureTest`](../../src/test/fixtures/viaduct/engine/runtime2/execution/testing/QPlanFeatureTest.kt).
 
@@ -87,6 +87,10 @@ Production checker dispatchers expose the same normalized variable-definition ca
 
 `Engine2` installs `QPlanExecutionStrategy` for both query and mutation operations. Mutation operation decoding grounds arguments and conditions, collects fields by response key in source order, and constructs ordered mutation forests through structural namespace edges. Completion reads response-key-qualified mutation cells from `MutationObjectEngineResult`; payload completion uses ordinary OERs and wiring. Every selected mutation executes regardless of earlier failures or nullability. The strategy calls `StartedResolution.await()` for mutation operations before ordinary asynchronous GraphQL completion; null propagation changes response shape without suppressing later effects. Mutation resolvers cannot declare object or Query required selections and use `ctx.query()` for dependent reads. Mutation namespace field and type checkers are excluded; payload checkers retain ordinary semantics.
 
+### Subscription-Root Execution
+
+When the service enables subscriptions, `Engine2` installs `QPlanExecutionStrategy` for subscription operations. The parser decodes selections against the source Subscription type, and Resolution constructs a Subscription-rooted result with an empty initial source. Resolver Query required selections still resolve against Query. Completion produces one ordinary `ExecutionResult`, allowing resolver-level subscription guards to reject the invocation. This path does not consume event publishers or provide streaming subscription lifecycle semantics.
+
 ### Nested Query And Mutation Execution
 
 Resolution passes the concrete `FieldResolverTask` to each registry function as its `ResolutionExecutionContext`. The adapter wraps that explicit capability in an invocation-local `QPlanEngineExecutionContext`; it does not discover the current task through coroutine context. Concurrent tenant work uses structured Kotlin coroutines. Production `StandardViaduct` execution also preserves the thread-local context established by its configured `CoroutineInterop`, allowing `scopedAsync` helpers to inherit the active resolver's context and job. Direct GraphQL execution fixtures use their explicitly supplied Resolution context and do not establish that service bridge.
@@ -114,6 +118,7 @@ The execution layer supports:
 - `StandardViaduct` selection through `ENGINE2_ENABLED`, using its production dispatcher registry and generated tenant-module bootstrap;
 - `Engine.execute` and handle-based `Engine.resolveSelectionSet`, with handles confined to their owning `Engine2` instance;
 - query operations with selective and non-selective field and node dispatchers, and ordered mutation operations through structural namespaces;
+- single-result execution of subscription-root selections when enabled by the service, without streaming subscription support;
 - field- and type-checker dispatchers, including named inputs, supported variable definitions, execution conditions, denial, and errors;
 - object- and Query-rooted required selections, aliases, arguments, fragments, transitive demand, and occurrence-local variables;
 - `FromArgument`, supported singular `FromObjectField` and `FromQueryField` paths, and no-RSS function providers;
@@ -133,7 +138,7 @@ The execution layer rejects or does not provide:
 - inline object materialization for Node-valued fields;
 - object required selections or `FromObjectField` variables on reference targets;
 - function variables providers with their own required selections;
-- subscriptions, application-defined custom scalars, `@stream`, EOD aliases, asynchronous EOD variants, `EngineExecutionContext.completeSelectionSet`, and direct `Engine.resolveRootFieldReference` calls.
+- streaming subscriptions, application-defined custom scalars, `@stream`, EOD aliases, asynchronous EOD variants, `EngineExecutionContext.completeSelectionSet`, and direct `Engine.resolveRootFieldReference` calls.
 
 Unsupported input fails explicitly during registry construction, operation decoding, or execution. Runtime2 does not retry an operation on the `runtime` engine after Resolution begins.
 

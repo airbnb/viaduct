@@ -5,7 +5,6 @@ package viaduct.engine.runtime2
 import graphql.ExecutionInput as GraphQLExecutionInput
 import graphql.ExecutionResult
 import graphql.GraphQL
-import graphql.execution.AbortExecutionException
 import graphql.execution.DataFetcherExceptionHandler
 import graphql.execution.ExecutionContext
 import graphql.execution.ExecutionStrategy
@@ -103,7 +102,7 @@ class Engine2(
             .preparsedDocumentProvider(documentProvider)
             .queryExecutionStrategy(createExecutionStrategy())
             .mutationExecutionStrategy(createExecutionStrategy())
-            .subscriptionExecutionStrategy(UnsupportedSubscriptionExecutionStrategy)
+            .subscriptionExecutionStrategy(createExecutionStrategy())
             .instrumentation(
                 additionalInstrumentation?.let {
                     ChainedInstrumentation(listOf(qplanInstrumentation, it))
@@ -295,16 +294,6 @@ private data class RequestContext(
     val engineExecutionContext: DispatcherExecutionContext,
     val coroutineContext: CoroutineContext,
 )
-
-private object UnsupportedSubscriptionExecutionStrategy : ExecutionStrategy() {
-    override fun execute(
-        executionContext: ExecutionContext,
-        parameters: ExecutionStrategyParameters,
-    ): CompletableFuture<ExecutionResult> =
-        CompletableFuture.completedFuture(
-            AbortExecutionException("Engine2 does not support subscriptions").toExecutionResult(),
-        )
-}
 
 private object RootFieldExecutionScope : EngineExecutionContext.FieldExecutionScope {
     override val fragments = emptyMap<String, FragmentDefinition>()

@@ -10,7 +10,9 @@ Runtime2 executes queries and ordered mutations with selective and non-selective
 
 `Engine2.execute` returns complete results for both values of `incrementalExecution`, including queries containing `@defer`. The lower-level QPlan integration supports incremental delivery when GraphQL Java's incremental support is explicitly enabled for the execution. QPlan uses graphql-java's v0.1, path-based payload format, where deferred entries carry `path` and an optional `label`. The `runtime` engine uses Viaduct's v0.2, ID-based format, where deferred entries refer to work by `id`.
 
-Major exclusions from the current Engine API integration include batching, mutation namespace checkers, subscriptions, application-defined custom scalars, `@stream`, and some resolver combinations documented with the integration boundary. Runtime2 reuses the production dispatcher bootstrap and service wiring behind an opt-in feature flag; that path is not yet the default.
+Subscription operations execute one result from the Subscription root when subscriptions are enabled by the service. This permits subscription resolver guards to run; it is not streaming subscription support.
+
+Major exclusions from the current Engine API integration include batching, mutation namespace checkers, streaming subscriptions, application-defined custom scalars, `@stream`, and some resolver combinations documented with the integration boundary. Runtime2 reuses the production dispatcher bootstrap and service wiring behind an opt-in feature flag; that path is not yet the default.
 
 ## Source Layout
 

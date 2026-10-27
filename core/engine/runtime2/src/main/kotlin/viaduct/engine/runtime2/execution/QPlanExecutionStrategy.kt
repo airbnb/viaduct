@@ -26,6 +26,7 @@ import org.reactivestreams.Subscription
 import viaduct.engine.api.Engine
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.runtime2.model.registry.Assumptions
+import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.resolution.framework.CycleCheckState
 import viaduct.engine.runtime2.resolution.framework.ResolverObserver
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
@@ -33,7 +34,7 @@ import viaduct.engine.runtime2.resolution.startResolution
 import viaduct.engine.runtime2.schema.selectionsFrom
 
 /**
- * Query and mutation execution boundary for the qplan GraphQL-Java harness.
+ * GraphQL operation execution boundary for the qplan GraphQL-Java harness.
  *
  * Each request decodes its validated operation into qplan selections, starts Resolution, and
  * delegates GraphQL completion with a live promise-backed OER as the root source.
@@ -97,7 +98,16 @@ class QPlanExecutionStrategy(
                         ResolverObserver::class.java,
                         ResolverObserver.NOP,
                     ),
-                ).startResolution(selections, requestScope, cycleChecker)
+                ).startResolution(
+                    selections,
+                    requestScope,
+                    cycleChecker,
+                    rootType = if (executionContext.operationDefinition.operation == OperationDefinition.Operation.SUBSCRIPTION) {
+                        requireNotNull(world.schema.subscriptionTypeDef)
+                    } else {
+                        world.schema.requireQueryTypeDef()
+                    },
+                )
             } catch (throwable: Exception) {
                 executionContext.graphQLContext.delete(lifetimeKey)
                 requestJob.cancel(requestCancellation("QPlan request failed to start", throwable))

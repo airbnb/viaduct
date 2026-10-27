@@ -64,11 +64,13 @@ internal class GJSelectionParser(
         locale: Locale,
         fragmentsByName: Map<String, FragmentDefinition> = emptyMap(),
     ): SelectionForest {
-        require(operation.operation != OperationDefinition.Operation.SUBSCRIPTION) {
-            "Qplan operation decoding does not support subscriptions"
-        }
         val mutation = operation.operation == OperationDefinition.Operation.MUTATION
-        val sourceRoot = if (mutation) requireNotNull(sourceSchema.mutationType) else sourceSchema.queryType
+        val subscription = operation.operation == OperationDefinition.Operation.SUBSCRIPTION
+        val sourceRoot = when {
+            mutation -> requireNotNull(sourceSchema.mutationType)
+            subscription -> requireNotNull(sourceSchema.subscriptionType)
+            else -> sourceSchema.queryType
+        }
         require(operation.directives.isEmpty()) {
             "Applied operation directives are unsupported"
         }
@@ -89,7 +91,8 @@ internal class GJSelectionParser(
             val type = requireNotNull(schema.mutationTypeDef)
             flattenForMaterialization(schema, type, selections).mutationSelections(schema, type)
         } else {
-            flatten(schema, schema.requireQueryTypeDef(), selections)
+            val root = if (subscription) requireNotNull(schema.subscriptionTypeDef) else schema.requireQueryTypeDef()
+            flatten(schema, root, selections)
         }
     }
 

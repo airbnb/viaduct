@@ -12,10 +12,13 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeout
+import viaduct.engine.api.EngineObjectData
 import viaduct.engine.runtime2.model.MutationObjectEngineResult
 import viaduct.engine.runtime2.model.MutationSelectionForest
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.SelectionForest
+import viaduct.engine.runtime2.model.engineObjectDataOf
+import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.schemaType
 import viaduct.engine.runtime2.resolution.framework.CycleCheckState
 import viaduct.engine.runtime2.resolution.framework.Demand
@@ -24,6 +27,7 @@ import viaduct.engine.runtime2.resolution.framework.MutationOrchestrationTask
 import viaduct.engine.runtime2.resolution.framework.OEROccurrence
 import viaduct.engine.runtime2.resolution.framework.ResolverReadCycleException
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
+import viaduct.graphql.schema.ViaductSchema
 
 /**
  * Resolves selective demand once per object-local symbolic key on [coroutineContext].
@@ -100,6 +104,7 @@ internal fun SharedOperationContext<*>.startResolution(
     selections: SelectionForest,
     requestScope: CoroutineScope,
     cycleChecker: CycleCheckState = CycleCheckState.create(),
+    rootType: ViaductSchema.Object = world.schema.requireQueryTypeDef(),
 ): StartedResolution {
     require(world.selectiveResolvers) {
         "Resolution requires selective resolvers"
@@ -113,7 +118,7 @@ internal fun SharedOperationContext<*>.startResolution(
                 requestScope = resolutionScope,
                 cycleChecker = cycleChecker,
             )
-        val root = resolutionOperation.startResolve(selections)
+        val root = resolutionOperation.startResolve(selections, rootType)
         completion.complete()
         StartedResolution(root, completion)
     } catch (cause: Throwable) {
@@ -123,7 +128,10 @@ internal fun SharedOperationContext<*>.startResolution(
 }
 
 /** Starts another independently rooted execution in an existing logical operation. */
-internal fun OperationContext.startResolve(selections: SelectionForest): ObjectEngineResult {
+internal fun OperationContext.startResolve(
+    selections: SelectionForest,
+    rootType: ViaductSchema.Object = world.schema.requireQueryTypeDef(),
+): ObjectEngineResult {
     if (selections is MutationSelectionForest) {
         require(selections.type == world.schema.mutationTypeDef) { "Mutation execution must start at the Mutation root" }
         val result = MutationObjectEngineResult.of(selections)
@@ -136,11 +144,19 @@ internal fun OperationContext.startResolve(selections: SelectionForest): ObjectE
         dispatcher.dispatchMutationOrchestration(task)
         return result
     }
-    return startResolve(Demand.checked(selections))
+    val input = if (rootType == world.schema.requireQueryTypeDef()) {
+        world.resolverRegistry.createRootQueryInput()
+    } else {
+        require(rootType == world.schema.subscriptionTypeDef) { "Expected a Query or Subscription root" }
+        engineObjectDataOf(rootType)
+    }
+    return startResolve(Demand.checked(selections), input)
 }
 
-internal fun OperationContext.startResolve(selections: Demand<SelectionForest>): ObjectEngineResult {
-    val source = world.resolverRegistry.createRootQueryInput()
+internal fun OperationContext.startResolve(
+    selections: Demand<SelectionForest>,
+    source: EngineObjectData.Sync = world.resolverRegistry.createRootQueryInput(),
+): ObjectEngineResult {
     val result: ObjectEngineResult =
         OrchestrationTask.createObjectResult(this, source.schemaType(world.schema), selections)
     val orchestration =

@@ -429,7 +429,7 @@ class Engine2StandardViaductTest {
 
     @Suppress("DEPRECATION")
     @Test
-    fun `engine2 rejects subscriptions before invoking resolvers`() {
+    fun `engine2 executes a single subscription event through its subscription root`() {
         val sdl =
             """
             extend type Query {
@@ -446,9 +446,10 @@ class Engine2StandardViaductTest {
                 fieldWithValue("Query" to "noop", "noop")
                 field("Subscription" to "events") {
                     resolver {
-                        fn { _, _, _, _, _ ->
+                        querySelections("noop")
+                        fn { _, _, queryValue, _, _ ->
                             resolverCalls.incrementAndGet()
-                            "event"
+                            "event ${queryValue.get("noop")}"
                         }
                     }
                 }
@@ -474,8 +475,9 @@ class Engine2StandardViaductTest {
                 )
             }
 
-        assertEquals(listOf("Engine2 does not support subscriptions"), result.errors.map { it.message })
-        assertEquals(0, resolverCalls.get())
+        assertEquals(emptyList<GraphQLError>(), result.errors)
+        assertEquals(mapOf("events" to "event noop"), result.getData())
+        assertEquals(1, resolverCalls.get())
     }
 
     @Test
