@@ -95,6 +95,19 @@ class ExecutorValidatorTest {
     }
 
     @Test
+    fun `default set reports an unknown field in a checker selection set as schematically invalid`() {
+        val schema = MockSchema.mk("extend type Query { empty: Int } type User { name: String }")
+        val checkerExecutorFactory = MockCheckerExecutorFactory(
+            null,
+            mapOf("User" to MockCheckerExecutor(mapOf("rss" to RequiredSelectionSet(SelectionsParser.parse("User", "nmae"), emptyList(), true))))
+        )
+        assertThrows<RequiredSelectionsAreInvalid> {
+            emptyList<MockTenantModuleBootstrapper>().toDispatcherRegistryFactory(ExecutorValidator(schema), checkerExecutorFactory)
+                .create(schema)
+        }
+    }
+
+    @Test
     fun `fails on node resolver validator failure`() {
         assertThrows<IllegalArgumentException> {
             test(nodeResolverValidator = Validator.Invalid)

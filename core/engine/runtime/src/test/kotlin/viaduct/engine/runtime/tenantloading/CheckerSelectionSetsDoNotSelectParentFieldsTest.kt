@@ -9,7 +9,9 @@ import org.junit.jupiter.params.provider.CsvSource
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.mocks.MockCheckerExecutor
 import viaduct.engine.api.mocks.MockSchema
+import viaduct.engine.api.mocks.MockVariablesResolver
 import viaduct.engine.api.mocks.createRSS
+import viaduct.engine.api.select.SelectionsParser
 
 class CheckerSelectionSetsDoNotSelectParentFieldsTest {
     private val schema = MockSchema.mk(
@@ -40,6 +42,14 @@ class CheckerSelectionSetsDoNotSelectParentFieldsTest {
             validate(mapOf("rss" to createRSS(rssTypeName, selections, forChecker = true)))
         }
         assertTrue(exception.message!!.contains(expectedCoordinate), exception.message)
+    }
+
+    @Test
+    fun `rejects @parent fields in a variables resolver selection set and skips unknown fields`() {
+        val variablesResolver = MockVariablesResolver("v", requiredSelectionSet = createRSS("User", "nmae parent { name }", forChecker = true)) { _, _ -> emptyMap() }
+        val rss = RequiredSelectionSet(SelectionsParser.parse("User", "id"), listOf(variablesResolver), true)
+        val exception = assertThrows<Exception> { validate(mapOf("withVariables" to rss)) }
+        assertTrue(exception.message!!.contains("withVariables: [User.parent]"), exception.message)
     }
 
     @Test
