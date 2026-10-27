@@ -754,59 +754,6 @@ interface RequiredSelectionsContract : QueryExecutionContract {
     }
 
     @Test
-    fun `parent field in checker required selection is available to checker`() {
-        val checkedCompanyNames = ConcurrentHashMap.newKeySet<String>()
-
-        runQueryTest(
-            EngineTestModule(
-                """
-            extend type Query { company: Company }
-            type Company { companyName: String, user: User }
-            type User { parent: Company @parent, sensitiveProfile: String }
-                """.trimIndent()
-            ) {
-                field("Query" to "company") {
-                    resolver {
-                        fn { _, _, _, _, _ ->
-                            createEngineObjectData(requireNotNull(schema.schema.getObjectType("Company")), emptyMap())
-                        }
-                    }
-                }
-                field("Company" to "companyName") {
-                    resolver {
-                        fn { _, _, _, _, _ -> "Airbnb" }
-                    }
-                }
-                field("Company" to "user") {
-                    resolver {
-                        fn { _, _, _, _, _ ->
-                            createEngineObjectData(requireNotNull(schema.schema.getObjectType("User")), emptyMap())
-                        }
-                    }
-                }
-                field("User" to "sensitiveProfile") {
-                    value("allowed")
-                    checker {
-                        objectSelections("company", "parent { companyName }")
-                        fn { _, objectDataMap ->
-                            checkedCompanyNames.add(
-                                objectDataMap["company"]!!
-                                    .fetchAs<EngineObjectData>("parent")
-                                    .fetchAs<String>("companyName")
-                            )
-                        }
-                    }
-                }
-            }
-        ) { runQuery ->
-            runQuery("{ company { user { sensitiveProfile } } }")
-                .assertJson("""{"data": {"company": {"user": {"sensitiveProfile": "allowed"}}}}""")
-        }
-
-        assertEquals(setOf("Airbnb"), checkedCompanyNames)
-    }
-
-    @Test
     fun `parent field in variable resolver required selection is available to variables resolver`() {
         val resolvedNameLocales = ConcurrentHashMap.newKeySet<String>()
         val variableLocales = ConcurrentHashMap.newKeySet<String>()

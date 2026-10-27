@@ -31,7 +31,10 @@ class ExecutorValidator(
             FromFieldVariablesHaveValidPaths(schema),
             FromFieldVariablesAreNotConditions(),
         ).flatten(),
-        checkerExecutorValidator = CheckerSelectionSetsAreProperlyTyped(schema),
+        checkerExecutorValidator = listOf(
+            CheckerSelectionSetsAreProperlyTyped(schema),
+            CheckerSelectionSetsDoNotSelectParentFields(schema),
+        ).flatten(),
     )
 
     @Suppress("PARAMETER_NAME_CHANGED_ON_OVERRIDE")

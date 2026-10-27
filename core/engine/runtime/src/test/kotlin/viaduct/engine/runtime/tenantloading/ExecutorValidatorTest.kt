@@ -1,5 +1,6 @@
 package viaduct.engine.runtime.tenantloading
 
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertDoesNotThrow
 import org.junit.jupiter.api.assertThrows
@@ -71,6 +72,26 @@ class ExecutorValidatorTest {
             listOf(bootstrap).toDispatcherRegistryFactory(ExecutorValidator(mutationSchema), MockCheckerExecutorFactory())
                 .create(mutationSchema)
         }
+    }
+
+    @Test
+    fun `default set rejects @parent in a checker selection set`() {
+        val schema = MockSchema.mk(
+            """
+            extend type Query { empty: Int }
+            type User { id: ID, parent: Company @parent }
+            type Company { name: String }
+            """.trimIndent()
+        )
+        val checkerExecutorFactory = MockCheckerExecutorFactory(
+            null,
+            mapOf("User" to MockCheckerExecutor(mapOf("rss" to RequiredSelectionSet(SelectionsParser.parse("User", "parent { name }"), emptyList(), true))))
+        )
+        val exception = assertThrows<Exception> {
+            emptyList<MockTenantModuleBootstrapper>().toDispatcherRegistryFactory(ExecutorValidator(schema), checkerExecutorFactory)
+                .create(schema)
+        }
+        assertTrue(exception.message!!.contains("User.parent"), exception.message)
     }
 
     @Test
