@@ -17,23 +17,31 @@ import viaduct.engine.runtime2.arbitrary.SchemaFeatures
 import viaduct.engine.runtime2.arbitrary.arbitrarySchemaFromSdl
 import viaduct.engine.runtime2.arbitrary.toRegistry
 import viaduct.engine.runtime2.arbitrary.toRegistryDocument
+import viaduct.utils.string.sha256Hash
 
-const val RESOLVER_TEST_SHARD_FORMAT_VERSION = 1
+const val RESOLVER_TEST_SHARD_FORMAT_VERSION = 2
 
 class ResolverTestShard(
     val sdl: ByteArray,
     val json: ByteArray,
 )
 
+/** Content IDs of a schema and of its registries and queries, in shard order. */
+data class ResolverTestShardIds(
+    val schema: String,
+    val registries: List<String>,
+    val queries: List<String>,
+)
+
 object ResolverTestShardCodec {
     fun encode(
-        schemaIndex: Int,
+        batchId: String,
         batch: ResolverTestBatch,
     ): ResolverTestShard {
         val document =
             ShardPlansDocument(
                 formatVersion = RESOLVER_TEST_SHARD_FORMAT_VERSION,
-                schemaIndex = schemaIndex,
+                batchId = batchId,
                 schema =
                     SchemaMetadataDocument(
                         deepFields = batch.schema.deepFields,
@@ -41,13 +49,13 @@ object ResolverTestShardCodec {
                         features = batch.schema.features,
                     ),
                 registries = batch.registries.map(ArbitraryRegistry::toRegistryDocument),
-                queries = batch.queries.map { query -> QueryDocument(query.source, query.permutationEquivalentSource, query.selectionDepth, query.features) },
+                queries = batch.queries.map(ArbitraryQuery::toQueryDocument),
             )
         return ResolverTestShard(gzip("${batch.schema.sdl}\n".toByteArray()), gzip(shardMapper.writeValueAsBytes(document)))
     }
 
     fun decode(
-        expectedSchemaIndex: Int,
+        expectedBatchId: String,
         sdl: ByteArray,
         json: ByteArray,
     ): ResolverTestBatch {
@@ -57,8 +65,8 @@ object ResolverTestShardCodec {
             "Unsupported resolver test shard formatVersion $formatVersion"
         }
         val document = shardMapper.treeToValue<ShardPlansDocument>(tree)
-        require(document.schemaIndex == expectedSchemaIndex) {
-            "Resolver test shard holds schema ${document.schemaIndex}; expected $expectedSchemaIndex"
+        require(document.batchId == expectedBatchId) {
+            "Resolver test shard holds batch ${document.batchId}; expected $expectedBatchId"
         }
         val schema =
             with(document.schema) {
@@ -67,10 +75,37 @@ object ResolverTestShardCodec {
         return ResolverTestBatch(
             schema = schema,
             registries = document.registries.map { registry -> registry.toRegistry(schema) },
-            queries = document.queries.map { query -> ArbitraryQuery(query.source, query.permutationEquivalentSource, query.selectionDepth, query.features) },
+            queries = document.queries.map(QueryDocument::toArbitraryQuery),
         )
     }
+
+    fun ids(batch: ResolverTestBatch): ResolverTestShardIds =
+        ResolverTestShardIds(
+            schema = schemaSha256(batch).take(SCHEMA_ID_LENGTH),
+            registries = batch.registries.map { registry -> registrySha256(registry).take(CASE_PART_ID_LENGTH) },
+            queries = batch.queries.map { query -> querySha256(query).take(CASE_PART_ID_LENGTH) },
+        )
+
+    /** Keeps the first of each identical registry and query; identical content is the same case. */
+    fun withoutDuplicates(batch: ResolverTestBatch): ResolverTestBatch =
+        batch.copy(
+            registries = batch.registries.distinctBy(::registrySha256),
+            queries = batch.queries.distinctBy(::querySha256),
+        )
+
+    private fun schemaSha256(batch: ResolverTestBatch): String = batch.schema.sdl.sha256Hash()
+
+    private fun registrySha256(registry: ArbitraryRegistry): String = shardMapper.writeValueAsBytes(registry.toRegistryDocument()).sha256Hash()
+
+    private fun querySha256(query: ArbitraryQuery): String = shardMapper.writeValueAsBytes(query.toQueryDocument()).sha256Hash()
 }
+
+private const val SCHEMA_ID_LENGTH = 8
+private const val CASE_PART_ID_LENGTH = 6
+
+private fun ArbitraryQuery.toQueryDocument(): QueryDocument = QueryDocument(source, permutationEquivalentSource, selectionDepth, features)
+
+private fun QueryDocument.toArbitraryQuery(): ArbitraryQuery = ArbitraryQuery(source, permutationEquivalentSource, selectionDepth, features)
 
 private fun gzip(bytes: ByteArray): ByteArray =
     ByteArrayOutputStream().use { output ->
@@ -82,7 +117,7 @@ private fun gunzip(bytes: ByteArray): ByteArray = GZIPInputStream(bytes.inputStr
 
 private data class ShardPlansDocument(
     val formatVersion: Int,
-    val schemaIndex: Int,
+    val batchId: String,
     val schema: SchemaMetadataDocument,
     val registries: List<RegistryDocument>,
     val queries: List<QueryDocument>,

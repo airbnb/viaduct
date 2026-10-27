@@ -74,7 +74,7 @@ class ResolverTestReplayTest {
 
         assertEquals(emptyList(), warnings)
         assertContains(failure.message.orEmpty(), "No activated node loaders")
-        assertContains(failure.message.orEmpty(), "Stored suite: stored-coverage (profile=stored-coverage seed=1 size=2:2:2)")
+        assertContains(failure.message.orEmpty(), "Stored suite: stored-coverage (profile=stored-coverage seed=1 cases=8)")
         assertContains(failure.message.orEmpty(), "materializeResolverTestSuites")
     }
 
@@ -447,29 +447,5 @@ class ResolverTestReplayTest {
                 (ResolverFragmentsEnabled to false) +
                 (ResolverFromArgumentVariablesEnabled to false) +
                 (ResolverVariablesEnabled to false)
-    }
-}
-
-private suspend fun <T> withResolverProperties(
-    vararg properties: Pair<String, String>,
-    block: suspend () -> T,
-): T {
-    val previous =
-        properties.associate { (property, _) ->
-            property to System.getProperty(property)
-        }
-    properties.forEach { (property, value) ->
-        System.setProperty(property, value)
-    }
-    return try {
-        block()
-    } finally {
-        previous.forEach { (property, value) ->
-            if (value == null) {
-                System.clearProperty(property)
-            } else {
-                System.setProperty(property, value)
-            }
-        }
     }
 }

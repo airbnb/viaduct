@@ -16,6 +16,8 @@ const val RESOLVER_TEST_SEED_PROPERTY = "resolver.property.seed"
 const val RESOLVER_TEST_PROFILE_PROPERTY = "resolver.property.profile"
 const val RESOLVER_TEST_CASE_PROPERTY = "resolver.property.case"
 const val RESOLVER_TEST_SIZE_PROPERTY = "resolver.property.size"
+const val RESOLVER_TEST_CASE_ID_PROPERTY = "resolver.testCase"
+const val RESOLVER_TEST_CASE_MARKER_PROPERTY = "resolver.testCase.marker"
 
 data class ResolverTestCaseCoordinate(
     val schemaIndex: Int,
@@ -56,12 +58,11 @@ data class ResolverTestCase(
     val registry: ArbitraryRegistry,
     val query: ArbitraryQuery,
     val coordinates: ResolverTestCoordinates? = null,
+    val testCaseId: String? = null,
 ) {
     fun failureContext(): String =
         """
-        |Generated resolver test case
-        |Coordinates: ${coordinates?.summary() ?: "not tracked"}
-        |Replay seed: ${coordinates?.replaySeedArgument() ?: "not tracked"}
+        |${if (testCaseId == null) generatedCaseHeader() else storedCaseHeader(testCaseId)}
         |
         |Schema:
         |${schema.sdl.prependIndent("  ")}
@@ -72,7 +73,23 @@ data class ResolverTestCase(
         |Query:
         |${query.source.prependIndent("  ")}
         """.trimMargin()
+
+    private fun generatedCaseHeader(): String =
+        """
+        |Generated resolver test case
+        |Coordinates: ${coordinates?.summary() ?: "not tracked"}
+        |Replay seed: ${coordinates?.replaySeedArgument() ?: "not tracked"}
+        """.trimMargin()
+
+    private fun storedCaseHeader(testCaseId: String): String =
+        """
+        |Stored resolver test case
+        |Test case: $testCaseId
+        |Rerun: ${resolverTestCaseRerunCommand(testCaseId)}
+        """.trimMargin()
 }
+
+fun resolverTestCaseRerunCommand(testCaseId: String): String = "./gradlew :core:engine:runtime2:resolverTestCase -PresolverTestCase=$testCaseId"
 
 /** Coordinates and execution count shared by aggregate assertions after one generated run. */
 data class ResolverTestRun(
@@ -83,21 +100,27 @@ data class ResolverTestRun(
     val selectedCase: ResolverTestCaseCoordinate?,
     val sizeOverridden: Boolean,
     val storedSuite: String? = null,
+    val storedCases: Int? = null,
+    val selectedTestCase: String? = null,
 ) {
     init {
         require(profile.isNotBlank())
-        require(attemptedCases > 0)
+        // A suite that does not hold the selected test case runs nothing.
+        require(attemptedCases > 0 || selectedTestCase != null)
     }
 
     val stored: Boolean
         get() = storedSuite != null
 
+    val singleCase: Boolean
+        get() = selectedCase != null || selectedTestCase != null
+
     val expectedCases: Int
         get() =
-            if (selectedCase == null) {
-                counts.schemas * counts.registriesPerSchema * counts.queriesPerSchema
-            } else {
+            if (singleCase) {
                 1
+            } else {
+                storedCases ?: (counts.schemas * counts.registriesPerSchema * counts.queriesPerSchema)
             }
 
     fun warnCoverage(
@@ -105,7 +128,7 @@ data class ResolverTestRun(
         message: String,
         report: (String) -> Unit = System.err::println,
     ) {
-        if (selectedCase != null || condition) return
+        if (singleCase || condition) return
         report("WARNING: Generated coverage gap\n${aggregateMessage(message)}")
     }
 
@@ -122,7 +145,7 @@ data class ResolverTestRun(
         condition: Boolean,
         message: String,
     ) {
-        if (selectedCase != null) return
+        if (singleCase) return
         if (!condition) {
             throw AssertionError(aggregateMessage(message))
         }
@@ -132,7 +155,7 @@ data class ResolverTestRun(
         if (stored) {
             """
             |$message
-            |Stored suite: $storedSuite (profile=$profile seed=$seed size=${counts.summary()})
+            |Stored suite: $storedSuite (profile=$profile seed=$seed cases=$expectedCases)
             |Change its ResolverTestSuiteDefinition and run materializeResolverTestSuites to restore coverage
             """.trimMargin()
         } else {
@@ -276,6 +299,7 @@ suspend fun checkResolverTestBatch(
     selectiveNodeResolvers: Boolean,
     fieldCheckerMode: GeneratedFieldCheckerMode,
     typeCheckerMode: GeneratedTypeCheckerMode,
+    testCaseId: ((registryIndex: Int, queryIndex: Int) -> String)? = null,
     property: suspend (TestWorld, ResolverTestCase) -> Unit,
 ): Int {
     val selectedCase = execution.selectedCase
@@ -312,14 +336,13 @@ suspend fun checkResolverTestBatch(
                             registryIndex = registryIndex,
                             queryIndex = queryIndex,
                         ),
+                    testCaseId = testCaseId?.invoke(registryIndex, queryIndex),
                 )
             try {
                 property(world, testCase)
             } catch (failure: Throwable) {
-                throw AssertionError(
-                    "${testCase.failureContext()}\nReplay size: -PresolverPropertySize=${execution.counts.summary()}",
-                    failure,
-                )
+                val replaySize = if (testCase.testCaseId == null) "\nReplay size: -PresolverPropertySize=${execution.counts.summary()}" else ""
+                throw AssertionError("${testCase.failureContext()}$replaySize", failure)
             }
         }
     }
@@ -446,3 +469,28 @@ private fun configuredResolverTestSeed(): Long =
         ?: Random.nextLong()
 
 private fun TestCaseCount.summary(): String = "$schemas:$registriesPerSchema:$queriesPerSchema"
+
+/** Runs [block] with [properties] set, restoring their previous values afterward. */
+internal suspend fun <T> withResolverProperties(
+    vararg properties: Pair<String, String>,
+    block: suspend () -> T,
+): T {
+    val previous =
+        properties.associate { (property, _) ->
+            property to System.getProperty(property)
+        }
+    properties.forEach { (property, value) ->
+        System.setProperty(property, value)
+    }
+    return try {
+        block()
+    } finally {
+        previous.forEach { (property, value) ->
+            if (value == null) {
+                System.clearProperty(property)
+            } else {
+                System.setProperty(property, value)
+            }
+        }
+    }
+}

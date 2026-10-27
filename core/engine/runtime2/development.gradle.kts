@@ -702,6 +702,7 @@ val resolverPropertyReplayProfile = providers.gradleProperty("resolverPropertyPr
 val resolverPropertyReplayCase =
     providers.gradleProperty("resolverPropertyCase").orElse("all")
 val resolverPropertyReplaySize = providers.gradleProperty("resolverPropertySize")
+val jvmClassNamePattern = Regex("""[A-Za-z_$][A-Za-z0-9_.$]*""")
 
 tasks.register<org.gradle.api.tasks.testing.Test>("resolverPropertyReplay") {
     group = "verification"
@@ -716,7 +717,7 @@ tasks.register<org.gradle.api.tasks.testing.Test>("resolverPropertyReplay") {
         val className =
             resolverPropertyReplayClass.orNull
                 ?: throw GradleException("Set -PresolverPropertyClass=<fully-qualified-class>")
-        require(className.matches(Regex("""[A-Za-z_$][A-Za-z0-9_.$]*"""))) {
+        require(className.matches(jvmClassNamePattern)) {
             "resolverPropertyClass must be a fully qualified JVM class name: $className"
         }
         val profile =
@@ -757,6 +758,48 @@ tasks.register<org.gradle.api.tasks.testing.Test>("resolverPropertyReplay") {
         systemProperty("resolver.property.profile", profile)
         systemProperty("resolver.property.case", case)
         size?.let { systemProperty("resolver.property.size", it) }
+    }
+}
+
+val resolverTestCase = providers.gradleProperty("resolverTestCase")
+val resolverTestCaseMarker = layout.buildDirectory.file("resolver-test-case/ran.txt")
+
+tasks.register<org.gradle.api.tasks.testing.Test>("resolverTestCase") {
+    group = "verification"
+    description = "Replays one stored resolver test case by its suite/batch/registry/query ID."
+    maxHeapSize = "2g"
+    testClassesDirs = sourceSets["test"].output.classesDirs
+    classpath = sourceSets["test"].runtimeClasspath
+    useJUnitPlatform()
+    outputs.upToDateWhen { false }
+
+    doFirst {
+        val testCase =
+            resolverTestCase.orNull
+                ?: throw GradleException("Set -PresolverTestCase=<suite/batch/registry/query>")
+        val className = resolverPropertyReplayClass.orNull
+        if (className == null) {
+            listOf("*GeneratedTest", "*WitnessTest", "*MutationTest").forEach(filter::includeTestsMatching)
+        } else {
+            require(className.matches(jvmClassNamePattern)) {
+                "resolverPropertyClass must be a fully qualified JVM class name: $className"
+            }
+            filter.includeTestsMatching(className)
+        }
+        val marker = resolverTestCaseMarker.get().asFile
+        marker.delete()
+        marker.parentFile.mkdirs()
+        systemProperty("resolver.testCase", testCase)
+        systemProperty("resolver.testCase.marker", marker.absolutePath)
+    }
+
+    doLast {
+        if (!resolverTestCaseMarker.get().asFile.exists()) {
+            throw GradleException(
+                "No test ran test case ${resolverTestCase.get()}; " +
+                    (resolverPropertyReplayClass.orNull?.let { "$it does not use its suite" } ?: "no generated, witness, or mutation test uses its suite"),
+            )
+        }
     }
 }
 

@@ -5,6 +5,7 @@ package viaduct.engine.runtime2.propertytest
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlinx.coroutines.runBlocking
+import viaduct.engine.runtime2.arbitrary.ResolverTestBatch
 import viaduct.engine.runtime2.arbitrary.generateResolverTestBatches
 import viaduct.utils.string.sha256Hash
 
@@ -28,27 +29,42 @@ object ResolverTestSuiteMaterializer {
         resourcesRoot: Path,
         definition: ResolverTestSuiteDefinition,
     ) {
+        val batches = runBlocking { generateResolverTestBatches(definition.counts, definition.config, definition.seed) }
+        write(resourcesRoot, definition, batches)
+    }
+
+    /** Stores every batch, including batches that share a schema; their SDL is written once. */
+    internal fun write(
+        resourcesRoot: Path,
+        definition: ResolverTestSuiteDefinition,
+        generated: List<ResolverTestBatch>,
+    ) {
         val manifestPath = resourcesRoot.resolve(manifestResource(definition.id))
         val suiteDirectory = manifestPath.parent
         Files.createDirectories(suiteDirectory)
         Files.list(suiteDirectory).use { files -> files.forEach(Files::delete) }
+        val sdlBySchema = linkedMapOf<String, ByteArray>()
         val batches =
-            runBlocking {
-                generateResolverTestBatches(definition.counts, definition.config, definition.seed)
-            }
-        val shards =
-            batches.mapIndexed { offset, batch ->
-                val schemaIndex = offset + 1
-                val shard = ResolverTestShardCodec.encode(schemaIndex, batch)
-                val reencoded = ResolverTestShardCodec.encode(schemaIndex, ResolverTestShardCodec.decode(schemaIndex, shard.sdl, shard.json))
-                check(reencoded.sdl.contentEquals(shard.sdl) && reencoded.json.contentEquals(shard.json)) {
-                    "Suite ${definition.id} schema $schemaIndex does not round-trip through the shard codec"
+            generated.mapIndexed { offset, generatedBatch ->
+                val batch = ResolverTestShardCodec.withoutDuplicates(generatedBatch)
+                val batchId = resolverTestBatchId(offset + 1)
+                val ids = ResolverTestShardCodec.ids(batch)
+                check(ids.registries.allDistinct() && ids.queries.allDistinct()) {
+                    "Suite ${definition.id} batch $batchId has distinct registries or queries whose IDs collide"
                 }
-                Files.write(resourcesRoot.resolve(sdlResource(definition.id, schemaIndex)), shard.sdl)
-                Files.write(resourcesRoot.resolve(shardResource(definition.id, schemaIndex)), shard.json)
-                shard
+                val shard = ResolverTestShardCodec.encode(batchId, batch)
+                val reencoded = ResolverTestShardCodec.encode(batchId, ResolverTestShardCodec.decode(batchId, shard.sdl, shard.json))
+                check(reencoded.sdl.contentEquals(shard.sdl) && reencoded.json.contentEquals(shard.json)) {
+                    "Suite ${definition.id} batch $batchId does not round-trip through the shard codec"
+                }
+                check(sdlBySchema.getOrPut(ids.schema) { shard.sdl }.contentEquals(shard.sdl)) {
+                    "Suite ${definition.id} has distinct schemas whose IDs collide at ${ids.schema}"
+                }
+                Files.write(resourcesRoot.resolve(shardResource(definition.id, batchId)), shard.json)
+                ResolverTestSuiteBatch(batchId, ids.schema, shard.json.sha256Hash(), ids.registries, ids.queries)
             }
-        val manifest = definition.manifest(shards.map { shard -> shard.sdl.sha256Hash() }, shards.map { shard -> shard.json.sha256Hash() })
-        Files.writeString(manifestPath, PropertyTestJson.write(manifest))
+        sdlBySchema.forEach { (schemaId, sdl) -> Files.write(resourcesRoot.resolve(sdlResource(definition.id, schemaId)), sdl) }
+        val schemas = sdlBySchema.map { (schemaId, sdl) -> ResolverTestSuiteSchema(schemaId, sdl.sha256Hash()) }
+        Files.writeString(manifestPath, PropertyTestJson.write(definition.manifest(schemas, batches)))
     }
 }

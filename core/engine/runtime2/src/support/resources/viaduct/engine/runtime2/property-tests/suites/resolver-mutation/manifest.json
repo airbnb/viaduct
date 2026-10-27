@@ -1,15 +1,123 @@
 {
+  "batches" : [ {
+    "id" : "b001",
+    "queries" : [ "0f1c6a", "81bcca", "b53765", "8a0d6a", "d6ac5c" ],
+    "registries" : [ "8e8539", "cefb54", "ef8ed6" ],
+    "schema" : "a6819787",
+    "shardSha256" : "2b87ada24836ceadc578e02b3f1a0970c2649aeeb1452d6c6a7b051eb171a535"
+  }, {
+    "id" : "b002",
+    "queries" : [ "a71b94", "0cf842", "755391", "c8de4c", "b53765" ],
+    "registries" : [ "64670c", "abb142", "c84765" ],
+    "schema" : "922420df",
+    "shardSha256" : "0038a53f42c1dbc17b14f5d43ce5d6e1845e3b5119feddb0c4777869e7948d3e"
+  }, {
+    "id" : "b003",
+    "queries" : [ "539d59", "412798", "52d5c5", "97e296", "848a85" ],
+    "registries" : [ "e6891a", "05fec1", "c14e6a" ],
+    "schema" : "b6de77a4",
+    "shardSha256" : "4ec58cf2b0e770cad0e23852d62e22b59bb03275561e415ab517852909bafd58"
+  }, {
+    "id" : "b004",
+    "queries" : [ "78b98d", "7e306b", "5c6cd4", "394d88", "79bb59" ],
+    "registries" : [ "0200ec", "fb3727", "ee4d1d" ],
+    "schema" : "ae5b64a7",
+    "shardSha256" : "d15b700d0c13055c55aa582b4c85af8e723ae409f27528e532d1ddb9bbb10d9d"
+  }, {
+    "id" : "b005",
+    "queries" : [ "f3e512", "5a25ac", "ce0398", "fe8177", "5a15e7" ],
+    "registries" : [ "666216", "f34625", "fbbef6" ],
+    "schema" : "513e5001",
+    "shardSha256" : "86038c9bd007f214b6e063feccfa690846fff3e19225735e8dab1b5bd4d7426c"
+  }, {
+    "id" : "b006",
+    "queries" : [ "f8394e", "1e0582", "b53765", "b638b7", "e5981b" ],
+    "registries" : [ "5f9e45", "907e73", "9314dc" ],
+    "schema" : "000ff635",
+    "shardSha256" : "65b7b28b1b4eef92c7bf36c3d377282ba92f6b4d6a010af83e0922bc58a297ec"
+  }, {
+    "id" : "b007",
+    "queries" : [ "5c6cd4", "531022", "4dde80", "6faa09", "c0f775" ],
+    "registries" : [ "5dcd4c", "df8b18", "7e7530" ],
+    "schema" : "9a0dcb02",
+    "shardSha256" : "6fcc414c7a899dda04b8b6706d2aab635721d08b5071497fa9991ab222af110c"
+  }, {
+    "id" : "b008",
+    "queries" : [ "f81a0c", "d7eb8c", "cc74d4", "1dc033", "3ff251" ],
+    "registries" : [ "c0fac4", "97f75d", "7fe17e" ],
+    "schema" : "b4a08fff",
+    "shardSha256" : "0598143d35edcd2296bfabbd570824f5521eae772d71982b6b6b49edef954814"
+  }, {
+    "id" : "b009",
+    "queries" : [ "c10304", "0981ca", "b53765", "9c42f9" ],
+    "registries" : [ "f09eca", "0c5680", "7f1228" ],
+    "schema" : "c3d1efc5",
+    "shardSha256" : "b91129d1114023b9ca275b6af6129adf4cca38ed3049a288905cc43ca281c84a"
+  }, {
+    "id" : "b010",
+    "queries" : [ "ff3c6e", "b53765", "b6d333", "5c6cd4", "d36a1c" ],
+    "registries" : [ "4f6339", "e11cd9", "a9a670" ],
+    "schema" : "9a0466bc",
+    "shardSha256" : "7ebf76814ce1ea13e7269682096255cd37a89487cb1770c84f6c06e028e3d2f4"
+  }, {
+    "id" : "b011",
+    "queries" : [ "b53765", "6f294d", "3184e2", "f523a2", "c55f2a" ],
+    "registries" : [ "60522b", "d4bcf5", "0a8cbb" ],
+    "schema" : "32cdcf4d",
+    "shardSha256" : "264d9aa9111c7a433ef2678fc64800e7644ffdc11162e56e90f7801c22c9160b"
+  }, {
+    "id" : "b012",
+    "queries" : [ "8c628d", "3ab253", "500b30", "0332a1", "e2a3c4" ],
+    "registries" : [ "01b49d", "c6684d", "6f0256" ],
+    "schema" : "a5c179ae",
+    "shardSha256" : "379972006959391d9ac327b3d22b56e7ae721c4db5250119b052d3e1dd36c7ca"
+  } ],
   "counts" : {
     "queriesPerSchema" : 5,
     "registriesPerSchema" : 3,
     "schemas" : 12
   },
   "fieldCheckerMode" : "NONE",
-  "formatVersion" : 1,
+  "formatVersion" : 2,
   "generatorConfigSha256" : "66c95420a59609f9319b9c8628a1312bbaf908bfb651b19b5dd1dec7426c28e0",
   "id" : "resolver-mutation",
-  "sdlSha256" : [ "f9eec78ba97156247b351dcd91b29f3668f2acd049d5bd4c181d3d4ac107d5c6", "3f9272f665071b94444290f28250e8a40c8b97423e6617c4c8902b4564533d78", "bc5b2b703bb474433a15e8e3d5197daa83b81ff416cb828b339c14ae535fb8fc", "b93074a7224566ca95592c5710d5146af40da4de7d7310dd0d09d3fee74481cf", "2cd595e24bdca00c6a3f9a4e52b30ec9b46b77be5e313461d4ee8c82131266a4", "8d3f1446c21af954fde4e050da2dc4a85c95926e87d2e7841b7d419b498c6a64", "5005c3fde1dc53854e19a691875b718af57933edd8c9a7c6c3ee732fc5430841", "85447b8b287e3d48692eb26fd55c3fc8e4f9b37f8956f586baa97af83d30274a", "ef909a1a4f6d8dfaf78ae238007c7cd6f52ccb707e72d9eb550f34c18e5352a8", "06295608be4f7783527f8f8e47e7de1d63baac9ee459f25ddf50a0e28ae813f4", "2092f29fa751c52a78af67393b5d47d123c4c3df3a3359442e12bb3ab59dc983", "7890c0ba976bc11e9f05db5e242031457f6bcc3eb2c45e70592d85d516ec6b0b" ],
+  "schemas" : [ {
+    "id" : "a6819787",
+    "sdlSha256" : "f9eec78ba97156247b351dcd91b29f3668f2acd049d5bd4c181d3d4ac107d5c6"
+  }, {
+    "id" : "922420df",
+    "sdlSha256" : "3f9272f665071b94444290f28250e8a40c8b97423e6617c4c8902b4564533d78"
+  }, {
+    "id" : "b6de77a4",
+    "sdlSha256" : "bc5b2b703bb474433a15e8e3d5197daa83b81ff416cb828b339c14ae535fb8fc"
+  }, {
+    "id" : "ae5b64a7",
+    "sdlSha256" : "b93074a7224566ca95592c5710d5146af40da4de7d7310dd0d09d3fee74481cf"
+  }, {
+    "id" : "513e5001",
+    "sdlSha256" : "2cd595e24bdca00c6a3f9a4e52b30ec9b46b77be5e313461d4ee8c82131266a4"
+  }, {
+    "id" : "000ff635",
+    "sdlSha256" : "8d3f1446c21af954fde4e050da2dc4a85c95926e87d2e7841b7d419b498c6a64"
+  }, {
+    "id" : "9a0dcb02",
+    "sdlSha256" : "5005c3fde1dc53854e19a691875b718af57933edd8c9a7c6c3ee732fc5430841"
+  }, {
+    "id" : "b4a08fff",
+    "sdlSha256" : "85447b8b287e3d48692eb26fd55c3fc8e4f9b37f8956f586baa97af83d30274a"
+  }, {
+    "id" : "c3d1efc5",
+    "sdlSha256" : "ef909a1a4f6d8dfaf78ae238007c7cd6f52ccb707e72d9eb550f34c18e5352a8"
+  }, {
+    "id" : "9a0466bc",
+    "sdlSha256" : "06295608be4f7783527f8f8e47e7de1d63baac9ee459f25ddf50a0e28ae813f4"
+  }, {
+    "id" : "32cdcf4d",
+    "sdlSha256" : "2092f29fa751c52a78af67393b5d47d123c4c3df3a3359442e12bb3ab59dc983"
+  }, {
+    "id" : "a5c179ae",
+    "sdlSha256" : "7890c0ba976bc11e9f05db5e242031457f6bcc3eb2c45e70592d85d516ec6b0b"
+  } ],
   "seed" : 303303,
-  "shardSha256" : [ "0fb744803e11104deed80bcaf61a7d35b22a67e3a8d90033e44306108125059b", "12cc72b404d93b7be29676f8d375da8e984a1671239645958d8f437c81c4f449", "1aa82126ea3f170b2f239ad9b71f93d9bd49efbcfcc73f512b9f250f99ba74af", "e7e0d75075ac0056ebc55eaee8feee97973629c3614e8b5dfb27df8824b2070d", "e07c4005b204924d6b3415019a43039cae915c44e7ad41b5c68e971115f3338f", "bd14f9f9329b426d8e47ca4a047e20fd7d949cf2c92ddc27503966aa75dfc040", "bfe27461147bc9b5e03909b9e90991e3e3ac07e9c1872ca328b424436fa25d4b", "4491f2b7df8562d4aefb3f52a43e1a9fdaf975ca9370e14018b23679360434b0", "6abea525ddf5c30d817d085e08f9e970fded53a283ce0360bd612758d4b4422e", "dd63db7eb7c22b7cfddc5ad248be6a65f908f51a9b0280a63b0807fbd4de3fd3", "6d215c9ec5aadf36ff4312480677a781269f7c1de811bb58b4f1ff356490a3eb", "60bbd1b50d3a11aa555db627ee702cc6cabb01bcc0a9d23446a1ba97cd0bc035" ],
   "typeCheckerMode" : "NONE"
 }
