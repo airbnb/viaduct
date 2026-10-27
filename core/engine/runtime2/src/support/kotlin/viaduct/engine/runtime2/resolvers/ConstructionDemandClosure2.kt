@@ -96,7 +96,7 @@ private class ClosureHelper(
     private val checkerConditions = linkedMapOf<ObjectEngineResult.GroundKey, InclusionCondition>()
     private val pendingCheckers = linkedMapOf<ObjectEngineResult.GroundKey, InclusionCondition>()
     private val boundCheckerKeys = linkedSetOf<ObjectEngineResult.GroundKey>()
-    private val typeChecker = if (queryClosure == null) null else registry.typeChecker(type)
+    private val typeChecker = if (queryClosure == null) null else registry.typeChecker(type)?.takeIf { it.isApplicable(occurrence.root, occurrence.path) }
     private var expandedTypeChecker = false
     private var typeCheckDemanded = initialDemand.typeCheckDemanded
     private val expandedFields = linkedSetOf<ViaductSchema.ObjectField>()

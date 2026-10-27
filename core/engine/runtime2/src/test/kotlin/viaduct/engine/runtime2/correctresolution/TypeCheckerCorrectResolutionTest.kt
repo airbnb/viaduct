@@ -28,6 +28,49 @@ import viaduct.graphql.schema.ViaductSchema
 /** Mutated completed results exercise the oracle independently of any resolver algorithm. */
 class TypeCheckerCorrectResolutionTest {
     @Test
+    fun `inapplicable type checker requires null without requiring checker inputs`() {
+        val fixture = TestWorld.fromDSL(
+            """
+            extend type Query { item: Item @resolver(result: {value: 1}) }
+            type Item { value: Int policy: Int }
+            """.trimIndent(),
+            typeCheckers = { schemas ->
+                val type = schemas.loweredSchema.requireType("Item") as ViaductSchema.Object
+                mapOf(
+                    type to TypeCheckerResolver.of(
+                        type,
+                        schemas.loweredSchema.requireQueryTypeDef(),
+                        mapOf(
+                            "input" to ResolverFragmentTemplates(
+                                schemas.fragmentFrom("fragment Input on Item { policy }").materializeSelections,
+                                materializeSelectionForestOf(),
+                            )
+                        ),
+                        isApplicable = { _, _ -> false },
+                    ) { _, _ -> error("Inapplicable checker must not be replayed") }
+                )
+            },
+        )
+        val query = fixture.schema.requireQueryTypeDef()
+        val item = fixture.schema.requireType("Item") as ViaductSchema.Object
+        val itemKey = ObjectEngineResult.GroundKey.of(fixture.schema.requireObjectField("Query", "item"), emptyMap())
+        val valueKey = ObjectEngineResult.GroundKey.of(fixture.schema.requireObjectField("Item", "value"), emptyMap())
+
+        fun result(check: CheckerResult?) =
+            ObjectEngineResult.of(
+                query,
+                values = mapOf(
+                    itemKey to ObjectEngineResult.of(item, values = mapOf(valueKey to 1), typeCheckerResult = Promise.of(check)),
+                )
+            )
+        val operation = SharedOperationContext.create(fixture.assumptions)
+        val selections = fixture.schemas.fragmentFrom("fragment Query on Query { item { value } }")
+
+        assertTrue(result(null).correctResolution(operation, selections))
+        assertFalse(result(CheckerResult.Success).correctResolution(operation, selections))
+    }
+
+    @Test
     fun `checked OER requires its type result raw input and matching replayed variant`() {
         var calls = 0
         val worldFixture = TestWorld.fromSDL(

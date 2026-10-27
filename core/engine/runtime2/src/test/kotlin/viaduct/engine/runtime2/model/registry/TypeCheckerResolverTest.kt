@@ -5,7 +5,9 @@ package viaduct.engine.runtime2.model.registry
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
 import kotlin.test.assertSame
+import kotlin.test.assertTrue
 import kotlinx.coroutines.runBlocking
 import viaduct.engine.api.CheckerResult
 import viaduct.engine.runtime2.model.Arguments
@@ -23,6 +25,25 @@ import viaduct.engine.runtime2.model.usedVariables
 import viaduct.graphql.schema.ViaductSchema
 
 class TypeCheckerResolverTest {
+    @Test
+    fun `applicability defaults to true and can distinguish roots at the same path`() {
+        val schemas = TestWorld.fromSDL(SCHEMA_SDL).schemas
+        val type = schemas.loweredSchema.requireType("Item") as ViaductSchema.Object
+        val query = schemas.loweredSchema.requireQueryTypeDef()
+        val exemptRoot = ObjectEngineResult.of(query, emptyMap())
+        val otherRoot = ObjectEngineResult.of(query, emptyMap())
+        val path = listOf(ObjectEngineResult.GroundKey.of(schemas.loweredSchema.requireObjectField("Query", "item"), emptyMap()))
+        val defaultChecker = TypeCheckerResolver.of(type, query) { _, _ -> CheckerResult.Success }
+        val checker = TypeCheckerResolver.of(type, query, isApplicable = { root, occurrencePath -> root !== exemptRoot || occurrencePath != path }) { _, _ ->
+            CheckerResult.Success
+        }
+
+        assertTrue(defaultChecker.isApplicable(exemptRoot, path))
+        assertFalse(checker.isApplicable(exemptRoot, path))
+        assertTrue(checker.isApplicable(otherRoot, path))
+        assertTrue(checker.isApplicable(exemptRoot, emptyList()))
+    }
+
     @Test
     fun `retains a type target and shares checker fragment mechanics`() =
         runBlocking {

@@ -91,7 +91,9 @@ internal class CoroutineOrchestrationTask private constructor(
                             queryRooted = Demand.EMPTY,
                         ),
                 )
-            if (!closedConstructionDemand.objectRooted.typeCheckDemanded && !occurrence.target.typeCheckerResult.isCompleted) {
+            val checkerApplies = closedConstructionDemand.objectRooted.typeCheckDemanded &&
+                operation.world.resolverRegistry.typeChecker(occurrence.target.type)?.isApplicable(occurrence.root, occurrence.path) == true
+            if (!checkerApplies && !occurrence.target.typeCheckerResult.isCompleted) {
                 check(occurrence.target.typeCheckerResult.complete(null)) {
                     "Absent type-checker result was completed twice"
                 }
@@ -143,7 +145,7 @@ internal class CoroutineOrchestrationTask private constructor(
 
     private fun hasApplicableTypeChecker(): Boolean =
         closedConstructionDemand.objectRooted.typeCheckDemanded &&
-            operation.world.resolverRegistry.typeChecker(objectOER.occurrence.target.type) != null
+            operation.world.resolverRegistry.typeChecker(objectOER.occurrence.target.type)?.isApplicable(objectOER.occurrence.root, objectOER.occurrence.path) == true
 
     override fun duplicateDispatchException(): RuntimeException = IllegalStateException("Object orchestrated twice: ${objectOER.occurrence.path}")
 

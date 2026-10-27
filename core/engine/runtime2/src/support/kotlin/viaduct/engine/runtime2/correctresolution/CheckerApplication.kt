@@ -72,6 +72,7 @@ internal fun ObjectEngineResult.reapplyTypeChecker(
 ): ReappliedChecker? =
     resolverApplicationCache.getOrPutTypeChecker(this) {
         val checker = operation.world.resolverRegistry.typeChecker(type) ?: return@getOrPutTypeChecker null
+        if (!checker.isApplicable(resolverApplicationCache.root, path)) return@getOrPutTypeChecker null
         val fragments = checker.instantiateFragmentsAt(resolverApplicationCache.root, path)
         if (!fragments.bindingsAgreeWith(null, operation) { checker.provideVariables() }) return@getOrPutTypeChecker null
         val inputs = checker.rawInputs(

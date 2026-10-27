@@ -12,11 +12,15 @@ import kotlin.test.assertIs
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 import viaduct.engine.api.CheckerResult
+import viaduct.engine.runtime2.correctresolution.CorrectnessCheckerObserver
+import viaduct.engine.runtime2.correctresolution.CorrectnessResolverObserver
+import viaduct.engine.runtime2.correctresolution.correctResolution
 import viaduct.engine.runtime2.model.EngineErrorData
 import viaduct.engine.runtime2.model.ErrorEngineResult
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.emptyFragmentOf
 import viaduct.engine.runtime2.model.materializeSelectionForestOf
+import viaduct.engine.runtime2.model.merge
 import viaduct.engine.runtime2.model.outputValue
 import viaduct.engine.runtime2.model.registry.FieldCheckerResolver
 import viaduct.engine.runtime2.model.registry.ResolverFragmentTemplates
@@ -40,6 +44,64 @@ import viaduct.graphql.schema.ViaductSchema
 /** Grounded, variable-free type-checker fragments composed by Resolver22 and Resolver23. */
 interface GroundedTypeCheckerFragmentContract {
     val coroutineResolverSubject: CoroutineResolverTestSubject
+
+    @Test
+    fun `inapplicable occurrence excludes checker inputs without exempting children or siblings`() {
+        val checkerCalls = AtomicInteger()
+        val fixture = TestWorld.fromDSL(
+            """
+            extend type Query {
+              synthetic: Item @resolver(result: {value: 1, children: [{value: 2}]})
+              ordinary: Item @resolver(result: {value: 3})
+              marker: Int @resolver(result: 7)
+            }
+            type Item {
+              value: Int
+              children: [Item]
+              required: Int @resolver(result: 9)
+            }
+            """.trimIndent(),
+            selectiveResolvers = coroutineResolverSubject.selectiveResolvers,
+            typeCheckers = { schemas ->
+                val type = schemas.loweredSchema.requireType("Item") as ViaductSchema.Object
+                mapOf(
+                    type to TypeCheckerResolver.of(
+                        type,
+                        schemas.loweredSchema.requireQueryTypeDef(),
+                        mapOf(
+                            "input" to ResolverFragmentTemplates(
+                                schemas.fragmentFrom("fragment Input on Item { required }").materializeSelections,
+                                schemas.fragmentFrom("fragment Input on Query { marker }").materializeSelections,
+                            )
+                        ),
+                        isApplicable = { _, path ->
+                            path.size != 1 || (path.single() as? ObjectEngineResult.ObjectKey)?.field?.name != "synthetic"
+                        },
+                    ) { inputs, _ ->
+                        assertEquals(9, inputs.getValue("input").objectValue.get("required"))
+                        assertEquals(7, inputs.getValue("input").queryValue.get("marker"))
+                        checkerCalls.incrementAndGet()
+                        CheckerResult.Success
+                    },
+                )
+            },
+        )
+        val recorder = CheckerApplicationRecorder()
+        val checkerObserver = CorrectnessCheckerObserver(recorder)
+        val operation = SharedOperationContext.create(fixture.assumptions, resolverObserver = CorrectnessResolverObserver(), checkerObserver = checkerObserver)
+        val selections = fixture.schemas.operationSelectionsFrom("{ synthetic { value children { value } } ordinary { value } }")
+
+        val result = coroutineResolverSubject.resolve(operation, selections)
+        val synthetic = assertIs<ObjectEngineResult>(result.t3Value(fixture.assumptions, "Query", "synthetic"))
+
+        assertEquals(null, synthetic.typeCheckerResult.get())
+        assertEquals(setOf("value", "children"), synthetic.keys.map { it.field.name }.toSet())
+        assertEquals(2, checkerCalls.get())
+        assertEquals(2, checkerObserver.allQueryFragmentResults().size)
+        assertEquals(2, recorder.checkerApplications().size)
+        assertEquals(result.demandedTypeCheckerApplications(operation, selections), recorder.checkerApplications().toSet())
+        assertTrue(result.correctResolution(operation, selections.merge(result.type)))
+    }
 
     @Test
     fun `checked resolver parent input upgrades a checker-only occurrence to type-checked`() {

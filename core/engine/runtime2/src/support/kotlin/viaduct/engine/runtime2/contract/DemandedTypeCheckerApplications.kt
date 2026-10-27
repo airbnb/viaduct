@@ -141,7 +141,7 @@ private class TypeCheckerDemandOracle(
             is ObjectEngineResult -> {
                 val owner = requireNotNull(addresses[value])
                 if (checkObject) {
-                    registry.typeChecker(value.type)?.let { checker ->
+                    registry.typeChecker(value.type)?.takeIf { it.isApplicable(owner.root, owner.path) }?.let { checker ->
                         val observation = CheckerInvocationObservation(CheckerKind.TYPE, owner.root, owner.path, null, checker.target)
                         if (expected.add(observation)) {
                             demandCheckerInputs(owner, checker.target, owner.path, checker.instantiateFragmentsAt(owner.root, owner.path))

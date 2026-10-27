@@ -113,7 +113,7 @@ private fun ObjectEngineResult.conformsToTypeChecker(
     path: List<PathComponent>,
 ): Boolean {
     val stored = typeCheckerResult.get()
-    if (operation.world.resolverRegistry.typeChecker(type) == null) return stored == null
+    if (operation.world.resolverRegistry.typeChecker(type)?.isApplicable(resolverApplicationCache.root, path) != true) return stored == null
     if (stored == null) return false
     val replayed = reapplyTypeChecker(operation, resolverApplicationCache, path)?.result ?: return false
     return stored.sameResultVariantAs(replayed)

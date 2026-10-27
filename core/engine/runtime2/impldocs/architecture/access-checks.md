@@ -47,6 +47,8 @@ Resolver06–08 require a checker-free resolver registry as an input preconditio
 
 A type checker executes once for each concrete object occurrence of the checked type. List wrappers are significant because their object-valued base cells normally point to distinct object occurrences. Equal schema types, values, node IDs, or selections do not merge those occurrences. Reaching an existing OER through a structural backedge does not create another type-checker application.
 
+The type-based registry entry may define an `isApplicable(root, path)` predicate, which defaults to true. This pure, total predicate uses only stable occurrence metadata; it must not read result data or start execution. Exact construction closure evaluates it before instantiating checker fragments or adding their object- and Query-rooted input demand. An inapplicable occurrence has a terminal null type-checker result; its descendants and siblings retain their own applicability decisions. Coordinate-level validation and producer-facing lookahead remain conservative because they precede exact occurrence construction.
+
 An `@parent` relationship cannot return to Query or a `@namespaceType`: its paired child producer must belong to an ordinary object type. In particular, checked parent demand cannot reach an orchestration's associated Query root. Resolver and checker Query fragments demand fields within that root without demanding its type check, so the associated Query OER has a null type-checker result. Ordinary checked execution roots retain their existing type-check demand.
 
 For example, consider this complete schema and execution world:
@@ -211,7 +213,7 @@ typeCheckDemanded(O) =
   or some checked field occurrence demands O as an object-valued base result
 ```
 
-This bit is a cached consequence of demand, not an independent access-policy decision. If it is true and the concrete type has a registered checker, that checker must resolve exactly once for the occurrence; without a registered checker, the demanded result is the terminal no-check result. Enforcement remains a separate operation performed only by checked consumers.
+This bit is a cached consequence of demand, not an independent access-policy decision. If it is true and the concrete type has an applicable registered checker, that checker must resolve exactly once for the occurrence; without an applicable checker, the demanded result is the terminal no-check result. Enforcement remains a separate operation performed only by checked consumers.
 
 The bit cannot be derived from the checked selections rooted inside `O`. Those selections describe checked field reads *within* the occurrence, whereas `typeCheckDemanded` records checked demand for the occurrence *from outside* it. A checked parent field can demand `O`'s type check even when `O` has no applicable checked child selections. Conversely, a raw checker input can reach `O`, activate a value resolver, and cause that resolver's own inputs to appear as checked fields inside `O` without demanding `O`'s type check.
 

@@ -675,7 +675,7 @@ internal class TypeCheckerContext(
 }
 
 internal fun OEROccurrence.typeCheckerContext(world: Assumptions): TypeCheckerContext? =
-    world.resolverRegistry.typeChecker(target.type)?.let { checker ->
+    world.resolverRegistry.typeChecker(target.type)?.takeIf { it.isApplicable(root, path) }?.let { checker ->
         TypeCheckerContext(checker, checker.instantiateFragmentsAt(root, path))
     }
 

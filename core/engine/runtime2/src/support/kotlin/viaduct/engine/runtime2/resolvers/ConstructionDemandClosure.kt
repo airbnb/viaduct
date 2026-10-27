@@ -198,7 +198,7 @@ private fun Demand<ObjectSelectionForest>.typeCheckerInputDemand(
 ): ResolverInputConstructionDemand? {
     if (alreadyExpanded || !typeCheckDemanded) return null
     val checker =
-        operation.world.resolverRegistry.typeChecker(occurrence.target.type)
+        operation.world.resolverRegistry.typeChecker(occurrence.target.type)?.takeIf { it.isApplicable(occurrence.root, occurrence.path) }
             ?: return null
     require(checker.variables.isEmpty()) {
         "Grounded type checker ${checker.target.type.name} cannot declare variables"
