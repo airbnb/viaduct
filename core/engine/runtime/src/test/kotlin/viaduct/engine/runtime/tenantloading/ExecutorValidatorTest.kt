@@ -4,6 +4,8 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertDoesNotThrow
 import org.junit.jupiter.api.assertThrows
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.mocks.MockCheckerExecutor
 import viaduct.engine.api.mocks.MockCheckerExecutorFactory
@@ -94,12 +96,25 @@ class ExecutorValidatorTest {
         assertTrue(exception.message!!.contains("User.parent"), exception.message)
     }
 
-    @Test
-    fun `default set reports an unknown field in a checker selection set as schematically invalid`() {
-        val schema = MockSchema.mk("extend type Query { empty: Int } type User { name: String }")
+    @ParameterizedTest
+    @ValueSource(
+        strings = [
+            "nmae",
+            "... on Nope { parent { name } }",
+            "fragment Main on User { ...F } fragment F on User { friend { ...F } }",
+        ]
+    )
+    fun `default set reports a malformed checker selection set as schematically invalid`(selections: String) {
+        val schema = MockSchema.mk(
+            """
+            extend type Query { empty: Int }
+            type User { name: String, friend: User, parent: Company @parent }
+            type Company { name: String }
+            """.trimIndent()
+        )
         val checkerExecutorFactory = MockCheckerExecutorFactory(
             null,
-            mapOf("User" to MockCheckerExecutor(mapOf("rss" to RequiredSelectionSet(SelectionsParser.parse("User", "nmae"), emptyList(), true))))
+            mapOf("User" to MockCheckerExecutor(mapOf("rss" to RequiredSelectionSet(SelectionsParser.parse("User", selections), emptyList(), true))))
         )
         assertThrows<RequiredSelectionsAreInvalid> {
             emptyList<MockTenantModuleBootstrapper>().toDispatcherRegistryFactory(ExecutorValidator(schema), checkerExecutorFactory)

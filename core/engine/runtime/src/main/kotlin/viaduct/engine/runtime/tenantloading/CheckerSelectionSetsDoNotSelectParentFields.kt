@@ -50,7 +50,10 @@ class CheckerSelectionSetsDoNotSelectParentFields(
                         if (fieldDefinition.isParentField()) coordinates += "${parentType.name}.${selection.name}"
                         (GraphQLTypeUtil.unwrapAll(fieldDefinition.type) as? GraphQLCompositeType)?.let { walk(selection.selectionSet, it) }
                     }
-                    is InlineFragment -> walk(selection.selectionSet, selection.typeCondition?.let { compositeType(it.name) } ?: parentType)
+                    is InlineFragment -> {
+                        val fragmentType = selection.typeCondition?.let { compositeType(it.name) ?: return@forEach } ?: parentType
+                        walk(selection.selectionSet, fragmentType)
+                    }
                     is FragmentSpread -> if (visitedFragments.add(selection.name)) {
                         val fragment = fragmentMap[selection.name] ?: return@forEach
                         compositeType(fragment.typeCondition.name)?.let { walk(fragment.selectionSet, it) }
