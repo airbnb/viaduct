@@ -193,7 +193,7 @@ internal abstract class SharedPassiveValueResolutionLogic<
                 val target = createObjectResult(source.schemaType(operation.world.schema), constructionDemand)
                 resolvePassiveObjectValues(
                     source = source,
-                    occurrence = OEROccurrence(root, path, target, parent, source.additionalContextForResolver),
+                    occurrence = OEROccurrence(root, path, target, parent, source.additionalContextForResolver, invocationDemand),
                     constructionDemand = constructionDemand,
                     invocationDemand = invocationDemand,
                 )

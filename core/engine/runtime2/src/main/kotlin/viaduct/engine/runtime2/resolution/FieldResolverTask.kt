@@ -10,6 +10,7 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
 import viaduct.engine.api.EngineObjectData
+import viaduct.engine.runtime2.model.Arguments
 import viaduct.engine.runtime2.model.EngineErrorData
 import viaduct.engine.runtime2.model.EngineObjectOrErrorData
 import viaduct.engine.runtime2.model.EngineResultCell
@@ -24,6 +25,7 @@ import viaduct.engine.runtime2.model.engineObjectDataOf
 import viaduct.engine.runtime2.model.guardedBy
 import viaduct.engine.runtime2.model.outputValue
 import viaduct.engine.runtime2.model.registry.FieldValueResolver
+import viaduct.engine.runtime2.model.registry.InteropAncestor
 import viaduct.engine.runtime2.model.registry.ResolutionExecutionContext
 import viaduct.engine.runtime2.model.registry.ResolverFragment
 import viaduct.engine.runtime2.model.registry.VariableDefinition
@@ -37,6 +39,7 @@ import viaduct.engine.runtime2.resolution.framework.OEROccurrence
 import viaduct.engine.runtime2.resolution.framework.SharedFieldPublicationOccurrence
 import viaduct.engine.runtime2.resolution.framework.SharedOERContext
 import viaduct.engine.runtime2.resolution.framework.argumentsContainErrorValue
+import viaduct.engine.runtime2.resolution.framework.fetchGroundedArguments
 import viaduct.engine.runtime2.resolution.framework.fieldResolverCycleTask
 import viaduct.engine.runtime2.resolution.framework.materializeResult
 
@@ -74,6 +77,8 @@ internal class FieldResolverTask private constructor(
 ) : CoroutineFieldResolverTaskBase<SymbolicFieldPublicationOccurrence>(publication, fieldTaskScope),
     ResolutionExecutionContext {
     override val engineExecutionContext get() = publication.operation.engineExecutionContext
+
+    override suspend fun interopAncestors(): List<InteropAncestor> = publication.oerOccurrence.interopAncestors(publication.operation)
 
     private val resolutionLogic = FieldResolutionLogic(this)
     private val publicationCycleTask =
@@ -389,6 +394,18 @@ internal class FieldResolverTask private constructor(
         }
     }
 }
+
+internal suspend fun OEROccurrence.interopAncestors(operation: OperationContext): List<InteropAncestor> =
+    generateSequence(this) { it.parent }
+        .toList().asReversed().filter { it.path.isNotEmpty() }.map { occurrence ->
+            val key = occurrence.path.filterIsInstance<ObjectEngineResult.ObjectKey>().last()
+            InteropAncestor(
+                occurrence.path,
+                key.fetchGroundedArguments(operation) as Arguments.Resolved,
+                occurrence.producingDemand,
+                occurrence.additionalContextForResolver,
+            )
+        }
 
 private suspend fun FieldValueResolver.resolveQueryFragment(
     queryFragment: ResolverFragment,

@@ -79,6 +79,8 @@ internal class FieldCheckerTask private constructor(
 
     override val engineExecutionContext get() = operation.engineExecutionContext
 
+    override suspend fun interopAncestors() = publication.oerOccurrence.interopAncestors(operation)
+
     companion object {
         /** Claims all checked slots before passive descent can expose cells to readers. */
         fun prepareAll(orchestrationTask: OrchestrationTask): FieldCheckerPreparation =

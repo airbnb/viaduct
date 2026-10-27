@@ -12,11 +12,13 @@ import graphql.parser.Parser
 import java.util.Base64
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.atomic.AtomicInteger
+import kotlinx.coroutines.future.await
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import viaduct.engine.airbnb.EngineGraphQLJavaCompat
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.ResolveSelectionSetOptions
 import viaduct.engine.api.ResolvedEngineObjectData
@@ -32,6 +34,7 @@ import viaduct.engine.runtime2.airbnb.Engine2ResolverRegistryFactory
 import viaduct.engine.runtime2.airbnb.ResolverRegistryProvider
 import viaduct.engine.runtime2.bootstrap.dispatcherRegistryInputs
 import viaduct.engine.runtime2.bootstrap.resolverRegistryOf
+import viaduct.engine.runtime2.model.emptyFragmentOf
 import viaduct.engine.runtime2.model.registry.fieldResolverOf
 import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.schema.fragmentFromDocument
@@ -43,6 +46,77 @@ import viaduct.service.runtime.SchemaConfiguration
 import viaduct.service.runtime.StandardViaduct
 
 class Engine2StandardViaductTest {
+    @Test
+    fun `invocation metadata belongs to the active GraphQL call including nested direct calls`() {
+        val sdl = "extend type Query { probe: String @resolver value: String @resolver }"
+        val module = EngineTestModule(sdl) {
+            fieldWithValue("Query" to "probe", "unused")
+            fieldWithValue("Query" to "value", "unused")
+        }
+        val invocations = mutableListOf<ExecutionContext>()
+        val viaduct = StandardViaduct.Builder()
+            .withSchemaConfiguration(SchemaConfiguration.fromSdl(sdl))
+            .withTenantModuleInjectorFactory(MockExecutorCodeInjector(module.mockExecutorRegistry))
+            .withExecutorRegistryConfigSources(listOf(module.toModuleConfigSource()))
+            .withFlagManager(object : FlagManager {
+                override fun isEnabled(flag: FlagManager.Flag): Boolean = flag == FlagManager.Flags.ENGINE2_ENABLED
+            })
+            .withEngine2ResolverRegistryFactory(
+                Engine2ResolverRegistryFactory { _, schemas, _, _ ->
+                    val schema = schemas.loweredSchema
+                    val registry = resolverRegistryOf(
+                        schema = schemas,
+                        nodeResolvers = emptyMap(),
+                        variableProviders = emptyMap(),
+                        fieldResolvers = mapOf(
+                            schema.requireObjectField("Query", "probe") to fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _, resolution ->
+                                val context = resolution.engineExecutionContext as Engine2ExecutionContext
+                                val outer = context.graphQLExecutionContext
+                                assertEquals("Outer", outer.operationDefinition.name)
+                                assertEquals("outer request", context.requestContext)
+                                val graphQL = (context.engine as EngineGraphQLJavaCompat).getGraphQL()
+                                val nested = graphQL.executeAsync(
+                                    graphql.ExecutionInput.newExecutionInput()
+                                        .query("query Nested { ...Value } fragment Value on Query { value }")
+                                        .context("nested request")
+                                        .build(),
+                                ).await()
+                                assertEquals(emptyList<GraphQLError>(), nested.errors)
+                                assertEquals(mapOf("value" to "nested request"), nested.getData())
+                                assertSame(outer, context.graphQLExecutionContext)
+                                invocations.add(outer)
+                                "done"
+                            },
+                            schema.requireObjectField("Query", "value") to fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _, resolution ->
+                                val context = resolution.engineExecutionContext as Engine2ExecutionContext
+                                val invocation = context.graphQLExecutionContext
+                                assertEquals("Nested", invocation.operationDefinition.name)
+                                assertEquals(setOf("Value"), invocation.fragmentsByName.keys)
+                                assertEquals("nested request", invocation.getContext<Any?>())
+                                invocations.add(invocation)
+                                context.requestContext
+                            },
+                        ),
+                    )
+                    object : ResolverRegistryProvider {
+                        override fun forBootstrap() = registry
+
+                        override fun forExecution(invocation: ExecutionContext) = registry
+                    }
+                }
+            )
+            .build()
+
+        val result = runBlocking {
+            viaduct.execute(ExecutionInput.create("query Outer { probe }", requestContext = "outer request"), SchemaId.Base)
+        }
+
+        assertEquals(emptyList<GraphQLError>(), result.errors)
+        assertEquals(mapOf("probe" to "done"), result.getData())
+        assertEquals(listOf("Nested", "Outer"), invocations.map { it.operationDefinition.name })
+        assertTrue(invocations[0] !== invocations[1])
+    }
+
     @Test
     fun `registry provider selects implementations and their dependencies before each request`() {
         val defaultCalls = AtomicInteger()

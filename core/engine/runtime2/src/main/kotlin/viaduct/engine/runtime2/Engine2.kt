@@ -53,6 +53,7 @@ import viaduct.engine.runtime.execution.WrappedCoroutineExecutionStrategy
 import viaduct.engine.runtime.select.EngineSelectionSetFactoryImpl
 import viaduct.engine.runtime2.airbnb.DispatcherResolverRegistryFactory
 import viaduct.engine.runtime2.airbnb.Engine2ResolverRegistryFactory
+import viaduct.engine.runtime2.execution.Engine2ExecutionContext
 import viaduct.engine.runtime2.execution.QPlanCallerCancellation
 import viaduct.engine.runtime2.execution.QPlanCallerCancellationKey
 import viaduct.engine.runtime2.execution.QPlanExecutionStrategy
@@ -173,12 +174,16 @@ class Engine2(
         incrementalExecution: Boolean,
     ): EngineExecutionContext = RequestEngineExecutionContext(requestContext)
 
-    private fun invocationContext(invocation: ExecutionContext): DispatcherExecutionContext =
-        invocation.graphQLContext.get<RequestContext?>(requestContextKey)?.engineExecutionContext
+    private fun invocationContext(invocation: ExecutionContext): DispatcherExecutionContext {
+        val request = invocation.graphQLContext.get<RequestContext?>(requestContextKey)?.engineExecutionContext
             ?: (invocation.getLocalContext<Any?>() as? CompositeLocalContext)
                 ?.get<RequestEngineExecutionContext>()
                 ?.takeIf { it.engine === this }
             ?: RequestEngineExecutionContext(invocation.getContext<Any?>())
+        return object : DispatcherExecutionContext by request, Engine2ExecutionContext {
+            override val graphQLExecutionContext = invocation
+        }
+    }
 
     override suspend fun execute(
         executionInput: ExecutionInput,

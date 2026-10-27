@@ -58,22 +58,29 @@ import viaduct.engine.runtime2.bootstrap.executorRegistryInputs
 import viaduct.engine.runtime2.bootstrap.resolverRegistryOf
 import viaduct.engine.runtime2.model.Arguments
 import viaduct.engine.runtime2.model.EngineErrorData
+import viaduct.engine.runtime2.model.ListEngineResult
+import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.RootFieldReferenceData
 import viaduct.engine.runtime2.model.RootFieldReferenceDataCarrier
 import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.model.additionalContextForResolver
 import viaduct.engine.runtime2.model.emptyFragmentOf
 import viaduct.engine.runtime2.model.engineObjectDataOf
+import viaduct.engine.runtime2.model.merge
 import viaduct.engine.runtime2.model.nodeReferenceIdentityOrNull
 import viaduct.engine.runtime2.model.outputValue
 import viaduct.engine.runtime2.model.registry.Assumptions
 import viaduct.engine.runtime2.model.registry.CheckerInput
+import viaduct.engine.runtime2.model.registry.FieldCheckerResolver
+import viaduct.engine.runtime2.model.registry.InteropAncestor
 import viaduct.engine.runtime2.model.registry.ProviderFragment
 import viaduct.engine.runtime2.model.registry.ResolutionExecutionContext
 import viaduct.engine.runtime2.model.registry.ResolverRegistry
+import viaduct.engine.runtime2.model.registry.TypeCheckerResolver
 import viaduct.engine.runtime2.model.registry.VariableDefinition
 import viaduct.engine.runtime2.model.registry.fieldResolverOf
 import viaduct.engine.runtime2.model.requireObjectField
+import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.requireType
 import viaduct.engine.runtime2.model.rootFieldReferenceDataOrNull
 import viaduct.engine.runtime2.model.selectionForestOf
@@ -84,6 +91,74 @@ import viaduct.graphql.schema.ViaductSchema
 import viaduct.tenant.runtime.jvm.OverlayEngineObjectData
 
 class ExecutorRegistryInputsTest {
+    @Test
+    fun `resolvers and checkers receive ordered occurrence ancestry including list indices and producing demand`() =
+        runTest {
+            val fixture = Fixture("type Query { items(seed: Int!): [Item] } type Item { children: [Leaf] } type Leaf { value: String }")
+            val schema = fixture.schemas.loweredSchema
+            val itemType = schema.requireType("Item") as ViaductSchema.Object
+            val leafType = schema.requireType("Leaf") as ViaductSchema.Object
+            val itemsField = schema.requireObjectField("Query", "items")
+            val childrenField = schema.requireObjectField("Item", "children")
+            val valueField = schema.requireObjectField("Leaf", "value")
+            val itemContexts = listOf(Any(), Any())
+            val leafContexts = listOf(Any(), Any())
+            val observations = mutableListOf<Pair<String, List<InteropAncestor>>>()
+            val inputs = ExecutorRegistryInputs(
+                fieldResolvers = mapOf(
+                    itemsField to fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _, context ->
+                        assertTrue(context.interopAncestors().isEmpty())
+                        itemContexts.mapIndexed { index, retained ->
+                            engineObjectDataOf(
+                                itemType,
+                                mapOf("children" to listOf(engineObjectDataOf(leafType, additionalContextForResolver = leafContexts[index]))),
+                                additionalContextForResolver = retained,
+                            )
+                        }
+                    },
+                    valueField to fieldResolverOf(schema.emptyFragmentOf("Leaf")) { _, _, context ->
+                        val ancestors = context.interopAncestors()
+                        observations.add("resolver" to ancestors)
+                        if (ancestors.last().additionalContextForResolver === leafContexts[0]) "first" else "second"
+                    },
+                ),
+                nodeResolvers = emptyMap(),
+                variableProviders = emptyMap(),
+                fieldCheckers = mapOf(
+                    valueField to FieldCheckerResolver.of(valueField, schema.requireQueryTypeDef()) { _, _, context ->
+                        observations.add("field checker" to context.interopAncestors())
+                        CheckerResult.Success
+                    }
+                ),
+                typeCheckers = mapOf(
+                    leafType to TypeCheckerResolver.of(leafType, schema.requireQueryTypeDef()) { _, context ->
+                        observations.add("type checker" to context.interopAncestors())
+                        CheckerResult.Success
+                    }
+                ),
+            )
+
+            val result = fixture.execute(inputs, "{ aliased: items(seed: 7) { children { value } } }")
+
+            assertEquals(emptyList<Any>(), result.errors)
+            assertEquals(mapOf("aliased" to listOf(mapOf("children" to listOf(mapOf("value" to "first"))), mapOf("children" to listOf(mapOf("value" to "second"))))), result.getData())
+            assertEquals(mapOf("resolver" to 2, "field checker" to 2, "type checker" to 2), observations.groupingBy { it.first }.eachCount())
+            for ((_, ancestors) in observations) {
+                assertEquals(2, ancestors.size)
+                val index = itemContexts.indexOfFirst { it === ancestors[0].additionalContextForResolver }
+                assertTrue(index >= 0)
+                val itemPath = listOf(ObjectEngineResult.GroundKey.of(itemsField, mapOf("seed" to 7)), ListEngineResult.Index.of(index))
+                assertEquals(itemPath, ancestors[0].path)
+                assertEquals(itemPath + ObjectEngineResult.GroundKey.of(childrenField, emptyMap()) + ListEngineResult.Index.of(0), ancestors[1].path)
+                assertEquals(mapOf("seed" to 7), ancestors[0].arguments.fieldValues)
+                assertTrue(ancestors[1].arguments.fieldValues.isEmpty())
+                assertEquals(setOf("children"), ancestors[0].demand.merge(itemType).keys().map { it.field.name }.toSet())
+                assertEquals(setOf("value"), ancestors[1].demand.merge(leafType).keys().map { it.field.name }.toSet())
+                assertSame(leafContexts[index], ancestors[1].additionalContextForResolver)
+            }
+            assertTrue(ResolutionExecutionContext.Unsupported.interopAncestors().isEmpty())
+        }
+
     @Test
     fun `selective node projection preserves opaque context and stored errors`() =
         runTest {

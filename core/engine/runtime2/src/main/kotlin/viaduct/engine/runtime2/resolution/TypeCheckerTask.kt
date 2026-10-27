@@ -48,6 +48,8 @@ internal class TypeCheckerTask private constructor(
 
     override val engineExecutionContext get() = operation.engineExecutionContext
 
+    override suspend fun interopAncestors() = publication.oerOccurrence.interopAncestors(operation)
+
     companion object {
         /** Installs exact OER writer ownership before passive descent or local dispatch. */
         fun prepareAll(orchestrationTask: OrchestrationTask): List<SymbolicTypeCheckerPublicationOccurrence> {

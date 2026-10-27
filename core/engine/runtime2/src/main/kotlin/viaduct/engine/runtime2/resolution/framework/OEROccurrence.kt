@@ -2,6 +2,8 @@ package viaduct.engine.runtime2.resolution.framework
 
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.PathComponent
+import viaduct.engine.runtime2.model.SelectionForest
+import viaduct.engine.runtime2.model.selectionForestOf
 
 /** Stable identity and location of one object-result occurrence. */
 class OEROccurrence(
@@ -10,6 +12,7 @@ class OEROccurrence(
     val target: ObjectEngineResult,
     val parent: OEROccurrence? = null,
     val additionalContextForResolver: Any? = null,
+    val producingDemand: SelectionForest = selectionForestOf(),
 ) {
     val path: List<PathComponent> = path
 
