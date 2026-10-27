@@ -1,6 +1,9 @@
+@file:Suppress("DEPRECATION")
+
 package viaduct.engine.runtime2.bootstrap
 
 import graphql.schema.GraphQLObjectType
+import graphql.schema.GraphQLOutputType
 import graphql.schema.GraphQLTypeUtil
 import viaduct.engine.api.Coordinate
 import viaduct.engine.api.EngineExecutionContext
@@ -34,6 +37,7 @@ import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.ResolverOutputData
 import viaduct.engine.runtime2.model.ResolverTarget
 import viaduct.engine.runtime2.model.RootFieldReferenceData
+import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.model.additionalContextForResolver
 import viaduct.engine.runtime2.model.emptyFragmentOf
 import viaduct.engine.runtime2.model.engineObjectDataOf
@@ -65,12 +69,24 @@ import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.requireType
 import viaduct.engine.runtime2.model.rootFieldReferenceDataOrNull
 import viaduct.engine.runtime2.model.schemaType
+import viaduct.engine.runtime2.model.selectionForestOf
 import viaduct.engine.runtime2.model.usedVariables
 import viaduct.engine.runtime2.resolution.currentVariablesProviderResolutionContext
 import viaduct.engine.runtime2.schema.SourceSchemaAdapter
 import viaduct.engine.runtime2.schema.ViaductAndGJSchema
 import viaduct.engine.runtime2.schema.fragmentFromDocument
 import viaduct.graphql.schema.ViaductSchema as QPlanSchema
+
+/** Airbnb-only conversion of resolver results to canonical qplan values. */
+@Deprecated("Airbnb use only")
+fun interface ResolverOutputAdapter {
+    suspend fun adapt(
+        value: Any?,
+        type: GraphQLOutputType,
+        demand: SelectionForest,
+        context: EngineExecutionContext,
+    ): ResolverOutputData?
+}
 
 class ExecutorRegistryInputs(
     val fieldResolvers: Map<QPlanSchema.Field, FieldResolverDefinition>,
@@ -110,6 +126,8 @@ private fun executorRegistryInputs(
     contextForInvocation: (ResolutionExecutionContext) -> EngineExecutionContext,
     fieldSelectivityProvider: FieldSelectivityProvider,
     includeDefaultQueryNodeResolvers: Boolean,
+    outputAdapter: ResolverOutputAdapter? = null,
+    selectionSetConverter: ((SelectionForest, QPlanSchema.CompositeTypeDef, EngineExecutionContext) -> EngineSelectionSet)? = null,
 ): ExecutorRegistryInputs {
     val fieldResolverExecutors = fieldExecutors.toList()
     val nodeResolverExecutors = nodeExecutors.toList()
@@ -133,6 +151,9 @@ private fun executorRegistryInputs(
                     ?: throw IllegalArgumentException(
                         "Field executor ${coordinate.render()} does not map to a concrete object field",
                     )
+            val sourceField =
+                requireNotNull(fullSchema.schema.getObjectType(coordinate.first))
+                    .getFieldDefinition(coordinate.second)
             val objectFragment = executor.objectFragment(schemas, field)
             val queryFragment = executor.queryFragment(schemas, field)
             val variables =
@@ -158,6 +179,7 @@ private fun executorRegistryInputs(
                 arguments: Arguments.Resolved,
                 selections: EngineSelectionSet?,
                 executorContext: EngineExecutionContext,
+                demand: SelectionForest,
             ): ResolverOutputData? {
                 val selector =
                     FieldResolverExecutor.Selector(
@@ -174,7 +196,13 @@ private fun executorRegistryInputs(
                             ),
                         )
                 return output.fold(
-                    onSuccess = { it },
+                    onSuccess = {
+                        if (outputAdapter != null) {
+                            outputAdapter.adapt(it, sourceField.type, demand, executorContext)
+                        } else {
+                            it
+                        }
+                    },
                     onFailure = { EngineErrorData.of(it) },
                 )
             }
@@ -182,18 +210,20 @@ private fun executorRegistryInputs(
                 executor.isSelective || fieldSelectivityProvider.isSelective(coordinate)
             val resolverFunction: SelectiveFieldResolverFunction =
                 { input, queryValue, arguments, selections, _, resolutionContext ->
+                    val executorContext = qPlanContextForInvocation(resolutionContext)
                     val selectionSet =
                         (field.type.baseTypeDef as? QPlanSchema.CompositeTypeDef)?.let {
                                 type ->
                             type.takeIf { fullSchema.schema.getType(it.name) != null }
-                                ?.let { selections.toEngineSelectionSet(it, fullSchema) }
+                                ?.let { selectionSetConverter?.invoke(selections, it, executorContext) ?: selections.toEngineSelectionSet(it, fullSchema) }
                         }
                     invokeExecutor(
                         input,
                         queryValue,
                         arguments,
                         selectionSet,
-                        qPlanContextForInvocation(resolutionContext),
+                        executorContext,
+                        selections,
                     )
                 }
             val resolver =
@@ -234,6 +264,8 @@ private fun executorRegistryInputs(
                 fieldResolverExecutors,
                 nodeResolverExecutors,
                 contextForInvocation,
+                outputAdapter,
+                selectionSetConverter,
             ),
     )
 }
@@ -250,6 +282,29 @@ fun dispatcherRegistryInputs(
     schemas: ViaductAndGJSchema,
     dispatcherRegistry: DispatcherRegistry,
     fieldSelectivityProvider: FieldSelectivityProvider = FieldSelectivityProvider.Never,
+): ExecutorRegistryInputs =
+    dispatcherRegistryInputs(
+        fullSchema = fullSchema,
+        schemas = schemas,
+        dispatcherRegistry = dispatcherRegistry,
+        fieldSelectivityProvider = fieldSelectivityProvider,
+        outputAdapter = null,
+        selectionSetConverter = null,
+    )
+
+/**
+ * Airbnb-only dispatcher adaptation hooks.
+ * @param outputAdapter Airbnb use only: converts field and node results to qplan values.
+ * @param selectionSetConverter Airbnb use only: converts qplan demand to executor selections.
+ */
+@Deprecated("Airbnb use only")
+fun dispatcherRegistryInputs(
+    fullSchema: EngineSchema,
+    schemas: ViaductAndGJSchema,
+    dispatcherRegistry: DispatcherRegistry,
+    fieldSelectivityProvider: FieldSelectivityProvider = FieldSelectivityProvider.Never,
+    outputAdapter: ResolverOutputAdapter? = null,
+    selectionSetConverter: ((SelectionForest, QPlanSchema.CompositeTypeDef, EngineExecutionContext) -> EngineSelectionSet)? = null,
 ): ExecutorRegistryInputs {
     val objectTypes =
         fullSchema.schema.allTypesAsList
@@ -287,6 +342,8 @@ fun dispatcherRegistryInputs(
         contextForInvocation = contextForInvocation,
         fieldSelectivityProvider = fieldSelectivityProvider,
         includeDefaultQueryNodeResolvers = false,
+        outputAdapter = outputAdapter,
+        selectionSetConverter = selectionSetConverter,
     )
     val queryType = schemas.loweredSchema.requireQueryTypeDef()
     val fieldCheckers =
@@ -955,6 +1012,8 @@ private fun qplanNodeResolvers(
     fieldResolverExecutors: List<Pair<Coordinate, FieldResolverExecutor>>,
     nodeResolverExecutors: List<Pair<String, NodeResolverExecutor>>,
     contextForInvocation: (ResolutionExecutionContext) -> EngineExecutionContext,
+    outputAdapter: ResolverOutputAdapter?,
+    selectionSetConverter: ((SelectionForest, QPlanSchema.CompositeTypeDef, EngineExecutionContext) -> EngineSelectionSet)?,
 ): Map<QPlanSchema.Object, NodeResolverFunction> {
     val schema = schemas.loweredSchema
     val supplied =
@@ -970,6 +1029,7 @@ private fun qplanNodeResolvers(
                 id: String,
                 selections: EngineSelectionSet,
                 executorContext: EngineExecutionContext,
+                demand: SelectionForest,
             ): ResolverOutputData? {
                 if (
                     executor.isSelective &&
@@ -990,9 +1050,10 @@ private fun qplanNodeResolvers(
                         )
                 return output.fold(
                     onSuccess = {
-                        val value = it.rootFieldReferenceDataOrNull() ?: it
+                        val adapted = if (outputAdapter != null) outputAdapter.adapt(it, fullSchema.schema.getObjectType(typeName), demand, executorContext) else it
+                        val value = adapted.rootFieldReferenceDataOrNull() ?: adapted
                         when (value) {
-                            is RootFieldReferenceData -> value
+                            null, is EngineErrorData, is RootFieldReferenceData -> value
                             is EngineObjectData.Sync -> {
                                 require(value.schemaType(schema) == type) {
                                     "Node executor $typeName returned ${value.type.name}"
@@ -1017,12 +1078,13 @@ private fun qplanNodeResolvers(
                     selectiveNodeResolverOf { id, selections, resolutionContext ->
                         invokeExecutor(
                             id,
-                            selections.toEngineSelectionSet(type, fullSchema),
+                            selectionSetConverter?.invoke(selections, type, contextForInvocation(resolutionContext)) ?: selections.toEngineSelectionSet(type, fullSchema),
                             QPlanEngineExecutionContext(
                                 contextForInvocation(resolutionContext),
                                 schemas,
                                 resolutionContext,
                             ),
+                            selections,
                         )
                     }
                 } else {
@@ -1039,6 +1101,7 @@ private fun qplanNodeResolvers(
                                 schemas,
                                 resolutionContext,
                             ),
+                            selectionForestOf(),
                         )
                     }
                 }

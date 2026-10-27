@@ -1,3 +1,5 @@
+@file:Suppress("DEPRECATION")
+
 package viaduct.engine.runtime2.execution
 
 import graphql.ExecutionInput
@@ -50,6 +52,7 @@ import viaduct.engine.runtime.NodeDataLoader
 import viaduct.engine.runtime.QueryPlanExecutionCondition
 import viaduct.engine.runtime.mocks.ContextMocks
 import viaduct.engine.runtime2.bootstrap.ExecutorRegistryInputs
+import viaduct.engine.runtime2.bootstrap.ResolverOutputAdapter
 import viaduct.engine.runtime2.bootstrap.dispatcherRegistryInputs
 import viaduct.engine.runtime2.bootstrap.executorRegistryInputs
 import viaduct.engine.runtime2.bootstrap.resolverRegistryOf
@@ -1180,6 +1183,195 @@ class ExecutorRegistryInputsTest {
             val node = MockNodeUnbatchedResolverExecutor(typeName = "User")
             val registry = fixture.registry(fixture.adapt(listOf(("Query" to "user") to viewer), listOf("User" to node)))
             assertFalse((fixture.invoke(registry, "user") as EngineObjectData.Sync).isPresent("id"))
+        }
+
+    @Test
+    fun `custom output conversion adapts tenant values through native dispatcher execution`() =
+        runTest {
+            val fixture = Fixture("type Query { item: Item } type Item { value: String }")
+            val tenantValue = Any()
+            val executor = MockFieldUnbatchedResolverExecutor(resolverId = "Query.item") { _, _, _, _, _ -> tenantValue }
+            val inputs = dispatcherRegistryInputs(
+                fullSchema = fixture.engineSchema,
+                schemas = fixture.schemas,
+                dispatcherRegistry = DispatcherRegistry.Impl(
+                    mapOf(("Query" to "item") to FieldResolverDispatcherImpl(executor)),
+                    emptyMap(),
+                    emptyMap(),
+                    emptyMap(),
+                ),
+                outputAdapter = ResolverOutputAdapter { value, type, _, _ ->
+                    assertSame(tenantValue, value)
+                    assertEquals("Item", (type as GraphQLObjectType).name)
+                    engineObjectDataOf(
+                        fixture.schemas.loweredSchema.requireType("Item") as ViaductSchema.Object,
+                        mapOf("value" to "provided"),
+                    )
+                },
+            )
+
+            val demand = fixture.schemas.selectionsFrom("fragment Demand on Item { value }").second
+            val result = assertInstanceOf(EngineObjectData.Sync::class.java, fixture.invoke(fixture.registry(inputs), "item", demand))
+            assertEquals("provided", result.get("value"))
+        }
+
+    @Test
+    fun `output adapter preserves inline nodes with native node lowering`() =
+        runTest {
+            val fixture = Fixture("type Query { item: Item node(id: ID!): Node } interface Node { id: ID! } type Item implements Node { id: ID! value: String }")
+            val tenantValue = Any()
+            val executor = MockFieldUnbatchedResolverExecutor(resolverId = "Query.item") { _, _, _, _, _ -> tenantValue }
+            val inputs = dispatcherRegistryInputs(
+                fullSchema = fixture.engineSchema,
+                schemas = fixture.schemas,
+                dispatcherRegistry = DispatcherRegistry.Impl(
+                    mapOf(
+                        ("Query" to "item") to FieldResolverDispatcherImpl(executor),
+                        ("Query" to "node") to FieldResolverDispatcherImpl(
+                            MockFieldUnbatchedResolverExecutor(resolverId = "Query.node") { _, _, _, _, _ -> error("Inline nodes must not trigger another lookup") },
+                        ),
+                    ),
+                    emptyMap(),
+                    emptyMap(),
+                    emptyMap(),
+                ),
+                outputAdapter = ResolverOutputAdapter { value, _, _, _ ->
+                    assertSame(tenantValue, value)
+                    engineObjectDataOf(
+                        fixture.schemas.loweredSchema.requireType("Item") as ViaductSchema.Object,
+                        mapOf("id" to "item-id", "value" to "provided"),
+                    )
+                },
+            )
+
+            val result = fixture.execute(inputs, "{ item { id value } }")
+            assertTrue(result.errors.isEmpty(), result.errors.toString())
+            assertEquals(mapOf("item" to mapOf("id" to "item-id", "value" to "provided")), result.getData())
+        }
+
+    @Test
+    fun `custom output conversion may intentionally return null for a non-null tenant value`() =
+        runTest {
+            val fixture = Fixture("type Query { value: String }")
+            val executor = MockFieldUnbatchedResolverExecutor(resolverId = "Query.value") { _, _, _, _, _ -> "discarded" }
+            val inputs = dispatcherRegistryInputs(
+                fullSchema = fixture.engineSchema,
+                schemas = fixture.schemas,
+                dispatcherRegistry = DispatcherRegistry.Impl(
+                    mapOf(("Query" to "value") to FieldResolverDispatcherImpl(executor)),
+                    emptyMap(),
+                    emptyMap(),
+                    emptyMap(),
+                ),
+                outputAdapter = ResolverOutputAdapter { _, _, _, _ -> null },
+            )
+
+            assertEquals(null, fixture.invoke(fixture.registry(inputs), "value"))
+        }
+
+    @Test
+    fun `custom selections and output adaptation apply to field and node dispatchers`() =
+        runTest {
+            val fixture = Fixture("type Query { item: Item } interface Node { id: ID! } type Item implements Node { id: ID! value: String }")
+            val type = fixture.schemas.loweredSchema.requireType("Item") as ViaductSchema.Object
+            val demand = fixture.schemas.selectionsFrom("fragment Demand on Item { value }").second
+            val selected = fixture.context.engineSelectionSetFactory.engineSelectionSet("Item", "value", emptyMap())
+            val raw = fixture.resolved("Item", mapOf("id" to "id", "value" to "raw"))
+            val adapted = engineObjectDataOf(type, mapOf("value" to "adapted"))
+            var selectionConversions = 0
+            var outputConversions = 0
+            val fieldExecutor = MockFieldUnbatchedResolverExecutor(resolverId = "Query.item", isSelective = true) { _, _, _, selections, _ ->
+                assertSame(selected, selections)
+                raw
+            }
+            val nodeExecutor = MockNodeUnbatchedResolverExecutor(typeName = "Item", isSelective = true) { _, selections, _ ->
+                assertSame(selected, selections)
+                raw
+            }
+            val inputs = dispatcherRegistryInputs(
+                fullSchema = fixture.engineSchema,
+                schemas = fixture.schemas,
+                dispatcherRegistry = DispatcherRegistry.Impl(
+                    mapOf(("Query" to "item") to FieldResolverDispatcherImpl(fieldExecutor)),
+                    mapOf("Item" to viaduct.engine.runtime.NodeResolverDispatcherImpl(nodeExecutor)),
+                    emptyMap(),
+                    emptyMap(),
+                ),
+                outputAdapter = ResolverOutputAdapter { value, sourceType, selections, context ->
+                    assertSame(raw, value)
+                    assertEquals("Item", (sourceType as GraphQLObjectType).name)
+                    assertSame(demand, selections)
+                    assertSame(fixture.engineSchema.schema, context.fullSchema.schema)
+                    outputConversions++
+                    adapted
+                },
+                selectionSetConverter = { selections, selectedType, context ->
+                    assertSame(demand, selections)
+                    assertSame(type, selectedType)
+                    assertSame(fixture.engineSchema.schema, context.fullSchema.schema)
+                    selectionConversions++
+                    selected
+                },
+            )
+            val field = fixture.schemas.loweredSchema.requireObjectField("Query", "item")
+            val root = engineObjectDataOf(fixture.schemas.loweredSchema.requireType("Query") as ViaductSchema.Object)
+            val fieldResult = inputs.fieldResolvers.getValue(field).assemble(
+                field,
+                fixture.schemas.loweredSchema.requireType("Query") as ViaductSchema.Object,
+                emptyMap(),
+                {},
+            )
+            val result = fieldResult(
+                root,
+                root,
+                Arguments.Resolved.of(field, emptyMap()),
+                demand,
+                true,
+                fixture.resolutionContext,
+            )
+            assertEquals("adapted", (result as EngineObjectData.Sync).get("value"))
+            val node = inputs.nodeResolvers.getValue(type)("id", demand, fixture.resolutionContext) as EngineObjectData.Sync
+            assertEquals("adapted", node.get("value"))
+            assertEquals(2, selectionConversions)
+            assertEquals(2, outputConversions)
+        }
+
+    @Test
+    fun `node output adapter accepts null errors and references but rejects wrong objects`() =
+        runTest {
+            val fixture = Fixture(NODE_SCHEMA)
+            val userType = fixture.schemas.loweredSchema.requireType("User") as ViaductSchema.Object
+            val source = fixture.resolved("User", mapOf("id" to "id"))
+            val target = fixture.schemas.loweredSchema.requireObjectField("Query", "user")
+            val reference = RootFieldReferenceData.of(listOf(target), emptyMap())
+            val error = EngineErrorData.of(IllegalStateException("adapted failure"))
+            for (selective in listOf(false, true)) {
+                var converted: Any? = null
+                val executor = MockNodeUnbatchedResolverExecutor(typeName = "User", isSelective = selective) { _, _, _ -> source }
+                val inputs = dispatcherRegistryInputs(
+                    fullSchema = fixture.engineSchema,
+                    schemas = fixture.schemas,
+                    dispatcherRegistry = DispatcherRegistry.Impl(
+                        emptyMap(),
+                        mapOf("User" to viaduct.engine.runtime.NodeResolverDispatcherImpl(executor)),
+                        emptyMap(),
+                        emptyMap(),
+                    ),
+                    outputAdapter = ResolverOutputAdapter { _, _, _, _ -> converted },
+                    selectionSetConverter = { _, _, _ ->
+                        fixture.context.engineSelectionSetFactory.engineSelectionSet("User", "__typename", emptyMap())
+                    },
+                )
+                val node = inputs.nodeResolvers.getValue(userType)
+                for (value in listOf(null, error, reference)) {
+                    converted = value
+                    assertSame(value, node("id", selectionForestOf(), fixture.resolutionContext))
+                }
+                converted = fixture.resolved("Other", mapOf("id" to "id"))
+                assertThrows<IllegalArgumentException> { node("id", selectionForestOf(), fixture.resolutionContext) }
+                converted = "not an object"
+                assertThrows<IllegalStateException> { node("id", selectionForestOf(), fixture.resolutionContext) }
+            }
         }
 
     private class Fixture(val sdl: String) {

@@ -7,7 +7,8 @@ internal interface RootFieldReferenceDataCarrier {
     val referenceData: RootFieldReferenceData
 }
 
-internal fun ResolverOutputData?.rootFieldReferenceDataOrNull(): RootFieldReferenceData? =
+/** Public for Airbnb interoperability; native reference handling also uses this helper internally. */
+fun ResolverOutputData?.rootFieldReferenceDataOrNull(): RootFieldReferenceData? =
     when (this) {
         is RootFieldReferenceData -> this
         is RootFieldReferenceDataCarrier -> referenceData
