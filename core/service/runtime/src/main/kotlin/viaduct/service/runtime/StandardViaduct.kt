@@ -663,10 +663,11 @@ class StandardViaduct
         )
         fun createEngineExecutionContext(
             schemaId: SchemaId,
-            requestContext: Any?
+            requestContext: Any?,
+            incrementalExecution: Boolean = true,
         ): EngineExecutionContext {
             val engine = engineRegistry.getEngine(schemaId) as? viaduct.engine.airbnb.EngineGraphQLJavaCompat
                 ?: throw IllegalStateException("Engine does not support GraphQL Java context creation")
-            return engine.createEngineExecutionContext(requestContext)
+            return engine.createEngineExecutionContext(requestContext, incrementalExecution)
         }
     }

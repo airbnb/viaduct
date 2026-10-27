@@ -113,6 +113,10 @@ class Engine2StandardViaductTest {
         viaduct.engineRegistry.getEngine(SchemaId.Base)
         val requestContext = Any()
         assertSame(requestContext, viaduct.createEngineExecutionContext(SchemaId.Base, requestContext).requestContext)
+        for (incrementalExecution in listOf(false, true)) {
+            val context = viaduct.createEngineExecutionContext(SchemaId.Base, requestContext, incrementalExecution)
+            assertSame(requestContext, context.requestContext)
+        }
         val createdFactories = factoryCalls.get()
         assertTrue(createdFactories > 0)
 

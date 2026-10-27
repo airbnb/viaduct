@@ -168,7 +168,10 @@ class Engine2(
 
     override fun getGraphQL(): GraphQL = graphql
 
-    override fun createEngineExecutionContext(requestContext: Any?): EngineExecutionContext = RequestEngineExecutionContext(requestContext)
+    override fun createEngineExecutionContext(
+        requestContext: Any?,
+        incrementalExecution: Boolean,
+    ): EngineExecutionContext = RequestEngineExecutionContext(requestContext)
 
     private fun invocationContext(invocation: ExecutionContext): DispatcherExecutionContext =
         invocation.graphQLContext.get<RequestContext?>(requestContextKey)?.engineExecutionContext

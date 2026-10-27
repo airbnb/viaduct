@@ -8,5 +8,8 @@ import viaduct.engine.api.EngineExecutionContext
 interface EngineGraphQLJavaCompat {
     fun getGraphQL(): GraphQL
 
-    fun createEngineExecutionContext(requestContext: Any?): EngineExecutionContext
+    fun createEngineExecutionContext(
+        requestContext: Any?,
+        incrementalExecution: Boolean = true,
+    ): EngineExecutionContext
 }

@@ -547,7 +547,10 @@ class EngineImpl(
      * Creates an instance of EngineExecutionContext. This should be called exactly once
      * per request and set in the graphql-java execution input's local context.
      */
-    override fun createEngineExecutionContext(requestContext: Any?): EngineExecutionContext {
-        return engineExecutionContextFactory.create(schema, requestContext)
+    override fun createEngineExecutionContext(
+        requestContext: Any?,
+        incrementalExecution: Boolean,
+    ): EngineExecutionContext {
+        return engineExecutionContextFactory.create(schema, requestContext, incrementalExecution)
     }
 }
