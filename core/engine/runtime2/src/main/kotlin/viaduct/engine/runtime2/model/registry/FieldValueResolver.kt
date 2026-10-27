@@ -135,6 +135,11 @@ class FieldValueResolver private constructor(
     private val projectNonselectiveOutput: Boolean,
     private val projectionDemand: (SelectionForest) -> SelectionForest,
 ) {
+    val field: ViaductSchema.ObjectField get() = target.field
+
+    /** Returns a new resolver with [function], preserving its fragments and projection. */
+    fun withFunction(function: SelectiveFieldResolverFunction): FieldValueResolver = FieldValueResolver(target, fragmentTemplates, queryType, function, projectNonselectiveOutput, projectionDemand)
+
     val variables: Map<Arguments.Variable, VariableDefinition>
         get() = fragmentTemplates.variables
 

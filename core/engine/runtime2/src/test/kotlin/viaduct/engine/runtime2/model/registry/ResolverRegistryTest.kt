@@ -49,6 +49,88 @@ import viaduct.graphql.schema.ViaductSchema
 
 class ResolverRegistryTest {
     @Test
+    fun `replacement preserves fragments variables and projection for invocation and relation evaluation`() =
+        runBlocking {
+            val schemas = ViaductAndGJSchema.fromSDL("type Query { user: User source: String } type User { name: String age: Int }")
+            val schema = schemas.loweredSchema
+            val query = schema.requireQueryTypeDef()
+            val user = schema.requireType("User") as ViaductSchema.Object
+            val field = schema.requireObjectField("Query", "user")
+            val variable = Arguments.Variable.of(field, "flag")
+            val fragment = schemas.fragmentFrom("fragment Input on Query { source @include(if: ${'$'}flag) }", variableField = field)
+            val projectedDemand = schemas.fragmentFrom("fragment Demand on User { name }").subselections
+            val original = FieldValueResolver.of(
+                field = field,
+                fragmentTemplates = ResolverFragmentTemplates(
+                    fragment.materializeSelections,
+                    fragment.materializeSelections,
+                    mapOf(variable to VariableDefinition.FromProvider),
+                    variablesProvider = { mapOf("flag" to true) },
+                ),
+                queryType = query,
+                function = { _, _, _, _ -> error("Original callback must not run") },
+                projectionDemand = { projectedDemand },
+            )
+            var calls = 0
+            val input = engineObjectDataOf(query)
+            val arguments = Arguments.Resolved.of(field, emptyMap())
+            val demand = schemas.fragmentFrom("fragment Demand on User { age }").subselections
+            val replacement = original.withFunction { actualInput, queryValue, actualArguments, selections, context ->
+                calls++
+                assertSame(input, actualInput)
+                assertSame(input, queryValue)
+                assertSame(arguments, actualArguments)
+                assertSame(demand, selections)
+                assertSame(ResolutionExecutionContext.Unsupported, context)
+                engineObjectDataOf(user, mapOf("name" to "replacement", "age" to 37))
+            }
+
+            assertSame(field, replacement.field)
+            assertSame(original.target, replacement.target)
+            assertSame(original.variables, replacement.variables)
+            assertSame(original.variablesProvider, replacement.variablesProvider)
+            assertEquals(original.objectFragment.keys(), replacement.objectFragment.keys())
+            assertEquals(original.queryFragment.keys(), replacement.queryFragment.keys())
+            val occurrence = ResolverOccurrenceId.at(schema.testRoot(), listOf(ObjectEngineResult.GroundKey.of(field, emptyMap())))
+            for (resolver in listOf(original, replacement)) {
+                assertEquals(setOf(variable.instantiate(occurrence)), resolver.instantiateObjectMaterializationSelections(occurrence).usedVariables())
+                assertEquals(setOf(variable.instantiate(occurrence)), resolver.instantiateQueryMaterializationSelections(occurrence).usedVariables())
+            }
+            val invoked = replacement(input, input, arguments, demand, true, ResolutionExecutionContext.Unsupported)
+            val evaluated = replacement.evaluateRelation(input, input, arguments, demand, true, ResolutionExecutionContext.Unsupported)
+            for (output in listOf(invoked, evaluated)) {
+                val result = assertIs<EngineObjectData.Sync>(output)
+                assertEquals(setOf("name"), result.getSelections().toSet())
+                assertEquals("replacement", result.get("name"))
+            }
+            val unprojected = assertIs<EngineObjectData.Sync>(replacement(input, input, arguments, demand, false, ResolutionExecutionContext.Unsupported))
+            assertEquals(setOf("name", "age"), unprojected.getSelections().toSet())
+            assertEquals(3, calls)
+        }
+
+    @Test
+    fun `replacement preserves selective output behavior`() =
+        runBlocking {
+            val schemas = ViaductAndGJSchema.fromSDL("type Query { user: User } type User { name: String age: Int }")
+            val schema = schemas.loweredSchema
+            val query = schema.requireQueryTypeDef()
+            val field = schema.requireObjectField("Query", "user")
+            val original = FieldValueResolver.ofSelective(
+                field,
+                ResolverFragmentTemplates(materializeSelectionForestOf(), materializeSelectionForestOf()),
+                query,
+            ) { _, _, _, _, _ -> error("Original callback must not run") }
+            val value = engineObjectDataOf(schema.requireType("User") as ViaductSchema.Object, mapOf("name" to "Ada", "age" to 37))
+            val replacement = original.withFunction { _, _, _, _, _ -> value }
+            val input = engineObjectDataOf(query)
+            val arguments = Arguments.Resolved.of(field, emptyMap())
+            val demand = schemas.fragmentFrom("fragment Demand on User { name }").subselections
+
+            assertSame(value, replacement(input, input, arguments, demand, true, ResolutionExecutionContext.Unsupported))
+            assertSame(value, replacement.evaluateRelation(input, input, arguments, demand, true, ResolutionExecutionContext.Unsupported))
+        }
+
+    @Test
     fun `projects delegating Sync objects recursively using canonical declared types`() {
         val schemas = ViaductAndGJSchema.fromSDL(
             """
