@@ -25,6 +25,7 @@ import viaduct.engine.runtime2.model.ResolverOccurrenceId
 import viaduct.engine.runtime2.model.RootFieldReferenceData
 import viaduct.engine.runtime2.model.Selection
 import viaduct.engine.runtime2.model.SelectionForest
+import viaduct.engine.runtime2.model.additionalContextForResolver
 import viaduct.engine.runtime2.model.emptyFragmentOf
 import viaduct.engine.runtime2.model.engineObjectDataOf
 import viaduct.engine.runtime2.model.materializeSelectionForestOf
@@ -49,6 +50,26 @@ import viaduct.graphql.schema.ViaductSchema
 
 class ResolverRegistryTest {
     @Test
+    fun `projection preserves opaque context recursively without publishing extra fields`() {
+        val schemas = ViaductAndGJSchema.fromSDL("type Query { item: Item } type Item { value: Int extra: Int child: Item }")
+        val type = schemas.loweredSchema.requireType("Item") as ViaductSchema.Object
+        val parentContext = Any()
+        val childContext = Any()
+        val child = engineObjectDataOf(type, mapOf("value" to 2, "extra" to 3), additionalContextForResolver = childContext)
+        val source = engineObjectDataOf(type, mapOf("value" to 1, "extra" to 4, "child" to child), additionalContextForResolver = parentContext)
+        val demand = schemas.fragmentFrom("fragment Demand on Item { value child { value } }").subselections
+
+        val projected = source.snipToDemand(demand, type)
+        val projectedChild = projected.get("child") as EngineObjectData.Sync
+
+        assertSame(parentContext, projected.additionalContextForResolver)
+        assertSame(childContext, projectedChild.additionalContextForResolver)
+        assertEquals(setOf("value", "child"), projected.getSelections().toSet())
+        assertEquals(listOf("value"), projectedChild.getSelections().toList())
+        assertEquals(2, projectedChild.get("value"))
+    }
+
+    @Test
     fun `replacement preserves fragments variables and projection for invocation and relation evaluation`() =
         runBlocking {
             val schemas = ViaductAndGJSchema.fromSDL("type Query { user: User source: String } type User { name: String age: Int }")
@@ -68,19 +89,21 @@ class ResolverRegistryTest {
                     variablesProvider = { mapOf("flag" to true) },
                 ),
                 queryType = query,
-                function = { _, _, _, _ -> error("Original callback must not run") },
+                function = { _, _, _, _, _ -> error("Original callback must not run") },
                 projectionDemand = { projectedDemand },
             )
             var calls = 0
             val input = engineObjectDataOf(query)
+            val resolverContext = Any()
             val arguments = Arguments.Resolved.of(field, emptyMap())
             val demand = schemas.fragmentFrom("fragment Demand on User { age }").subselections
-            val replacement = original.withFunction { actualInput, queryValue, actualArguments, selections, context ->
+            val replacement = original.withFunction { actualInput, queryValue, actualArguments, selections, additionalContext, context ->
                 calls++
                 assertSame(input, actualInput)
                 assertSame(input, queryValue)
                 assertSame(arguments, actualArguments)
                 assertSame(demand, selections)
+                assertSame(resolverContext, additionalContext)
                 assertSame(ResolutionExecutionContext.Unsupported, context)
                 engineObjectDataOf(user, mapOf("name" to "replacement", "age" to 37))
             }
@@ -96,14 +119,14 @@ class ResolverRegistryTest {
                 assertEquals(setOf(variable.instantiate(occurrence)), resolver.instantiateObjectMaterializationSelections(occurrence).usedVariables())
                 assertEquals(setOf(variable.instantiate(occurrence)), resolver.instantiateQueryMaterializationSelections(occurrence).usedVariables())
             }
-            val invoked = replacement(input, input, arguments, demand, true, ResolutionExecutionContext.Unsupported)
-            val evaluated = replacement.evaluateRelation(input, input, arguments, demand, true, ResolutionExecutionContext.Unsupported)
+            val invoked = replacement(input, input, arguments, demand, true, ResolutionExecutionContext.Unsupported, resolverContext)
+            val evaluated = replacement.evaluateRelation(input, input, arguments, demand, true, ResolutionExecutionContext.Unsupported, resolverContext)
             for (output in listOf(invoked, evaluated)) {
                 val result = assertIs<EngineObjectData.Sync>(output)
                 assertEquals(setOf("name"), result.getSelections().toSet())
                 assertEquals("replacement", result.get("name"))
             }
-            val unprojected = assertIs<EngineObjectData.Sync>(replacement(input, input, arguments, demand, false, ResolutionExecutionContext.Unsupported))
+            val unprojected = assertIs<EngineObjectData.Sync>(replacement(input, input, arguments, demand, false, ResolutionExecutionContext.Unsupported, resolverContext))
             assertEquals(setOf("name", "age"), unprojected.getSelections().toSet())
             assertEquals(3, calls)
         }
@@ -119,15 +142,19 @@ class ResolverRegistryTest {
                 field,
                 ResolverFragmentTemplates(materializeSelectionForestOf(), materializeSelectionForestOf()),
                 query,
-            ) { _, _, _, _, _ -> error("Original callback must not run") }
+            ) { _, _, _, _, _, _ -> error("Original callback must not run") }
             val value = engineObjectDataOf(schema.requireType("User") as ViaductSchema.Object, mapOf("name" to "Ada", "age" to 37))
-            val replacement = original.withFunction { _, _, _, _, _ -> value }
+            val resolverContext = Any()
+            val replacement = original.withFunction { _, _, _, _, additionalContext, _ ->
+                assertSame(resolverContext, additionalContext)
+                value
+            }
             val input = engineObjectDataOf(query)
             val arguments = Arguments.Resolved.of(field, emptyMap())
             val demand = schemas.fragmentFrom("fragment Demand on User { name }").subselections
 
-            assertSame(value, replacement(input, input, arguments, demand, true, ResolutionExecutionContext.Unsupported))
-            assertSame(value, replacement.evaluateRelation(input, input, arguments, demand, true, ResolutionExecutionContext.Unsupported))
+            assertSame(value, replacement(input, input, arguments, demand, true, ResolutionExecutionContext.Unsupported, resolverContext))
+            assertSame(value, replacement.evaluateRelation(input, input, arguments, demand, true, ResolutionExecutionContext.Unsupported, resolverContext))
         }
 
     @Test
@@ -246,6 +273,8 @@ class ResolverRegistryTest {
                 ).subselections
             var observedDemand: SelectionForest? = null
             var observedExecutionContext: ResolutionExecutionContext? = null
+            val retainedContext = Any()
+            var observedAdditionalContext: Any? = null
             val resolver =
                 FieldValueResolver.ofSelective(
                     field = userField,
@@ -255,7 +284,8 @@ class ResolverRegistryTest {
                             queryFragmentTemplate = materializeSelectionForestOf(),
                         ),
                     queryType = query,
-                    function = { _, _, _, selections, executionContext ->
+                    function = { _, _, _, selections, additionalContext, executionContext ->
+                        observedAdditionalContext = additionalContext
                         observedDemand = selections
                         observedExecutionContext = executionContext
                         schema.loweredSchema.objectOf("User") {
@@ -272,10 +302,12 @@ class ResolverRegistryTest {
                     selections = demand,
                     selectiveResolvers = world.assumptions.selectiveResolvers,
                     executionContext = ResolutionExecutionContext.Unsupported,
+                    additionalContextForResolver = retainedContext,
                 )
 
             assertSame(demand, observedDemand)
             assertSame(ResolutionExecutionContext.Unsupported, observedExecutionContext)
+            assertSame(retainedContext, observedAdditionalContext)
             assertEquals(setOf("name", "age"), assertIs<EngineObjectData.Sync>(output).getSelections().toSet())
         }
 
@@ -299,6 +331,8 @@ class ResolverRegistryTest {
             val schema = world.schemas
             val query = schema.loweredSchema.requireQueryTypeDef()
             val userField = schema.loweredSchema.requireObjectField("Query", "user")
+            val retainedContext = Any()
+            var observedAdditionalContext: Any? = null
             val resolver =
                 FieldValueResolver.of(
                     field = userField,
@@ -308,7 +342,8 @@ class ResolverRegistryTest {
                             queryFragmentTemplate = materializeSelectionForestOf(),
                         ),
                     queryType = query,
-                    function = { _, _, _, _ ->
+                    function = { _, _, _, additionalContext, _ ->
+                        observedAdditionalContext = additionalContext
                         schema.loweredSchema.objectOf("User") {
                             "name" setTo "Ada"
                             "age" setTo 37
@@ -326,8 +361,10 @@ class ResolverRegistryTest {
                         ).subselections,
                     selectiveResolvers = world.assumptions.selectiveResolvers,
                     executionContext = ResolutionExecutionContext.Unsupported,
+                    additionalContextForResolver = retainedContext,
                 )
 
+            assertSame(retainedContext, observedAdditionalContext)
             assertEquals(setOf("name"), assertIs<EngineObjectData.Sync>(output).getSelections().toSet())
         }
 
@@ -356,6 +393,8 @@ class ResolverRegistryTest {
                     "fragment ignored on User { name }",
                 ).subselections
             var observedDemand: SelectionForest? = null
+            val retainedContext = Any()
+            var observedAdditionalContext: Any? = null
             val resolver =
                 FieldValueResolver.ofSelectionAwareNonselective(
                     field = userField,
@@ -365,7 +404,8 @@ class ResolverRegistryTest {
                             queryFragmentTemplate = materializeSelectionForestOf(),
                         ),
                     queryType = query,
-                    function = { _, _, _, selections, _ ->
+                    function = { _, _, _, selections, additionalContext, _ ->
+                        observedAdditionalContext = additionalContext
                         observedDemand = selections
                         schema.loweredSchema.objectOf("User") {
                             "name" setTo "Ada"
@@ -381,9 +421,11 @@ class ResolverRegistryTest {
                     selections = demand,
                     selectiveResolvers = world.assumptions.selectiveResolvers,
                     executionContext = ResolutionExecutionContext.Unsupported,
+                    additionalContextForResolver = retainedContext,
                 )
 
             assertSame(demand, observedDemand)
+            assertSame(retainedContext, observedAdditionalContext)
             assertEquals(setOf("name"), assertIs<EngineObjectData.Sync>(output).getSelections().toSet())
         }
 

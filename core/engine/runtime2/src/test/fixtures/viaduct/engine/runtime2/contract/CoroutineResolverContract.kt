@@ -283,7 +283,7 @@ interface CoroutineResolverContract {
                             .toCanonicalMaterializeSelectionForest(),
                 ),
             queryType = testWorld.schema.requireQueryTypeDef(),
-            function = { _, _, _, _ -> 2 },
+            function = { _, _, _, _, _ -> 2 },
         )
         val malformedRegistry =
             registryOverride(testWorld.resolverRegistry) { field, delegate ->

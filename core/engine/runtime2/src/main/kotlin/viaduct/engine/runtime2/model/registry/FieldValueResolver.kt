@@ -29,6 +29,7 @@ typealias NonselectiveFieldResolverFunction =
         EngineObjectData.Sync,
         EngineObjectData.Sync,
         Arguments.Resolved,
+        additionalContextForResolver: Any?,
         ResolutionExecutionContext,
     ) -> ResolverOutputData?
 
@@ -45,6 +46,7 @@ typealias SelectiveFieldResolverFunction =
         EngineObjectData.Sync,
         Arguments.Resolved,
         SelectionForest,
+        additionalContextForResolver: Any?,
         ResolutionExecutionContext,
     ) -> ResolverOutputData?
 
@@ -249,6 +251,7 @@ class FieldValueResolver private constructor(
         selections: SelectionForest = selectionForestOf(),
         selectiveResolvers: Boolean,
         executionContext: ResolutionExecutionContext,
+        additionalContextForResolver: Any? = null,
     ): ResolverOutputData? =
         invoke(
             input = input,
@@ -257,6 +260,7 @@ class FieldValueResolver private constructor(
             selections = selections,
             selectiveResolvers = selectiveResolvers,
             executionContext = executionContext,
+            additionalContextForResolver = additionalContextForResolver,
         )
 
     /** Applies this field resolver to the supplied output demand. */
@@ -267,6 +271,7 @@ class FieldValueResolver private constructor(
         selections: SelectionForest = selectionForestOf(),
         selectiveResolvers: Boolean,
         executionContext: ResolutionExecutionContext,
+        additionalContextForResolver: Any? = null,
     ): ResolverOutputData? {
         return evaluateRelation(
             input,
@@ -275,6 +280,7 @@ class FieldValueResolver private constructor(
             selections,
             selectiveResolvers,
             executionContext,
+            additionalContextForResolver,
         )
     }
 
@@ -292,13 +298,14 @@ class FieldValueResolver private constructor(
         selections: SelectionForest,
         selectiveResolvers: Boolean,
         executionContext: ResolutionExecutionContext,
+        additionalContextForResolver: Any? = null,
     ): ResolverOutputData? {
         require(queryValue.schemaType(queryType) == queryType) {
             "Query value type ${queryValue.type.name} does not match ${queryType.name}"
         }
         val output =
             try {
-                function(input, queryValue, arguments, selections, executionContext)
+                function(input, queryValue, arguments, selections, additionalContextForResolver, executionContext)
             } catch (exception: EngineErrorDataReadException) {
                 exception.errorData
             }
@@ -336,8 +343,8 @@ class FieldValueResolver private constructor(
                 target = target,
                 fragmentTemplates = fragmentTemplates,
                 queryType = queryType,
-                function = { input, queryValue, arguments, _, executionContext ->
-                    function(input, queryValue, arguments, executionContext)
+                function = { input, queryValue, arguments, _, additionalContextForResolver, executionContext ->
+                    function(input, queryValue, arguments, additionalContextForResolver, executionContext)
                 },
                 projectNonselectiveOutput = true,
                 projectionDemand = projectionDemand,

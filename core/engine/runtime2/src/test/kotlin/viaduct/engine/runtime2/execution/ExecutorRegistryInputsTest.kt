@@ -57,6 +57,8 @@ import viaduct.engine.runtime2.model.EngineErrorData
 import viaduct.engine.runtime2.model.RootFieldReferenceData
 import viaduct.engine.runtime2.model.RootFieldReferenceDataCarrier
 import viaduct.engine.runtime2.model.SelectionForest
+import viaduct.engine.runtime2.model.additionalContextForResolver
+import viaduct.engine.runtime2.model.emptyFragmentOf
 import viaduct.engine.runtime2.model.engineObjectDataOf
 import viaduct.engine.runtime2.model.nodeReferenceIdentityOrNull
 import viaduct.engine.runtime2.model.outputValue
@@ -66,6 +68,7 @@ import viaduct.engine.runtime2.model.registry.ProviderFragment
 import viaduct.engine.runtime2.model.registry.ResolutionExecutionContext
 import viaduct.engine.runtime2.model.registry.ResolverRegistry
 import viaduct.engine.runtime2.model.registry.VariableDefinition
+import viaduct.engine.runtime2.model.registry.fieldResolverOf
 import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireType
 import viaduct.engine.runtime2.model.rootFieldReferenceDataOrNull
@@ -77,6 +80,59 @@ import viaduct.graphql.schema.ViaductSchema
 import viaduct.tenant.runtime.jvm.OverlayEngineObjectData
 
 class ExecutorRegistryInputsTest {
+    @Test
+    fun `selective node projection preserves opaque context and stored errors`() =
+        runTest {
+            val fixture = Fixture("type Query { node(id: ID!): Node } interface Node { id: ID! } type User implements Node { id: ID! name: String }")
+            val type = fixture.schemas.loweredSchema.requireType("User") as ViaductSchema.Object
+            val context = Any()
+            val error = EngineErrorData.of(IllegalStateException("name failed"))
+            val source = engineObjectDataOf(type, mapOf("id" to "id", "name" to error), additionalContextForResolver = context)
+            val executor = MockNodeUnbatchedResolverExecutor(typeName = "User", isSelective = true) { _, _, _ -> source }
+            val inputs = fixture.adapt(nodes = listOf("User" to executor))
+            val demand = fixture.schemas.selectionsFrom("fragment Demand on User { name }").second
+
+            val projected = inputs.nodeResolvers.getValue(type)("id", demand, fixture.resolutionContext) as EngineObjectData.Sync
+
+            assertSame(context, projected.additionalContextForResolver)
+            assertSame(error, projected.outputValue("name"))
+            assertEquals(listOf("name"), projected.getSelections().toList())
+        }
+
+    @Test
+    fun `child resolvers receive the original parent context for each list occurrence`() =
+        runTest {
+            val fixture = Fixture("type Query { items: [Item] } type Item { value: String }")
+            val schema = fixture.schemas.loweredSchema
+            val itemType = schema.requireType("Item") as ViaductSchema.Object
+            val contexts = listOf(Any(), Any())
+            val observed = mutableListOf<Any?>()
+            val inputs = ExecutorRegistryInputs(
+                fieldResolvers = mapOf(
+                    schema.requireObjectField("Query", "items") to fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
+                        contexts.map { engineObjectDataOf(itemType, additionalContextForResolver = it) }
+                    },
+                    schema.requireObjectField("Item", "value") to fieldResolverOf(
+                        schema.emptyFragmentOf("Item"),
+                        schema.emptyFragmentOf("Query"),
+                    ) { input, _, _, context, _ ->
+                        assertTrue(input.getSelections().none())
+                        observed.add(context)
+                        if (context === contexts[0]) "first" else "second"
+                    },
+                ),
+                nodeResolvers = emptyMap(),
+                variableProviders = emptyMap(),
+            )
+
+            val result = fixture.execute(inputs, "{ items { value } }")
+
+            assertEquals(emptyList<Any>(), result.errors)
+            assertEquals(mapOf("items" to listOf(mapOf("value" to "first"), mapOf("value" to "second"))), result.getData())
+            assertEquals(2, observed.size)
+            contexts.forEach { expected -> assertEquals(1, observed.count { it === expected }) }
+        }
+
     @Test
     fun `executor and dispatcher adapters preserve canonical extended scalar outputs`() =
         runTest {

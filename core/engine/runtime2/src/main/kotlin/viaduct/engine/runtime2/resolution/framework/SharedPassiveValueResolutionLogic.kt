@@ -14,6 +14,7 @@ import viaduct.engine.runtime2.model.ResolverOutputData
 import viaduct.engine.runtime2.model.RootFieldReferenceData
 import viaduct.engine.runtime2.model.Selection
 import viaduct.engine.runtime2.model.SelectionForest
+import viaduct.engine.runtime2.model.additionalContextForResolver
 import viaduct.engine.runtime2.model.isParentField
 import viaduct.engine.runtime2.model.merge
 import viaduct.engine.runtime2.model.outputType
@@ -192,7 +193,7 @@ internal abstract class SharedPassiveValueResolutionLogic<
                 val target = createObjectResult(source.schemaType(operation.world.schema), constructionDemand)
                 resolvePassiveObjectValues(
                     source = source,
-                    occurrence = OEROccurrence(root, path, target, parent),
+                    occurrence = OEROccurrence(root, path, target, parent, source.additionalContextForResolver),
                     constructionDemand = constructionDemand,
                     invocationDemand = invocationDemand,
                 )

@@ -32,6 +32,7 @@ import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.ResolverOutputData
 import viaduct.engine.runtime2.model.ResolverTarget
 import viaduct.engine.runtime2.model.RootFieldReferenceData
+import viaduct.engine.runtime2.model.additionalContextForResolver
 import viaduct.engine.runtime2.model.emptyFragmentOf
 import viaduct.engine.runtime2.model.engineObjectDataOf
 import viaduct.engine.runtime2.model.guardedBy
@@ -175,7 +176,7 @@ private fun executorRegistryInputs(
             val isSelective =
                 executor.isSelective || fieldSelectivityProvider.isSelective(coordinate)
             val resolverFunction: SelectiveFieldResolverFunction =
-                { input, queryValue, arguments, selections, resolutionContext ->
+                { input, queryValue, arguments, selections, _, resolutionContext ->
                     val selectionSet =
                         (field.type.baseTypeDef as? QPlanSchema.CompositeTypeDef)?.let {
                                 type ->
@@ -997,10 +998,16 @@ private fun EngineObjectData.Sync.projectTopLevel(
         getSelections()
             .filter { fieldName -> fieldName in demandedFields }
             .associateWithTo(linkedMapOf(), ::outputValue)
-    return ResolvedEngineObjectData(
-        type,
-        fields,
-    )
+    val resolverContext = additionalContextForResolver
+    return if (resolverContext == null) {
+        ResolvedEngineObjectData(type, fields)
+    } else {
+        engineObjectDataOf(
+            schemaType = schemaType,
+            fields = fields,
+            additionalContextForResolver = resolverContext,
+        )
+    }
 }
 
 private fun Pair<String, String>.render(): String = "$first.$second"

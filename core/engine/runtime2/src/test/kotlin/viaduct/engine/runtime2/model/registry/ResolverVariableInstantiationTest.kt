@@ -97,7 +97,7 @@ class ResolverVariableInstantiationTest {
             field,
             ResolverFragmentTemplates(input("Item"), input("Query"), mapOf(variable to VariableDefinition.FromArgument.of(field.requireArg("flag")))),
             schemas.loweredSchema.requireQueryTypeDef(),
-            function = { _, _, _, _ -> null },
+            function = { _, _, _, _, _ -> null },
         )
         val occurrence = ResolverOccurrenceId.at(schemas.loweredSchema.testRoot(), listOf(ObjectEngineResult.GroundKey.of(field, mapOf("flag" to false))))
         val fragments = resolver.instantiateFragments(occurrence)

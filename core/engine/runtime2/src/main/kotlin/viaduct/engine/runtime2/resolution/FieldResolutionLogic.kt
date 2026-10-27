@@ -293,13 +293,14 @@ internal class FieldResolutionLogic(
             ),
         )
 
-        return fieldResolverOccurrence.resolver(
+        return fieldResolverOccurrence.resolver.invoke(
             input = input,
             queryValue = queryValue,
             arguments = resolverArguments,
             selections = invocationDemand,
             selectiveResolvers = publication.operation.world.selectiveResolvers,
             executionContext = fieldResolverTask,
+            additionalContextForResolver = publication.oerOccurrence.additionalContextForResolver,
         )
     }
 

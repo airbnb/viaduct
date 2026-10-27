@@ -47,7 +47,7 @@ interface EmptyObjectFragmentResolverContract :
             field = users,
             queryType = schema.requireQueryTypeDef(),
             fragmentTemplates = ResolverFragmentTemplates(materializeSelectionForestOf(), materializeSelectionForestOf()),
-        ) { _, _, _, _, _ -> listOf(source, null, delegated) }
+        ) { _, _, _, _, _, _ -> listOf(source, null, delegated) }
         val base = fixture.resolverRegistry
         val registry = object : ResolverRegistry by base {
             override fun resolver(field: ViaductSchema.ObjectField): FieldValueResolver = if (field == users) raw else base.resolver(field)

@@ -29,6 +29,24 @@ class QPlanEngineObjectDataTest {
     private val graphQLUserType = requireNotNull(fixture.graphQLSchema.getObjectType("User"))
 
     @Test
+    fun `retains integration context outside GraphQL selections`() {
+        val context = Any()
+        val entries = listOf(EngineObjectDataEntry.of("name", userType.field("name") as ViaductSchema.ObjectField, "Ada"))
+        val objects = listOf(
+            engineObjectDataOf(userType, mapOf("name" to "Ada"), additionalContextForResolver = context),
+            engineObjectDataOf(userType, entries, additionalContextForResolver = context),
+        )
+        objects.forEach { data ->
+            assertSame(context, data.additionalContextForResolver)
+            assertEquals(listOf("name"), data.getSelections().toList())
+            assertEquals("Ada", data.get("name"))
+        }
+        assertNull(engineObjectDataOf(userType).additionalContextForResolver)
+        assertNull(materializedEngineObjectDataOf(userType, entries).additionalContextForResolver)
+        assertNull(ResolvedEngineObjectData(graphQLUserType, emptyMap()).additionalContextForResolver)
+    }
+
+    @Test
     fun `reads resolved objects directly without copying values or losing absence`() {
         val scores = listOf(1, null)
         val data = ResolvedEngineObjectData(

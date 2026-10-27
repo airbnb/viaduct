@@ -36,6 +36,7 @@ sealed interface EngineObjectDataEntry {
 fun engineObjectDataOf(
     schemaType: ViaductSchema.Object,
     fields: Map<String, ResolverOutputData?> = emptyMap(),
+    additionalContextForResolver: Any? = null,
 ): EngineObjectData.Sync =
     engineObjectDataOf(
         schemaType = schemaType,
@@ -50,6 +51,7 @@ fun engineObjectDataOf(
                 }
                 EngineObjectDataEntry.of(name, field, value)
             },
+        additionalContextForResolver = additionalContextForResolver,
     )
 
 /**
@@ -62,7 +64,8 @@ fun engineObjectDataOf(
 fun engineObjectDataOf(
     schemaType: ViaductSchema.Object,
     fields: Iterable<EngineObjectDataEntry>,
-): EngineObjectData.Sync = constructEngineObjectData(schemaType, fields)
+    additionalContextForResolver: Any? = null,
+): EngineObjectData.Sync = constructEngineObjectData(schemaType, fields, additionalContextForResolver)
 
 /**
  * Constructs tenant-visible resolver input from conforming canonical values without rechecking conformance.
@@ -75,6 +78,7 @@ fun materializedEngineObjectDataOf(
 private fun constructEngineObjectData(
     schemaType: ViaductSchema.Object,
     fields: Iterable<EngineObjectDataEntry>,
+    additionalContextForResolver: Any? = null,
 ): EngineObjectData.Sync {
     val size = (fields as? Collection<*>)?.size ?: 0
     val values = LinkedHashMap<String, ResolverOutputData?>(size)
@@ -93,6 +97,7 @@ private fun constructEngineObjectData(
         type = schemaType.engineObjectDataType,
         schemaType = schemaType,
         values = values,
+        additionalContextForResolver = additionalContextForResolver,
         selectionFields = selectionFields,
     )
 }
@@ -118,6 +123,10 @@ val EngineObjectData.Sync.schemaType: ViaductSchema.Object
         requireNotNull(qplanSchemaTypeOrNull) {
             "Engine object data for ${type.name} is not owned by qplan"
         }
+
+/** Carries application data to child resolver callbacks without publishing it as GraphQL fields. */
+val EngineObjectData.Sync.additionalContextForResolver: Any?
+    get() = (this as? QPlanEngineObjectData)?.additionalContextForResolver
 
 internal val EngineObjectData.Sync.qplanSchemaTypeOrNull: ViaductSchema.Object?
     get() = (this as? QPlanEngineObjectData)?.schemaType
@@ -152,6 +161,7 @@ private data class EngineObjectDataEntryImpl(
 
 internal interface QPlanEngineObjectData : EngineObjectData.Sync {
     val schemaType: ViaductSchema.Object
+    val additionalContextForResolver: Any?
     val selectionFields: Map<String, ViaductSchema.ObjectField>
 
     fun outputValue(selection: String): ResolverOutputData?
@@ -166,6 +176,7 @@ private class QPlanEngineObjectDataImpl(
     override val type: GraphQLObjectType,
     override val schemaType: ViaductSchema.Object,
     private val values: Map<String, ResolverOutputData?>,
+    override val additionalContextForResolver: Any?,
     override val selectionFields: Map<String, ViaductSchema.ObjectField>,
 ) : QPlanEngineObjectData {
     override suspend fun fetch(selection: String): Any? = get(selection)

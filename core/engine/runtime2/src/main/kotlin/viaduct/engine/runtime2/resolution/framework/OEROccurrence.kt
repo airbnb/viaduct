@@ -9,6 +9,7 @@ class OEROccurrence(
     path: List<PathComponent>,
     val target: ObjectEngineResult,
     val parent: OEROccurrence? = null,
+    val additionalContextForResolver: Any? = null,
 ) {
     val path: List<PathComponent> = path
 

@@ -8,6 +8,7 @@ import viaduct.engine.runtime2.model.ResolverOutputData
 import viaduct.engine.runtime2.model.RootFieldReferenceData
 import viaduct.engine.runtime2.model.RootFieldReferenceDataCarrier
 import viaduct.engine.runtime2.model.SelectionForest
+import viaduct.engine.runtime2.model.additionalContextForResolver
 import viaduct.engine.runtime2.model.engineObjectDataOf
 import viaduct.engine.runtime2.model.merge
 import viaduct.engine.runtime2.model.outputType
@@ -88,5 +89,5 @@ internal fun EngineObjectData.Sync.snipToDemand(
         val selectedValue = value.snipToDemand(selection.subselections, concreteField.outputType)
         selectedFields += EngineObjectDataEntry.of(concreteField.name, concreteField, selectedValue)
     }
-    return engineObjectDataOf(schemaType, selectedFields)
+    return engineObjectDataOf(schemaType, selectedFields, additionalContextForResolver = additionalContextForResolver)
 }

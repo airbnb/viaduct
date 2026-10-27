@@ -281,7 +281,7 @@ class SiblingDependencyLogicTest {
                             templateResolver.queryFragment.toCanonicalMaterializeSelectionForest(),
                     ),
                 queryType = schema.requireQueryTypeDef(),
-                function = { _, _, _, _ -> 2 },
+                function = { _, _, _, _, _ -> 2 },
             )
         val overriddenRegistry =
             object : ResolverRegistry by resolverRegistry {

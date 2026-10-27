@@ -119,7 +119,7 @@ class ResolverTimeoutTest {
                 queryFragmentTemplate = world.resolverRegistry.resolver(second).queryFragment.toCanonicalMaterializeSelectionForest(),
             ),
             queryType = world.schema.requireQueryTypeDef(),
-            function = { _, _, _, _ -> 2 },
+            function = { _, _, _, _, _ -> 2 },
         )
         // Deliberately bypass assembly-time cycle rejection to exercise runtime deadlock diagnosis.
         val registry = object : ResolverRegistry by world.resolverRegistry {
