@@ -14,6 +14,7 @@ import graphql.execution.instrumentation.ChainedInstrumentation
 import graphql.execution.instrumentation.Instrumentation
 import graphql.execution.preparsed.PreparsedDocumentProvider
 import graphql.language.FragmentDefinition
+import graphql.schema.DataFetchingEnvironment
 import graphql.schema.GraphQLObjectType
 import java.util.concurrent.CompletableFuture
 import kotlin.coroutines.CoroutineContext
@@ -60,6 +61,7 @@ import viaduct.engine.runtime2.execution.QPlanInstrumentation
 import viaduct.engine.runtime2.execution.QPlanWiringFactory
 import viaduct.engine.runtime2.execution.Runtime2DispatchStrategy
 import viaduct.engine.runtime2.execution.Runtime2ExecutionHandle
+import viaduct.engine.runtime2.execution.completeResolvedData
 import viaduct.engine.runtime2.execution.instrumentForRuntime2
 import viaduct.engine.runtime2.execution.runtime2NodeReferenceOf
 import viaduct.engine.runtime2.execution.runtime2RootFieldReferenceOf
@@ -107,6 +109,12 @@ class Engine2(
                     ChainedInstrumentation(listOf(qplanInstrumentation, it))
                 } ?: qplanInstrumentation,
             ).build()
+
+    @Deprecated("Airbnb use only")
+    suspend fun completeResolvedData(
+        data: EngineObjectData.Sync,
+        environment: DataFetchingEnvironment,
+    ): ExecutionResult = completeResolvedData(data, environment, dataFetcherExceptionHandler)
 
     private fun createExecutionStrategy(): ExecutionStrategy {
         val wrappedStrategy =
