@@ -25,42 +25,66 @@ cd viaduct-hello-world
 
 === "Kotlin"
 
-    Create a `settings.gradle.kts` file with the following content:
+    Create `settings.gradle.kts`:
 
     ```kotlin
     pluginManagement {
-       repositories {
-           mavenCentral()
-           gradlePluginPortal()
-       }
+        repositories {
+            mavenCentral()
+            gradlePluginPortal()
+        }
+    }
+
+    plugins {
+        id("com.airbnb.viaduct.settings-gradle-plugin") version "3.0.0"
     }
 
     dependencyResolutionManagement {
-       repositories {
-           mavenCentral()
-       }
-       versionCatalogs {
-           create("libs")
-       }
+        repositories {
+            mavenCentral()
+        }
+    }
+
+    rootProject.name = "viaduct-hello-world"
+
+    includeViaductApplication {
+        project(":")
+        modulePackagePrefix("com.example.viadapp")
+        includeModule {
+            project(":")
+            modulePackageSuffix("resolvers")
+        }
     }
     ```
 
+    The settings plugin registers the application and tenant module. Here both are in the same Gradle project. The package prefix and suffix put generated resolver bases in `com.example.viadapp.resolvers.resolverbases`.
 
-    You'll need to create a `gradle/libs.versions.toml` file:
+    Create `build.gradle.kts`:
 
-    ```toml
-    [versions]
-    viaduct = "0.7.0"
+    ```kotlin
+    plugins {
+        kotlin("jvm") version "2.3.21"
+        id("com.google.devtools.ksp") version "2.3.7"
+        id("com.airbnb.viaduct.application-gradle-plugin") version "3.0.0"
+        id("com.airbnb.viaduct.module-gradle-plugin") version "3.0.0"
+        application
+    }
 
-    [plugins]
-    viaduct-application = { id = "com.airbnb.viaduct.application-gradle-plugin", version.ref = "viaduct" }
-    viaduct-module = { id = "com.airbnb.viaduct.module-gradle-plugin", version.ref = "viaduct" }
+    dependencies {
+        implementation("com.airbnb.viaduct:api:3.0.0")
+        implementation("com.airbnb.viaduct:runtime:3.0.0")
+        implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")
+        implementation("com.fasterxml.jackson.core:jackson-databind:2.17.3")
+        implementation("ch.qos.logback:logback-classic:1.5.21")
+        runtimeOnly("org.jetbrains.kotlin:kotlin-reflect:2.3.21")
+    }
+
+    application {
+        mainClass.set("com.example.viadapp.ViaductApplicationKt")
+    }
     ```
 
-    Create a `build.gradle.kts` file. The key requirement is to include both Viaduct plugins:
-
-
-    {{ codetag("demoapps/cli-starter/build.gradle.kts", "gradle-config", lang="kotlin", count=38) | indent(4) }}
+    Use the same Viaduct version for the settings, application, and module plugins and all Viaduct dependencies. Viaduct does not bundle `kotlin-reflect` or `kotlinx-coroutines`, so the application declares them.
 
 === "Java"
 
@@ -69,19 +93,17 @@ cd viaduct-hello-world
     ```kotlin
     pluginManagement {
         repositories {
-            maven("https://central.sonatype.com/repository/maven-snapshots/")
             mavenCentral()
             gradlePluginPortal()
         }
     }
 
     plugins {
-        id("com.airbnb.viaduct.settings-gradle-plugin") version "2.1.0-SNAPSHOT"
+        id("com.airbnb.viaduct.settings-gradle-plugin") version "3.0.0"
     }
 
     dependencyResolutionManagement {
         repositories {
-            maven("https://central.sonatype.com/repository/maven-snapshots/")
             mavenCentral()
         }
     }
@@ -106,8 +128,8 @@ cd viaduct-hello-world
     plugins {
         application
         `java-library`
-        id("com.airbnb.viaduct.application-gradle-plugin") version "2.1.0-SNAPSHOT"
-        id("com.airbnb.viaduct.module-java-gradle-plugin") version "2.1.0-SNAPSHOT"
+        id("com.airbnb.viaduct.application-gradle-plugin") version "3.0.0"
+        id("com.airbnb.viaduct.module-java-gradle-plugin") version "3.0.0"
     }
 
     java {
@@ -117,11 +139,12 @@ cd viaduct-hello-world
     }
 
     dependencies {
-        implementation("com.airbnb.viaduct:api:2.1.0-SNAPSHOT")
-        implementation("com.airbnb.viaduct:runtime:2.1.0-SNAPSHOT")
-        implementation("com.airbnb.viaduct:javaapi-api:2.1.0-SNAPSHOT")
-        implementation("com.airbnb.viaduct:javaapi-runtime:2.1.0-SNAPSHOT")
-        runtimeOnly("org.jetbrains.kotlin:kotlin-reflect:2.2.21")
+        implementation("com.airbnb.viaduct:api:3.0.0")
+        implementation("com.airbnb.viaduct:runtime:3.0.0")
+        implementation("com.airbnb.viaduct:javaapi-api:3.0.0")
+        implementation("com.airbnb.viaduct:javaapi-runtime:3.0.0")
+        runtimeOnly("org.jetbrains.kotlin:kotlin-reflect:2.3.21")
+        runtimeOnly("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")
     }
 
     application {
@@ -129,7 +152,7 @@ cd viaduct-hello-world
     }
     ```
 
-    Use the same Viaduct version for the settings, application, and Java module plugins and all Viaduct dependencies. This example enables the snapshot repository directly, so it does not need the demo’s environment flag. `kotlin-reflect` is a runtime dependency of Viaduct; you do not need Kotlin source files or the Kotlin JVM plugin.
+    Use the same Viaduct version for the settings, application, and Java module plugins and all Viaduct dependencies. Viaduct does not bundle `kotlin-reflect` or `kotlinx-coroutines`, so the application declares them as runtime dependencies; you do not need Kotlin source files or the Kotlin JVM plugin.
 
 ### Creating the Schema
 
@@ -200,6 +223,11 @@ extend type Query {
     ```java
     package com.example.viadapp;
 
+    import viaduct.service.BasicViaductFactory;
+    import viaduct.service.api.ExecutionInput;
+    import viaduct.service.api.SchemaId;
+    import viaduct.service.api.Viaduct;
+
     public final class ViaductApplication {
         public static void main(String[] args) {
             Viaduct viaduct = BasicViaductFactory.create();
@@ -218,6 +246,10 @@ extend type Query {
     ```java
     package com.example.viadapp.resolvers;
 
+    import com.example.viadapp.resolvers.resolverbases.QueryResolvers;
+    import java.util.concurrent.CompletableFuture;
+    import viaduct.java.api.annotations.Resolver;
+
     @Resolver
     public final class GreetingResolver extends QueryResolvers.Greeting {
         @Override
@@ -231,6 +263,10 @@ extend type Query {
 
     ```java
     package com.example.viadapp.resolvers;
+
+    import com.example.viadapp.resolvers.resolverbases.QueryResolvers;
+    import java.util.concurrent.CompletableFuture;
+    import viaduct.java.api.annotations.Resolver;
 
     @Resolver
     public final class AuthorResolver extends QueryResolvers.Author {

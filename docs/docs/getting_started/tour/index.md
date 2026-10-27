@@ -131,6 +131,10 @@ Each resolver is a class that extends a generated base class and overrides the `
     ```java
     package com.example.viadapp.resolvers;
 
+    import com.example.viadapp.resolvers.resolverbases.QueryResolvers;
+    import java.util.concurrent.CompletableFuture;
+    import viaduct.java.api.annotations.Resolver;
+
     @Resolver
     public final class GreetingResolver extends QueryResolvers.Greeting {
         @Override
@@ -160,8 +164,8 @@ At the top of `build.gradle.kts` you'll see:
     plugins {
         application
         `java-library`
-        id("com.airbnb.viaduct.application-gradle-plugin") version "2.1.0-SNAPSHOT"
-        id("com.airbnb.viaduct.module-java-gradle-plugin") version "2.1.0-SNAPSHOT"
+        id("com.airbnb.viaduct.application-gradle-plugin") version "3.0.0"
+        id("com.airbnb.viaduct.module-java-gradle-plugin") version "3.0.0"
     }
     ```
 

@@ -30,7 +30,7 @@ Viaduct is compatible with the following versions:
 
 Both walkthroughs preserve the same steps for Kotlin and Java. Select a language tab and follow it through the application tour and extension exercise.
 
-The Java demo uses `2.1.0-SNAPSHOT`, so the commands include `USE_VIADUCT_SNAPSHOT_REPO=true` to enable the snapshot repository. Use Git Bash for these commands on Windows.
+The Java demo builds against the current Viaduct development snapshot, so the commands include `USE_VIADUCT_SNAPSHOT_REPO=true` to enable the snapshot repository. Use Git Bash for these commands on Windows.
 
 There are two ways to set up your first Viaduct application based on your preference:
 

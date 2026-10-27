@@ -56,7 +56,7 @@ Choose **Kotlin** or **Java** below. Your selection applies to the examples thro
 
 === "Java"
 
-    The Java example is [`starwars-java`](https://github.com/airbnb/viaduct/tree/master/demoapps/starwars-java), a Micronaut service with Java resolvers, a GraphQL endpoint, and a built-in GraphiQL UI.
+    The Java example is [`starwars-java`](https://github.com/airbnb/viaduct/tree/main/demoapps/starwars-java), a Micronaut service with Java resolvers, a GraphQL endpoint, and a built-in GraphiQL UI.
 
     Before you start, make sure you have:
 

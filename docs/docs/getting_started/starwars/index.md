@@ -57,7 +57,7 @@ Follow the instructions in the repository's README to build and run the applicat
 
 === "Java"
 
-    The demo currently uses `2.1.0-SNAPSHOT`. The environment flag enables the snapshot repository for both plugins and dependencies. On Windows, use Git Bash for these commands.
+    The demo builds against the current Viaduct development snapshot. The environment flag enables the snapshot repository for both plugins and dependencies. On Windows, use Git Bash for these commands.
 
     ```shell
     USE_VIADUCT_SNAPSHOT_REPO=true ./gradlew test
