@@ -12,6 +12,8 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
 import viaduct.engine.api.Coordinate
 import viaduct.engine.api.Engine
 import viaduct.engine.api.EngineExecutionContext
@@ -86,7 +88,7 @@ class EngineExecutionContextImplTest {
     }
 
     @Test
-    fun `combines field selectivity provider and registry metadata`() {
+    fun `mat eligibility combines field selectivity provider and registry metadata`() {
         val dispatcherRegistry =
             createDispatcherRegistry(
                 fieldResolverExecutors =
@@ -109,9 +111,64 @@ class EngineExecutionContextImplTest {
                 dispatcherRegistry = dispatcherRegistry,
             )
 
-        assertTrue(context.isResolverSelective(providerSelectiveCoordinate))
-        assertTrue(context.isResolverSelective(registrySelectiveCoordinate))
-        assertFalse(context.isResolverSelective(nonSelectiveCoordinate))
+        assertTrue(context.isFieldMatEligible(providerSelectiveCoordinate))
+        assertTrue(context.isFieldMatEligible(registrySelectiveCoordinate))
+        assertFalse(context.isFieldMatEligible(nonSelectiveCoordinate))
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = [false, true])
+    fun `field mat killswitch overrides either selectivity source without disabling other fields`(fromRegistry: Boolean) {
+        val dispatcherRegistry = createDispatcherRegistry(
+            fieldResolverExecutors = mapOf(
+                registrySelectiveCoordinate to MockFieldUnbatchedResolverExecutor(
+                    isSelective = true,
+                    resolverId = "registry-selective",
+                ),
+            ),
+        )
+        val coordinates = listOf(providerSelectiveCoordinate, registrySelectiveCoordinate)
+        val disabled = if (fromRegistry) registrySelectiveCoordinate else providerSelectiveCoordinate
+
+        val context = engineExecutionContext(
+            flagManager = object : FlagManager by MockFlagManager.Disabled {
+                override fun isFieldMatResolutionDisabled(
+                    typeName: String,
+                    fieldName: String
+                ): Boolean = (typeName to fieldName) == disabled
+            },
+            dispatcherRegistry = dispatcherRegistry,
+        )
+
+        coordinates.forEach { coordinate ->
+            if (coordinate == disabled) {
+                assertFalse(context.isFieldMatEligible(coordinate), "$coordinate should be disabled")
+            } else {
+                assertTrue(context.isFieldMatEligible(coordinate), "$coordinate should remain eligible for mat")
+            }
+        }
+        assertFalse(context.isFieldMatEligible(nonSelectiveCoordinate))
+    }
+
+    @Test
+    fun `field mat killswitch observes flag changes without rebuilding the context`() {
+        var disabled = false
+        val context = engineExecutionContext(
+            object : FlagManager by MockFlagManager.Disabled {
+                override fun isFieldMatResolutionDisabled(
+                    typeName: String,
+                    fieldName: String
+                ): Boolean = (typeName to fieldName) == providerSelectiveCoordinate && disabled
+            },
+        )
+
+        assertTrue(context.isFieldMatEligible(providerSelectiveCoordinate))
+        disabled = true
+        assertFalse(context.isFieldMatEligible(providerSelectiveCoordinate))
+        assertFalse(context.copy().isFieldMatEligible(providerSelectiveCoordinate))
+        assertFalse(context.forkForShadowExecution().isFieldMatEligible(providerSelectiveCoordinate))
+        disabled = false
+        assertTrue(context.isFieldMatEligible(providerSelectiveCoordinate))
     }
 
     @Test

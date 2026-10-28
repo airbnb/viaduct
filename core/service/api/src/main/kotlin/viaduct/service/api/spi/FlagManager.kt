@@ -18,6 +18,16 @@ interface FlagManager {
      */
     fun isEnabled(flag: Flag): Boolean
 
+    /**
+     * Returns whether mat resolution is disabled for a field; defaults to no exclusions.
+     * Called per selective field on the execution hot path; implementations should cache request-level configuration.
+     * Implementations must return quickly and return false on evaluation failure without throwing.
+     */
+    fun isFieldMatResolutionDisabled(
+        typeName: String,
+        fieldName: String
+    ): Boolean = false
+
     /** A [FlagManager] that reports all flags as disabled. */
     @StableApi
     object Disabled : FlagManager {

@@ -192,16 +192,23 @@ public final class viaduct/service/api/spi/ErrorReporter$Metadata$Companion {
 
 public abstract interface class viaduct/service/api/spi/FlagManager {
 	public abstract fun isEnabled (Lviaduct/service/api/spi/FlagManager$Flag;)Z
+	public fun isFieldMatResolutionDisabled (Ljava/lang/String;Ljava/lang/String;)Z
 }
 
 public final class viaduct/service/api/spi/FlagManager$Default : viaduct/service/api/spi/FlagManager {
 	public static final field INSTANCE Lviaduct/service/api/spi/FlagManager$Default;
 	public fun isEnabled (Lviaduct/service/api/spi/FlagManager$Flag;)Z
+	public fun isFieldMatResolutionDisabled (Ljava/lang/String;Ljava/lang/String;)Z
+}
+
+public final class viaduct/service/api/spi/FlagManager$DefaultImpls {
+	public static fun isFieldMatResolutionDisabled (Lviaduct/service/api/spi/FlagManager;Ljava/lang/String;Ljava/lang/String;)Z
 }
 
 public final class viaduct/service/api/spi/FlagManager$Disabled : viaduct/service/api/spi/FlagManager {
 	public static final field INSTANCE Lviaduct/service/api/spi/FlagManager$Disabled;
 	public fun isEnabled (Lviaduct/service/api/spi/FlagManager$Flag;)Z
+	public fun isFieldMatResolutionDisabled (Ljava/lang/String;Ljava/lang/String;)Z
 }
 
 public abstract interface class viaduct/service/api/spi/FlagManager$Flag {

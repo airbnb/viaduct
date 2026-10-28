@@ -13,6 +13,12 @@ class FlagManagerTest {
     }
 
     @Test
+    fun `field mat killswitch is disabled by default`() {
+        assertFalse(FlagManager.Default.isFieldMatResolutionDisabled("Query", "searchResult"))
+        assertFalse(FlagManager.Disabled.isFieldMatResolutionDisabled("Query", "searchResult"))
+    }
+
+    @Test
     fun `FlagManager_default returns false for mat resolution`() {
         assertFalse(FlagManager.Default.isEnabled(Flags.ENABLE_MAT_RESOLUTION))
     }

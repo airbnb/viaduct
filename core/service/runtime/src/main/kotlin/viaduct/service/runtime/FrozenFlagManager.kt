@@ -9,7 +9,7 @@ import viaduct.service.api.spi.FlagManager
 internal class FrozenFlagManager(
     private val delegate: FlagManager,
     vararg frozenFlags: FlagManager.Flag,
-) : FlagManager {
+) : FlagManager by delegate {
     private val frozenValues = frozenFlags.toSet().associateWith(delegate::isEnabled)
 
     override fun isEnabled(flag: FlagManager.Flag): Boolean = frozenValues[flag] ?: delegate.isEnabled(flag)

@@ -116,7 +116,7 @@ fun EngineTestModule.runStandardViaductFeatureTest(
             .withLenientResolverValidation()
             .allowSubscriptions(true)
             .withFlagManager(
-                object : FlagManager {
+                object : FlagManager by config.flagManager {
                     override fun isEnabled(flag: FlagManager.Flag): Boolean =
                         when (flag) {
                             FlagManager.Flags.ENGINE2_ENABLED -> engine2Enabled

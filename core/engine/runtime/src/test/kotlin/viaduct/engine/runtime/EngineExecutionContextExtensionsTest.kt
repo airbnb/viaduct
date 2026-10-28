@@ -29,7 +29,7 @@ import viaduct.engine.runtime.EngineExecutionContextExtensions.dataFetchingEnvir
 import viaduct.engine.runtime.EngineExecutionContextExtensions.dispatcherRegistry
 import viaduct.engine.runtime.EngineExecutionContextExtensions.fieldRssOriginFilteringKillSwitchEnabled
 import viaduct.engine.runtime.EngineExecutionContextExtensions.hasResolver
-import viaduct.engine.runtime.EngineExecutionContextExtensions.isResolverSelective
+import viaduct.engine.runtime.EngineExecutionContextExtensions.isFieldMatEligible
 import viaduct.engine.runtime.EngineExecutionContextExtensions.setExecutionHandle
 import viaduct.engine.runtime.execution.ExecutionTestHelpers
 import viaduct.engine.runtime.mocks.ContextMocks
@@ -281,7 +281,7 @@ class EngineExecutionContextExtensionsTest {
         }
 
         val exception = assertThrows<IllegalStateException> {
-            fakeContext.isResolverSelective
+            fakeContext.isFieldMatEligible
         }
         assertTrue(exception.message!!.contains("Expected InternalEngineExecutionContext"))
     }

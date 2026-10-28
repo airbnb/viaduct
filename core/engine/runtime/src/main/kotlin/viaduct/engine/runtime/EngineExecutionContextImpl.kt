@@ -12,6 +12,7 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.function.Supplier
 import viaduct.engine.api.Caller
 import viaduct.engine.api.CompleteSelectionSetOptions
+import viaduct.engine.api.Coordinate
 import viaduct.engine.api.Engine
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
@@ -76,7 +77,9 @@ class EngineExecutionContextFactory(
         requestContext: Any?,
         incrementalExecution: Boolean = true,
     ): EngineExecutionContext {
-        val isResolverSelective = fieldSelectivity
+        val isFieldMatEligible: (Coordinate) -> Boolean = { coordinate ->
+            fieldSelectivity(coordinate) && !flagManager.isFieldMatResolutionDisabled(coordinate.first, coordinate.second)
+        }
 
         return EngineExecutionContextImpl(
             fullSchema,
@@ -94,7 +97,7 @@ class EngineExecutionContextFactory(
             engine,
             globalIDCodec,
             meterRegistry,
-            isResolverSelective,
+            isFieldMatEligible,
             ownedSelectionProjector,
             materializedFieldValueReader,
             incrementalExecutionEnabled = incrementalExecution && flagManager.isEnabled(FlagManager.Flags.ENABLE_INCREMENTAL_EXECUTION),
@@ -141,7 +144,7 @@ class EngineExecutionContextImpl internal constructor(
     override val engine: Engine,
     override val globalIDCodec: GlobalIDCodec,
     private val meterRegistry: MeterRegistry?,
-    val isResolverSelective: IsResolverSelective,
+    val isFieldMatEligible: (Coordinate) -> Boolean,
     private val ownedSelectionProjector: ResolverSelectionProjector,
     internal val materializedFieldValueReader: MaterializedFieldValueReader,
     var dataFetchingEnvironment: DataFetchingEnvironment? = null,
@@ -382,7 +385,7 @@ class EngineExecutionContextImpl internal constructor(
             engine = this.engine,
             globalIDCodec = this.globalIDCodec,
             meterRegistry = this.meterRegistry,
-            isResolverSelective = this.isResolverSelective,
+            isFieldMatEligible = this.isFieldMatEligible,
             ownedSelectionProjector = this.ownedSelectionProjector,
             materializedFieldValueReader = this.materializedFieldValueReader,
             dataFetchingEnvironment = dataFetchingEnvironment,
@@ -414,7 +417,7 @@ class EngineExecutionContextImpl internal constructor(
             engine = engine,
             globalIDCodec = globalIDCodec,
             meterRegistry = meterRegistry,
-            isResolverSelective = isResolverSelective,
+            isFieldMatEligible = isFieldMatEligible,
             ownedSelectionProjector = ownedSelectionProjector,
             materializedFieldValueReader = materializedFieldValueReader,
             matBatchDepth = 0,

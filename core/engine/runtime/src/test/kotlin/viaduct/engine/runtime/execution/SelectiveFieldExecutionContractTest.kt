@@ -85,6 +85,48 @@ class SelectiveFieldExecutionContractTest : SelectiveFieldExecutionContract, Eng
     @Nested
     inner class BasicExecutionTests {
         @Test
+        fun `field mat killswitch skips the modern field ledger while other fields retain mat`() {
+            MockTenantModuleBootstrapper(
+                """
+                    extend type Query { enabled: Foo, disabled: Foo }
+                    type Foo { value: Int }
+                """.trimIndent(),
+            ) {
+                listOf("enabled", "disabled").forEach { fieldName ->
+                    field("Query" to fieldName) {
+                        resolverExecutor {
+                            MockFieldUnbatchedResolverExecutor(
+                                isSelective = true,
+                                resolverId = resolverId,
+                                unbatchedResolveFn = { _, _, _, _, _ -> createEngineObjectData("Foo") },
+                            )
+                        }
+                    }
+                }
+                field("Foo" to "value") {
+                    resolver {
+                        fn { _, _, _, _, context ->
+                            val parameters = context.executionHandle as ExecutionParameters
+                            if (parameters.currentObjectEngineResult.matSource == null) 0 else 1
+                        }
+                    }
+                }
+            }.runEngineFeatureTest(
+                engineConfig = EngineConfiguration.featureTestDefault.copy(
+                    flagManager = object : FlagManager by MockFlagManager.create(FlagManager.Flags.ENABLE_MAT_RESOLUTION) {
+                        override fun isFieldMatResolutionDisabled(
+                            typeName: String,
+                            fieldName: String
+                        ): Boolean = typeName == "Query" && fieldName == "disabled"
+                    },
+                ),
+            ) {
+                runQueryWithTimeout("{ enabled { value } disabled { value } }")
+                    .assertJson("{data: {enabled: {value: 1}, disabled: {value: 0}}}")
+            }
+        }
+
+        @Test
         fun `selective reruns reuse replacement children while resolving nested data`() {
             val depth = 6
             val providerCalls = AtomicInteger()

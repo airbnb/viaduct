@@ -7,6 +7,7 @@ import io.kotest.property.arbitrary.of
 import io.kotest.property.forAll
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Test
 import viaduct.service.api.spi.FlagManager.Flag
 import viaduct.service.api.spi.FlagManager.Flags
@@ -38,6 +39,12 @@ class MockFlagManagerTest {
                 assert(flagMgr.isEnabled(flag) == enabledFlags.contains(flag))
             }
         }
+
+    @Test
+    fun `enabling ordinary flags does not disable field mat resolution`() {
+        assertFalse(MockFlagManager.RuntimeFlagsEnabled.isFieldMatResolutionDisabled("Query", "foo"))
+        assertFalse(MockFlagManager.Enabled.isFieldMatResolutionDisabled("Query", "foo"))
+    }
 
     @Test
     fun `runtime flags exclude construction-time gates`() {

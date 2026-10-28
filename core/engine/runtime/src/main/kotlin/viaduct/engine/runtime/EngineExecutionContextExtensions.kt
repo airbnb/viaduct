@@ -6,6 +6,7 @@ import graphql.execution.instrumentation.Instrumentation
 import graphql.schema.DataFetchingEnvironment
 import java.util.function.Supplier
 import viaduct.engine.api.Caller
+import viaduct.engine.api.Coordinate
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.ExecutionAttribution
@@ -53,8 +54,8 @@ object EngineExecutionContextExtensions {
     val EngineExecutionContext.resolverInstrumentation: Instrumentation
         get() = asImpl().resolverInstrumentation
 
-    val EngineExecutionContext.isResolverSelective: IsResolverSelective
-        get() = asImpl().isResolverSelective
+    val EngineExecutionContext.isFieldMatEligible: (Coordinate) -> Boolean
+        get() = asImpl().isFieldMatEligible
 
     var EngineExecutionContext.dataFetchingEnvironment: DataFetchingEnvironment?
         get() = asImpl().dataFetchingEnvironment
