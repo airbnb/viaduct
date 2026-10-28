@@ -82,4 +82,12 @@ class ExecutionAttributionTest {
             assertEquals("${type.name}:$name", tagValue)
         }
     }
+
+    @Test
+    fun `toTagString returns the same instance on every call`() {
+        val attribution = ExecutionAttribution.fromResolver("myResolver")
+
+        assertSame(attribution.toTagString(), attribution.toTagString())
+        assertEquals(null, ExecutionAttribution.DEFAULT.toTagString())
+    }
 }

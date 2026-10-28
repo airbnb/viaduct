@@ -30,7 +30,9 @@ data class ResolverMetadata(
     val tenantMetadata: TenantModuleMetadata? = null,
     val isRemote: Boolean = false,
 ) {
-    fun toTagString(): String = flavor + ":" + name
+    private val tagString: String = "$flavor:$name"
+
+    fun toTagString(): String = tagString
 
     companion object {
         fun forModern(

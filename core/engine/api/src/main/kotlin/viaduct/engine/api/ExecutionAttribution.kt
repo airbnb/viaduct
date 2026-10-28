@@ -39,11 +39,7 @@ data class ExecutionAttribution private constructor(
     /**
      * Converts the attribution to a tag string in the format "type:name".
      */
-    fun toTagString(): String? {
-        return if (type != null && name != null) {
-            "$type:$name"
-        } else {
-            null
-        }
-    }
+    private val tagString: String? = if (type != null && name != null) "$type:$name" else null
+
+    fun toTagString(): String? = tagString
 }
