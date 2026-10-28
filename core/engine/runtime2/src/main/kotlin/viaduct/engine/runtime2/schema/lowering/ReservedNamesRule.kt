@@ -67,7 +67,7 @@ internal class ReservedNamesRule :
         name: String,
         location: SchemaLocation,
     ) {
-        if (LOWERING_SYNTHETIC_NAME_TOKEN in name) {
+        if (containsSyntheticNameToken(name)) {
             ctx.reportError(
                 code = "QPLAN_RESERVED_NAME",
                 message =

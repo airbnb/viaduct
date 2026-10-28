@@ -17,6 +17,32 @@ class LoweredSourceCoordinatesTest {
     }
 
     @Test
+    fun `incidental V_A substrings do not hide source fields or typename`() {
+        val schema =
+            lowerSchema(
+                graphQLSchema(
+                    """
+                    type Query { DEV_API: DEV_API }
+                    type DEV_API { value: String }
+                    """,
+                ),
+            )
+
+        assertSame(
+            schema.requireField("Query", "DEV_API"),
+            schema.loweredFieldFromSourceCoordinate("Query", "DEV_API"),
+        )
+        assertSame(
+            schema.requireField("DEV_API", "value"),
+            schema.loweredFieldFromSourceCoordinate("DEV_API", "value"),
+        )
+        assertSame(
+            schema.requireField("DEV_API", LOWERED_TYPENAME_FIELD),
+            schema.loweredTypenameField("DEV_API"),
+        )
+    }
+
+    @Test
     fun `Node source field retains its source coordinate`() {
         val field = lowered.loweredFieldFromSourceCoordinate("Query", "users")
 
