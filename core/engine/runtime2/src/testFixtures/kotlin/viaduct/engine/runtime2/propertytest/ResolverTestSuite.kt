@@ -1,5 +1,10 @@
 package viaduct.engine.runtime2.propertytest
 
+import java.io.ByteArrayOutputStream
+import java.time.LocalDateTime
+import java.util.zip.ZipEntry
+import java.util.zip.ZipInputStream
+import java.util.zip.ZipOutputStream
 import viaduct.engine.runtime2.arbitrary.GeneratedFieldCheckerMode
 import viaduct.engine.runtime2.arbitrary.GeneratedTypeCheckerMode
 import viaduct.engine.runtime2.arbitrary.GeneratorConfigData
@@ -109,6 +114,7 @@ private fun ResolverTestSuiteDefinition.unselectedRun(selected: ResolverTestCase
 class ResolverTestSuite private constructor(
     val definition: ResolverTestSuiteDefinition,
     private val manifest: ResolverTestSuiteManifest,
+    private val entries: Map<String, ByteArray>,
 ) {
     val batches: List<ResolverTestSuiteBatch>
         get() = manifest.batches
@@ -130,13 +136,13 @@ class ResolverTestSuite private constructor(
             requireNotNull(batches.singleOrNull { batch -> batch.id == batchId }) {
                 "Resolver test suite ${definition.id} holds no batch $batchId; it was removed or never existed"
             }
-        val sdl = readVerified(sdlResource(definition.id, stored.schema), sdlSha256BySchema.getValue(stored.schema))
-        val json = readVerified(shardResource(definition.id, batchId), stored.shardSha256)
+        val sdl = readVerified(sdlEntry(stored.schema), sdlSha256BySchema.getValue(stored.schema))
+        val json = readVerified(shardEntry(batchId), stored.shardSha256)
         val batch =
             try {
                 ResolverTestShardCodec.decode(batchId, sdl, json)
             } catch (failure: IllegalArgumentException) {
-                throw IllegalStateException("Could not decode resolver test suite ${definition.id} batch $batchId from ${shardResource(definition.id, batchId)}", failure)
+                throw IllegalStateException("Could not decode resolver test suite ${definition.id} batch $batchId from ${suiteArchiveResource(definition.id)}!${shardEntry(batchId)}", failure)
             }
         check(ResolverTestShardCodec.ids(batch) == ResolverTestShardIds(stored.schema, stored.registries, stored.queries)) {
             "Resolver test suite ${definition.id} batch $batchId content does not match the IDs in its manifest; $REGENERATE_HINT"
@@ -145,12 +151,12 @@ class ResolverTestSuite private constructor(
     }
 
     private fun readVerified(
-        resource: String,
+        entry: String,
         sha256: String,
     ): ByteArray {
-        val bytes = PropertyTestJson.readResourceBytes(resource)
+        val bytes = definition.readEntry(entries, entry)
         check(bytes.sha256Hash() == sha256) {
-            "Resolver test suite ${definition.id} resource $resource does not match its manifest digest; $REGENERATE_HINT"
+            "Resolver test suite ${definition.id} entry $entry does not match its manifest digest; $REGENERATE_HINT"
         }
         return bytes
     }
@@ -223,7 +229,8 @@ class ResolverTestSuite private constructor(
 
     companion object {
         fun load(definition: ResolverTestSuiteDefinition): ResolverTestSuite {
-            val manifest = PropertyTestJson.readResource<ResolverTestSuiteManifest>(manifestResource(definition.id))
+            val entries = readResolverTestSuiteArchive(PropertyTestJson.readResourceBytes(suiteArchiveResource(definition.id)))
+            val manifest = PropertyTestJson.read<ResolverTestSuiteManifest>(definition.readEntry(entries, MANIFEST_ENTRY).inputStream())
             require(manifest.copy(schemas = emptyList(), batches = emptyList()) == definition.manifest(emptyList(), emptyList())) {
                 "Resolver test suite ${definition.id} is stale relative to its definition; $REGENERATE_HINT"
             }
@@ -242,7 +249,7 @@ class ResolverTestSuite private constructor(
                     "Resolver test suite ${definition.id} batch ${batch.id} must list registries and queries, each with a distinct ID"
                 }
             }
-            return ResolverTestSuite(definition, manifest)
+            return ResolverTestSuite(definition, manifest, entries)
         }
     }
 }
@@ -265,17 +272,41 @@ internal fun ResolverTestSuiteDefinition.manifest(
 
 internal fun List<String>.allDistinct(): Boolean = toSet().size == size
 
-fun manifestResource(suiteId: String): String = "$RESOLVER_TEST_SUITES_RESOURCE_ROOT/$suiteId/manifest.json"
+fun suiteArchiveResource(suiteId: String): String = "$RESOLVER_TEST_SUITES_RESOURCE_ROOT/$suiteId.zip"
 
-fun sdlResource(
-    suiteId: String,
-    schemaId: String,
-): String = "$RESOLVER_TEST_SUITES_RESOURCE_ROOT/$suiteId/schema-$schemaId.graphqls.gz"
+const val MANIFEST_ENTRY = "manifest.json"
 
-fun shardResource(
-    suiteId: String,
-    batchId: String,
-): String = "$RESOLVER_TEST_SUITES_RESOURCE_ROOT/$suiteId/batch-$batchId.json.gz"
+fun sdlEntry(schemaId: String): String = "schema-$schemaId.graphqls.gz"
+
+fun shardEntry(batchId: String): String = "batch-$batchId.json.gz"
+
+fun readResolverTestSuiteArchive(bytes: ByteArray): Map<String, ByteArray> =
+    ZipInputStream(bytes.inputStream()).use { zip ->
+        generateSequence { zip.nextEntry }.associate { entry -> entry.name to zip.readBytes() }
+    }
+
+// A fixed entry time keeps regenerated archives byte-identical.
+internal fun writeResolverTestSuiteArchive(entries: Map<String, ByteArray>): ByteArray =
+    ByteArrayOutputStream().use { output ->
+        ZipOutputStream(output).use { zip ->
+            entries.forEach { (name, bytes) ->
+                zip.putNextEntry(ZipEntry(name).apply { timeLocal = ARCHIVE_ENTRY_TIME })
+                zip.write(bytes)
+                zip.closeEntry()
+            }
+        }
+        output.toByteArray()
+    }
+
+private val ARCHIVE_ENTRY_TIME: LocalDateTime = LocalDateTime.of(1980, 1, 1, 0, 0)
+
+private fun ResolverTestSuiteDefinition.readEntry(
+    entries: Map<String, ByteArray>,
+    entry: String,
+): ByteArray =
+    requireNotNull(entries[entry]) {
+        "Resolver test suite $id archive ${suiteArchiveResource(id)} holds no entry $entry; $REGENERATE_HINT"
+    }
 
 // Generation order is fixed by the suite's seed, so a batch keeps its ordinal when other batches are pruned from the manifest.
 internal fun resolverTestBatchId(ordinal: Int): String = "b" + ordinal.toString().padStart(3, '0')

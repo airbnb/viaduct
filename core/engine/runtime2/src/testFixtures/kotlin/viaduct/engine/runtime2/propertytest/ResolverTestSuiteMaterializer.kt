@@ -39,10 +39,9 @@ object ResolverTestSuiteMaterializer {
         definition: ResolverTestSuiteDefinition,
         generated: List<ResolverTestBatch>,
     ) {
-        val manifestPath = resourcesRoot.resolve(manifestResource(definition.id))
-        val suiteDirectory = manifestPath.parent
-        Files.createDirectories(suiteDirectory)
-        Files.list(suiteDirectory).use { files -> files.forEach(Files::delete) }
+        val archivePath = resourcesRoot.resolve(suiteArchiveResource(definition.id))
+        Files.createDirectories(archivePath.parent)
+        val shards = linkedMapOf<String, ByteArray>()
         val sdlBySchema = linkedMapOf<String, ByteArray>()
         val batches =
             generated.mapIndexed { offset, generatedBatch ->
@@ -60,11 +59,14 @@ object ResolverTestSuiteMaterializer {
                 check(sdlBySchema.getOrPut(ids.schema) { shard.sdl }.contentEquals(shard.sdl)) {
                     "Suite ${definition.id} has distinct schemas whose IDs collide at ${ids.schema}"
                 }
-                Files.write(resourcesRoot.resolve(shardResource(definition.id, batchId)), shard.json)
+                shards[shardEntry(batchId)] = shard.json
                 ResolverTestSuiteBatch(batchId, ids.schema, shard.json.sha256Hash(), ids.registries, ids.queries)
             }
-        sdlBySchema.forEach { (schemaId, sdl) -> Files.write(resourcesRoot.resolve(sdlResource(definition.id, schemaId)), sdl) }
         val schemas = sdlBySchema.map { (schemaId, sdl) -> ResolverTestSuiteSchema(schemaId, sdl.sha256Hash()) }
-        Files.writeString(manifestPath, PropertyTestJson.write(definition.manifest(schemas, batches)))
+        val entries =
+            linkedMapOf(MANIFEST_ENTRY to PropertyTestJson.write(definition.manifest(schemas, batches)).toByteArray()) +
+                sdlBySchema.mapKeys { (schemaId, _) -> sdlEntry(schemaId) } +
+                shards
+        Files.write(archivePath, writeResolverTestSuiteArchive(entries))
     }
 }

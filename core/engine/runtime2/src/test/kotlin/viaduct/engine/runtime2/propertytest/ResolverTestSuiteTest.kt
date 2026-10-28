@@ -76,15 +76,18 @@ class ResolverTestSuiteTest {
 
             ResolverTestSuiteMaterializer.write(root, definition, listOf(first, second))
 
-            val manifest = PropertyTestJson.read<ResolverTestSuiteManifest>(Files.readString(root.resolve(manifestResource(definition.id))))
+            val entries = readResolverTestSuiteArchive(Files.readAllBytes(root.resolve(suiteArchiveResource(definition.id))))
+            val manifest = PropertyTestJson.read<ResolverTestSuiteManifest>(entries.getValue(MANIFEST_ENTRY).inputStream())
             val schemaId = ResolverTestShardCodec.ids(batch).schema
             assertEquals(listOf(ResolverTestSuiteSchema(schemaId, ResolverTestShardCodec.encode("b001", batch).sdl.sha256Hash())), manifest.schemas)
             assertEquals(listOf("b001", "b002"), manifest.batches.map(ResolverTestSuiteBatch::id))
             val storedIds = manifest.batches.map { stored -> ResolverTestShardIds(stored.schema, stored.registries, stored.queries) }
             assertEquals(listOf(ResolverTestShardCodec.ids(first), ResolverTestShardCodec.ids(second)), storedIds)
             assertTrue(manifest.batches[0].registries != manifest.batches[1].registries && manifest.batches[0].queries != manifest.batches[1].queries)
-            val files = Files.list(root.resolve(manifestResource(definition.id)).parent).use { paths -> paths.map { path -> path.fileName.toString() }.sorted().toList() }
-            assertEquals(listOf("batch-b001.json.gz", "batch-b002.json.gz", "manifest.json", "schema-$schemaId.graphqls.gz"), files)
+            assertEquals(listOf("batch-b001.json.gz", "batch-b002.json.gz", "manifest.json", "schema-$schemaId.graphqls.gz"), entries.keys.sorted())
+            val archive = Files.readAllBytes(root.resolve(suiteArchiveResource(definition.id)))
+            ResolverTestSuiteMaterializer.write(root, definition, listOf(first, second))
+            assertTrue(archive.contentEquals(Files.readAllBytes(root.resolve(suiteArchiveResource(definition.id)))), "rewriting a suite changed its archive bytes")
         }
 
     @ParameterizedTest
@@ -109,8 +112,9 @@ class ResolverTestSuiteTest {
             val stored = ResolverTestSuite.load(definition).batches.first()
 
             assertEquals(ResolverTestSuiteBatch("b001", ids.schema, shard.json.sha256Hash(), ids.registries, ids.queries), stored)
-            assertTrue(PropertyTestJson.readResourceBytes(sdlResource(definition.id, ids.schema)).contentEquals(shard.sdl), sdlResource(definition.id, ids.schema))
-            assertTrue(PropertyTestJson.readResourceBytes(shardResource(definition.id, "b001")).contentEquals(shard.json), shardResource(definition.id, "b001"))
+            val entries = readResolverTestSuiteArchive(PropertyTestJson.readResourceBytes(suiteArchiveResource(definition.id)))
+            assertTrue(entries.getValue(sdlEntry(ids.schema)).contentEquals(shard.sdl), sdlEntry(ids.schema))
+            assertTrue(entries.getValue(shardEntry("b001")).contentEquals(shard.json), shardEntry("b001"))
         }
 
     @Test
