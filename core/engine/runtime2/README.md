@@ -17,13 +17,13 @@ Major exclusions from the current Engine API integration include batching, mutat
 ## Source Layout
 
 - [`src/main`](src/main) contains the production model, schema lowering, bootstrap, execution integration, Resolution, and the shared production resolution framework. The `viaduct.engine.runtime2.model` package deliberately uses stylized Kotlin as an executable semantic model rather than as a conventional object-oriented domain model. Only this source set is published.
-- [`src/support`](src/support) contains the numbered reference resolver implementations, correctness machinery, generators, benchmark support, and neutral development fixtures. It is development support and is not published.
-- [`src/test/kotlin`](src/test/kotlin) contains the tests, while [`src/test/fixtures`](src/test/fixtures) contains reusable JUnit contracts and fixtures.
+- [`src/testFixtures`](src/testFixtures) contains the numbered reference resolver implementations, correctness machinery, generators, benchmark support, and neutral development fixtures. It is a plain `testFixtures` source set without the `java-test-fixtures` plugin, so it is not published.
+- [`src/test/kotlin`](src/test/kotlin) contains the tests and the reusable JUnit contracts and fixtures.
 - [`src/jmh`](src/jmh) contains benchmarks and benchmark resources.
 
 ## Resolver Families
 
-The numbered implementations under [`src/support/kotlin/viaduct/engine/runtime2/resolvers`](src/support/kotlin/viaduct/engine/runtime2/resolvers) are maintained development references, not production engine choices or superseded historical snapshots. The queue-based depth-first family is resolver06–08 and the coroutine family is resolver21–23; these are not a continuous sequence of versions. The [comparison grid](impldocs/architecture/resolver-families.md#comparison-grid) links each implementation and explains its capabilities. They serve two purposes:
+The numbered implementations under [`src/testFixtures/kotlin/viaduct/engine/runtime2/resolvers`](src/testFixtures/kotlin/viaduct/engine/runtime2/resolvers) are maintained development references, not production engine choices or superseded historical snapshots. The queue-based depth-first family is resolver06–08 and the coroutine family is resolver21–23; these are not a continuous sequence of versions. The [comparison grid](impldocs/architecture/resolver-families.md#comparison-grid) links each implementation and explains its capabilities. They serve two purposes:
 
 1. They impose architectural integrity on production Resolution by expressing the same semantic roles and boundaries across increasingly sophisticated execution structures while keeping essential differences explicit.
 2. They provide a feature-development ladder: establish a feature in Resolver06–08, carry it into Resolver21–23, and then implement it in production Resolution.
@@ -38,7 +38,7 @@ Open the repository root in IntelliJ and import the repository Gradle build. Fro
 ./gradlew :core:engine:runtime2:check
 ```
 
-Runtime2 tasks do not support Gradle configuration caching. Kotlin compilation, static analysis, and coverage use repository conventions. Tests and benchmarks can see the unpublished `support` source set; the Runtime2 JAR and runtime publication contain only `main` output.
+Runtime2 tasks do not support Gradle configuration caching. Kotlin compilation, static analysis, and coverage use repository conventions. Tests and benchmarks can see the unpublished `testFixtures` source set; the Runtime2 JAR and runtime publication contain only `main` output.
 
 The vendored GraphQL specification and its rendering build are in [`impldocs/graphql-spec`](impldocs/graphql-spec).
 

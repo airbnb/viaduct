@@ -75,8 +75,8 @@ val resolverBenchmarkRegistryFile =
 tasks.register<JavaExec>("generateResolverBenchmarkCorpus") {
     group = "benchmark"
     description = "Searches generated schema/registry pairs and writes the overhead benchmark corpus."
-    dependsOn("supportClasses")
-    classpath = sourceSets["support"].runtimeClasspath
+    dependsOn("testFixturesClasses")
+    classpath = sourceSets["testFixtures"].runtimeClasspath
     mainClass.set("viaduct.engine.runtime2.benchmark.ResolverBenchmarkCorpusSearch")
     maxHeapSize = "4g"
     inputs.property("seed", resolverBenchmarkCorpusSeed)
@@ -101,8 +101,8 @@ tasks.register<JavaExec>("generateResolverBenchmarkCorpus") {
 tasks.register<JavaExec>("generateResolverBenchmarkQueries") {
     group = "benchmark"
     description = "Snapshots the exact query batch for the resolver overhead benchmarks."
-    dependsOn("supportClasses")
-    classpath = sourceSets["support"].runtimeClasspath
+    dependsOn("testFixturesClasses")
+    classpath = sourceSets["testFixtures"].runtimeClasspath
     mainClass.set("viaduct.engine.runtime2.benchmark.ResolverBenchmarkQueryCorpusWriter")
     inputs.file(resolverBenchmarkCorpusDirectory.file("schema.graphqls"))
     inputs.file(resolverBenchmarkRegistryFile)
@@ -129,8 +129,8 @@ val propertyTestBenchmarkCorpusDirectory =
 tasks.register<JavaExec>("generatePropertyTestBenchmarkCorpus") {
     group = "benchmark"
     description = "Snapshots the historical Resolution property-test benchmark case."
-    dependsOn("supportClasses")
-    classpath = sourceSets["support"].runtimeClasspath + files(sourceSets["test"].resources.srcDirs)
+    dependsOn("testFixturesClasses")
+    classpath = sourceSets["testFixtures"].runtimeClasspath + files(sourceSets["test"].resources.srcDirs)
     mainClass.set("viaduct.engine.runtime2.resolution.PropertyTestBenchmarkCorpusWriter")
     maxHeapSize = "4g"
     outputs.dir(propertyTestBenchmarkCorpusDirectory)
@@ -536,8 +536,8 @@ tasks.named<Test>("test") {
 tasks.register<JavaExec>("materializeGeneratorConfigs") {
     group = "verification"
     description = "Materializes complete Resolution generator-profile JSON files."
-    dependsOn("supportClasses")
-    classpath = sourceSets["support"].runtimeClasspath + files(sourceSets["test"].resources.srcDirs)
+    dependsOn("testFixturesClasses")
+    classpath = sourceSets["testFixtures"].runtimeClasspath + files(sourceSets["test"].resources.srcDirs)
     mainClass.set("viaduct.engine.runtime2.propertytest.GeneratorConfigMaterializer")
     val outputDirectory =
         providers
@@ -558,22 +558,22 @@ tasks.register<JavaExec>("materializeGeneratorConfigs") {
 tasks.register<JavaExec>("materializeResolverTestSuites") {
     group = "verification"
     description = "Pre-generates stored resolver property-test suites so tests replay them instead of generating."
-    dependsOn("supportClasses")
-    classpath = sourceSets["support"].output.classesDirs + configurations["supportRuntimeClasspath"]
+    dependsOn("testFixturesClasses")
+    classpath = sourceSets["testFixtures"].output.classesDirs + configurations["testFixturesRuntimeClasspath"]
     mainClass.set("viaduct.engine.runtime2.propertytest.ResolverTestSuiteMaterializer")
     maxHeapSize = "4g"
-    val resourcesRoot = layout.projectDirectory.dir("src/support/resources")
+    val resourcesRoot = layout.projectDirectory.dir("src/testFixtures/resources")
     outputs.dir(resourcesRoot.dir("viaduct/engine/runtime2/property-tests/suites"))
     args(resourcesRoot.asFile.absolutePath)
 }
 
 val propertyTestLauncherJar =
     tasks.register<Jar>("propertyTestLauncherJar") {
-        dependsOn("supportClasses")
+        dependsOn("testFixturesClasses")
         archiveClassifier.set("property-test-launcher")
         duplicatesStrategy = DuplicatesStrategy.EXCLUDE
         from(sourceSets["main"].output)
-        from(sourceSets["support"].output)
+        from(sourceSets["testFixtures"].output)
         from(sourceSets["test"].resources)
         manifest {
             attributes["Main-Class"] =
@@ -590,7 +590,7 @@ val propertyTestLauncherScripts =
         classpath =
             files(
                 propertyTestLauncherJar,
-                configurations["supportRuntimeClasspath"].filter(File::isFile),
+                configurations["testFixturesRuntimeClasspath"].filter(File::isFile),
             )
         defaultJvmOpts = listOf("-Xmx2g")
     }
@@ -607,7 +607,7 @@ tasks.register<Sync>("installPropertyTestRoundLauncher") {
         }
     }
     from(propertyTestLauncherJar)
-    from(configurations["supportRuntimeClasspath"].filter(File::isFile))
+    from(configurations["testFixturesRuntimeClasspath"].filter(File::isFile))
     eachFile {
         if (relativePath.segments.firstOrNull() != "bin") {
             relativePath = RelativePath(true, "lib", name)

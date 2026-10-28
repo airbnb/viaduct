@@ -1,6 +1,7 @@
 package viaduct.engine.runtime2.resolution
 
 import java.util.concurrent.atomic.AtomicBoolean
+import viaduct.apiannotations.InternalApi
 import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.resolution.framework.SharedOERContext
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
@@ -10,7 +11,8 @@ import viaduct.engine.runtime2.resolution.framework.SharedOrchestrationTask
  * Prepared object task with one-shot dispatch and synchronous publication preparation, dispatch, and freezing.
  * Supplies its concretely typed operation through [operation], separately from the task lifecycle.
  */
-internal abstract class CoroutineOrchestrationTaskBase<O : SharedOperationContext<*>>(
+@InternalApi
+abstract class CoroutineOrchestrationTaskBase<O : SharedOperationContext<*>>(
     final override val operation: O,
     final override val objectOER: SharedOERContext,
     queryOER: SharedOERContext =

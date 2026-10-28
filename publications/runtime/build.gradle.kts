@@ -9,18 +9,18 @@ val checkRuntime2Publication = tasks.register("checkRuntime2Publication") {
     group = "verification"
     notCompatibleWithConfigurationCache("Runtime2 publication verification retains runtime2's configuration-cache opt-out.")
     val runtimeJar = tasks.named<ShadowJar>("shadowJar")
-    val supportInventory = providers.systemProperty("viaduct.distDir")
-        .map { file(it).resolve("core/build/engine/runtime2/reports/support-output-inventory.txt") }
-        .orElse(file("../../core/engine/runtime2/build/reports/support-output-inventory.txt"))
+    val testFixtureInventory = providers.systemProperty("viaduct.distDir")
+        .map { file(it).resolve("core/build/engine/runtime2/reports/test-fixtures-output-inventory.txt") }
+        .orElse(file("../../core/engine/runtime2/build/reports/test-fixtures-output-inventory.txt"))
     dependsOn(runtimeJar, gradle.includedBuild("core").task(":engine:runtime2:checkProductionBoundary"))
     inputs.file(runtimeJar.flatMap { it.archiveFile })
-    inputs.file(supportInventory)
+    inputs.file(testFixtureInventory)
     doLast {
-        val excluded = supportInventory.get().readLines().toSet()
+        val excluded = testFixtureInventory.get().readLines().toSet()
         ZipFile(runtimeJar.get().archiveFile.get().asFile).use { archive ->
             val entries = archive.entries().asSequence().map { it.name }.toSet()
             check("viaduct/engine/runtime2/execution/QPlanExecutionStrategy.class" in entries)
-            check(entries.intersect(excluded).isEmpty()) { "Runtime fat JAR contains runtime2 support output" }
+            check(entries.intersect(excluded).isEmpty()) { "Runtime fat JAR contains runtime2 test fixture output" }
         }
     }
 }

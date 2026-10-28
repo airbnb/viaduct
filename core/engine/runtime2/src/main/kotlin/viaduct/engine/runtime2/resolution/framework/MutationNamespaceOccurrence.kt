@@ -1,5 +1,6 @@
 package viaduct.engine.runtime2.resolution.framework
 
+import viaduct.apiannotations.InternalApi
 import viaduct.engine.runtime2.model.MutationObjectEngineResult
 import viaduct.engine.runtime2.model.MutationSelection
 import viaduct.engine.runtime2.model.MutationSelectionForest
@@ -7,7 +8,8 @@ import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.ObjectSelection
 
 /** Prepared namespace shape, shared by the compact, queued, and coroutine mutation traversals. */
-internal class MutationNamespaceOccurrence(
+@InternalApi
+class MutationNamespaceOccurrence(
     val occurrence: OEROccurrence,
     val selections: MutationSelectionForest,
 ) {

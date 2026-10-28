@@ -1,5 +1,6 @@
 package viaduct.engine.runtime2.resolution.framework
 
+import viaduct.apiannotations.InternalApi
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.runtime2.model.EngineErrorData
 import viaduct.engine.runtime2.model.EngineResult
@@ -33,7 +34,8 @@ import viaduct.graphql.schema.ViaductSchema
  * before passive descent; the operation dispatcher schedules its active work afterward.
  * [T] connects the factory's result to the dispatcher's task type; [O] retains the concrete operation type.
  */
-internal abstract class SharedPassiveValueResolutionLogic<
+@InternalApi
+abstract class SharedPassiveValueResolutionLogic<
     T : SharedOrchestrationTask<*>,
     O : SharedOperationContext<SharedTaskDispatcher<T, *, *>>,
 >(

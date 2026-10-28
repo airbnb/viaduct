@@ -1,5 +1,6 @@
 package viaduct.engine.runtime2.resolution.framework
 
+import viaduct.apiannotations.InternalApi
 import viaduct.engine.runtime2.model.InclusionCondition
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.ObjectSelectionForest
@@ -23,7 +24,8 @@ import viaduct.graphql.schema.ViaductSchema
  * Descending through a field establishes the bit from that field's checked provenance, combining
  * demands joins it with logical OR, and local demand closure preserves it.
  */
-internal class Demand<out S : SelectionForest>(
+@InternalApi
+class Demand<out S : SelectionForest>(
     val checked: S,
     val unchecked: S,
     /** Whether the concrete OER at the root of this demand must produce a type-check result. */

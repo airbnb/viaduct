@@ -2,7 +2,7 @@ import java.util.zip.ZipFile
 
 val sourceSets = extensions.getByType<SourceSetContainer>()
 val main = sourceSets["main"]
-val support = sourceSets["support"]
+val testFixtures = sourceSets["testFixtures"]
 val jmh = sourceSets["jmh"]
 
 val checkPackageLayers = tasks.register("checkPackageLayers") {
@@ -38,23 +38,23 @@ val checkPackageLayers = tasks.register("checkPackageLayers") {
 val checkProductionBoundary = tasks.register("checkProductionBoundary") {
     group = "verification"
     val jar = tasks.named<Jar>("jar")
-    val inventory = layout.buildDirectory.file("reports/support-output-inventory.txt")
-    dependsOn(jar, support.classesTaskName, "jmhClasses")
-    inputs.files(jar.flatMap { it.archiveFile }, support.output)
+    val inventory = layout.buildDirectory.file("reports/test-fixtures-output-inventory.txt")
+    dependsOn(jar, testFixtures.classesTaskName, "jmhClasses")
+    inputs.files(jar.flatMap { it.archiveFile }, testFixtures.output)
     outputs.file(inventory)
     outputs.upToDateWhen { false }
     doLast {
         val productionFiles = main.compileClasspath.files + main.runtimeClasspath.files
-        check(productionFiles.intersect(support.output.files).isEmpty()) { "Production consumes support output" }
+        check(productionFiles.intersect(testFixtures.output.files).isEmpty()) { "Production consumes test fixture output" }
         check(jmh.compileClasspath.files.intersect(sourceSets["test"].output.files).isEmpty()) { "JMH consumes test output" }
         check(jmh.runtimeClasspath.files.intersect(sourceSets["test"].output.files).isEmpty()) { "JMH runtime consumes test output" }
-        check(configurations.none { it.isCanBeConsumed && (it.name.startsWith("support") || it.name.startsWith("testFixtures")) }) {
+        check(configurations.none { it.isCanBeConsumed && it.name.startsWith("testFixtures") }) {
             "Development fixtures must not be published"
         }
-        listOf("compileClasspath", "runtimeClasspath", "supportCompileClasspath", "supportRuntimeClasspath").forEach { name ->
+        listOf("compileClasspath", "runtimeClasspath", "testFixturesCompileClasspath", "testFixturesRuntimeClasspath").forEach { name ->
             val components = configurations[name].incoming.resolutionResult.allComponents.mapNotNull { it.moduleVersion }
             check(components.none { it.group.startsWith("org.junit") }) { "$name contains JUnit" }
-            if (!name.startsWith("support")) {
+            if (!name.startsWith("testFixtures")) {
                 check(components.none { it.name.startsWith("kotest-property") || it.name.startsWith("kotest-assertions") || it.group == "org.openjdk.jmh" || it.name.startsWith("kotlin-test") }) {
                     "$name contains development-only dependencies"
                 }
@@ -65,18 +65,18 @@ val checkProductionBoundary = tasks.register("checkProductionBoundary") {
                 ) { "$name contains exported test fixtures" }
             }
         }
-        val supportEntries = support.output.files.filter(File::isDirectory).flatMap { directory ->
+        val testFixtureEntries = testFixtures.output.files.filter(File::isDirectory).flatMap { directory ->
             directory.walkTopDown().filter(File::isFile).map { it.relativeTo(directory).invariantSeparatorsPath }.toList()
         }.toSortedSet()
         ZipFile(jar.get().archiveFile.get().asFile).use { archive ->
-            val leaked = archive.entries().asSequence().map { it.name }.filter { it in supportEntries }.toList()
-            check(leaked.isEmpty()) { "Support output in production JAR: $leaked" }
+            val leaked = archive.entries().asSequence().map { it.name }.filter { it in testFixtureEntries }.toList()
+            check(leaked.isEmpty()) { "Test fixture output in production JAR: $leaked" }
         }
         inventory.get().asFile.apply {
             parentFile.mkdirs()
-            writeText(supportEntries.joinToString("\n", postfix = "\n"))
+            writeText(testFixtureEntries.joinToString("\n", postfix = "\n"))
         }
-        logger.lifecycle("Runtime2 production boundary verified; ${supportEntries.size} support entries excluded.")
+        logger.lifecycle("Runtime2 production boundary verified; ${testFixtureEntries.size} test fixture entries excluded.")
     }
 }
 

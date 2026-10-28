@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Runtime2 maintains six numbered reference implementations under [`src/support/kotlin/viaduct/engine/runtime2/resolvers`](../../src/support/kotlin/viaduct/engine/runtime2/resolvers) alongside [production Resolution](../../src/main/kotlin/viaduct/engine/runtime2/resolution/Resolver.kt). `ResolverNN` identifies the `resolverNN/Resolver.kt` source file, not a production engine option or a continuous sequence of engine versions. The families are maintained for two reasons.
+Runtime2 maintains six numbered reference implementations under [`src/testFixtures/kotlin/viaduct/engine/runtime2/resolvers`](../../src/testFixtures/kotlin/viaduct/engine/runtime2/resolvers) alongside [production Resolution](../../src/main/kotlin/viaduct/engine/runtime2/resolution/Resolver.kt). `ResolverNN` identifies the `resolverNN/Resolver.kt` source file, not a production engine option or a continuous sequence of engine versions. The families are maintained for two reasons.
 
 First, the families protect Resolution's architectural integrity. They express related semantics through explicit depth-first tasks and structured coroutines. Corresponding roles must remain recognizable across those execution structures, while differences required for readiness, identity, ownership, and progress remain explicit.
 
@@ -22,7 +22,7 @@ This document owns the family boundaries, comparison grid, cross-family alignmen
 
 Production Resolution lives in `src/main/kotlin/viaduct/engine/runtime2/resolution`. Contracts and model operations required by both production and development families live in `src/main/kotlin/viaduct/engine/runtime2/resolution/framework`. Coroutine base classes shared by Resolver21–23 and Resolution remain in the production `resolution` package because they implement production scheduling and failure boundaries.
 
-The numbered reference implementations and support used only by those families live in the unpublished `src/support/kotlin/viaduct/engine/runtime2/resolvers` tree. Correctness machinery, generators, benchmarks, and neutral development fixtures also belong to `support`; JUnit contracts and concrete tests belong to `test`. An architectural relationship across source sets does not make an earlier family a production dependency or justify a separate production integration for it.
+The numbered reference implementations and support used only by those families live in the unpublished `src/testFixtures/kotlin/viaduct/engine/runtime2/resolvers` tree. Correctness machinery, generators, benchmarks, and neutral development fixtures also belong to `testFixtures`; JUnit contracts and concrete tests belong to `test`. An architectural relationship across source sets does not make an earlier family a production dependency or justify a separate production integration for it.
 
 Package placement follows semantic ownership, not the number of implementations that call a type. All-family roles belong in `resolution.framework`; earlier-family-only mechanisms belong in `resolvers`; production mechanisms and coroutine-family base machinery belong in `resolution`.
 
@@ -32,9 +32,9 @@ The maintained versions form a refinement and comparison grid, not a chronology.
 
 | Semantic stage | Explicit depth-first tasks | Structured coroutines | Capability |
 | --- | --- | --- | --- |
-| Base | [Resolver06](../../src/support/kotlin/viaduct/engine/runtime2/resolvers/resolver06/Resolver.kt) | [Resolver21](../../src/support/kotlin/viaduct/engine/runtime2/resolvers/resolver21/Resolver.kt) | Empty user object fragments, Query inputs with `FromArgument` and `FromProvider`, and complete output |
-| Object fragments | [Resolver07](../../src/support/kotlin/viaduct/engine/runtime2/resolvers/resolver07/Resolver.kt) | [Resolver22](../../src/support/kotlin/viaduct/engine/runtime2/resolvers/resolver22/Resolver.kt) | Nonempty object fragments with the same argument and provider variable sources, and complete output |
-| Selective resolution | [Resolver08](../../src/support/kotlin/viaduct/engine/runtime2/resolvers/resolver08/Resolver.kt) | [Resolver23](../../src/support/kotlin/viaduct/engine/runtime2/resolvers/resolver23/Resolver.kt) | The same fragment domain with selective output and full successor demand |
+| Base | [Resolver06](../../src/testFixtures/kotlin/viaduct/engine/runtime2/resolvers/resolver06/Resolver.kt) | [Resolver21](../../src/testFixtures/kotlin/viaduct/engine/runtime2/resolvers/resolver21/Resolver.kt) | Empty user object fragments, Query inputs with `FromArgument` and `FromProvider`, and complete output |
+| Object fragments | [Resolver07](../../src/testFixtures/kotlin/viaduct/engine/runtime2/resolvers/resolver07/Resolver.kt) | [Resolver22](../../src/testFixtures/kotlin/viaduct/engine/runtime2/resolvers/resolver22/Resolver.kt) | Nonempty object fragments with the same argument and provider variable sources, and complete output |
+| Selective resolution | [Resolver08](../../src/testFixtures/kotlin/viaduct/engine/runtime2/resolvers/resolver08/Resolver.kt) | [Resolver23](../../src/testFixtures/kotlin/viaduct/engine/runtime2/resolvers/resolver23/Resolver.kt) | The same fragment domain with selective output and full successor demand |
 
 Moving down a column adds semantic capability while holding execution structure roughly constant. Moving across a row changes execution structure while holding semantic capability roughly constant. Resolver08 and Resolver23 are the usual comparison points for production Resolution because both expose selective demand at increasing levels of scheduling sophistication.
 

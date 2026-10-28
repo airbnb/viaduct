@@ -20,7 +20,7 @@ class RequestScopeOwnershipTest {
                 paths.filter { path -> path.fileName.toString().endsWith(".kt") }.toList()
             }
 
-        val sourceRoots = listOf(sourceDirectory.parent, projectDirectory.resolve("src/support/kotlin/viaduct/engine/runtime2"))
+        val sourceRoots = listOf(sourceDirectory.parent, projectDirectory.resolve("src/testFixtures/kotlin/viaduct/engine/runtime2"))
         val allSources = sourceRoots.flatMap { directory ->
             Files.walk(directory).use { paths ->
                 paths.filter { path -> path.fileName.toString().endsWith(".kt") }.toList()

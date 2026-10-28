@@ -69,7 +69,7 @@ producer's output.
 
 ## Output Projection
 
-This section applies to selective producers. [Resolver06](../../src/support/kotlin/viaduct/engine/runtime2/resolvers/resolver06/Resolver.kt) and Resolver07 instead consume each resolver's complete finite returned value.
+This section applies to selective producers. [Resolver06](../../src/testFixtures/kotlin/viaduct/engine/runtime2/resolvers/resolver06/Resolver.kt) and Resolver07 instead consume each resolver's complete finite returned value.
 
 For a producer `P`:
 

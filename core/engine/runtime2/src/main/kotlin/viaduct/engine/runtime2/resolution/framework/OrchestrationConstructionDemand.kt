@@ -1,9 +1,11 @@
 package viaduct.engine.runtime2.resolution.framework
 
+import viaduct.apiannotations.InternalApi
 import viaduct.engine.runtime2.model.SelectionForest
 
 /** Construction demand rooted at the two object results owned by one orchestration task. */
-internal class OrchestrationConstructionDemand<out S : SelectionForest>(
+@InternalApi
+class OrchestrationConstructionDemand<out S : SelectionForest>(
     val objectRooted: Demand<S>,
     val queryRooted: Demand<S>,
 ) {

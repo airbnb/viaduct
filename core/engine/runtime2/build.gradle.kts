@@ -1,6 +1,4 @@
-import io.gitlab.arturbosch.detekt.Detekt
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
-import org.jlleitschuh.gradle.ktlint.tasks.BaseKtLintCheckTask
 
 plugins {
     id("conventions.kotlin")
@@ -9,29 +7,28 @@ plugins {
     id("me.champeau.jmh") version "0.7.3"
 }
 
-val support by sourceSets.creating {
+pluginManager.withPlugin("java-test-fixtures") {
+    throw GradleException("runtime2 test fixtures must stay unpublished, so do not apply java-test-fixtures")
+}
+
+val testFixtures by sourceSets.creating {
     resources.exclude("**/BUILD.bazel")
 }
 
 kotlin {
-    sourceSets.named("test") {
-        kotlin.srcDir("src/test/fixtures")
-    }
     target.compilations {
-        named("support") { associateWith(getByName("main")) }
-        named("test") { associateWith(getByName("support")) }
-        named("jmh") { associateWith(getByName("support")) }
+        named("testFixtures") { associateWith(getByName("main")) }
     }
 }
 
-configurations[support.implementationConfigurationName].extendsFrom(configurations.implementation.get())
-configurations[support.runtimeOnlyConfigurationName].extendsFrom(configurations.runtimeOnly.get())
+configurations[testFixtures.implementationConfigurationName].extendsFrom(configurations.implementation.get())
+configurations[testFixtures.runtimeOnlyConfigurationName].extendsFrom(configurations.runtimeOnly.get())
 listOf("test", "jmh").forEach { sourceSetName ->
-    configurations["${sourceSetName}Implementation"].extendsFrom(configurations[support.implementationConfigurationName])
-    configurations["${sourceSetName}RuntimeOnly"].extendsFrom(configurations[support.runtimeOnlyConfigurationName])
-    dependencies.add("${sourceSetName}Implementation", support.output)
+    configurations["${sourceSetName}Implementation"].extendsFrom(configurations[testFixtures.implementationConfigurationName])
+    configurations["${sourceSetName}RuntimeOnly"].extendsFrom(configurations[testFixtures.runtimeOnlyConfigurationName])
+    dependencies.add("${sourceSetName}Implementation", testFixtures.output)
 }
-dependencies.add(support.implementationConfigurationName, sourceSets.main.get().output)
+dependencies.add(testFixtures.implementationConfigurationName, sourceSets.main.get().output)
 
 dependencies {
     api(libs.viaduct.engine.api)
@@ -43,14 +40,14 @@ dependencies {
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.kotlinx.coroutines.jdk8)
 
-    add("supportImplementation", libs.guice)
-    add("supportImplementation", libs.javax.inject)
-    add("supportImplementation", libs.kotest.property.jvm)
-    add("supportImplementation", libs.kotest.assertions.core.jvm)
-    add("supportImplementation", libs.jackson.module)
-    add("supportImplementation", kotlin("test"))
+    add("testFixturesImplementation", libs.guice)
+    add("testFixturesImplementation", libs.javax.inject)
+    add("testFixturesImplementation", libs.kotest.property.jvm)
+    add("testFixturesImplementation", libs.kotest.assertions.core.jvm)
+    add("testFixturesImplementation", libs.jackson.module)
+    add("testFixturesImplementation", kotlin("test"))
     add(
-        "supportImplementation",
+        "testFixturesImplementation",
         (testFixtures(libs.viaduct.engine.api.get()) as ModuleDependency).apply {
             // Benchmark executors use fixture wiring, not its JUnit assertions.
             exclude(mapOf("group" to "org.junit.jupiter"))
@@ -79,36 +76,21 @@ jmh {
 tasks.withType<KotlinCompile>().configureEach {
     compilerOptions.moduleName.set("engine-runtime2_$name")
 }
+// The Viaduct conventions withhold these opt-ins from testFixtures, which here hold unpublished reference code.
+tasks.named<KotlinCompile>("compileTestFixturesKotlin") {
+    compilerOptions.optIn.addAll(
+        "viaduct.apiannotations.ExperimentalApi",
+        "viaduct.apiannotations.InternalApi",
+        "viaduct.apiannotations.VisibleForTest",
+    )
+}
 tasks.configureEach {
     notCompatibleWithConfigurationCache("Runtime2 retains qplan's configuration-cache opt-out.")
 }
 
-val developmentSources = files("src/support/kotlin", "src/test/fixtures")
-tasks.named<Detekt>("detekt") {
-    setSource(source + developmentSources.asFileTree)
-}
-tasks.named<Detekt>("findWarningsForCleanup") {
-    setSource(source + developmentSources.asFileTree)
-}
-tasks.withType<BaseKtLintCheckTask>().configureEach {
-    if (name.endsWith("TestSourceSet")) {
-        setSource(files("src/test/kotlin", "src/test/fixtures"))
-    }
-}
 tasks.named<JacocoReport>("jacocoTestReport") {
-    sourceDirectories.from(support.allSource.srcDirs)
-    classDirectories.from(support.output.classesDirs)
-    sourceDirectories.from("src/test/fixtures")
-    val fixtureClassPatterns = providers.provider {
-        fileTree("src/test/fixtures") { include("**/*.kt") }.flatMap { source ->
-            val text = source.readText()
-            val packagePath = Regex("""(?m)^package ([\w.]+)""").find(text)!!.groupValues[1].replace('.', '/')
-            val types = Regex("""(?m)^(?:(?:internal|public|data|sealed|enum|open|abstract|fun) )*(?:class|interface|object) (\w+)""")
-                .findAll(text).map { it.groupValues[1] }.toList() + "${source.nameWithoutExtension}Kt"
-            types.flatMap { listOf("$packagePath/$it.class", "$packagePath/$it${'$'}*.class") }
-        }
-    }
-    classDirectories.from(sourceSets.test.get().output.classesDirs.asFileTree.matching { include(fixtureClassPatterns.get()) })
+    sourceDirectories.from(testFixtures.allSource.srcDirs)
+    classDirectories.from(testFixtures.output.classesDirs)
 }
 
 apply(from = "development.gradle.kts")
