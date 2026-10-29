@@ -1,5 +1,6 @@
 package viaduct.engine.runtime.instrumentation
 
+import graphql.execution.instrumentation.FieldFetchingInstrumentationContext
 import graphql.execution.instrumentation.InstrumentationContext
 import graphql.execution.instrumentation.InstrumentationState
 import graphql.execution.instrumentation.parameters.InstrumentationExecutionStrategyParameters
@@ -66,6 +67,16 @@ class OptimizedChainedInstrumentation(
         ChainedInstrumentationContext(
             beginFieldFetchInstrumentations.map { instr ->
                 instr.beginFieldFetch(parameters, getState(instr, state))
+            }
+        )
+
+    override fun beginFieldFetching(
+        parameters: InstrumentationFieldFetchParameters,
+        state: InstrumentationState?
+    ): FieldFetchingInstrumentationContext? =
+        ChainedFieldFetchingInstrumentationContext(
+            beginFieldFetchInstrumentations.mapNotNull { instr ->
+                instr.beginFieldFetching(parameters, getState(instr, state))
             }
         )
 
