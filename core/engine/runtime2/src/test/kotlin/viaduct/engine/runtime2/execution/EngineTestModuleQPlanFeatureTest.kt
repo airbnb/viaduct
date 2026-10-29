@@ -1,5 +1,8 @@
 package viaduct.engine.runtime2.execution
 
+import java.math.BigDecimal
+import java.time.Instant
+import java.time.OffsetDateTime
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -9,6 +12,8 @@ import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.MethodSource
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.ResolvedEngineObjectData
 import viaduct.engine.api.mocks.EngineTestModule
@@ -32,6 +37,49 @@ import viaduct.engine.runtime2.schema.ViaductAndGJSchema
 import viaduct.graphql.schema.ViaductSchema
 
 class EngineTestModuleQPlanFeatureTest {
+    @ParameterizedTest(name = "{0} source output coercion")
+    @MethodSource("viaduct.engine.runtime2.execution.ScalarFeatureTest#scalars")
+    fun `fixture wrapper coerces source scalar outputs`(scalar: ScalarFeatureTest.ScalarCase) =
+        runTest {
+            val sourceValue = when (scalar.name) {
+                "Int" -> 42L
+                "Float" -> BigDecimal("1.25")
+                "String" -> StringBuilder("hello")
+                "Boolean" -> "true"
+                "ID" -> 123L
+                "DateTime" -> OffsetDateTime.parse("2024-10-29T16:30:00+02:00")
+                else -> scalar.variable
+            }
+
+            val output = fixtureScalarOutput(scalar.name, sourceValue)
+
+            assertEquals(scalar.output, output)
+            assertEquals(scalar.output.javaClass, output!!.javaClass)
+        }
+
+    @ParameterizedTest(name = "{0} source precision")
+    @MethodSource("viaduct.engine.runtime2.execution.ScalarFeatureTest#dateTimeSourceValues")
+    fun `fixture wrapper preserves DateTime source precision`(sourceValue: Any) =
+        runTest {
+            val output = fixtureScalarOutput("DateTime", sourceValue)
+
+            assertEquals(Instant.parse("2024-10-29T14:30:00.123456789Z"), output)
+            assertIs<Instant>(output)
+        }
+
+    private suspend fun fixtureScalarOutput(
+        typeName: String,
+        value: Any
+    ): Any? {
+        val module = EngineTestModule("extend type Query { value: $typeName! }") {}
+        val executor = MockFieldUnbatchedResolverExecutor(resolverId = "Query.value") { _, _, _, _, _ -> value }
+        val root = ResolvedEngineObjectData(module.fullSchema.schema.queryType, emptyMap())
+        val selector = FieldResolverExecutor.Selector(emptyMap(), null, { root }, { root })
+        val context = ContextMocks(myFullSchema = module.fullSchema).engineExecutionContext
+        return module.fixtureFieldExecutor("Query" to "value", executor)
+            .batchResolve(listOf(selector), context).getValue(selector).getOrThrow()
+    }
+
     @Test
     fun `field wrapper adapts nested mock maps objects and scalars before production`() =
         runTest {

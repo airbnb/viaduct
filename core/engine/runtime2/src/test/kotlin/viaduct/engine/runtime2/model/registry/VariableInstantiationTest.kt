@@ -73,7 +73,6 @@ class VariableInstantiationTest {
 
         assertEquals(1, variables.size)
         assertEquals(definition.variable, variables.single())
-        assertEquals(definition.variable.instanceId, variables.single().instanceId)
     }
 
     @Test

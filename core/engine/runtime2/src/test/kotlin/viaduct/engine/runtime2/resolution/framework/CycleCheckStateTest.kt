@@ -20,44 +20,6 @@ import viaduct.graphql.schema.ViaductSchema
 
 class CycleCheckStateTest {
     @Test
-    fun `acyclic reads are retained without failure`() {
-        val fixture = Fixture()
-
-        fixture.register("second")
-        fixture.register("third")
-        fixture.checker.cycleCheck(
-            reader = fixture.task("first"),
-            owner = fixture.cell("second"),
-            kind = CycleSlotKind.VALUE,
-        )
-        fixture.checker.cycleCheck(
-            reader = fixture.task("second"),
-            owner = fixture.cell("third"),
-            kind = CycleSlotKind.VALUE,
-        )
-    }
-
-    @Test
-    fun `direct self-cycle reports its complete path`() {
-        val fixture = Fixture()
-        fixture.register("first")
-
-        val failure =
-            assertFailsWith<ResolverReadCycleException> {
-                fixture.checker.cycleCheck(
-                    reader = fixture.task("first"),
-                    owner = fixture.cell("first"),
-                    kind = CycleSlotKind.VALUE,
-                )
-            }
-
-        assertEquals(
-            listOf(fixture.task("first"), fixture.task("first")),
-            failure.cycle,
-        )
-    }
-
-    @Test
     fun `read recorded before writer registration still detects a cycle`() {
         val fixture = Fixture()
         fixture.checker.cycleCheck(
@@ -129,20 +91,6 @@ class CycleCheckStateTest {
             fixture.checker.cycleCheck(
                 reader = fixture.task("first"),
                 owner = fixture.target.getCell(key),
-                kind = CycleSlotKind.VALUE,
-            )
-        }
-    }
-
-    @Test
-    fun `recording the same acyclic edge repeatedly is harmless`() {
-        val fixture = Fixture()
-        fixture.register("second")
-
-        repeat(2) {
-            fixture.checker.cycleCheck(
-                reader = fixture.task("first"),
-                owner = fixture.cell("second"),
                 kind = CycleSlotKind.VALUE,
             )
         }

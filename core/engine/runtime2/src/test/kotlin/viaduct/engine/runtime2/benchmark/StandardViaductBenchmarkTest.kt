@@ -38,6 +38,7 @@ import viaduct.engine.runtime2.arbitrary.PrecomputedResolverOutputs
 import viaduct.engine.runtime2.arbitrary.ResolverBenchmarkCorpus
 import viaduct.engine.runtime2.arbitrary.ResolverBenchmarkQueryCorpus
 import viaduct.service.api.ExecutionInput
+import viaduct.service.api.ExecutionResult
 import viaduct.service.api.SchemaId
 import viaduct.service.api.spi.FlagManager
 import viaduct.service.runtime.SchemaConfiguration
@@ -300,11 +301,37 @@ class StandardViaductBenchmarkTest {
             validateBenchmarkResponses("nodeCache=$nodeCache response comparison", responses, expected)
             println("StandardViaduct nodeCache=$nodeCache repeated node calls: $repeats")
         }
-        assertThrows<IllegalStateException> { new.executeBatch { } }
-        assertThrows<IllegalArgumentException> { new.prepareInvocation(0) }
-        new.prepareInvocation(2)
-        var count = 0
-        assertEquals(200, new.executeBatch { count++ })
-        assertEquals(200, count)
+    }
+
+    @Test
+    fun `batch execution requires preparation and repeats every query`() {
+        val queries = ResolverBenchmarkQueryCorpus.create(
+            generationSeed = 0L,
+            querySources = listOf(
+                "fragment First on Query { __typename }",
+                "fragment Second on Query { rootName: __typename }",
+            ),
+        ).encode()
+        // Delegate streams explicitly to preserve the filesystem fallback used outside Bazel.
+        val batchLoader = object : ClassLoader(null) {
+            override fun getResourceAsStream(name: String) = if (name == BENCHMARK_RESOURCE_PREFIX + "queries.json") queries.byteInputStream() else loader.getResourceAsStream(name)
+        }
+        val benchmark = StandardViaductBenchmarkSupport(BenchmarkEngine.NEW, batchLoader)
+        assertEquals(2, benchmark.querySources.size)
+        assertThrows<IllegalStateException> { benchmark.executeBatch { } }
+        assertThrows<IllegalArgumentException> { benchmark.prepareInvocation(0) }
+        benchmark.prepareInvocation(2)
+        val responses = mutableListOf<Map<String, Any?>>()
+        assertEquals(
+            4,
+            benchmark.executeBatch { result ->
+                val standardResult = result as? ExecutionResult.Standard
+                    ?: error("Expected a standard result, got ${result::class.simpleName}")
+                assertTrue(standardResult.errors.isEmpty(), standardResult.errors.toString())
+                responses += requireNotNull(standardResult.getData())
+            }
+        )
+        val expected = listOf(mapOf("__typename" to "Query"), mapOf("rootName" to "Query"))
+        assertEquals(expected + expected, responses)
     }
 }

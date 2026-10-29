@@ -84,7 +84,7 @@ class ResolverCoverageAdversarialTest {
                         (QueryFieldCount to 4..6)
                 val random = RandomSource.seeded(817_208L + index)
                 val generated =
-                    List(200) {
+                    (0 until 200).asSequence().map {
                         val schema = Arb.schema(config).next(random)
                         val registry = schema.registry(config).next(random)
                         val sourceField =

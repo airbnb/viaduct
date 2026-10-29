@@ -3,6 +3,8 @@ package viaduct.engine.runtime2.schema
 import graphql.parser.Parser
 import graphql.schema.idl.SchemaParser
 import graphql.schema.idl.UnExecutableSchemaGenerator
+import java.math.BigDecimal
+import java.math.BigInteger
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -18,6 +20,7 @@ import viaduct.engine.runtime2.model.fieldExpressions
 import viaduct.engine.runtime2.model.registry.ProviderFragment
 import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireQueryTypeDef
+import viaduct.engine.runtime2.model.testing.fromSDL
 import viaduct.engine.runtime2.model.usedVariables
 
 class FragmentSelectionParsingTest {
@@ -28,6 +31,29 @@ class FragmentSelectionParsingTest {
                 schemas.materializeSelectionsFrom("fragment Input on Query { $selection }")
             }
             assertTrue(failure.message.orEmpty().contains("Invalid GraphQL fragment"))
+        }
+    }
+
+    @Test
+    fun `JSON input decoding preserves recursive value shapes and JVM numbers`() {
+        val jsonSchemas = ViaductAndGJSchema.fromSDL("type Query { echo(value: JSON): JSON }")
+        val type = jsonSchemas.graphQLSchema.queryType.getFieldDefinition("echo").getArgument("value").type
+        val values = listOf(
+            null,
+            "text",
+            true,
+            1,
+            2L,
+            1.5f,
+            2.5,
+            BigInteger("12345678901234567890"),
+            BigDecimal("1.234567890123456789"),
+            mapOf("a" to mapOf("b" to 1)),
+            listOf(1, mapOf("a" to 2), null),
+            listOf(listOf(1, 2), null),
+        )
+        for (value in values) {
+            assertEquals(value, decodeExternalInputValue(type, value, jsonSchemas.loweredSchema))
         }
     }
 

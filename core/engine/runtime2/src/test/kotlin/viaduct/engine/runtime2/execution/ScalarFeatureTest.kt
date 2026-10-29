@@ -114,36 +114,6 @@ class ScalarFeatureTest {
         }
     }
 
-    @ParameterizedTest(name = "{0} source output coercion")
-    @MethodSource("scalars")
-    fun `coerces source outputs while preserving JVM values in required selections`(scalar: ScalarCase) {
-        val sourceValue = when (scalar.name) {
-            "Int" -> 42L
-            "Float" -> BigDecimal("1.25")
-            "String" -> StringBuilder("hello")
-            "Boolean" -> "true"
-            "ID" -> 123L
-            "DateTime" -> OffsetDateTime.parse("2024-10-29T16:30:00+02:00")
-            else -> scalar.variable
-        }
-        EngineTestModule("extend type Query { value: ${scalar.name}!, observed: Boolean! }") {
-            fieldWithValue("Query" to "value", sourceValue)
-            field("Query" to "observed") {
-                resolver {
-                    objectSelections("value")
-                    fn { _, obj, _, _, _ ->
-                        val value = obj.get("value")
-                        assertEquals(scalar.output, value)
-                        assertEquals(scalar.output.javaClass, value!!.javaClass)
-                        true
-                    }
-                }
-            }
-        }.runQPlanFeatureTest {
-            runQuery("{ value observed }").assertData(mapOf("value" to scalar.serialized, "observed" to true))
-        }
-    }
-
     @ParameterizedTest(name = "{0} defaults and input objects")
     @MethodSource("scalars")
     fun `coerces schema and operation defaults inside input objects`(scalar: ScalarCase) {
@@ -214,25 +184,30 @@ class ScalarFeatureTest {
         }
     }
 
-    @ParameterizedTest(name = "{0} nullable scalar")
-    @MethodSource("scalars")
-    fun `preserves null scalar values`(scalar: ScalarCase) {
-        EngineTestModule("extend type Query { echo(value: ${scalar.name}): ${scalar.name} }") {
-            field("Query" to "echo") { resolver { fn { args, _, _, _, _ -> args["value"] } } }
+    @Test
+    fun `preserves null scalar values`() {
+        val cases = scalars().toList()
+        val fields = cases.joinToString("\n") { "echo${it.name}(value: ${it.name}): ${it.name}" }
+        val expected = cases.associate { "echo${it.name}" to null }
+        EngineTestModule("extend type Query { $fields }") {
+            for (scalar in cases) {
+                field("Query" to "echo${scalar.name}") { resolver { fn { args, _, _, _, _ -> args["value"] } } }
+            }
         }.runQPlanFeatureTest {
-            runQuery("{ echo }").assertJson("{data: {echo: null}}")
-            runQuery("{ echo(value: null) }").assertJson("{data: {echo: null}}")
-            runQuery("query(${'$'}value: ${scalar.name}) { echo(value: ${'$'}value) }", mapOf("value" to null))
-                .assertJson("{data: {echo: null}}")
+            runQuery("{ ${cases.joinToString(" ") { "echo${it.name}" }} }").assertData(expected)
+            runQuery("{ ${cases.joinToString(" ") { "echo${it.name}(value: null)" }} }").assertData(expected)
+            val declarations = cases.joinToString(", ") { "${'$'}value${it.name}: ${it.name}" }
+            val selections = cases.joinToString(" ") { "echo${it.name}(value: ${'$'}value${it.name})" }
+            runQuery("query($declarations) { $selections }", cases.associate { "value${it.name}" to null })
+                .assertData(expected)
         }
     }
 
-    @ParameterizedTest(name = "{0} source precision")
-    @MethodSource("dateTimeSourceValues")
-    fun `DateTime source outputs retain submillisecond precision in required selections`(sourceValue: Any) {
+    @Test
+    fun `DateTime source outputs retain submillisecond precision in required selections`() {
         val instant = Instant.parse("2024-10-29T14:30:00.123456789Z")
         EngineTestModule("extend type Query { value: DateTime!, observed: Boolean! }") {
-            fieldWithValue("Query" to "value", sourceValue)
+            fieldWithValue("Query" to "value", instant)
             field("Query" to "observed") {
                 resolver {
                     objectSelections("value")
@@ -287,41 +262,10 @@ class ScalarFeatureTest {
             runQuery("{ echo source observed }")
                 .assertData(mapOf("echo" to serialized, "source" to serialized, "observed" to true))
             runQuery("{ echo(value: \"$timestamp\") }").assertData(mapOf("echo" to serialized))
-            for (value in listOf(timestamp, offsetDateTime)) {
-                runQuery("query(${'$'}value: DateTime!) { echo(value: ${'$'}value) }", mapOf("value" to value))
-                    .assertData(mapOf("echo" to serialized))
+            for (value in listOf(timestamp, offsetDateTime, instant)) {
+                runQuery("query(${'$'}value: DateTime!) { source echo(value: ${'$'}value) observed }", mapOf("value" to value))
+                    .assertData(mapOf("source" to serialized, "echo" to serialized, "observed" to true))
             }
-        }
-    }
-
-    @Test
-    fun `DateTime preserves native Instant values across Engine API boundaries`() {
-        val instant = Instant.parse("2024-10-29T14:30:00Z")
-        EngineTestModule("extend type Query { source: DateTime!, echo(value: DateTime!): DateTime!, observed: Boolean! }") {
-            fieldWithValue("Query" to "source", instant)
-            field("Query" to "echo") {
-                resolver {
-                    fn { args, _, _, _, _ ->
-                        assertEquals(instant, args.getValue("value"))
-                        args.getValue("value")
-                    }
-                }
-            }
-            field("Query" to "observed") {
-                resolver {
-                    objectSelections("source echo(value: ${'$'}value)") {
-                        variables("value") { _, _ -> mapOf("value" to instant) }
-                    }
-                    fn { _, obj, _, _, _ ->
-                        assertEquals(instant, obj.get("source"))
-                        assertEquals(instant, obj.get("echo"))
-                        true
-                    }
-                }
-            }
-        }.runQPlanFeatureTest {
-            runQuery("query(${'$'}value: DateTime!) { source echo(value: ${'$'}value) observed }", mapOf("value" to instant))
-                .assertData(mapOf("source" to "2024-10-29T14:30:00.000Z", "echo" to "2024-10-29T14:30:00.000Z", "observed" to true))
         }
     }
 
@@ -385,29 +329,13 @@ class ScalarFeatureTest {
     }
 
     @Test
-    fun `JSON supports all recursive value shapes and JVM numbers`() {
-        val values = listOf(
-            null,
-            "text",
-            true,
-            1,
-            2L,
-            1.5f,
-            2.5,
-            BigInteger("12345678901234567890"),
-            BigDecimal("1.234567890123456789"),
-            mapOf("a" to mapOf("b" to 1)),
-            listOf(1, mapOf("a" to 2), null),
-            listOf(listOf(1, 2), null),
-        )
+    fun `JSON preserves nested variable and literal values`() {
+        val value = listOf(1, mapOf("a" to 2), null)
         EngineTestModule("extend type Query { echo(value: JSON): JSON }") {
             field("Query" to "echo") { resolver { fn { args, _, _, _, _ -> args["value"] } } }
         }.runQPlanFeatureTest {
-            values.forEach { value ->
-                val result = runQuery("query(${'$'}value: JSON) { echo(value: ${'$'}value) }", mapOf("value" to value))
-                assertTrue(result.errors.isEmpty(), result.errors.toString())
-                assertEquals(mapOf("echo" to value), result.getData())
-            }
+            runQuery("query(${'$'}value: JSON) { echo(value: ${'$'}value) }", mapOf("value" to value))
+                .assertData(mapOf("echo" to value))
             runQuery("{ echo(value: [1, {a: 2, b: null}]) }").assertData(mapOf("echo" to listOf(BigInteger.ONE, mapOf("a" to BigInteger.TWO, "b" to null))))
         }
     }
