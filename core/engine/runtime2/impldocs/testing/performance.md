@@ -172,7 +172,11 @@ The untimed report also counts stored-fragment versus wrapped-operation aliases.
 ./gradlew :core:engine:runtime2:planCacheBenchmark -PplanCacheBenchmarkSeed=12 -PresolverBenchmarkLoopCount=2 "-PplanCacheBenchmarkJmhOptions=-wi 15 -i 15 -f 3" --console=plain
 ```
 
-`-PplanCacheBenchmarkPlanCache`, `-PplanCacheBenchmarkDocuments`, `-PplanCacheBenchmarkSeed`, and `-PplanCacheBenchmarkListSize` select parameter values; `-PplanCacheBenchmarkJmhOptions` appends JMH options; results are written as JSON to `reports/resolver-benchmarks/plan-cache.json` under the project build directory unless `-PplanCacheBenchmarkResult=PATH` overrides it. Compare `on` with `off` only within one `documents` mode: fresh documents add harness-side document turnover to both.
+`planCacheProfile` records one measured batch with JFR after five warmup operations, in one fork, to `reports/resolver-benchmarks/plan-cache.jfr` under the project build directory or `-PplanCacheProfileOutput=PATH`; `-PplanCacheProfilePlanCache` selects `on` (default) or `off`, and the other plan-cache properties select the workload. The recording roughly doubles request time, so compare component shares rather than durations. `PlanCacheWorkloadReport` prints each seed's workload sizes, a hash of its responses, and fixture resolver callbacks per request.
+
+`-PplanCacheBenchmarkPlanCache`, `-PplanCacheBenchmarkDocuments`, `-PplanCacheBenchmarkSeed`, `-PplanCacheBenchmarkProfile`, `-PplanCacheBenchmarkDirectiveValues`, and `-PplanCacheBenchmarkListSize` select parameter values; `-PplanCacheBenchmarkJmhOptions` appends JMH options; results are written as JSON to `reports/resolver-benchmarks/plan-cache.json` under the project build directory unless `-PplanCacheBenchmarkResult=PATH` overrides it. Compare `on` with `off` only within one `documents` mode: fresh documents add harness-side document turnover to both.
+
+Fixture field resolvers return prepared, complete outputs whose node and root-field references are created per call. Because Engine2 passes a field resolver its demand as the selection set and projects the output to that demand, the adapter builds only selected fields and their references when a selection set is supplied. Non-selective node executors receive only an `id` placeholder and Engine2 reads every field they return, so prepared node bodies are still built completely.
 
 ## Guarded Checker Diagnostic
 

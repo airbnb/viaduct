@@ -161,6 +161,7 @@ class PlanCacheBenchmarkSupport(
     private val planCache: Boolean,
     private val documents: PlanCacheDocuments,
     private val directiveValues: PlanCacheDirectiveValues = PlanCacheDirectiveValues.FIXED,
+    callbackCounts: BenchmarkCallbackCounts? = null,
 ) {
     private val conditional = workload.profile == PlanCacheProfile.STEP2
     private val documentEntries = ConcurrentHashMap<String, PreparsedDocumentEntry>()
@@ -177,7 +178,7 @@ class PlanCacheBenchmarkSupport(
         val discovery = PrecomputedResolverOutputs()
         val world = workload.corpus.registry.world(schemaSDL = workload.corpus.schemaSDL, precomputedResolverOutputs = discovery)
         val adapter = BenchmarkExecutorAdapter(world, workload.corpus.registry)
-        val module = adapter.module()
+        val module = adapter.module().let { module -> callbackCounts?.let { module.countCallbacks(it) } ?: module }
         graphQLSchema = module.fullSchema.schema
         operations =
             workload.operations
@@ -387,11 +388,19 @@ object PlanCacheWorkloadReport {
                 }
             val sizes = support.responses.map(::planCacheResponseSize)
             val errors = support.responses.count { (it["errors"] as? List<*>)?.isNotEmpty() == true }
+            val counts = BenchmarkCallbackCounts()
+            val counted = PlanCacheBenchmarkSupport(workload, planCache = false, documents = PlanCacheDocuments.SHARED, callbackCounts = counts)
+            counts.reset()
+            counted.prepareInvocation(1)
+            val requests = counted.executeBatch { }.toDouble()
             println(
                 "profile=$profile seed=$seed listSize=$listSize operations=${support.operations.size}/$queryCount " +
                     "fields avg=${"%.1f".format(sizes.map { it.first }.average())} p50=${sizes.map { it.first }.sorted()[sizes.size / 2]} max=${sizes.maxOf { it.first }} " +
                     "objects avg=${"%.1f".format(sizes.map { it.second }.average())} errorResponses=$errors " +
+                    "responsesHash=${support.responses.hashCode()} " +
                     "fromArgumentVariables=${workload.corpus.registry.features.fromArgumentVariableCount} " +
+                    "per request: fieldResolvers=${"%.1f".format(counts.fields.get() / requests)} nodeResolvers=${"%.1f".format(counts.nodes.get() / requests)} " +
+                    "objectInputGetters=${"%.1f".format(counts.objectValueGetters.get() / requests)} queryInputGetters=${"%.1f".format(counts.queryValueGetters.get() / requests)} " +
                     "setup=${(System.nanoTime() - started) / 1_000_000}ms",
             )
         }

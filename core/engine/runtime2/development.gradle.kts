@@ -296,6 +296,56 @@ tasks.register<JavaExec>("planCacheBenchmark") {
     }
 }
 
+val planCacheProfileOutput =
+    providers.gradleProperty("planCacheProfileOutput")
+        .map { file(it) }
+        .orElse(layout.buildDirectory.file("reports/resolver-benchmarks/plan-cache.jfr").map { it.asFile })
+val planCacheProfilePlanCache =
+    providers.gradleProperty("planCacheProfilePlanCache").orElse("on")
+
+tasks.register<JavaExec>("planCacheProfile") {
+    group = "benchmark"
+    description = "Records one measured plan-cache benchmark batch with JFR after warmup."
+    val benchmarkJar = tasks.named<org.gradle.jvm.tasks.Jar>("jmhJar")
+    dependsOn(benchmarkJar)
+    classpath = files(benchmarkJar.flatMap { it.archiveFile })
+    mainClass.set("org.openjdk.jmh.Main")
+    outputs.upToDateWhen { false }
+    doFirst {
+        val profileFile = planCacheProfileOutput.get().absoluteFile
+        profileFile.parentFile.mkdirs()
+        profileFile.delete()
+        args = listOf(
+            "viaduct\\.engine\\.runtime2\\.benchmark\\.PlanCacheBenchmark\\.execute",
+            "-foe",
+            "true",
+            "-p",
+            "planCache=${planCacheProfilePlanCache.get()}",
+            "-p",
+            "documents=${planCacheBenchmarkDocuments.get().substringBefore(',')}",
+            "-p",
+            "seed=${planCacheBenchmarkSeed.get()}",
+            "-p",
+            "listSize=${planCacheBenchmarkListSize.get()}",
+            "-p",
+            "profile=${planCacheBenchmarkProfile.get()}",
+            "-p",
+            "directiveValues=${planCacheBenchmarkDirectiveValues.get().substringBefore(',')}",
+            "-p",
+            "loopCount=${resolverBenchmarkLoopCount.get()}",
+            "-wi",
+            "5",
+            "-i",
+            "1",
+            "-f",
+            "1",
+            "-jvmArgsAppend",
+            "-DplanCacheProfileOutput=${profileFile.absolutePath} -XX:FlightRecorderOptions=stackdepth=256",
+        )
+    }
+    doLast { logger.lifecycle("Plan-cache JFR: ${planCacheProfileOutput.get().absolutePath}") }
+}
+
 tasks.register<JavaExec>("standardViaductWorkloadReport") {
     group = "benchmark"
     description = "Reports client query and response sizes for the adapted StandardViaduct workload."

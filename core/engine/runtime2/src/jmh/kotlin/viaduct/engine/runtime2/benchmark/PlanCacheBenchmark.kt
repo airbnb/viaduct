@@ -1,7 +1,11 @@
 package viaduct.engine.runtime2.benchmark
 
+import java.nio.file.Files
+import java.nio.file.Path
 import java.util.Locale
 import java.util.concurrent.TimeUnit
+import jdk.jfr.Configuration
+import jdk.jfr.Recording
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.BenchmarkMode
 import org.openjdk.jmh.annotations.Fork
@@ -13,9 +17,12 @@ import org.openjdk.jmh.annotations.Param
 import org.openjdk.jmh.annotations.Scope
 import org.openjdk.jmh.annotations.Setup
 import org.openjdk.jmh.annotations.State
+import org.openjdk.jmh.annotations.TearDown
 import org.openjdk.jmh.annotations.Timeout
 import org.openjdk.jmh.annotations.Warmup
 import org.openjdk.jmh.infra.Blackhole
+import org.openjdk.jmh.infra.IterationParams
+import org.openjdk.jmh.runner.IterationType
 
 /**
  * Measures Engine2 requests of the first plan-cache step through `StandardViaduct`.
@@ -69,6 +76,7 @@ open class PlanCacheBenchmark {
     var directiveValues: String = "fixed"
 
     private lateinit var support: PlanCacheBenchmarkSupport
+    private var profileRecording: Recording? = null
 
     @Setup(Level.Trial)
     fun prepareTrial() {
@@ -94,8 +102,28 @@ open class PlanCacheBenchmark {
     }
 
     @Setup(Level.Invocation)
-    fun prepareInvocation() {
+    fun prepareInvocation(iteration: IterationParams) {
         support.prepareInvocation(loopCount)
+        val output = System.getProperty("planCacheProfileOutput") ?: return
+        if (iteration.type != IterationType.MEASUREMENT) return
+        val destination = Path.of(output).toAbsolutePath()
+        destination.parent?.let(Files::createDirectories)
+        Files.deleteIfExists(destination)
+        profileRecording = Recording(Configuration.getConfiguration("profile")).apply {
+            name = "plan-cache-$profile-$seed-$planCache-$documents"
+            setDestination(destination)
+            start()
+        }
+    }
+
+    /** Records only the measured invocation when `planCacheProfileOutput` names a JFR destination. */
+    @TearDown(Level.Invocation)
+    fun stopProfile() {
+        profileRecording?.let { recording ->
+            profileRecording = null
+            recording.stop()
+            recording.close()
+        }
     }
 
     @Benchmark
