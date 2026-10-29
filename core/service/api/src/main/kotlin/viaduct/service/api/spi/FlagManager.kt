@@ -72,6 +72,13 @@ interface FlagManager {
         USE_ENGINE2("use_engine2"),
 
         /**
+         * Lets engine2 reuse decoded operations per cached GraphQL document and the demand
+         * analyses derived from them. Has no effect on the default engine.
+         */
+        @InternalApi
+        ENGINE2_PLAN_CACHE("engine2_plan_cache"),
+
+        /**
          * Reserved gate for engine2 dispatcher batching.
          *
          * Enabling this flag is an invalid configuration until engine2 supports batching.

@@ -233,6 +233,59 @@ tasks.register<JavaExec>("standardViaductBenchmark") {
     }
 }
 
+val planCacheBenchmarkPlanCache =
+    providers.gradleProperty("planCacheBenchmarkPlanCache").orElse("off,on")
+val planCacheBenchmarkDocuments =
+    providers.gradleProperty("planCacheBenchmarkDocuments").orElse("shared,fresh")
+val planCacheBenchmarkSeed =
+    providers.gradleProperty("planCacheBenchmarkSeed").orElse("7")
+val planCacheBenchmarkListSize =
+    providers.gradleProperty("planCacheBenchmarkListSize").orElse("2")
+val planCacheBenchmarkJmhOptions =
+    providers.gradleProperty("planCacheBenchmarkJmhOptions").orElse("")
+val planCacheBenchmarkResult =
+    providers.gradleProperty("planCacheBenchmarkResult")
+        .map { file(it) }
+        .orElse(layout.buildDirectory.file("reports/resolver-benchmarks/plan-cache.json").map { it.asFile })
+
+tasks.register<JavaExec>("planCacheBenchmark") {
+    group = "benchmark"
+    description = "Measures plan-cache step-1 requests through StandardViaduct with the Engine2 plan cache on and off."
+    val benchmarkJar = tasks.named<org.gradle.jvm.tasks.Jar>("jmhJar")
+    dependsOn(benchmarkJar)
+    classpath = files(benchmarkJar.flatMap { jar -> jar.archiveFile })
+    mainClass.set("org.openjdk.jmh.Main")
+    inputs.property("planCache", planCacheBenchmarkPlanCache)
+    inputs.property("documents", planCacheBenchmarkDocuments)
+    inputs.property("seed", planCacheBenchmarkSeed)
+    inputs.property("listSize", planCacheBenchmarkListSize)
+    inputs.property("loopCount", resolverBenchmarkLoopCount)
+    outputs.upToDateWhen { false }
+    doFirst {
+        val result = planCacheBenchmarkResult.get()
+        result.parentFile.mkdirs()
+        args = listOf(
+            "viaduct\\.engine\\.runtime2\\.benchmark\\.PlanCacheBenchmark\\.execute",
+            "-foe",
+            "true",
+            "-p",
+            "planCache=${planCacheBenchmarkPlanCache.get()}",
+            "-p",
+            "documents=${planCacheBenchmarkDocuments.get()}",
+            "-p",
+            "seed=${planCacheBenchmarkSeed.get()}",
+            "-p",
+            "listSize=${planCacheBenchmarkListSize.get()}",
+            "-p",
+            "loopCount=${resolverBenchmarkLoopCount.get()}",
+            "-rf",
+            "json",
+            "-rff",
+            result.absolutePath,
+        ) + planCacheBenchmarkJmhOptions.get().split(' ').filter(String::isNotBlank)
+    }
+}
+
 tasks.register<JavaExec>("standardViaductWorkloadReport") {
     group = "benchmark"
     description = "Reports client query and response sizes for the adapted StandardViaduct workload."

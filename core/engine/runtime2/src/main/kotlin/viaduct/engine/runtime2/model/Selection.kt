@@ -624,10 +624,25 @@ internal fun SelectionForest.containsParentKeys(interfaceParentFields: Set<Viadu
     }
 }
 
+/**
+ * Returns the opaque Resolution plan memo attached to this forest instance, or null when none is
+ * attached or the representation cannot carry one. The memo is identity-scoped: it dies with the
+ * forest, so forests shared by a cached operation plan retain their analyses across requests.
+ */
+internal fun SelectionForest.planMemo(): Any? = (this as? CachedSelectionForest)?.planMemo
+
+/** Replaces this forest's plan memo atomically; returns false when the representation cannot carry one. */
+internal fun SelectionForest.updatePlanMemo(update: (Any?) -> Any?): Boolean {
+    val cached = this as? CachedSelectionForest ?: return false
+    synchronized(cached) { cached.planMemo = update(cached.planMemo) }
+    return true
+}
+
 private interface CachedSelectionForest : SelectionForest {
     var merged: ObjectSelectionForest?
     var containsVariables: Boolean?
     var containsParentKeys: Boolean?
+    var planMemo: Any?
 }
 
 private class SingletonSelectionForest(
@@ -636,6 +651,7 @@ private class SingletonSelectionForest(
     @Volatile override var merged: ObjectSelectionForest? = null
     @Volatile override var containsVariables: Boolean? = null
     @Volatile override var containsParentKeys: Boolean? = null
+    @Volatile override var planMemo: Any? = null
     override val size: Int get() = 1
 
     override fun isEmpty(): Boolean = false
@@ -659,6 +675,7 @@ private abstract class AbstractSelectionForest(
     @Volatile override var merged: ObjectSelectionForest? = null
     @Volatile override var containsVariables: Boolean? = null
     @Volatile override var containsParentKeys: Boolean? = null
+    @Volatile override var planMemo: Any? = null
 
     init {
         SelectionForest.requireSupportedSize(occurrences.size)
@@ -695,6 +712,7 @@ private class ConcatenatedSelectionForest(
     @Volatile override var merged: ObjectSelectionForest? = null
     @Volatile override var containsVariables: Boolean? = null
     @Volatile override var containsParentKeys: Boolean? = null
+    @Volatile override var planMemo: Any? = null
     override val size: Int = left.size + right.size
 
     init {

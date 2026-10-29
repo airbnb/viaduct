@@ -13,6 +13,7 @@ Use `runtime2` and [`runtime`](../runtime) to distinguish the two engine impleme
 - [`impldocs/architecture/resolver-families.md`](impldocs/architecture/resolver-families.md) owns the maintained family boundaries, comparison grid, naming policy, and feature-development workflow.
 - [`impldocs/architecture/access-checks.md`](impldocs/architecture/access-checks.md) owns checker vocabulary, demand, application identity, and enforcement semantics.
 - [`impldocs/architecture/examples.md`](impldocs/architecture/examples.md) gives worked examples of demand closure, output projection, Query-OER sharing, and `@parent` constraints.
+- [`impldocs/architecture/plan-cache.md`](impldocs/architecture/plan-cache.md) defines the document-keyed plan cache: its layers, keys, eligibility, and correctness argument.
 
 Production code belongs in `src/main`. The numbered reference implementations in [`src/testFixtures/kotlin/viaduct/engine/runtime2/resolvers`](src/testFixtures/kotlin/viaduct/engine/runtime2/resolvers), correctness machinery, generators, and neutral development support belong in the unpublished `src/testFixtures` source set. Reusable JUnit contracts and concrete tests belong in `src/test/kotlin`, and benchmarks in `src/jmh`.
 

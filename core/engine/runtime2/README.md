@@ -53,6 +53,7 @@ Architecture:
 - [Resolver families](impldocs/architecture/resolver-families.md) explains the maintained resolver families and their relationship to production Resolution.
 - [Access checks](impldocs/architecture/access-checks.md) describes access-check semantics and integration.
 - [Examples](impldocs/architecture/examples.md) illustrates demand closure, output projection, expansion, and ordering constraints.
+- [Plan cache](impldocs/architecture/plan-cache.md) describes document-keyed reuse of decoded operations and demand analyses, its eligibility, and its measurement.
 
 Integration:
 

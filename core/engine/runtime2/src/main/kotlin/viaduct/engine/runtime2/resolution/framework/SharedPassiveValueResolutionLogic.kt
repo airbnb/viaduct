@@ -245,7 +245,13 @@ abstract class SharedPassiveValueResolutionLogic<
         val occurrence = objectOER.occurrence
         val type = source.schemaType(operation.world.schema)
         val invocationByKey = collect(invocationDemand, type).byKey()
-        val passiveByKey = collect(invocationDemand + closedConstructionDemand.values, type).byKey()
+        val passiveDemand =
+            if (operation.world.usePlanCache) {
+                invocationDemand.passiveDemandWithPlanCache(closedConstructionDemand.values)
+            } else {
+                invocationDemand + closedConstructionDemand.values
+            }
+        val passiveByKey = collect(passiveDemand, type).byKey()
         val passiveKeysByField = passiveByKey.keys.groupBy { it.field }
         val sourceFields = source.getSelections().map { type.requireField(it) }.filterNot { it.isParentField() }
         if (operation.world.selectiveResolvers) {

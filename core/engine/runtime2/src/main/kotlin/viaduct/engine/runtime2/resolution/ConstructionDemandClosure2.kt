@@ -26,6 +26,20 @@ internal fun EngineObjectData.Sync.closeSelectedConstructionDemand(
     queryOccurrence: OEROccurrence,
     initialDemand: OrchestrationConstructionDemand<SelectionForest>,
 ): ClosedConstructionDemandContext =
+    if (world.usePlanCache) {
+        closeConstructionDemandWithPlanCache(world, objectOccurrence, queryOccurrence, initialDemand) {
+            closeConfiguredConstructionDemand(world, objectOccurrence, queryOccurrence, initialDemand)
+        }
+    } else {
+        closeConfiguredConstructionDemand(world, objectOccurrence, queryOccurrence, initialDemand)
+    }
+
+private fun EngineObjectData.Sync.closeConfiguredConstructionDemand(
+    world: Assumptions,
+    objectOccurrence: OEROccurrence,
+    queryOccurrence: OEROccurrence,
+    initialDemand: OrchestrationConstructionDemand<SelectionForest>,
+): ClosedConstructionDemandContext =
     if (world.usePrecomputedConstructionDemand) {
         closePrecomputedConstructionDemand(world, objectOccurrence, queryOccurrence, initialDemand)
     } else {
