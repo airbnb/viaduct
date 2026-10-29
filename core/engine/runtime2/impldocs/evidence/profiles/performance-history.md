@@ -8,6 +8,10 @@ Compare measurements only when their recorded host, JVM, benchmark parameters, c
 
 ## Recorded Investigations
 
+### 2026-10-29 — plan cache, second step
+
+The [second plan-cache round](2026-10-29-plan-cache-step-2/README.md) caches decoded conditional operations per variable values and lets closure templates own FromArgument variables, which each hit renames to the new occurrence. Through `StandardViaduct` with the `step2` profile on an Apple M1 Pro with JDK 17.0.19, seed 7 falls from 2.045 to 1.616 ms per request with fixed directive values (−21.0%) and from 1.870 to 1.320 ms with rotating values (−29.4%); the much heavier seed 3 (about 37 ms per request) shows no significant difference (−0.8% and −0.7%, overlapping intervals). The full Runtime2 test suite passed with the cache forced on (3,816 tests, 0 failures, 168 skipped), and every cached trial's responses matched an uncached engine. The measured tree was `bcd036525` plus the uncommitted change.
+
 ### 2026-10-29 — plan cache, first step
 
 The [first plan-cache round](2026-10-29-plan-cache-step-1/README.md) adds the document-keyed operation cache and the forest-keyed closure, successor-demand, and passive-demand memos behind `ENGINE2_PLAN_CACHE`, and measures them through `StandardViaduct` with the new `planCacheBenchmark` over generated step-1 workloads. Over two 100-operation workloads on an Apple M1 Pro with JDK 17.0.19 (three forks, 45 single-shot samples of 200 requests per configuration), shared documents fall from 3.930 to 2.961 ms per request for seed 7 (−24.7%) and from 0.919 to 0.598 ms for seed 12 (−34.9%); fresh documents, which leave only reuse within one request, show no significant difference (+0.6% and +1.6%, overlapping intervals). A temporary breakdown probe attributes the shared-document saving to successor demand (1.154 → 0.071 ms of summed thread time per request on seed 7), closure (0.777 → 0.341 ms), and decoding (0.193 → 0.005 ms). The full Runtime2 test suite passed with the cache forced on (3,810 tests, 0 failures, 168 skipped), and every cached trial's responses matched an uncached engine. The measured tree was base `1c7799922` plus the uncommitted change.

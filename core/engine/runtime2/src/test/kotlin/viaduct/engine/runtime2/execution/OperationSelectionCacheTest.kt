@@ -53,16 +53,28 @@ class OperationSelectionCacheTest {
     }
 
     @Test
-    fun `conditional documents and mutations decode on every request`() {
+    fun `conditional documents are cached per directive variable values`() {
         val cache = OperationSelectionCache()
         val decoder = CountingDecoder()
-        val conditional = Parser().parseDocument("query { value @skip(if: false) }")
-        repeat(2) { cache.selections(world.assumptions, context(conditional), decoder::decode) }
-        val conditionalFragment = Parser().parseDocument("query { ...F } fragment F on Query { value @include(if: true) }")
-        repeat(2) { cache.selections(world.assumptions, context(conditionalFragment), decoder::decode) }
+        val conditional = Parser().parseDocument("query(\$with: Boolean!) { value @include(if: \$with) }")
+        val included = cache.selections(world.assumptions, context(conditional, mapOf("with" to true)), decoder::decode)
+        val excluded = cache.selections(world.assumptions, context(conditional, mapOf("with" to false)), decoder::decode)
+        assertNotSame(included, excluded)
+        assertSame(included, cache.selections(world.assumptions, context(conditional, mapOf("with" to true)), decoder::decode))
+        assertSame(excluded, cache.selections(world.assumptions, context(conditional, mapOf("with" to false)), decoder::decode))
+        val literal = Parser().parseDocument("query { ...F } fragment F on Query { value @skip(if: true) }")
+        val first = cache.selections(world.assumptions, context(literal), decoder::decode)
+        assertSame(first, cache.selections(world.assumptions, context(literal), decoder::decode))
+        assertEquals(3, decoder.calls)
+    }
+
+    @Test
+    fun `mutations decode on every request`() {
+        val cache = OperationSelectionCache()
+        val decoder = CountingDecoder()
         val mutation = Parser().parseDocument("mutation { value }")
         repeat(2) { cache.selections(world.assumptions, context(mutation), decoder::decode) }
-        assertEquals(6, decoder.calls)
+        assertEquals(2, decoder.calls)
     }
 
     private fun context(

@@ -2,12 +2,7 @@ package viaduct.engine.runtime2.execution
 
 import graphql.execution.ExecutionContext
 import graphql.language.Document
-import graphql.language.Field
-import graphql.language.FragmentDefinition
-import graphql.language.FragmentSpread
-import graphql.language.InlineFragment
 import graphql.language.OperationDefinition
-import graphql.language.SelectionSet
 import java.util.Collections
 import java.util.Locale
 import java.util.WeakHashMap
@@ -23,13 +18,13 @@ import viaduct.engine.runtime2.model.registry.ResolverRegistry
  * selection forest. Resolution then attaches its demand analyses to that forest and to the forests
  * derived from it, so a repeated request reuses the whole plan by identity.
  *
- * Decoding resolves argument literals and operation variables, so a forest is exact only for its
- * coerced variable values. Operations without variable definitions keep one forest; others keep a
- * small least-recently-used set keyed by the coerced values. Entries are weakly keyed by document
- * and disappear when the document cache evicts the document.
- *
- * Eligibility follows the first plan-cache step: query operations without `@skip` or `@include` in
- * the operation or any fragment definition of its document. Other operations decode per request.
+ * Decoding resolves argument literals and operation variables, and it evaluates `@skip` and
+ * `@include` to fixed inclusion, so a forest is exact only for its coerced variable values.
+ * Operations without variable definitions keep one forest; others keep a small least-recently-used
+ * set keyed by the coerced values, so an operation whose variables only drive directives keeps at
+ * most one forest per Boolean combination it receives. Entries are weakly keyed by document and
+ * disappear when the document cache evicts the document. Mutations and subscriptions decode per
+ * request.
  */
 @InternalApi
 class OperationSelectionCache {
@@ -43,7 +38,7 @@ class OperationSelectionCache {
         val operation = executionContext.operationDefinition
         if (operation.operation != OperationDefinition.Operation.QUERY) return decode()
         val document = executionContext.document
-        val plans = synchronized(documents) { documents.getOrPut(document) { DocumentPlans(document) } }
+        val plans = synchronized(documents) { documents.getOrPut(document, ::DocumentPlans) }
         val plan = plans.plan(OperationPlanKey(operation, world.resolverRegistry, executionContext.locale))
         if (!plan.eligible) return decode()
         return plan.selections(executionContext.coercedVariables.toMap(), decode)
@@ -57,14 +52,7 @@ private data class OperationPlanKey(
     val locale: Locale?,
 )
 
-private class DocumentPlans(document: Document) {
-    private val conditionFree = document.definitions.none { definition ->
-        when (definition) {
-            is OperationDefinition -> definition.selectionSet.hasConditionalDirective()
-            is FragmentDefinition -> definition.selectionSet.hasConditionalDirective()
-            else -> false
-        }
-    }
+private class DocumentPlans {
     private val plans = ConcurrentHashMap<OperationPlanKey, OperationPlan>()
 
     /** Bounded so per-invocation registries that are not drawn from a fixed set cannot grow one document. */
@@ -72,7 +60,7 @@ private class DocumentPlans(document: Document) {
         plans[key] ?: if (plans.size >= MAX_OPERATION_PLANS) {
             UNCACHED_PLAN
         } else {
-            plans.computeIfAbsent(key) { OperationPlan(eligible = conditionFree, variableFree = key.operation.variableDefinitions.isEmpty()) }
+            plans.computeIfAbsent(key) { OperationPlan(eligible = true, variableFree = key.operation.variableDefinitions.isEmpty()) }
         }
 
     private companion object {
@@ -109,15 +97,3 @@ private class OperationPlan(
         const val MAX_VARIABLE_PLANS = 16
     }
 }
-
-private fun SelectionSet.hasConditionalDirective(): Boolean =
-    selections.any { selection ->
-        when (selection) {
-            is Field -> selection.hasConditionalDirective() || selection.selectionSet?.hasConditionalDirective() == true
-            is InlineFragment -> selection.hasConditionalDirective() || selection.selectionSet.hasConditionalDirective()
-            is FragmentSpread -> selection.hasConditionalDirective()
-            else -> false
-        }
-    }
-
-private fun graphql.language.DirectivesContainer<*>.hasConditionalDirective(): Boolean = directives.any { it.name == "skip" || it.name == "include" }

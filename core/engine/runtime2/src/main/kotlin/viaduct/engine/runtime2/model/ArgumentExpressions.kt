@@ -250,6 +250,38 @@ private fun ArgumentExpression?.instantiateVariables(resolverOccurrenceId: Resol
         else -> this
     }
 
+/**
+ * Replaces instantiated variables by [rename], returning this value itself when no variable changes.
+ * Used to relocate occurrence-owned variable instances; templates and grounded values are untouched.
+ */
+internal fun Arguments.renameVariableInstances(
+    expectedField: ViaductSchema.Field,
+    rename: (Arguments.Variable) -> Arguments.Variable,
+): Arguments {
+    if (this == Arguments.Error || this is Arguments.Ground) return this
+    var changed = false
+    val expressions =
+        fieldExpressions().mapValues { (_, value) ->
+            value.renameVariableInstances(rename).also { renamed -> if (renamed !== value) changed = true }
+        }
+    return if (changed) argumentsOfExpressions(expressions).validatedAgainst(expectedField) else this
+}
+
+private fun ArgumentExpression?.renameVariableInstances(rename: (Arguments.Variable) -> Arguments.Variable): ArgumentExpression? =
+    when (this) {
+        is Arguments.Variable -> if (isTemplate) this else rename(this)
+        is List<*> -> {
+            val renamed = map { value -> value.renameVariableInstances(rename) }
+            if (renamed.indices.all { renamed[it] === this[it] }) this else renamed
+        }
+        is Map<*, *> -> {
+            val values = toStringKeyedArgumentMap()
+            val renamed = values.mapValues { (_, value) -> value.renameVariableInstances(rename) }
+            if (renamed.all { (name, value) -> value === values[name] }) this else renamed
+        }
+        else -> this
+    }
+
 fun Arguments.substituteTemplates(
     expectedField: ViaductSchema.Field,
     bindings: Map<Arguments.Variable, EngineInputData?>,

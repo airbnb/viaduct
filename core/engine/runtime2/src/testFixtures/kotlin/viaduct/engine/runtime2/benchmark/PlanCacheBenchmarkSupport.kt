@@ -6,13 +6,20 @@ import graphql.ExecutionInput as GraphQLExecutionInput
 import graphql.ParseAndValidate
 import graphql.execution.preparsed.PreparsedDocumentEntry
 import graphql.execution.preparsed.PreparsedDocumentProvider
+import graphql.language.Argument
 import graphql.language.AstPrinter
 import graphql.language.AstTransformer
+import graphql.language.Directive
 import graphql.language.Document
 import graphql.language.Field
 import graphql.language.Node
 import graphql.language.NodeVisitorStub
+import graphql.language.NonNullType
+import graphql.language.OperationDefinition
 import graphql.language.SourceLocation
+import graphql.language.TypeName
+import graphql.language.VariableDefinition
+import graphql.language.VariableReference
 import graphql.schema.GraphQLSchema
 import graphql.util.TraversalControl
 import graphql.util.TraverserContext
@@ -77,11 +84,39 @@ fun planCacheStepOneConfig(): Config =
         (SometimesPassiveFieldWeight to 0.0) +
         (PassiveAbstractOutputTypeWeight to 0.3)
 
-private fun planCacheStepOneQueryConfig(): Config =
+/**
+ * The second step adds generated FromArgument resolver variables, which pass owner arguments into
+ * required-selection arguments, to the first step's profile. Operation `@skip`/`@include` is added
+ * by [PlanCacheBenchmarkSupport]; generated selections carry no conditions themselves.
+ */
+fun planCacheStepTwoConfig(): Config =
     planCacheStepOneConfig() +
+        (ResolverVariablesEnabled to true) +
+        (ResolverFromArgumentVariablesEnabled to true)
+
+private fun Config.planCacheQueryConfig(): Config =
+    this +
         (MinimumSelectionDepth to 8) +
         (MaxSelectionDepth to 10) +
         (RootQueryFieldCount to 6..8)
+
+/** Which plan-cache step a generated workload exercises. */
+enum class PlanCacheProfile(val config: () -> Config) {
+    /** Resolvers, lists, and abstract types without conditions or resolver variables. */
+    STEP1(::planCacheStepOneConfig),
+
+    /** The first step plus FromArgument resolver variables and operation `@skip`/`@include` on operation variables. */
+    STEP2(::planCacheStepTwoConfig),
+}
+
+/** How operation variables that drive `@skip`/`@include` vary between the requests of a step-2 workload. */
+enum class PlanCacheDirectiveValues {
+    /** Every request includes every conditional selection. */
+    FIXED,
+
+    /** Requests rotate through all four combinations of the two directive variables. */
+    ROTATING,
+}
 
 /** How requests reach the operation plan cache. */
 enum class PlanCacheDocuments {
@@ -92,24 +127,26 @@ enum class PlanCacheDocuments {
     FRESH,
 }
 
-/** One generated plan-cache step-1 schema, executable registry recipe, and validated operations. */
+/** One generated plan-cache schema, executable registry recipe, and operations for one [PlanCacheProfile]. */
 class PlanCacheWorkload private constructor(
     val corpus: ResolverBenchmarkCorpus,
     val operations: List<String>,
+    val profile: PlanCacheProfile,
 ) {
     companion object {
         fun generate(
             seed: Long,
             queryCount: Int,
             listSize: Int = 2,
+            profile: PlanCacheProfile = PlanCacheProfile.STEP1,
         ): PlanCacheWorkload {
-            val config = planCacheStepOneConfig() + (ListValueSize to listSize..listSize)
+            val config = profile.config() + (ListValueSize to listSize..listSize)
             val random = RandomSource(Random(seed), seed)
             val schema = Arb.schema(config).next(random)
             val registry = schema.registry(config).next(random)
             val corpus = ResolverBenchmarkCorpus.decode(schema.sdl, registry.encodeResolverBenchmarkCorpus(schema))
-            val operations = corpus.generateQueries(queryCount, planCacheStepOneQueryConfig() + (ListValueSize to listSize..listSize), seed).map { benchmarkOperation(it.source) }
-            return PlanCacheWorkload(corpus, operations)
+            val operations = corpus.generateQueries(queryCount, config.planCacheQueryConfig(), seed).map { benchmarkOperation(it.source) }
+            return PlanCacheWorkload(corpus, operations, profile)
         }
     }
 }
@@ -123,7 +160,9 @@ class PlanCacheBenchmarkSupport(
     workload: PlanCacheWorkload,
     private val planCache: Boolean,
     private val documents: PlanCacheDocuments,
+    private val directiveValues: PlanCacheDirectiveValues = PlanCacheDirectiveValues.FIXED,
 ) {
+    private val conditional = workload.profile == PlanCacheProfile.STEP2
     private val documentEntries = ConcurrentHashMap<String, PreparsedDocumentEntry>()
     private val graphQLSchema: GraphQLSchema
     private val viaduct: StandardViaduct
@@ -140,7 +179,10 @@ class PlanCacheBenchmarkSupport(
         val adapter = BenchmarkExecutorAdapter(world, workload.corpus.registry)
         val module = adapter.module()
         graphQLSchema = module.fullSchema.schema
-        operations = workload.operations.mapNotNull { operation -> repairValidation(graphQLSchema, operation) }
+        operations =
+            workload.operations
+                .mapNotNull { operation -> repairValidation(graphQLSchema, operation) }
+                .map { operation -> if (conditional) addConditionalDirectives(operation) else operation }
         viaduct = StandardViaduct.Builder()
             .withTenantModuleInjectorFactory(MockExecutorCodeInjector(module.mockExecutorRegistry))
             .withExecutorRegistryConfigSources(listOf(module.toModuleConfigSource()))
@@ -152,7 +194,7 @@ class PlanCacheBenchmarkSupport(
             })
             .build()
         operations.forEach(::prepareDocument)
-        responses = operations.map { operation -> execute(ExecutionInput.create(operationText = operation)).toSpecification() }
+        responses = operations.map { operation -> execute(ExecutionInput.create(operationText = operation, variables = variables(0))).toSpecification() }
         adapter.freeze()
     }
 
@@ -165,9 +207,17 @@ class PlanCacheBenchmarkSupport(
                 PlanCacheDocuments.SHARED -> operation
                 PlanCacheDocuments.FRESH -> "$operation\n# invocation $invocation request $index".also(::prepareDocument)
             }
-            ExecutionInput.create(operationText = text)
+            ExecutionInput.create(operationText = text, variables = variables(index))
         }
     }
+
+    /** Directive values for request [index]; index 0, and every fixed request, includes every conditional selection. */
+    private fun variables(index: Int): Map<String, Any?> =
+        when {
+            !conditional -> emptyMap()
+            directiveValues == PlanCacheDirectiveValues.FIXED -> mapOf(INCLUDE_VARIABLE to true, SKIP_VARIABLE to false)
+            else -> mapOf(INCLUDE_VARIABLE to (index % 4 < 2), SKIP_VARIABLE to (index % 2 == 1))
+        }
 
     fun executeBatch(consume: (ExecutionResult) -> Unit): Int {
         check(requests.isNotEmpty()) { "Benchmark invocation was not prepared" }
@@ -189,6 +239,56 @@ class PlanCacheBenchmarkSupport(
         }
     }
 }
+
+/**
+ * Declares two Boolean operation variables and guards every seventh field with `@include(if: $c0)`
+ * and every eleventh other field with `@skip(if: $c1)`, so conditional demand appears at every depth.
+ */
+private fun addConditionalDirectives(operation: String): String {
+    var fieldIndex = 0
+    val document = graphql.parser.Parser().parseDocument(operation)
+    val guarded =
+        AstTransformer().transform(
+            document,
+            object : NodeVisitorStub() {
+                override fun visitField(
+                    node: Field,
+                    context: TraverserContext<Node<*>>,
+                ): TraversalControl {
+                    val index = fieldIndex++
+                    val directive =
+                        when {
+                            index % 7 == 3 -> conditionalDirective("include", INCLUDE_VARIABLE)
+                            index % 11 == 5 -> conditionalDirective("skip", SKIP_VARIABLE)
+                            else -> null
+                        }
+                    if (directive != null) TreeTransformerUtil.changeNode(context, node.transform { it.directive(directive) })
+                    return TraversalControl.CONTINUE
+                }
+
+                override fun visitOperationDefinition(
+                    node: OperationDefinition,
+                    context: TraverserContext<Node<*>>,
+                ): TraversalControl {
+                    val definitions =
+                        listOf(INCLUDE_VARIABLE, SKIP_VARIABLE).map { name ->
+                            VariableDefinition(name, NonNullType(TypeName("Boolean")))
+                        }
+                    TreeTransformerUtil.changeNode(context, node.transform { it.variableDefinitions(node.variableDefinitions + definitions) })
+                    return TraversalControl.CONTINUE
+                }
+            },
+        ) as Document
+    return AstPrinter.printAst(guarded)
+}
+
+private fun conditionalDirective(
+    name: String,
+    variable: String,
+): Directive = Directive(name, listOf(Argument("if", VariableReference(variable))))
+
+private const val INCLUDE_VARIABLE = "c0"
+private const val SKIP_VARIABLE = "c1"
 
 /** Response sizes for reporting: field count including list expansion, and object count. */
 fun planCacheResponseSize(response: Map<String, Any?>): Pair<Int, Int> {
@@ -274,11 +374,13 @@ object PlanCacheWorkloadReport {
     fun main(arguments: Array<String>) {
         val queryCount = System.getProperty("planCacheWorkloadQueries")?.toInt() ?: 100
         val listSize = System.getProperty("planCacheWorkloadListSize")?.toInt() ?: 2
+        val profile = PlanCacheProfile.valueOf(System.getProperty("planCacheWorkloadProfile", "STEP1").uppercase())
         arguments.map(String::toLong).forEach { seed ->
             val started = System.nanoTime()
+            val workload = PlanCacheWorkload.generate(seed, queryCount, listSize, profile)
             val support =
                 try {
-                    PlanCacheBenchmarkSupport(PlanCacheWorkload.generate(seed, queryCount, listSize), planCache = false, documents = PlanCacheDocuments.SHARED)
+                    PlanCacheBenchmarkSupport(workload, planCache = false, documents = PlanCacheDocuments.SHARED)
                 } catch (failure: IllegalStateException) {
                     println("seed=$seed unsupported by the StandardViaduct adapter: ${failure.message?.take(120)}")
                     return@forEach
@@ -286,9 +388,10 @@ object PlanCacheWorkloadReport {
             val sizes = support.responses.map(::planCacheResponseSize)
             val errors = support.responses.count { (it["errors"] as? List<*>)?.isNotEmpty() == true }
             println(
-                "seed=$seed listSize=$listSize operations=${support.operations.size}/$queryCount " +
+                "profile=$profile seed=$seed listSize=$listSize operations=${support.operations.size}/$queryCount " +
                     "fields avg=${"%.1f".format(sizes.map { it.first }.average())} p50=${sizes.map { it.first }.sorted()[sizes.size / 2]} max=${sizes.maxOf { it.first }} " +
                     "objects avg=${"%.1f".format(sizes.map { it.second }.average())} errorResponses=$errors " +
+                    "fromArgumentVariables=${workload.corpus.registry.features.fromArgumentVariableCount} " +
                     "setup=${(System.nanoTime() - started) / 1_000_000}ms",
             )
         }

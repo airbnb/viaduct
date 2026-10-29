@@ -2,15 +2,19 @@ package viaduct.engine.runtime2.resolution
 
 import java.util.concurrent.ConcurrentHashMap
 import viaduct.engine.api.EngineObjectData
+import viaduct.engine.runtime2.model.Arguments
 import viaduct.engine.runtime2.model.InclusionCondition
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.ObjectSelectionForest
+import viaduct.engine.runtime2.model.ResolverOccurrenceId
 import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.model.containsParentKeys
 import viaduct.engine.runtime2.model.registry.Assumptions
 import viaduct.engine.runtime2.model.registry.FieldCheckerResolver
 import viaduct.engine.runtime2.model.registry.ResolverRegistry
 import viaduct.engine.runtime2.model.registry.TypeCheckerResolver
+import viaduct.engine.runtime2.model.registry.VariableDefinition
+import viaduct.engine.runtime2.model.renameVariableInstances
 import viaduct.engine.runtime2.resolution.framework.Demand
 import viaduct.engine.runtime2.resolution.framework.ForestPlanEntry
 import viaduct.engine.runtime2.resolution.framework.OEROccurrence
@@ -30,11 +34,16 @@ import viaduct.graphql.schema.ViaductSchema
  * Each memo records the remaining inputs that its computation reads. A closure template is reused
  * only for the same registry and closure algorithm, the same unchecked or checked partner forest,
  * equal type-check provenance, the same concrete type, the same presence of the type's registered
- * argument-free fields in the source, and the same type-checker applicability. Templates are
- * created only when no resolver, field checker, or type checker expanded on either side owns
- * variables and no parent key is demanded. The retained forests then mention no identity of the
- * occurrence that computed them, so a hit rebuilds only the occurrence-specific resolver, checker,
- * and type-checker contexts and then the root-field-reference scan.
+ * argument-free fields in the source, and the same type-checker applicability. Closure uses the
+ * occurrence only to name what it instantiates: resolver, checker, and type-checker contexts, and
+ * the variable instances those contexts own. A hit therefore recreates the contexts at the new
+ * occurrence and renames the template's owned variable instances to that occurrence; selections
+ * that mention no owned instance, including every variable-free subtree, are shared verbatim.
+ *
+ * Templates admit FromArgument variables, whose bindings follow from the owning key alone, in
+ * keys and in `@skip`/`@include` guards. Provider-read, provider, and type-checker variables, and
+ * demanded parent keys, keep closure per occurrence. Templates record owned instances against a
+ * placeholder occurrence rather than the computing one, so they retain no request's result tree.
  */
 
 // Closure templates
@@ -50,6 +59,8 @@ internal class ClosureTemplate(
     val typeCheckerApplicable: Boolean,
     val objectSide: ClosedSideTemplate,
     val querySide: ClosedSideTemplate,
+    /** The placeholder that owns the template's variable instances, or null when it retains none. */
+    val variableBase: TemplateVariableBase?,
 ) : ForestPlanEntry {
     fun matches(
         world: Assumptions,
@@ -69,7 +80,7 @@ internal class ClosureTemplate(
             typeCheckCondition == demand.typeCheckCondition
 }
 
-/** One closed side without occurrence identities: normalized forests and the keys that need contexts. */
+/** One closed side: normalized forests and the keys whose contexts each occurrence recreates. */
 internal class ClosedSideTemplate(
     val constructionDemand: Demand<ObjectSelectionForest>,
     val closedValueSelections: ObjectSelectionForest,
@@ -77,7 +88,91 @@ internal class ClosedSideTemplate(
     val checkers: List<Pair<ObjectEngineResult.ObjectKey, FieldCheckerResolver>>,
     val typeChecker: TypeCheckerResolver?,
     val typeCheckerCondition: InclusionCondition,
+) {
+    /** Keys whose resolver or checker contexts may own variable instances. */
+    val ownerKeys: List<ObjectEngineResult.ObjectKey>
+        get() = resolverKeys + checkers.map { it.first }
+
+    fun renamed(renaming: OwnedVariableRenaming): ClosedSideTemplate =
+        ClosedSideTemplate(
+            constructionDemand =
+                Demand(
+                    checked = constructionDemand.checked.renameVariableInstances(renaming::variable, renaming::key),
+                    unchecked = constructionDemand.unchecked.renameVariableInstances(renaming::variable, renaming::key),
+                    typeCheckDemanded = constructionDemand.typeCheckDemanded,
+                    typeCheckCondition = renaming.condition(constructionDemand.typeCheckCondition),
+                ),
+            closedValueSelections = closedValueSelections.renameVariableInstances(renaming::variable, renaming::key),
+            resolverKeys = resolverKeys.map(renaming::objectKey),
+            checkers = checkers.map { (key, checker) -> renaming.objectKey(key) to checker },
+            typeChecker = typeChecker,
+            typeCheckerCondition = renaming.condition(typeCheckerCondition),
+        )
+}
+
+/** Placeholder occurrences that own a template's variable instances between instantiations. */
+internal class TemplateVariableBase(
+    val objectOccurrence: OEROccurrence,
+    val queryRoot: ObjectEngineResult,
 )
+
+/**
+ * Maps the variable instances owned by one object occurrence's resolvers, field checkers, and type
+ * checker, and by its associated Query root's resolvers, to the corresponding owners at another
+ * occurrence. Instances owned elsewhere, such as an ancestor's, are unchanged. Owner keys may
+ * themselves contain owned instances, so keys are renamed recursively and memoized.
+ */
+internal class OwnedVariableRenaming(
+    from: OEROccurrence,
+    fromQueryRoot: ObjectEngineResult,
+    private val to: OEROccurrence,
+    private val toQueryRoot: ObjectEngineResult,
+    objectOwnerKeys: Collection<ObjectEngineResult.ObjectKey>,
+    queryOwnerKeys: Collection<ObjectEngineResult.ObjectKey>,
+) {
+    private sealed interface Owner
+
+    private class ObjectFieldOwner(val key: ObjectEngineResult.ObjectKey) : Owner
+
+    private object ObjectTypeOwner : Owner
+
+    private class QueryFieldOwner(val key: ObjectEngineResult.ObjectKey) : Owner
+
+    private val owners: Map<ResolverOccurrenceId, Owner> =
+        buildMap {
+            objectOwnerKeys.forEach { key -> put(ResolverOccurrenceId.at(from.root, from.coordinate(key)), ObjectFieldOwner(key)) }
+            put(ResolverOccurrenceId.at(from.root, from.path), ObjectTypeOwner)
+            queryOwnerKeys.forEach { key -> put(ResolverOccurrenceId.at(fromQueryRoot, listOf(key)), QueryFieldOwner(key)) }
+        }
+    private val renamedOwners = HashMap<ResolverOccurrenceId, ResolverOccurrenceId>()
+    private val renamedKeys = HashMap<ObjectEngineResult.Key, ObjectEngineResult.Key>()
+
+    /** Whether any owned instance was encountered. */
+    var renamedAny: Boolean = false
+        private set
+
+    fun variable(variable: Arguments.Variable): Arguments.Variable {
+        val ownerId = variable.instanceId?.resolverOccurrenceId ?: return variable
+        val owner = owners[ownerId] ?: return variable
+        renamedAny = true
+        val renamedOwner =
+            renamedOwners[ownerId] ?: when (owner) {
+                is ObjectFieldOwner -> ResolverOccurrenceId.at(to.root, to.coordinate(objectKey(owner.key)))
+                ObjectTypeOwner -> ResolverOccurrenceId.at(to.root, to.path)
+                is QueryFieldOwner -> ResolverOccurrenceId.at(toQueryRoot, listOf(objectKey(owner.key)))
+            }.also { renamedOwners[ownerId] = it }
+        return Arguments.Variable.of(variable.target, variable.variableName).instantiate(renamedOwner)
+    }
+
+    fun key(key: ObjectEngineResult.Key): ObjectEngineResult.Key = renamedKeys[key] ?: key.renameVariableInstances(::variable).also { renamedKeys[key] = it }
+
+    fun objectKey(key: ObjectEngineResult.ObjectKey): ObjectEngineResult.ObjectKey = key(key) as ObjectEngineResult.ObjectKey
+
+    fun condition(condition: InclusionCondition): InclusionCondition {
+        val renamed = condition.mapVariables { variable -> if (variable.isTemplate) variable else variable(variable) }
+        return if (renamed == condition) condition else renamed
+    }
+}
 
 /**
  * Closes one orchestration's demand, reusing a template recorded for the same incoming forest.
@@ -103,6 +198,19 @@ internal fun EngineObjectData.Sync.closeConstructionDemandWithPlanCache(
     val closed = close()
     val objectSide = closed.objectRooted.toSideTemplate() ?: return closed
     val querySide = closed.queryRooted.toSideTemplate() ?: return closed
+    val placeholder = ObjectEngineResult.of(type)
+    val base = TemplateVariableBase(OEROccurrence(placeholder, emptyList(), placeholder), ObjectEngineResult.of(queryOccurrence.target.type))
+    val toBase =
+        OwnedVariableRenaming(
+            from = objectOccurrence,
+            fromQueryRoot = queryOccurrence.root,
+            to = base.objectOccurrence,
+            toQueryRoot = base.queryRoot,
+            objectOwnerKeys = objectSide.ownerKeys,
+            queryOwnerKeys = querySide.ownerKeys,
+        )
+    val baseObjectSide = objectSide.renamed(toBase)
+    val baseQuerySide = querySide.renamed(toBase)
     val template =
         ClosureTemplate(
             registry = world.resolverRegistry,
@@ -113,16 +221,17 @@ internal fun EngineObjectData.Sync.closeConstructionDemandWithPlanCache(
             type = type,
             presence = presence,
             typeCheckerApplicable = typeCheckerApplicable,
-            objectSide = objectSide,
-            querySide = querySide,
+            objectSide = if (toBase.renamedAny) baseObjectSide else objectSide,
+            querySide = if (toBase.renamedAny) baseQuerySide else querySide,
+            variableBase = base.takeIf { toBase.renamedAny },
         )
     owner.addForestPlanEntry(template)
     return closed
 }
 
 private fun ClosedOERConstructionDemandContext.toSideTemplate(): ClosedSideTemplate? {
-    if (fieldResolverOccurrences.values.any { it.variableDefinitions.isNotEmpty() }) return null
-    if (fieldCheckerOccurrences.values.any { it.variableDefinitions.isNotEmpty() }) return null
+    if (fieldResolverOccurrences.values.any { occurrence -> occurrence.variableDefinitions.any { it.definition !is VariableDefinition.FromArgument } }) return null
+    if (fieldCheckerOccurrences.values.any { occurrence -> occurrence.variableDefinitions.any { it.definition !is VariableDefinition.FromArgument } }) return null
     val typeCheckerOccurrence = typeCheckerOccurrence
     if (typeCheckerOccurrence != null && typeCheckerOccurrence.variableDefinitions.isNotEmpty()) return null
     if (variableProviderReadsByResolverOccurrence.values.any { it.isNotEmpty() }) return null
@@ -142,10 +251,21 @@ private fun ClosureTemplate.instantiate(
     source: EngineObjectData.Sync,
     objectOccurrence: OEROccurrence,
     queryOccurrence: OEROccurrence,
-): ClosedConstructionDemandContext =
-    ClosedConstructionDemandContext(
+): ClosedConstructionDemandContext {
+    val renaming =
+        variableBase?.let { base ->
+            OwnedVariableRenaming(
+                from = base.objectOccurrence,
+                fromQueryRoot = base.queryRoot,
+                to = objectOccurrence,
+                toQueryRoot = queryOccurrence.root,
+                objectOwnerKeys = objectSide.ownerKeys,
+                queryOwnerKeys = querySide.ownerKeys,
+            )
+        }
+    return ClosedConstructionDemandContext(
         objectRooted =
-            objectSide.instantiate(
+            (renaming?.let(objectSide::renamed) ?: objectSide).instantiate(
                 world = world,
                 passiveSource = source,
                 occurrence = objectOccurrence,
@@ -153,7 +273,7 @@ private fun ClosureTemplate.instantiate(
                 objectProviderResult = objectOccurrence.target,
             ),
         queryRooted =
-            querySide.instantiate(
+            (renaming?.let(querySide::renamed) ?: querySide).instantiate(
                 world = world,
                 passiveSource = null,
                 occurrence = queryOccurrence,
@@ -161,6 +281,7 @@ private fun ClosureTemplate.instantiate(
                 objectProviderResult = queryOccurrence.target,
             ),
     )
+}
 
 private fun ClosedSideTemplate.instantiate(
     world: Assumptions,

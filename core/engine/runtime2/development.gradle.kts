@@ -243,6 +243,10 @@ val planCacheBenchmarkListSize =
     providers.gradleProperty("planCacheBenchmarkListSize").orElse("2")
 val planCacheBenchmarkJmhOptions =
     providers.gradleProperty("planCacheBenchmarkJmhOptions").orElse("")
+val planCacheBenchmarkProfile =
+    providers.gradleProperty("planCacheBenchmarkProfile").orElse("step1")
+val planCacheBenchmarkDirectiveValues =
+    providers.gradleProperty("planCacheBenchmarkDirectiveValues").orElse("fixed")
 val planCacheBenchmarkResult =
     providers.gradleProperty("planCacheBenchmarkResult")
         .map { file(it) }
@@ -259,6 +263,8 @@ tasks.register<JavaExec>("planCacheBenchmark") {
     inputs.property("documents", planCacheBenchmarkDocuments)
     inputs.property("seed", planCacheBenchmarkSeed)
     inputs.property("listSize", planCacheBenchmarkListSize)
+    inputs.property("profile", planCacheBenchmarkProfile)
+    inputs.property("directiveValues", planCacheBenchmarkDirectiveValues)
     inputs.property("loopCount", resolverBenchmarkLoopCount)
     outputs.upToDateWhen { false }
     doFirst {
@@ -276,6 +282,10 @@ tasks.register<JavaExec>("planCacheBenchmark") {
             "seed=${planCacheBenchmarkSeed.get()}",
             "-p",
             "listSize=${planCacheBenchmarkListSize.get()}",
+            "-p",
+            "profile=${planCacheBenchmarkProfile.get()}",
+            "-p",
+            "directiveValues=${planCacheBenchmarkDirectiveValues.get()}",
             "-p",
             "loopCount=${resolverBenchmarkLoopCount.get()}",
             "-rf",

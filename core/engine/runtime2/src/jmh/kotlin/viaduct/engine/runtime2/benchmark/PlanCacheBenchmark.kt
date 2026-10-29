@@ -58,15 +58,26 @@ open class PlanCacheBenchmark {
     @Param("2")
     var listSize: Int = 2
 
+    /** `step1` or `step2`; step 2 adds FromArgument resolver variables and operation `@skip`/`@include`. */
+    @JvmField
+    @Param("step1")
+    var profile: String = "step1"
+
+    /** For step 2: `fixed` directive values, or `rotating` through all four combinations. */
+    @JvmField
+    @Param("fixed")
+    var directiveValues: String = "fixed"
+
     private lateinit var support: PlanCacheBenchmarkSupport
 
     @Setup(Level.Trial)
     fun prepareTrial() {
-        val workload = PlanCacheWorkload.generate(seed, queryCount, listSize)
+        val workload = PlanCacheWorkload.generate(seed, queryCount, listSize, PlanCacheProfile.valueOf(profile.uppercase(Locale.ROOT)))
         val mode = PlanCacheDocuments.valueOf(documents.uppercase(Locale.ROOT))
-        support = PlanCacheBenchmarkSupport(workload, planCache = planCache == "on", documents = mode)
+        val values = PlanCacheDirectiveValues.valueOf(directiveValues.uppercase(Locale.ROOT))
+        support = PlanCacheBenchmarkSupport(workload, planCache = planCache == "on", documents = mode, directiveValues = values)
         if (planCache == "on") {
-            val reference = PlanCacheBenchmarkSupport(workload, planCache = false, documents = mode)
+            val reference = PlanCacheBenchmarkSupport(workload, planCache = false, documents = mode, directiveValues = values)
             check(reference.operations == support.operations) { "Repaired operations differ between engines" }
             val differing = support.responses.indices.filter { support.responses[it]["data"] != reference.responses[it]["data"] }
             check(differing.isEmpty()) { "Plan-cache responses differ from uncached responses at operations $differing" }
@@ -75,10 +86,10 @@ open class PlanCacheBenchmark {
         val sizes = support.responses.map(::planCacheResponseSize)
         val errorResponses = support.responses.count { (it["errors"] as? List<*>)?.isNotEmpty() == true }
         println(
-            "PlanCacheBenchmark workload seed=$seed listSize=$listSize: operations=${support.operations.size}/$queryCount, " +
+            "PlanCacheBenchmark workload profile=$profile seed=$seed listSize=$listSize: operations=${support.operations.size}/$queryCount, " +
                 "fields avg=${sizes.map { it.first }.average().format()} max=${sizes.maxOf { it.first }}, " +
                 "objects avg=${sizes.map { it.second }.average().format()} max=${sizes.maxOf { it.second }}, " +
-                "responses with errors=$errorResponses",
+                "responses with errors=$errorResponses, FromArgument variables=${workload.corpus.registry.features.fromArgumentVariableCount}",
         )
     }
 

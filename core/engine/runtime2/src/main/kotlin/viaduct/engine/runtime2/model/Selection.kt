@@ -594,6 +594,61 @@ private object EmptySelectionForest : SelectionForest {
     override fun plus(other: SelectionForest): SelectionForest = if (other.isEmpty()) this else other
 }
 
+/**
+ * Replaces instantiated variables in keys, guards, and descendants by [rename]. Unchanged
+ * selections and subtrees without variables keep their identity, so memos attached to them
+ * remain reachable from the renamed forest.
+ */
+internal fun SelectionForest.renameVariableInstances(
+    rename: (Arguments.Variable) -> Arguments.Variable,
+    renameKey: (ObjectEngineResult.Key) -> ObjectEngineResult.Key = { it.renameVariableInstances(rename) },
+): SelectionForest {
+    if (this is ObjectSelectionForest) return renameVariableInstances(rename, renameKey)
+    if (!containsVariables()) return this
+    var changed = false
+    val renamed =
+        buildList(size) {
+            this@renameVariableInstances.forEach { selection ->
+                val renamedSelection = selection.renameVariableInstances(rename, renameKey)
+                if (renamedSelection !== selection) changed = true
+                add(renamedSelection)
+            }
+        }
+    return if (changed) ordinarySelectionForest(renamed) else this
+}
+
+/** [SelectionForest.renameVariableInstances] preserving the normalized object-forest representation. */
+internal fun ObjectSelectionForest.renameVariableInstances(
+    rename: (Arguments.Variable) -> Arguments.Variable,
+    renameKey: (ObjectEngineResult.Key) -> ObjectEngineResult.Key = { it.renameVariableInstances(rename) },
+): ObjectSelectionForest {
+    if (!containsVariables()) return this
+    var changed = false
+    val renamed =
+        byKey().values.map { selection ->
+            (selection.renameVariableInstances(rename, renameKey) as ObjectSelection).also { if (it !== selection) changed = true }
+        }
+    return if (changed) ObjectSelectionForest.of(type, renamed) else this
+}
+
+private fun Selection.renameVariableInstances(
+    rename: (Arguments.Variable) -> Arguments.Variable,
+    renameKey: (ObjectEngineResult.Key) -> ObjectEngineResult.Key,
+): Selection {
+    val renamedKey = if (key.arguments is Arguments.Ground) key else renameKey(key)
+    val renamedCondition = inclusionCondition.mapVariables { variable -> if (variable.isTemplate) variable else rename(variable) }
+    val condition = if (renamedCondition == inclusionCondition) inclusionCondition else renamedCondition
+    val renamedSubselections = subselections.renameVariableInstances(rename, renameKey)
+    if (renamedKey === key && condition === inclusionCondition && renamedSubselections === subselections) return this
+    return Selection.of(renamedKey, possibleTypes, renamedSubselections, condition)
+}
+
+/** Replaces instantiated variables in this key's arguments; returns this key when none changes. */
+internal fun ObjectEngineResult.Key.renameVariableInstances(rename: (Arguments.Variable) -> Arguments.Variable): ObjectEngineResult.Key {
+    val renamed = arguments.renameVariableInstances(field, rename)
+    return if (renamed === arguments) this else ObjectEngineResult.Key.of(field, renamed)
+}
+
 internal fun SelectionForest.containsVariables(): Boolean {
     (this as? CachedSelectionForest)?.containsVariables?.let { return it }
     val result = !all { selection ->
