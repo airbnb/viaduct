@@ -269,7 +269,8 @@ final class StarWarsJavaIntegrationTest {
         .isEqualTo("Luke Skywalker (born 19BBY) - blue eyes, blond hair");
     assertThat(character.path("characterStats").asText())
         .contains("Age range: 18-80", "Species: Human");
-    assertThat(character.path("richSummary").asText()).contains("appears in 3 films");
+    assertThat(character.path("richSummary").asText())
+        .isEqualTo("Luke Skywalker (19BBY) from Tatooine, appears in 3 films");
   }
 
   @Test
