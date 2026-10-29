@@ -137,7 +137,7 @@ The `@Resolver` annotation can also be used to declare data dependencies on the 
 
 ### Parent fields in required selection sets
 
-Use a field marked `@parent` when a resolver or checker for a child object needs fields from the object that produced it:
+Use a field marked `@parent` when a resolver for a child object needs fields from the object that produced it:
 
 ```graphql
 type Company {
@@ -192,7 +192,7 @@ The resolver selects the parent field as part of its object required selection s
 
 Viaduct resolves `User.parent` to the particular `Company` object from which that `User` was reached. It executes `Company.name` normally if the value is not already available. Parent selections can be nested when each object in the traversal declares its own `@parent` field.
 
-Directives cannot be applied to a parent field, including on inline fragments or fragment spreads between it and the field that contains it, and nothing selected under a parent field can use variables. This is enforced at build time for resolvers only, not checkers.
+Directives cannot be applied to a parent field, including on inline fragments or fragment spreads between it and the field that contains it, and nothing selected under a parent field can use variables. This is enforced at build time. Access checker required selection sets cannot select `@parent` fields; Viaduct rejects such checkers at startup.
 
 `@parent` is intended for required selection sets, not client queries. Parent fields are tenant-local automatically and are absent from any externally accessible schemas.
 
