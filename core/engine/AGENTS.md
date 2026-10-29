@@ -33,6 +33,14 @@ For config identity, uniqueness, and replacement during registry rebuilds, use t
 - [ExecutionRegistryBootstrapperCycleTest](runtime/src/test/kotlin/viaduct/engine/runtime/tenantloading/ExecutionRegistryBootstrapperCycleTest.kt) — a supplied config and mock injector exercising required-selection cycle validation through the file-based path.
 - [FileBasedBootstrapContractTest](../tenant/runtime/src/testFixtures/kotlin/viaduct/tenant/runtime/execution/filebased/FileBasedBootstrapContractTest.kt) — generated classpath metadata through actual field, node, and variable-provider execution.
 
+## Resolver instrumentation
+
+When adding or changing telemetry about tenant resolver execution, start with [ViaductResolverInstrumentation](api/src/main/kotlin/viaduct/engine/api/instrumentation/resolver/ViaductResolverInstrumentation.kt) or the relevant [DataLoaderInstrumentation](../shared/dataloader/src/main/kotlin/viaduct/dataloader/DataLoaderInstrumentation.kt) hooks. Have instrumentation implementations own metric definitions, tags, registry access, and emission, reusing shared helpers where appropriate. Execution contexts and loaders may forward execution facts.
+
+Distinguish logical loads, loader dispatches, and actual tenant calls; their counts and inputs can differ. If existing hooks lack the required event, add a narrowly scoped, backend-independent callback where it occurs, carrying the execution facts instrumentation needs. For example, observe tenant batch size from the final inputs immediately before each tenant call, including singleton calls and calls that fail.
+
+Document the event contract at its interface. Reuse existing fixtures where practical to test the changed boundary and relevant failures.
+
 ## Implementation Documentation
 
 - [`runtime/impldocs/context-flow.md`](runtime/impldocs/context-flow.md) — Documents the flow of execution context through the engine: the Execution Entry Context (EEC), Local Context, Data Fetching Environment (DFE), and `ExecutionParameters`.

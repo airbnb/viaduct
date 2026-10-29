@@ -45,3 +45,4 @@ The [Tenant API](core/tenant/api/module.md) provides the interfaces application 
 - [`impldocs/subquery-execution.md`](impldocs/subquery-execution.md) — Cross-cutting documentation about the `ExecutionHandle` abstraction and how `ctx.query()`/`ctx.mutation()` drive subquery execution across the engine.
 - [`impldocs/exception-hierarchy.md`](impldocs/exception-hierarchy.md) — Exception hierarchy specification: `TenantException` and `PassthroughException` marker interfaces, error handler semantics.
 - [`impldocs/testing-guidance.md`](impldocs/testing-guidance.md) — Assertion library guidance: when to use JUnit 5 vs Kotest, and which libraries are prohibited.
+- [Resolver instrumentation](core/engine/AGENTS.md#resolver-instrumentation) — guidance for tenant resolver telemetry in engines, tenant runtimes, and loaders.
