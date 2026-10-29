@@ -323,7 +323,13 @@ class FieldResolver(
                     ?.parameters
                     ?.isShadowFieldExecution == false
 
+        val fieldCoordinate = parameters.currentObjectEngineResult.type.name to field.fieldName
         field.childPlans.fold(emptySet<RequiredSelectionSet.Id>()) { seenRssIds, childPlan ->
+            // Abstract fields may retain Query-rooted plans for other concrete types. Their
+            // variables can require the owning object's data, so only launch this field's plans.
+            if (childPlan.originCoordinate != fieldCoordinate) {
+                return@fold seenRssIds
+            }
             if (childPlan.requiredSelectionSetId in seenRssIds) {
                 return@fold seenRssIds
             }

@@ -17,6 +17,7 @@ import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.CsvSource
+import org.junit.jupiter.params.provider.ValueSource
 import viaduct.arbitrary.common.CheckedArb
 import viaduct.arbitrary.common.Config
 import viaduct.arbitrary.common.DeepArbSuite
@@ -66,6 +67,7 @@ import viaduct.service.api.Viaduct
 import viaduct.service.api.spi.ErrorReporter
 import viaduct.service.api.spi.FlagManager
 import viaduct.service.api.spi.ResolverErrorBuilder
+import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 import viaduct.service.api.spi.mocks.MockFlagManager
 
 class SelectiveNodeExecutionContractTest : SelectiveNodeExecutionContract, Engine1QueryExecutionContract {
@@ -76,6 +78,61 @@ class SelectiveNodeExecutionContractTest : SelectiveNodeExecutionContract, Engin
             read.copy(value = ResolvedEngineObjectData(bar.type, mapOf("y" to 5)))
         } else {
             read
+        }
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = [false, true])
+    fun `abstract fields launch required selections only for their concrete type`(originFilteringKillSwitch: Boolean) {
+        val barVariableCalls = AtomicInteger()
+        val fooId = GlobalIDCodecDefault.serialize("Foo", "foo")
+        val barId = GlobalIDCodecDefault.serialize("Bar", "bar")
+
+        MockTenantModuleBootstrapper(
+            """
+                type Foo implements Node { id: ID! }
+                type Bar implements Node { id: ID! }
+            """.trimIndent()
+        ) {
+            for (typeName in listOf("Foo", "Bar")) {
+                type(typeName) {
+                    nodeUnbatchedExecutor { _, _, _ -> createEngineObjectData(objectType, emptyMap()) }
+                }
+            }
+            field("Foo" to "id") {
+                resolver {
+                    querySelections("__typename")
+                    fn { _, _, _, _, _ -> "foo" }
+                }
+            }
+            field("Bar" to "id") {
+                resolver {
+                    querySelections("__typename @include(if: ${'$'}include)") {
+                        variables("include") { ctx, _ ->
+                            barVariableCalls.incrementAndGet()
+                            assertEquals("Bar", ctx.objectData.type.name)
+                            mapOf("include" to true)
+                        }
+                    }
+                    fn { _, _, _, _, _ -> "bar" }
+                }
+            }
+        }.runFeatureTest(
+            engineConfig = EngineConfiguration.featureTestDefault.copy(
+                flagManager = if (originFilteringKillSwitch) {
+                    MockFlagManager.create(FlagManager.Flags.KILLSWITCH_FIELD_RSS_ORIGIN_FILTERING)
+                } else {
+                    MockFlagManager.Disabled
+                },
+            ),
+        ) {
+            runQueryWithTimeout("""{ node(id: "$fooId") { id } }""")
+                .assertJson("""{data: {node: {id: "foo"}}}""")
+            assertEquals(0, barVariableCalls.get())
+
+            runQueryWithTimeout("""{ node(id: "$barId") { id } }""")
+                .assertJson("""{data: {node: {id: "bar"}}}""")
+            assertTrue(barVariableCalls.get() > 0)
         }
     }
 
