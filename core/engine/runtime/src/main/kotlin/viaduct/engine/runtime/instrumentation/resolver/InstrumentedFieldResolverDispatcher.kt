@@ -38,7 +38,8 @@ class InstrumentedFieldResolverDispatcher(
         objectValueFactory: EngineObjectDataFactory,
         queryValueFactory: EngineObjectDataFactory,
         selections: EngineSelectionSet?,
-        context: EngineExecutionContext
+        context: EngineExecutionContext,
+        instrumentationContext: ResolverInstrumentationContext?,
     ): Any? {
         val createStateParameter = ViaductResolverInstrumentation.CreateInstrumentationStateParameters()
         val state = instrumentation.createInstrumentationState(createStateParameter)
@@ -49,14 +50,14 @@ class InstrumentedFieldResolverDispatcher(
             executionPath = context.dataFetchingEnvironment?.executionStepInfo?.path,
         )
 
-        val instrumentationContext = ResolverInstrumentationContext(instrumentation, state)
+        val resolverInstrumentationContext = ResolverInstrumentationContext(instrumentation, state)
 
-        val instrumentedObjectFactory = EngineObjectDataFactory { resolverInstrumentationContext ->
-            val syncData = objectValueFactory.create(resolverInstrumentationContext ?: instrumentationContext)
+        val instrumentedObjectFactory = EngineObjectDataFactory { suppliedContext ->
+            val syncData = objectValueFactory.create(suppliedContext ?: resolverInstrumentationContext)
             InstrumentedEngineObjectData.Sync(syncData, instrumentation, state)
         }
-        val instrumentedQueryFactory = EngineObjectDataFactory { resolverInstrumentationContext ->
-            val syncData = queryValueFactory.create(resolverInstrumentationContext ?: instrumentationContext)
+        val instrumentedQueryFactory = EngineObjectDataFactory { suppliedContext ->
+            val syncData = queryValueFactory.create(suppliedContext ?: resolverInstrumentationContext)
             InstrumentedEngineObjectData.Sync(syncData, instrumentation, state)
         }
 
@@ -74,7 +75,8 @@ class InstrumentedFieldResolverDispatcher(
                     instrumentedObjectFactory,
                     instrumentedQueryFactory,
                     selections,
-                    instrumentedContext
+                    instrumentedContext,
+                    resolverInstrumentationContext,
                 )
             },
             resolverExecuteParam,

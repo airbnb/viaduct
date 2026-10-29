@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.ResolverMetadata
+import viaduct.engine.api.instrumentation.resolver.ResolverInstrumentationContext
 
 class ProxyResolverFactoryTest {
     @Test
@@ -36,6 +37,7 @@ class ProxyResolverFactoryTest {
             override suspend fun batchResolve(
                 selectors: List<FieldResolverExecutor.Selector>,
                 context: EngineExecutionContext,
+                instrumentationContext: ResolverInstrumentationContext?,
             ): Map<FieldResolverExecutor.Selector, Result<Any?>> = emptyMap()
         }
 

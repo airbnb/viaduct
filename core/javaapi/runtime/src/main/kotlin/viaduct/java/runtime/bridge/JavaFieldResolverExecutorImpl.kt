@@ -11,6 +11,7 @@ import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.ResolverMetadata
 import viaduct.engine.api.ResolverType
+import viaduct.engine.api.instrumentation.resolver.ResolverInstrumentationContext
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.VariableFromArgumentDefinitions
 import viaduct.errors.handleFrameworkErrors
@@ -66,7 +67,8 @@ class JavaFieldResolverExecutorImpl(
 
     override suspend fun batchResolve(
         selectors: List<FieldResolverExecutor.Selector>,
-        context: EngineExecutionContext
+        context: EngineExecutionContext,
+        instrumentationContext: ResolverInstrumentationContext?,
     ): Map<FieldResolverExecutor.Selector, Result<Any?>> {
         // Unbatched resolver only handles single selector
         require(selectors.size == 1) {

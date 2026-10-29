@@ -15,6 +15,7 @@ import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.EngineSelection
 import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.fragment.Fragment
+import viaduct.engine.api.instrumentation.resolver.ResolverInstrumentationContext
 import viaduct.engine.api.spi.NodeResolverExecutor
 import viaduct.engine.runtime.select.covers
 
@@ -29,16 +30,18 @@ class NodeDataLoader(
 ) : DataLoader<NodeResolverExecutor.Selector, Result<EngineObjectData>, NodeResolverExecutor.Selector>() {
     suspend fun loadByKey(
         key: NodeResolverExecutor.Selector,
-        context: EngineExecutionContext
+        context: EngineExecutionContext,
+        instrumentationContext: ResolverInstrumentationContext? = null,
     ): Result<EngineObjectData> {
-        return internalDataLoader.load(key, context) ?: throw IllegalStateException("Received null NodeDataLoader value for node ID: ${key.id}")
+        return internalDataLoader.load(key, ResolverInvocationContext(context, instrumentationContext)) ?: throw IllegalStateException("Received null NodeDataLoader value for node ID: ${key.id}")
     }
 
     override suspend fun internalLoad(
         keys: Set<NodeResolverExecutor.Selector>,
         environment: BatchLoaderEnvironment<NodeResolverExecutor.Selector>
     ): Map<NodeResolverExecutor.Selector, Result<EngineObjectData>?> {
-        return resolver.resolve(keys.toList(), executionContextForBatchLoadFromKeys(keys, environment))
+        val invocation = invocationContextForBatchLoadFromKeys(keys, environment)
+        return resolver.resolve(keys.toList(), invocation.executionContext, invocation.instrumentationContext)
     }
 
     override fun getDataLoaderOptions(): DataLoaderOptions = DataLoaderOptions(cachingEnabled = cachingEnabled)

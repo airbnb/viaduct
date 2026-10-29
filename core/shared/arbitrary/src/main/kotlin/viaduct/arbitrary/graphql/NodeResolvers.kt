@@ -12,6 +12,7 @@ import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.ResolverMetadata
+import viaduct.engine.api.instrumentation.resolver.ResolverInstrumentationContext
 import viaduct.engine.api.spi.NodeResolverExecutor
 
 /**
@@ -101,7 +102,8 @@ private class NodeResolverExecutorImpl(
 
     override suspend fun resolve(
         selectors: List<NodeResolverExecutor.Selector>,
-        context: EngineExecutionContext
+        context: EngineExecutionContext,
+        instrumentationContext: ResolverInstrumentationContext?,
     ): Map<NodeResolverExecutor.Selector, Result<EngineObjectData>> =
         selectors.associateWith { sel ->
             runCatching {

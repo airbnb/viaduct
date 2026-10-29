@@ -18,6 +18,7 @@ import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.RequiredSelectionSet
+import viaduct.engine.api.instrumentation.resolver.ResolverInstrumentationContext
 import viaduct.engine.api.mocks.EngineTestModule
 import viaduct.engine.api.spi.CheckerExecutor
 import viaduct.engine.api.spi.FieldResolverExecutor
@@ -240,6 +241,7 @@ fun EngineTestModule.countCallbacks(counts: BenchmarkCallbackCounts): EngineTest
                 override suspend fun batchResolve(
                     selectors: List<FieldResolverExecutor.Selector>,
                     context: EngineExecutionContext,
+                    instrumentationContext: ResolverInstrumentationContext?,
                 ): Map<FieldResolverExecutor.Selector, Result<Any?>> {
                     counts.fields.addAndGet(selectors.size)
                     val calls = counts.fieldCalls.computeIfAbsent("${coordinate.first}.${coordinate.second}") { ConcurrentHashMap() }
@@ -272,10 +274,11 @@ fun EngineTestModule.countCallbacks(counts: BenchmarkCallbackCounts): EngineTest
                 override suspend fun resolve(
                     selectors: List<NodeResolverExecutor.Selector>,
                     context: EngineExecutionContext,
+                    instrumentationContext: ResolverInstrumentationContext?,
                 ): Map<NodeResolverExecutor.Selector, Result<EngineObjectData>> {
                     counts.nodes.addAndGet(selectors.size)
                     selectors.forEach { counts.nodeIds.add(type to it.id) }
-                    return executor.resolve(selectors, context)
+                    return executor.resolve(selectors, context, instrumentationContext)
                 }
             }
         },

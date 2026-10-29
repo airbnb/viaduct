@@ -52,14 +52,15 @@ private class Runtime2InstrumentedFieldDispatcher(
         queryValueFactory: EngineObjectDataFactory,
         selections: EngineSelectionSet?,
         context: EngineExecutionContext,
+        instrumentationContext: ResolverInstrumentationContext?,
     ): Any? {
         val state =
             instrumentation.createInstrumentationState(
                 ViaductResolverInstrumentation.CreateInstrumentationStateParameters(),
             )
-        val instrumentationContext = ResolverInstrumentationContext(instrumentation, state)
-        val objectFactory = objectValueFactory.instrumented(instrumentationContext)
-        val queryFactory = queryValueFactory.instrumented(instrumentationContext)
+        val resolverInstrumentationContext = ResolverInstrumentationContext(instrumentation, state)
+        val objectFactory = objectValueFactory.instrumented(resolverInstrumentationContext)
+        val queryFactory = queryValueFactory.instrumented(resolverInstrumentationContext)
         val resolverContext =
             Runtime2InstrumentedExecutionContext(
                 context.requireDispatcherExecutionContext(),
@@ -76,6 +77,7 @@ private class Runtime2InstrumentedFieldDispatcher(
                         queryFactory,
                         selections,
                         resolverContext,
+                        resolverInstrumentationContext,
                     )
                 },
                 ViaductResolverInstrumentation.InstrumentExecuteResolverParameters(
@@ -95,6 +97,7 @@ private class Runtime2InstrumentedNodeDispatcher(
         id: String,
         selections: EngineSelectionSet,
         context: EngineExecutionContext,
+        instrumentationContext: ResolverInstrumentationContext?,
     ): EngineObjectData {
         val state =
             instrumentation.createInstrumentationState(
@@ -109,7 +112,7 @@ private class Runtime2InstrumentedNodeDispatcher(
             )
         return instrumentation
             .instrumentResolverExecution(
-                ResolverFunction { delegate.resolve(id, selections, resolverContext) },
+                ResolverFunction { delegate.resolve(id, selections, resolverContext, ResolverInstrumentationContext(instrumentation, state)) },
                 ViaductResolverInstrumentation.InstrumentExecuteResolverParameters(
                     resolverMetadata = resolverMetadata,
                 ),

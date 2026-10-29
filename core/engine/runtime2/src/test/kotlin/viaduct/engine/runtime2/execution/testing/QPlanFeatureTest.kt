@@ -18,6 +18,7 @@ import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.NodeReference
 import viaduct.engine.api.ResolvedEngineObjectData
 import viaduct.engine.api.RootFieldReference
+import viaduct.engine.api.instrumentation.resolver.ResolverInstrumentationContext
 import viaduct.engine.api.mocks.EngineTestModule
 import viaduct.engine.api.mocks.FeatureTest
 import viaduct.engine.api.mocks.MockFieldUnbatchedResolverExecutor
@@ -185,9 +186,10 @@ internal fun EngineTestModule.fixtureFieldExecutor(
         override suspend fun batchResolve(
             selectors: List<FieldResolverExecutor.Selector>,
             context: EngineExecutionContext,
+            instrumentationContext: ResolverInstrumentationContext?,
         ): Map<FieldResolverExecutor.Selector, Result<Any?>> {
             val type = fullSchema.schema.getObjectType(coordinate.first).getFieldDefinition(coordinate.second).type
-            return executor.batchResolve(selectors, context).mapValues { (_, result) ->
+            return executor.batchResolve(selectors, context, instrumentationContext).mapValues { (_, result) ->
                 result.map { fixtureOutput(type, it) }
             }
         }
@@ -201,8 +203,9 @@ internal fun EngineTestModule.fixtureNodeExecutor(
         override suspend fun resolve(
             selectors: List<NodeResolverExecutor.Selector>,
             context: EngineExecutionContext,
+            instrumentationContext: ResolverInstrumentationContext?,
         ): Map<NodeResolverExecutor.Selector, Result<EngineObjectData>> =
-            executor.resolve(selectors, context).mapValues { (selector, result) ->
+            executor.resolve(selectors, context, instrumentationContext).mapValues { (selector, result) ->
                 result.map { output ->
                     val type = requireNotNull(fullSchema.schema.getObjectType(typeName))
                     val prepared = fixtureOutput(type, output) as EngineObjectData

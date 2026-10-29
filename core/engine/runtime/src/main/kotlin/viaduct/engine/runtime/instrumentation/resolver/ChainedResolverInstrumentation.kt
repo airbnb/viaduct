@@ -1,5 +1,6 @@
 package viaduct.engine.runtime.instrumentation.resolver
 
+import viaduct.engine.api.ResolverMetadata
 import viaduct.engine.api.instrumentation.resolver.ResolverFunction
 import viaduct.engine.api.instrumentation.resolver.SyncFetchFunction
 import viaduct.engine.api.instrumentation.resolver.ViaductResolverInstrumentation
@@ -20,6 +21,17 @@ import viaduct.engine.api.instrumentation.resolver.ViaductResolverInstrumentatio
 class ChainedResolverInstrumentation(
     val instrumentations: List<ViaductResolverInstrumentation>
 ) : ViaductResolverInstrumentation {
+    override fun onBatchResolverInvocation(
+        metadata: ResolverMetadata,
+        batchSize: Int,
+        state: ViaductResolverInstrumentation.InstrumentationState?,
+    ) {
+        state as ChainedInstrumentationState
+        instrumentations.forEach { instrumentation ->
+            instrumentation.onBatchResolverInvocation(metadata, batchSize, state.getState(instrumentation))
+        }
+    }
+
     /**
      * Composite state that holds individual states for each instrumentation in the chain.
      */

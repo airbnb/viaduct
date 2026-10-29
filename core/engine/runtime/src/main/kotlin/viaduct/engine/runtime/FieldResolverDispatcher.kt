@@ -4,6 +4,7 @@ import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.ResolverMetadata
+import viaduct.engine.api.instrumentation.resolver.ResolverInstrumentationContext
 
 /**
  * Class that delegates to a data loader to call [FieldResolverExecutor]
@@ -32,5 +33,6 @@ interface FieldResolverDispatcher {
         queryValueFactory: EngineObjectDataFactory,
         selections: EngineSelectionSet?,
         context: EngineExecutionContext,
+        instrumentationContext: ResolverInstrumentationContext? = null,
     ): Any?
 }

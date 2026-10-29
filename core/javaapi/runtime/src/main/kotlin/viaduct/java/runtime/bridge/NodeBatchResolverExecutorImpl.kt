@@ -9,6 +9,7 @@ import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.ResolverMetadata
 import viaduct.engine.api.ResolverType
+import viaduct.engine.api.instrumentation.resolver.ResolverInstrumentationContext
 import viaduct.engine.api.invocationContextFor
 import viaduct.engine.api.spi.NodeResolverExecutor
 import viaduct.errors.ErroneousFieldException
@@ -53,17 +54,20 @@ class NodeBatchResolverExecutorImpl(
     override suspend fun resolve(
         selectors: List<NodeResolverExecutor.Selector>,
         context: EngineExecutionContext,
+        instrumentationContext: ResolverInstrumentationContext?,
     ): Map<NodeResolverExecutor.Selector, Result<EngineObjectData>> =
         resolve(
             resolver = resolver.get(),
             selectors = selectors,
             context = context,
+            instrumentationContext = instrumentationContext,
         )
 
     private suspend fun <R : NodeObject> resolve(
         resolver: BaseBatchedNodeResolver<R>,
         selectors: List<NodeResolverExecutor.Selector>,
         context: EngineExecutionContext,
+        instrumentationContext: ResolverInstrumentationContext?,
     ): Map<NodeResolverExecutor.Selector, Result<EngineObjectData>> {
         val scope = CoroutineScope(currentCoroutineContext())
         return executeNodeBatch(
@@ -84,7 +88,10 @@ class NodeBatchResolverExecutorImpl(
                     internalID = invocationContext.globalIDCodec.deserialize(selector.id).localID,
                 )
             },
-            invoke = { contexts -> resolver.invokeNodeBatchResolver(contexts).await() },
+            invoke = { contexts ->
+                instrumentationContext?.run { instrumentation.onBatchResolverInvocation(metadata, contexts.size, state) }
+                resolver.invokeNodeBatchResolver(contexts).await()
+            },
             unwrap = { selector, fieldValue ->
                 unwrap(fieldValue, context.invocationContextFor(selector))
             },

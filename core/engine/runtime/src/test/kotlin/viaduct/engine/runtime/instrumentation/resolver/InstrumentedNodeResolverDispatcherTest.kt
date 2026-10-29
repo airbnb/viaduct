@@ -18,6 +18,7 @@ import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.ExecutionAttribution
 import viaduct.engine.api.ResolverMetadata
+import viaduct.engine.api.instrumentation.resolver.ResolverInstrumentationContext
 import viaduct.engine.api.instrumentation.resolver.ViaductResolverInstrumentation
 import viaduct.engine.runtime.EngineExecutionContextImpl
 import viaduct.engine.runtime.NodeResolverDispatcher
@@ -29,6 +30,26 @@ internal class InstrumentedNodeResolverDispatcherTest {
         get() = ContextMocks().engineExecutionContextImpl
 
     @Test
+    fun `resolve passes instrumentation and its state separately from the execution context`() =
+        runBlocking {
+            val state = object : ViaductResolverInstrumentation.InstrumentationState {}
+            val instrumentation = object : ViaductResolverInstrumentation {
+                override fun createInstrumentationState(parameters: ViaductResolverInstrumentation.CreateInstrumentationStateParameters) = state
+            }
+            val captured = slot<ResolverInstrumentationContext>()
+            val delegate = mockk<NodeResolverDispatcher> {
+                every { resolverMetadata } returns ResolverMetadata.forModern("BatchResolver")
+                coEvery { resolve(any(), any(), any(), capture(captured)) } returns mockk()
+            }
+            val dispatcher = InstrumentedNodeResolverDispatcher(delegate, instrumentation)
+
+            dispatcher.resolve("id", mockk(), defaultContext)
+
+            assertSame(instrumentation, captured.captured.instrumentation)
+            assertSame(state, captured.captured.state)
+        }
+
+    @Test
     fun `resolve calls instrumentation during execution`() =
         runBlocking {
             // Given
@@ -38,7 +59,7 @@ internal class InstrumentedNodeResolverDispatcherTest {
             val mockResult: EngineObjectData = mockk()
 
             every { mockDispatcher.resolverMetadata } returns mockMetadata
-            coEvery { mockDispatcher.resolve(any(), any(), any()) } returns mockResult
+            coEvery { mockDispatcher.resolve(any(), any(), any(), any()) } returns mockResult
 
             val testClass = InstrumentedNodeResolverDispatcher(mockDispatcher, instrumentation)
 
@@ -64,7 +85,7 @@ internal class InstrumentedNodeResolverDispatcherTest {
             val exception = RuntimeException("test error")
 
             every { mockDispatcher.resolverMetadata } returns mockMetadata
-            coEvery { mockDispatcher.resolve(any(), any(), any()) } throws exception
+            coEvery { mockDispatcher.resolve(any(), any(), any(), any()) } throws exception
 
             val testClass = InstrumentedNodeResolverDispatcher(mockDispatcher, instrumentation)
 
@@ -112,7 +133,7 @@ internal class InstrumentedNodeResolverDispatcherTest {
             val capturedContext = slot<EngineExecutionContext>()
 
             every { mockDispatcher.resolverMetadata } returns mockMetadata
-            coEvery { mockDispatcher.resolve(any(), any(), capture(capturedContext)) } returns mockResult
+            coEvery { mockDispatcher.resolve(any(), any(), capture(capturedContext), any()) } returns mockResult
 
             val testClass = InstrumentedNodeResolverDispatcher(mockDispatcher, instrumentation)
 
@@ -135,7 +156,7 @@ internal class InstrumentedNodeResolverDispatcherTest {
             val capturedContext = slot<EngineExecutionContext>()
 
             every { mockDispatcher.resolverMetadata } returns ResolverMetadata.forMock("mock-resolver")
-            coEvery { mockDispatcher.resolve(any(), any(), capture(capturedContext)) } returns mockk()
+            coEvery { mockDispatcher.resolve(any(), any(), capture(capturedContext), any()) } returns mockk()
 
             val testClass = InstrumentedNodeResolverDispatcher(mockDispatcher, instrumentation)
 
@@ -154,7 +175,7 @@ internal class InstrumentedNodeResolverDispatcherTest {
             val capturedContext = slot<EngineExecutionContext>()
 
             every { mockDispatcher.resolverMetadata } returns ResolverMetadata.forMock("mock-resolver")
-            coEvery { mockDispatcher.resolve(any(), any(), capture(capturedContext)) } returns mockk()
+            coEvery { mockDispatcher.resolve(any(), any(), capture(capturedContext), any()) } returns mockk()
 
             val testClass = InstrumentedNodeResolverDispatcher(mockDispatcher, ViaductResolverInstrumentation.DEFAULT)
 

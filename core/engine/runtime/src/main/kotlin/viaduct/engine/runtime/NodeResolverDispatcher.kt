@@ -4,6 +4,7 @@ import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.ResolverMetadata
+import viaduct.engine.api.instrumentation.resolver.ResolverInstrumentationContext
 
 /**
  * Class that delegates to a data loader to call [NodeResolverExecutor]
@@ -18,6 +19,7 @@ interface NodeResolverDispatcher {
     suspend fun resolve(
         id: String,
         selections: EngineSelectionSet,
-        context: EngineExecutionContext
+        context: EngineExecutionContext,
+        instrumentationContext: ResolverInstrumentationContext? = null,
     ): EngineObjectData
 }

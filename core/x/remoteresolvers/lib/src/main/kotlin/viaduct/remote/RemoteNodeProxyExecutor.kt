@@ -9,6 +9,7 @@ import org.slf4j.LoggerFactory
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.ResolverMetadata
+import viaduct.engine.api.instrumentation.resolver.ResolverInstrumentationContext
 import viaduct.engine.api.spi.NodeResolverExecutor
 import viaduct.errors.PassthroughException
 import viaduct.errors.TenantException
@@ -65,7 +66,8 @@ abstract class RemoteNodeProxyExecutor(
 
     final override suspend fun resolve(
         selectors: List<NodeResolverExecutor.Selector>,
-        context: EngineExecutionContext
+        context: EngineExecutionContext,
+        instrumentationContext: ResolverInstrumentationContext?,
     ): Map<NodeResolverExecutor.Selector, Result<EngineObjectData>> {
         val protoSelectors = selectors.map { selector ->
             ProtoSelector.newBuilder()

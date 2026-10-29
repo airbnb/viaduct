@@ -7,6 +7,7 @@ import viaduct.engine.api.FromArgumentVariable
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.ResolverMetadata
 import viaduct.engine.api.VariablesResolver
+import viaduct.engine.api.instrumentation.resolver.ResolverInstrumentationContext
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.VariableFromArgumentDefinitions
 
@@ -53,6 +54,7 @@ class FieldResolverDispatcherImpl(
         queryValueFactory: EngineObjectDataFactory,
         selections: EngineSelectionSet?,
         context: EngineExecutionContext,
+        instrumentationContext: ResolverInstrumentationContext?,
     ): Any? {
         val loader = (context as DispatcherExecutionContext).fieldDataLoader(resolver)
 
@@ -70,7 +72,7 @@ class FieldResolverDispatcherImpl(
             syncQueryValueGetter = syncQueryValueGetter,
         )
 
-        return loader.loadByKey(selector, context).getOrThrow()
+        return loader.loadByKey(selector, context, instrumentationContext).getOrThrow()
     }
 
     private fun RequiredSelectionSet.withArgumentVariables(argumentVariables: VariableFromArgumentDefinitions): RequiredSelectionSet {

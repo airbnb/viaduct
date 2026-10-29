@@ -25,6 +25,7 @@ import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.ResolvedEngineObjectData
+import viaduct.engine.api.instrumentation.resolver.ResolverInstrumentationContext
 import viaduct.engine.api.mocks.MockSchema
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.NodeResolverExecutor
@@ -103,6 +104,7 @@ class RemoteResolverContextIntegrationTest {
                     override suspend fun resolve(
                         selectors: List<NodeResolverExecutor.Selector>,
                         context: EngineExecutionContext,
+                        instrumentationContext: ResolverInstrumentationContext?,
                     ): Map<NodeResolverExecutor.Selector, Result<EngineObjectData>> {
                         observedFullSchema.set(context.fullSchema)
                         observedSelectionSchema.set(
@@ -110,7 +112,7 @@ class RemoteResolverContextIntegrationTest {
                                 .engineSelectionSet("User", "runtimeOnly", emptyMap())
                                 .schema
                         )
-                        return delegate.resolve(selectors, context)
+                        return delegate.resolve(selectors, context, instrumentationContext)
                     }
                 }
             val runtime = RemoteResolverRuntime(runtimeSchema, nodeExecutors = listOf(executor))
@@ -178,6 +180,7 @@ class RemoteResolverContextIntegrationTest {
                     override suspend fun batchResolve(
                         selectors: List<FieldResolverExecutor.Selector>,
                         context: EngineExecutionContext,
+                        instrumentationContext: ResolverInstrumentationContext?,
                     ): Map<FieldResolverExecutor.Selector, Result<Any?>> =
                         selectors.associateWith { selector ->
                             val selections = checkNotNull(selector.selections)

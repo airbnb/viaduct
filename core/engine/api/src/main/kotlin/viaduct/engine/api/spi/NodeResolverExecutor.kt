@@ -4,6 +4,7 @@ import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.ResolverMetadata
+import viaduct.engine.api.instrumentation.resolver.ResolverInstrumentationContext
 
 /**
  * Executes tenant-written node resolver function.
@@ -47,6 +48,7 @@ interface NodeResolverExecutor {
      */
     suspend fun resolve(
         selectors: List<Selector>,
-        context: EngineExecutionContext
+        context: EngineExecutionContext,
+        instrumentationContext: ResolverInstrumentationContext? = null,
     ): Map<Selector, Result<EngineObjectData>>
 }

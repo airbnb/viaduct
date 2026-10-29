@@ -6,6 +6,7 @@ import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.ExecutionAttribution
 import viaduct.engine.api.instrumentation.resolver.ResolverFunction
+import viaduct.engine.api.instrumentation.resolver.ResolverInstrumentationContext
 import viaduct.engine.api.instrumentation.resolver.ViaductResolverInstrumentation
 import viaduct.engine.runtime.EngineExecutionContextExtensions.copy
 import viaduct.engine.runtime.EngineExecutionContextExtensions.fieldScopeWithAttribution
@@ -28,7 +29,8 @@ class InstrumentedNodeResolverDispatcher(
     override suspend fun resolve(
         id: String,
         selections: EngineSelectionSet,
-        context: EngineExecutionContext
+        context: EngineExecutionContext,
+        instrumentationContext: ResolverInstrumentationContext?,
     ): EngineObjectData {
         val createStateParameter = ViaductResolverInstrumentation.CreateInstrumentationStateParameters()
         val state = instrumentation.createInstrumentationState(createStateParameter)
@@ -45,7 +47,7 @@ class InstrumentedNodeResolverDispatcher(
         val instrumentedContext = InstrumentedEngineExecutionContext(implWithAttribution, instrumentation, state)
 
         val instrumentedResolver = instrumentation.instrumentResolverExecution(
-            resolver = ResolverFunction { dispatcher.resolve(id, selections, instrumentedContext) },
+            resolver = ResolverFunction { dispatcher.resolve(id, selections, instrumentedContext, ResolverInstrumentationContext(instrumentation, state)) },
             parameters = resolverExecuteParam,
             state = state
         )

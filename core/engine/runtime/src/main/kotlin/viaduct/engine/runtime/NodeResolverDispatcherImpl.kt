@@ -4,6 +4,7 @@ import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.ResolverMetadata
+import viaduct.engine.api.instrumentation.resolver.ResolverInstrumentationContext
 import viaduct.engine.api.spi.NodeResolverExecutor
 
 /**
@@ -28,9 +29,10 @@ class NodeResolverDispatcherImpl(
     override suspend fun resolve(
         id: String,
         selections: EngineSelectionSet,
-        context: EngineExecutionContext
+        context: EngineExecutionContext,
+        instrumentationContext: ResolverInstrumentationContext?,
     ): EngineObjectData {
         val loader = (context as DispatcherExecutionContext).nodeDataLoader(resolver)
-        return loader.loadByKey(NodeResolverExecutor.Selector(id, selections), context).getOrThrow()
+        return loader.loadByKey(NodeResolverExecutor.Selector(id, selections), context, instrumentationContext).getOrThrow()
     }
 }

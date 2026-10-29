@@ -12,6 +12,7 @@ import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.ResolvedEngineObjectData
+import viaduct.engine.api.instrumentation.resolver.ResolverInstrumentationContext
 import viaduct.engine.api.spi.CheckerExecutor
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.FieldSelectivityProvider
@@ -851,6 +852,7 @@ private class DispatcherFieldExecutor(
     override suspend fun batchResolve(
         selectors: List<FieldResolverExecutor.Selector>,
         context: EngineExecutionContext,
+        instrumentationContext: ResolverInstrumentationContext?,
     ): Map<FieldResolverExecutor.Selector, Result<Any?>> {
         require(selectors.size == 1) {
             "Runtime2 dispatcher shims require singleton field invocations"
@@ -865,6 +867,7 @@ private class DispatcherFieldExecutor(
                         queryValueFactory = EngineObjectDataFactory { selector.syncQueryValueGetter() },
                         selections = selector.selections,
                         context = context,
+                        instrumentationContext = instrumentationContext,
                     )
                 },
         )
@@ -883,6 +886,7 @@ private class DispatcherNodeExecutor(
     override suspend fun resolve(
         selectors: List<NodeResolverExecutor.Selector>,
         context: EngineExecutionContext,
+        instrumentationContext: ResolverInstrumentationContext?,
     ): Map<NodeResolverExecutor.Selector, Result<EngineObjectData>> {
         require(selectors.size == 1) {
             "Runtime2 dispatcher shims require singleton node invocations"
@@ -891,7 +895,7 @@ private class DispatcherNodeExecutor(
         return mapOf(
             selector to
                 runCatching {
-                    dispatcher.resolve(selector.id, selector.selections, context)
+                    dispatcher.resolve(selector.id, selector.selections, context, instrumentationContext)
                 },
         )
     }

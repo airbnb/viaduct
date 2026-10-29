@@ -3,6 +3,7 @@ package viaduct.remote
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.ResolverMetadata
+import viaduct.engine.api.instrumentation.resolver.ResolverInstrumentationContext
 import viaduct.engine.api.spi.NodeResolverExecutor
 
 /**
@@ -22,6 +23,7 @@ class ProxyNodeResolverExecutor(
 
     override suspend fun resolve(
         selectors: List<NodeResolverExecutor.Selector>,
-        context: EngineExecutionContext
-    ): Map<NodeResolverExecutor.Selector, Result<EngineObjectData>> = delegate.resolve(selectors, context)
+        context: EngineExecutionContext,
+        instrumentationContext: ResolverInstrumentationContext?,
+    ): Map<NodeResolverExecutor.Selector, Result<EngineObjectData>> = delegate.resolve(selectors, context, instrumentationContext)
 }

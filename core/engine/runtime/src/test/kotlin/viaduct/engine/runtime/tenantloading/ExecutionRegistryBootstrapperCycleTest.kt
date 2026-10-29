@@ -6,6 +6,7 @@ import org.junit.jupiter.api.assertThrows
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.ResolverMetadata
+import viaduct.engine.api.instrumentation.resolver.ResolverInstrumentationContext
 import viaduct.engine.api.mocks.EngineTestModule
 import viaduct.engine.api.mocks.MockCheckerExecutorFactory
 import viaduct.engine.api.mocks.MockExecutorCodeInjector
@@ -45,6 +46,7 @@ class ExecutionRegistryBootstrapperCycleTest {
             override suspend fun batchResolve(
                 selectors: List<FieldResolverExecutor.Selector>,
                 context: EngineExecutionContext,
+                instrumentationContext: ResolverInstrumentationContext?,
             ): Map<FieldResolverExecutor.Selector, Result<Any?>> = emptyMap()
         }
     }

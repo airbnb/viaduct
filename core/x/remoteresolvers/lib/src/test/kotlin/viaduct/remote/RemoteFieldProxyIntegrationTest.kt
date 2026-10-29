@@ -22,6 +22,7 @@ import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.NodeReference
 import viaduct.engine.api.ResolvedEngineObjectData
+import viaduct.engine.api.instrumentation.resolver.ResolverInstrumentationContext
 import viaduct.engine.api.mocks.MockSchema
 import viaduct.engine.api.mocks.createEngineSelectionSet
 import viaduct.engine.api.select.SelectionsParser
@@ -273,7 +274,8 @@ class RemoteFieldProxyIntegrationTest {
 
                     override suspend fun batchResolve(
                         selectors: List<FieldResolverExecutor.Selector>,
-                        context: EngineExecutionContext
+                        context: EngineExecutionContext,
+                        instrumentationContext: ResolverInstrumentationContext?,
                     ): Map<FieldResolverExecutor.Selector, Result<Any?>> = selectors.associateWith { Result.failure(IllegalStateException("boom from remote field")) }
                 }
                 val executorId = FieldExecutorRegistry.register(failing)
@@ -313,7 +315,8 @@ class RemoteFieldProxyIntegrationTest {
 
                     override suspend fun batchResolve(
                         selectors: List<FieldResolverExecutor.Selector>,
-                        context: EngineExecutionContext
+                        context: EngineExecutionContext,
+                        instrumentationContext: ResolverInstrumentationContext?,
                     ): Map<FieldResolverExecutor.Selector, Result<Any?>> = throw TenantResolverException(IllegalStateException("boom from tenant resolver"), resolverId)
                 }
                 val executorId = FieldExecutorRegistry.register(failing)
@@ -465,7 +468,8 @@ class RemoteFieldProxyIntegrationTest {
                 val unserializableReturning = object : FieldResolverExecutor by SimpleFieldResolverExecutor() {
                     override suspend fun batchResolve(
                         selectors: List<FieldResolverExecutor.Selector>,
-                        context: EngineExecutionContext
+                        context: EngineExecutionContext,
+                        instrumentationContext: ResolverInstrumentationContext?,
                     ): Map<FieldResolverExecutor.Selector, Result<Any?>> =
                         selectors.associateWith { selector ->
                             runCatching {
@@ -559,7 +563,8 @@ class RemoteFieldProxyIntegrationTest {
                 val refReturning = object : FieldResolverExecutor by SimpleFieldResolverExecutor() {
                     override suspend fun batchResolve(
                         selectors: List<FieldResolverExecutor.Selector>,
-                        context: EngineExecutionContext
+                        context: EngineExecutionContext,
+                        instrumentationContext: ResolverInstrumentationContext?,
                     ): Map<FieldResolverExecutor.Selector, Result<Any?>> = selectors.associateWith { Result.success(context.createNodeReference("Character:7", characterType)) }
                 }
                 val executorId = FieldExecutorRegistry.register(refReturning)
@@ -590,7 +595,8 @@ class RemoteFieldProxyIntegrationTest {
                 val objectReturning = object : FieldResolverExecutor by SimpleFieldResolverExecutor() {
                     override suspend fun batchResolve(
                         selectors: List<FieldResolverExecutor.Selector>,
-                        context: EngineExecutionContext
+                        context: EngineExecutionContext,
+                        instrumentationContext: ResolverInstrumentationContext?,
                     ): Map<FieldResolverExecutor.Selector, Result<Any?>> =
                         selectors.associateWith {
                             Result.success(
@@ -626,7 +632,8 @@ class RemoteFieldProxyIntegrationTest {
                 val listReturning = object : FieldResolverExecutor by SimpleFieldResolverExecutor() {
                     override suspend fun batchResolve(
                         selectors: List<FieldResolverExecutor.Selector>,
-                        context: EngineExecutionContext
+                        context: EngineExecutionContext,
+                        instrumentationContext: ResolverInstrumentationContext?,
                     ): Map<FieldResolverExecutor.Selector, Result<Any?>> =
                         selectors.associateWith {
                             Result.success(
@@ -715,7 +722,8 @@ class RemoteFieldProxyIntegrationTest {
             val recording = object : FieldResolverExecutor by SimpleFieldResolverExecutor(resolverId = "Character.friend") {
                 override suspend fun batchResolve(
                     selectors: List<FieldResolverExecutor.Selector>,
-                    context: EngineExecutionContext
+                    context: EngineExecutionContext,
+                    instrumentationContext: ResolverInstrumentationContext?,
                 ): Map<FieldResolverExecutor.Selector, Result<Any?>> {
                     received.set(selectors.first().selections?.printAsFieldSet())
                     return selectors.associateWith { Result.success(true) }
@@ -773,7 +781,8 @@ class RemoteFieldProxyIntegrationTest {
             val recording = object : FieldResolverExecutor by SimpleFieldResolverExecutor(resolverId = "Character.friend") {
                 override suspend fun batchResolve(
                     selectors: List<FieldResolverExecutor.Selector>,
-                    context: EngineExecutionContext
+                    context: EngineExecutionContext,
+                    instrumentationContext: ResolverInstrumentationContext?,
                 ): Map<FieldResolverExecutor.Selector, Result<Any?>> {
                     received.set(selectors.first().selections)
                     return selectors.associateWith { Result.success(true) }
@@ -822,7 +831,8 @@ class RemoteFieldProxyIntegrationTest {
             val recording = object : FieldResolverExecutor by SimpleFieldResolverExecutor(resolverId = "Character.friend") {
                 override suspend fun batchResolve(
                     selectors: List<FieldResolverExecutor.Selector>,
-                    context: EngineExecutionContext
+                    context: EngineExecutionContext,
+                    instrumentationContext: ResolverInstrumentationContext?,
                 ): Map<FieldResolverExecutor.Selector, Result<Any?>> = selectors.associateWith { Result.success(true) }
             }
             val executorId = FieldExecutorRegistry.register(recording)
@@ -875,7 +885,8 @@ class RemoteFieldProxyIntegrationTest {
             val spy = object : FieldResolverExecutor by SimpleFieldResolverExecutor() {
                 override suspend fun batchResolve(
                     selectors: List<FieldResolverExecutor.Selector>,
-                    context: EngineExecutionContext
+                    context: EngineExecutionContext,
+                    instrumentationContext: ResolverInstrumentationContext?,
                 ): Map<FieldResolverExecutor.Selector, Result<Any?>> {
                     batchResolveInvoked.set(true)
                     return selectors.associateWith { Result.success(true) }
@@ -955,7 +966,8 @@ class RemoteFieldProxyIntegrationTest {
             val failing = object : FieldResolverExecutor by SimpleFieldResolverExecutor() {
                 override suspend fun batchResolve(
                     selectors: List<FieldResolverExecutor.Selector>,
-                    context: EngineExecutionContext
+                    context: EngineExecutionContext,
+                    instrumentationContext: ResolverInstrumentationContext?,
                 ): Map<FieldResolverExecutor.Selector, Result<Any?>> = throw IllegalStateException("boom")
             }
             val executorId = FieldExecutorRegistry.register(failing)
@@ -1003,7 +1015,8 @@ class RemoteFieldProxyIntegrationTest {
                 val failing = object : FieldResolverExecutor by SimpleFieldResolverExecutor() {
                     override suspend fun batchResolve(
                         selectors: List<FieldResolverExecutor.Selector>,
-                        context: EngineExecutionContext
+                        context: EngineExecutionContext,
+                        instrumentationContext: ResolverInstrumentationContext?,
                     ): Map<FieldResolverExecutor.Selector, Result<Any?>> = selectors.associateWith { Result.failure(IllegalStateException("boom from remote field")) }
                 }
                 val executorId = FieldExecutorRegistry.register(failing)

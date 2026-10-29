@@ -6,12 +6,42 @@ import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.engine.api.ResolverMetadata
 import viaduct.engine.runtime.instrumentation.resolver.ChainedResolverInstrumentation
 
 class ChainedResolverInstrumentationTest {
+    @Test
+    fun `batch invocation reaches each instrumentation once with its own state`() {
+        val metadata = ResolverMetadata.forModern("BatchResolver")
+        val firstObservations = mutableListOf<Pair<ResolverMetadata, Int>>()
+        val secondObservations = mutableListOf<Pair<ResolverMetadata, Int>>()
+        val instrumentations = listOf(firstObservations, secondObservations).map { observations ->
+            val ownState = object : ViaductResolverInstrumentation.InstrumentationState {}
+            object : ViaductResolverInstrumentation {
+                override fun createInstrumentationState(parameters: ViaductResolverInstrumentation.CreateInstrumentationStateParameters) = ownState
+
+                override fun onBatchResolverInvocation(
+                    metadata: ResolverMetadata,
+                    batchSize: Int,
+                    state: ViaductResolverInstrumentation.InstrumentationState?
+                ) {
+                    assertSame(ownState, state)
+                    observations.add(metadata to batchSize)
+                }
+            }
+        }
+        val chain = ChainedResolverInstrumentation(instrumentations)
+        val state = chain.createInstrumentationState(ViaductResolverInstrumentation.CreateInstrumentationStateParameters())
+
+        chain.onBatchResolverInvocation(metadata, 3, state)
+
+        assertEquals(listOf(metadata to 3), firstObservations)
+        assertEquals(listOf(metadata to 3), secondObservations)
+    }
+
     @Test
     fun `createInstrumentationState creates state for all instrumentations`() {
         val state1 = object : ViaductResolverInstrumentation.InstrumentationState {}

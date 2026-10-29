@@ -3,6 +3,7 @@ package viaduct.engine.runtime
 import viaduct.dataloader.BatchLoaderEnvironment
 import viaduct.dataloader.DataLoader
 import viaduct.engine.api.EngineExecutionContext
+import viaduct.engine.api.instrumentation.resolver.ResolverInstrumentationContext
 import viaduct.engine.api.spi.FieldResolverExecutor
 
 /**
@@ -15,16 +16,21 @@ class FieldDataLoader(
 ) : DataLoader<FieldResolverExecutor.Selector, Result<Any?>, FieldResolverExecutor.Selector>() {
     suspend fun loadByKey(
         key: FieldResolverExecutor.Selector,
-        context: EngineExecutionContext
+        context: EngineExecutionContext,
+        instrumentationContext: ResolverInstrumentationContext? = null,
     ): Result<Any?> {
-        return internalDataLoader.load(key, context) ?: throw IllegalStateException("Received null FieldDataLoader value for field: ${resolver.resolverId}")
+        return internalDataLoader.load(
+            key,
+            ResolverInvocationContext(context, instrumentationContext)
+        ) ?: throw IllegalStateException("Received null FieldDataLoader value for field: ${resolver.resolverId}")
     }
 
     override suspend fun internalLoad(
         keys: Set<FieldResolverExecutor.Selector>,
         environment: BatchLoaderEnvironment<FieldResolverExecutor.Selector>
     ): Map<FieldResolverExecutor.Selector, Result<Any?>> {
-        return resolver.batchResolve(keys.toList(), executionContextForBatchLoadFromKeys(keys, environment))
+        val invocation = invocationContextForBatchLoadFromKeys(keys, environment)
+        return resolver.batchResolve(keys.toList(), invocation.executionContext, invocation.instrumentationContext)
     }
 
     override fun shouldUseImmediateDispatch(): Boolean = dispatchStrategy.shouldDispatchImmediately(resolver)

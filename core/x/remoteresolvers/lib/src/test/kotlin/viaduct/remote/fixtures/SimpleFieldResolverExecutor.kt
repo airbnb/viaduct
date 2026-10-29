@@ -3,6 +3,7 @@ package viaduct.remote.fixtures
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.ResolverMetadata
+import viaduct.engine.api.instrumentation.resolver.ResolverInstrumentationContext
 import viaduct.engine.api.spi.FieldResolverExecutor
 
 /**
@@ -28,7 +29,8 @@ class SimpleFieldResolverExecutor(
 
     override suspend fun batchResolve(
         selectors: List<FieldResolverExecutor.Selector>,
-        context: EngineExecutionContext
+        context: EngineExecutionContext,
+        instrumentationContext: ResolverInstrumentationContext?,
     ): Map<FieldResolverExecutor.Selector, Result<Any?>> =
         selectors.associateWith { selector ->
             runCatching {

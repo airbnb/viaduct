@@ -32,6 +32,7 @@ import viaduct.engine.api.FromArgument
 import viaduct.engine.api.FromFieldVariablesResolver
 import viaduct.engine.api.NodeEngineObjectData
 import viaduct.engine.api.ResolvedEngineObjectData
+import viaduct.engine.api.instrumentation.resolver.ResolverInstrumentationContext
 import viaduct.engine.api.mocks.MockCheckerErrorResult
 import viaduct.engine.api.mocks.MockCheckerExecutor
 import viaduct.engine.api.mocks.MockFieldBatchResolverExecutor
@@ -1121,6 +1122,7 @@ class ExecutorRegistryInputsTest {
                 override suspend fun batchResolve(
                     selectors: List<FieldResolverExecutor.Selector>,
                     context: EngineExecutionContext,
+                    instrumentationContext: ResolverInstrumentationContext?,
                 ): Map<FieldResolverExecutor.Selector, Result<Any?>> = emptyMap()
             }
             val failure = assertInstanceOf(EngineErrorData::class.java, fixture.invoke(fixture.registry(fixture.adapt(listOf(("Query" to "value") to failing))), "value"))
@@ -1229,6 +1231,7 @@ class ExecutorRegistryInputsTest {
                 override suspend fun resolve(
                     selectors: List<NodeResolverExecutor.Selector>,
                     context: EngineExecutionContext,
+                    instrumentationContext: ResolverInstrumentationContext?,
                 ): Map<NodeResolverExecutor.Selector, Result<EngineObjectData>> = emptyMap()
             }
             val registry = fixture.registry(fixture.adapt(listOf(("Query" to "user") to viewer), listOf("User" to node)))

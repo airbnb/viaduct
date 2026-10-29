@@ -25,6 +25,7 @@ import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.ResolverMetadata
 import viaduct.engine.api.instrumentation.InstrumentNodeFetchingParameters
 import viaduct.engine.api.instrumentation.ViaductModernGJInstrumentation
+import viaduct.engine.api.instrumentation.resolver.ResolverInstrumentationContext
 import viaduct.engine.api.mocks.createEngineObjectData
 import viaduct.engine.api.spi.CheckerExecutor
 import viaduct.engine.runtime.CheckerDispatcher
@@ -328,7 +329,8 @@ class FieldResolverInstrumentationTest {
                 override suspend fun resolve(
                     id: String,
                     selections: EngineSelectionSet,
-                    context: EngineExecutionContext
+                    context: EngineExecutionContext,
+                    instrumentationContext: ResolverInstrumentationContext?,
                 ): EngineObjectData = resolveBlock(id, context)
             }
             return DispatcherRegistry.Impl(

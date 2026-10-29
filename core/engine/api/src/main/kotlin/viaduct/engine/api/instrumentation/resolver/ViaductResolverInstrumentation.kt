@@ -32,6 +32,13 @@ fun interface SyncFetchFunction<T> {
  * for resolver execution. Use [viaduct.engine.runtime.instrumentation.resolver.ChainedResolverInstrumentation] to compose multiple instrumentations.
  */
 interface ViaductResolverInstrumentation {
+    /** Observes one tenant batch invocation after grouping, deduplication, and splitting. */
+    fun onBatchResolverInvocation(
+        metadata: ResolverMetadata,
+        batchSize: Int,
+        state: InstrumentationState?,
+    ) {}
+
     /**
      * Opaque state object that can be passed between instrumentation lifecycle methods.
      */

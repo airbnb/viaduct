@@ -12,6 +12,7 @@ import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.ResolverMetadata
+import viaduct.engine.api.instrumentation.resolver.ResolverInstrumentationContext
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.remote.api.RemoteResolverContextCaptureInput
 import viaduct.remote.api.spi.RemoteDispatchInstrumentation
@@ -75,7 +76,8 @@ class RemoteFieldProxyExecutor(
 
     override suspend fun batchResolve(
         selectors: List<FieldResolverExecutor.Selector>,
-        context: EngineExecutionContext
+        context: EngineExecutionContext,
+        instrumentationContext: ResolverInstrumentationContext?,
     ): Map<FieldResolverExecutor.Selector, Result<Any?>> {
         log.debug("Proxying {} field selector(s) for '{}' to remote execution", selectors.size, resolverId)
 

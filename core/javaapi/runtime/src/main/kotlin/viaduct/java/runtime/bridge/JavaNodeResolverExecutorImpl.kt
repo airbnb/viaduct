@@ -9,6 +9,7 @@ import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.ResolverMetadata
 import viaduct.engine.api.ResolverType
+import viaduct.engine.api.instrumentation.resolver.ResolverInstrumentationContext
 import viaduct.engine.api.spi.NodeResolverExecutor
 import viaduct.errors.FrameworkException
 import viaduct.errors.TenantUsageException
@@ -39,6 +40,7 @@ class JavaNodeResolverExecutorImpl(
     override suspend fun resolve(
         selectors: List<NodeResolverExecutor.Selector>,
         context: EngineExecutionContext,
+        instrumentationContext: ResolverInstrumentationContext?,
     ): Map<NodeResolverExecutor.Selector, Result<EngineObjectData>> {
         require(selectors.size == 1) {
             "Unbatched Java node resolver should only receive single selector, got ${selectors.size}"

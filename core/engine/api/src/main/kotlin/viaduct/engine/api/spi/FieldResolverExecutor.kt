@@ -5,6 +5,7 @@ import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.ResolverMetadata
+import viaduct.engine.api.instrumentation.resolver.ResolverInstrumentationContext
 
 /**
  * Executor for a tenant-written resolver function.
@@ -92,6 +93,7 @@ interface FieldResolverExecutor {
      */
     suspend fun batchResolve(
         selectors: List<Selector>,
-        context: EngineExecutionContext
+        context: EngineExecutionContext,
+        instrumentationContext: ResolverInstrumentationContext? = null,
     ): Map<Selector, Result<Any?>>
 }

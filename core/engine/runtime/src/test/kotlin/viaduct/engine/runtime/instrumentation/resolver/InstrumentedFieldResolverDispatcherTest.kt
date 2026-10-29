@@ -20,6 +20,7 @@ import org.junit.jupiter.api.assertThrows
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.ExecutionAttribution
 import viaduct.engine.api.ResolverMetadata
+import viaduct.engine.api.instrumentation.resolver.ResolverInstrumentationContext
 import viaduct.engine.api.instrumentation.resolver.ViaductResolverInstrumentation
 import viaduct.engine.runtime.EngineExecutionContextExtensions.copy
 import viaduct.engine.runtime.EngineExecutionContextExtensions.dataFetchingEnvironment
@@ -37,6 +38,26 @@ internal class InstrumentedFieldResolverDispatcherTest {
         get() = ContextMocks().engineExecutionContextImpl
 
     @Test
+    fun `resolve passes instrumentation and its state separately from the execution context`() =
+        runBlocking {
+            val state = object : ViaductResolverInstrumentation.InstrumentationState {}
+            val instrumentation = object : ViaductResolverInstrumentation {
+                override fun createInstrumentationState(parameters: ViaductResolverInstrumentation.CreateInstrumentationStateParameters) = state
+            }
+            val captured = slot<ResolverInstrumentationContext>()
+            val delegate = mockk<FieldResolverDispatcher> {
+                every { resolverMetadata } returns ResolverMetadata.forModern("BatchResolver")
+                coEvery { resolve(any(), any(), any(), any(), any(), capture(captured)) } returns "value"
+            }
+            val dispatcher = InstrumentedFieldResolverDispatcher(delegate, instrumentation)
+
+            dispatcher.resolve(emptyMap(), stubObjectFactory, stubQueryFactory, null, defaultContext)
+
+            assertSame(instrumentation, captured.captured.instrumentation)
+            assertSame(state, captured.captured.state)
+        }
+
+    @Test
     fun `resolve calls instrumentation during execution`() =
         runBlocking {
             // Given
@@ -45,7 +66,7 @@ internal class InstrumentedFieldResolverDispatcherTest {
             val mockResolverMetadata = ResolverMetadata.forMock("mock-resolver")
 
             every { mockDispatcher.resolverMetadata } returns mockResolverMetadata
-            coEvery { mockDispatcher.resolve(any(), any(), any(), any(), any()) } returns "result"
+            coEvery { mockDispatcher.resolve(any(), any(), any(), any(), any(), any()) } returns "result"
 
             val testClass = InstrumentedFieldResolverDispatcher(mockDispatcher, instrumentation)
 
@@ -77,7 +98,7 @@ internal class InstrumentedFieldResolverDispatcherTest {
             val coordinate = "User" to "name"
 
             every { mockDispatcher.resolverMetadata } returns mockResolverMetadata
-            coEvery { mockDispatcher.resolve(any(), any(), any(), any(), any()) } returns "result"
+            coEvery { mockDispatcher.resolve(any(), any(), any(), any(), any(), any()) } returns "result"
 
             val testClass = InstrumentedFieldResolverDispatcher(mockDispatcher, instrumentation, coordinate)
 
@@ -97,7 +118,7 @@ internal class InstrumentedFieldResolverDispatcherTest {
             val instrumentation = RecordingResolverInstrumentation()
 
             every { mockDispatcher.resolverMetadata } returns ResolverMetadata.forMock("mock-resolver")
-            coEvery { mockDispatcher.resolve(any(), any(), any(), any(), any()) } returns "result"
+            coEvery { mockDispatcher.resolve(any(), any(), any(), any(), any(), any()) } returns "result"
 
             val testClass = InstrumentedFieldResolverDispatcher(mockDispatcher, instrumentation)
 
@@ -119,7 +140,7 @@ internal class InstrumentedFieldResolverDispatcherTest {
             val exception = RuntimeException("test error")
 
             every { mockDispatcher.resolverMetadata } returns mockResolverMetadata
-            coEvery { mockDispatcher.resolve(any(), any(), any(), any(), any()) } throws exception
+            coEvery { mockDispatcher.resolve(any(), any(), any(), any(), any(), any()) } throws exception
 
             val testClass = InstrumentedFieldResolverDispatcher(mockDispatcher, instrumentation)
 
@@ -179,7 +200,7 @@ internal class InstrumentedFieldResolverDispatcherTest {
 
             every { mockDispatcher.resolverMetadata } returns mockResolverMetadata
             coEvery {
-                mockDispatcher.resolve(any(), any(), any(), any(), capture(capturedContext))
+                mockDispatcher.resolve(any(), any(), any(), any(), capture(capturedContext), any())
             } returns "result"
 
             val testClass = InstrumentedFieldResolverDispatcher(mockDispatcher, instrumentation)
@@ -210,7 +231,7 @@ internal class InstrumentedFieldResolverDispatcherTest {
 
             every { mockDispatcher.resolverMetadata } returns ResolverMetadata.forMock("mock-resolver")
             coEvery {
-                mockDispatcher.resolve(any(), any(), any(), any(), capture(capturedContext))
+                mockDispatcher.resolve(any(), any(), any(), any(), capture(capturedContext), any())
             } returns "result"
 
             val testClass = InstrumentedFieldResolverDispatcher(mockDispatcher, instrumentation)
@@ -231,7 +252,7 @@ internal class InstrumentedFieldResolverDispatcherTest {
 
             every { mockDispatcher.resolverMetadata } returns ResolverMetadata.forMock("mock-resolver")
             coEvery {
-                mockDispatcher.resolve(any(), any(), any(), any(), capture(capturedContext))
+                mockDispatcher.resolve(any(), any(), any(), any(), capture(capturedContext), any())
             } returns "result"
 
             val testClass = InstrumentedFieldResolverDispatcher(mockDispatcher, ViaductResolverInstrumentation.DEFAULT)
@@ -253,7 +274,7 @@ internal class InstrumentedFieldResolverDispatcherTest {
             val expectedPath = ResultPath.parse("/Query/user")
 
             every { mockDispatcher.resolverMetadata } returns mockResolverMetadata
-            coEvery { mockDispatcher.resolve(any(), any(), any(), any(), any()) } returns "result"
+            coEvery { mockDispatcher.resolve(any(), any(), any(), any(), any(), any()) } returns "result"
 
             val mockExecutionStepInfo = mockk<ExecutionStepInfo>()
             every { mockExecutionStepInfo.path } returns expectedPath
@@ -279,7 +300,7 @@ internal class InstrumentedFieldResolverDispatcherTest {
             val instrumentation = RecordingResolverInstrumentation()
 
             every { mockDispatcher.resolverMetadata } returns ResolverMetadata.forMock("mock-resolver")
-            coEvery { mockDispatcher.resolve(any(), any(), any(), any(), any()) } returns "result"
+            coEvery { mockDispatcher.resolve(any(), any(), any(), any(), any(), any()) } returns "result"
 
             // defaultContext has no dataFetchingEnvironment set
             val testClass = InstrumentedFieldResolverDispatcher(mockDispatcher, instrumentation)
@@ -302,7 +323,7 @@ internal class InstrumentedFieldResolverDispatcherTest {
 
             every { mockDispatcher.resolverMetadata } returns ResolverMetadata.forMock("mock-resolver")
             coEvery {
-                mockDispatcher.resolve(any(), capture(capturedObjectFactory), any(), any(), any())
+                mockDispatcher.resolve(any(), capture(capturedObjectFactory), any(), any(), any(), any())
             } returns "result"
 
             val testClass = InstrumentedFieldResolverDispatcher(mockDispatcher, instrumentation)
@@ -323,7 +344,7 @@ internal class InstrumentedFieldResolverDispatcherTest {
 
             every { mockDispatcher.resolverMetadata } returns ResolverMetadata.forMock("mock-resolver")
             coEvery {
-                mockDispatcher.resolve(any(), capture(capturedObjectFactory), any(), any(), any())
+                mockDispatcher.resolve(any(), capture(capturedObjectFactory), any(), any(), any(), any())
             } returns "result"
 
             val testClass = InstrumentedFieldResolverDispatcher(mockDispatcher, ViaductResolverInstrumentation.DEFAULT)

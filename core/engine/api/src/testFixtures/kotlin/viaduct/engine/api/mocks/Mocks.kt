@@ -40,6 +40,7 @@ import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.ResolvedEngineObjectData
 import viaduct.engine.api.ResolverMetadata
 import viaduct.engine.api.VariablesResolver
+import viaduct.engine.api.instrumentation.resolver.ResolverInstrumentationContext
 import viaduct.engine.api.select.SelectionsParser
 import viaduct.engine.api.spi.CheckerExecutor
 import viaduct.engine.api.spi.CheckerExecutorFactory
@@ -197,7 +198,8 @@ open class MockFieldUnbatchedResolverExecutor(
 
     override suspend fun batchResolve(
         selectors: List<FieldResolverExecutor.Selector>,
-        context: EngineExecutionContext
+        context: EngineExecutionContext,
+        instrumentationContext: ResolverInstrumentationContext?,
     ): Map<FieldResolverExecutor.Selector, Result<Any?>> {
         require(selectors.size == 1) { "Unbatched resolver should only receive single selector, got {}".format(selectors.size) }
         val selector = selectors.first()
@@ -228,7 +230,8 @@ open class MockFieldBatchResolverExecutor(
 
     override suspend fun batchResolve(
         selectors: List<FieldResolverExecutor.Selector>,
-        context: EngineExecutionContext
+        context: EngineExecutionContext,
+        instrumentationContext: ResolverInstrumentationContext?,
     ): Map<FieldResolverExecutor.Selector, Result<Any?>> = batchResolveFn(selectors, context)
 }
 
@@ -313,7 +316,8 @@ class MockNodeUnbatchedResolverExecutor(
 
     override suspend fun resolve(
         selectors: List<NodeResolverExecutor.Selector>,
-        context: EngineExecutionContext
+        context: EngineExecutionContext,
+        instrumentationContext: ResolverInstrumentationContext?,
     ): Map<NodeResolverExecutor.Selector, Result<EngineObjectData>> {
         return selectors.associateWith { selector ->
             try {
@@ -336,7 +340,8 @@ class MockNodeBatchResolverExecutor(
 
     override suspend fun resolve(
         selectors: List<NodeResolverExecutor.Selector>,
-        context: EngineExecutionContext
+        context: EngineExecutionContext,
+        instrumentationContext: ResolverInstrumentationContext?,
     ): Map<NodeResolverExecutor.Selector, Result<EngineObjectData>> = batchResolveFn(selectors, context)
 }
 

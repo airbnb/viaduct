@@ -11,18 +11,38 @@ import viaduct.dataloader.DataLoader
 import viaduct.dataloader.DispatchingContext
 import viaduct.engine.api.Caller
 import viaduct.engine.api.EngineExecutionContext
+import viaduct.engine.api.instrumentation.resolver.ResolverInstrumentationContext
 import viaduct.engine.api.invocationContextFor
 import viaduct.engine.runtime.EngineExecutionContextExtensions.copy
 import viaduct.engine.runtime.mocks.ContextMocks
 
 class DataLoaderExtensionsTest {
+    @Test
+    fun `combined batches retain the first input's instrumentation context`() {
+        val firstInstrumentation = ResolverInstrumentationContext(mockk(), mockk())
+        val secondInstrumentation = ResolverInstrumentationContext(mockk(), mockk())
+        val first = ResolverInvocationContext(context(), firstInstrumentation)
+        val second = ResolverInvocationContext(context(), secondInstrumentation)
+
+        val batch = loader.invocationContextForBatchLoadFromKeys(
+            setOf("a", "b"),
+            environment(mapOf("a" to first, "b" to second)),
+        )
+
+        assertSame(firstInstrumentation, batch.instrumentationContext)
+        assertSame(first.executionContext, batch.executionContext.invocationContextFor("a"))
+        assertSame(second.executionContext, batch.executionContext.invocationContextFor("b"))
+    }
+
     private val loader = mockk<DataLoader<String, String, Any>>()
 
     private fun context(): EngineExecutionContext = ContextMocks().engineExecutionContext
 
     private fun environment(keyContexts: Map<String, Any?>) =
         BatchLoaderEnvironment(
-            keyContexts = keyContexts,
+            keyContexts = keyContexts.mapValues { (_, context) ->
+                if (context is EngineExecutionContext) ResolverInvocationContext(context, null) else context
+            },
             totalKeyCount = keyContexts.size,
             dispatchingContext = object : DispatchingContext {},
         )
@@ -48,46 +68,46 @@ class DataLoaderExtensionsTest {
     }
 
     @Test
-    fun `executionContextForBatchLoadFromKeys returns the sole context for a single key`() {
+    fun `invocationContextForBatchLoadFromKeys returns the sole context for a single key`() {
         val only = context()
 
-        val result = loader.executionContextForBatchLoadFromKeys(setOf("a"), environment(mapOf("a" to only)))
+        val result = loader.invocationContextForBatchLoadFromKeys(setOf("a"), environment(mapOf("a" to only)))
 
-        assertSame(only, result)
+        assertSame(only, result.executionContext)
     }
 
     @Test
-    fun `executionContextForBatchLoadFromKeys fails when there are no keys`() {
+    fun `invocationContextForBatchLoadFromKeys fails when there are no keys`() {
         val error = assertThrows<IllegalStateException> {
-            loader.executionContextForBatchLoadFromKeys(emptySet(), environment(emptyMap()))
+            loader.invocationContextForBatchLoadFromKeys(emptySet(), environment(emptyMap()))
         }
 
-        assertTrue(error.message!!.contains("No EngineExecutionContext provided to internalLoad"))
+        assertTrue(error.message!!.contains("No resolver invocation context provided to internalLoad"))
     }
 
     @Test
-    fun `executionContextForBatchLoadFromKeys fails when the first key carries a foreign context`() {
+    fun `invocationContextForBatchLoadFromKeys fails when the first key carries a foreign context`() {
         val error = assertThrows<IllegalStateException> {
-            loader.executionContextForBatchLoadFromKeys(setOf("a"), environment(mapOf("a" to "not a context")))
+            loader.invocationContextForBatchLoadFromKeys(setOf("a"), environment(mapOf("a" to "not a context")))
         }
 
-        assertTrue(error.message!!.contains("No EngineExecutionContext provided to internalLoad"))
+        assertTrue(error.message!!.contains("No resolver invocation context provided to internalLoad"))
     }
 
     @Test
-    fun `executionContextForBatchLoadFromKeys fails when a batched key has no context`() {
+    fun `invocationContextForBatchLoadFromKeys fails when a batched key has no context`() {
         val error = assertThrows<IllegalStateException> {
-            loader.executionContextForBatchLoadFromKeys(
+            loader.invocationContextForBatchLoadFromKeys(
                 setOf("a", "b"),
                 environment(mapOf("a" to context())),
             )
         }
 
-        assertTrue(error.message!!.contains("No EngineExecutionContext provided for selector b"))
+        assertTrue(error.message!!.contains("No resolver invocation context provided for selector b"))
     }
 
     @Test
-    fun `executionContextForBatchLoadFromKeys clears field scope and keeps a context per key`() {
+    fun `invocationContextForBatchLoadFromKeys clears field scope and keeps a context per key`() {
         val scoped = context().copy(
             fieldScopeSupplier = {
                 EngineExecutionContextImpl.FieldExecutionScopeImpl(
@@ -99,15 +119,16 @@ class DataLoaderExtensionsTest {
         )
         val other = context()
 
-        val result = loader.executionContextForBatchLoadFromKeys(
+        val result = loader.invocationContextForBatchLoadFromKeys(
             setOf("a", "b"),
             environment(mapOf("a" to scoped, "b" to other)),
         )
 
-        assertTrue(result.fieldScope.fragments.isEmpty())
-        assertTrue(result.fieldScope.variables.isEmpty())
-        assertNull((result as InternalEngineExecutionContext).impl.currentResolver)
-        assertSame(scoped, result.invocationContextFor("a"))
-        assertSame(other, result.invocationContextFor("b"))
+        val batch = result.executionContext
+        assertTrue(batch.fieldScope.fragments.isEmpty())
+        assertTrue(batch.fieldScope.variables.isEmpty())
+        assertNull((batch as InternalEngineExecutionContext).impl.currentResolver)
+        assertSame(scoped, batch.invocationContextFor("a"))
+        assertSame(other, batch.invocationContextFor("b"))
     }
 }

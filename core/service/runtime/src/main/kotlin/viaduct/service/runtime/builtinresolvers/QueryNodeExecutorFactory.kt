@@ -9,6 +9,7 @@ import viaduct.engine.api.NodeReference
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.ResolverMetadata
 import viaduct.engine.api.ResolverType
+import viaduct.engine.api.instrumentation.resolver.ResolverInstrumentationContext
 import viaduct.engine.api.spi.ExecutorFactory
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.NodeResolverExecutor
@@ -69,7 +70,8 @@ class QueryNodeExecutorFactory(
 
             override suspend fun batchResolve(
                 selectors: List<FieldResolverExecutor.Selector>,
-                context: EngineExecutionContext
+                context: EngineExecutionContext,
+                instrumentationContext: ResolverInstrumentationContext?,
             ): Map<FieldResolverExecutor.Selector, Result<Any?>> {
                 // Only handle single selector case because this is an unbatched resolver
                 require(selectors.size == 1) { "Unbatched resolver should only receive single selector, got ${selectors.size}" }
@@ -95,7 +97,8 @@ class QueryNodeExecutorFactory(
 
             override suspend fun batchResolve(
                 selectors: List<FieldResolverExecutor.Selector>,
-                context: EngineExecutionContext
+                context: EngineExecutionContext,
+                instrumentationContext: ResolverInstrumentationContext?,
             ): Map<FieldResolverExecutor.Selector, Result<Any?>> {
                 require(selectors.size == 1) { "Unbatched resolver should only receive single selector, got ${selectors.size}" }
                 val selector = selectors.first()

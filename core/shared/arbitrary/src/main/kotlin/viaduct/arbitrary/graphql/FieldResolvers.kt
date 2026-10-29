@@ -15,6 +15,7 @@ import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.ResolverMetadata
 import viaduct.engine.api.gj
+import viaduct.engine.api.instrumentation.resolver.ResolverInstrumentationContext
 import viaduct.engine.api.spi.FieldResolverExecutor
 
 /**
@@ -124,7 +125,8 @@ private class FieldResolverExecutorImpl(
 
     override suspend fun batchResolve(
         selectors: List<FieldResolverExecutor.Selector>,
-        context: EngineExecutionContext
+        context: EngineExecutionContext,
+        instrumentationContext: ResolverInstrumentationContext?,
     ): Map<FieldResolverExecutor.Selector, Result<Any?>> =
         selectors.associateWith { selector ->
             runCatching {

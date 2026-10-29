@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.CsvSource
+import org.junit.jupiter.params.provider.ValueSource
 import viaduct.engine.api.Caller
 import viaduct.engine.api.Engine
 import viaduct.engine.api.EngineExecutionContext
@@ -23,6 +24,8 @@ import viaduct.engine.api.ResolvedEngineObjectData
 import viaduct.engine.api.ResolverMetadata
 import viaduct.engine.api.ResolverType
 import viaduct.engine.api.RootFieldReference
+import viaduct.engine.api.instrumentation.resolver.ResolverInstrumentationContext
+import viaduct.engine.api.instrumentation.resolver.ViaductResolverInstrumentation
 import viaduct.engine.api.mocks.MockSchema
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.NodeResolverExecutor
@@ -50,6 +53,8 @@ import viaduct.java.api.types.Query
 import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 
 class JavaBatchInvocationContextTest {
+    private val batches = mutableListOf<Pair<ResolverMetadata, Int>>()
+
     class TestNode : ObjectBase, NodeObject {
         constructor(context: InternalContext?, data: EngineObjectData.Sync) : super(context, data)
         constructor(context: InternalContext?, ref: NodeReference) : super(context, ref)
@@ -97,7 +102,7 @@ class JavaBatchInvocationContextTest {
         }
         val nodeDispatcher = mockk<NodeResolverDispatcher> {
             every { resolverMetadata } returns ResolverMetadata.forModern("TestNode", ResolverType.NODE)
-            coEvery { resolve(any(), any(), any()) } answers {
+            coEvery { resolve(any(), any(), any(), any()) } answers {
                 nodeCallers += thirdArg<EngineExecutionContext>().fieldScope.caller
                 nodeData
             }
@@ -122,6 +127,7 @@ class JavaBatchInvocationContextTest {
 
         val aggregate = mocks.invocationContext(EngineExecutionContextImpl.FieldExecutionScopeImpl(), null, handles.first())
         val results = executeBatch(nodeBatch, invocations, aggregate) { contexts ->
+            assertBatchInvocation(nodeBatch, size)
             val queries = contexts.map { context ->
                 assertSame(requestContext, context.requestContext)
                 val id = context.globalIDFor(Type.ofClass(TestNode::class.java), "referenced")
@@ -140,6 +146,7 @@ class JavaBatchInvocationContextTest {
         }
 
         assertEquals(size, results.size)
+        assertBatchInvocation(nodeBatch, size)
         results.forEach { assertSame(nodeData, it.getOrThrow()) }
         assertEquals(handles.zip(attributions).toMap(), subqueries)
         val selections = invocations.first().engineSelectionSetFactory.engineSelectionSet("TestNode", "name", emptyMap())
@@ -158,11 +165,12 @@ class JavaBatchInvocationContextTest {
         val context = ContextMocks(myFullSchema = schema).engineExecutionContext
         val failure = IllegalStateException("batch failed")
         val resolve: (List<ResolverExecutionContext>) -> CompletableFuture<List<TestNode>> = {
+            assertBatchInvocation(nodeBatch, size)
             CompletableFuture.failedFuture(failure)
         }
 
         if (nodeBatch) {
-            val results = executeBatch(true, List(size) { context }, context, resolve)
+            val results = executeBatch(true, List(size) { context }, context, resolve = resolve)
             assertEquals(size, results.size)
             results.forEach {
                 val error = it.exceptionOrNull() as TenantResolverException
@@ -171,22 +179,70 @@ class JavaBatchInvocationContextTest {
             }
         } else {
             val error = assertThrows<TenantResolverException> {
-                executeBatch(false, List(size) { context }, context, resolve)
+                executeBatch(false, List(size) { context }, context, resolve = resolve)
             }
             assertSame(failure, error.cause)
             assertEquals("Query.batch", error.resolver)
         }
+        assertBatchInvocation(nodeBatch, size)
     }
+
+    @ParameterizedTest
+    @ValueSource(booleans = [false, true])
+    fun `node batching reports each invocation after repeated IDs split`(failSingleton: Boolean) =
+        runTest {
+            val context = ContextMocks(myFullSchema = schema).engineExecutionContext
+            val results = executeBatch(true, List(3) { context }, context, nodeIDs = listOf("a", "b", "a")) { contexts ->
+                if (failSingleton && contexts.size == 1) {
+                    CompletableFuture.failedFuture(IllegalStateException("singleton failed"))
+                } else {
+                    CompletableFuture.completedFuture(contexts.map { TestNode(null, nodeData) })
+                }
+            }
+
+            assertEquals(3, results.size)
+            assertEquals(if (failSingleton) 1 else 0, results.count { it.isFailure })
+            assertEquals(listOf(2, 1), batches.map { it.second })
+            assertEquals(setOf(ResolverMetadata.forModern("TestNode", ResolverType.NODE)), batches.map { it.first }.toSet())
+        }
+
+    private fun assertBatchInvocation(
+        nodeBatch: Boolean,
+        size: Int
+    ) {
+        val metadata = ResolverMetadata.forModern(
+            if (nodeBatch) "TestNode" else "Query.batch",
+            if (nodeBatch) ResolverType.NODE else ResolverType.FIELD,
+        )
+        assertEquals(listOf(metadata to size), batches)
+    }
+
+    private val instrumentationContext = ResolverInstrumentationContext(
+        object : ViaductResolverInstrumentation {
+            override fun onBatchResolverInvocation(
+                metadata: ResolverMetadata,
+                batchSize: Int,
+                state: ViaductResolverInstrumentation.InstrumentationState?,
+            ) {
+                batches.add(metadata to batchSize)
+            }
+        },
+        ViaductResolverInstrumentation.DEFAULT_INSTRUMENTATION_STATE,
+    )
 
     private suspend fun executeBatch(
         nodeBatch: Boolean,
         invocations: List<EngineExecutionContext>,
         aggregate: EngineExecutionContext,
+        nodeIDs: List<String> = invocations.indices.map { "$it" },
         resolve: (List<ResolverExecutionContext>) -> CompletableFuture<List<TestNode>>,
     ): List<Result<Any?>> {
         if (nodeBatch) {
             val selectors = invocations.indices.map { i ->
-                NodeResolverExecutor.Selector(GlobalIDCodecDefault.serialize("TestNode", "$i"), aggregate.engineSelectionSetFactory.engineSelectionSet("TestNode", "name", emptyMap()))
+                NodeResolverExecutor.Selector(
+                    GlobalIDCodecDefault.serialize("TestNode", nodeIDs[i]),
+                    aggregate.engineSelectionSetFactory.engineSelectionSet("TestNode", "name$i: name", emptyMap()),
+                )
             }
             val context = if (selectors.size == 1) invocations.single() else aggregate.withInvocationContexts(selectors.zip(invocations).toMap())
             val resolver = object : BaseBatchedNodeResolver<TestNode> {
@@ -194,7 +250,7 @@ class JavaBatchInvocationContextTest {
                     resolve(contexts).thenApply { values -> contexts.zip(values.map { FieldValue.ofValue(it) }).toMap() }
             }
             return NodeBatchResolverExecutorImpl(Provider { resolver }, "TestNode", "TestNode")
-                .resolve(selectors, context).let { results -> selectors.map { results.getValue(it) } }
+                .resolve(selectors, context, instrumentationContext).let { results -> selectors.map { results.getValue(it) } }
         }
         val selectors = invocations.indices.map {
             FieldResolverExecutor.Selector(emptyMap(), null, { nodeData }, { queryData })
@@ -204,6 +260,6 @@ class JavaBatchInvocationContextTest {
             resolve(contexts).thenApply { values -> contexts.zip(values).toMap() }
         }
         return FieldBatchResolverExecutorImpl(Provider { resolver }, "Query.batch", "Query.batch")
-            .batchResolve(selectors, context).let { results -> selectors.map { results.getValue(it) } }
+            .batchResolve(selectors, context, instrumentationContext).let { results -> selectors.map { results.getValue(it) } }
     }
 }

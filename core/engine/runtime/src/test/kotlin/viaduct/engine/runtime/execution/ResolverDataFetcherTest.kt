@@ -37,6 +37,7 @@ import viaduct.engine.api.FromArgumentVariable
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.VariablesResolver
 import viaduct.engine.api.instrumentation.ViaductTenantNameContext
+import viaduct.engine.api.instrumentation.resolver.ResolverInstrumentationContext
 import viaduct.engine.api.mocks.FieldUnbatchedResolverFn
 import viaduct.engine.api.mocks.MockFieldUnbatchedResolverExecutor
 import viaduct.engine.api.mocks.MockSchema
@@ -548,10 +549,11 @@ private class TestFieldUnbatchedResolverExecutor(
 
     override suspend fun batchResolve(
         selectors: List<FieldResolverExecutor.Selector>,
-        context: EngineExecutionContext
+        context: EngineExecutionContext,
+        instrumentationContext: ResolverInstrumentationContext?,
     ): Map<FieldResolverExecutor.Selector, Result<Any?>> {
         lastReceivedLocalContext = context as EngineExecutionContextImpl
-        return super.batchResolve(selectors, context)
+        return super.batchResolve(selectors, context, instrumentationContext)
     }
 }
 

@@ -16,6 +16,7 @@ import viaduct.service.api.spi.GlobalIDCodec
  */
 interface EngineExecutionContext {
     // View-scoped: Schema and execution infrastructure
+
     /**
      * Complete internal schema used for planning and execution. This includes fields that may
      * be hidden from client-visible schemas, such as @tenantLocal fields.

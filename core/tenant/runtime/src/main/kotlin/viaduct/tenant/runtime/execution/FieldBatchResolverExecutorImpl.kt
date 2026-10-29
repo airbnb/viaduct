@@ -10,6 +10,7 @@ import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.ResolverMetadata
 import viaduct.engine.api.ResolverType
 import viaduct.engine.api.TenantModuleMetadata
+import viaduct.engine.api.instrumentation.resolver.ResolverInstrumentationContext
 import viaduct.engine.api.invocationContextFor
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.FieldResolverExecutor.Selector
@@ -52,7 +53,8 @@ class FieldBatchResolverExecutorImpl(
 
     override suspend fun batchResolve(
         selectors: List<Selector>,
-        context: EngineExecutionContext
+        context: EngineExecutionContext,
+        instrumentationContext: ResolverInstrumentationContext?,
     ): Map<Selector, Result<Any?>> {
         val contexts = selectors.map { key ->
             val invocationContext = context.invocationContextFor(key)
@@ -67,6 +69,7 @@ class FieldBatchResolverExecutorImpl(
         }
         val resolver = resolver.get()
         val results: Any? = handleTenantErrorsSuspend(resolverName) {
+            instrumentationContext?.run { instrumentation.onBatchResolverInvocation(metadata, contexts.size, state) }
             resolver.invokeFieldBatchResolver(contexts)
         }
         if (results !is List<*>) {

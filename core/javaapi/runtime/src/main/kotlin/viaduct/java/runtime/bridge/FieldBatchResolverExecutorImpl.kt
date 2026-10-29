@@ -11,6 +11,7 @@ import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.ResolverMetadata
 import viaduct.engine.api.ResolverType
+import viaduct.engine.api.instrumentation.resolver.ResolverInstrumentationContext
 import viaduct.engine.api.invocationContextFor
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.VariableFromArgumentDefinitions
@@ -57,6 +58,7 @@ class FieldBatchResolverExecutorImpl(
     override suspend fun batchResolve(
         selectors: List<FieldResolverExecutor.Selector>,
         context: EngineExecutionContext,
+        instrumentationContext: ResolverInstrumentationContext?,
     ): Map<FieldResolverExecutor.Selector, Result<Any?>> {
         val scope = CoroutineScope(currentCoroutineContext())
 
@@ -88,7 +90,9 @@ class FieldBatchResolverExecutorImpl(
         }
 
         val results: Map<FieldExecutionContext<*, *, *, *>, *> = handleTenantErrorsSuspend(resolverId) {
-            val results = resolver.get().invokeFieldBatchResolverWithErrors(javaContexts).await()
+            val batchResolver = resolver.get()
+            instrumentationContext?.run { instrumentation.onBatchResolverInvocation(metadata, javaContexts.size, state) }
+            val results = batchResolver.invokeFieldBatchResolverWithErrors(javaContexts).await()
                 ?: throw TenantUsageException("batchResolve for $resolverId returned a null map")
             if (results.size != selectors.size) {
                 throw TenantUsageException(
