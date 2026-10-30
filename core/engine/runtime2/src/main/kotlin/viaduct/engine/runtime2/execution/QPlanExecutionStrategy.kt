@@ -50,6 +50,7 @@ class QPlanExecutionStrategy(
     private val dataFetcherExceptionHandler: DataFetcherExceptionHandler =
         SimpleDataFetcherExceptionHandler(),
     private val worldForExecution: ((ExecutionContext) -> Assumptions)? = null,
+    private val operationSelectionCache: OperationSelectionCache? = null,
 ) : AsyncExecutionStrategy(dataFetcherExceptionHandler) {
     override fun execute(
         executionContext: ExecutionContext,
@@ -57,7 +58,7 @@ class QPlanExecutionStrategy(
     ): CompletableFuture<ExecutionResult> {
         val executionWorld = worldForExecution?.invoke(executionContext) ?: world
         // Query Planniing: Convert operation to be executed into a [SelectionForest]
-        val selections =
+        val decode = {
             executionWorld.selectionsFrom(
                 sourceSchema = sourceSchema,
                 operation = executionContext.operationDefinition,
@@ -66,6 +67,8 @@ class QPlanExecutionStrategy(
                 locale = executionContext.locale,
                 fragmentsByName = executionContext.fragmentsByName,
             )
+        }
+        val selections = operationSelectionCache?.selections(executionWorld, executionContext, decode) ?: decode()
 
         val requestJob = Job()
         executionContext.graphQLContext

@@ -27,18 +27,26 @@ sealed interface Assumptions {
     /** Selects precomputed closure; false retains the independent dynamic expansion algorithm. */
     val usePrecomputedConstructionDemand: Boolean
 
+    /**
+     * Whether Resolution reuses demand analysis attached to shared selection forests. Reuse never
+     * changes semantic results; it replaces repeated pure computations with identity-keyed lookups.
+     */
+    val usePlanCache: Boolean
+
     companion object {
         fun of(
             schema: ViaductSchema,
             resolverRegistry: ResolverRegistry,
             selectiveResolvers: Boolean = true,
             usePrecomputedConstructionDemand: Boolean = false,
+            usePlanCache: Boolean = false,
         ): Assumptions =
             AssumptionsImpl(
                 schema,
                 resolverRegistry,
                 selectiveResolvers,
                 usePrecomputedConstructionDemand,
+                usePlanCache,
             )
     }
 }
@@ -48,6 +56,7 @@ private class AssumptionsImpl(
     override val resolverRegistry: ResolverRegistry,
     override val selectiveResolvers: Boolean,
     override val usePrecomputedConstructionDemand: Boolean,
+    override val usePlanCache: Boolean,
 ) : Assumptions {
     override val parentFieldRelations: Map<ViaductSchema.ObjectField, ViaductSchema.ObjectField> =
         parentFieldRelations(schema)

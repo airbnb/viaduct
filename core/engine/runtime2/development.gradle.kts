@@ -233,6 +233,119 @@ tasks.register<JavaExec>("standardViaductBenchmark") {
     }
 }
 
+val planCacheBenchmarkPlanCache =
+    providers.gradleProperty("planCacheBenchmarkPlanCache").orElse("off,on")
+val planCacheBenchmarkDocuments =
+    providers.gradleProperty("planCacheBenchmarkDocuments").orElse("shared,fresh")
+val planCacheBenchmarkSeed =
+    providers.gradleProperty("planCacheBenchmarkSeed").orElse("7")
+val planCacheBenchmarkListSize =
+    providers.gradleProperty("planCacheBenchmarkListSize").orElse("2")
+val planCacheBenchmarkJmhOptions =
+    providers.gradleProperty("planCacheBenchmarkJmhOptions").orElse("")
+val planCacheBenchmarkProfile =
+    providers.gradleProperty("planCacheBenchmarkProfile").orElse("step1")
+val planCacheBenchmarkDirectiveValues =
+    providers.gradleProperty("planCacheBenchmarkDirectiveValues").orElse("fixed")
+val planCacheBenchmarkResult =
+    providers.gradleProperty("planCacheBenchmarkResult")
+        .map { file(it) }
+        .orElse(layout.buildDirectory.file("reports/resolver-benchmarks/plan-cache.json").map { it.asFile })
+
+tasks.register<JavaExec>("planCacheBenchmark") {
+    group = "benchmark"
+    description = "Measures plan-cache step-1 requests through StandardViaduct with the Engine2 plan cache on and off."
+    val benchmarkJar = tasks.named<org.gradle.jvm.tasks.Jar>("jmhJar")
+    dependsOn(benchmarkJar)
+    classpath = files(benchmarkJar.flatMap { jar -> jar.archiveFile })
+    mainClass.set("org.openjdk.jmh.Main")
+    inputs.property("planCache", planCacheBenchmarkPlanCache)
+    inputs.property("documents", planCacheBenchmarkDocuments)
+    inputs.property("seed", planCacheBenchmarkSeed)
+    inputs.property("listSize", planCacheBenchmarkListSize)
+    inputs.property("profile", planCacheBenchmarkProfile)
+    inputs.property("directiveValues", planCacheBenchmarkDirectiveValues)
+    inputs.property("loopCount", resolverBenchmarkLoopCount)
+    outputs.upToDateWhen { false }
+    doFirst {
+        val result = planCacheBenchmarkResult.get()
+        result.parentFile.mkdirs()
+        args = listOf(
+            "viaduct\\.engine\\.runtime2\\.benchmark\\.PlanCacheBenchmark\\.execute",
+            "-foe",
+            "true",
+            "-p",
+            "planCache=${planCacheBenchmarkPlanCache.get()}",
+            "-p",
+            "documents=${planCacheBenchmarkDocuments.get()}",
+            "-p",
+            "seed=${planCacheBenchmarkSeed.get()}",
+            "-p",
+            "listSize=${planCacheBenchmarkListSize.get()}",
+            "-p",
+            "profile=${planCacheBenchmarkProfile.get()}",
+            "-p",
+            "directiveValues=${planCacheBenchmarkDirectiveValues.get()}",
+            "-p",
+            "loopCount=${resolverBenchmarkLoopCount.get()}",
+            "-rf",
+            "json",
+            "-rff",
+            result.absolutePath,
+        ) + planCacheBenchmarkJmhOptions.get().split(' ').filter(String::isNotBlank)
+    }
+}
+
+val planCacheProfileOutput =
+    providers.gradleProperty("planCacheProfileOutput")
+        .map { file(it) }
+        .orElse(layout.buildDirectory.file("reports/resolver-benchmarks/plan-cache.jfr").map { it.asFile })
+val planCacheProfilePlanCache =
+    providers.gradleProperty("planCacheProfilePlanCache").orElse("on")
+
+tasks.register<JavaExec>("planCacheProfile") {
+    group = "benchmark"
+    description = "Records one measured plan-cache benchmark batch with JFR after warmup."
+    val benchmarkJar = tasks.named<org.gradle.jvm.tasks.Jar>("jmhJar")
+    dependsOn(benchmarkJar)
+    classpath = files(benchmarkJar.flatMap { it.archiveFile })
+    mainClass.set("org.openjdk.jmh.Main")
+    outputs.upToDateWhen { false }
+    doFirst {
+        val profileFile = planCacheProfileOutput.get().absoluteFile
+        profileFile.parentFile.mkdirs()
+        profileFile.delete()
+        args = listOf(
+            "viaduct\\.engine\\.runtime2\\.benchmark\\.PlanCacheBenchmark\\.execute",
+            "-foe",
+            "true",
+            "-p",
+            "planCache=${planCacheProfilePlanCache.get()}",
+            "-p",
+            "documents=${planCacheBenchmarkDocuments.get().substringBefore(',')}",
+            "-p",
+            "seed=${planCacheBenchmarkSeed.get()}",
+            "-p",
+            "listSize=${planCacheBenchmarkListSize.get()}",
+            "-p",
+            "profile=${planCacheBenchmarkProfile.get()}",
+            "-p",
+            "directiveValues=${planCacheBenchmarkDirectiveValues.get().substringBefore(',')}",
+            "-p",
+            "loopCount=${resolverBenchmarkLoopCount.get()}",
+            "-wi",
+            "5",
+            "-i",
+            "1",
+            "-f",
+            "1",
+            "-jvmArgsAppend",
+            "-DplanCacheProfileOutput=${profileFile.absolutePath} -XX:FlightRecorderOptions=stackdepth=256",
+        )
+    }
+    doLast { logger.lifecycle("Plan-cache JFR: ${planCacheProfileOutput.get().absolutePath}") }
+}
+
 tasks.register<JavaExec>("standardViaductWorkloadReport") {
     group = "benchmark"
     description = "Reports client query and response sizes for the adapted StandardViaduct workload."

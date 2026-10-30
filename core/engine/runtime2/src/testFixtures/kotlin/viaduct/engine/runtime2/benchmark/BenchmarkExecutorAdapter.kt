@@ -33,6 +33,7 @@ import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.runBlocking
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
+import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.FromArgument
 import viaduct.engine.api.FromFieldVariablesResolver
 import viaduct.engine.api.NodeReference
@@ -149,11 +150,13 @@ class BenchmarkExecutorAdapter(
                                 ): Map<String, Any?> = function(Arguments.Resolved.of(field, arguments))
                             }
                         },
-                    ) { _, _, _, _, context -> outputTemplate.instantiate(context) }
+                    ) { _, _, _, selections, context -> outputTemplate.instantiate(context, selections) }
                 }
             }
         val nodes = world.instance(BenchmarkNodeResolvers::class.java).resolvers.map { (type, resolver) ->
             val prepared = ConcurrentHashMap<String, OutputTemplate>()
+            // Non-selective node executors receive only an `id` placeholder selection set, and Engine2
+            // reads every field they return, so their prepared outputs are always built completely.
             type.name to MockNodeUnbatchedResolverExecutor(typeName = type.name) { id, _, context ->
                 val template = prepared[id] ?: run {
                     check(!frozen) { "Unprepared benchmark node: ${type.name}:$id" }
@@ -349,19 +352,32 @@ class BenchmarkExecutorAdapter(
     }
 }
 
+/**
+ * A prepared resolver output whose node and root-field references are created per request.
+ *
+ * Prepared outputs are complete, non-selective values. Engine2 supplies a field resolver's demand
+ * as its selection set and projects the returned value to that same demand, so when a selection set
+ * is passed an object template builds only its selected fields and creates references only beneath
+ * them; without one it builds the complete value. Both forms project to the same engine result.
+ * Building every reference of a large prepared output on each call otherwise dominates workloads
+ * whose outputs nest many Node-typed lists.
+ */
 private class OutputTemplate(
     val value: Any?,
-    val create: ((EngineExecutionContext) -> Any?)? = null,
+    val create: ((EngineExecutionContext, EngineSelectionSet?) -> Any?)? = null,
 ) {
-    fun instantiate(context: EngineExecutionContext): Any? = if (create == null) value else create.invoke(context)
+    fun instantiate(
+        context: EngineExecutionContext,
+        selections: EngineSelectionSet? = null,
+    ): Any? = if (create == null) value else create.invoke(context, selections)
 }
 
 private fun outputTemplate(value: Any?): OutputTemplate =
     when (value) {
         // Production node and root references carry per-request resolution state.
-        is NodeReference -> OutputTemplate(value) { it.createNodeReference(value.id, value.type) }
-        is RootFieldReference -> OutputTemplate(value) {
-            it.createRootFieldReference(value.rootFieldPath, value.type as GraphQLObjectType, value.args)
+        is NodeReference -> OutputTemplate(value) { context, _ -> context.createNodeReference(value.id, value.type) }
+        is RootFieldReference -> OutputTemplate(value) { context, _ ->
+            context.createRootFieldReference(value.rootFieldPath, value.type as GraphQLObjectType, value.args)
         }
         is ResolvedEngineObjectData -> {
             val values = value.getSelections().associateWith(value::get)
@@ -369,14 +385,54 @@ private fun outputTemplate(value: Any?): OutputTemplate =
             if (children.isEmpty()) {
                 OutputTemplate(value)
             } else {
-                OutputTemplate(value) { context ->
-                    ResolvedEngineObjectData(value.type, values + children.mapValues { it.value.instantiate(context) })
+                OutputTemplate(value) { context, selections ->
+                    if (selections == null) {
+                        ResolvedEngineObjectData(value.type, values + children.mapValues { it.value.instantiate(context) })
+                    } else {
+                        ResolvedEngineObjectData(value.type, value.selectedValues(values, children, context, selections))
+                    }
                 }
             }
         }
         is List<*> -> {
             val children = value.map(::outputTemplate)
-            if (children.none { it.create != null }) OutputTemplate(value) else OutputTemplate(value) { context -> children.map { it.instantiate(context) } }
+            if (children.none { it.create != null }) {
+                OutputTemplate(value)
+            } else {
+                OutputTemplate(value) { context, selections -> children.map { it.instantiate(context, selections) } }
+            }
         }
         else -> OutputTemplate(value)
+    }
+
+/** The fields of this prepared object selected by [selections], with references created only beneath them. */
+private fun ResolvedEngineObjectData.selectedValues(
+    values: Map<String, Any?>,
+    children: Map<String, OutputTemplate>,
+    context: EngineExecutionContext,
+    selections: EngineSelectionSet,
+): Map<String, Any?> {
+    val typeName = type.name
+    return buildMap {
+        values.forEach { (field, fieldValue) ->
+            if (!selections.containsField(typeName, field)) return@forEach
+            val child = children[field]
+            put(
+                field,
+                when {
+                    child == null -> fieldValue
+                    fieldValue.containsObjects() -> child.instantiate(context, selections.selectionSetForField(typeName, field))
+                    else -> child.instantiate(context)
+                },
+            )
+        }
+    }
+}
+
+/** Whether a prepared value contains objects that need their own subselections. */
+private fun Any?.containsObjects(): Boolean =
+    when (this) {
+        is ResolvedEngineObjectData -> true
+        is List<*> -> any { it.containsObjects() }
+        else -> false
     }

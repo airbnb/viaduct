@@ -69,12 +69,14 @@ class TestWorld private constructor(
     fun newAssumptions(
         selectiveResolvers: Boolean = assumptions.selectiveResolvers,
         usePrecomputedConstructionDemand: Boolean = assumptions.usePrecomputedConstructionDemand,
+        usePlanCache: Boolean = assumptions.usePlanCache,
     ): Assumptions =
         Assumptions.of(
             schema = schema,
             resolverRegistry = resolverRegistry,
             selectiveResolvers = selectiveResolvers,
             usePrecomputedConstructionDemand = usePrecomputedConstructionDemand,
+            usePlanCache = usePlanCache,
         )
 
     fun <T : Any> instance(type: Class<T>): T = injector.getInstance(type)
