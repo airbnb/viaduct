@@ -1,6 +1,8 @@
 package viaduct.engine.runtime2.execution
 
 import graphql.ExecutionResult
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Test
 import viaduct.engine.EngineConfiguration
 import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.mocks.EngineTestModule
@@ -10,6 +12,11 @@ import viaduct.engine.runtime2.execution.testing.runQPlanFeatureTest
 import viaduct.graphql.test.assertJson
 
 interface Engine2QueryExecutionContract : QueryExecutionContract {
+    @Test
+    fun `alternates are paired with disabled tests`() {
+        assertEquals(emptyList<String>(), alternatePairingViolations(collectAlternateMarks(this::class.java)))
+    }
+
     override fun executeQuery(
         module: EngineTestModule,
         query: String,

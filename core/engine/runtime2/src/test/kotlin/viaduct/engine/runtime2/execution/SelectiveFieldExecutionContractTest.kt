@@ -71,122 +71,145 @@ import viaduct.service.api.spi.mocks.MockFlagManager
  * run modes
  */
 class SelectiveFieldExecutionContractTest : SelectiveFieldExecutionContract, Engine2QueryExecutionContract {
-    @Disabled(
-        "ALT: Production excludes resolver-owned Foo.x from selective parent output; qplan permits argumentless registered descendants to be source-owned, so its one-shot alternative omits x from the parent result"
+    @Engine2Disabled(
+        Engine2DisabledKind.ALT,
+        "Production excludes resolver-owned Foo.x from selective parent output; qplan permits argumentless registered descendants to be source-owned, so its one-shot alternative omits x from the parent result"
     )
-    @Test
     override fun `selective field skipped in query is selected in RSS`() {}
 
-    @Test
-    @Disabled("TODO: Registry rejects structural resolver cycles even when an RSS edge is statically skipped")
+    @Engine2Disabled(Engine2DisabledKind.TODO, "Registry rejects structural resolver cycles even when an RSS edge is statically skipped")
     override fun `selective field is selected in one RSS but in a skipped fragment in another RSS`() {}
 
-    @Disabled("ALT: Tests precedence across multiple covering materializations; qplan produces the same values from one closed-demand application")
-    @Test
+    @Engine2Disabled(
+        Engine2DisabledKind.ALT,
+        "Tests precedence across multiple covering materializations; qplan produces the same values from one closed-demand application"
+    )
     override fun `surplus coverage uses values from the first covering result`() {}
 
-    @Disabled("ALT: Expects a second selective-source materialization for nested RSS coverage; qplan closes that demand before one application")
-    @Test
+    @Engine2Disabled(
+        Engine2DisabledKind.ALT,
+        "Expects a second selective-source materialization for nested RSS coverage; qplan closes that demand before one application"
+    )
     override fun `missing nested rss coverage rematerializes selective source`() {}
 
-    @Disabled("TODO: Batching")
-    @Test
+    @Engine2Disabled(Engine2DisabledKind.TODO, "Batching")
     override fun `recursive selective batching field supplies its own rss`() {}
 
-    @Disabled("ALT: Tests per-runtime-type rematerialization coverage; qplan supplies both concrete dependencies from one conservative application")
-    @Test
+    @Engine2Disabled(
+        Engine2DisabledKind.ALT,
+        "Tests per-runtime-type rematerialization coverage; qplan supplies both concrete dependencies from one conservative application"
+    )
     override fun `partial rss coverage across list item types rematerializes only uncovered types`() {}
 
-    @Disabled("ALT: Tests positional reconciliation when repeated materializations change list size; qplan represents the same final item outcomes in one stable result")
-    @Test
+    @Engine2Disabled(
+        Engine2DisabledKind.ALT,
+        "Tests positional reconciliation when repeated materializations change list size; qplan represents the same final item outcomes in one stable result"
+    )
     override fun `list size changes across materializations leave unmatched items unresolved`() {}
 
-    @Disabled("ALT: Tests a runtime-type change between materializations; qplan produces the same final nullable leaf from one stable runtime type")
-    @Test
+    @Engine2Disabled(
+        Engine2DisabledKind.ALT,
+        "Tests a runtime-type change between materializations; qplan produces the same final nullable leaf from one stable runtime type"
+    )
     override fun `nested list item type changes across materializations report a field error`() {}
 
-    @Disabled("ALT: Expects argument-distinct passive values from separate materializations; qplan resolves each argument-bearing field actively under one parent application")
-    @Test
+    @Engine2Disabled(
+        Engine2DisabledKind.ALT,
+        "Expects argument-distinct passive values from separate materializations; qplan resolves each argument-bearing field actively under one parent application"
+    )
     override fun `rss aliases with different arguments remain isolated across materializations`() {}
 
-    @Disabled("ALT: Routes an argument-bearing RSS field through passive rematerialization; qplan resolves it actively and preserves the provider failure at the consumer field")
-    @Test
+    @Engine2Disabled(
+        Engine2DisabledKind.ALT,
+        "Routes an argument-bearing RSS field through passive rematerialization; qplan resolves it actively and preserves the provider failure at the consumer field"
+    )
     override fun `rss variables resolver failure during rematerialization reports a field error`() {}
 
-    @Disabled("ALT: Uses a callback-owned RSS and asks a selective owner to supply an argument-bearing field; qplan uses a declarative provider and resolves argument-bearing fields actively")
-    @Test
+    @Engine2Disabled(
+        Engine2DisabledKind.ALT,
+        "Uses a callback-owned RSS and asks a selective owner to supply an argument-bearing field; qplan uses a declarative provider and resolves argument-bearing fields actively"
+    )
     override fun `selective-owned sibling supplies required rss variable`() {}
 
-    @Disabled("ALT: Supplies argument-bearing child fields through embedded materialization; qplan resolves those fields actively beneath one selective parent application")
-    @Test
+    @Engine2Disabled(
+        Engine2DisabledKind.ALT,
+        "Supplies argument-bearing child fields through embedded materialization; qplan resolves those fields actively beneath one selective parent application"
+    )
     override fun `embedded materialization preserves fragment argument variables across child plans`() {}
 
-    @Disabled("TODO: Batching")
-    @Test
+    @Engine2Disabled(Engine2DisabledKind.TODO, "Batching")
     override fun `batched selective field resolver batches distinct rematerialization shapes`() {}
 
-    @Disabled("ALT: Tests a null second materialization; qplan represents the same nullable-consumer result from one stable object with a null dependency")
-    @Test
+    @Engine2Disabled(
+        Engine2DisabledKind.ALT,
+        "Tests a null second materialization; qplan represents the same nullable-consumer result from one stable object with a null dependency"
+    )
     override fun `null rematerialization reports a field error at nullable consumer`() {}
 
-    @Disabled("ALT: Tests a null second materialization beneath a non-null consumer; qplan produces the same bubbling from one stable object with a null dependency")
-    @Test
+    @Engine2Disabled(
+        Engine2DisabledKind.ALT,
+        "Tests a null second materialization beneath a non-null consumer; qplan produces the same bubbling from one stable object with a null dependency"
+    )
     override fun `null rematerialization bubbles through non-null consumer`() {}
 
-    @Disabled("ALT: Tests a root runtime-type change between materializations; qplan preserves the final nullable leaf and error path from one stable runtime type")
-    @Test
+    @Engine2Disabled(
+        Engine2DisabledKind.ALT,
+        "Tests a root runtime-type change between materializations; qplan preserves the final nullable leaf and error path from one stable runtime type"
+    )
     override fun `type changes across root materializations report a field error`() {}
 
-    @Disabled("ALT: Tests a nested runtime-type change between materializations; qplan preserves the final nullable leaf and error path from one stable runtime type")
-    @Test
+    @Engine2Disabled(
+        Engine2DisabledKind.ALT,
+        "Tests a nested runtime-type change between materializations; qplan preserves the final nullable leaf and error path from one stable runtime type"
+    )
     override fun `type changes across nested object materializations report a field error`() {}
 
-    @Disabled("ALT: Tests malformed nested output only on a second materialization; qplan preserves the final nullable leaf and error path from one stable malformed dependency value")
-    @Test
+    @Engine2Disabled(
+        Engine2DisabledKind.ALT,
+        "Tests malformed nested output only on a second materialization; qplan preserves the final nullable leaf and error path from one stable malformed dependency value"
+    )
     override fun `malformed nested object from rematerialization reports a field error`() {}
 
-    @Disabled("ALT: Tests a selective producer exception on a second materialization; qplan preserves the final consumer error from one stable producer result")
-    @Test
+    @Engine2Disabled(
+        Engine2DisabledKind.ALT,
+        "Tests a selective producer exception on a second materialization; qplan preserves the final consumer error from one stable producer result"
+    )
     override fun `resolver exceptions during rematerialization report a field error`() {}
 
-    @Disabled("TODO: ErrorData")
-    @Test
+    @Engine2Disabled(Engine2DisabledKind.TODO, "ErrorData")
     override fun `selective resolver rematerializes DataFetcherResult list items`() {}
 
-    @Disabled("N/A: Asserts production materialization source identity through GraphQL field instrumentation")
-    @Test
+    @Engine2Disabled(Engine2DisabledKind.NA, "Asserts production materialization source identity through GraphQL field instrumentation")
     override fun `mat backed traversal keeps the selective resolver result as its source`() {}
 
-    @Disabled("N/A: Asserts two production field-fetch callbacks for staged rematerialization; Resolution resolves once")
-    @Test
+    @Engine2Disabled(Engine2DisabledKind.NA, "Asserts two production field-fetch callbacks for staged rematerialization; Resolution resolves once")
     override fun `selective field resolver materialization invokes field fetching instrumentation`() {}
 
-    @Disabled("TODO: AccessChk")
-    @Test
+    @Engine2Disabled(Engine2DisabledKind.TODO, "AccessChk")
     override fun `selective field materialization reuses field checker`() {}
 
-    @Disabled("TODO: AccessChk")
-    @Test
+    @Engine2Disabled(Engine2DisabledKind.TODO, "AccessChk")
     override fun `field checker failure after selective materialization is reported`() {}
 
-    @Disabled("TODO: AccessChk")
-    @Test
+    @Engine2Disabled(Engine2DisabledKind.TODO, "AccessChk")
     override fun `type checker reads multiple fields from selective source`() {}
 
-    @Disabled("TODO: AccessChk")
-    @Test
+    @Engine2Disabled(Engine2DisabledKind.TODO, "AccessChk")
     override fun `field checker reads its selective field`() {}
 
-    @Disabled("TODO: Directive: Canonical demand conversion does not preserve custom resolver-directive spelling")
-    @Test
+    @Engine2Disabled(Engine2DisabledKind.TODO, "Directive: Canonical demand conversion does not preserve custom resolver-directive spelling")
     override fun `materialization preserves resolver selection directives`() {}
 
-    @Disabled("ALT: Uses a later materialization to distinguish client and RSS hydration of one selected field; qplan requires one explicit passive value")
-    @Test
+    @Engine2Disabled(
+        Engine2DisabledKind.ALT,
+        "Uses a later materialization to distinguish client and RSS hydration of one selected field; qplan requires one explicit passive value"
+    )
     override fun `resolver does not hydrate a selected field in its output selection set`() {}
 
-    @Disabled("ALT: Expects argument-distinct passive values from separate output selection sets; qplan resolves both argument-bearing occurrences actively")
-    @Test
+    @Engine2Disabled(
+        Engine2DisabledKind.ALT,
+        "Expects argument-distinct passive values from separate output selection sets; qplan resolves both argument-bearing occurrences actively"
+    )
     override fun `client and rss arguments remain isolated in output selection set`() {}
 
     @Nested
@@ -205,7 +228,7 @@ class SelectiveFieldExecutionContractTest : SelectiveFieldExecutionContract, Eng
 
     @Nested
     inner class RssTests {
-        @Test
+        @Engine2Alternate(original = "selective field skipped in query is selected in RSS")
         fun `ALTERNATIVE selective field skipped in query is selected in RSS`() {
             MockTenantModuleBootstrapper(
                 """
@@ -266,7 +289,7 @@ class SelectiveFieldExecutionContractTest : SelectiveFieldExecutionContract, Eng
 
     @Nested
     inner class CoverageTests {
-        @Test
+        @Engine2Alternate(original = "surplus coverage uses values from the first covering result")
         fun `ALTERNATIVE surplus coverage uses values from the first covering result`() {
             val fooCalls = AtomicInteger()
 
@@ -310,7 +333,7 @@ class SelectiveFieldExecutionContractTest : SelectiveFieldExecutionContract, Eng
             assertEquals(1, fooCalls.get())
         }
 
-        @Test
+        @Engine2Alternate(original = "missing nested rss coverage rematerializes selective source")
         fun `ALTERNATIVE missing nested rss coverage rematerializes selective source`() {
             val fooCalls = AtomicInteger()
 
@@ -372,7 +395,7 @@ class SelectiveFieldExecutionContractTest : SelectiveFieldExecutionContract, Eng
 
     @Nested
     inner class ListTests {
-        @Test
+        @Engine2Alternate(original = "partial rss coverage across list item types rematerializes only uncovered types")
         fun `ALTERNATIVE partial rss coverage across list item types rematerializes only uncovered types`() {
             val fooCalls = AtomicInteger()
 
@@ -428,7 +451,7 @@ class SelectiveFieldExecutionContractTest : SelectiveFieldExecutionContract, Eng
             assertEquals(1, fooCalls.get())
         }
 
-        @Test
+        @Engine2Alternate(original = "list size changes across materializations leave unmatched items unresolved")
         fun `ALTERNATIVE list size changes across materializations leave unmatched items unresolved`() {
             val fooCalls = AtomicInteger()
 
@@ -487,7 +510,7 @@ class SelectiveFieldExecutionContractTest : SelectiveFieldExecutionContract, Eng
             assertEquals(1, fooCalls.get())
         }
 
-        @Test
+        @Engine2Alternate(original = "nested list item type changes across materializations report a field error")
         fun `ALTERNATIVE nested list item type changes across materializations report a field error`() {
             val fooCalls = AtomicInteger()
 
@@ -578,8 +601,10 @@ class SelectiveFieldExecutionContractTest : SelectiveFieldExecutionContract, Eng
 
     @Nested
     inner class VariablesTests {
-        @Disabled("ALT: Runtime2 closes selective demand before its one producer invocation instead of rematerializing the producer")
-        @Test
+        @Engine2Disabled(
+            Engine2DisabledKind.ALT,
+            "Runtime2 closes selective demand before its one producer invocation instead of rematerializing the producer"
+        )
         fun `selective field inputs survive rematerialization`() {
             var initialRequestContext: Any? = null
 
@@ -638,7 +663,7 @@ class SelectiveFieldExecutionContractTest : SelectiveFieldExecutionContract, Eng
             }
         }
 
-        @Test
+        @Engine2Alternate(original = "selective field inputs survive rematerialization")
         fun `ALTERNATIVE selective field inputs receive closed demand`() {
             MockTenantModuleBootstrapper(
                 """
@@ -686,7 +711,7 @@ class SelectiveFieldExecutionContractTest : SelectiveFieldExecutionContract, Eng
             }
         }
 
-        @Test
+        @Engine2Alternate(original = "rss aliases with different arguments remain isolated across materializations")
         fun `ALTERNATIVE rss aliases with different arguments remain isolated across materializations`() {
             val fooCalls = AtomicInteger()
 
@@ -736,7 +761,7 @@ class SelectiveFieldExecutionContractTest : SelectiveFieldExecutionContract, Eng
             assertEquals(1, fooCalls.get())
         }
 
-        @Test
+        @Engine2Alternate(original = "rss variables resolver failure during rematerialization reports a field error")
         fun `ALTERNATIVE rss variables resolver failure during rematerialization reports a field error`() {
             val fooCalls = AtomicInteger()
 
@@ -794,8 +819,10 @@ class SelectiveFieldExecutionContractTest : SelectiveFieldExecutionContract, Eng
             assertEquals(1, fooCalls.get())
         }
 
-        @Disabled("ALT: Uses a callback-owned RSS for a conditional dependency chain; qplan expresses the chain as a declarative object-field provider and resolves it one-shot")
-        @Test
+        @Engine2Disabled(
+            Engine2DisabledKind.ALT,
+            "Uses a callback-owned RSS for a conditional dependency chain; qplan expresses the chain as a declarative object-field provider and resolves it one-shot"
+        )
         fun `variable rss does not use skipped child object plan`() {
             // Query.b has a runtime-dependent object RSS field whose variable resolver needs
             // `foo { z y }`. Query.foo is selective, so it materializes scalar Foo fields only when
@@ -888,7 +915,7 @@ class SelectiveFieldExecutionContractTest : SelectiveFieldExecutionContract, Eng
             }
         }
 
-        @Test
+        @Engine2Alternate(original = "variable rss does not use skipped child object plan")
         fun `ALTERNATIVE variable rss does not use skipped child object plan`() {
             MockTenantModuleBootstrapper(
                 """
@@ -1037,7 +1064,7 @@ class SelectiveFieldExecutionContractTest : SelectiveFieldExecutionContract, Eng
             }
         }
 
-        @Test
+        @Engine2Alternate(original = "selective-owned sibling supplies required rss variable")
         fun `ALTERNATIVE selective-owned sibling supplies required rss variable`() {
             val fooCalls = AtomicInteger()
 
@@ -1105,7 +1132,7 @@ class SelectiveFieldExecutionContractTest : SelectiveFieldExecutionContract, Eng
             assertEquals(1, fooCalls.get())
         }
 
-        @Test
+        @Engine2Alternate(original = "embedded materialization preserves fragment argument variables across child plans")
         fun `ALTERNATIVE embedded materialization preserves fragment argument variables across child plans`() {
             val fooCalls = AtomicInteger()
 
@@ -1210,7 +1237,7 @@ class SelectiveFieldExecutionContractTest : SelectiveFieldExecutionContract, Eng
 
     @Nested
     inner class ConsistencyTests {
-        @Test
+        @Engine2Alternate(original = "null rematerialization reports a field error at nullable consumer")
         fun `ALTERNATIVE null rematerialization reports a field error at nullable consumer`() {
             val fooCalls = AtomicInteger()
 
@@ -1260,7 +1287,7 @@ class SelectiveFieldExecutionContractTest : SelectiveFieldExecutionContract, Eng
             assertEquals(1, fooCalls.get())
         }
 
-        @Test
+        @Engine2Alternate(original = "null rematerialization bubbles through non-null consumer")
         fun `ALTERNATIVE null rematerialization bubbles through non-null consumer`() {
             val fooCalls = AtomicInteger()
 
@@ -1308,7 +1335,7 @@ class SelectiveFieldExecutionContractTest : SelectiveFieldExecutionContract, Eng
             assertEquals(1, fooCalls.get())
         }
 
-        @Test
+        @Engine2Alternate(original = "type changes across root materializations report a field error")
         fun `ALTERNATIVE type changes across root materializations report a field error`() {
             val fooCalls = AtomicInteger()
 
@@ -1360,7 +1387,7 @@ class SelectiveFieldExecutionContractTest : SelectiveFieldExecutionContract, Eng
             assertEquals(1, fooCalls.get())
         }
 
-        @Test
+        @Engine2Alternate(original = "type changes across nested object materializations report a field error")
         fun `ALTERNATIVE type changes across nested object materializations report a field error`() {
             val fooCalls = AtomicInteger()
 
@@ -1420,7 +1447,7 @@ class SelectiveFieldExecutionContractTest : SelectiveFieldExecutionContract, Eng
             assertEquals(1, fooCalls.get())
         }
 
-        @Test
+        @Engine2Alternate(original = "malformed nested object from rematerialization reports a field error")
         fun `ALTERNATIVE malformed nested object from rematerialization reports a field error`() {
             val fooCalls = AtomicInteger()
 
@@ -1475,7 +1502,7 @@ class SelectiveFieldExecutionContractTest : SelectiveFieldExecutionContract, Eng
             assertEquals(1, fooCalls.get())
         }
 
-        @Test
+        @Engine2Alternate(original = "resolver exceptions during rematerialization report a field error")
         fun `ALTERNATIVE resolver exceptions during rematerialization report a field error`() {
             val fooCalls = AtomicInteger()
 
@@ -1525,7 +1552,7 @@ class SelectiveFieldExecutionContractTest : SelectiveFieldExecutionContract, Eng
 
     @Nested
     inner class ResultMetadataTests {
-        @Test
+        @Engine2Alternate(original = "selective resolver rematerializes DataFetcherResult list items")
         fun `ALTERNATIVE selective resolver rematerializes DataFetcherResult list items`() {
             MockTenantModuleBootstrapper(
                 """
@@ -1569,8 +1596,7 @@ class SelectiveFieldExecutionContractTest : SelectiveFieldExecutionContract, Eng
 
     @Nested
     inner class CheckerTests {
-        @Disabled("TODO: ProviderRSS: Function variables providers with their own required selections are unsupported")
-        @Test
+        @Engine2Disabled(Engine2DisabledKind.TODO, "ProviderRSS: Function variables providers with their own required selections are unsupported")
         fun `type checker reads conditional field from selective source`() {
             MockTenantModuleBootstrapper(
                 """
@@ -1645,8 +1671,10 @@ class SelectiveFieldExecutionContractTest : SelectiveFieldExecutionContract, Eng
 
     @Nested
     inner class SelectionSetTests {
-        @Disabled("ALT: Expects post-materialization runtime types to narrow later selection sets; qplan conservatively requests possible concrete demand before its one application")
-        @Test
+        @Engine2Disabled(
+            Engine2DisabledKind.ALT,
+            "Expects post-materialization runtime types to narrow later selection sets; qplan conservatively requests possible concrete demand before its one application"
+        )
         fun `materialization output selections preserve path-specific concrete ownership`() {
             var materializationSelections: EngineSelectionSet? = null
 
@@ -1737,7 +1765,7 @@ class SelectiveFieldExecutionContractTest : SelectiveFieldExecutionContract, Eng
             )
         }
 
-        @Test
+        @Engine2Alternate(original = "materialization output selections preserve path-specific concrete ownership")
         fun `ALTERNATIVE materialization output selections preserve path-specific concrete ownership`() {
             val fooCalls = AtomicInteger()
 
@@ -1804,7 +1832,7 @@ class SelectiveFieldExecutionContractTest : SelectiveFieldExecutionContract, Eng
             assertEquals(1, fooCalls.get())
         }
 
-        @Test
+        @Engine2Alternate(original = "resolver does not hydrate a selected field in its output selection set")
         fun `ALTERNATIVE resolver does not hydrate a selected field in its output selection set`() {
             val fooCalls = AtomicInteger()
 
@@ -1841,7 +1869,7 @@ class SelectiveFieldExecutionContractTest : SelectiveFieldExecutionContract, Eng
             assertEquals(1, fooCalls.get())
         }
 
-        @Test
+        @Engine2Alternate(original = "client and rss arguments remain isolated in output selection set")
         fun `ALTERNATIVE client and rss arguments remain isolated in output selection set`() {
             val fooCalls = AtomicInteger()
 
@@ -1884,8 +1912,10 @@ class SelectiveFieldExecutionContractTest : SelectiveFieldExecutionContract, Eng
             assertEquals(1, fooCalls.get())
         }
 
-        @Disabled("ALT: Production ignores a selective producer value outside its output selection set; qplan's one-shot ownership contract requires the producer not to return that surplus field")
-        @Test
+        @Engine2Disabled(
+            Engine2DisabledKind.ALT,
+            "Production ignores a selective producer value outside its output selection set; qplan's one-shot ownership contract requires the producer not to return that surplus field"
+        )
         fun `resolver hydrates unselected fields outside its output selection set`() {
             MockTenantModuleBootstrapper(
                 """
@@ -1916,7 +1946,7 @@ class SelectiveFieldExecutionContractTest : SelectiveFieldExecutionContract, Eng
             }
         }
 
-        @Test
+        @Engine2Alternate(original = "resolver hydrates unselected fields outside its output selection set")
         fun `ALTERNATIVE resolver hydrates unselected fields outside its output selection set`() {
             val fooCalls = AtomicInteger()
 

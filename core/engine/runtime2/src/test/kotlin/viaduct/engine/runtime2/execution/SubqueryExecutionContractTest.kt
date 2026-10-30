@@ -13,9 +13,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertTimeoutPreemptively
 import org.junit.jupiter.api.Assertions.assertTrue
-import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Nested
-import org.junit.jupiter.api.Test
 import viaduct.engine.EngineConfiguration
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.mocks.EngineTestModule
@@ -36,8 +34,10 @@ import viaduct.service.api.spi.mocks.MockFlagManager
 abstract class SubqueryExecutionContractTestCases(
     override val flagManager: FlagManager,
 ) : SubqueryExecutionContract, Engine2QueryExecutionContract {
-    @Disabled("ALT: Mutation resolvers use ctx.query() instead of Query required selections; alternative uses structured Kotlin coroutines")
-    @Test
+    @Engine2Disabled(
+        Engine2DisabledKind.ALT,
+        "Mutation resolvers use ctx.query() instead of Query required selections; alternative uses structured Kotlin coroutines"
+    )
     fun `parallel ctx mutations with disjoint query selections on same node complete`() {
         val variableResolversStarted = AtomicInteger()
         val bothVariableResolversStarted = CompletableDeferred<Unit>()
@@ -144,7 +144,7 @@ abstract class SubqueryExecutionContractTestCases(
         }
     }
 
-    @Test
+    @Engine2Alternate(original = "parallel ctx mutations with disjoint query selections on same node complete")
     fun `ALTERNATIVE parallel ctx mutations with disjoint query selections on same node complete`() {
         val nodeCalls = AtomicInteger()
         val bothNodesStarted = CompletableDeferred<Unit>()
@@ -243,8 +243,7 @@ abstract class SubqueryExecutionContractTestCases(
         assertEquals(setOf(setOf("a"), setOf("b")), nodeSelections.toSet())
     }
 
-    @Disabled("N/A: Asserts production subquery-execution instrumentation outside qplan's resolver-correctness boundary")
-    @Test
+    @Engine2Disabled(Engine2DisabledKind.NA, "Asserts production subquery-execution instrumentation outside qplan's resolver-correctness boundary")
     fun `subquery execution emits metric`() {
         val meterRegistry = SimpleMeterRegistry()
         val engineConfig = EngineConfiguration.featureTestDefault.copy(
@@ -305,8 +304,10 @@ abstract class SubqueryExecutionContractTestCases(
         }
     }
 
-    @Disabled("ALT: Production wraps invalid subquery planning in SubqueryExecutionException; qplan reports its native schema failure")
-    @Test
+    @Engine2Disabled(
+        Engine2DisabledKind.ALT,
+        "Production wraps invalid subquery planning in SubqueryExecutionException; qplan reports its native schema failure"
+    )
     fun `ctx query wraps QueryPlan build failures in SubqueryExecutionException`() {
         EngineTestModule(
             """
@@ -356,7 +357,7 @@ abstract class SubqueryExecutionContractTestCases(
         }
     }
 
-    @Test
+    @Engine2Alternate(original = "ctx query wraps QueryPlan build failures in SubqueryExecutionException")
     fun `ALTERNATIVE ctx query wraps QueryPlan build failures in SubqueryExecutionException`() {
         EngineTestModule(
             """

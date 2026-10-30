@@ -5,8 +5,6 @@ import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.withTimeout
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Disabled
-import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.FromObjectFieldVariable
@@ -26,109 +24,128 @@ import viaduct.graphql.test.assertJson
 
 @ExperimentalCoroutinesApi
 class Engine2RequiredSelectionsContractTest : RequiredSelectionsContract, Engine2QueryExecutionContract {
-    @Test
-    @Disabled("ALT: Production resolves client and object-RSS shapes separately; qplan intentionally coalesces them into one selective resolver application")
+    @Engine2Disabled(
+        Engine2DisabledKind.ALT,
+        "Production resolves client and object-RSS shapes separately; qplan intentionally coalesces them into one selective resolver application"
+    )
     override fun `selective required selection is resolved independently from client query selection`() {
         super<RequiredSelectionsContract>.`selective required selection is resolved independently from client query selection`()
     }
 
-    @Test
-    @Disabled("TODO: ParentFld")
+    @Engine2Disabled(Engine2DisabledKind.TODO, "ParentFld")
     override fun `parent field with resolver argument variables runs child plan`() {
         super<RequiredSelectionsContract>.`parent field with resolver argument variables runs child plan`()
     }
 
-    @Test
-    @Disabled("N/A: Requires a child-produced variable beneath @parent to parameterize ancestor work; qplan deliberately rejects that dependency direction")
+    @Engine2Disabled(
+        Engine2DisabledKind.NA,
+        "Requires a child-produced variable beneath @parent to parameterize ancestor work; qplan deliberately rejects that dependency direction"
+    )
     override fun `parent field with child object field variables runs child plan`() {
         super<RequiredSelectionsContract>.`parent field with child object field variables runs child plan`()
     }
 
-    @Test
-    @Disabled("N/A: Requires a variable read through @parent to parameterize ancestor work; qplan deliberately rejects variables beneath parent selections")
+    @Engine2Disabled(
+        Engine2DisabledKind.NA,
+        "Requires a variable read through @parent to parameterize ancestor work; qplan deliberately rejects variables beneath parent selections"
+    )
     override fun `parent field in variable resolver required selection is available to variables resolver`() {
         super<RequiredSelectionsContract>.`parent field in variable resolver required selection is available to variables resolver`()
     }
 
-    @Test
-    @Disabled("ALT: Uses a callback-owned child variable to condition ancestor demand; qplan preserves one-shot execution by lifting the bounded ancestor demand unconditionally")
+    @Engine2Disabled(
+        Engine2DisabledKind.ALT,
+        "Uses a callback-owned child variable to condition ancestor demand; qplan preserves one-shot execution by lifting the bounded ancestor demand unconditionally"
+    )
     override fun `parent field selections honor conditional directives`() {
         super<RequiredSelectionsContract>.`parent field selections honor conditional directives`()
     }
 
-    @Test
-    @Disabled("TODO: MechAdapt ErrorData")
+    @Engine2Disabled(Engine2DisabledKind.TODO, "MechAdapt ErrorData")
     override fun `plain OER keys cause required selections to reuse client selection shape`() {
         super<RequiredSelectionsContract>.`plain OER keys cause required selections to reuse client selection shape`()
     }
 
-    @Test
-    @Disabled("ALT: Production exposes only client demand to the shared non-selective application; qplan intentionally exposes its coalesced one-shot demand")
+    @Engine2Disabled(
+        Engine2DisabledKind.ALT,
+        "Production exposes only client demand to the shared non-selective application; qplan intentionally exposes its coalesced one-shot demand"
+    )
     override fun `non-selective required selection is shared across client query and dependency selections`() {
         super<RequiredSelectionsContract>.`non-selective required selection is shared across client query and dependency selections`()
     }
 
-    @Test
-    @Disabled("ALT: Production resolves distinct object-RSS shapes separately; qplan intentionally coalesces them into one selective resolver application")
+    @Engine2Disabled(
+        Engine2DisabledKind.ALT,
+        "Production resolves distinct object-RSS shapes separately; qplan intentionally coalesces them into one selective resolver application"
+    )
     override fun `selective required selection is resolved independently across resolver rss variants`() {
         super<RequiredSelectionsContract>.`selective required selection is resolved independently across resolver rss variants`()
     }
 
-    @Test
-    @Disabled("ALT: Uses a callback-owned Query RSS only to produce a constant gate; qplan uses its supported no-RSS function provider while preserving the impossible sibling dependency")
+    @Engine2Disabled(
+        Engine2DisabledKind.ALT,
+        "Uses a callback-owned Query RSS only to produce a constant gate; qplan uses its supported no-RSS function provider while preserving the impossible sibling dependency"
+    )
     override fun `required selection with impossible sibling implementation dependency can be resolved`() {
         super<RequiredSelectionsContract>.`required selection with impossible sibling implementation dependency can be resolved`()
     }
 
-    @Test
-    @Disabled("N/A: Inspects old-engine ExecutionParameters and QueryPlan child plans from the execution handle")
+    @Engine2Disabled(Engine2DisabledKind.NA, "Inspects old-engine ExecutionParameters and QueryPlan child plans from the execution handle")
     override fun `sibling cyclic required selections keep direct materializations during execution`() {
         super<RequiredSelectionsContract>.`sibling cyclic required selections keep direct materializations during execution`()
     }
 
-    @Test
-    @Disabled("TODO: AccessChk")
+    @Engine2Disabled(Engine2DisabledKind.TODO, "AccessChk")
     override fun `selective query field resolves matching resolver and checker selections independently`() {
         super<RequiredSelectionsContract>.`selective query field resolves matching resolver and checker selections independently`()
     }
 
-    @Test
-    @Disabled("TODO: AccessChk")
+    @Engine2Disabled(Engine2DisabledKind.TODO, "AccessChk")
     override fun `selective required selection resolves resolver and type checker selections independently`() {
         super<RequiredSelectionsContract>.`selective required selection resolves resolver and type checker selections independently`()
     }
 
-    @Test
-    @Disabled("ALT: Production expects alias-shaped required-selection demand to execute Query.bar twice; qplan intentionally coalesces it into one resolver application")
+    @Engine2Disabled(
+        Engine2DisabledKind.ALT,
+        "Production expects alias-shaped required-selection demand to execute Query.bar twice; qplan intentionally coalesces it into one resolver application"
+    )
     override fun `resolve fields multiple mergeable requirements`() {
         super<RequiredSelectionsContract>.`resolve fields multiple mergeable requirements`()
     }
 
-    @Test
-    @Disabled("ALT: Production resolves nested client and object-RSS shapes separately; qplan intentionally coalesces them into one selective resolver application")
+    @Engine2Disabled(
+        Engine2DisabledKind.ALT,
+        "Production resolves nested client and object-RSS shapes separately; qplan intentionally coalesces them into one selective resolver application"
+    )
     override fun `proxy engine object data reads required selections through two nested client and rss merges`() {
         super<RequiredSelectionsContract>.`proxy engine object data reads required selections through two nested client and rss merges`()
     }
 
-    @Test
-    @Disabled("ALT: Uses a legacy callback-owned Query RSS; qplan expresses the provider as a declarative object-field path and coalesces client and provider demand")
+    @Engine2Disabled(
+        Engine2DisabledKind.ALT,
+        "Uses a legacy callback-owned Query RSS; qplan expresses the provider as a declarative object-field path and coalesces client and provider demand"
+    )
     override fun `variable resolver rss reads through multiple selective fields including abstract hop`() {
         super<RequiredSelectionsContract>.`variable resolver rss reads through multiple selective fields including abstract hop`()
     }
 
-    @Test
-    @Disabled("ALT: Uses one shared callback-owned RSS across two resolvers; qplan gives each resolver its own declarative occurrence-local provider path")
+    @Engine2Disabled(
+        Engine2DisabledKind.ALT,
+        "Uses one shared callback-owned RSS across two resolvers; qplan gives each resolver its own declarative occurrence-local provider path"
+    )
     override fun `two resolvers with structurally-equivalent variable-resolver RSSes both resolve correctly`() {
         super<RequiredSelectionsContract>.`two resolvers with structurally-equivalent variable-resolver RSSes both resolve correctly`()
     }
 
-    @Test
-    @Disabled("ALT: Uses a callback-owned RSS for an item-local condition; qplan expresses the same occurrence-local dependency as a declarative object-field provider")
+    @Engine2Disabled(
+        Engine2DisabledKind.ALT,
+        "Uses a callback-owned RSS for an item-local condition; qplan expresses the same occurrence-local dependency as a declarative object-field provider"
+    )
     override fun `objectSelections conditional directives honor per-item variables`() {
         super<RequiredSelectionsContract>.`objectSelections conditional directives honor per-item variables`()
     }
 
-    @Test
+    @Engine2Alternate(original = "objectSelections conditional directives honor per-item variables")
     fun `ALTERNATIVE objectSelections conditional directives reject per-item from-field variables`() {
         val err = assertThrows<IllegalArgumentException> {
             EngineTestModule(
@@ -180,19 +197,20 @@ class Engine2RequiredSelectionsContractTest : RequiredSelectionsContract, Engine
         assertEquals("includeSelectedValue", cause.variableName)
     }
 
-    @Test
-    @Disabled("TODO: Mutation")
+    @Engine2Disabled(Engine2DisabledKind.TODO, "Mutation")
     override fun `resolve mutation with queryValueFragment`() {
         super<RequiredSelectionsContract>.`resolve mutation with queryValueFragment`()
     }
 
-    @Test
-    @Disabled("ALT: Uses a callback-owned RSS for a runtime directive; qplan uses its supported no-RSS function provider and coalesces the repeated fragment demand")
+    @Engine2Disabled(
+        Engine2DisabledKind.ALT,
+        "Uses a callback-owned RSS for a runtime directive; qplan uses its supported no-RSS function provider and coalesces the repeated fragment demand"
+    )
     override fun `query rss variable resolver is planned when repeated fragment spread has runtime directive`() {
         super<RequiredSelectionsContract>.`query rss variable resolver is planned when repeated fragment spread has runtime directive`()
     }
 
-    @Test
+    @Engine2Alternate(original = "selective required selection is resolved independently from client query selection")
     fun `ALTERNATIVE selective required selection is resolved independently from client query selection`() {
         val detailsCount = AtomicInteger()
         val detailsSelections = ConcurrentHashMap.newKeySet<String>()
@@ -254,7 +272,7 @@ class Engine2RequiredSelectionsContractTest : RequiredSelectionsContract, Engine
         assertEquals(setOf("a b"), detailsSelections)
     }
 
-    @Test
+    @Engine2Alternate(original = "parent field selections honor conditional directives")
     fun `ALTERNATIVE parent field selections honor conditional directives`() {
         val companyNameCount = AtomicInteger()
 
@@ -319,7 +337,7 @@ class Engine2RequiredSelectionsContractTest : RequiredSelectionsContract, Engine
         assertEquals(1, companyNameCount.get())
     }
 
-    @Test
+    @Engine2Alternate(original = "non-selective required selection is shared across client query and dependency selections")
     fun `ALTERNATIVE non-selective required selection is shared across client query and dependency selections`() {
         val detailsCount = AtomicInteger()
         val detailsSelections = ConcurrentHashMap.newKeySet<String>()
@@ -377,7 +395,7 @@ class Engine2RequiredSelectionsContractTest : RequiredSelectionsContract, Engine
         assertEquals(setOf("a b"), detailsSelections)
     }
 
-    @Test
+    @Engine2Alternate(original = "selective required selection is resolved independently across resolver rss variants")
     fun `ALTERNATIVE selective required selection is resolved independently across resolver rss variants`() {
         val detailsCount = AtomicInteger()
         val detailsSelections = ConcurrentHashMap.newKeySet<String>()
@@ -447,7 +465,7 @@ class Engine2RequiredSelectionsContractTest : RequiredSelectionsContract, Engine
         assertEquals(setOf("a b"), detailsSelections)
     }
 
-    @Test
+    @Engine2Alternate(original = "required selection with impossible sibling implementation dependency can be resolved")
     fun `ALTERNATIVE required selection with impossible sibling implementation dependency can be resolved`() {
         // Foo.x has an object RSS rooted at Foo. The outer `... on Node` branch can match Foo,
         // but after that refinement the nested `... on Bar` branch is impossible because Foo and Bar
@@ -541,7 +559,7 @@ class Engine2RequiredSelectionsContractTest : RequiredSelectionsContract, Engine
         }
     }
 
-    @Test
+    @Engine2Alternate(original = "resolve fields multiple mergeable requirements")
     fun `ALTERNATIVE resolve fields multiple mergeable requirements`() {
         val barCount = AtomicInteger()
         runQueryTest(
@@ -594,7 +612,7 @@ class Engine2RequiredSelectionsContractTest : RequiredSelectionsContract, Engine
         }
     }
 
-    @Test
+    @Engine2Alternate(original = "proxy engine object data reads required selections through two nested client and rss merges")
     fun `ALTERNATIVE proxy engine object data reads required selections through two nested client and rss merges`() {
         val outerCount = AtomicInteger()
         val middleCount = AtomicInteger()
@@ -688,7 +706,7 @@ class Engine2RequiredSelectionsContractTest : RequiredSelectionsContract, Engine
         assertEquals(setOf("a b"), innerSelections)
     }
 
-    @Test
+    @Engine2Alternate(original = "variable resolver rss reads through multiple selective fields including abstract hop")
     fun `ALTERNATIVE variable resolver rss reads through multiple selective fields including abstract hop`() {
         val middleCount = AtomicInteger()
         val nodeCount = AtomicInteger()
@@ -817,7 +835,7 @@ class Engine2RequiredSelectionsContractTest : RequiredSelectionsContract, Engine
         assertEquals(1, nodeCount.get())
     }
 
-    @Test
+    @Engine2Alternate(original = "two resolvers with structurally-equivalent variable-resolver RSSes both resolve correctly")
     fun `ALTERNATIVE two resolvers with structurally-equivalent variable-resolver RSSes both resolve correctly`() {
         runQueryTest(
             EngineTestModule(
@@ -871,7 +889,7 @@ class Engine2RequiredSelectionsContractTest : RequiredSelectionsContract, Engine
         }
     }
 
-    @Test
+    @Engine2Alternate(original = "query rss variable resolver is planned when repeated fragment spread has runtime directive")
     fun `ALTERNATIVE query rss variable resolver is planned when repeated fragment spread has runtime directive`() {
         runQueryTest(
             EngineTestModule(

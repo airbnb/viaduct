@@ -2,8 +2,6 @@ package viaduct.engine.runtime2.execution
 
 import java.util.concurrent.atomic.AtomicInteger
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Disabled
-import org.junit.jupiter.api.Test
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.mocks.EngineTestModule
 import viaduct.engine.api.mocks.createEngineObjectData
@@ -13,55 +11,47 @@ import viaduct.engine.runtime.execution.RootFieldReferenceResolutionContract
 import viaduct.graphql.test.assertJson
 
 class Engine2RootFieldReferenceResolutionContractTest : RootFieldReferenceResolutionContract, Engine2QueryExecutionContract {
-    @Test
-    @Disabled("TODO: CallerAttr")
+    @Engine2Disabled(Engine2DisabledKind.TODO, "CallerAttr")
     override fun `caller is derived from resolver object traversal`() {
         super<RootFieldReferenceResolutionContract>.`caller is derived from resolver object traversal`()
     }
 
-    @Test
-    @Disabled("TODO: CallerAttr")
+    @Engine2Disabled(Engine2DisabledKind.TODO, "CallerAttr")
     override fun `factory backing data remains available to child resolver RSS without duplicate execution`() {
         super<RootFieldReferenceResolutionContract>.`factory backing data remains available to child resolver RSS without duplicate execution`()
     }
 
-    @Test
-    @Disabled("TODO: CallerAttr")
+    @Engine2Disabled(Engine2DisabledKind.TODO, "CallerAttr")
     override fun `caller survives a chain of resolver RSS dependencies`() {
         super<RootFieldReferenceResolutionContract>.`caller survives a chain of resolver RSS dependencies`()
     }
 
-    @Test
-    @Disabled("TODO: ReferenceChk: Access checks on the reference target path are not enforced")
+    @Engine2Disabled(Engine2DisabledKind.TODO, "ReferenceChk: Access checks on the reference target path are not enforced")
     override fun `factory field access check failure is propagated`() {
         super<RootFieldReferenceResolutionContract>.`factory field access check failure is propagated`()
     }
 
-    @Test
-    @Disabled("TODO: ReferenceChk: Access checks on the reference namespace path are not enforced")
+    @Engine2Disabled(Engine2DisabledKind.TODO, "ReferenceChk: Access checks on the reference namespace path are not enforced")
     override fun `namespace access check failure prevents factory field execution`() {
         super<RootFieldReferenceResolutionContract>.`namespace access check failure prevents factory field execution`()
     }
 
-    @Test
-    @Disabled("ALT: RefDedup")
+    @Engine2Disabled(Engine2DisabledKind.ALT, "RefDedup")
     override fun `equivalent factory references share execution while distinct arguments resolve independently`() {
         super<RootFieldReferenceResolutionContract>.`equivalent factory references share execution while distinct arguments resolve independently`()
     }
 
-    @Test
-    @Disabled("TODO: NodeLower: A node executor reference to an inline Node result repeats Query.node resolution")
+    @Engine2Disabled(Engine2DisabledKind.TODO, "NodeLower: A node executor reference to an inline Node result repeats Query.node resolution")
     override fun `node resolver returns a root field reference`() {
         super<RootFieldReferenceResolutionContract>.`node resolver returns a root field reference`()
     }
 
-    @Test
-    @Disabled("ALT: RootObjRSS")
+    @Engine2Disabled(Engine2DisabledKind.ALT, "RootObjRSS")
     override fun `factory resolver reads object and query selection sets`() {
         super<RootFieldReferenceResolutionContract>.`factory resolver reads object and query selection sets`()
     }
 
-    @Test
+    @Engine2Alternate(original = "factory backing data remains available to child resolver RSS without duplicate execution")
     fun `ALTERNATIVE factory backing data remains available to child resolver RSS without duplicate execution`() {
         val factoryCalls = AtomicInteger()
         val localizedStringCalls = AtomicInteger()
@@ -123,7 +113,7 @@ class Engine2RootFieldReferenceResolutionContractTest : RootFieldReferenceResolu
         assertEquals(1, localizedStringCalls.get())
     }
 
-    @Test
+    @Engine2Alternate(original = "equivalent factory references share execution while distinct arguments resolve independently")
     fun `ALTERNATIVE equivalent factory references share execution while distinct arguments resolve independently`() {
         val factoryCalls = AtomicInteger()
 
@@ -185,7 +175,7 @@ class Engine2RootFieldReferenceResolutionContractTest : RootFieldReferenceResolu
         assertEquals(3, factoryCalls.get())
     }
 
-    @Test
+    @Engine2Alternate(original = "factory resolver reads object and query selection sets")
     fun `ALTERNATIVE factory resolver reads object and query selection sets`() {
         runQueryTest(
             EngineTestModule(

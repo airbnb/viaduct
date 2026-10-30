@@ -2,8 +2,6 @@ package viaduct.engine.runtime2.execution
 
 import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.Assertions.assertTrue
-import org.junit.jupiter.api.Disabled
-import org.junit.jupiter.api.Test
 import viaduct.engine.api.FromObjectFieldVariable
 import viaduct.engine.api.FromQueryFieldVariable
 import viaduct.engine.api.mocks.EngineTestModule
@@ -42,8 +40,7 @@ class FromFieldVariablesContractTest : FromFieldVariablesContract, Engine2QueryE
         )
     }
 
-    @Disabled("TODO: Mutation")
-    @Test
+    @Engine2Disabled(Engine2DisabledKind.TODO, "Mutation")
     fun `from object field -- simple mutation field`() {
         EngineTestModule(
             """
@@ -69,8 +66,7 @@ class FromFieldVariablesContractTest : FromFieldVariablesContract, Engine2QueryE
         }
     }
 
-    @Disabled("TODO: Mutation")
-    @Test
+    @Engine2Disabled(Engine2DisabledKind.TODO, "Mutation")
     fun `from query field -- simple mutation field`() {
         EngineTestModule(
             """

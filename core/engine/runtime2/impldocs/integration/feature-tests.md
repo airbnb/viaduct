@@ -8,13 +8,13 @@ The `runtime` engine is not the semantic authority for Runtime2. Runtime2's cont
 
 ## Comparison Method
 
-Production-derived cases now live in shared contracts under `engine/api/src/testFixtures` and engine-specific runners under each engine's `src/test` tree. The Runtime2 runners live under `src/test/kotlin/viaduct/engine/runtime2/execution`. Disabled expectations and explicit `ALTERNATIVE` cases stay with the engine where they apply. `runQPlanFeatureTest` builds `StandardViaduct` with `ENGINE2_ENABLED` and exercises module-config bootstrap and production dispatcher wiring, including access checkers and scoped schemas. It does not use the direct executor adapter.
+Production-derived cases now live in shared contracts under `engine/api/src/testFixtures` and engine-specific runners under each engine's `src/test` tree. The Runtime2 runners live under `src/test/kotlin/viaduct/engine/runtime2/execution`. Disabled expectations (`@Engine2Disabled`) and their Runtime2 replacements (`@Engine2Alternate`) stay with the engine where they apply. `runQPlanFeatureTest` builds `StandardViaduct` with `ENGINE2_ENABLED` and exercises module-config bootstrap and production dispatcher wiring, including access checkers and scoped schemas. It does not use the direct executor adapter.
 
-An unchanged passing test establishes aligned behavior through the test's public response and any executor observations it asserts. Disabled tests use one of three classifications:
+An unchanged passing test establishes aligned behavior through the test's public response and any executor observations it asserts. Disabled tests are marked `@Engine2Disabled(kind, reason)` with one of three kinds:
 
-- `TODO: <capability>` identifies an alpha capability or adapter gap that should eventually allow the `runtime` engine test to run unchanged.
-- `N/A: <reason>` identifies a test whose subject is outside this comparison abstraction, such as `runtime` engine cache internals, an instrumentation-only assertion, or a harness that cannot run through `EngineTestModule`.
-- `ALT: <difference>` preserves the `runtime` engine expectation when Runtime2 intentionally has a different contract. A nearby test whose name begins with `ALTERNATIVE` exercises the corresponding Runtime2 behavior and preserves the comparable response, error, or resolver-input claim where that claim still applies.
+- `TODO` identifies an alpha capability or adapter gap that should eventually allow the `runtime` engine test to run unchanged.
+- `N/A` (`Engine2DisabledKind.NA`) identifies a test whose subject is outside this comparison abstraction, such as `runtime` engine cache internals, an instrumentation-only assertion, or a harness that cannot run through `EngineTestModule`.
+- `ALT` preserves the `runtime` engine expectation when Runtime2 intentionally has a different contract. A test marked `@Engine2Alternate(original = "<original test name>")` exercises the corresponding Runtime2 behavior and preserves the comparable response, error, or resolver-input claim where that claim still applies.
 
 The annotations in the contracts and engine runners are the authoritative per-test compatibility record. This document describes the stable rules behind those annotations; it does not duplicate changing test counts, line-number inventories, or enablement history.
 
@@ -44,7 +44,7 @@ Alignment is a claim about the behavior observed by a particular test, not about
 | Mutation dependencies | Mutation resolvers use `ctx.query()` for dependent reads; each nested `ctx.mutation()` preserves its own order while independent calls may overlap. | Mutation resolvers may declare Query required selections. |
 | Error evidence | Compatibility establishes corresponding error outcomes and meaningful consumer paths. Runtime2's correctness oracle does not yet prove exact `EngineErrorData` carrier identity or metadata equality at every derived boundary. | Tests may inspect `runtime` engine wrapper, materialization-source, or carrier details that are not part of Runtime2's semantic claim. |
 
-The `ALT` plus `ALTERNATIVE` pairing is especially important for these differences. The disabled source form keeps the `runtime` engine expectation reviewable, while the alternative prevents an intentional difference from becoming an untested exemption.
+The `ALT` plus `@Engine2Alternate` pairing is especially important for these differences. The disabled source form keeps the `runtime` engine expectation reviewable, while the alternative prevents an intentional difference from becoming an untested exemption.
 
 ## Alpha Integration Gaps
 
@@ -69,6 +69,6 @@ Operation-validation tests are also normally outside this suite because GraphQL 
 
 When a `runtime` engine source file changes, synchronize the whole copied file and update its source metadata. Do not silently cherry-pick only the newly passing cases. Keep fixtures, helpers, assertions, and test names unchanged unless adapter plumbing requires a mechanical edit.
 
-Classify every divergence by its durable cause. Use `TODO` only when implementing a supported capability should make the original test pass; use `N/A` only when the test observes machinery outside the comparison; and use `ALT` only for a deliberate Runtime2 contract. An `ALT` must retain the source expectation and have an `ALTERNATIVE` that directly demonstrates the Runtime2 rule.
+Classify every divergence by its durable cause. Use `TODO` only when implementing a supported capability should make the original test pass; use `N/A` only when the test observes machinery outside the comparison; and use `ALT` only for a deliberate Runtime2 contract. An `ALT` must retain the source expectation and have exactly one `@Engine2Alternate` that directly demonstrates the Runtime2 rule; every `@Engine2Alternate` must name a disabled test. Each Engine2 runner enforces both rules through `Engine2QueryExecutionContract`.
 
 New Engine API features should first be established through Runtime2's resolver-family ladder and focused integration tests, then compared with the corresponding `runtime` engine tests. Passing a `runtime` engine test is valuable compatibility evidence, but it does not replace the architectural-integrity contracts maintained by [Resolver06–08](../../impldocs/architecture/resolver-families.md#comparison-grid) and Resolver21–23 before the feature reaches production Resolution.

@@ -54,94 +54,112 @@ import viaduct.service.api.ExecutionInput
 import viaduct.service.api.Viaduct
 
 class SelectiveNodeExecutionContractTest : SelectiveNodeExecutionContract, Engine2QueryExecutionContract {
-    @Test
-    @Disabled("ALT: Production mutates the original node reference after fetching; qplan publishes the same response from a closed one-shot occurrence")
+    @Engine2Disabled(
+        Engine2DisabledKind.ALT,
+        "Production mutates the original node reference after fetching; qplan publishes the same response from a closed one-shot occurrence"
+    )
     override fun `initial materialization resolves node reference`() {}
 
-    @Test
-    @Disabled("ALT: Production accumulates fields on one reused mutable node reference; qplan resolves fresh closed reference occurrences")
+    @Engine2Disabled(
+        Engine2DisabledKind.ALT,
+        "Production accumulates fields on one reused mutable node reference; qplan resolves fresh closed reference occurrences"
+    )
     override fun `reused node reference resolves newly selected fields`() {}
 
-    @Test
-    @Disabled("TODO: Registry rejects structural resolver cycles even when an RSS edge is statically skipped")
+    @Engine2Disabled(Engine2DisabledKind.TODO, "Registry rejects structural resolver cycles even when an RSS edge is statically skipped")
     override fun `node selected in rss is not shadowed by skipped fragment in another rss`() {}
 
-    @Test
-    @Disabled("ALT: Production refetches after discovering nested RSS demand; qplan supplies the complete nested demand in one node call")
+    @Engine2Disabled(
+        Engine2DisabledKind.ALT,
+        "Production refetches after discovering nested RSS demand; qplan supplies the complete nested demand in one node call"
+    )
     override fun `missing nested rss rematerializes node source`() {}
 
-    @Test
-    @Disabled("ALT: Production selects values from successive cache-covering results; qplan publishes one stable producer result")
+    @Engine2Disabled(Engine2DisabledKind.ALT, "Production selects values from successive cache-covering results; qplan publishes one stable producer result")
     override fun `surplus coverage uses values from the first covering result`() {}
 
-    @Test
-    @Disabled("ALT: Production reconciles different list sizes across refetches; qplan publishes one stable list with the same item results")
+    @Engine2Disabled(
+        Engine2DisabledKind.ALT,
+        "Production reconciles different list sizes across refetches; qplan publishes one stable list with the same item results"
+    )
     override fun `changed embedded list size leaves unmatched items unresolved`() {}
 
-    @Test
-    @Disabled("ALT: Production detects embedded-list type drift between node fetches; one-shot qplan can preserve the same consumer error but has no second type")
+    @Engine2Disabled(
+        Engine2DisabledKind.ALT,
+        "Production detects embedded-list type drift between node fetches; one-shot qplan can preserve the same consumer error but has no second type"
+    )
     override fun `embedded list item type changes during refetch report a field error`() {}
 
-    @Test
-    @Disabled("ALT: Production asks a selective node owner for argument-bearing fields in separate materializations; qplan resolves those fields actively by key")
+    @Engine2Disabled(
+        Engine2DisabledKind.ALT,
+        "Production asks a selective node owner for argument-bearing fields in separate materializations; qplan resolves those fields actively by key"
+    )
     override fun `client and rss arguments remain isolated`() {}
 
-    @Test
-    @Disabled("ALT: Production asks the selective node owner to supply an argument-bearing RSS field; qplan resolves that field actively")
+    @Engine2Disabled(
+        Engine2DisabledKind.ALT,
+        "Production asks the selective node owner to supply an argument-bearing RSS field; qplan resolves that field actively"
+    )
     override fun `rss variable failure reports a field error`() {}
 
-    @Test
-    @Disabled("ALT: Production asks selective node output to own an argument-bearing embedded field; qplan resolves that field actively")
+    @Engine2Disabled(
+        Engine2DisabledKind.ALT,
+        "Production asks selective node output to own an argument-bearing embedded field; qplan resolves that field actively"
+    )
     override fun `embedded node materialization preserves ancestor argument variables`() {}
 
-    @Disabled(
-        "ALT: Uses a callback-owned RSS and asks a selective node owner to supply an argument-bearing field; qplan uses a declarative provider, an active argument-bearing field, and one non-selective node application"
+    @Engine2Disabled(
+        Engine2DisabledKind.ALT,
+        "Uses a callback-owned RSS and asks a selective node owner to supply an argument-bearing field; qplan uses a declarative provider, an active argument-bearing field, and one non-selective node application"
     )
-    @Test
     override fun `node owned sibling supplies required rss variable`() {}
 
-    @Test
-    @Disabled("ALT: Production asks selective node output to own nested argument-bearing fields; qplan resolves those fields actively")
+    @Engine2Disabled(
+        Engine2DisabledKind.ALT,
+        "Production asks selective node output to own nested argument-bearing fields; qplan resolves those fields actively"
+    )
     override fun `embedded node materialization preserves fragment argument variables`() {}
 
-    @Test
-    @Disabled("ALT: Production detects top-level type drift between node fetches; one-shot qplan preserves the same consumer error from one stable type")
+    @Engine2Disabled(
+        Engine2DisabledKind.ALT,
+        "Production detects top-level type drift between node fetches; one-shot qplan preserves the same consumer error from one stable type"
+    )
     override fun `type changes during refetch report a field error`() {}
 
-    @Test
-    @Disabled("ALT: Production compares exceptions across node refetches; one-shot qplan preserves the same consumer failure from one stable producer")
+    @Engine2Disabled(
+        Engine2DisabledKind.ALT,
+        "Production compares exceptions across node refetches; one-shot qplan preserves the same consumer failure from one stable producer"
+    )
     override fun `inconsistent resolver exceptions`() {}
 
-    @Test
-    @Disabled("ALT: Production detects nested type drift between node fetches; one-shot qplan preserves the same consumer error from one stable nested type")
+    @Engine2Disabled(
+        Engine2DisabledKind.ALT,
+        "Production detects nested type drift between node fetches; one-shot qplan preserves the same consumer error from one stable nested type"
+    )
     override fun `nested object type changes during refetch report a field error`() {}
 
-    @Test
-    @Disabled("ALT: Production detects malformed nested replacement data during refetch; one-shot qplan preserves the same consumer failure from stable data")
+    @Engine2Disabled(
+        Engine2DisabledKind.ALT,
+        "Production detects malformed nested replacement data during refetch; one-shot qplan preserves the same consumer failure from stable data"
+    )
     override fun `malformed nested object during refetch reports a field error`() {}
 
-    @Disabled("N/A: Production node-fetch instrumentation is outside the qplan resolver-correctness boundary")
-    @Test
+    @Engine2Disabled(Engine2DisabledKind.NA, "Production node-fetch instrumentation is outside the qplan resolver-correctness boundary")
     override fun `node fetch instrumentation covers required fields`() {}
 
-    @Disabled("N/A: Production instrumentation source identity is outside the qplan resolver-correctness boundary")
-    @Test
+    @Engine2Disabled(Engine2DisabledKind.NA, "Production instrumentation source identity is outside the qplan resolver-correctness boundary")
     override fun `mat backed traversal keeps the node reference as its source`() {}
 
-    @Disabled("N/A: Production node-fetch instrumentation is outside the qplan resolver-correctness boundary")
-    @Test
+    @Engine2Disabled(Engine2DisabledKind.NA, "Production node-fetch instrumentation is outside the qplan resolver-correctness boundary")
     override fun `node refetch failure completes instrumentation with error`() {}
 
-    @Disabled("TODO: Batching")
-    @Test
+    @Engine2Disabled(Engine2DisabledKind.TODO, "Batching")
     override fun `whole batch exception is reported for every selector`() {}
 
-    @Disabled("ALT: Resolution invokes one closed selective-node producer rather than production refetch")
-    @Test
+    @Engine2Disabled(Engine2DisabledKind.ALT, "Resolution invokes one closed selective-node producer rather than production refetch")
     override fun `node resolver can query during refetch`() {}
 
-    @Test
-    @Disabled("TODO: Directive: Canonical demand conversion does not preserve custom resolver-directive spelling")
+    @Engine2Disabled(Engine2DisabledKind.TODO, "Directive: Canonical demand conversion does not preserve custom resolver-directive spelling")
     override fun `rss preserves resolver directives`() {}
 
     @Nested
@@ -166,8 +184,10 @@ class SelectiveNodeExecutionContractTest : SelectiveNodeExecutionContract, Engin
             }
         }
 
-        @Test
-        @Disabled("ALT: Production performs an initial fetch and a path-specific refetch; qplan supplies their concrete path union once")
+        @Engine2Disabled(
+            Engine2DisabledKind.ALT,
+            "Production performs an initial fetch and a path-specific refetch; qplan supplies their concrete path union once"
+        )
         fun `materialization output selections preserve path-specific concrete ownership`() {
             // The Root node resolver owns different leaves below foo and bar based on the concrete
             // Abstract implementation, so flat field coordinates cannot represent its selections.
@@ -264,7 +284,7 @@ class SelectiveNodeExecutionContractTest : SelectiveNodeExecutionContract, Engin
             )
         }
 
-        @Test
+        @Engine2Alternate(original = "materialization output selections preserve path-specific concrete ownership")
         fun `ALTERNATIVE materialization output selections preserve path-specific concrete ownership`() {
             val rootCalls = AtomicInteger()
 
@@ -332,7 +352,7 @@ class SelectiveNodeExecutionContractTest : SelectiveNodeExecutionContract, Engin
             assertEquals(1, rootCalls.get())
         }
 
-        @Test
+        @Engine2Alternate(original = "initial materialization resolves node reference")
         fun `ALTERNATIVE initial materialization resolves node reference`() {
             MockTenantModuleBootstrapper(
                 """
@@ -356,7 +376,7 @@ class SelectiveNodeExecutionContractTest : SelectiveNodeExecutionContract, Engin
             }
         }
 
-        @Test
+        @Engine2Alternate(original = "reused node reference resolves newly selected fields")
         fun `ALTERNATIVE reused node reference resolves newly selected fields`() {
             MockTenantModuleBootstrapper(
                 """
@@ -437,7 +457,7 @@ class SelectiveNodeExecutionContractTest : SelectiveNodeExecutionContract, Engin
 
     @Nested
     inner class CoverageTests {
-        @Test
+        @Engine2Alternate(original = "missing nested rss rematerializes node source")
         fun `ALTERNATIVE missing nested rss rematerializes node source`() {
             val fooCalls = AtomicInteger()
 
@@ -488,7 +508,7 @@ class SelectiveNodeExecutionContractTest : SelectiveNodeExecutionContract, Engin
             assertEquals(1, fooCalls.get())
         }
 
-        @Test
+        @Engine2Alternate(original = "surplus coverage uses values from the first covering result")
         fun `ALTERNATIVE surplus coverage uses values from the first covering result`() {
             val nodeCalls = AtomicInteger()
 
@@ -553,7 +573,7 @@ class SelectiveNodeExecutionContractTest : SelectiveNodeExecutionContract, Engin
 
     @Nested
     inner class ListTests {
-        @Test
+        @Engine2Alternate(original = "changed embedded list size leaves unmatched items unresolved")
         fun `ALTERNATIVE changed embedded list size leaves unmatched items unresolved`() {
             val nodeCalls = AtomicInteger()
 
@@ -619,7 +639,7 @@ class SelectiveNodeExecutionContractTest : SelectiveNodeExecutionContract, Engin
             assertEquals(1, nodeCalls.get())
         }
 
-        @Test
+        @Engine2Alternate(original = "embedded list item type changes during refetch report a field error")
         fun `ALTERNATIVE embedded list item type changes during refetch report a field error`() {
             val nodeCalls = AtomicInteger()
 
@@ -696,7 +716,7 @@ class SelectiveNodeExecutionContractTest : SelectiveNodeExecutionContract, Engin
 
     @Nested
     inner class VariablesTests {
-        @Test
+        @Engine2Alternate(original = "client and rss arguments remain isolated")
         fun `ALTERNATIVE client and rss arguments remain isolated`() {
             MockTenantModuleBootstrapper(
                 """
@@ -734,7 +754,7 @@ class SelectiveNodeExecutionContractTest : SelectiveNodeExecutionContract, Engin
             }
         }
 
-        @Test
+        @Engine2Alternate(original = "rss variable failure reports a field error")
         fun `ALTERNATIVE rss variable failure reports a field error`() {
             MockTenantModuleBootstrapper(
                 """
@@ -785,7 +805,7 @@ class SelectiveNodeExecutionContractTest : SelectiveNodeExecutionContract, Engin
             }
         }
 
-        @Test
+        @Engine2Alternate(original = "embedded node materialization preserves ancestor argument variables")
         fun `ALTERNATIVE embedded node materialization preserves ancestor argument variables`() {
             MockTenantModuleBootstrapper(
                 """
@@ -826,7 +846,7 @@ class SelectiveNodeExecutionContractTest : SelectiveNodeExecutionContract, Engin
             }
         }
 
-        @Test
+        @Engine2Alternate(original = "node owned sibling supplies required rss variable")
         fun `ALTERNATIVE node owned sibling supplies required rss variable`() {
             val nodeCalls = AtomicInteger()
 
@@ -888,7 +908,7 @@ class SelectiveNodeExecutionContractTest : SelectiveNodeExecutionContract, Engin
             assertEquals(1, nodeCalls.get())
         }
 
-        @Test
+        @Engine2Alternate(original = "embedded node materialization preserves fragment argument variables")
         fun `ALTERNATIVE embedded node materialization preserves fragment argument variables`() {
             MockTenantModuleBootstrapper(
                 """
@@ -951,10 +971,10 @@ class SelectiveNodeExecutionContractTest : SelectiveNodeExecutionContract, Engin
             }
         }
 
-        @Disabled(
-            "ALT: Uses a callback-owned RSS and selective node execution for a conditional dependency chain; qplan uses a declarative provider and resolves the node once through its supported non-selective executor"
+        @Engine2Disabled(
+            Engine2DisabledKind.ALT,
+            "Uses a callback-owned RSS and selective node execution for a conditional dependency chain; qplan uses a declarative provider and resolves the node once through its supported non-selective executor"
         )
-        @Test
         fun `variable rss does not use skipped child object plan`() {
             MockTenantModuleBootstrapper(
                 """
@@ -1037,7 +1057,7 @@ class SelectiveNodeExecutionContractTest : SelectiveNodeExecutionContract, Engin
             }
         }
 
-        @Test
+        @Engine2Alternate(original = "variable rss does not use skipped child object plan")
         fun `ALTERNATIVE variable rss does not use skipped child object plan`() {
             val nodeCalls = AtomicInteger()
 
@@ -1156,7 +1176,7 @@ class SelectiveNodeExecutionContractTest : SelectiveNodeExecutionContract, Engin
 
     @Nested
     inner class ConsistencyTests {
-        @Test
+        @Engine2Alternate(original = "type changes during refetch report a field error")
         fun `ALTERNATIVE type changes during refetch report a field error`() {
             val nodeCalls = AtomicInteger()
 
@@ -1206,7 +1226,7 @@ class SelectiveNodeExecutionContractTest : SelectiveNodeExecutionContract, Engin
             assertEquals(1, nodeCalls.get())
         }
 
-        @Test
+        @Engine2Alternate(original = "inconsistent resolver exceptions")
         fun `ALTERNATIVE inconsistent resolver exceptions`() {
             val fooCalls = AtomicInteger()
 
@@ -1254,7 +1274,7 @@ class SelectiveNodeExecutionContractTest : SelectiveNodeExecutionContract, Engin
             assertEquals(1, fooCalls.get())
         }
 
-        @Test
+        @Engine2Alternate(original = "nested object type changes during refetch report a field error")
         fun `ALTERNATIVE nested object type changes during refetch report a field error`() {
             val nodeCalls = AtomicInteger()
 
@@ -1314,7 +1334,7 @@ class SelectiveNodeExecutionContractTest : SelectiveNodeExecutionContract, Engin
             assertEquals(1, nodeCalls.get())
         }
 
-        @Test
+        @Engine2Alternate(original = "malformed nested object during refetch reports a field error")
         fun `ALTERNATIVE malformed nested object during refetch reports a field error`() {
             val nodeCalls = AtomicInteger()
 
@@ -1389,8 +1409,7 @@ class SelectiveNodeExecutionContractTest : SelectiveNodeExecutionContract, Engin
 
     @Nested
     inner class BatchedTests {
-        @Disabled("TODO: Batching")
-        @Test
+        @Engine2Disabled(Engine2DisabledKind.TODO, "Batching")
         fun `batched node refetches preserve selection shapes`() {
             val batches = mutableListOf<List<Pair<String, Set<String>>>>()
 
@@ -1464,8 +1483,7 @@ class SelectiveNodeExecutionContractTest : SelectiveNodeExecutionContract, Engin
             )
         }
 
-        @Disabled("TODO: Batching")
-        @Test
+        @Engine2Disabled(Engine2DisabledKind.TODO, "Batching")
         fun `batched node refetch isolates same id selector failure`() {
             val refetchArguments = mutableSetOf<Int>()
 
@@ -1561,7 +1579,7 @@ class SelectiveNodeExecutionContractTest : SelectiveNodeExecutionContract, Engin
 
     @Nested
     inner class SubqueryTests {
-        @Test
+        @Engine2Alternate(original = "node resolver can query during refetch")
         fun `ALTERNATIVE node resolver can query during refetch`() {
             val nodeCalls = AtomicInteger()
 

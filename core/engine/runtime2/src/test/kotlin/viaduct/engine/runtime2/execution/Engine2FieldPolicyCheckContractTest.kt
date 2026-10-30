@@ -4,8 +4,6 @@ import kotlinx.coroutines.CompletableDeferred
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
-import org.junit.jupiter.api.Disabled
-import org.junit.jupiter.api.Test
 import viaduct.engine.api.mocks.EngineTestModule
 import viaduct.engine.api.mocks.MockSchema
 import viaduct.engine.api.mocks.createEngineObjectData
@@ -13,13 +11,15 @@ import viaduct.engine.runtime.execution.FieldPolicyCheckContract
 import viaduct.engine.runtime2.execution.testing.runQPlanFeatureTest
 
 class Engine2FieldPolicyCheckContractTest : FieldPolicyCheckContract, Engine2QueryExecutionContract {
-    @Test
-    @Disabled("ALT: Runtime2 resolves values and field checks concurrently, so field denial does not suppress a referenced node's type checker")
+    @Engine2Disabled(
+        Engine2DisabledKind.ALT,
+        "Runtime2 resolves values and field checks concurrently, so field denial does not suppress a referenced node's type checker"
+    )
     override fun `field should fail even if node passes`() {
         super<FieldPolicyCheckContract>.`field should fail even if node passes`()
     }
 
-    @Test
+    @Engine2Alternate(original = "field should fail even if node passes")
     fun `ALTERNATIVE field should fail even if node passes`() {
         val typeCheckPassed = CompletableDeferred<Unit>()
         val personType = MockSchema.mk(schemaSDL).schema.getObjectType("CanNotAccessPerson")
