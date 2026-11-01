@@ -44,6 +44,7 @@ interface ListPassiveDeepeningGeneratedResolverContract : ResolverContract {
                             root = world.objectOf("Query"),
                             selections = fragment.subselections,
                             resolutionObserver = registry.resolutionObserver(),
+                            record = false,
                         )
                     val result = observation.result
                     val operation = observation.operation

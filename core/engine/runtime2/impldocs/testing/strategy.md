@@ -288,6 +288,8 @@ Configure `SharedOperationContext.resolutionObserver` for resolver and checker e
 
 | Observation | Emission boundary | Evidence supplied |
 | --- | --- | --- |
+| `onTaskPrepared` | After task preparation and before dispatch | Records the task object; creator links and the task's OER/publication properties supply identity and location. |
+| `onTaskExecution` | At task entry and termination | Records the task, state, and termination cause. Cancellation may emit repeated `FINISHED` events or finish a prepared task before entry; fatal orchestration errors can propagate without `FINISHED`. |
 | `onQueryOERPrepared` | After joint object/Query closure and before dispatch | Associates an object occurrence with its singular associated Query OER, including owners that later fail before input materialization. |
 | `onResolverInvocation` | Immediately before ordinary or reference-target `FieldValueResolver.invoke`, after inputs are ready | Records the field, materialized object and Query inputs, instantiated selections, grounded arguments, optional selective demand, logical Query root, path, and occurrence identity. Attempts that later fail or cancel remain recorded. |
 | `onQueryFragmentPrepared` | After Query-rooted input preparation and before dispatch | Associates a nonempty declared Query fragment with its owner-local projection; independently rooted reference execution remains distinct from an associated Query OER. |

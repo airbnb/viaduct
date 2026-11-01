@@ -9,6 +9,7 @@ import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
  * Child execution scopes share the logical operation's configuration and mutable state references.
  */
 internal interface OperationContext : SharedOperationContext<CoroutineTaskDispatcher> {
+    val requestScope: CoroutineScope
     val cycleChecker: CycleCheckState
     val bindingsState: BindingDeclarationsState
     val passiveValues: PassiveValueResolutionLogic
@@ -35,6 +36,7 @@ internal interface OperationContext : SharedOperationContext<CoroutineTaskDispat
             return object :
                 OperationContext,
                 SharedOperationContext<CoroutineTaskDispatcher> by operationDelegate {
+                override val requestScope = requestScope
                 override val cycleChecker = cycleChecker
                 override val bindingsState = bindingsState
                 override val passiveValues = PassiveValueResolutionLogic(this)

@@ -96,3 +96,4 @@ tasks.named<JacocoReport>("jacocoTestReport") {
 apply(from = "development.gradle.kts")
 apply(from = "documentation.gradle.kts")
 apply(from = "verification.gradle.kts")
+apply(from = "impldocs/animation/animation.gradle.kts")

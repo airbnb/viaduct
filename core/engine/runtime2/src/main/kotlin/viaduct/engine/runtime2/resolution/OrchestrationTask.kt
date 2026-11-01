@@ -133,6 +133,7 @@ internal class OrchestrationTask private constructor(
                 checkerPreparation = FieldCheckerTask.prepareAll(this)
                 typeCheckerPublications = TypeCheckerTask.prepareAll(this)
                 observeQueryOER()
+                operation.resolutionObserver.onTaskPrepared?.invoke(this)
             }
         }
     }

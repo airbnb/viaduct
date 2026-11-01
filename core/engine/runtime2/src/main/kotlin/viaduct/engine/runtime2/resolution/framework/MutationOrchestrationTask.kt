@@ -25,7 +25,11 @@ internal class MutationOrchestrationTask<P> private constructor(
             prepareField: (ResolutionTask, OEROccurrence, ObjectSelection) -> P,
             namespacePrepared: (OEROccurrence) -> Unit = {},
             creator: ResolutionTask? = null,
-        ): MutationOrchestrationTask<P> = MutationOrchestrationTask(operation, namespace, prepareField, namespacePrepared, creator).apply { prepare() }
+        ): MutationOrchestrationTask<P> =
+            MutationOrchestrationTask(operation, namespace, prepareField, namespacePrepared, creator).apply {
+                prepare()
+                operation.resolutionObserver.onTaskPrepared?.invoke(this)
+            }
     }
 
     /** All local publications are claimed before any mutation is dispatched. */
@@ -52,21 +56,28 @@ internal class MutationOrchestrationTask<P> private constructor(
     }
 
     suspend fun run() {
-        for ((selection, key) in namespace.members) {
-            val cell = namespace.target.getCell(key)
-            if (selection.subselections is MutationSelectionForest) {
-                val nextNamespace = namespace.child(selection, key)
-                val next = create(operation, nextNamespace, prepareField, namespacePrepared, creator = this)
-                child = next
-                cell.setActivated(true)
-                cell.fieldCheckerResult.complete(null)
-                next.run()
-                cell.value.complete(nextNamespace.target)
-                child = null
-            } else {
-                operation.dispatcher.dispatchMutationField(publications.getValue(key), cell)
+        operation.resolutionObserver.onTaskExecution?.invoke(this, ResolutionTaskState.STARTED, null)
+        try {
+            for ((selection, key) in namespace.members) {
+                val cell = namespace.target.getCell(key)
+                if (selection.subselections is MutationSelectionForest) {
+                    val nextNamespace = namespace.child(selection, key)
+                    val next = create(operation, nextNamespace, prepareField, namespacePrepared, creator = this)
+                    child = next
+                    cell.setActivated(true)
+                    cell.fieldCheckerResult.complete(null)
+                    next.run()
+                    cell.value.complete(nextNamespace.target)
+                    child = null
+                } else {
+                    operation.dispatcher.dispatchMutationField(publications.getValue(key), cell)
+                }
             }
+        } catch (e: Exception) {
+            operation.resolutionObserver.onTaskExecution?.invoke(this, ResolutionTaskState.FINISHED, e)
+            throw e
         }
+        operation.resolutionObserver.onTaskExecution?.invoke(this, ResolutionTaskState.FINISHED, null)
     }
 
     fun cancel(cause: CancellationException) {
@@ -76,5 +87,6 @@ internal class MutationOrchestrationTask<P> private constructor(
             cell.fieldCheckerResult.cancel(cause)
         }
         child?.cancel(cause)
+        operation.resolutionObserver.onTaskExecution?.invoke(this, ResolutionTaskState.FINISHED, cause)
     }
 }

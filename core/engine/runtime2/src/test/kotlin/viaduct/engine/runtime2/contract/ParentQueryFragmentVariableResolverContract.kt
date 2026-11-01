@@ -141,7 +141,7 @@ interface ParentQueryFragmentVariableResolverContract : ResolverContract {
         val leafKey = world.schema.contractKey("Branch", "leaf")
         val resultKey = world.schema.contractKey("Leaf", "result")
 
-        val resolved = resolveAndValidate(testWorld, "query { root { branch { leaf { result } } } }")
+        val resolved = resolveAndValidate(testWorld, "query { root { branch { leaf { result } } } }", record = false)
         val root = assertIs<viaduct.engine.runtime2.model.ObjectEngineResult>(resolved.getCell(rootKey).get())
         val branch = assertIs<viaduct.engine.runtime2.model.ObjectEngineResult>(root.getCell(branchKey).get())
         val leaf = assertIs<viaduct.engine.runtime2.model.ObjectEngineResult>(branch.getCell(leafKey).get())

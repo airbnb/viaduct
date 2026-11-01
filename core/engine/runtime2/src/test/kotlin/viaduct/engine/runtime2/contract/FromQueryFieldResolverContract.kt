@@ -93,7 +93,7 @@ interface FromQueryFieldResolverContract : ResolverContract {
         val world = testWorld.assumptions
         val consumerKey = world.schema.contractKey("Query", "consumer")
 
-        val resolved = resolveAndValidate(testWorld, "query { consumer }")
+        val resolved = resolveAndValidate(testWorld, "query { consumer }", record = false)
 
         assertEquals(
             if (consumeInObjectFragment && consumeInQueryFragment) 14 else 7,

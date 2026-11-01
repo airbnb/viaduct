@@ -234,6 +234,7 @@ private fun ResolverContract.observeGeneratedResolution(
             world.objectOf("Query"),
             fragment.subselections,
             resolutionObserver = checkerRecorder,
+            record = false,
         )
     return GeneratedResolutionObservation(
         operation = subject.operation,

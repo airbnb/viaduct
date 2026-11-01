@@ -62,7 +62,7 @@ interface ParentFieldResolverContract : ResolverContract {
                 )
                 val field = if (composed) "composed" else "middle"
                 val selection = if (composed) field else "middle(seed: 3)"
-                val result = resolveAndValidate(fixture, "{ root { $selection } }", resolutionObserver = observer)
+                val result = resolveAndValidate(fixture, "{ root { $selection } }", resolutionObserver = observer, record = false)
                 val root = assertIs<ObjectEngineResult>(result.getCell(fixture.schema.contractKey("Query", "root")).get())
                 val key = if (composed) fixture.schema.contractKey("Root", field) else ObjectEngineResult.GroundKey.of(fixture.schema.requireObjectField("Root", field), mapOf("seed" to 3))
                 assertEquals(11, root.getCell(key).get())

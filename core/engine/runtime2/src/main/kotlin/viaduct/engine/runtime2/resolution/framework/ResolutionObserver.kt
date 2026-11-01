@@ -18,6 +18,18 @@ import viaduct.engine.runtime2.model.registry.CheckerInput
  * make the result graphs immutable or snapshot them.
  */
 interface ResolutionObserver {
+    /** Records a prepared task before dispatch; its properties include its creator and OER location. */
+    val onTaskPrepared: ((ResolutionTask) -> Unit)?
+        get() = null
+
+    /**
+     * Records task entry and termination. Cancellation may repeat FINISHED or finish a task before
+     * entry. A null cause does not imply successful field output. Fatal orchestration errors
+     * propagate without a required FINISHED.
+     */
+    val onTaskExecution: ((task: ResolutionTask, state: ResolutionTaskState, cause: Throwable?) -> Unit)?
+        get() = null
+
     /**
      * Records a shared resolver Query OER after joint closure and before field dispatch, including
      * when its owner later fails before materializing Query input. The task supplies the paired

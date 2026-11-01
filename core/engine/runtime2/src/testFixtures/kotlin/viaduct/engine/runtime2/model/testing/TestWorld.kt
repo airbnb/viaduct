@@ -57,6 +57,7 @@ fun ViaductSchema.ObjectField.testRoot(): ObjectEngineResult =
  */
 class TestWorld private constructor(
     private val injector: Injector,
+    val schemaSDL: String,
 ) {
     val schemas: ViaductAndGJSchema = injector.getInstance(ViaductAndGJSchema::class.java)
     val schema: ViaductSchema = schemas.loweredSchema
@@ -118,6 +119,7 @@ class TestWorld private constructor(
             typeCheckers: (ViaductAndGJSchema) -> Map<ViaductSchema.Object, TypeCheckerResolver>,
             variableProviders: (ViaductAndGJSchema) -> Map<Arguments.Variable, VariableDeclaration>,
             selectiveResolvers: Boolean,
+            sourceSchemaSDL: String = schemaSDL,
         ): TestWorld {
             val injector =
                 Guice.createInjector(
@@ -132,7 +134,7 @@ class TestWorld private constructor(
                     ),
                 )
             return try {
-                TestWorld(injector)
+                TestWorld(injector, sourceSchemaSDL)
             } catch (exception: ProvisionException) {
                 val cause = exception.cause
                 if (cause is RuntimeException) throw cause
@@ -157,6 +159,7 @@ class TestWorld private constructor(
             val dsl = ResolverTestDsl.parse(schemaSDL)
             return create(
                 schemaSDL = dsl.schemaSDL,
+                sourceSchemaSDL = schemaSDL,
                 nodeResolvers = dsl::nodeResolvers,
                 fieldResolvers = dsl::fieldResolvers,
                 fieldCheckers = fieldCheckers,

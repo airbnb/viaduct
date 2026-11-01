@@ -8,6 +8,7 @@ import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.model.registry.Assumptions
 import viaduct.engine.runtime2.resolution.framework.ResolutionObserver
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
+import viaduct.engine.runtime2.resolution.recording.ResolutionRecordings
 import viaduct.graphql.schema.ViaductSchema
 
 /** Subject-specific evidence retained alongside one resolution result. */
@@ -43,21 +44,25 @@ interface ResolverContract {
         selections: SelectionForest,
     ): ObjectEngineResult
 
+    /** Set [record] to false for generated cases or tests with multiple resolutions per method. */
     fun observeResolution(
         world: Assumptions,
         root: EngineObjectData.Sync,
         selections: SelectionForest,
         resolutionObserver: ResolutionObserver = CorrectnessResolverObserver(),
+        record: Boolean = true,
     ): ResolverResolutionObservation {
         val correctnessResolverObserver =
             resolutionObserver as? CorrectnessResolverObserver
                 ?: CorrectnessResolverObserver(resolutionObserver)
+        val recording = if (record) ResolutionRecordings.start(this, correctnessResolverObserver, selections) else null
+        val effectiveObserver = recording?.let { CorrectnessResolverObserver(it.observer) } ?: correctnessResolverObserver
         return SharedOperationContext.create(
             world = world,
-            resolutionObserver = correctnessResolverObserver,
+            resolutionObserver = effectiveObserver,
         ).let { operation ->
             RecordedResolverResolutionObservation(
-                result = resolve(operation, root, selections),
+                result = recording?.resolve { resolve(operation, root, selections) } ?: resolve(operation, root, selections),
                 operation = operation,
                 appliedResolverOccurrences = correctnessResolverObserver.invokedResolverOccurrences(),
             )

@@ -18,6 +18,8 @@ import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.objectOf
 import viaduct.engine.runtime2.resolution.framework.ResolutionObserver
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
+import viaduct.engine.runtime2.resolution.recording.RecordedResolutionSource
+import viaduct.engine.runtime2.resolution.recording.ResolutionRecordings
 import viaduct.engine.runtime2.schema.operationSelectionsFrom
 
 /**
@@ -76,15 +78,19 @@ internal fun ResolverContract.resolveAndValidate(
     root: EngineObjectData.Sync,
     selections: SelectionForest,
     resolutionObserver: ResolutionObserver = CorrectnessResolverObserver(),
-): ObjectEngineResult = resolveAndValidateObserved(world, root, selections, resolutionObserver).result
+    record: Boolean = true,
+): ObjectEngineResult = resolveAndValidateObserved(world, root, selections, resolutionObserver, record).result
 
 internal fun ResolverContract.resolveAndValidateObserved(
     world: Assumptions,
     root: EngineObjectData.Sync,
     selections: SelectionForest,
     resolutionObserver: ResolutionObserver = CorrectnessResolverObserver(),
+    record: Boolean = true,
+    source: RecordedResolutionSource? = null,
 ): ResolverResolutionObservation {
-    val observation = observeResolution(world, root, selections, resolutionObserver)
+    if (record && source != null) ResolutionRecordings.setSource(this, source)
+    val observation = observeResolution(world, root, selections, resolutionObserver, record)
     if (this is CorrectResolutionPostTestPolicy) {
         ContractPostTestState.record(
             PendingResolutionValidation(
@@ -101,12 +107,14 @@ internal fun ResolverContract.resolveAndValidate(
     world: Assumptions,
     selections: SelectionForest,
     resolutionObserver: ResolutionObserver = CorrectnessResolverObserver(),
+    record: Boolean = true,
 ): ObjectEngineResult =
     resolveAndValidate(
         world = world,
         root = world.objectOf("Query"),
         selections = selections,
         resolutionObserver = resolutionObserver,
+        record = record,
     )
 
 internal fun ResolverContract.resolveAndValidate(
@@ -115,9 +123,11 @@ internal fun ResolverContract.resolveAndValidate(
     variables: Map<String, Any?> = emptyMap(),
     operationName: String? = null,
     resolutionObserver: ResolutionObserver = CorrectnessResolverObserver(),
+    record: Boolean = true,
 ): ObjectEngineResult =
-    resolveAndValidate(
+    resolveAndValidateObserved(
         world = world.assumptions,
+        root = world.schema.objectOf("Query"),
         selections =
             world.schemas.operationSelectionsFrom(
                 documentSource = documentSource,
@@ -125,7 +135,9 @@ internal fun ResolverContract.resolveAndValidate(
                 operationName = operationName,
             ),
         resolutionObserver = resolutionObserver,
-    )
+        record = record,
+        source = RecordedResolutionSource(world.schemaSDL, documentSource),
+    ).result
 
 internal fun ResolverContract.resolveAndValidateObserved(
     world: TestWorld,
@@ -133,6 +145,7 @@ internal fun ResolverContract.resolveAndValidateObserved(
     variables: Map<String, Any?> = emptyMap(),
     operationName: String? = null,
     resolutionObserver: ResolutionObserver = CorrectnessResolverObserver(),
+    record: Boolean = true,
 ): ResolverResolutionObservation =
     resolveAndValidateObserved(
         world = world.assumptions,
@@ -144,4 +157,6 @@ internal fun ResolverContract.resolveAndValidateObserved(
                 operationName = operationName,
             ),
         resolutionObserver = resolutionObserver,
+        record = record,
+        source = RecordedResolutionSource(world.schemaSDL, documentSource),
     )

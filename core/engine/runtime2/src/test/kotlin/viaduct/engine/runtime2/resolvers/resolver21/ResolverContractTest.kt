@@ -40,6 +40,7 @@ class PrecomputedResolverContractTest : ResolverContractTest() {
         root: EngineObjectData.Sync,
         selections: SelectionForest,
         resolutionObserver: ResolutionObserver,
+        record: Boolean,
     ): ResolverResolutionObservation =
         super.observeResolution(
             world =
@@ -52,5 +53,6 @@ class PrecomputedResolverContractTest : ResolverContractTest() {
             root = root,
             selections = selections,
             resolutionObserver = resolutionObserver,
+            record = record,
         )
 }

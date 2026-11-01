@@ -12,6 +12,8 @@ import viaduct.engine.runtime2.model.registry.CheckerInput
 import viaduct.engine.runtime2.resolution.framework.CheckerInvocationObservation
 import viaduct.engine.runtime2.resolution.framework.OEROccurrence
 import viaduct.engine.runtime2.resolution.framework.ResolutionObserver
+import viaduct.engine.runtime2.resolution.framework.ResolutionTask
+import viaduct.engine.runtime2.resolution.framework.ResolutionTaskState
 import viaduct.engine.runtime2.resolution.framework.ResolverInvocationObservation
 import viaduct.engine.runtime2.resolution.framework.RootFieldReferenceInvocationObservation
 import viaduct.engine.runtime2.resolution.framework.SharedOERContext
@@ -23,7 +25,7 @@ import viaduct.engine.runtime2.resolution.framework.SharedOrchestrationTask
  * and reference records preserve duplicates; invocation identities form a set. Checker targets
  * distinguish field and type checks at the same path. Full invocation events retain the exact object and
  * Query inputs supplied at runtime. The Query-fragment callback records preparation and optional
- * shared-scope ownership; independent-input preparation forwards to it and retains separate role
+ * shared-scope ownership; independent-input preparation retains the same result evidence and separate role
  * evidence. Correctness consumers read snapshots directly from this recorder. Use a fresh recorder
  * for each semantic operation.
  *
@@ -34,6 +36,9 @@ import viaduct.engine.runtime2.resolution.framework.SharedOrchestrationTask
 open class CorrectnessResolverObserver(
     private val delegate: ResolutionObserver = ResolutionObserver.NOP,
 ) : ResolutionObserver {
+    override val onTaskPrepared: ((ResolutionTask) -> Unit)? get() = delegate.onTaskPrepared
+    override val onTaskExecution: ((ResolutionTask, ResolutionTaskState, Throwable?) -> Unit)? get() = delegate.onTaskExecution
+
     private val checkerQueryResults =
         ConcurrentHashMap<Pair<ResolverTarget, ResolverOccurrenceId>, ConcurrentLinkedQueue<ObjectEngineResult>>()
     private val checkerInputsByOwner =
@@ -121,14 +126,17 @@ open class CorrectnessResolverObserver(
     }
 
     override val onIndependentQueryFragmentPrepared: (ResolverOccurrenceId, ObjectEngineResult) -> Unit = { owner, result ->
-        onQueryFragmentPrepared(owner, result, null)
+        recordQueryFragmentResult(owner, result)
+        queryFragmentObservations.add(QueryFragmentObservation(owner, result))
         independentQueryObservations.add(IndependentQueryObservation(owner, result))
+        delegate.onIndependentQueryFragmentPrepared?.invoke(owner, result)
     }
 
     override val onQueryFragmentOwnerAddress: (ResolverOccurrenceId, OEROccurrence, ObjectEngineResult.ObjectKey) -> Unit = { resolverOccurrenceId, resolverOER, resolverKey ->
         queryOwnerAddressObservations.add(
             QueryOwnerAddressObservation(resolverOccurrenceId, resolverOER, resolverKey),
         )
+        delegate.onQueryFragmentOwnerAddress?.invoke(resolverOccurrenceId, resolverOER, resolverKey)
     }
 
     private fun recordQueryFragmentResult(

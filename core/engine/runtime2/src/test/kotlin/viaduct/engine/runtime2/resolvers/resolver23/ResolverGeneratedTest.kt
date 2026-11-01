@@ -47,6 +47,7 @@ class PrecomputedResolverGeneratedTest : ResolverGeneratedTest() {
         root: EngineObjectData.Sync,
         selections: SelectionForest,
         resolutionObserver: ResolutionObserver,
+        record: Boolean,
     ): ResolverResolutionObservation =
         super.observeResolution(
             world =
@@ -59,5 +60,6 @@ class PrecomputedResolverGeneratedTest : ResolverGeneratedTest() {
             root = root,
             selections = selections,
             resolutionObserver = resolutionObserver,
+            record = record,
         )
 }

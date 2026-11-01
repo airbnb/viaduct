@@ -63,3 +63,5 @@ data class CheckerInvocationObservation(
     val checkedType: ViaductSchema.Object
         get() = (checkedTarget as ResolverTarget.TypeCheckerTarget).type
 }
+
+enum class ResolutionTaskState { STARTED, FINISHED }

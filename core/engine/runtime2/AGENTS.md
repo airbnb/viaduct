@@ -43,6 +43,8 @@ Run Runtime2 Gradle commands from the repository root. A "full check" means exac
 
 The vendored GraphQL specification has an independent opt-in rendering build. Read [`impldocs/graphql-spec/UPSTREAM.md`](impldocs/graphql-spec/UPSTREAM.md) before updating or rebuilding it.
 
+For generating and viewing recorded resolution animations, start with [`impldocs/animation/README.md`](impldocs/animation/README.md).
+
 ## Standalone TLA Project
 
 The `tla` directory is a standalone, disposable formal-modeling project. Unless a task explicitly asks for TLA work, ignore that directory: do not consult it as Runtime2 implementation documentation, update it alongside engine changes, or introduce references to it under `impldocs`.
@@ -50,6 +52,8 @@ The `tla` directory is a standalone, disposable formal-modeling project. Unless 
 ## Documentation Practice
 
 Runtime2 documentation describes the current alpha implementation declaratively. Preserve durable rationale in architecture, testing, correctness, or evidence documents instead of adding chronological project-status narratives.
+
+When resolution behavior or task protocols change, documentation cleanup includes checking regenerated animations against production code and updating their explanations and choreography; use the [animation fidelity checklist](impldocs/animation/animation-design.md#checking-fidelity-when-resolution-changes) alongside the relevant architecture and testing documents.
 
 Write each prose paragraph and list item in Markdown on one physical line; do not hard-wrap prose. Preserve structural line boundaries for headings, separate list items, tables, and fenced code blocks.
 

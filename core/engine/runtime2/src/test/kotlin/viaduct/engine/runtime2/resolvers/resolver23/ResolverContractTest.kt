@@ -69,6 +69,7 @@ class PrecomputedResolverContractTest : BaseResolverContractTest(), ParentFieldR
         root: EngineObjectData.Sync,
         selections: SelectionForest,
         resolutionObserver: ResolutionObserver,
+        record: Boolean,
     ): ResolverResolutionObservation =
         super<BaseResolverContractTest>.observeResolution(
             world =
@@ -81,5 +82,6 @@ class PrecomputedResolverContractTest : BaseResolverContractTest(), ParentFieldR
             root = root,
             selections = selections,
             resolutionObserver = resolutionObserver,
+            record = record,
         )
 }

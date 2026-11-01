@@ -4,6 +4,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 import viaduct.apiannotations.InternalApi
 import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.resolution.framework.ResolutionTask
+import viaduct.engine.runtime2.resolution.framework.ResolutionTaskState
 import viaduct.engine.runtime2.resolution.framework.SharedOERContext
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 import viaduct.engine.runtime2.resolution.framework.SharedOrchestrationTask
@@ -41,9 +42,16 @@ abstract class CoroutineOrchestrationTaskBase<O : SharedOperationContext<*>>(
 
     /** Prepares and dispatches field work before sealing this object's field set. */
     internal fun run() {
-        prepareAndDispatchFieldWork()
-        objectOER.occurrence.target.freeze()
-        queryOER.occurrence.target.freeze()
+        operation.resolutionObserver.onTaskExecution?.invoke(this, ResolutionTaskState.STARTED, null)
+        try {
+            prepareAndDispatchFieldWork()
+            objectOER.occurrence.target.freeze()
+            queryOER.occurrence.target.freeze()
+        } catch (e: Exception) {
+            operation.resolutionObserver.onTaskExecution?.invoke(this, ResolutionTaskState.FINISHED, e)
+            throw e
+        }
+        operation.resolutionObserver.onTaskExecution?.invoke(this, ResolutionTaskState.FINISHED, null)
     }
 
     protected open fun validateDispatch() {}

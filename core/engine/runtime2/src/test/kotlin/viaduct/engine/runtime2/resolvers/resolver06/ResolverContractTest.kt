@@ -58,12 +58,14 @@ class PrecomputedResolverContractTest : ResolverContractTest() {
         root: EngineObjectData.Sync,
         selections: SelectionForest,
         resolutionObserver: ResolutionObserver,
+        record: Boolean,
     ): ResolverResolutionObservation =
         super.observeResolution(
             world = world.withPrecomputedConstructionDemand(),
             root = root,
             selections = selections,
             resolutionObserver = resolutionObserver,
+            record = record,
         )
 
     override fun resolveAndObserveTasks(

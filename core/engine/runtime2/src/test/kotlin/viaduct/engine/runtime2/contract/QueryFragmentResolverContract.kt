@@ -22,7 +22,6 @@ import viaduct.engine.runtime2.model.merge
 import viaduct.engine.runtime2.model.outputValue
 import viaduct.engine.runtime2.model.registry.fieldResolverOf
 import viaduct.engine.runtime2.model.registry.fromArgument
-import viaduct.engine.runtime2.model.registry.selectiveFieldResolverOf
 import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireType
 import viaduct.engine.runtime2.model.testing.TestWorld
@@ -628,66 +627,33 @@ interface QueryFragmentResolverContract : ResolverContract {
             override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { observation ->
                 super.onResolverInvocation(observation)
                 applications.compute(observation.field.name) { _, count -> (count ?: 0) + 1 }
-                if (observation.field.name == "item") {
-                    check(producerDemand == null) { "Query-side producer was invoked twice" }
-                    producerDemand = observation.suppliedDemand
+                when (observation.field.name) {
+                    "item" -> {
+                        check(producerDemand == null) { "Query-side producer was invoked twice" }
+                        producerDemand = observation.suppliedDemand
+                    }
+                    "owner" -> {
+                        val queryItem = assertIs<EngineObjectData.Sync>(observation.queryValue.selectionValues().getValue("item"))
+                        assertEquals(setOf("computed"), queryItem.selectionValues().keys)
+                    }
                 }
             }
         }
         val testWorld =
-            TestWorld.fromSDL(
+            TestWorld.fromDSL(
                 selectiveResolvers = true,
                 schemaSDL =
                     """
-                    type Query {
-                      item: Item!
-                      owner: String!
+                    extend type Query {
+                      item: Item! @resolver(result: {base: 7})
+                      owner: Int! @resolver(qf: "item { computed }", result: "value(query:item.computed)")
                     }
                     type Item {
-                      base: String!
-                      computed: String!
-                      unused: String!
+                      base: Int!
+                      computed: Int! @resolver(of: "base", result: "sumplus1(base)")
+                      unused: Int! @resolver(result: 99)
                     }
                     """.trimIndent(),
-                fieldResolvers = { schema ->
-                    val item = schema.loweredSchema.requireObjectField("Query", "item")
-                    val owner = schema.loweredSchema.requireObjectField("Query", "owner")
-                    val computed = schema.loweredSchema.requireObjectField("Item", "computed")
-                    val unused = schema.loweredSchema.requireObjectField("Item", "unused")
-                    mapOf(
-                        item to
-                            selectiveFieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) {
-                                    _,
-                                    _,
-                                    _,
-                                ->
-                                schema.loweredSchema.objectOf("Item") { "base" setTo "input" }
-                            },
-                        owner to
-                            fieldResolverOf(
-                                objectFragment = schema.loweredSchema.emptyFragmentOf("Query"),
-                                queryFragment =
-                                    schema.fragmentFrom(
-                                        "fragment OwnerQuery on Query { item { computed } }",
-                                    ),
-                            ) { _, queryValue, _ ->
-                                val queryItem =
-                                    queryValue.selectionValues().getValue("item") as
-                                        EngineObjectData.Sync
-                                assertEquals(
-                                    setOf("computed"),
-                                    queryItem.selectionValues().keys,
-                                )
-                                queryItem.selectionValues().getValue("computed")
-                            },
-                        computed to
-                            fieldResolverOf(
-                                schema.fragmentFrom("fragment ComputedInput on Item { base }"),
-                            ) { input, _ -> "computed:${input.selectionValues().getValue("base")}" },
-                        unused to
-                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Item")) { _, _ -> "unused" },
-                    )
-                },
             )
         val world = testWorld.assumptions
         val result =
@@ -699,7 +665,7 @@ interface QueryFragmentResolverContract : ResolverContract {
         val itemType = world.schema.requireType("Item") as ViaductSchema.Object
 
         assertEquals(
-            "computed:input",
+            8,
             result.getCell(world.schema.contractKey("Query", "owner")).get(),
         )
         assertEquals(

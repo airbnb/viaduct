@@ -481,6 +481,17 @@ val configuredResolutionThreadCount =
         .orElse(providers.environmentVariable("viaduct.resolution.threadcount"))
 
 tasks.withType<org.gradle.api.tasks.testing.Test>().configureEach {
+    val resolutionRecording = providers.gradleProperty("resolutionRecording").map { configured ->
+        require(configured == "true" || configured == "false") { "resolutionRecording must be true or false" }
+        configured.toBoolean()
+    }.orElse(false)
+    inputs.property("resolutionRecording", resolutionRecording)
+    if (resolutionRecording.get()) {
+        outputs.doNotCacheIf("Resolution recordings are untracked artifacts") { true }
+        systemProperty("viaduct.runtime2.resolutionRecording.directory", layout.buildDirectory.dir("resolution/recordings").get().asFile.absolutePath)
+        systemProperty("junit.jupiter.extensions.autodetection.enabled", "true")
+    }
+
     providers.gradleProperty("runtime2PrecomputedConstructionDemand").orNull?.let { configured ->
         require(configured == "true" || configured == "false") { "runtime2PrecomputedConstructionDemand must be true or false" }
         systemProperty("viaduct.runtime2.precomputedConstructionDemand", configured)

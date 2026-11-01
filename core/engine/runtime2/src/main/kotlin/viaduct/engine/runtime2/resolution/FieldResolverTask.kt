@@ -37,6 +37,7 @@ import viaduct.engine.runtime2.resolution.framework.CycleTask
 import viaduct.engine.runtime2.resolution.framework.Demand
 import viaduct.engine.runtime2.resolution.framework.OEROccurrence
 import viaduct.engine.runtime2.resolution.framework.ResolutionTask
+import viaduct.engine.runtime2.resolution.framework.ResolutionTaskState
 import viaduct.engine.runtime2.resolution.framework.SharedFieldPublicationOccurrence
 import viaduct.engine.runtime2.resolution.framework.SharedOERContext
 import viaduct.engine.runtime2.resolution.framework.argumentsContainErrorValue
@@ -88,14 +89,25 @@ internal class SymbolicFieldPublicationOccurrence private constructor(
                 creator,
             ).apply {
                 task = FieldResolverTask(this)
+                operation.resolutionObserver.onTaskPrepared?.invoke(task)
+                if (operation.resolutionObserver.onTaskExecution != null) {
+                    operation.requestScope.coroutineContext.job.invokeOnCompletion { cause ->
+                        if (cause != null) operation.resolutionObserver.onTaskExecution?.invoke(task, ResolutionTaskState.FINISHED, cause)
+                    }
+                }
             }
     }
 
     override fun dispatch(requestScope: CoroutineScope) {
         requestScope.launch {
+            operation.resolutionObserver.onTaskExecution?.invoke(task, ResolutionTaskState.STARTED, null)
             task.run(this)
         }.invokeOnCompletion { cause ->
-            if (cause is CancellationException) FieldResolverTask.cancel(this@SymbolicFieldPublicationOccurrence, cause)
+            try {
+                operation.resolutionObserver.onTaskExecution?.invoke(task, ResolutionTaskState.FINISHED, cause)
+            } finally {
+                if (cause is CancellationException) FieldResolverTask.cancel(this@SymbolicFieldPublicationOccurrence, cause)
+            }
         }
     }
 }
