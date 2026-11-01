@@ -28,7 +28,7 @@ import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.runtime2.model.registry.Assumptions
 import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.resolution.framework.CycleCheckState
-import viaduct.engine.runtime2.resolution.framework.ResolverObserver
+import viaduct.engine.runtime2.resolution.framework.ResolutionObserver
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 import viaduct.engine.runtime2.resolution.startResolution
 import viaduct.engine.runtime2.schema.selectionsFrom
@@ -94,9 +94,9 @@ class QPlanExecutionStrategy(
                 SharedOperationContext.create(
                     executionWorld,
                     engineExecutionContext = engineExecutionContextFactory(executionContext),
-                    resolverObserver = executionContext.graphQLContext.getOrDefault<ResolverObserver>(
-                        ResolverObserver::class.java,
-                        ResolverObserver.NOP,
+                    resolutionObserver = executionContext.graphQLContext.getOrDefault<ResolutionObserver>(
+                        ResolutionObserver::class.java,
+                        ResolutionObserver.NOP,
                     ),
                 ).startResolution(
                     selections,

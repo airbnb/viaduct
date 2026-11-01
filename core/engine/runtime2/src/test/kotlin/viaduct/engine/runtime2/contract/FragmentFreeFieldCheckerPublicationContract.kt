@@ -33,10 +33,11 @@ import viaduct.engine.runtime2.model.testing.emptyFragmentOf
 import viaduct.engine.runtime2.resolution.framework.CycleCheckState
 import viaduct.engine.runtime2.resolution.framework.CycleSlotKind
 import viaduct.engine.runtime2.resolution.framework.CycleTask
+import viaduct.engine.runtime2.resolution.framework.ResolutionObserver
 import viaduct.engine.runtime2.resolution.framework.ResolverInvocationObservation
-import viaduct.engine.runtime2.resolution.framework.ResolverObserver
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 import viaduct.engine.runtime2.schema.operationSelectionsFrom
+import viaduct.graphql.schema.ViaductSchema
 
 /** Fragment-free field-checker publication and lifecycle behavior shared by coroutine resolvers. */
 interface FragmentFreeFieldCheckerPublicationContract {
@@ -53,9 +54,9 @@ interface FragmentFreeFieldCheckerPublicationContract {
                 cell.fieldCheckerResult
             }
         }
-        val resolverObserver =
-            object : ResolverObserver {
-                override fun onResolverInvocation(observation: ResolverInvocationObservation) {
+        val resolutionObserver =
+            object : ResolutionObserver {
+                override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { _ ->
                     assertBarrier()
                 }
             }
@@ -103,7 +104,7 @@ interface FragmentFreeFieldCheckerPublicationContract {
             world,
             worldFixture.schemas.operationSelectionsFrom("{ first second }"),
             cycleChecker,
-            resolverObserver,
+            resolutionObserver,
         )
 
         assertSame(CheckerResult.Success, cells.getValue("first").fieldCheckerResult.get())
@@ -219,7 +220,7 @@ interface FragmentFreeFieldCheckerPublicationContract {
                     fun checker(
                         name: String,
                         function: suspend () -> CheckerResult
-                    ): Pair<viaduct.graphql.schema.ViaductSchema.ObjectField, FieldCheckerResolver> {
+                    ): Pair<ViaductSchema.ObjectField, FieldCheckerResolver> {
                         val field = schema.loweredSchema.requireObjectField("Query", name)
                         return field to FieldCheckerResolver.of(field, schema.loweredSchema.requireQueryTypeDef()) { _, _, _ -> function() }
                     }
@@ -309,10 +310,10 @@ private fun FragmentFreeFieldCheckerPublicationContract.resolve(
     world: Assumptions,
     selections: SelectionForest,
     cycleChecker: CycleCheckState = CycleCheckState.create(),
-    resolverObserver: ResolverObserver = ResolverObserver.NOP,
+    resolutionObserver: ResolutionObserver = ResolutionObserver.NOP,
 ): ObjectEngineResult =
     coroutineResolverSubject.resolve(
-        SharedOperationContext.create(world, resolverObserver = resolverObserver),
+        SharedOperationContext.create(world, resolutionObserver = resolutionObserver),
         selections,
         cycleChecker,
     )

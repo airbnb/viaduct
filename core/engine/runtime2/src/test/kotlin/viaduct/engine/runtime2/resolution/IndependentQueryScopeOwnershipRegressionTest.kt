@@ -57,7 +57,7 @@ class IndependentQueryScopeOwnershipRegressionTest : ResolutionDispatcherResourc
             },
         )
         val observer = CorrectnessResolverObserver()
-        val operation = SharedOperationContext.create(world.assumptions, resolverObserver = observer)
+        val operation = SharedOperationContext.create(world.assumptions, resolutionObserver = observer)
         val selections = world.schemas.fragmentFrom("fragment Test on Query { first }").subselections
         val result = when (resolver) {
             7 -> operation.resolve07(selections)

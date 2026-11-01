@@ -20,8 +20,7 @@ class CoroutineOperationContext(
     SharedOperationContext.create(
         world = base.world,
         variableBindings = base.variableBindings,
-        resolverObserver = base.resolverObserver,
-        checkerObserver = base.checkerObserver,
+        resolutionObserver = base.resolutionObserver,
         dispatcher = CoroutineTaskDispatcher(
             requestScope = requestScope,
         ),

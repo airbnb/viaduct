@@ -133,7 +133,7 @@ class SharedQueryProviderOwnershipTest : ResolutionDispatcherResource {
             )
         val observer = CorrectnessResolverObserver()
         val operation =
-            SharedOperationContext.create(world.assumptions, resolverObserver = observer)
+            SharedOperationContext.create(world.assumptions, resolutionObserver = observer)
         val selections =
             world.schemas
                 .fragmentFrom("fragment Test on Query { payload { first second } }")

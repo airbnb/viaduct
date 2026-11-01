@@ -14,6 +14,7 @@ import viaduct.engine.runtime2.model.schemaType
 import viaduct.engine.runtime2.resolution.framework.Demand
 import viaduct.engine.runtime2.resolution.framework.OEROccurrence
 import viaduct.engine.runtime2.resolution.framework.OrchestrationConstructionDemand
+import viaduct.engine.runtime2.resolution.framework.ResolutionTask
 import viaduct.engine.runtime2.resolution.framework.SharedOERContext
 import viaduct.engine.runtime2.resolution.framework.argumentsContainErrorValue
 import viaduct.graphql.schema.ViaductSchema
@@ -29,7 +30,8 @@ internal class OrchestrationTask private constructor(
     objectOER: SharedOERContext,
     queryOER: SharedOERContext,
     val closedConstructionDemand: ClosedConstructionDemandContext,
-) : CoroutineOrchestrationTaskBase<OperationContext>(operation, objectOER, queryOER) {
+    creator: ResolutionTask?,
+) : CoroutineOrchestrationTaskBase<OperationContext>(operation, objectOER, queryOER, creator) {
     private var bindingDeclarationStarted = false
     internal lateinit var checkerPreparation: FieldCheckerPreparation
         private set
@@ -76,12 +78,14 @@ internal class OrchestrationTask private constructor(
             occurrence: OEROccurrence,
             source: EngineObjectData.Sync,
             constructionDemand: SelectionForest,
+            creator: ResolutionTask? = null,
         ): OrchestrationTask =
             create(
                 operation,
                 occurrence,
                 source,
                 Demand.checked(constructionDemand),
+                creator,
             )
 
         fun create(
@@ -89,6 +93,7 @@ internal class OrchestrationTask private constructor(
             occurrence: OEROccurrence,
             source: EngineObjectData.Sync,
             constructionDemand: Demand<SelectionForest>,
+            creator: ResolutionTask? = null,
         ): OrchestrationTask {
             val queryType = operation.world.schema.requireQueryTypeDef()
             val emptyQuerySource = operation.world.resolverRegistry.createRootQueryInput()
@@ -113,7 +118,7 @@ internal class OrchestrationTask private constructor(
                     source = emptyQuerySource,
                     closedValueSelections = closedConstructionDemand.queryRooted.closedValueSelections,
                 )
-            return OrchestrationTask(operation, objectOER, queryOER, closedConstructionDemand).apply {
+            return OrchestrationTask(operation, objectOER, queryOER, closedConstructionDemand, creator).apply {
                 declareBindings()
                 listOf(this.objectOER, this.queryOER).forEach { oer ->
                     oer.occurrence.installParentBackedgeFields(
@@ -257,7 +262,11 @@ internal class OrchestrationTask private constructor(
     }
 
     private fun observeQueryOER() {
-        operation.resolverObserver.onQueryOERPrepared(queryOER, objectOER.occurrence)
+        operation.resolutionObserver.onQueryOERPrepared?.invoke(this, null)
+        val onQueryFragmentPrepared = operation.resolutionObserver.onQueryFragmentPrepared
+        val onQueryFragmentOwnerAddress = operation.resolutionObserver.onQueryFragmentOwnerAddress
+        if (onQueryFragmentPrepared == null && onQueryFragmentOwnerAddress == null) return
+
         listOf(objectOER to closedConstructionDemand.objectRooted, queryOER to closedConstructionDemand.queryRooted)
             .forEach { (resolverOER, closedOER) ->
                 closedOER.fieldResolverOccurrences.values.forEach { fieldResolverOccurrence ->
@@ -270,16 +279,8 @@ internal class OrchestrationTask private constructor(
                                 selectionKey.arguments.argumentsContainErrorValue()
                         )
                     ) {
-                        operation.resolverObserver.onQueryFragmentPrepared(
-                            queryFragment.resolverOccurrenceId,
-                            queryOER.occurrence.target,
-                            objectOER.occurrence,
-                        )
-                        operation.resolverObserver.onQueryFragmentOwnerAddress(
-                            queryFragment.resolverOccurrenceId,
-                            resolverOER.occurrence,
-                            selectionKey,
-                        )
+                        onQueryFragmentPrepared?.invoke(queryFragment.resolverOccurrenceId, queryOER.occurrence.target, objectOER.occurrence)
+                        onQueryFragmentOwnerAddress?.invoke(queryFragment.resolverOccurrenceId, resolverOER.occurrence, selectionKey)
                     }
                 }
             }

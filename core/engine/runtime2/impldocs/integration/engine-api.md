@@ -150,4 +150,4 @@ Shared `runtime` engine behavior lives in contracts under `engine/api/src/testFi
 
 ## Resolver Observation
 
-`QPlanExecutionStrategy` accepts an optional `ResolverObserver` under the `ResolverObserver::class.java` GraphQL-context key; the default is a no-op. The observer follows resolver invocation and declared Query-fragment preparation through nested execution without attaching callbacks to model resolver values. Observation is diagnostics and test evidence, not part of the resolver relation or a source of demand.
+`QPlanExecutionStrategy` accepts an optional `ResolutionObserver` under the `ResolutionObserver::class.java` GraphQL-context key; the default is a no-op. The observer follows resolver invocation and declared Query-fragment preparation through nested execution without attaching callbacks to model resolver values. Observation is diagnostics and test evidence, not part of the resolver relation or a source of demand.

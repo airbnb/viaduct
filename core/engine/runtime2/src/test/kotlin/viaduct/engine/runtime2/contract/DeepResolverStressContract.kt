@@ -184,12 +184,12 @@ interface DeepResolverStressContract : ResolverContract {
                             world,
                             world.objectOf("Query"),
                             fragment.subselections,
-                            resolverObserver = testCase.registry.resolverObserver(),
+                            resolutionObserver = testCase.registry.resolutionObserver(),
                         )
                     val result = resolution.result
                     val operation = resolution.operation
                     val correctnessObserver =
-                        operation.resolverObserver as CorrectnessResolverObserver
+                        operation.resolutionObserver as CorrectnessResolverObserver
                     val demandedQueryOERs =
                         correctnessObserver
                             .allQueryOERs()

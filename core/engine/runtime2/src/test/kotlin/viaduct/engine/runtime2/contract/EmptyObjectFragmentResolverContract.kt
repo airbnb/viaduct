@@ -85,7 +85,7 @@ interface EmptyObjectFragmentResolverContract :
     @Test
     fun `accepts position-distinct passive fields in list output`() {
         val invocationObserver = object : CorrectnessResolverObserver() {
-            override fun onResolverInvocation(observation: ResolverInvocationObservation) {
+            override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { observation ->
                 super.onResolverInvocation(observation)
                 val input = observation.input
                 require(input.hasExactlyFields())
@@ -112,14 +112,14 @@ interface EmptyObjectFragmentResolverContract :
                     }
                     """.trimIndent(),
             )
-        resolveAndValidate(testWorld, "query { items { selected } }", resolverObserver = invocationObserver)
+        resolveAndValidate(testWorld, "query { items { selected } }", resolutionObserver = invocationObserver)
     }
 
     @Test
     fun `specializes shared list continuation and concrete argument defaults`() {
         val applications = ConcurrentLinkedQueue<String>()
         val invocationObserver = object : CorrectnessResolverObserver() {
-            override fun onResolverInvocation(observation: ResolverInvocationObservation) {
+            override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { observation ->
                 super.onResolverInvocation(observation)
                 val field = observation.field
                 val input = observation.input
@@ -159,7 +159,7 @@ interface EmptyObjectFragmentResolverContract :
                     """.trimIndent(),
             )
         val world = testWorld.assumptions
-        val result = resolveAndValidate(testWorld, "query { items { computed } }", resolverObserver = invocationObserver)
+        val result = resolveAndValidate(testWorld, "query { items { computed } }", resolutionObserver = invocationObserver)
         val items =
             assertIs<ListEngineResult>(
                 result.getCell(world.schema.contractKey("Query", "items")).get(),
@@ -183,7 +183,7 @@ interface EmptyObjectFragmentResolverContract :
     @Test
     fun `applies a concrete implementation default after interface dispatch`() {
         val invocationObserver = object : CorrectnessResolverObserver() {
-            override fun onResolverInvocation(observation: ResolverInvocationObservation) {
+            override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { observation ->
                 super.onResolverInvocation(observation)
                 val input = observation.input
                 require(input.hasExactlyFields())
@@ -211,7 +211,7 @@ interface EmptyObjectFragmentResolverContract :
             )
         val world = testWorld.assumptions
         val result =
-            resolveAndValidate(testWorld, "query { item { computed } }", resolverObserver = invocationObserver)
+            resolveAndValidate(testWorld, "query { item { computed } }", resolutionObserver = invocationObserver)
         val item =
             assertIs<ObjectEngineResult>(
                 result.getCell(world.schema.contractKey("Query", "item")).get(),

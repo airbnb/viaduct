@@ -369,7 +369,7 @@ interface RootFieldReferenceResolverContract : ResolverContract {
                 container.getCell(world.schema.contractKey("Container", "product")).get(),
             )
         val products =
-            assertIs<viaduct.engine.runtime2.model.ListEngineResult>(
+            assertIs<ListEngineResult>(
                 container.getCell(world.schema.contractKey("Container", "products")).get(),
             )
 
@@ -381,7 +381,7 @@ interface RootFieldReferenceResolverContract : ResolverContract {
         assertEquals(0, unusedApplications.get())
         assertEquals(0, overriddenApplications.get())
         val referenceInvocations =
-            (resolution.operation.resolverObserver as CorrectnessResolverObserver)
+            (resolution.operation.resolutionObserver as CorrectnessResolverObserver)
                 .rootFieldReferenceInvocations()
         assertEquals(3, referenceInvocations.size)
         referenceInvocations.forEach { invocation ->
@@ -463,7 +463,7 @@ interface DepthFirstRootFieldReferenceOrderingContract : ResolverContract {
     fun `executes an embedded root reference before its containing object's sibling resolver`() {
         val applications = CopyOnWriteArrayList<String>()
         val invocationObserver = object : CorrectnessResolverObserver() {
-            override fun onResolverInvocation(observation: ResolverInvocationObservation) {
+            override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { observation ->
                 super.onResolverInvocation(observation)
                 val field = observation.field
                 applications += field.name
@@ -510,7 +510,7 @@ interface DepthFirstRootFieldReferenceOrderingContract : ResolverContract {
                 },
             )
 
-        resolveAndValidate(testWorld, "query { container { product { value } sibling } }", resolverObserver = invocationObserver)
+        resolveAndValidate(testWorld, "query { container { product { value } sibling } }", resolutionObserver = invocationObserver)
 
         assertEquals(listOf("container", "target", "sibling"), applications.toList())
     }

@@ -2,6 +2,7 @@ package viaduct.engine.runtime2.benchmark
 
 import java.nio.file.Files
 import java.nio.file.Path
+import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -13,15 +14,15 @@ import viaduct.engine.runtime2.arbitrary.ResolverBenchmarkCorpus
 import viaduct.engine.runtime2.arbitrary.ResolverBenchmarkQueryCorpus
 import viaduct.engine.runtime2.contract.registeredResolverApplicationIdentityCounts
 import viaduct.engine.runtime2.contract.validateFromFieldBindings
-import viaduct.engine.runtime2.correctresolution.CorrectnessCheckerObserver
+import viaduct.engine.runtime2.correctresolution.CorrectnessResolverObserver
 import viaduct.engine.runtime2.correctresolution.correctResolution
 import viaduct.engine.runtime2.model.isParentField
 import viaduct.engine.runtime2.model.merge
+import viaduct.engine.runtime2.model.registry.CheckerInput
 import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.testing.fragmentFrom
 import viaduct.engine.runtime2.resolution.ResolutionDispatcherResource
 import viaduct.engine.runtime2.resolution.framework.CheckerInvocationObservation
-import viaduct.engine.runtime2.resolution.framework.CheckerObserver
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 import viaduct.engine.runtime2.resolution.framework.instantiateBindings
 import viaduct.engine.runtime2.resolvers.instantiateBindings
@@ -40,8 +41,8 @@ class ResolverBenchmarkCoverageTest : ResolutionDispatcherResource {
         val world = fixture.world(PrecomputedResolverOutputs())
         ResolverBenchmarkFeaturePartition.selections.forEach { selection ->
             corpus.registry.clearResolutionWitness()
-            val observer = corpus.registry.resolverObserver()
-            val operation = SharedOperationContext.create(world.newAssumptions(), resolverObserver = observer, checkerObserver = CorrectnessCheckerObserver())
+            val observer = corpus.registry.resolutionObserver()
+            val operation = SharedOperationContext.create(world.newAssumptions(), resolutionObserver = observer)
             val selections = world.schemas.fragmentFrom("fragment Result on Query { $selection }").subselections
             val result = operation.resolveWithTestDispatcher(selections)
             assertTrue(result.correctResolution(operation, selections.merge(world.schema.requireQueryTypeDef()).instantiateBindings(operation)), selection)
@@ -60,8 +61,8 @@ class ResolverBenchmarkCoverageTest : ResolutionDispatcherResource {
         val coverage = ResolverBenchmarkCoverage()
         assertFailsWith<IllegalStateException> { coverage.assertComplete() }
         repeat(3) {
-            val observer = corpus.registry.resolverObserver()
-            val operation = SharedOperationContext.create(world.newAssumptions(), resolverObserver = observer, checkerObserver = CorrectnessCheckerObserver())
+            val observer = corpus.registry.resolutionObserver()
+            val operation = SharedOperationContext.create(world.newAssumptions(), resolutionObserver = observer)
             val selections = world.schemas.fragmentFrom("fragment Result on Query { ${ResolverBenchmarkFeaturePartition.selections.first()} }").subselections
             coverage.record(0, operation, operation.resolveWithTestDispatcher(selections), emptyList())
         }
@@ -115,10 +116,15 @@ class ResolverBenchmarkCoverageTest : ResolutionDispatcherResource {
             val world = fixture.world(discovery.prepared())
             val coverage = ResolverBenchmarkCoverage()
             sources.forEachIndexed { index, source ->
-                val applications = java.util.concurrent.CopyOnWriteArrayList<CheckerInvocationObservation>()
-                val observer = corpus.registry.resolverObserver()
+                val applications = CopyOnWriteArrayList<CheckerInvocationObservation>()
+                val observer = object : CorrectnessResolverObserver(corpus.registry.resolutionObserver()) {
+                    override val onCheckerInvocation: (CheckerInvocationObservation, Map<String, CheckerInput>) -> Unit = { observation, inputs ->
+                        super.onCheckerInvocation(observation, inputs)
+                        applications += observation
+                    }
+                }
                 corpus.registry.clearResolutionWitness()
-                val operation = SharedOperationContext.create(world.newAssumptions(), resolverObserver = observer, checkerObserver = CorrectnessCheckerObserver(CheckerObserver { applications += it }))
+                val operation = SharedOperationContext.create(world.newAssumptions(), resolutionObserver = observer)
                 val selections = world.schemas.fragmentFrom(source).subselections
                 val result = operation.resolveWithTestDispatcher(selections)
                 result.validateFromFieldBindings(operation, observer.invokedResolverOccurrences())

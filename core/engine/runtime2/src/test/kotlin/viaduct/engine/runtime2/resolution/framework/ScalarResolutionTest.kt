@@ -145,7 +145,7 @@ class ScalarResolutionTest : ResolutionDispatcherResource {
                             )
                         },
                     )
-                    val operation = SharedOperationContext.create(world.assumptions, resolverObserver = observer)
+                    val operation = SharedOperationContext.create(world.assumptions, resolutionObserver = observer)
                     val selections = world.schemas.operationSelectionsFrom("{ value values reference }")
                     val result = subject.resolve(operation, selections)
                     val type = world.schema.requireObjectField("Query", "value").type.baseTypeDef as ViaductSchema.SimpleTypeDef

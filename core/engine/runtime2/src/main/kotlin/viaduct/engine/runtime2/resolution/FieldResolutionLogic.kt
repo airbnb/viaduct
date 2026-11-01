@@ -153,7 +153,7 @@ internal class FieldResolutionLogic(
                     arguments = reference.arguments,
                     invocationDemand = invocationDemand,
                 )
-            publication.operation.resolverObserver.onRootFieldReferenceInvocation(
+            publication.operation.resolutionObserver.onRootFieldReferenceInvocation?.invoke(
                 RootFieldReferenceInvocationObservation(
                     publicationRoot = publication.oerOccurrence.root,
                     publicationPath = sourceOccurrence.publicationPath,
@@ -162,7 +162,7 @@ internal class FieldResolutionLogic(
                     invocationPath = invocation.invocationPath,
                     invocationKey = invocation.selection.key,
                     suppliedDemand = invocationDemand,
-                ),
+                )
             )
         }
 
@@ -174,6 +174,7 @@ internal class FieldResolutionLogic(
 
         val passiveValue: EngineResult? =
             publication.operation.passiveValues.resolvePassiveValues(
+                creator = fieldResolverTask,
                 value = fieldValue,
                 root = publication.oerOccurrence.root,
                 expectedType = sourceOccurrence.publicationExpectedType,
@@ -279,7 +280,7 @@ internal class FieldResolutionLogic(
                     fieldResolverOccurrence.resolverOccurrenceId,
                 )
         val queryValue = materializeQueryFragment(fieldResolverOccurrence, queryMaterializationSelections)
-        publication.operation.resolverObserver.onResolverInvocation(
+        publication.operation.resolutionObserver.onResolverInvocation?.invoke(
             ResolverInvocationObservation(
                 occurrencePath = fieldResolverOccurrence.publicationPath,
                 field = selection.key.field,
@@ -290,7 +291,7 @@ internal class FieldResolutionLogic(
                 arguments = resolverArguments,
                 suppliedDemand = invocationDemand,
                 resolverOccurrenceId = fieldResolverOccurrence.resolverOccurrenceId,
-            ),
+            )
         )
 
         return fieldResolverOccurrence.resolver.invoke(
@@ -420,7 +421,7 @@ internal class FieldResolutionLogic(
                 .instantiateQueryMaterializationSelections(
                     fieldResolverOccurrence.resolverOccurrenceId,
                 ).guardedBy(fieldResolverOccurrence.selection.inclusionCondition)
-        publication.operation.resolverObserver.onResolverInvocation(
+        publication.operation.resolutionObserver.onResolverInvocation?.invoke(
             ResolverInvocationObservation(
                 occurrencePath = fieldResolverOccurrence.invocationPath,
                 field = fieldResolverOccurrence.selection.key.field,
@@ -431,7 +432,7 @@ internal class FieldResolutionLogic(
                 arguments = arguments,
                 suppliedDemand = invocationDemand,
                 resolverOccurrenceId = fieldResolverOccurrence.resolverOccurrenceId,
-            ),
+            )
         )
         return fieldResolverOccurrence.resolver(
             input = input,

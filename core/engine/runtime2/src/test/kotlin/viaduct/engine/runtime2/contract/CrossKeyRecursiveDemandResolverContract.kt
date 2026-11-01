@@ -11,7 +11,7 @@ interface CrossKeyRecursiveDemandResolverContract : ResolverContract {
     fun `does not copy recursive demand between different grounded keys`() {
         var childrenApplications = 0
         val invocationObserver = object : CorrectnessResolverObserver() {
-            override fun onResolverInvocation(observation: ResolverInvocationObservation) {
+            override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { observation ->
                 super.onResolverInvocation(observation)
                 val field = observation.field
                 if (field.containingDef.name == "Item" &&
@@ -53,7 +53,7 @@ interface CrossKeyRecursiveDemandResolverContract : ResolverContract {
                   }
                 }
             """.trimIndent(),
-            resolverObserver = invocationObserver,
+            resolutionObserver = invocationObserver,
         )
 
         assertEquals(4, childrenApplications)

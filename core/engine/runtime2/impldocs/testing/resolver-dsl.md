@@ -44,6 +44,7 @@ input NodeResult {
 
 directive @resolver(
   of: String
+  qf: String
   pathVars: [VariableDefinition!]! = []
   providerVars: JSON
   result: JSON
@@ -82,7 +83,7 @@ type Item {
 }
 ```
 
-Every variable used by `of` is defined exactly once:
+Every variable used by `of` or `qf` is defined exactly once, including names shared by both fragments:
 
 - A variable whose name matches an argument of the resolver field is inferred as `FromArgument`.
 - A name in `pathVars` is compiled as `FromObjectField`.
@@ -106,7 +107,7 @@ extend type Query {
 }
 ```
 
-Using `$seed` in a result expression reads the field argument directly and does not define a registry variable. Only a use inside `of` creates an inferred `FromArgument` definition.
+Using `$seed` in a result expression reads the field argument directly and does not define a registry variable. Only a use inside `of` or `qf` creates an inferred `FromArgument` definition.
 
 `pathVars.path` follows Runtime2's `FromObjectField` restrictions. In particular, an intermediate path component cannot cross a list. This restriction is unrelated to field paths in result expressions.
 
@@ -126,6 +127,31 @@ extend type Query {
 }
 ```
 
+## Query Fragments
+
+`qf` is an optional selection-set string relative to `Query`. An absent or empty `qf` denotes an empty Query fragment. Like `of`, it preserves response-key aliases, nested selections, inclusion conditions, and resolver-owned variable bindings. `pathVars` still reads paths from the object fragment, even when the variable is used only by the Query fragment. This extension does not add Query-field variable providers or general root-field-reference results.
+
+Use `query:` before a response-key path in a result expression to read the materialized Query input. Unqualified paths continue to read the object input, and `$name` reads a resolver argument. The prefix is separate from GraphQL names so an object field named `query` remains usable.
+
+```graphql
+extend type Query {
+  item: Item! @resolver(result: {local: 2})
+  source: Int! @resolver(result: 7)
+}
+
+type Item {
+  local: Int!
+  total(extra: Int!): Int!
+    @resolver(
+      of: "local"
+      qf: "remote: source"
+      result: "sum(local, query:remote, $extra)"
+    )
+}
+```
+
+Query paths have the same integer, null, error, and list traversal behavior as object paths. Result expressions still require the referenced response keys to be present; the DSL has no conditional-result expression for absent fields. Variables providers run before inputs are materialized and cannot read `query:` paths.
+
 ## Result Shapes
 
 Results are GraphQL literals accepted by Viaduct's JSON scalar: integers, strings, nulls, lists, and objects. They are interpreted against the resolver field's declared output type.
@@ -133,7 +159,7 @@ Results are GraphQL literals accepted by Viaduct's JSON scalar: integers, string
 - `null` is allowed at nullable positions.
 - `"ERROR"` produces `EngineErrorData` at any output position.
 - Integer leaves may be integer literals or expression strings.
-- Result objects may not supply fields that have their own `@resolver`.
+- Result objects may supply fields that have their own `@resolver`; those supplied values bypass the standard resolver.
 - Concrete object results may not supply `__typename`.
 - Non-Node interface and union results require `__typename` to select a concrete type.
 
@@ -145,7 +171,7 @@ sum(v1, v2, ..., vn)
 sumplus1(v1, v2, ..., vn)
 ```
 
-Each value is either `$argumentName` or a dot-separated path from the resolver's materialized `of` input. `value(v)` requires exactly one reachable integer, null, or error and returns it unchanged. It therefore preserves nulls and errors instead of treating null as zero.
+Each value is `$argumentName`, a dot-separated path from the resolver's materialized `of` input, or `query:` followed by a path from its materialized `qf` input. `value(v)` requires exactly one reachable integer, null, or error and returns it unchanged. It therefore preserves nulls and errors instead of treating null as zero.
 
 For the sum expressions, a path may cross lists; all reachable integer leaves contribute to the sum. Null objects, lists, and elements contribute zero. An error reached by any term makes the complete expression an error.
 
@@ -220,7 +246,7 @@ An unknown ID, an ID registered for an incompatible Node type, a duplicate globa
 
 ## Invocation Assertions
 
-Resolver execution observations belong to semantics, not the model DSL. Use `viaduct.engine.runtime2.contract.ResolverApplicationArguments` as the operation's `resolverObserver` (or pass it to `resolveAndValidate`) and assert its recorded argument tuples after resolution. Constructing or directly invoking a model fixture does not automatically record an application.
+Resolver execution observations belong to semantics, not the model DSL. Use `viaduct.engine.runtime2.contract.ResolverApplicationArguments` as the operation's `resolutionObserver` (or pass it to `resolveAndValidate`) and assert its recorded argument tuples after resolution. Constructing or directly invoking a model fixture does not automatically record an application.
 
 ## Counterexample Construction
 

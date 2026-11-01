@@ -23,6 +23,7 @@ import viaduct.engine.runtime2.model.VariableBinding
 import viaduct.engine.runtime2.model.emptyFragmentOf
 import viaduct.engine.runtime2.model.engineObjectDataOf
 import viaduct.engine.runtime2.model.merge
+import viaduct.engine.runtime2.model.registry.Assumptions
 import viaduct.engine.runtime2.model.registry.VariablesProviderFunction
 import viaduct.engine.runtime2.model.registry.fieldResolverOf
 import viaduct.engine.runtime2.model.registry.fromArgument
@@ -39,8 +40,8 @@ import viaduct.engine.runtime2.model.usedVariables
 import viaduct.engine.runtime2.resolution.framework.Demand
 import viaduct.engine.runtime2.resolution.framework.OEROccurrence
 import viaduct.engine.runtime2.resolution.framework.OrchestrationConstructionDemand
+import viaduct.engine.runtime2.resolution.framework.ResolutionObserver
 import viaduct.engine.runtime2.resolution.framework.ResolverInvocationObservation
-import viaduct.engine.runtime2.resolution.framework.ResolverObserver
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 import viaduct.engine.runtime2.resolvers.resolver06.SiblingDependencyLogic
 import viaduct.engine.runtime2.resolvers.resolver06.resolve
@@ -275,15 +276,15 @@ class ConstructionDemandClosureTest {
         val fixture = precomputedClosureFixture()
         for (precomputed in listOf(false, true)) {
             val calls = mutableListOf<ObjectEngineResult.GroundKey>()
-            val observer = object : ResolverObserver {
-                override fun onResolverInvocation(observation: ResolverInvocationObservation) {
+            val observer = object : ResolutionObserver {
+                override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { observation ->
                     calls += ObjectEngineResult.GroundKey.of(observation.field, observation.arguments)
                 }
             }
             val operation =
                 SharedOperationContext.create(
                     fixture.newAssumptions(usePrecomputedConstructionDemand = precomputed),
-                    resolverObserver = observer,
+                    resolutionObserver = observer,
                 )
             val result = operation.resolve(fixture.schemas.fragmentFrom("fragment F on Query { first second }").subselections)
 
@@ -432,12 +433,12 @@ class ConstructionDemandClosureTest {
             }
             assertTrue(providers.isEmpty())
             val world = fixture.newAssumptions(usePrecomputedConstructionDemand = precomputed)
-            val observer = object : ResolverObserver {
-                override fun onResolverInvocation(observation: ResolverInvocationObservation) {
+            val observer = object : ResolutionObserver {
+                override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { observation ->
                     calls += ObjectEngineResult.GroundKey.of(observation.field, observation.arguments)
                 }
             }
-            val result = SharedOperationContext.create(world, resolverObserver = observer)
+            val result = SharedOperationContext.create(world, resolutionObserver = observer)
                 .resolve(fixture.schemas.fragmentFrom("fragment F on Query { first: consumer(seed: 4) second: consumer(seed: 5) }").subselections)
 
             assertEquals(23, result.getCell(key(world, "Query", "consumer", mapOf("seed" to 4))).get())
@@ -454,12 +455,12 @@ class ConstructionDemandClosureTest {
             val calls = mutableListOf<String>()
             val fixture = mixedQueryClosureFixture { error("provider failed") }
             val world = fixture.newAssumptions(usePrecomputedConstructionDemand = precomputed)
-            val observer = object : ResolverObserver {
-                override fun onResolverInvocation(observation: ResolverInvocationObservation) {
+            val observer = object : ResolutionObserver {
+                override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { observation ->
                     calls += observation.field.name
                 }
             }
-            val result = SharedOperationContext.create(world, resolverObserver = observer)
+            val result = SharedOperationContext.create(world, resolutionObserver = observer)
                 .resolve(fixture.schemas.fragmentFrom("fragment F on Query { consumer(seed: 4) }").subselections)
 
             assertIs<ErrorEngineResult>(result.getCell(key(world, "Query", "consumer", mapOf("seed" to 4))).get())
@@ -508,13 +509,13 @@ class ConstructionDemandClosureTest {
                     middleQuery = "echo(value: ${'$'}value) fixed: echo(value: 11)",
                 )
             val world = fixture.newAssumptions(usePrecomputedConstructionDemand = precomputed)
-            val observer = object : ResolverObserver {
-                override fun onResolverInvocation(observation: ResolverInvocationObservation) {
+            val observer = object : ResolutionObserver {
+                override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { observation ->
                     if (observation.field.name == "echo") echoCalls += observation.arguments.fieldValues.getValue("value") as Int
                 }
             }
             val result =
-                SharedOperationContext.create(world, resolverObserver = observer)
+                SharedOperationContext.create(world, resolutionObserver = observer)
                     .resolve(fixture.schemas.fragmentFrom("fragment F on Query { consumer(seed: 4) echo(value: 8) }").subselections)
 
             assertIs<ErrorEngineResult>(result.getCell(key(world, "Query", "consumer", mapOf("seed" to 4))).get())
@@ -656,7 +657,7 @@ class ConstructionDemandClosureTest {
             val root = closed.queryRooted.unchecked.byGroundKey().values.single()
             assertEquals(
                 setOf("child", "lifted"),
-                root.subselections.merge(schema.requireObjectField("Query", "root").type.baseTypeDef as viaduct.graphql.schema.ViaductSchema.Object).fieldNames(),
+                root.subselections.merge(schema.requireObjectField("Query", "root").type.baseTypeDef as ViaductSchema.Object).fieldNames(),
             )
         }
     }
@@ -859,7 +860,7 @@ class ConstructionDemandClosureTest {
     }
 
     private fun key(
-        world: viaduct.engine.runtime2.model.registry.Assumptions,
+        world: Assumptions,
         type: String,
         name: String,
         arguments: Map<String, Any?> = emptyMap(),

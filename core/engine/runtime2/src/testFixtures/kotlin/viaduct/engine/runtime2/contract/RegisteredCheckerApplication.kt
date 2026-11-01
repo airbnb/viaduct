@@ -5,7 +5,6 @@ package viaduct.engine.runtime2.contract
 import java.util.Collections
 import java.util.IdentityHashMap
 import kotlinx.coroutines.runBlocking
-import viaduct.engine.runtime2.correctresolution.CorrectnessCheckerObserver
 import viaduct.engine.runtime2.correctresolution.CorrectnessResolverObserver
 import viaduct.engine.runtime2.model.Arguments
 import viaduct.engine.runtime2.model.EngineResult
@@ -31,14 +30,14 @@ fun EngineResult?.registeredCheckerApplications(operation: SharedOperationContex
         buildList {
             add(primaryRoot)
             addAll(
-                (operation.resolverObserver as CorrectnessResolverObserver)
+                (operation.resolutionObserver as CorrectnessResolverObserver)
                     .allQueryFragmentResults()
                     .values
                     .flatten(),
             )
             addAll(
-                (operation.checkerObserver as CorrectnessCheckerObserver)
-                    .allQueryFragmentResults()
+                (operation.resolutionObserver as CorrectnessResolverObserver)
+                    .allCheckerQueryFragmentResults()
                     .values
                     .flatten(),
             )

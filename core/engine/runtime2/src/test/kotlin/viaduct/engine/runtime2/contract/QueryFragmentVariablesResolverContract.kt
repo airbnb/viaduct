@@ -11,6 +11,7 @@ import kotlinx.coroutines.delay
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.runtime2.correctresolution.CorrectnessResolverObserver
 import viaduct.engine.runtime2.model.Arguments
+import viaduct.engine.runtime2.model.EngineResult
 import viaduct.engine.runtime2.model.ErrorEngineResult
 import viaduct.engine.runtime2.model.ListEngineResult
 import viaduct.engine.runtime2.model.ObjectEngineResult
@@ -29,53 +30,81 @@ import viaduct.engine.runtime2.model.testing.objectOf
 
 interface QueryFragmentVariablesResolverContract : ResolverContract {
     @Test
-    fun `conditional-only Query inputs retain transitive demand with argument and provider conditions`() {
-        for (fromProvider in listOf(false, true)) {
-            for (directive in listOf("include", "skip")) {
-                val fixture = TestWorld.fromSDL(
-                    selectiveResolvers = selectiveResolvers,
-                    schemaSDL = "type Query { consumer(flag: Boolean!): Int middle: Int base: Int }",
-                    fieldResolvers = { schemas ->
-                        val schema = schemas.loweredSchema
-                        val consumer = fieldResolverOf(
-                            objectFragment = schema.emptyFragmentOf("Query"),
-                            queryFragment = schemas.fragmentFrom("fragment Input on Query { value: middle @$directive(if: ${'$'}flag) }"),
-                        ) { _, query, arguments ->
-                            val included = (arguments.fieldValues.getValue("flag") as Boolean) == (directive == "include")
-                            val values = query.selectionValues()
-                            assertEquals(if (included) setOf("value") else emptySet(), values.keys)
-                            if (included) values.getValue("value") else 0
-                        }
-                        mapOf(
-                            schema.requireObjectField("Query", "consumer") to if (fromProvider) {
-                                consumer.withVariablesProvider(setOf("flag")) { arguments -> mapOf("flag" to arguments.fieldValues.getValue("flag")) }
-                            } else {
-                                consumer
-                            },
-                            schema.requireObjectField("Query", "middle") to fieldResolverOf(
-                                objectFragment = schema.emptyFragmentOf("Query"),
-                                queryFragment = schemas.fragmentFrom("fragment Input on Query { base }"),
-                            ) { _, query, _ -> query.selectionValues().getValue("base") },
-                            schema.requireObjectField("Query", "base") to fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> 7 },
-                        )
-                    },
-                    variableProviders = { schemas ->
-                        val consumer = schemas.loweredSchema.requireObjectField("Query", "consumer")
-                        if (fromProvider) emptyMap() else mapOf(Arguments.Variable.of(consumer, "flag") to schemas.loweredSchema.fromArgument(consumer, "flag"))
-                    },
-                )
+    fun `conditional-only Query inputs retain transitive demand with argument include conditions`() {
+        val fixture = conditionalQueryWorld(fromProvider = false, directive = "include")
 
-                val result = resolveAndValidate(fixture, "{ yes: consumer(flag: true) no: consumer(flag: false) }")
+        val result = resolveAndValidate(fixture, "{ yes: consumer(flag: true) no: consumer(flag: false) }")
 
-                for (flag in listOf(false, true)) {
-                    assertEquals(
-                        if (flag == (directive == "include")) 7 else 0,
-                        result.getCell(fixture.schema.contractKey("Query", "consumer", mapOf("flag" to flag))).get(),
-                        "fromProvider=$fromProvider directive=$directive flag=$flag",
-                    )
+        assertEquals(7, result.getCell(fixture.schema.contractKey("Query", "consumer", mapOf("flag" to true))).get())
+        assertEquals(0, result.getCell(fixture.schema.contractKey("Query", "consumer", mapOf("flag" to false))).get())
+    }
+
+    @Test
+    fun `conditional-only Query inputs retain transitive demand with argument skip conditions`() {
+        val fixture = conditionalQueryWorld(fromProvider = false, directive = "skip")
+
+        val result = resolveAndValidate(fixture, "{ yes: consumer(flag: true) no: consumer(flag: false) }")
+
+        assertEquals(0, result.getCell(fixture.schema.contractKey("Query", "consumer", mapOf("flag" to true))).get())
+        assertEquals(7, result.getCell(fixture.schema.contractKey("Query", "consumer", mapOf("flag" to false))).get())
+    }
+
+    @Test
+    fun `conditional-only Query inputs retain transitive demand with provider include conditions`() {
+        val fixture = conditionalQueryWorld(fromProvider = true, directive = "include")
+
+        val result = resolveAndValidate(fixture, "{ yes: consumer(flag: true) no: consumer(flag: false) }")
+
+        assertEquals(7, result.getCell(fixture.schema.contractKey("Query", "consumer", mapOf("flag" to true))).get())
+        assertEquals(0, result.getCell(fixture.schema.contractKey("Query", "consumer", mapOf("flag" to false))).get())
+    }
+
+    @Test
+    fun `conditional-only Query inputs retain transitive demand with provider skip conditions`() {
+        val fixture = conditionalQueryWorld(fromProvider = true, directive = "skip")
+
+        val result = resolveAndValidate(fixture, "{ yes: consumer(flag: true) no: consumer(flag: false) }")
+
+        assertEquals(0, result.getCell(fixture.schema.contractKey("Query", "consumer", mapOf("flag" to true))).get())
+        assertEquals(7, result.getCell(fixture.schema.contractKey("Query", "consumer", mapOf("flag" to false))).get())
+    }
+
+    private fun conditionalQueryWorld(
+        fromProvider: Boolean,
+        directive: String,
+    ): TestWorld {
+        return TestWorld.fromSDL(
+            selectiveResolvers = selectiveResolvers,
+            schemaSDL = "type Query { consumer(flag: Boolean!): Int middle: Int base: Int }",
+            fieldResolvers = { schemas ->
+                val schema = schemas.loweredSchema
+                val consumer = fieldResolverOf(
+                    objectFragment = schema.emptyFragmentOf("Query"),
+                    queryFragment = schemas.fragmentFrom("fragment Input on Query { value: middle @$directive(if: ${'$'}flag) }"),
+                ) { _, query, arguments ->
+                    val included = (arguments.fieldValues.getValue("flag") as Boolean) == (directive == "include")
+                    val values = query.selectionValues()
+                    assertEquals(if (included) setOf("value") else emptySet(), values.keys)
+                    if (included) values.getValue("value") else 0
                 }
-            }
-        }
+                mapOf(
+                    schema.requireObjectField("Query", "consumer") to if (fromProvider) {
+                        consumer.withVariablesProvider(setOf("flag")) { arguments -> mapOf("flag" to arguments.fieldValues.getValue("flag")) }
+                    } else {
+                        consumer
+                    },
+                    schema.requireObjectField("Query", "middle") to fieldResolverOf(
+                        objectFragment = schema.emptyFragmentOf("Query"),
+                        queryFragment = schemas.fragmentFrom("fragment Input on Query { base }"),
+                    ) { _, query, _ -> query.selectionValues().getValue("base") },
+                    schema.requireObjectField("Query", "base") to fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> 7 },
+                )
+            },
+            variableProviders = { schemas ->
+                val consumer = schemas.loweredSchema.requireObjectField("Query", "consumer")
+                if (fromProvider) emptyMap() else mapOf(Arguments.Variable.of(consumer, "flag") to schemas.loweredSchema.fromArgument(consumer, "flag"))
+            },
+        )
     }
 
     @Test
@@ -294,66 +323,126 @@ interface QueryFragmentVariablesResolverContract : ResolverContract {
 
     @Test
     fun `Query provider values may be null`() {
-        val fixture = queryVariablesWorld { mapOf("value" to null) }
+        val fixture = TestWorld.fromDSL(
+            selectiveResolvers = selectiveResolvers,
+            schemaSDL = """
+                extend type Query {
+                  consumer(seed: Int!): Int
+                    @resolver(
+                      qf: "middle(value: ${'$'}value)"
+                      providerVars: {value: null}
+                      result: "value(query:middle)"
+                    )
+                  middle(value: Int): Int
+                    @resolver(qf: "echo(value: ${'$'}value)", result: "value(query:echo)")
+                  echo(value: Int): Int @resolver(result: "value(${'$'}value)")
+                }
+            """.trimIndent(),
+        )
         val result = resolveAndValidate(fixture, "{ consumer(seed: 4) }")
 
         assertNull(result.getCell(fixture.schema.contractKey("Query", "consumer", mapOf("seed" to 4))).get())
     }
 
     @Test
-    fun `failed and invalid Query providers isolate their owning field and complete bindings`() {
-        val providers: List<VariablesProviderFunction> =
-            listOf(
-                { error("provider failed") },
-                { throw CancellationException("local provider cancellation") },
-                { emptyMap() },
-                { mapOf("value" to 3, "extra" to 1) },
-            )
-        providers.forEach { provider ->
-            val fixture = queryVariablesWorld(provider)
-            val resolution = resolveAndValidateObserved(fixture, "{ consumer(seed: 4) echo(value: 7) }")
+    fun `failing Query provider isolates its owning field and completes bindings`() {
+        val resolution = resolveFailedQueryProvider { error("provider failed") }
 
-            assertIs<ErrorEngineResult>(resolution.result.getCell(fixture.schema.contractKey("Query", "consumer", mapOf("seed" to 4))).get())
-            assertEquals(7, resolution.result.getCell(fixture.schema.contractKey("Query", "echo", mapOf("value" to 7))).get())
-            val definitions = fixture.resolverRegistry.resolver(fixture.schema.requireObjectField("Query", "consumer"))
-                .instantiatedVariableDefinitions(
-                    ResolverOccurrenceId.at(
-                        resolution.result,
-                        listOf(fixture.schema.contractKey("Query", "consumer", mapOf("seed" to 4))),
-                    ),
-                )
-            assertEquals(
-                VariableBinding.Error,
-                resolution.operation.variableBindings.getBinding(requireNotNull(definitions.single().variable.instanceId)),
-            )
-        }
+        assertIs<ErrorEngineResult>(resolution.value)
+        assertEquals(7, resolution.echo)
+        assertEquals(VariableBinding.Error, resolution.binding)
     }
 
     @Test
-    fun `failed and invalid reference target providers retain replayable hop evidence`() {
-        val providers: List<VariablesProviderFunction> =
-            listOf(
-                { error("provider failed") },
-                { throw CancellationException("local provider cancellation") },
-                { emptyMap() },
-                { mapOf("value" to 3, "extra" to 1) },
-            )
-        providers.forEach { provider ->
-            val fixture = queryVariablesWorld(provider)
-            val resolution = resolveAndValidateObserved(fixture, "{ reference(seed: 4) echo(value: 7) }")
+    fun `cancelled Query provider isolates its owning field and completes bindings`() {
+        val resolution = resolveFailedQueryProvider { throw CancellationException("local provider cancellation") }
 
-            assertIs<ErrorEngineResult>(resolution.result.getCell(fixture.schema.contractKey("Query", "reference", mapOf("seed" to 4))).get())
-            assertEquals(7, resolution.result.getCell(fixture.schema.contractKey("Query", "echo", mapOf("value" to 7))).get())
-            val observer = assertIs<CorrectnessResolverObserver>(resolution.operation.resolverObserver)
+        assertIs<ErrorEngineResult>(resolution.value)
+        assertEquals(7, resolution.echo)
+        assertEquals(VariableBinding.Error, resolution.binding)
+    }
+
+    @Test
+    fun `missing-value Query provider isolates its owning field and completes bindings`() {
+        val resolution = resolveFailedQueryProvider { emptyMap() }
+
+        assertIs<ErrorEngineResult>(resolution.value)
+        assertEquals(7, resolution.echo)
+        assertEquals(VariableBinding.Error, resolution.binding)
+    }
+
+    @Test
+    fun `extra-value Query provider isolates its owning field and completes bindings`() {
+        val resolution = resolveFailedQueryProvider { mapOf("value" to 3, "extra" to 1) }
+
+        assertIs<ErrorEngineResult>(resolution.value)
+        assertEquals(7, resolution.echo)
+        assertEquals(VariableBinding.Error, resolution.binding)
+    }
+
+    @Test
+    fun `failing reference target provider retains replayable hop evidence`() {
+        val resolution = resolveFailedQueryProvider(referenceTarget = true) { error("provider failed") }
+
+        assertIs<ErrorEngineResult>(resolution.value)
+        assertEquals(7, resolution.echo)
+        assertEquals(VariableBinding.Error, resolution.binding)
+        assertFalse(resolution.targetInvoked)
+    }
+
+    @Test
+    fun `cancelled reference target provider retains replayable hop evidence`() {
+        val resolution = resolveFailedQueryProvider(referenceTarget = true) { throw CancellationException("local provider cancellation") }
+
+        assertIs<ErrorEngineResult>(resolution.value)
+        assertEquals(7, resolution.echo)
+        assertEquals(VariableBinding.Error, resolution.binding)
+        assertFalse(resolution.targetInvoked)
+    }
+
+    @Test
+    fun `missing-value reference target provider retains replayable hop evidence`() {
+        val resolution = resolveFailedQueryProvider(referenceTarget = true) { emptyMap() }
+
+        assertIs<ErrorEngineResult>(resolution.value)
+        assertEquals(7, resolution.echo)
+        assertEquals(VariableBinding.Error, resolution.binding)
+        assertFalse(resolution.targetInvoked)
+    }
+
+    @Test
+    fun `extra-value reference target provider retains replayable hop evidence`() {
+        val resolution = resolveFailedQueryProvider(referenceTarget = true) { mapOf("value" to 3, "extra" to 1) }
+
+        assertIs<ErrorEngineResult>(resolution.value)
+        assertEquals(7, resolution.echo)
+        assertEquals(VariableBinding.Error, resolution.binding)
+        assertFalse(resolution.targetInvoked)
+    }
+
+    private fun resolveFailedQueryProvider(
+        referenceTarget: Boolean = false,
+        provider: VariablesProviderFunction,
+    ): QueryProviderFailureResolution {
+        val fixture = queryVariablesWorld(provider)
+        val fieldName = if (referenceTarget) "reference" else "consumer"
+        val key = fixture.schema.contractKey("Query", fieldName, mapOf("seed" to 4))
+        val resolution = resolveAndValidateObserved(fixture, "{ $fieldName(seed: 4) echo(value: 7) }")
+        val observer = assertIs<CorrectnessResolverObserver>(resolution.operation.resolutionObserver)
+        val (targetField, occurrence) = if (referenceTarget) {
             val hop = observer.rootFieldReferenceInvocations().single()
-            val occurrence = ResolverOccurrenceId.at(hop.invocationRoot, hop.invocationPath)
-            val definitions = fixture.resolverRegistry.resolver(hop.invocationKey.field).instantiatedVariableDefinitions(occurrence)
-            assertEquals(
-                VariableBinding.Error,
-                resolution.operation.variableBindings.getBinding(requireNotNull(definitions.single().variable.instanceId)),
-            )
-            assertFalse(occurrence in observer.invokedResolverOccurrences())
+            hop.invocationKey.field to ResolverOccurrenceId.at(hop.invocationRoot, hop.invocationPath)
+        } else {
+            key.field to ResolverOccurrenceId.at(resolution.result, listOf(key))
         }
+        val definitions = fixture.resolverRegistry.resolver(targetField).instantiatedVariableDefinitions(occurrence)
+
+        return QueryProviderFailureResolution(
+            value = resolution.result.getCell(key).get(),
+            echo = resolution.result.getCell(fixture.schema.contractKey("Query", "echo", mapOf("value" to 7))).get(),
+            binding = resolution.operation.variableBindings.getBinding(requireNotNull(definitions.single().variable.instanceId)),
+            targetInvoked = occurrence in observer.invokedResolverOccurrences(),
+        )
     }
 
     @Test
@@ -374,23 +463,23 @@ interface QueryFragmentVariablesResolverContract : ResolverContract {
     @Test
     fun `passive fields do not invoke their standard resolver provider`() {
         val fixture =
-            TestWorld.fromSDL(
+            TestWorld.fromDSL(
                 selectiveResolvers = selectiveResolvers,
-                schemaSDL = "type Query { item: Item!, echo(value: Int): Int } type Item { computed: Int }",
-                fieldResolvers = { schemas ->
-                    val schema = schemas.loweredSchema
-                    mapOf(
-                        schema.requireObjectField("Query", "item") to fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
-                            schema.objectOf("Item") { "computed" setTo 42 }
-                        },
-                        schema.requireObjectField("Item", "computed") to
-                            fieldResolverOf(
-                                objectFragment = schema.emptyFragmentOf("Item"),
-                                queryFragment = schemas.fragmentFrom("fragment Input on Query { echo(value: ${'$'}value) }"),
-                            ) { _, _, _ -> error("passive resolver must not run") }
-                                .withVariablesProvider(setOf("value")) { error("passive provider must not run") },
-                    )
-                },
+                schemaSDL =
+                    """
+                    extend type Query {
+                      item: Item! @resolver(result: {computed: 42})
+                      echo(value: Int): Int
+                    }
+                    type Item {
+                      computed: Int
+                        @resolver(
+                          qf: "echo(value: ${'$'}value)"
+                          providerVars: {value: "ERROR"}
+                          result: "ERROR"
+                        )
+                    }
+                    """.trimIndent(),
             )
 
         val result = resolveAndValidate(fixture, "{ item { computed } }")
@@ -475,3 +564,10 @@ interface QueryFragmentVariablesResolverContract : ResolverContract {
             },
         )
 }
+
+private data class QueryProviderFailureResolution(
+    val value: EngineResult?,
+    val echo: EngineResult?,
+    val binding: VariableBinding,
+    val targetInvoked: Boolean,
+)

@@ -17,6 +17,7 @@ import viaduct.engine.runtime2.model.schemaType
 import viaduct.engine.runtime2.resolution.framework.Demand
 import viaduct.engine.runtime2.resolution.framework.OEROccurrence
 import viaduct.engine.runtime2.resolution.framework.OrchestrationConstructionDemand
+import viaduct.engine.runtime2.resolution.framework.ResolutionTask
 import viaduct.engine.runtime2.resolution.framework.SharedOERContext
 import viaduct.engine.runtime2.resolution.framework.SharedOrchestrationTask
 import viaduct.engine.runtime2.resolution.framework.descendants
@@ -43,28 +44,17 @@ class DepthFirstOrchestrationTask private constructor(
     override val queryOER: SharedOERContext,
     val closedConstructionDemand: OrchestrationConstructionDemand<ObjectSelectionForest>,
     override val queryOERDepth: Int,
+    override val creator: ResolutionTask?,
 ) : SharedOrchestrationTask<DepthFirstOperationContext>, DepthFirstTask {
     override val path get() = objectOER.occurrence.path
 
     /** Queues the associated Query OER before its owner-local containing OER. */
     fun run() {
-        operation.resolverObserver.onQueryOERPrepared(
-            queryOER = queryOER,
-            owningOccurrence = objectOER.occurrence,
-            queryOERDepth = queryOERDepth + 1,
-        )
+        operation.resolutionObserver.onQueryOERPrepared?.invoke(this, queryOERDepth + 1)
         listOf(objectOER, queryOER).forEach { resolverOER ->
             queryFragmentOwners(resolverOER).forEach { (resolverKey, owner) ->
-                operation.resolverObserver.onQueryFragmentPrepared(
-                    owner,
-                    queryOER.occurrence.target,
-                    objectOER.occurrence,
-                )
-                operation.resolverObserver.onQueryFragmentOwnerAddress(
-                    owner,
-                    resolverOER.occurrence,
-                    resolverKey,
-                )
+                operation.resolutionObserver.onQueryFragmentPrepared?.invoke(owner, queryOER.occurrence.target, objectOER.occurrence)
+                operation.resolutionObserver.onQueryFragmentOwnerAddress?.invoke(owner, resolverOER.occurrence, resolverKey)
             }
         }
         listOf(queryOER, objectOER).forEach { oer ->
@@ -113,6 +103,7 @@ class DepthFirstOrchestrationTask private constructor(
                 publication =
                     GroundedFieldPublicationOccurrence(
                         operation = operation,
+                        creator = this,
                         oerOccurrence = oerOccurrence,
                         selection = unresolved.getValue(key),
                         publicationCell = target.reserveCell(key),
@@ -166,6 +157,7 @@ class DepthFirstOrchestrationTask private constructor(
             source: EngineObjectData.Sync,
             constructionDemand: SelectionForest,
             queryOERDepth: Int,
+            creator: ResolutionTask? = null,
         ): DepthFirstOrchestrationTask =
             create(
                 operation,
@@ -173,6 +165,7 @@ class DepthFirstOrchestrationTask private constructor(
                 source,
                 Demand.checked(constructionDemand),
                 queryOERDepth,
+                creator,
             )
 
         /** Retains checked and unchecked descendant demand through passive object boundaries. */
@@ -182,6 +175,7 @@ class DepthFirstOrchestrationTask private constructor(
             source: EngineObjectData.Sync,
             constructionDemand: Demand<SelectionForest>,
             queryOERDepth: Int,
+            creator: ResolutionTask? = null,
         ): DepthFirstOrchestrationTask {
             require(queryOERDepth >= 0) { "Query-OER depth must be nonnegative" }
             require(source.schemaType(operation.world.schema) == occurrence.target.type) {
@@ -218,6 +212,7 @@ class DepthFirstOrchestrationTask private constructor(
                 queryOER = queryOER,
                 closedConstructionDemand = closedConstructionDemand,
                 queryOERDepth = queryOERDepth,
+                creator = creator,
             )
         }
     }

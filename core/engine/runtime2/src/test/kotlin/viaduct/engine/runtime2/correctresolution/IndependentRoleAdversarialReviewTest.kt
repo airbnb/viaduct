@@ -46,7 +46,7 @@ class IndependentRoleAdversarialReviewTest {
         val calls = AtomicInteger()
         val world = world(calls, references = false)
         val observer = RecordingObserver()
-        val operation = SharedOperationContext.create(world.assumptions, resolverObserver = observer)
+        val operation = SharedOperationContext.create(world.assumptions, resolutionObserver = observer)
         val selections = world.schemas.fragmentFrom("fragment Result on Query { left right }").subselections
         val result = operation.resolve(selections)
         assertEquals(1, calls.get())
@@ -61,7 +61,7 @@ class IndependentRoleAdversarialReviewTest {
         val calls = AtomicInteger()
         val world = world(calls, references = true)
         val observer = RecordingObserver()
-        val operation = SharedOperationContext.create(world.assumptions, resolverObserver = observer)
+        val operation = SharedOperationContext.create(world.assumptions, resolutionObserver = observer)
         val selections = world.schemas.fragmentFrom("fragment Result on Query { left right }").subselections
         val result = operation.resolve(selections)
         assertEquals(2, calls.get())
@@ -76,7 +76,7 @@ class IndependentRoleAdversarialReviewTest {
         val calls = AtomicInteger()
         val world = world(calls, references = false)
         val observer = RecordingObserver()
-        val operation = SharedOperationContext.create(world.assumptions, resolverObserver = observer)
+        val operation = SharedOperationContext.create(world.assumptions, resolutionObserver = observer)
         val queryType = world.schema.requireQueryTypeDef()
         val result = ObjectEngineResult.of(queryType, mutable = true)
 
@@ -84,12 +84,13 @@ class IndependentRoleAdversarialReviewTest {
         // final runtime retains for references. The helper itself emits all of its real events;
         // this test neither relabels captured events nor fabricates source invocations.
         val unusedAssociatedRoot = ObjectEngineResult.of(queryType)
-        observer.onQueryOERPrepared(
+        observer.recordQueryOERPrepared(
             SharedOERContext(
                 OEROccurrence(unusedAssociatedRoot, emptyList(), unusedAssociatedRoot),
                 engineObjectDataOf(queryType),
                 selectionForestOf().merge(queryType),
             ),
+            null,
             1
         )
         listOf("left", "right").forEach { name ->
@@ -193,7 +194,7 @@ class IndependentRoleAdversarialReviewTest {
     private class RecordingObserver : CorrectnessResolverObserver() {
         val log = BoundedRecorder<ResolverOccurrenceApplicationRecord>()
 
-        override fun onResolverInvocation(observation: ResolverInvocationObservation) {
+        override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { observation ->
             super.onResolverInvocation(observation)
             log.record(
                 ResolverOccurrenceApplicationRecord.capture(

@@ -118,7 +118,7 @@ class CheckerProviderCorrectResolutionTest {
             query,
             values = fragments.queryFragment.constructionSelections.merge(query).byKey().keys.associateWith { 1 },
         )
-        val observer = CorrectnessCheckerObserver().apply {
+        val observer = CorrectnessResolverObserver().apply {
             onCheckerQueryFragmentPrepared(checker.target, ResolverOccurrenceId.at(root, path), associatedQuery)
         }
 
@@ -134,7 +134,7 @@ class CheckerProviderCorrectResolutionTest {
                 }
                 bindings.bindVariable(definition.variable.instanceId!!, VariableBinding.of(bindingValue))
             }
-            val operation = SharedOperationContext.create(world, variableBindings = bindings, checkerObserver = observer)
+            val operation = SharedOperationContext.create(world, variableBindings = bindings, resolutionObserver = observer)
             val selections = worldFixture.schemas.operationSelectionsFrom("{ value(id: 7) }").merge(query)
             return root.correctResolution(operation, selections)
         }

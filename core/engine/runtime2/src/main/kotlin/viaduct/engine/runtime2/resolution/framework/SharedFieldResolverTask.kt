@@ -13,6 +13,8 @@ package viaduct.engine.runtime2.resolution.framework
  * No caller currently consumes this interface polymorphically; enforcing this common structure is intentional.
  * Retain it for that architectural role even without shared execution callers.
  */
-internal interface SharedFieldResolverTask<out P : SharedFieldPublicationOccurrence<*, *>> {
+internal interface SharedFieldResolverTask<out P : SharedFieldPublicationOccurrence<*, *>> : ResolutionTask {
     val publication: P
+
+    override val creator: ResolutionTask? get() = publication.creator
 }

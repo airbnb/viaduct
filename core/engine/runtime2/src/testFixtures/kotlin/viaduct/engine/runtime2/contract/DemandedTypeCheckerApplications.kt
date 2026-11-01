@@ -2,7 +2,6 @@ package viaduct.engine.runtime2.contract
 
 import java.util.IdentityHashMap
 import viaduct.engine.api.EngineObjectData
-import viaduct.engine.runtime2.correctresolution.CorrectnessCheckerObserver
 import viaduct.engine.runtime2.correctresolution.CorrectnessResolverObserver
 import viaduct.engine.runtime2.correctresolution.QueryOERValidationState
 import viaduct.engine.runtime2.correctresolution.ResolverApplicationCache
@@ -50,9 +49,8 @@ private class TypeCheckerDemandOracle(
     private val primary: ObjectEngineResult,
 ) {
     private val registry = operation.world.resolverRegistry
-    private val resolverObserver = operation.resolverObserver as CorrectnessResolverObserver
-    private val checkerObserver = operation.checkerObserver as CorrectnessCheckerObserver
-    private val references = resolverObserver.rootFieldReferenceInvocations()
+    private val resolutionObserver = operation.resolutionObserver as CorrectnessResolverObserver
+    private val references = resolutionObserver.rootFieldReferenceInvocations()
     private val addresses = IdentityHashMap<ObjectEngineResult, CheckedObjectAddress>()
     private val queryValidation = QueryOERValidationState()
     private val referenceWitness = operation.rootFieldReferenceWitness(primary)
@@ -62,8 +60,8 @@ private class TypeCheckerDemandOracle(
     private val expected = linkedSetOf<CheckerInvocationObservation>()
 
     fun expected(selections: SelectionForest): Set<CheckerInvocationObservation> {
-        val roots = listOf(primary) + resolverObserver.allQueryOERs().keys + resolverObserver.allQueryFragmentResults().values.flatten() +
-            checkerObserver.allQueryFragmentResults().values.flatten()
+        val roots = listOf(primary) + resolutionObserver.allQueryOERs().keys + resolutionObserver.allQueryFragmentResults().values.flatten() +
+            resolutionObserver.allCheckerQueryFragmentResults().values.flatten()
         roots.forEach { root -> index(root, root, emptyList()) { registry.createRootQueryInput() } }
         demand(primary, selections, checked = true)
         return expected
@@ -186,7 +184,7 @@ private class TypeCheckerDemandOracle(
         val fragments = registry.resolver(key.field).instantiateFragmentsAt(owner.root, path)
         demand(owner.result, fragments.objectFragment.constructionSelections, checked = true, checkObject = false)
         if (!fragments.queryFragment.constructionSelections.isEmpty()) {
-            val query = resolverObserver.queryFragmentResults(id).single()
+            val query = resolutionObserver.queryFragmentResults(id).single()
             demand(query, fragments.queryFragment.constructionSelections, checked = true, checkObject = reference)
         }
     }
@@ -201,7 +199,7 @@ private class TypeCheckerDemandOracle(
         if (!checkerInputs.add(target to id)) return
         demand(owner.result, fragments.objectFragment.constructionSelections, checked = false)
         if (!fragments.queryFragment.constructionSelections.isEmpty()) {
-            val query = resolverObserver.associatedQueryResult(owner.result) ?: checkerObserver.queryFragmentResults(target, id).single()
+            val query = resolutionObserver.associatedQueryResult(owner.result) ?: resolutionObserver.queryFragmentResults(target, id).single()
             demand(query, fragments.queryFragment.constructionSelections, checked = false)
         }
     }

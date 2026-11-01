@@ -169,12 +169,12 @@ class ReferenceQueryTypeCheckerCorrectResolutionTest {
                     invocationPath = listOf(target),
                     invocationKey = target,
                     suppliedDemand = selectionForestOf(),
-                ),
+                )
             )
         } else {
             observer.onQueryFragmentPrepared(ResolverOccurrenceId.at(root, listOf(selected)), nested, OEROccurrence(root, emptyList(), root))
         }
-        val operation = SharedOperationContext.create(world, resolverObserver = observer)
+        val operation = SharedOperationContext.create(world, resolutionObserver = observer)
         return root.correctResolution(operation, worldFixture.schemas.operationSelectionsFrom("{ ${selected.field.name} }").merge(query))
     }
 }

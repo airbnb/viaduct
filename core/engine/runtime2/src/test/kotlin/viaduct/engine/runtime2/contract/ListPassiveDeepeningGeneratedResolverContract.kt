@@ -30,22 +30,23 @@ interface ListPassiveDeepeningGeneratedResolverContract : ResolverContract {
                 checkResolverTestSuite(ResolverTestSuiteDefinition.LIST_PASSIVE_DEEPENING) { testWorld, testCase ->
                     val registry = testCase.registry
                     val world = testWorld.newAssumptions(selectiveResolvers)
-                    val operation =
-                        SharedOperationContext.create(world, resolverObserver = registry.resolverObserver())
                     val fragment = testWorld.schemas.fragmentFrom(testCase.query.source)
                     listDeepeningCases +=
                         countListPassiveDeepening(
-                            operation,
+                            SharedOperationContext.create(world),
                             fragment.subselections,
                             world.schema.requireQueryTypeDef(),
                         )
                     registry.clearResolutionWitness()
-                    val result =
-                        resolve(
-                            operation = operation,
+                    val observation =
+                        observeResolution(
+                            world = world,
                             root = world.objectOf("Query"),
                             selections = fragment.subselections,
+                            resolutionObserver = registry.resolutionObserver(),
                         )
+                    val result = observation.result
+                    val operation = observation.operation
                     val witness = registry.resolutionWitness()
 
                     assertEquals(

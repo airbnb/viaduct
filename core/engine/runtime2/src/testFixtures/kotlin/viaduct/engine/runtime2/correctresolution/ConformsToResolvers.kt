@@ -145,7 +145,7 @@ private class ResolverConformanceLogic(
             resolver.instantiateFragmentsAt(resolverApplicationCache.root, path).queryFragment
         if (queryFragment.constructionSelections.isEmpty()) return true
         val queryResults =
-            (operation.resolverObserver as? CorrectnessResolverObserver)
+            (operation.resolutionObserver as? CorrectnessResolverObserver)
                 ?.queryFragmentResults(
                     ResolverOccurrenceId.at(resolverApplicationCache.root, path),
                 ).orEmpty()

@@ -2,6 +2,7 @@
 
 package viaduct.engine.runtime2.resolution
 
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -14,14 +15,18 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.runBlocking
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.CsvSource
 import viaduct.engine.api.CheckerResult
 import viaduct.engine.runtime2.model.Arguments
 import viaduct.engine.runtime2.model.InclusionCondition
 import viaduct.engine.runtime2.model.ListEngineResult
 import viaduct.engine.runtime2.model.ObjectEngineResult
+import viaduct.engine.runtime2.model.ResolverOccurrenceId
 import viaduct.engine.runtime2.model.RootFieldReferenceData
 import viaduct.engine.runtime2.model.Selection
 import viaduct.engine.runtime2.model.emptyFragmentOf
+import viaduct.engine.runtime2.model.engineObjectDataOf
 import viaduct.engine.runtime2.model.merge
 import viaduct.engine.runtime2.model.registry.FieldCheckerResolver
 import viaduct.engine.runtime2.model.registry.fieldResolverOf
@@ -36,11 +41,111 @@ import viaduct.engine.runtime2.model.testing.objectOf
 import viaduct.engine.runtime2.resolution.framework.Demand
 import viaduct.engine.runtime2.resolution.framework.OEROccurrence
 import viaduct.engine.runtime2.resolution.framework.OrchestrationConstructionDemand
+import viaduct.engine.runtime2.resolution.framework.ResolutionObserver
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
+import viaduct.engine.runtime2.resolution.framework.SharedOrchestrationTask
 import viaduct.engine.runtime2.schema.operationSelectionsFrom
 import viaduct.graphql.schema.ViaductSchema
 
 class OrchestrationTaskTest : ResolutionDispatcherResource {
+    @ParameterizedTest
+    @CsvSource("false, false", "true, false", "false, true", "true, true")
+    fun `Query fragment subscriptions are checked once and independently during preparation`(
+        observeFragments: Boolean,
+        observeAddresses: Boolean,
+    ) = runBlocking {
+        var queryOERs = 0
+        var fragmentSubscriptions = 0
+        var addressSubscriptions = 0
+        var fragments = 0
+        var addresses = 0
+        val observer = object : ResolutionObserver {
+            override val onQueryOERPrepared: (SharedOrchestrationTask<*>, Int?) -> Unit = { _, _ -> queryOERs++ }
+            override val onQueryFragmentPrepared: ((ResolverOccurrenceId, ObjectEngineResult, OEROccurrence?) -> Unit)?
+                get() {
+                    fragmentSubscriptions++
+                    return if (observeFragments) {
+                        { _, _, _ -> fragments++ }
+                    } else {
+                        null
+                    }
+                }
+            override val onQueryFragmentOwnerAddress: ((ResolverOccurrenceId, OEROccurrence, ObjectEngineResult.ObjectKey) -> Unit)?
+                get() {
+                    addressSubscriptions++
+                    return if (observeAddresses) {
+                        { _, _, _ -> addresses++ }
+                    } else {
+                        null
+                    }
+                }
+        }
+        val fixture = TestWorld.fromSDL(
+            "type Query { first: Int second: Int dependency: Int }",
+            fieldResolvers = { schema ->
+                val empty = schema.loweredSchema.emptyFragmentOf("Query")
+                val query = schema.fragmentFrom("fragment Input on Query { dependency }")
+                listOf("first", "second").associate { name ->
+                    schema.loweredSchema.requireObjectField("Query", name) to fieldResolverOf(empty, query) { _, _, _ ->
+                        error("Preparation must not invoke resolvers")
+                    }
+                }
+            },
+        )
+        val world = fixture.assumptions
+        val operation = OperationContext.create(SharedOperationContext.create(world, resolutionObserver = observer), this)
+        val root = ObjectEngineResult.of(world.schema.requireQueryTypeDef(), mutable = true)
+
+        OrchestrationTask.create(
+            operation,
+            OEROccurrence(root, emptyList(), root),
+            world.resolverRegistry.createRootQueryInput(),
+            fixture.schemas.operationSelectionsFrom("{ first second }"),
+        )
+
+        assertEquals(1, queryOERs)
+        assertEquals(1, fragmentSubscriptions)
+        assertEquals(1, addressSubscriptions)
+        assertEquals(if (observeFragments) 2 else 0, fragments)
+        assertEquals(if (observeAddresses) 2 else 0, addresses)
+    }
+
+    @Test
+    fun `passive object orchestrations retain the producing field as creator without observations`() {
+        val tasks = ConcurrentHashMap<List<String>, FieldResolverTask>()
+        val fixture = TestWorld.fromSDL(
+            "type Query { item: Item } type Item { child: Item value: Int }",
+            fieldResolvers = { schemas ->
+                val schema = schemas.loweredSchema
+                val itemType = schema.requireType("Item") as ViaductSchema.Object
+                mapOf(
+                    schema.requireObjectField("Query", "item") to fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _, ctx ->
+                        tasks[emptyList()] = assertIs<FieldResolverTask>(ctx)
+                        engineObjectDataOf(itemType, mapOf("child" to engineObjectDataOf(itemType)))
+                    },
+                    schema.requireObjectField("Item", "value") to fieldResolverOf(schema.emptyFragmentOf("Item")) { _, _, ctx ->
+                        val task = assertIs<FieldResolverTask>(ctx)
+                        tasks[task.publication.oerOccurrence.path.map { (it as ObjectEngineResult.ObjectKey).field.name }] = task
+                        7
+                    },
+                )
+            },
+        )
+        val result = SharedOperationContext.create(fixture.assumptions).resolveWithTestDispatcher(
+            fixture.schemas.operationSelectionsFrom("{ item { value child { value } } }"),
+        )
+        assertTrue(result.keys.all { result.getCell(it).value.isCompleted })
+        assertEquals(3, tasks.size)
+        val producer = tasks.getValue(emptyList())
+        val root = assertIs<OrchestrationTask>(producer.creator)
+        assertNull(root.creator)
+        val item = assertIs<OrchestrationTask>(tasks.getValue(listOf("item")).creator)
+        val child = assertIs<OrchestrationTask>(tasks.getValue(listOf("item", "child")).creator)
+        assertSame(producer, item.creator)
+        assertSame(producer, child.creator)
+        tasks.values.forEach { assertSame(it, it.publication.task) }
+    }
+
     @Test
     fun `closed value projection preserves independently guarded checked and raw descendants`() {
         val fixture = TestWorld.fromSDL("type Query { item: Item } type Item { checked: Int raw: Int }")
@@ -128,7 +233,7 @@ class OrchestrationTaskTest : ResolutionDispatcherResource {
             )
             assertEquals(setOf("first", "second"), root.keys.map { it.field.name }.toSet())
             assertTrue(root.keys.all { !root.getCell(it).fieldCheckerResult.isCompleted })
-            assertFalse(coroutineContext[kotlinx.coroutines.Job]!!.children.any())
+            assertFalse(coroutineContext[Job]!!.children.any())
 
             assertSame(operation, task.operation)
             task.operation.dispatcher.dispatchOrchestration(task)
@@ -164,12 +269,15 @@ class OrchestrationTaskTest : ResolutionDispatcherResource {
                 world.resolverRegistry.createRootQueryInput(),
                 worldFixture.schemas.operationSelectionsFrom("{ consumer }"),
             )
+            assertNull(task.creator)
             val publications = FieldResolverTask.prepareAll(task)
             try {
                 assertEquals(2, publications.size)
                 assertEquals(setOf(root, task.queryOER.occurrence.target), publications.map { it.oerOccurrence.target }.toSet())
                 assertFalse(coroutineContext[Job]!!.children.any(), "Preparation dispatched coroutine work")
                 publications.forEach { publication ->
+                    assertSame(task, publication.task.creator)
+                    assertSame(publication, publication.task.publication)
                     assertFalse(publication.publicationCell.value.isCompleted)
                     assertFailsWith<IllegalStateException> { publication.publicationCell.checkActivated() }
                 }

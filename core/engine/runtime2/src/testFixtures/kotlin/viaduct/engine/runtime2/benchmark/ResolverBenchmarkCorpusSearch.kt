@@ -33,13 +33,14 @@ import viaduct.engine.runtime2.model.Fragment
 import viaduct.engine.runtime2.model.ListEngineResult
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.ResolverOccurrenceId
+import viaduct.engine.runtime2.model.registry.CheckerInput
 import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.fragmentFrom
 import viaduct.engine.runtime2.resolution.ResolutionDispatcherFactory
 import viaduct.engine.runtime2.resolution.configuredResolutionThreadCount
 import viaduct.engine.runtime2.resolution.framework.CheckerInvocationObservation
 import viaduct.engine.runtime2.resolution.framework.CheckerKind
-import viaduct.engine.runtime2.resolution.framework.CheckerObserver
+import viaduct.engine.runtime2.resolution.framework.ResolutionObserver
 import viaduct.engine.runtime2.resolution.framework.ResolverInvocationObservation
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 import viaduct.engine.runtime2.resolution.resolve
@@ -156,27 +157,25 @@ object ResolverBenchmarkCorpusSearch {
             Collections.synchronizedList(
                 mutableListOf<ResolverInvocationObservation>(),
             )
-        val witnessObserver = registry.resolverObserver()
+        val witnessObserver = registry.resolutionObserver()
         val checkerKinds =
             Collections.synchronizedList(
                 mutableListOf<CheckerKind>(),
             )
-        val observer = object : viaduct.engine.runtime2.resolution.framework.ResolverObserver {
-            override fun onResolverInvocation(observation: ResolverInvocationObservation) {
+        val observer = object : ResolutionObserver {
+            override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { observation ->
                 witnessObserver.onResolverInvocation(observation)
                 applicationObservations += observation
+            }
+
+            override val onCheckerInvocation: (CheckerInvocationObservation, Map<String, CheckerInput>) -> Unit = { observation, _ ->
+                checkerKinds += observation.checkerKind
             }
         }
         val result =
             SharedOperationContext.create(
                 world,
-                resolverObserver = observer,
-                checkerObserver =
-                    object : CheckerObserver {
-                        override fun onCheckerInvocation(observation: CheckerInvocationObservation) {
-                            checkerKinds += observation.checkerKind
-                        }
-                    },
+                resolutionObserver = observer,
             ).resolve(
                 selections = fragment.subselections,
                 coroutineContext = resolverCoroutineContext,

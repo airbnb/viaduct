@@ -2,7 +2,6 @@ package viaduct.engine.runtime2.benchmark
 
 import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.EngineObjectData
-import viaduct.engine.runtime2.correctresolution.CorrectnessCheckerObserver
 import viaduct.engine.runtime2.correctresolution.CorrectnessResolverObserver
 import viaduct.engine.runtime2.correctresolution.sameMaterializedValueAs
 import viaduct.engine.runtime2.model.EngineErrorData
@@ -95,8 +94,7 @@ class ResolverBenchmarkCoverage {
         result: ObjectEngineResult,
         checkerApplications: List<CheckerInvocationObservation>
     ) {
-        val observer = operation.resolverObserver as CorrectnessResolverObserver
-        val checkerObserver = operation.checkerObserver as CorrectnessCheckerObserver
+        val observer = operation.resolutionObserver as CorrectnessResolverObserver
         val calls = observer.allResolverInvocations()
         val hits = linkedSetOf<ResolverBenchmarkFeature>()
 
@@ -212,7 +210,7 @@ class ResolverBenchmarkCoverage {
         )
         val references = observer.rootFieldReferenceInvocations()
         val roots = (
-            observer.allQueryOERs().keys + observer.allQueryFragmentResults().values.flatten() + checkerObserver.allQueryFragmentResults().values.flatten() + result + references.map {
+            observer.allQueryOERs().keys + observer.allQueryFragmentResults().values.flatten() + observer.allCheckerQueryFragmentResults().values.flatten() + result + references.map {
                 it.invocationRoot
             }
         ).toSet()
@@ -275,7 +273,7 @@ class ResolverBenchmarkCoverage {
         }
         checkerApplications.forEach { application ->
             val ownerId = ResolverOccurrenceId.at(application.logicalQueryRoot, application.occurrencePath)
-            val inputs = checkerObserver.checkerInputs(application.checkedTarget, ownerId).single()
+            val inputs = observer.checkerInputs(application.checkedTarget, ownerId).single()
             val definition = if (application.checkerKind == CheckerKind.FIELD) {
                 operation.world.resolverRegistry.fieldChecker(application.checkedCoordinate)!!
             } else {

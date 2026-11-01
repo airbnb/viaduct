@@ -22,22 +22,48 @@ import viaduct.engine.runtime2.resolution.framework.CheckerKind
 import viaduct.engine.runtime2.resolution.framework.CycleSlotKind
 import viaduct.engine.runtime2.resolution.framework.Demand
 import viaduct.engine.runtime2.resolution.framework.OEROccurrence
+import viaduct.engine.runtime2.resolution.framework.ResolutionTask
 import viaduct.engine.runtime2.resolution.framework.SharedOERContext
 import viaduct.engine.runtime2.resolution.framework.fetchGroundedArguments
 import viaduct.engine.runtime2.resolution.framework.fieldCheckerCycleTask
 import viaduct.engine.runtime2.resolution.framework.materializeResult
 
 /** A checker writer retains its original symbolic address independently of its late arguments. */
-internal class SymbolicFieldCheckerPublicationOccurrence(
+internal class SymbolicFieldCheckerPublicationOccurrence private constructor(
     val operation: OperationContext,
     val oerOccurrence: OEROccurrence,
     val checkerOccurrence: FieldCheckerOccurrence,
     val publicationCell: EngineResultCell,
     val queryOER: SharedOERContext,
+    val creator: ResolutionTask? = null,
 ) : CoroutinePublicationOccurrence {
+    override lateinit var task: FieldCheckerTask
+        private set
+
+    companion object {
+        fun create(
+            operation: OperationContext,
+            oerOccurrence: OEROccurrence,
+            checkerOccurrence: FieldCheckerOccurrence,
+            publicationCell: EngineResultCell,
+            queryOER: SharedOERContext,
+            creator: ResolutionTask? = null,
+        ): SymbolicFieldCheckerPublicationOccurrence =
+            SymbolicFieldCheckerPublicationOccurrence(
+                operation,
+                oerOccurrence,
+                checkerOccurrence,
+                publicationCell,
+                queryOER,
+                creator,
+            ).apply {
+                task = FieldCheckerTask(this)
+            }
+    }
+
     override fun dispatch(requestScope: CoroutineScope) {
         requestScope.launch {
-            FieldCheckerTask.execute(this@SymbolicFieldCheckerPublicationOccurrence, this)
+            task.run(this)
         }.invokeOnCompletion { cause ->
             if (cause is CancellationException) FieldCheckerTask.cancel(this@SymbolicFieldCheckerPublicationOccurrence, cause)
         }
@@ -68,10 +94,12 @@ internal class FieldCheckerPreparation(val claimedSlots: List<PreparedFieldCheck
 }
 
 /** Raw projections and runtime bindings for one checker, parallel to the field value task. */
-internal class FieldCheckerTask private constructor(
-    private val publication: SymbolicFieldCheckerPublicationOccurrence,
-    private val scope: CoroutineScope,
-) : ResolutionExecutionContext {
+internal class FieldCheckerTask(
+    val publication: SymbolicFieldCheckerPublicationOccurrence,
+) : ResolutionExecutionContext, ResolutionTask {
+    override val creator get() = publication.creator
+    private lateinit var scope: CoroutineScope
+
     private val operation = publication.operation
     private val occurrence = publication.checkerOccurrence
     private val key = occurrence.selection.key
@@ -112,21 +140,15 @@ internal class FieldCheckerTask private constructor(
                 kind = CycleSlotKind.FIELD_CHECKER,
                 writer = oer.occurrence.fieldCheckerCycleTask(key),
             )
-            val publication = SymbolicFieldCheckerPublicationOccurrence(
+            val publication = SymbolicFieldCheckerPublicationOccurrence.create(
                 orchestrationTask.operation,
                 oer.occurrence,
                 checkerOccurrence,
                 cell,
                 orchestrationTask.queryOER,
+                orchestrationTask,
             )
             return PreparedFieldCheckerSlot(cell, publication)
-        }
-
-        suspend fun execute(
-            publication: SymbolicFieldCheckerPublicationOccurrence,
-            scope: CoroutineScope
-        ) {
-            FieldCheckerTask(publication, scope).run()
         }
 
         fun cancel(
@@ -140,7 +162,8 @@ internal class FieldCheckerTask private constructor(
         }
     }
 
-    private suspend fun run() {
+    suspend fun run(scope: CoroutineScope) {
+        this.scope = scope
         try {
             executeAndPublish()
         } catch (cause: Exception) {
@@ -220,9 +243,9 @@ internal class FieldCheckerTask private constructor(
             )
         }
         if (!occurrence.fragments.queryFragment.constructionSelections.isEmpty()) {
-            operation.checkerObserver.onCheckerQueryFragmentPrepared(occurrence.checker.target, id, publication.queryOER.occurrence.target)
+            operation.resolutionObserver.onCheckerQueryFragmentPrepared?.invoke(occurrence.checker.target, id, publication.queryOER.occurrence.target)
         }
-        operation.checkerObserver.onCheckerInvocation(
+        operation.resolutionObserver.onCheckerInvocation?.invoke(
             CheckerInvocationObservation(
                 checkerKind = CheckerKind.FIELD,
                 logicalQueryRoot = publication.oerOccurrence.root,
@@ -244,7 +267,7 @@ internal class FieldCheckerTask private constructor(
 
     override suspend fun resolveSelectionSet(selections: MaterializeSelectionForest): EngineObjectData.Sync {
         val childOperation = operation.forChildScope(scope)
-        val result = childOperation.startResolve(Demand.unchecked(selections.constructionSelections()))
+        val result = childOperation.startResolve(Demand.unchecked(selections.constructionSelections()), creator = this)
         return result.materializeResult(childOperation, selections, reader, childOperation.cycleChecker, checked = false)
     }
 }

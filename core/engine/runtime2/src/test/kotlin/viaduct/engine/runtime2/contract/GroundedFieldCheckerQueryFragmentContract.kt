@@ -29,6 +29,7 @@ import viaduct.engine.runtime2.model.arg
 import viaduct.engine.runtime2.model.emptyFragmentOf
 import viaduct.engine.runtime2.model.materializeSelectionForestOf
 import viaduct.engine.runtime2.model.outputValue
+import viaduct.engine.runtime2.model.registry.Assumptions
 import viaduct.engine.runtime2.model.registry.CheckerInput
 import viaduct.engine.runtime2.model.registry.FieldCheckerResolver
 import viaduct.engine.runtime2.model.registry.ResolverFragmentTemplates
@@ -44,10 +45,11 @@ import viaduct.engine.runtime2.resolution.framework.CycleCheckState
 import viaduct.engine.runtime2.resolution.framework.CycleSlotKind
 import viaduct.engine.runtime2.resolution.framework.CycleTask
 import viaduct.engine.runtime2.resolution.framework.CycleTaskKind
+import viaduct.engine.runtime2.resolution.framework.ResolutionObserver
 import viaduct.engine.runtime2.resolution.framework.ResolverInvocationObservation
-import viaduct.engine.runtime2.resolution.framework.ResolverObserver
 import viaduct.engine.runtime2.resolution.framework.SharedOERContext
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
+import viaduct.engine.runtime2.resolution.framework.SharedOrchestrationTask
 import viaduct.engine.runtime2.schema.operationSelectionsFrom
 
 /** Owner-local raw checker projections from the orchestration's shared Query OER. */
@@ -215,11 +217,9 @@ interface GroundedFieldCheckerQueryFragmentContract {
             )
         val world = worldFixture.assumptions
         val observer =
-            object : ResolverObserver {
-                override fun onQueryOERPrepared(
-                    queryOER: SharedOERContext,
-                    queryOERDepth: Int?
-                ) {
+            object : ResolutionObserver {
+                override val onQueryOERPrepared: (SharedOrchestrationTask<*>, Int?) -> Unit = { task, _ ->
+                    val queryOER = task.queryOER
                     if (queryOER.closedValueSelections
                             .byKey()
                             .keys
@@ -229,13 +229,13 @@ interface GroundedFieldCheckerQueryFragmentContract {
                     }
                 }
 
-                override fun onResolverInvocation(observation: ResolverInvocationObservation) {
+                override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { observation ->
                     if (observation.field.name == "shared") sharedResolverCalls.incrementAndGet()
                 }
             }
 
         coroutineResolverSubject.resolve(
-            SharedOperationContext.create(world, resolverObserver = observer),
+            SharedOperationContext.create(world, resolutionObserver = observer),
             worldFixture.schemas.operationSelectionsFrom(
                 "{ item { first: checked(seed: 1) second: checked(seed: 2) } }",
             ),
@@ -582,7 +582,7 @@ interface GroundedFieldCheckerQueryFragmentContract {
 private fun CycleTask.lastFieldName(): String = (path.last() as ObjectEngineResult.ObjectKey).field.name
 
 private fun ObjectEngineResult.cell(
-    world: viaduct.engine.runtime2.model.registry.Assumptions,
+    world: Assumptions,
     typeName: String,
     fieldName: String,
 ): EngineResultCell =
@@ -594,7 +594,7 @@ private fun ObjectEngineResult.cell(
     )
 
 private fun ObjectEngineResult.objectValue(
-    world: viaduct.engine.runtime2.model.registry.Assumptions,
+    world: Assumptions,
     typeName: String,
     fieldName: String,
 ): ObjectEngineResult = assertIs(cell(world, typeName, fieldName).value.get())

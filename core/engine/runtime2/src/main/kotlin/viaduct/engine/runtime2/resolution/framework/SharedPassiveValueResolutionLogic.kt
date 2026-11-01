@@ -51,6 +51,7 @@ abstract class SharedPassiveValueResolutionLogic<
         occurrence: OEROccurrence,
         source: EngineObjectData.Sync,
         constructionDemand: Demand<SelectionForest>,
+        creator: ResolutionTask?,
     ): T
 
     /**
@@ -101,6 +102,7 @@ abstract class SharedPassiveValueResolutionLogic<
         constructionDemand: Demand<SelectionForest>,
         invocationDemand: SelectionForest,
         parent: OEROccurrence,
+        creator: ResolutionTask?,
     )
 
     /**
@@ -135,6 +137,7 @@ abstract class SharedPassiveValueResolutionLogic<
         constructionDemand: Demand<SelectionForest>,
         invocationDemand: SelectionForest,
         parent: OEROccurrence? = null,
+        creator: ResolutionTask? = null,
     ): EngineResult? {
         if (value == null) return null
         if (value is EngineErrorData) return ErrorEngineResult.of(value)
@@ -169,6 +172,7 @@ abstract class SharedPassiveValueResolutionLogic<
                         constructionDemand = constructionDemand,
                         invocationDemand = invocationDemand,
                         parent = containingOccurrence,
+                        creator = creator,
                     )
                 } else {
                     check(
@@ -181,6 +185,7 @@ abstract class SharedPassiveValueResolutionLogic<
                                 constructionDemand = constructionDemand,
                                 invocationDemand = invocationDemand,
                                 parent = parent,
+                                creator = creator,
                             ),
                         ),
                     ) { "List element value was completed twice" }
@@ -198,6 +203,7 @@ abstract class SharedPassiveValueResolutionLogic<
                     occurrence = OEROccurrence(root, path, target, parent, source.additionalContextForResolver, invocationDemand),
                     constructionDemand = constructionDemand,
                     invocationDemand = invocationDemand,
+                    creator = creator,
                 )
                 target
             }
@@ -215,11 +221,12 @@ abstract class SharedPassiveValueResolutionLogic<
         occurrence: OEROccurrence,
         constructionDemand: Demand<SelectionForest>,
         invocationDemand: SelectionForest = constructionDemand.values,
+        creator: ResolutionTask? = null,
     ) {
         require(source.schemaType(operation.world.schema) == occurrence.target.type) {
             "Source type ${source.schemaType(operation.world.schema).name} does not match result type ${occurrence.target.type.name}"
         }
-        val orchestration = createOrchestrationTask(occurrence, source, constructionDemand)
+        val orchestration = createOrchestrationTask(occurrence, source, constructionDemand, creator)
         materializePassiveFields(
             orchestration,
             closedConstructionDemand(orchestration),
@@ -297,6 +304,8 @@ abstract class SharedPassiveValueResolutionLogic<
                         constructionDemand = childConstruction,
                         invocationDemand = childInvocation,
                         parent = occurrence,
+                        // Passive descent still runs in the task that created this orchestrator.
+                        creator = orchestration.creator,
                     ),
                 )
             }

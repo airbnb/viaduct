@@ -112,7 +112,7 @@ class ResolverCoverageAdversarialTest {
                 registry.clearResolutionWitness()
                 val operation = viaduct.engine.runtime2.resolution.framework.SharedOperationContext.create(
                     world = Assumptions.of(world.schema, world.resolverRegistry, false),
-                    resolverObserver = registry.resolverObserver(),
+                    resolutionObserver = registry.resolutionObserver(),
                 )
                 operation.resolveObservedFields(
                     world.schemas.fragmentFrom("fragment Test on Query { ${producerField.name} { id } }").subselections,

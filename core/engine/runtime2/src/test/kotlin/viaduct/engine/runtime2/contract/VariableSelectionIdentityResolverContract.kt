@@ -24,10 +24,42 @@ import viaduct.graphql.schema.ViaductSchema
  */
 interface VariableSelectionIdentityResolverContract : ResolverContract {
     @Test
-    fun `equal pre-grounded selections merge in fragments and external queries`() {
+    fun `equal pre-grounded selections merge in resolver fragments`() {
+        val (testWorld, invocationObserver, suppliedDemandFields) = preGroundedSelectionsFixture()
+        val resultKey = testWorld.schema.contractKey("Query", "result")
+
+        val resolved = resolveAndValidate(testWorld, "query { result }", resolutionObserver = invocationObserver)
+
+        assertEquals(8, resolved.getCell(resultKey).get())
+        assertEquals(1, suppliedDemandFields.size)
+        assertEquals(listOf(setOf("one", "two")), suppliedDemandFields.toList())
+    }
+
+    @Test
+    fun `equal pre-grounded selections merge in external queries`() {
+        val (testWorld, invocationObserver, suppliedDemandFields) = preGroundedSelectionsFixture()
+        val schema = testWorld.schema
+        val payloadKey = ObjectEngineResult.GroundKey.of(schema.requireObjectField("Query", "payload"), mapOf("arg" to 1))
+        val oneKey = schema.contractKey("Payload", "one")
+        val twoKey = schema.contractKey("Payload", "two")
+
+        val resolved = resolveAndValidate(
+            testWorld,
+            "query { payload(arg: 1) { one } payload(arg: 1) { two } }",
+            resolutionObserver = invocationObserver,
+        )
+        val payload = assertIs<ObjectEngineResult>(resolved.getCell(payloadKey).get())
+
+        assertEquals(3, payload.getCell(oneKey).get())
+        assertEquals(5, payload.getCell(twoKey).get())
+        assertEquals(1, suppliedDemandFields.size)
+        assertEquals(listOf(setOf("one", "two")), suppliedDemandFields.toList())
+    }
+
+    private fun preGroundedSelectionsFixture(): PreGroundedSelectionsFixture {
         val suppliedDemandFields = ConcurrentLinkedQueue<Set<String>>()
         val invocationObserver = object : CorrectnessResolverObserver() {
-            override fun onResolverInvocation(observation: ResolverInvocationObservation) {
+            override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { observation ->
                 super.onResolverInvocation(observation)
                 val field = observation.field
                 val demand = observation.suppliedDemand
@@ -67,65 +99,14 @@ interface VariableSelectionIdentityResolverContract : ResolverContract {
                     }
                     """.trimIndent(),
             )
-        val world = testWorld.assumptions
-        val resultKey = world.schema.contractKey("Query", "result")
-        val resultSelections = testWorld.schemas.operationSelectionsFrom("query { result }")
-
-        val resolvedResult =
-            resolveAndValidate(
-                world,
-                world.objectOf("Query"),
-                resultSelections,
-                resolverObserver = invocationObserver,
-            )
-
-        assertEquals(8, resolvedResult.getCell(resultKey).get())
-        assertEquals(1, suppliedDemandFields.size)
-        assertEquals(listOf(setOf("one", "two")), suppliedDemandFields.toList())
-
-        val payloadKey =
-            ObjectEngineResult.GroundKey.of(
-                world.schema.requireObjectField("Query", "payload"),
-                mapOf("arg" to 1),
-            )
-        val oneKey = world.schema.contractKey("Payload", "one")
-        val twoKey = world.schema.contractKey("Payload", "two")
-        val externalSelections =
-            testWorld.schemas.operationSelectionsFrom(
-                """
-                query {
-                  payload(arg: 1) { one }
-                  payload(arg: 1) { two }
-                }
-                """.trimIndent(),
-            )
-
-        val resolvedExternal =
-            resolveAndValidate(
-                world,
-                world.objectOf("Query"),
-                externalSelections,
-                resolverObserver = invocationObserver,
-            )
-        val payload =
-            assertIs<ObjectEngineResult>(
-                resolvedExternal.getCell(payloadKey).get(),
-            )
-
-        assertEquals(3, payload.getCell(oneKey).get())
-        assertEquals(5, payload.getCell(twoKey).get())
-        assertEquals(2, suppliedDemandFields.size)
-        assertEquals(
-            listOf(setOf("one", "two"), setOf("one", "two")),
-            suppliedDemandFields.toList(),
-        )
+        return PreGroundedSelectionsFixture(testWorld, invocationObserver, suppliedDemandFields)
     }
 
     @Test
     fun `equal symbolic selections coalesce independently of response aliases`() {
         val suppliedDemandFields = ConcurrentLinkedQueue<Set<String>>()
         val invocationObserver = object : CorrectnessResolverObserver() {
-            override fun onResolverInvocation(observation: ResolverInvocationObservation) {
+            override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { observation ->
                 super.onResolverInvocation(observation)
                 val field = observation.field
                 val demand = observation.suppliedDemand
@@ -180,7 +161,7 @@ interface VariableSelectionIdentityResolverContract : ResolverContract {
             )
 
         val resolution =
-            resolveAndValidateObserved(world, world.objectOf("Query"), selections, resolverObserver = invocationObserver)
+            resolveAndValidateObserved(world, world.objectOf("Query"), selections, resolutionObserver = invocationObserver)
         val resolved = resolution.result
 
         assertEquals(8, resolved.getCell(resultKey).get())
@@ -205,7 +186,7 @@ interface VariableSelectionIdentityResolverContract : ResolverContract {
     fun `a symbolic fromArgument key remains distinct from an equal grounded key`() {
         val suppliedDemandFields = ConcurrentLinkedQueue<Set<String>>()
         val invocationObserver = object : CorrectnessResolverObserver() {
-            override fun onResolverInvocation(observation: ResolverInvocationObservation) {
+            override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { observation ->
                 super.onResolverInvocation(observation)
                 val field = observation.field
                 val demand = observation.suppliedDemand
@@ -278,7 +259,7 @@ interface VariableSelectionIdentityResolverContract : ResolverContract {
                 """.trimIndent(),
             )
 
-        val resolved = resolveAndValidate(world, selections, resolverObserver = invocationObserver)
+        val resolved = resolveAndValidate(world, selections, resolutionObserver = invocationObserver)
 
         assertEquals(5, resolved.getCell(resultKey).get())
         assertEquals(
@@ -287,3 +268,9 @@ interface VariableSelectionIdentityResolverContract : ResolverContract {
         )
     }
 }
+
+private data class PreGroundedSelectionsFixture(
+    val testWorld: TestWorld,
+    val invocationObserver: CorrectnessResolverObserver,
+    val suppliedDemandFields: ConcurrentLinkedQueue<Set<String>>,
+)

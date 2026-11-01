@@ -10,6 +10,7 @@ import viaduct.engine.runtime2.model.RootFieldReferenceData
 import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.resolution.framework.Demand
 import viaduct.engine.runtime2.resolution.framework.OEROccurrence
+import viaduct.engine.runtime2.resolution.framework.ResolutionTask
 import viaduct.engine.runtime2.resolution.framework.SharedPassiveValueResolutionLogic
 import viaduct.engine.runtime2.resolvers.applicableGroundSelections
 import viaduct.graphql.schema.ViaductSchema
@@ -21,7 +22,8 @@ class CoroutinePassiveValueResolutionLogic(operation: CoroutineOperationContext)
         occurrence: OEROccurrence,
         source: EngineObjectData.Sync,
         constructionDemand: Demand<SelectionForest>,
-    ): CoroutineOrchestrationTask = CoroutineOrchestrationTask.create(operation, occurrence, source, constructionDemand)
+        creator: ResolutionTask?,
+    ): CoroutineOrchestrationTask = CoroutineOrchestrationTask.create(operation, occurrence, source, constructionDemand, creator)
 
     override fun createObjectResult(
         type: ViaductSchema.Object,
@@ -44,10 +46,12 @@ class CoroutinePassiveValueResolutionLogic(operation: CoroutineOperationContext)
         constructionDemand: Demand<SelectionForest>,
         invocationDemand: SelectionForest,
         parent: OEROccurrence,
+        creator: ResolutionTask?,
     ) {
         CoroutineFieldResolverTask.prepareAndDispatchListElement(
             CoroutineFieldPublicationOccurrence(
                 operation = operation,
+                creator = creator,
                 oerOccurrence = parent,
                 selection = selection,
                 publicationCell = cell,

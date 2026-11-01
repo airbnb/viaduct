@@ -9,6 +9,7 @@ import viaduct.engine.runtime2.model.RootFieldReferenceData
 import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.resolution.framework.Demand
 import viaduct.engine.runtime2.resolution.framework.OEROccurrence
+import viaduct.engine.runtime2.resolution.framework.ResolutionTask
 import viaduct.engine.runtime2.resolution.framework.SharedPassiveValueResolutionLogic
 import viaduct.engine.runtime2.resolvers.GroundedFieldPublicationOccurrence
 import viaduct.engine.runtime2.resolvers.applicableGroundSelections
@@ -27,6 +28,7 @@ class DepthFirstPassiveValueResolutionLogic(
         occurrence: OEROccurrence,
         source: EngineObjectData.Sync,
         constructionDemand: Demand<SelectionForest>,
+        creator: ResolutionTask?,
     ): DepthFirstOrchestrationTask =
         DepthFirstOrchestrationTask.create(
             operation = operation,
@@ -34,6 +36,7 @@ class DepthFirstPassiveValueResolutionLogic(
             source = source,
             constructionDemand = constructionDemand,
             queryOERDepth = queryOERDepth,
+            creator = creator,
         )
 
     override fun closedConstructionDemand(orchestration: DepthFirstOrchestrationTask): Demand<ObjectSelectionForest> = orchestration.closedConstructionDemand.objectRooted
@@ -52,11 +55,13 @@ class DepthFirstPassiveValueResolutionLogic(
         constructionDemand: Demand<SelectionForest>,
         invocationDemand: SelectionForest,
         parent: OEROccurrence,
+        creator: ResolutionTask?,
     ) {
         operation.dispatcher.dispatchFieldResolver(
             publication =
                 GroundedFieldPublicationOccurrence(
                     operation = operation,
+                    creator = creator,
                     oerOccurrence = parent,
                     selection = selection,
                     publicationCell = cell,

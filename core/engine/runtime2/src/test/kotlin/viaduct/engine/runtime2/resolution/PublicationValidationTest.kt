@@ -24,8 +24,8 @@ import viaduct.engine.runtime2.resolution.framework.CycleCheckState
 import viaduct.engine.runtime2.resolution.framework.CycleSlotKind
 import viaduct.engine.runtime2.resolution.framework.CycleTask
 import viaduct.engine.runtime2.resolution.framework.OEROccurrence
+import viaduct.engine.runtime2.resolution.framework.ResolutionObserver
 import viaduct.engine.runtime2.resolution.framework.ResolverInvocationObservation
-import viaduct.engine.runtime2.resolution.framework.ResolverObserver
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 import viaduct.engine.runtime2.resolvers.resolver21.CoroutineFieldPublicationOccurrence
 import viaduct.engine.runtime2.resolvers.resolver21.CoroutineFieldResolverTask
@@ -50,7 +50,7 @@ class PublicationValidationTest : ResolutionDispatcherResource {
                     val world = worldFixture.assumptions
                     val invoked = ConcurrentLinkedQueue<String>()
                     val operation = CoroutineOperationContext(
-                        SharedOperationContext.create(world, resolverObserver = recording(invoked)),
+                        SharedOperationContext.create(world, resolutionObserver = recording(invoked)),
                         this,
                         complete = { demand, _ -> demand.values },
                         cycleChecker = CycleCheckState.create(),
@@ -121,7 +121,7 @@ class PublicationValidationTest : ResolutionDispatcherResource {
                         }
                     }
                     val operation = OperationContext.create(
-                        SharedOperationContext.create(world, resolverObserver = recording(invoked)),
+                        SharedOperationContext.create(world, resolutionObserver = recording(invoked)),
                         this,
                         cycleChecker,
                     )
@@ -136,7 +136,7 @@ class PublicationValidationTest : ResolutionDispatcherResource {
                     val invalid = publications.single { it.sourceOccurrence.selection.key.field.name == "invalid" }
                     val sibling = publications.single { it.sourceOccurrence.selection.key.field.name == "sibling" }
                     val source = assertIs<FieldResolverOccurrence>(invalid.sourceOccurrence)
-                    val malformed = SymbolicFieldPublicationOccurrence(
+                    val malformed = SymbolicFieldPublicationOccurrence.create(
                         operation = operation,
                         oerOccurrence = invalid.oerOccurrence,
                         sourceOccurrence = source.copy(
@@ -168,8 +168,8 @@ class PublicationValidationTest : ResolutionDispatcherResource {
         }
 
     private fun recording(invoked: ConcurrentLinkedQueue<String>) =
-        object : ResolverObserver {
-            override fun onResolverInvocation(observation: ResolverInvocationObservation) {
+        object : ResolutionObserver {
+            override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { observation ->
                 invoked += observation.field.name
             }
         }

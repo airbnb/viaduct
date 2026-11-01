@@ -2,6 +2,11 @@ package viaduct.engine.runtime2.resolution.framework
 
 import viaduct.engine.runtime2.model.EngineResultCell
 
+/** A resolution task retains the task that created it; execution roots have no creator. */
+interface ResolutionTask {
+    val creator: ResolutionTask?
+}
+
 /**
  * Prepared orchestration task for one object OER and its paired shared Query OER. Its factory
  * closes demand and establishes the state needed by descendants before returning; passive
@@ -9,7 +14,7 @@ import viaduct.engine.runtime2.model.EngineResultCell
  * [SharedTaskDispatcher.dispatchOrchestration]. The task supplies its owning context through
  * [operation]; it is not itself an operation context.
  */
-interface SharedOrchestrationTask<out O : SharedOperationContext<*>> {
+interface SharedOrchestrationTask<out O : SharedOperationContext<*>> : ResolutionTask {
     /** The owning operation, retaining its resolver-specific type. */
     val operation: O
 
@@ -30,6 +35,7 @@ interface SharedFieldPublicationOccurrence<
 > : SharedOperationContext<D> {
     /** The owning operation; implementations may specialize its type for their resolver. */
     val operation: O
+    val creator: ResolutionTask?
     val oerOccurrence: OEROccurrence
     val publicationCell: EngineResultCell
 }

@@ -5,15 +5,12 @@ import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import org.junit.jupiter.api.Test
-import viaduct.engine.api.EngineObjectData
 import viaduct.engine.runtime2.correctresolution.CorrectnessResolverObserver
-import viaduct.engine.runtime2.model.EngineOutputListData
 import viaduct.engine.runtime2.model.IDEngineResult
 import viaduct.engine.runtime2.model.ListEngineResult
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.RootFieldReferenceData
 import viaduct.engine.runtime2.model.emptyFragmentOf
-import viaduct.engine.runtime2.model.outputValue
 import viaduct.engine.runtime2.model.registry.fieldResolverOf
 import viaduct.engine.runtime2.model.registry.nodeResolverOf
 import viaduct.engine.runtime2.model.requireField
@@ -21,7 +18,6 @@ import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireType
 import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.emptyFragmentOf
-import viaduct.engine.runtime2.model.testing.fragmentFrom
 import viaduct.engine.runtime2.model.testing.nodeReferenceOf
 import viaduct.engine.runtime2.model.testing.objectOf
 import viaduct.engine.runtime2.resolution.framework.ResolverInvocationObservation
@@ -35,59 +31,24 @@ interface NodeResolverContract : ResolverContract {
     fun `retains successor demand beneath a node reference`() {
         if (this !is ObjectFragmentResolverContract) return
         val testWorld =
-            TestWorld.fromSDL(
+            TestWorld.fromDSL(
                 selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
-                    interface Node { id: ID! }
-                    type Viewer { item: Item!, result: String! }
-                    type Leaf { value: String! }
-                    type Item implements Node { id: ID!, leaf: Leaf! }
-                    type Query { viewer: Viewer! }
+                    extend type Query {
+                      viewer: Viewer! @resolver(result: {item: {id: "item-1"}})
+                    }
+                    type Viewer {
+                      item: Item!
+                      result: Int! @resolver(of: "item { leaf { value } }", result: "value(item.leaf.value)")
+                    }
+                    type Item implements Node
+                      @nodeResolver(result: [{id: "item-1", result: {leaf: {}}}]) {
+                      id: ID!
+                      leaf: Leaf!
+                    }
+                    type Leaf { value: Int! @resolver(result: 7) }
                     """.trimIndent(),
-                fieldResolvers = { schema ->
-                    val viewer = schema.loweredSchema.requireObjectField("Query", "viewer")
-                    val result = schema.loweredSchema.requireObjectField("Viewer", "result")
-                    val value = schema.loweredSchema.requireObjectField("Leaf", "value")
-                    mapOf(
-                        viewer to
-                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
-                                schema.loweredSchema.objectOf("Viewer") {
-                                    "item" setTo
-                                        schema.loweredSchema.objectOf("Item") {
-                                            "id" setTo "item-1"
-                                        }
-                                }
-                            },
-                        value to
-                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Leaf")) { _, _ ->
-                                "resolved"
-                            },
-                        result to
-                            fieldResolverOf(
-                                schema.fragmentFrom(
-                                    "fragment Result on Viewer { item { leaf { value } } }",
-                                ),
-                            ) { input, _ ->
-                                val item =
-                                    assertIs<EngineObjectData.Sync>(input.outputValue("item"))
-                                val leaf =
-                                    assertIs<EngineObjectData.Sync>(item.outputValue("leaf"))
-                                leaf.outputValue("value")
-                            },
-                    )
-                },
-                nodeResolvers = { schema ->
-                    mapOf(
-                        schema.loweredSchema.contractObjectType("Item") to
-                            nodeResolverOf { id ->
-                                schema.loweredSchema.objectOf("Item") {
-                                    "id" setTo id
-                                    "leaf" setTo schema.loweredSchema.objectOf("Leaf")
-                                }
-                            },
-                    )
-                },
             )
         val schema = testWorld.schema
         val result = resolveAndValidate(testWorld, "query { viewer { result } }")
@@ -96,7 +57,7 @@ interface NodeResolverContract : ResolverContract {
                 result.getCell(schema.contractKey("Query", "viewer")).get(),
             )
         assertEquals(
-            "resolved",
+            7,
             viewer.getCell(schema.contractKey("Viewer", "result")).get(),
         )
     }
@@ -171,7 +132,7 @@ interface NodeResolverContract : ResolverContract {
     @Test
     fun `resolves an empty query through field and node resolvers`() {
         val invocationObserver = object : ResolverApplicationArguments() {
-            override fun onResolverInvocation(observation: ResolverInvocationObservation) {
+            override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { observation ->
                 super.onResolverInvocation(observation)
                 val field = observation.field
                 val input = observation.input
@@ -216,7 +177,7 @@ interface NodeResolverContract : ResolverContract {
                   }
                 }
             """.trimIndent(),
-            resolverObserver = invocationObserver,
+            resolutionObserver = invocationObserver,
         )
         invocationObserver.assertArguments(
             world.schema.requireObjectField("Query", "viewer"),
@@ -230,53 +191,37 @@ interface NodeResolverContract : ResolverContract {
 
     @Test
     fun `resolves a nested passive node through Query node`() {
+        val invocationObserver = object : CorrectnessResolverObserver() {
+            override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { observation ->
+                super.onResolverInvocation(observation)
+                if (observation.field.name == "viewer") {
+                    require(observation.input.hasExactlyFields())
+                }
+            }
+        }
         val testWorld =
-            TestWorld.fromSDL(
+            TestWorld.fromDSL(
                 selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
-                    interface Node { id: ID! }
-                    type Profile implements Node { id: ID!, name: String! }
-                    type Card { profile: Profile! }
+                    extend type Query {
+                      viewer: Viewer! @resolver(result: {card: {profile: {id: "profile-1"}}})
+                    }
                     type Viewer { card: Card! }
-                    type Query { viewer: Viewer! }
+                    type Card { profile: Profile! }
+                    type Profile implements Node
+                      @nodeResolver(result: [{id: "profile-1", result: {name: 7}}]) {
+                      id: ID!
+                      name: Int!
+                    }
                     """.trimIndent(),
-                nodeResolvers = { schema ->
-                    mapOf(
-                        schema.loweredSchema.contractObjectType("Profile") to
-                            nodeResolverOf { id ->
-                                schema.loweredSchema.objectOf("Profile") {
-                                    "id" setTo id
-                                    "name" setTo "Ada"
-                                }
-                            },
-                    )
-                },
-                fieldResolvers = { schema ->
-                    mapOf(
-                        schema.loweredSchema.requireField("Query", "viewer") to
-                            fieldResolverOf(
-                                schema.loweredSchema.emptyFragmentOf("Query"),
-                            ) { input, _ ->
-                                require(input.hasExactlyFields())
-                                schema.loweredSchema.objectOf("Viewer") {
-                                    "card" setTo
-                                        objectOf("Card") {
-                                            "profile" setTo
-                                                objectOf("Profile") {
-                                                    "id" setTo "profile-1"
-                                                }
-                                        }
-                                }
-                            },
-                    )
-                },
             )
         val schema = testWorld.schema
         val result =
             resolveAndValidate(
                 testWorld,
                 "query { viewer { card { profile { id name } } } }",
+                resolutionObserver = invocationObserver,
             )
         val viewer =
             assertIs<ObjectEngineResult>(
@@ -298,7 +243,7 @@ interface NodeResolverContract : ResolverContract {
             profile.getCell(schema.contractKey("Profile", "id")).get(),
         )
         assertEquals(
-            "Ada",
+            7,
             profile.getCell(schema.contractKey("Profile", "name")).get(),
         )
     }
@@ -388,50 +333,34 @@ interface NodeResolverContract : ResolverContract {
     fun `dispatches every nested node-list reference occurrence`() {
         val observedFields = ConcurrentLinkedQueue<String>()
         val invocationObserver = object : CorrectnessResolverObserver() {
-            override fun onResolverInvocation(observation: ResolverInvocationObservation) {
+            override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { observation ->
                 super.onResolverInvocation(observation)
                 val field = observation.field
                 observedFields.add(field.name)
             }
         }
         val testWorld =
-            TestWorld.fromSDL(
+            TestWorld.fromDSL(
                 selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
-                    interface Node { id: ID! }
-                    type User implements Node { id: ID!, name: String! }
-                    type Query { matrix: [[User!]!]! }
+                    extend type Query {
+                      matrix: [[User!]!]! @resolver(result: [[{id: "a"}, {id: "b"}], [{id: "c"}]])
+                    }
+                    type User implements Node
+                      @nodeResolver(result: [
+                        {id: "a", result: {name: 1}},
+                        {id: "b", result: {name: 2}},
+                        {id: "c", result: {name: 3}}
+                      ]) {
+                      id: ID!
+                      name: Int!
+                    }
                     """.trimIndent(),
-                nodeResolvers = { schema ->
-                    mapOf(
-                        schema.loweredSchema.contractObjectType("User") to
-                            nodeResolverOf { id ->
-                                schema.loweredSchema.objectOf("User") {
-                                    "id" setTo id
-                                    "name" setTo "user-$id"
-                                }
-                            },
-                    )
-                },
-                fieldResolvers = { schema ->
-                    val matrix = schema.loweredSchema.requireField("Query", "matrix")
-
-                    fun row(vararg ids: String): EngineOutputListData = ids.map { id -> schema.loweredSchema.nodeReferenceOf("User", id) }
-                    mapOf(
-                        matrix to
-                            fieldResolverOf(
-                                objectFragment = schema.loweredSchema.emptyFragmentOf("Query"),
-                                function = { _, _ ->
-                                    listOf(row("a", "b"), row("c"))
-                                },
-                            ),
-                    )
-                },
             )
         val schema = testWorld.schema
         val result =
-            resolveAndValidate(testWorld, "query { matrix { id name } }", resolverObserver = invocationObserver)
+            resolveAndValidate(testWorld, "query { matrix { id name } }", resolutionObserver = invocationObserver)
         val matrix =
             assertIs<ListEngineResult>(
                 result.getCell(schema.contractKey("Query", "matrix")).get(),

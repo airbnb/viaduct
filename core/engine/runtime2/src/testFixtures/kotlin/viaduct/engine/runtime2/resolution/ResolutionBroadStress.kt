@@ -36,6 +36,7 @@ import viaduct.engine.runtime2.correctresolution.CorrectnessResolverObserver
 import viaduct.engine.runtime2.correctresolution.correctResolution
 import viaduct.engine.runtime2.model.EngineOutputData
 import viaduct.engine.runtime2.model.Fragment
+import viaduct.engine.runtime2.model.ListEngineResult
 import viaduct.engine.runtime2.model.MaterializeSelectionForest
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.ResolverOccurrenceId
@@ -179,10 +180,10 @@ suspend fun runResolutionBroadStress(
                 val occurrenceLog = BoundedRecorder<ResolverOccurrenceApplicationRecord>()
                 resolutionCalls += 1
 
-                val witnessObserver = testCase.registry.resolverObserver()
+                val witnessObserver = testCase.registry.resolutionObserver()
 
                 val recordingObserver = object : CorrectnessResolverObserver() {
-                    override fun onResolverInvocation(observation: ResolverInvocationObservation) {
+                    override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { observation ->
                         super.onResolverInvocation(observation)
                         witnessObserver.onResolverInvocation(observation)
                         val parentActivations =
@@ -312,7 +313,7 @@ suspend fun runResolutionBroadStress(
                     }
                 }
                 val operation =
-                    SharedOperationContext.create(world, resolverObserver = recordingObserver)
+                    SharedOperationContext.create(world, resolutionObserver = recordingObserver)
                 val result: ObjectEngineResult =
                     operation.resolve(
                         selections = fragment.subselections,
@@ -328,7 +329,7 @@ suspend fun runResolutionBroadStress(
                         observation.reference.arguments.fieldValues.size
                     if (
                         observation.publicationPath.any { component ->
-                            component is viaduct.engine.runtime2.model.ListEngineResult.Index
+                            component is ListEngineResult.Index
                         }
                     ) {
                         activatedListRootFieldReferences += 1

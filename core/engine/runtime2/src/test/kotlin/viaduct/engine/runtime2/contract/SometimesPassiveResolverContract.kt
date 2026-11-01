@@ -7,6 +7,7 @@ import kotlin.test.assertIs
 import org.junit.jupiter.api.Test
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.runtime2.correctresolution.CorrectnessResolverObserver
+import viaduct.engine.runtime2.model.EngineResult
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.emptyFragmentOf
 import viaduct.engine.runtime2.model.registry.fieldResolverOf
@@ -24,7 +25,7 @@ interface SometimesPassiveResolverContract : ResolverContract {
     fun `ancestor output supplies an active field instead of its standard resolver`() {
         val standardApplications = mutableListOf<String>()
         val invocationObserver = object : CorrectnessResolverObserver() {
-            override fun onResolverInvocation(observation: ResolverInvocationObservation) {
+            override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { observation ->
                 super.onResolverInvocation(observation)
                 val field = observation.field
                 if (field.containingDef.name == "Item") {
@@ -48,7 +49,7 @@ interface SometimesPassiveResolverContract : ResolverContract {
             )
         val world = testWorld.assumptions
 
-        val result = resolveAndValidate(testWorld, "query { item { computed } }", resolverObserver = invocationObserver)
+        val result = resolveAndValidate(testWorld, "query { item { computed } }", resolutionObserver = invocationObserver)
         val item =
             assertIs<ObjectEngineResult>(
                 result.getCell(world.schema.contractKey("Query", "item")).get(),
@@ -62,7 +63,7 @@ interface SometimesPassiveResolverContract : ResolverContract {
     fun `ancestor output supplies active fields at successive descendant fringes`() {
         val standardApplications = mutableListOf<String>()
         val invocationObserver = object : CorrectnessResolverObserver() {
-            override fun onResolverInvocation(observation: ResolverInvocationObservation) {
+            override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { observation ->
                 super.onResolverInvocation(observation)
                 val field = observation.field
                 if (field.containingDef.name != "Query") {
@@ -93,7 +94,7 @@ interface SometimesPassiveResolverContract : ResolverContract {
             )
         val world = testWorld.assumptions
 
-        val result = resolveAndValidate(testWorld, "query { item { computed { leaf } } }", resolverObserver = invocationObserver)
+        val result = resolveAndValidate(testWorld, "query { item { computed { leaf } } }", resolutionObserver = invocationObserver)
         val item =
             assertIs<ObjectEngineResult>(
                 result.getCell(world.schema.contractKey("Query", "item")).get(),
@@ -112,77 +113,97 @@ interface SometimesPassiveResolverContract : ResolverContract {
 interface SometimesPassiveObjectFragmentResolverContract : ResolverContract {
     @Test
     fun `supplied intermediate dependency retains requested children and suppresses transitive inputs`() {
-        for (supplied in listOf(true, false)) {
-            val providerCalls = AtomicInteger()
-            val applications = ConcurrentLinkedQueue<String>()
-            val observer = object : CorrectnessResolverObserver() {
-                override fun onResolverInvocation(observation: ResolverInvocationObservation) {
-                    super.onResolverInvocation(observation)
-                    applications += "${observation.field.containingDef.name}/${observation.field.name}"
-                }
+        val resolution = resolveIntermediateDependency(supplied = true)
+
+        assertEquals(7, resolution.left)
+        assertEquals(9, resolution.right)
+        assertEquals(0, resolution.providerCalls)
+        assertEquals(listOf("Query/item", "Item/leftResult", "Item/rightResult").sorted(), resolution.applications)
+    }
+
+    @Test
+    fun `unsupplied intermediate dependency activates its provider and transitive inputs`() {
+        val resolution = resolveIntermediateDependency(supplied = false)
+
+        assertEquals(4, resolution.left)
+        assertEquals(4, resolution.right)
+        assertEquals(1, resolution.providerCalls)
+        assertEquals(
+            listOf("Query/item", "Item/leftResult", "Item/rightResult", "Item/middle", "Item/fixed", "Item/seed", "Query/constant", "Query/base").sorted(),
+            resolution.applications,
+        )
+    }
+
+    private fun resolveIntermediateDependency(supplied: Boolean): IntermediateDependencyResolution {
+        val providerCalls = AtomicInteger()
+        val applications = ConcurrentLinkedQueue<String>()
+        val observer = object : CorrectnessResolverObserver() {
+            override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { observation ->
+                super.onResolverInvocation(observation)
+                applications += "${observation.field.containingDef.name}/${observation.field.name}"
             }
-            val testWorld = TestWorld.fromSDL(
-                selectiveResolvers = selectiveResolvers,
-                schemaSDL = """
-                    type Query { item: Item constant: Int base(value: Int): Int }
-                    type Item { leftResult: Int rightResult: Int middle: Leaf fixed: Int seed(value: Int): Int }
-                    type Leaf { left: Int right: Int }
-                """.trimIndent(),
-                fieldResolvers = { schemas ->
-                    val schema = schemas.loweredSchema
-                    mapOf(
-                        schema.requireObjectField("Query", "item") to fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
-                            schema.objectOf("Item") {
-                                if (supplied) {
-                                    "middle" setTo schema.objectOf("Leaf") {
-                                        "left" setTo 7
-                                        "right" setTo 9
-                                    }
+        }
+        val testWorld = TestWorld.fromSDL(
+            selectiveResolvers = selectiveResolvers,
+            schemaSDL = """
+                type Query { item: Item constant: Int base(value: Int): Int }
+                type Item { leftResult: Int rightResult: Int middle: Leaf fixed: Int seed(value: Int): Int }
+                type Leaf { left: Int right: Int }
+            """.trimIndent(),
+            fieldResolvers = { schemas ->
+                val schema = schemas.loweredSchema
+                mapOf(
+                    schema.requireObjectField("Query", "item") to fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
+                        schema.objectOf("Item") {
+                            if (supplied) {
+                                "middle" setTo schema.objectOf("Leaf") {
+                                    "left" setTo 7
+                                    "right" setTo 9
                                 }
                             }
-                        },
-                        schema.requireObjectField("Item", "leftResult") to fieldResolverOf(
-                            schemas.fragmentFrom("fragment Input on Item { middle { left } }"),
-                        ) { input, _ -> (input.selectionValues().getValue("middle") as EngineObjectData.Sync).selectionValues().getValue("left") },
-                        schema.requireObjectField("Item", "rightResult") to fieldResolverOf(
-                            schemas.fragmentFrom("fragment Input on Item { middle { right } }"),
-                        ) { input, _ -> (input.selectionValues().getValue("middle") as EngineObjectData.Sync).selectionValues().getValue("right") },
-                        schema.requireObjectField("Item", "middle") to fieldResolverOf(
-                            objectFragment = schemas.fragmentFrom("fragment Input on Item { fixed seed(value: 4) }"),
-                            queryFragment = schemas.fragmentFrom("fragment Input on Query { constant base(value: ${'$'}value) }"),
-                        ) { input, query, _ ->
-                            schema.objectOf("Leaf") {
-                                "left" setTo input.selectionValues().getValue("seed")
-                                "right" setTo query.selectionValues().getValue("base")
-                            }
-                        }.withVariablesProvider(setOf("value")) {
-                            providerCalls.incrementAndGet()
-                            mapOf("value" to 4)
-                        },
-                        schema.requireObjectField("Item", "fixed") to fieldResolverOf(schema.emptyFragmentOf("Item")) { _, _ -> 3 },
-                        schema.requireObjectField("Item", "seed") to fieldResolverOf(schema.emptyFragmentOf("Item")) { _, args -> args.fieldValues.getValue("value") },
-                        schema.requireObjectField("Query", "constant") to fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> 23 },
-                        schema.requireObjectField("Query", "base") to fieldResolverOf(schema.emptyFragmentOf("Query")) { _, args -> args.fieldValues.getValue("value") },
-                    )
-                },
-            )
-            val result = resolveAndValidate(testWorld, "query { item { leftResult rightResult } }", resolverObserver = observer)
-            val item = assertIs<ObjectEngineResult>(result.getCell(testWorld.schema.contractKey("Query", "item")).get())
+                        }
+                    },
+                    schema.requireObjectField("Item", "leftResult") to fieldResolverOf(
+                        schemas.fragmentFrom("fragment Input on Item { middle { left } }"),
+                    ) { input, _ -> (input.selectionValues().getValue("middle") as EngineObjectData.Sync).selectionValues().getValue("left") },
+                    schema.requireObjectField("Item", "rightResult") to fieldResolverOf(
+                        schemas.fragmentFrom("fragment Input on Item { middle { right } }"),
+                    ) { input, _ -> (input.selectionValues().getValue("middle") as EngineObjectData.Sync).selectionValues().getValue("right") },
+                    schema.requireObjectField("Item", "middle") to fieldResolverOf(
+                        objectFragment = schemas.fragmentFrom("fragment Input on Item { fixed seed(value: 4) }"),
+                        queryFragment = schemas.fragmentFrom("fragment Input on Query { constant base(value: ${'$'}value) }"),
+                    ) { input, query, _ ->
+                        schema.objectOf("Leaf") {
+                            "left" setTo input.selectionValues().getValue("seed")
+                            "right" setTo query.selectionValues().getValue("base")
+                        }
+                    }.withVariablesProvider(setOf("value")) {
+                        providerCalls.incrementAndGet()
+                        mapOf("value" to 4)
+                    },
+                    schema.requireObjectField("Item", "fixed") to fieldResolverOf(schema.emptyFragmentOf("Item")) { _, _ -> 3 },
+                    schema.requireObjectField("Item", "seed") to fieldResolverOf(schema.emptyFragmentOf("Item")) { _, args -> args.fieldValues.getValue("value") },
+                    schema.requireObjectField("Query", "constant") to fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> 23 },
+                    schema.requireObjectField("Query", "base") to fieldResolverOf(schema.emptyFragmentOf("Query")) { _, args -> args.fieldValues.getValue("value") },
+                )
+            },
+        )
+        val result = resolveAndValidate(testWorld, "query { item { leftResult rightResult } }", resolutionObserver = observer)
+        val item = assertIs<ObjectEngineResult>(result.getCell(testWorld.schema.contractKey("Query", "item")).get())
 
-            assertEquals(if (supplied) 7 else 4, item.getCell(testWorld.schema.contractKey("Item", "leftResult")).get())
-            assertEquals(if (supplied) 9 else 4, item.getCell(testWorld.schema.contractKey("Item", "rightResult")).get())
-            assertEquals(if (supplied) 0 else 1, providerCalls.get())
-            val expected = mutableListOf("Query/item", "Item/leftResult", "Item/rightResult")
-            if (!supplied) expected += listOf("Item/middle", "Item/fixed", "Item/seed", "Query/constant", "Query/base")
-            assertEquals(expected.sorted(), applications.sorted())
-        }
+        return IntermediateDependencyResolution(
+            left = item.getCell(testWorld.schema.contractKey("Item", "leftResult")).get(),
+            right = item.getCell(testWorld.schema.contractKey("Item", "rightResult")).get(),
+            providerCalls = providerCalls.get(),
+            applications = applications.sorted(),
+        )
     }
 
     @Test
     fun `ancestor-supplied active field does not activate its standard resolver demand`() {
         val standardApplications = mutableListOf<String>()
         val invocationObserver = object : CorrectnessResolverObserver() {
-            override fun onResolverInvocation(observation: ResolverInvocationObservation) {
+            override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { observation ->
                 super.onResolverInvocation(observation)
                 val field = observation.field
                 if (field.containingDef.name == "Item") {
@@ -208,7 +229,7 @@ interface SometimesPassiveObjectFragmentResolverContract : ResolverContract {
             )
         val world = testWorld.assumptions
 
-        val result = resolveAndValidate(testWorld, "query { item { computed } }", resolverObserver = invocationObserver)
+        val result = resolveAndValidate(testWorld, "query { item { computed } }", resolutionObserver = invocationObserver)
         val item =
             assertIs<ObjectEngineResult>(
                 result.getCell(world.schema.contractKey("Query", "item")).get(),
@@ -222,7 +243,7 @@ interface SometimesPassiveObjectFragmentResolverContract : ResolverContract {
     fun `omitted active field uses its standard resolver and ancestor-supplied demand`() {
         val standardApplications = mutableListOf<String>()
         val invocationObserver = object : CorrectnessResolverObserver() {
-            override fun onResolverInvocation(observation: ResolverInvocationObservation) {
+            override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { observation ->
                 super.onResolverInvocation(observation)
                 val field = observation.field
                 if (field.containingDef.name == "Item") {
@@ -248,7 +269,7 @@ interface SometimesPassiveObjectFragmentResolverContract : ResolverContract {
             )
         val world = testWorld.assumptions
 
-        val result = resolveAndValidate(testWorld, "query { item { computed } }", resolverObserver = invocationObserver)
+        val result = resolveAndValidate(testWorld, "query { item { computed } }", resolutionObserver = invocationObserver)
         val item =
             assertIs<ObjectEngineResult>(
                 result.getCell(world.schema.contractKey("Query", "item")).get(),
@@ -265,7 +286,7 @@ interface SometimesPassiveObjectPathResolverContract : ResolverContract {
     fun `reads a provider below an ancestor-supplied active field`() {
         val standardApplications = mutableListOf<String>()
         val invocationObserver = object : CorrectnessResolverObserver() {
-            override fun onResolverInvocation(observation: ResolverInvocationObservation) {
+            override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { observation ->
                 super.onResolverInvocation(observation)
                 val field = observation.field
                 if (
@@ -307,7 +328,7 @@ interface SometimesPassiveObjectPathResolverContract : ResolverContract {
             )
         val world = testWorld.assumptions
 
-        val resolved = resolveAndValidate(testWorld, "query { item { result } }", resolverObserver = invocationObserver)
+        val resolved = resolveAndValidate(testWorld, "query { item { result } }", resolutionObserver = invocationObserver)
         val item =
             assertIs<ObjectEngineResult>(
                 resolved.getCell(world.schema.contractKey("Query", "item")).get(),
@@ -321,7 +342,7 @@ interface SometimesPassiveObjectPathResolverContract : ResolverContract {
     fun `does not validate object-path bindings for a source-owned resolver occurrence`() {
         val standardApplications = mutableListOf<String>()
         val invocationObserver = object : CorrectnessResolverObserver() {
-            override fun onResolverInvocation(observation: ResolverInvocationObservation) {
+            override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { observation ->
                 super.onResolverInvocation(observation)
                 val field = observation.field
                 if (field.containingDef.name == "Item") {
@@ -354,7 +375,7 @@ interface SometimesPassiveObjectPathResolverContract : ResolverContract {
         val world = testWorld.assumptions
 
         val resolution =
-            resolveAndValidateObserved(testWorld, "query { item { computed } }", resolverObserver = invocationObserver)
+            resolveAndValidateObserved(testWorld, "query { item { computed } }", resolutionObserver = invocationObserver)
         val resolved = resolution.result
         val item =
             assertIs<ObjectEngineResult>(
@@ -374,7 +395,7 @@ interface SometimesPassiveSelectiveResolverContract : ResolverContract {
         val events = mutableListOf<String>()
         var itemDemand: Set<String>? = null
         val invocationObserver = object : CorrectnessResolverObserver() {
-            override fun onResolverInvocation(observation: ResolverInvocationObservation) {
+            override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { observation ->
                 super.onResolverInvocation(observation)
                 val field = observation.field
                 val selections = observation.suppliedDemand
@@ -442,7 +463,7 @@ interface SometimesPassiveSelectiveResolverContract : ResolverContract {
             )
         val world = testWorld.assumptions
 
-        val result = resolveAndValidate(testWorld, "query { item { computed } }", resolverObserver = invocationObserver)
+        val result = resolveAndValidate(testWorld, "query { item { computed } }", resolutionObserver = invocationObserver)
         val item =
             assertIs<ObjectEngineResult>(
                 result.getCell(world.schema.contractKey("Query", "item")).get(),
@@ -459,3 +480,10 @@ interface SometimesPassiveSelectiveResolverContract : ResolverContract {
         )
     }
 }
+
+private data class IntermediateDependencyResolution(
+    val left: EngineResult?,
+    val right: EngineResult?,
+    val providerCalls: Int,
+    val applications: List<String>,
+)

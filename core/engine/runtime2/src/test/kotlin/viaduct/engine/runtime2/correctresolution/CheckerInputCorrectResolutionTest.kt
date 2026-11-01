@@ -62,7 +62,7 @@ class CheckerInputCorrectResolutionTest {
             queryScalar: Int,
             names: Set<String> = setOf("left", "right")
         ): Boolean {
-            val observer = CorrectnessCheckerObserver()
+            val observer = CorrectnessResolverObserver()
             observer.onCheckerQueryFragmentPrepared(target, ResolverOccurrenceId.at(root, emptyList()), queryInput)
             observer.onCheckerInvocation(
                 observation,
@@ -73,7 +73,7 @@ class CheckerInputCorrectResolutionTest {
                     )
                 }
             )
-            return root.correctResolution(SharedOperationContext.create(world, checkerObserver = observer), fragment)
+            return root.correctResolution(SharedOperationContext.create(world, resolutionObserver = observer), fragment)
         }
         assertTrue(conforms(7, 7))
         assertFalse(conforms(8, 7), "Equal wrong object projections passed the constant success relation")

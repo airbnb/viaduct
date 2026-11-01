@@ -9,7 +9,6 @@ import viaduct.engine.api.CheckerResult
 import viaduct.engine.runtime2.contract.CheckerApplicationRecorder
 import viaduct.engine.runtime2.contract.demandedTypeCheckerApplications
 import viaduct.engine.runtime2.contract.registeredCheckerApplications
-import viaduct.engine.runtime2.correctresolution.CorrectnessCheckerObserver
 import viaduct.engine.runtime2.correctresolution.CorrectnessResolverObserver
 import viaduct.engine.runtime2.correctresolution.correctResolution
 import viaduct.engine.runtime2.model.Arguments
@@ -213,14 +212,14 @@ open class SymbolicTypeCheckerTest : ResolutionDispatcherResource {
         assertEquals(2, resolution.recorder.checkerApplications().size)
         assertEquals(
             2,
-            resolution.checkers
-                .allQueryFragmentResults()
+            resolution.observer
+                .allCheckerQueryFragmentResults()
                 .values
                 .flatten()
                 .toSet()
                 .size
         )
-        val invocations = resolution.resolvers.allResolverInvocations()
+        val invocations = resolution.observer.allResolverInvocations()
         assertEquals(2, invocations.count { it.field.name == "viewer" })
         assertEquals(4, invocations.count { it.field.name == "result" })
     }
@@ -351,7 +350,7 @@ open class SymbolicTypeCheckerTest : ResolutionDispatcherResource {
         )
         val resolution = resolveChecked(world, "{ root { item { id } } }")
         assertEquals(1, resolution.recorder.checkerApplications().size)
-        assertEquals(1, resolution.resolvers.allResolverInvocations().count { it.field.name == "token" })
+        assertEquals(1, resolution.observer.allResolverInvocations().count { it.field.name == "token" })
     }
 
     @Test
@@ -449,8 +448,7 @@ open class SymbolicTypeCheckerTest : ResolutionDispatcherResource {
         val forged = SharedOperationContext.create(
             world.newAssumptions(usePrecomputedConstructionDemand = precomputedConstructionDemand),
             variableBindings = forgedBindings,
-            resolverObserver = resolution.resolvers,
-            checkerObserver = resolution.checkers
+            resolutionObserver = resolution.observer,
         )
         assertFalse(resolution.result.correctResolution(forged, world.schemas.operationSelectionsFrom("{ value }").merge(resolution.result.type)))
     }
@@ -510,9 +508,11 @@ open class SymbolicTypeCheckerTest : ResolutionDispatcherResource {
         beforeReplay: () -> Unit = {},
     ): Resolution {
         val recorder = CheckerApplicationRecorder()
-        val checkers = CorrectnessCheckerObserver(recorder)
-        val resolvers = CorrectnessResolverObserver()
-        val operation = SharedOperationContext.create(world.newAssumptions(usePrecomputedConstructionDemand = precomputedConstructionDemand), resolverObserver = resolvers, checkerObserver = checkers)
+        val observer = CorrectnessResolverObserver(recorder)
+        val operation = SharedOperationContext.create(
+            world.newAssumptions(usePrecomputedConstructionDemand = precomputedConstructionDemand),
+            resolutionObserver = observer,
+        )
         val selections = world.schemas.operationSelectionsFrom(query)
         val result = operation.resolveWithTestDispatcher(selections)
         beforeReplay()
@@ -522,14 +522,13 @@ open class SymbolicTypeCheckerTest : ResolutionDispatcherResource {
             result.demandedTypeCheckerApplications(operation, selections).associateWith { 1 },
             recorder.checkerApplications().filter { it.checkerKind == viaduct.engine.runtime2.resolution.framework.CheckerKind.TYPE }.groupingBy { it }.eachCount(),
         )
-        return Resolution(result, recorder, checkers, resolvers, operation)
+        return Resolution(result, recorder, observer, operation)
     }
 
     private class Resolution(
         val result: ObjectEngineResult,
         val recorder: CheckerApplicationRecorder,
-        val checkers: CorrectnessCheckerObserver,
-        val resolvers: CorrectnessResolverObserver,
+        val observer: CorrectnessResolverObserver,
         val operation: SharedOperationContext<*>,
     )
 }

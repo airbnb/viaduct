@@ -127,7 +127,7 @@ class CorrectResolutionTest : ResolutionDispatcherResource {
             },
         )
         val world = fixture.assumptions
-        val operation = SharedOperationContext.create(world, resolverObserver = CorrectnessResolverObserver())
+        val operation = SharedOperationContext.create(world, resolutionObserver = CorrectnessResolverObserver())
         val selections = fixture.schemas.fragmentFrom("fragment Result on Query { value }").subselections.merge(world.schema.requireQueryTypeDef())
         val result = operation.resolveWithTestDispatcher(selections)
         val value = world.schema.requireObjectField("Query", "value")
@@ -153,7 +153,7 @@ class CorrectResolutionTest : ResolutionDispatcherResource {
         val fixture = TestWorld.fromSDL("type Query { value: Int! }")
         val world = fixture.assumptions
         val result = world.engineResultOf("Query")
-        val operation = SharedOperationContext.create(world, resolverObserver = CorrectnessResolverObserver())
+        val operation = SharedOperationContext.create(world, resolutionObserver = CorrectnessResolverObserver())
         val validation = assertNotNull(ValidatedResolution.create(result, operation, selectionForestOf().merge(world.schema.requireQueryTypeDef())))
 
         assertFailsWith<IllegalArgumentException> {
@@ -192,11 +192,11 @@ class CorrectResolutionTest : ResolutionDispatcherResource {
         val selections = fixture.schemas.fragmentFrom("fragment Result on Query { reference }").subselections.merge(world.schema.requireQueryTypeDef())
         for (hopCopies in 0..2) {
             val observer = object : CorrectnessResolverObserver() {
-                override fun onRootFieldReferenceInvocation(observation: RootFieldReferenceInvocationObservation) {
+                override val onRootFieldReferenceInvocation: (RootFieldReferenceInvocationObservation) -> Unit = { observation ->
                     repeat(hopCopies) { super.onRootFieldReferenceInvocation(observation) }
                 }
             }
-            val operation = SharedOperationContext.create(world, resolverObserver = observer)
+            val operation = SharedOperationContext.create(world, resolutionObserver = observer)
             val result = operation.resolveWithTestDispatcher(selections)
             val validation = ValidatedResolution.create(result, operation, selections)
             if (hopCopies != 1) {
@@ -220,13 +220,13 @@ class CorrectResolutionTest : ResolutionDispatcherResource {
             val testWorld = TestWorld.fromDSL("extend type Query { value: Int @resolver(result: 7) }")
             val events = CopyOnWriteArrayList<ResolverInvocationObservation>()
             val observer = object : CorrectnessResolverObserver() {
-                override fun onResolverInvocation(observation: ResolverInvocationObservation) {
+                override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { observation ->
                     super.onResolverInvocation(observation)
                     events += observation
                 }
             }
             val world = testWorld.assumptions
-            val operation = SharedOperationContext.create(world, resolverObserver = observer)
+            val operation = SharedOperationContext.create(world, resolutionObserver = observer)
             val fragment = testWorld.schemas.fragmentFrom("fragment Main on Query { value }")
             val root = operation.resolveWithTestDispatcher(fragment.subselections)
             assertEquals(1, events.size)
@@ -279,7 +279,7 @@ class CorrectResolutionTest : ResolutionDispatcherResource {
                 },
             )
         val world = testWorld.assumptions
-        val operation = SharedOperationContext.create(world, resolverObserver = CorrectnessResolverObserver())
+        val operation = SharedOperationContext.create(world, resolutionObserver = CorrectnessResolverObserver())
         val selections =
             testWorld.schemas.fragmentFrom(
                 """
@@ -453,39 +453,42 @@ class CorrectResolutionTest : ResolutionDispatcherResource {
         assertFalse(result.correctResolution(missingObservation, selections))
 
         val reusedPrimaryRoot =
-            SharedOperationContext.create(world, resolverObserver = CorrectnessResolverObserver())
-        reusedPrimaryRoot.resolverObserver.onQueryFragmentPrepared(occurrenceId, result)
+            SharedOperationContext.create(world, resolutionObserver = CorrectnessResolverObserver())
+        reusedPrimaryRoot.resolutionObserver.onQueryFragmentPrepared?.invoke(occurrenceId, result, null)
         assertFalse(result.correctResolution(reusedPrimaryRoot, selections))
 
         val incorrectObservation =
-            SharedOperationContext.create(world, resolverObserver = CorrectnessResolverObserver())
-        incorrectObservation.resolverObserver.onQueryFragmentPrepared(
+            SharedOperationContext.create(world, resolutionObserver = CorrectnessResolverObserver())
+        incorrectObservation.resolutionObserver.onQueryFragmentPrepared?.invoke(
             occurrenceId,
             world.engineResultOf("Query") {
                 "source" resolvesTo 8
             },
+            null
         )
         assertFalse(result.correctResolution(incorrectObservation, selections))
 
         val correctObservation =
-            SharedOperationContext.create(world, resolverObserver = CorrectnessResolverObserver())
-        correctObservation.resolverObserver.onQueryFragmentPrepared(
+            SharedOperationContext.create(world, resolutionObserver = CorrectnessResolverObserver())
+        correctObservation.resolutionObserver.onQueryFragmentPrepared?.invoke(
             occurrenceId,
             world.engineResultOf("Query") {
                 "source" resolvesTo 7
             },
+            null
         )
         assertTrue(result.correctResolution(correctObservation, selections))
 
+        val unexplainedObserver = CorrectnessResolverObserver()
         val unexplainedExtraCell =
-            SharedOperationContext.create(world, resolverObserver = CorrectnessResolverObserver())
+            SharedOperationContext.create(world, resolutionObserver = unexplainedObserver)
         val queryResult =
             world.engineResultOf("Query") {
                 "source" resolvesTo 7
                 "extra" resolvesTo 9
             }
-        unexplainedExtraCell.resolverObserver.onQueryFragmentPrepared(occurrenceId, queryResult)
-        unexplainedExtraCell.resolverObserver.onQueryOERPrepared(
+        unexplainedExtraCell.resolutionObserver.onQueryFragmentPrepared?.invoke(occurrenceId, queryResult, null)
+        unexplainedObserver.recordQueryOERPrepared(
             SharedOERContext(
                 occurrence = OEROccurrence(queryResult, emptyList(), queryResult),
                 source = engineObjectDataOf(world.schema.requireQueryTypeDef()),
@@ -494,15 +497,17 @@ class CorrectResolutionTest : ResolutionDispatcherResource {
                         .subselections
                         .merge(world.schema.requireQueryTypeDef()),
             ),
-            queryOERDepth = 1,
+            null,
+            1
         )
         assertFalse(result.correctResolution(unexplainedExtraCell, selections))
 
-        correctObservation.resolverObserver.onQueryFragmentPrepared(
+        correctObservation.resolutionObserver.onQueryFragmentPrepared?.invoke(
             occurrenceId,
             world.engineResultOf("Query") {
                 "source" resolvesTo 7
             },
+            null
         )
         assertFalse(result.correctResolution(correctObservation, selections))
     }
@@ -707,7 +712,7 @@ class CorrectResolutionTest : ResolutionDispatcherResource {
         val query = worldFixture.schemas.fragmentFrom("fragment Query on Query { checked }")
 
         fun operation(vararg queryValues: Int): SharedOperationContext<*> {
-            val observer = CorrectnessCheckerObserver()
+            val observer = CorrectnessResolverObserver()
             queryValues.forEach { value ->
                 observer.onCheckerQueryFragmentPrepared(
                     ResolverTarget.FieldCheckerTarget(checked),
@@ -717,7 +722,7 @@ class CorrectResolutionTest : ResolutionDispatcherResource {
                     },
                 )
             }
-            return SharedOperationContext.create(world, checkerObserver = observer)
+            return SharedOperationContext.create(world, resolutionObserver = observer)
         }
 
         assertFalse(result.correctResolution(operation(), query))
@@ -791,7 +796,7 @@ class CorrectResolutionTest : ResolutionDispatcherResource {
                     arguments = Arguments.Resolved.of(denied, emptyMap()),
                     suppliedDemand = null,
                     resolverOccurrenceId = ResolverOccurrenceId.at(result, listOf(deniedKey)),
-                ),
+                )
             )
             observer.onResolverInvocation(
                 ResolverInvocationObservation(
@@ -808,9 +813,9 @@ class CorrectResolutionTest : ResolutionDispatcherResource {
                     arguments = Arguments.Resolved.of(consumer, emptyMap()),
                     suppliedDemand = null,
                     resolverOccurrenceId = occurrenceId,
-                ),
+                )
             )
-            return SharedOperationContext.create(world, resolverObserver = observer)
+            return SharedOperationContext.create(world, resolutionObserver = observer)
         }
 
         assertFalse(result.correctResolution(operation(1), fragment))
@@ -1084,7 +1089,7 @@ class CorrectResolutionTest : ResolutionDispatcherResource {
             val operation =
                 SharedOperationContext.create(
                     world,
-                    resolverObserver = CorrectnessResolverObserver(),
+                    resolutionObserver = CorrectnessResolverObserver(),
                 )
             for (name in listOf("left", "right")) {
                 val key =
@@ -1092,11 +1097,12 @@ class CorrectResolutionTest : ResolutionDispatcherResource {
                         world.schema.requireObjectField("Query", name),
                         emptyMap(),
                     )
-                operation.resolverObserver.onQueryFragmentPrepared(
+                operation.resolutionObserver.onQueryFragmentPrepared?.invoke(
                     ResolverOccurrenceId.at(result, listOf(key)),
                     world.engineResultOf("Query") {
                         "source" resolvesTo if (name == "right") rightValue else 7
                     },
+                    null
                 )
             }
             return operation

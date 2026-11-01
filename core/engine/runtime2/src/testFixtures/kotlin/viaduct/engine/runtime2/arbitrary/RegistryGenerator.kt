@@ -23,6 +23,7 @@ import viaduct.engine.runtime2.model.EngineOutputData
 import viaduct.engine.runtime2.model.Fragment
 import viaduct.engine.runtime2.model.MaterializeSelection
 import viaduct.engine.runtime2.model.MaterializeSelectionForest
+import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.ResolverOutputData
 import viaduct.engine.runtime2.model.ResolverTarget
 import viaduct.engine.runtime2.model.RootFieldReferenceData
@@ -411,7 +412,7 @@ class ArbitraryRegistry internal constructor(
     private fun FieldCoordinate.isNodeLoader(schema: ArbitrarySchema): Boolean = nodeLoaderPossibleTypes(schema, this).isNotEmpty()
 
     /** Creates request-local observation state; constructing a model world installs no hooks. */
-    fun resolverObserver(
+    fun resolutionObserver(
         captureSuppliedDemand: Boolean = false,
         captureResolutionWitness: Boolean = true,
         captureResolutionApplicationCounts: Boolean = !captureResolutionWitness,
@@ -443,7 +444,7 @@ class ArbitraryRegistry internal constructor(
             }
         }
         return object : CorrectnessResolverObserver() {
-            override fun onResolverInvocation(observation: ResolverInvocationObservation) {
+            override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { observation ->
                 super.onResolverInvocation(observation)
                 val coordinate = FieldCoordinate(observation.field.containingDef.name, observation.field.name)
                 recordApplication(coordinate, observation.arguments, observation.input, observation.suppliedDemand)
@@ -759,7 +760,7 @@ class ArbitraryRegistry internal constructor(
                             .materializeSelections
                         val path = provider.responsePath().map { responseKey ->
                             val selected = selections.filter { it.responseKey == responseKey }
-                            val keys = mutableListOf<viaduct.engine.runtime2.model.ObjectEngineResult.Key>()
+                            val keys = mutableListOf<ObjectEngineResult.Key>()
                             selected.forEach { keys += it.key }
                             val key = keys.first()
                             selections = selected.flatMap { it.subselections }

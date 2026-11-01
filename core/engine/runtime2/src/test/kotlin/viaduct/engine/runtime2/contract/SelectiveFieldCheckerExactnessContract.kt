@@ -25,8 +25,8 @@ import viaduct.engine.runtime2.model.testing.fragmentFrom
 import viaduct.engine.runtime2.model.testing.objectOf
 import viaduct.engine.runtime2.resolution.framework.CheckerInvocationObservation
 import viaduct.engine.runtime2.resolution.framework.CheckerKind
+import viaduct.engine.runtime2.resolution.framework.ResolutionObserver
 import viaduct.engine.runtime2.resolution.framework.ResolverInvocationObservation
-import viaduct.engine.runtime2.resolution.framework.ResolverObserver
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 import viaduct.engine.runtime2.resolution.framework.instantiateBindings
 import viaduct.engine.runtime2.resolvers.instantiateBindings
@@ -41,22 +41,21 @@ interface SelectiveFieldCheckerExactnessContract {
     fun `checker raw demand is exact and restores checks only at value resolver inputs`() {
         listOf(false, true).forEach { rawSelected ->
             val producerDemand = AtomicReference<SelectionForest>()
-            val resolverObserver =
-                object : ResolverObserver {
-                    override fun onResolverInvocation(observation: ResolverInvocationObservation) {
+            val resolutionObserver =
+                object : ResolutionObserver {
+                    override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { observation ->
                         if (observation.field.name == "item") {
                             producerDemand.set(observation.suppliedDemand)
                         }
                     }
                 }
-            val checkerRecorder = CheckerApplicationRecorder()
+            val checkerRecorder = CheckerApplicationRecorder(resolutionObserver)
             val worldFixture = exactnessWorld()
             val world = worldFixture.assumptions
             val operation =
                 SharedOperationContext.create(
                     world = world,
-                    resolverObserver = resolverObserver,
-                    checkerObserver = checkerRecorder,
+                    resolutionObserver = checkerRecorder,
                 )
             val query =
                 if (rawSelected) {
@@ -129,7 +128,7 @@ interface SelectiveFieldCheckerExactnessContract {
         val checkerRecorder = CheckerApplicationRecorder()
         val worldFixture = sharedQueryScopeWorld()
         val world = worldFixture.assumptions
-        val operation = SharedOperationContext.create(world, checkerObserver = checkerRecorder)
+        val operation = SharedOperationContext.create(world, resolutionObserver = checkerRecorder)
 
         val result =
             coroutineResolverSubject.resolve(

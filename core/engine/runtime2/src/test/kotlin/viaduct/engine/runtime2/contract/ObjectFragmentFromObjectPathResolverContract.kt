@@ -266,87 +266,88 @@ interface ObjectFragmentFromObjectPathResolverContract :
     }
 
     @Test
-    fun `binds null and error from nullable provider paths`() {
-        listOf(false, true).forEach { isError ->
-            val provided = null
-            val dslValue = if (isError) "\"ERROR\"" else "null"
-            var observedResultInput = false
-            var consumedKey: String? = null
-            var consumedValue: EngineOutputData? = null
-            val invocationObserver = object : CorrectnessResolverObserver() {
-                override fun onResolverInvocation(observation: ResolverInvocationObservation) {
-                    super.onResolverInvocation(observation)
-                    val field = observation.field
-                    val input = observation.input
-                    if (
-                        field.containingDef.name == "Query" &&
-                        field.name == "result"
-                    ) {
-                        val consumed =
-                            input.selectionValues().entries
-                                .single { (key, _) -> key == "consume" }
-                        consumedKey = consumed.key
-                        consumedValue = consumed.value
-                        observedResultInput = true
-                    }
+    fun `binds null from a nullable provider path`() {
+        val resolution = resolveNullableProviderPath("null")
+
+        assertEquals<EngineResult?>(null, resolution.value)
+        assertEquals(VariableBinding.of(null), resolution.binding)
+        assertEquals("consume", resolution.consumedKey)
+        assertEquals(true, resolution.observedResultInput)
+        assertEquals(null, resolution.consumedValue)
+    }
+
+    @Test
+    fun `binds an error from a nullable provider path`() {
+        val resolution = resolveNullableProviderPath("\"ERROR\"")
+
+        assertIs<ErrorEngineResult>(resolution.value)
+        assertEquals(VariableBinding.Error, resolution.binding)
+        assertEquals("consume", resolution.consumedKey)
+        assertEquals(true, resolution.observedResultInput)
+        assertIs<EngineErrorData>(resolution.consumedValue)
+    }
+
+    private fun resolveNullableProviderPath(dslValue: String): NullableProviderPathResolution {
+        var observedResultInput = false
+        var consumedKey: String? = null
+        var consumedValue: EngineOutputData? = null
+        val invocationObserver = object : CorrectnessResolverObserver() {
+            override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { observation ->
+                super.onResolverInvocation(observation)
+                val field = observation.field
+                val input = observation.input
+                if (
+                    field.containingDef.name == "Query" &&
+                    field.name == "result"
+                ) {
+                    val consumed =
+                        input.selectionValues().entries
+                            .single { (key, _) -> key == "consume" }
+                    consumedKey = consumed.key
+                    consumedValue = consumed.value
+                    observedResultInput = true
                 }
             }
-            val testWorld =
-                TestWorld.fromDSL(
-                    selectiveResolvers = selectiveResolvers,
-                    schemaSDL =
-                        """
-                        extend type Query {
-                          result: Int
-                            @resolver(
-                              of: "source consume(value: ${'$'}value)"
-                              pathVars: [{name: "value", path: ["source"]}]
-                              result: $dslValue
-                            )
-                          source: Int @resolver(result: $dslValue)
-                          consume(value: Int): Int @resolver(result: $dslValue)
-                        }
-                        """.trimIndent(),
-                )
-            val world = testWorld.assumptions
-            val resultField = world.schema.requireObjectField("Query", "result")
-            val resultKey = ObjectEngineResult.GroundKey.of(resultField, emptyMap())
-            val resolver = world.resolverRegistry.resolver(resultField)
-            val resolution = resolveAndValidateObserved(testWorld, "query { result }", resolverObserver = invocationObserver)
-            val resolved = resolution.result
-            val boundVariable =
-                resolver
-                    .fieldPathDefinitions(resolved, listOf(resultKey))
-                    .filter { definition ->
-                        definition.providerFragment == ProviderFragment.OBJECT
-                    }
-                    .single()
-                    .variable
-
-            val resultValue = resolved.getCell(resultKey).get()
-            if (isError) {
-                assertIs<ErrorEngineResult>(resultValue)
-            } else {
-                assertEquals<EngineResult?>(null, resultValue)
-            }
-            assertEquals(
-                if (isError) {
-                    VariableBinding.Error
-                } else {
-                    VariableBinding.of(provided)
-                },
-                resolution.operation.variableBindings.getBinding(
-                    requireNotNull(boundVariable.instanceId),
-                ),
-            )
-            assertEquals("consume", consumedKey)
-            assertEquals(true, observedResultInput)
-            if (isError) {
-                assertIs<EngineErrorData>(consumedValue)
-            } else {
-                assertEquals(null, consumedValue)
-            }
         }
+        val testWorld =
+            TestWorld.fromDSL(
+                selectiveResolvers = selectiveResolvers,
+                schemaSDL =
+                    """
+                    extend type Query {
+                      result: Int
+                        @resolver(
+                          of: "source consume(value: ${'$'}value)"
+                          pathVars: [{name: "value", path: ["source"]}]
+                          result: $dslValue
+                        )
+                      source: Int @resolver(result: $dslValue)
+                      consume(value: Int): Int @resolver(result: $dslValue)
+                    }
+                    """.trimIndent(),
+            )
+        val world = testWorld.assumptions
+        val resultField = world.schema.requireObjectField("Query", "result")
+        val resultKey = ObjectEngineResult.GroundKey.of(resultField, emptyMap())
+        val resolver = world.resolverRegistry.resolver(resultField)
+        val resolution = resolveAndValidateObserved(testWorld, "query { result }", resolutionObserver = invocationObserver)
+        val resolved = resolution.result
+        val boundVariable =
+            resolver
+                .fieldPathDefinitions(resolved, listOf(resultKey))
+                .filter { definition ->
+                    definition.providerFragment == ProviderFragment.OBJECT
+                }
+                .single()
+                .variable
+
+        return NullableProviderPathResolution(
+            value = resolved.getCell(resultKey).get(),
+            binding = resolution.operation.variableBindings.getBinding(requireNotNull(boundVariable.instanceId)),
+            observedResultInput = observedResultInput,
+            consumedKey = consumedKey,
+            consumedValue = consumedValue,
+        )
     }
 
     @Test
@@ -412,7 +413,7 @@ interface ObjectFragmentFromObjectPathResolverContract :
                 emptyMap(),
             )
 
-        val resolved = resolveAndValidate(testWorld, "query { result }", resolverObserver = applicationArguments)
+        val resolved = resolveAndValidate(testWorld, "query { result }", resolutionObserver = applicationArguments)
 
         assertEquals(10, resolved.getCell(resultKey).get())
         applicationArguments.assertArguments(
@@ -421,3 +422,11 @@ interface ObjectFragmentFromObjectPathResolverContract :
         )
     }
 }
+
+private data class NullableProviderPathResolution(
+    val value: EngineResult?,
+    val binding: VariableBinding,
+    val observedResultInput: Boolean,
+    val consumedKey: String?,
+    val consumedValue: EngineOutputData?,
+)

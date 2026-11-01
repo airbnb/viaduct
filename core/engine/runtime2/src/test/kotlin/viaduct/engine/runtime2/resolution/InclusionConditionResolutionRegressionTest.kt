@@ -2,6 +2,7 @@
 
 package viaduct.engine.runtime2.resolution
 
+import java.util.Collections
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -16,8 +17,8 @@ import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.selectionForestOf
 import viaduct.engine.runtime2.model.testing.TestWorld
+import viaduct.engine.runtime2.resolution.framework.ResolutionObserver
 import viaduct.engine.runtime2.resolution.framework.ResolverInvocationObservation
-import viaduct.engine.runtime2.resolution.framework.ResolverObserver
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 
 class InclusionConditionResolutionRegressionTest : ResolutionDispatcherResource {
@@ -56,13 +57,13 @@ class InclusionConditionResolutionRegressionTest : ResolutionDispatcherResource 
         val x = Arguments.Variable.of(dependency, "x").instantiate(owner)
         val y = Arguments.Variable.of(dependency, "y").instantiate(owner)
         val z = Arguments.Variable.of(dependency, "z").instantiate(owner)
-        val applications = java.util.Collections.synchronizedList(mutableListOf<String>())
-        val observer = object : ResolverObserver {
-            override fun onResolverInvocation(observation: ResolverInvocationObservation) {
+        val applications = Collections.synchronizedList(mutableListOf<String>())
+        val observer = object : ResolutionObserver {
+            override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { observation ->
                 applications += observation.field.name
             }
         }
-        val operation = SharedOperationContext.create(world.assumptions, resolverObserver = observer)
+        val operation = SharedOperationContext.create(world.assumptions, resolutionObserver = observer)
         operation.variableBindings.bindVariable(requireNotNull(x.instanceId), VariableBinding.Error)
         operation.variableBindings.bindVariable(requireNotNull(y.instanceId), false)
         operation.variableBindings.bindVariable(requireNotNull(z.instanceId), false)

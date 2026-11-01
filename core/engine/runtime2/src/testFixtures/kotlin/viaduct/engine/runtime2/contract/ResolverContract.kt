@@ -1,14 +1,12 @@
 package viaduct.engine.runtime2.contract
 
 import viaduct.engine.api.EngineObjectData
-import viaduct.engine.runtime2.correctresolution.CorrectnessCheckerObserver
 import viaduct.engine.runtime2.correctresolution.CorrectnessResolverObserver
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.ResolverOccurrenceId
 import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.model.registry.Assumptions
-import viaduct.engine.runtime2.resolution.framework.CheckerObserver
-import viaduct.engine.runtime2.resolution.framework.ResolverObserver
+import viaduct.engine.runtime2.resolution.framework.ResolutionObserver
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 import viaduct.graphql.schema.ViaductSchema
 
@@ -35,6 +33,10 @@ interface ResolverContract {
     val selectiveResolvers: Boolean
         get() = true
 
+    /**
+     * Strategy hook invoked by [observeResolution] to run this subject's resolution algorithm.
+     * Tests must call [observeResolution] instead of calling this hook directly, so shared observation setup is applied.
+     */
     fun resolve(
         operation: SharedOperationContext<*>,
         root: EngineObjectData.Sync,
@@ -45,19 +47,14 @@ interface ResolverContract {
         world: Assumptions,
         root: EngineObjectData.Sync,
         selections: SelectionForest,
-        resolverObserver: ResolverObserver = CorrectnessResolverObserver(),
-        checkerObserver: CheckerObserver = CorrectnessCheckerObserver(),
+        resolutionObserver: ResolutionObserver = CorrectnessResolverObserver(),
     ): ResolverResolutionObservation {
         val correctnessResolverObserver =
-            resolverObserver as? CorrectnessResolverObserver
-                ?: CorrectnessResolverObserver(resolverObserver)
-        val correctnessCheckerObserver =
-            checkerObserver as? CorrectnessCheckerObserver
-                ?: CorrectnessCheckerObserver(checkerObserver)
+            resolutionObserver as? CorrectnessResolverObserver
+                ?: CorrectnessResolverObserver(resolutionObserver)
         return SharedOperationContext.create(
             world = world,
-            resolverObserver = correctnessResolverObserver,
-            checkerObserver = correctnessCheckerObserver,
+            resolutionObserver = correctnessResolverObserver,
         ).let { operation ->
             RecordedResolverResolutionObservation(
                 result = resolve(operation, root, selections),

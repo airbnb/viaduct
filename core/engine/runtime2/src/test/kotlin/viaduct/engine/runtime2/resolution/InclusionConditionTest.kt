@@ -28,8 +28,8 @@ import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.emptyFragmentOf
 import viaduct.engine.runtime2.model.testing.fragmentFrom
 import viaduct.engine.runtime2.model.testing.objectOf
+import viaduct.engine.runtime2.resolution.framework.ResolutionObserver
 import viaduct.engine.runtime2.resolution.framework.ResolverInvocationObservation
-import viaduct.engine.runtime2.resolution.framework.ResolverObserver
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 import viaduct.graphql.schema.ViaductSchema
 
@@ -60,12 +60,12 @@ class InclusionConditionTest : ResolutionDispatcherResource {
 
         val applications = Collections.synchronizedList(mutableListOf<String>())
 
-        val recordingObserver = object : ResolverObserver {
-            override fun onResolverInvocation(observation: ResolverInvocationObservation) {
+        val recordingObserver = object : ResolutionObserver {
+            override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { observation ->
                 applications += observation.field.name
             }
         }
-        val operation = SharedOperationContext.create(world.assumptions, resolverObserver = recordingObserver)
+        val operation = SharedOperationContext.create(world.assumptions, resolutionObserver = recordingObserver)
         val result = operation.resolveWithTestDispatcher(
             world.schemas.fragmentFrom("fragment Test on Query { controller healthy }").subselections,
         )
@@ -755,7 +755,7 @@ class InclusionConditionTest : ResolutionDispatcherResource {
             Collections.synchronizedList(mutableListOf<ViaductSchema.ObjectField>())
 
         val recordingObserver = object : CorrectnessResolverObserver() {
-            override fun onResolverInvocation(observation: ResolverInvocationObservation) {
+            override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { observation ->
                 super.onResolverInvocation(observation)
                 applications += observation.field
             }
@@ -763,7 +763,7 @@ class InclusionConditionTest : ResolutionDispatcherResource {
         val operation =
             SharedOperationContext.create(
                 world = assumptions,
-                resolverObserver = recordingObserver,
+                resolutionObserver = recordingObserver,
             )
         val result =
             operation.resolveWithTestDispatcher(fragment.subselections)

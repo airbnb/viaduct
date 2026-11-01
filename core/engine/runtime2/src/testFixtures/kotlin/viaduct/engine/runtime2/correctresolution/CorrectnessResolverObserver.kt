@@ -1,42 +1,89 @@
 package viaduct.engine.runtime2.correctresolution
 
+import java.util.Collections
+import java.util.IdentityHashMap
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedQueue
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.PathComponent
 import viaduct.engine.runtime2.model.ResolverOccurrenceId
+import viaduct.engine.runtime2.model.ResolverTarget
+import viaduct.engine.runtime2.model.registry.CheckerInput
+import viaduct.engine.runtime2.resolution.framework.CheckerInvocationObservation
 import viaduct.engine.runtime2.resolution.framework.OEROccurrence
+import viaduct.engine.runtime2.resolution.framework.ResolutionObserver
 import viaduct.engine.runtime2.resolution.framework.ResolverInvocationObservation
-import viaduct.engine.runtime2.resolution.framework.ResolverObserver
 import viaduct.engine.runtime2.resolution.framework.RootFieldReferenceInvocationObservation
 import viaduct.engine.runtime2.resolution.framework.SharedOERContext
+import viaduct.engine.runtime2.resolution.framework.SharedOrchestrationTask
 
 /**
  * Records invocation identities plus Query roots, their independent-input or shared-OER ownership
- * role, concrete shared-owner addresses, and reference hops. Query and reference records preserve
- * duplicates; invocation identities form a set. Full invocation events retain the exact object and
- * Query inputs supplied at runtime. The two-argument Query callback is the generic compatibility
- * seam; role-specific callbacks delegate through it and retain the evidence needed to validate
- * ownership. Correctness consumers read snapshots directly from this recorder. Use a fresh recorder
+ * role, concrete shared-owner addresses, checker inputs and Query roots, and reference hops. Query
+ * and reference records preserve duplicates; invocation identities form a set. Checker targets
+ * distinguish field and type checks at the same path. Full invocation events retain the exact object and
+ * Query inputs supplied at runtime. The Query-fragment callback records preparation and optional
+ * shared-scope ownership; independent-input preparation forwards to it and retains separate role
+ * evidence. Correctness consumers read snapshots directly from this recorder. Use a fresh recorder
  * for each semantic operation.
  *
  * A subclass that overrides a recording callback must call the corresponding `super` implementation
  * to preserve this recorder's correctness evidence before adding its own records. Consumers that need
- * only a subset of these records should implement [ResolverObserver] directly instead.
+ * only a subset of these records should implement [ResolutionObserver] directly instead.
  */
 open class CorrectnessResolverObserver(
-    private val delegate: ResolverObserver = ResolverObserver.NOP,
-) : ResolverObserver {
+    private val delegate: ResolutionObserver = ResolutionObserver.NOP,
+) : ResolutionObserver {
+    private val checkerQueryResults =
+        ConcurrentHashMap<Pair<ResolverTarget, ResolverOccurrenceId>, ConcurrentLinkedQueue<ObjectEngineResult>>()
+    private val checkerInputsByOwner =
+        ConcurrentHashMap<Pair<ResolverTarget, ResolverOccurrenceId>, ConcurrentLinkedQueue<Map<String, CheckerInput>>>()
+
+    override val onCheckerInvocation: (CheckerInvocationObservation, Map<String, CheckerInput>) -> Unit = { observation, inputs ->
+        val owner = observation.checkedTarget to ResolverOccurrenceId.at(observation.logicalQueryRoot, observation.occurrencePath)
+        checkerInputsByOwner.computeIfAbsent(owner) { ConcurrentLinkedQueue() }.add(inputs.toMap())
+        delegate.onCheckerInvocation?.invoke(observation, inputs)
+    }
+
+    fun checkerInputs(
+        target: ResolverTarget,
+        occurrenceId: ResolverOccurrenceId,
+    ): List<Map<String, CheckerInput>> = checkerInputsByOwner[target to occurrenceId]?.toList().orEmpty()
+
+    fun hasCheckerInputs(): Boolean = checkerInputsByOwner.isNotEmpty()
+
+    override val onCheckerQueryFragmentPrepared: (ResolverTarget, ResolverOccurrenceId, ObjectEngineResult) -> Unit = { target, owner, result ->
+        checkerQueryResults.computeIfAbsent(target to owner) { ConcurrentLinkedQueue() }.add(result)
+        delegate.onCheckerQueryFragmentPrepared?.invoke(target, owner, result)
+    }
+
+    fun queryFragmentResults(
+        checkerTarget: ResolverTarget,
+        checkerOccurrenceId: ResolverOccurrenceId,
+    ): List<ObjectEngineResult> = checkerQueryResults[checkerTarget to checkerOccurrenceId]?.toList().orEmpty()
+
+    fun allCheckerQueryFragmentResults(): Map<Pair<ResolverTarget, ResolverOccurrenceId>, List<ObjectEngineResult>> = checkerQueryResults.mapValues { (_, results) -> results.toList() }
+
+    /** Retains checker evidence when adversarial tests replace only the resolver observations. */
+    fun copyCheckerObservationsFrom(other: CorrectnessResolverObserver) {
+        other.checkerQueryResults.forEach { (owner, results) ->
+            checkerQueryResults.computeIfAbsent(owner) { ConcurrentLinkedQueue() }.addAll(results)
+        }
+        other.checkerInputsByOwner.forEach { (owner, inputs) ->
+            checkerInputsByOwner.computeIfAbsent(owner) { ConcurrentLinkedQueue() }.addAll(inputs)
+        }
+    }
+
     private val invokedOccurrences = ConcurrentHashMap.newKeySet<ResolverOccurrenceId>()
     private val invocations =
         ConcurrentHashMap<ResolverOccurrenceId, ConcurrentLinkedQueue<ResolverInvocationObservation>>()
 
-    override fun onResolverInvocation(observation: ResolverInvocationObservation) {
+    override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { observation ->
         invokedOccurrences += observation.resolverOccurrenceId
         invocations
             .computeIfAbsent(observation.resolverOccurrenceId) { ConcurrentLinkedQueue() }
             .add(observation)
-        delegate.onResolverInvocation(observation)
+        delegate.onResolverInvocation?.invoke(observation)
     }
 
     /** Exact attempted invocations; count-sensitive consumers must retain their own event log. */
@@ -66,42 +113,19 @@ open class CorrectnessResolverObserver(
     private val rootFieldReferenceInvocations =
         ConcurrentLinkedQueue<RootFieldReferenceInvocationObservation>()
 
-    override fun onQueryFragmentPrepared(
-        resolverOccurrenceId: ResolverOccurrenceId,
-        result: ObjectEngineResult,
-    ) {
-        recordQueryFragmentResult(resolverOccurrenceId, result)
-        queryFragmentObservations.add(
-            QueryFragmentObservation(resolverOccurrenceId, result),
-        )
+    override val onQueryFragmentPrepared: (ResolverOccurrenceId, ObjectEngineResult, OEROccurrence?) -> Unit = { owner, result, scope ->
+        recordQueryFragmentResult(owner, result)
+        queryFragmentObservations.add(QueryFragmentObservation(owner, result))
+        if (scope != null) queryScopeObservations.add(QueryScopeObservation(owner, result, scope))
+        delegate.onQueryFragmentPrepared?.invoke(owner, result, scope)
     }
 
-    override fun onIndependentQueryFragmentPrepared(
-        resolverOccurrenceId: ResolverOccurrenceId,
-        result: ObjectEngineResult,
-    ) {
-        onQueryFragmentPrepared(resolverOccurrenceId, result)
-        independentQueryObservations.add(
-            IndependentQueryObservation(resolverOccurrenceId, result),
-        )
+    override val onIndependentQueryFragmentPrepared: (ResolverOccurrenceId, ObjectEngineResult) -> Unit = { owner, result ->
+        onQueryFragmentPrepared(owner, result, null)
+        independentQueryObservations.add(IndependentQueryObservation(owner, result))
     }
 
-    override fun onQueryFragmentPrepared(
-        resolverOccurrenceId: ResolverOccurrenceId,
-        result: ObjectEngineResult,
-        owningOccurrence: OEROccurrence,
-    ) {
-        onQueryFragmentPrepared(resolverOccurrenceId, result)
-        queryScopeObservations.add(
-            QueryScopeObservation(resolverOccurrenceId, result, owningOccurrence),
-        )
-    }
-
-    override fun onQueryFragmentOwnerAddress(
-        resolverOccurrenceId: ResolverOccurrenceId,
-        resolverOER: OEROccurrence,
-        resolverKey: ObjectEngineResult.ObjectKey,
-    ) {
+    override val onQueryFragmentOwnerAddress: (ResolverOccurrenceId, OEROccurrence, ObjectEngineResult.ObjectKey) -> Unit = { resolverOccurrenceId, resolverOER, resolverKey ->
         queryOwnerAddressObservations.add(
             QueryOwnerAddressObservation(resolverOccurrenceId, resolverOER, resolverKey),
         )
@@ -114,34 +138,29 @@ open class CorrectnessResolverObserver(
         queryResults
             .computeIfAbsent(resolverOccurrenceId) { ConcurrentLinkedQueue() }
             .add(result)
-        delegate.onQueryFragmentPrepared(resolverOccurrenceId, result)
     }
 
-    override fun onQueryOERPrepared(
-        queryOER: SharedOERContext,
-        owningOccurrence: OEROccurrence,
-        queryOERDepth: Int?,
-    ) {
-        check(associatedQueryResults.putIfAbsent(owningOccurrence.target, queryOER.occurrence.target) == null) {
-            "Object occurrence was associated with a Query OER twice"
-        }
-        onQueryOERPrepared(queryOER, queryOERDepth)
-        delegate.onQueryOERPrepared(queryOER, owningOccurrence, queryOERDepth)
+    override val onQueryOERPrepared: (SharedOrchestrationTask<*>, Int?) -> Unit = { task, depth ->
+        recordQueryOERPrepared(task.queryOER, task.objectOER.occurrence, depth)
+        delegate.onQueryOERPrepared?.invoke(task, depth)
     }
 
-    override fun onQueryOERPrepared(
+    /** Accepts synthetic evidence for adversarial oracle tests. */
+    fun recordQueryOERPrepared(
         queryOER: SharedOERContext,
-        queryOERDepth: Int?,
+        owner: OEROccurrence?,
+        depth: Int?,
     ) {
-        val result = queryOER.occurrence.target
-        check(queryOERs.putIfAbsent(result, queryOER) == null) {
-            "Query OER was prepared twice"
-        }
-        queryOERDepth?.let { depth ->
-            require(depth > 0) { "Query-OER depth must be positive" }
-            check(queryOERDepths.putIfAbsent(result, depth) == null) {
-                "Query-OER depth was recorded twice"
+        if (owner != null) {
+            check(associatedQueryResults.putIfAbsent(owner.target, queryOER.occurrence.target) == null) {
+                "Object occurrence was associated with a Query OER twice"
             }
+        }
+        val result = queryOER.occurrence.target
+        check(queryOERs.putIfAbsent(result, queryOER) == null) { "Query OER was prepared twice" }
+        if (depth != null) {
+            require(depth > 0) { "Query-OER depth must be positive" }
+            check(queryOERDepths.putIfAbsent(result, depth) == null) { "Query-OER depth was recorded twice" }
         }
     }
 
@@ -178,7 +197,7 @@ open class CorrectnessResolverObserver(
             return false
         }
 
-        val scopeByResult = java.util.IdentityHashMap<ObjectEngineResult, OEROccurrenceAddress>()
+        val scopeByResult = IdentityHashMap<ObjectEngineResult, OEROccurrenceAddress>()
         val resultByScope = mutableMapOf<OEROccurrenceAddress, ObjectEngineResult>()
         if (!scopeObservations.all { observation ->
                 val address = observation.owningOccurrence.address()
@@ -198,7 +217,7 @@ open class CorrectnessResolverObserver(
             return false
         }
         val ownerByIndependentResult =
-            java.util.IdentityHashMap<ObjectEngineResult, ResolverOccurrenceId>()
+            IdentityHashMap<ObjectEngineResult, ResolverOccurrenceId>()
         val independentResultByOwner =
             mutableMapOf<ResolverOccurrenceId, ObjectEngineResult>()
         if (!independentObservations.all { observation ->
@@ -222,8 +241,8 @@ open class CorrectnessResolverObserver(
         }
 
         val associatedQueryResults =
-            java.util.Collections.newSetFromMap(
-                java.util.IdentityHashMap<ObjectEngineResult, Boolean>(),
+            Collections.newSetFromMap(
+                IdentityHashMap<ObjectEngineResult, Boolean>(),
             ).apply { addAll(scopeByResult.keys) }
         // Query-side owners retain their containing object's association instead of introducing a
         // new scope rooted at that association's Query result.
@@ -243,9 +262,9 @@ open class CorrectnessResolverObserver(
         }
     }
 
-    override fun onRootFieldReferenceInvocation(observation: RootFieldReferenceInvocationObservation) {
+    override val onRootFieldReferenceInvocation: (RootFieldReferenceInvocationObservation) -> Unit = { observation ->
         rootFieldReferenceInvocations.add(observation)
-        delegate.onRootFieldReferenceInvocation(observation)
+        delegate.onRootFieldReferenceInvocation?.invoke(observation)
     }
 
     fun rootFieldReferenceInvocations(): List<RootFieldReferenceInvocationObservation> = rootFieldReferenceInvocations.toList()

@@ -8,11 +8,12 @@ import viaduct.engine.runtime2.model.ObjectSelection
 
 /** One ordered namespace traversal shared by every maintained resolver family. */
 internal class MutationOrchestrationTask<P> private constructor(
-    private val operation: SharedOperationContext<SharedTaskDispatcher<*, *, P>>,
-    private val namespace: MutationNamespaceOccurrence,
-    private val prepareField: (OEROccurrence, ObjectSelection) -> P,
+    val operation: SharedOperationContext<SharedTaskDispatcher<*, *, P>>,
+    val namespace: MutationNamespaceOccurrence,
+    private val prepareField: (ResolutionTask, OEROccurrence, ObjectSelection) -> P,
     private val namespacePrepared: (OEROccurrence) -> Unit,
-) {
+    override val creator: ResolutionTask?,
+) : ResolutionTask {
     private val dispatched = AtomicBoolean(false)
     private val publications = mutableMapOf<ObjectEngineResult.MutationKey, P>()
     private var child: MutationOrchestrationTask<P>? = null
@@ -21,9 +22,10 @@ internal class MutationOrchestrationTask<P> private constructor(
         fun <P> create(
             operation: SharedOperationContext<SharedTaskDispatcher<*, *, P>>,
             namespace: MutationNamespaceOccurrence,
-            prepareField: (OEROccurrence, ObjectSelection) -> P,
+            prepareField: (ResolutionTask, OEROccurrence, ObjectSelection) -> P,
             namespacePrepared: (OEROccurrence) -> Unit = {},
-        ): MutationOrchestrationTask<P> = MutationOrchestrationTask(operation, namespace, prepareField, namespacePrepared).apply { prepare() }
+            creator: ResolutionTask? = null,
+        ): MutationOrchestrationTask<P> = MutationOrchestrationTask(operation, namespace, prepareField, namespacePrepared, creator).apply { prepare() }
     }
 
     /** All local publications are claimed before any mutation is dispatched. */
@@ -38,7 +40,7 @@ internal class MutationOrchestrationTask<P> private constructor(
                 require(resolver.objectFragment.isEmpty() && resolver.queryFragment.isEmpty()) {
                     "Mutation resolvers cannot declare object or Query fragments; use ctx.query()"
                 }
-                publications[key] = prepareField(namespace.occurrence, selection.publicationSelection(key))
+                publications[key] = prepareField(this, namespace.occurrence, selection.publicationSelection(key))
             }
         }
         namespace.target.freeze()
@@ -54,7 +56,7 @@ internal class MutationOrchestrationTask<P> private constructor(
             val cell = namespace.target.getCell(key)
             if (selection.subselections is MutationSelectionForest) {
                 val nextNamespace = namespace.child(selection, key)
-                val next = create(operation, nextNamespace, prepareField, namespacePrepared)
+                val next = create(operation, nextNamespace, prepareField, namespacePrepared, creator = this)
                 child = next
                 cell.setActivated(true)
                 cell.fieldCheckerResult.complete(null)

@@ -186,7 +186,7 @@ class TypeCheckerCorrectResolutionTest {
             vararg markers: Int,
             wrongTarget: Boolean = false
         ): SharedOperationContext<*> {
-            val observer = CorrectnessCheckerObserver()
+            val observer = CorrectnessResolverObserver()
             markers.forEach { marker ->
                 observer.onCheckerQueryFragmentPrepared(
                     if (wrongTarget) ResolverTarget.FieldCheckerTarget(itemKey.field) else ResolverTarget.TypeCheckerTarget(item),
@@ -194,7 +194,7 @@ class TypeCheckerCorrectResolutionTest {
                     ObjectEngineResult.of(world.schema.requireQueryTypeDef(), values = mapOf(markerKey to marker)),
                 )
             }
-            return SharedOperationContext.create(world, checkerObserver = observer)
+            return SharedOperationContext.create(world, resolutionObserver = observer)
         }
         assertFalse(root.correctResolution(operation(), selections))
         assertFalse(root.correctResolution(operation(8), selections))

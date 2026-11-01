@@ -4,7 +4,6 @@ import kotlin.test.assertFailsWith
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.engine.runtime2.contract.validateFromFieldBindings
-import viaduct.engine.runtime2.correctresolution.CorrectnessCheckerObserver
 import viaduct.engine.runtime2.correctresolution.CorrectnessResolverObserver
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.ResolverOccurrenceId
@@ -58,7 +57,7 @@ class ResolverFromFieldBindingOracleTest {
     fun `object-path bindings in a query-fragment root are validated`() {
         val testWorld = bindingWorld()
         val world = testWorld.assumptions
-        val operation = SharedOperationContext.create(world, resolverObserver = CorrectnessResolverObserver())
+        val operation = SharedOperationContext.create(world, resolutionObserver = CorrectnessResolverObserver())
         val primaryResult = world.engineResultOf("Query")
         val queryResult = completedBindingResult(world)
         val queryFixture = bindingFixture(operation, queryResult)
@@ -68,10 +67,7 @@ class ResolverFromFieldBindingOracleTest {
                 -1,
             )
         }
-        operation.resolverObserver.onQueryFragmentPrepared(
-            ResolverOccurrenceId.at(primaryResult, emptyList()),
-            queryResult,
-        )
+        operation.resolutionObserver.onQueryFragmentPrepared?.invoke(ResolverOccurrenceId.at(primaryResult, emptyList()), queryResult, null)
 
         assertFailsWith<AssertionError> {
             primaryResult.validateFromFieldBindings(operation, setOf(queryFixture.occurrenceId))
@@ -82,12 +78,11 @@ class ResolverFromFieldBindingOracleTest {
     fun `object-path bindings in checker-only Query roots are validated`() {
         listOf(false, true).forEach { typeChecker ->
             val world = bindingWorld().assumptions
-            val checkerObserver = CorrectnessCheckerObserver()
+            val checkerObserver = CorrectnessResolverObserver()
             val operation =
                 SharedOperationContext.create(
                     world,
-                    resolverObserver = CorrectnessResolverObserver(),
-                    checkerObserver = checkerObserver,
+                    resolutionObserver = checkerObserver,
                 )
             val primaryResult = world.engineResultOf("Query")
             val queryResult = completedBindingResult(world)
@@ -134,7 +129,7 @@ private fun bindingFixture(): BindingFixture {
     val worldFixture = bindingWorld()
     val world = worldFixture.assumptions
     return bindingFixture(
-        SharedOperationContext.create(world, resolverObserver = CorrectnessResolverObserver()),
+        SharedOperationContext.create(world, resolutionObserver = CorrectnessResolverObserver()),
         completedBindingResult(world),
     )
 }

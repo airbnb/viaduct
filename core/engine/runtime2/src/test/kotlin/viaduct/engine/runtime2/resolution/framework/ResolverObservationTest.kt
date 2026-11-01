@@ -87,8 +87,8 @@ class ResolverObservationTest : ResolutionDispatcherResource {
                     dynamicTest("${subject.name} reference=$reference suspendAfterEntry=$suspendAfterEntry") {
                         var entered = 0
                         val events = CopyOnWriteArrayList<ResolverInvocationObservation>()
-                        val observer = object : ResolverObserver {
-                            override fun onResolverInvocation(observation: ResolverInvocationObservation) {
+                        val observer = object : ResolutionObserver {
+                            override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { observation ->
                                 if (observation.field.name == "value") {
                                     events += observation
                                     // Force interruption between recording and the resolver call.
@@ -114,7 +114,7 @@ class ResolverObservationTest : ResolutionDispatcherResource {
                                 )
                             },
                         )
-                        val operation = SharedOperationContext.create(testWorld.assumptions, resolverObserver = observer)
+                        val operation = SharedOperationContext.create(testWorld.assumptions, resolutionObserver = observer)
                         val selections = testWorld.schemas.operationSelectionsFrom(if (reference) "{ reference }" else "{ value }")
                         try {
                             val attempt = runCatching { subject.resolve(operation, selections) }
@@ -142,7 +142,7 @@ class ResolverObservationTest : ResolutionDispatcherResource {
             dynamicTest(subject.name) {
                 val events = CopyOnWriteArrayList<ResolverInvocationObservation>()
                 val observer = object : CorrectnessResolverObserver() {
-                    override fun onResolverInvocation(observation: ResolverInvocationObservation) {
+                    override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { observation ->
                         super.onResolverInvocation(observation)
                         events += observation
                     }
@@ -172,7 +172,7 @@ class ResolverObservationTest : ResolutionDispatcherResource {
                     },
                 )
                 val world = testWorld.assumptions
-                val operation = SharedOperationContext.create(world, resolverObserver = observer)
+                val operation = SharedOperationContext.create(world, resolutionObserver = observer)
                 val result = subject.resolve(operation, testWorld.schemas.operationSelectionsFrom("{ reference }"))
                 assertEquals(listOf("reference", "value"), events.map { it.field.name })
                 assertEquals(7, result.getCell(result.keys.single()).get())
@@ -199,10 +199,10 @@ class ResolverObservationTest : ResolutionDispatcherResource {
                 listOf(false, true).map { cancellation ->
                     dynamicTest("${subject.name} reference=$reference cancellation=$cancellation") {
                         val events = CopyOnWriteArrayList<ResolverInvocationObservation>()
-                        val observer = object : ResolverObserver {
+                        val observer = object : ResolutionObserver {
                             private val invokedOccurrences = ConcurrentHashMap.newKeySet<ResolverOccurrenceId>()
 
-                            override fun onResolverInvocation(observation: ResolverInvocationObservation) {
+                            override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { observation ->
                                 invokedOccurrences += observation.resolverOccurrenceId
                                 events += observation
                             }
@@ -224,7 +224,7 @@ class ResolverObservationTest : ResolutionDispatcherResource {
                                 )
                             },
                         )
-                        val operation = SharedOperationContext.create(testWorld.assumptions, resolverObserver = observer)
+                        val operation = SharedOperationContext.create(testWorld.assumptions, resolutionObserver = observer)
                         // DFS propagates these failures; coroutine subjects publish a field error.
                         try {
                             subject.resolve(operation, testWorld.schemas.operationSelectionsFrom(if (reference) "{ reference }" else "{ value }"))
@@ -243,19 +243,16 @@ class ResolverObservationTest : ResolutionDispatcherResource {
         subjects.filter { it.queryFragments }.map { subject ->
             dynamicTest(subject.name) {
                 val order = CopyOnWriteArrayList<String>()
-                val observer = object : ResolverObserver {
+                val observer = object : ResolutionObserver {
                     private val queryResults = ConcurrentHashMap<ResolverOccurrenceId, ConcurrentLinkedQueue<ObjectEngineResult>>()
 
-                    override fun onQueryFragmentPrepared(
-                        resolverOccurrenceId: ResolverOccurrenceId,
-                        result: ObjectEngineResult
-                    ) {
+                    override val onQueryFragmentPrepared: (ResolverOccurrenceId, ObjectEngineResult, OEROccurrence?) -> Unit = { resolverOccurrenceId, result, _ ->
                         assertTrue(order.isEmpty())
                         queryResults.computeIfAbsent(resolverOccurrenceId) { ConcurrentLinkedQueue() }.add(result)
                         order += "prepared"
                     }
 
-                    override fun onResolverInvocation(observation: ResolverInvocationObservation) {
+                    override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { observation ->
                         order += observation.field.name
                     }
 
@@ -282,7 +279,7 @@ class ResolverObservationTest : ResolutionDispatcherResource {
                         )
                     },
                 )
-                val operation = SharedOperationContext.create(testWorld.assumptions, resolverObserver = observer)
+                val operation = SharedOperationContext.create(testWorld.assumptions, resolutionObserver = observer)
                 val root = subject.resolve(operation, testWorld.schemas.operationSelectionsFrom("{ consumer }"))
                 assertEquals(listOf("prepared", "dependency", "consumer"), order.toList())
                 val owner = ResolverOccurrenceId.at(root, listOf(root.keys.single()))
@@ -296,8 +293,8 @@ class ResolverObservationTest : ResolutionDispatcherResource {
         subjects.map { subject ->
             dynamicTest(subject.name) {
                 val events = CopyOnWriteArrayList<ResolverInvocationObservation>()
-                val observer = object : ResolverObserver {
-                    override fun onResolverInvocation(observation: ResolverInvocationObservation) {
+                val observer = object : ResolutionObserver {
+                    override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { observation ->
                         events += observation
                     }
                 }
@@ -313,7 +310,7 @@ class ResolverObservationTest : ResolutionDispatcherResource {
                         )
                     },
                 )
-                val operation = SharedOperationContext.create(testWorld.assumptions, resolverObserver = observer)
+                val operation = SharedOperationContext.create(testWorld.assumptions, resolutionObserver = observer)
                 subject.resolve(operation, testWorld.schemas.operationSelectionsFrom("{ object { value } }"))
                 val event = events.single()
                 if (subject.selective) assertFalse(assertNotNull(event.suppliedDemand).isEmpty()) else assertNull(event.suppliedDemand)
@@ -330,7 +327,7 @@ class ResolverObservationTest : ResolutionDispatcherResource {
                     val events = CopyOnWriteArrayList<ResolverInvocationObservation>()
                     val observer =
                         object : CorrectnessResolverObserver() {
-                            override fun onResolverInvocation(observation: ResolverInvocationObservation) {
+                            override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { observation ->
                                 super.onResolverInvocation(observation)
                                 events += observation
                             }
@@ -374,7 +371,7 @@ class ResolverObservationTest : ResolutionDispatcherResource {
                     val operation =
                         SharedOperationContext.create(
                             world,
-                            resolverObserver = observer,
+                            resolutionObserver = observer,
                         )
                     val selections = testWorld.schemas.operationSelectionsFrom("{ reference }")
                     val root = subject.resolve(operation, selections)
@@ -437,7 +434,7 @@ class ResolverObservationTest : ResolutionDispatcherResource {
             val events = CopyOnWriteArrayList<ResolverInvocationObservation>()
             val observer =
                 object : CorrectnessResolverObserver() {
-                    override fun onResolverInvocation(observation: ResolverInvocationObservation) {
+                    override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { observation ->
                         super.onResolverInvocation(observation)
                         events += observation
                     }
@@ -480,7 +477,7 @@ class ResolverObservationTest : ResolutionDispatcherResource {
             val operation =
                 SharedOperationContext.create(
                     testWorld.assumptions,
-                    resolverObserver = observer,
+                    resolutionObserver = observer,
                 )
             val job = Job()
             try {

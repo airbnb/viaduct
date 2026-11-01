@@ -2,6 +2,10 @@
 
 package viaduct.engine.runtime2.resolution
 
+import java.util.concurrent.ConcurrentHashMap
+import kotlin.test.assertIs
+import kotlin.test.assertNull
+import kotlin.test.assertSame
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -12,6 +16,7 @@ import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
@@ -19,11 +24,45 @@ import viaduct.engine.runtime2.model.emptyFragmentOf
 import viaduct.engine.runtime2.model.registry.fieldResolverOf
 import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.testing.TestWorld
+import viaduct.engine.runtime2.resolution.framework.MutationOrchestrationTask
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 import viaduct.engine.runtime2.schema.operationSelectionsFrom
 
 @OptIn(ExperimentalCoroutinesApi::class)
-class MutationOrchestrationTaskTest {
+class MutationOrchestrationTaskTest : ResolutionDispatcherResource {
+    @Test
+    fun `mutation fields retain their namespace task and nested namespace creator`() {
+        val tasks = ConcurrentHashMap<String, FieldResolverTask>()
+        val fixture = TestWorld.fromSDL(
+            """
+            directive @namespaceType on OBJECT
+            type Query { idle: Int }
+            type Mutation { update: Int group: Group }
+            type Group @namespaceType { update: Int }
+            """.trimIndent(),
+            fieldResolvers = { schemas ->
+                val schema = schemas.loweredSchema
+                listOf("Mutation", "Group").associate { type ->
+                    schema.requireObjectField(type, "update") to fieldResolverOf(schema.emptyFragmentOf(type)) { _, _, ctx ->
+                        tasks[type] = assertIs<FieldResolverTask>(ctx)
+                        7
+                    }
+                }
+            },
+        )
+        val result = SharedOperationContext.create(fixture.assumptions).resolveWithTestDispatcher(
+            fixture.schemas.operationSelectionsFrom("mutation { update group { update } }"),
+        )
+        assertTrue(result.keys.all { result.getCell(it).value.isCompleted })
+        val root = assertIs<MutationOrchestrationTask<*>>(tasks.getValue("Mutation").creator)
+        val group = assertIs<MutationOrchestrationTask<*>>(tasks.getValue("Group").creator)
+        assertNull(root.creator)
+        assertSame(root, group.creator)
+        assertSame(result, root.namespace.target)
+        assertEquals("Group", group.namespace.target.type.name)
+        tasks.values.forEach { assertSame(it, it.publication.task) }
+    }
+
     @ParameterizedTest
     @ValueSource(booleans = [false, true])
     fun `cancellation before orchestration entry terminates every prepared cell`(precomputed: Boolean) =

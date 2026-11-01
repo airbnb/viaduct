@@ -20,6 +20,7 @@ import viaduct.engine.runtime2.resolution.framework.CheckerInvocationObservation
 import viaduct.engine.runtime2.resolution.framework.CheckerKind
 import viaduct.engine.runtime2.resolution.framework.CycleSlotKind
 import viaduct.engine.runtime2.resolution.framework.OEROccurrence
+import viaduct.engine.runtime2.resolution.framework.ResolutionTask
 import viaduct.engine.runtime2.resolution.framework.SharedOERContext
 import viaduct.engine.runtime2.resolution.framework.fieldCheckerCycleTask
 import viaduct.engine.runtime2.resolution.framework.materializeResult
@@ -35,10 +36,13 @@ internal class GroundedFieldCheckerPublicationOccurrence(
     val arguments: Arguments.Resolved?,
     val publicationPath: List<PathComponent>,
     val queryOER: SharedOERContext,
+    val creator: ResolutionTask? = null,
 ) : CoroutinePublicationOccurrence {
+    override val task = CoroutineFieldCheckerTask(this)
+
     override fun dispatch(requestScope: CoroutineScope) {
         requestScope.launch {
-            CoroutineFieldCheckerTask.execute(this@GroundedFieldCheckerPublicationOccurrence, this)
+            task.run()
         }.invokeOnCompletion { cause ->
             if (cause is CancellationException) CoroutineFieldCheckerTask.cancel(this@GroundedFieldCheckerPublicationOccurrence, cause)
         }
@@ -47,12 +51,13 @@ internal class GroundedFieldCheckerPublicationOccurrence(
 
 /**
  * Materializes one checker's paired inputs, invokes it, and publishes independently from the
- * field value. Its lifecycle deliberately parallels the field-resolver task without introducing
- * a shared task abstraction.
+ * field value. Its lifecycle deliberately parallels the field-resolver task with a stable task identity.
  */
-internal class CoroutineFieldCheckerTask private constructor(
-    private val publication: GroundedFieldCheckerPublicationOccurrence,
-) {
+internal class CoroutineFieldCheckerTask(
+    val publication: GroundedFieldCheckerPublicationOccurrence,
+) : ResolutionTask {
+    override val creator get() = publication.creator
+
     companion object {
         /** Claims every selected checker slot without dispatching a producer. */
         fun prepareAll(orchestrationTask: CoroutineOrchestrationTask): List<GroundedFieldCheckerPublicationOccurrence> =
@@ -95,6 +100,7 @@ internal class CoroutineFieldCheckerTask private constructor(
                 arguments = key.arguments as? Arguments.Resolved,
                 publicationPath = publicationPath,
                 queryOER = orchestrationTask.queryOER,
+                creator = orchestrationTask,
             )
             if (checker != null) {
                 publication.operation.cycleChecker.registerWriter(
@@ -106,13 +112,6 @@ internal class CoroutineFieldCheckerTask private constructor(
             return publication
         }
 
-        internal suspend fun execute(
-            publication: GroundedFieldCheckerPublicationOccurrence,
-            @Suppress("UNUSED_PARAMETER") scope: CoroutineScope,
-        ) {
-            CoroutineFieldCheckerTask(publication).run()
-        }
-
         internal fun cancel(
             publication: GroundedFieldCheckerPublicationOccurrence,
             cause: CancellationException,
@@ -121,7 +120,7 @@ internal class CoroutineFieldCheckerTask private constructor(
         }
     }
 
-    private suspend fun run() {
+    suspend fun run() {
         try {
             executeAndPublish()
         } catch (cause: Exception) {
@@ -169,7 +168,7 @@ internal class CoroutineFieldCheckerTask private constructor(
                     )
                 }
         if (!fragments.queryFragment.constructionSelections.isEmpty()) {
-            publication.operation.checkerObserver.onCheckerQueryFragmentPrepared(
+            publication.operation.resolutionObserver.onCheckerQueryFragmentPrepared?.invoke(
                 checker.target,
                 fragments.queryFragment.resolverOccurrenceId,
                 publication.queryOER.occurrence.target,
@@ -183,7 +182,7 @@ internal class CoroutineFieldCheckerTask private constructor(
                 )
             }
         val arguments = checkNotNull(publication.arguments)
-        publication.operation.checkerObserver.onCheckerInvocation(
+        publication.operation.resolutionObserver.onCheckerInvocation?.invoke(
             CheckerInvocationObservation(
                 checkerKind = CheckerKind.FIELD,
                 logicalQueryRoot = publication.oerOccurrence.root,

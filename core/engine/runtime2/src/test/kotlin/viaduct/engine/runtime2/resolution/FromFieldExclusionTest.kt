@@ -199,12 +199,12 @@ class FromFieldExclusionTest : ResolutionDispatcherResource {
         val observer = object : CorrectnessResolverObserver() {
             val applications = Collections.synchronizedList(mutableListOf<String>())
 
-            override fun onResolverInvocation(observation: ResolverInvocationObservation) {
+            override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { observation ->
                 super.onResolverInvocation(observation)
                 applications += "${observation.field.containingDef.name}/${observation.field.name}"
             }
         }
-        val operation = SharedOperationContext.create(world.assumptions, resolverObserver = observer)
+        val operation = SharedOperationContext.create(world.assumptions, resolutionObserver = observer)
         val fragment = world.schemas.fragmentFrom("fragment Query on Query { outer(enabled: $enabled, other: $other) $extra }")
         val result = operation.resolveWithTestDispatcher(fragment.subselections)
         result.validateFromFieldBindings(operation, observer.invokedResolverOccurrences())

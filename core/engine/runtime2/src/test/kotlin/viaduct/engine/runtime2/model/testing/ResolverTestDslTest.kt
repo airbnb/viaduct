@@ -29,6 +29,94 @@ import viaduct.graphql.schema.ViaductSchema
 
 class ResolverTestDslTest {
     @Test
+    fun `evaluates object Query and argument inputs in one result`() {
+        val world = TestWorld.fromDSL(
+            """
+            extend type Query {
+              item: Item! @resolver(result: {local: 2})
+              values: [Int]
+            }
+            type Item {
+              local: Int!
+              total(extra: Int!): Int!
+                @resolver(of: "local", qf: "values", result: "sum(local, query:values, ${'$'}extra)")
+            }
+            """.trimIndent(),
+        )
+        val input = assertIs<EngineObjectData.Sync>(world.apply(world.schema.requireObjectField("Query", "item")))
+        val query = world.schema.objectOf("Query") { "values" setTo listOf(3, null, 5) }
+        val total = world.schema.requireObjectField("Item", "total")
+
+        assertEquals(14, world.apply(total, input, mapOf("extra" to 4), queryValue = query))
+    }
+
+    @Test
+    fun `Query value expressions preserve null and error inputs`() {
+        val world = TestWorld.fromDSL(
+            """
+            extend type Query {
+              source: Int
+              result: Int @resolver(qf: "source", result: "value(query:source)")
+            }
+            """.trimIndent(),
+        )
+        val result = world.schema.requireObjectField("Query", "result")
+        val nullQuery = world.schema.objectOf("Query") { "source" setTo null }
+        val failure = EngineErrorData.of()
+        val errorQuery = world.schema.objectOf("Query") { "source" setTo failure }
+
+        assertNull(world.apply(result, queryValue = nullQuery))
+        assertEquals(failure, world.apply(result, queryValue = errorQuery))
+    }
+
+    @Test
+    fun `compiles variables used across both fragments and only in the Query fragment`() {
+        val world = TestWorld.fromDSL(
+            """
+            extend type Query {
+              source: Int! @resolver(result: 7)
+              echo(value: Int!): Int! @resolver(result: "value(${'$'}value)")
+              result(seed: Int!): Int!
+                @resolver(
+                  of: "source echo(value: ${'$'}seed)"
+                  qf: "byArgument: echo(value: ${'$'}seed) byPath: echo(value: ${'$'}fromSource) byProvider: echo(value: ${'$'}provided)"
+                  pathVars: [{name: "fromSource", path: ["source"]}]
+                  providerVars: {provided: 3}
+                  result: "sum(echo, query:byArgument, query:byPath, query:byProvider)"
+                )
+            }
+            """.trimIndent(),
+        )
+        val field = world.schema.requireObjectField("Query", "result")
+        val resolver = world.resolverRegistry.resolver(field)
+        val seed = Arguments.Variable.of(field, "seed")
+        val fromSource = Arguments.Variable.of(field, "fromSource")
+        val provided = Arguments.Variable.of(field, "provided")
+
+        assertEquals(setOf(seed, fromSource, provided), resolver.variables.keys)
+        assertIs<VariableDefinition.FromArgument>(resolver.variables.getValue(seed))
+        assertEquals(ProviderFragment.OBJECT, assertIs<VariableDefinition.FromField>(resolver.variables.getValue(fromSource)).providerFragment)
+        assertIs<VariableDefinition.FromProvider>(resolver.variables.getValue(provided))
+        assertEquals("Query", resolver.queryFragment.type.name)
+    }
+
+    @Test
+    fun `rejects malformed Query fragment declarations`() {
+        for (declaration in listOf("qf: 7", "qf: \"missing\"", "qf: \"echo(value: ${'$'}undefined)\"")) {
+            assertThrows<IllegalArgumentException> {
+                TestWorld.fromDSL(
+                    """
+                    extend type Query {
+                      result: Int! @resolver($declaration, result: 1)
+                      echo(value: Int!): Int! @resolver(result: "value(${'$'}value)")
+                    }
+                    """.trimIndent(),
+                )
+            }
+        }
+    }
+
+    @Test
     fun `evaluates argument and list-crossing field expressions`() {
         val world =
             TestWorld.fromDSL(
@@ -404,6 +492,7 @@ private fun TestWorld.apply(
     input: EngineObjectData.Sync = resolverRegistry.createRootQueryInput(),
     arguments: Map<String, Any?> = emptyMap(),
     selections: SelectionForest = selectionForestOf(),
+    queryValue: EngineObjectData.Sync = resolverRegistry.createRootQueryInput(),
 ): EngineOutputData? =
     when (val grounded = Arguments.of(field, arguments)) {
         Arguments.Error -> EngineErrorData.of()
@@ -411,6 +500,7 @@ private fun TestWorld.apply(
             runBlocking {
                 resolverRegistry.resolver(field)(
                     input = input,
+                    queryValue = queryValue,
                     arguments = grounded,
                     selections = selections,
                     selectiveResolvers = false,

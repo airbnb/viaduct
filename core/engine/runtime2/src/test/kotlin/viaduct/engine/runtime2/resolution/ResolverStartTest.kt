@@ -47,8 +47,9 @@ import viaduct.engine.runtime2.model.testing.fragmentFrom
 import viaduct.engine.runtime2.resolution.framework.CycleCheckState
 import viaduct.engine.runtime2.resolution.framework.CycleSlotKind
 import viaduct.engine.runtime2.resolution.framework.DeferredCycleCheckState
+import viaduct.engine.runtime2.resolution.framework.OEROccurrence
+import viaduct.engine.runtime2.resolution.framework.ResolutionObserver
 import viaduct.engine.runtime2.resolution.framework.ResolverInvocationObservation
-import viaduct.engine.runtime2.resolution.framework.ResolverObserver
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 import viaduct.engine.runtime2.resolution.framework.fieldResolverCycleTask
 import viaduct.engine.runtime2.schema.operationSelectionsFrom
@@ -180,7 +181,7 @@ class ResolverStartTest : ResolutionDispatcherResource {
                 )
             },
         )
-        val operation = SharedOperationContext.create(testWorld.assumptions, resolverObserver = observer)
+        val operation = SharedOperationContext.create(testWorld.assumptions, resolutionObserver = observer)
         val root = operation.resolveWithTestDispatcher(
             testWorld.schemas.operationSelectionsFrom("{ outer }"),
         )
@@ -331,7 +332,7 @@ class ResolverStartTest : ResolutionDispatcherResource {
             )
             val job = Job()
             try {
-                val operation = SharedOperationContext.create(testWorld.assumptions, resolverObserver = observer)
+                val operation = SharedOperationContext.create(testWorld.assumptions, resolutionObserver = observer)
                 operation.startResolve(
                     testWorld.schemas.operationSelectionsFrom("{ consumer }"),
                     CoroutineScope(resolverDispatcher + job),
@@ -382,8 +383,8 @@ class ResolverStartTest : ResolutionDispatcherResource {
                                         childOperation.variableBindings,
                                     )
                                     assertSame(
-                                        task.publication.operation.resolverObserver,
-                                        childOperation.resolverObserver,
+                                        task.publication.operation.resolutionObserver,
+                                        childOperation.resolutionObserver,
                                     )
                                     assertSame(
                                         task.publication.operation.cycleChecker,
@@ -788,20 +789,17 @@ class ResolverStartTest : ResolutionDispatcherResource {
             failure
         }
 
-    private class InvocationRecordingObserver : ResolverObserver {
+    private class InvocationRecordingObserver : ResolutionObserver {
         private val invokedOccurrences = ConcurrentHashMap.newKeySet<ResolverOccurrenceId>()
         private val queryResults = ConcurrentHashMap<ResolverOccurrenceId, ConcurrentLinkedQueue<ObjectEngineResult>>()
         val events = CopyOnWriteArrayList<ResolverInvocationObservation>()
 
-        override fun onResolverInvocation(observation: ResolverInvocationObservation) {
+        override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { observation ->
             invokedOccurrences += observation.resolverOccurrenceId
             events += observation
         }
 
-        override fun onQueryFragmentPrepared(
-            resolverOccurrenceId: ResolverOccurrenceId,
-            result: ObjectEngineResult
-        ) {
+        override val onQueryFragmentPrepared: (ResolverOccurrenceId, ObjectEngineResult, OEROccurrence?) -> Unit = { resolverOccurrenceId, result, _ ->
             queryResults.computeIfAbsent(resolverOccurrenceId) { ConcurrentLinkedQueue() }.add(result)
         }
 

@@ -70,7 +70,7 @@ class ResolverInputReplayTest {
                         )
                     )
                 }
-                val replay = SharedOperationContext.create(world, resolverObserver = observer).resolverInputsForReplay(
+                val replay = SharedOperationContext.create(world, resolutionObserver = observer).resolverInputsForReplay(
                     id,
                     root,
                     selections,

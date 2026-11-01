@@ -14,6 +14,7 @@ import viaduct.engine.runtime2.contract.registeredResolverOccurrenceApplicationI
 import viaduct.engine.runtime2.correctresolution.CorrectnessResolverObserver
 import viaduct.engine.runtime2.correctresolution.correctResolution
 import viaduct.engine.runtime2.model.ObjectEngineResult
+import viaduct.engine.runtime2.model.ObjectSelectionForest
 import viaduct.engine.runtime2.model.ResolverOccurrenceId
 import viaduct.engine.runtime2.model.emptyFragmentOf
 import viaduct.engine.runtime2.model.merge
@@ -69,22 +70,18 @@ class SharedQueryCrossScopeWitnessRegressionTest : ResolutionDispatcherResource 
         )
         val mutantObserver = CorrectnessResolverObserver()
         run.events.filter { it.resolverOccurrenceId != omittedSource.resolverOccurrenceId }
-            .forEach(mutantObserver::onResolverInvocation)
+            .forEach(mutantObserver.onResolverInvocation)
         val scopes = run.observer.allQueryFragmentScopes()
         associations.forEach { (owner, _) ->
-            mutantObserver.onQueryFragmentPrepared(
-                owner,
-                sharedRoot,
-                scopes.getValue(owner).single(),
-            )
+            mutantObserver.onQueryFragmentPrepared(owner, sharedRoot, scopes.getValue(owner).single())
         }
         run.observer.allQueryOERs().forEach { (root, context) ->
-            if (root !== omittedRoot) mutantObserver.onQueryOERPrepared(context)
+            if (root !== omittedRoot) mutantObserver.recordQueryOERPrepared(context, null, null)
         }
         val mutantOperation = SharedOperationContext.create(
             run.operation.world,
             variableBindings = run.operation.variableBindings,
-            resolverObserver = mutantObserver,
+            resolutionObserver = mutantObserver,
         )
         assertEquals(4, mutantWitness.applications.size)
         // Extensional replay is intentionally permissive; occurrence accounting owns this gate.
@@ -125,7 +122,7 @@ class SharedQueryCrossScopeWitnessRegressionTest : ResolutionDispatcherResource 
         val log = BoundedRecorder<ResolverOccurrenceApplicationRecord>()
         val events = ConcurrentLinkedQueue<ResolverInvocationObservation>()
         val observer = object : CorrectnessResolverObserver() {
-            override fun onResolverInvocation(observation: ResolverInvocationObservation) {
+            override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { observation ->
                 super.onResolverInvocation(observation)
                 events.add(observation)
                 log.record(
@@ -140,7 +137,7 @@ class SharedQueryCrossScopeWitnessRegressionTest : ResolutionDispatcherResource 
                 )
             }
         }
-        val operation = SharedOperationContext.create(world.assumptions, resolverObserver = observer)
+        val operation = SharedOperationContext.create(world.assumptions, resolutionObserver = observer)
         val selections = world.schemas.fragmentFrom(
             if (sameScope) {
                 "fragment Test on Query { items { computed sibling } }"
@@ -156,7 +153,7 @@ class SharedQueryCrossScopeWitnessRegressionTest : ResolutionDispatcherResource 
         val operation: SharedOperationContext<*>,
         val observer: CorrectnessResolverObserver,
         val result: ObjectEngineResult,
-        val selections: viaduct.engine.runtime2.model.ObjectSelectionForest,
+        val selections: ObjectSelectionForest,
         val witness: ResolutionOccurrenceWitness,
         val events: List<ResolverInvocationObservation>,
     ) {

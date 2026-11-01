@@ -18,6 +18,7 @@ import viaduct.engine.runtime2.resolution.CoroutineOrchestrationTaskBase
 import viaduct.engine.runtime2.resolution.framework.Demand
 import viaduct.engine.runtime2.resolution.framework.OEROccurrence
 import viaduct.engine.runtime2.resolution.framework.OrchestrationConstructionDemand
+import viaduct.engine.runtime2.resolution.framework.ResolutionTask
 import viaduct.engine.runtime2.resolution.framework.SharedOERContext
 import viaduct.engine.runtime2.resolution.installParentBackedgeFields
 import viaduct.engine.runtime2.resolvers.closeOrchestrationConstructionDemand
@@ -29,7 +30,8 @@ class CoroutineOrchestrationTask private constructor(
     objectOER: SharedOERContext,
     queryOER: SharedOERContext,
     val closedConstructionDemand: OrchestrationConstructionDemand<ObjectSelectionForest>,
-) : CoroutineOrchestrationTaskBase<CoroutineOperationContext>(operation, objectOER, queryOER) {
+    creator: ResolutionTask?,
+) : CoroutineOrchestrationTaskBase<CoroutineOperationContext>(operation, objectOER, queryOER, creator) {
     companion object {
         /** Reserves a possible type check until parent lookahead settles checked provenance. */
         fun createObjectResult(
@@ -59,12 +61,14 @@ class CoroutineOrchestrationTask private constructor(
             occurrence: OEROccurrence,
             source: EngineObjectData.Sync,
             constructionDemand: SelectionForest,
+            creator: ResolutionTask? = null,
         ): CoroutineOrchestrationTask =
             create(
                 operation,
                 occurrence,
                 source,
                 Demand.checked(constructionDemand),
+                creator,
             )
 
         /** Retains checked and unchecked descendant demand through passive object boundaries. */
@@ -73,6 +77,7 @@ class CoroutineOrchestrationTask private constructor(
             occurrence: OEROccurrence,
             source: EngineObjectData.Sync,
             constructionDemand: Demand<SelectionForest>,
+            creator: ResolutionTask? = null,
         ): CoroutineOrchestrationTask {
             require(source.schemaType(operation.world.schema) == occurrence.target.type) {
                 "Source type ${source.schemaType(operation.world.schema).name} does not match result type ${occurrence.target.type.name}"
@@ -110,7 +115,7 @@ class CoroutineOrchestrationTask private constructor(
                     source = engineObjectDataOf(queryType),
                     closedValueSelections = closedConstructionDemand.queryRooted.values.merge(queryType),
                 )
-            val orchestration = CoroutineOrchestrationTask(operation, objectOER, queryOER, closedConstructionDemand)
+            val orchestration = CoroutineOrchestrationTask(operation, objectOER, queryOER, closedConstructionDemand, creator)
             listOf(orchestration.objectOER, orchestration.queryOER).forEach { oer ->
                 val parentKeys =
                     oer.closedValueSelections
@@ -179,19 +184,11 @@ class CoroutineOrchestrationTask private constructor(
     }
 
     private fun observeQueryOER() {
-        operation.resolverObserver.onQueryOERPrepared(queryOER, objectOER.occurrence)
+        operation.resolutionObserver.onQueryOERPrepared?.invoke(this, null)
         listOf(objectOER, queryOER).forEach { resolverOER ->
             queryFragmentOwners(resolverOER).forEach { (resolverKey, owner) ->
-                operation.resolverObserver.onQueryFragmentPrepared(
-                    owner,
-                    queryOER.occurrence.target,
-                    objectOER.occurrence,
-                )
-                operation.resolverObserver.onQueryFragmentOwnerAddress(
-                    owner,
-                    resolverOER.occurrence,
-                    resolverKey,
-                )
+                operation.resolutionObserver.onQueryFragmentPrepared?.invoke(owner, queryOER.occurrence.target, objectOER.occurrence)
+                operation.resolutionObserver.onQueryFragmentOwnerAddress?.invoke(owner, resolverOER.occurrence, resolverKey)
             }
         }
     }

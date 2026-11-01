@@ -76,8 +76,7 @@ open class ResolverContractTest :
         SharedOperationContext.create(
             Assumptions.of(operation.world.schema, operation.world.resolverRegistry, operation.world.selectiveResolvers, precomputedConstructionDemand),
             variableBindings = operation.variableBindings,
-            resolverObserver = operation.resolverObserver,
-            checkerObserver = operation.checkerObserver,
+            resolutionObserver = operation.resolutionObserver,
             engineExecutionContext = operation.engineExecutionContext,
         ).resolveWithTestDispatcher(selections)
 }

@@ -623,7 +623,7 @@ private fun ResolverOutputData?.recordPassiveResolution(
     val taskOperation = SharedOperationContext.create(
         world = operation.world,
         variableBindings = operation.variableBindings,
-        resolverObserver = operation.resolverObserver,
+        resolutionObserver = operation.resolutionObserver,
         dispatcher = object : SharedTaskDispatcher<SharedOrchestrationTask<*>, SharedFieldPublicationOccurrence<*, *>, SharedFieldPublicationOccurrence<*, *>> {
             override fun dispatchOrchestration(task: SharedOrchestrationTask<*>) {
                 val objectOER = task.objectOER
@@ -654,6 +654,7 @@ private fun ResolverOutputData?.recordPassiveResolution(
             occurrence: OEROccurrence,
             source: EngineObjectData.Sync,
             constructionDemand: Demand<SelectionForest>,
+            creator: ResolutionTask?,
         ): SharedOrchestrationTask<*> {
             val closed =
                 Demand(
@@ -663,6 +664,7 @@ private fun ResolverOutputData?.recordPassiveResolution(
                 )
             val task = object : SharedOrchestrationTask<SharedOperationContext<*>> {
                 override val operation = taskOperation
+                override val creator = creator
                 override val objectOER =
                     SharedOERContext(
                         occurrence,
@@ -687,6 +689,7 @@ private fun ResolverOutputData?.recordPassiveResolution(
             constructionDemand: Demand<SelectionForest>,
             invocationDemand: SelectionForest,
             parent: OEROccurrence,
+            creator: ResolutionTask?,
         ) = error("Executable references are covered by the resolver contracts")
     }
     val root = ObjectEngineResult.of(operation.world.schema.requireQueryTypeDef(), mutable = true)

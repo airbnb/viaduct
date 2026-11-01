@@ -83,7 +83,7 @@ class DepthFirstReactorTest {
         assertSame(operation, publication.operation)
         assertSame(operation.world, publication.world)
         assertSame(operation.variableBindings, publication.variableBindings)
-        assertSame(operation.resolverObserver, publication.resolverObserver)
+        assertSame(operation.resolutionObserver, publication.resolutionObserver)
         assertSame(operation.dispatcher, publication.dispatcher)
         val tasks = PriorityQueue(depthFirstTaskComparator)
 

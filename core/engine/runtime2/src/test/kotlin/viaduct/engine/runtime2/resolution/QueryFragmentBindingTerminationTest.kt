@@ -37,7 +37,8 @@ import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.emptyFragmentOf
 import viaduct.engine.runtime2.model.testing.fragmentFrom
-import viaduct.engine.runtime2.resolution.framework.ResolverObserver
+import viaduct.engine.runtime2.resolution.framework.OEROccurrence
+import viaduct.engine.runtime2.resolution.framework.ResolutionObserver
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 import viaduct.engine.runtime2.schema.operationSelectionsFrom
 
@@ -252,11 +253,12 @@ class QueryFragmentBindingTerminationTest {
 
         val operation = SharedOperationContext.create(
             world,
-            resolverObserver = object : ResolverObserver {
-                override fun onQueryFragmentPrepared(
-                    resolverOccurrenceId: ResolverOccurrenceId,
-                    result: ObjectEngineResult
-                ) {
+            resolutionObserver = object : ResolutionObserver {
+                override val onQueryFragmentPrepared: (
+                    ResolverOccurrenceId,
+                    ObjectEngineResult,
+                    OEROccurrence?
+                ) -> Unit = { resolverOccurrenceId, result, _ ->
                     check(queryResult == null) { "Only the consumer has a Query fragment" }
                     queryResult = result
                     consumerOccurrence = resolverOccurrenceId

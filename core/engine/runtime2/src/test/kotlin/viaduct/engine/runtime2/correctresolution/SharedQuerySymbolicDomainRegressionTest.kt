@@ -62,7 +62,7 @@ class SharedQuerySymbolicDomainRegressionTest {
         var observedDemand = closedValueSelections
         val query = ObjectEngineResult.of(queryType, mutable = true)
         val observer = CorrectnessResolverObserver()
-        val operation = SharedOperationContext.create(world, resolverObserver = observer)
+        val operation = SharedOperationContext.create(world, resolutionObserver = observer)
         query.reserveCell(ObjectEngineResult.GroundKey.of(source, mapOf("value" to 7))).apply {
             value.set(7)
             fieldCheckerResult.complete(null)
@@ -88,8 +88,8 @@ class SharedQuerySymbolicDomainRegressionTest {
             }
         }
         query.freeze()
-        observer.onQueryOERPrepared(SharedOERContext(OEROccurrence(query, emptyList(), query), engineObjectDataOf(queryType), observedDemand))
-        observer.onQueryFragmentPrepared(ResolverOccurrenceId.at(result, listOf(consumerKey)), query)
+        observer.recordQueryOERPrepared(SharedOERContext(OEROccurrence(query, emptyList(), query), engineObjectDataOf(queryType), observedDemand), null, null)
+        observer.onQueryFragmentPrepared(ResolverOccurrenceId.at(result, listOf(consumerKey)), query, null)
         return result.correctResolution(operation, selectionForestOf().merge(queryType))
     }
 }

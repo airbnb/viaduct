@@ -43,7 +43,7 @@ class SingularQueryGuardIsolationTest : ResolutionDispatcherResource {
                         val failure = IllegalStateException("bad owner's provider")
                         val world = world(mode, calls) { name -> if (name == "bad") throw failure }
                         val observer = CorrectnessResolverObserver()
-                        val operation = SharedOperationContext.create(world.assumptions, resolverObserver = observer)
+                        val operation = SharedOperationContext.create(world.assumptions, resolutionObserver = observer)
                         val request = Job()
                         try {
                             val result = operation.startResolve(
@@ -84,7 +84,7 @@ class SingularQueryGuardIsolationTest : ResolutionDispatcherResource {
                         }
                     }
                     val observer = CorrectnessResolverObserver()
-                    val operation = SharedOperationContext.create(world.assumptions, resolverObserver = observer)
+                    val operation = SharedOperationContext.create(world.assumptions, resolutionObserver = observer)
                     val request = Job()
                     try {
                         val result = operation.startResolve(

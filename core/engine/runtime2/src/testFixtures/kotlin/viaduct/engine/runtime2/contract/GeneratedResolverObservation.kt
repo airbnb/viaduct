@@ -6,7 +6,7 @@ import viaduct.engine.runtime2.arbitrary.Config
 import viaduct.engine.runtime2.arbitrary.ResolverApplicationRecord
 import viaduct.engine.runtime2.arbitrary.ResolverTestCase
 import viaduct.engine.runtime2.arbitrary.SelectiveNodeResolverApplicationRecord
-import viaduct.engine.runtime2.correctresolution.CorrectnessCheckerObserver
+import viaduct.engine.runtime2.correctresolution.CorrectnessResolverObserver
 import viaduct.engine.runtime2.correctresolution.conformsToResolvers
 import viaduct.engine.runtime2.correctresolution.conformsToSelections
 import viaduct.engine.runtime2.correctresolution.correctResolution
@@ -138,7 +138,7 @@ object GeneratedCaseAssertions {
     val exactCheckerApplications =
         GeneratedCaseAssertion { observation ->
             observation.executions.forEach { execution ->
-                val inputRecorder = execution.operation.checkerObserver as CorrectnessCheckerObserver
+                val inputRecorder = execution.operation.resolutionObserver as CorrectnessResolverObserver
                 execution.checkerApplications.groupingBy { it }.eachCount().forEach { (application, count) ->
                     assertEquals(
                         count,
@@ -194,11 +194,10 @@ fun ResolverContract.observeGeneratedCase(
     captureSuppliedDemand: Boolean = false,
 ): GeneratedCaseObservation {
     testCase.registry.clearResolutionWitness()
-    val ordinaryCheckerRecorder = CheckerApplicationRecorder()
+    val ordinaryCheckerRecorder = CheckerApplicationRecorder(testCase.registry.resolutionObserver(captureSuppliedDemand = captureSuppliedDemand))
     val ordinary =
         observeGeneratedResolution(
             testWorld = testWorld,
-            resolverObserver = testCase.registry.resolverObserver(captureSuppliedDemand = captureSuppliedDemand),
             checkerRecorder = ordinaryCheckerRecorder,
             querySource = testCase.query.source,
         )
@@ -206,10 +205,9 @@ fun ResolverContract.observeGeneratedCase(
     val selectiveNodeResolverApplications = testCase.registry.selectiveNodeResolverApplications()
     val permutationEquivalent =
         testCase.registry.withoutResolutionWitnessCapture {
-            val checkerRecorder = CheckerApplicationRecorder()
+            val checkerRecorder = CheckerApplicationRecorder(testCase.registry.resolutionObserver(captureResolutionWitness = false, captureResolutionApplicationCounts = false))
             observeGeneratedResolution(
                 testWorld = testWorld,
-                resolverObserver = testCase.registry.resolverObserver(captureResolutionWitness = false, captureResolutionApplicationCounts = false),
                 checkerRecorder = checkerRecorder,
                 querySource = testCase.query.permutationEquivalentSource,
             )
@@ -225,7 +223,6 @@ fun ResolverContract.observeGeneratedCase(
 
 private fun ResolverContract.observeGeneratedResolution(
     testWorld: TestWorld,
-    resolverObserver: viaduct.engine.runtime2.resolution.framework.ResolverObserver,
     checkerRecorder: CheckerApplicationRecorder,
     querySource: String,
 ): GeneratedResolutionObservation {
@@ -236,8 +233,7 @@ private fun ResolverContract.observeGeneratedResolution(
             world,
             world.objectOf("Query"),
             fragment.subselections,
-            resolverObserver = resolverObserver,
-            checkerObserver = checkerRecorder,
+            resolutionObserver = checkerRecorder,
         )
     return GeneratedResolutionObservation(
         operation = subject.operation,

@@ -97,8 +97,8 @@ private fun ResolverContract.assertRejectsWorldMode(selectiveResolvers: Boolean)
     val selections = testWorld.schemas.operationSelectionsFrom("query { __typename }")
 
     assertFailsWith<IllegalArgumentException> {
-        resolve(
-            viaduct.engine.runtime2.resolution.framework.SharedOperationContext.create(world),
+        observeResolution(
+            world,
             world.objectOf("Query"),
             selections,
         )
@@ -141,7 +141,7 @@ private data class RecursiveOutputFixtureResult(
 
 private fun ResolverContract.resolveRecursiveOutputFixture(): RecursiveOutputFixtureResult {
     val invocationObserver = object : CorrectnessResolverObserver() {
-        override fun onResolverInvocation(observation: ResolverInvocationObservation) {
+        override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { observation ->
             super.onResolverInvocation(observation)
             val field = observation.field
             val input = observation.input
@@ -182,7 +182,7 @@ private fun ResolverContract.resolveRecursiveOutputFixture(): RecursiveOutputFix
         )
     val world = testWorld.assumptions
     val result =
-        resolveAndValidate(testWorld, "query { chain { computed } }", resolverObserver = invocationObserver)
+        resolveAndValidate(testWorld, "query { chain { computed } }", resolutionObserver = invocationObserver)
     val chain =
         assertIs<ObjectEngineResult>(
             result.getCell(world.schema.contractKey("Query", "chain")).get(),

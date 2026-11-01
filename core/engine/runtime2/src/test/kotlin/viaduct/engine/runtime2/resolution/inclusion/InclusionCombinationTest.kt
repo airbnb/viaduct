@@ -29,7 +29,7 @@ class InclusionCombinationTest : ResolutionDispatcherResource {
             val operation =
                 SharedOperationContext.create(
                     world = world,
-                    resolverObserver = CorrectnessResolverObserver(),
+                    resolutionObserver = CorrectnessResolverObserver(),
                 )
             val result = operation.resolveWithTestDispatcher(query.subselections)
             val oracle = T3Oracle(vector)
@@ -74,7 +74,7 @@ class InclusionCombinationTest : ResolutionDispatcherResource {
             val operation =
                 SharedOperationContext.create(
                     world = world,
-                    resolverObserver = CorrectnessResolverObserver(),
+                    resolutionObserver = CorrectnessResolverObserver(),
                 )
             val result = operation.resolveWithTestDispatcher(query.subselections)
             val oracle = T2Oracle(vector)
@@ -148,7 +148,7 @@ class InclusionCombinationTest : ResolutionDispatcherResource {
             val operation =
                 SharedOperationContext.create(
                     world = world,
-                    resolverObserver = CorrectnessResolverObserver(),
+                    resolutionObserver = CorrectnessResolverObserver(),
                 )
             val result = operation.resolveWithTestDispatcher(query.subselections)
             val oracle = T1Oracle(vector)

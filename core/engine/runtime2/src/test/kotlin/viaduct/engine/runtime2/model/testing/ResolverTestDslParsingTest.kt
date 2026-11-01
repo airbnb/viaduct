@@ -6,6 +6,23 @@ import org.junit.jupiter.api.assertThrows
 
 class ResolverTestDslParsingTest {
     @Test
+    fun `rejects erroneous arguments and directive bindings in Query fragments`() {
+        for (selection in listOf("dependency(arg: \"ERROR\")", "dependency(arg: 1) @include(if: \"ERROR\")")) {
+            val escapedSelection = selection.replace("\"", "\\\"")
+            assertThrows<IllegalArgumentException> {
+                TestWorld.fromDSL(
+                    """
+                    extend type Query {
+                      result: Int! @resolver(qf: "$escapedSelection", result: 1)
+                      dependency(arg: Int!): Int! @resolver(result: 2)
+                    }
+                    """.trimIndent(),
+                )
+            }
+        }
+    }
+
+    @Test
     fun `rejects injected errors in direct and nested registry argument expressions`() {
         for (value in listOf("\"ERROR\"", "{values: \"ERROR\"}", "{values: [1, \"ERROR\"]}")) {
             val selection = "dependency(arg: $value)".replace("\"", "\\\"")

@@ -7,7 +7,6 @@ import viaduct.engine.api.CheckerResult
 import viaduct.engine.runtime2.contract.CheckerApplicationRecorder
 import viaduct.engine.runtime2.contract.demandedTypeCheckerApplications
 import viaduct.engine.runtime2.contract.registeredCheckerApplications
-import viaduct.engine.runtime2.correctresolution.CorrectnessCheckerObserver
 import viaduct.engine.runtime2.correctresolution.CorrectnessResolverObserver
 import viaduct.engine.runtime2.correctresolution.correctResolution
 import viaduct.engine.runtime2.model.ObjectEngineResult
@@ -81,8 +80,7 @@ class GeneratedTypeCheckerOracleTest : ResolutionDispatcherResource {
             val operation =
                 SharedOperationContext.create(
                     world,
-                    resolverObserver = CorrectnessResolverObserver(),
-                    checkerObserver = CorrectnessCheckerObserver(recorder),
+                    resolutionObserver = CorrectnessResolverObserver(recorder),
                 )
 
             // This is the injected implementation defect: execute `surplus` even though the intended
@@ -179,8 +177,7 @@ class GeneratedTypeCheckerOracleTest : ResolutionDispatcherResource {
         val recorder = CheckerApplicationRecorder()
         val operation = SharedOperationContext.create(
             world,
-            resolverObserver = CorrectnessResolverObserver(),
-            checkerObserver = CorrectnessCheckerObserver(recorder),
+            resolutionObserver = CorrectnessResolverObserver(recorder),
         )
         listOf(
             CheckerInvocationObservation(
@@ -197,7 +194,7 @@ class GeneratedTypeCheckerOracleTest : ResolutionDispatcherResource {
                 null,
                 ResolverTarget.TypeCheckerTarget(rawType),
             ),
-        ).forEach(recorder::onCheckerInvocation)
+        ).forEach { recorder.onCheckerInvocation(it, emptyMap()) }
 
         val selections = worldFixture.schemas.fragmentFrom("fragment Query on Query { item { value } }")
         val correct = root.correctResolution(operation, selections)

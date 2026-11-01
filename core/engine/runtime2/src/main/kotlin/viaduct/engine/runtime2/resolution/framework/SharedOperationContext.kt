@@ -11,8 +11,7 @@ import viaduct.engine.runtime2.model.registry.Assumptions
 interface SharedOperationContext<out D : SharedTaskDispatcher<Nothing, Nothing, Nothing>> {
     val world: Assumptions
     val variableBindings: VariableBindingsState
-    val resolverObserver: ResolverObserver
-    val checkerObserver: CheckerObserver
+    val resolutionObserver: ResolutionObserver
     val engineExecutionContext: EngineExecutionContext?
     val dispatcher: D
 
@@ -22,15 +21,13 @@ interface SharedOperationContext<out D : SharedTaskDispatcher<Nothing, Nothing, 
         fun create(
             world: Assumptions,
             variableBindings: VariableBindingsState = VariableBindingsState(),
-            resolverObserver: ResolverObserver = ResolverObserver.NOP,
-            checkerObserver: CheckerObserver = CheckerObserver.NOP,
+            resolutionObserver: ResolutionObserver = ResolutionObserver.NOP,
             engineExecutionContext: EngineExecutionContext? = null,
         ): SharedOperationContext<Nothing> =
             object : SharedOperationContext<Nothing> {
                 override val world = world
                 override val variableBindings = variableBindings
-                override val resolverObserver = resolverObserver
-                override val checkerObserver = checkerObserver
+                override val resolutionObserver = resolutionObserver
                 override val engineExecutionContext = engineExecutionContext
                 override val dispatcher: Nothing
                     get() = error("This operation does not dispatch resolver tasks")
@@ -42,15 +39,13 @@ interface SharedOperationContext<out D : SharedTaskDispatcher<Nothing, Nothing, 
             world: Assumptions,
             dispatcher: D,
             variableBindings: VariableBindingsState = VariableBindingsState(),
-            resolverObserver: ResolverObserver = ResolverObserver.NOP,
-            checkerObserver: CheckerObserver = CheckerObserver.NOP,
+            resolutionObserver: ResolutionObserver = ResolutionObserver.NOP,
             engineExecutionContext: EngineExecutionContext? = null,
         ): SharedOperationContext<D> =
             object : SharedOperationContext<D> {
                 override val world = world
                 override val variableBindings = variableBindings
-                override val resolverObserver = resolverObserver
-                override val checkerObserver = checkerObserver
+                override val resolutionObserver = resolutionObserver
                 override val engineExecutionContext = engineExecutionContext
                 override val dispatcher = dispatcher
             }

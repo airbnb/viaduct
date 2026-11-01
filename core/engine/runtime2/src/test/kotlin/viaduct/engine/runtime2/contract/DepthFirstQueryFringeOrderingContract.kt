@@ -2,7 +2,6 @@ package viaduct.engine.runtime2.contract
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import viaduct.engine.api.EngineObjectData
 import viaduct.engine.runtime2.correctresolution.CorrectnessResolverObserver
 import viaduct.engine.runtime2.model.RootFieldReferenceData
 import viaduct.engine.runtime2.model.emptyFragmentOf
@@ -20,7 +19,7 @@ interface DepthFirstQueryFringeOrderingContract : ResolverContract {
     fun `reference Query fragment finishes before the enclosing passive fringe runs`() {
         val applications = mutableListOf<String>()
         val invocationObserver = object : CorrectnessResolverObserver() {
-            override fun onResolverInvocation(observation: ResolverInvocationObservation) {
+            override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { observation ->
                 super.onResolverInvocation(observation)
                 applications += observation.field.name
             }
@@ -83,7 +82,7 @@ interface DepthFirstQueryFringeOrderingContract : ResolverContract {
         resolveAndValidate(
             fixture,
             "{ container { left { value } values } after }",
-            resolverObserver = invocationObserver,
+            resolutionObserver = invocationObserver,
         )
 
         assertEquals(listOf("container", "dependency", "target", "value", "after"), applications)
@@ -93,59 +92,31 @@ interface DepthFirstQueryFringeOrderingContract : ResolverContract {
     fun `nested owner Query OER retains owner depth and drains Query descendants first`() {
         val applications = mutableListOf<String>()
         val invocationObserver = object : CorrectnessResolverObserver() {
-            override fun onResolverInvocation(observation: ResolverInvocationObservation) {
+            override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { observation ->
                 super.onResolverInvocation(observation)
                 applications += observation.field.name
             }
         }
         val fixture =
-            TestWorld.fromSDL(
+            TestWorld.fromDSL(
                 selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
-                    type Query {
-                      container: Container!
-                      dependency: Dependency!
+                    extend type Query {
+                      container: Container! @resolver(result: {})
+                      dependency: Dependency! @resolver(result: {})
                     }
-                    type Container { owner: Int! }
-                    type Dependency { value: Int! }
+                    type Container {
+                      owner: Int! @resolver(qf: "dependency { value }", result: "value(query:dependency.value)")
+                    }
+                    type Dependency { value: Int! @resolver(result: 7) }
                     """.trimIndent(),
-                fieldResolvers = { schema ->
-                    val container = schema.loweredSchema.requireObjectField("Query", "container")
-                    val dependency = schema.loweredSchema.requireObjectField("Query", "dependency")
-                    val owner = schema.loweredSchema.requireObjectField("Container", "owner")
-                    val value = schema.loweredSchema.requireObjectField("Dependency", "value")
-                    mapOf(
-                        container to
-                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
-                                schema.loweredSchema.objectOf("Container")
-                            },
-                        dependency to
-                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
-                                schema.loweredSchema.objectOf("Dependency")
-                            },
-                        value to
-                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Dependency")) { _, _ -> 7 },
-                        owner to
-                            fieldResolverOf(
-                                objectFragment = schema.loweredSchema.emptyFragmentOf("Container"),
-                                queryFragment =
-                                    schema.fragmentFrom(
-                                        "fragment OwnerQuery on Query { dependency { value } }",
-                                    ),
-                            ) { _, query, _ ->
-                                val dependencyValue =
-                                    query.selectionValues().getValue("dependency") as EngineObjectData.Sync
-                                dependencyValue.selectionValues().getValue("value")
-                            },
-                    )
-                },
             )
 
         resolveAndValidate(
             fixture,
             "{ container { owner } }",
-            resolverObserver = invocationObserver,
+            resolutionObserver = invocationObserver,
         )
 
         assertEquals(listOf("container", "dependency", "value", "owner"), applications)
@@ -155,59 +126,31 @@ interface DepthFirstQueryFringeOrderingContract : ResolverContract {
     fun `shared Query OER drains before its owner without stealing the owner fringe`() {
         val applications = mutableListOf<String>()
         val invocationObserver = object : CorrectnessResolverObserver() {
-            override fun onResolverInvocation(observation: ResolverInvocationObservation) {
+            override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { observation ->
                 super.onResolverInvocation(observation)
                 applications += observation.field.name
             }
         }
         val fixture =
-            TestWorld.fromSDL(
+            TestWorld.fromDSL(
                 selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
-                    type Query {
-                      container: Container!
-                      dependency: Int!
-                      target: Int!
-                      after: Int!
+                    extend type Query {
+                      container: Container! @resolver(result: {child: {}})
+                      dependency: Int! @resolver(result: 7)
+                      target: Int! @resolver(qf: "dependency", result: "value(query:dependency)")
+                      after: Int! @resolver(of: "container { child { value } } target", result: 9)
                     }
                     type Container { child: Child! }
-                    type Child { value: Int! }
+                    type Child { value: Int! @resolver(result: 8) }
                     """.trimIndent(),
-                fieldResolvers = { schema ->
-                    val container = schema.loweredSchema.requireObjectField("Query", "container")
-                    val target = schema.loweredSchema.requireObjectField("Query", "target")
-                    mapOf(
-                        container to
-                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
-                                schema.loweredSchema.objectOf("Container") {
-                                    "child" setTo objectOf("Child")
-                                }
-                            },
-                        schema.loweredSchema.requireObjectField("Query", "dependency") to
-                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> 7 },
-                        target to
-                            fieldResolverOf(
-                                objectFragment = schema.loweredSchema.emptyFragmentOf("Query"),
-                                queryFragment =
-                                    schema.fragmentFrom("fragment TargetQuery on Query { dependency }"),
-                            ) { _, query, _ -> query.selectionValues().getValue("dependency") },
-                        schema.loweredSchema.requireObjectField("Query", "after") to
-                            fieldResolverOf(
-                                schema.fragmentFrom(
-                                    "fragment After on Query { container { child { value } } target }",
-                                ),
-                            ) { _, _ -> 9 },
-                        schema.loweredSchema.requireObjectField("Child", "value") to
-                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Child")) { _, _ -> 8 },
-                    )
-                },
             )
 
         resolveAndValidate(
             fixture,
             "{ container { child { value } } target after }",
-            resolverObserver = invocationObserver,
+            resolutionObserver = invocationObserver,
         )
 
         assertEquals(listOf("dependency", "container", "value", "target", "after"), applications)

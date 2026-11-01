@@ -35,7 +35,10 @@ import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.fragmentFrom
+import viaduct.engine.runtime2.resolution.framework.ResolutionObserver
+import viaduct.engine.runtime2.resolution.framework.ResolverInvocationObservation
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
+import viaduct.engine.runtime2.resolution.framework.SharedOrchestrationTask
 import viaduct.engine.runtime2.schema.operationSelectionsFrom
 
 open class FieldCheckerLifecycleTest : ResolutionDispatcherResource {
@@ -46,7 +49,7 @@ open class FieldCheckerLifecycleTest : ResolutionDispatcherResource {
         val failure = IllegalStateException("checker provider failed")
         val world = providerWorld { throw failure }
         val recorder = CheckerApplicationRecorder()
-        val operation = SharedOperationContext.create(world.newAssumptions(usePrecomputedConstructionDemand = precomputedConstructionDemand), checkerObserver = recorder)
+        val operation = SharedOperationContext.create(world.newAssumptions(usePrecomputedConstructionDemand = precomputedConstructionDemand), resolutionObserver = recorder)
         val result = operation.resolveWithTestDispatcher(world.schemas.operationSelectionsFrom("{ checked }"))
         val key = ObjectEngineResult.GroundKey.of(world.schema.requireObjectField("Query", "checked"), emptyMap())
         assertEquals(1, result.getCell(key).value.get())
@@ -94,8 +97,8 @@ open class FieldCheckerLifecycleTest : ResolutionDispatcherResource {
 
     @Test
     fun `checker ctx query uses an independent raw scope with ordinary checked resolver boundaries`() {
-        val recorder = CheckerApplicationRecorder()
-        val roots = ConcurrentLinkedQueue<ObjectEngineResult>()
+        val orchestrations = ConcurrentLinkedQueue<SharedOrchestrationTask<*>>()
+        val checkerTasks = ConcurrentLinkedQueue<FieldCheckerTask>()
         val world = TestWorld.fromDSL(
             """
             extend type Query {
@@ -110,6 +113,7 @@ open class FieldCheckerLifecycleTest : ResolutionDispatcherResource {
                 val protected = schema.loweredSchema.requireObjectField("Query", "protected")
                 mapOf(
                     checked to FieldCheckerResolver.of(checked, schema.loweredSchema.requireQueryTypeDef()) { _, _, ctx ->
+                        checkerTasks += assertIs<FieldCheckerTask>(ctx)
                         val selections = schema.fragmentFrom("fragment Child on Query { dependency }").materializeSelections
                         assertEquals(7, ctx.resolveSelectionSet(selections).get("dependency"))
                         assertEquals(7, ctx.resolveSelectionSet(selections).get("dependency"))
@@ -120,25 +124,27 @@ open class FieldCheckerLifecycleTest : ResolutionDispatcherResource {
                 )
             },
         )
-        val resolverObserver = object : viaduct.engine.runtime2.resolution.framework.ResolverObserver {
-            override fun onResolverInvocation(observation: viaduct.engine.runtime2.resolution.framework.ResolverInvocationObservation) = Unit
+        val resolutionObserver = object : ResolutionObserver {
+            override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { _ -> Unit }
 
-            override fun onQueryOERPrepared(
-                queryOER: viaduct.engine.runtime2.resolution.framework.SharedOERContext,
-                queryOERDepth: Int?
-            ) {
-                roots += queryOER.occurrence.root
+            override val onQueryOERPrepared: (SharedOrchestrationTask<*>, Int?) -> Unit = { task, _ ->
+                orchestrations += task
             }
         }
+        val recorder = CheckerApplicationRecorder(resolutionObserver)
         val operation = SharedOperationContext.create(
             world.newAssumptions(usePrecomputedConstructionDemand = precomputedConstructionDemand),
-            checkerObserver = recorder,
-            resolverObserver = resolverObserver
+            resolutionObserver = recorder,
         )
         operation.resolveWithTestDispatcher(world.schemas.operationSelectionsFrom("{ checked dependency }"))
         assertEquals(5, recorder.checkerApplications().size)
         assertEquals(3, recorder.checkerApplications().count { it.checkedCoordinate.name == "protected" })
-        assertEquals(3, roots.toSet().size)
+        assertEquals(3, orchestrations.size)
+        val root = orchestrations.single { it.creator == null }
+        val checker = checkerTasks.single()
+        assertSame(root, checker.creator)
+        assertSame(checker, checker.publication.task)
+        orchestrations.filter { it !== root }.forEach { assertSame(checker, it.creator) }
     }
 
     private fun providerWorld(provider: VariablesProviderFunction): TestWorld =

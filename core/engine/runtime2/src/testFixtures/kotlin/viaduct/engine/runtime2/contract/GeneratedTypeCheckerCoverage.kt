@@ -3,7 +3,6 @@ package viaduct.engine.runtime2.contract
 import viaduct.engine.api.CheckerResult
 import viaduct.engine.runtime2.arbitrary.GeneratedTypeCheckerMode
 import viaduct.engine.runtime2.arbitrary.ResolverTestRun
-import viaduct.engine.runtime2.correctresolution.CorrectnessCheckerObserver
 import viaduct.engine.runtime2.correctresolution.CorrectnessResolverObserver
 import viaduct.engine.runtime2.model.Arguments
 import viaduct.engine.runtime2.model.EngineResult
@@ -105,8 +104,7 @@ class GeneratedTypeCheckerCoverage {
 /** Registration alone, or a resolver invoked at another occurrence, cannot satisfy these guards. */
 fun GeneratedResolutionObservation.typeCheckerCoverage(): Set<GeneratedTypeCheckerSignature> {
     val types = checkerApplications.filter { it.checkerKind == CheckerKind.TYPE }
-    val resolvers = operation.resolverObserver as CorrectnessResolverObserver
-    val checkers = operation.checkerObserver as CorrectnessCheckerObserver
+    val observer = operation.resolutionObserver as CorrectnessResolverObserver
     val fieldIds = checkerApplications.filter { it.checkerKind == CheckerKind.FIELD }
         .mapTo(hashSetOf()) { ResolverOccurrenceId.at(it.logicalQueryRoot, it.occurrencePath) }
     val typeIds = types.mapTo(hashSetOf()) { ResolverOccurrenceId.at(it.logicalQueryRoot, it.occurrencePath) }
@@ -192,7 +190,7 @@ fun GeneratedResolutionObservation.typeCheckerCoverage(): Set<GeneratedTypeCheck
                         }
                     }
                     val id = ResolverOccurrenceId.at(root, selectedPath)
-                    resolvers.resolverInvocations(id).filter { !it.field.name.startsWith("__") && it.field.name != "V_A_typename" }.forEach { invocation ->
+                    observer.resolverInvocations(id).filter { !it.field.name.startsWith("__") && it.field.name != "V_A_typename" }.forEach { invocation ->
                         add(signature)
                         if (checker.occurrencePath.any { it is ListEngineResult.Index }) add(GeneratedTypeCheckerSignature.LIST_OCCURRENCE_WITH_RESOLVER_INPUT)
                         if (checker.logicalQueryRoot !== result) add(GeneratedTypeCheckerSignature.ASSOCIATED_QUERY_WITH_RESOLVER_INPUT)
@@ -204,14 +202,14 @@ fun GeneratedResolutionObservation.typeCheckerCoverage(): Set<GeneratedTypeCheck
                             },
                         )
                         recordCheckedInputs(root, selectedPath.dropLast(1), invocation.inputSelections.constructionSelections())
-                        resolvers.queryFragmentResults(id).forEach { queryRoot ->
+                        observer.queryFragmentResults(id).forEach { queryRoot ->
                             recordCheckedInputs(queryRoot, emptyList(), invocation.queryInputSelections.constructionSelections())
                         }
                     }
                 }
             }
             recordRawInputs(checker.logicalQueryRoot, checker.occurrencePath, fragments.objectFragment.constructionSelections, GeneratedTypeCheckerSignature.OBJECT_INPUT_RESOLVER)
-            checkers.queryFragmentResults(checker.checkedTarget, ownerId).forEach { queryRoot ->
+            observer.queryFragmentResults(checker.checkedTarget, ownerId).forEach { queryRoot ->
                 recordRawInputs(queryRoot, emptyList(), fragments.queryFragment.constructionSelections, GeneratedTypeCheckerSignature.QUERY_INPUT_RESOLVER)
             }
         }

@@ -12,8 +12,8 @@ import org.junit.jupiter.api.Test
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.runtime2.correctresolution.CorrectnessResolverObserver
 import viaduct.engine.runtime2.model.Arguments
-import viaduct.engine.runtime2.model.EngineErrorData
 import viaduct.engine.runtime2.model.ErrorEngineResult
+import viaduct.engine.runtime2.model.ListEngineResult
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.ResolverOccurrenceId
 import viaduct.engine.runtime2.model.SelectionForest
@@ -46,26 +46,22 @@ interface QueryFragmentResolverContract : ResolverContract {
 
     @Test
     fun `empty Query fragments follow Query OER ownership policy`() {
+        val invocationObserver = object : CorrectnessResolverObserver() {
+            override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { observation ->
+                super.onResolverInvocation(observation)
+                assertTrue(observation.queryValue.selectionValues().isEmpty())
+            }
+        }
         val testWorld =
-            TestWorld.fromSDL(
+            TestWorld.fromDSL(
                 selectiveResolvers = selectiveResolvers,
-                schemaSDL = "type Query { value: Int! }",
-                fieldResolvers = { schema ->
-                    val value = schema.loweredSchema.requireObjectField("Query", "value")
-                    mapOf(
-                        value to
-                            fieldResolverOf(
-                                objectFragment = schema.loweredSchema.emptyFragmentOf("Query"),
-                                queryFragment = schema.loweredSchema.emptyFragmentOf("Query"),
-                            ) { _, queryValue, _ ->
-                                assertTrue(queryValue.selectionValues().isEmpty())
-                                1
-                            },
-                    )
-                },
+                schemaSDL =
+                    """
+                    extend type Query { value: Int! @resolver(qf: "", result: 1) }
+                    """.trimIndent(),
             )
-        val resolution = resolveAndValidateObserved(testWorld, "query { value }")
-        val observer = resolution.operation.resolverObserver as CorrectnessResolverObserver
+        val resolution = resolveAndValidateObserved(testWorld, "query { value }", resolutionObserver = invocationObserver)
+        val observer = resolution.operation.resolutionObserver as CorrectnessResolverObserver
 
         assertEquals(
             1,
@@ -138,7 +134,7 @@ interface QueryFragmentResolverContract : ResolverContract {
     fun `query fragments preserve owner projections and OER ownership policy`() {
         val sourceApplications = AtomicInteger()
         val invocationObserver = object : CorrectnessResolverObserver() {
-            override fun onResolverInvocation(observation: ResolverInvocationObservation) {
+            override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { observation ->
                 super.onResolverInvocation(observation)
                 val field = observation.field
                 if (field.name == "source") {
@@ -205,10 +201,10 @@ interface QueryFragmentResolverContract : ResolverContract {
                   second: consumer(value: 3)
                 }
                 """.trimIndent(),
-                resolverObserver = invocationObserver,
+                resolutionObserver = invocationObserver,
             )
         val result = resolution.result
-        val observations = resolution.operation.resolverObserver as CorrectnessResolverObserver
+        val observations = resolution.operation.resolutionObserver as CorrectnessResolverObserver
 
         assertEquals(2, result.getCell(firstKey).get())
         assertEquals(3, result.getCell(secondKey).get())
@@ -291,45 +287,16 @@ interface QueryFragmentResolverContract : ResolverContract {
     @Test
     fun `query fragment resolution is transitive`() {
         val testWorld =
-            TestWorld.fromSDL(
+            TestWorld.fromDSL(
                 selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
-                    type Query {
-                      base: Int!
-                      middle: Int!
-                      result: Int!
+                    extend type Query {
+                      base: Int! @resolver(result: 4)
+                      middle: Int! @resolver(qf: "value: base", result: "value(query:value)")
+                      result: Int! @resolver(qf: "value: middle", result: "value(query:value)")
                     }
                     """.trimIndent(),
-                fieldResolvers = { schema ->
-                    val base = schema.loweredSchema.requireObjectField("Query", "base")
-                    val middle = schema.loweredSchema.requireObjectField("Query", "middle")
-                    val result = schema.loweredSchema.requireObjectField("Query", "result")
-                    mapOf(
-                        base to
-                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> 4 },
-                        middle to
-                            fieldResolverOf(
-                                objectFragment = schema.loweredSchema.emptyFragmentOf("Query"),
-                                queryFragment =
-                                    schema.fragmentFrom(
-                                        "fragment MiddleQuery on Query { value: base }",
-                                    ),
-                            ) { _, queryValue, _ ->
-                                queryValue.selectionValues().getValue("value")
-                            },
-                        result to
-                            fieldResolverOf(
-                                objectFragment = schema.loweredSchema.emptyFragmentOf("Query"),
-                                queryFragment =
-                                    schema.fragmentFrom(
-                                        "fragment ResultQuery on Query { value: middle }",
-                                    ),
-                            ) { _, queryValue, _ ->
-                                queryValue.selectionValues().getValue("value")
-                            },
-                    )
-                },
             )
         val world = testWorld.assumptions
         val resultKey = world.schema.contractKey("Query", "result")
@@ -338,7 +305,7 @@ interface QueryFragmentResolverContract : ResolverContract {
 
         val resolution = resolveAndValidateObserved(testWorld, "query { result }")
         val resolved = resolution.result
-        val observations = resolution.operation.resolverObserver as CorrectnessResolverObserver
+        val observations = resolution.operation.resolutionObserver as CorrectnessResolverObserver
 
         assertEquals(4, resolved.getCell(resultKey).get())
         val middleResult =
@@ -362,59 +329,24 @@ interface QueryFragmentResolverContract : ResolverContract {
     fun `object returned inside a Query scope owns a distinct Query OER`() {
         assumeTrue(usesSingularQueryOER)
         val testWorld =
-            TestWorld.fromSDL(
+            TestWorld.fromDSL(
                 selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
-                    type Query {
-                      result: Int!
-                      container: Container!
-                      source: Int!
+                    extend type Query {
+                      result: Int! @resolver(qf: "container { value }", result: "value(query:container.value)")
+                      container: Container! @resolver(result: {})
+                      source: Int! @resolver(result: 7)
                     }
-
                     type Container {
-                      value: Int!
+                      value: Int! @resolver(qf: "source", result: "value(query:source)")
                     }
                     """.trimIndent(),
-                fieldResolvers = { schema ->
-                    val result = schema.loweredSchema.requireObjectField("Query", "result")
-                    val container = schema.loweredSchema.requireObjectField("Query", "container")
-                    val source = schema.loweredSchema.requireObjectField("Query", "source")
-                    val value = schema.loweredSchema.requireObjectField("Container", "value")
-                    mapOf(
-                        result to
-                            fieldResolverOf(
-                                objectFragment = schema.loweredSchema.emptyFragmentOf("Query"),
-                                queryFragment =
-                                    schema.fragmentFrom(
-                                        "fragment ResultQuery on Query { container { value } }",
-                                    ),
-                            ) { _, queryValue, _ ->
-                                val queryContainer =
-                                    queryValue.outputValue("container") as EngineObjectData.Sync
-                                queryContainer.outputValue("value")
-                            },
-                        container to
-                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
-                                schema.loweredSchema.objectOf("Container")
-                            },
-                        value to
-                            fieldResolverOf(
-                                objectFragment = schema.loweredSchema.emptyFragmentOf("Container"),
-                                queryFragment =
-                                    schema.fragmentFrom(
-                                        "fragment ValueQuery on Query { source }",
-                                    ),
-                            ) { _, queryValue, _ -> queryValue.outputValue("source") },
-                        source to
-                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> 7 },
-                    )
-                },
             )
         val world = testWorld.assumptions
 
         val resolution = resolveAndValidateObserved(testWorld, "query { result }")
-        val observer = resolution.operation.resolverObserver as CorrectnessResolverObserver
+        val observer = resolution.operation.resolutionObserver as CorrectnessResolverObserver
 
         assertEquals(
             7,
@@ -504,9 +436,9 @@ interface QueryFragmentResolverContract : ResolverContract {
         val world = testWorld.assumptions
 
         val resolution = resolveAndValidateObserved(testWorld, "query { result { value } }")
-        val observer = resolution.operation.resolverObserver as CorrectnessResolverObserver
+        val observer = resolution.operation.resolutionObserver as CorrectnessResolverObserver
         val result =
-            assertIs<viaduct.engine.runtime2.model.ListEngineResult>(
+            assertIs<ListEngineResult>(
                 resolution.result.getCell(world.schema.contractKey("Query", "result")).get(),
             )
         val first = assertIs<ObjectEngineResult>(result[0].get())
@@ -521,54 +453,32 @@ interface QueryFragmentResolverContract : ResolverContract {
 
     @Test
     fun `a failing Query projection does not corrupt an unrelated owner`() {
+        val invocationObserver = object : CorrectnessResolverObserver() {
+            override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { observation ->
+                super.onResolverInvocation(observation)
+                if (observation.field.name == "healthyOwner") {
+                    assertEquals(setOf("value"), observation.queryValue.selectionValues().keys)
+                }
+            }
+        }
         val testWorld =
-            TestWorld.fromSDL(
+            TestWorld.fromDSL(
                 selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
-                    type Query {
-                      failing: Int!
-                      healthy: Int!
-                      failedOwner: Int!
-                      healthyOwner: Int!
+                    extend type Query {
+                      failing: Int! @resolver(result: "ERROR")
+                      healthy: Int! @resolver(result: 7)
+                      failedOwner: Int! @resolver(qf: "value: failing", result: "value(query:value)")
+                      healthyOwner: Int! @resolver(qf: "value: healthy", result: "value(query:value)")
                     }
                     """.trimIndent(),
-                fieldResolvers = { schema ->
-                    val failing = schema.loweredSchema.requireObjectField("Query", "failing")
-                    val healthy = schema.loweredSchema.requireObjectField("Query", "healthy")
-                    val failedOwner = schema.loweredSchema.requireObjectField("Query", "failedOwner")
-                    val healthyOwner = schema.loweredSchema.requireObjectField("Query", "healthyOwner")
-                    mapOf(
-                        failing to
-                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
-                                EngineErrorData.of()
-                            },
-                        healthy to fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> 7 },
-                        failedOwner to
-                            fieldResolverOf(
-                                objectFragment = schema.loweredSchema.emptyFragmentOf("Query"),
-                                queryFragment =
-                                    schema.fragmentFrom("fragment Failed on Query { value: failing }"),
-                            ) { _, queryValue, _ ->
-                                queryValue.selectionValues().getValue("value")
-                            },
-                        healthyOwner to
-                            fieldResolverOf(
-                                objectFragment = schema.loweredSchema.emptyFragmentOf("Query"),
-                                queryFragment =
-                                    schema.fragmentFrom("fragment Healthy on Query { value: healthy }"),
-                            ) { _, queryValue, _ ->
-                                assertEquals(setOf("value"), queryValue.selectionValues().keys)
-                                queryValue.selectionValues().getValue("value")
-                            },
-                    )
-                },
             )
         val world = testWorld.assumptions
         val failedOwner = world.schema.contractKey("Query", "failedOwner")
         val healthyOwner = world.schema.contractKey("Query", "healthyOwner")
 
-        val resolved = resolveAndValidate(testWorld, "query { failedOwner healthyOwner }")
+        val resolved = resolveAndValidate(testWorld, "query { failedOwner healthyOwner }", resolutionObserver = invocationObserver)
 
         assertIs<ErrorEngineResult>(resolved.getCell(failedOwner).get())
         assertEquals(7, resolved.getCell(healthyOwner).get())
@@ -579,45 +489,25 @@ interface QueryFragmentResolverContract : ResolverContract {
         assumeTrue(usesSingularQueryOER)
         val invocations = linkedMapOf<String, Int>()
         val observer = object : CorrectnessResolverObserver() {
-            override fun onResolverInvocation(observation: ResolverInvocationObservation) {
+            override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { observation ->
                 super.onResolverInvocation(observation)
                 invocations.compute(observation.field.name) { _, count -> (count ?: 0) + 1 }
             }
         }
         val depth = singularQueryExpansionDepth
         val testWorld =
-            TestWorld.fromSDL(
+            TestWorld.fromDSL(
                 selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     buildString {
-                        appendLine("type Query {")
+                        appendLine("extend type Query {")
                         for (index in 0..depth) {
-                            appendLine("  field$index: Int!")
+                            val dependencies =
+                                ((index + 1)..minOf(index + 2, depth)).joinToString(" ") { next -> "field$next" }
+                            appendLine("  field$index: Int! @resolver(qf: \"$dependencies\", result: $index)")
                         }
                         append("}")
                     },
-                fieldResolvers = { schema ->
-                    (0..depth).associate { index ->
-                        val field = schema.loweredSchema.requireObjectField("Query", "field$index")
-                        val dependencies =
-                            ((index + 1)..minOf(index + 2, depth)).joinToString(" ") { next ->
-                                "field$next"
-                            }
-                        val queryFragment =
-                            if (dependencies.isEmpty()) {
-                                schema.loweredSchema.emptyFragmentOf("Query")
-                            } else {
-                                schema.fragmentFrom(
-                                    "fragment Field${index}Query on Query { $dependencies }",
-                                )
-                            }
-                        field to
-                            fieldResolverOf(
-                                objectFragment = schema.loweredSchema.emptyFragmentOf("Query"),
-                                queryFragment = queryFragment,
-                            ) { _, _, _ -> index }
-                    }
-                },
             )
         val world = testWorld.assumptions
 
@@ -625,7 +515,7 @@ interface QueryFragmentResolverContract : ResolverContract {
             resolveAndValidate(
                 testWorld,
                 "query { field0 }",
-                resolverObserver = observer,
+                resolutionObserver = observer,
             )
 
         assertEquals(0, resolved.getCell(world.schema.contractKey("Query", "field0")).get())
@@ -635,53 +525,17 @@ interface QueryFragmentResolverContract : ResolverContract {
     @Test
     fun `query fragment resolver occurrences are distinct from the same request occurrence`() {
         val testWorld =
-            TestWorld.fromSDL(
+            TestWorld.fromDSL(
                 selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
-                    type Query {
-                      source(value: Int!): Int!
+                    extend type Query {
+                      source(value: Int!): Int! @resolver(result: "value(${'$'}value)")
                       dependency(value: Int!): Int!
-                      consumer: Int!
+                        @resolver(of: "source(value: ${'$'}value)", result: "value(source)")
+                      consumer: Int! @resolver(qf: "dependency(value: 7)", result: "value(query:dependency)")
                     }
                     """.trimIndent(),
-                fieldResolvers = { schema ->
-                    val source = schema.loweredSchema.requireObjectField("Query", "source")
-                    val dependency = schema.loweredSchema.requireObjectField("Query", "dependency")
-                    val consumer = schema.loweredSchema.requireObjectField("Query", "consumer")
-                    mapOf(
-                        source to
-                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, arguments ->
-                                arguments.fieldValues.getValue("value")
-                            },
-                        dependency to
-                            fieldResolverOf(
-                                objectFragment =
-                                    schema.fragmentFrom(
-                                        "fragment Dependency on Query { source(value: ${'$'}value) }",
-                                    ),
-                            ) { input, _ ->
-                                input.selectionValues().getValue("source")
-                            },
-                        consumer to
-                            fieldResolverOf(
-                                objectFragment = schema.loweredSchema.emptyFragmentOf("Query"),
-                                queryFragment =
-                                    schema.fragmentFrom(
-                                        "fragment ConsumerQuery on Query { dependency(value: 7) }",
-                                    ),
-                            ) { _, queryValue, _ ->
-                                queryValue.selectionValues().getValue("dependency")
-                            },
-                    )
-                },
-                variableProviders = { schema ->
-                    val dependency = schema.loweredSchema.requireObjectField("Query", "dependency")
-                    mapOf(
-                        Arguments.Variable.of(dependency, "value") to
-                            schema.loweredSchema.fromArgument(dependency, "value"),
-                    )
-                },
             )
         val world = testWorld.assumptions
         val dependencyKey =
@@ -702,80 +556,47 @@ interface QueryFragmentResolverContract : ResolverContract {
     fun `shared exact Query key retains distinct owner projections`() {
         val sourceApplications = AtomicInteger()
         val invocationObserver = object : CorrectnessResolverObserver() {
-            override fun onResolverInvocation(observation: ResolverInvocationObservation) {
+            override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { observation ->
                 super.onResolverInvocation(observation)
-                if (observation.field.name == "source") sourceApplications.incrementAndGet()
+                when (observation.field.name) {
+                    "source" -> sourceApplications.incrementAndGet()
+                    "first" -> {
+                        val queryValue = observation.queryValue
+                        assertEquals(setOf("firstSource"), queryValue.selectionValues().keys)
+                        val payload = assertIs<EngineObjectData.Sync>(queryValue.selectionValues().getValue("firstSource"))
+                        assertEquals(setOf("left"), payload.selectionValues().keys)
+                    }
+                    "second" -> {
+                        val queryValue = observation.queryValue
+                        assertEquals(setOf("secondSource"), queryValue.selectionValues().keys)
+                        val payload = assertIs<EngineObjectData.Sync>(queryValue.selectionValues().getValue("secondSource"))
+                        assertEquals(setOf("right"), payload.selectionValues().keys)
+                    }
+                }
             }
         }
         val testWorld =
-            TestWorld.fromSDL(
+            TestWorld.fromDSL(
                 selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
-                    type Query {
-                      source: Payload!
-                      first: Int!
-                      second: Int!
+                    extend type Query {
+                      source: Payload! @resolver(result: {left: 1, right: 2})
+                      first: Int! @resolver(qf: "firstSource: source { left }", result: "value(query:firstSource.left)")
+                      second: Int! @resolver(qf: "secondSource: source { right }", result: "value(query:secondSource.right)")
                     }
-                    type Payload {
-                      left: Int!
-                      right: Int!
-                    }
+                    type Payload { left: Int!, right: Int! }
                     """.trimIndent(),
-                fieldResolvers = { schema ->
-                    val source = schema.loweredSchema.requireObjectField("Query", "source")
-                    val first = schema.loweredSchema.requireObjectField("Query", "first")
-                    val second = schema.loweredSchema.requireObjectField("Query", "second")
-                    mapOf(
-                        source to
-                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
-                                schema.loweredSchema.objectOf("Payload") {
-                                    "left" setTo 1
-                                    "right" setTo 2
-                                }
-                            },
-                        first to
-                            fieldResolverOf(
-                                objectFragment = schema.loweredSchema.emptyFragmentOf("Query"),
-                                queryFragment =
-                                    schema.fragmentFrom(
-                                        "fragment FirstQuery on Query { firstSource: source { left } }",
-                                    ),
-                            ) { _, queryValue, _ ->
-                                assertEquals(setOf("firstSource"), queryValue.selectionValues().keys)
-                                val payload =
-                                    queryValue.selectionValues().getValue("firstSource") as
-                                        EngineObjectData.Sync
-                                assertEquals(setOf("left"), payload.selectionValues().keys)
-                                payload.selectionValues().getValue("left")
-                            },
-                        second to
-                            fieldResolverOf(
-                                objectFragment = schema.loweredSchema.emptyFragmentOf("Query"),
-                                queryFragment =
-                                    schema.fragmentFrom(
-                                        "fragment SecondQuery on Query { secondSource: source { right } }",
-                                    ),
-                            ) { _, queryValue, _ ->
-                                assertEquals(setOf("secondSource"), queryValue.selectionValues().keys)
-                                val payload =
-                                    queryValue.selectionValues().getValue("secondSource") as
-                                        EngineObjectData.Sync
-                                assertEquals(setOf("right"), payload.selectionValues().keys)
-                                payload.selectionValues().getValue("right")
-                            },
-                    )
-                },
             )
         val world = testWorld.assumptions
         val resolution =
             resolveAndValidateObserved(
                 testWorld,
                 "query { first second }",
-                resolverObserver = invocationObserver,
+                resolutionObserver = invocationObserver,
             )
         val result = resolution.result
-        val observations = resolution.operation.resolverObserver as CorrectnessResolverObserver
+        val observations = resolution.operation.resolutionObserver as CorrectnessResolverObserver
         val firstKey = world.schema.contractKey("Query", "first")
         val secondKey = world.schema.contractKey("Query", "second")
 
@@ -804,7 +625,7 @@ interface QueryFragmentResolverContract : ResolverContract {
         var producerDemand: SelectionForest? = null
         val applications = linkedMapOf<String, Int>()
         val invocationObserver = object : CorrectnessResolverObserver() {
-            override fun onResolverInvocation(observation: ResolverInvocationObservation) {
+            override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { observation ->
                 super.onResolverInvocation(observation)
                 applications.compute(observation.field.name) { _, count -> (count ?: 0) + 1 }
                 if (observation.field.name == "item") {
@@ -873,7 +694,7 @@ interface QueryFragmentResolverContract : ResolverContract {
             resolveAndValidate(
                 testWorld,
                 "query { owner }",
-                resolverObserver = invocationObserver,
+                resolutionObserver = invocationObserver,
             )
         val itemType = world.schema.requireType("Item") as ViaductSchema.Object
 
@@ -899,70 +720,25 @@ interface QueryFragmentResolverContract : ResolverContract {
         val sourceApplications = AtomicInteger()
         val dependencyApplications = AtomicInteger()
         val invocationObserver = object : CorrectnessResolverObserver() {
-            override fun onResolverInvocation(observation: ResolverInvocationObservation) {
+            override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { observation ->
                 super.onResolverInvocation(observation)
                 if (observation.field.name == "source") sourceApplications.incrementAndGet()
                 if (observation.field.name == "dependency") dependencyApplications.incrementAndGet()
             }
         }
         val testWorld =
-            TestWorld.fromSDL(
+            TestWorld.fromDSL(
                 selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
-                    type Query {
-                      source(value: Int!): Int!
+                    extend type Query {
+                      source(value: Int!): Int! @resolver(result: "value(${'$'}value)")
                       dependency(value: Int!): Int!
-                      first: Int!
-                      second: Int!
+                        @resolver(of: "source(value: ${'$'}value)", result: "value(source)")
+                      first: Int! @resolver(qf: "dependency(value: 7)", result: "value(query:dependency)")
+                      second: Int! @resolver(qf: "dependency(value: 7)", result: "value(query:dependency)")
                     }
                     """.trimIndent(),
-                fieldResolvers = { schema ->
-                    val source = schema.loweredSchema.requireObjectField("Query", "source")
-                    val dependency = schema.loweredSchema.requireObjectField("Query", "dependency")
-                    val first = schema.loweredSchema.requireObjectField("Query", "first")
-                    val second = schema.loweredSchema.requireObjectField("Query", "second")
-                    val dependencyQuery =
-                        schema.fragmentFrom(
-                            "fragment ConsumerQuery on Query { dependency(value: 7) }",
-                        )
-                    mapOf(
-                        source to
-                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, arguments ->
-                                arguments.fieldValues.getValue("value")
-                            },
-                        dependency to
-                            fieldResolverOf(
-                                objectFragment =
-                                    schema.fragmentFrom(
-                                        "fragment Dependency on Query { source(value: ${'$'}value) }",
-                                    ),
-                            ) { input, _ ->
-                                input.selectionValues().getValue("source")
-                            },
-                        first to
-                            fieldResolverOf(
-                                objectFragment = schema.loweredSchema.emptyFragmentOf("Query"),
-                                queryFragment = dependencyQuery,
-                            ) { _, queryValue, _ ->
-                                queryValue.selectionValues().getValue("dependency")
-                            },
-                        second to
-                            fieldResolverOf(
-                                objectFragment = schema.loweredSchema.emptyFragmentOf("Query"),
-                                queryFragment = dependencyQuery,
-                            ) { _, queryValue, _ ->
-                                queryValue.selectionValues().getValue("dependency")
-                            },
-                    )
-                },
-                variableProviders = { schema ->
-                    val dependency = schema.loweredSchema.requireObjectField("Query", "dependency")
-                    mapOf(
-                        Arguments.Variable.of(dependency, "value") to
-                            schema.loweredSchema.fromArgument(dependency, "value"),
-                    )
-                },
             )
         val world = testWorld.assumptions
         val firstKey = world.schema.contractKey("Query", "first")
@@ -972,10 +748,10 @@ interface QueryFragmentResolverContract : ResolverContract {
             resolveAndValidateObserved(
                 testWorld,
                 "query { first second }",
-                resolverObserver = invocationObserver,
+                resolutionObserver = invocationObserver,
             )
         val resolved = resolution.result
-        val observations = resolution.operation.resolverObserver as CorrectnessResolverObserver
+        val observations = resolution.operation.resolutionObserver as CorrectnessResolverObserver
 
         assertEquals(7, resolved.getCell(firstKey).get())
         assertEquals(7, resolved.getCell(secondKey).get())

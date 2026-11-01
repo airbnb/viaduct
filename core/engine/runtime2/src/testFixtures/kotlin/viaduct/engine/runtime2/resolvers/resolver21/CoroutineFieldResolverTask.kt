@@ -28,6 +28,7 @@ import viaduct.engine.runtime2.resolution.framework.CycleSlotKind
 import viaduct.engine.runtime2.resolution.framework.CycleTask
 import viaduct.engine.runtime2.resolution.framework.Demand
 import viaduct.engine.runtime2.resolution.framework.OEROccurrence
+import viaduct.engine.runtime2.resolution.framework.ResolutionTask
 import viaduct.engine.runtime2.resolution.framework.SharedOERContext
 import viaduct.engine.runtime2.resolution.framework.descendants
 import viaduct.engine.runtime2.resolution.framework.fieldResolverCycleTask
@@ -48,6 +49,7 @@ class CoroutineFieldPublicationOccurrence(
     queryOER: SharedOERContext? = null,
     constructionDemand: Demand<SelectionForest> = Demand.checked(selection.subselections),
     private val activateOnDispatch: Boolean = false,
+    creator: ResolutionTask? = null,
 ) : GroundedFieldPublicationOccurrence<CoroutineOperationContext>(
         operation = operation,
         oerOccurrence = oerOccurrence,
@@ -59,15 +61,18 @@ class CoroutineFieldPublicationOccurrence(
         publicationExpectedType = publicationExpectedType,
         queryOER = queryOER,
         constructionDemand = constructionDemand,
+        creator = creator,
     ),
     CoroutinePublicationOccurrence {
+    override val task = CoroutineFieldResolverTask(this)
+
     override fun dispatch(requestScope: CoroutineScope) {
         if (activateOnDispatch) {
             check(publicationCell.setActivated(true)) { "Cell activation was decided twice" }
             publicationCell.fieldCheckerResult.complete(null)
         }
         requestScope.launch {
-            CoroutineFieldResolverTask.execute(this@CoroutineFieldPublicationOccurrence, this)
+            task.run(this)
         }.invokeOnCompletion { cause ->
             if (cause is CancellationException) CoroutineFieldResolverTask.cancel(this@CoroutineFieldPublicationOccurrence, cause)
         }
@@ -81,10 +86,9 @@ class CoroutineFieldPublicationOccurrence(
 }
 
 /** Owns field-local helper coroutines and delegates invocation and publication to resolution logic. */
-class CoroutineFieldResolverTask private constructor(
+class CoroutineFieldResolverTask internal constructor(
     publication: CoroutineFieldPublicationOccurrence,
-    fieldTaskScope: CoroutineScope,
-) : CoroutineFieldResolverTaskBase<CoroutineFieldPublicationOccurrence>(publication, fieldTaskScope) {
+) : CoroutineFieldResolverTaskBase<CoroutineFieldPublicationOccurrence>(publication) {
     private val resolutionLogic = FieldResolutionLogic(this)
 
     companion object {
@@ -92,9 +96,10 @@ class CoroutineFieldResolverTask private constructor(
             operation: CoroutineOperationContext,
             occurrence: OEROccurrence,
             selection: ObjectSelection,
+            creator: ResolutionTask? = null,
         ): CoroutineFieldPublicationOccurrence =
             prepare(
-                CoroutineFieldPublicationOccurrence(operation, occurrence, selection, occurrence.target.getCell(selection.key), activateOnDispatch = true),
+                CoroutineFieldPublicationOccurrence(operation, occurrence, selection, occurrence.target.getCell(selection.key), activateOnDispatch = true, creator = creator),
             )
 
         /** Installs all local promises before dispatching any producer, including source references. */
@@ -116,6 +121,7 @@ class CoroutineFieldResolverTask private constructor(
                         prepare(
                             CoroutineFieldPublicationOccurrence(
                                 operation = operation,
+                                creator = orchestrationTask,
                                 oerOccurrence = occurrence,
                                 selection = selection,
                                 publicationCell = occurrence.target.reserveCell(key),
@@ -144,13 +150,6 @@ class CoroutineFieldResolverTask private constructor(
                     writer = oerOccurrence.root.fieldResolverCycleTask(publicationPath),
                 )
             }
-
-        internal suspend fun execute(
-            publication: CoroutineFieldPublicationOccurrence,
-            scope: CoroutineScope
-        ) {
-            CoroutineFieldResolverTask(publication, scope).run()
-        }
 
         internal fun cancel(
             publication: CoroutineFieldPublicationOccurrence,
@@ -188,6 +187,7 @@ class CoroutineFieldResolverTask private constructor(
                         source = publication.operation.world.resolverRegistry.createRootQueryInput(),
                         demand = Demand.checked(queryFragment.constructionSelections),
                         queryFragmentOwner = queryFragment.resolverOccurrenceId,
+                        creator = this@CoroutineFieldResolverTask,
                     )
                     queryResult.materializeResolverInput(
                         operation = publication.operation,

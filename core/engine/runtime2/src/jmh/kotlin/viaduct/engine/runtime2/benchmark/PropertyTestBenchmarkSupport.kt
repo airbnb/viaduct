@@ -97,8 +97,8 @@ internal class PropertyTestBenchmarkSupport(
                 } finally {
                     preparationEvent?.finish()
                 }
-                val observer = corpus.registry.resolverObserver()
-                val operation = SharedOperationContext.create(world, resolverObserver = observer)
+                val observer = corpus.registry.resolutionObserver()
+                val operation = SharedOperationContext.create(world, resolutionObserver = observer)
                 corpus.registry.clearResolutionWitness()
                 val result: ObjectEngineResult =
                     profilePhase(profilePhases, "Resolution") {

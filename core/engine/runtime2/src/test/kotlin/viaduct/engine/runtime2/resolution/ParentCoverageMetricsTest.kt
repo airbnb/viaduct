@@ -5,8 +5,8 @@ import kotlin.test.assertContains
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import viaduct.engine.runtime2.model.testing.TestWorld
+import viaduct.engine.runtime2.resolution.framework.ResolutionObserver
 import viaduct.engine.runtime2.resolution.framework.ResolverInvocationObservation
-import viaduct.engine.runtime2.resolution.framework.ResolverObserver
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 import viaduct.engine.runtime2.schema.operationSelectionsFrom
 
@@ -57,15 +57,15 @@ class ParentCoverageMetricsTest : ResolutionDispatcherResource {
 
         val coverage = mutableListOf<ParentSelectionSetCoverage>()
 
-        val recordingObserver = object : ResolverObserver {
-            override fun onResolverInvocation(observation: ResolverInvocationObservation) {
+        val recordingObserver = object : ResolutionObserver {
+            override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { observation ->
                 coverage += ParentCoverageAnalyzer(world).analyze(observation)
             }
         }
         val operation =
             SharedOperationContext.create(
                 world = world,
-                resolverObserver = recordingObserver,
+                resolutionObserver = recordingObserver,
             )
         operation.resolveWithTestDispatcher(
             testWorld.schemas.operationSelectionsFrom(

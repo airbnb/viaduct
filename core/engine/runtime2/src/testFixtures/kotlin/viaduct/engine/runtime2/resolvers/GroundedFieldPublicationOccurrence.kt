@@ -8,6 +8,7 @@ import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.model.outputType
 import viaduct.engine.runtime2.resolution.framework.Demand
 import viaduct.engine.runtime2.resolution.framework.OEROccurrence
+import viaduct.engine.runtime2.resolution.framework.ResolutionTask
 import viaduct.engine.runtime2.resolution.framework.SharedFieldPublicationOccurrence
 import viaduct.engine.runtime2.resolution.framework.SharedOERContext
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
@@ -31,5 +32,6 @@ open class GroundedFieldPublicationOccurrence<out O : SharedOperationContext<*>>
     /** Associated Query context for ordinary fragments; absent for mutation and list-reference publications. */
     val queryOER: SharedOERContext? = null,
     val constructionDemand: Demand<SelectionForest> = Demand.checked(selection.subselections),
+    override val creator: ResolutionTask? = null,
 ) : SharedFieldPublicationOccurrence<O, SharedTaskDispatcher<Nothing, Nothing, Nothing>>,
     SharedOperationContext<SharedTaskDispatcher<Nothing, Nothing, Nothing>> by operation

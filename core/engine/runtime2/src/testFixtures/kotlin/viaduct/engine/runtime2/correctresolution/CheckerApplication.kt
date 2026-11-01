@@ -128,7 +128,7 @@ private fun CheckerResolverBase<*>.rawInputs(
             }
         }
     }
-    val recorder = operation.checkerObserver as? CorrectnessCheckerObserver
+    val recorder = operation.resolutionObserver as? CorrectnessResolverObserver
     val actualInputs = recorder?.checkerInputs(target, occurrenceId).orEmpty()
     // Hand-built judgments may omit execution observations. Once an execution records inputs,
     // every replayed checker must have them, with the same names, aliases, values and errors.
@@ -156,7 +156,7 @@ private fun CheckerResolverBase<*>.checkerQueryInputs(
     }
 
     val queryResult =
-        (operation.checkerObserver as? CorrectnessCheckerObserver)
+        (operation.resolutionObserver as? CorrectnessResolverObserver)
             ?.queryFragmentResults(target, occurrenceId)
             ?.singleOrNull()
             ?: return null

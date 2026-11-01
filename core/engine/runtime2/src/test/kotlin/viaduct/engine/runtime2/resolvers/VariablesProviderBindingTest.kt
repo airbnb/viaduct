@@ -128,9 +128,9 @@ class VariablesProviderBindingTest {
                 invocationPath = listOf(invocationKey),
                 invocationKey = invocationKey,
                 suppliedDemand = selectionForestOf(),
-            ),
+            )
         )
-        val operation = SharedOperationContext.create(fixture.assumptions, resolverObserver = observer)
+        val operation = SharedOperationContext.create(fixture.assumptions, resolutionObserver = observer)
         fixture.resolverRegistry.resolver(target)
             .instantiatedVariableDefinitions(ResolverOccurrenceId.at(invocationRoot, listOf(invocationKey)))
             .zip(providerBindings)

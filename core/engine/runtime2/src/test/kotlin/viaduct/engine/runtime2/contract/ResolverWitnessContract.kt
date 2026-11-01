@@ -49,7 +49,7 @@ interface ResolverWitnessContract : ResolverContract {
                             world,
                             world.objectOf("Query"),
                             fragment.subselections,
-                            resolverObserver = registry.resolverObserver(captureSuppliedDemand = true),
+                            resolutionObserver = registry.resolutionObserver(captureSuppliedDemand = true),
                         )
                     val result = resolution.result
                     val witness = registry.resolutionWitness()
@@ -131,7 +131,7 @@ interface ResolverWitnessContract : ResolverContract {
                             permutedWorld,
                             permutedWorld.objectOf("Query"),
                             permuted.subselections,
-                            resolverObserver = registry.resolverObserver(captureSuppliedDemand = true),
+                            resolutionObserver = registry.resolutionObserver(captureSuppliedDemand = true),
                         ).result
                     val permutedWitness = registry.resolutionWitness()
                     assertTrue(result.sameCompletedResultAs(permutedResult))

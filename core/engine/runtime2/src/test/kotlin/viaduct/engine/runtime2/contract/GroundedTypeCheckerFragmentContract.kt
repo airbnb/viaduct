@@ -12,7 +12,6 @@ import kotlin.test.assertIs
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 import viaduct.engine.api.CheckerResult
-import viaduct.engine.runtime2.correctresolution.CorrectnessCheckerObserver
 import viaduct.engine.runtime2.correctresolution.CorrectnessResolverObserver
 import viaduct.engine.runtime2.correctresolution.correctResolution
 import viaduct.engine.runtime2.model.EngineErrorData
@@ -87,8 +86,8 @@ interface GroundedTypeCheckerFragmentContract {
             },
         )
         val recorder = CheckerApplicationRecorder()
-        val checkerObserver = CorrectnessCheckerObserver(recorder)
-        val operation = SharedOperationContext.create(fixture.assumptions, resolverObserver = CorrectnessResolverObserver(), checkerObserver = checkerObserver)
+        val checkerObserver = CorrectnessResolverObserver(recorder)
+        val operation = SharedOperationContext.create(fixture.assumptions, resolutionObserver = checkerObserver)
         val selections = fixture.schemas.operationSelectionsFrom("{ synthetic { value children { value } } ordinary { value } }")
 
         val result = coroutineResolverSubject.resolve(operation, selections)
@@ -97,7 +96,7 @@ interface GroundedTypeCheckerFragmentContract {
         assertEquals(null, synthetic.typeCheckerResult.get())
         assertEquals(setOf("value", "children"), synthetic.keys.map { it.field.name }.toSet())
         assertEquals(2, checkerCalls.get())
-        assertEquals(2, checkerObserver.allQueryFragmentResults().size)
+        assertEquals(2, checkerObserver.allCheckerQueryFragmentResults().size)
         assertEquals(2, recorder.checkerApplications().size)
         assertEquals(result.demandedTypeCheckerApplications(operation, selections), recorder.checkerApplications().toSet())
         assertTrue(result.correctResolution(operation, selections.merge(result.type)))

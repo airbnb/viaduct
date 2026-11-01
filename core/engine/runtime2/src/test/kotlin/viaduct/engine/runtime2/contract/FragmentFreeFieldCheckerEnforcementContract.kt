@@ -21,7 +21,7 @@ import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.emptyFragmentOf
 import viaduct.engine.runtime2.model.testing.fragmentFrom
-import viaduct.engine.runtime2.resolution.framework.ResolverObserver
+import viaduct.engine.runtime2.resolution.framework.ResolutionObserver
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 import viaduct.engine.runtime2.schema.operationSelectionsFrom
 
@@ -486,10 +486,10 @@ interface FragmentFreeFieldCheckerEnforcementContract {
     private fun resolveF2(
         world: TestWorld,
         query: String,
-        resolverObserver: ResolverObserver = ResolverObserver.NOP,
+        resolutionObserver: ResolutionObserver = ResolutionObserver.NOP,
     ): ObjectEngineResult =
         coroutineResolverSubject.resolve(
-            SharedOperationContext.create(world.assumptions, resolverObserver = resolverObserver),
+            SharedOperationContext.create(world.assumptions, resolutionObserver = resolutionObserver),
             world.schemas.operationSelectionsFrom(query),
         )
 }

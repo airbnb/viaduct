@@ -14,8 +14,8 @@ import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.fragmentFrom
+import viaduct.engine.runtime2.resolution.framework.ResolutionObserver
 import viaduct.engine.runtime2.resolution.framework.ResolverInvocationObservation
-import viaduct.engine.runtime2.resolution.framework.ResolverObserver
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 import viaduct.graphql.schema.ViaductSchema
 
@@ -101,12 +101,12 @@ class SuccessorDemandRegressionTest : ResolutionDispatcherResource {
             """.trimIndent(),
         )
         val observations = mutableListOf<ResolverInvocationObservation>()
-        val observer = object : ResolverObserver {
-            override fun onResolverInvocation(observation: ResolverInvocationObservation) {
+        val observer = object : ResolutionObserver {
+            override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { observation ->
                 observations += observation
             }
         }
-        val operation = SharedOperationContext.create(fixture.assumptions, resolverObserver = observer)
+        val operation = SharedOperationContext.create(fixture.assumptions, resolutionObserver = observer)
         operation.resolveWithTestDispatcher(
             fixture.schemas.fragmentFrom(
                 "fragment F on Query { root { child @skip(if: true) { derived } } }",

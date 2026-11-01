@@ -197,7 +197,7 @@ class QueryOERValidationState {
         if (!results.containsKey(result)) {
             results[result] = null
             val queryOER =
-                (operation.resolverObserver as? CorrectnessResolverObserver)
+                (operation.resolutionObserver as? CorrectnessResolverObserver)
                     ?.queryOER(result)
             val selections = queryOER?.closedValueSelections ?: ownerSelections
             val hasExactOERKeys =
@@ -311,7 +311,7 @@ private fun List<RootFieldReferenceInvocationObservation>.haveDistinctInvocation
 }
 
 fun SharedOperationContext<*>.rootFieldReferenceWitness(primaryRoot: ObjectEngineResult): RootFieldReferenceWitness {
-    val observations = resolverObserver as? CorrectnessResolverObserver
+    val observations = resolutionObserver as? CorrectnessResolverObserver
     return RootFieldReferenceWitness(
         observations = observations?.rootFieldReferenceInvocations().orEmpty(),
         allowedPublicationRoots =
@@ -321,8 +321,8 @@ fun SharedOperationContext<*>.rootFieldReferenceWitness(primaryRoot: ObjectEngin
                     ?.values
                     ?.flatten()
                     .orEmpty() +
-                (checkerObserver as? CorrectnessCheckerObserver)
-                    ?.allQueryFragmentResults()
+                observations
+                    ?.allCheckerQueryFragmentResults()
                     ?.values
                     ?.flatten()
                     .orEmpty(),
@@ -448,7 +448,7 @@ private class ResolverReplayLogic(
                     engineObjectDataOf(operation.world.schema.requireQueryTypeDef())
                 } else {
                     val queryResult =
-                        (operation.resolverObserver as? CorrectnessResolverObserver)
+                        (operation.resolutionObserver as? CorrectnessResolverObserver)
                             ?.queryFragmentResults(resolverOccurrenceId)
                             ?.singleOrNull()
                             ?: return@getOrPut null
@@ -639,7 +639,7 @@ private class ResolverReplayLogic(
                 engineObjectDataOf(operation.world.schema.requireQueryTypeDef())
             } else {
                 val queryResult =
-                    (operation.resolverObserver as? CorrectnessResolverObserver)
+                    (operation.resolutionObserver as? CorrectnessResolverObserver)
                         ?.queryFragmentResults(resolverOccurrenceId)
                         ?.singleOrNull()
                         ?: return null

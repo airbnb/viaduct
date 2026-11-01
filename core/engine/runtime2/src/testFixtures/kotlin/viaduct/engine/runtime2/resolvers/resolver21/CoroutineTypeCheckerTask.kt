@@ -16,6 +16,7 @@ import viaduct.engine.runtime2.resolution.framework.CheckerInvocationObservation
 import viaduct.engine.runtime2.resolution.framework.CheckerKind
 import viaduct.engine.runtime2.resolution.framework.CycleSlotKind
 import viaduct.engine.runtime2.resolution.framework.OEROccurrence
+import viaduct.engine.runtime2.resolution.framework.ResolutionTask
 import viaduct.engine.runtime2.resolution.framework.SharedOERContext
 import viaduct.engine.runtime2.resolution.framework.materializeResult
 import viaduct.engine.runtime2.resolution.framework.typeCheckerCycleTask
@@ -28,10 +29,13 @@ internal class GroundedTypeCheckerPublicationOccurrence(
     val checker: TypeCheckerResolver,
     val checkerFragments: ResolverFragments,
     val queryOER: SharedOERContext,
+    val creator: ResolutionTask? = null,
 ) : CoroutinePublicationOccurrence {
+    override val task = CoroutineTypeCheckerTask(this)
+
     override fun dispatch(requestScope: CoroutineScope) {
         requestScope.launch {
-            CoroutineTypeCheckerTask.execute(this@GroundedTypeCheckerPublicationOccurrence, this)
+            task.run()
         }.invokeOnCompletion { cause ->
             if (cause is CancellationException) CoroutineTypeCheckerTask.cancel(this@GroundedTypeCheckerPublicationOccurrence, cause)
         }
@@ -39,9 +43,11 @@ internal class GroundedTypeCheckerPublicationOccurrence(
 }
 
 /** Materializes one type checker's raw inputs, invokes it, and publishes to its OER-owned slot. */
-internal class CoroutineTypeCheckerTask private constructor(
-    private val publication: GroundedTypeCheckerPublicationOccurrence,
-) {
+internal class CoroutineTypeCheckerTask(
+    val publication: GroundedTypeCheckerPublicationOccurrence,
+) : ResolutionTask {
+    override val creator get() = publication.creator
+
     companion object {
         /** Claims the checked concrete OER's type-checker slot before any local producer dispatch. */
         fun prepareAll(orchestrationTask: CoroutineOrchestrationTask): List<GroundedTypeCheckerPublicationOccurrence> {
@@ -70,6 +76,7 @@ internal class CoroutineTypeCheckerTask private constructor(
                             oer.occurrence.path,
                         ),
                     queryOER = orchestrationTask.queryOER,
+                    creator = orchestrationTask,
                 )
             orchestrationTask.operation.cycleChecker.registerWriter(
                 owner = publication.publicationResult,
@@ -77,13 +84,6 @@ internal class CoroutineTypeCheckerTask private constructor(
                 writer = publication.oerOccurrence.typeCheckerCycleTask(),
             )
             return listOf(publication)
-        }
-
-        internal suspend fun execute(
-            publication: GroundedTypeCheckerPublicationOccurrence,
-            @Suppress("UNUSED_PARAMETER") scope: CoroutineScope,
-        ) {
-            CoroutineTypeCheckerTask(publication).run()
         }
 
         internal fun cancel(
@@ -94,7 +94,7 @@ internal class CoroutineTypeCheckerTask private constructor(
         }
     }
 
-    private suspend fun run() {
+    suspend fun run() {
         try {
             executeAndPublish()
         } catch (cause: Exception) {
@@ -132,13 +132,13 @@ internal class CoroutineTypeCheckerTask private constructor(
                 )
             }
         if (!publication.checkerFragments.queryFragment.constructionSelections.isEmpty()) {
-            publication.operation.checkerObserver.onCheckerQueryFragmentPrepared(
+            publication.operation.resolutionObserver.onCheckerQueryFragmentPrepared?.invoke(
                 publication.checker.target,
                 fragmentId,
                 publication.queryOER.occurrence.target,
             )
         }
-        publication.operation.checkerObserver.onCheckerInvocation(
+        publication.operation.resolutionObserver.onCheckerInvocation?.invoke(
             CheckerInvocationObservation(
                 checkerKind = CheckerKind.TYPE,
                 logicalQueryRoot = publication.oerOccurrence.root,

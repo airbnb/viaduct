@@ -62,7 +62,7 @@ class IndependentQueryInputWitnessRegressionTest : ResolutionDispatcherResource 
         val log = BoundedRecorder<ResolverOccurrenceApplicationRecord>()
         val events = ConcurrentLinkedQueue<ResolverInvocationObservation>()
         val observer = object : CorrectnessResolverObserver() {
-            override fun onResolverInvocation(observation: ResolverInvocationObservation) {
+            override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { observation ->
                 super.onResolverInvocation(observation)
                 events.add(observation)
                 log.record(
@@ -77,7 +77,7 @@ class IndependentQueryInputWitnessRegressionTest : ResolutionDispatcherResource 
                 )
             }
         }
-        val operation = SharedOperationContext.create(world.assumptions, resolverObserver = observer)
+        val operation = SharedOperationContext.create(world.assumptions, resolutionObserver = observer)
         val selections = world.schemas.fragmentFrom("fragment Test on Query { first second }").subselections
         val result = when (resolver) {
             7 -> operation.resolve07(selections)
@@ -100,8 +100,8 @@ class IndependentQueryInputWitnessRegressionTest : ResolutionDispatcherResource 
         val mutantWitness = ResolutionOccurrenceWitness(witness.applications.filter { it !== omittedSource })
         val mutantObserver = CorrectnessResolverObserver()
         events.filter { it.resolverOccurrenceId != omittedSource.resolverOccurrenceId }
-            .forEach(mutantObserver::onResolverInvocation)
-        observer.rootFieldReferenceInvocations().forEach(mutantObserver::onRootFieldReferenceInvocation)
+            .forEach(mutantObserver.onResolverInvocation)
+        observer.rootFieldReferenceInvocations().forEach(mutantObserver.onRootFieldReferenceInvocation)
         val scopes = observer.allQueryFragmentScopes()
         associations.forEach { (owner, _) ->
             val scope = scopes[owner]?.singleOrNull()
@@ -112,12 +112,12 @@ class IndependentQueryInputWitnessRegressionTest : ResolutionDispatcherResource 
             }
         }
         observer.allQueryOERs().forEach { (root, context) ->
-            if (root !== roots[1]) mutantObserver.onQueryOERPrepared(context)
+            if (root !== roots[1]) mutantObserver.recordQueryOERPrepared(context, null, null)
         }
         val mutantOperation = SharedOperationContext.create(
             world.assumptions,
             variableBindings = operation.variableBindings,
-            resolverObserver = mutantObserver,
+            resolutionObserver = mutantObserver,
         )
         assertEquals(5, mutantWitness.applications.size)
         // Either replay or occurrence accounting may reject. An explicit oracle rejection is valid.

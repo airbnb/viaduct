@@ -36,6 +36,7 @@ import viaduct.engine.runtime2.resolution.framework.CycleSlotKind
 import viaduct.engine.runtime2.resolution.framework.CycleTask
 import viaduct.engine.runtime2.resolution.framework.Demand
 import viaduct.engine.runtime2.resolution.framework.OEROccurrence
+import viaduct.engine.runtime2.resolution.framework.ResolutionTask
 import viaduct.engine.runtime2.resolution.framework.SharedFieldPublicationOccurrence
 import viaduct.engine.runtime2.resolution.framework.SharedOERContext
 import viaduct.engine.runtime2.resolution.framework.argumentsContainErrorValue
@@ -48,7 +49,7 @@ import viaduct.engine.runtime2.resolution.framework.materializeResult
  * initial value source, destination cell, and provider reads. Retained across all reference-hop
  * invocations of its task; publication completes the destination cell's value slot.
  */
-internal class SymbolicFieldPublicationOccurrence(
+internal class SymbolicFieldPublicationOccurrence private constructor(
     override val operation: OperationContext,
     override val oerOccurrence: OEROccurrence,
     val sourceOccurrence: ValueSourceOccurrence,
@@ -58,12 +59,41 @@ internal class SymbolicFieldPublicationOccurrence(
     /** Variable-provider reads rooted in the publication's object or associated Query OER. */
     val variableProviderReads: List<VariableProviderReadOccurrence>,
     val checkerScheduled: Boolean = false,
+    override val creator: ResolutionTask? = null,
 ) : SharedFieldPublicationOccurrence<OperationContext, CoroutineTaskDispatcher>,
     CoroutinePublicationOccurrence,
     OperationContext by operation {
+    override lateinit var task: FieldResolverTask
+        private set
+
+    companion object {
+        fun create(
+            operation: OperationContext,
+            oerOccurrence: OEROccurrence,
+            sourceOccurrence: ValueSourceOccurrence,
+            publicationCell: EngineResultCell,
+            queryOER: SharedOERContext?,
+            variableProviderReads: List<VariableProviderReadOccurrence>,
+            checkerScheduled: Boolean = false,
+            creator: ResolutionTask? = null,
+        ): SymbolicFieldPublicationOccurrence =
+            SymbolicFieldPublicationOccurrence(
+                operation,
+                oerOccurrence,
+                sourceOccurrence,
+                publicationCell,
+                queryOER,
+                variableProviderReads,
+                checkerScheduled,
+                creator,
+            ).apply {
+                task = FieldResolverTask(this)
+            }
+    }
+
     override fun dispatch(requestScope: CoroutineScope) {
         requestScope.launch {
-            FieldResolverTask.execute(this@SymbolicFieldPublicationOccurrence, this)
+            task.run(this)
         }.invokeOnCompletion { cause ->
             if (cause is CancellationException) FieldResolverTask.cancel(this@SymbolicFieldPublicationOccurrence, cause)
         }
@@ -71,10 +101,9 @@ internal class SymbolicFieldPublicationOccurrence(
 }
 
 /** Owns setup and resolution for one field publication. */
-internal class FieldResolverTask private constructor(
+internal class FieldResolverTask(
     publication: SymbolicFieldPublicationOccurrence,
-    fieldTaskScope: CoroutineScope,
-) : CoroutineFieldResolverTaskBase<SymbolicFieldPublicationOccurrence>(publication, fieldTaskScope),
+) : CoroutineFieldResolverTaskBase<SymbolicFieldPublicationOccurrence>(publication),
     ResolutionExecutionContext {
     override val engineExecutionContext get() = publication.operation.engineExecutionContext
 
@@ -90,6 +119,7 @@ internal class FieldResolverTask private constructor(
             operation: OperationContext,
             occurrence: OEROccurrence,
             selection: ObjectSelection,
+            creator: ResolutionTask? = null,
         ): SymbolicFieldPublicationOccurrence {
             val path = occurrence.coordinate(selection.key)
             val id = ResolverOccurrenceId.at(occurrence.root, path)
@@ -99,6 +129,7 @@ internal class FieldResolverTask private constructor(
                 occurrence,
                 FieldResolverOccurrence(selection, occurrence.root, path, id, resolver, emptyList(), resolver.instantiateFragments(id)),
                 providerReads = emptyList(),
+                creator = creator,
             )
         }
 
@@ -120,6 +151,7 @@ internal class FieldResolverTask private constructor(
                         add(
                             prepare(
                                 operation = operation,
+                                creator = orchestrationTask,
                                 oerOccurrence = oer.occurrence,
                                 sourceOccurrence = fieldResolverOccurrence,
                                 checkerScheduled = objectKey in closedOER.fieldCheckerOccurrences,
@@ -142,6 +174,7 @@ internal class FieldResolverTask private constructor(
                         add(
                             prepare(
                                 operation = operation,
+                                creator = orchestrationTask,
                                 oerOccurrence = oer.occurrence,
                                 sourceOccurrence = referenceOccurrence,
                                 checkerScheduled = objectKey in closedOER.fieldCheckerOccurrences,
@@ -160,6 +193,7 @@ internal class FieldResolverTask private constructor(
             oerOccurrence: OEROccurrence,
             sourceOccurrence: ValueSourceOccurrence,
             publicationCell: EngineResultCell,
+            creator: ResolutionTask? = null,
         ) {
             publicationCell.value.claim()
             operation.cycleChecker.registerWriter(
@@ -168,13 +202,14 @@ internal class FieldResolverTask private constructor(
                 writer = oerOccurrence.root.fieldResolverCycleTask(sourceOccurrence.publicationPath),
             )
             operation.dispatcher.dispatchFieldResolver(
-                SymbolicFieldPublicationOccurrence(
+                SymbolicFieldPublicationOccurrence.create(
                     operation,
                     oerOccurrence,
                     sourceOccurrence,
                     publicationCell,
                     null,
                     emptyList(),
+                    creator = creator,
                 ),
             )
         }
@@ -186,6 +221,7 @@ internal class FieldResolverTask private constructor(
         ): SymbolicFieldPublicationOccurrence =
             prepare(
                 operation = orchestrationTask.operation,
+                creator = orchestrationTask,
                 oerOccurrence = orchestrationTask.objectOER.occurrence,
                 sourceOccurrence = sourceOccurrence,
                 queryOER = orchestrationTask.queryOER,
@@ -201,6 +237,7 @@ internal class FieldResolverTask private constructor(
             queryOER: SharedOERContext? = null,
             providerReads: List<VariableProviderReadOccurrence>,
             checkerScheduled: Boolean = false,
+            creator: ResolutionTask? = null,
         ): SymbolicFieldPublicationOccurrence {
             val objectKey = sourceOccurrence.selection.key
             val publicationCell = oerOccurrence.target.reserveCell(objectKey)
@@ -210,7 +247,7 @@ internal class FieldResolverTask private constructor(
                 kind = CycleSlotKind.VALUE,
                 writer = oerOccurrence.fieldResolverCycleTask(objectKey),
             )
-            return SymbolicFieldPublicationOccurrence(
+            return SymbolicFieldPublicationOccurrence.create(
                 operation,
                 oerOccurrence,
                 sourceOccurrence,
@@ -218,19 +255,8 @@ internal class FieldResolverTask private constructor(
                 queryOER,
                 providerReads,
                 checkerScheduled,
+                creator,
             )
-        }
-
-        /** Enters the existing field-task body under its dispatched coroutine's scope. */
-        internal suspend fun execute(
-            publication: SymbolicFieldPublicationOccurrence,
-            scope: CoroutineScope,
-        ) {
-            val task = FieldResolverTask(
-                publication = publication,
-                fieldTaskScope = scope,
-            )
-            task.run()
         }
 
         /** Terminates owned promises even when cancellation prevents the task body from entering. */
@@ -310,7 +336,7 @@ internal class FieldResolverTask private constructor(
      */
     override suspend fun resolveSelectionSet(selections: MaterializeSelectionForest): EngineObjectData.Sync {
         val childOperation = publication.operation.forChildScope(fieldTaskScope)
-        val result = childOperation.startResolve(selections.constructionSelections())
+        val result = childOperation.startResolve(selections.constructionSelections(), creator = this)
         return result.materializeResult(
             operation = childOperation,
             selections = selections,
@@ -325,7 +351,7 @@ internal class FieldResolverTask private constructor(
         mutations: MutationSelectionForest,
     ): EngineObjectData.Sync {
         val result = coroutineScope {
-            publication.operation.forChildScope(this).startResolve(mutations)
+            publication.operation.forChildScope(this).startResolve(mutations, creator = this@FieldResolverTask)
         }
         return result.materializeResult(
             operation = publication.operation,
@@ -371,6 +397,7 @@ internal class FieldResolverTask private constructor(
                             fieldResolverOccurrence.resolver.resolveQueryFragment(
                                 queryFragment = fieldResolverOccurrence.fragments.queryFragment,
                                 operation = publication.operation,
+                                creator = this@FieldResolverTask,
                                 reader = fieldResolverOccurrence.cycleTask,
                                 inclusionCondition =
                                     fieldResolverOccurrence.selection.inclusionCondition,
@@ -410,6 +437,7 @@ internal suspend fun OEROccurrence.interopAncestors(operation: OperationContext)
 private suspend fun FieldValueResolver.resolveQueryFragment(
     queryFragment: ResolverFragment,
     operation: OperationContext,
+    creator: ResolutionTask,
     reader: CycleTask,
     inclusionCondition: InclusionCondition,
 ): EngineObjectData.Sync {
@@ -433,11 +461,9 @@ private suspend fun FieldValueResolver.resolveQueryFragment(
                 ),
             source = source,
             constructionDemand = constructionSelections,
+            creator = creator,
         )
-    operation.resolverObserver.onIndependentQueryFragmentPrepared(
-        queryFragment.resolverOccurrenceId,
-        queryResult,
-    )
+    operation.resolutionObserver.onIndependentQueryFragmentPrepared?.invoke(queryFragment.resolverOccurrenceId, queryResult)
     operation.dispatcher.dispatchOrchestration(orchestration)
     completeProviderBindings(
         operation = operation,

@@ -82,7 +82,7 @@ class GeneratedTypeCheckerCoverageTest {
     fun `same resolver paths on another Query root do not count as activation`() {
         val observation = observation()
         val recorder = CorrectnessResolverObserver()
-        val original = observation.operation.resolverObserver as CorrectnessResolverObserver
+        val original = observation.operation.resolutionObserver as CorrectnessResolverObserver
         val anotherRoot = observation().result
         original.allResolverInvocations().forEach { invocation ->
             recorder.onResolverInvocation(invocation.copy(resolverOccurrenceId = ResolverOccurrenceId.at(anotherRoot, invocation.occurrencePath)))
@@ -94,7 +94,7 @@ class GeneratedTypeCheckerCoverageTest {
     fun `resolver evidence at another path does not count as activation`() {
         val observation = observation()
         val recorder = CorrectnessResolverObserver()
-        val original = observation.operation.resolverObserver as CorrectnessResolverObserver
+        val original = observation.operation.resolutionObserver as CorrectnessResolverObserver
         original.allResolverInvocations().forEach { invocation ->
             recorder.onResolverInvocation(
                 invocation.copy(
@@ -115,7 +115,14 @@ class GeneratedTypeCheckerCoverageTest {
     }
 
     private fun GeneratedResolutionObservation.withResolverObserver(observer: CorrectnessResolverObserver): GeneratedResolutionObservation =
-        copy(operation = SharedOperationContext.create(world, resolverObserver = observer, checkerObserver = operation.checkerObserver))
+        copy(
+            operation = SharedOperationContext.create(
+                world,
+                resolutionObserver = observer.apply {
+                    copyCheckerObservationsFrom(operation.resolutionObserver as CorrectnessResolverObserver)
+                }
+            )
+        )
 
     private fun observation(): GeneratedResolutionObservation {
         val world = TestWorld.fromSDL(
@@ -165,7 +172,7 @@ class GeneratedTypeCheckerCoverageTest {
         )
         val fragment = world.schemas.fragmentFrom("fragment Test on Query { item { value } }")
         val recorder = CheckerApplicationRecorder()
-        val subject = ResolverGeneratedTest().observeResolution(world.newAssumptions(selectiveResolvers = true), world.schema.objectOf("Query"), fragment.subselections, checkerObserver = recorder)
+        val subject = ResolverGeneratedTest().observeResolution(world.newAssumptions(selectiveResolvers = true), world.schema.objectOf("Query"), fragment.subselections, resolutionObserver = recorder)
         return GeneratedResolutionObservation(subject.operation, fragment, subject, recorder.checkerApplications())
     }
 

@@ -15,8 +15,8 @@ import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.fragmentFrom
+import viaduct.engine.runtime2.resolution.framework.ResolutionObserver
 import viaduct.engine.runtime2.resolution.framework.ResolverInvocationObservation
-import viaduct.engine.runtime2.resolution.framework.ResolverObserver
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 
 class UncheckedCheckerParentDemandTest : ResolutionDispatcherResource {
@@ -85,8 +85,8 @@ class UncheckedCheckerParentDemandTest : ResolutionDispatcherResource {
         )
         val operation = SharedOperationContext.create(
             fixture.newAssumptions(usePrecomputedConstructionDemand = precomputed),
-            resolverObserver = object : ResolverObserver {
-                override fun onResolverInvocation(observation: ResolverInvocationObservation) {
+            resolutionObserver = object : ResolutionObserver {
+                override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { observation ->
                     observations += observation
                 }
             },

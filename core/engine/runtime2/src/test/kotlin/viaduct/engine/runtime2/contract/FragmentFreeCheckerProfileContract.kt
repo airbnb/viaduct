@@ -64,7 +64,7 @@ interface FragmentFreeCheckerProfileContract {
 
         val result =
             coroutineResolverSubject.resolve(
-                SharedOperationContext.create(world, checkerObserver = recorder),
+                SharedOperationContext.create(world, resolutionObserver = recorder),
                 worldFixture.schemas.operationSelectionsFrom(
                     "{ singular { id } repeated { id } nested { id } missing { id } failed { id } scalar }",
                 ),

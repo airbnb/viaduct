@@ -13,6 +13,7 @@ import kotlinx.coroutines.test.runTest
 import viaduct.engine.runtime2.arbitrary.GeneratedFieldCheckerMode
 import viaduct.engine.runtime2.arbitrary.GeneratedTypeCheckerMode
 import viaduct.engine.runtime2.arbitrary.PrecomputedResolverOutputs
+import viaduct.engine.runtime2.arbitrary.ResolutionFingerprint
 import viaduct.engine.runtime2.arbitrary.ResolverBenchmarkCorpus
 import viaduct.engine.runtime2.arbitrary.ResolverBenchmarkQueryCorpus
 import viaduct.engine.runtime2.arbitrary.resolutionFingerprint
@@ -28,9 +29,8 @@ import viaduct.engine.runtime2.model.testing.fragmentFrom
 import viaduct.engine.runtime2.model.testing.objectOf
 import viaduct.engine.runtime2.resolution.ResolutionDispatcherResource
 import viaduct.engine.runtime2.resolution.framework.CheckerInvocationObservation
-import viaduct.engine.runtime2.resolution.framework.CheckerObserver
+import viaduct.engine.runtime2.resolution.framework.ResolutionObserver
 import viaduct.engine.runtime2.resolution.framework.ResolverInvocationObservation
-import viaduct.engine.runtime2.resolution.framework.ResolverObserver
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 import viaduct.engine.runtime2.resolution.framework.fieldResolverCycleTask
 import viaduct.engine.runtime2.resolution.framework.materializeResult
@@ -152,20 +152,13 @@ class ChinaActiveBenchmarkCheckersTest : ResolutionDispatcherResource {
         queries.forEach { source ->
             val operation = SharedOperationContext.create(
                 world.newAssumptions(),
-                resolverObserver = object : ResolverObserver {
-                    override fun onResolverInvocation(observation: ResolverInvocationObservation) {
+                resolutionObserver = object : ResolutionObserver {
+                    override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { observation ->
                         if (observation.field.name.startsWith("benchmarkChinaObject")) {
                             lookupArguments += observation.field.name.removePrefix("benchmarkChina") to observation.arguments.fieldValues.getValue("id")
                         }
                     }
-                },
-                checkerObserver = object : CheckerObserver {
-                    override fun onCheckerInvocation(observation: CheckerInvocationObservation) = Unit
-
-                    override fun onCheckerInvocation(
-                        observation: CheckerInvocationObservation,
-                        inputs: Map<String, CheckerInput>
-                    ) {
+                    override val onCheckerInvocation: (CheckerInvocationObservation, Map<String, CheckerInput>) -> Unit = { observation, inputs ->
                         inputs.filterKeys { it.endsWith("chinaQuery") }.values.forEach { input ->
                             val typeName = (observation.checkedTarget as ResolverTarget.FieldCheckerTarget).field.containingDef.name
                             assertTrue(input.queryValue.isPresent("benchmarkChina$typeName"))
@@ -199,7 +192,7 @@ class ChinaActiveBenchmarkCheckersTest : ResolutionDispatcherResource {
             suspend fun selectedValue(
                 world: TestWorld,
                 source: String
-            ): viaduct.engine.runtime2.arbitrary.ResolutionFingerprint {
+            ): ResolutionFingerprint {
                 val fragment = world.schemas.fragmentFrom(source)
                 val operation = SharedOperationContext.create(world.newAssumptions())
                 val result = operation.resolveWithTestDispatcher(fragment.subselections)

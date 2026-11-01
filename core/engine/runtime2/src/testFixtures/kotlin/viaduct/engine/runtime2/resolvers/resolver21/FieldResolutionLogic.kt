@@ -90,7 +90,7 @@ internal class FieldResolutionLogic(
             }
             val invocation = reference.prepareRootFieldReferenceInvocation(publication.operation, currentCoroutineContext())
             fieldValue = invokeRootFieldResolver(reference, invocation, invocationDemand)
-            publication.operation.resolverObserver.onRootFieldReferenceInvocation(
+            publication.operation.resolutionObserver.onRootFieldReferenceInvocation?.invoke(
                 RootFieldReferenceInvocationObservation(
                     publicationRoot = publication.oerOccurrence.root,
                     publicationPath = publication.publicationPath,
@@ -99,7 +99,7 @@ internal class FieldResolutionLogic(
                     invocationPath = invocation.invocationPath,
                     invocationKey = invocation.invocationKey,
                     suppliedDemand = invocationDemand,
-                ),
+                )
             )
         }
         fieldValue = fieldValue.withAuthoritativeNodeId(authoritativeNodeIdentity, invocationDemand)
@@ -111,6 +111,7 @@ internal class FieldResolutionLogic(
             constructionDemand = constructionDemand,
             invocationDemand = invocationDemand,
             parent = publication.oerOccurrence,
+            creator = fieldResolverTask,
         )
         check(publication.publicationCell.value.complete(passiveValue)) { "Cell value was completed twice" }
     }
@@ -144,7 +145,7 @@ internal class FieldResolutionLogic(
             selections = objectMaterializationSelections,
             reader = reader,
         )
-        publication.operation.resolverObserver.onResolverInvocation(
+        publication.operation.resolutionObserver.onResolverInvocation?.invoke(
             ResolverInvocationObservation(
                 occurrencePath = publication.publicationPath,
                 field = publication.selection.key.field,
@@ -155,7 +156,7 @@ internal class FieldResolutionLogic(
                 arguments = arguments,
                 suppliedDemand = invocationDemand.takeIf { publication.operation.world.selectiveResolvers },
                 resolverOccurrenceId = fragments.objectFragment.resolverOccurrenceId,
-            ),
+            )
         )
         return resolver(
             input = input,
@@ -212,7 +213,7 @@ internal class FieldResolutionLogic(
             invocation.resolver.instantiateQueryMaterializationSelections(
                 invocation.fragments.queryFragment.resolverOccurrenceId,
             )
-        publication.operation.resolverObserver.onResolverInvocation(
+        publication.operation.resolutionObserver.onResolverInvocation?.invoke(
             ResolverInvocationObservation(
                 occurrencePath = invocation.invocationPath,
                 field = invocation.invocationKey.field,
@@ -223,7 +224,7 @@ internal class FieldResolutionLogic(
                 arguments = reference.arguments,
                 suppliedDemand = invocationDemand.takeIf { publication.operation.world.selectiveResolvers },
                 resolverOccurrenceId = invocation.fragments.objectFragment.resolverOccurrenceId,
-            ),
+            )
         )
         val output =
             invocation.resolver(

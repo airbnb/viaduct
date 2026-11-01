@@ -1,7 +1,6 @@
 package viaduct.engine.runtime2.contract
 
 import kotlin.test.assertEquals
-import viaduct.engine.runtime2.correctresolution.CorrectnessCheckerObserver
 import viaduct.engine.runtime2.correctresolution.CorrectnessResolverObserver
 import viaduct.engine.runtime2.model.EngineInputData
 import viaduct.engine.runtime2.model.EngineResult
@@ -135,8 +134,8 @@ private fun ObjectEngineResult.requestQueryRoots(operation: SharedOperationConte
                 .flatten(),
         )
         addAll(
-            (operation.checkerObserver as? CorrectnessCheckerObserver)
-                ?.allQueryFragmentResults()
+            (operation.resolutionObserver as? CorrectnessResolverObserver)
+                ?.allCheckerQueryFragmentResults()
                 ?.values
                 ?.flatten()
                 .orEmpty(),
@@ -188,7 +187,7 @@ private fun ObjectEngineResult.readCompletedProvider(
 private class ProviderConditionFailure : RuntimeException()
 
 private fun SharedOperationContext<*>.resolverObservations(): CorrectnessResolverObserver =
-    resolverObserver as? CorrectnessResolverObserver
+    resolutionObserver as? CorrectnessResolverObserver
         ?: error("Resolver observations were not recorded for this operation")
 
 private fun EngineResult.toVariableBinding(expectedType: ViaductSchema.TypeExpr<ViaductSchema.OutputTypeDef>): VariableBinding =

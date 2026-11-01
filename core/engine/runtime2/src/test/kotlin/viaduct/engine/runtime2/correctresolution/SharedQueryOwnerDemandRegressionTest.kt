@@ -7,6 +7,7 @@ import viaduct.engine.runtime2.model.Arguments
 import viaduct.engine.runtime2.model.EngineErrorData
 import viaduct.engine.runtime2.model.ErrorEngineResult
 import viaduct.engine.runtime2.model.ObjectEngineResult
+import viaduct.engine.runtime2.model.ObjectSelectionForest
 import viaduct.engine.runtime2.model.ResolverOccurrenceId
 import viaduct.engine.runtime2.model.VariableBinding
 import viaduct.engine.runtime2.model.emptyFragmentOf
@@ -51,7 +52,7 @@ class SharedQueryOwnerDemandRegressionTest {
         val queryType = worldFixture.schema.requireQueryTypeDef()
         val result = ObjectEngineResult.of(queryType, mutable = true)
         val observer = CorrectnessResolverObserver()
-        val operation = SharedOperationContext.create(world, resolverObserver = observer)
+        val operation = SharedOperationContext.create(world, resolutionObserver = observer)
         val incompleteQuery = world.engineResultOf("Query") { "left" resolvesTo 7 }
         listOf("first", "second").forEach { name ->
             val field = worldFixture.schema.requireObjectField("Query", name)
@@ -67,7 +68,7 @@ class SharedQueryOwnerDemandRegressionTest {
                 fieldCheckerResult.complete(null)
             }
             operation.variableBindings.bindVariable(requireNotNull(variable.instanceId), VariableBinding.Error)
-            observer.onQueryFragmentPrepared(ResolverOccurrenceId.at(result, listOf(key)), incompleteQuery)
+            observer.onQueryFragmentPrepared(ResolverOccurrenceId.at(result, listOf(key)), incompleteQuery, null)
         }
         result.freeze()
         assertFalse(
@@ -113,21 +114,22 @@ class SharedQueryOwnerDemandRegressionTest {
 
         fun operation(
             query: ObjectEngineResult,
-            observedDemand: viaduct.engine.runtime2.model.ObjectSelectionForest?
+            observedDemand: ObjectSelectionForest?
         ): SharedOperationContext<*> {
             val observer = CorrectnessResolverObserver()
-            observer.onQueryFragmentPrepared(owner, query)
+            observer.onQueryFragmentPrepared(owner, query, null)
             observedDemand?.let { demand ->
-                observer.onQueryOERPrepared(
+                observer.recordQueryOERPrepared(
                     SharedOERContext(
                         OEROccurrence(query, emptyList(), query),
                         engineObjectDataOf(queryType),
                         demand,
                     ),
-                    queryOERDepth = 1,
+                    null,
+                    1
                 )
             }
-            return SharedOperationContext.create(world, resolverObserver = observer).also {
+            return SharedOperationContext.create(world, resolutionObserver = observer).also {
                 it.variableBindings.bindVariable(requireNotNull(variable.instanceId), VariableBinding.Error)
             }
         }

@@ -15,6 +15,7 @@ import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.emptyFragmentOf
 import viaduct.engine.runtime2.model.testing.fragmentFrom
 import viaduct.engine.runtime2.resolution.ResolutionDispatcherResource
+import viaduct.engine.runtime2.resolution.framework.OEROccurrence
 import viaduct.engine.runtime2.resolution.framework.ResolverInvocationObservation
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 import viaduct.engine.runtime2.resolvers.resolver07.resolve
@@ -40,15 +41,16 @@ class QueryObserverCompatibilityTest : ResolutionDispatcherResource {
             dynamicTest(subject.name) {
                 val events = Collections.synchronizedList(mutableListOf<String>())
                 val observer = object : CorrectnessResolverObserver() {
-                    override fun onQueryFragmentPrepared(
-                        resolverOccurrenceId: ResolverOccurrenceId,
-                        result: ObjectEngineResult,
-                    ) {
-                        super.onQueryFragmentPrepared(resolverOccurrenceId, result)
+                    override val onQueryFragmentPrepared: (
+                        ResolverOccurrenceId,
+                        ObjectEngineResult,
+                        OEROccurrence?
+                    ) -> Unit = { resolverOccurrenceId, result, owningOccurrence ->
+                        super.onQueryFragmentPrepared(resolverOccurrenceId, result, owningOccurrence)
                         events += "prepared"
                     }
 
-                    override fun onResolverInvocation(observation: ResolverInvocationObservation) {
+                    override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { observation ->
                         super.onResolverInvocation(observation)
                         events += observation.field.name
                     }
@@ -68,7 +70,7 @@ class QueryObserverCompatibilityTest : ResolutionDispatcherResource {
                     },
                 )
                 val world = worldFixture.assumptions
-                val operation = SharedOperationContext.create(world, resolverObserver = observer)
+                val operation = SharedOperationContext.create(world, resolutionObserver = observer)
                 subject.resolve(operation, worldFixture.schemas.fragmentFrom("fragment Result on Query { consumer }").subselections)
                 assertEquals(1, observer.allQueryFragmentResults().size, "Recorder still captured the association")
                 assertEquals(listOf("prepared", "dependency", "consumer"), events)

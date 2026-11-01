@@ -33,8 +33,8 @@ import viaduct.engine.runtime2.resolution.framework.CycleSlotKind
 import viaduct.engine.runtime2.resolution.framework.Demand
 import viaduct.engine.runtime2.resolution.framework.OEROccurrence
 import viaduct.engine.runtime2.resolution.framework.OrchestrationConstructionDemand
+import viaduct.engine.runtime2.resolution.framework.ResolutionObserver
 import viaduct.engine.runtime2.resolution.framework.ResolverInvocationObservation
-import viaduct.engine.runtime2.resolution.framework.ResolverObserver
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 import viaduct.engine.runtime2.resolution.framework.fieldResolverCycleTask
 import viaduct.engine.runtime2.schema.operationSelectionsFrom
@@ -88,15 +88,15 @@ class SuperlinearGrowthTest : ResolutionDispatcherResource {
         val applications = AtomicInteger()
         var suppliedSelections = 0
         val observer =
-            object : ResolverObserver {
-                override fun onResolverInvocation(observation: ResolverInvocationObservation) {
+            object : ResolutionObserver {
+                override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { observation ->
                     applications.incrementAndGet()
                     if (observation.field.name == "root") suppliedSelections = requireNotNull(observation.suppliedDemand).size
                 }
             }
         val result =
             SharedOperationContext
-                .create(world, resolverObserver = observer)
+                .create(world, resolutionObserver = observer)
                 .resolveWithTestDispatcher(
                     fixture.schemas.fragmentFrom("fragment F on Query { root { field0 } }").subselections,
                 )
@@ -231,12 +231,12 @@ class SuperlinearGrowthTest : ResolutionDispatcherResource {
             }
             if (depth == 20) {
                 val applications = AtomicInteger()
-                val observer = object : ResolverObserver {
-                    override fun onResolverInvocation(observation: ResolverInvocationObservation) {
+                val observer = object : ResolutionObserver {
+                    override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { _ ->
                         applications.incrementAndGet()
                     }
                 }
-                val result = SharedOperationContext.create(world, resolverObserver = observer).resolveWithTestDispatcher(input)
+                val result = SharedOperationContext.create(world, resolutionObserver = observer).resolveWithTestDispatcher(input)
                 val parent = result.getCell(result.keys.single()).value.get() as ObjectEngineResult
                 val childKey = parent.keys.single { it.field.name == "child" }
                 val child = parent.getCell(childKey).value.get() as ObjectEngineResult

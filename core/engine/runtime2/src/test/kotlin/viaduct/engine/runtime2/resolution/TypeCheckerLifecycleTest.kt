@@ -2,6 +2,7 @@
 
 package viaduct.engine.runtime2.resolution
 
+import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.coroutines.CoroutineContext
 import kotlin.test.Test
@@ -37,12 +38,54 @@ import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.requireType
 import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.fragmentFrom
+import viaduct.engine.runtime2.resolution.framework.ResolutionObserver
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
+import viaduct.engine.runtime2.resolution.framework.SharedOrchestrationTask
 import viaduct.engine.runtime2.schema.operationSelectionsFrom
 import viaduct.graphql.schema.ViaductSchema
 
 open class TypeCheckerLifecycleTest : ResolutionDispatcherResource {
     protected open val precomputedConstructionDemand = false
+
+    @Test
+    fun `type checker nested query retains its creating task`() {
+        val orchestrations = ConcurrentLinkedQueue<SharedOrchestrationTask<*>>()
+        val checkerTasks = ConcurrentLinkedQueue<TypeCheckerTask>()
+        val fixture = TestWorld.fromDSL(
+            """
+            extend type Query {
+              checked: Int @resolver(result: 1)
+              dependency: Int @resolver(result: 7)
+            }
+            """.trimIndent(),
+            typeCheckers = { schemas ->
+                val type = schemas.loweredSchema.requireQueryTypeDef()
+                mapOf(
+                    type to TypeCheckerResolver.of(type, type) { _, ctx ->
+                        checkerTasks += assertIs<TypeCheckerTask>(ctx)
+                        assertEquals(7, ctx.resolveSelectionSet(schemas.fragmentFrom("fragment Child on Query { dependency }").materializeSelections).get("dependency"))
+                        CheckerResult.Success
+                    }
+                )
+            },
+        )
+        val observer = object : ResolutionObserver {
+            override val onQueryOERPrepared: (SharedOrchestrationTask<*>, Int?) -> Unit = { task, _ ->
+                orchestrations += task
+            }
+        }
+        val result = SharedOperationContext.create(
+            fixture.newAssumptions(usePrecomputedConstructionDemand = precomputedConstructionDemand),
+            resolutionObserver = observer,
+        ).resolveWithTestDispatcher(fixture.schemas.operationSelectionsFrom("{ checked }"))
+        assertEquals(CheckerResult.Success, result.typeCheckerResult.get())
+        assertEquals(2, orchestrations.size)
+        val checker = checkerTasks.single()
+        val root = orchestrations.single { it.creator == null }
+        assertSame(root, checker.creator)
+        assertSame(checker, checker.publication.task)
+        assertSame(checker, orchestrations.single { it !== root }.creator)
+    }
 
     @Test
     fun `skipping one occurrence excludes its checker demand but preserves descendant and sibling checks`() {
@@ -98,7 +141,7 @@ open class TypeCheckerLifecycleTest : ResolutionDispatcherResource {
     fun `inapplicable checker does not invoke its provider or demand its inputs`() {
         val world = providerWorld(isApplicable = { _, _ -> false }) { error("Inapplicable provider must not run") }
         val recorder = CheckerApplicationRecorder()
-        val operation = SharedOperationContext.create(world.newAssumptions(usePrecomputedConstructionDemand = precomputedConstructionDemand), checkerObserver = recorder)
+        val operation = SharedOperationContext.create(world.newAssumptions(usePrecomputedConstructionDemand = precomputedConstructionDemand), resolutionObserver = recorder)
 
         val result = operation.resolveWithTestDispatcher(world.schemas.operationSelectionsFrom("{ checked }"))
 
@@ -112,7 +155,7 @@ open class TypeCheckerLifecycleTest : ResolutionDispatcherResource {
         val failure = IllegalStateException("checker provider failed")
         val world = providerWorld { throw failure }
         val recorder = CheckerApplicationRecorder()
-        val operation = SharedOperationContext.create(world.newAssumptions(usePrecomputedConstructionDemand = precomputedConstructionDemand), checkerObserver = recorder)
+        val operation = SharedOperationContext.create(world.newAssumptions(usePrecomputedConstructionDemand = precomputedConstructionDemand), resolutionObserver = recorder)
         val result = operation.resolveWithTestDispatcher(world.schemas.operationSelectionsFrom("{ checked }"))
         val key = ObjectEngineResult.GroundKey.of(world.schema.requireObjectField("Query", "checked"), emptyMap())
         assertEquals(1, result.getCell(key).value.get())

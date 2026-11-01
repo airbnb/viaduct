@@ -49,7 +49,7 @@ interface DeferredNestedObjectPathDemandResolverContract : ResolverContract {
                   driver
                 }
                 """.trimIndent(),
-                resolverObserver = applicationArguments,
+                resolutionObserver = applicationArguments,
             )
 
         assertEquals(

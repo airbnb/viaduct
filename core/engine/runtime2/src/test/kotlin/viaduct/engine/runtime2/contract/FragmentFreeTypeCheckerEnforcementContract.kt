@@ -293,7 +293,7 @@ interface FragmentFreeTypeCheckerEnforcementContract {
 
         val result =
             coroutineResolverSubject.resolve(
-                SharedOperationContext.create(world, checkerObserver = recorder),
+                SharedOperationContext.create(world, resolutionObserver = recorder),
                 worldFixture.schemas.operationSelectionsFrom("{ consumer }"),
             )
 

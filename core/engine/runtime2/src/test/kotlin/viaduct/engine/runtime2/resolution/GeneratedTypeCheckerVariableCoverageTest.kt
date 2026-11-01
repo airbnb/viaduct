@@ -70,8 +70,7 @@ class GeneratedTypeCheckerVariableCoverageTest : ResolverContract, ResolutionDis
         val withoutBindings = observation.copy(
             operation = SharedOperationContext.create(
                 observation.world,
-                resolverObserver = observation.operation.resolverObserver,
-                checkerObserver = observation.operation.checkerObserver,
+                resolutionObserver = observation.operation.resolutionObserver,
             ),
         )
         val coverage = withoutBindings.typeCheckerCoverage()
@@ -146,7 +145,7 @@ class GeneratedTypeCheckerVariableCoverageTest : ResolverContract, ResolutionDis
         val world = testWorld.newAssumptions(selectiveResolvers = true)
         val fragment = testWorld.schemas.fragmentFrom("fragment Test on Query { item { __typename } }")
         val recorder = CheckerApplicationRecorder()
-        val subject = observeResolution(world, world.objectOf("Query"), fragment.subselections, checkerObserver = recorder)
+        val subject = observeResolution(world, world.objectOf("Query"), fragment.subselections, resolutionObserver = recorder)
         return GeneratedResolutionObservation(subject.operation, fragment, subject, recorder.checkerApplications())
     }
 

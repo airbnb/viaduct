@@ -13,6 +13,7 @@ import viaduct.engine.runtime2.resolution.framework.Demand
 import viaduct.engine.runtime2.resolution.framework.MutationNamespaceOccurrence
 import viaduct.engine.runtime2.resolution.framework.MutationOrchestrationTask
 import viaduct.engine.runtime2.resolution.framework.OEROccurrence
+import viaduct.engine.runtime2.resolution.framework.ResolutionTask
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 import viaduct.graphql.schema.ViaductSchema
 
@@ -44,6 +45,7 @@ fun CoroutineOperationContext.startResolve(
     source: EngineObjectData.Sync,
     demand: Demand<SelectionForest>,
     queryFragmentOwner: ResolverOccurrenceId? = null,
+    creator: ResolutionTask? = null,
 ): ObjectEngineResult {
     val selections = demand.values
     if (selections is MutationSelectionForest) {
@@ -52,7 +54,8 @@ fun CoroutineOperationContext.startResolve(
         val task = MutationOrchestrationTask.create(
             operation = this,
             namespace = MutationNamespaceOccurrence(OEROccurrence(result, emptyList(), result), selections),
-            prepareField = { occurrence, selection -> CoroutineFieldResolverTask.prepareMutation(this, occurrence, selection) },
+            creator = creator,
+            prepareField = { task, occurrence, selection -> CoroutineFieldResolverTask.prepareMutation(this, occurrence, selection, task) },
         )
         dispatcher.dispatchMutationOrchestration(task)
         return result
@@ -64,9 +67,10 @@ fun CoroutineOperationContext.startResolve(
             OEROccurrence(result, emptyList(), result),
             source,
             demand,
+            creator,
         )
     queryFragmentOwner?.let {
-        resolverObserver.onIndependentQueryFragmentPrepared(it, result)
+        resolutionObserver.onIndependentQueryFragmentPrepared?.invoke(it, result)
     }
     dispatcher.dispatchOrchestration(orchestration)
     return result

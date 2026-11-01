@@ -21,7 +21,6 @@ import viaduct.engine.runtime2.arbitrary.checkResolverTestCases
 import viaduct.engine.runtime2.arbitrary.resolverBenchmarkFullConfig
 import viaduct.engine.runtime2.contract.registeredResolverApplicationIdentityCounts
 import viaduct.engine.runtime2.contract.validateFromFieldBindings
-import viaduct.engine.runtime2.correctresolution.CorrectnessCheckerObserver
 import viaduct.engine.runtime2.correctresolution.CorrectnessResolverObserver
 import viaduct.engine.runtime2.correctresolution.correctResolution
 import viaduct.engine.runtime2.model.ObjectEngineResult
@@ -30,6 +29,7 @@ import viaduct.engine.runtime2.model.ResolverOccurrenceId
 import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.model.isParentField
 import viaduct.engine.runtime2.model.merge
+import viaduct.engine.runtime2.model.registry.CheckerInput
 import viaduct.engine.runtime2.model.registry.ProviderFragment
 import viaduct.engine.runtime2.model.registry.VariableDefinition
 import viaduct.engine.runtime2.model.requireQueryTypeDef
@@ -38,7 +38,7 @@ import viaduct.engine.runtime2.model.testing.fragmentFrom
 import viaduct.engine.runtime2.model.testing.objectOf
 import viaduct.engine.runtime2.resolution.framework.CheckerInvocationObservation
 import viaduct.engine.runtime2.resolution.framework.CheckerKind
-import viaduct.engine.runtime2.resolution.framework.CheckerObserver
+import viaduct.engine.runtime2.resolution.framework.ResolverInvocationObservation
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 import viaduct.engine.runtime2.resolution.framework.instantiateBindings
 import viaduct.engine.runtime2.resolvers.instantiateBindings
@@ -151,13 +151,16 @@ internal class CurrentProfileBenchmarkSupport(
                     Collections.synchronizedList(
                         mutableListOf<ResolverBenchmarkInvocationObservation>(),
                     )
-                val witnessObserver = corpus.registry.resolverObserver()
+                val witnessObserver = corpus.registry.resolutionObserver()
                 val checkerKinds =
                     Collections.synchronizedList(
                         mutableListOf<CheckerKind>(),
                     )
+                val fieldCheckerInputCounts = Collections.synchronizedList(mutableListOf<Long>())
+                val checkerInputCounts = Collections.synchronizedList(mutableListOf<Pair<Long, Long>>())
+                val checkerApplications = Collections.synchronizedList(mutableListOf<CheckerInvocationObservation>())
                 val observer = object : CorrectnessResolverObserver(witnessObserver) {
-                    override fun onResolverInvocation(observation: viaduct.engine.runtime2.resolution.framework.ResolverInvocationObservation) {
+                    override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { observation ->
                         super.onResolverInvocation(observation)
                         applicationObservations += ResolverBenchmarkInvocationObservation(
                             occurrencePath = observation.occurrencePath,
@@ -166,34 +169,19 @@ internal class CurrentProfileBenchmarkSupport(
                             variableSourceOccurrenceIds = observation.variableResolverOccurrenceIds,
                         )
                     }
-                }
-                val fieldCheckerInputCounts = Collections.synchronizedList(mutableListOf<Long>())
-                val checkerInputCounts = Collections.synchronizedList(mutableListOf<Pair<Long, Long>>())
-                val checkerApplications = Collections.synchronizedList(mutableListOf<CheckerInvocationObservation>())
-                val operation =
-                    SharedOperationContext.create(
-                        world,
-                        resolverObserver = observer,
-                        checkerObserver =
-                            CorrectnessCheckerObserver(object : CheckerObserver {
-                                override fun onCheckerInvocation(observation: CheckerInvocationObservation) {
-                                    checkerKinds += observation.checkerKind
-                                    checkerApplications += observation
-                                }
 
-                                override fun onCheckerInvocation(
-                                    observation: CheckerInvocationObservation,
-                                    inputs: Map<String, viaduct.engine.runtime2.model.registry.CheckerInput>,
-                                ) {
-                                    onCheckerInvocation(observation)
-                                    if (observation.checkerKind == CheckerKind.FIELD) fieldCheckerInputCounts += inputs.size.toLong()
-                                    checkerInputCounts += inputs.size.toLong() to inputs.values.sumOf { input ->
-                                        (if (input.objectValue.getSelections().any()) 1L else 0L) +
-                                            (if (input.queryValue.getSelections().any()) 1L else 0L)
-                                    }
-                                }
-                            }),
-                    )
+                    override val onCheckerInvocation: (CheckerInvocationObservation, Map<String, CheckerInput>) -> Unit = { observation, inputs ->
+                        super.onCheckerInvocation(observation, inputs)
+                        checkerKinds += observation.checkerKind
+                        checkerApplications += observation
+                        if (observation.checkerKind == CheckerKind.FIELD) fieldCheckerInputCounts += inputs.size.toLong()
+                        checkerInputCounts += inputs.size.toLong() to inputs.values.sumOf { input ->
+                            (if (input.objectValue.getSelections().any()) 1L else 0L) +
+                                (if (input.queryValue.getSelections().any()) 1L else 0L)
+                        }
+                    }
+                }
+                val operation = SharedOperationContext.create(world, resolutionObserver = observer)
                 val result =
                     subject.resolve(
                         operation = operation,
@@ -324,12 +312,11 @@ internal class CurrentProfileBenchmarkSupport(
                 ) { testWorld, testCase ->
                     check(testCase.query.selectionDepth >= 4)
                     val world = testWorld.newAssumptions(selectiveResolvers = true, usePrecomputedConstructionDemand = usePrecomputedConstructionDemand())
-                    val observer = testCase.registry.resolverObserver()
+                    val observer = testCase.registry.resolutionObserver()
                     val operation =
                         SharedOperationContext.create(
                             world,
-                            resolverObserver = observer,
-                            checkerObserver = CorrectnessCheckerObserver(),
+                            resolutionObserver = observer,
                         )
                     val fragment = testWorld.schemas.fragmentFrom(testCase.query.source)
                     testCase.registry.clearResolutionWitness()

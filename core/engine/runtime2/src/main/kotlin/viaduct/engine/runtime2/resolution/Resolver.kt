@@ -25,6 +25,7 @@ import viaduct.engine.runtime2.resolution.framework.Demand
 import viaduct.engine.runtime2.resolution.framework.MutationNamespaceOccurrence
 import viaduct.engine.runtime2.resolution.framework.MutationOrchestrationTask
 import viaduct.engine.runtime2.resolution.framework.OEROccurrence
+import viaduct.engine.runtime2.resolution.framework.ResolutionTask
 import viaduct.engine.runtime2.resolution.framework.ResolverReadCycleException
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 import viaduct.graphql.schema.ViaductSchema
@@ -131,6 +132,7 @@ internal fun SharedOperationContext<*>.startResolution(
 internal fun OperationContext.startResolve(
     selections: SelectionForest,
     rootType: ViaductSchema.Object = world.schema.requireQueryTypeDef(),
+    creator: ResolutionTask? = null,
 ): ObjectEngineResult {
     if (selections is MutationSelectionForest) {
         require(selections.type == world.schema.mutationTypeDef) { "Mutation execution must start at the Mutation root" }
@@ -138,8 +140,9 @@ internal fun OperationContext.startResolve(
         val task = MutationOrchestrationTask.create(
             operation = this,
             namespace = MutationNamespaceOccurrence(OEROccurrence(result, emptyList(), result), selections),
-            prepareField = { occurrence, selection -> FieldResolverTask.prepareMutation(this, occurrence, selection) },
+            prepareField = { task, occurrence, selection -> FieldResolverTask.prepareMutation(this, occurrence, selection, task) },
             namespacePrepared = { bindingsState.markBindingsDeclared(it.target) },
+            creator = creator,
         )
         dispatcher.dispatchMutationOrchestration(task)
         return result
@@ -150,12 +153,13 @@ internal fun OperationContext.startResolve(
         require(rootType == world.schema.subscriptionTypeDef) { "Expected a Query or Subscription root" }
         engineObjectDataOf(rootType)
     }
-    return startResolve(Demand.checked(selections), input)
+    return startResolve(Demand.checked(selections), input, creator)
 }
 
 internal fun OperationContext.startResolve(
     selections: Demand<SelectionForest>,
     source: EngineObjectData.Sync = world.resolverRegistry.createRootQueryInput(),
+    creator: ResolutionTask? = null,
 ): ObjectEngineResult {
     val result: ObjectEngineResult =
         OrchestrationTask.createObjectResult(this, source.schemaType(world.schema), selections)
@@ -170,6 +174,7 @@ internal fun OperationContext.startResolve(
                 ),
             source = source,
             constructionDemand = selections,
+            creator = creator,
         )
     dispatcher.dispatchOrchestration(orchestration)
     return result

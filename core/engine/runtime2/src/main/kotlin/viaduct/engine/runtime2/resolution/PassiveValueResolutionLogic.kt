@@ -13,6 +13,7 @@ import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.model.merge
 import viaduct.engine.runtime2.resolution.framework.Demand
 import viaduct.engine.runtime2.resolution.framework.OEROccurrence
+import viaduct.engine.runtime2.resolution.framework.ResolutionTask
 import viaduct.engine.runtime2.resolution.framework.SharedPassiveValueResolutionLogic
 import viaduct.graphql.schema.ViaductSchema
 
@@ -29,7 +30,8 @@ internal class PassiveValueResolutionLogic(
         occurrence: OEROccurrence,
         source: EngineObjectData.Sync,
         constructionDemand: Demand<SelectionForest>,
-    ): OrchestrationTask = OrchestrationTask.create(operation, occurrence, source, constructionDemand)
+        creator: ResolutionTask?,
+    ): OrchestrationTask = OrchestrationTask.create(operation, occurrence, source, constructionDemand, creator)
 
     override fun closedConstructionDemand(orchestration: OrchestrationTask): Demand<ObjectSelectionForest> = orchestration.closedConstructionDemand.objectRooted.constructionDemand
 
@@ -47,9 +49,11 @@ internal class PassiveValueResolutionLogic(
         constructionDemand: Demand<SelectionForest>,
         invocationDemand: SelectionForest,
         parent: OEROccurrence,
+        creator: ResolutionTask?,
     ) {
         FieldResolverTask.prepareAndDispatchListElement(
             operation = operation,
+            creator = creator,
             oerOccurrence = parent,
             sourceOccurrence = RootFieldReferenceOccurrence(
                 selection = selection,

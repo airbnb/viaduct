@@ -6,7 +6,6 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.CheckerResultContext
-import viaduct.engine.runtime2.correctresolution.CorrectnessCheckerObserver
 import viaduct.engine.runtime2.correctresolution.CorrectnessResolverObserver
 import viaduct.engine.runtime2.correctresolution.correctResolution
 import viaduct.engine.runtime2.model.ObjectEngineResult
@@ -43,8 +42,7 @@ class GeneratedFieldCheckerOracleTest {
         val operation =
             SharedOperationContext.create(
                 world,
-                resolverObserver = CorrectnessResolverObserver(),
-                checkerObserver = CorrectnessCheckerObserver(applications),
+                resolutionObserver = CorrectnessResolverObserver(applications),
             )
         val selections = worldFixture.schemas.fragmentFrom("fragment Query on Query { value }")
 

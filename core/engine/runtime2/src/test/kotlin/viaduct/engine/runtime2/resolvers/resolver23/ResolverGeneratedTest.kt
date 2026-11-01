@@ -16,8 +16,7 @@ import viaduct.engine.runtime2.contract.SometimesPassiveGeneratedResolverContrac
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.model.registry.Assumptions
-import viaduct.engine.runtime2.resolution.framework.CheckerObserver
-import viaduct.engine.runtime2.resolution.framework.ResolverObserver
+import viaduct.engine.runtime2.resolution.framework.ResolutionObserver
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 
 open class ResolverGeneratedTest :
@@ -47,8 +46,7 @@ class PrecomputedResolverGeneratedTest : ResolverGeneratedTest() {
         world: Assumptions,
         root: EngineObjectData.Sync,
         selections: SelectionForest,
-        resolverObserver: ResolverObserver,
-        checkerObserver: CheckerObserver,
+        resolutionObserver: ResolutionObserver,
     ): ResolverResolutionObservation =
         super.observeResolution(
             world =
@@ -60,7 +58,6 @@ class PrecomputedResolverGeneratedTest : ResolverGeneratedTest() {
                 ),
             root = root,
             selections = selections,
-            resolverObserver = resolverObserver,
-            checkerObserver = checkerObserver,
+            resolutionObserver = resolutionObserver,
         )
 }

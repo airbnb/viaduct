@@ -75,7 +75,7 @@ class ResolverOccurrenceWitnessTest {
         val log = BoundedRecorder<ResolverOccurrenceApplicationRecord>()
 
         val recordingObserver = object : CorrectnessResolverObserver() {
-            override fun onResolverInvocation(observation: ResolverInvocationObservation) {
+            override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { observation ->
                 super.onResolverInvocation(observation)
                 log.record(
                     ResolverOccurrenceApplicationRecord.capture(
@@ -93,7 +93,7 @@ class ResolverOccurrenceWitnessTest {
                 )
             }
         }
-        val operation = SharedOperationContext.create(world, resolverObserver = recordingObserver)
+        val operation = SharedOperationContext.create(world, resolutionObserver = recordingObserver)
 
         val result =
             operation.resolve(
@@ -113,7 +113,7 @@ class ResolverOccurrenceWitnessTest {
                 .eachCount(),
         )
         val queryResults =
-            (operation.resolverObserver as CorrectnessResolverObserver)
+            (operation.resolutionObserver as CorrectnessResolverObserver)
                 .allQueryFragmentResults()
                 .values
                 .flatten()
@@ -187,7 +187,7 @@ class ResolverOccurrenceWitnessTest {
         val log = BoundedRecorder<ResolverOccurrenceApplicationRecord>()
 
         val recordingObserver = object : CorrectnessResolverObserver() {
-            override fun onResolverInvocation(observation: ResolverInvocationObservation) {
+            override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { observation ->
                 super.onResolverInvocation(observation)
                 log.record(
                     ResolverOccurrenceApplicationRecord.capture(
@@ -205,7 +205,7 @@ class ResolverOccurrenceWitnessTest {
                 )
             }
         }
-        val operation = SharedOperationContext.create(world, resolverObserver = recordingObserver)
+        val operation = SharedOperationContext.create(world, resolutionObserver = recordingObserver)
 
         val result: ObjectEngineResult =
             operation.resolve(

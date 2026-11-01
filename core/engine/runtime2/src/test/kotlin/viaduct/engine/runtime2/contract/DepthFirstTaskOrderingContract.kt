@@ -5,11 +5,7 @@ import org.junit.jupiter.api.Test
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.SelectionForest
-import viaduct.engine.runtime2.model.emptyFragmentOf
-import viaduct.engine.runtime2.model.registry.fieldResolverOf
-import viaduct.engine.runtime2.model.requireField
 import viaduct.engine.runtime2.model.testing.TestWorld
-import viaduct.engine.runtime2.model.testing.emptyFragmentOf
 import viaduct.engine.runtime2.model.testing.fragmentFrom
 import viaduct.engine.runtime2.model.testing.objectOf
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
@@ -42,45 +38,17 @@ interface DepthFirstTaskOrderingContract : ResolverContract {
     @Test
     fun `finishes each recursive subtree before visiting its next sibling`() {
         val testWorld =
-            TestWorld.fromSDL(
+            TestWorld.fromDSL(
                 selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
-                    type Child { nested: String! }
-                    type Container {
-                      left: Child!
-                      right: Child!
+                    extend type Query {
+                      container: Container! @resolver(result: {left: {}, right: {}})
+                      after: Int! @resolver(result: 2)
                     }
-                    type Query {
-                      container: Container!
-                      after: String!
-                    }
+                    type Container { left: Child!, right: Child! }
+                    type Child { nested: Int! @resolver(result: 1) }
                     """.trimIndent(),
-                fieldResolvers = { schema ->
-                    mapOf(
-                        schema.loweredSchema.requireField("Query", "container") to
-                            fieldResolverOf(
-                                schema.loweredSchema.emptyFragmentOf("Query"),
-                            ) { _, _ ->
-                                schema.loweredSchema.objectOf("Container") {
-                                    "left" setTo objectOf("Child")
-                                    "right" setTo objectOf("Child")
-                                }
-                            },
-                        schema.loweredSchema.requireField("Child", "nested") to
-                            fieldResolverOf(
-                                schema.loweredSchema.emptyFragmentOf("Child"),
-                            ) { _, _ ->
-                                "nested"
-                            },
-                        schema.loweredSchema.requireField("Query", "after") to
-                            fieldResolverOf(
-                                schema.loweredSchema.emptyFragmentOf("Query"),
-                            ) { _, _ ->
-                                "after"
-                            },
-                    )
-                },
             )
         val world = testWorld.assumptions
         val selections =

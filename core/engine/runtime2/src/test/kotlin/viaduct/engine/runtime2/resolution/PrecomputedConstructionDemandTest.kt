@@ -23,8 +23,8 @@ import viaduct.engine.runtime2.model.testing.objectOf
 import viaduct.engine.runtime2.resolution.framework.Demand
 import viaduct.engine.runtime2.resolution.framework.OEROccurrence
 import viaduct.engine.runtime2.resolution.framework.OrchestrationConstructionDemand
+import viaduct.engine.runtime2.resolution.framework.ResolutionObserver
 import viaduct.engine.runtime2.resolution.framework.ResolverInvocationObservation
-import viaduct.engine.runtime2.resolution.framework.ResolverObserver
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 
 class PrecomputedConstructionDemandTest : ResolutionDispatcherResource {
@@ -88,8 +88,8 @@ class PrecomputedConstructionDemandTest : ResolutionDispatcherResource {
             )
             val operation = SharedOperationContext.create(
                 fixture.newAssumptions(usePrecomputedConstructionDemand = precomputed),
-                resolverObserver = object : ResolverObserver {
-                    override fun onResolverInvocation(observation: ResolverInvocationObservation) {
+                resolutionObserver = object : ResolutionObserver {
+                    override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { observation ->
                         calls += observation.field.name
                     }
                 },
@@ -263,8 +263,8 @@ class PrecomputedConstructionDemandTest : ResolutionDispatcherResource {
             val calls = ConcurrentLinkedQueue<String>()
             val operation = SharedOperationContext.create(
                 fixture.newAssumptions(usePrecomputedConstructionDemand = precomputed),
-                resolverObserver = object : ResolverObserver {
-                    override fun onResolverInvocation(observation: ResolverInvocationObservation) {
+                resolutionObserver = object : ResolutionObserver {
+                    override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { observation ->
                         calls += "${observation.field.containingDef.name}/${observation.field.name}"
                     }
                 },

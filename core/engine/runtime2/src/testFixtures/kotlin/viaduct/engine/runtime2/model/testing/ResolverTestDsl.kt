@@ -144,6 +144,7 @@ internal class ResolverTestDsl private constructor(
                             directive,
                             setOf(
                                 OF_ARGUMENT,
+                                QF_ARGUMENT,
                                 PATH_VARS_ARGUMENT,
                                 PROVIDER_VARS_ARGUMENT,
                                 RESULT_ARGUMENT,
@@ -154,6 +155,13 @@ internal class ResolverTestDsl private constructor(
                             directive.argument(OF_ARGUMENT)?.let { value ->
                                 require(value is StringValue) {
                                     "@$RESOLVER_DIRECTIVE.$OF_ARGUMENT must be a string"
+                                }
+                                value.requiredValue()
+                            }.orEmpty()
+                        val qf =
+                            directive.argument(QF_ARGUMENT)?.let { value ->
+                                require(value is StringValue) {
+                                    "@$RESOLVER_DIRECTIVE.$QF_ARGUMENT must be a string"
                                 }
                                 value.requiredValue()
                             }.orEmpty()
@@ -170,6 +178,7 @@ internal class ResolverTestDsl private constructor(
                                 typeName = typeName,
                                 fieldName = field.name,
                                 of = of,
+                                qf = qf,
                                 pathVariables = pathVariables,
                                 providerVariables = providerVariables,
                                 result = result,
@@ -358,13 +367,15 @@ private class Compiler(
                 "@$RESOLVER_DIRECTIVE requires a concrete object field: " +
                     "${definition.typeName}.${definition.fieldName}"
             }
-            val fragment = objectFragment(field, definition.of)
+            val objectFragment = fragment(field, definition.of)
+            val queryFragment = fragment(field, definition.qf, "Query")
             val resolver =
-                fieldResolverOf(fragment) { input, arguments ->
+                fieldResolverOf(objectFragment, queryFragment) { input, queryValue, arguments ->
                     evaluator.evaluateFieldResult(
                         field = field,
                         result = definition.result,
                         input = input,
+                        queryValue = queryValue,
                         arguments = arguments,
                     )
                 }
@@ -437,10 +448,10 @@ private class Compiler(
                         name in pathVariables ->
                             put(
                                 variable,
-                                preparedObjectFragment(field, definition.of).let { fragment ->
+                                preparedFragment(field, definition.of).let { fragment ->
                                     compileFromField(
                                         schema = schemas,
-                                        parsed = parseObjectFragment(field, fragment),
+                                        parsed = parseFragment(field, fragment),
                                         responsePath = pathVariables.getValue(name).path,
                                         providerFragment = ProviderFragment.OBJECT,
                                     )
@@ -459,23 +470,24 @@ private class Compiler(
             }
         }
 
-    private fun objectFragment(
+    private fun fragment(
         field: ViaductSchema.ObjectField,
         source: String,
+        typeName: String = field.containingDef.name,
     ): Fragment =
         if (source.isBlank()) {
-            schema.emptyFragmentOf(field.containingDef.name)
+            schema.emptyFragmentOf(typeName)
         } else {
-            val parsed = parseObjectFragment(field, preparedObjectFragment(field, source))
+            val parsed = parseFragment(field, preparedFragment(field, source, typeName))
             Fragment.of(
                 nominalType = parsed.nominalType,
                 materializeSelections = flattenForMaterialization(schema, parsed.nominalType, parsed.selections),
             )
         }
 
-    private fun parseObjectFragment(
+    private fun parseFragment(
         field: ViaductSchema.ObjectField,
-        fragment: PreparedObjectFragment,
+        fragment: PreparedFragment,
     ): ParsedSpecFragment {
         val parsed =
             GJSelectionParser(
@@ -495,25 +507,23 @@ private class Compiler(
         definition: DslFieldResolver,
         field: ViaductSchema.ObjectField,
     ): Set<String> {
-        if (definition.of.isBlank()) return emptySet()
-        val fragment = preparedObjectFragment(field, definition.of)
         val variables = linkedSetOf<String>()
-        Parser.parse(fragment.source).visitRecursively { node ->
-            if (node is VariableReference) variables += node.name
+        listOf(definition.of to field.containingDef.name, definition.qf to "Query").forEach { (source, typeName) ->
+            if (source.isBlank()) return@forEach
+            val fragment = preparedFragment(field, source, typeName)
+            Parser.parse(fragment.source).visitRecursively { node ->
+                if (node is VariableReference && node.name !in fragment.errorVariables) variables += node.name
+            }
         }
-        return variables - fragment.errorVariables
+        return variables
     }
 
-    private fun objectFragmentSource(
+    private fun preparedFragment(
         field: ViaductSchema.ObjectField,
         source: String,
-    ): String = "fragment ResolverTestDsl on ${field.containingDef.name} { $source }"
-
-    private fun preparedObjectFragment(
-        field: ViaductSchema.ObjectField,
-        source: String,
-    ): PreparedObjectFragment {
-        val fragmentSource = objectFragmentSource(field, source)
+        typeName: String = field.containingDef.name,
+    ): PreparedFragment {
+        val fragmentSource = "fragment ResolverTestDsl on $typeName { $source }"
         val occupiedVariableNames = linkedSetOf<String>()
 
         Parser.parse(fragmentSource).visitRecursively { node ->
@@ -538,7 +548,7 @@ private class Compiler(
                 errorVariables += name
                 "\$$name"
             }
-        return PreparedObjectFragment(preparedSource, errorVariables)
+        return PreparedFragment(preparedSource, errorVariables)
     }
 
     private fun nodeType(): ViaductSchema.Interface =
@@ -558,12 +568,13 @@ private class ResultEvaluator(
         field: ViaductSchema.ObjectField,
         result: GraphQLValue<*>,
         input: EngineObjectData.Sync,
+        queryValue: EngineObjectData.Sync,
         arguments: Arguments.Resolved,
     ): EngineOutputData? =
         evaluate(
             typeExpr = sourceSchema.typeExpr(field),
             source = result,
-            context = EvaluationContext(input, arguments, field),
+            context = EvaluationContext(input, arguments, field, queryValue),
         )
 
     fun evaluateProviderVariables(
@@ -830,8 +841,15 @@ private class ResultEvaluator(
                     )
             }
         } else {
-            require(PATH.matches(term)) { "Invalid resolver-test value: $term" }
-            fieldPathValues(context.input, term.split('.'), preserveNulls)
+            val queryPath = term.startsWith(QUERY_PATH_PREFIX)
+            val path = if (queryPath) term.removePrefix(QUERY_PATH_PREFIX) else term
+            require(PATH.matches(path)) { "Invalid resolver-test value: $term" }
+            val input = if (queryPath) {
+                requireNotNull(context.queryValue) { "Query inputs are only available to field resolver results" }
+            } else {
+                context.input
+            }
+            fieldPathValues(input, path.split('.'), preserveNulls)
         }
 
     private fun argumentValue(
@@ -930,9 +948,10 @@ private data class EvaluationContext(
     val input: EngineObjectData.Sync,
     val arguments: Arguments.Resolved?,
     val argumentDefinitions: ViaductSchema.Field?,
+    val queryValue: EngineObjectData.Sync? = null,
 )
 
-private data class PreparedObjectFragment(
+private data class PreparedFragment(
     val source: String,
     val errorVariables: Set<String>,
 )
@@ -969,6 +988,7 @@ private data class DslFieldResolver(
     val typeName: String,
     val fieldName: String,
     val of: String,
+    val qf: String,
     val pathVariables: List<DslPathVariable>,
     val providerVariables: Map<String, GraphQLValue<*>>,
     val result: GraphQLValue<*>,
@@ -1020,6 +1040,8 @@ private const val RESOLVER_DIRECTIVE = "resolver"
 private const val NODE_RESOLVER_DIRECTIVE = "nodeResolver"
 private const val RESULT_ARGUMENT = "result"
 private const val OF_ARGUMENT = "of"
+private const val QF_ARGUMENT = "qf"
+private const val QUERY_PATH_PREFIX = "query:"
 private const val PATH_VARS_ARGUMENT = "pathVars"
 private const val PROVIDER_VARS_ARGUMENT = "providerVars"
 private const val NAME_FIELD = "name"

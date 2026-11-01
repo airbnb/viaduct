@@ -26,8 +26,7 @@ internal interface OperationContext : SharedOperationContext<CoroutineTaskDispat
             val operationDelegate = SharedOperationContext.create(
                 world = base.world,
                 variableBindings = base.variableBindings,
-                resolverObserver = base.resolverObserver,
-                checkerObserver = base.checkerObserver,
+                resolutionObserver = base.resolutionObserver,
                 engineExecutionContext = base.engineExecutionContext,
                 dispatcher = CoroutineTaskDispatcher(
                     requestScope = requestScope,

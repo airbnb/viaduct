@@ -11,7 +11,6 @@ import viaduct.engine.runtime2.arbitrary.GeneratedTypeCheckerMode
 import viaduct.engine.runtime2.arbitrary.ResolverTestCoordinates
 import viaduct.engine.runtime2.contract.CheckerApplicationRecorder
 import viaduct.engine.runtime2.contract.registeredCheckerApplications
-import viaduct.engine.runtime2.correctresolution.CorrectnessCheckerObserver
 import viaduct.engine.runtime2.correctresolution.CorrectnessResolverObserver
 import viaduct.engine.runtime2.correctresolution.correctResolution
 import viaduct.engine.runtime2.model.Arguments
@@ -124,9 +123,8 @@ internal fun validateRuntimeTypeCheckerCase(
     listOf("{ items { __typename } }", "{ alias: items { __typename } }").forEach { query ->
         providerCalls.set(0)
         val applications = CheckerApplicationRecorder()
-        val checkerObserver = CorrectnessCheckerObserver(applications)
-        val resolverObserver = CorrectnessResolverObserver()
-        val operation = SharedOperationContext.create(world.assumptions, resolverObserver = resolverObserver, checkerObserver = checkerObserver)
+        val resolutionObserver = CorrectnessResolverObserver(applications)
+        val operation = SharedOperationContext.create(world.assumptions, resolutionObserver = resolutionObserver)
         val selections = world.schemas.operationSelectionsFrom(query)
         val result = operation.resolve(selections, dispatcher)
         assertEquals(4, providerCalls.get(), coordinates.summary())
@@ -134,9 +132,9 @@ internal fun validateRuntimeTypeCheckerCase(
         assertEquals(2, typeCalls.size)
         assertTrue(typeCalls.all { it.occurrencePath.count { component -> component is ListEngineResult.Index } == 2 })
         assertEquals(4, applications.checkerApplications().count { it.checkerKind == CheckerKind.FIELD })
-        assertEquals(2, resolverObserver.allResolverInvocations().count { it.field.name == "viewer" })
-        assertEquals(2, resolverObserver.allResolverInvocations().count { it.field.name == "derived" })
-        assertEquals(2, checkerObserver.allQueryFragmentResults().values.flatten().toSet().size)
+        assertEquals(2, resolutionObserver.allResolverInvocations().count { it.field.name == "viewer" })
+        assertEquals(2, resolutionObserver.allResolverInvocations().count { it.field.name == "derived" })
+        assertEquals(2, resolutionObserver.allCheckerQueryFragmentResults().values.flatten().toSet().size)
         typeCalls.forEach { call ->
             val checker = world.assumptions.resolverRegistry.typeChecker(call.checkedType)!!
             val fragments = checker.instantiateFragmentsAt(call.logicalQueryRoot, call.occurrencePath)

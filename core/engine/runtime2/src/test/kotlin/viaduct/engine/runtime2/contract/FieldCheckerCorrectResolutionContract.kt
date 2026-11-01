@@ -8,7 +8,6 @@ import kotlin.test.assertSame
 import kotlin.test.assertTrue
 import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.CheckerResultContext
-import viaduct.engine.runtime2.correctresolution.CorrectnessCheckerObserver
 import viaduct.engine.runtime2.correctresolution.CorrectnessResolverObserver
 import viaduct.engine.runtime2.correctresolution.correctResolution
 import viaduct.engine.runtime2.model.Arguments
@@ -110,7 +109,7 @@ interface FieldCheckerCorrectResolutionContract : ResolverContract {
         val checkerOccurrenceId = ResolverOccurrenceId.at(observation.result, listOf(checkedKey))
         assertEquals(
             1,
-            (observation.operation.checkerObserver as CorrectnessCheckerObserver)
+            (observation.operation.resolutionObserver as CorrectnessResolverObserver)
                 .queryFragmentResults(ResolverTarget.FieldCheckerTarget(checkedKey.field), checkerOccurrenceId)
                 .size,
         )
@@ -370,7 +369,7 @@ interface FieldCheckerCorrectResolutionContract : ResolverContract {
             )
 
         val resolverObservation =
-            (observation.operation.resolverObserver as CorrectnessResolverObserver)
+            (observation.operation.resolutionObserver as CorrectnessResolverObserver)
                 .allResolverInvocations()
                 .single { invocation -> invocation.field.name == "consumer" }
         assertSame(

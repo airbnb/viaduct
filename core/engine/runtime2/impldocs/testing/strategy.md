@@ -284,7 +284,7 @@ Keep implementation-specific witness, mutation, depth, and stress tests separate
 
 ## Observations And Exact Witnesses
 
-Configure `SharedOperationContext.resolverObserver` for resolver execution and `SharedOperationContext.checkerObserver` for checker execution. `TestWorld`, `FieldValueResolver`, and checker relations do not install hidden observation hooks. Replay of deterministic relations emits no runtime events.
+Configure `SharedOperationContext.resolutionObserver` for resolver and checker execution. `TestWorld`, `FieldValueResolver`, and checker relations do not install hidden observation hooks. Replay of deterministic relations emits no runtime events.
 
 | Observation | Emission boundary | Evidence supplied |
 | --- | --- | --- |
@@ -292,7 +292,7 @@ Configure `SharedOperationContext.resolverObserver` for resolver execution and `
 | `onResolverInvocation` | Immediately before ordinary or reference-target `FieldValueResolver.invoke`, after inputs are ready | Records the field, materialized object and Query inputs, instantiated selections, grounded arguments, optional selective demand, logical Query root, path, and occurrence identity. Attempts that later fail or cancel remain recorded. |
 | `onQueryFragmentPrepared` | After Query-rooted input preparation and before dispatch | Associates a nonempty declared Query fragment with its owner-local projection; independently rooted reference execution remains distinct from an associated Query OER. |
 | `onRootFieldReferenceInvocation` | After reference-target preparation returns | Associates the publication root and path with the reference descriptor, fresh invocation root, invocation key, and supplied demand. It is an association witness, not an outcome event. |
-| `CheckerObserver.onCheckerInvocation` | Immediately before a field or type checker relation is invoked | Records checker kind, logical Query root, exact occurrence path, field arguments where applicable, checked target, and actual named raw object and Query projections. |
+| `ResolutionObserver.onCheckerInvocation` | Immediately before a field or type checker relation is invoked | Records checker kind, logical Query root, exact occurrence path, field arguments where applicable, checked target, and actual named raw object and Query projections. |
 | Depth-first `onTaskStarted` hook | Immediately before Resolver06–08 run a dequeued orchestration or resolver task | Supplies ordering evidence for work-queue contracts. Independent reference Query inputs use separate reactors; the hook is scoped to the reactor on which it is installed. |
 
 All maintained families emit resolver observations. Resolver21–23 and production Resolution additionally emit checker observations. Callbacks may run concurrently and have no global ordering guarantee; payload identity and documented per-event timing are the contract.

@@ -14,11 +14,14 @@ import viaduct.engine.runtime2.resolution.framework.SharedFieldResolverTask
 @InternalApi
 abstract class CoroutineFieldResolverTaskBase<P : SharedFieldPublicationOccurrence<*, *>>(
     final override val publication: P,
-    /** Structured child scope of the dispatched field task, not the request root. */
-    val fieldTaskScope: CoroutineScope,
 ) : SharedFieldResolverTask<P> {
+    /** Available after entry; owns this field's helper coroutines. */
+    lateinit var fieldTaskScope: CoroutineScope
+        private set
+
     /** Publishes ordinary failures while preserving actual cancellation and JVM Errors. */
-    suspend fun run() {
+    suspend fun run(scope: CoroutineScope) {
+        fieldTaskScope = scope
         try {
             executeAndPublish()
         } catch (cause: Exception) {

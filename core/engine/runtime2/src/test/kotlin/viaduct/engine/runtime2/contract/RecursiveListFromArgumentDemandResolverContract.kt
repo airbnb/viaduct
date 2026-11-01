@@ -52,7 +52,7 @@ interface RecursiveListFromArgumentDemandResolverContract : ResolverContract {
                   result(value: 7)
                 }
                 """.trimIndent(),
-                resolverObserver = applicationArguments,
+                resolutionObserver = applicationArguments,
             )
 
         assertEquals(

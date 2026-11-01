@@ -28,7 +28,7 @@ import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.resolution.ResolutionDispatcherFactory
 import viaduct.engine.runtime2.resolution.configuredResolutionThreadCount
-import viaduct.engine.runtime2.resolution.framework.ResolverObserver
+import viaduct.engine.runtime2.resolution.framework.ResolutionObserver
 import viaduct.graphql.schema.ViaductSchema
 
 /**
@@ -43,10 +43,10 @@ class ExecutionTestFixture private constructor(
         query: String,
         variables: Map<String, Any?> = emptyMap(),
         incrementalSupport: Boolean = false,
-        resolverObserver: ResolverObserver = ResolverObserver.NOP,
+        resolutionObserver: ResolutionObserver = ResolutionObserver.NOP,
     ): ExecutionResult =
         try {
-            runQueryAsync(query, variables, incrementalSupport, resolverObserver).join()
+            runQueryAsync(query, variables, incrementalSupport, resolutionObserver).join()
         } catch (exception: CompletionException) {
             throw exception.cause ?: exception
         }
@@ -55,14 +55,14 @@ class ExecutionTestFixture private constructor(
         query: String,
         variables: Map<String, Any?> = emptyMap(),
         incrementalSupport: Boolean = false,
-        resolverObserver: ResolverObserver = ResolverObserver.NOP,
+        resolutionObserver: ResolutionObserver = ResolutionObserver.NOP,
     ): CompletableFuture<ExecutionResult> {
         val input =
             ExecutionInput
                 .newExecutionInput()
                 .query(query)
                 .variables(variables)
-                .graphQLContext { context -> context.put(ResolverObserver::class.java, resolverObserver) }
+                .graphQLContext { context -> context.put(ResolutionObserver::class.java, resolutionObserver) }
         if (incrementalSupport) {
             GraphQL
                 .unusualConfiguration(input)

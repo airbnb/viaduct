@@ -8,7 +8,6 @@ import viaduct.engine.runtime2.arbitrary.ResolverApplicationKey
 import viaduct.engine.runtime2.arbitrary.ResolverOccurrenceApplicationIdentity
 import viaduct.engine.runtime2.arbitrary.ResolverOccurrenceApplicationKey
 import viaduct.engine.runtime2.arbitrary.resolutionFingerprint
-import viaduct.engine.runtime2.correctresolution.CorrectnessCheckerObserver
 import viaduct.engine.runtime2.correctresolution.CorrectnessResolverObserver
 import viaduct.engine.runtime2.model.Arguments
 import viaduct.engine.runtime2.model.ObjectEngineResult
@@ -35,7 +34,7 @@ class CheckerQueryResolverWitnessTest {
         val primary = world.engineResultOf("Query")
         val first = world.engineResultOf("Query") { "value" resolvesTo 7 }
         val second = world.engineResultOf("Query") { "value" resolvesTo 7 }
-        val checkerObserver = CorrectnessCheckerObserver()
+        val checkerObserver = CorrectnessResolverObserver()
         checkerObserver.onCheckerQueryFragmentPrepared(
             ResolverTarget.FieldCheckerTarget(value),
             ResolverOccurrenceId.at(primary, listOf(valueKey)),
@@ -54,8 +53,7 @@ class CheckerQueryResolverWitnessTest {
         val operation =
             SharedOperationContext.create(
                 world,
-                resolverObserver = CorrectnessResolverObserver(),
-                checkerObserver = checkerObserver,
+                resolutionObserver = checkerObserver,
             )
         val key = ResolverApplicationKey(FieldCoordinate("Query", "value"), Arguments.Resolved.of(value, emptyMap()))
         val identity = ResolverApplicationIdentity(key, engineObjectDataOf(query).resolutionFingerprint())

@@ -12,6 +12,7 @@ import viaduct.engine.runtime2.model.schemaType
 import viaduct.engine.runtime2.resolution.framework.Demand
 import viaduct.engine.runtime2.resolution.framework.MutationNamespaceOccurrence
 import viaduct.engine.runtime2.resolution.framework.OEROccurrence
+import viaduct.engine.runtime2.resolution.framework.ResolutionTask
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 import viaduct.engine.runtime2.resolution.framework.SharedTaskDispatcher
 import viaduct.engine.runtime2.resolvers.GroundedFieldPublicationOccurrence
@@ -38,14 +39,17 @@ class DepthFirstReactor(
     private var started = false
 
     /** Constructs this reactor's result. May be called exactly once. */
-    fun resolve(queryFragmentOwner: ResolverOccurrenceId? = null): ObjectEngineResult {
+    fun resolve(
+        queryFragmentOwner: ResolverOccurrenceId? = null,
+        creator: ResolutionTask? = null
+    ): ObjectEngineResult {
         check(!started) { "DepthFirstReactor.resolve() may only be called once" }
         started = true
         val result: ObjectEngineResult
         if (selections is MutationSelectionForest) {
             require(selections.type == operation.world.schema.mutationTypeDef) { "Mutations must start at their root" }
             result = MutationObjectEngineResult.of(selections)
-            val task = DepthFirstMutationTask(operation, MutationNamespaceOccurrence(OEROccurrence(result, emptyList(), result), selections))
+            val task = DepthFirstMutationTask(operation, MutationNamespaceOccurrence(OEROccurrence(result, emptyList(), result), selections), creator)
             dispatchedTasks += task
             enqueue(task)
         } else {
@@ -54,9 +58,10 @@ class DepthFirstReactor(
                 source,
                 OEROccurrence(result, emptyList(), result),
                 Demand.checked(selections),
+                creator = creator,
             )
         }
-        queryFragmentOwner?.let { operation.resolverObserver.onIndependentQueryFragmentPrepared(it, result) }
+        queryFragmentOwner?.let { operation.resolutionObserver.onIndependentQueryFragmentPrepared?.invoke(it, result) }
         drainTasks()
         check(children.isEmpty() && finished == dispatchedTasks) { "Reactor returned with unfinished tasks" }
         dispatchedTasks.filterIsInstance<DepthFirstOrchestrationTask>().forEach { task ->

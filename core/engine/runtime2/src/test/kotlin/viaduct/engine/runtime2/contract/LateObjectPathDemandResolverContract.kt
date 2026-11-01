@@ -23,7 +23,7 @@ interface LateObjectPathDemandResolverContract : ResolverContract {
         var fooApplications = 0
         var fooDemandFields: Set<String>? = null
         val invocationObserver = object : CorrectnessResolverObserver() {
-            override fun onResolverInvocation(observation: ResolverInvocationObservation) {
+            override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { observation ->
                 super.onResolverInvocation(observation)
                 val field = observation.field
                 val demand = observation.suppliedDemand
@@ -72,7 +72,7 @@ interface LateObjectPathDemandResolverContract : ResolverContract {
             )
 
         val resolution =
-            resolveAndValidateObserved(world, world.objectOf("Query"), selections, resolverObserver = invocationObserver)
+            resolveAndValidateObserved(world, world.objectOf("Query"), selections, resolutionObserver = invocationObserver)
         val resolved = resolution.result
         val foo = resolved.getCell(fooKey).get() as ObjectEngineResult
 
@@ -95,7 +95,7 @@ interface LateObjectPathDemandResolverContract : ResolverContract {
         var nodeApplications = 0
         var nodeDemandFields: Set<String>? = null
         val invocationObserver = object : ResolverApplicationArguments() {
-            override fun onResolverInvocation(observation: ResolverInvocationObservation) {
+            override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { observation ->
                 super.onResolverInvocation(observation)
                 val field = observation.field
                 val demand = observation.suppliedDemand
@@ -148,7 +148,7 @@ interface LateObjectPathDemandResolverContract : ResolverContract {
         val world = testWorld.assumptions
         val triggerKey = world.schema.contractKey("Query", "trigger")
 
-        val resolved = resolveAndValidate(testWorld, "query { trigger }", resolverObserver = invocationObserver)
+        val resolved = resolveAndValidate(testWorld, "query { trigger }", resolutionObserver = invocationObserver)
 
         assertEquals(2, resolved.getCell(triggerKey).get())
         assertEquals(1, nodeApplications)
@@ -164,7 +164,7 @@ interface LateObjectPathDemandResolverContract : ResolverContract {
         var nodeApplications = 0
         var nodeDemandFields: Set<String>? = null
         val invocationObserver = object : CorrectnessResolverObserver() {
-            override fun onResolverInvocation(observation: ResolverInvocationObservation) {
+            override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { observation ->
                 super.onResolverInvocation(observation)
                 val field = observation.field
                 val demand = observation.suppliedDemand
@@ -235,7 +235,7 @@ interface LateObjectPathDemandResolverContract : ResolverContract {
         val world = testWorld.assumptions
         val resultKey = world.schema.contractKey("Query", "result")
 
-        val resolved = resolveAndValidate(testWorld, "query { result }", resolverObserver = invocationObserver)
+        val resolved = resolveAndValidate(testWorld, "query { result }", resolutionObserver = invocationObserver)
 
         assertEquals(2, resolved.getCell(resultKey).get())
         assertEquals(1, nodeApplications)
@@ -247,7 +247,7 @@ interface LateObjectPathDemandResolverContract : ResolverContract {
         var parentApplications = 0
         var parentDemandFields: Set<String>? = null
         val invocationObserver = object : ResolverApplicationArguments() {
-            override fun onResolverInvocation(observation: ResolverInvocationObservation) {
+            override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { observation ->
                 super.onResolverInvocation(observation)
                 val field = observation.field
                 val demand = observation.suppliedDemand
@@ -294,7 +294,7 @@ interface LateObjectPathDemandResolverContract : ResolverContract {
         val world = testWorld.assumptions
         val lateKey = world.schema.contractKey("Query", "late")
 
-        val resolved = resolveAndValidate(testWorld, "query { late }", resolverObserver = invocationObserver)
+        val resolved = resolveAndValidate(testWorld, "query { late }", resolutionObserver = invocationObserver)
 
         assertEquals(7, resolved.getCell(lateKey).get())
         assertEquals(1, parentApplications)
@@ -310,7 +310,7 @@ interface LateObjectPathDemandResolverContract : ResolverContract {
         var holderApplications = 0
         var computedApplications = 0
         val invocationObserver = object : CorrectnessResolverObserver() {
-            override fun onResolverInvocation(observation: ResolverInvocationObservation) {
+            override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { observation ->
                 super.onResolverInvocation(observation)
                 val field = observation.field
                 val demand = observation.suppliedDemand
@@ -351,7 +351,7 @@ interface LateObjectPathDemandResolverContract : ResolverContract {
         val world = testWorld.assumptions
         val resultKey = world.schema.contractKey("Query", "result")
 
-        val resolved = resolveAndValidate(testWorld, "query { result }", resolverObserver = invocationObserver)
+        val resolved = resolveAndValidate(testWorld, "query { result }", resolutionObserver = invocationObserver)
 
         assertEquals(7, resolved.getCell(resultKey).get())
         assertEquals(1, holderApplications)
@@ -363,7 +363,7 @@ interface LateObjectPathDemandResolverContract : ResolverContract {
         var parentApplications = 0
         var childApplications = 0
         val invocationObserver = object : CorrectnessResolverObserver() {
-            override fun onResolverInvocation(observation: ResolverInvocationObservation) {
+            override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { observation ->
                 super.onResolverInvocation(observation)
                 val field = observation.field
                 val demand = observation.suppliedDemand
@@ -408,7 +408,7 @@ interface LateObjectPathDemandResolverContract : ResolverContract {
         val outerKey = world.schema.contractKey("Query", "outer")
         val parentKey = world.schema.contractKey("Query", "parent")
 
-        val resolved = resolveAndValidate(testWorld, "query { early outer }", resolverObserver = invocationObserver)
+        val resolved = resolveAndValidate(testWorld, "query { early outer }", resolutionObserver = invocationObserver)
         val parent = resolved.getCell(parentKey).get() as ObjectEngineResult
 
         assertEquals(1, resolved.getCell(outerKey).get())

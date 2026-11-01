@@ -16,7 +16,7 @@ import viaduct.engine.runtime2.arbitrary.executeResolverTestCases
 import viaduct.engine.runtime2.arbitrary.resolverBenchmarkFullConfig
 import viaduct.engine.runtime2.contract.registeredResolverApplicationIdentityCounts
 import viaduct.engine.runtime2.contract.validateFromFieldBindings
-import viaduct.engine.runtime2.correctresolution.CorrectnessCheckerObserver
+import viaduct.engine.runtime2.correctresolution.CorrectnessResolverObserver
 import viaduct.engine.runtime2.correctresolution.conformsToResolvers
 import viaduct.engine.runtime2.correctresolution.correctResolution
 import viaduct.engine.runtime2.model.merge
@@ -39,30 +39,23 @@ class FullBenchmarkReplayTest : ResolutionDispatcherResource {
                 typeCheckerMode = GeneratedTypeCheckerMode.RUNTIME_SUCCESS,
             ) { fixture, testCase ->
                 val world = fixture.newAssumptions(selectiveResolvers = true)
-                val resolverObserver = testCase.registry.resolverObserver()
-                val checkerObserver = CorrectnessCheckerObserver()
-                val operation =
-                    SharedOperationContext.create(
-                        world,
-                        resolverObserver = resolverObserver,
-                        checkerObserver = checkerObserver,
-                    )
+                val checkerEvidence = CorrectnessResolverObserver()
+                val resolutionObserver = object : CorrectnessResolverObserver(testCase.registry.resolutionObserver()) {
+                    override val onCheckerInvocation = checkerEvidence.onCheckerInvocation
+                    override val onCheckerQueryFragmentPrepared = checkerEvidence.onCheckerQueryFragmentPrepared
+                }
+                val operation = SharedOperationContext.create(world, resolutionObserver = resolutionObserver)
                 val fragment = fixture.schemas.fragmentFrom(testCase.query.source)
                 testCase.registry.clearResolutionWitness()
                 val result = operation.resolveWithTestDispatcher(fragment.subselections)
                 val observed = testCase.registry.resolutionWitness().applicationIdentityCounts()
-                assertTrue(checkerObserver.hasCheckerInputs())
-                val resolverRoots = resolverObserver.allQueryFragmentResults().values.flatten()
-                val checkerRoots = checkerObserver.allQueryFragmentResults().values.flatten()
+                assertTrue(checkerEvidence.hasCheckerInputs())
+                val resolverRoots = resolutionObserver.allQueryFragmentResults().values.flatten()
+                val checkerRoots = checkerEvidence.allCheckerQueryFragmentResults().values.flatten()
                 assertTrue(checkerRoots.any { checkerRoot -> resolverRoots.none { it === checkerRoot } })
 
-                val missingEvidence =
-                    SharedOperationContext.create(
-                        world,
-                        variableBindings = operation.variableBindings,
-                        resolverObserver = resolverObserver,
-                    )
-                assertFalse(result.conformsToResolvers(missingEvidence), "Dropping checker evidence reproduces the benchmark failure")
+                assertFalse(result.conformsToResolvers(operation), "Dropping checker evidence reproduces the benchmark failure")
+                resolutionObserver.copyCheckerObservationsFrom(checkerEvidence)
                 assertTrue(result.conformsToResolvers(operation))
                 assertEquals(observed, result.registeredResolverApplicationIdentityCounts(operation))
                 assertTrue(
@@ -71,7 +64,7 @@ class FullBenchmarkReplayTest : ResolutionDispatcherResource {
                         fragment.subselections.merge(world.schema.requireQueryTypeDef()).instantiateBindings(operation),
                     ),
                 )
-                result.validateFromFieldBindings(operation, resolverObserver.invokedResolverOccurrences())
+                result.validateFromFieldBindings(operation, resolutionObserver.invokedResolverOccurrences())
             }
         }
 }

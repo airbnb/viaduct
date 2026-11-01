@@ -11,7 +11,6 @@ import viaduct.engine.runtime2.arbitrary.ResolverApplicationKey
 import viaduct.engine.runtime2.arbitrary.ResolverOccurrenceApplicationIdentity
 import viaduct.engine.runtime2.arbitrary.ResolverOccurrenceApplicationKey
 import viaduct.engine.runtime2.arbitrary.resolutionFingerprint
-import viaduct.engine.runtime2.correctresolution.CorrectnessCheckerObserver
 import viaduct.engine.runtime2.correctresolution.CorrectnessResolverObserver
 import viaduct.engine.runtime2.correctresolution.ValidatedResolution
 import viaduct.engine.runtime2.correctresolution.conformsToSelectionsAt
@@ -225,7 +224,7 @@ private fun EngineResult?.requestQueryRoots(
     referenceOccurrences: List<RootFieldReferenceInvocationObservation>,
 ): List<ObjectEngineResult> {
     val primaryRoot = this as? ObjectEngineResult ?: return emptyList()
-    val observations = operation.resolverObserver as? CorrectnessResolverObserver
+    val observations = operation.resolutionObserver as? CorrectnessResolverObserver
     check(
         observations?.queryFragmentOwnershipIsConsistent(
             referenceOccurrences.independentQueryFragmentOwners(operation),
@@ -244,8 +243,8 @@ private fun EngineResult?.requestQueryRoots(
             .forEach { queryRoot ->
                 if (seen.add(queryRoot)) add(queryRoot)
             }
-        (operation.checkerObserver as? CorrectnessCheckerObserver)
-            ?.allQueryFragmentResults()
+        (operation.resolutionObserver as? CorrectnessResolverObserver)
+            ?.allCheckerQueryFragmentResults()
             ?.values
             ?.flatten()
             .orEmpty()
@@ -334,5 +333,5 @@ private fun FieldValueResolver.objectFragmentSatisfiedBy(
 }
 
 private fun SharedOperationContext<*>.resolverObservations(): CorrectnessResolverObserver =
-    resolverObserver as? CorrectnessResolverObserver
+    resolutionObserver as? CorrectnessResolverObserver
         ?: error("Resolver observations were not recorded for this operation")

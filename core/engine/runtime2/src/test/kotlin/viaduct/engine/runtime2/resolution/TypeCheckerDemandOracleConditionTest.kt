@@ -8,7 +8,6 @@ import viaduct.engine.api.CheckerResult
 import viaduct.engine.runtime2.contract.CheckerApplicationRecorder
 import viaduct.engine.runtime2.contract.demandedTypeCheckerApplications
 import viaduct.engine.runtime2.contract.hasIncludedAlternative
-import viaduct.engine.runtime2.correctresolution.CorrectnessCheckerObserver
 import viaduct.engine.runtime2.correctresolution.CorrectnessResolverObserver
 import viaduct.engine.runtime2.model.Arguments
 import viaduct.engine.runtime2.model.InclusionCondition
@@ -100,15 +99,14 @@ open class TypeCheckerDemandOracleConditionTest : ResolutionDispatcherResource {
             },
         )
         val applications = CheckerApplicationRecorder()
-        val checkerObserver = CorrectnessCheckerObserver(applications)
+        val checkerObserver = CorrectnessResolverObserver(applications)
         val operation = SharedOperationContext.create(
             world.newAssumptions(usePrecomputedConstructionDemand = precomputedConstructionDemand),
-            resolverObserver = CorrectnessResolverObserver(),
-            checkerObserver = checkerObserver,
+            resolutionObserver = checkerObserver,
         )
         val selections = world.schemas.operationSelectionsFrom("{ trigger }")
         val result = operation.resolveWithTestDispatcher(selections)
-        assertTrue(checkerObserver.allQueryFragmentResults().isEmpty(), "No checker reached Query input materialization")
+        assertTrue(checkerObserver.allCheckerQueryFragmentResults().isEmpty(), "No checker reached Query input materialization")
         assertEquals(1, applications.checkerApplications().size)
         assertEquals(CheckerKind.TYPE, applications.checkerApplications().single().checkerKind)
         assertEquals(applications.checkerApplications().toSet(), result.demandedTypeCheckerApplications(operation, selections))
@@ -169,8 +167,7 @@ open class TypeCheckerDemandOracleConditionTest : ResolutionDispatcherResource {
         val operation =
             SharedOperationContext.create(
                 world.newAssumptions(usePrecomputedConstructionDemand = precomputedConstructionDemand),
-                resolverObserver = CorrectnessResolverObserver(),
-                checkerObserver = CorrectnessCheckerObserver(applications),
+                resolutionObserver = CorrectnessResolverObserver(applications),
             )
         val selections = world.schemas.operationSelectionsFrom("{ trigger other }")
         val result = operation.resolveWithTestDispatcher(selections)

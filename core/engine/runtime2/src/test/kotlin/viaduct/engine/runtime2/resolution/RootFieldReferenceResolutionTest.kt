@@ -2,6 +2,7 @@
 
 package viaduct.engine.runtime2.resolution
 
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.Test
@@ -9,6 +10,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNotEquals
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
@@ -28,6 +30,7 @@ import viaduct.engine.runtime2.correctresolution.correctResolution
 import viaduct.engine.runtime2.model.Arguments
 import viaduct.engine.runtime2.model.EngineErrorData
 import viaduct.engine.runtime2.model.ErrorEngineResult
+import viaduct.engine.runtime2.model.Fragment
 import viaduct.engine.runtime2.model.ListEngineResult
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.ResolverOccurrenceId
@@ -35,11 +38,13 @@ import viaduct.engine.runtime2.model.RootFieldReferenceData
 import viaduct.engine.runtime2.model.VariableBinding
 import viaduct.engine.runtime2.model.emptyFragmentOf
 import viaduct.engine.runtime2.model.merge
+import viaduct.engine.runtime2.model.registry.Assumptions
 import viaduct.engine.runtime2.model.registry.FieldCheckerResolver
 import viaduct.engine.runtime2.model.registry.fieldResolverOf
 import viaduct.engine.runtime2.model.registry.fromArgument
 import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireQueryTypeDef
+import viaduct.engine.runtime2.model.selectionForestOf
 import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.emptyFragmentOf
 import viaduct.engine.runtime2.model.testing.fragmentFrom
@@ -69,7 +74,7 @@ class RootFieldReferenceResolutionTest : ResolutionDispatcherResource {
                 },
             )
         val observer = CorrectnessResolverObserver()
-        val operation = SharedOperationContext.create(fixture.assumptions, resolverObserver = observer)
+        val operation = SharedOperationContext.create(fixture.assumptions, resolutionObserver = observer)
         val selections = fixture.schemas.fragmentFrom("fragment Result on Query { reference }").subselections
 
         val result = operation.resolveWithTestDispatcher(selections)
@@ -144,7 +149,7 @@ class RootFieldReferenceResolutionTest : ResolutionDispatcherResource {
         val world = testWorld.assumptions
         val query = testWorld.schemas.fragmentFrom("fragment Result on Query { result }")
         val observer = CorrectnessResolverObserver()
-        val operation = SharedOperationContext.create(world, resolverObserver = observer)
+        val operation = SharedOperationContext.create(world, resolutionObserver = observer)
 
         val resolved = operation.resolveWithTestDispatcher(query.subselections)
 
@@ -355,7 +360,7 @@ class RootFieldReferenceResolutionTest : ResolutionDispatcherResource {
         val world = testWorld.assumptions
         val query = testWorld.schemas.fragmentFrom("fragment Result on Query { container { product { value } } }")
         val operation =
-            SharedOperationContext.create(world, resolverObserver = CorrectnessResolverObserver())
+            SharedOperationContext.create(world, resolutionObserver = CorrectnessResolverObserver())
         val result = operation.resolveWithTestDispatcher(query.subselections)
         val container =
             assertIs<ObjectEngineResult>(
@@ -456,7 +461,7 @@ class RootFieldReferenceResolutionTest : ResolutionDispatcherResource {
         val world = testWorld.assumptions
         val query = testWorld.schemas.fragmentFrom("fragment Result on Query { container { product { value } } }")
         val operation =
-            SharedOperationContext.create(world, resolverObserver = CorrectnessResolverObserver())
+            SharedOperationContext.create(world, resolutionObserver = CorrectnessResolverObserver())
         val result = operation.resolveWithTestDispatcher(query.subselections)
         val container =
             assertIs<ObjectEngineResult>(
@@ -554,13 +559,13 @@ class RootFieldReferenceResolutionTest : ResolutionDispatcherResource {
         val query = testWorld.schemas.fragmentFrom("fragment Result on Query { container { product { value } } }")
 
         val recordingObserver = object : CorrectnessResolverObserver() {
-            override fun onResolverInvocation(observation: ResolverInvocationObservation) {
+            override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { observation ->
                 super.onResolverInvocation(observation)
                 applications.add(observation)
             }
         }
         val operation =
-            SharedOperationContext.create(world, resolverObserver = recordingObserver)
+            SharedOperationContext.create(world, resolutionObserver = recordingObserver)
         val result =
             operation.resolveWithTestDispatcher(query.subselections)
         val container =
@@ -638,13 +643,13 @@ class RootFieldReferenceResolutionTest : ResolutionDispatcherResource {
         val query = testWorld.schemas.fragmentFrom("fragment Result on Query { first { value } }")
 
         val recordingObserver = object : CorrectnessResolverObserver() {
-            override fun onResolverInvocation(observation: ResolverInvocationObservation) {
+            override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { observation ->
                 super.onResolverInvocation(observation)
                 applications.add(observation)
             }
         }
         val operation =
-            SharedOperationContext.create(world, resolverObserver = recordingObserver)
+            SharedOperationContext.create(world, resolutionObserver = recordingObserver)
         val result =
             operation.resolveWithTestDispatcher(query.subselections)
         val product =
@@ -796,7 +801,7 @@ class RootFieldReferenceResolutionTest : ResolutionDispatcherResource {
         val query =
             testWorld.schemas.fragmentFrom("fragment Result on Query { container { products { value } } }")
         val operation =
-            SharedOperationContext.create(world, resolverObserver = CorrectnessResolverObserver())
+            SharedOperationContext.create(world, resolutionObserver = CorrectnessResolverObserver())
         val result = operation.resolveWithTestDispatcher(query.subselections)
         val container =
             assertIs<ObjectEngineResult>(
@@ -997,7 +1002,7 @@ class RootFieldReferenceResolutionTest : ResolutionDispatcherResource {
                     "fragment Result on Query { result(enabled: $enabled) }",
                 )
             val operation =
-                SharedOperationContext.create(world, resolverObserver = CorrectnessResolverObserver())
+                SharedOperationContext.create(world, resolutionObserver = CorrectnessResolverObserver())
             val resolved = operation.resolveWithTestDispatcher(query.subselections)
             val container =
                 assertIs<ObjectEngineResult>(
@@ -1054,7 +1059,7 @@ class RootFieldReferenceResolutionTest : ResolutionDispatcherResource {
     fun `application-count oracle rejects an unowned root-reference observation`() {
         val resolution = resolveConditionalPassiveListReference(enabled = true)
         val observation =
-            assertIs<CorrectnessResolverObserver>(resolution.operation.resolverObserver)
+            assertIs<CorrectnessResolverObserver>(resolution.operation.resolutionObserver)
                 .rootFieldReferenceInvocations()
                 .single()
         val malformedObserver = CorrectnessResolverObserver()
@@ -1063,13 +1068,13 @@ class RootFieldReferenceResolutionTest : ResolutionDispatcherResource {
             observation.copy(
                 invocationRoot =
                     ObjectEngineResult.of(resolution.operation.world.schema.requireQueryTypeDef()),
-            ),
+            )
         )
         val validationOperation =
             SharedOperationContext.create(
                 world = resolution.operation.world,
                 variableBindings = resolution.operation.variableBindings,
-                resolverObserver = malformedObserver,
+                resolutionObserver = malformedObserver,
             )
         val expectedApplications =
             resolution.result.registeredResolverOccurrenceApplicationIdentityCounts(validationOperation)
@@ -1132,7 +1137,7 @@ class RootFieldReferenceResolutionTest : ResolutionDispatcherResource {
             )
         val world = testWorld.assumptions
         val observer = CorrectnessResolverObserver()
-        val operation = SharedOperationContext.create(world, resolverObserver = observer)
+        val operation = SharedOperationContext.create(world, resolutionObserver = observer)
         val queryFragment = testWorld.schemas.fragmentFrom(queryFragmentSource)
         val queryResult = operation.resolveWithTestDispatcher(queryFragment.subselections)
         assertEquals(1, observer.rootFieldReferenceInvocations().size)
@@ -1159,17 +1164,9 @@ class RootFieldReferenceResolutionTest : ResolutionDispatcherResource {
         primaryRoot.setCellValue(consumerKey, ErrorEngineResult.of(EngineErrorData.of()))
         val owner = ResolverOccurrenceId.at(primaryRoot, listOf(consumerKey))
         val owningOccurrence = OEROccurrence(primaryRoot, emptyList(), primaryRoot)
-        observer.onQueryFragmentPrepared(
-            owner,
-            queryResult,
-            owningOccurrence,
-        )
-        observer.onQueryFragmentOwnerAddress(
-            owner,
-            owningOccurrence,
-            consumerKey,
-        )
-        val selections = viaduct.engine.runtime2.model.selectionForestOf().merge(operation.world.schema.requireQueryTypeDef())
+        observer.onQueryFragmentPrepared(owner, queryResult, owningOccurrence)
+        observer.onQueryFragmentOwnerAddress(owner, owningOccurrence, consumerKey)
+        val selections = selectionForestOf().merge(operation.world.schema.requireQueryTypeDef())
 
         assertTrue(primaryRoot.correctResolution(operation, selections))
         assertEquals(
@@ -1184,18 +1181,16 @@ class RootFieldReferenceResolutionTest : ResolutionDispatcherResource {
     fun `correctness replays a root reference with canonical rather than observed demand`() {
         val resolution = resolveConditionalPassiveListReference(enabled = true)
         val observation =
-            assertIs<CorrectnessResolverObserver>(resolution.operation.resolverObserver)
+            assertIs<CorrectnessResolverObserver>(resolution.operation.resolutionObserver)
                 .rootFieldReferenceInvocations()
                 .single()
         val malformedObserver = CorrectnessResolverObserver()
-        malformedObserver.onRootFieldReferenceInvocation(
-            observation.copy(suppliedDemand = viaduct.engine.runtime2.model.selectionForestOf()),
-        )
+        malformedObserver.onRootFieldReferenceInvocation(observation.copy(suppliedDemand = selectionForestOf()))
         val validationOperation =
             SharedOperationContext.create(
                 world = resolution.operation.world,
                 variableBindings = resolution.operation.variableBindings,
-                resolverObserver = malformedObserver,
+                resolutionObserver = malformedObserver,
             )
         val query = resolution.query
 
@@ -1247,7 +1242,7 @@ class RootFieldReferenceResolutionTest : ResolutionDispatcherResource {
         val world = testWorld.assumptions
         val query = testWorld.schemas.fragmentFrom("fragment Result on Query { container { product { value } } }")
         val observer = CorrectnessResolverObserver()
-        val operation = SharedOperationContext.create(world, resolverObserver = observer)
+        val operation = SharedOperationContext.create(world, resolutionObserver = observer)
         val result = operation.resolveWithTestDispatcher(query.subselections)
         val observation = observer.rootFieldReferenceInvocations().single()
         val malformedObserver = CorrectnessResolverObserver()
@@ -1255,13 +1250,13 @@ class RootFieldReferenceResolutionTest : ResolutionDispatcherResource {
             observation.copy(
                 invocationPath =
                     listOf(ListEngineResult.Index.of(0)) + observation.invocationPath,
-            ),
+            )
         )
         val validationOperation =
             SharedOperationContext.create(
                 world = world,
                 variableBindings = operation.variableBindings,
-                resolverObserver = malformedObserver,
+                resolutionObserver = malformedObserver,
             )
 
         assertFalse(
@@ -1317,7 +1312,7 @@ class RootFieldReferenceResolutionTest : ResolutionDispatcherResource {
                 "fragment Result on Query { container { first { value } second { value } } }",
             )
         val observer = CorrectnessResolverObserver()
-        val operation = SharedOperationContext.create(world, resolverObserver = observer)
+        val operation = SharedOperationContext.create(world, resolutionObserver = observer)
         val result = operation.resolveWithTestDispatcher(query.subselections)
         val observations = observer.rootFieldReferenceInvocations()
         assertEquals(2, observations.size)
@@ -1328,13 +1323,13 @@ class RootFieldReferenceResolutionTest : ResolutionDispatcherResource {
                 invocationRoot = observations[0].invocationRoot,
                 invocationPath = observations[0].invocationPath,
                 invocationKey = observations[0].invocationKey,
-            ),
+            )
         )
         val validationOperation =
             SharedOperationContext.create(
                 world = world,
                 variableBindings = operation.variableBindings,
-                resolverObserver = malformedObserver,
+                resolutionObserver = malformedObserver,
             )
 
         assertFalse(
@@ -1429,7 +1424,7 @@ class RootFieldReferenceResolutionTest : ResolutionDispatcherResource {
             )
         val world = testWorld.assumptions
         val query = testWorld.schemas.fragmentFrom("fragment Result on Query { result(enabled: $enabled) }")
-        val operation = SharedOperationContext.create(world, resolverObserver = CorrectnessResolverObserver())
+        val operation = SharedOperationContext.create(world, resolutionObserver = CorrectnessResolverObserver())
         val result = operation.resolveWithTestDispatcher(query.subselections)
         return ConditionalPassiveListResolution(result, operation, targetApplications, checkerApplications, query)
     }
@@ -1505,7 +1500,7 @@ class RootFieldReferenceResolutionTest : ResolutionDispatcherResource {
             },
         )
 
-    private suspend fun ObjectEngineResult.awaitReferenceNumbers(world: viaduct.engine.runtime2.model.registry.Assumptions): ListEngineResult {
+    private suspend fun ObjectEngineResult.awaitReferenceNumbers(world: Assumptions): ListEngineResult {
         val container =
             assertIs<ObjectEngineResult>(
                 withTimeout(5_000) {
@@ -1602,6 +1597,7 @@ class RootFieldReferenceResolutionTest : ResolutionDispatcherResource {
 
     @Test
     fun `list-element reference target that calls ctx_query completes without error`() {
+        val tasks = ConcurrentHashMap<String, FieldResolverTask>()
         val testWorld =
             TestWorld.fromSDL(
                 schemaSDL = """
@@ -1618,15 +1614,20 @@ class RootFieldReferenceResolutionTest : ResolutionDispatcherResource {
                     val nestedFragment = schemas.fragmentFrom("fragment Nested on Query { dependency }")
                     mapOf(
                         schema.requireObjectField("Query", "numbers") to
-                            fieldResolverOf(empty) { _, _ ->
+                            fieldResolverOf(empty) { _, _, ctx ->
+                                tasks["numbers"] = assertIs<FieldResolverTask>(ctx)
                                 listOf(RootFieldReferenceData.of(listOf(target), emptyMap()))
                             },
                         target to
                             fieldResolverOf(empty) { _, _, executionContext ->
+                                tasks["target"] = assertIs<FieldResolverTask>(executionContext)
                                 executionContext.resolveSelectionSet(nestedFragment.materializeSelections).get("dependency")
                             },
                         schema.requireObjectField("Query", "dependency") to
-                            fieldResolverOf(empty) { _, _ -> 7 },
+                            fieldResolverOf(empty) { _, _, ctx ->
+                                tasks["dependency"] = assertIs<FieldResolverTask>(ctx)
+                                7
+                            },
                     )
                 },
             )
@@ -1639,6 +1640,12 @@ class RootFieldReferenceResolutionTest : ResolutionDispatcherResource {
                 result.getCell(testWorld.schema.contractKey("Query", "numbers")).value.get(),
             )
         assertEquals(7, numbers[0].value.get())
+        val producer = tasks.getValue("numbers")
+        val reference = tasks.getValue("target")
+        val nested = assertIs<OrchestrationTask>(tasks.getValue("dependency").creator)
+        assertSame(producer, reference.creator)
+        assertSame(reference, nested.creator)
+        tasks.values.forEach { assertSame(it, it.publication.task) }
     }
 
     private data class ConditionalPassiveListResolution(
@@ -1646,6 +1653,6 @@ class RootFieldReferenceResolutionTest : ResolutionDispatcherResource {
         val operation: SharedOperationContext<*>,
         val targetApplications: AtomicInteger,
         val checkerApplications: AtomicInteger,
-        val query: viaduct.engine.runtime2.model.Fragment,
+        val query: Fragment,
     )
 }

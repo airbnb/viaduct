@@ -84,7 +84,7 @@ interface RootFieldReferenceGeneratedResolverContract : GeneratedCaseAssertionPo
                             assertions = assertions,
                         )
                     activatedReferences +=
-                        (observation.ordinary.operation.resolverObserver as CorrectnessResolverObserver)
+                        (observation.ordinary.operation.resolutionObserver as CorrectnessResolverObserver)
                             .rootFieldReferenceInvocations()
                             .size
                 }
@@ -377,7 +377,7 @@ interface QueryFragmentGeneratedResolverContract : GeneratedCaseAssertionPolicy 
                         }
                     queryValueWitnesses +=
                         observation.executions.sumOf { execution ->
-                            (execution.operation.resolverObserver as CorrectnessResolverObserver)
+                            (execution.operation.resolutionObserver as CorrectnessResolverObserver)
                                 .allQueryFragmentResults()
                                 .size
                         }

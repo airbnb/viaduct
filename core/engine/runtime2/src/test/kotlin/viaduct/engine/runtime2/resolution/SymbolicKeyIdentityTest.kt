@@ -24,6 +24,7 @@ import viaduct.engine.runtime2.model.testing.emptyFragmentOf
 import viaduct.engine.runtime2.model.testing.fragmentFrom
 import viaduct.engine.runtime2.model.testing.objectOf
 import viaduct.engine.runtime2.model.usedVariables
+import viaduct.engine.runtime2.resolution.framework.ResolverInvocationObservation
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 import viaduct.engine.runtime2.resolution.framework.groundedArguments
 import viaduct.engine.runtime2.resolution.framework.isContextuallyGrounded
@@ -96,7 +97,7 @@ class SymbolicKeyIdentityTest : ResolutionDispatcherResource {
                 },
             )
         val world = testWorld.assumptions
-        val operation = SharedOperationContext.create(world, resolverObserver = CorrectnessResolverObserver())
+        val operation = SharedOperationContext.create(world, resolutionObserver = CorrectnessResolverObserver())
         val resultKey =
             ObjectEngineResult.GroundKey.of(
                 world.schema.requireObjectField("Query", "result"),
@@ -215,10 +216,10 @@ class SymbolicKeyIdentityTest : ResolutionDispatcherResource {
         val world = testWorld.assumptions
         val operation = SharedOperationContext.create(
             world,
-            resolverObserver = object : CorrectnessResolverObserver() {
-                override fun onResolverInvocation(observation: viaduct.engine.runtime2.resolution.framework.ResolverInvocationObservation) {
+            resolutionObserver = object : CorrectnessResolverObserver() {
+                override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = onResolverInvocation@{ observation ->
                     super.onResolverInvocation(observation)
-                    if (observation.field.name != "frank") return
+                    if (observation.field.name != "frank") return@onResolverInvocation
                     val demand = observation.suppliedDemand
                     if (demand != null) {
                         frankApplications += 1
@@ -361,10 +362,10 @@ class SymbolicKeyIdentityTest : ResolutionDispatcherResource {
         val world = testWorld.assumptions
         val operation = SharedOperationContext.create(
             world,
-            resolverObserver = object : CorrectnessResolverObserver() {
-                override fun onResolverInvocation(observation: viaduct.engine.runtime2.resolution.framework.ResolverInvocationObservation) {
+            resolutionObserver = object : CorrectnessResolverObserver() {
+                override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = onResolverInvocation@{ observation ->
                     super.onResolverInvocation(observation)
-                    if (observation.field.name != "frank") return
+                    if (observation.field.name != "frank") return@onResolverInvocation
                     val arguments = observation.arguments
                     val demand = observation.suppliedDemand
                     if (demand != null) {

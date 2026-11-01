@@ -11,8 +11,7 @@ class DepthFirstOperationContext(
 ) : SharedOperationContext<DepthFirstReactor> by SharedOperationContext.create(
         world = operation.world,
         variableBindings = operation.variableBindings,
-        resolverObserver = operation.resolverObserver,
-        checkerObserver = operation.checkerObserver,
+        resolutionObserver = operation.resolutionObserver,
         dispatcher = dispatcher,
     ) {
     /** Passive traversal inherits the Query-OER depth of the task whose value it is traversing. */

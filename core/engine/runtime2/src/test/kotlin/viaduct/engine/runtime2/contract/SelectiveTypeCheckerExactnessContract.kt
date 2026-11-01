@@ -17,7 +17,7 @@ import kotlin.test.assertTrue
 import kotlinx.coroutines.CompletableDeferred
 import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.CheckerResultContext
-import viaduct.engine.runtime2.correctresolution.CorrectnessCheckerObserver
+import viaduct.engine.api.EngineObjectData
 import viaduct.engine.runtime2.correctresolution.CorrectnessResolverObserver
 import viaduct.engine.runtime2.correctresolution.correctResolution
 import viaduct.engine.runtime2.model.Arguments
@@ -47,8 +47,8 @@ import viaduct.engine.runtime2.model.testing.fragmentFrom
 import viaduct.engine.runtime2.model.testing.objectOf
 import viaduct.engine.runtime2.resolution.framework.CheckerInvocationObservation
 import viaduct.engine.runtime2.resolution.framework.CheckerKind
+import viaduct.engine.runtime2.resolution.framework.ResolutionObserver
 import viaduct.engine.runtime2.resolution.framework.ResolverInvocationObservation
-import viaduct.engine.runtime2.resolution.framework.ResolverObserver
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 import viaduct.engine.runtime2.schema.ViaductAndGJSchema
 import viaduct.engine.runtime2.schema.operationSelectionsFrom
@@ -124,14 +124,14 @@ interface SelectiveTypeCheckerExactnessContract {
             )
         val world = worldFixture.assumptions
         val observer =
-            object : ResolverObserver {
-                override fun onResolverInvocation(observation: ResolverInvocationObservation) {
+            object : ResolutionObserver {
+                override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { observation ->
                     if (observation.field.name == "item") producerDemand.set(observation.suppliedDemand)
                 }
             }
 
         coroutineResolverSubject.resolve(
-            SharedOperationContext.create(world, resolverObserver = observer),
+            SharedOperationContext.create(world, resolutionObserver = observer),
             worldFixture.schemas.operationSelectionsFrom("{ item { visible } }"),
         )
 
@@ -171,7 +171,7 @@ interface SelectiveTypeCheckerExactnessContract {
                             },
                             schema.loweredSchema.requireObjectField("Raw", "active") to fieldResolverOf(
                                 schema.fragmentFrom("fragment Input on Raw { dependency { value } }"),
-                            ) { input, _ -> (input.get("dependency") as viaduct.engine.api.EngineObjectData.Sync).get("value") },
+                            ) { input, _ -> (input.get("dependency") as EngineObjectData.Sync).get("value") },
                         )
                     },
                     typeCheckers = { schema ->
@@ -186,7 +186,7 @@ interface SelectiveTypeCheckerExactnessContract {
                                 val input = inputs.getValue("input").objectValue
                                 assertTrue(input.getSelections().iterator().hasNext())
                                 if (name == "Item") {
-                                    val raw = input.get("raw") as viaduct.engine.api.EngineObjectData.Sync
+                                    val raw = input.get("raw") as EngineObjectData.Sync
                                     assertEquals(2, raw.get("token"))
                                     assertEquals(3, raw.get("active"))
                                 }
@@ -337,10 +337,10 @@ interface SelectiveTypeCheckerExactnessContract {
         val queryRoots = (1..2).map { id ->
             val key = world.t4Key("Query", "item", mapOf("id" to id))
             val childId = ResolverOccurrenceId.at(run.result, listOf(key))
-            val fieldQuery = run.checkerObserver.queryFragmentResults(ResolverTarget.FieldCheckerTarget(key.field), childId).single()
-            val typeQuery = run.checkerObserver.queryFragmentResults(ResolverTarget.TypeCheckerTarget(world.schema.requireType("Item") as ViaductSchema.Object), childId).single()
+            val fieldQuery = run.resolutionObserver.queryFragmentResults(ResolverTarget.FieldCheckerTarget(key.field), childId).single()
+            val typeQuery = run.resolutionObserver.queryFragmentResults(ResolverTarget.TypeCheckerTarget(world.schema.requireType("Item") as ViaductSchema.Object), childId).single()
             val valueId = ResolverOccurrenceId.at(run.result, listOf(key, world.t4Key("Item", "value")))
-            assertSame(typeQuery, run.checkerObserver.queryFragmentResults(ResolverTarget.FieldCheckerTarget(world.schema.requireObjectField("Item", "value")), valueId).single())
+            assertSame(typeQuery, run.resolutionObserver.queryFragmentResults(ResolverTarget.FieldCheckerTarget(world.schema.requireObjectField("Item", "value")), valueId).single())
             assertNotSame(fieldQuery, typeQuery)
             assertNotSame(run.result, typeQuery)
             fieldQuery to typeQuery
@@ -391,7 +391,7 @@ interface SelectiveTypeCheckerExactnessContract {
                             mapOf("input" to schema.t4Pair(name, if (name == "Child") "parent { secret }" else "", "marker"))
                         ) { inputs, _ ->
                             assertEquals(9, inputs.getValue("input").queryValue.get("marker"))
-                            if (name == "Child") assertEquals(7, (inputs.getValue("input").objectValue.get("parent") as viaduct.engine.api.EngineObjectData.Sync).get("secret"))
+                            if (name == "Child") assertEquals(7, (inputs.getValue("input").objectValue.get("parent") as EngineObjectData.Sync).get("secret"))
                             CheckerResult.Success
                         }
                     }
@@ -514,18 +514,17 @@ interface SelectiveTypeCheckerExactnessContract {
         query: String
     ): TypeExactnessRun {
         val recorder = CheckerApplicationRecorder()
-        val checkerObserver = CorrectnessCheckerObserver(recorder)
         val invocations = CopyOnWriteArrayList<ResolverInvocationObservation>()
-        val observer = object : CorrectnessResolverObserver() {
-            override fun onResolverInvocation(observation: ResolverInvocationObservation) {
+        val observer = object : CorrectnessResolverObserver(recorder) {
+            override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { observation ->
                 super.onResolverInvocation(observation)
                 invocations += observation
             }
         }
-        val operation = SharedOperationContext.create(world.assumptions, resolverObserver = observer, checkerObserver = checkerObserver)
+        val operation = SharedOperationContext.create(world.assumptions, resolutionObserver = observer)
         val selections = world.schemas.operationSelectionsFrom(query)
         val result = coroutineResolverSubject.resolve(operation, selections)
-        return TypeExactnessRun(operation, selections, result, recorder, checkerObserver, invocations)
+        return TypeExactnessRun(operation, selections, result, recorder, observer, invocations)
     }
 }
 
@@ -534,7 +533,7 @@ private class TypeExactnessRun(
     val selections: SelectionForest,
     val result: ObjectEngineResult,
     val recorder: CheckerApplicationRecorder,
-    val checkerObserver: CorrectnessCheckerObserver,
+    val resolutionObserver: CorrectnessResolverObserver,
     val invocations: List<ResolverInvocationObservation>,
 ) {
     fun type(

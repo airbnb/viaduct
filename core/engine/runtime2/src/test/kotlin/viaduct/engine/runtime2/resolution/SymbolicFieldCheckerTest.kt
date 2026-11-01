@@ -9,7 +9,6 @@ import kotlin.test.assertTrue
 import viaduct.engine.api.CheckerResult
 import viaduct.engine.runtime2.contract.CheckerApplicationRecorder
 import viaduct.engine.runtime2.contract.registeredCheckerApplications
-import viaduct.engine.runtime2.correctresolution.CorrectnessCheckerObserver
 import viaduct.engine.runtime2.correctresolution.CorrectnessResolverObserver
 import viaduct.engine.runtime2.correctresolution.correctResolution
 import viaduct.engine.runtime2.model.Arguments
@@ -150,14 +149,14 @@ open class SymbolicFieldCheckerTest : ResolutionDispatcherResource {
         assertEquals(4, resolution.recorder.checkerApplications().size)
         assertEquals(
             2,
-            resolution.checkers
-                .allQueryFragmentResults()
+            resolution.observer
+                .allCheckerQueryFragmentResults()
                 .values
                 .flatten()
                 .toSet()
                 .size
         )
-        val invocations = resolution.resolvers.allResolverInvocations()
+        val invocations = resolution.observer.allResolverInvocations()
         assertEquals(2, invocations.count { it.field.name == "viewer" })
         assertEquals(4, invocations.count { it.field.name == "result" })
     }
@@ -322,22 +321,23 @@ open class SymbolicFieldCheckerTest : ResolutionDispatcherResource {
         beforeReplay: () -> Unit = {},
     ): Resolution {
         val recorder = CheckerApplicationRecorder()
-        val checkers = CorrectnessCheckerObserver(recorder)
-        val resolvers = CorrectnessResolverObserver()
-        val operation = SharedOperationContext.create(world.newAssumptions(usePrecomputedConstructionDemand = precomputedConstructionDemand), resolverObserver = resolvers, checkerObserver = checkers)
+        val observer = CorrectnessResolverObserver(recorder)
+        val operation = SharedOperationContext.create(
+            world.newAssumptions(usePrecomputedConstructionDemand = precomputedConstructionDemand),
+            resolutionObserver = observer,
+        )
         val selections = world.schemas.operationSelectionsFrom(query)
         val result = operation.resolveWithTestDispatcher(selections)
         beforeReplay()
         assertTrue(result.correctResolution(operation, selections.merge(result.type)), "checker-aware correctness")
         assertTrue(recorder.hasExactlyCheckerApplications(result.registeredCheckerApplications(operation)))
-        return Resolution(result, recorder, checkers, resolvers, operation)
+        return Resolution(result, recorder, observer, operation)
     }
 
     private class Resolution(
         val result: ObjectEngineResult,
         val recorder: CheckerApplicationRecorder,
-        val checkers: CorrectnessCheckerObserver,
-        val resolvers: CorrectnessResolverObserver,
+        val observer: CorrectnessResolverObserver,
         val operation: SharedOperationContext<*>,
     )
 }

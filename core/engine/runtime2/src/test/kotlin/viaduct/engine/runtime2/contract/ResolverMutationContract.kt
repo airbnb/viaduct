@@ -35,7 +35,7 @@ interface ResolverMutationContract : ResolverContract {
                             ordinaryAssumptions,
                             ordinaryAssumptions.objectOf("Query"),
                             ordinaryFragment.subselections,
-                            resolverObserver = registry.resolverObserver(),
+                            resolutionObserver = registry.resolutionObserver(),
                         )
                     val ordinary = ordinaryResolution.result
                     assertTrue(
@@ -62,7 +62,7 @@ interface ResolverMutationContract : ResolverContract {
                                         mutantAssumptions,
                                         mutantAssumptions.objectOf("Query"),
                                         fragment.subselections,
-                                        resolverObserver = registry.resolverObserver(resolverProgramMutation = mutation),
+                                        resolutionObserver = registry.resolutionObserver(resolverProgramMutation = mutation),
                                     )
                                 }
                             val witness = registry.resolutionWitness()

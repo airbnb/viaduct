@@ -6,6 +6,8 @@ import kotlin.test.assertTrue
 import viaduct.engine.runtime2.execution.testing.ExecutionTestFixtureResource
 import viaduct.engine.runtime2.execution.testing.assertResult
 import viaduct.engine.runtime2.model.testing.TestWorld
+import viaduct.engine.runtime2.resolution.framework.ResolutionObserver
+import viaduct.engine.runtime2.resolution.framework.ResolverInvocationObservation
 
 /**
  * GraphQL-boundary smoke coverage for deterministic Resolution scenarios.
@@ -42,8 +44,8 @@ class GraphQLExecuteSmokeTest : ExecutionTestFixtureResource {
               value: Int
             }
             """.trimIndent()
-        val observer = object : viaduct.engine.runtime2.resolution.framework.ResolverObserver {
-            override fun onResolverInvocation(observation: viaduct.engine.runtime2.resolution.framework.ResolverInvocationObservation) {
+        val observer = object : ResolutionObserver {
+            override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { observation ->
                 val field = observation.field
                 applications += "${field.containingDef.name}.${field.name}"
             }
@@ -83,7 +85,7 @@ class GraphQLExecuteSmokeTest : ExecutionTestFixtureResource {
                 world = world,
             )
 
-        fixture.runQuery("query { __typename }", resolverObserver = observer).assertResult(
+        fixture.runQuery("query { __typename }", resolutionObserver = observer).assertResult(
             mapOf("__typename" to "Query"),
         )
         assertTrue(applications.isEmpty())
@@ -113,7 +115,7 @@ class GraphQLExecuteSmokeTest : ExecutionTestFixtureResource {
                   namedKind: __typename
                 }
                 """.trimIndent(),
-                resolverObserver = observer,
+                resolutionObserver = observer,
             )
 
         result.assertResult(

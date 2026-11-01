@@ -3,6 +3,7 @@ package viaduct.engine.runtime2.resolution
 import java.util.concurrent.atomic.AtomicBoolean
 import viaduct.apiannotations.InternalApi
 import viaduct.engine.runtime2.model.requireQueryTypeDef
+import viaduct.engine.runtime2.resolution.framework.ResolutionTask
 import viaduct.engine.runtime2.resolution.framework.SharedOERContext
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 import viaduct.engine.runtime2.resolution.framework.SharedOrchestrationTask
@@ -17,6 +18,7 @@ abstract class CoroutineOrchestrationTaskBase<O : SharedOperationContext<*>>(
     final override val objectOER: SharedOERContext,
     queryOER: SharedOERContext =
         SharedOERContext.undemandedQuery(operation.world.schema.requireQueryTypeDef()),
+    final override val creator: ResolutionTask? = null,
 ) : SharedOrchestrationTask<O> {
     final override val queryOER: SharedOERContext = queryOER
 

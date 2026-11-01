@@ -793,7 +793,7 @@ class GeneratorTest {
             registry.clearResolutionApplicationCounts()
             val operation = viaduct.engine.runtime2.resolution.framework.SharedOperationContext.create(
                 world = Assumptions.of(countWorld.schema, countWorld.resolverRegistry, false),
-                resolverObserver = registry.resolverObserver(captureResolutionWitness = false),
+                resolutionObserver = registry.resolutionObserver(captureResolutionWitness = false),
             )
             val generatedField = schema.query.fields.single { it.name == coordinate.fieldName }
             val subselection = if (schema.isComposite(generatedField.type.namedType)) " { __typename }" else ""

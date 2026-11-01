@@ -60,7 +60,7 @@ interface ObjectFragmentFromArgumentResolverContract :
                 }
                 """.trimIndent(),
                 variables = mapOf("first" to 7, "second" to 8),
-                resolverObserver = applicationArguments,
+                resolutionObserver = applicationArguments,
             )
         val resolved = resolution.result
 

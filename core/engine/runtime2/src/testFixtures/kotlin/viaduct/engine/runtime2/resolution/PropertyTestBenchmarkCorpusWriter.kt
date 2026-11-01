@@ -8,6 +8,7 @@ import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.runBlocking
 import viaduct.engine.runtime2.arbitrary.RESOLVER_TEST_CASE_PROPERTY
 import viaduct.engine.runtime2.arbitrary.ResolutionWitness
+import viaduct.engine.runtime2.arbitrary.TestCaseCount
 import viaduct.engine.runtime2.arbitrary.checkResolverTestCases
 import viaduct.engine.runtime2.arbitrary.encodeResolverBenchmarkCorpus
 import viaduct.engine.runtime2.contract.registeredResolverApplicationIdentityCounts
@@ -61,10 +62,10 @@ object PropertyTestBenchmarkCorpusWriter {
                         val appliedResolverOccurrences =
                             ConcurrentHashMap.newKeySet<ResolverOccurrenceId>()
 
-                        val witnessObserver = testCase.registry.resolverObserver()
+                        val witnessObserver = testCase.registry.resolutionObserver()
 
                         val recordingObserver = object : CorrectnessResolverObserver() {
-                            override fun onResolverInvocation(observation: ResolverInvocationObservation) {
+                            override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { observation ->
                                 super.onResolverInvocation(observation)
                                 witnessObserver.onResolverInvocation(observation)
                                 appliedResolverOccurrences += observation.resolverOccurrenceId
@@ -73,7 +74,7 @@ object PropertyTestBenchmarkCorpusWriter {
                         val operation =
                             SharedOperationContext.create(
                                 world,
-                                resolverObserver = recordingObserver,
+                                resolutionObserver = recordingObserver,
                             )
                         val result: ObjectEngineResult =
                             operation.resolve(
@@ -154,5 +155,5 @@ object PropertyTestBenchmarkCorpusWriter {
         println("Wrote frozen property-test benchmark corpus to $outputDirectory")
     }
 
-    private fun viaduct.engine.runtime2.arbitrary.TestCaseCount.summary(): String = "$schemas:$registriesPerSchema:$queriesPerSchema"
+    private fun TestCaseCount.summary(): String = "$schemas:$registriesPerSchema:$queriesPerSchema"
 }

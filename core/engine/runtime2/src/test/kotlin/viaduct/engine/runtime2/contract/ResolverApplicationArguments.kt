@@ -2,14 +2,16 @@ package viaduct.engine.runtime2.contract
 
 import io.kotest.matchers.collections.shouldContainExactlyInAnyOrder
 import kotlin.test.assertEquals
+import viaduct.engine.runtime2.correctresolution.CorrectnessResolverObserver
 import viaduct.engine.runtime2.model.Arguments
+import viaduct.engine.runtime2.resolution.framework.ResolverInvocationObservation
 import viaduct.graphql.schema.ViaductSchema
 
 /** Records invocation arguments without retaining materialized input graphs. */
-open class ResolverApplicationArguments : viaduct.engine.runtime2.correctresolution.CorrectnessResolverObserver() {
+open class ResolverApplicationArguments : CorrectnessResolverObserver() {
     private val argumentsByField = linkedMapOf<ViaductSchema.Field, MutableList<Arguments.Resolved>>()
 
-    override fun onResolverInvocation(observation: viaduct.engine.runtime2.resolution.framework.ResolverInvocationObservation) {
+    override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { observation ->
         super.onResolverInvocation(observation)
         synchronized(argumentsByField) {
             argumentsByField.getOrPut(observation.field, ::mutableListOf).add(observation.arguments)

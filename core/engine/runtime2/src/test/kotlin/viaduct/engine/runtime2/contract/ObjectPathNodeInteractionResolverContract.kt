@@ -83,7 +83,7 @@ interface ObjectPathNodeInteractionResolverContract : ResolverContract {
     fun `retains potential demand through a passive node reference`() {
         var triggerInputKeys: Set<String>? = null
         val invocationObserver = object : ResolverApplicationArguments() {
-            override fun onResolverInvocation(observation: ResolverInvocationObservation) {
+            override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { observation ->
                 super.onResolverInvocation(observation)
                 val field = observation.field
                 val input = observation.input
@@ -155,7 +155,7 @@ interface ObjectPathNodeInteractionResolverContract : ResolverContract {
                       driver { id }
                     }
             """.trimIndent(),
-            resolverObserver = invocationObserver,
+            resolutionObserver = invocationObserver,
         )
 
         invocationObserver.assertApplicationCount(

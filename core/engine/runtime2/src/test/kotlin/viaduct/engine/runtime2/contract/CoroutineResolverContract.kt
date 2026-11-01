@@ -48,13 +48,13 @@ import viaduct.engine.runtime2.model.sameCompletedResultAs
 import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.emptyFragmentOf
 import viaduct.engine.runtime2.model.testing.fragmentFrom
-import viaduct.engine.runtime2.model.testing.objectOf
 import viaduct.engine.runtime2.model.toCanonicalMaterializeSelectionForest
 import viaduct.engine.runtime2.resolution.framework.CycleCheckState
 import viaduct.engine.runtime2.resolution.framework.CycleSlotKind
 import viaduct.engine.runtime2.resolution.framework.CycleTask
+import viaduct.engine.runtime2.resolution.framework.OEROccurrence
+import viaduct.engine.runtime2.resolution.framework.ResolutionObserver
 import viaduct.engine.runtime2.resolution.framework.ResolverInvocationObservation
-import viaduct.engine.runtime2.resolution.framework.ResolverObserver
 import viaduct.engine.runtime2.resolution.framework.ResolverReadCycleException
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 import viaduct.engine.runtime2.schema.operationSelectionsFrom
@@ -84,8 +84,7 @@ abstract class CoroutineResolverTestSubject {
                     usePrecomputedConstructionDemand = true,
                 ),
                 variableBindings = operation.variableBindings,
-                resolverObserver = operation.resolverObserver,
-                checkerObserver = operation.checkerObserver,
+                resolutionObserver = operation.resolutionObserver,
                 engineExecutionContext = operation.engineExecutionContext,
             )
         }
@@ -118,28 +117,22 @@ interface CoroutineResolverContract {
     fun `installs every local promise before any local producer starts`() {
         val registeredKeys = linkedSetOf<ObjectEngineResult.GroundKey>()
         var producerStarts = 0
-        val invocationObserver = object : ResolverObserver {
-            override fun onResolverInvocation(observation: ResolverInvocationObservation) {
+        val invocationObserver = object : ResolutionObserver {
+            override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { _ ->
                 producerStarts += 1
                 assertEquals(setOf("first", "second"), registeredKeys.map { it.field.name }.toSet())
             }
         }
         val testWorld =
-            TestWorld.fromSDL(
-                schemaSDL = "type Query { first: Int!, second: Int! }",
+            TestWorld.fromDSL(
                 selectiveResolvers = selectiveResolvers,
-                fieldResolvers = { schema ->
-                    mapOf(
-                        schema.loweredSchema.requireField("Query", "first") to
-                            fieldResolverOf(
-                                schema.loweredSchema.emptyFragmentOf("Query"),
-                            ) { _, _ -> 1 },
-                        schema.loweredSchema.requireField("Query", "second") to
-                            fieldResolverOf(
-                                schema.loweredSchema.emptyFragmentOf("Query"),
-                            ) { _, _ -> 2 },
-                    )
-                },
+                schemaSDL =
+                    """
+                    extend type Query {
+                     first: Int! @resolver(result: 1)
+                     second: Int! @resolver(result: 2)
+                    }
+                    """.trimIndent(),
             )
         val world = testWorld.assumptions
         val expectedKeys =
@@ -166,7 +159,7 @@ interface CoroutineResolverContract {
         val selections =
             testWorld.schemas.fragmentFrom("fragment ignored on Query { first second }").subselections
 
-        resolve(SharedOperationContext.create(world, resolverObserver = invocationObserver), selections, cycleChecker)
+        resolve(SharedOperationContext.create(world, resolutionObserver = invocationObserver), selections, cycleChecker)
 
         assertEquals(expectedKeys, registeredKeys)
         assertEquals(2, producerStarts)
@@ -175,29 +168,16 @@ interface CoroutineResolverContract {
     @Test
     fun `installs active child promises before publishing their ancestor value`() {
         val testWorld =
-            TestWorld.fromSDL(
+            TestWorld.fromDSL(
+                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
-                    type Child { first: Int!, second: Int! }
-                    type Query { child: Child! }
+                    extend type Query { child: Child! @resolver(result: {}) }
+                    type Child {
+                     first: Int! @resolver(result: 1)
+                     second: Int! @resolver(result: 2)
+                    }
                     """.trimIndent(),
-                selectiveResolvers = selectiveResolvers,
-                fieldResolvers = { schema ->
-                    mapOf(
-                        schema.loweredSchema.requireField("Query", "child") to
-                            fieldResolverOf(
-                                schema.loweredSchema.emptyFragmentOf("Query"),
-                            ) { _, _ -> schema.loweredSchema.objectOf("Child") },
-                        schema.loweredSchema.requireField("Child", "first") to
-                            fieldResolverOf(
-                                schema.loweredSchema.emptyFragmentOf("Child"),
-                            ) { _, _ -> 1 },
-                        schema.loweredSchema.requireField("Child", "second") to
-                            fieldResolverOf(
-                                schema.loweredSchema.emptyFragmentOf("Child"),
-                            ) { _, _ -> 2 },
-                    )
-                },
             )
         val world = testWorld.assumptions
         val childKey = world.schema.groundKey("Query", "child")
@@ -450,14 +430,15 @@ interface CoroutineResolverContract {
                 assertCompletedAndWriteOnce(result)
                 continue
             }
-            val observer = object : ResolverObserver {
-                override fun onQueryFragmentPrepared(
-                    resolverOccurrenceId: ResolverOccurrenceId,
-                    result: ObjectEngineResult
-                ): Nothing = throw failure
+            val observer = object : ResolutionObserver {
+                override val onQueryFragmentPrepared: (
+                    ResolverOccurrenceId,
+                    ObjectEngineResult,
+                    OEROccurrence?
+                ) -> Unit = { _, _, _ -> throw failure }
             }
             val result = resolve(
-                SharedOperationContext.create(world, resolverObserver = observer),
+                SharedOperationContext.create(world, resolutionObserver = observer),
                 worldFixture.schemas.operationSelectionsFrom("{ consumer reference healthy }"),
             )
             for (name in listOf("consumer", "reference")) {
@@ -518,16 +499,17 @@ interface CoroutineResolverContract {
                     },
                 )
             val world = testWorld.assumptions
-            val observer = object : ResolverObserver {
-                override fun onQueryFragmentPrepared(
-                    resolverOccurrenceId: ResolverOccurrenceId,
-                    result: ObjectEngineResult,
-                ): Nothing = throw failure
+            val observer = object : ResolutionObserver {
+                override val onQueryFragmentPrepared: (
+                    ResolverOccurrenceId,
+                    ObjectEngineResult,
+                    OEROccurrence?
+                ) -> Unit = { _, _, _ -> throw failure }
             }
 
             val result =
                 resolve(
-                    SharedOperationContext.create(world, resolverObserver = observer),
+                    SharedOperationContext.create(world, resolutionObserver = observer),
                     testWorld.schemas.operationSelectionsFrom("{ first second healthy }"),
                 )
 
@@ -649,11 +631,12 @@ interface CoroutineResolverContract {
                 var consumerInvoked = false
                 val worldFixture = queryFailureWorld(selectiveResolvers) { consumerInvoked = true }
                 val world = worldFixture.assumptions
-                val observer = object : ResolverObserver {
-                    override fun onQueryFragmentPrepared(
-                        resolverOccurrenceId: ResolverOccurrenceId,
-                        result: ObjectEngineResult
-                    ): Nothing {
+                val observer = object : ResolutionObserver {
+                    override val onQueryFragmentPrepared: (
+                        ResolverOccurrenceId,
+                        ObjectEngineResult,
+                        OEROccurrence?
+                    ) -> Unit = { _, _, _ ->
                         producerEntered = true
                         requestJob.cancel(cancellation)
                         throw cancellation
@@ -661,7 +644,7 @@ interface CoroutineResolverContract {
                 }
                 try {
                     val result = startResolution(
-                        SharedOperationContext.create(world, resolverObserver = observer),
+                        SharedOperationContext.create(world, resolutionObserver = observer),
                         requestScope,
                         worldFixture.schemas.operationSelectionsFrom("{ consumer }"),
                         CycleCheckState.create(),
@@ -765,31 +748,13 @@ interface CoroutineResolverContract {
     @Test
     fun `successful return is quiescent with write-once completed promises`() {
         val testWorld =
-            TestWorld.fromSDL(
+            TestWorld.fromDSL(
+                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
-                    type Item { value: Int! }
-                    type Query { items: [Item!]! }
+                    extend type Query { items: [Item!]! @resolver(result: [{}, {}]) }
+                    type Item { value: Int! @resolver(result: 7) }
                     """.trimIndent(),
-                selectiveResolvers = selectiveResolvers,
-                fieldResolvers = { schema ->
-                    val items = schema.loweredSchema.requireField("Query", "items")
-                    mapOf(
-                        items to
-                            fieldResolverOf(
-                                schema.loweredSchema.emptyFragmentOf("Query"),
-                            ) { _, _ ->
-                                listOf(
-                                    schema.loweredSchema.objectOf("Item"),
-                                    schema.loweredSchema.objectOf("Item"),
-                                )
-                            },
-                        schema.loweredSchema.requireField("Item", "value") to
-                            fieldResolverOf(
-                                schema.loweredSchema.emptyFragmentOf("Item"),
-                            ) { _, _ -> 7 },
-                    )
-                },
             )
         val world = testWorld.assumptions
         val selections =

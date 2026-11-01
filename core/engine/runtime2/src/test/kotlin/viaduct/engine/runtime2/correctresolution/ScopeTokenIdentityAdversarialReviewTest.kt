@@ -76,10 +76,7 @@ class ScopeTokenIdentityAdversarialReviewTest {
                 val key = ObjectEngineResult.GroundKey.of(world.schema.requireObjectField("Query", name), emptyMap())
                 val owner = ResolverOccurrenceId.at(result, listOf(key))
                 val containing = if (reuseScopeWrapper) sharedWrapper else OEROccurrence(result, emptyList(), result)
-                observer.onQueryOERPrepared(
-                    SharedOERContext(OEROccurrence(query, emptyList(), query), engineObjectDataOf(queryType), queryDemand),
-                    queryOERDepth = 1,
-                )
+                observer.recordQueryOERPrepared(SharedOERContext(OEROccurrence(query, emptyList(), query), engineObjectDataOf(queryType), queryDemand), null, 1)
                 observer.onQueryFragmentPrepared(owner, query, containing)
                 observer.onQueryFragmentOwnerAddress(owner, containing, key)
             }
@@ -92,7 +89,7 @@ class ScopeTokenIdentityAdversarialReviewTest {
         )
         val observer = observe(reuseScopeWrapper = false)
         val witness = recordApplications(world, observer, listOf(result) + queries)
-        val operation = SharedOperationContext.create(world, resolverObserver = observer)
+        val operation = SharedOperationContext.create(world, resolutionObserver = observer)
         assertTrue(result.correctResolution(operation, resultDemand), "The mutation preserves all values and declared input projections")
         val accepted = runCatching {
             // A per-owner execution runs source twice; reconstruction currently blesses all four
@@ -134,13 +131,14 @@ class ScopeTokenIdentityAdversarialReviewTest {
         }
         val control = CorrectnessResolverObserver()
         val controlScope = OEROccurrence(result, emptyList(), result)
-        control.onQueryOERPrepared(
+        control.recordQueryOERPrepared(
             SharedOERContext(
                 OEROccurrence(sharedQuery, emptyList(), sharedQuery),
                 engineObjectDataOf(queryType),
                 worldFixture.schemas.fragmentFrom("fragment Input on Query { middle source }").subselections.merge(queryType)
             ),
-            queryOERDepth = 1,
+            null,
+            1
         )
         listOf(result to "answer", sharedQuery to "middle").forEach { (root, name) ->
             val key = ObjectEngineResult.GroundKey.of(world.schema.requireObjectField("Query", name), emptyMap())
@@ -149,7 +147,7 @@ class ScopeTokenIdentityAdversarialReviewTest {
             control.onQueryFragmentOwnerAddress(owner, OEROccurrence(root, emptyList(), root), key)
         }
         val controlWitness = recordApplications(world, control, listOf(result, sharedQuery))
-        val controlOperation = SharedOperationContext.create(world, resolverObserver = control)
+        val controlOperation = SharedOperationContext.create(world, resolutionObserver = control)
         assertTrue(result.correctResolution(controlOperation, resultDemand))
         assertEquals(controlWitness.applicationIdentityCounts(), result.registeredResolverOccurrenceApplicationIdentityCounts(controlOperation))
 
@@ -159,20 +157,21 @@ class ScopeTokenIdentityAdversarialReviewTest {
             val owner = ResolverOccurrenceId.at(root, listOf(key))
             val containing = OEROccurrence(root, emptyList(), root)
             val selected = if (name == "answer") "middle" else "source"
-            observer.onQueryOERPrepared(
+            observer.recordQueryOERPrepared(
                 SharedOERContext(
                     OEROccurrence(query, emptyList(), query),
                     engineObjectDataOf(queryType),
                     worldFixture.schemas.fragmentFrom("fragment Input on Query { $selected }").subselections.merge(queryType)
                 ),
-                queryOERDepth = if (name == "answer") 1 else 2,
+                null,
+                if (name == "answer") 1 else 2
             )
             observer.onQueryFragmentPrepared(owner, query, containing)
             observer.onQueryFragmentOwnerAddress(owner, containing, key)
         }
         val witness = recordApplications(world, observer, listOf(result, firstQuery, secondQuery))
         assertEquals(3, witness.applications.size)
-        val operation = SharedOperationContext.create(world, resolverObserver = observer)
+        val operation = SharedOperationContext.create(world, resolutionObserver = observer)
         assertTrue(result.correctResolution(operation, resultDemand), "This misplaced root boundary preserves values")
         val accepted = runCatching {
             result.registeredResolverOccurrenceApplicationIdentityCounts(operation) == witness.applicationIdentityCounts()
@@ -218,7 +217,7 @@ class ScopeTokenIdentityAdversarialReviewTest {
                         arguments = arguments,
                         suppliedDemand = null,
                         resolverOccurrenceId = owner,
-                    ),
+                    )
                 )
                 log.record(
                     ResolverOccurrenceApplicationRecord.capture(

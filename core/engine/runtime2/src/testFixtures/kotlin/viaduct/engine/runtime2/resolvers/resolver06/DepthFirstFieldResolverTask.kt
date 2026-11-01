@@ -27,6 +27,7 @@ import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.resolution.framework.CycleCheckState
 import viaduct.engine.runtime2.resolution.framework.CycleTask
 import viaduct.engine.runtime2.resolution.framework.OEROccurrence
+import viaduct.engine.runtime2.resolution.framework.ResolutionTask
 import viaduct.engine.runtime2.resolution.framework.ResolverInvocationObservation
 import viaduct.engine.runtime2.resolution.framework.RootFieldReferenceInvocationObservation
 import viaduct.engine.runtime2.resolution.framework.SharedFieldResolverTask
@@ -56,9 +57,10 @@ class DepthFirstFieldResolverTask private constructor(
             operation: DepthFirstOperationContext,
             occurrence: OEROccurrence,
             selection: ObjectSelection,
+            creator: ResolutionTask? = null,
         ): DepthFirstFieldResolverTask =
             prepare(
-                GroundedFieldPublicationOccurrence(operation, occurrence, selection, occurrence.target.getCell(selection.key)),
+                GroundedFieldPublicationOccurrence(operation, occurrence, selection, occurrence.target.getCell(selection.key), creator = creator),
                 queryOERDepth = 0,
                 activateOnDispatch = true,
             )
@@ -144,7 +146,7 @@ class DepthFirstFieldResolverTask private constructor(
                         )
                     runBlocking {
                         // Coroutine entry is interruptible; record only after crossing that boundary.
-                        operation.resolverObserver.onResolverInvocation(
+                        operation.resolutionObserver.onResolverInvocation?.invoke(
                             ResolverInvocationObservation(
                                 occurrencePath = publicationPath,
                                 field = key.field,
@@ -155,7 +157,7 @@ class DepthFirstFieldResolverTask private constructor(
                                 arguments = arguments,
                                 suppliedDemand = invocationDemand.takeIf { operation.world.selectiveResolvers },
                                 resolverOccurrenceId = fragments.objectFragment.resolverOccurrenceId,
-                            ),
+                            )
                         )
                         resolver(
                             input = input,
@@ -181,7 +183,7 @@ class DepthFirstFieldResolverTask private constructor(
                     invocation,
                     invocationDemand,
                 )
-                operation.resolverObserver.onRootFieldReferenceInvocation(
+                operation.resolutionObserver.onRootFieldReferenceInvocation?.invoke(
                     RootFieldReferenceInvocationObservation(
                         publicationRoot = oerOccurrence.root,
                         publicationPath = publicationPath,
@@ -190,7 +192,7 @@ class DepthFirstFieldResolverTask private constructor(
                         invocationPath = invocation.invocationPath,
                         invocationKey = invocation.invocationKey,
                         suppliedDemand = invocationDemand,
-                    ),
+                    )
                 )
             }
             val passiveValue = operation.passiveValues(queryOERDepth).resolvePassiveValues(
@@ -201,6 +203,7 @@ class DepthFirstFieldResolverTask private constructor(
                 constructionDemand = constructionDemand,
                 invocationDemand = invocationDemand,
                 parent = oerOccurrence,
+                creator = this@DepthFirstFieldResolverTask,
             )
             check(publicationCell.value.complete(passiveValue)) { "Cell value was completed twice" }
         }
@@ -227,7 +230,7 @@ class DepthFirstFieldResolverTask private constructor(
         val output =
             runBlocking {
                 // Reference targets have the same interruptible coroutine-entry boundary.
-                operation.resolverObserver.onResolverInvocation(
+                operation.resolutionObserver.onResolverInvocation?.invoke(
                     ResolverInvocationObservation(
                         occurrencePath = invocation.invocationPath,
                         field = invocation.invocationKey.field,
@@ -238,7 +241,7 @@ class DepthFirstFieldResolverTask private constructor(
                         arguments = reference.arguments,
                         suppliedDemand = invocationDemand.takeIf { operation.world.selectiveResolvers },
                         resolverOccurrenceId = invocation.fragments.objectFragment.resolverOccurrenceId,
-                    ),
+                    )
                 )
                 invocation.resolver(
                     input = input,
@@ -268,7 +271,7 @@ class DepthFirstFieldResolverTask private constructor(
                 complete = operation.complete,
                 source = operation.world.resolverRegistry.createRootQueryInput(),
                 selections = queryFragment.constructionSelections,
-            ).resolve(queryFragment.resolverOccurrenceId)
+            ).resolve(queryFragment.resolverOccurrenceId, creator = this)
         return queryResult.materializeInput(
             resolver.instantiateQueryMaterializationSelections(
                 queryFragment.resolverOccurrenceId,

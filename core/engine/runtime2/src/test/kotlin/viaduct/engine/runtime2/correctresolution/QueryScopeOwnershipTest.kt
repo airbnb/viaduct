@@ -35,25 +35,17 @@ class QueryScopeOwnershipTest {
         val scopes = mutableListOf<ScopeEvent>()
         val addresses = mutableListOf<AddressEvent>()
         val recorder = object : CorrectnessResolverObserver() {
-            override fun onResolverInvocation(observation: ResolverInvocationObservation) {
+            override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { observation ->
                 super.onResolverInvocation(observation)
                 events += observation
             }
 
-            override fun onQueryFragmentPrepared(
-                resolverOccurrenceId: ResolverOccurrenceId,
-                result: ObjectEngineResult,
-                owningOccurrence: OEROccurrence,
-            ) {
+            override val onQueryFragmentPrepared: (ResolverOccurrenceId, ObjectEngineResult, OEROccurrence?) -> Unit = { resolverOccurrenceId, result, owningOccurrence ->
                 super.onQueryFragmentPrepared(resolverOccurrenceId, result, owningOccurrence)
-                scopes += ScopeEvent(resolverOccurrenceId, result, owningOccurrence)
+                if (owningOccurrence != null) scopes += ScopeEvent(resolverOccurrenceId, result, owningOccurrence)
             }
 
-            override fun onQueryFragmentOwnerAddress(
-                resolverOccurrenceId: ResolverOccurrenceId,
-                resolverOER: OEROccurrence,
-                resolverKey: ObjectEngineResult.ObjectKey,
-            ) {
+            override val onQueryFragmentOwnerAddress: (ResolverOccurrenceId, OEROccurrence, ObjectEngineResult.ObjectKey) -> Unit = { resolverOccurrenceId, resolverOER, resolverKey ->
                 super.onQueryFragmentOwnerAddress(resolverOccurrenceId, resolverOER, resolverKey)
                 addresses += AddressEvent(resolverOccurrenceId, resolverOER, resolverKey)
             }
@@ -78,7 +70,7 @@ class QueryScopeOwnershipTest {
         )
         val world = worldFixture.assumptions
         val selection = worldFixture.schemas.fragmentFrom("fragment Result on Query { items { value } }").subselections
-        val operation = SharedOperationContext.create(world, resolverObserver = recorder)
+        val operation = SharedOperationContext.create(world, resolutionObserver = recorder)
         val result = operation.resolve(selection)
         assertEquals(2, scopes.size)
         val first = scopes.first()
@@ -91,15 +83,11 @@ class QueryScopeOwnershipTest {
         // Simulate a broken implementation that caches the first scope and reports that stale
         // owning occurrence for the second list element, omitting its source application entirely.
         val malformed = CorrectnessResolverObserver()
-        malformed.onQueryOERPrepared(requireNotNull(recorder.queryOER(first.result)), 1)
+        malformed.recordQueryOERPrepared(requireNotNull(recorder.queryOER(first.result)), null, 1)
         scopes.forEach { event ->
             malformed.onQueryFragmentPrepared(event.owner, first.result, first.scope)
             val address = addresses.single { it.owner == event.owner }
-            malformed.onQueryFragmentOwnerAddress(
-                address.owner,
-                address.resolverOER,
-                address.resolverKey,
-            )
+            malformed.onQueryFragmentOwnerAddress(address.owner, address.resolverOER, address.resolverKey)
         }
         val omittedOwner = ResolverOccurrenceId.at(second.result, listOf(second.result.keys.single()))
         val mutantLog = BoundedRecorder<ResolverOccurrenceApplicationRecord>()
@@ -117,7 +105,7 @@ class QueryScopeOwnershipTest {
             )
         }
         assertEquals(4, mutantLog.snapshot().size)
-        val mutantOperation = SharedOperationContext.create(world, resolverObserver = malformed)
+        val mutantOperation = SharedOperationContext.create(world, resolutionObserver = malformed)
         val accepted = try {
             result.correctResolution(mutantOperation, selection.merge(world.schema.requireQueryTypeDef())) &&
                 result.registeredResolverOccurrenceApplicationIdentityCounts(mutantOperation) ==

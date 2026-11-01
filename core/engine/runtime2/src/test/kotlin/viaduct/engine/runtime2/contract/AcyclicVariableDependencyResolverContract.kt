@@ -49,7 +49,7 @@ interface AcyclicVariableDependencyResolverContract : ResolverContract {
         val world = testWorld.assumptions
         val cKey = world.schema.contractKey("Query", "c")
 
-        val resolved = resolveAndValidate(testWorld, "query { c }", resolverObserver = applicationArguments)
+        val resolved = resolveAndValidate(testWorld, "query { c }", resolutionObserver = applicationArguments)
 
         assertEquals(1, resolved.getCell(cKey).get())
         applicationArguments.assertDistinctArguments(
@@ -105,7 +105,7 @@ interface AcyclicVariableDependencyResolverContract : ResolverContract {
         val argumentApplications =
             ConcurrentLinkedQueue<Pair<String, Arguments.Resolved>>()
         val invocationObserver = object : CorrectnessResolverObserver() {
-            override fun onResolverInvocation(observation: ResolverInvocationObservation) {
+            override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { observation ->
                 super.onResolverInvocation(observation)
                 val field = observation.field
                 val arguments = observation.arguments
@@ -138,7 +138,7 @@ interface AcyclicVariableDependencyResolverContract : ResolverContract {
         val world = testWorld.assumptions
         val resultKey = world.schema.contractKey("Query", "result")
 
-        val resolved = resolveAndValidate(testWorld, "query { result }", resolverObserver = invocationObserver)
+        val resolved = resolveAndValidate(testWorld, "query { result }", resolutionObserver = invocationObserver)
 
         assertEquals(4, resolved.getCell(resultKey).get())
         argumentApplications.toList().shouldContainExactly(

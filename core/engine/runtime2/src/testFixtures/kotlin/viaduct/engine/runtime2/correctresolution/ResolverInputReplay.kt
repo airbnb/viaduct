@@ -39,7 +39,7 @@ fun SharedOperationContext<*>.resolverInputsForReplay(
     expectedObjectValue: EngineObjectData.Sync,
     expectedQueryValue: EngineObjectData.Sync,
 ): ResolverReplayInputs? {
-    val observer = resolverObserver as? CorrectnessResolverObserver
+    val observer = resolutionObserver as? CorrectnessResolverObserver
     if (observer == null || !observer.hasResolverInvocations()) {
         return ResolverReplayInputs(expectedObjectValue, expectedQueryValue)
     }

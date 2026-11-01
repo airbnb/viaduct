@@ -34,6 +34,9 @@ import viaduct.engine.runtime2.model.requireType
 import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.emptyFragmentOf
 import viaduct.engine.runtime2.model.testing.fragmentFrom
+import viaduct.engine.runtime2.resolution.framework.ResolutionObserver
+import viaduct.engine.runtime2.resolution.framework.ResolverInvocationObservation
+import viaduct.graphql.schema.ViaductSchema
 
 class QPlanDeferTest : ExecutionTestFixtureResource {
     @Test
@@ -148,8 +151,8 @@ class QPlanDeferTest : ExecutionTestFixtureResource {
     @Test
     fun `selective producer receives demand for initial and deferred fields`() {
         var suppliedDemand: SelectionForest? = null
-        val observer = object : viaduct.engine.runtime2.resolution.framework.ResolverObserver {
-            override fun onResolverInvocation(observation: viaduct.engine.runtime2.resolution.framework.ResolverInvocationObservation) {
+        val observer = object : ResolutionObserver {
+            override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { observation ->
                 val field = observation.field
                 val demand = observation.suppliedDemand
                 if (field.name == "viewer") suppliedDemand = demand
@@ -162,7 +165,7 @@ class QPlanDeferTest : ExecutionTestFixtureResource {
                     val viewerField = schema.loweredSchema.requireObjectField("Query", "viewer")
                     val viewerType =
                         schema.loweredSchema.requireType("Viewer") as
-                            viaduct.graphql.schema.ViaductSchema.Object
+                            ViaductSchema.Object
                     mapOf(
                         viewerField to
                             selectiveFieldResolverOf(
@@ -181,12 +184,12 @@ class QPlanDeferTest : ExecutionTestFixtureResource {
         val initial =
             assertIs<IncrementalExecutionResult>(
                 fixture
-                    .runQueryAsync(NESTED_DEFER_QUERY, incrementalSupport = true, resolverObserver = observer)
+                    .runQueryAsync(NESTED_DEFER_QUERY, incrementalSupport = true, resolutionObserver = observer)
                     .get(5, TimeUnit.SECONDS),
             )
         initial.incrementalItemPublisher.nextIncrementalResult().get(5, TimeUnit.SECONDS)
 
-        val viewer = world.schema.requireType("Viewer") as viaduct.graphql.schema.ViaductSchema.Object
+        val viewer = world.schema.requireType("Viewer") as ViaductSchema.Object
         assertEquals(
             setOf("fast", "slow"),
             requireNotNull(suppliedDemand)
@@ -351,7 +354,7 @@ class QPlanDeferTest : ExecutionTestFixtureResource {
                 schemaSDL = NESTED_SCHEMA,
                 fieldResolvers = { schema ->
                     val viewer = schema.loweredSchema.requireObjectField("Query", "viewer")
-                    val viewerType = schema.loweredSchema.requireType("Viewer") as viaduct.graphql.schema.ViaductSchema.Object
+                    val viewerType = schema.loweredSchema.requireType("Viewer") as ViaductSchema.Object
                     val fast = schema.loweredSchema.requireObjectField("Viewer", "fast")
                     val slow = schema.loweredSchema.requireObjectField("Viewer", "slow")
                     val dependency = schema.loweredSchema.requireObjectField("Viewer", "dependency")
@@ -394,7 +397,7 @@ class QPlanDeferTest : ExecutionTestFixtureResource {
                     val a = schema.loweredSchema.requireObjectField("Query", "a")
                     val aType =
                         schema.loweredSchema.requireType("A") as
-                            viaduct.graphql.schema.ViaductSchema.Object
+                            ViaductSchema.Object
                     val ab = schema.loweredSchema.requireObjectField("A", "ab")
                     val ac = schema.loweredSchema.requireObjectField("A", "ac")
                     mapOf(

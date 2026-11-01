@@ -222,13 +222,13 @@ private suspend fun runResolutionMultithreadedStress(
                 ConcurrentHashMap.newKeySet<ResolverOccurrenceId>()
 
             val recordingObserver = object : CorrectnessResolverObserver() {
-                override fun onResolverInvocation(observation: ResolverInvocationObservation) {
+                override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { observation ->
                     super.onResolverInvocation(observation)
                     appliedResolverOccurrences += observation.resolverOccurrenceId
                 }
             }
             val operation =
-                SharedOperationContext.create(world, resolverObserver = recordingObserver)
+                SharedOperationContext.create(world, resolutionObserver = recordingObserver)
             val result: ObjectEngineResult =
                 operation.resolve(
                     selections = fragment.subselections,

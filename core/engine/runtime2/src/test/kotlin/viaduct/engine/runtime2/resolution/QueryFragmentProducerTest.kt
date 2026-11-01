@@ -37,7 +37,7 @@ import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.emptyFragmentOf
 import viaduct.engine.runtime2.model.testing.fragmentFrom
 import viaduct.engine.runtime2.resolution.framework.OEROccurrence
-import viaduct.engine.runtime2.resolution.framework.ResolverObserver
+import viaduct.engine.runtime2.resolution.framework.ResolutionObserver
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 import viaduct.engine.runtime2.schema.operationSelectionsFrom
 
@@ -49,11 +49,12 @@ class QueryFragmentProducerTest : ResolutionDispatcherResource {
             val consumerInvoked = AtomicBoolean()
             var consumerOccurrence: ResolverOccurrenceId? = null
             val observer =
-                object : ResolverObserver {
-                    override fun onQueryFragmentPrepared(
-                        resolverOccurrenceId: ResolverOccurrenceId,
-                        result: ObjectEngineResult,
-                    ): Nothing {
+                object : ResolutionObserver {
+                    override val onQueryFragmentPrepared: (
+                        ResolverOccurrenceId,
+                        ObjectEngineResult,
+                        OEROccurrence?
+                    ) -> Unit = { resolverOccurrenceId, _, _ ->
                         consumerOccurrence = resolverOccurrenceId
                         throw failure
                     }
@@ -99,7 +100,7 @@ class QueryFragmentProducerTest : ResolutionDispatcherResource {
                 val requestScope = CoroutineScope(dispatcher + requestJob)
                 try {
                     val resolution =
-                        startQueryFragmentResolution(requestScope, ResolverObserver.NOP) {}
+                        startQueryFragmentResolution(requestScope, ResolutionObserver.NOP) {}
 
                     // Optionally enter the field task so it launches its provider read.
                     if (!cancelBeforeFieldEntry) dispatcher.runNext()
@@ -126,11 +127,12 @@ class QueryFragmentProducerTest : ResolutionDispatcherResource {
             val requestJob = Job()
             val requestScope = CoroutineScope(dispatcher + requestJob)
             val queryOccurrences = mutableListOf<ResolverOccurrenceId>()
-            val observer = object : ResolverObserver {
-                override fun onQueryFragmentPrepared(
-                    resolverOccurrenceId: ResolverOccurrenceId,
-                    result: ObjectEngineResult
-                ) {
+            val observer = object : ResolutionObserver {
+                override val onQueryFragmentPrepared: (
+                    ResolverOccurrenceId,
+                    ObjectEngineResult,
+                    OEROccurrence?
+                ) -> Unit = { resolverOccurrenceId, _, _ ->
                     queryOccurrences += resolverOccurrenceId
                     requestJob.cancel(CancellationException("cancelled during reference Query production"))
                 }
@@ -162,7 +164,7 @@ class QueryFragmentProducerTest : ResolutionDispatcherResource {
 
     private fun startQueryFragmentResolution(
         requestScope: CoroutineScope,
-        observer: ResolverObserver,
+        observer: ResolutionObserver,
         useReference: Boolean = false,
         suspendVariablesProvider: Boolean = false,
         onConsumerInvocation: () -> Unit,
@@ -225,7 +227,7 @@ class QueryFragmentProducerTest : ResolutionDispatcherResource {
         val selections = world.schemas.operationSelectionsFrom(
             if (useReference) "query { reference }" else "query { consumer }",
         )
-        val baseOperation = SharedOperationContext.create(world.assumptions, resolverObserver = observer)
+        val baseOperation = SharedOperationContext.create(world.assumptions, resolutionObserver = observer)
         val operation =
             OperationContext.create(
                 base = baseOperation,

@@ -6,7 +6,6 @@ import viaduct.engine.runtime2.arbitrary.ArbitraryRegistry
 import viaduct.engine.runtime2.arbitrary.FieldCoordinate
 import viaduct.engine.runtime2.arbitrary.GeneratedFieldCheckerMode
 import viaduct.engine.runtime2.arbitrary.ResolverTestRun
-import viaduct.engine.runtime2.correctresolution.CorrectnessCheckerObserver
 import viaduct.engine.runtime2.correctresolution.CorrectnessResolverObserver
 import viaduct.engine.runtime2.model.ListEngineResult
 import viaduct.engine.runtime2.model.ObjectEngineResult
@@ -196,21 +195,20 @@ private fun ArbitraryRegistry.fieldCheckerCoverage(
             }
     val activatedApplications = linkedMapOf<GeneratedFieldCheckerCoverageSignature, Int>()
     observation.executions.forEach { execution ->
-        val resolverObserver = execution.operation.resolverObserver as CorrectnessResolverObserver
-        val checkerObserver = execution.operation.checkerObserver as CorrectnessCheckerObserver
+        val resolutionObserver = execution.operation.resolutionObserver as CorrectnessResolverObserver
         val associatedRoots =
             Collections.newSetFromMap(IdentityHashMap<ObjectEngineResult, Boolean>()).apply {
-                resolverObserver.allQueryFragmentResults().values.flatten().forEach(::add)
-                checkerObserver.allQueryFragmentResults().values.flatten().forEach(::add)
+                resolutionObserver.allQueryFragmentResults().values.flatten().forEach(::add)
+                resolutionObserver.allCheckerQueryFragmentResults().values.flatten().forEach(::add)
             }
         val ownersByAssociatedRoot =
             IdentityHashMap<ObjectEngineResult, MutableSet<ResolverOccurrenceId>>()
-        resolverObserver.allQueryFragmentResults().forEach { (owner, roots) ->
+        resolutionObserver.allQueryFragmentResults().forEach { (owner, roots) ->
             roots.forEach { root ->
                 ownersByAssociatedRoot.computeIfAbsent(root) { linkedSetOf() }.add(owner)
             }
         }
-        checkerObserver.allQueryFragmentResults().forEach { (checkerOwner, roots) ->
+        resolutionObserver.allCheckerQueryFragmentResults().forEach { (checkerOwner, roots) ->
             val owner = checkerOwner.second
             roots.forEach { root ->
                 ownersByAssociatedRoot.computeIfAbsent(root) { linkedSetOf() }.add(owner)
@@ -224,7 +222,7 @@ private fun ArbitraryRegistry.fieldCheckerCoverage(
                     owners.size,
                 )
             }
-        val invokedResolvers = resolverObserver.invokedResolverOccurrences()
+        val invokedResolvers = resolutionObserver.invokedResolverOccurrences()
         execution.checkerApplications.forEach { application ->
             if (application.occurrencePath.last() !is ObjectEngineResult.GroundKey) {
                 activatedApplications.increment(GeneratedFieldCheckerCoverageSignature.SYMBOLIC_CHECKER_KEY)
@@ -281,7 +279,7 @@ private fun ArbitraryRegistry.fieldCheckerCoverage(
                 )
             }
             if (
-                resolverObserver.rootFieldReferenceInvocations().any { reference ->
+                resolutionObserver.rootFieldReferenceInvocations().any { reference ->
                     reference.publicationRoot === application.logicalQueryRoot &&
                         application.occurrencePath.startsWith(reference.publicationPath)
                 }
@@ -315,7 +313,7 @@ private fun ArbitraryRegistry.fieldCheckerCoverage(
                     )
                 }
             }
-        resolverObserver.allResolverInvocations()
+        resolutionObserver.allResolverInvocations()
             .map { invocation ->
                 sourceResolverCoordinate(
                     FieldCoordinate(
