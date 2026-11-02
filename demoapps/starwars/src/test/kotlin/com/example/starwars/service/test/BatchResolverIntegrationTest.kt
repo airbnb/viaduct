@@ -3,7 +3,6 @@ package com.example.starwars.service.test
 import io.kotest.matchers.collections.shouldContain
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
-import io.kotest.matchers.string.shouldContain
 import io.micronaut.http.client.HttpClient
 import io.micronaut.http.client.annotation.Client
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest
@@ -70,16 +69,12 @@ class BatchResolverIntegrationTest {
         characters.size() shouldBe 3
 
         // Verify rich summaries contain expected data
-        for (characterNode in characters) {
-            val richSummary = characterNode.get("richSummary").asText()
-
-            richSummary shouldContain "3 films"
-            richSummary shouldContain "from"
-            richSummary shouldContain "("
-            richSummary shouldContain ")"
-
-            println("✅ Rich summary: $richSummary")
-        }
+        val richSummaries = characters.map { it.get("richSummary").asText() }
+        richSummaries shouldBe listOf(
+            "Luke Skywalker (19BBY) from Tatooine, appears in 3 films",
+            "Princess Leia (19BBY) from Alderaan, appears in 3 films",
+            "Han Solo (29BBY) from Corellia, appears in 3 films"
+        )
     }
 
     @Test

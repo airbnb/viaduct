@@ -31,6 +31,7 @@ import viaduct.api.grts.Mutation_AddCharacterToFilm_Arguments
 import viaduct.api.grts.Mutation_CreateCharacter_Arguments
 import viaduct.api.grts.Mutation_DeleteCharacter_Arguments
 import viaduct.api.grts.Mutation_UpdateCharacterName_Arguments
+import viaduct.api.grts.Planet
 import viaduct.api.testing.ResolverTestBase
 import viaduct.apiannotations.ExperimentalApi
 
@@ -95,25 +96,29 @@ class ResolverApiUnitTests : ResolverTestBase() {
     @Test
     fun `runFieldBatchResolver returns rich summary for multiple characters`(): Unit =
         runBlocking {
-            val resolver = CharacterRichSummaryResolver(characterRepository, characterFilmsRepository)
-            val characters = characterRepository.findAll().take(2).map { char ->
-                Character.of(context) {
-                    id(globalIDFor(Character.Reflection, char.id))
-                    name(char.name)
-                    birthYear(char.birthYear)
+            val resolver = CharacterRichSummaryResolver(characterFilmsRepository)
+            val characters = characterRepository.findAll().take(2)
+                .zip(listOf("Tatooine", null))
+                .map { (char, planet) ->
+                    Character.of(context) {
+                        id(globalIDFor(Character.Reflection, char.id))
+                        name(char.name)
+                        birthYear(char.birthYear)
+                        homeworld(planet?.let { Planet.of(context) { name(it) } })
+                    }
                 }
-            }
 
             val results = runFieldBatchResolver(resolver) {
                 objectValues = characters
             }
 
-            assertEquals(2, results.size)
-            results.forEach { fv ->
-                val summary = fv.get()
-                assertNotNull(summary)
-                assertTrue(summary!!.contains("films"), "Expected 'films' in summary: $summary")
-            }
+            assertEquals(
+                listOf(
+                    "Luke Skywalker (19BBY) from Tatooine, appears in 3 films",
+                    "Princess Leia (19BBY) from Unknown world, appears in 3 films"
+                ),
+                results.map { it.get() }
+            )
         }
 
     @Test

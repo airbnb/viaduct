@@ -39,16 +39,16 @@ Spread the fragment with standard `...CharacterIdentityFields` syntax inside a r
 
 ## Reusing it alongside inline selections
 
-A spread can be combined with inline fields. `CharacterRichSummaryResolver` needs the same identity fields **plus** the character's `id` for its batch lookups, so it spreads the shared fragment and adds `id` inline:
+A spread can be combined with inline fields. `CharacterRichSummaryResolver` needs the same identity fields **plus** the character's `id` for its batch lookups and the `homeworld { name }` for its summary, so it spreads the shared fragment and adds both inline:
 
 === "Kotlin"
 
     ```kotlin
-    @Resolver(objectValueFragment = "fragment _ on Character { id ...CharacterIdentityFields }")
+    @Resolver(objectValueFragment = "fragment _ on Character { id homeworld { name } ...CharacterIdentityFields }")
     class CharacterRichSummaryResolver(/* ... */) : CharacterResolvers.RichSummary() {
         override suspend fun batchResolve(contexts: List<Context>): List<FieldValue<String>> {
             // ctx.getObjectValue().getNameOrThrow() / .getBirthYearOrThrow() come from the shared fragment,
-            // ctx.getObjectValue().getIdOrThrow() comes from the inline selection.
+            // ctx.getObjectValue().getIdOrThrow() / .getHomeworld()?.getName() come from the inline selections.
         }
     }
     ```
@@ -93,7 +93,7 @@ A selection set can spread **more than one** named fragment — that's standard 
     {{ codefile("demoapps/starwars-java/modules/filmography/src/main/java/com/example/starwars/modules/filmography/characters/resolvers/CharacterFormattedDescriptionResolver.java", lang="java") | indent(4) }}
 
 
-You can spread any number of fragments, mix them with inline fields (as the `id ...CharacterIdentityFields` example above does), and even spread fragments that themselves spread other fragments — Viaduct resolves the spreads transitively. The only constraints: each spread must resolve to a `@GraphQLFragment` declared in the same tenant module, and the fragment names must be distinct.
+You can spread any number of fragments, mix them with inline fields (as the `CharacterRichSummaryResolver` example above does), and even spread fragments that themselves spread other fragments — Viaduct resolves the spreads transitively. The only constraints: each spread must resolve to a `@GraphQLFragment` declared in the same tenant module, and the fragment names must be distinct.
 
 ## When to reach for a named fragment
 
