@@ -98,13 +98,13 @@ class ResolverApiUnitTests : ResolverTestBase() {
         runBlocking {
             val resolver = CharacterRichSummaryResolver(characterFilmsRepository)
             val characters = characterRepository.findAll().take(2)
-                .zip(listOf("Tatooine", "Alderaan"))
+                .zip(listOf("Tatooine", null))
                 .map { (char, planet) ->
                     Character.of(context) {
                         id(globalIDFor(Character.Reflection, char.id))
                         name(char.name)
                         birthYear(char.birthYear)
-                        homeworld(Planet.of(context) { name(planet) })
+                        homeworld(planet?.let { Planet.of(context) { name(it) } })
                     }
                 }
 
@@ -115,7 +115,7 @@ class ResolverApiUnitTests : ResolverTestBase() {
             assertEquals(
                 listOf(
                     "Luke Skywalker (19BBY) from Tatooine, appears in 3 films",
-                    "Princess Leia (19BBY) from Alderaan, appears in 3 films"
+                    "Princess Leia (19BBY) from Unknown world, appears in 3 films"
                 ),
                 results.map { it.get() }
             )

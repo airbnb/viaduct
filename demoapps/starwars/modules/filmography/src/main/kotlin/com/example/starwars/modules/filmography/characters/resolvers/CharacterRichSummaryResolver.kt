@@ -43,7 +43,7 @@ class CharacterRichSummaryResolver
 
                 val name = character.getNameOrThrow() ?: "Unknown"
                 val birthYear = character.getBirthYearOrThrow() ?: "Unknown"
-                val homeworldName = character.getHomeworldOrThrow()?.getNameOrThrow() ?: "Unknown world"
+                val homeworldName = character.getHomeworld()?.getName() ?: "Unknown world"
                 val filmCount = filmCounts[characterId] ?: 0
 
                 val summary = "$name ($birthYear) from $homeworldName, appears in $filmCount films"
