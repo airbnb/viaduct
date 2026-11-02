@@ -116,10 +116,16 @@ internal class FieldResolutionLogic(
         val invocationDemand: SelectionForest =
             when (sourceOccurrence) {
                 is PassiveValueOccurrence -> sourceOccurrence.invocationDemand
-                else -> constructionDemand.successorDemandFromConstructionDemand(
-                    publication.operation.world,
-                    (sourceOccurrence.publicationExpectedType.baseTypeDef as? ViaductSchema.CompositeTypeDef)?.possibleObjectTypes.orEmpty(),
-                )
+                else -> {
+                    val world = publication.operation.world
+                    val possibleRootTypes =
+                        (sourceOccurrence.publicationExpectedType.baseTypeDef as? ViaductSchema.CompositeTypeDef)?.possibleObjectTypes.orEmpty()
+                    if (world.usePlanCache) {
+                        constructionDemand.successorDemandWithPlanCache(world, possibleRootTypes)
+                    } else {
+                        constructionDemand.successorDemandFromConstructionDemand(world, possibleRootTypes)
+                    }
+                }
             }
 
         val activated = activatePublication()

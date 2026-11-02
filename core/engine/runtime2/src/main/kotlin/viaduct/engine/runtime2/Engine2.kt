@@ -54,6 +54,7 @@ import viaduct.engine.runtime.select.EngineSelectionSetFactoryImpl
 import viaduct.engine.runtime2.airbnb.DispatcherResolverRegistryFactory
 import viaduct.engine.runtime2.airbnb.Engine2ResolverRegistryFactory
 import viaduct.engine.runtime2.execution.Engine2ExecutionContext
+import viaduct.engine.runtime2.execution.OperationSelectionCache
 import viaduct.engine.runtime2.execution.QPlanCallerCancellation
 import viaduct.engine.runtime2.execution.QPlanCallerCancellationKey
 import viaduct.engine.runtime2.execution.QPlanExecutionStrategy
@@ -83,6 +84,8 @@ class Engine2(
     private val coroutineInterop: CoroutineInterop = DefaultCoroutineInterop,
     resolverRegistryFactory: Engine2ResolverRegistryFactory = DispatcherResolverRegistryFactory,
     usePrecomputedConstructionDemand: Boolean = true,
+    /** Reuses decoded operations per cached GraphQL document and the demand analyses derived from them. */
+    usePlanCache: Boolean = false,
 ) : Engine, EngineGraphQLJavaCompat {
     private val schemas = ViaductAndGJSchema.fromGraphQLSchema(fullSchema.schema)
     private val engineSelectionSetFactory = EngineSelectionSetFactoryImpl(fullSchema)
@@ -94,7 +97,9 @@ class Engine2(
         schemas.loweredSchema,
         bootstrapRegistry,
         usePrecomputedConstructionDemand = usePrecomputedConstructionDemand,
+        usePlanCache = usePlanCache,
     )
+    private val operationSelectionCache = if (usePlanCache) OperationSelectionCache() else null
     private val requestContextKey = RequestContextKey(this)
     private val qplanInstrumentation = QPlanInstrumentation()
     private val graphql =
@@ -133,6 +138,7 @@ class Engine2(
                                 engineExecutionContextFactory = ::invocationContext,
                                 dataFetcherExceptionHandler = dataFetcherExceptionHandler,
                                 worldForExecution = ::worldForExecution,
+                                operationSelectionCache = operationSelectionCache,
                             ).execute(context, parameters).await()
                         }
                 },
@@ -163,6 +169,7 @@ class Engine2(
                 schemas.loweredSchema,
                 registry,
                 usePrecomputedConstructionDemand = world.usePrecomputedConstructionDemand,
+                usePlanCache = world.usePlanCache,
             )
         }
     }

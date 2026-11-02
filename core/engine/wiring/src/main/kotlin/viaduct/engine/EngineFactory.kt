@@ -57,6 +57,7 @@ class EngineFactory(
                 additionalInstrumentation = config.additionalInstrumentation,
                 coroutineInterop = config.coroutineInterop,
                 resolverRegistryFactory = config.engine2ResolverRegistryFactory,
+                usePlanCache = config.flagManager.isEnabled(FlagManager.Flags.ENGINE2_PLAN_CACHE),
             )
             EngineKind.CURRENT -> EngineImpl(
                 config,

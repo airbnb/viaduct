@@ -419,6 +419,37 @@ internal fun finalizeClosedOERConstructionDemand(
     ) {
         "Resolution closed demand and required resolvers are misaligned"
     }
+    return closedOERConstructionDemandOf(
+        world = world,
+        passiveSource = passiveSource,
+        occurrence = occurrence,
+        constructionDemand = constructionDemand,
+        closedValueSelections = closedValueSelections,
+        checkerContexts = checkerContexts,
+        typeCheckerOccurrence = typeCheckerOccurrence,
+        resolverContexts = resolverContexts,
+        objectProviderResult = objectProviderResult,
+        queryProviderResult = queryProviderResult,
+    )
+}
+
+/**
+ * Builds the executable occurrences of one closed side from its normalized demand. The forests are
+ * occurrence-independent; the resolver, checker, and type-checker contexts carry this occurrence's
+ * identities, so a plan-cache hit can rebuild them without repeating closure or normalization.
+ */
+internal fun closedOERConstructionDemandOf(
+    world: Assumptions,
+    passiveSource: EngineObjectData.Sync?,
+    occurrence: OEROccurrence,
+    constructionDemand: Demand<ObjectSelectionForest>,
+    closedValueSelections: ObjectSelectionForest,
+    checkerContexts: Map<ObjectEngineResult.ObjectKey, CheckerContext>,
+    typeCheckerOccurrence: TypeCheckerOccurrence?,
+    resolverContexts: Map<ObjectEngineResult.ObjectKey, ResolverContext>,
+    objectProviderResult: ObjectEngineResult,
+    queryProviderResult: ObjectEngineResult,
+): ClosedOERConstructionDemandContext {
     val fieldResolverOccurrences =
         resolverContexts.mapValues { (objectKey, resolverContext) ->
             resolverContext.toFieldResolverOccurrence(

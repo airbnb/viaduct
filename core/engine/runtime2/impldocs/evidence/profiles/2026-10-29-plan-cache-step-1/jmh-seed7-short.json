@@ -1,0 +1,320 @@
+[
+    {
+        "jmhVersion" : "1.36",
+        "benchmark" : "viaduct.engine.runtime2.benchmark.PlanCacheBenchmark.execute",
+        "mode" : "ss",
+        "threads" : 1,
+        "forks" : 2,
+        "jvm" : "/Users/andi/.gradle/jdks/eclipse_adoptium-17-aarch64-os_x.2/jdk-17.0.19+10/Contents/Home/bin/java",
+        "jvmArgs" : [
+            "-Dfile.encoding=UTF-8",
+            "-Duser.country=US",
+            "-Duser.language=en",
+            "-Duser.variant"
+        ],
+        "jdkVersion" : "17.0.19",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "17.0.19+10",
+        "warmupIterations" : 5,
+        "warmupTime" : "single-shot",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 10,
+        "measurementTime" : "single-shot",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "documents" : "shared",
+            "loopCount" : "1",
+            "planCache" : "off",
+            "queryCount" : "100",
+            "seed" : "7"
+        },
+        "primaryMetric" : {
+            "score" : 407.78878965,
+            "scoreError" : 8.060697472046229,
+            "scoreConfidence" : [
+                399.7280921779538,
+                415.84948712204624
+            ],
+            "scorePercentiles" : {
+                "0.0" : 389.928083,
+                "50.0" : 408.3227085,
+                "90.0" : 418.5890039,
+                "95.0" : 421.89889404999997,
+                "99.0" : 422.066667,
+                "99.9" : 422.066667,
+                "99.99" : 422.066667,
+                "99.999" : 422.066667,
+                "99.9999" : 422.066667,
+                "100.0" : 422.066667
+            },
+            "scoreUnit" : "ms/op",
+            "rawData" : [
+                [
+                    418.711208,
+                    410.869208,
+                    416.443084,
+                    413.741625,
+                    417.489167,
+                    422.066667,
+                    407.752042,
+                    408.893375,
+                    403.834542,
+                    404.552792
+                ],
+                [
+                    412.273625,
+                    412.347916,
+                    405.80875,
+                    407.413459,
+                    406.666792,
+                    416.702291,
+                    395.909417,
+                    391.958042,
+                    392.413708,
+                    389.928083
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.36",
+        "benchmark" : "viaduct.engine.runtime2.benchmark.PlanCacheBenchmark.execute",
+        "mode" : "ss",
+        "threads" : 1,
+        "forks" : 2,
+        "jvm" : "/Users/andi/.gradle/jdks/eclipse_adoptium-17-aarch64-os_x.2/jdk-17.0.19+10/Contents/Home/bin/java",
+        "jvmArgs" : [
+            "-Dfile.encoding=UTF-8",
+            "-Duser.country=US",
+            "-Duser.language=en",
+            "-Duser.variant"
+        ],
+        "jdkVersion" : "17.0.19",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "17.0.19+10",
+        "warmupIterations" : 5,
+        "warmupTime" : "single-shot",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 10,
+        "measurementTime" : "single-shot",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "documents" : "shared",
+            "loopCount" : "1",
+            "planCache" : "on",
+            "queryCount" : "100",
+            "seed" : "7"
+        },
+        "primaryMetric" : {
+            "score" : 323.75669584999997,
+            "scoreError" : 19.020363106307762,
+            "scoreConfidence" : [
+                304.73633274369223,
+                342.7770589563077
+            ],
+            "scorePercentiles" : {
+                "0.0" : 308.702625,
+                "50.0" : 319.8975415,
+                "90.0" : 337.54555389999996,
+                "95.0" : 407.29799165,
+                "99.0" : 410.92225,
+                "99.9" : 410.92225,
+                "99.99" : 410.92225,
+                "99.999" : 410.92225,
+                "99.9999" : 410.92225,
+                "100.0" : 410.92225
+            },
+            "scoreUnit" : "ms/op",
+            "rawData" : [
+                [
+                    325.079792,
+                    322.964708,
+                    312.9445,
+                    322.321792,
+                    326.081625,
+                    410.92225,
+                    310.700667,
+                    313.742458,
+                    309.778875,
+                    308.702625
+                ],
+                [
+                    325.259416,
+                    318.352166,
+                    317.654792,
+                    322.830792,
+                    321.442917,
+                    329.521792,
+                    338.437083,
+                    315.855792,
+                    310.738334,
+                    311.801541
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.36",
+        "benchmark" : "viaduct.engine.runtime2.benchmark.PlanCacheBenchmark.execute",
+        "mode" : "ss",
+        "threads" : 1,
+        "forks" : 2,
+        "jvm" : "/Users/andi/.gradle/jdks/eclipse_adoptium-17-aarch64-os_x.2/jdk-17.0.19+10/Contents/Home/bin/java",
+        "jvmArgs" : [
+            "-Dfile.encoding=UTF-8",
+            "-Duser.country=US",
+            "-Duser.language=en",
+            "-Duser.variant"
+        ],
+        "jdkVersion" : "17.0.19",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "17.0.19+10",
+        "warmupIterations" : 5,
+        "warmupTime" : "single-shot",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 10,
+        "measurementTime" : "single-shot",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "documents" : "fresh",
+            "loopCount" : "1",
+            "planCache" : "off",
+            "queryCount" : "100",
+            "seed" : "7"
+        },
+        "primaryMetric" : {
+            "score" : 438.25236430000007,
+            "scoreError" : 40.94542609928339,
+            "scoreConfidence" : [
+                397.3069382007167,
+                479.19779039928346
+            ],
+            "scorePercentiles" : {
+                "0.0" : 405.384042,
+                "50.0" : 423.954562,
+                "90.0" : 460.8950291,
+                "95.0" : 615.8243951999999,
+                "99.0" : 623.956666,
+                "99.9" : 623.956666,
+                "99.99" : 623.956666,
+                "99.999" : 623.956666,
+                "99.9999" : 623.956666,
+                "100.0" : 623.956666
+            },
+            "scoreUnit" : "ms/op",
+            "rawData" : [
+                [
+                    413.460083,
+                    415.648833,
+                    412.145166,
+                    623.956666,
+                    457.149041,
+                    447.22675,
+                    430.69025,
+                    461.31125,
+                    424.947833,
+                    435.06325
+                ],
+                [
+                    412.138375,
+                    419.009542,
+                    409.036458,
+                    418.633791,
+                    451.120625,
+                    455.348208,
+                    437.528916,
+                    422.961291,
+                    405.384042,
+                    412.286916
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.36",
+        "benchmark" : "viaduct.engine.runtime2.benchmark.PlanCacheBenchmark.execute",
+        "mode" : "ss",
+        "threads" : 1,
+        "forks" : 2,
+        "jvm" : "/Users/andi/.gradle/jdks/eclipse_adoptium-17-aarch64-os_x.2/jdk-17.0.19+10/Contents/Home/bin/java",
+        "jvmArgs" : [
+            "-Dfile.encoding=UTF-8",
+            "-Duser.country=US",
+            "-Duser.language=en",
+            "-Duser.variant"
+        ],
+        "jdkVersion" : "17.0.19",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "17.0.19+10",
+        "warmupIterations" : 5,
+        "warmupTime" : "single-shot",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 10,
+        "measurementTime" : "single-shot",
+        "measurementBatchSize" : 1,
+        "params" : {
+            "documents" : "fresh",
+            "loopCount" : "1",
+            "planCache" : "on",
+            "queryCount" : "100",
+            "seed" : "7"
+        },
+        "primaryMetric" : {
+            "score" : 441.80658134999993,
+            "scoreError" : 58.38919205221933,
+            "scoreConfidence" : [
+                383.4173892977806,
+                500.1957734022193
+            ],
+            "scorePercentiles" : {
+                "0.0" : 390.784042,
+                "50.0" : 431.35508300000004,
+                "90.0" : 468.2323709,
+                "95.0" : 700.1975624999998,
+                "99.0" : 712.3935,
+                "99.9" : 712.3935,
+                "99.99" : 712.3935,
+                "99.999" : 712.3935,
+                "99.9999" : 712.3935,
+                "100.0" : 712.3935
+            },
+            "scoreUnit" : "ms/op",
+            "rawData" : [
+                [
+                    447.615584,
+                    466.050959,
+                    449.007666,
+                    431.141458,
+                    468.47475,
+                    712.3935,
+                    431.568708,
+                    413.824084,
+                    447.240208,
+                    422.411666
+                ],
+                [
+                    433.650458,
+                    412.188084,
+                    435.788584,
+                    407.139958,
+                    420.703417,
+                    437.941167,
+                    409.487542,
+                    398.04625,
+                    400.673542,
+                    390.784042
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    }
+]
+
+
