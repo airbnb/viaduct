@@ -1,6 +1,7 @@
 package viaduct.api.types
 
 import viaduct.apiannotations.ExperimentalApi
+import viaduct.apiannotations.StableApi
 import viaduct.tenant.runtime.jvm.ConnectionArgumentsSupport
 
 /**
@@ -13,7 +14,7 @@ import viaduct.tenant.runtime.jvm.ConnectionArgumentsSupport
  * @property before Cursor to start fetching items before (exclusive).
  * @see ForwardConnectionArguments
  */
-@ExperimentalApi
+@StableApi
 interface BackwardConnectionArguments : ConnectionArguments {
     val last: Int?
     val before: String?

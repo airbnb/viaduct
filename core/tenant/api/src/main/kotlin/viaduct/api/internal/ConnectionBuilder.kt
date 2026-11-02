@@ -13,6 +13,7 @@ import viaduct.api.types.OffsetCursor
 import viaduct.api.types.OffsetLimit
 import viaduct.apiannotations.ExperimentalApi
 import viaduct.apiannotations.InternalApi
+import viaduct.apiannotations.StableApi
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineObjectDataBuilder
 import viaduct.errors.handleFrameworkErrors
@@ -46,8 +47,8 @@ import viaduct.errors.handleFrameworkErrors
  * @see Connection
  * @see Edge
  */
-@ExperimentalApi
-@OptIn(InternalApi::class)
+@StableApi
+@OptIn(InternalApi::class, ExperimentalApi::class)
 abstract class ConnectionBuilder<C : Connection<E, N>, E : Edge<N>, N>(
     protected val executionContext: ExecutionContext,
     graphQLObjectType: GraphQLObjectType,
@@ -247,12 +248,27 @@ abstract class ConnectionBuilder<C : Connection<E, N>, E : Edge<N>, N>(
      * @param buildNode Converts each item to the edge's node value; return `null` to omit.
      * @return This builder for chaining.
      */
-    @ExperimentalApi
+    @StableApi
     fun <I> fromList(
         items: List<I>,
         buildNode: (item: I) -> N?
+    ): ConnectionBuilder<C, E, N> = fromList(items, defaultPageSize = 20, buildNode)
+
+    /**
+     * Build from a complete list, using [defaultPageSize] when `first`/`last` is omitted.
+     * An explicit `first`/`last` takes precedence; [defaultPageSize] is not a maximum.
+     *
+     * @see fromList
+     * @throws IllegalArgumentException if [defaultPageSize] is not positive.
+     */
+    @StableApi
+    fun <I> fromList(
+        items: List<I>,
+        defaultPageSize: Int,
+        buildNode: (item: I) -> N?
     ): ConnectionBuilder<C, E, N> {
-        val offsetLimit = this.arguments.toOffsetLimit()
+        require(defaultPageSize > 0) { "defaultPageSize must be positive, got: $defaultPageSize" }
+        val offsetLimit = arguments.toOffsetLimit(defaultPageSize = defaultPageSize)
         val offset = if (offsetLimit.offset < 0) maxOf(0, items.size + offsetLimit.offset) else offsetLimit.offset
         val slice = items.drop(offset).take(offsetLimit.limit)
         val hasNextPage = offset.toLong() + offsetLimit.limit.toLong() < items.size

@@ -1,6 +1,7 @@
 package viaduct.api.types
 
 import viaduct.apiannotations.ExperimentalApi
+import viaduct.apiannotations.StableApi
 
 /**
  * Typed access to the pagination inputs (`first`, `after`, `last`, `before`) of a connection field.
@@ -13,7 +14,7 @@ import viaduct.apiannotations.ExperimentalApi
  * @see BackwardConnectionArguments
  * @see MultidirectionalConnectionArguments
  */
-@ExperimentalApi
+@StableApi
 interface ConnectionArguments : Arguments {
     /**
      * Returns true if [toOffsetLimit] requires knowing the total count of items to compute

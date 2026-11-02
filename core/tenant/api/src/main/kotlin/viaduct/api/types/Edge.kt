@@ -1,6 +1,6 @@
 package viaduct.api.types
 
-import viaduct.apiannotations.ExperimentalApi
+import viaduct.apiannotations.StableApi
 
 /**
  * A wrapper around a node that also carries a `cursor` encoding the item's position in the list.
@@ -13,5 +13,5 @@ import viaduct.apiannotations.ExperimentalApi
  * @param N The type of node this edge contains.
  * @see Connection
  */
-@ExperimentalApi
+@StableApi
 interface Edge<N> : Object

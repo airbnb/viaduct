@@ -4,6 +4,7 @@
 package viaduct.api.internal
 
 import graphql.schema.GraphQLObjectType
+import io.kotest.matchers.collections.shouldContainExactly
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -508,6 +509,111 @@ class ConnectionBuilderTest {
     }
 
     // ==================== fromList tests ====================
+
+    @Test
+    fun `fromList retains the default of twenty items when no size is specified`() {
+        val builder = createBuilder()
+        val items = (0..24).map { SimpleTestNode("$it", "Node$it") }
+
+        builder.fromList(items, ::createNodeGRT)
+
+        assertPage(builder, 0..19, hasNextPage = true, hasPreviousPage = false)
+    }
+
+    @Test
+    fun `fromList allows a default large enough to return the entire list`() {
+        val builder = createBuilder()
+        val items = (0..24).map { SimpleTestNode("$it", "Node$it") }
+
+        builder.fromList(items, defaultPageSize = Int.MAX_VALUE) { createNodeGRT(it) }
+
+        assertPage(builder, 0..24, hasNextPage = false, hasPreviousPage = false)
+    }
+
+    @Test
+    fun `fromList uses the custom default after a cursor when first is omitted`() {
+        val builder = createBuilder(TestForwardArgs(after = OffsetCursor.fromOffset(4).value))
+        val items = (0..9).map { SimpleTestNode("$it", "Node$it") }
+
+        builder.fromList(items, defaultPageSize = 3) { createNodeGRT(it) }
+
+        assertPage(builder, 5..7, hasNextPage = true, hasPreviousPage = true)
+    }
+
+    @Test
+    fun `fromList uses the custom default before a cursor when last is omitted`() {
+        val builder = createBuilder(TestBackwardArgs(before = OffsetCursor.fromOffset(7).value))
+        val items = (0..9).map { SimpleTestNode("$it", "Node$it") }
+
+        builder.fromList(items, defaultPageSize = 3) { createNodeGRT(it) }
+
+        assertPage(builder, 4..6, hasNextPage = true, hasPreviousPage = true)
+    }
+
+    @Test
+    fun `fromList uses the custom default from the tail for backward arguments without a cursor`() {
+        val builder = createBuilder(TestBackwardArgs())
+        val items = (0..9).map { SimpleTestNode("$it", "Node$it") }
+
+        builder.fromList(items, defaultPageSize = 3) { createNodeGRT(it) }
+
+        assertPage(builder, 7..9, hasNextPage = false, hasPreviousPage = true)
+    }
+
+    @Test
+    fun `fromList honors explicit first even when it exceeds the custom default`() {
+        val builder = createBuilder(TestForwardArgs(first = 4))
+        val items = (0..9).map { SimpleTestNode("$it", "Node$it") }
+
+        builder.fromList(items, defaultPageSize = 2) { createNodeGRT(it) }
+
+        assertPage(builder, 0..3, hasNextPage = true, hasPreviousPage = false)
+    }
+
+    @Test
+    fun `fromList honors explicit last even when it exceeds the custom default`() {
+        val builder = createBuilder(TestMultidirectionalArgs(last = 4))
+        val items = (0..9).map { SimpleTestNode("$it", "Node$it") }
+
+        builder.fromList(items, defaultPageSize = 2) { createNodeGRT(it) }
+
+        assertPage(builder, 6..9, hasNextPage = false, hasPreviousPage = true)
+    }
+
+    @Test
+    fun `fromList rejects a nonpositive default even for an empty list with explicit first`() {
+        for (defaultPageSize in listOf(0, -1)) {
+            val builder = createBuilder(TestForwardArgs(first = 1))
+
+            assertThrows(IllegalArgumentException::class.java) {
+                builder.fromList(emptyList<SimpleTestNode>(), defaultPageSize) { createNodeGRT(it) }
+            }
+        }
+    }
+
+    private fun assertPage(
+        builder: TestConnectionBuilder,
+        positions: IntRange,
+        hasNextPage: Boolean,
+        hasPreviousPage: Boolean
+    ) = runBlocking {
+        val connection = builder.getBuiltEngineObjectData()
+        val edges = connection.fetch("edges") as List<*>
+        val nodeIds = edges.map {
+            val node = (it as EngineObjectData).fetch("node") as EngineObjectData
+            node.fetch("id")
+        }
+        nodeIds.shouldContainExactly(positions.map { "$it" })
+        val cursorOffsets = edges.map {
+            OffsetCursor((it as EngineObjectData).fetch("cursor") as String).toOffset()
+        }
+        cursorOffsets.shouldContainExactly(positions.toList())
+        val pageInfo = connection.fetch("pageInfo") as EngineObjectData
+        assertEquals(hasNextPage, pageInfo.fetch("hasNextPage"))
+        assertEquals(hasPreviousPage, pageInfo.fetch("hasPreviousPage"))
+        assertEquals(positions.first, OffsetCursor(pageInfo.fetch("startCursor") as String).toOffset())
+        assertEquals(positions.last, OffsetCursor(pageInfo.fetch("endCursor") as String).toOffset())
+    }
 
     @Test
     fun `fromList paginates full list correctly`() {

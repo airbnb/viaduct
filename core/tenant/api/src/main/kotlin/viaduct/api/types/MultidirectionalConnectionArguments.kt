@@ -1,6 +1,7 @@
 package viaduct.api.types
 
 import viaduct.apiannotations.ExperimentalApi
+import viaduct.apiannotations.StableApi
 import viaduct.tenant.runtime.jvm.ConnectionArgumentsSupport
 
 /**
@@ -15,7 +16,7 @@ import viaduct.tenant.runtime.jvm.ConnectionArgumentsSupport
  * Prefer [ForwardConnectionArguments] or [BackwardConnectionArguments] when only one direction
  * is needed.
  */
-@ExperimentalApi
+@StableApi
 interface MultidirectionalConnectionArguments :
     ForwardConnectionArguments, BackwardConnectionArguments {
     /**

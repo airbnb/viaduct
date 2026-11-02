@@ -18,6 +18,13 @@ public final class viaduct/api/context/BaseFieldExecutionContext$DefaultImpls {
 	public static fun getCaller (Lviaduct/api/context/BaseFieldExecutionContext;)Lviaduct/api/context/Caller;
 }
 
+public abstract interface class viaduct/api/context/ConnectionFieldExecutionContext : viaduct/api/context/FieldExecutionContext {
+}
+
+public final class viaduct/api/context/ConnectionFieldExecutionContext$DefaultImpls {
+	public static fun getCaller (Lviaduct/api/context/ConnectionFieldExecutionContext;)Lviaduct/api/context/Caller;
+}
+
 public abstract interface class viaduct/api/context/ExecutionContext {
 	public abstract fun getRequestContext ()Ljava/lang/Object;
 	public abstract fun globalIDFor (Lviaduct/api/reflect/Type;Ljava/lang/String;)Lviaduct/api/globalid/GlobalID;
@@ -106,6 +113,16 @@ public final class viaduct/api/globalid/GlobalID {
 	public fun toString ()Ljava/lang/String;
 }
 
+public abstract class viaduct/api/internal/ConnectionBuilder : viaduct/api/internal/ObjectBase$Builder {
+	public fun <init> (Lviaduct/api/context/ConnectionFieldExecutionContext;Lgraphql/schema/GraphQLObjectType;Lviaduct/engine/api/EngineObjectData$Sync;Lviaduct/api/reflect/Type;)V
+	public fun <init> (Lviaduct/api/context/ExecutionContext;Lgraphql/schema/GraphQLObjectType;Lviaduct/engine/api/EngineObjectData$Sync;Lviaduct/api/reflect/Type;)V
+	public final fun fromList (Ljava/util/List;ILkotlin/jvm/functions/Function1;)Lviaduct/api/internal/ConnectionBuilder;
+	public final fun fromList (Ljava/util/List;Lkotlin/jvm/functions/Function1;)Lviaduct/api/internal/ConnectionBuilder;
+	protected final fun getArguments ()Lviaduct/api/types/ConnectionArguments;
+	protected final fun getConnectionContext ()Lviaduct/api/context/ConnectionFieldExecutionContext;
+	protected final fun getExecutionContext ()Lviaduct/api/context/ExecutionContext;
+}
+
 public abstract interface class viaduct/api/internal/InputValueBuilder {
 	public abstract fun build ()Ljava/lang/Object;
 }
@@ -189,11 +206,29 @@ public final class viaduct/api/types/Arguments$NoArguments : viaduct/api/types/A
 	public static final field INSTANCE Lviaduct/api/types/Arguments$NoArguments;
 }
 
+public abstract interface class viaduct/api/types/BackwardConnectionArguments : viaduct/api/types/ConnectionArguments {
+	public abstract fun getBefore ()Ljava/lang/String;
+	public abstract fun getLast ()Ljava/lang/Integer;
+}
+
 public abstract interface class viaduct/api/types/CompositeOutput : viaduct/api/types/GRT {
 }
 
 public final class viaduct/api/types/CompositeOutput$NotComposite : viaduct/api/types/CompositeOutput {
 	public static final field INSTANCE Lviaduct/api/types/CompositeOutput$NotComposite;
+}
+
+public abstract interface class viaduct/api/types/Connection : viaduct/api/types/Object {
+}
+
+public abstract interface class viaduct/api/types/ConnectionArguments : viaduct/api/types/Arguments {
+}
+
+public final class viaduct/api/types/ConnectionArguments$DefaultImpls {
+	public static synthetic fun toOffsetLimit$default (Lviaduct/api/types/ConnectionArguments;IILjava/lang/Object;)Lviaduct/api/types/OffsetLimit;
+}
+
+public abstract interface class viaduct/api/types/Edge : viaduct/api/types/Object {
 }
 
 public abstract interface class viaduct/api/types/Enum : viaduct/api/types/GRT {
@@ -202,6 +237,11 @@ public abstract interface class viaduct/api/types/Enum : viaduct/api/types/GRT {
 
 public final class viaduct/api/types/Enum$Companion {
 	public final fun enumFrom (Lkotlin/reflect/KClass;Ljava/lang/String;)Ljava/lang/Enum;
+}
+
+public abstract interface class viaduct/api/types/ForwardConnectionArguments : viaduct/api/types/ConnectionArguments {
+	public abstract fun getAfter ()Ljava/lang/String;
+	public abstract fun getFirst ()Ljava/lang/Integer;
 }
 
 public abstract interface class viaduct/api/types/GRT {
@@ -214,6 +254,9 @@ public abstract interface class viaduct/api/types/InputLike : viaduct/api/types/
 }
 
 public abstract interface class viaduct/api/types/Interface : viaduct/api/types/CompositeOutput {
+}
+
+public abstract interface class viaduct/api/types/MultidirectionalConnectionArguments : viaduct/api/types/BackwardConnectionArguments, viaduct/api/types/ForwardConnectionArguments {
 }
 
 public abstract interface class viaduct/api/types/Mutation : viaduct/api/types/Object {

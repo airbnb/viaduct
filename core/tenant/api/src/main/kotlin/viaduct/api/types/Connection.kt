@@ -1,6 +1,6 @@
 package viaduct.api.types
 
-import viaduct.apiannotations.ExperimentalApi
+import viaduct.apiannotations.StableApi
 
 /**
  * A paginated list of [Edge]s plus a `pageInfo` object describing page boundaries.
@@ -14,5 +14,5 @@ import viaduct.apiannotations.ExperimentalApi
  * @see Edge
  * @see viaduct.api.internal.ConnectionBuilder
  */
-@ExperimentalApi
+@StableApi
 interface Connection<E : Edge<N>, N> : Object

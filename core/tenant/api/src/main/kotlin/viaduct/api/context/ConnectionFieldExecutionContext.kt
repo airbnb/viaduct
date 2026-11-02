@@ -4,7 +4,7 @@ import viaduct.api.types.Connection
 import viaduct.api.types.ConnectionArguments
 import viaduct.api.types.Object
 import viaduct.api.types.Query
-import viaduct.apiannotations.ExperimentalApi
+import viaduct.apiannotations.StableApi
 
 /**
  * A [FieldExecutionContext] for connection fields, with typed access to [ConnectionArguments].
@@ -21,7 +21,7 @@ import viaduct.apiannotations.ExperimentalApi
  * @see viaduct.api.internal.ConnectionBuilder
  */
 
-@ExperimentalApi
+@StableApi
 interface ConnectionFieldExecutionContext<
     O : Object,
     Q : Query,
