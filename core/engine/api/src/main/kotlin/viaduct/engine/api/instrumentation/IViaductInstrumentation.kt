@@ -5,6 +5,7 @@ import graphql.ExecutionResult
 import graphql.execution.ExecutionContext
 import graphql.execution.instrumentation.DocumentAndVariables
 import graphql.execution.instrumentation.ExecutionStrategyInstrumentationContext
+import graphql.execution.instrumentation.FieldFetchingInstrumentationContext
 import graphql.execution.instrumentation.Instrumentation
 import graphql.execution.instrumentation.InstrumentationContext
 import graphql.execution.instrumentation.InstrumentationState
@@ -152,6 +153,14 @@ interface IViaductInstrumentation {
             parameters: InstrumentationFieldFetchParameters,
             state: InstrumentationState?
         ): InstrumentationContext<Any>?
+    }
+
+    /** Viaduct execution currently does not invoke [FieldFetchingInstrumentationContext.onFetchedValue]. */
+    interface WithBeginFieldFetching : IViaductInstrumentation {
+        fun beginFieldFetching(
+            parameters: InstrumentationFieldFetchParameters,
+            state: InstrumentationState?
+        ): FieldFetchingInstrumentationContext?
     }
 
     interface WithBeginFieldCompletion : IViaductInstrumentation {

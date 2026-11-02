@@ -5,6 +5,7 @@ import graphql.ExecutionResult
 import graphql.execution.ExecutionContext
 import graphql.execution.instrumentation.DocumentAndVariables
 import graphql.execution.instrumentation.ExecutionStrategyInstrumentationContext
+import graphql.execution.instrumentation.FieldFetchingInstrumentationContext
 import graphql.execution.instrumentation.Instrumentation
 import graphql.execution.instrumentation.InstrumentationContext
 import graphql.execution.instrumentation.InstrumentationState
@@ -91,6 +92,16 @@ open class ViaductInstrumentationAdapter(
             viaductInstrumentation.requestShadowFieldExecution(parameters, state)
         } else {
             null
+        }
+
+    override fun beginFieldFetching(
+        parameters: InstrumentationFieldFetchParameters,
+        state: InstrumentationState?
+    ): FieldFetchingInstrumentationContext? =
+        when (viaductInstrumentation) {
+            is IViaductInstrumentation.WithBeginFieldFetching -> viaductInstrumentation.beginFieldFetching(parameters, state)
+            is IViaductInstrumentation.WithBeginFieldFetch -> FieldFetchingInstrumentationContext.adapter(viaductInstrumentation.beginFieldFetch(parameters, state))
+            else -> FieldFetchingInstrumentationContext.NOOP
         }
 
     @Deprecated("deprecated")

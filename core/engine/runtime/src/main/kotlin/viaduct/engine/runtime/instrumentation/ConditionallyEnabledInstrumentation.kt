@@ -2,6 +2,7 @@ package viaduct.engine.runtime.instrumentation
 
 import graphql.ExecutionInput
 import graphql.execution.instrumentation.DocumentAndVariables
+import graphql.execution.instrumentation.FieldFetchingInstrumentationContext
 import graphql.execution.instrumentation.InstrumentationState
 import graphql.execution.instrumentation.parameters.InstrumentationCreateStateParameters
 import graphql.execution.instrumentation.parameters.InstrumentationExecuteOperationParameters
@@ -211,6 +212,15 @@ class ConditionallyEnabledInstrumentationAdapter(
             { super.requestShadowFieldExecution(parameters, it) },
             { null },
         )
+
+    override fun beginFieldFetching(
+        parameters: InstrumentationFieldFetchParameters,
+        state: InstrumentationState?
+    ) = dispatch(
+        state,
+        { super.beginFieldFetching(parameters, it) },
+        { FieldFetchingInstrumentationContext.NOOP }
+    )
 
     @Suppress("DEPRECATION")
     @Deprecated("deprecated")

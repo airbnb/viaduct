@@ -1,5 +1,9 @@
 package viaduct.engine.api.instrumentation
 
+import graphql.ExecutionInput
+import graphql.ExecutionResult
+import graphql.execution.ExecutionContext
+import graphql.execution.instrumentation.FieldFetchingInstrumentationContext
 import graphql.execution.instrumentation.InstrumentationContext
 import graphql.execution.instrumentation.InstrumentationState
 import graphql.execution.instrumentation.SimpleInstrumentationContext.noOp
@@ -12,9 +16,11 @@ import graphql.schema.DataFetchingEnvironment
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
+import io.mockk.verifySequence
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -227,6 +233,91 @@ class ViaductInstrumentationAdapterTest {
         )
         instrumentation.beginNodeFetching(nodeFetchingParams, null)
         assert(instrumentationBase.beginNodeFetchingCalled)
+    }
+
+    @Test
+    fun `field fetching preserves modern context identity including null`() {
+        val expectedParameters = mockk<InstrumentationFieldFetchParameters>()
+        val expectedState = mockk<InstrumentationState>()
+        for (context in listOf(null, mockk<FieldFetchingInstrumentationContext>())) {
+            var calls = 0
+            val delegate = object : ViaductInstrumentationBase(), IViaductInstrumentation.WithBeginFieldFetching {
+                override fun beginFieldFetching(
+                    parameters: InstrumentationFieldFetchParameters,
+                    state: InstrumentationState?
+                ): FieldFetchingInstrumentationContext? {
+                    calls++
+                    assertSame(expectedParameters, parameters)
+                    assertSame(expectedState, state)
+                    return context
+                }
+            }
+            val adapter = delegate.asStandardInstrumentation
+
+            assertSame(context, adapter.beginFieldFetching(expectedParameters, expectedState))
+            assertEquals(1, calls)
+        }
+    }
+
+    @Test
+    fun `field fetching opt-in supports operation defaults without a base class`() {
+        val delegate = object : IViaductInstrumentation.WithBeginFieldFetching {
+            override fun beginFieldFetching(
+                parameters: InstrumentationFieldFetchParameters,
+                state: InstrumentationState?
+            ) = FieldFetchingInstrumentationContext.NOOP
+        }
+        val adapter = ViaductInstrumentationAdapter(delegate)
+        val input = ExecutionInput.newExecutionInput().query("{ __typename }").build()
+        val executionContext = mockk<ExecutionContext>()
+        val result = mockk<ExecutionResult>()
+
+        assertNull(adapter.createStateAsync(mockk())!!.join())
+        assertSame(input, adapter.instrumentExecutionInput(input, mockk(), null))
+        assertSame(executionContext, adapter.instrumentExecutionContext(executionContext, mockk(), null))
+        assertSame(result, adapter.instrumentExecutionResult(result, mockk(), null).join())
+        assertSame(FieldFetchingInstrumentationContext.NOOP, adapter.beginFieldFetching(mockk(), null))
+    }
+
+    @Test
+    fun `field fetching adapts legacy callbacks exactly once`() {
+        val expectedParameters = mockk<InstrumentationFieldFetchParameters>()
+        val expectedState = mockk<InstrumentationState>()
+        val legacyContext = mockk<InstrumentationContext<Any>>(relaxed = true)
+        var calls = 0
+        val delegate = object : ViaductInstrumentationBase(), IViaductInstrumentation.WithBeginFieldFetch {
+            override fun beginFieldFetch(
+                parameters: InstrumentationFieldFetchParameters,
+                state: InstrumentationState?
+            ): InstrumentationContext<Any> {
+                calls++
+                assertSame(expectedParameters, parameters)
+                assertSame(expectedState, state)
+                return legacyContext
+            }
+        }
+        val result = Any()
+        val error = IllegalStateException("field failed")
+
+        val context = delegate.asStandardInstrumentation.beginFieldFetching(expectedParameters, expectedState)!!
+        context.onDispatched()
+        context.onFetchedValue(result)
+        context.onCompleted(result, error)
+
+        assertEquals(1, calls)
+        verifySequence {
+            legacyContext.onDispatched()
+            legacyContext.onCompleted(result, error)
+        }
+    }
+
+    @Test
+    fun `field fetching provides a no-op context for nonparticipants`() {
+        val context = ViaductInstrumentationBase().asStandardInstrumentation.beginFieldFetching(mockk(), null)!!
+        assertSame(FieldFetchingInstrumentationContext.NOOP, context)
+        context.onDispatched()
+        context.onFetchedValue(Any())
+        context.onCompleted(null, IllegalStateException("field failed"))
     }
 
     @Test

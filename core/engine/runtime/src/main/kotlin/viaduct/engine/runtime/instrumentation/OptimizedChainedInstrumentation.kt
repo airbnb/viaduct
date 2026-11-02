@@ -58,6 +58,12 @@ class OptimizedChainedInstrumentation(
         mapInstrumentations<IViaductInstrumentation.WithBeginFieldFetch>()
     }
 
+    private val beginFieldFetchingInstrumentations by lazy {
+        linkedInstrumentations
+            .filter { it.key is IViaductInstrumentation.WithBeginFieldFetching || it.key is IViaductInstrumentation.WithBeginFieldFetch }
+            .values
+    }
+
     @Suppress("DEPRECATION")
     @Deprecated("deprecated")
     override fun beginFieldFetch(
@@ -75,7 +81,7 @@ class OptimizedChainedInstrumentation(
         state: InstrumentationState?
     ): FieldFetchingInstrumentationContext? =
         ChainedFieldFetchingInstrumentationContext(
-            beginFieldFetchInstrumentations.mapNotNull { instr ->
+            beginFieldFetchingInstrumentations.mapNotNull { instr ->
                 instr.beginFieldFetching(parameters, getState(instr, state))
             }
         )

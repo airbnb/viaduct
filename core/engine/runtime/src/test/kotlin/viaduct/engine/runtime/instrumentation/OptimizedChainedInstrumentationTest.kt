@@ -216,6 +216,82 @@ class OptimizedChainedInstrumentationTest {
     }
 
     @Test
+    fun `beginFieldFetching combines modern and legacy participants with conditional gating`() {
+        for (enabled in listOf(false, true)) {
+            val legacyContext = mockk<InstrumentationContext<Any>>(relaxed = true)
+            val modernContext = mockk<FieldFetchingInstrumentationContext>(relaxed = true)
+            val dualContext = mockk<FieldFetchingInstrumentationContext>(relaxed = true)
+            val legacy = TestBeginFieldFetchInstrumentation(legacyContext)
+            val delegateState = object : InstrumentationState {}
+            val expectedParameters = mockk<InstrumentationFieldFetchParameters>()
+            var calls = 0
+            val modern = object : ConditionallyEnabledInstrumentation(), IViaductInstrumentation.WithBeginFieldFetching {
+                override fun isInstrumentationEnabled(executionInput: ExecutionInput) = enabled
+
+                override fun createState(parameters: InstrumentationCreateStateParameters) = delegateState
+
+                override fun beginFieldFetching(
+                    parameters: InstrumentationFieldFetchParameters,
+                    state: InstrumentationState?
+                ): FieldFetchingInstrumentationContext {
+                    calls++
+                    assertSame(delegateState, state)
+                    assertSame(expectedParameters, parameters)
+                    return modernContext
+                }
+            }
+            val dual = object :
+                ViaductInstrumentationBase(),
+                IViaductInstrumentation.WithBeginFieldFetch,
+                IViaductInstrumentation.WithBeginFieldFetching {
+                override fun beginFieldFetch(
+                    parameters: InstrumentationFieldFetchParameters,
+                    state: InstrumentationState?
+                ): InstrumentationContext<Any>? = error("legacy hook must not be selected when the modern hook is implemented")
+
+                override fun beginFieldFetching(
+                    parameters: InstrumentationFieldFetchParameters,
+                    state: InstrumentationState?
+                ): FieldFetchingInstrumentationContext = dualContext
+            }
+            val optimized = OptimizedChainedInstrumentation(listOf(modern, ViaductInstrumentationBase(), legacy, dual))
+            val input = ExecutionInput.newExecutionInput("{ field }").build()
+            val state = optimized.createStateAsync(InstrumentationCreateStateParameters(mockk(), input))!!.join()
+            val result = Any()
+            val error = IllegalStateException("field failed")
+
+            val context = optimized.beginFieldFetching(expectedParameters, state)!!
+            context.onDispatched()
+            context.onFetchedValue(result)
+            context.onCompleted(result, error)
+
+            assertEquals(1, legacy.calls)
+            assertEquals(if (enabled) 1 else 0, calls)
+            if (enabled) {
+                verifySequence {
+                    modernContext.onDispatched()
+                    legacyContext.onDispatched()
+                    dualContext.onDispatched()
+                    modernContext.onFetchedValue(result)
+                    dualContext.onFetchedValue(result)
+                    modernContext.onCompleted(result, error)
+                    legacyContext.onCompleted(result, error)
+                    dualContext.onCompleted(result, error)
+                }
+            } else {
+                verify { modernContext wasNot Called }
+                verifySequence {
+                    legacyContext.onDispatched()
+                    dualContext.onDispatched()
+                    dualContext.onFetchedValue(result)
+                    legacyContext.onCompleted(result, error)
+                    dualContext.onCompleted(result, error)
+                }
+            }
+        }
+    }
+
+    @Test
     fun `beginFieldFetching accepts no participants or null participant contexts`() {
         for (instrumentations in listOf(emptyList(), listOf(TestBeginFieldFetchInstrumentation(null)))) {
             val context = OptimizedChainedInstrumentation(instrumentations).beginFieldFetching(mockk(), null)!!

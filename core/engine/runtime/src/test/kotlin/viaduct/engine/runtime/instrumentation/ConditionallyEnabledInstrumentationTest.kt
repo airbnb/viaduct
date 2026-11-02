@@ -181,6 +181,21 @@ class ConditionallyEnabledInstrumentationTest {
         )
 
     @TestFactory
+    fun beginFieldFetching() =
+        createTestCases<InstrumentationFieldFetchParameters>(
+            createParameters = { ei ->
+                InstrumentationFieldFetchParameters(
+                    mockk<ExecutionContext> { every { executionInput } returns ei },
+                    { mockk<DataFetchingEnvironment>() },
+                    mockk(),
+                    false
+                )
+            },
+            runAdapter = { p, s -> beginFieldFetching(p, s) },
+            verifyMock = { p, _ -> beginFieldFetching(p, null) }
+        )
+
+    @TestFactory
     fun beginFieldCompletion() =
         createTestCases<InstrumentationFieldCompleteParameters>(
             createParameters = { ei ->
@@ -343,6 +358,7 @@ class ConditionallyEnabledInstrumentationTest {
     ) : ConditionallyEnabledInstrumentation(),
         IViaductInstrumentation.WithBeginFieldExecution,
         IViaductInstrumentation.WithBeginFieldFetch,
+        IViaductInstrumentation.WithBeginFieldFetching,
         IViaductInstrumentation.WithShadowFieldExecution,
         IViaductInstrumentation.WithBeginFieldCompletion,
         IViaductInstrumentation.WithBeginFieldListCompletion,
@@ -364,6 +380,11 @@ class ConditionallyEnabledInstrumentationTest {
             parameters: InstrumentationFieldFetchParameters,
             state: InstrumentationState?
         ) = default.beginFieldFetch(parameters, state)
+
+        override fun beginFieldFetching(
+            parameters: InstrumentationFieldFetchParameters,
+            state: InstrumentationState?
+        ) = default.beginFieldFetching(parameters, state)
 
         override fun beginFieldCompletion(
             parameters: InstrumentationFieldCompleteParameters,
