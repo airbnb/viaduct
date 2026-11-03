@@ -180,7 +180,7 @@ class TaggedMetricInstrumentationTest {
         every { params.field } returns field
         every { field.name } returns "bar"
 
-        val ctx = subject.beginFieldFetch(params, state)
+        val ctx = subject.beginFieldFetching(params, state)
         checkNotNull(ctx) { "context should not be null" }
 
         ctx.onDispatched()

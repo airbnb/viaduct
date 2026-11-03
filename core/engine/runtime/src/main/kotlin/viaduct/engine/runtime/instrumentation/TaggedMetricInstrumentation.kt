@@ -1,6 +1,7 @@
 package viaduct.engine.runtime.instrumentation
 
 import graphql.ExecutionResult
+import graphql.execution.instrumentation.FieldFetchingInstrumentationContext
 import graphql.execution.instrumentation.InstrumentationContext
 import graphql.execution.instrumentation.InstrumentationState
 import graphql.execution.instrumentation.SimpleInstrumentationContext
@@ -23,7 +24,7 @@ import viaduct.utils.slf4j.logger
 class TaggedMetricInstrumentation(
     val meterRegistry: MeterRegistry
 ) : ViaductInstrumentationBase(),
-    IViaductInstrumentation.WithBeginFieldFetch {
+    IViaductInstrumentation.WithBeginFieldFetching {
     companion object {
         const val VIADUCT_EXECUTION_METER_NAME = "viaduct.execution"
         const val VIADUCT_OPERATION_METER_NAME = "viaduct.operation"
@@ -98,10 +99,10 @@ class TaggedMetricInstrumentation(
         }
     }
 
-    override fun beginFieldFetch(
+    override fun beginFieldFetching(
         parameters: InstrumentationFieldFetchParameters,
         state: InstrumentationState?
-    ): InstrumentationContext<Any>? {
+    ): FieldFetchingInstrumentationContext? {
         val timerSample = Timer.start(meterRegistry)
         val timer = Timer.builder(VIADUCT_FIELD_METER_NAME)
         parameters.executionContext.operationDefinition.name?.let {
@@ -115,13 +116,19 @@ class TaggedMetricInstrumentation(
             timer.tag("field", "${parameters.field.name}")
         }
 
-        return SimpleInstrumentationContext.whenCompleted { _, throwable ->
+        return object : FieldFetchingInstrumentationContext {
+            override fun onDispatched() {}
 
-            val success = throwable == null
-            timer.tag("success", success.toString())
-            timerSample.stop(
-                timer.register(meterRegistry)
-            )
+            override fun onCompleted(
+                result: Any?,
+                t: Throwable?
+            ) {
+                val success = t == null
+                timer.tag("success", success.toString())
+                timerSample.stop(
+                    timer.register(meterRegistry)
+                )
+            }
         }
     }
 }
