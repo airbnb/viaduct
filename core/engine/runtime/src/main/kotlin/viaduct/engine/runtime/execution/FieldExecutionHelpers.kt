@@ -41,6 +41,7 @@ import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.ParentManagedValue
+import viaduct.engine.api.ParentSuppliedValue
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.ResolutionPolicy
 import viaduct.engine.api.StandardResolutionValue
@@ -184,6 +185,7 @@ object FieldExecutionHelpers {
         when (data) {
             is ParentManagedValue -> UnwrappedResolutionValue(data.value, ResolutionPolicy.PARENT_MANAGED)
             is StandardResolutionValue -> UnwrappedResolutionValue(data.value, ResolutionPolicy.STANDARD)
+            is ParentSuppliedValue -> UnwrappedResolutionValue(data.value, ResolutionPolicy.STANDARD)
             else -> UnwrappedResolutionValue(data, resolutionPolicy)
         }
 

@@ -46,6 +46,7 @@ import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineSelection
 import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.ParentManagedValue
+import viaduct.engine.api.ParentSuppliedValue
 import viaduct.engine.api.ResolvedEngineObjectData
 import viaduct.engine.api.StandardResolutionValue
 import viaduct.engine.api.mocks.FeatureTest
@@ -468,6 +469,92 @@ class SelectiveFieldExecutionContractTest : SelectiveFieldExecutionContract, Eng
 
             assertEquals(1, parentCalls.get())
             assertEquals("child-missing", checkerValue.get())
+        }
+    }
+
+    @Nested
+    inner class ParentSuppliedValueTests {
+        @Test
+        fun `missing descendant of a parent-supplied result refetches the parent across resolvers it supplies`() {
+            assertParentSuppliedRefetch(nestedResolverSelective = false)
+        }
+
+        @Test
+        fun `parent-supplied refetch crosses a supplied field with a selective resolver`() {
+            assertParentSuppliedRefetch(nestedResolverSelective = true)
+        }
+
+        private fun assertParentSuppliedRefetch(nestedResolverSelective: Boolean) {
+            val parentSelections = ConcurrentLinkedQueue<Set<String>>()
+            val suppliedResolverCalls = AtomicInteger()
+            val checkerValue = AtomicReference<String?>()
+
+            MockTenantModuleBootstrapper(
+                """
+                    extend type Query { foo: Foo }
+                    type Foo { bar: Bar, own: String }
+                    type Bar { visible: String, missing: String }
+                """.trimIndent()
+            ) {
+                field("Query" to "foo") {
+                    resolverExecutor {
+                        MockFieldUnbatchedResolverExecutor(
+                            isSelective = true,
+                            resolverId = resolverId,
+                            unbatchedResolveFn = { _, _, _, sels, _ ->
+                                val selections = sels!!.selectionSetForField("Foo", "bar")
+                                val fields = setOf("visible", "missing").filterTo(mutableSetOf()) {
+                                    selections.containsField("Bar", it)
+                                }
+                                parentSelections += fields
+                                ParentSuppliedValue(
+                                    createEngineObjectData(
+                                        "Foo",
+                                        mapOf("bar" to createEngineObjectData("Bar", fields.associateWith { "parent-$it" })),
+                                    )
+                                ) { type, fieldName -> !(type.name == "Foo" && fieldName == "own") }
+                            }
+                        )
+                    }
+                }
+                field("Foo" to "bar") {
+                    resolverExecutor {
+                        MockFieldUnbatchedResolverExecutor(
+                            isSelective = nestedResolverSelective,
+                            resolverId = resolverId,
+                            unbatchedResolveFn = { _, _, _, _, _ ->
+                                suppliedResolverCalls.incrementAndGet()
+                                error("Foo.bar must be supplied by Query.foo")
+                            },
+                        )
+                    }
+                }
+                field("Foo" to "own") { resolver { fn { _, _, _, _, _ -> "own-resolver" } } }
+                field("Bar" to "visible") {
+                    checker {
+                        objectSelections("required", "missing")
+                        fn { _, objects ->
+                            checkerValue.set(objects.getValue("required").fetchAs<String?>("missing"))
+                        }
+                    }
+                }
+                field("Bar" to "missing") {
+                    resolver {
+                        fn { _, _, _, _, _ ->
+                            suppliedResolverCalls.incrementAndGet()
+                            "child-value"
+                        }
+                    }
+                }
+            }.runFeatureTest {
+                val result = runQueryWithTimeout("{ foo { own bar { visible } } }")
+                assertAll(
+                    { result.assertJson("""{data: {foo: {own: "own-resolver", bar: {visible: "parent-visible"}}}}""") },
+                    { assertEquals(listOf(setOf("visible"), setOf("missing")), parentSelections.toList()) },
+                    { assertEquals(0, suppliedResolverCalls.get()) },
+                    { assertEquals("parent-missing", checkerValue.get()) },
+                )
+            }
         }
     }
 

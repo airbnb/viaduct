@@ -27,6 +27,7 @@ import viaduct.engine.runtime.mat.Mat
 import viaduct.engine.runtime.mat.MatPath.Segment
 import viaduct.engine.runtime.mat.MatResult
 import viaduct.engine.runtime.result.ObjectEngineResult
+import viaduct.engine.runtime.suppliesField
 import viaduct.errors.TenantException
 import viaduct.utils.memoize.IdentityPair
 import viaduct.utils.memoize.memoize
@@ -244,12 +245,12 @@ internal fun mkEmbeddedMatSource(
     val parentSource = parameters.currentObjectEngineResult.matSource ?: return null
     val parentManaged = parentSource.fieldResolutionPolicy == ResolutionPolicy.PARENT_MANAGED
     if (parentManaged && resolutionPolicy == ResolutionPolicy.STANDARD) return null
-    val parentTypeName = parameters.executionStepInfo.objectType.name
+    val parentType = parameters.executionStepInfo.objectType
     val dispatcher =
         parameters.engineExecutionContext.dispatcherRegistry
-            .getFieldResolverDispatcher(parentTypeName, field.fieldName)
+            .getFieldResolverDispatcher(parentType.name, field.fieldName)
 
-    if (dispatcher != null && !parentManaged) return null
+    if (dispatcher != null && !parentManaged && !parentSource.suppliesField(parentType, field.fieldName)) return null
     return MatSource.Embedded(
         parameters.currentObjectEngineResult,
         Segment(
@@ -271,8 +272,10 @@ internal fun isFieldMatBacked(
     if (parentPolicy == ResolutionPolicy.PARENT_MANAGED) return false
     if (effectiveData !is EngineObjectData) return false
 
-    val parentTypeName = parameters.executionStepInfo.objectType.name
-    return parameters.engineExecutionContext.isFieldMatEligible(parentTypeName to field.fieldName)
+    val parentType = parameters.executionStepInfo.objectType
+    // A supplied field is covered by the ledger of the value that supplies it.
+    if (parameters.currentObjectEngineResult.matSource?.suppliesField(parentType, field.fieldName) == true) return false
+    return parameters.engineExecutionContext.isFieldMatEligible(parentType.name to field.fieldName)
 }
 
 internal fun isNodeMatBacked(

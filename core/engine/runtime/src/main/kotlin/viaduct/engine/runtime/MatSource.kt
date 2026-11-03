@@ -1,5 +1,6 @@
 package viaduct.engine.runtime
 
+import graphql.schema.GraphQLObjectType
 import viaduct.engine.api.ResolutionPolicy
 import viaduct.engine.runtime.mat.KeyTreeFilter
 import viaduct.engine.runtime.mat.Mat
@@ -28,12 +29,14 @@ sealed interface MatSource {
      * @param matFilter projects query-plan shapes to fields owned by the source's [Mat].
      * @param rootNodeId is the intrinsic id when the source is backed by a node reference.
      * @param fieldResolutionPolicy determines whether supplied fields use standard or parent-managed resolution.
+     * @param suppliedFields selects the fields below this source that a [viaduct.engine.api.ParentSuppliedValue] supplies.
      */
     data class Ledger(
         val ledger: MatLedger,
         val matFilter: KeyTreeFilter = KeyTreeFilter.KeepAll,
         val rootNodeId: String? = null,
         override val fieldResolutionPolicy: ResolutionPolicy = ResolutionPolicy.STANDARD,
+        val suppliedFields: ((GraphQLObjectType, String) -> Boolean)? = null,
     ) : MatSource
 
     /**
@@ -51,3 +54,13 @@ sealed interface MatSource {
         override val fieldResolutionPolicy: ResolutionPolicy = checkNotNull(parent.matSource).fieldResolutionPolicy,
     ) : MatSource
 }
+
+/** Whether the value backing this source's ledger supplies [fieldName] on [type]. */
+internal fun MatSource.suppliesField(
+    type: GraphQLObjectType,
+    fieldName: String,
+): Boolean =
+    when (this) {
+        is MatSource.Ledger -> suppliedFields?.invoke(type, fieldName) == true
+        is MatSource.Embedded -> parent.matSource?.suppliesField(type, fieldName) == true
+    }

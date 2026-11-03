@@ -26,6 +26,7 @@ import kotlinx.coroutines.supervisorScope
 import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.NodeEngineObjectData
+import viaduct.engine.api.ParentSuppliedValue
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.ResolutionPolicy
 import viaduct.engine.api.instrumentation.InstrumentNodeFetchingParameters
@@ -779,7 +780,7 @@ class FieldResolver(
         val field = checkNotNull(parameters.field) { "Expected parameters.field to be non-null." }
         val data = fetchedValue.fetchedValue ?: return syncFieldResolutionResult(null, fetchedValue, resolutionPolicy)
 
-        // Unwrap data from "ParentManagedValue" or "StandardResolutionValue" if necessary, and set the effective resolution policy
+        // Unwrap data from a resolution wrapper such as "ParentManagedValue" if necessary, and set the effective resolution policy
         val (effectiveData, effectiveResolutionPolicy) =
             FieldExecutionHelpers.unwrapResolutionValue(data, resolutionPolicy)
 
@@ -931,6 +932,7 @@ class FieldResolver(
         effectiveData: EngineObjectData,
         resolutionPolicy: ResolutionPolicy,
         memberIndices: List<Int>,
+        suppliedFields: ((GraphQLObjectType, String) -> Boolean)?,
     ): MatSource {
         val ossFilter = FieldOutputSelectionSetFilter(
             // parent managed values always own their entire subtree, meaning they have
@@ -938,7 +940,8 @@ class FieldResolver(
             if (resolutionPolicy == ResolutionPolicy.PARENT_MANAGED) {
                 HasResolver.Never
             } else {
-                HasResolver.fromRegistry(parameters.engineExecutionContext.dispatcherRegistry)
+                val fromRegistry = HasResolver.fromRegistry(parameters.engineExecutionContext.dispatcherRegistry)
+                if (suppliedFields == null) fromRegistry else HasResolver { type, fieldName -> fromRegistry(type, fieldName) && !suppliedFields(type, fieldName) }
             }
         )
         val mat = FieldMatImpl(
@@ -958,7 +961,7 @@ class FieldResolver(
         )
         val ledger = MatLedgerImpl(mat, parameters.engineExecutionContext.materializedFieldValueReader)
         ledger.initialize(mat.resultFromInitialFetch(effectiveData))
-        return MatSource.Ledger(ledger, ossFilter, fieldResolutionPolicy = resolutionPolicy)
+        return MatSource.Ledger(ledger, ossFilter, fieldResolutionPolicy = resolutionPolicy, suppliedFields = suppliedFields)
     }
 
     private fun mkOER(
@@ -1000,6 +1003,7 @@ class FieldResolver(
                     effectiveData = effectiveData as EngineObjectData,
                     resolutionPolicy = resolutionPolicy,
                     memberIndices = memberIndices,
+                    suppliedFields = (fetchedValue.fetchedValue as? ParentSuppliedValue)?.isSupplied,
                 )
 
             else ->
@@ -1019,6 +1023,7 @@ class FieldResolver(
         effectiveData: EngineObjectData,
         resolutionPolicy: ResolutionPolicy,
         memberIndices: List<Int>,
+        suppliedFields: ((GraphQLObjectType, String) -> Boolean)?,
     ): Value<ObjectEngineResultImpl> {
         val deferred = CompletableDeferred<ObjectEngineResultImpl>()
         parameters.launchOnRootScope {
@@ -1026,7 +1031,13 @@ class FieldResolver(
                 deferred.complete(
                     ObjectEngineResultImpl.newForType(
                         fieldType,
-                        mkFieldMatLedgerSource(parameters, effectiveData, resolutionPolicy = resolutionPolicy, memberIndices = memberIndices),
+                        mkFieldMatLedgerSource(
+                            parameters,
+                            effectiveData,
+                            resolutionPolicy = resolutionPolicy,
+                            memberIndices = memberIndices,
+                            suppliedFields = suppliedFields,
+                        ),
                     )
                 )
             } catch (e: CancellationException) {
