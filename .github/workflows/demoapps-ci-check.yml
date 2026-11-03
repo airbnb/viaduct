@@ -70,8 +70,8 @@ jobs:
       # distribution was fetched or served from cache.
       - name: Warm demo app Gradle distributions
         run: |
-          for dir in demoapps/*/; do
-            (cd "$dir" && ./gradlew --version)
+          for wrapper in demoapps/*/gradlew; do
+            (cd "$(dirname "$wrapper")" && ./gradlew --version)
           done
         shell: bash
 
