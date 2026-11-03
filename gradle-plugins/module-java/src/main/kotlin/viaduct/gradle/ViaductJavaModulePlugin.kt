@@ -20,27 +20,20 @@ class ViaductJavaModulePlugin : Plugin<Project> {
     override fun apply(project: Project): Unit =
         with(project) {
             pluginManager.apply(ViaductMetamodulePlugin.ID)
-            val metamodule = extensions.getByType(ViaductMetamoduleExtension::class.java)
-            val moduleLayout = metamodule.layout
-            val grtIncomingCfg = ViaductModulePluginSupport.createGRTIncomingConfiguration(
+            val conventions = extensions.getByType(ViaductModuleConventions::class.java)
+            val moduleLayout = conventions.layout
+            ViaductGRTSupport.setupModuleDependencies(
                 this,
-                ViaductPluginCommon.Configs.GRT_CLASSES_JAVA_INCOMING,
-                ViaductPluginCommon.Kind.JAVA_GRT_CLASSES,
+                conventions.application,
+                ViaductGRTLanguage.JAVA,
+                ViaductJavaApplicationPlugin::class.java,
             )
-
-            val centralSchemaIncomingCfg = metamodule.centralSchemaConfiguration
+            val centralSchemaIncomingCfg = conventions.centralSchemaIn.get()
             val generateResolverBasesTask = setupGenerateResolverBasesTask(moduleLayout, centralSchemaIncomingCfg)
             val assembleModuleConfigTask = setupAptRegistryExtractor(moduleLayout, centralSchemaIncomingCfg)
 
-            wireJavaGrtToApplication(metamodule.applicationProjectPath, grtIncomingCfg)
-
-            // GRT classes into source sets
-            plugins.withId("java") {
-                configurations.named("implementation").configure { extendsFrom(grtIncomingCfg) }
-                configurations.named("testImplementation").configure { extendsFrom(grtIncomingCfg) }
-            }
-            pluginManager.withPlugin("java-test-fixtures") {
-                configurations.named("testFixturesImplementation").configure { extendsFrom(grtIncomingCfg) }
+            conventions.moduleManifests.configure {
+                outgoing.artifact(assembleModuleConfigTask.flatMap { it.outputDir })
             }
 
             // Generated resolver bases into Java `main` source set
@@ -60,31 +53,6 @@ class ViaductJavaModulePlugin : Plugin<Project> {
                 dependsOn(generateResolverBasesTask, assembleModuleConfigTask)
             }
         }
-
-    private fun Project.wireJavaGrtToApplication(
-        applicationProjectPath: String,
-        grtIncomingCfg: Configuration,
-    ) {
-        if (applicationProjectPath == path) {
-            ViaductPluginCommon.APPLICATION_PLUGIN_IDS.forEach { pluginId ->
-                pluginManager.withPlugin(pluginId) {
-                    val outputs = extensions.getByType(ViaductApplicationOutputProviders::class.java)
-                    dependencies.add(grtIncomingCfg.name, files(outputs.javaGrtJar))
-                }
-            }
-            return
-        }
-
-        dependencies.add(
-            grtIncomingCfg.name,
-            dependencies.project(
-                mapOf(
-                    "path" to applicationProjectPath,
-                    "configuration" to ViaductPluginCommon.Configs.GRT_CLASSES_JAVA_OUTGOING,
-                ),
-            ),
-        )
-    }
 
     /**
      * Wires the Java registry-extractor APT and the config assembly that consumes its output — the

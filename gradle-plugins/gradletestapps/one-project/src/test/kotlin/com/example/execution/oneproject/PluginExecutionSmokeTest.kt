@@ -4,6 +4,7 @@ import java.nio.file.Path
 import kotlin.io.path.exists
 import kotlin.io.path.readText
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -72,6 +73,13 @@ class PluginExecutionSmokeTest {
             "META-INF/viaduct/modules/com.example.execution.oneproject.resolvers.json\n",
             registryIndex,
         )
+    }
+
+    @Test
+    fun kotlinModulesDoNotBringUnusedJavaGrtsOntoTheRuntimeClasspath() {
+        val loader = javaClass.classLoader
+        assertNotNull(loader.getResource("viaduct/api/grts/Query.class"))
+        assertNull(loader.getResource("viaduct/java/grts/Query.class"))
     }
 
     @Test

@@ -13,6 +13,7 @@ java {
 
 dependencies {
     implementation(project(":common"))
+    implementation(project(":conventions"))
 
     testImplementation(gradleTestKit())
     testImplementation(libs.kotest.assertions.core.jvm)

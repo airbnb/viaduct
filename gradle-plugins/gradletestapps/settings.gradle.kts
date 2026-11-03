@@ -14,6 +14,8 @@ pluginManagement {
 plugins {
     id("settings.common")
     id("com.airbnb.viaduct.settings-gradle-plugin")
+    id("com.airbnb.viaduct.kotlinapi") apply false
+    id("com.airbnb.viaduct.javaapi") apply false
 }
 
 @Suppress("UnstableApiUsage")
@@ -28,6 +30,7 @@ dependencyResolutionManagement {
 rootProject.name = "gradletestapps"
 
 includeViaductApplication {
+    usePlugin("com.airbnb.viaduct.kotlinapi")
     project(":one-project")
     modulePackagePrefix("com.example.execution.oneproject")
 
@@ -38,6 +41,8 @@ includeViaductApplication {
 }
 
 includeViaductApplication {
+    usePlugin("com.airbnb.viaduct.javaapi")
+    usePlugin("com.airbnb.viaduct.kotlinapi")
     project(":java-one-project")
     modulePackagePrefix("com.example.execution.javaoneproject")
 
@@ -48,6 +53,8 @@ includeViaductApplication {
 }
 
 includeViaductApplication {
+    usePlugin("com.airbnb.viaduct.kotlinapi")
+    usePlugin("com.airbnb.viaduct.javaapi")
     project(":multi-project")
     modulePackagePrefix("com.example.execution.multiproject")
 
@@ -62,6 +69,7 @@ includeViaductApplication {
 }
 
 includeViaductApplication {
+    usePlugin("com.airbnb.viaduct.kotlinapi")
     project(":two-project")
     modulePackagePrefix("com.example.execution.twoproject")
 

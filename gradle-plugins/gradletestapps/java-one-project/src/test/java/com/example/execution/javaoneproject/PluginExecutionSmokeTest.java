@@ -3,6 +3,7 @@ package com.example.execution.javaoneproject;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
@@ -105,6 +106,25 @@ public class PluginExecutionSmokeTest {
     assertTrue(
         Files.readAllLines(schemaIndex)
             .contains("viaduct/centralSchema/partition/resolvers/graphql/schema.graphqls"));
+  }
+
+  @Test
+  void runtimeContainsOnlyTheParticipatingLanguageGrts() {
+    ClassLoader loader = getClass().getClassLoader();
+    assertNotNull(loader.getResource("viaduct/java/grts/Query.class"));
+    assertNull(loader.getResource("viaduct/api/grts/Query.class"));
+  }
+
+  @Test
+  void schemaResourcesAreIndependentOfGeneratedClasses() throws IOException {
+    try (JarFile jar = new JarFile(System.getProperty("schemaJar"))) {
+      assertNotNull(jar.getJarEntry("META-INF/viaduct/indexes/schema-v1.index"));
+      assertNotNull(
+          jar.getJarEntry("viaduct/centralSchema/partition/resolvers/graphql/schema.graphqls"));
+      assertFalse(jar.stream().anyMatch(entry -> entry.getName().endsWith(".class")));
+      assertFalse(
+          jar.stream().anyMatch(entry -> entry.getName().endsWith("BUILTIN_SCHEMA.graphqls")));
+    }
   }
 
   @Test

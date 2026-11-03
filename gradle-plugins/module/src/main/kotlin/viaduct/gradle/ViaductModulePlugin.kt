@@ -6,6 +6,7 @@ import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.artifacts.Configuration
 import org.gradle.api.plugins.JavaPluginExtension
+import org.gradle.api.specs.Spec
 import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.Sync
 import org.gradle.api.tasks.TaskProvider
@@ -23,29 +24,18 @@ class ViaductModulePlugin : Plugin<Project> {
     override fun apply(project: Project): Unit =
         with(project) {
             pluginManager.apply(ViaductMetamodulePlugin.ID)
-            val metamodule = extensions.getByType(ViaductMetamoduleExtension::class.java)
-            val moduleLayout = metamodule.layout
-            val grtIncomingCfg = ViaductModulePluginSupport.createGRTIncomingConfiguration(
+            val conventions = extensions.getByType(ViaductModuleConventions::class.java)
+            val moduleLayout = conventions.layout
+            ViaductGRTSupport.setupModuleDependencies(
                 this,
-                ViaductPluginCommon.Configs.GRT_CLASSES_KOTLIN_INCOMING,
-                ViaductPluginCommon.Kind.KOTLIN_GRT_CLASSES,
+                conventions.application,
+                ViaductGRTLanguage.KOTLIN,
+                ViaductKotlinApplicationPlugin::class.java,
             )
-
-            val centralSchemaIncomingCfg = metamodule.centralSchemaConfiguration
+            val centralSchemaIncomingCfg = conventions.centralSchemaIn.get()
             val generateResolverBasesTask = setupGenerateResolverBasesTask(moduleLayout, centralSchemaIncomingCfg)
 
             setupKspRegistryExtractor(moduleLayout, generateResolverBasesTask, centralSchemaIncomingCfg)
-
-            wireKotlinGrtToApplication(metamodule.applicationProjectPath, grtIncomingCfg)
-
-            // GRT classes into source sets
-            plugins.withId("java") {
-                configurations.named("implementation").configure { extendsFrom(grtIncomingCfg) }
-                configurations.named("testImplementation").configure { extendsFrom(grtIncomingCfg) }
-            }
-            pluginManager.withPlugin("java-test-fixtures") {
-                configurations.named("testFixturesImplementation").configure { extendsFrom(grtIncomingCfg) }
-            }
 
             // Generated resolver bases into Kotlin source set
             pluginManager.withPlugin("org.jetbrains.kotlin.jvm") {
@@ -65,31 +55,6 @@ class ViaductModulePlugin : Plugin<Project> {
             }
         }
 
-    private fun Project.wireKotlinGrtToApplication(
-        applicationProjectPath: String,
-        grtIncomingCfg: Configuration,
-    ) {
-        if (applicationProjectPath == path) {
-            ViaductPluginCommon.APPLICATION_PLUGIN_IDS.forEach { pluginId ->
-                pluginManager.withPlugin(pluginId) {
-                    val outputs = extensions.getByType(ViaductApplicationOutputProviders::class.java)
-                    dependencies.add(grtIncomingCfg.name, files(outputs.kotlinGrtJar))
-                }
-            }
-            return
-        }
-
-        dependencies.add(
-            grtIncomingCfg.name,
-            dependencies.project(
-                mapOf(
-                    "path" to applicationProjectPath,
-                    "configuration" to ViaductPluginCommon.Configs.GRT_CLASSES_KOTLIN_OUTGOING,
-                ),
-            ),
-        )
-    }
-
     private fun Project.setupKspRegistryExtractor(
         moduleLayout: ViaductModulePackageLayout,
         generateResolverBasesTask: TaskProvider<GenerateResolverBasesTask>,
@@ -103,10 +68,7 @@ class ViaductModulePlugin : Plugin<Project> {
         pluginManager.withPlugin("com.google.devtools.ksp") {
             dependencies.add("ksp", "com.airbnb.viaduct:buildtime:$version")
 
-            // KSP registers kspKotlin lazily, so tasks.named() would throw UnknownTaskException
-            // here; tasks.matching() returns a live collection instead.
-            // https://docs.gradle.org/current/javadoc/org/gradle/api/tasks/TaskCollection.html
-            val kspKotlinTasks = tasks.matching { it.name == "kspKotlin" }
+            val kspKotlinTasks = tasks.named(Spec<String> { it == "kspKotlin" })
 
             // Fingerprints kspKotlin on the resolver-bases dir (RELATIVE = path-relative-to-root
             // + content, so cache still hits across checkouts).
@@ -154,6 +116,10 @@ class ViaductModulePlugin : Plugin<Project> {
                 )
 
                 dependsOn(extractKspDescriptors)
+            }
+
+            extensions.getByType(ViaductModuleConventions::class.java).moduleManifests.configure {
+                outgoing.artifact(assembleTask.flatMap { it.outputDir })
             }
 
             // Wire assembly output into main resources so it lands in the module's JAR

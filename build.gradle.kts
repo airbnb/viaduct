@@ -170,6 +170,16 @@ val demoappsStandaloneTest by tasks.registering {
                 )
             }
 
+            execOperations.exec {
+                environment(nestedGradleEnvironment)
+                environment("GRADLE_USER_HOME", File(runRoot, "gradle-home-compatibility").absolutePath)
+                commandLine(
+                    "python3", layout.projectDirectory.file("demoapps/plugin-compatibility/check.py").asFile.absolutePath,
+                    "--maven-repository", mavenLocalRepo.absolutePath,
+                    "--work-directory", File(runRoot, "plugin-compatibility").absolutePath,
+                )
+            }
+
             for (demoapp in demoappsStandaloneList) {
                 logger.lifecycle("Testing demoapp '$demoapp' standalone against the isolated Maven local repo")
 

@@ -13,20 +13,11 @@ java {
 }
 
 dependencies {
-    implementation(project(":common"))
-
-    // Libraries the plugin source imports directly (binary schema generation).
-    // tenant-codegen is NOT here — it is an external tool artifact resolved at
-    // build time via the viaductCodegenClasspath Configuration.
-    // Classes bundled directly into this plugin JAR via conventions.viaduct-fat-plugin.
-    bundled(libs.viaduct.shared.graphql)
-    bundled(libs.viaduct.shared.bootstrap)
-    bundled(libs.viaduct.shared.viaductschema)
-    // Do NOT leak the Kotlin Gradle Plugin at runtime
-    compileOnly(libs.kotlin.gradle.plugin)
+    api(project(":conventions"))
 
     // Testing (kotlin-test, junit, junit-engine, junit-launcher provided by conventions.gradle-plugin-kotlin)
     testImplementation(libs.kotest.assertions.core.jvm)
+    testImplementation(libs.viaduct.shared.bootstrap)
     testImplementation(gradleTestKit())
     testImplementation(project(":settings"))
 }

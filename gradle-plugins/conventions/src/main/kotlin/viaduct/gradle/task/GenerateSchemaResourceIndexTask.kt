@@ -9,10 +9,12 @@ import org.gradle.api.tasks.OutputDirectory
 import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
+import viaduct.apiannotations.InternalApi
 import viaduct.bootstrap.ViaductResourceIndexes
-import viaduct.gradle.ViaductApplicationPlugin
+import viaduct.gradle.ViaductApplicationConventionsPlugin
 
 @CacheableTask
+@InternalApi
 abstract class GenerateSchemaResourceIndexTask : DefaultTask() {
     @get:InputDirectory
     @get:PathSensitive(PathSensitivity.RELATIVE)
@@ -28,7 +30,7 @@ abstract class GenerateSchemaResourceIndexTask : DefaultTask() {
             schemaRoot.walkTopDown()
                 .filter(File::isFile)
                 .map { it.relativeTo(schemaRoot).invariantSeparatorsPath }
-                .filter { it.endsWith(".graphqls") && it != ViaductApplicationPlugin.BUILTIN_SCHEMA_FILE }
+                .filter { it.endsWith(".graphqls") && it != ViaductApplicationConventionsPlugin.BUILTIN_SCHEMA_FILE }
                 .map { "$SCHEMA_RESOURCE_ROOT/$it" }
                 .sorted()
                 .toList()

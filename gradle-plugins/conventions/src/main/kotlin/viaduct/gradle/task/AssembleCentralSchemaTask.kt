@@ -20,10 +20,11 @@ import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
 import org.slf4j.LoggerFactory
 import viaduct.apiannotations.ExperimentalApi
+import viaduct.apiannotations.InternalApi
 import viaduct.gradle.SchemaContributionReconciler
 import viaduct.gradle.ScopedSchemaValidator
-import viaduct.gradle.ViaductApplicationPlugin
-import viaduct.gradle.ViaductApplicationPlugin.Companion.BUILTIN_SCHEMA_FILE
+import viaduct.gradle.ViaductApplicationConventionsPlugin
+import viaduct.gradle.ViaductApplicationConventionsPlugin.Companion.BUILTIN_SCHEMA_FILE
 import viaduct.gradle.ViaductSchemaValidator
 import viaduct.gradle.ViaductScopesYaml
 import viaduct.graphql.utils.DefaultSchemaFactory
@@ -38,6 +39,7 @@ import viaduct.scoping.SchemaScoping
  */
 @OptIn(ExperimentalApi::class)
 @CacheableTask
+@InternalApi
 abstract class AssembleCentralSchemaTask
     @Inject
     constructor(
@@ -162,7 +164,7 @@ abstract class AssembleCentralSchemaTask
             scoping: SchemaScoping,
         ) {
             if (!scoping.isScoped) return
-            val logger = LoggerFactory.getLogger(ViaductApplicationPlugin::class.java)
+            val logger = LoggerFactory.getLogger(ViaductApplicationConventionsPlugin::class.java)
             val failures = ScopedSchemaValidator.validate(parseSchema(schemaFiles), scoping)
             if (failures.isEmpty()) {
                 logger.info("Declared scoped schemas validated successfully.")
@@ -191,7 +193,7 @@ abstract class AssembleCentralSchemaTask
             excludeFromViaductValidation: Collection<File>,
             scoping: SchemaScoping,
         ) {
-            val logger = LoggerFactory.getLogger(ViaductApplicationPlugin::class.java)
+            val logger = LoggerFactory.getLogger(ViaductApplicationConventionsPlugin::class.java)
             val validator = ViaductSchemaValidator(
                 logger,
                 validateScopeConsistency = scoping.isScoped,

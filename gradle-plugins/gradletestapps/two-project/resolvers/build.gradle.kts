@@ -1,3 +1,4 @@
+import viaduct.gradle.task.GenerateResolverBasesTask
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import viaduct.gradle.ViaductSchemaContributions
@@ -10,6 +11,8 @@ plugins {
 
 dependencies {
     implementation("com.airbnb.viaduct:api")
+    testImplementation("com.airbnb.viaduct:test-fixtures")
+    testImplementation(libs.kotlinx.coroutines.test)
 }
 
 class TestSchemaContributionPlugin : Plugin<Project> {
@@ -33,3 +36,7 @@ class TestSchemaContributionPlugin : Plugin<Project> {
 }
 
 apply<TestSchemaContributionPlugin>()
+
+configurations.consumable("fixtureResolverBases") {
+    outgoing.artifact(tasks.named<GenerateResolverBasesTask>("generateViaductResolverBases").flatMap { it.outputDirectory })
+}

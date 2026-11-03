@@ -16,6 +16,7 @@ import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
 import org.gradle.workers.WorkerExecutor
+import viaduct.apiannotations.InternalApi
 import viaduct.gradle.ViaductPluginCommon
 import viaduct.gradle.runCodegen
 import viaduct.graphql.schema.ViaductSchema
@@ -23,6 +24,7 @@ import viaduct.graphql.schema.binary.extensions.toBinaryFile
 import viaduct.graphql.schema.graphqljava.extensions.fromGraphQLSchema
 
 @CacheableTask
+@InternalApi
 abstract class GenerateGRTClassFilesTask
     @Inject
     constructor(

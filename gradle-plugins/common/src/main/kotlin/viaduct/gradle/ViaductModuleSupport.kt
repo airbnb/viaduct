@@ -4,14 +4,11 @@ import org.gradle.api.GradleException
 import org.gradle.api.Project
 import org.gradle.api.artifacts.Configuration
 import org.gradle.api.artifacts.ProjectDependency
-import org.gradle.api.attributes.Category
-import org.gradle.api.attributes.LibraryElements
 import org.gradle.api.attributes.Usage
 import org.gradle.api.tasks.TaskProvider
 import schemaPartitionDirectory
 import viaduct.apiannotations.InternalApi
 import viaduct.apiannotations.StableApi
-import viaduct.gradle.ViaductPluginCommon.APPLICATION_PLUGIN_IDS
 import viaduct.gradle.ViaductPluginCommon.prettyPath
 import viaduct.gradle.ViaductPluginCommon.requireViaductTopology
 import viaduct.gradle.ViaductPluginCommon.requireViaductTopologyModuleProjectPaths
@@ -81,26 +78,6 @@ object ViaductModulePluginSupport {
         }
     }
 
-    fun createGRTIncomingConfiguration(
-        project: Project,
-        configurationName: String,
-        kind: String,
-    ): Configuration =
-        project.configurations.create(configurationName).apply {
-            description = "Resolvable configuration for the GRT jar file."
-            isCanBeConsumed = false
-            isCanBeResolved = true
-            attributes { attrs ->
-                attrs.attribute(ViaductPluginCommon.VIADUCT_KIND, kind)
-                attrs.attribute(Usage.USAGE_ATTRIBUTE, project.objects.named(Usage::class.java, Usage.JAVA_RUNTIME))
-                attrs.attribute(Category.CATEGORY_ATTRIBUTE, project.objects.named(Category::class.java, Category.LIBRARY))
-                attrs.attribute(
-                    LibraryElements.LIBRARY_ELEMENTS_ATTRIBUTE,
-                    project.objects.named(LibraryElements::class.java, LibraryElements.JAR),
-                )
-            }
-        }
-
     fun setupViaductApplicationConfiguration(project: Project): Configuration {
         val existing = project.configurations.findByName(ViaductPluginCommon.Configs.VIADUCT_APPLICATION)
         if (existing != null) return existing
@@ -132,9 +109,11 @@ object ViaductModulePluginSupport {
             project.configurations.create(ViaductPluginCommon.Configs.SCHEMA_PARTITION_OUTGOING).apply {
                 description = "Consumable configuration containing the module's schema partition (aka, 'local schema')."
                 isCanBeConsumed = true
+                isCanBeDeclared = false
                 isCanBeResolved = false
                 attributes { attrs ->
-                    attrs.attribute(ViaductPluginCommon.VIADUCT_KIND, ViaductPluginCommon.Kind.SCHEMA_PARTITION)
+                    attrs.attribute(ViaductArtifacts.KIND, ViaductArtifacts.SCHEMA_PARTITION)
+                    attrs.attribute(Usage.USAGE_ATTRIBUTE, project.objects.named(Usage::class.java, ViaductArtifacts.USAGE))
                 }
             }
         schemaPartitionCfg.outgoing.artifact(assembleSchemaPartitionTask.flatMap { it.outputDirectory })
@@ -148,9 +127,11 @@ object ViaductModulePluginSupport {
             description = "Resolvable configuration for the central schema (used to generate resolver base classes)."
             isCanBeConsumed = false
             isCanBeResolved = true
+            isTransitive = false
             extendsFrom(viaductApplication)
             attributes { attrs ->
-                attrs.attribute(ViaductPluginCommon.VIADUCT_KIND, ViaductPluginCommon.Kind.CENTRAL_SCHEMA)
+                attrs.attribute(ViaductArtifacts.KIND, ViaductArtifacts.CENTRAL_SCHEMA)
+                attrs.attribute(Usage.USAGE_ATTRIBUTE, project.objects.named(Usage::class.java, ViaductArtifacts.USAGE))
             }
         }
 
@@ -161,14 +142,8 @@ object ViaductModulePluginSupport {
         centralSchemaIncomingCfg: Configuration,
     ) {
         if (topology.applicationProjectPath == project.path) {
-            APPLICATION_PLUGIN_IDS.forEach { pluginId ->
-                project.pluginManager.withPlugin(pluginId) {
-                    val outputs = project.extensions.getByType(ViaductApplicationOutputProviders::class.java)
-                    project.dependencies.add(
-                        centralSchemaIncomingCfg.name,
-                        project.files(outputs.centralSchemaDirectory),
-                    )
-                }
+            project.configurations.matching { it.name == ViaductPluginCommon.Configs.CENTRAL_SCHEMA_OUTGOING }.configureEach { outgoing ->
+                project.dependencies.add(viaductApplication.name, project.files(outgoing.outgoing.artifacts.files))
             }
             return
         }

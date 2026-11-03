@@ -43,6 +43,7 @@ includeBuild("../build-logic")
 includeBuild("../publications")
 
 include(":common")
+include(":conventions")
 include(":settings")
 include(":application")
 include(":metamodule")

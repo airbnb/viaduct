@@ -8,6 +8,7 @@ import kotlin.io.path.readLines
 import org.gradle.api.GradleException
 import org.gradle.api.Project
 import org.gradle.api.artifacts.ProjectDependency
+import org.gradle.api.attributes.Usage
 import org.gradle.testfixtures.ProjectBuilder
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
@@ -45,6 +46,70 @@ class ViaductApplicationPluginTest {
         // Create the task directly instead of applying the full plugin
         task = project.tasks.register("testAssembleCentralSchema", AssembleCentralSchemaTask::class.java).get()
         task.outputDirectory.set(project.layout.buildDirectory.dir("test-output"))
+    }
+
+    @Test
+    fun `manifest index drops removed directory contributions`() {
+        val root = tempDir.resolve("manifest-output").toFile()
+        val manifest = root.resolve("META-INF/viaduct/modules/example.json").apply {
+            parentFile.mkdirs()
+            writeText(registryJson("example/tenant"))
+        }
+        val indexTask = project.tasks.register("testManifestRemoval", GenerateExecutionRegistryResourceIndexTask::class.java).get().apply {
+            moduleClasspath.from(root)
+            outputDirectory.set(project.layout.buildDirectory.dir("manifest-removal-index"))
+        }
+
+        indexTask.generate()
+        val index = indexTask.outputDirectory.get().asFile.resolve(ViaductResourceIndexes.EXECUTION_REGISTRY)
+        assertEquals("META-INF/viaduct/modules/example.json\n", index.readText())
+
+        manifest.delete()
+        indexTask.generate()
+
+        assertEquals("", index.readText())
+    }
+
+    @Test
+    fun `manifest index rejects duplicate paths across directory contributions`() {
+        val roots = listOf("first", "second").map { name ->
+            tempDir.resolve(name).toFile().also { root ->
+                root.resolve("META-INF/viaduct/modules/shared.json").apply {
+                    parentFile.mkdirs()
+                    writeText(registryJson("example/$name"))
+                }
+            }
+        }
+        val indexTask = project.tasks.register("testDuplicateManifestPaths", GenerateExecutionRegistryResourceIndexTask::class.java).get().apply {
+            moduleClasspath.from(roots)
+            outputDirectory.set(project.layout.buildDirectory.dir("duplicate-path-index"))
+        }
+
+        val exception = assertThrows<IllegalArgumentException> { indexTask.generate() }
+
+        assertTrue(exception.message.orEmpty().contains("Duplicate execution registry resource contributors"))
+        assertTrue(exception.message.orEmpty().contains("META-INF/viaduct/modules/shared.json"))
+    }
+
+    @Test
+    fun `public application conventions expose producer backed schema and manifest collection`() {
+        project.pluginManager.apply("java-library")
+        project.registerViaductTopology(":")
+
+        project.pluginManager.apply(ViaductApplicationConventionsPlugin::class.java)
+
+        val conventions = project.extensions.getByType(ViaductApplicationConventions::class.java)
+        assertEquals("com.example.test", conventions.modulePackagePrefix)
+        assertEquals(setOf(conventions.modules.get()), conventions.allModuleManifestsIn.get().extendsFrom)
+        assertTrue(!conventions.allModuleManifestsIn.get().isTransitive)
+        assertEquals(
+            ViaductArtifacts.USAGE,
+            conventions.centralSchema.get().attributes.getAttribute(Usage.USAGE_ATTRIBUTE)?.name,
+        )
+        assertEquals(
+            project.tasks.named("assembleViaductCentralSchema", AssembleCentralSchemaTask::class.java).get().outputDirectory.get(),
+            conventions.centralSchemaDirectory.get(),
+        )
     }
 
     @Test

@@ -11,8 +11,8 @@ import viaduct.service.api.ExecutionInput
 
 class PluginExecutionSmokeTest {
     private val buildDir = Path.of(System.getProperty("projectBuildDir"))
-    private val alphaBuildDir = Path.of(System.getProperty("alphaBuildDir"))
-    private val betaBuildDir = Path.of(System.getProperty("betaBuildDir"))
+    private val alphaResolverBasesDir = Path.of(System.getProperty("alphaResolverBasesDir"))
+    private val betaResolverBasesDir = Path.of(System.getProperty("betaResolverBasesDir"))
 
     @Test
     fun generatedSchemaAndResolverOutputsExist() {
@@ -23,21 +23,18 @@ class PluginExecutionSmokeTest {
         assertExists(alphaPartitionSchemaFile)
         assertExists(betaPartitionSchemaFile)
         assertExists(
-            alphaBuildDir.resolve(
-                "generated-sources/viaduct/resolverBases/" +
-                    "com/example/execution/multiproject/alpha/QueryResolvers.kt"
+            alphaResolverBasesDir.resolve(
+                "QueryResolvers.kt"
             )
         )
         assertExists(
-            betaBuildDir.resolve(
-                "generated-sources/viaduct/javaResolverBases/" +
-                    "com/example/execution/multiproject/beta/resolverbases/QueryResolvers.java"
+            betaResolverBasesDir.resolve(
+                "com/example/execution/multiproject/beta/resolverbases/QueryResolvers.java"
             )
         )
         assertExists(
-            betaBuildDir.resolve(
-                "generated-sources/viaduct/javaResolverBases/" +
-                    "com/example/execution/multiproject/beta/resolverbases/MutationResolvers.java"
+            betaResolverBasesDir.resolve(
+                "com/example/execution/multiproject/beta/resolverbases/MutationResolvers.java"
             )
         )
 
@@ -49,17 +46,12 @@ class PluginExecutionSmokeTest {
 
     @Test
     fun tenantModuleConfigsContainKspAndAptExtractedResolvers() {
-        val alphaConfigFile = alphaBuildDir.resolve(
-            "generated-resources/viaduct-registry/" +
-                "META-INF/viaduct/modules/com.example.execution.multiproject.alpha.json"
-        )
-        val betaConfigFile = betaBuildDir.resolve(
-            "generated-resources/viaduct-registry/" +
-                "META-INF/viaduct/modules/com.example.execution.multiproject.beta.json"
-        )
-
-        assertExists(alphaConfigFile)
-        assertExists(betaConfigFile)
+        val alphaConfigFile = javaClass.getResource(
+            "/META-INF/viaduct/modules/com.example.execution.multiproject.alpha.json"
+        )!!
+        val betaConfigFile = javaClass.getResource(
+            "/META-INF/viaduct/modules/com.example.execution.multiproject.beta.json"
+        )!!
 
         assertTrue(alphaConfigFile.readText().contains("GreetingResolver"))
         assertTrue(alphaConfigFile.readText().contains("SecretGreetingResolver"))

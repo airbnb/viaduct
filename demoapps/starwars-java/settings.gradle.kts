@@ -21,11 +21,13 @@ pluginManagement {
     }
     plugins {
         id("com.airbnb.viaduct.settings-gradle-plugin") version viaductVersion
+        id("com.airbnb.viaduct.javaapi") version viaductVersion
     }
 }
 
 plugins {
     id("com.airbnb.viaduct.settings-gradle-plugin")
+    id("com.airbnb.viaduct.javaapi") apply false
 }
 
 val viaductVersion: String by settings
@@ -56,6 +58,7 @@ rootProject.name = "starwars-java"
 include(":common")
 
 includeViaductApplication {
+    usePlugin("com.airbnb.viaduct.javaapi")
     project(":")
     modulePackagePrefix("com.example.starwars")
 

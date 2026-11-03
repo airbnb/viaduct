@@ -143,7 +143,7 @@ class ViaductApplicationTopologyValidationTest {
             .withArguments("help")
             .buildAndFail()
 
-        result.output shouldContain "Failed to apply plugin 'com.airbnb.viaduct.application-gradle-plugin'"
+        result.output shouldContain "Failed to apply plugin class 'viaduct.gradle.ViaductApplicationConventionsPlugin'"
         result.output shouldContain "Unexpected end-of-input"
     }
 

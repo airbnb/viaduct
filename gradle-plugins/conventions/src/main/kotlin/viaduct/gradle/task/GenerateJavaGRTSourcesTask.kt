@@ -13,11 +13,13 @@ import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
 import org.gradle.workers.WorkerExecutor
+import viaduct.apiannotations.InternalApi
 import viaduct.gradle.CodegenWorkAction
 import viaduct.gradle.ViaductPluginCommon
 import viaduct.gradle.runCodegen
 
 @CacheableTask
+@InternalApi
 abstract class GenerateJavaGRTSourcesTask
     @Inject
     constructor(

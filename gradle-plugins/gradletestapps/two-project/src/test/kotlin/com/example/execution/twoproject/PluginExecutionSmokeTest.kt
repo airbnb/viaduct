@@ -16,13 +16,12 @@ class PluginExecutionSmokeTest {
     @Test
     fun modulePartitionAndApplicationCentralSchemaAreWiredBidirectionally() {
         val applicationBuildDir = Path.of(System.getProperty("projectBuildDir"))
-        val resolverBuildDir = Path.of(System.getProperty("resolverBuildDir"))
+        val resolverBasesDir = Path.of(System.getProperty("resolverBasesDir"))
         val partitionSchema = applicationBuildDir.resolve(
             "viaduct/centralSchema/partition/resolvers/graphql/schema.graphqls"
         )
-        val resolverBases = resolverBuildDir.resolve(
-            "generated-sources/viaduct/resolverBases/" +
-                "com/example/execution/twoproject/resolvers/QueryResolvers.kt"
+        val resolverBases = resolverBasesDir.resolve(
+            "QueryResolvers.kt"
         )
 
         assertTrue(partitionSchema.exists(), "Expected the module partition in the application central schema")
