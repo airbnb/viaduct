@@ -23,6 +23,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.supervisorScope
+import viaduct.deferred.FatalCompletionCancellationException
 import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.NodeEngineObjectData
@@ -585,23 +586,29 @@ class FieldResolver(
     ) {
         parameters.launchOnRootScope {
             try {
-                val shadowOutcome = executeShadowField(parameters, field)
-                val results =
-                    ShadowFieldExecutionResults(
-                        production = productionDispatch.captureOutcome(),
-                        shadow = shadowOutcome,
-                    )
-                compareShadowFieldExecutionResults(parameters, comparison, results)
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
+                // Fatal shadow failures must cancel shadow work without affecting production.
+                RequestScope(isolated = true) {
+                    val shadowOutcome = executeShadowField(parameters, field)
+                    val results =
+                        ShadowFieldExecutionResults(
+                            production = productionDispatch.captureOutcome(),
+                            shadow = shadowOutcome,
+                        )
+                    compareShadowFieldExecutionResults(parameters, comparison, results)
+                }
+            } catch (e: Throwable) {
+                // Fatal future failures cancel the isolated shadow scope and still need a log.
+                if (e is CancellationException &&
+                    generateSequence<Throwable>(e) { (it as? CancellationException)?.cause }
+                        .none { it is FatalCompletionCancellationException }
+                ) {
+                    throw e
+                }
                 log.error(
                     "Unexpected failure while executing shadow field at {}",
                     parameters.path,
                     e,
                 )
-            } catch (e: Error) {
-                throw e
             }
         }
     }

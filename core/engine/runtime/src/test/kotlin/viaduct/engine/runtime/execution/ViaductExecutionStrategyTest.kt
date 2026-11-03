@@ -15,13 +15,17 @@ import graphql.schema.DataFetcher
 import io.kotest.matchers.collections.shouldContainExactlyInAnyOrder
 import io.kotest.matchers.types.shouldBeInstanceOf
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.CompletionException
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.ExecutionException
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicInteger
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.ObsoleteCoroutinesApi
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitCancellation
@@ -32,6 +36,7 @@ import kotlinx.coroutines.future.await
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.yield
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotNull
@@ -50,6 +55,7 @@ import viaduct.dataloader.BatchLoaderEnvironment
 import viaduct.dataloader.InternalDataLoader
 import viaduct.dataloader.MappedBatchLoadFn
 import viaduct.dataloader.NextTickDispatcher
+import viaduct.deferred.asDeferred
 import viaduct.engine.EngineConfiguration
 import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.CheckerResultContext
@@ -322,6 +328,202 @@ class ViaductExecutionStrategyTest {
                     true
             )
         }
+
+    @Test
+    fun `pending fatal data fetcher future cancels request and sibling future`(): Unit =
+        runExecutionTest {
+            val fatal = NoSuchMethodError("missing resolver method")
+            val failedFuture = CompletableFuture<String>()
+            val siblingFuture = CompletableFuture<String>()
+            val siblingStarted = CompletableDeferred<Unit>()
+            val completion = launch {
+                siblingStarted.await()
+                yield()
+                failedFuture.completeExceptionally(fatal)
+            }
+            val resolvers = mapOf(
+                "Query" to mapOf(
+                    "failed" to DataFetcher { failedFuture },
+                    "sibling" to DataFetcher {
+                        siblingStarted.complete(Unit)
+                        siblingFuture
+                    }
+                )
+            )
+
+            val cancellation = assertThrows<CancellationException> {
+                withTimeout(5000) {
+                    executeViaductModernGraphQL("type Query { failed: String sibling: String }", resolvers, "{ failed sibling }")
+                }
+            }
+
+            assertFalse(cancellation is TimeoutCancellationException, "Request must abort before the timeout")
+            assertSame(fatal, generateSequence<Throwable>(cancellation) { it.cause }.last())
+            assertTrue(siblingFuture.isCancelled)
+            completion.join()
+        }
+
+    // Models DataFlowExecutionException without adding a service dependency to the engine tests.
+    private class NamedCompletionException(cause: Throwable) : CompletionException(cause)
+
+    @Nested
+    inner class WrapperCompatibilityTests {
+        @Test
+        fun `independently cancelled resolver settles field and preserves sibling result`(): Unit =
+            runExecutionTest {
+                for (alreadyCompleted in listOf(false, true)) {
+                    for (wrapped in listOf(false, true)) {
+                        val source = CompletableFuture<String>()
+                        val cancellation = CancellationException("resolver cancelled")
+                        val failure = if (wrapped) CompletionException(ExecutionException(cancellation)) else cancellation
+                        if (alreadyCompleted) source.completeExceptionally(failure)
+                        val resolvers = mapOf(
+                            "Query" to mapOf(
+                                "failed" to DataFetcher { source },
+                                "sibling" to DataFetcher {
+                                    source.completeExceptionally(failure)
+                                    "sibling result"
+                                },
+                            )
+                        )
+
+                        val result = withTimeout(5000) {
+                            executeViaductModernGraphQL("type Query { failed: String sibling: String }", resolvers, "{ failed sibling }")
+                        }
+                        assertEquals(mapOf("failed" to null, "sibling" to "sibling result"), result.getData<Map<String, Any?>>())
+                        assertEquals(listOf("failed"), result.errors.single().path)
+                    }
+                }
+            }
+
+        @Test
+        fun `ordinary wrapped resolver failures remain field errors`(): Unit =
+            runExecutionTest {
+                for (alreadyCompleted in listOf(false, true)) {
+                    for (namedWrapper in listOf(false, true)) {
+                        val cause = IllegalStateException("ordinary resolver failure")
+                        val wrapped = if (namedWrapper) {
+                            CompletionException(NamedCompletionException(cause))
+                        } else {
+                            CompletionException(ExecutionException("Scope 'resolver' failed", cause))
+                        }
+                        val source = CompletableFuture<String>()
+                        if (alreadyCompleted) source.completeExceptionally(wrapped)
+                        val resolvers = mapOf(
+                            "Query" to mapOf(
+                                "failed" to DataFetcher { source },
+                                "sibling" to DataFetcher {
+                                    if (!alreadyCompleted) source.completeExceptionally(wrapped)
+                                    "sibling result"
+                                },
+                            )
+                        )
+
+                        val result = withTimeout(5000) {
+                            executeViaductModernGraphQL("type Query { failed: String sibling: String }", resolvers, "{ failed sibling }")
+                        }
+                        assertEquals(mapOf("failed" to null, "sibling" to "sibling result"), result.getData<Map<String, Any?>>())
+                        assertEquals(listOf("failed"), result.errors.single().path)
+                        // This is the normalization used by the default production error handler.
+                        assertSame(cause, UnwrapExceptionUtil.unwrapExceptionForError(wrapped))
+                    }
+                }
+            }
+
+        @Test
+        fun `wrapped fatal resolver futures cancel request and pending sibling`(): Unit =
+            runExecutionTest {
+                for (namedWrapper in listOf(false, true)) {
+                    val fatal = NoSuchMethodError("missing resolver method")
+                    val wrapped = if (namedWrapper) {
+                        CompletionException(NamedCompletionException(fatal))
+                    } else {
+                        CompletionException(ExecutionException("Scope 'resolver' failed", fatal))
+                    }
+                    val source = CompletableFuture<String>()
+                    val sibling = CompletableFuture<String>()
+                    val started = CompletableDeferred<Unit>()
+                    val completion = launch {
+                        started.await()
+                        yield()
+                        source.completeExceptionally(wrapped)
+                    }
+                    val resolvers = mapOf(
+                        "Query" to mapOf(
+                            "failed" to DataFetcher { source },
+                            "sibling" to DataFetcher {
+                                started.complete(Unit)
+                                sibling
+                            },
+                        )
+                    )
+
+                    val cancellation = assertThrows<CancellationException> {
+                        withTimeout(5000) {
+                            executeViaductModernGraphQL("type Query { failed: String sibling: String }", resolvers, "{ failed sibling }")
+                        }
+                    }
+                    assertFalse(cancellation is TimeoutCancellationException)
+                    assertSame(fatal, generateSequence<Throwable>(cancellation) { it.cause }.last())
+                    assertTrue(sibling.isCancelled)
+                    completion.join()
+                }
+            }
+
+        @Test
+        fun `resolver recovery before returning its future still handles wrapped fatal failures`(): Unit =
+            runExecutionTest {
+                val source = CompletableFuture<String>()
+                val wrapped = CompletionException(ExecutionException(NoSuchMethodError("handled by resolver")))
+                var recovered: Throwable? = null
+                val resolvers = mapOf(
+                    "Query" to mapOf(
+                        "failed" to DataFetcher {
+                            source.exceptionally {
+                                recovered = it
+                                "fallback"
+                            }
+                        },
+                        "sibling" to DataFetcher {
+                            source.completeExceptionally(wrapped)
+                            "sibling result"
+                        },
+                    )
+                )
+
+                val result = withTimeout(5000) {
+                    executeViaductModernGraphQL("type Query { failed: String sibling: String }", resolvers, "{ failed sibling }")
+                }
+                assertSame(wrapped, recovered)
+                assertEquals(mapOf("failed" to "fallback", "sibling" to "sibling result"), result.getData<Map<String, Any?>>())
+                assertTrue(result.errors.isEmpty())
+            }
+
+        @Test
+        fun `adapter preserves wrapper types and messages for deferred recovery`(): Unit =
+            runExecutionTest {
+                for (alreadyCompleted in listOf(false, true)) {
+                    val cause = IllegalStateException("original failure")
+                    for (inner in listOf(ExecutionException("Scope 'resolver' failed", cause), NamedCompletionException(cause))) {
+                        val source = CompletableFuture<String>()
+                        val wrapped = CompletionException(inner)
+                        if (alreadyCompleted) source.completeExceptionally(wrapped)
+                        val deferred = source.asDeferred()
+                        if (!alreadyCompleted) source.completeExceptionally(wrapped)
+
+                        assertSame(inner, deferred.getCompletionExceptionOrNull())
+                        val delivered = if (inner is ExecutionException) {
+                            assertThrows<ExecutionException> { deferred.await() }
+                        } else {
+                            assertThrows<NamedCompletionException> { deferred.await() }
+                        }
+                        assertEquals(inner.message, delivered.message)
+                        // Coroutine stacktrace recovery may copy the exception thrown by await.
+                        assertSame(cause, generateSequence<Throwable>(delivered) { it.cause }.last())
+                    }
+                }
+            }
+    }
 
     @Test
     fun `instrumentation failure during field completion is contained at field level`() =

@@ -281,5 +281,5 @@ class ViaductExecutionStrategy internal constructor(
     }
 
     /** Runs [block] in [RequestScope], reusing an enclosing request's supervisor when present. */
-    internal suspend fun <T> withRequestSupervisor(block: suspend CoroutineScope.(supervisorFactory: SupervisorScopeFactory) -> T): T = RequestScope(block)
+    internal suspend fun <T> withRequestSupervisor(block: suspend CoroutineScope.(supervisorFactory: SupervisorScopeFactory) -> T): T = RequestScope(block = block)
 }

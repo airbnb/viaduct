@@ -1,20 +1,30 @@
 package viaduct.engine.runtime
 
+import ch.qos.logback.classic.Level
+import ch.qos.logback.classic.Logger
+import ch.qos.logback.classic.spi.ILoggingEvent
+import ch.qos.logback.core.AppenderBase
 import graphql.GraphqlErrorBuilder
 import graphql.execution.DataFetcherResult
 import graphql.execution.instrumentation.InstrumentationState
 import graphql.execution.instrumentation.parameters.InstrumentationFieldParameters
 import graphql.schema.DataFetcher
 import graphql.schema.FieldCoordinates
+import java.util.concurrent.CompletionException
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.withTimeoutOrNull
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
+import org.slf4j.LoggerFactory
 import viaduct.engine.EngineConfiguration
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineSchema
@@ -32,9 +42,74 @@ import viaduct.engine.api.mocks.fetchAs
 import viaduct.engine.api.mocks.runFeatureTest
 import viaduct.engine.api.spi.ShadowFieldExecutionComparison
 import viaduct.engine.api.spi.ShadowFieldExecutionResults
+import viaduct.engine.runtime.execution.FieldResolver
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class ShadowFieldExecutionTest {
+    @ParameterizedTest
+    @ValueSource(booleans = [false, true])
+    fun `fatal shadow resolver failure is logged without cancelling production`(wrapped: Boolean) {
+        val fatalError = NoSuchMethodError("missing shadow resolver method")
+        val failure = if (wrapped) CompletionException(fatalError) else fatalError
+        val resolverCalls = AtomicInteger()
+        val comparisonCalls = AtomicInteger()
+        val shadowStarted = CompletableDeferred<Unit>()
+        val failShadow = CompletableDeferred<Unit>()
+        val events = captureShadowFailures { failureLogged ->
+            val instrumentation = ShadowFieldExecutionComparisonInstrumentation(
+                coordinate = "Query" to "value",
+                observer = { comparisonCalls.incrementAndGet() },
+            )
+            EngineTestModule(
+                """
+                extend type Query {
+                    value: String!
+                    shadowFinished: Boolean!
+                }
+                """.trimIndent()
+            ) {
+                field("Query" to "value") {
+                    resolver {
+                        fn { _, _, _, _, _ ->
+                            if (resolverCalls.getAndIncrement() == 0) {
+                                "production"
+                            } else {
+                                shadowStarted.complete(Unit)
+                                failShadow.await()
+                                throw failure
+                            }
+                        }
+                    }
+                }
+                field("Query" to "shadowFinished") {
+                    resolver {
+                        fn { _, _, _, _, _ ->
+                            shadowStarted.await()
+                            failShadow.complete(Unit)
+                            // Keep production active while the shadow failure reaches its logging boundary.
+                            withTimeoutOrNull(1_000) { failureLogged.await() }
+                            true
+                        }
+                    }
+                }
+            }.runFeatureTest(
+                engineConfig = EngineConfiguration.featureTestDefault.copy(
+                    additionalInstrumentation = instrumentation.asStandardInstrumentation,
+                )
+            ) {
+                runQueryWithin("{ value shadowFinished }", timeoutMillis = 5_000)
+                    .assertJson("""{data: {value: "production", shadowFinished: true}}""")
+            }
+        }
+
+        assertEquals(2, resolverCalls.get())
+        assertEquals(0, comparisonCalls.get())
+        assertEquals(1, events.size, "Expected the fatal shadow failure to be logged exactly once")
+        val loggedCause = generateSequence(events.single().throwableProxy) { it.cause }.last()
+        assertEquals(NoSuchMethodError::class.java.name, loggedCause.className)
+        assertEquals(fatalError.message, loggedCause.message)
+    }
+
     @Test
     fun `shadow execution is rejected for mutation root fields`() {
         val resolverCalls = AtomicInteger()
@@ -497,9 +572,10 @@ class ShadowFieldExecutionTest {
         }
     }
 
-    @Test
-    fun `request supervisor isolates fatal shadow comparison failures`() {
-        val fatalError = AssertionError("fatal comparison failure")
+    @ParameterizedTest
+    @ValueSource(booleans = [false, true])
+    fun `request supervisor isolates shadow comparison failures`(fatal: Boolean) {
+        val failure = if (fatal) AssertionError("fatal comparison failure") else CancellationException("comparison cancelled")
         val comparisonCalls = AtomicInteger()
         val comparisonCompleted = CompletableDeferred<Unit>()
         val instrumentation =
@@ -508,40 +584,66 @@ class ShadowFieldExecutionTest {
                 observer = {
                     comparisonCalls.incrementAndGet()
                     comparisonCompleted.complete(Unit)
-                    throw fatalError
+                    throw failure
                 },
             )
 
-        EngineTestModule(
-            """
-            extend type Query {
-                value: String!
-                comparisonCompleted: Boolean!
-            }
-            """.trimIndent()
-        ) {
-            field("Query" to "comparisonCompleted") {
-                resolver {
-                    fn { _, _, _, _, _ ->
-                        comparisonCompleted.await()
-                        true
+        val events = captureShadowFailures {
+            EngineTestModule(
+                """
+                extend type Query {
+                    value: String!
+                    comparisonCompleted: Boolean!
+                }
+                """.trimIndent()
+            ) {
+                field("Query" to "comparisonCompleted") {
+                    resolver {
+                        fn { _, _, _, _, _ ->
+                            comparisonCompleted.await()
+                            true
+                        }
                     }
                 }
+                fieldWithValue("Query" to "value", "production")
+            }.runFeatureTest(
+                engineConfig =
+                    EngineConfiguration.featureTestDefault.copy(
+                        additionalInstrumentation = instrumentation.asStandardInstrumentation,
+                    )
+            ) {
+                runQuery("{ value comparisonCompleted }")
+                    .assertJson(
+                        """{data: {value: "production", comparisonCompleted: true}}"""
+                    )
             }
-            fieldWithValue("Query" to "value", "production")
-        }.runFeatureTest(
-            engineConfig =
-                EngineConfiguration.featureTestDefault.copy(
-                    additionalInstrumentation = instrumentation.asStandardInstrumentation,
-                )
-        ) {
-            runQuery("{ value comparisonCompleted }")
-                .assertJson(
-                    """{data: {value: "production", comparisonCompleted: true}}"""
-                )
         }
 
         assertEquals(1, comparisonCalls.get())
+        assertEquals(if (fatal) 1 else 0, events.size)
+    }
+
+    private fun captureShadowFailures(block: (CompletableDeferred<Unit>) -> Unit): List<ILoggingEvent> {
+        val failureLogged = CompletableDeferred<Unit>()
+        val events = ConcurrentLinkedQueue<ILoggingEvent>()
+        val logger = LoggerFactory.getLogger(FieldResolver::class.java) as Logger
+        val appender = object : AppenderBase<ILoggingEvent>() {
+            override fun append(event: ILoggingEvent) {
+                if (event.level == Level.ERROR && event.message == "Unexpected failure while executing shadow field at {}") {
+                    events.add(event)
+                    failureLogged.complete(Unit)
+                }
+            }
+        }
+        appender.start()
+        logger.addAppender(appender)
+        try {
+            block(failureLogged)
+            return events.toList()
+        } finally {
+            logger.detachAppender(appender)
+            appender.stop()
+        }
     }
 
     private fun schemaWithClassicFetcher(): EngineSchema {

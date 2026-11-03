@@ -34,6 +34,7 @@ grpc = "1.66.0"
 grpc-kotlin = "1.4.1"
 protobuf = "3.25.1"
 slf4j = "2.0.7"
+logback = "1.5.21"
 jspecify = "1.0.0"
 micrometer = "1.10.8"
 
@@ -154,6 +155,7 @@ jackson-dataformat-yaml = { module = "com.fasterxml.jackson.dataformat:jackson-d
 javassist = { module = "org.javassist:javassist", version.ref = "javassist" }
 javax-inject = { module = "javax.inject:javax.inject", version.ref = "javax-inject" }
 slf4j-api = { module = "org.slf4j:slf4j-api", version.ref = "slf4j" }
+logback-classic = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
 jspecify = { module = "org.jspecify:jspecify", version.ref = "jspecify" }
 ktor-server-core = { module = "io.ktor:ktor-server-core", version.ref = "ktor" }
 ktor-server-netty = { module = "io.ktor:ktor-server-netty", version.ref = "ktor" }
