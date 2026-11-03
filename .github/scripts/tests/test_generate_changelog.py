@@ -54,6 +54,7 @@ class TestFormatCoauthor(unittest.TestCase):
             ("Bob <bob@users.noreply.github.com>", "@bob"),
             ("Jane Smith <jane.smith@company.com>", "Jane Smith"),
             ("GitHub <noreply@github.com>", None),
+            ("GitHub Actions <41898282+github-actions[bot]@users.noreply.github.com>", None),
             ("John Doe", None),
         ]
         for line, expected in cases:
@@ -92,7 +93,8 @@ class TestGetCommitsBetweenTags(unittest.TestCase):
         commits, calls = self._run(MagicMock(returncode=0, stdout="waocs\n"))
         self.assertEqual([extract_authors(c) for c in commits], [["@waocs"], ["@waocs"]])
         gh_calls = [c for c in calls if c[0] == "gh"]
-        self.assertEqual(gh_calls, [["gh", "api", f"repos/airbnb/viaduct/commits/{'a' * 40}", "--jq", '.author.login // ""']])
+        self.assertEqual(len(gh_calls), 1)
+        self.assertIn(f"repos/airbnb/viaduct/commits/{'a' * 40}", gh_calls[0])
 
     @patch("generate_changelog._author_mappings.map_email", return_value="geovannefduarte")
     def test_mapping_fills_a_missing_github_login(self, _map_email):
@@ -634,6 +636,12 @@ class TestRenderBreakingChanges(unittest.TestCase):
         result = render_breaking_changes(entries)
         self.assertIn("- Remove foo (abc1234) by @alice\n", result)
         self.assertNotIn("—", result)
+
+    def test_breaking_change_without_authors_has_no_by_clause(self):
+        entries = [
+            ChangelogEntry("abc1234", "m1", [], "feat", None, "remove foo (abc1234)", True, "Use bar.", LevelBump.MAJOR),
+        ]
+        self.assertIn("- Remove foo (abc1234) — Use bar.\n", render_breaking_changes(entries))
 
 
 if __name__ == '__main__':

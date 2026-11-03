@@ -555,7 +555,10 @@ Check the breaking changes before sharing:
 - **Footers can be cut short.** A breaking entry carries its `BREAKING CHANGE:` footer, but the footer stops at its first blank line or bullet list, so multi-paragraph migration text is truncated. A `!` commit without a footer shows only its subject.
 - **Trailers can leak in.** A trailer with no blank line before it, such as `Co-authored-by: Name <email>`, is merged into the footer. Search the notes for `Co-authored-by` and for `<` to find and remove email addresses.
 - **Links can appear while you edit.** The published 3.0.0 notes link `AGENTS.md` to `http://AGENTS.md`, a link its commit message does not contain. Every hit of `grep -n "http://" /tmp/release-v${RELEASE_VER}-changelog.md` must be a link you wrote on purpose.
-- **Every `@` outside backticks must be an author.** The script credits each commit's GitHub login, but it copies descriptions as written, so a directive such as `@parent` mentions the GitHub user of that name. Put directives and annotations in backticks.
+- **Every `@` outside backticks must be an author.** The script credits each commit's GitHub login, but it copies descriptions as written, so a directive such as `@parent` mentions the GitHub user of that name. Put directives and annotations in backticks. Every line this prints needs a fix:
+  ```bash
+  sed -E 's/`[^`]*`//g; s/ by (@?[^@,—]+)(, @?[^@,—]+)*( —|$)/\3/' /tmp/release-v${RELEASE_VER}-changelog.md | grep -n '@'
+  ```
 
 Share in the team Slack channel for review before the release meeting.
 

@@ -6,7 +6,7 @@ This module generates changelogs between two git tags using the PSR library
 while maintaining Viaduct's authorship semantics:
 - Primary author is the commit's GitHub login, else the author-mapping login, else the git author name
 - Co-authors parsed from git trailers
-- Bot accounts filtered out
+- Bot logins never become @mentions
 """
 from __future__ import annotations
 
@@ -78,7 +78,6 @@ class ChangelogEntry:
 
     @property
     def by_authors(self) -> str:
-        """' by <authors>', or '' when the entry has no author."""
         return f" by {', '.join(self.authors)}" if self.authors else ''
 
     @property
@@ -105,22 +104,23 @@ def format_coauthor(author_line: str) -> str | None:
     """
     Format a Co-authored-by value ('Name <email>').
 
-    GitHub resolves no login for a trailer, so the login comes from a noreply email or the author mappings.
+    The REST commit endpoint returns no co-author logins, so the login comes from a noreply email or the author mappings.
     """
     match = re.match(r'^(.*?)\s*<([^>]+)>\s*$', author_line)
     if not match:
         return None
     name, email = match.groups()
-    if email.split('@')[0] in BOT_USERNAMES:
-        return None
     noreply = _NOREPLY_EMAIL_RE.match(email)
-    return format_author(noreply.group(1) if noreply else _author_mappings.map_email(email), name)
+    login = noreply.group(1) if noreply else _author_mappings.map_email(email)
+    if email.split('@')[0] in BOT_USERNAMES or (login and _is_bot(login)):
+        return None
+    return format_author(login, name)
 
 
 def github_login(sha: str) -> str | None:
     """The GitHub login linked to a commit's author, or None when GitHub links none."""
     result = subprocess.run(
-        ['gh', 'api', f'repos/{GITHUB_REPO}/commits/{sha}', '--jq', '.author.login // ""'],
+        ['gh', 'api', '--hostname', 'github.com', f'repos/{GITHUB_REPO}/commits/{sha}', '--jq', '.author.login // ""'],
         capture_output=True,
         text=True,
     )
