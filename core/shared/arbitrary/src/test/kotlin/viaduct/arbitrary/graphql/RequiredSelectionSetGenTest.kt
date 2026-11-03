@@ -8,6 +8,7 @@ import io.kotest.property.arbitrary.arbitrary
 import io.kotest.property.arbitrary.next
 import io.kotest.property.arbitrary.of
 import kotlinx.coroutines.runBlocking
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -160,7 +161,7 @@ class RequiredSelectionSetGenTest : KotestPropertyBase() {
         }
 
     @Test
-    fun `generator selects through parent fields`() {
+    fun `generator selects through parent fields for resolvers but never for checkers`() {
         /**
          * The selective-resolver property tests only exercise parent traversal if generated RSS's
          * can select through an `@parent` field. Whether a given generation can do so depends on
@@ -180,21 +181,23 @@ class RequiredSelectionSetGenTest : KotestPropertyBase() {
             (InlineFragmentWeight to Never)
         val factory = EngineSelectionSetFactoryImpl(schema)
 
-        val selectingParent = (1..200).count {
-            val rss = RequiredSelectionSetGen(ViaductGenEnv(schema, cfg, randomSource)).gen(
-                tfc = "Bar" to "y",
-                typeCondition = "Bar",
-                forChecker = false,
-                depth = 0,
-            ) ?: return@count false
+        fun countSelectingParent(forChecker: Boolean) =
+            (1..200).count {
+                val rss = RequiredSelectionSetGen(ViaductGenEnv(schema, cfg, randomSource)).gen(
+                    tfc = "Bar" to "y",
+                    typeCondition = "Bar",
+                    forChecker = forChecker,
+                    depth = 0,
+                ) ?: return@count false
 
-            "Bar" to "parent" in factory.engineSelectionSet(rss.selections, emptyMap()).allCoords(schema)
-        }
+                "Bar" to "parent" in factory.engineSelectionSet(rss.selections, emptyMap()).allCoords(schema)
+            }
 
         assertTrue(
-            selectingParent > 0,
+            countSelectingParent(forChecker = false) > 0,
             "no RSS generated for Bar.y selected through Bar.parent, so parent traversal is unreachable"
         )
+        assertEquals(0, countSelectingParent(forChecker = true))
     }
 
     @Test

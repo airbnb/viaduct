@@ -4,7 +4,6 @@ import graphql.ExecutionResult
 import graphql.execution.instrumentation.parameters.InstrumentationFieldFetchParameters
 import graphql.execution.instrumentation.parameters.InstrumentationFieldParameters
 import java.util.concurrent.atomic.AtomicInteger
-import java.util.concurrent.atomic.AtomicReference
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotNull
@@ -107,70 +106,6 @@ interface ParentFieldRequiredSelectionsContract : QueryExecutionContract {
             result.toSpecification()["data"],
         )
         assertTrue(result.errors.isEmpty())
-    }
-
-    @Test
-    fun `type checker required selections resolve the returned object's parent`() {
-        val checkedParentName = AtomicReference<String>()
-
-        runQueryTest(
-            EngineTestModule(
-                """
-            extend type Query { organization: Organization }
-            type Organization { name: String, company: Company }
-            type Company { name: String, user: User }
-            type User { id: ID, parent: Company @parent }
-                """.trimIndent(),
-            ) {
-                field("Query" to "organization") {
-                    resolver {
-                        fn { _, _, _, _, _ ->
-                            createEngineObjectData(
-                                schema.schema.getObjectType("Organization"),
-                                mapOf("name" to "Engineering")
-                            )
-                        }
-                    }
-                }
-                field("Organization" to "company") {
-                    resolver {
-                        fn { _, _, _, _, _ ->
-                            createEngineObjectData(
-                                schema.schema.getObjectType("Company"),
-                                mapOf("name" to "Airbnb")
-                            )
-                        }
-                    }
-                }
-                field("Company" to "user") {
-                    resolver {
-                        fn { _, _, _, _, _ ->
-                            createEngineObjectData(
-                                schema.schema.getObjectType("User"),
-                                mapOf("id" to "user-1")
-                            )
-                        }
-                    }
-                }
-                type("User") {
-                    checker {
-                        objectSelections("parentData", "parent { name }")
-                        fn { _, objectDataMap ->
-                            checkedParentName.set(
-                                objectDataMap.getValue("parentData")
-                                    .fetchAs<EngineObjectData>("parent")
-                                    .fetchAs<String>("name")
-                            )
-                        }
-                    }
-                }
-            }
-        ) { runQuery ->
-            runQuery("{ organization { company { user { id } } } }")
-                .assertJson("{data: {organization: {company: {user: {id: 'user-1'}}}}}")
-        }
-
-        assertEquals("Airbnb", checkedParentName.get())
     }
 
     @Test

@@ -24,7 +24,7 @@ class CheckerSelectionSetsAreProperlyTyped(
             }
             if (!mismatches.isEmpty()) {
                 throw BadCheckerSelectionSetTypeException(
-                    "Some selection types ($mismatches) do not match " +
+                    "$checkerDescription has selection types ($mismatches) that do not match " +
                         "object type ($typeName) or root query type."
                 )
             }

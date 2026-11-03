@@ -31,7 +31,10 @@ class ExecutorValidator(
             FromFieldVariablesHaveValidPaths(schema),
             FromFieldVariablesAreNotConditions(),
         ).flatten(),
-        checkerExecutorValidator = CheckerSelectionSetsAreProperlyTyped(schema),
+        checkerExecutorValidator = listOf(
+            CheckerSelectionSetsAreProperlyTyped(schema),
+            CheckerSelectionSetsDoNotSelectParentFields(schema),
+        ).flatten(),
     )
 
     @Suppress("PARAMETER_NAME_CHANGED_ON_OVERRIDE")
@@ -45,7 +48,7 @@ class ExecutorValidator(
         val rssValidatedCoords = mutableSetOf<Coordinate>()
         ctx.fieldCheckerExecutors.forEach { (coord, executor) ->
             checkerExecutorValidator.validate(
-                CheckerExecutorValidationCtx(coord.first, executor)
+                CheckerExecutorValidationCtx(coord.first, executor, coord.second)
             )
             if (executor.requiredSelectionSets.any { it.value != null } &&
                 rssValidatedCoords.add(coord)
@@ -120,8 +123,12 @@ data class RequiredSelectionsValidationCtx(
 
 data class CheckerExecutorValidationCtx(
     val typeName: String,
-    val executor: CheckerExecutor
-)
+    val executor: CheckerExecutor,
+    val fieldName: String? = null,
+) {
+    val checkerDescription: String
+        get() = fieldName?.let { "Field checker for $typeName.$it" } ?: "Type checker for $typeName"
+}
 
 /**
  * Represents either a field coordinate, or an object type if the 2nd element is null

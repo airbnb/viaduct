@@ -11,6 +11,7 @@ import viaduct.arbitrary.common.sampleWeight
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.graphql.utils.ParsedSelections
 import viaduct.graphql.utils.SelectionsParserUtils.EntryPointFragmentName
+import viaduct.graphql.utils.isParentField
 
 internal interface RequiredSelectionSetGen {
     fun gen(
@@ -35,7 +36,7 @@ private class RequiredSelectionSetGenImpl(private val env: ViaductGenEnv) : Requ
         val cw = env.cfg[RequiredSelectionSetWeight]
         if (depth >= cw.max || !env.rs.sampleWeight(cw.weight)) return null
 
-        val state = genDocumentState(tfc, typeCondition) ?: return null
+        val state = genDocumentState(tfc, typeCondition, forChecker) ?: return null
         val selections = state.toParsedSelections(typeCondition)
 
         val variablesResolvers = state.variables.variables.map { vdef ->
@@ -51,9 +52,17 @@ private class RequiredSelectionSetGenImpl(private val env: ViaductGenEnv) : Requ
         return rss
     }
 
+    private val parentFieldCoordinates: Set<TypeOrFieldCoordinate> by lazy {
+        env.schemas.schema.allTypesAsList
+            .filterIsInstance<GraphQLObjectType>()
+            .flatMap { type -> type.fieldDefinitions.filter { it.isParentField() }.map { type.name to it.name } }
+            .toSet()
+    }
+
     private fun genDocumentState(
         tfc: TypeOrFieldCoordinate,
-        typeCondition: String
+        typeCondition: String,
+        forChecker: Boolean,
     ): DocumentGenCtx? {
         val state = DocumentGenCtx(
             env.schemas,
@@ -66,7 +75,8 @@ private class RequiredSelectionSetGenImpl(private val env: ViaductGenEnv) : Requ
                 // This ensures that RSS's always form a DAG and do not create cycles.
                 // ResolverValueGen uses a similar check to keep the combined graph acyclic.
                 env.coordinateIndex.after(tfc) +
-                tfc
+                tfc +
+                (if (forChecker) parentFieldCoordinates else emptySet())
         )
         val cfg = env.cfg + (BanSelectionCoordinates to blockedCoordinates)
 

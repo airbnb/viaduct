@@ -122,7 +122,7 @@ type User {
 }
 ```
 
-A resolver or checker for a field on `User` can include `parent { name }` in its required selection set. See [Parent fields in required selection sets](../resolvers/field_resolvers.md#parent-fields-in-required-selection-sets).
+A resolver for a field on `User` can include `parent { name }` in its required selection set. Access checkers cannot select `@parent` fields. See [Parent fields in required selection sets](../resolvers/field_resolvers.md#parent-fields-in-required-selection-sets).
 
 Parent fields:
 
