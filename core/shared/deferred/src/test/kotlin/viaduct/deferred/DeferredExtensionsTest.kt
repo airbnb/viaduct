@@ -5,6 +5,7 @@ package viaduct.deferred
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
 import java.util.concurrent.CountDownLatch
+import java.util.concurrent.ExecutionException
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
@@ -24,6 +25,8 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -32,6 +35,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.yield
+import org.junit.jupiter.api.Assertions.assertAll
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertInstanceOf
@@ -392,21 +396,86 @@ class DeferredExtensionsTest {
     @Nested
     inner class CancellationBehaviorTests {
         @Test
-        fun `handle propagates upstream cancellation without invoking handler`() =
+        fun `handle observes independent source cancellation for pending and completed sources`(): Unit =
             runBlocking {
-                val source = CompletableDeferred<String>()
-                val handlerInvoked = AtomicBoolean(false)
+                for (alreadyCompleted in listOf(false, true)) {
+                    val source = CompletableDeferred<String>()
+                    val cancellation = CancellationException("resolver cancelled")
+                    if (alreadyCompleted) source.cancel(cancellation)
+                    var seen: Throwable? = null
+                    val handled = source.handle { value, failure ->
+                        assertNull(value)
+                        seen = failure
+                        "fallback"
+                    }
+                    if (!alreadyCompleted) source.cancel(cancellation)
 
-                val handled = source.handle { value, throwable ->
-                    handlerInvoked.set(true)
-                    "$value:${throwable?.message}"
+                    assertEquals("fallback", handled.await())
+                    assertSame(cancellation, seen)
                 }
+            }
 
-                source.cancel(CancellationException("boom"))
+        @Test
+        fun `handle skips pending handler when request cancels its result`(): Unit =
+            runBlocking {
+                val parent = SupervisorJob()
+                val source = CompletableDeferred<String>()
+                val invoked = AtomicBoolean(false)
+                try {
+                    val result = withContext(RequestParentJobContextElement(parent)) {
+                        source.handle { _, _ ->
+                            invoked.set(true)
+                            "fallback"
+                        }
+                    }
+                    parent.cancel()
+                    source.cancel()
 
-                assertThrows<CancellationException> { handled.await() }
-                assertTrue(handled.isCancelled, "Derived deferred should be cancelled")
-                assertFalse(handlerInvoked.get(), "Handler must not run for upstream cancellation")
+                    assertTrue(result.isCancelled)
+                    assertFalse(invoked.get())
+                } finally {
+                    parent.cancelAndJoin()
+                }
+            }
+
+        @Test
+        fun `handle does not recover source cancellation after its caller is cancelled`(): Unit =
+            runBlocking {
+                for (alreadyCompleted in listOf(false, true)) {
+                    val request = SupervisorJob()
+                    val caller = Job()
+                    val source = CompletableDeferred<String>()
+                    val cancellation = CancellationException("sibling failed")
+                    val invoked = AtomicBoolean(false)
+                    lateinit var result: Deferred<String>
+                    try {
+                        if (alreadyCompleted) source.cancel(cancellation)
+                        val invocation = CoroutineScope(
+                            caller + Dispatchers.Unconfined +
+                                ThreadLocalCoroutineContextManager.ContextElement(caller) +
+                                RequestParentJobContextElement(request)
+                        ).launch {
+                            if (alreadyCompleted) caller.cancel()
+                            result = source.handle { _, _ ->
+                                invoked.set(true)
+                                "fallback"
+                            }
+                            awaitCancellation()
+                        }
+                        caller.cancel()
+                        invocation.join()
+                        if (!alreadyCompleted) {
+                            withContext(Dispatchers.Default) { source.cancel(cancellation) }
+                        }
+
+                        assertTrue(result.isCancelled)
+                        assertFalse(invoked.get())
+                        assertTrue(request.isActive)
+                    } finally {
+                        caller.cancelAndJoin()
+                        request.cancelAndJoin()
+                    }
+                }
             }
 
         @Test
@@ -1256,6 +1325,342 @@ class DeferredExtensionsTest {
     @Nested
     inner class AsDeferredTests {
         @Test
+        fun `pending doubly wrapped fatal failure cancels request adapter and siblings`(): Unit =
+            runBlocking {
+                val parent = SupervisorJob()
+                val future = CompletableFuture<Int>()
+                val fatal = NoSuchMethodError("missing resolver method")
+                lateinit var sibling: CompletableDeferred<Int>
+                val result = withContext(RequestParentJobContextElement(parent)) {
+                    sibling = completableDeferred()
+                    future.asDeferred()
+                }
+
+                try {
+                    future.completeExceptionally(CompletionException(CompletionException(fatal)))
+
+                    // Observe before cleanup: otherwise cancelling parent would hide an orphaned adapter.
+                    assertAll(
+                        { assertTrue(result.isCompleted, "The adapter must finish when its source finishes") },
+                        { assertTrue(result.isCancelled, "A fatal failure must cancel the adapter") },
+                        { assertTrue(parent.isCancelled, "A fatal failure must cancel the whole request") },
+                        { assertTrue(sibling.isCancelled, "A fatal failure must cancel sibling work") },
+                    )
+                    assertSame(fatal, generateSequence(result.getCompletionExceptionOrNull()) { it.cause }.last())
+                    assertSame(fatal, generateSequence(sibling.getCompletionExceptionOrNull()) { it.cause }.last())
+                } finally {
+                    parent.cancel()
+                    parent.join()
+                }
+            }
+
+        @Test
+        fun `already completed doubly wrapped fatal failure cancels request before rethrowing`(): Unit =
+            runBlocking {
+                val parent = SupervisorJob()
+                val fatal = NoSuchMethodError("missing resolver method")
+                val future = CompletableFuture<Int>().apply {
+                    completeExceptionally(CompletionException(CompletionException(fatal)))
+                }
+                lateinit var sibling: CompletableDeferred<Int>
+
+                try {
+                    withContext(RequestParentJobContextElement(parent)) {
+                        sibling = completableDeferred()
+                        assertSame(fatal, assertThrows<NoSuchMethodError> { future.asDeferred() })
+                    }
+                    assertTrue(parent.isCancelled)
+                    assertTrue(sibling.isCancelled)
+                    assertSame(fatal, generateSequence(sibling.getCompletionExceptionOrNull()) { it.cause }.last())
+                } finally {
+                    parent.cancel()
+                    parent.join()
+                }
+            }
+
+        @Test
+        fun `deeply wrapped fatal failure cancels request for pending and completed futures`(): Unit =
+            runBlocking {
+                for (alreadyCompleted in listOf(false, true)) {
+                    val parent = SupervisorJob()
+                    val future = CompletableFuture<Int>()
+                    val fatal = object : Throwable("fatal non-Exception throwable") {}
+                    var wrapped: Throwable = fatal
+                    repeat(8) { depth -> wrapped = if (depth % 2 == 0) CompletionException(wrapped) else ExecutionException(wrapped) }
+                    if (alreadyCompleted) future.completeExceptionally(wrapped)
+                    lateinit var sibling: CompletableDeferred<Int>
+
+                    try {
+                        withContext(RequestParentJobContextElement(parent)) {
+                            sibling = completableDeferred()
+                            if (alreadyCompleted) {
+                                assertSame(fatal, assertThrows<Throwable> { future.asDeferred() })
+                            } else {
+                                val result = future.asDeferred()
+                                future.completeExceptionally(wrapped)
+                                assertTrue(result.isCompleted)
+                                assertTrue(result.isCancelled)
+                                assertSame(fatal, result.getCompletionExceptionOrNull()?.cause)
+                            }
+                        }
+                        assertTrue(parent.isCancelled)
+                        assertTrue(sibling.isCancelled)
+                        assertSame(fatal, sibling.getCompletionExceptionOrNull()?.cause)
+                    } finally {
+                        parent.cancel()
+                        parent.join()
+                    }
+                }
+            }
+
+        @Test
+        fun `deeply wrapped ordinary failures preserve ExecutionException and request isolation`(): Unit =
+            runBlocking {
+                for (alreadyCompleted in listOf(false, true)) {
+                    val parent = SupervisorJob()
+                    val future = CompletableFuture<Int>()
+                    val failure = IllegalStateException("METHOD_NOT_FOUND", NoSuchMethodError("diagnostic cause"))
+                    val wrapped = CompletionException(ExecutionException(CompletionException(failure)))
+                    if (alreadyCompleted) future.completeExceptionally(wrapped)
+                    lateinit var sibling: CompletableDeferred<Int>
+
+                    try {
+                        val result = withContext(RequestParentJobContextElement(parent)) {
+                            sibling = completableDeferred()
+                            future.asDeferred()
+                        }
+                        if (!alreadyCompleted) future.completeExceptionally(wrapped)
+
+                        assertTrue(result.isCompleted)
+                        assertSame(wrapped.cause, result.getCompletionExceptionOrNull())
+                        val delivered = assertThrows<ExecutionException> { result.await() }
+                        assertEquals(wrapped.cause?.message, delivered.message)
+                        assertSame(failure.cause, generateSequence<Throwable>(delivered) { it.cause }.last())
+                        assertTrue(parent.isActive)
+                        assertTrue(sibling.isActive)
+                    } finally {
+                        parent.cancel()
+                        parent.join()
+                    }
+                }
+            }
+
+        @Test
+        fun `deeply wrapped cancellation preserves its cause without cancelling siblings`(): Unit =
+            runBlocking {
+                for (alreadyCompleted in listOf(false, true)) {
+                    val parent = SupervisorJob()
+                    val future = CompletableFuture<Int>()
+                    // A cancellation cause is diagnostic information, not another completion wrapper.
+                    val cancellation = CancellationException("caller cancelled").apply {
+                        initCause(NoSuchMethodError("diagnostic cause"))
+                    }
+                    val wrapped = CompletionException(ExecutionException(CompletionException(cancellation)))
+                    if (alreadyCompleted) future.completeExceptionally(wrapped)
+                    lateinit var sibling: CompletableDeferred<Int>
+
+                    try {
+                        val result = withContext(RequestParentJobContextElement(parent)) {
+                            sibling = completableDeferred()
+                            future.asDeferred()
+                        }
+                        if (!alreadyCompleted) future.completeExceptionally(wrapped)
+
+                        assertTrue(result.isCompleted)
+                        assertTrue(result.isCancelled)
+                        assertSame(cancellation, result.getCompletionExceptionOrNull())
+                        assertTrue(parent.isActive)
+                        assertTrue(sibling.isActive)
+                    } finally {
+                        parent.cancel()
+                        parent.join()
+                    }
+                }
+            }
+
+        @Test
+        fun `completion wrapper without a cause completes adapter for pending and completed futures`(): Unit =
+            runBlocking {
+                for (alreadyCompleted in listOf(false, true)) {
+                    val failure = CompletionException(null)
+                    val future = CompletableFuture<Int>()
+                    if (alreadyCompleted) future.completeExceptionally(failure)
+                    val result = future.asDeferred()
+                    if (!alreadyCompleted) future.completeExceptionally(failure)
+
+                    assertTrue(result.isCompleted)
+                    assertSame(failure, result.getCompletionExceptionOrNull())
+                }
+            }
+
+        @Test
+        fun `fatal future completion cancels captured request parent and siblings on foreign thread`(): Unit =
+            runBlocking {
+                for (wrapped in listOf(false, true)) {
+                    val parent = SupervisorJob()
+                    val future = CompletableFuture<Int>()
+                    val fatal = NoSuchMethodError("missing resolver method")
+                    lateinit var sibling: Deferred<Int>
+                    val result = withContext(RequestParentJobContextElement(parent)) {
+                        sibling = completableDeferred()
+                        future.asDeferred()
+                    }
+
+                    CompletableFuture.runAsync {
+                        assertNull(currentRequestParentJobOrNull())
+                        future.completeExceptionally(if (wrapped) CompletionException(fatal) else fatal)
+                    }.get(5, TimeUnit.SECONDS)
+
+                    assertTrue(parent.isCancelled)
+                    assertTrue(result.isCancelled)
+                    assertTrue(sibling.isCancelled)
+                    assertThrows<CancellationException> { result.await() }
+                    assertThrows<CancellationException> { sibling.await() }
+                    // await() may copy the cancellation for coroutine stack-trace recovery.
+                    assertSame(fatal, result.getCompletionExceptionOrNull()?.cause)
+                    assertSame(fatal, sibling.getCompletionExceptionOrNull()?.cause)
+                    parent.join()
+                }
+            }
+
+        @Test
+        fun `already failed fatal future cancels request siblings before rethrowing`(): Unit =
+            runBlocking {
+                for (wrapped in listOf(false, true)) {
+                    val parent = SupervisorJob()
+                    val fatal = NoSuchMethodError("missing resolver method")
+                    val future = CompletableFuture<Int>().apply {
+                        completeExceptionally(if (wrapped) CompletionException(fatal) else fatal)
+                    }
+                    lateinit var sibling: Deferred<Int>
+
+                    withContext(RequestParentJobContextElement(parent)) {
+                        sibling = completableDeferred()
+                        assertSame(fatal, assertThrows<NoSuchMethodError> { future.asDeferred() })
+                    }
+
+                    assertTrue(parent.isCancelled)
+                    assertThrows<CancellationException> { sibling.await() }
+                    assertSame(fatal, sibling.getCompletionExceptionOrNull()?.cause)
+                    parent.join()
+                }
+            }
+
+        @OptIn(InternalCoroutinesApi::class)
+        @Test
+        fun `fatal transformation during future completion cancels request siblings`(): Unit =
+            runBlocking {
+                val parent = SupervisorJob()
+                val fatal = NoSuchMethodError("missing resolver method")
+                val future = CompletableFuture<Int>()
+                lateinit var sibling: Deferred<Int>
+                val transformed = withContext(RequestParentJobContextElement(parent)) {
+                    sibling = completableDeferred()
+                    future.asDeferred().thenApply<Int, Int> { throw fatal }
+                }
+
+                future.complete(42)
+
+                assertTrue(parent.isCancelled)
+                assertTrue(transformed.isCancelled)
+                assertTrue(sibling.isCancelled)
+                assertThrows<CancellationException> { transformed.await() }
+                val failure = transformed.getCompletionExceptionOrNull()?.cause
+                assertInstanceOf(CompletionHandlerException::class.java, failure)
+                assertSame(fatal, failure?.cause)
+                parent.join()
+            }
+
+        @Test
+        fun `pending fatal future without a request parent cancels adapter instead of hanging`(): Unit =
+            runBlocking {
+                val fatal = NoSuchMethodError("missing resolver method")
+                val future = CompletableFuture<Int>()
+                val result = future.asDeferred()
+
+                future.completeExceptionally(fatal)
+
+                assertTrue(result.isCancelled)
+                assertThrows<CancellationException> { result.await() }
+                assertSame(fatal, result.getCompletionExceptionOrNull()?.cause)
+            }
+
+        @Test
+        fun `ordinary future failure leaves request and sibling active`(): Unit =
+            runBlocking {
+                for (alreadyCompleted in listOf(false, true)) {
+                    val parent = SupervisorJob()
+                    val failure = IllegalStateException("METHOD_NOT_FOUND")
+                    val future = CompletableFuture<Int>()
+                    if (alreadyCompleted) future.completeExceptionally(failure)
+                    lateinit var sibling: CompletableDeferred<Int>
+                    val result = withContext(RequestParentJobContextElement(parent)) {
+                        sibling = completableDeferred()
+                        future.asDeferred()
+                    }
+                    if (!alreadyCompleted) future.completeExceptionally(failure)
+
+                    assertThrows<IllegalStateException> { result.await() }
+                    assertSame(failure, result.getCompletionExceptionOrNull())
+                    assertTrue(parent.isActive)
+                    assertTrue(sibling.isActive)
+                    sibling.complete(42)
+                    assertEquals(42, sibling.await())
+                    parent.cancel()
+                    parent.join()
+                }
+            }
+
+        @Test
+        fun `successful future leaves request and sibling active`(): Unit =
+            runBlocking {
+                for (alreadyCompleted in listOf(false, true)) {
+                    val parent = SupervisorJob()
+                    val future = CompletableFuture<Int>()
+                    if (alreadyCompleted) future.complete(42)
+                    lateinit var sibling: CompletableDeferred<Int>
+                    val result = withContext(RequestParentJobContextElement(parent)) {
+                        sibling = completableDeferred()
+                        future.asDeferred()
+                    }
+                    if (!alreadyCompleted) future.complete(42)
+
+                    assertEquals(42, result.await())
+                    assertTrue(parent.isActive)
+                    assertTrue(sibling.isActive)
+                    sibling.complete(7)
+                    assertEquals(7, sibling.await())
+                    parent.cancel()
+                    parent.join()
+                }
+            }
+
+        @Test
+        fun `cancelled future leaves request and sibling active`(): Unit =
+            runBlocking {
+                for (alreadyCompleted in listOf(false, true)) {
+                    val parent = SupervisorJob()
+                    val future = CompletableFuture<Int>()
+                    if (alreadyCompleted) future.cancel(true)
+                    lateinit var sibling: CompletableDeferred<Int>
+                    val result = withContext(RequestParentJobContextElement(parent)) {
+                        sibling = completableDeferred()
+                        future.asDeferred()
+                    }
+                    if (!alreadyCompleted) future.cancel(true)
+
+                    assertTrue(result.isCancelled)
+                    assertThrows<CancellationException> { result.await() }
+                    assertTrue(parent.isActive)
+                    assertTrue(sibling.isActive)
+                    sibling.complete(7)
+                    assertEquals(7, sibling.await())
+                    parent.cancel()
+                    parent.join()
+                }
+            }
+
+        @Test
         fun `asDeferred FAST completed CF`() =
             runBlocking {
                 val cf = CompletableFuture.completedFuture(123)
@@ -1378,6 +1783,21 @@ class DeferredExtensionsTest {
 
             assertThrows<CompletionHandlerException> { d.propagateUpstreamFailure(ex) }
         }
+
+        @Test
+        fun `propagateUpstreamFailure retains ExecutionException for ordinary recovery`(): Unit =
+            runBlocking {
+                val d = CompletableDeferred<Unit>()
+                val cause = IllegalStateException("original failure")
+                val failure = ExecutionException("Scope 'resolver' failed", cause)
+
+                d.propagateUpstreamFailure(CompletionException(failure))
+
+                assertSame(failure, d.getCompletionExceptionOrNull())
+                val delivered = assertThrows<ExecutionException> { d.await() }
+                assertEquals(failure.message, delivered.message)
+                assertSame(cause, generateSequence<Throwable>(delivered) { it.cause }.last())
+            }
 
         @Test
         fun `propagateUpstreamFailure forwards cancellation`() =
