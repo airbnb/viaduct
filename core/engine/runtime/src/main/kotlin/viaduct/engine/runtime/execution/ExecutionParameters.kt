@@ -39,6 +39,7 @@ import viaduct.engine.runtime.EngineExecutionContextExtensions.setExecutionHandl
 import viaduct.engine.runtime.EngineExecutionContextImpl
 import viaduct.engine.runtime.ObjectEngineResultImpl
 import viaduct.engine.runtime.context.CompositeLocalContext
+import viaduct.engine.runtime.context.skipQueryPlanCache
 import viaduct.engine.runtime.observability.ExecutionObservabilityContext
 import viaduct.engine.runtime.observability.ResolverOutputContext
 import viaduct.utils.slf4j.logger
@@ -876,7 +877,8 @@ data class ExecutionParameters(
                         executionContext.executionInput.operationName
                             ?.takeIf(String::isNotEmpty)
                             ?.let(DocumentKey::Operation),
-                        attribution = planAttribution
+                        attribution = planAttribution,
+                        useCache = !executionContext.skipQueryPlanCache,
                     )
                 }
                 log.debug("Built QueryPlan in $duration")

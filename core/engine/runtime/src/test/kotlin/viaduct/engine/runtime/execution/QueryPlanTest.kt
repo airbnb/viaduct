@@ -1185,6 +1185,35 @@ class QueryPlanTest {
     }
 
     @Test
+    fun `QueryPlanFactory_Cached -- useCache false does not populate the cache for the query text`() {
+        val factory = QueryPlanFactory.Cached()
+        val schema = EngineSchema("type Query {x:Int y:Int}".asSchema)
+        val params = mkQPParameters("{x y}", schema)
+        runExecutionTest {
+            val rewrittenPlan = factory.build(params, "{x}".asDocument, useCache = false)
+            val plan = factory.build(params, "{x y}".asDocument)
+
+            assertEquals(listOf("x"), rewrittenPlan.resultKeys())
+            assertEquals(listOf("x", "y"), plan.resultKeys())
+        }
+    }
+
+    @Test
+    fun `QueryPlanFactory_Cached -- useCache false does not read a plan cached for the query text`() {
+        val factory = QueryPlanFactory.Cached()
+        val schema = EngineSchema("type Query {x:Int y:Int}".asSchema)
+        val params = mkQPParameters("{x y}", schema)
+        runExecutionTest {
+            val plan = factory.build(params, "{x y}".asDocument)
+            val rewrittenPlan = factory.build(params, "{x}".asDocument, useCache = false)
+
+            assertEquals(listOf("x", "y"), plan.resultKeys())
+            assertEquals(listOf("x"), rewrittenPlan.resultKeys())
+            assertEquals(1L, factory.cacheStats.requestCount())
+        }
+    }
+
+    @Test
     fun `QueryPlanFactory_Cached -- maximumSize bounds document plan cache`() {
         val factory = QueryPlanFactory.Cached(maximumSize = 1)
         val schema = EngineSchema("type Query {x:Int}".asSchema)
@@ -2111,6 +2140,8 @@ private fun QueryPlan.withRequiredSelectionSetIdForTest(): QueryPlan =
     } else {
         copy(requiredSelectionSetId = createRSS((parentType as? GraphQLNamedOutputType)?.name ?: "Query", "__test").id)
     }
+
+private fun QueryPlan.resultKeys(): List<String> = selectionSet.selections.filterIsInstance<Field>().map { it.resultKey }
 
 internal fun mkQPParameters(
     doc: String,

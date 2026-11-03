@@ -72,6 +72,15 @@ fun ExecutionInput.setIsIntrospective(isIntrospective: Boolean) {
     graphQLContext.put(IS_INTROSPECTIVE, isIntrospective)
 }
 
+private const val SKIP_QUERY_PLAN_CACHE = "viaduct.engine.runtime.skipQueryPlanCache"
+
+val ExecutionContext.skipQueryPlanCache: Boolean
+    get() = graphQLContext.get<Boolean>(SKIP_QUERY_PLAN_CACHE) == true
+
+fun ExecutionInput.setSkipQueryPlanCache(skipQueryPlanCache: Boolean) {
+    graphQLContext.put(SKIP_QUERY_PLAN_CACHE, skipQueryPlanCache)
+}
+
 inline fun <reified T : Any> ExecutionContext.updateCompositeLocalContext(updater: (ctx: T?) -> T): CompositeLocalContext {
     val compositeContext =
         getLocalContext<CompositeLocalContext?>()

@@ -31,6 +31,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.future.await
 import kotlinx.coroutines.future.future
+import kotlinx.coroutines.withContext
 import viaduct.engine.api.Coordinate
 import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.ExecutionAttribution
@@ -62,6 +63,9 @@ import viaduct.utils.collections.MaskedSet
 interface QueryPlanFactory {
     /**
      * Builds a [QueryPlan] from a GraphQL [Document].
+     *
+     * Pass `useCache = false` when [document] is not the document that [QueryPlan.Parameters.query] parses to,
+     * since caching implementations key plans on that text.
      */
     suspend fun build(
         parameters: QueryPlan.Parameters,
@@ -69,6 +73,7 @@ interface QueryPlanFactory {
         documentKey: DocumentKey? = null,
         attribution: ExecutionAttribution? = ExecutionAttribution.DEFAULT,
         rssBuildContext: RssBuildContext? = null,
+        useCache: Boolean = true,
     ): QueryPlan
 
     /**
@@ -127,6 +132,7 @@ interface QueryPlanFactory {
             documentKey: DocumentKey?,
             attribution: ExecutionAttribution?,
             rssBuildContext: RssBuildContext?,
+            useCache: Boolean,
         ): QueryPlan {
             val fragmentsByName = NodeUtil.getFragmentsByName(document)
             val docKey = resolveDocumentKey(document, documentKey)
@@ -287,7 +293,13 @@ interface QueryPlanFactory {
             documentKey: DocumentKey?,
             attribution: ExecutionAttribution?,
             rssBuildContext: RssBuildContext?,
+            useCache: Boolean,
         ): QueryPlan {
+            if (!useCache) {
+                return withContext(queryPlanBuilderDispatcher) {
+                    underlying.build(parameters, document, documentKey, attribution, RssBuildContext(rssPlanCache), useCache = false)
+                }
+            }
             val resolvedKey = resolveDocumentKey(document, documentKey)
             val cacheKey = CacheKey(
                 parameters.query,
