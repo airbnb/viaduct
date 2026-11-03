@@ -50,6 +50,34 @@ import viaduct.graphql.schema.ViaductSchema
 
 class ResolverRegistryTest {
     @Test
+    fun `projection retains context while publishing only demanded Node and ordinary fields`() {
+        val schemas = ViaductAndGJSchema.fromSDL(
+            "type Query { node: User item: Item } interface Node { id: ID! } type User implements Node { id: ID! name: String } type Item { id: ID! name: String }"
+        )
+        for (typeName in listOf("User", "Item")) {
+            val type = schemas.loweredSchema.requireType(typeName) as ViaductSchema.Object
+            for (context in listOf(null, Any(), mapOf("id" to "id"))) {
+                val source = engineObjectDataOf(type, mapOf("id" to "id", "name" to "Ada"), additionalContextForResolver = context)
+                val demand = schemas.fragmentFrom("fragment Demand on $typeName { name }").subselections
+                val projected = source.snipToDemand(demand, type)
+
+                assertEquals(setOf("name"), projected.getSelections().toSet())
+                assertSame(context, projected.additionalContextForResolver)
+                assertEquals("Ada", projected.get("name"))
+                val empty = source.snipToDemand(selectionForestOf(), type)
+                assertTrue(empty.getSelections().none())
+                assertSame(context, empty.additionalContextForResolver)
+                val withId = source.snipToDemand(schemas.fragmentFrom("fragment Demand on $typeName { id name }").subselections, type)
+                assertEquals(setOf("id", "name"), withId.getSelections().toSet())
+                assertEquals(2, withId.getSelections().count())
+                assertEquals("id", withId.get("id"))
+                val withoutId = engineObjectDataOf(type, mapOf("name" to "Ada"), additionalContextForResolver = context).snipToDemand(demand, type)
+                assertFalse(withoutId.isPresent("id"))
+            }
+        }
+    }
+
+    @Test
     fun `projection preserves opaque context recursively without publishing extra fields`() {
         val schemas = ViaductAndGJSchema.fromSDL("type Query { item: Item } type Item { value: Int extra: Int child: Item }")
         val type = schemas.loweredSchema.requireType("Item") as ViaductSchema.Object

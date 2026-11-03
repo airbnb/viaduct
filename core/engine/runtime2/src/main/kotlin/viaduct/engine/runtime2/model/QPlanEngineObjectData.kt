@@ -32,6 +32,8 @@ sealed interface EngineObjectDataEntry {
  * Constructs a passive object whose selections are canonical argumentless field names.
  *
  * Callers supply values conforming to their fields' output types; construction does not recheck conformance.
+ *
+ * @param additionalContextForResolver Reserved for Airbnb internal API compatibility; all other callers must leave it null.
  */
 fun engineObjectDataOf(
     schemaType: ViaductSchema.Object,
@@ -60,6 +62,8 @@ fun engineObjectDataOf(
  * Callers supply values conforming to their associated fields' output types without another conformance check.
  * [schemaType] supplies qplan's canonical lowered definition and the associated Engine API witness.
  * Source-backed objects expose the exact retained source GraphQL-Java object.
+ *
+ * @param additionalContextForResolver Reserved for Airbnb internal API compatibility; all other callers must leave it null.
  */
 fun engineObjectDataOf(
     schemaType: ViaductSchema.Object,
@@ -124,7 +128,7 @@ val EngineObjectData.Sync.schemaType: ViaductSchema.Object
             "Engine object data for ${type.name} is not owned by qplan"
         }
 
-/** Carries application data to child resolver callbacks without publishing it as GraphQL fields. */
+/** Opaque parent context reserved for Airbnb internal API compatibility; unrelated resolver code must not use it. */
 val EngineObjectData.Sync.additionalContextForResolver: Any?
     get() = (this as? QPlanEngineObjectData)?.additionalContextForResolver
 
@@ -161,6 +165,8 @@ private data class EngineObjectDataEntryImpl(
 
 internal interface QPlanEngineObjectData : EngineObjectData.Sync {
     val schemaType: ViaductSchema.Object
+
+    /** Reserved for Airbnb internal API compatibility; unrelated code must not populate or consume this context. */
     val additionalContextForResolver: Any?
     val selectionFields: Map<String, ViaductSchema.ObjectField>
 

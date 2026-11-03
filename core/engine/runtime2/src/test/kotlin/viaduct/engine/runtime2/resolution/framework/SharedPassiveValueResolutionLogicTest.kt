@@ -1,4 +1,4 @@
-@file:Suppress("ForbiddenImport")
+@file:Suppress("ForbiddenImport", "DEPRECATION")
 
 package viaduct.engine.runtime2.resolution.framework
 
@@ -11,12 +11,14 @@ import kotlin.test.assertTrue
 import kotlinx.coroutines.runBlocking
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.ResolvedEngineObjectData
+import viaduct.engine.runtime2.airbnb.node.NodeResolverContext
 import viaduct.engine.runtime2.model.EngineErrorData
 import viaduct.engine.runtime2.model.EngineObjectDataEntry
 import viaduct.engine.runtime2.model.EngineResult
 import viaduct.engine.runtime2.model.EngineResultCell
 import viaduct.engine.runtime2.model.ErrorEngineResult
 import viaduct.engine.runtime2.model.ListEngineResult
+import viaduct.engine.runtime2.model.NodeReferenceIdentity
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.ObjectSelection
 import viaduct.engine.runtime2.model.ObjectSelectionForest
@@ -24,14 +26,17 @@ import viaduct.engine.runtime2.model.PathComponent
 import viaduct.engine.runtime2.model.ResolverOutputData
 import viaduct.engine.runtime2.model.RootFieldReferenceData
 import viaduct.engine.runtime2.model.SelectionForest
+import viaduct.engine.runtime2.model.additionalContextForResolver
 import viaduct.engine.runtime2.model.emptyFragmentOf
 import viaduct.engine.runtime2.model.engineObjectDataOf
 import viaduct.engine.runtime2.model.outputType
+import viaduct.engine.runtime2.model.outputValue
 import viaduct.engine.runtime2.model.registry.fieldResolverOf
 import viaduct.engine.runtime2.model.requireField
 import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.requireType
+import viaduct.engine.runtime2.model.selectionForestOf
 import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.emptyFragmentOf
 import viaduct.engine.runtime2.model.testing.fragmentFrom
@@ -40,6 +45,148 @@ import viaduct.engine.runtime2.resolvers.applicableGroundSelections
 import viaduct.graphql.schema.ViaductSchema
 
 class SharedPassiveValueResolutionLogicTest {
+    @Test
+    fun `authoritative node identity updates opted-in context independently of demand without losing errors`() {
+        val fixture = TestWorld.fromSDL("type Query { user: User } interface Node { id: ID! } type User implements Node { id: ID! name: String }")
+        val type = fixture.schema.requireType("User") as ViaductSchema.Object
+        val retainedFields = mapOf("id" to "previous", "name" to "Ada")
+        val retained = NodeResolverContext(retainedFields, NodeReferenceIdentity(type, "previous"))
+        val error = EngineErrorData.of(IllegalStateException("name failed"))
+        val output = engineObjectDataOf(type, mapOf("id" to "previous", "name" to error), additionalContextForResolver = retained)
+        val identity = NodeReferenceIdentity(type, "authoritative")
+        val demand = fixture.schemas.fragmentFrom("fragment Demand on User { id name }").subselections
+
+        val adapted = assertIs<EngineObjectData.Sync>(output.withAuthoritativeNodeId(identity, demand))
+
+        assertEquals("authoritative", adapted.get("id"))
+        val restored = assertIs<NodeResolverContext>(adapted.additionalContextForResolver)
+        assertEquals(identity, restored.identity)
+        assertSame(retainedFields, restored.retainedContext)
+        assertEquals("previous", retained.identity?.id)
+        assertEquals("previous", retainedFields["id"])
+        assertTrue(retained !== adapted.additionalContextForResolver)
+        assertSame(error, adapted.outputValue("name"))
+        val withoutId = assertIs<EngineObjectData.Sync>(output.withAuthoritativeNodeId(identity, fixture.schemas.fragmentFrom("fragment Demand on User { name }").subselections))
+        assertEquals(setOf("name"), withoutId.getSelections())
+        val contextWithoutId = assertIs<NodeResolverContext>(withoutId.additionalContextForResolver)
+        assertEquals(restored.identity, contextWithoutId.identity)
+        assertSame(retainedFields, contextWithoutId.retainedContext)
+        assertSame(error, withoutId.outputValue("name"))
+    }
+
+    @Test
+    fun `unchanged node identity and id publication reuse the original object`() {
+        val fixture = TestWorld.fromSDL("type Query { user: User } interface Node { id: ID! } type User implements Node { id: ID! name: String }")
+        val type = fixture.schema.requireType("User") as ViaductSchema.Object
+        val identity = NodeReferenceIdentity(type, "authoritative")
+        val contexts = listOf(null, Any(), mapOf("id" to "correlation-id"), NodeResolverContext(Any(), identity))
+        for (context in contexts) {
+            for (idSelection in listOf("", "id")) {
+                val fields = mapOf("name" to "Ada") + if (idSelection.isEmpty()) emptyMap() else mapOf("id" to identity.id)
+                val source = engineObjectDataOf(type, fields, additionalContextForResolver = context)
+                val demand = fixture.schemas.fragmentFrom("fragment Demand on User { $idSelection name }").subselections
+
+                assertSame(source, source.withAuthoritativeNodeId(identity, demand))
+            }
+        }
+    }
+
+    @Test
+    fun `node identity validation runs before returning an unchanged object`() {
+        val fixture = TestWorld.fromSDL("type Query { user: User item: Item } interface Node { id: ID! } type User implements Node { id: ID! } type Item { id: ID! }")
+        val userType = fixture.schema.requireType("User") as ViaductSchema.Object
+        val itemType = fixture.schema.requireType("Item") as ViaductSchema.Object
+        val source = engineObjectDataOf(itemType)
+
+        assertFailsWith<IllegalArgumentException> {
+            source.withAuthoritativeNodeId(NodeReferenceIdentity(userType, "authoritative"), selectionForestOf())
+        }
+    }
+
+    @Test
+    fun `node context does not compare hash or render its opaque payload`() {
+        val payload = object {
+            override fun equals(other: Any?): Boolean = error("Opaque payload equality must not be invoked")
+
+            override fun hashCode(): Int = error("Opaque payload hashing must not be invoked")
+
+            override fun toString(): String = error("Opaque payload rendering must not be invoked")
+        }
+        val context = NodeResolverContext(payload)
+
+        assertTrue(context != NodeResolverContext(payload))
+        assertEquals(System.identityHashCode(context), context.hashCode())
+        context.toString()
+    }
+
+    @Test
+    fun `node context retains opaque payloads when identity is restored repeatedly`() {
+        val fixture = TestWorld.fromSDL("type Query { user: User } interface Node { id: ID! } type User implements Node { id: ID! name: String }")
+        val type = fixture.schema.requireType("User") as ViaductSchema.Object
+        for (payload in listOf(Any(), null)) {
+            val retained = NodeResolverContext(payload)
+            val source = engineObjectDataOf(type, additionalContextForResolver = retained)
+            val forwarded = assertIs<EngineObjectData.Sync>(source.withAuthoritativeNodeId(NodeReferenceIdentity(type, "forwarded"), selectionForestOf()))
+            val original = NodeReferenceIdentity(type, "original")
+            val restored = assertIs<EngineObjectData.Sync>(forwarded.withAuthoritativeNodeId(original, selectionForestOf()))
+            val repeated = assertIs<EngineObjectData.Sync>(restored.withAuthoritativeNodeId(original, selectionForestOf()))
+
+            assertSame(restored, repeated)
+            val context = assertIs<NodeResolverContext>(repeated.additionalContextForResolver)
+            assertEquals(original, context.identity)
+            assertSame(payload, context.retainedContext)
+            assertEquals(null, retained.identity)
+            assertEquals("forwarded", assertIs<NodeResolverContext>(forwarded.additionalContextForResolver).identity?.id)
+            assertTrue(repeated.getSelections().none())
+        }
+    }
+
+    @Test
+    fun `authoritative node identity preserves opaque resolver context`() {
+        val fixture = TestWorld.fromSDL("type Query { user: User } interface Node { id: ID! } type User implements Node { id: ID! name: String }")
+        val type = fixture.schema.requireType("User") as ViaductSchema.Object
+        for (retained in listOf(mapOf("id" to "correlation-id", "requestTag" to "trace-1"), mapOf("requestTag" to "trace-1"), Any(), null)) {
+            val output = engineObjectDataOf(type, mapOf("id" to "previous", "name" to "Ada"), additionalContextForResolver = retained)
+            for (idSelection in listOf("id", "")) {
+                val demand = fixture.schemas.fragmentFrom("fragment Demand on User { $idSelection name }").subselections
+                val adapted = assertIs<EngineObjectData.Sync>(output.withAuthoritativeNodeId(NodeReferenceIdentity(type, "authoritative"), demand))
+                if (idSelection.isNotEmpty()) assertEquals("authoritative", adapted.get("id")) else assertTrue(!adapted.isPresent("id"))
+                assertSame(retained, adapted.additionalContextForResolver)
+            }
+        }
+    }
+
+    @Test
+    fun `selective validation rejects undemanded fields even when Node identity is retained in context`() {
+        val fixture = TestWorld.fromSDL(
+            "type Query { user: User item: Item } interface Node { id: ID! } type User implements Node { id: ID! name: String extra: String } type Item { id: ID! name: String extra: String }"
+        )
+        for ((typeName, queryField) in listOf("User" to "user", "Item" to "item")) {
+            val type = fixture.schema.requireType(typeName) as ViaductSchema.Object
+            val demand = fixture.schemas.fragmentFrom("fragment Demand on $typeName { name }").subselections
+            for (context in listOf(null, Any(), mapOf("id" to "id"))) {
+                val source = engineObjectDataOf(type, mapOf("id" to "id", "name" to "Ada"), additionalContextForResolver = context)
+
+                fun resolve(value: EngineObjectData.Sync) =
+                    runBlocking {
+                        value.recordPassiveResolution(
+                            operation = SharedOperationContext.create(fixture.assumptions),
+                            expectedType = fixture.schema.requireObjectField("Query", queryField).outputType,
+                            path = emptyList(),
+                            constructionDemand = demand,
+                        )
+                    }
+                assertTrue(assertFailsWith<IllegalArgumentException> { resolve(source) }.message.orEmpty().contains("unselected fields: id"))
+                val demanded = engineObjectDataOf(type, mapOf("name" to "Ada"), additionalContextForResolver = context)
+                val result = assertIs<ObjectEngineResult>(resolve(demanded).engineResult)
+                val name = ObjectEngineResult.GroundKey.of(fixture.schema.requireObjectField(typeName, "name"), emptyMap())
+                assertEquals("Ada", result.getCell(name).value.get())
+                val extra = engineObjectDataOf(type, mapOf("id" to "id", "name" to "Ada", "extra" to "invalid"), additionalContextForResolver = context)
+                assertTrue(assertFailsWith<IllegalArgumentException> { resolve(extra) }.message.orEmpty().contains("extra"))
+            }
+        }
+    }
+
     @Test
     fun `traverses resolved objects directly and preserves errors and distinct list occurrences`() {
         val fixture = TestWorld.fromSDL(

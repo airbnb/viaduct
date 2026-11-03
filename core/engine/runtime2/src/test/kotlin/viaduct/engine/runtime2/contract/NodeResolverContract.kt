@@ -1,16 +1,23 @@
+@file:Suppress("DEPRECATION")
+
 package viaduct.engine.runtime2.contract
 
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
+import kotlin.test.assertSame
 import org.junit.jupiter.api.Test
+import viaduct.engine.runtime2.airbnb.node.NodeResolverContext
 import viaduct.engine.runtime2.correctresolution.CorrectnessResolverObserver
 import viaduct.engine.runtime2.model.IDEngineResult
 import viaduct.engine.runtime2.model.ListEngineResult
+import viaduct.engine.runtime2.model.NodeReferenceIdentity
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.RootFieldReferenceData
+import viaduct.engine.runtime2.model.additionalContextForResolver
 import viaduct.engine.runtime2.model.emptyFragmentOf
+import viaduct.engine.runtime2.model.engineObjectDataOf
 import viaduct.engine.runtime2.model.registry.fieldResolverOf
 import viaduct.engine.runtime2.model.registry.nodeResolverOf
 import viaduct.engine.runtime2.model.requireField
@@ -20,13 +27,71 @@ import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.emptyFragmentOf
 import viaduct.engine.runtime2.model.testing.nodeReferenceOf
 import viaduct.engine.runtime2.model.testing.objectOf
+import viaduct.engine.runtime2.resolution.framework.ResolutionObserver
 import viaduct.engine.runtime2.resolution.framework.ResolverInvocationObservation
+import viaduct.engine.runtime2.resolution.framework.SharedOrchestrationTask
 import viaduct.graphql.schema.ViaductSchema
 
 /**
  * Contract for source fields whose node outputs resolve through root references to `Query.node`.
  */
 interface NodeResolverContract : ResolverContract {
+    @Test
+    fun `reference tails restore opted-in context without interpreting ordinary maps or requiring id demand`() {
+        val fields = mapOf("id" to "correlation-id", "requestTag" to "trace-1")
+        for (retained in listOf(NodeResolverContext(fields), fields)) {
+            for (idSelection in listOf("", "id")) {
+                val observedContexts = ConcurrentLinkedQueue<Any>()
+                val observer = object : ResolutionObserver {
+                    override val onQueryOERPrepared: (SharedOrchestrationTask<*>, Int?) -> Unit = { task, _ ->
+                        if (task.objectOER.occurrence.target.type.name == "User") {
+                            val context = requireNotNull(task.objectOER.source.additionalContextForResolver)
+                            assertSame(context, task.objectOER.occurrence.additionalContextForResolver)
+                            observedContexts.add(context)
+                        }
+                    }
+                }
+                val world = TestWorld.fromSDL(
+                    selectiveResolvers = selectiveResolvers,
+                    schemaSDL = "interface Node { id: ID! } type User implements Node { id: ID! label: String } type Query { user: User }",
+                    fieldResolvers = { schemas ->
+                        val schema = schemas.loweredSchema
+                        mapOf(
+                            schema.requireObjectField("Query", "user") to fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
+                                schema.nodeReferenceOf("User", "original")
+                            },
+                            schema.requireObjectField("User", "label") to fieldResolverOf(schema.emptyFragmentOf("User")) { _, _ -> "healthy" },
+                        )
+                    },
+                    nodeResolvers = { schemas ->
+                        val schema = schemas.loweredSchema
+                        val type = schema.requireType("User") as ViaductSchema.Object
+                        mapOf(
+                            type to nodeResolverOf { id ->
+                                if (id == "original") schema.nodeReferenceOf("User", "forwarded") else engineObjectDataOf(type, additionalContextForResolver = retained)
+                            }
+                        )
+                    },
+                )
+
+                val result = resolveAndValidate(world, "{ user { $idSelection label } }", resolutionObserver = observer)
+                val user = assertIs<ObjectEngineResult>(result.getCell(world.schema.contractKey("Query", "user")).get())
+                assertEquals("healthy", user.getCell(world.schema.contractKey("User", "label")).get())
+                if (idSelection.isNotEmpty()) assertEquals(IDEngineResult.of("original"), user.getCell(world.schema.contractKey("User", "id")).get())
+                val context = observedContexts.single()
+                if (retained is NodeResolverContext) {
+                    val restored = assertIs<NodeResolverContext>(context)
+                    assertEquals(NodeReferenceIdentity(world.schema.requireType("User") as ViaductSchema.Object, "original"), restored.identity)
+                    assertSame(fields, restored.retainedContext)
+                    assertEquals(null, retained.identity)
+                } else {
+                    assertSame(retained, context)
+                }
+            }
+        }
+        assertEquals("correlation-id", fields["id"])
+    }
+
     @Test
     fun `retains successor demand beneath a node reference`() {
         if (this !is ObjectFragmentResolverContract) return

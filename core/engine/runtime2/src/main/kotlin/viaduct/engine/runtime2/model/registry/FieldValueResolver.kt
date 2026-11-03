@@ -23,7 +23,10 @@ import viaduct.engine.runtime2.model.schemaType
 import viaduct.engine.runtime2.model.selectionForestOf
 import viaduct.graphql.schema.ViaductSchema
 
-/** A deterministic partial map from resolved object and Query fragments plus arguments to an output value. */
+/**
+ * A deterministic partial map from resolved object and Query fragments plus arguments to an output value.
+ * `additionalContextForResolver` is reserved for Airbnb internal API compatibility; unrelated resolvers must ignore it.
+ */
 typealias NonselectiveFieldResolverFunction =
     suspend (
         EngineObjectData.Sync,
@@ -39,6 +42,7 @@ typealias NonselectiveFieldResolverFunction =
  * For fixed non-selection inputs, calls with different demands have the same null, error, simple,
  * list, and concrete-object skeleton and agree at every object-field coordinate selected by both
  * demands. The returned value may omit object fields outside the supplied demand.
+ * `additionalContextForResolver` is reserved for Airbnb internal API compatibility; unrelated resolvers must ignore it.
  */
 typealias SelectiveFieldResolverFunction =
     suspend (

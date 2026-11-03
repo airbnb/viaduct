@@ -1,10 +1,11 @@
-@file:Suppress("ForbiddenImport")
+@file:Suppress("ForbiddenImport", "DEPRECATION")
 
 package viaduct.engine.runtime2.correctresolution
 
 import java.util.IdentityHashMap
 import kotlinx.coroutines.runBlocking
 import viaduct.engine.api.EngineObjectData
+import viaduct.engine.runtime2.airbnb.node.NodeResolverContext
 import viaduct.engine.runtime2.model.Arguments
 import viaduct.engine.runtime2.model.EngineErrorData
 import viaduct.engine.runtime2.model.EngineResult
@@ -19,6 +20,7 @@ import viaduct.engine.runtime2.model.RootFieldReferenceData
 import viaduct.engine.runtime2.model.Selection
 import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.model.VariableBinding
+import viaduct.engine.runtime2.model.additionalContextForResolver
 import viaduct.engine.runtime2.model.concatenateSelectionForests
 import viaduct.engine.runtime2.model.engineObjectDataOf
 import viaduct.engine.runtime2.model.merge
@@ -560,17 +562,17 @@ private class ResolverReplayLogic(
         if (identity == null || this !is EngineObjectData.Sync) return this
         if (schemaType(operation.world.schema) != identity.type) return this
         val idField = identity.type.field("id") ?: return this
-        if (demand
-                .merge(identity.type)
-                .byKey()
-                .keys
-                .none { key -> key.field == idField }
-        ) {
-            return this
-        }
+        val idDemanded = demand
+            .merge(identity.type)
+            .byKey()
+            .keys
+            .any { key -> key.field == idField }
+        val fields = getSelections().associateWith(::outputValue) - idField.name
+        val context = additionalContextForResolver
         return engineObjectDataOf(
             identity.type,
-            getSelections().associateWith(::outputValue) + (idField.name to identity.id),
+            if (idDemanded) fields + (idField.name to identity.id) else fields,
+            additionalContextForResolver = if (context is NodeResolverContext) NodeResolverContext(context.retainedContext, identity) else context,
         )
     }
 

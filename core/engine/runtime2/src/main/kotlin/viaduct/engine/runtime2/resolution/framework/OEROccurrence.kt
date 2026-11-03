@@ -11,6 +11,7 @@ class OEROccurrence(
     path: List<PathComponent>,
     val target: ObjectEngineResult,
     val parent: OEROccurrence? = null,
+    /** Reserved for Airbnb internal API compatibility; unrelated resolver code must ignore this value. */
     val additionalContextForResolver: Any? = null,
     val producingDemand: SelectionForest = selectionForestOf(),
 ) {

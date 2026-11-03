@@ -23,7 +23,6 @@ import viaduct.engine.runtime2.model.inputType
 import viaduct.engine.runtime2.model.matchingVariableTypes
 import viaduct.engine.runtime2.model.merge
 import viaduct.engine.runtime2.model.mutationNamespaceTypes
-import viaduct.engine.runtime2.model.outputValue
 import viaduct.engine.runtime2.model.registry.Assumptions
 import viaduct.engine.runtime2.model.registry.BranchOrderValidator
 import viaduct.engine.runtime2.model.registry.CheckerParentConstructionDemand
@@ -63,6 +62,7 @@ import viaduct.engine.runtime2.model.selectionForestOf
 import viaduct.engine.runtime2.model.usedVariables
 import viaduct.engine.runtime2.resolution.FixedSuccessorDemandCache
 import viaduct.engine.runtime2.resolution.FixedSuccessorDemandCacheOwner
+import viaduct.engine.runtime2.resolution.framework.withAuthoritativeNodeId
 import viaduct.engine.runtime2.schema.SourceSchemaAdapter
 import viaduct.engine.runtime2.schema.ViaductAndGJSchema
 import viaduct.engine.runtime2.schema.lowering.ALL_SOURCE_OBJECTS_TYPE
@@ -329,26 +329,11 @@ private class NodeResolverLowering(
         require(resultType == type) {
             "Node resolver for ${type.name} returned ${resultType.name}"
         }
-        val fields =
-            result.getSelections().associateWith { selection ->
-                result.outputValue(selection)
-            }
-
-        /*
-         * Node identity belongs to the reference rather than the materialized node-resolver object.
-         * Reconstitute the effective object with that reference ID authoritative.
-         */
-        val includeId =
-            resolver.mode != NodeResolverFunction.Mode.SELECTIVE ||
-                selections.merge(type).byKey().keys.any { key -> key.field == idField }
-        val authoritativeResult = engineObjectDataOf(
-            resultType,
-            if (includeId) fields + (idField.name to id) else fields - idField.name,
-        )
+        val authoritativeResult = result.withAuthoritativeNodeId(identity, selections) as EngineObjectData.Sync
         return if (resolver.mode == NodeResolverFunction.Mode.SELECTIVE) {
             authoritativeResult
         } else {
-            authoritativeResult.snipToDemand(selections)
+            authoritativeResult.snipToDemand(selections, type)
         }
     }
 

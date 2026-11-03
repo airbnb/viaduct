@@ -52,6 +52,7 @@ import viaduct.engine.runtime.FieldResolverDispatcherImpl
 import viaduct.engine.runtime.NodeDataLoader
 import viaduct.engine.runtime.QueryPlanExecutionCondition
 import viaduct.engine.runtime.mocks.ContextMocks
+import viaduct.engine.runtime2.airbnb.node.NodeResolverContext
 import viaduct.engine.runtime2.bootstrap.ExecutorRegistryInputs
 import viaduct.engine.runtime2.bootstrap.ResolverOutputAdapter
 import viaduct.engine.runtime2.bootstrap.dispatcherRegistryInputs
@@ -60,6 +61,7 @@ import viaduct.engine.runtime2.bootstrap.resolverRegistryOf
 import viaduct.engine.runtime2.model.Arguments
 import viaduct.engine.runtime2.model.EngineErrorData
 import viaduct.engine.runtime2.model.ListEngineResult
+import viaduct.engine.runtime2.model.NodeReferenceIdentity
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.RootFieldReferenceData
 import viaduct.engine.runtime2.model.RootFieldReferenceDataCarrier
@@ -69,6 +71,7 @@ import viaduct.engine.runtime2.model.emptyFragmentOf
 import viaduct.engine.runtime2.model.engineObjectDataOf
 import viaduct.engine.runtime2.model.merge
 import viaduct.engine.runtime2.model.nodeReferenceIdentityOrNull
+import viaduct.engine.runtime2.model.nodeRootFieldReferenceOf
 import viaduct.engine.runtime2.model.outputValue
 import viaduct.engine.runtime2.model.registry.Assumptions
 import viaduct.engine.runtime2.model.registry.CheckerInput
@@ -80,6 +83,9 @@ import viaduct.engine.runtime2.model.registry.ResolverRegistry
 import viaduct.engine.runtime2.model.registry.TypeCheckerResolver
 import viaduct.engine.runtime2.model.registry.VariableDefinition
 import viaduct.engine.runtime2.model.registry.fieldResolverOf
+import viaduct.engine.runtime2.model.registry.nodeResolverOf
+import viaduct.engine.runtime2.model.registry.selectiveFieldResolverOf
+import viaduct.engine.runtime2.model.registry.selectiveNodeResolverOf
 import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.requireType
@@ -1162,62 +1168,195 @@ class ExecutorRegistryInputsTest {
         }
 
     @Test
-    fun `node projection preserves stored error markers while restoring the reference id`() =
+    fun `node projection preserves context and stored errors while restoring authoritative identity`() =
         runTest {
             val fixture = Fixture("type Query { node(id: ID!): Node user: User } interface Node { id: ID! } type User implements Node { id: ID! name: String }")
             val type = fixture.schemas.loweredSchema.requireType("User") as ViaductSchema.Object
             val error = EngineErrorData.of(IllegalStateException("name failed"))
-            val source = engineObjectDataOf(type, mapOf("id" to "payload-id", "name" to error))
-            val viewer = MockFieldUnbatchedResolverExecutor(resolverId = "Query.user") { _, _, _, _, context ->
-                context.createNodeReference("reference-id", source.type)
-            }
-            val node = MockNodeUnbatchedResolverExecutor(typeName = "User", isSelective = true) { _, _, _ -> source }
-            val registry = fixture.registry(fixture.adapt(listOf(("Query" to "user") to viewer), listOf("User" to node)))
-            val reference = assertInstanceOf(RootFieldReferenceData::class.java, fixture.invoke(registry, "user"))
-            val root = registry.createRootQueryInput()
+            val retainedMap = mapOf("id" to "payload-id", "name" to "Ada")
+            for (retained in listOf(NodeResolverContext(retainedMap), retainedMap, mapOf("requestTag" to "trace-1"), Any(), null)) {
+                for (selective in listOf(false, true)) {
+                    for (demandId in listOf(false, true)) {
+                        val source = engineObjectDataOf(type, mapOf("id" to "payload-id", "name" to error), additionalContextForResolver = retained)
+                        val viewer = MockFieldUnbatchedResolverExecutor(resolverId = "Query.user") { _, _, _, _, context ->
+                            context.createNodeReference("reference-id", source.type)
+                        }
+                        val node = MockNodeUnbatchedResolverExecutor(typeName = "User", isSelective = selective) { _, _, _ -> source }
+                        val registry = fixture.registry(fixture.adapt(listOf(("Query" to "user") to viewer), listOf("User" to node)))
+                        val reference = assertInstanceOf(RootFieldReferenceData::class.java, fixture.invoke(registry, "user"))
+                        val root = registry.createRootQueryInput()
 
+                        val output = assertInstanceOf(
+                            EngineObjectData.Sync::class.java,
+                            registry.resolver(reference.targetField)(
+                                input = root,
+                                queryValue = root,
+                                arguments = reference.arguments,
+                                selections = fixture.schemas.selectionsFrom("fragment Demand on User { ${if (demandId) "id" else ""} name }").second,
+                                selectiveResolvers = true,
+                                executionContext = fixture.resolutionContext,
+                            ),
+                        )
+
+                        if (demandId) assertEquals("reference-id", output.get("id")) else assertFalse(output.isPresent("id"))
+                        assertSame(error, output.outputValue("name"))
+                        if (retained is NodeResolverContext) {
+                            val restored = assertInstanceOf(NodeResolverContext::class.java, output.additionalContextForResolver)
+                            assertEquals(NodeReferenceIdentity(type, "reference-id"), restored.identity)
+                            assertSame(retained.retainedContext, restored.retainedContext)
+                            assertNull(retained.identity)
+                            assertEquals("payload-id", retainedMap["id"])
+                        } else {
+                            assertSame(retained, output.additionalContextForResolver)
+                        }
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun `selective node reference chains restore retained identity independently of selecting id`() =
+        runTest {
+            val fixture = Fixture("type Query { node(id: ID!): Node user: User } interface Node { id: ID! } type User implements Node { id: ID! label: String }")
+            val schema = fixture.schemas.loweredSchema
+            val type = schema.requireType("User") as ViaductSchema.Object
+            val queryNode = schema.requireObjectField("Query", "node")
+            val retainedFields = mapOf("id" to "payload", "requestTag" to "trace-1")
+            val retained = NodeResolverContext(retainedFields)
+            val observedIds = mutableListOf<String>()
+            val inputs = ExecutorRegistryInputs(
+                fieldResolvers = fixture.adapt().fieldResolvers + mapOf(
+                    schema.requireObjectField("Query", "user") to fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
+                        nodeRootFieldReferenceOf(queryNode, type, "original")
+                    },
+                    schema.requireObjectField("User", "label") to fieldResolverOf(schema.emptyFragmentOf("User"), schema.emptyFragmentOf("Query")) { _, _, _, context, _ ->
+                        val restored = assertInstanceOf(NodeResolverContext::class.java, context)
+                        assertSame(retainedFields, restored.retainedContext)
+                        requireNotNull(restored.identity).id
+                    },
+                ),
+                nodeResolvers = mapOf(
+                    type to selectiveNodeResolverOf { id, _, _ ->
+                        observedIds.add(id)
+                        if (id == "original") {
+                            nodeRootFieldReferenceOf(queryNode, type, "forwarded")
+                        } else {
+                            engineObjectDataOf(type, additionalContextForResolver = retained)
+                        }
+                    }
+                ),
+                variableProviders = emptyMap(),
+            )
+
+            for (idSelection in listOf("", "id", "identity: id")) {
+                val result = fixture.execute(inputs, "{ user { $idSelection label } }")
+                val expectedFields = if (idSelection.isEmpty()) emptyMap() else mapOf((if (idSelection == "id") "id" else "identity") to "original")
+                assertEquals(emptyList<Any>(), result.errors)
+                assertEquals(mapOf("user" to expectedFields + ("label" to "original")), result.getData())
+            }
+            assertEquals(listOf("original", "forwarded", "original", "forwarded", "original", "forwarded"), observedIds)
+            assertEquals("payload", retainedFields["id"])
+            assertNull(retained.identity)
+        }
+
+    @Test
+    fun `selective ID-only node resolution skips loading and supplies no retained context`() =
+        runTest {
+            val fixture = Fixture("type Query { node(id: ID!): Node } interface Node { id: ID! } type User implements Node { id: ID! }")
+            val schema = fixture.schemas.loweredSchema
+            val type = schema.requireType("User") as ViaductSchema.Object
+            val queryNode = schema.requireObjectField("Query", "node")
+            val inputs = ExecutorRegistryInputs(
+                fieldResolvers = fixture.adapt().fieldResolvers,
+                nodeResolvers = mapOf(type to selectiveNodeResolverOf { _, _ -> error("ID-only demand must not invoke the node loader") }),
+                variableProviders = emptyMap(),
+            )
+            val registry = fixture.registry(inputs)
+            val root = registry.createRootQueryInput()
             val output = assertInstanceOf(
                 EngineObjectData.Sync::class.java,
-                registry.resolver(reference.targetField)(
+                registry.resolver(queryNode)(
                     input = root,
                     queryValue = root,
-                    arguments = reference.arguments,
-                    selections = fixture.schemas.selectionsFrom("fragment Demand on User { id name }").second,
+                    arguments = nodeRootFieldReferenceOf(queryNode, type, "original").arguments,
+                    selections = fixture.schemas.selectionsFrom("fragment Demand on User { id }").second,
                     selectiveResolvers = true,
                     executionContext = fixture.resolutionContext,
                 ),
             )
 
-            assertEquals("reference-id", output.get("id"))
-            assertSame(error, output.outputValue("name"))
+            assertEquals(setOf("id"), output.getSelections())
+            assertEquals("original", output.get("id"))
+            assertNull(output.additionalContextForResolver)
         }
 
     @Test
-    fun `selective node projection accepts delegating Sync objects`() =
+    fun `node reference tails strip undemanded id but reject other undemanded fields`() =
+        runTest {
+            val fixture = Fixture(
+                "type Query { node(id: ID!): Node user: User lookup: UserData } " +
+                    "interface Node { id: ID! } interface UserData { id: ID! name: String extra: String } " +
+                    "type User implements Node & UserData { id: ID! name: String extra: String }",
+            )
+            val schema = fixture.schemas.loweredSchema
+            val type = schema.requireType("User") as ViaductSchema.Object
+            val queryNode = schema.requireObjectField("Query", "node")
+            val lookup = schema.requireObjectField("Query", "lookup")
+            for (includeExtra in listOf(false, true)) {
+                val fields = mapOf("id" to "payload", "name" to "Ada") + if (includeExtra) mapOf("extra" to "invalid") else emptyMap()
+                val inputs = ExecutorRegistryInputs(
+                    fieldResolvers = fixture.adapt().fieldResolvers + mapOf(
+                        schema.requireObjectField("Query", "user") to fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
+                            nodeRootFieldReferenceOf(queryNode, type, "original")
+                        },
+                        lookup to selectiveFieldResolverOf(schema.emptyFragmentOf("Query")) { _, _, _ -> engineObjectDataOf(type, fields) },
+                    ),
+                    nodeResolvers = mapOf(
+                        type to nodeResolverOf { _ -> RootFieldReferenceData.of(path = listOf(lookup), arguments = emptyMap()) },
+                    ),
+                    variableProviders = emptyMap(),
+                )
+
+                val result = fixture.execute(inputs, "{ user { name } }")
+                if (includeExtra) {
+                    assertEquals(mapOf("user" to null), result.getData())
+                    assertTrue(result.errors.any { it.message.contains("unselected fields: extra") }, result.errors.toString())
+                } else {
+                    assertTrue(result.errors.isEmpty(), result.errors.toString())
+                    assertEquals(mapOf("user" to mapOf("name" to "Ada")), result.getData())
+                }
+            }
+        }
+
+    @Test
+    fun `node projection accepts delegating Sync objects in both loading modes`() =
         runTest {
             val fixture = Fixture("type Query { node(id: ID!): Node user: User } interface Node { id: ID! } type User implements Node { id: ID! name: String }")
-            val user = fixture.resolved("User", mapOf("name" to "Ada"))
+            val user = fixture.resolved("User", mapOf("id" to "id", "name" to "Ada"))
             val delegated = object : EngineObjectData.Sync by user {}
             val viewer = MockFieldUnbatchedResolverExecutor(resolverId = "Query.user") { _, _, _, _, context ->
                 context.createNodeReference("id", user.type)
             }
-            val node = MockNodeUnbatchedResolverExecutor(typeName = "User", isSelective = true) { _, _, _ -> delegated }
-            val registry = fixture.registry(fixture.adapt(listOf(("Query" to "user") to viewer), listOf("User" to node)))
-            val reference = assertInstanceOf(RootFieldReferenceData::class.java, fixture.invoke(registry, "user"))
-            val root = registry.createRootQueryInput()
+            for (selective in listOf(false, true)) {
+                val node = MockNodeUnbatchedResolverExecutor(typeName = "User", isSelective = selective) { _, _, _ -> delegated }
+                val registry = fixture.registry(fixture.adapt(listOf(("Query" to "user") to viewer), listOf("User" to node)))
+                val reference = assertInstanceOf(RootFieldReferenceData::class.java, fixture.invoke(registry, "user"))
+                val root = registry.createRootQueryInput()
 
-            val output = assertInstanceOf(
-                EngineObjectData.Sync::class.java,
-                registry.resolver(reference.targetField)(
-                    input = root,
-                    queryValue = root,
-                    arguments = reference.arguments,
-                    selections = fixture.schemas.selectionsFrom("fragment Demand on User { name }").second,
-                    selectiveResolvers = true,
-                    executionContext = fixture.resolutionContext,
-                ),
-            )
-            assertEquals("Ada", output.outputValue("name"))
+                val output = assertInstanceOf(
+                    EngineObjectData.Sync::class.java,
+                    registry.resolver(reference.targetField)(
+                        input = root,
+                        queryValue = root,
+                        arguments = reference.arguments,
+                        selections = fixture.schemas.selectionsFrom("fragment Demand on User { id name }").second,
+                        selectiveResolvers = true,
+                        executionContext = fixture.resolutionContext,
+                    ),
+                )
+                assertEquals("id", output.outputValue("id"))
+                assertEquals("Ada", output.outputValue("name"))
+            }
         }
 
     @Test

@@ -12,6 +12,7 @@ data class InteropAncestor(
     val path: List<PathComponent>,
     val arguments: Arguments.Resolved,
     val demand: SelectionForest,
+    /** Reserved for Airbnb internal API compatibility; unrelated resolver code must ignore this value. */
     val additionalContextForResolver: Any? = null,
 )
 
