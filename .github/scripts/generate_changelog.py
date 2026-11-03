@@ -4,10 +4,9 @@ Changelog generator using python-semantic-release library.
 
 This module generates changelogs between two git tags using the PSR library
 while maintaining Viaduct's authorship semantics:
-- Primary author extracted from commit email
+- Primary author is the commit's GitHub login, else the author-mapping login, else the git author name
 - Co-authors parsed from git trailers
 - Bot accounts filtered out
-- Usernames formatted as @username
 """
 from __future__ import annotations
 
@@ -24,8 +23,12 @@ from semantic_release.commit_parser.token import ParsedMessageResult, ParseResul
 from semantic_release.enums import LevelBump
 
 
+GITHUB_REPO = 'airbnb/viaduct'
+
 # Bot accounts to filter from authorship
 BOT_USERNAMES = frozenset(['noreply', 'no-reply', 'github-actions', 'viaductbot'])
+
+_NOREPLY_EMAIL_RE = re.compile(r'^(?:\d+\+)?([^@+]+)@users\.noreply\.github\.com$', re.IGNORECASE)
 
 # Internal metadata patterns to remove from commit messages
 METADATA_PATTERNS = [
@@ -56,6 +59,8 @@ class CommitInfo:
     body: str
     author_email: str
     co_authors_raw: str
+    author_name: str = ''
+    author_login: str | None = None
 
 
 @dataclass
@@ -72,61 +77,58 @@ class ChangelogEntry:
     bump: LevelBump
 
     @property
-    def formatted_authors(self) -> str:
-        """Format authors as comma-separated @usernames."""
-        if self.authors:
-            return ', '.join(self.authors)
-        return '@anonymous'
+    def by_authors(self) -> str:
+        """' by <authors>', or '' when the entry has no author."""
+        return f" by {', '.join(self.authors)}" if self.authors else ''
 
     @property
     def formatted_entry(self) -> str:
         """Format the complete changelog entry."""
-        return f"{self.description} by {self.formatted_authors}"
+        return f"{self.description}{self.by_authors}"
 
 
-def extract_username_from_email(email: str) -> str | None:
-    """
-    Extract username from an email address.
+def _is_bot(login: str) -> bool:
+    return login in BOT_USERNAMES or login.endswith('[bot]')
 
-    Args:
-        email: Email address (e.g., 'john.doe@example.com')
 
-    Returns:
-        Username prefixed with @ (e.g., '@john.doe'), or None if invalid/bot
-    """
-    if not email:
+def format_author(login: str | None, name: str) -> str | None:
+    """'@login' for a person's GitHub login, else the plain name, else None."""
+    if login and not _is_bot(login):
+        return f"@{login}"
+    name = name.strip()
+    if not name or _is_bot(name):
         return None
+    return name
 
-    mapped = _author_mappings.map_email(email)
-    if mapped:
-        return None if mapped in BOT_USERNAMES else f"@{mapped}"
 
-    match = re.search(r'^([^@]+)@', email)
+def format_coauthor(author_line: str) -> str | None:
+    """
+    Format a Co-authored-by value ('Name <email>').
+
+    GitHub resolves no login for a trailer, so the login comes from a noreply email or the author mappings.
+    """
+    match = re.match(r'^(.*?)\s*<([^>]+)>\s*$', author_line)
     if not match:
         return None
-
-    username = match.group(1)
-    if username in BOT_USERNAMES:
+    name, email = match.groups()
+    if email.split('@')[0] in BOT_USERNAMES:
         return None
+    noreply = _NOREPLY_EMAIL_RE.match(email)
+    return format_author(noreply.group(1) if noreply else _author_mappings.map_email(email), name)
 
-    return f"@{username}"
 
-
-def extract_username_from_coauthor(author_line: str) -> str | None:
-    """
-    Extract username from Co-authored-by format.
-
-    Args:
-        author_line: Co-author line (e.g., 'Name <email@example.com>')
-
-    Returns:
-        Username prefixed with @ (e.g., '@email'), or None if invalid/bot
-    """
-    match = re.search(r'<([^>]+)>', author_line)
-    if not match:
-        return None
-
-    return extract_username_from_email(match.group(1))
+def github_login(sha: str) -> str | None:
+    """The GitHub login linked to a commit's author, or None when GitHub links none."""
+    result = subprocess.run(
+        ['gh', 'api', f'repos/{GITHUB_REPO}/commits/{sha}', '--jq', '.author.login // ""'],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        raise SystemExit(
+            f"Cannot resolve the GitHub author of {sha} in {GITHUB_REPO}: {result.stderr.strip()}"
+        )
+    return result.stdout.strip() or None
 
 
 def clean_commit_message(message: str) -> str:
@@ -270,6 +272,8 @@ def get_commits_between_tags(tag1: str, tag2: str) -> Iterator[CommitInfo]:
     # Use %x00 (null byte) as record separator since body can contain newlines
     format_str = (
         'SHA_START%hSHA_END '
+        'FULLSHA_START%HFULLSHA_END '
+        'NAME_START%anNAME_END '
         'MSG_START%sMSG_END '
         'BODY_START%bBODY_END '
         'AUTHOR_START%aeAUTHOR_END '
@@ -283,6 +287,8 @@ def get_commits_between_tags(tag1: str, tag2: str) -> Iterator[CommitInfo]:
         text=True,
         check=True,
     )
+
+    logins_by_email: dict[str, str | None] = {}
 
     # Split on null byte instead of newlines to handle multi-line bodies
     for record in result.stdout.split('\x00'):
@@ -309,12 +315,21 @@ def get_commits_between_tags(tag1: str, tag2: str) -> Iterator[CommitInfo]:
         coauthors_match = re.search(r'COAUTHORS_START(.*)COAUTHORS_END', record)
         co_authors_raw = coauthors_match.group(1).strip() if coauthors_match else ''
 
+        full_sha = re.search(r'FULLSHA_START(.+?)FULLSHA_END', record).group(1).strip()
+        name_match = re.search(r'NAME_START(.*?)NAME_END', record)
+        author_name = name_match.group(1).strip() if name_match else ''
+
+        if author_email not in logins_by_email:
+            logins_by_email[author_email] = github_login(full_sha) or _author_mappings.map_email(author_email)
+
         yield CommitInfo(
             sha=sha,
             message=message,
             body=body,
             author_email=author_email,
             co_authors_raw=co_authors_raw,
+            author_name=author_name,
+            author_login=logins_by_email[author_email],
         )
 
 
@@ -326,13 +341,13 @@ def extract_authors(commit: CommitInfo) -> list[str]:
         commit: CommitInfo object
 
     Returns:
-        List of @usernames for all non-bot authors
+        @logins or plain names for all non-bot authors
     """
     seen: set[str] = set()
     authors = []
 
     # Add primary author
-    primary = extract_username_from_email(commit.author_email)
+    primary = format_author(commit.author_login, commit.author_name)
     if primary and primary not in seen:
         seen.add(primary)
         authors.append(primary)
@@ -342,7 +357,7 @@ def extract_authors(commit: CommitInfo) -> list[str]:
         for coauthor in commit.co_authors_raw.split('|'):
             coauthor = coauthor.strip()
             if coauthor:
-                username = extract_username_from_coauthor(coauthor)
+                username = format_coauthor(coauthor)
                 if username and username not in seen:
                     seen.add(username)
                     authors.append(username)
@@ -461,7 +476,7 @@ def render_breaking_changes(entries: list[ChangelogEntry]) -> str:
     """
     lines = ["## Breaking Changes", ""]
     for entry in entries:
-        line = f"- {capitalize_first(entry.description)} by {entry.formatted_authors}"
+        line = f"- {capitalize_first(entry.description)}{entry.by_authors}"
         if entry.breaking_description:
             line += f" — {entry.breaking_description}"
         lines.append(line)

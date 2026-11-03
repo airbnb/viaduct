@@ -11,8 +11,9 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from generate_changelog import (
-    extract_username_from_email,
-    extract_username_from_coauthor,
+    format_author,
+    format_coauthor,
+    get_commits_between_tags,
     clean_commit_message,
     replace_airbnb_marker,
     should_include_commit,
@@ -31,74 +32,78 @@ from generate_changelog import (
 )
 
 
-class TestExtractUsernameFromEmail(unittest.TestCase):
-    def test_valid_email(self):
-        self.assertEqual(extract_username_from_email("john.doe@example.com"), "@john.doe")
-
-    def test_email_with_plus(self):
-        self.assertEqual(extract_username_from_email("john+test@example.com"), "@john+test")
-
-    def test_empty_email(self):
-        self.assertIsNone(extract_username_from_email(""))
-
-    def test_none_email(self):
-        self.assertIsNone(extract_username_from_email(None))
-
-    def test_noreply_email(self):
-        self.assertIsNone(extract_username_from_email("noreply@github.com"))
-
-    def test_no_reply_email(self):
-        self.assertIsNone(extract_username_from_email("no-reply@github.com"))
-
-    def test_github_actions_email(self):
-        self.assertIsNone(extract_username_from_email("github-actions@github.com"))
-
-    def test_viaductbot_email(self):
-        self.assertIsNone(extract_username_from_email("viaductbot@airbnb.com"))
-
-    def test_invalid_email_no_at(self):
-        self.assertIsNone(extract_username_from_email("notanemail"))
-
-    def test_email_with_dash(self):
-        self.assertEqual(extract_username_from_email("john-doe@example.com"), "@john-doe")
-
-    def test_email_with_underscore(self):
-        self.assertEqual(extract_username_from_email("john_doe@example.com"), "@john_doe")
+class TestFormatAuthor(unittest.TestCase):
+    def test_formats_login_else_plain_name(self):
+        cases = [
+            (("waocs", "Colin"), "@waocs"),
+            ((None, "Jane Smith"), "Jane Smith"),
+            (("viaductbot", "Viaduct Maintainers"), "Viaduct Maintainers"),
+            (("dependabot[bot]", "dependabot[bot]"), None),
+            ((None, ""), None),
+        ]
+        for (login, name), expected in cases:
+            with self.subTest(login=login, name=name):
+                self.assertEqual(format_author(login, name), expected)
 
 
-class TestExtractUsernameFromCoauthor(unittest.TestCase):
-    def test_valid_co_author_line(self):
-        self.assertEqual(
-            extract_username_from_coauthor("John Doe <john.doe@example.com>"),
-            "@john.doe"
-        )
+class TestFormatCoauthor(unittest.TestCase):
+    @patch("generate_changelog._author_mappings.map_email", return_value=None)
+    def test_login_only_from_noreply_email_or_mapping(self, _map_email):
+        cases = [
+            ("Bob <183565386+bob@users.noreply.github.com>", "@bob"),
+            ("Bob <bob@users.noreply.github.com>", "@bob"),
+            ("Jane Smith <jane.smith@company.com>", "Jane Smith"),
+            ("GitHub <noreply@github.com>", None),
+            ("John Doe", None),
+        ]
+        for line, expected in cases:
+            with self.subTest(line=line):
+                self.assertEqual(format_coauthor(line), expected)
 
-    def test_co_author_with_full_name(self):
-        self.assertEqual(
-            extract_username_from_coauthor("Jane Smith <jane.smith@company.com>"),
-            "@jane.smith"
-        )
+    @patch("generate_changelog._author_mappings.map_email", return_value="jsmith")
+    def test_mapping_supplies_login(self, _map_email):
+        self.assertEqual(format_coauthor("Jane Smith <jane@airbnb.com>"), "@jsmith")
 
-    def test_noreply_co_author(self):
-        self.assertIsNone(extract_username_from_coauthor("GitHub <noreply@github.com>"))
 
-    def test_github_actions_co_author(self):
-        self.assertIsNone(extract_username_from_coauthor("Actions Bot <github-actions@github.com>"))
+def _git_log_record(sha, email, name):
+    return (
+        f"SHA_START{sha[:7]}SHA_END FULLSHA_START{sha}FULLSHA_END NAME_START{name}NAME_END "
+        f"MSG_STARTfix: thingMSG_END BODY_STARTBODY_END AUTHOR_START{email}AUTHOR_END "
+        "COAUTHORS_STARTCOAUTHORS_END\x00"
+    )
 
-    def test_viaductbot_co_author(self):
-        self.assertIsNone(extract_username_from_coauthor("Viaduct Bot <viaductbot@airbnb.com>"))
 
-    def test_invalid_format_no_email(self):
-        self.assertIsNone(extract_username_from_coauthor("John Doe"))
+class TestGetCommitsBetweenTags(unittest.TestCase):
+    def _run(self, gh_result):
+        git_log = MagicMock(returncode=0, stdout=(
+            _git_log_record("a" * 40, "wau2024@gmail.com", "waocs")
+            + _git_log_record("b" * 40, "wau2024@gmail.com", "waocs")
+        ))
+        calls = []
 
-    def test_email_only(self):
-        self.assertEqual(extract_username_from_coauthor("<alice@example.com>"), "@alice")
+        def fake_run(args, **kwargs):
+            calls.append(args)
+            return git_log if args[0] == "git" else gh_result
 
-    def test_co_author_with_plus_in_email(self):
-        self.assertEqual(
-            extract_username_from_coauthor("Bob <bob+test@example.com>"),
-            "@bob+test"
-        )
+        with patch("generate_changelog.subprocess.run", side_effect=fake_run):
+            return list(get_commits_between_tags("v1", "v2")), calls
+
+    def test_login_comes_from_github_not_the_email(self):
+        commits, calls = self._run(MagicMock(returncode=0, stdout="waocs\n"))
+        self.assertEqual([extract_authors(c) for c in commits], [["@waocs"], ["@waocs"]])
+        gh_calls = [c for c in calls if c[0] == "gh"]
+        self.assertEqual(gh_calls, [["gh", "api", f"repos/airbnb/viaduct/commits/{'a' * 40}", "--jq", '.author.login // ""']])
+
+    @patch("generate_changelog._author_mappings.map_email", return_value="geovannefduarte")
+    def test_mapping_fills_a_missing_github_login(self, _map_email):
+        commits, _ = self._run(MagicMock(returncode=0, stdout="\n"))
+        self.assertEqual(extract_authors(commits[0]), ["@geovannefduarte"])
+
+    def test_gh_failure_aborts_naming_the_commit(self):
+        with self.assertRaises(SystemExit) as raised:
+            self._run(MagicMock(returncode=1, stdout="", stderr="HTTP 401: Bad credentials"))
+        self.assertIn("a" * 40, str(raised.exception))
+        self.assertIn("Bad credentials", str(raised.exception))
 
 
 class TestCleanCommitMessage(unittest.TestCase):
@@ -186,97 +191,34 @@ class TestShouldIncludeCommit(unittest.TestCase):
 
 
 class TestExtractAuthors(unittest.TestCase):
-    def test_single_author_no_coauthors(self):
-        commit = CommitInfo(
-            sha="abc123",
-            message="Fix bug",
-            body='',
-            author_email="john.doe@example.com",
-            co_authors_raw=""
+    def _commit(self, author_login, co_authors_raw="", author_name="Name"):
+        return CommitInfo(
+            sha="abc123", message="Fix bug", body="", author_email="unused@example.com",
+            co_authors_raw=co_authors_raw, author_name=author_name, author_login=author_login,
         )
-        authors = extract_authors(commit)
-        self.assertEqual(authors, ["@john.doe"])
 
-    def test_author_with_single_coauthor(self):
-        commit = CommitInfo(
-            sha="abc123",
-            message="Add feature",
-            body='',
-            author_email="john.doe@example.com",
-            co_authors_raw="Jane Smith <jane.smith@example.com>"
+    def test_primary_author_then_coauthors_in_order(self):
+        commit = self._commit(
+            "alice",
+            "Bob <bob@users.noreply.github.com>|Charlie <charlie@users.noreply.github.com>",
         )
-        authors = extract_authors(commit)
-        self.assertEqual(authors, ["@john.doe", "@jane.smith"])
+        self.assertEqual(extract_authors(commit), ["@alice", "@bob", "@charlie"])
 
-    def test_author_with_multiple_coauthors(self):
-        commit = CommitInfo(
-            sha="abc123",
-            message="Refactor code",
-            body='',
-            author_email="alice@example.com",
-            co_authors_raw="Bob <bob@example.com>|Charlie <charlie@example.com>"
+    def test_bots_filtered_out(self):
+        commit = self._commit(
+            "github-actions[bot]",
+            "Bot <viaductbot@airbnb.com>|Dev <dev@users.noreply.github.com>",
+            author_name="github-actions[bot]",
         )
-        authors = extract_authors(commit)
-        self.assertEqual(authors, ["@alice", "@bob", "@charlie"])
-
-    def test_bot_author_filtered_out(self):
-        commit = CommitInfo(
-            sha="abc123",
-            message="Update deps",
-            body='',
-            author_email="noreply@github.com",
-            co_authors_raw=""
-        )
-        authors = extract_authors(commit)
-        self.assertEqual(authors, [])
-
-    def test_bot_coauthor_filtered_out(self):
-        commit = CommitInfo(
-            sha="abc123",
-            message="Merge PR",
-            body='',
-            author_email="john@example.com",
-            co_authors_raw="GitHub Actions <github-actions@github.com>"
-        )
-        authors = extract_authors(commit)
-        self.assertEqual(authors, ["@john"])
-
-    def test_all_bots_filtered_out(self):
-        commit = CommitInfo(
-            sha="abc123",
-            message="Auto update",
-            body='',
-            author_email="noreply@github.com",
-            co_authors_raw="Bot <viaductbot@airbnb.com>"
-        )
-        authors = extract_authors(commit)
-        self.assertEqual(authors, [])
+        self.assertEqual(extract_authors(commit), ["@dev"])
 
     def test_duplicate_author_and_coauthor_deduplicated(self):
-        commit = CommitInfo(
-            sha="abc123",
-            message="Fix bug",
-            body='',
-            author_email="john@example.com",
-            co_authors_raw="John <john@example.com>"
-        )
-        authors = extract_authors(commit)
-        self.assertEqual(authors, ["@john"])
-
-    def test_mixed_valid_and_invalid_coauthors(self):
-        commit = CommitInfo(
-            sha="abc123",
-            message="Team effort",
-            body='',
-            author_email="lead@example.com",
-            co_authors_raw="Dev1 <dev1@example.com>|Bot <noreply@github.com>|Dev2 <dev2@example.com>"
-        )
-        authors = extract_authors(commit)
-        self.assertEqual(authors, ["@lead", "@dev1", "@dev2"])
+        commit = self._commit("john", "John <john@users.noreply.github.com>")
+        self.assertEqual(extract_authors(commit), ["@john"])
 
 
 class TestChangelogEntry(unittest.TestCase):
-    def test_formatted_authors_with_authors(self):
+    def test_formatted_entry_joins_authors(self):
         entry = ChangelogEntry(
             sha="abc123",
             message="Fix bug",
@@ -288,9 +230,9 @@ class TestChangelogEntry(unittest.TestCase):
             breaking_description=None,
             bump=LevelBump.PATCH,
         )
-        self.assertEqual(entry.formatted_authors, "@john, @jane")
+        self.assertEqual(entry.formatted_entry, "Fix bug by @john, @jane")
 
-    def test_formatted_authors_empty(self):
+    def test_formatted_entry_without_authors_has_no_by_clause(self):
         entry = ChangelogEntry(
             sha="abc123",
             message="Fix bug",
@@ -302,21 +244,7 @@ class TestChangelogEntry(unittest.TestCase):
             breaking_description=None,
             bump=LevelBump.PATCH,
         )
-        self.assertEqual(entry.formatted_authors, "@anonymous")
-
-    def test_formatted_entry(self):
-        entry = ChangelogEntry(
-            sha="abc123",
-            message="Fix bug",
-            authors=["@john"],
-            change_type="fix",
-            scope=None,
-            description="Fix bug",
-            is_breaking=False,
-            breaking_description=None,
-            bump=LevelBump.PATCH,
-        )
-        self.assertEqual(entry.formatted_entry, "Fix bug by @john")
+        self.assertEqual(entry.formatted_entry, "Fix bug")
 
 
 class TestParseCommit(unittest.TestCase):
@@ -329,7 +257,8 @@ class TestParseCommit(unittest.TestCase):
             message="fix: bug in parser",
             body='',
             author_email="john.doe@example.com",
-            co_authors_raw=""
+            co_authors_raw="",
+            author_login="john.doe",
         )
         entry = parse_commit(commit, self.parser)
         self.assertIsNotNone(entry)
@@ -564,10 +493,10 @@ class TestCapitalizeFirst(unittest.TestCase):
 class TestCherryPickDedup(unittest.TestCase):
     """Tests for cherry-pick deduplication via _get_base_commit_keys."""
 
-    def _commit(self, sha, message, author_email="john.doe@example.com"):
+    def _commit(self, sha, message, author_login="john.doe"):
         return CommitInfo(
             sha=sha, message=message, body="",
-            author_email=author_email, co_authors_raw="",
+            author_email=f"{author_login}@example.com", co_authors_raw="", author_login=author_login,
         )
 
     @patch("generate_changelog.get_commits_between_tags")
@@ -616,8 +545,8 @@ class TestCherryPickDedup(unittest.TestCase):
     @patch("generate_changelog.get_commits_between_tags")
     def test_cherry_pick_not_filtered_when_authors_differ(self, mock_get_commits):
         """Same message but different author is NOT filtered (author protection)."""
-        base_cherry_pick = self._commit("aaa1111", "feat: add widget (AIRBNB)", author_email="alice@example.com")
-        original_on_main = self._commit("bbb2222", "feat: add widget (AIRBNB)", author_email="bob@example.com")
+        base_cherry_pick = self._commit("aaa1111", "feat: add widget (AIRBNB)", author_login="alice")
+        original_on_main = self._commit("bbb2222", "feat: add widget (AIRBNB)", author_login="bob")
 
         def side_effect(tag1, tag2):
             if tag1 == "HEAD" and tag2 == "origin/release/v1.0.0":
