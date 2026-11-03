@@ -10,6 +10,8 @@ import org.gradle.api.initialization.Settings
 import org.gradle.api.plugins.JavaPlugin
 import org.gradle.testkit.runner.GradleRunner
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.condition.EnabledForJreRange
+import org.junit.jupiter.api.condition.JRE
 import org.junit.jupiter.api.io.TempDir
 
 class ViaductPluginInstallationTest {
@@ -22,6 +24,7 @@ class ViaductPluginInstallationTest {
     }
 
     @Test
+    @EnabledForJreRange(max = JRE.JAVA_23)
     fun `Gradle 8_11 installs capabilities and reuses the isolated configuration cache`() {
         verifyApplicationScopedInstallation("8.11")
     }
