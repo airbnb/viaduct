@@ -3,10 +3,14 @@
 package viaduct.engine.runtime.execution
 
 import graphql.schema.GraphQLObjectType
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
 import viaduct.arbitrary.graphql.asViaductSchema
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.ResolutionPolicy
@@ -14,6 +18,7 @@ import viaduct.engine.api.ResolvedEngineObjectData
 import viaduct.engine.api.spi.MaterializedFieldValueReader
 import viaduct.engine.runtime.DispatcherRegistry
 import viaduct.engine.runtime.NodeEngineObjectDataImpl
+import viaduct.engine.runtime.ObjectRootFieldReference
 import viaduct.engine.runtime.mat.KeyTree
 import viaduct.engine.runtime.mat.KeyTreeBuilder
 import viaduct.engine.runtime.mat.KeyTreeFilter
@@ -23,6 +28,25 @@ import viaduct.engine.runtime.mat.KeyTreeFilter.Result.KEEP_WITHOUT_CHILDREN
 import viaduct.engine.runtime.mat.build
 
 class EngineObjectDataToKeyTreeTest {
+    @ParameterizedTest
+    @ValueSource(booleans = [false, true])
+    fun `coverage discovery does not await nested root field references`(requested: Boolean) {
+        Fixture("type Foo { bar: Bar } type Bar { x: Int }") {
+            val reference = ObjectRootFieldReference(listOf("factory", "create"), bar, emptyMap())
+            val selections = if (requested) {
+                tree { field("Foo", key("bar")) { field("Bar", key("x")) } }
+            } else {
+                KeyTree.empty
+            }
+            assertTree(
+                tree { field("Foo", key("bar")) },
+                data(foo, "bar" to reference),
+                selections,
+                timeout = 2.seconds,
+            )
+        }
+    }
+
     @Nested
     inner class ResolutionPolicies {
         @Test
@@ -1170,7 +1194,8 @@ class EngineObjectDataToKeyTreeTest {
             filter: KeyTreeFilter = KeyTreeFilter.KeepAll,
             fieldValueReader: MaterializedFieldValueReader = MaterializedFieldValueReader.Default,
             resolutionPolicy: ResolutionPolicy = ResolutionPolicy.STANDARD,
-        ) = runTest {
+            timeout: Duration = 60.seconds,
+        ) = runTest(timeout = timeout) {
             assertEquals(
                 expected,
                 data.toKeyTree(

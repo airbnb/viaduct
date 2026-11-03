@@ -13,6 +13,7 @@ import viaduct.engine.api.NodeEngineObjectData
 import viaduct.engine.api.ResolutionPolicy
 import viaduct.engine.api.spi.MaterializedFieldValueReader
 import viaduct.engine.runtime.HasResolver
+import viaduct.engine.runtime.LazyEngineObjectData
 import viaduct.engine.runtime.mat.KeyTree
 import viaduct.engine.runtime.mat.KeyTreeFilter
 import viaduct.engine.runtime.mat.KeyTreeFilter.Result.DROP
@@ -70,6 +71,10 @@ private class EngineObjectDataKeyTreeBuilder(
         }
         if (data is NodeEngineObjectData) {
             return buildNodeReference(data, selections, atOutputSelectionSetRoot, resolutionPolicy)
+        }
+        if (data is LazyEngineObjectData) {
+            // Child traversal must resolve lazy data before its selections can be read.
+            return KeyTree.empty
         }
 
         val type = schema.getObjectType(data.type.name) ?: return KeyTree.empty
