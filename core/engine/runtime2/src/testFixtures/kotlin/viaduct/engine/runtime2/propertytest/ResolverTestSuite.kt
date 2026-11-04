@@ -21,6 +21,7 @@ import viaduct.engine.runtime2.arbitrary.checkResolverTestCases
 import viaduct.engine.runtime2.arbitrary.configuredResolverTestExecution
 import viaduct.engine.runtime2.arbitrary.resolverTestGenerationConfigured
 import viaduct.engine.runtime2.model.testing.TestWorld
+import viaduct.engine.runtime2.resolution.ResolutionBroadStressCases
 import viaduct.utils.string.sha256Hash
 
 const val RESOLVER_TEST_SUITE_FORMAT_VERSION = 2
@@ -93,6 +94,9 @@ suspend fun checkResolverTestSuite(
     )
     return run
 }
+
+/** This suite as the stored cases of a Resolution stress run, checked as [checkResolverTestSuite] checks them. */
+fun ResolverTestSuiteDefinition.broadStressCases(): ResolutionBroadStressCases = ResolutionBroadStressCases.stored(profile, config, counts, seed) { property -> checkResolverTestSuite(this, property) }
 
 private fun ResolverTestSuiteDefinition.unselectedRun(selected: ResolverTestCaseId): ResolverTestRun {
     require(ResolverTestSuiteDefinition.entries.any { definition -> definition.id == selected.suite }) {
@@ -229,7 +233,7 @@ class ResolverTestSuite private constructor(
 
     companion object {
         fun load(definition: ResolverTestSuiteDefinition): ResolverTestSuite {
-            val entries = readResolverTestSuiteArchive(PropertyTestJson.readResourceBytes(suiteArchiveResource(definition.id)))
+            val entries = readResolverTestSuiteParts(definition.id, PropertyTestJson::readResourceBytesOrNull)
             val manifest = PropertyTestJson.read<ResolverTestSuiteManifest>(definition.readEntry(entries, MANIFEST_ENTRY).inputStream())
             require(manifest.copy(schemas = emptyList(), batches = emptyList()) == definition.manifest(emptyList(), emptyList())) {
                 "Resolver test suite ${definition.id} is stale relative to its definition; $REGENERATE_HINT"
@@ -272,7 +276,14 @@ internal fun ResolverTestSuiteDefinition.manifest(
 
 internal fun List<String>.allDistinct(): Boolean = toSet().size == size
 
-fun suiteArchiveResource(suiteId: String): String = "$RESOLVER_TEST_SUITES_RESOURCE_ROOT/$suiteId.zip"
+/** Part 1 is `<id>.zip`; a suite too large for one part continues in `<id>.part2.zip`, `<id>.part3.zip`, and so on. */
+fun suiteArchiveResource(
+    suiteId: String,
+    part: Int = 1,
+): String = "$RESOLVER_TEST_SUITES_RESOURCE_ROOT/$suiteId" + (if (part == 1) "" else ".part$part") + ".zip"
+
+// Keeps each checked-in part under git.musta.ch's recommended 5 MB file size.
+const val RESOLVER_TEST_SUITE_PART_BYTES = 4_500_000
 
 const val MANIFEST_ENTRY = "manifest.json"
 
@@ -284,6 +295,49 @@ fun readResolverTestSuiteArchive(bytes: ByteArray): Map<String, ByteArray> =
     ZipInputStream(bytes.inputStream()).use { zip ->
         generateSequence { zip.nextEntry }.associate { entry -> entry.name to zip.readBytes() }
     }
+
+/** Merges [suiteId]'s parts, read through [readPart] until a part is missing; an entry stored in two parts is rejected. */
+fun readResolverTestSuiteParts(
+    suiteId: String,
+    readPart: (String) -> ByteArray?,
+): Map<String, ByteArray> {
+    val entries = linkedMapOf<String, ByteArray>()
+    for (part in generateSequence(1) { part -> part + 1 }) {
+        val bytes = readPart(suiteArchiveResource(suiteId, part)) ?: break
+        readResolverTestSuiteArchive(bytes).forEach { (name, entry) ->
+            check(entries.put(name, entry) == null) { "Resolver test suite $suiteId stores entry $name in more than one part" }
+        }
+    }
+    return requireNotNull(entries.takeIf(Map<String, ByteArray>::isNotEmpty)) {
+        "Missing resolver test suite resource ${suiteArchiveResource(suiteId)}; $REGENERATE_HINT"
+    }
+}
+
+/** Packs [entries] in order into archives of at most [partBytes] each, starting a new part before one would overflow. */
+internal fun writeResolverTestSuiteParts(
+    entries: Map<String, ByteArray>,
+    partBytes: Int,
+): List<ByteArray> {
+    val parts = mutableListOf(linkedMapOf<String, ByteArray>())
+    var estimatedBytes = 0L
+    entries.forEach { (name, bytes) ->
+        val entryBytes = bytes.size + bytes.size / 100 + 2L * name.length + ZIP_ENTRY_OVERHEAD_BYTES
+        check(entryBytes + ZIP_END_BYTES <= partBytes) { "Resolver test suite entry $name does not fit in a $partBytes-byte part" }
+        if (parts.last().isNotEmpty() && estimatedBytes + entryBytes + ZIP_END_BYTES > partBytes) {
+            parts += linkedMapOf<String, ByteArray>()
+            estimatedBytes = 0
+        }
+        parts.last()[name] = bytes
+        estimatedBytes += entryBytes
+    }
+    return parts.map(::writeResolverTestSuiteArchive).onEach { part ->
+        check(part.size <= partBytes) { "Resolver test suite part of ${part.size} bytes exceeds $partBytes" }
+    }
+}
+
+// Local and central headers plus a data descriptor per entry, and the end-of-archive record; deflate may grow gzipped data by under 1%.
+private const val ZIP_ENTRY_OVERHEAD_BYTES = 128
+private const val ZIP_END_BYTES = 64
 
 // A fixed entry time keeps regenerated archives byte-identical.
 internal fun writeResolverTestSuiteArchive(entries: Map<String, ByteArray>): ByteArray =
@@ -305,7 +359,7 @@ private fun ResolverTestSuiteDefinition.readEntry(
     entry: String,
 ): ByteArray =
     requireNotNull(entries[entry]) {
-        "Resolver test suite $id archive ${suiteArchiveResource(id)} holds no entry $entry; $REGENERATE_HINT"
+        "Resolver test suite $id archives ${suiteArchiveResource(id)} hold no entry $entry; $REGENERATE_HINT"
     }
 
 // Generation order is fixed by the suite's seed, so a batch keeps its ordinal when other batches are pruned from the manifest.

@@ -2,40 +2,15 @@
 
 package viaduct.engine.runtime2.resolution
 
-import kotlin.test.assertEquals
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
-import viaduct.engine.runtime2.arbitrary.Config
-import viaduct.engine.runtime2.arbitrary.ErrorValueWeight
-import viaduct.engine.runtime2.arbitrary.FieldArgumentWeight
-import viaduct.engine.runtime2.arbitrary.ListValueSize
-import viaduct.engine.runtime2.arbitrary.MaxOutputListDepth
-import viaduct.engine.runtime2.arbitrary.MaxSelectionDepth
-import viaduct.engine.runtime2.arbitrary.MinimumSelectionDepth
-import viaduct.engine.runtime2.arbitrary.NodeResolversEnabled
-import viaduct.engine.runtime2.arbitrary.NullValueWeight
-import viaduct.engine.runtime2.arbitrary.ParentFieldsEnabled
-import viaduct.engine.runtime2.arbitrary.RandomParentFieldsEnabled
-import viaduct.engine.runtime2.arbitrary.ResolverFragmentArgumentFieldWeight
-import viaduct.engine.runtime2.arbitrary.ResolverFragmentDepth
-import viaduct.engine.runtime2.arbitrary.ResolverFragmentWeight
-import viaduct.engine.runtime2.arbitrary.ResolverFragmentsEnabled
-import viaduct.engine.runtime2.arbitrary.ResolverFromArgumentVariablesEnabled
-import viaduct.engine.runtime2.arbitrary.ResolverFromFieldProviderPathLength
-import viaduct.engine.runtime2.arbitrary.ResolverFromFieldVariableUseDepth
-import viaduct.engine.runtime2.arbitrary.ResolverFromObjectFieldVariablesEnabled
-import viaduct.engine.runtime2.arbitrary.ResolverFromQueryFieldVariablesEnabled
-import viaduct.engine.runtime2.arbitrary.ResolverQueryFragmentWeight
-import viaduct.engine.runtime2.arbitrary.ResolverQueryFragmentsEnabled
-import viaduct.engine.runtime2.arbitrary.ResolverVariableCount
-import viaduct.engine.runtime2.arbitrary.ResolverVariableSingletonCoercionEnabled
-import viaduct.engine.runtime2.arbitrary.ResolverVariableWeight
-import viaduct.engine.runtime2.arbitrary.ResolverVariablesEnabled
-import viaduct.engine.runtime2.arbitrary.RootFieldReferenceWeight
-import viaduct.engine.runtime2.arbitrary.SometimesPassiveFieldWeight
 import viaduct.engine.runtime2.arbitrary.TestCaseCount
 import viaduct.engine.runtime2.arbitrary.configuredResolverTestExecution
+import viaduct.engine.runtime2.arbitrary.resolverTestGenerationConfigured
+import viaduct.engine.runtime2.propertytest.ResolverTestSuiteDefinition
+import viaduct.engine.runtime2.propertytest.broadStressCases
+import viaduct.engine.runtime2.propertytest.configuredResolverTestCaseId
 
 /**
  * Unfiltered Resolution stress: every generated registry/query product is resolved and validated.
@@ -45,91 +20,21 @@ class ResolverBroadStressTest : ResolutionDispatcherResource {
     @Test
     fun `root field reference focused randomized worlds resolve correctly`(): Unit =
         runBlocking {
-            val defaultCounts =
-                TestCaseCount(schemas = 10, registriesPerSchema = 5, queriesPerSchema = 5)
-            val propertyProfile = "resolution-root-field-references"
-            val execution = configuredResolverTestExecution(defaultCounts, propertyProfile)
-            val counts = execution.counts
-            val completed =
-                runResolutionBroadStress(
-                    resolverCoroutineContext = resolverDispatcher,
-                    requiredSignatures = emptySet(),
-                    propertyProfile = propertyProfile,
-                    counts = counts,
-                    config =
-                        ResolutionBroadStressProfile.BALANCED.config +
-                            (RootFieldReferenceWeight to 0.6),
-                    seed = configuredSeed(default = 2026091001L),
-                    execution = execution,
-                )
-
-            assertEquals(
-                if (execution.selectedCase == null) {
-                    counts.schemas * counts.registriesPerSchema * counts.queriesPerSchema
-                } else {
-                    1
-                },
-                completed,
+            runResolutionBroadStress(
+                cases = focusedCases(ResolverTestSuiteDefinition.RESOLUTION_ROOT_FIELD_REFERENCES),
+                requiredSignatures = emptySet(),
+                resolverCoroutineContext = resolverDispatcher,
             )
         }
 
     @Test
     fun `parent focused randomized worlds resolve correctly`(): Unit =
         runBlocking {
-            val defaultCounts =
-                TestCaseCount(schemas = 40, registriesPerSchema = 5, queriesPerSchema = 5)
-            val propertyProfile = "resolution-parent-fields"
-            val execution = configuredResolverTestExecution(defaultCounts, propertyProfile)
-            val counts = execution.counts
-            val completed =
-                runResolutionBroadStress(
-                    resolverCoroutineContext = resolverDispatcher,
-                    requiredSignatures =
-                        setOf(
-                            ResolutionStructuralSignature.GREAT_GRANDPARENT_PARENT_DEMAND,
-                        ),
-                    propertyProfile = propertyProfile,
-                    counts = counts,
-                    config =
-                        Config.default +
-                            (ParentFieldsEnabled to true) +
-                            (MinimumSelectionDepth to 2) +
-                            (MaxSelectionDepth to 6) +
-                            (RandomParentFieldsEnabled to true) +
-                            (ResolverFragmentsEnabled to true) +
-                            (ResolverFragmentWeight to 1.0) +
-                            (ResolverFragmentDepth to 3) +
-                            (FieldArgumentWeight to 0.65) +
-                            (ResolverFragmentArgumentFieldWeight to 1.0) +
-                            (ResolverQueryFragmentsEnabled to true) +
-                            (ResolverQueryFragmentWeight to 0.25) +
-                            (ResolverVariablesEnabled to true) +
-                            (ResolverFromArgumentVariablesEnabled to true) +
-                            (ResolverFromObjectFieldVariablesEnabled to true) +
-                            (ResolverFromQueryFieldVariablesEnabled to true) +
-                            (ResolverVariableWeight to 1.0) +
-                            (ResolverVariableCount to 2..3) +
-                            (ResolverVariableSingletonCoercionEnabled to true) +
-                            (ResolverFromFieldProviderPathLength to 1..3) +
-                            (ResolverFromFieldVariableUseDepth to 1..3) +
-                            (SometimesPassiveFieldWeight to 1.0) +
-                            (NodeResolversEnabled to false) +
-                            (MaxOutputListDepth to 2) +
-                            (ListValueSize to 1..1) +
-                            (NullValueWeight to 0.0) +
-                            (ErrorValueWeight to 0.0),
-                    seed = configuredSeed(default = 2026090403L),
-                    execution = execution,
-                    parentFocusedReportSlices = if (execution.selectedCase == null) 4 else 1,
-                )
-
-            assertEquals(
-                if (execution.selectedCase == null) {
-                    counts.schemas * counts.registriesPerSchema * counts.queriesPerSchema
-                } else {
-                    1
-                },
-                completed,
+            runResolutionBroadStress(
+                cases = focusedCases(ResolverTestSuiteDefinition.RESOLUTION_PARENT_FIELDS),
+                requiredSignatures = setOf(ResolutionStructuralSignature.GREAT_GRANDPARENT_PARENT_DEMAND),
+                resolverCoroutineContext = resolverDispatcher,
+                parentFocusedReportSlices = 4,
             )
         }
 
@@ -138,24 +43,52 @@ class ResolverBroadStressTest : ResolutionDispatcherResource {
         runBlocking {
             val broadProfile: ResolutionBroadStressProfile = configuredProfile()
             runResolutionBroadStress(
-                resolverCoroutineContext = resolverDispatcher,
+                cases = broadCases(broadProfile),
                 requiredSignatures = broadProfile.requiredSignatures,
-                propertyProfile = broadProfile.propertyProfile,
-                counts = configuredCounts(broadProfile),
-                config = broadProfile.config,
-                seed = configuredSeed(),
+                resolverCoroutineContext = resolverDispatcher,
             )
         }
 
+    // The stored suite, unless a configured seed or size asks for live exploration from the suite's own seed and size.
+    private fun focusedCases(suite: ResolverTestSuiteDefinition): ResolutionBroadStressCases =
+        if (liveGenerationConfigured()) {
+            ResolutionBroadStressCases.live(
+                profile = suite.profile,
+                config = suite.config,
+                seed = configuredSeed() ?: suite.seed,
+                execution = configuredResolverTestExecution(suite.counts, suite.profile),
+            )
+        } else {
+            suite.broadStressCases()
+        }
+
+    // The profile's stored suite, unless a configured seed or size asks for live exploration, which then needs a seed.
+    private fun broadCases(broadProfile: ResolutionBroadStressProfile): ResolutionBroadStressCases =
+        if (liveGenerationConfigured()) {
+            ResolutionBroadStressCases.live(
+                profile = broadProfile.propertyProfile,
+                config = broadProfile.config,
+                seed = configuredSeed() ?: error("Set $SEED_PROPERTY or $SEED_ENVIRONMENT to generate live"),
+                execution = configuredResolverTestExecution(configuredCounts(broadProfile), broadProfile.propertyProfile),
+            )
+        } else {
+            ResolverTestSuiteDefinition.forProfile(broadProfile.propertyProfile, broadProfile.config).broadStressCases()
+        }
+
+    private fun liveGenerationConfigured(): Boolean =
+        resolverTestGenerationConfigured() || listOf(SEED_PROPERTY to SEED_ENVIRONMENT, SIZE_PROPERTY to SIZE_ENVIRONMENT).any { (property, environment) ->
+            System.getProperty(property) != null || System.getenv(environment) != null
+        }
+
     // Returns the named generator distribution selected for this run.
-    private fun configuredProfile(): ResolutionBroadStressProfile {
-        val configured: String =
-            System.getProperty(PROFILE_PROPERTY)
-                ?: System.getenv(PROFILE_ENVIRONMENT)
-                ?: System.getProperty("resolver.property.profile")
-                ?: ResolutionBroadStressProfile.BALANCED.propertyProfile
-        return ResolutionBroadStressProfile.fromConfigured(configured)
-    }
+    private fun configuredProfile(): ResolutionBroadStressProfile =
+        ResolutionBroadStressProfile.configured(
+            explicit =
+                System.getProperty(PROFILE_PROPERTY)
+                    ?: System.getenv(PROFILE_ENVIRONMENT)
+                    ?: System.getProperty("resolver.property.profile"),
+            selectedSuite = configuredResolverTestCaseId()?.suite,
+        )
 
     // Returns the configured S:R:Q product dimensions.
     private fun configuredCounts(broadProfile: ResolutionBroadStressProfile): TestCaseCount {
@@ -184,17 +117,13 @@ class ResolverBroadStressTest : ResolutionDispatcherResource {
         )
     }
 
-    // Returns the explicit seed required for reproducible broad generation.
-    private fun configuredSeed(default: Long? = null): Long {
+    // Returns the configured seed for live generation, if any.
+    private fun configuredSeed(): Long? {
         val configured: String =
             System.getProperty(SEED_PROPERTY)
                 ?: System.getenv(SEED_ENVIRONMENT)
                 ?: System.getProperty("resolver.property.seed")
-                ?: default?.toString()
-                ?: error(
-                    "Set $SEED_PROPERTY or $SEED_ENVIRONMENT; use the " +
-                        ":semantics:resolutionBroadStress task",
-                )
+                ?: return null
         return configured.toLongOrNull()
             ?: error("$SEED_PROPERTY/$SEED_ENVIRONMENT must be a Long: $configured")
     }

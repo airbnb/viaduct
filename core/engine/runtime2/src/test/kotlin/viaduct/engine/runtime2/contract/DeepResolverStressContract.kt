@@ -9,28 +9,9 @@ import kotlin.test.assertTrue
 import kotlinx.coroutines.runBlocking
 import viaduct.engine.runtime2.arbitrary.ArbitraryRegistry
 import viaduct.engine.runtime2.arbitrary.Config
-import viaduct.engine.runtime2.arbitrary.ErrorValueWeight
-import viaduct.engine.runtime2.arbitrary.ExplicitFieldResolverWeight
-import viaduct.engine.runtime2.arbitrary.FieldArgumentWeight
 import viaduct.engine.runtime2.arbitrary.FieldCoordinate
-import viaduct.engine.runtime2.arbitrary.MaxSelectionDepth
-import viaduct.engine.runtime2.arbitrary.MinimumSelectionDepth
-import viaduct.engine.runtime2.arbitrary.NodeObjectWeight
-import viaduct.engine.runtime2.arbitrary.NodeResolversEnabled
-import viaduct.engine.runtime2.arbitrary.NullValueWeight
-import viaduct.engine.runtime2.arbitrary.NullableTypeWeight
-import viaduct.engine.runtime2.arbitrary.ObjectFieldCount
-import viaduct.engine.runtime2.arbitrary.QueryFieldCount
-import viaduct.engine.runtime2.arbitrary.ResolverFragmentDepth
-import viaduct.engine.runtime2.arbitrary.ResolverFragmentWeight
-import viaduct.engine.runtime2.arbitrary.ResolverFragmentsEnabled
-import viaduct.engine.runtime2.arbitrary.ResolverFromArgumentVariablesEnabled
-import viaduct.engine.runtime2.arbitrary.ResolverFromQueryFieldVariablesEnabled
-import viaduct.engine.runtime2.arbitrary.ResolverQueryFragmentWeight
-import viaduct.engine.runtime2.arbitrary.ResolverQueryFragmentsEnabled
+import viaduct.engine.runtime2.arbitrary.ResolverTestCase
 import viaduct.engine.runtime2.arbitrary.ResolverTestRun
-import viaduct.engine.runtime2.arbitrary.ResolverVariablesEnabled
-import viaduct.engine.runtime2.arbitrary.SchemaObjectCount
 import viaduct.engine.runtime2.arbitrary.TestCaseCount
 import viaduct.engine.runtime2.arbitrary.checkResolverTestCases
 import viaduct.engine.runtime2.correctresolution.CorrectnessResolverObserver
@@ -38,8 +19,12 @@ import viaduct.engine.runtime2.correctresolution.correctResolution
 import viaduct.engine.runtime2.model.nodeReferenceIdentityOrNull
 import viaduct.engine.runtime2.model.registry.Assumptions
 import viaduct.engine.runtime2.model.requireField
+import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.fragmentFrom
 import viaduct.engine.runtime2.model.testing.objectOf
+import viaduct.engine.runtime2.propertytest.ResolverTestSuiteDefinition
+import viaduct.engine.runtime2.propertytest.checkResolverTestSuite
+import viaduct.engine.runtime2.propertytest.deepResolverStressConfig
 import viaduct.engine.runtime2.schema.SourceSchemaAdapter
 import viaduct.graphql.schema.ViaductSchema
 
@@ -72,53 +57,43 @@ interface DeepResolverStressContract : ResolverContract {
     @Test
     fun `deep dependency-heavy arbitrary worlds resolve correctly`(): Unit =
         runBlocking {
-            val requestedCases =
-                configured(stressCasesProperty, stressCasesEnvironment)
-                    .toIntOrNull()
-                    ?.also { cases ->
-                        require(cases >= MINIMUM_STRESS_CASES && cases % CASES_PER_SCHEMA == 0) {
-                            "$stressCasesProperty/$stressCasesEnvironment must be at least " +
-                                "$MINIMUM_STRESS_CASES and a multiple of $CASES_PER_SCHEMA"
-                        }
-                    }
-                    ?: error("$stressCasesProperty/$stressCasesEnvironment must be an integer")
-            val seed =
-                configured(stressSeedProperty, stressSeedEnvironment)
-                    .toLongOrNull()
-                    ?: error("$stressSeedProperty/$stressSeedEnvironment must be a Long")
-            val counts =
-                TestCaseCount(
-                    schemas = requestedCases / CASES_PER_SCHEMA,
-                    registriesPerSchema = REGISTRIES_PER_SCHEMA,
-                    queriesPerSchema = QUERIES_PER_SCHEMA,
-                )
             val config =
-                Config.default +
-                    (MinimumSelectionDepth to 4) +
-                    (MaxSelectionDepth to 6) +
-                    (SchemaObjectCount to 4..5) +
-                    (ObjectFieldCount to 3..5) +
-                    (QueryFieldCount to 2..4) +
-                    (FieldArgumentWeight to 0.65) +
-                    (ExplicitFieldResolverWeight to 0.7) +
-                    (NullableTypeWeight to 0.15) +
-                    (NullValueWeight to 0.05) +
-                    (ErrorValueWeight to 0.02) +
-                    (ResolverFragmentsEnabled to true) +
-                    (ResolverFragmentWeight to 0.85) +
-                    (ResolverFragmentDepth to 3) +
-                    (ResolverQueryFragmentsEnabled to queryFragmentCoverageRequired) +
-                    (ResolverQueryFragmentWeight to 0.1) +
-                    (NodeResolversEnabled to nodeResolversEnabled) +
-                    // Static tests exhaustively cover dispatch; stress samples interactions cheaply.
-                    (NodeObjectWeight to 0.05) +
-                    (ResolverFromArgumentVariablesEnabled to true) +
-                    (
-                        ResolverVariablesEnabled to
-                            (objectPathVariablesEnabled || queryPathVariablesEnabled)
-                    ) +
-                    (ResolverFromQueryFieldVariablesEnabled to queryPathVariablesEnabled) +
-                    stressConfigOverrides
+                deepResolverStressConfig(
+                    queryFragments = queryFragmentCoverageRequired,
+                    nodeResolvers = nodeResolversEnabled,
+                    objectPathVariables = objectPathVariablesEnabled,
+                    queryPathVariables = queryPathVariablesEnabled,
+                    overrides = stressConfigOverrides,
+                )
+            val suite = ResolverTestSuiteDefinition.forProfile("$resolverName-stress", config)
+            val configuredCases = configured(stressCasesProperty, stressCasesEnvironment)
+            val configuredSeed = configured(stressSeedProperty, stressSeedEnvironment)
+            // A configured seed or size explores live; otherwise the stored suite replays with coverage enforced.
+            val live = configuredCases != null || configuredSeed != null
+            val liveCounts =
+                if (live) {
+                    val cases =
+                        configuredCases?.toIntOrNull()
+                            ?: error("$stressCasesProperty/$stressCasesEnvironment must be an integer")
+                    require(cases >= MINIMUM_STRESS_CASES && cases % CASES_PER_SCHEMA == 0) {
+                        "$stressCasesProperty/$stressCasesEnvironment must be at least " +
+                            "$MINIMUM_STRESS_CASES and a multiple of $CASES_PER_SCHEMA"
+                    }
+                    TestCaseCount(
+                        schemas = cases / CASES_PER_SCHEMA,
+                        registriesPerSchema = REGISTRIES_PER_SCHEMA,
+                        queriesPerSchema = QUERIES_PER_SCHEMA,
+                    )
+                } else {
+                    null
+                }
+            val seed =
+                if (live) {
+                    configuredSeed?.toLongOrNull()
+                        ?: error("$stressSeedProperty/$stressSeedEnvironment must be a Long")
+                } else {
+                    suite.seed
+                }
             var attemptedCases = 0
             var verifiedCases = 0
             var resolverApplications = 0
@@ -153,11 +128,7 @@ interface DeepResolverStressContract : ResolverContract {
 
             val run: ResolverTestRun
             try {
-                run = checkResolverTestCases(
-                    counts,
-                    config,
-                    profile = "$resolverName-stress",
-                ) { testWorld, testCase ->
+                run = checkStressCases(suite, liveCounts) { testWorld, testCase ->
                     attemptedCases += 1
                     generatedNodeResolvers += testCase.registry.nodeResolverTypes.size
                     generatedFromArgumentVariables +=
@@ -345,7 +316,7 @@ interface DeepResolverStressContract : ResolverContract {
             } finally {
                 PropertyTesting.defaultSeed = previousSeed
                 println(
-                    "$displayName stress: seed=$seed, requestedCases=$requestedCases, " +
+                    "$displayName stress: seed=$seed, counts=${liveCounts ?: suite.counts}, " +
                         "attemptedCases=$attemptedCases, verifiedCases=$verifiedCases, " +
                         "resolverApplications=$resolverApplications, " +
                         "generatedNodeResolvers=$generatedNodeResolvers, " +
@@ -384,22 +355,23 @@ interface DeepResolverStressContract : ResolverContract {
                 )
             }
 
-            assertEquals(requestedCases, attemptedCases)
-            assertEquals(requestedCases, verifiedCases)
-            run.warnCoverage(
+            assertEquals(run.attemptedCases, attemptedCases)
+            assertEquals(run.attemptedCases, verifiedCases)
+            val requestedCases = run.expectedCases
+            run.requireCoverage(
                 resolverApplications >= requestedCases,
                 "Deep stress coverage: resolverApplications=$resolverApplications, expected >= $requestedCases",
             )
             if (nodeResolversEnabled) {
-                run.warnCoverage(
+                run.requireCoverage(
                     generatedNodeResolvers >= requestedCases / 100,
                     "Deep stress coverage: generatedNodeResolvers=$generatedNodeResolvers, expected >= ${requestedCases / 100}",
                 )
-                run.warnCoverage(
+                run.requireCoverage(
                     nodeLoaderApplications >= requestedCases / 1_000,
                     "Deep stress coverage: nodeLoaderApplications=$nodeLoaderApplications, expected >= ${requestedCases / 1_000}",
                 )
-                run.warnCoverage(
+                run.requireCoverage(
                     argumentBearingNodeProducerApplications >= requestedCases / 1_000,
                     "Deep stress missed argument-bearing node producer coverage",
                 )
@@ -409,48 +381,48 @@ interface DeepResolverStressContract : ResolverContract {
                 assertEquals(0, argumentBearingNodeProducerApplications)
             }
             if (objectPathVariablesEnabled) {
-                run.warnCoverage(
+                run.requireCoverage(
                     generatedObjectPathVariables > 0,
                     "Deep stress coverage: generatedObjectPathVariables=$generatedObjectPathVariables, expected > 0",
                 )
-                run.warnCoverage(
+                run.requireCoverage(
                     activatedObjectPathApplications > 0,
                     "Deep stress coverage: activatedObjectPathApplications=$activatedObjectPathApplications, expected > 0",
                 )
             }
             if (queryPathVariablesEnabled) {
-                run.warnCoverage(
+                run.requireCoverage(
                     generatedQueryPathVariables > 0,
                     "Deep stress coverage: generatedQueryPathVariables=$generatedQueryPathVariables, expected > 0",
                 )
-                run.warnCoverage(
+                run.requireCoverage(
                     activatedQueryPathApplications > 0,
                     "Deep stress coverage: activatedQueryPathApplications=$activatedQueryPathApplications, expected > 0",
                 )
             }
             if (queryFragmentCoverageRequired) {
-                run.warnCoverage(
+                run.requireCoverage(
                     generatedQueryFragments > 0,
                     "Deep stress coverage: generatedQueryFragments=$generatedQueryFragments, expected > 0",
                 )
-                run.warnCoverage(
+                run.requireCoverage(
                     queryFragmentFreeCases > 0,
                     "Deep stress coverage: queryFragmentFreeCases=$queryFragmentFreeCases, expected > 0",
                 )
-                run.warnCoverage(
+                run.requireCoverage(
                     activatedQueryFragmentApplications > 0,
                     "Deep stress coverage: activatedQueryFragmentApplications=$activatedQueryFragmentApplications, expected > 0",
                 )
-                run.warnCoverage(
+                run.requireCoverage(
                     casesWithDemandedQueryOERs > 0,
                     "Deep stress coverage: casesWithDemandedQueryOERs=$casesWithDemandedQueryOERs, expected > 0",
                 )
-                run.warnCoverage(
+                run.requireCoverage(
                     casesWithoutDemandedQueryOERs > 0,
                     "Deep stress coverage: casesWithoutDemandedQueryOERs=$casesWithoutDemandedQueryOERs, expected > 0",
                 )
                 if (minimumDemandedQueryOERDepth > 0) {
-                    run.warnCoverage(
+                    run.requireCoverage(
                         maximumDemandedQueryOERDepth >= minimumDemandedQueryOERDepth,
                         "Expected demanded Query-OER depth of at least " +
                             "$minimumDemandedQueryOERDepth, found $maximumDemandedQueryOERDepth",
@@ -458,13 +430,13 @@ interface DeepResolverStressContract : ResolverContract {
                 }
             }
             if (nestedObjectPathCoverageRequired) {
-                run.warnCoverage(
+                run.requireCoverage(
                     activatedNestedObjectPathApplications > 0,
                     "Deep stress coverage: activatedNestedObjectPathApplications=$activatedNestedObjectPathApplications, expected > 0",
                 )
             }
             if (minimumActivatedObjectPathResolverChainLength > 0) {
-                run.warnCoverage(
+                run.requireCoverage(
                     maximumActivatedObjectPathResolverChainLength >=
                         minimumActivatedObjectPathResolverChainLength,
                     "Expected an activated object-path resolver chain of length " +
@@ -473,52 +445,52 @@ interface DeepResolverStressContract : ResolverContract {
                 )
             }
             if (mixedVariableCoverageRequired) {
-                run.warnCoverage(
+                run.requireCoverage(
                     generatedFromArgumentVariables > 0,
                     "Deep stress coverage: generatedFromArgumentVariables=$generatedFromArgumentVariables, expected > 0",
                 )
-                run.warnCoverage(
+                run.requireCoverage(
                     generatedObjectPathVariables > 0,
                     "Deep stress coverage: generatedObjectPathVariables=$generatedObjectPathVariables, expected > 0",
                 )
-                run.warnCoverage(
+                run.requireCoverage(
                     activatedFromArgumentApplications > 0,
                     "Deep stress coverage: activatedFromArgumentApplications=$activatedFromArgumentApplications, expected > 0",
                 )
-                run.warnCoverage(
+                run.requireCoverage(
                     activatedObjectPathApplications > 0,
                     "Deep stress coverage: activatedObjectPathApplications=$activatedObjectPathApplications, expected > 0",
                 )
-                run.warnCoverage(
+                run.requireCoverage(
                     coactivatedMixedVariableCases > 0,
                     "Deep stress coverage: coactivatedMixedVariableCases=$coactivatedMixedVariableCases, expected > 0",
                 )
             }
             if (sometimesPassiveCoverageRequired) {
-                run.warnCoverage(
+                run.requireCoverage(
                     generatedSometimesPassiveFields > 0,
                     "Deep stress coverage: generatedSometimesPassiveFields=$generatedSometimesPassiveFields, expected > 0",
                 )
-                run.warnCoverage(
+                run.requireCoverage(
                     activatedSometimesPassiveOccurrences > 0,
                     "Deep stress coverage: activatedSometimesPassiveOccurrences=$activatedSometimesPassiveOccurrences, expected > 0",
                 )
             }
             if (rootFieldReferenceCoverageRequired) {
-                run.warnCoverage(
+                run.requireCoverage(
                     generatedRootFieldReferences > 0,
                     "Deep stress coverage: generatedRootFieldReferences=$generatedRootFieldReferences, expected > 0",
                 )
-                run.warnCoverage(
+                run.requireCoverage(
                     activatedRootFieldReferences > 0,
                     "Deep stress coverage: activatedRootFieldReferences=$activatedRootFieldReferences, expected > 0",
                 )
                 if (nodeResolversEnabled) {
-                    run.warnCoverage(
+                    run.requireCoverage(
                         generatedNodeRootFieldReferences > 0,
                         "Deep stress coverage: generatedNodeRootFieldReferences=$generatedNodeRootFieldReferences, expected > 0",
                     )
-                    run.warnCoverage(
+                    run.requireCoverage(
                         activatedNodeRootFieldReferences > 0,
                         "Deep stress coverage: activatedNodeRootFieldReferences=$activatedNodeRootFieldReferences, expected > 0",
                     )
@@ -567,10 +539,18 @@ interface DeepResolverStressContract : ResolverContract {
     private fun configured(
         property: String,
         environment: String,
-    ): String =
-        System.getProperty(property)
-            ?: System.getenv(environment)
-            ?: error("Set $property or $environment; use the :semantics:${resolverName}Stress task")
+    ): String? = System.getProperty(property) ?: System.getenv(environment)
+
+    private suspend fun checkStressCases(
+        suite: ResolverTestSuiteDefinition,
+        liveCounts: TestCaseCount?,
+        property: suspend (TestWorld, ResolverTestCase) -> Unit,
+    ): ResolverTestRun =
+        if (liveCounts == null) {
+            checkResolverTestSuite(suite, property)
+        } else {
+            checkResolverTestCases(liveCounts, suite.config, profile = suite.profile, property = property)
+        }
 
     private val displayName: String
         get() = resolverName.replaceFirstChar(Char::uppercase)

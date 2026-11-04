@@ -8,15 +8,19 @@ import viaduct.engine.runtime2.arbitrary.FieldArgumentWeight
 import viaduct.engine.runtime2.arbitrary.InputScalarValueRange
 import viaduct.engine.runtime2.arbitrary.ListTypeWeight
 import viaduct.engine.runtime2.arbitrary.ListValueSize
+import viaduct.engine.runtime2.arbitrary.MaxOutputListDepth
 import viaduct.engine.runtime2.arbitrary.MaxSelectionDepth
 import viaduct.engine.runtime2.arbitrary.MinimumSelectionDepth
 import viaduct.engine.runtime2.arbitrary.NodeObjectWeight
+import viaduct.engine.runtime2.arbitrary.NodeResolversEnabled
 import viaduct.engine.runtime2.arbitrary.NullValueWeight
 import viaduct.engine.runtime2.arbitrary.NullableTypeWeight
 import viaduct.engine.runtime2.arbitrary.ObjectFieldCount
 import viaduct.engine.runtime2.arbitrary.ParentFieldsEnabled
 import viaduct.engine.runtime2.arbitrary.QueryFieldCount
 import viaduct.engine.runtime2.arbitrary.QueryScalarFieldWeight
+import viaduct.engine.runtime2.arbitrary.RandomParentFieldsEnabled
+import viaduct.engine.runtime2.arbitrary.ResolverFragmentArgumentFieldWeight
 import viaduct.engine.runtime2.arbitrary.ResolverFragmentDepth
 import viaduct.engine.runtime2.arbitrary.ResolverFragmentWeight
 import viaduct.engine.runtime2.arbitrary.ResolverFragmentsEnabled
@@ -28,6 +32,7 @@ import viaduct.engine.runtime2.arbitrary.ResolverFromFieldProviderPathLength
 import viaduct.engine.runtime2.arbitrary.ResolverFromFieldVariableOwnerLimit
 import viaduct.engine.runtime2.arbitrary.ResolverFromFieldVariableOwnerUseWeight
 import viaduct.engine.runtime2.arbitrary.ResolverFromFieldVariableUseDepth
+import viaduct.engine.runtime2.arbitrary.ResolverFromObjectFieldVariablesEnabled
 import viaduct.engine.runtime2.arbitrary.ResolverFromProviderVariablesEnabled
 import viaduct.engine.runtime2.arbitrary.ResolverFromQueryFieldVariablesEnabled
 import viaduct.engine.runtime2.arbitrary.ResolverLiteralVariableConvergenceWeight
@@ -152,6 +157,15 @@ enum class ResolutionBroadStressProfile(
                 "Unknown Resolution broad stress profile $configured; profiles=" +
                     entries.joinToString { profile -> profile.id },
             )
+
+        // Returns the explicitly configured profile, else the one whose stored suite holds the selected test case, else BALANCED.
+        fun configured(
+            explicit: String?,
+            selectedSuite: String?,
+        ): ResolutionBroadStressProfile =
+            explicit?.let(::fromConfigured)
+                ?: entries.singleOrNull { profile -> profile.propertyProfile == selectedSuite }
+                ?: BALANCED
     }
 }
 
@@ -166,6 +180,39 @@ fun Config.withLargeDeepResolutionWorlds(): Config =
         (QueryFieldCount to 10..14) +
         (RootQueryFieldCount to 8..12) +
         (ResolverFragmentDepth to 5)
+
+// Concentrates the balanced distribution on root-field references.
+internal fun rootFieldReferenceFocusedConfig(): Config = ResolutionBroadStressProfile.BALANCED.config + (RootFieldReferenceWeight to 0.6)
+
+// Exercises deep parent demand with every variable source beneath parent selections.
+internal fun parentFocusedConfig(): Config =
+    Config.default +
+        (ParentFieldsEnabled to true) +
+        (MinimumSelectionDepth to 2) +
+        (MaxSelectionDepth to 6) +
+        (RandomParentFieldsEnabled to true) +
+        (ResolverFragmentsEnabled to true) +
+        (ResolverFragmentWeight to 1.0) +
+        (ResolverFragmentDepth to 3) +
+        (FieldArgumentWeight to 0.65) +
+        (ResolverFragmentArgumentFieldWeight to 1.0) +
+        (ResolverQueryFragmentsEnabled to true) +
+        (ResolverQueryFragmentWeight to 0.25) +
+        (ResolverVariablesEnabled to true) +
+        (ResolverFromArgumentVariablesEnabled to true) +
+        (ResolverFromObjectFieldVariablesEnabled to true) +
+        (ResolverFromQueryFieldVariablesEnabled to true) +
+        (ResolverVariableWeight to 1.0) +
+        (ResolverVariableCount to 2..3) +
+        (ResolverVariableSingletonCoercionEnabled to true) +
+        (ResolverFromFieldProviderPathLength to 1..3) +
+        (ResolverFromFieldVariableUseDepth to 1..3) +
+        (SometimesPassiveFieldWeight to 1.0) +
+        (NodeResolversEnabled to false) +
+        (MaxOutputListDepth to 2) +
+        (ListValueSize to 1..1) +
+        (NullValueWeight to 0.0) +
+        (ErrorValueWeight to 0.0)
 
 // Returns the broad baseline from which directed Resolution profiles apply pressure.
 private fun balancedBroadConfig(): Config =

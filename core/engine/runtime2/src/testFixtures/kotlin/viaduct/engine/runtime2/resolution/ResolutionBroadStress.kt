@@ -17,13 +17,13 @@ import viaduct.engine.runtime2.arbitrary.ResolutionWitness
 import viaduct.engine.runtime2.arbitrary.ResolverFromQueryFieldVariablesEnabled
 import viaduct.engine.runtime2.arbitrary.ResolverOccurrenceApplicationRecord
 import viaduct.engine.runtime2.arbitrary.ResolverQueryFragmentsEnabled
+import viaduct.engine.runtime2.arbitrary.ResolverTestCase
 import viaduct.engine.runtime2.arbitrary.ResolverTestExecution
 import viaduct.engine.runtime2.arbitrary.ResolverTestRun
 import viaduct.engine.runtime2.arbitrary.ResolverVariablesEnabled
 import viaduct.engine.runtime2.arbitrary.RootFieldReferencesEnabled
 import viaduct.engine.runtime2.arbitrary.SometimesPassiveFieldWeight
 import viaduct.engine.runtime2.arbitrary.TestCaseCount
-import viaduct.engine.runtime2.arbitrary.configuredResolverTestExecution
 import viaduct.engine.runtime2.arbitrary.executeResolverTestCases
 import viaduct.engine.runtime2.arbitrary.isGeneratedRandomParentField
 import viaduct.engine.runtime2.contract.RegisteredResolverOccurrence
@@ -44,22 +44,23 @@ import viaduct.engine.runtime2.model.nodeReferenceIdentityOrNull
 import viaduct.engine.runtime2.model.outputValue
 import viaduct.engine.runtime2.model.registry.Assumptions
 import viaduct.engine.runtime2.model.schemaType
+import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.fragmentFrom
 import viaduct.engine.runtime2.resolution.framework.ResolverInvocationObservation
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 import viaduct.graphql.schema.ViaductSchema
 
-// Resolves and independently validates every case in one Resolution generated product.
+// Resolves and independently validates every case in [cases].
 suspend fun runResolutionBroadStress(
-    resolverCoroutineContext: CoroutineContext,
+    cases: ResolutionBroadStressCases,
     requiredSignatures: Set<ResolutionStructuralSignature>,
-    propertyProfile: String,
-    counts: TestCaseCount,
-    config: Config,
-    seed: Long,
-    execution: ResolverTestExecution = configuredResolverTestExecution(counts, propertyProfile),
+    resolverCoroutineContext: CoroutineContext,
     parentFocusedReportSlices: Int = 0,
 ): Int {
+    val propertyProfile: String = cases.profile
+    val config: Config = cases.config
+    val counts: TestCaseCount = cases.counts
+    val seed: Long = cases.seed
     val startedAt: Long = System.nanoTime()
     var attemptedCases = 0
     var resolutionCalls = 0
@@ -133,17 +134,14 @@ suspend fun runResolutionBroadStress(
     val observedSignatures: MutableSet<ResolutionStructuralSignature> = linkedSetOf()
     val parentFocusedReport =
         parentFocusedReportSlices.takeIf { slices -> slices > 0 }?.let { slices ->
+            if (cases.execution.selectedCase == null) slices else 1
+        }?.let { slices ->
             ParentFocusedCoverageReport(counts.schemas, slices)
         }
 
     try {
         val run: ResolverTestRun =
-            executeResolverTestCases(
-                execution = execution,
-                config = config,
-                profile = propertyProfile,
-                seed = seed,
-            ) { testWorld, testCase ->
+            cases.check { testWorld, testCase ->
                 attemptedCases += 1
                 val schemaIndex = requireNotNull(testCase.coordinates).schemaIndex
                 var caseParentFocusedCoverage = ParentFocusedCoverageSnapshot()
@@ -537,24 +535,24 @@ suspend fun runResolutionBroadStress(
                 completedCases += 1
             }
 
-        assertEquals(run.expectedCases, run.attemptedCases)
-        assertEquals(run.expectedCases, attemptedCases)
-        assertEquals(run.expectedCases, resolutionCalls)
-        assertEquals(run.expectedCases, completedCases)
-        run.warnCoverage(
+        run.assertAggregate(run.expectedCases == run.attemptedCases, "Ran ${run.attemptedCases} cases; expected ${run.expectedCases}")
+        assertEquals(run.attemptedCases, attemptedCases)
+        assertEquals(run.attemptedCases, resolutionCalls)
+        assertEquals(run.attemptedCases, completedCases)
+        run.requireCoverage(
             observedSignatures.containsAll(requiredSignatures),
             "Resolution profile $propertyProfile missed required signatures: " +
                 "${requiredSignatures - observedSignatures}; " +
                 "observed=$observedSignatures",
         )
         if (config[SometimesPassiveFieldWeight] > 0.0) {
-            run.warnCoverage(
+            run.requireCoverage(
                 generatedSometimesPassiveFields > 0 &&
                     activatedSometimesPassiveOccurrences > 0,
                 "Resolution profile $propertyProfile did not activate sometimes-passive fields",
             )
             if (config[RandomParentFieldsEnabled]) {
-                run.warnCoverage(
+                run.requireCoverage(
                     activatedSometimesPassiveParentDemandOccurrences > 0,
                     "Resolution profile $propertyProfile did not source-supply a registered " +
                         "field whose standard resolver has @parent demand",
@@ -562,62 +560,62 @@ suspend fun runResolutionBroadStress(
             }
         }
         if (config[ResolverQueryFragmentsEnabled]) {
-            run.warnCoverage(
+            run.requireCoverage(
                 generatedQueryFragments > 0 && activatedQueryFragmentApplications > 0,
                 "Resolution profile $propertyProfile did not activate query fragments",
             )
         }
         if (config[RootFieldReferencesEnabled]) {
-            run.warnCoverage(
+            run.requireCoverage(
                 generatedRootFieldReferences > 0 && activatedRootFieldReferences > 0,
                 "Resolution profile $propertyProfile did not generate and activate root-field references",
             )
             if (config[NodeResolversEnabled]) {
-                run.warnCoverage(
+                run.requireCoverage(
                     generatedNodeRootFieldReferences > 0 &&
                         activatedNodeRootFieldReferences > 0,
                     "Resolution profile $propertyProfile did not generate and activate a " +
                         "root-field-reference-returning node resolver",
                 )
             }
-            run.warnCoverage(
+            run.requireCoverage(
                 activatedRootFieldReferencePathDepths.containsAll(setOf(2, 3, 4)),
                 "Resolution profile $propertyProfile missed root-field-reference namespace depths: " +
                     "observed=$activatedRootFieldReferencePathDepths",
             )
-            run.warnCoverage(
+            run.requireCoverage(
                 activatedRootFieldReferenceArgumentCounts.containsAll(setOf(0, 1, 4)),
                 "Resolution profile $propertyProfile missed root-field-reference arities: " +
                     "observed=$activatedRootFieldReferenceArgumentCounts",
             )
-            run.warnCoverage(
+            run.requireCoverage(
                 activatedRootFieldReferenceTargetKinds.containsAll(
                     setOf("object", "interface", "union", "enum", "scalar"),
                 ),
                 "Resolution profile $propertyProfile missed root-field-reference target kinds: " +
                     "observed=$activatedRootFieldReferenceTargetKinds",
             )
-            run.warnCoverage(
+            run.requireCoverage(
                 activatedListRootFieldReferences > 0,
                 "Resolution profile $propertyProfile did not activate a list-element root-field reference",
             )
-            run.warnCoverage(
+            run.requireCoverage(
                 maximumRootFieldReferenceTailLength >= 3,
                 "Resolution profile $propertyProfile did not activate a three-hop root-field-reference tail",
             )
-            run.warnCoverage(
+            run.requireCoverage(
                 activatedRootFieldReferenceFallbacks > 0,
                 "Resolution profile $propertyProfile did not activate root-field-reference fallback",
             )
-            run.warnCoverage(
+            run.requireCoverage(
                 activatedRootFieldReferenceOverrides > 0,
                 "Resolution profile $propertyProfile did not suppress a registered resolver with a root-field reference",
             )
-            run.warnCoverage(
+            run.requireCoverage(
                 activatedRootFieldReferenceExtensions > 0,
                 "Resolution profile $propertyProfile did not resolve successor demand within a referenced result",
             )
-            run.warnCoverage(
+            run.requireCoverage(
                 activatedRootTargetsWithFromArgument > 0 &&
                     activatedRootTargetsWithFromQueryField > 0,
                 "Resolution profile $propertyProfile did not activate root targets using both " +
@@ -625,14 +623,14 @@ suspend fun runResolutionBroadStress(
             )
         }
         if (config[ResolverFromQueryFieldVariablesEnabled]) {
-            run.warnCoverage(
+            run.requireCoverage(
                 generatedQueryPathVariables > 0 &&
                     activatedQueryPathVariableApplications > 0,
                 "Resolution profile $propertyProfile did not activate FromQueryField variables",
             )
         }
         if (config[ParentFieldsEnabled]) {
-            run.warnCoverage(
+            run.requireCoverage(
                 activatedParentDemandApplications > 0,
                 "Resolution profile $propertyProfile did not activate great-grandparent demand",
             )
@@ -643,11 +641,11 @@ suspend fun runResolutionBroadStress(
             )
         }
         if (config[RandomParentFieldsEnabled]) {
-            run.warnCoverage(
+            run.requireCoverage(
                 materializedRandomParentFieldActivations > 0,
                 "Resolution profile $propertyProfile did not materialize a random parent field",
             )
-            run.warnCoverage(
+            run.requireCoverage(
                 directDiagonalResolverSelectionsBeneathParent > 0,
                 "Resolution profile $propertyProfile did not activate diagonal parent demand",
             )
@@ -659,7 +657,7 @@ suspend fun runResolutionBroadStress(
                         add(ParentVariableSource.QUERY_FIELD)
                     }
                 }.forEach { source ->
-                    run.warnCoverage(
+                    run.requireCoverage(
                         resolverVariableSourceCombinationsBeneathParent.keys.any { sources ->
                             source in sources
                         },
@@ -667,7 +665,7 @@ suspend fun runResolutionBroadStress(
                             "@parent",
                     )
                 }
-                run.warnCoverage(
+                run.requireCoverage(
                     diagonalResolverSelectionsWithVariables > 0,
                     "Resolution profile $propertyProfile did not activate variables in " +
                         "diagonal parent demand",
@@ -826,3 +824,38 @@ private fun EngineOutputData?.materializedParentFieldActivations(
 
         else -> emptyList()
     }
+
+/** Runs [property] over stored cases instead of generating them; supplied by the stored-suite owner. */
+typealias StoredSuiteReplay = suspend (property: suspend (TestWorld, ResolverTestCase) -> Unit) -> ResolverTestRun
+
+/** The cases one broad stress run checks: a stored suite's fixed cases, whose coverage gaps fail, or live cases, whose gaps only warn. */
+class ResolutionBroadStressCases private constructor(
+    val profile: String,
+    val config: Config,
+    val seed: Long,
+    val execution: ResolverTestExecution,
+    private val storedSuite: StoredSuiteReplay?,
+) {
+    val counts: TestCaseCount get() = execution.counts
+
+    internal suspend fun check(property: suspend (TestWorld, ResolverTestCase) -> Unit): ResolverTestRun =
+        storedSuite?.invoke(property)
+            ?: executeResolverTestCases(execution = execution, config = config, profile = profile, seed = seed, property = property)
+
+    companion object {
+        fun stored(
+            profile: String,
+            config: Config,
+            counts: TestCaseCount,
+            seed: Long,
+            replay: StoredSuiteReplay,
+        ): ResolutionBroadStressCases = ResolutionBroadStressCases(profile, config, seed, ResolverTestExecution(counts), replay)
+
+        fun live(
+            profile: String,
+            config: Config,
+            seed: Long,
+            execution: ResolverTestExecution,
+        ): ResolutionBroadStressCases = ResolutionBroadStressCases(profile, config, seed, execution, storedSuite = null)
+    }
+}

@@ -790,7 +790,7 @@ tasks.register<org.gradle.api.tasks.testing.Test>("resolverTestCase") {
                 ?: throw GradleException("Set -PresolverTestCase=<suite/batch/registry/query>")
         val className = resolverPropertyReplayClass.orNull
         if (className == null) {
-            listOf("*GeneratedTest", "*WitnessTest", "*MutationTest").forEach(filter::includeTestsMatching)
+            listOf("*GeneratedTest", "*WitnessTest", "*MutationTest", "*.ResolverStressTest", "*.ResolverBroadStressTest").forEach(filter::includeTestsMatching)
         } else {
             require(className.matches(jvmClassNamePattern)) {
                 "resolverPropertyClass must be a fully qualified JVM class name: $className"
@@ -808,7 +808,7 @@ tasks.register<org.gradle.api.tasks.testing.Test>("resolverTestCase") {
         if (!resolverTestCaseMarker.get().asFile.exists()) {
             throw GradleException(
                 "No test ran test case ${resolverTestCase.get()}; " +
-                    (resolverPropertyReplayClass.orNull?.let { "$it does not use its suite" } ?: "no generated, witness, or mutation test uses its suite"),
+                    (resolverPropertyReplayClass.orNull?.let { "$it does not use its suite" } ?: "no generated, witness, mutation, or stress test uses its suite"),
             )
         }
     }
@@ -827,7 +827,7 @@ fun registerResolverStressTask(resolverName: String) {
 
     tasks.register<org.gradle.api.tasks.testing.Test>("${resolverName}Stress") {
         group = "verification"
-        description = "Runs the seeded $displayName deep stress property."
+        description = "Replays the stored $displayName deep stress suite, or generates it live from a configured seed."
         maxHeapSize = "2g"
         testClassesDirs = sourceSets["test"].output.classesDirs
         classpath = sourceSets["test"].runtimeClasspath
@@ -841,15 +841,10 @@ fun registerResolverStressTask(resolverName: String) {
         }
 
         doFirst {
-            val configuredSeed =
-                seed.orNull
-                    ?: throw GradleException(
-                        "Set -P${resolverName}StressSeed=<long>, " +
-                            "-D$resolverName.stress.seed=<long>, or " +
-                            "${environmentPrefix}_STRESS_SEED=<long>",
-                    )
-            systemProperty("$resolverName.stress.cases", cases.get())
-            systemProperty("$resolverName.stress.seed", configuredSeed)
+            seed.orNull?.let { configuredSeed ->
+                systemProperty("$resolverName.stress.cases", cases.get())
+                systemProperty("$resolverName.stress.seed", configuredSeed)
+            }
         }
     }
 }
@@ -954,11 +949,10 @@ val resolutionParentFocusedSeed =
         .gradleProperty("resolutionParentFocusedSeed")
         .orElse(providers.systemProperty("resolution.parent.focused.seed"))
         .orElse(providers.environmentVariable("RESOLUTION_PARENT_FOCUSED_SEED"))
-        .orElse("2026090403")
 
 tasks.register<org.gradle.api.tasks.testing.Test>("resolutionParentFocused") {
     group = "verification"
-    description = "Runs four 250-case slices of the parent-focused Resolution property."
+    description = "Replays the stored parent-focused Resolution suite in four slices, or generates it live from a configured seed."
     maxHeapSize = "2g"
     maxParallelForks = 1
     testClassesDirs = sourceSets["test"].output.classesDirs
@@ -976,15 +970,15 @@ tasks.register<org.gradle.api.tasks.testing.Test>("resolutionParentFocused") {
     }
 
     doFirst {
-        val seed = resolutionParentFocusedSeed.get()
-        seed.toLongOrNull()
-            ?: throw GradleException("resolutionParentFocusedSeed must be a Long: $seed")
-        systemProperty("resolution.broad.stress.seed", seed)
-        systemProperty("resolver.property.seed", seed)
         systemProperty("resolver.property.case", "all")
         systemProperty("resolver.property.profile", "resolution-parent-fields")
-        systemProperty("resolver.property.size", "40:5:5")
-        systemProperty("kotest.proptest.default.seed", seed)
+        resolutionParentFocusedSeed.orNull?.let { seed ->
+            seed.toLongOrNull()
+                ?: throw GradleException("resolutionParentFocusedSeed must be a Long: $seed")
+            systemProperty("resolution.broad.stress.seed", seed)
+            systemProperty("resolver.property.seed", seed)
+            systemProperty("kotest.proptest.default.seed", seed)
+        }
     }
 }
 
@@ -993,11 +987,10 @@ val resolutionRootFieldReferenceFocusedSeed =
         .gradleProperty("resolutionRootFieldReferenceFocusedSeed")
         .orElse(providers.systemProperty("resolution.root.field.reference.focused.seed"))
         .orElse(providers.environmentVariable("RESOLUTION_ROOT_FIELD_REFERENCE_FOCUSED_SEED"))
-        .orElse("2026091001")
 
 tasks.register<org.gradle.api.tasks.testing.Test>("resolutionRootFieldReferenceFocused") {
     group = "verification"
-    description = "Runs the hard-coverage root-field-reference Resolution property."
+    description = "Replays the stored root-field-reference Resolution suite, or generates it live from a configured seed."
     maxHeapSize = "2g"
     maxParallelForks = 1
     testClassesDirs = sourceSets["test"].output.classesDirs
@@ -1015,23 +1008,23 @@ tasks.register<org.gradle.api.tasks.testing.Test>("resolutionRootFieldReferenceF
     }
 
     doFirst {
-        val seed = resolutionRootFieldReferenceFocusedSeed.get()
-        seed.toLongOrNull()
-            ?: throw GradleException(
-                "resolutionRootFieldReferenceFocusedSeed must be a Long: $seed",
-            )
-        systemProperty("resolution.broad.stress.seed", seed)
-        systemProperty("resolver.property.seed", seed)
         systemProperty("resolver.property.case", "all")
         systemProperty("resolver.property.profile", "resolution-root-field-references")
-        systemProperty("resolver.property.size", "10:5:5")
-        systemProperty("kotest.proptest.default.seed", seed)
+        resolutionRootFieldReferenceFocusedSeed.orNull?.let { seed ->
+            seed.toLongOrNull()
+                ?: throw GradleException(
+                    "resolutionRootFieldReferenceFocusedSeed must be a Long: $seed",
+                )
+            systemProperty("resolution.broad.stress.seed", seed)
+            systemProperty("resolver.property.seed", seed)
+            systemProperty("kotest.proptest.default.seed", seed)
+        }
     }
 }
 
 tasks.register<org.gradle.api.tasks.testing.Test>("resolutionBroadStress") {
     group = "verification"
-    description = "Runs every case in a seeded broad Resolution generated product."
+    description = "Replays a stored broad Resolution suite, or generates a seeded product live."
     maxHeapSize = "2g"
     maxParallelForks = 1
     testClassesDirs = sourceSets["test"].output.classesDirs
@@ -1056,27 +1049,26 @@ tasks.register<org.gradle.api.tasks.testing.Test>("resolutionBroadStress") {
                     "Unknown resolutionBroadStressProfile $profile; profiles=" +
                         resolutionBroadStressProfiles.keys.sorted().joinToString(),
                 )
+        systemProperty("resolution.broad.stress.profile", profile)
+        systemProperty("resolver.property.case", "all")
+        systemProperty("resolver.property.profile", profileConfiguration.first)
+        val seed = resolutionBroadStressSeed.orNull
+        if (seed == null) {
+            if (resolutionBroadStressSize.isPresent) {
+                throw GradleException("resolutionBroadStressSize generates live; also set -PresolutionBroadStressSeed=<long>")
+            }
+            return@doFirst
+        }
+        seed.toLongOrNull()
+            ?: throw GradleException("resolutionBroadStressSeed must be a Long: $seed")
         val size = resolutionBroadStressSize.orNull ?: profileConfiguration.second
         require(size.matches(Regex("""[1-9][0-9]*:[1-9][0-9]*:[1-9][0-9]*"""))) {
             "resolutionBroadStressSize must have S:R:Q form with positive integers: $size"
         }
-        val seed =
-            resolutionBroadStressSeed.orNull
-                ?: throw GradleException(
-                    "Set -PresolutionBroadStressSeed=<long>, " +
-                        "-Dresolution.broad.stress.seed=<long>, or " +
-                        "RESOLUTION_BROAD_STRESS_SEED=<long>",
-                )
-        seed.toLongOrNull()
-            ?: throw GradleException("resolutionBroadStressSeed must be a Long: $seed")
-
-        systemProperty("resolution.broad.stress.profile", profile)
         systemProperty("resolution.broad.stress.size", size)
         systemProperty("resolution.broad.stress.seed", seed)
         systemProperty("resolver.property.size", size)
         systemProperty("resolver.property.seed", seed)
-        systemProperty("resolver.property.case", "all")
-        systemProperty("resolver.property.profile", profileConfiguration.first)
         systemProperty("kotest.proptest.default.seed", seed)
     }
 }

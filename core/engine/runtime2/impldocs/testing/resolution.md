@@ -60,9 +60,11 @@ Replay one exact generated coordinate with the same concurrency:
 
 ## Stress Runs
 
-Run the recursive deep stress property with a fixed seed and optional case count:
+Deep, root-field-reference, parent-focused, and broad stress replay stored suites by default (`resolution-stress`, `resolution-root-field-references`, `resolution-parent-fields`, and `resolution-broad-*`), so every coverage obligation fails rather than warns. A configured seed or size generates live instead, where coverage gaps only warn. Run the recursive deep stress property from its stored suite, or with a seed and optional case count:
 
 ```shell
+./gradlew :core:engine:runtime2:resolutionStress -Pviaduct.resolution.threadcount=5
+
 RESOLUTION_STRESS_CASES=100000 ./gradlew :core:engine:runtime2:resolutionStress -PresolutionStressSeed=424242 -Pviaduct.resolution.threadcount=5
 ```
 
@@ -71,15 +73,16 @@ Resolution deep stress enables root-field references and fails unless it both ge
 ```shell
 ./gradlew :core:engine:runtime2:resolutionRootFieldReferenceFocused
 
-# Optional seed override
+# Live generation from a seed
 ./gradlew :core:engine:runtime2:resolutionRootFieldReferenceFocused -PresolutionRootFieldReferenceFocusedSeed=2026091001
 ```
 
 The focused task hard-requires observed namespace depths two, three, and four; zero-, one-, and four-argument targets; scalar, enum, concrete-object, interface, and union targets; list-element references; a three-hop reference tail; active fallback; registered-resolver override; extension resolver applications below published referenced results; and target Query-fragment applications using `FromArgument` and `FromQueryField`. Every ordinary Resolution broad profile also enables the fixed family and requires generated and activated references, so persisted broad campaigns retain a second mandatory coverage path.
 
-Run one unfiltered broad product by choosing a directed profile, seed, and `S:R:Q` dimensions:
+Replay one stored broad profile, or generate an unfiltered product live by also choosing a seed and optional `S:R:Q` dimensions:
 
 ```shell
+./gradlew :core:engine:runtime2:resolutionBroadStress -PresolutionBroadStressProfile=multiple-owners -Pviaduct.resolution.threadcount=5
 ./gradlew :core:engine:runtime2:resolutionBroadStress -PresolutionBroadStressProfile=multiple-owners -PresolutionBroadStressSeed=424242 -PresolutionBroadStressSize=20:10:50 -Pviaduct.resolution.threadcount=5
 ```
 
@@ -88,7 +91,7 @@ Every Resolution broad profile includes a forced great-grandparent path: its dee
 ```shell
 ./gradlew :core:engine:runtime2:resolutionParentFocused
 
-# Optional seed override
+# Live generation from a seed
 ./gradlew :core:engine:runtime2:resolutionParentFocused -PresolutionParentFocusedSeed=2026090403
 ```
 

@@ -28,6 +28,7 @@ import viaduct.engine.runtime2.propertytest.PropertyTestCampaignConfigFile
 import viaduct.engine.runtime2.propertytest.PropertyTestJson
 import viaduct.engine.runtime2.propertytest.PropertyTestRoundExecution
 import viaduct.engine.runtime2.propertytest.PropertyTestRoundRunner
+import viaduct.engine.runtime2.propertytest.ResolverTestSuiteDefinition
 import viaduct.engine.runtime2.propertytest.roundConfig
 
 class ResolverBroadStressCampaignConfigurationTest {
@@ -190,6 +191,23 @@ class ResolverBroadStressCampaignConfigurationTest {
             },
         )
         assertTrue(registryShapedRuns.all { run -> run.expectedCases == 2_000 })
+    }
+
+    @Test
+    fun `selected test case chooses the broad profile that stores its suite`() {
+        ResolutionBroadStressProfile.entries.forEach { profile ->
+            val suite = ResolverTestSuiteDefinition.forProfile(profile.propertyProfile, profile.config)
+            assertEquals(profile, ResolutionBroadStressProfile.configured(explicit = null, selectedSuite = suite.id))
+        }
+        assertEquals(ResolutionBroadStressProfile.BALANCED, ResolutionBroadStressProfile.configured(explicit = null, selectedSuite = "node"))
+        assertEquals(ResolutionBroadStressProfile.BALANCED, ResolutionBroadStressProfile.configured(explicit = null, selectedSuite = null))
+        assertEquals(
+            ResolutionBroadStressProfile.NULLABLE_ERRORS,
+            ResolutionBroadStressProfile.configured(
+                explicit = ResolutionBroadStressProfile.NULLABLE_ERRORS.id,
+                selectedSuite = ResolutionBroadStressProfile.MULTIPLE_OWNERS.propertyProfile,
+            ),
+        )
     }
 
     @Test

@@ -15,6 +15,8 @@ import viaduct.engine.runtime2.arbitrary.InputObjectTypeWeight
 import viaduct.engine.runtime2.arbitrary.ListTypeWeight
 import viaduct.engine.runtime2.arbitrary.ListValueSize
 import viaduct.engine.runtime2.arbitrary.MaxInputTypeDepth
+import viaduct.engine.runtime2.arbitrary.MaxSelectionDepth
+import viaduct.engine.runtime2.arbitrary.MinimumSelectionDepth
 import viaduct.engine.runtime2.arbitrary.NodeObjectWeight
 import viaduct.engine.runtime2.arbitrary.NodeResolversEnabled
 import viaduct.engine.runtime2.arbitrary.NullValueWeight
@@ -49,6 +51,10 @@ import viaduct.engine.runtime2.arbitrary.SchemaObjectCount
 import viaduct.engine.runtime2.arbitrary.SelectiveNodeResolversEnabled
 import viaduct.engine.runtime2.arbitrary.SometimesPassiveFieldWeight
 import viaduct.engine.runtime2.arbitrary.TestCaseCount
+import viaduct.engine.runtime2.arbitrary.parseResolverTestSize
+import viaduct.engine.runtime2.resolution.ResolutionBroadStressProfile
+import viaduct.engine.runtime2.resolution.parentFocusedConfig
+import viaduct.engine.runtime2.resolution.rootFieldReferenceFocusedConfig
 
 /**
  * Generation inputs for a stored suite; changing any of them requires regenerating its resources.
@@ -381,7 +387,54 @@ enum class ResolverTestSuiteDefinition(
                 (ResolverVariableWeight to 1.0) +
                 (NodeResolversEnabled to false),
     ),
+    RESOLUTION_STRESS(
+        id = "resolution-stress",
+        counts = DEEP_STRESS_COUNTS,
+        config =
+            deepResolverStressConfig(
+                queryFragments = false,
+                nodeResolvers = true,
+                objectPathVariables = true,
+                queryPathVariables = true,
+                overrides = RESOLUTION_STRESS_CONFIG_OVERRIDES,
+            ),
+    ),
+    RESOLVER23_STRESS(
+        id = "resolver23-stress",
+        counts = DEEP_STRESS_COUNTS,
+        config =
+            deepResolverStressConfig(
+                queryFragments = true,
+                nodeResolvers = true,
+                objectPathVariables = false,
+                queryPathVariables = false,
+                overrides = RESOLVER23_STRESS_CONFIG_OVERRIDES,
+            ),
+    ),
+    RESOLUTION_ROOT_FIELD_REFERENCES(
+        id = "resolution-root-field-references",
+        seed = 2026091001L,
+        counts = TestCaseCount(schemas = 10, registriesPerSchema = 5, queriesPerSchema = 5),
+        config = rootFieldReferenceFocusedConfig(),
+    ),
+    RESOLUTION_PARENT_FIELDS(
+        id = "resolution-parent-fields",
+        seed = 2026090403L,
+        counts = TestCaseCount(schemas = 40, registriesPerSchema = 5, queriesPerSchema = 5),
+        config = parentFocusedConfig(),
+    ),
+    RESOLUTION_BROAD_STRESS(ResolutionBroadStressProfile.BALANCED),
+    RESOLUTION_BROAD_DESCENDANT_VARIABLES(ResolutionBroadStressProfile.DESCENDANT_VARIABLES),
+    RESOLUTION_BROAD_NULLABLE_ERRORS(ResolutionBroadStressProfile.NULLABLE_ERRORS),
+    RESOLUTION_BROAD_SYMBOLIC_IDENTITY(ResolutionBroadStressProfile.SYMBOLIC_IDENTITY),
+    RESOLUTION_BROAD_MULTIPLE_OWNERS(ResolutionBroadStressProfile.MULTIPLE_OWNERS),
     ;
+
+    constructor(broadProfile: ResolutionBroadStressProfile) : this(
+        id = broadProfile.propertyProfile,
+        counts = parseResolverTestSize(broadProfile.defaultSize),
+        config = broadProfile.config,
+    )
 
     companion object {
         /** The stored [profile] suite generated with [config] and checker modes; a family whose configuration has none must add one. */
@@ -409,6 +462,51 @@ private val GENERATED_PROFILE_COUNTS = TestCaseCount(schemas = 10, registriesPer
 private val FEATURE_INTERACTION_PROFILE_COUNTS = TestCaseCount(schemas = 20, registriesPerSchema = 3, queriesPerSchema = 5)
 
 private val RESOLUTION_CONFIG_OVERRIDES = Config.default + (ResolverVariableSingletonCoercionEnabled to true)
+
+private val DEEP_STRESS_COUNTS = TestCaseCount(schemas = 1_000, registriesPerSchema = 2, queriesPerSchema = 5)
+
+val RESOLUTION_STRESS_CONFIG_OVERRIDES: Config =
+    Config.default +
+        (ResolverVariableSingletonCoercionEnabled to true) +
+        (ParentFieldsEnabled to true) +
+        (RootFieldReferencesEnabled to true) +
+        (RootFieldReferenceWeight to 0.2) +
+        (MaxSelectionDepth to 6) +
+        (SometimesPassiveFieldWeight to 0.25)
+
+val RESOLVER23_STRESS_CONFIG_OVERRIDES: Config = Config.default + (ParentFieldsEnabled to true)
+
+/** The deep dependency-heavy stress distribution; a family's [overrides] apply last. */
+fun deepResolverStressConfig(
+    queryFragments: Boolean,
+    nodeResolvers: Boolean,
+    objectPathVariables: Boolean,
+    queryPathVariables: Boolean,
+    overrides: Config,
+): Config =
+    Config.default +
+        (MinimumSelectionDepth to 4) +
+        (MaxSelectionDepth to 6) +
+        (SchemaObjectCount to 4..5) +
+        (ObjectFieldCount to 3..5) +
+        (QueryFieldCount to 2..4) +
+        (FieldArgumentWeight to 0.65) +
+        (ExplicitFieldResolverWeight to 0.7) +
+        (NullableTypeWeight to 0.15) +
+        (NullValueWeight to 0.05) +
+        (ErrorValueWeight to 0.02) +
+        (ResolverFragmentsEnabled to true) +
+        (ResolverFragmentWeight to 0.85) +
+        (ResolverFragmentDepth to 3) +
+        (ResolverQueryFragmentsEnabled to queryFragments) +
+        (ResolverQueryFragmentWeight to 0.1) +
+        (NodeResolversEnabled to nodeResolvers) +
+        // Static tests exhaustively cover dispatch; stress samples interactions cheaply.
+        (NodeObjectWeight to 0.05) +
+        (ResolverFromArgumentVariablesEnabled to true) +
+        (ResolverVariablesEnabled to (objectPathVariables || queryPathVariables)) +
+        (ResolverFromQueryFieldVariablesEnabled to queryPathVariables) +
+        overrides
 
 private val QUERY_FRAGMENT_CONFIG =
     Config.default +

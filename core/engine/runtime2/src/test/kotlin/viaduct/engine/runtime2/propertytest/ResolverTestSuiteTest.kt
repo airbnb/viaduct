@@ -90,6 +90,33 @@ class ResolverTestSuiteTest {
             assertTrue(archive.contentEquals(Files.readAllBytes(root.resolve(suiteArchiveResource(definition.id)))), "rewriting a suite changed its archive bytes")
         }
 
+    @Test
+    fun `materializer splits a large suite into parts that merge back and removes stale parts`(): Unit =
+        runBlocking {
+            val definition = ResolverTestSuiteDefinition.OBJECT_FRAGMENT
+            val batches = generateResolverTestBatches(TestCaseCount(4, 2, 2), ResolutionBroadStressProfile.entries.first().config, seed = 7L)
+            val root = Files.createTempDirectory("resolver-test-suite-parts")
+            val readPart = { resource: String -> root.resolve(resource).takeIf(Files::exists)?.let(Files::readAllBytes) }
+            ResolverTestSuiteMaterializer.write(root, definition, batches)
+            val whole = readResolverTestSuiteArchive(Files.readAllBytes(root.resolve(suiteArchiveResource(definition.id))))
+            val partBytes = whole.values.maxOf(ByteArray::size) * 2 + 1_000
+
+            ResolverTestSuiteMaterializer.write(root, definition, batches, partBytes)
+
+            val parts = generateSequence(1) { part -> part + 1 }.map { part -> root.resolve(suiteArchiveResource(definition.id, part)) }.takeWhile(Files::exists).toList()
+            assertTrue(parts.size > 1, "expected several parts, found ${parts.size}")
+            assertTrue(parts.all { part -> Files.size(part) <= partBytes })
+            val merged = readResolverTestSuiteParts(definition.id, readPart)
+            assertEquals(whole.keys, merged.keys)
+            assertTrue(whole.all { (name, bytes) -> merged.getValue(name).contentEquals(bytes) })
+
+            ResolverTestSuiteMaterializer.write(root, definition, batches)
+
+            assertFalse(Files.exists(root.resolve(suiteArchiveResource(definition.id, 2))), "rewriting as one part left a stale part 2")
+            Files.copy(root.resolve(suiteArchiveResource(definition.id)), root.resolve(suiteArchiveResource(definition.id, 2)))
+            assertContains(assertFailsWith<IllegalStateException> { readResolverTestSuiteParts(definition.id, readPart) }.message.orEmpty(), "more than one part")
+        }
+
     @ParameterizedTest
     @EnumSource(ResolverTestSuiteDefinition::class)
     fun `stored suite loads every shard`(definition: ResolverTestSuiteDefinition) {
@@ -112,7 +139,7 @@ class ResolverTestSuiteTest {
             val stored = ResolverTestSuite.load(definition).batches.first()
 
             assertEquals(ResolverTestSuiteBatch("b001", ids.schema, shard.json.sha256Hash(), ids.registries, ids.queries), stored)
-            val entries = readResolverTestSuiteArchive(PropertyTestJson.readResourceBytes(suiteArchiveResource(definition.id)))
+            val entries = readResolverTestSuiteParts(definition.id, PropertyTestJson::readResourceBytesOrNull)
             assertTrue(entries.getValue(sdlEntry(ids.schema)).contentEquals(shard.sdl), sdlEntry(ids.schema))
             assertTrue(entries.getValue(shardEntry("b001")).contentEquals(shard.json), shardEntry("b001"))
         }

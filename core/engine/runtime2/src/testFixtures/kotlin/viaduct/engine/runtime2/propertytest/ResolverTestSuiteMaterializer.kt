@@ -38,9 +38,9 @@ object ResolverTestSuiteMaterializer {
         resourcesRoot: Path,
         definition: ResolverTestSuiteDefinition,
         generated: List<ResolverTestBatch>,
+        partBytes: Int = RESOLVER_TEST_SUITE_PART_BYTES,
     ) {
-        val archivePath = resourcesRoot.resolve(suiteArchiveResource(definition.id))
-        Files.createDirectories(archivePath.parent)
+        Files.createDirectories(resourcesRoot.resolve(suiteArchiveResource(definition.id)).parent)
         val shards = linkedMapOf<String, ByteArray>()
         val sdlBySchema = linkedMapOf<String, ByteArray>()
         val batches =
@@ -67,6 +67,10 @@ object ResolverTestSuiteMaterializer {
             linkedMapOf(MANIFEST_ENTRY to PropertyTestJson.write(definition.manifest(schemas, batches)).toByteArray()) +
                 sdlBySchema.mapKeys { (schemaId, _) -> sdlEntry(schemaId) } +
                 shards
-        Files.write(archivePath, writeResolverTestSuiteArchive(entries))
+        val parts = writeResolverTestSuiteParts(entries, partBytes)
+        parts.forEachIndexed { index, part -> Files.write(resourcesRoot.resolve(suiteArchiveResource(definition.id, index + 1)), part) }
+        // A regenerated suite that shrank must not leave a stale trailing part for the loader to merge.
+        var stalePart = parts.size + 1
+        while (Files.deleteIfExists(resourcesRoot.resolve(suiteArchiveResource(definition.id, stalePart)))) stalePart += 1
     }
 }

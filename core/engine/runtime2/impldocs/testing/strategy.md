@@ -243,7 +243,7 @@ For cross-profile debugging, run the concrete class with only the seed:
   -PresolverPropertySeed=424242
 ```
 
-Equivalent seed inputs are `RESOLVER_PROPERTY_SEED` and `-Dresolver.property.seed`. Resolver23 and Resolution stress use resolver-specific `<resolver>StressSeed` Gradle properties and `<RESOLVER>_STRESS_SEED` environment variables.
+Equivalent seed inputs are `RESOLVER_PROPERTY_SEED` and `-Dresolver.property.seed`. Resolver23 and Resolution deep stress replay their stored `<resolver>-stress` suites unless a resolver-specific `<resolver>StressSeed` Gradle property or `<RESOLVER>_STRESS_SEED` environment variable selects live generation.
 
 ### Production Broad Campaign
 

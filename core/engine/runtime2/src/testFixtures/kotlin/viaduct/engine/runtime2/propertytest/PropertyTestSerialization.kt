@@ -237,6 +237,11 @@ object PropertyTestJson {
             "Missing property-test resource $resource"
         }.use(InputStream::readAllBytes)
 
+    fun readResourceBytesOrNull(
+        resource: String,
+        classLoader: ClassLoader = defaultClassLoader(),
+    ): ByteArray? = classLoader.getResourceAsStream(resource.removePrefix("/"))?.use(InputStream::readAllBytes)
+
     fun write(value: Any): String = mapper.writeValueAsString(value) + "\n"
 
     @PublishedApi

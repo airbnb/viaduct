@@ -8,6 +8,7 @@ import kotlinx.coroutines.runBlocking
 import viaduct.engine.runtime2.arbitrary.Config
 import viaduct.engine.runtime2.arbitrary.ResolverTestCaseCoordinate
 import viaduct.engine.runtime2.arbitrary.ResolverTestExecution
+import viaduct.engine.runtime2.resolution.ResolutionBroadStressCases
 import viaduct.engine.runtime2.resolution.ResolutionDispatcherFactory
 import viaduct.engine.runtime2.resolution.ResolutionStructuralSignature
 import viaduct.engine.runtime2.resolution.configuredResolutionThreadCount
@@ -182,14 +183,9 @@ private object ResolutionBroadCorrectnessSubject : PropertyTestSubject {
         resolverCoroutineContext: CoroutineContext,
     ): Int =
         runResolutionBroadStress(
+            cases = ResolutionBroadStressCases.live(propertyProfile, config, run.seed, execution),
+            requiredSignatures = run.requiredCoverage.mapTo(linkedSetOf(), ::structuralSignature),
             resolverCoroutineContext = resolverCoroutineContext,
-            requiredSignatures =
-                run.requiredCoverage.mapTo(linkedSetOf(), ::structuralSignature),
-            propertyProfile = propertyProfile,
-            counts = run.counts,
-            config = config,
-            seed = run.seed,
-            execution = execution,
         )
 }
 
