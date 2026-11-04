@@ -179,14 +179,16 @@ Ordinary generated profiles check whole-result value correctness and completed-r
 
 `REPEATED_CHECKER_COORDINATE` records multiple checker applications at one concrete schema field within an execution, typically across different object paths, list elements, or Query roots. Generated-potential accounting includes concrete coordinates repeated in the input selection tree, including interface and union paths, alongside list, duplicate-selection, and Query-fragment metadata; it is independent of observed applications and can overapproximate activation when selections merge. The per-case consistency check requires every activated signature to have generated potential, while aggregate required coverage asks for at least one generated and activated case. Exact checker-application accounting remains a separate assertion.
 
-Run the opt-in Resolver23 access-check campaign from the repository root with an explicit seed:
+Run the opt-in Resolver23 access-check campaign from the repository root. It replays the stored `resolver23-*-checker-*-stress` suites; an explicit seed generates live instead:
 
 ```shell
+./gradlew :core:engine:runtime2:resolver23AccessCheckerStress
+
 ./gradlew :core:engine:runtime2:resolver23AccessCheckerStress \
   -Presolver23AccessCheckerStressSeed=424242
 ```
 
-The default `all` campaign runs six profiles: `success`, `denial`, and `mixed` field checks, plus `type-success`, `type-denial`, and `type-mixed` type checks with mixed field checks. Each profile runs `50:5:10` (2,500 cases), totaling 15,000 generated cases and two fresh executions per case for permutation comparison. Select one with `-Presolver23AccessCheckerStressProfile=type-denial`; override the product with `-Presolver23AccessCheckerStressSize=50:5:10`. The older `resolver23FieldCheckerStress` task and its existing seed/profile properties remain supported with their original default `success`; it also accepts the six profiles and `all`. Both entry points accept the corresponding system properties (`resolver23.access.checker.stress.*` or `resolver23.field.checker.stress.*`) and environment variables (`RESOLVER23_ACCESS_CHECKER_STRESS_*` or `RESOLVER23_FIELD_CHECKER_STRESS_*`).
+The default `all` campaign runs six profiles: `success`, `denial`, and `mixed` field checks, plus `type-success`, `type-denial`, and `type-mixed` type checks with mixed field checks. Each profile runs `50:5:10` (2,500 cases), totaling 15,000 generated cases and two fresh executions per case for permutation comparison. Select one with `-Presolver23AccessCheckerStressProfile=type-denial`; with a seed, override the product with `-Presolver23AccessCheckerStressSize=50:5:10`. The older `resolver23FieldCheckerStress` task and its existing seed/profile properties remain supported with their original default `success`; it also accepts the six profiles and `all`. Both entry points accept the corresponding system properties (`resolver23.access.checker.stress.*` or `resolver23.field.checker.stress.*`) and environment variables (`RESOLVER23_ACCESS_CHECKER_STRESS_*` or `RESOLVER23_FIELD_CHECKER_STRESS_*`).
 
 Failures report the stable generated profile ID, actual seed, and exact `S:R:Q` coordinate. Preserve the original product size when replaying a stress coordinate:
 
@@ -315,7 +317,7 @@ Resolver23 profiles establish the grounded checker boundary, while production Re
 
 The runtime checker distributions use `ResolverFragmentDepth=1`: two independently bound named pairs can multiply symbolic dependency trees, so copying depth-two fragments at every registered coordinate produced a case with over 129,000 resolver invocations before the 15-second request bound. This limit bounds random workload construction without changing request timeouts, per-case oracles, or required activation signatures. Fixed parent spines still exercise multilevel parent demand, and deterministic contracts retain nested fragment and named-provider combinations. The grounded Resolver23 distributions retain depth two.
 
-Run the replayable stress task from the repository root: `./gradlew :core:engine:runtime2:resolutionFieldCheckerStress -PresolutionFieldCheckerStressSeed=424242`. Its default size is `50:5:10` (2,500 cases), its profile defaults to `success`, and `-PresolutionFieldCheckerStressProfile=denial` selects denial. It also accepts `mixed`, `passive`, and `root-reference`, and a `-PresolutionFieldCheckerStressSize=<schemas>:<registries>:<queries>` override. Set `-Pviaduct.resolution.threadcount=100` for concurrent execution with the same oracle and exactness assertions. Failures use the ordinary `resolverPropertyReplay` task with the reported `resolution-field-checker-*` profile, seed, size, and coordinates.
+Run the stress task from the repository root: `./gradlew :core:engine:runtime2:resolutionFieldCheckerStress` replays the stored suite, and `-PresolutionFieldCheckerStressSeed=424242` generates it live. Its size is `50:5:10` (2,500 cases), its profile defaults to `success`, and `-PresolutionFieldCheckerStressProfile=denial` selects denial. It also accepts `mixed`, `passive`, and `root-reference`, and a `-PresolutionFieldCheckerStressSize=<schemas>:<registries>:<queries>` override. Set `-Pviaduct.resolution.threadcount=100` for concurrent execution with the same oracle and exactness assertions. Failures use the ordinary `resolverPropertyReplay` task with the reported `resolution-field-checker-*` profile, seed, size, and coordinates.
 
 ### Grounded Type-Checker Profiles
 

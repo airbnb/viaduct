@@ -102,6 +102,7 @@ data class ResolverTestRun(
     val storedSuite: String? = null,
     val storedCases: Int? = null,
     val selectedTestCase: String? = null,
+    val storedStressSuite: Boolean = false,
 ) {
     init {
         require(profile.isNotBlank())
@@ -111,6 +112,10 @@ data class ResolverTestRun(
 
     val stored: Boolean
         get() = storedSuite != null
+
+    /** Whether this run covers a stress-sized product: a live size override, or a stored stress suite. */
+    val stressSized: Boolean
+        get() = sizeOverridden || storedStressSuite
 
     val singleCase: Boolean
         get() = selectedCase != null || selectedTestCase != null

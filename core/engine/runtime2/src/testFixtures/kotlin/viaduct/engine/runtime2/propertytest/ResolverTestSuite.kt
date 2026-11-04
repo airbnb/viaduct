@@ -119,6 +119,7 @@ private fun ResolverTestSuiteDefinition.unselectedRun(selected: ResolverTestCase
         sizeOverridden = false,
         storedSuite = id,
         selectedTestCase = selected.toString(),
+        storedStressSuite = variant == ResolverTestSuiteVariant.STRESS,
     )
 }
 
@@ -221,6 +222,7 @@ class ResolverTestSuite private constructor(
             storedSuite = definition.id,
             storedCases = caseCount,
             selectedTestCase = selected?.toString(),
+            storedStressSuite = definition.variant == ResolverTestSuiteVariant.STRESS,
         )
     }
 

@@ -33,8 +33,8 @@ class GeneratedTypeCheckerCoverageTest {
     @Test
     fun `argument errors in type inputs are optional in every profile size`() {
         GeneratedTypeCheckerMode.entries.forEach { mode ->
-            listOf(false, true).forEach { sizeOverridden ->
-                val required = requiredGeneratedTypeCheckerSignatures(mode, sizeOverridden)
+            listOf(false, true).forEach { stressSized ->
+                val required = requiredGeneratedTypeCheckerSignatures(mode, stressSized)
                 assertFalse(GeneratedTypeCheckerSignature.ERROR_ARGUMENT_IN_TYPE_INPUT in required)
                 assertTrue(GeneratedTypeCheckerSignature.TYPE_CHECKER in required)
                 assertTrue(GeneratedTypeCheckerSignature.OBJECT_INPUT_RESOLVER in required)
@@ -45,7 +45,7 @@ class GeneratedTypeCheckerCoverageTest {
 
     @Test
     fun `ordinary runtime profiles leave nested path activation to directed tests`() {
-        val required = requiredGeneratedTypeCheckerSignatures(GeneratedTypeCheckerMode.RUNTIME_MIXED, sizeOverridden = false)
+        val required = requiredGeneratedTypeCheckerSignatures(GeneratedTypeCheckerMode.RUNTIME_MIXED, stressSized = false)
         assertFalse(GeneratedTypeCheckerSignature.NESTED_PATH_VARIABLE in required)
         assertTrue(GeneratedTypeCheckerSignature.PATH_VARIABLE_IN_OBJECT_INPUT in required)
         assertTrue(GeneratedTypeCheckerSignature.PATH_VARIABLE_IN_QUERY_INPUT in required)
@@ -53,7 +53,7 @@ class GeneratedTypeCheckerCoverageTest {
 
     @Test
     fun `size-overridden runtime profiles require nested path activation`() {
-        val required = requiredGeneratedTypeCheckerSignatures(GeneratedTypeCheckerMode.RUNTIME_MIXED, sizeOverridden = true)
+        val required = requiredGeneratedTypeCheckerSignatures(GeneratedTypeCheckerMode.RUNTIME_MIXED, stressSized = true)
         assertTrue(GeneratedTypeCheckerSignature.NESTED_PATH_VARIABLE in required)
     }
 

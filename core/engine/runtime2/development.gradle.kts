@@ -876,10 +876,10 @@ fun registerResolver23CheckerStressTask(
             .orElse(providers.environmentVariable("${environmentStem}_${name.uppercase()}"))
     val seedSetting = setting("Seed")
     val profileSetting = setting("Profile").orElse(defaultProfile)
-    val sizeSetting = setting("Size").orElse("50:5:10")
+    val sizeSetting = setting("Size")
     tasks.register<org.gradle.api.tasks.testing.Test>(taskName) {
         group = "verification"
-        description = "Runs replayable Resolver23 access-check profiles (2,500 cases per profile by default)."
+        description = "Replays the stored Resolver23 access-check stress suites (2,500 cases per profile), or generates them live from a configured seed."
         maxHeapSize = "2g"
         testClassesDirs = sourceSets["test"].output.classesDirs
         classpath = sourceSets["test"].runtimeClasspath
@@ -887,8 +887,6 @@ fun registerResolver23CheckerStressTask(
         outputs.upToDateWhen { false }
         testLogging { showStandardStreams = true }
         doFirst {
-            val seed = seedSetting.orNull ?: throw GradleException("Set -P${propertyStem}Seed=<long>")
-            seed.toLongOrNull() ?: throw GradleException("${propertyStem}Seed must be a Long: $seed")
             val selected = profileSetting.get()
             val profiles = if (selected == "all") {
                 resolver23CheckerStressProfiles.values
@@ -902,15 +900,13 @@ fun registerResolver23CheckerStressTask(
             profiles.forEach { (_, method) ->
                 filter.includeTestsMatching("viaduct.engine.runtime2.resolvers.resolver23.ResolverGeneratedTest.$method")
             }
-            systemProperty("resolver.property.seed", seed)
-            systemProperty("kotest.proptest.default.seed", seed)
             if (selected == "all") {
                 systemProperties.remove("resolver.property.profile")
             } else {
                 systemProperty("resolver.property.profile", profiles.single().first)
             }
             systemProperty("resolver.property.case", "all")
-            systemProperty("resolver.property.size", sizeSetting.get())
+            checkerStressSuites(propertyStem, seedSetting, sizeSetting)
         }
     }
 }
@@ -1163,12 +1159,9 @@ tasks.register<org.gradle.api.tasks.testing.Test>("resolutionMultithreadedStress
     }
 
     doFirst {
-        // The inherited checker contracts retain the same seed/size controls as type-checker stress.
-        val checkerSeed = providers.gradleProperty("resolutionTypeCheckerStressSeed").orElse("2026093001").get().toLong()
-        systemProperty("resolver.property.seed", checkerSeed)
-        systemProperty("kotest.proptest.default.seed", checkerSeed)
+        // The inherited checker contracts replay the type-checker stress suites unless a type-checker stress seed is configured.
         systemProperty("resolver.property.case", "all")
-        systemProperty("resolver.property.size", providers.gradleProperty("resolutionTypeCheckerStressSize").orElse("50:5:10").get())
+        checkerStressSuites("resolutionTypeCheckerStress")
         systemProperty(
             "resolution.multithreaded.size",
             resolutionMultithreadedStressSize.get(),
@@ -1183,7 +1176,7 @@ tasks.register<org.gradle.api.tasks.testing.Test>("resolutionMultithreadedStress
 // Runtime field checks have their own replayable workload; checker-free broad campaigns stay unchanged.
 tasks.register<org.gradle.api.tasks.testing.Test>("resolutionFieldCheckerStress") {
     group = "verification"
-    description = "Runs generated Resolution runtime field checks with exact checker application accounting."
+    description = "Replays the stored Resolution runtime field-check stress suite, or generates it live from a configured seed, with exact checker application accounting."
     maxHeapSize = "2g"
     maxParallelForks = 1
     testClassesDirs = sourceSets["test"].output.classesDirs
@@ -1193,21 +1186,18 @@ tasks.register<org.gradle.api.tasks.testing.Test>("resolutionFieldCheckerStress"
     outputs.upToDateWhen { false }
     testLogging { showStandardStreams = true }
     doFirst {
-        val seed = providers.gradleProperty("resolutionFieldCheckerStressSeed").get().toLong()
         val profile = "resolution-field-checker-" + providers.gradleProperty("resolutionFieldCheckerStressProfile").orElse("success").get()
         val method = resolverPropertyProfiles[profile] ?: throw GradleException("Unknown field-checker profile $profile")
         filter.includeTestsMatching("viaduct.engine.runtime2.resolution.FieldCheckerGeneratedTest.$method")
         systemProperty("resolver.property.profile", profile)
         systemProperty("resolver.property.case", "all")
-        systemProperty("resolver.property.seed", seed)
-        systemProperty("kotest.proptest.default.seed", seed)
-        systemProperty("resolver.property.size", providers.gradleProperty("resolutionFieldCheckerStressSize").orElse("50:5:10").get())
+        checkerStressSuites("resolutionFieldCheckerStress")
     }
 }
 
 tasks.register<org.gradle.api.tasks.testing.Test>("resolutionTypeCheckerStress") {
     group = "verification"
-    description = "Runs generated Resolution runtime type checks with exact checker application accounting."
+    description = "Replays the stored Resolution runtime type-check stress suites, or generates them live from a configured seed, with exact checker application accounting."
     maxHeapSize = "2g"
     maxParallelForks = 1
     testClassesDirs = sourceSets["test"].output.classesDirs
@@ -1217,7 +1207,6 @@ tasks.register<org.gradle.api.tasks.testing.Test>("resolutionTypeCheckerStress")
     outputs.upToDateWhen { false }
     testLogging { showStandardStreams = true }
     doFirst {
-        val seed = providers.gradleProperty("resolutionTypeCheckerStressSeed").get().toLong()
         val selected = providers.gradleProperty("resolutionTypeCheckerStressProfile").orElse("all").get()
         val profiles = if (selected == "all") listOf("success", "denial", "mixed") else listOf(selected)
         profiles.forEach { suffix ->
@@ -1231,8 +1220,26 @@ tasks.register<org.gradle.api.tasks.testing.Test>("resolutionTypeCheckerStress")
             systemProperty("resolver.property.profile", "resolution-type-checker-$selected")
         }
         systemProperty("resolver.property.case", "all")
-        systemProperty("resolver.property.seed", seed)
-        systemProperty("kotest.proptest.default.seed", seed)
-        systemProperty("resolver.property.size", providers.gradleProperty("resolutionTypeCheckerStressSize").orElse("50:5:10").get())
+        checkerStressSuites("resolutionTypeCheckerStress")
     }
+}
+
+// A configured <stem>Seed generates live at <stem>Size (default 50:5:10); otherwise the stored stress suites replay.
+fun org.gradle.api.tasks.testing.Test.checkerStressSuites(
+    stem: String,
+    seedSetting: Provider<String> = providers.gradleProperty("${stem}Seed"),
+    size: Provider<String> = providers.gradleProperty("${stem}Size"),
+) {
+    systemProperty("resolver.testSuite.variant", "stress")
+    val seed = seedSetting.orNull
+    if (seed == null) {
+        if (size.isPresent) {
+            throw GradleException("${stem}Size generates live; also set -P${stem}Seed=<long>")
+        }
+        return
+    }
+    seed.toLongOrNull() ?: throw GradleException("${stem}Seed must be a Long: $seed")
+    systemProperty("resolver.property.seed", seed)
+    systemProperty("kotest.proptest.default.seed", seed)
+    systemProperty("resolver.property.size", size.orElse("50:5:10").get())
 }

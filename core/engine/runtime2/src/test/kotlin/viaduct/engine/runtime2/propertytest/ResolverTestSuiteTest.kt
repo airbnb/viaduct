@@ -24,6 +24,7 @@ import viaduct.engine.runtime2.arbitrary.RESOLVER_TEST_CASE_MARKER_PROPERTY
 import viaduct.engine.runtime2.arbitrary.RESOLVER_TEST_CASE_PROPERTY
 import viaduct.engine.runtime2.arbitrary.RESOLVER_TEST_SEED_PROPERTY
 import viaduct.engine.runtime2.arbitrary.ResolverTestBatch
+import viaduct.engine.runtime2.arbitrary.ResolverTestRun
 import viaduct.engine.runtime2.arbitrary.TestCaseCount
 import viaduct.engine.runtime2.arbitrary.generateResolverTestBatches
 import viaduct.engine.runtime2.arbitrary.withResolverProperties
@@ -31,6 +32,45 @@ import viaduct.engine.runtime2.resolution.ResolutionBroadStressProfile
 import viaduct.utils.string.sha256Hash
 
 class ResolverTestSuiteTest {
+    @Test
+    fun `forProfile picks the configured variant and a selected case's own variant`(): Unit =
+        runBlocking {
+            val standard = ResolverTestSuiteDefinition.RESOLUTION_TYPE_CHECKER_SUCCESS
+            val stress = ResolverTestSuiteDefinition.RESOLUTION_TYPE_CHECKER_SUCCESS_STRESS
+            val node = ResolverTestSuiteDefinition.NODE
+
+            fun lookup(definition: ResolverTestSuiteDefinition) = ResolverTestSuiteDefinition.forProfile(definition.profile, definition.config, definition.fieldCheckerMode, definition.typeCheckerMode)
+            val stressCase = ResolverTestCaseId(stress.id, "b001", "000000", "000000").toString()
+
+            assertEquals(standard, lookup(standard))
+            withResolverProperties(RESOLVER_TEST_SUITE_VARIANT_PROPERTY to "stress") {
+                assertEquals(stress, lookup(standard))
+                assertFailsWith<IllegalArgumentException> { lookup(node) }
+            }
+            withResolverProperties(RESOLVER_TEST_CASE_ID_PROPERTY to stressCase) {
+                assertEquals(stress, lookup(standard))
+                assertEquals(node, lookup(node))
+            }
+            withResolverProperties(RESOLVER_TEST_SUITE_VARIANT_PROPERTY to "huge") {
+                assertFailsWith<IllegalArgumentException> { lookup(standard) }
+            }
+        }
+
+    @Test
+    fun `a stored stress suite counts as stress-sized`(): Unit =
+        runBlocking {
+            suspend fun replayFirstCase(definition: ResolverTestSuiteDefinition): ResolverTestRun {
+                val suite = ResolverTestSuite.load(definition)
+                return suite.replay(suite.testCaseIds().first()) { _, _ -> }
+            }
+
+            assertTrue(replayFirstCase(ResolverTestSuiteDefinition.RESOLUTION_TYPE_CHECKER_MIXED_STRESS).stressSized)
+            assertFalse(replayFirstCase(ResolverTestSuiteDefinition.RESOLUTION_TYPE_CHECKER_MIXED).stressSized)
+            val live = ResolverTestRun(profile = "p", seed = 1L, attemptedCases = 1, counts = TestCaseCount(1, 1, 1), selectedCase = null, sizeOverridden = true)
+            assertTrue(live.stressSized)
+            assertFalse(live.copy(sizeOverridden = false).stressSized)
+        }
+
     @Test
     fun `shard codec reproduces broad generated batches exactly`(): Unit =
         runBlocking {

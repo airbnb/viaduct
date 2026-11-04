@@ -67,7 +67,7 @@ private val optionalSignatures = setOf(GeneratedTypeCheckerSignature.ERROR_ARGUM
 
 fun requiredGeneratedTypeCheckerSignatures(
     mode: GeneratedTypeCheckerMode,
-    sizeOverridden: Boolean,
+    stressSized: Boolean,
 ): Set<GeneratedTypeCheckerSignature> {
     val outcomeExclusions =
         when (mode) {
@@ -78,7 +78,7 @@ fun requiredGeneratedTypeCheckerSignatures(
             else -> emptySet()
         }
     val runtimeExclusions = if (mode.runtimeVariables) emptySet() else runtimeSignatures
-    val stressExclusions = if (sizeOverridden) emptySet() else stressOnlySignatures
+    val stressExclusions = if (stressSized) emptySet() else stressOnlySignatures
     return GeneratedTypeCheckerSignature.entries.toSet() - outcomeExclusions - runtimeExclusions - stressExclusions - optionalSignatures
 }
 
@@ -93,7 +93,7 @@ class GeneratedTypeCheckerCoverage {
         run: ResolverTestRun,
         mode: GeneratedTypeCheckerMode
     ) {
-        val required = requiredGeneratedTypeCheckerSignatures(mode, run.sizeOverridden)
+        val required = requiredGeneratedTypeCheckerSignatures(mode, run.stressSized)
         val missing = required.filter { counts.getValue(it) == 0 }
         run.requireCoverage(missing.isEmpty(), "Type-checker profile missed activated coverage $missing; ${summary()}")
     }

@@ -109,7 +109,7 @@ Run the dispatcher-instrumented campaign with selected rounds and either each ro
 ./gradlew :core:engine:runtime2:resolutionMultithreadedStress -PresolutionMultithreadedStressRounds=1,46,81,95 -PresolutionMultithreadedStressSize=campaign -Pviaduct.resolution.threadcount=10
 ```
 
-With no overrides, the dedicated task runs round 1 at its recorded campaign dimensions (five checker-free profiles of 2,000 cases) plus the success, denial, and mixed type-checker profiles (2,500 coordinates each, with both query permutations), all on 100 threads. The checker profiles use seed `2026093001` by default; `resolutionTypeCheckerStressSeed` and `resolutionTypeCheckerStressSize` override their seed and dimensions independently of the broad campaign.
+With no overrides, the dedicated task runs round 1 at its recorded campaign dimensions (five checker-free profiles of 2,000 cases) plus the success, denial, and mixed type-checker profiles (2,500 coordinates each, with both query permutations), all on 100 threads. The checker profiles replay the stored `resolution-type-checker-*-stress` suites (seed `2026093001`) by default; `resolutionTypeCheckerStressSeed` generates them live instead, at `resolutionTypeCheckerStressSize`, independently of the broad campaign.
 
 ```shell
 ./gradlew :core:engine:runtime2:resolutionMultithreadedStress
@@ -123,22 +123,24 @@ The dedicated multithreaded task records continuation overlap and thread names f
 
 The runtime checker distributions use `ResolverFragmentDepth=1`: two independently bound named pairs can multiply symbolic dependency trees, so copying depth-two fragments at every registered coordinate produced a case with over 129,000 resolver invocations before the 15-second request bound. This limit bounds random workload construction without changing request timeouts, per-case oracles, or required activation signatures. Fixed parent spines still exercise multilevel parent demand, and deterministic contracts retain nested fragment and named-provider combinations. The grounded [Resolver23](../../src/testFixtures/kotlin/viaduct/engine/runtime2/resolvers/resolver23/Resolver.kt) distributions retain depth two.
 
-Run the 2,500-case checker workload with a recorded seed; select 100 resolution threads for concurrent accounting:
+Replay the stored 2,500-case checker stress suite, or generate it live from a seed; select 100 resolution threads for concurrent accounting:
 
 ```shell
+./gradlew :core:engine:runtime2:resolutionFieldCheckerStress -PresolutionFieldCheckerStressProfile=denial -Pviaduct.resolution.threadcount=100
 ./gradlew :core:engine:runtime2:resolutionFieldCheckerStress -PresolutionFieldCheckerStressSeed=424242
 ./gradlew :core:engine:runtime2:resolutionFieldCheckerStress -PresolutionFieldCheckerStressSeed=424242 -PresolutionFieldCheckerStressProfile=denial -Pviaduct.resolution.threadcount=100
 ```
 
-Profiles accept `success`, `denial`, `mixed`, `passive`, or `root-reference`; `resolutionFieldCheckerStressSize` overrides the default `50:5:10` product. Replay failures through `resolverPropertyReplay` with class `viaduct.engine.runtime2.resolution.FieldCheckerGeneratedTest`, the reported profile and seed, the original `resolverPropertySize`, and the selected `resolverPropertyCase=S:R:Q`. The original size is essential because changing registry/query counts changes random-number consumption before the selected coordinate.
+Profiles accept `success`, `denial`, `mixed`, `passive`, or `root-reference`, each stored as `resolution-field-checker-<profile>-stress`. With a seed, `resolutionFieldCheckerStressSize` overrides the default `50:5:10` product; a size without a seed is rejected. Replay failures through `resolverPropertyReplay` with class `viaduct.engine.runtime2.resolution.FieldCheckerGeneratedTest`, the reported profile and seed, the original `resolverPropertySize`, and the selected `resolverPropertyCase=S:R:Q`. The original size is essential because changing registry/query counts changes random-number consumption before the selected coordinate.
 
 ## Runtime Type-Checker Campaigns
 
 `TypeCheckerGeneratedTest` runs `resolution-type-checker-success`, `resolution-type-checker-denial`, and `resolution-type-checker-mixed`. Each coordinate executes a randomized schema/registry/query world with mixed runtime field checks and type-owned variables sourced from object paths, Query paths, and callback providers. Type checkers reuse eligible sampled fragment/provider plans with their own target identity; a conservative transitive type order avoids type/value wait cycles. The profiles generate error-free registry declarations and count error-valued arguments arising during runtime binding in type-checker inputs without requiring random activation, since this interaction is unreliable across seeds even in size-overridden stress profiles. `GeneratedTypeCheckerVariableCoverageTest` deterministically requires argument-error activation on both raw input roots, checks that the checker receives the errors, and rejects registration-only evidence. The randomized profiles require actual consumption of completed path bindings from both provider roots and callback-provider bindings on each input root, and variable use in both input fragments alongside the existing type-checker activation guards. Both query permutations pass independent correctness replay and duplicate-preserving checker application accounting. The ordinary 150-case profiles record nested provider-path activation without requiring a random hit; `GeneratedTypeCheckerVariableCoverageTest` requires a fixed executed two-segment path and rejects registration-only and missing-binding evidence, while the size-overridden 2,500-case stress profiles additionally require randomized nested-path activation. `RuntimeTypeCheckerWitnessTest` separately retains the small deterministic named-provider and conditional-exclusion regression; it is no longer repeated at every stress coordinate.
 
-Run all three profiles at 2,500 coordinates each, or just the checker portion of the instrumented 100-thread task:
+Replay all three stored profiles at 2,500 coordinates each, generate them live from a seed, or run just the checker portion of the instrumented 100-thread task:
 
 ```shell
+./gradlew :core:engine:runtime2:resolutionTypeCheckerStress
 ./gradlew :core:engine:runtime2:resolutionTypeCheckerStress -PresolutionTypeCheckerStressSeed=424242
 ./gradlew :core:engine:runtime2:resolutionMultithreadedStress --tests '*generated * type checker worlds resolve correctly' -PresolutionTypeCheckerStressSeed=2026093001
 ```

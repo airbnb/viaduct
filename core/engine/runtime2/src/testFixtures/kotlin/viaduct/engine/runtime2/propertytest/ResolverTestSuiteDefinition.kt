@@ -70,6 +70,7 @@ enum class ResolverTestSuiteDefinition(
     val fieldCheckerMode: GeneratedFieldCheckerMode = GeneratedFieldCheckerMode.NONE,
     val typeCheckerMode: GeneratedTypeCheckerMode = GeneratedTypeCheckerMode.NONE,
     val profile: String = id,
+    val variant: ResolverTestSuiteVariant = ResolverTestSuiteVariant.STANDARD,
 ) {
     EMPTY_OBJECT_FRAGMENT(
         id = "empty-object-fragment",
@@ -389,6 +390,20 @@ enum class ResolverTestSuiteDefinition(
                 (ResolverVariableWeight to 1.0) +
                 (NodeResolversEnabled to false),
     ),
+    RESOLVER23_FIELD_CHECKER_SUCCESS_STRESS(RESOLVER23_FIELD_CHECKER_SUCCESS),
+    RESOLVER23_FIELD_CHECKER_DENIAL_STRESS(RESOLVER23_FIELD_CHECKER_DENIAL),
+    RESOLVER23_FIELD_CHECKER_MIXED_STRESS(RESOLVER23_FIELD_CHECKER_MIXED),
+    RESOLVER23_TYPE_CHECKER_SUCCESS_STRESS(RESOLVER23_TYPE_CHECKER_SUCCESS),
+    RESOLVER23_TYPE_CHECKER_DENIAL_STRESS(RESOLVER23_TYPE_CHECKER_DENIAL),
+    RESOLVER23_TYPE_CHECKER_MIXED_STRESS(RESOLVER23_TYPE_CHECKER_MIXED),
+    RESOLUTION_FIELD_CHECKER_SUCCESS_STRESS(RESOLUTION_FIELD_CHECKER_SUCCESS),
+    RESOLUTION_FIELD_CHECKER_DENIAL_STRESS(RESOLUTION_FIELD_CHECKER_DENIAL),
+    RESOLUTION_FIELD_CHECKER_MIXED_STRESS(RESOLUTION_FIELD_CHECKER_MIXED),
+    RESOLUTION_FIELD_CHECKER_PASSIVE_STRESS(RESOLUTION_FIELD_CHECKER_PASSIVE),
+    RESOLUTION_FIELD_CHECKER_ROOT_REFERENCE_STRESS(RESOLUTION_FIELD_CHECKER_ROOT_REFERENCE),
+    RESOLUTION_TYPE_CHECKER_SUCCESS_STRESS(RESOLUTION_TYPE_CHECKER_SUCCESS),
+    RESOLUTION_TYPE_CHECKER_DENIAL_STRESS(RESOLUTION_TYPE_CHECKER_DENIAL),
+    RESOLUTION_TYPE_CHECKER_MIXED_STRESS(RESOLUTION_TYPE_CHECKER_MIXED),
     RESOLUTION_STRESS(
         id = "resolution-stress",
         counts = DEEP_STRESS_COUNTS,
@@ -437,6 +452,18 @@ enum class ResolverTestSuiteDefinition(
     RESOLUTION_CAMPAIGN_R001_MULTIPLE_OWNERS(1, ResolutionBroadStressProfile.MULTIPLE_OWNERS),
     ;
 
+    // The opt-in stress task's larger suite for [standard]'s family, replayed when resolver.testSuite.variant=stress.
+    constructor(standard: ResolverTestSuiteDefinition) : this(
+        id = "${standard.id}-stress",
+        seed = CHECKER_STRESS_SEED,
+        counts = CHECKER_STRESS_COUNTS,
+        config = standard.config,
+        fieldCheckerMode = standard.fieldCheckerMode,
+        typeCheckerMode = standard.typeCheckerMode,
+        profile = standard.profile,
+        variant = ResolverTestSuiteVariant.STRESS,
+    )
+
     constructor(broadProfile: ResolutionBroadStressProfile) : this(
         id = broadProfile.propertyProfile,
         counts = parseResolverTestSize(broadProfile.defaultSize),
@@ -454,7 +481,10 @@ enum class ResolverTestSuiteDefinition(
     )
 
     companion object {
-        /** The stored [profile] suite generated with [config] and checker modes; a family whose configuration has none must add one. */
+        /**
+         * The stored [profile] suite generated with [config] and checker modes, in the configured [ResolverTestSuiteVariant];
+         * a family whose configuration has none must add one.
+         */
         fun forProfile(
             profile: String,
             config: Config,
@@ -462,14 +492,21 @@ enum class ResolverTestSuiteDefinition(
             typeCheckerMode: GeneratedTypeCheckerMode = GeneratedTypeCheckerMode.NONE,
         ): ResolverTestSuiteDefinition {
             val resolved = config.resolvedValues()
-            return entries.singleOrNull { definition ->
-                definition.profile == profile &&
-                    definition.fieldCheckerMode == fieldCheckerMode &&
-                    definition.typeCheckerMode == typeCheckerMode &&
-                    definition.config.resolvedValues() == resolved
-            } ?: throw IllegalArgumentException(
-                "No stored $profile suite matches this generator config; add a ResolverTestSuiteDefinition and run materializeResolverTestSuites",
-            )
+            val matching =
+                entries.filter { definition ->
+                    definition.profile == profile &&
+                        definition.fieldCheckerMode == fieldCheckerMode &&
+                        definition.typeCheckerMode == typeCheckerMode &&
+                        definition.config.resolvedValues() == resolved
+                }
+            val selectedVariant = configuredResolverTestCaseId()?.let { selected -> entries.singleOrNull { definition -> definition.id == selected.suite }?.variant }
+            val variant = selectedVariant ?: ResolverTestSuiteVariant.configured()
+            return matching.singleOrNull { definition -> definition.variant == variant }
+                // A selected stress case leaves families without a stress variant on their standard suite, which then runs nothing.
+                ?: matching.singleOrNull { definition -> selectedVariant != null && definition.variant == ResolverTestSuiteVariant.STANDARD }
+                ?: throw IllegalArgumentException(
+                    "No stored ${variant.id} $profile suite matches this generator config; add a ResolverTestSuiteDefinition and run materializeResolverTestSuites",
+                )
         }
     }
 }
@@ -479,6 +516,10 @@ private val GENERATED_PROFILE_COUNTS = TestCaseCount(schemas = 10, registriesPer
 private val FEATURE_INTERACTION_PROFILE_COUNTS = TestCaseCount(schemas = 20, registriesPerSchema = 3, queriesPerSchema = 5)
 
 private val RESOLUTION_CONFIG_OVERRIDES = Config.default + (ResolverVariableSingletonCoercionEnabled to true)
+
+private val CHECKER_STRESS_COUNTS = TestCaseCount(schemas = 50, registriesPerSchema = 5, queriesPerSchema = 10)
+
+private const val CHECKER_STRESS_SEED = 2026093001L
 
 private val DEEP_STRESS_COUNTS = TestCaseCount(schemas = 1_000, registriesPerSchema = 2, queriesPerSchema = 5)
 
@@ -638,3 +679,22 @@ private fun typeCheckerConfig(runtime: Boolean): Config =
         (ResolverVariableWeight to 1.0) +
         (SometimesPassiveFieldWeight to 0.25) +
         resolutionOverrides(runtime)
+
+const val RESOLVER_TEST_SUITE_VARIANT_PROPERTY = "resolver.testSuite.variant"
+
+/** Which stored suite a family replays: the small suite `check` runs, or the larger one its opt-in stress task runs. */
+enum class ResolverTestSuiteVariant(
+    val id: String,
+) {
+    STANDARD("standard"),
+    STRESS("stress"),
+    ;
+
+    companion object {
+        fun configured(): ResolverTestSuiteVariant =
+            System.getProperty(RESOLVER_TEST_SUITE_VARIANT_PROPERTY)?.let { configured ->
+                entries.singleOrNull { variant -> variant.id == configured }
+                    ?: throw IllegalArgumentException("$RESOLVER_TEST_SUITE_VARIANT_PROPERTY must be one of ${entries.map(ResolverTestSuiteVariant::id)}: $configured")
+            } ?: STANDARD
+    }
+}
