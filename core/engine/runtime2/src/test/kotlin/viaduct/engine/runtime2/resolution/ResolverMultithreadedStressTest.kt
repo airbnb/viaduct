@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.runtime2.arbitrary.Config
+import viaduct.engine.runtime2.arbitrary.ResolverTestCase
 import viaduct.engine.runtime2.arbitrary.ResolverTestExecution
 import viaduct.engine.runtime2.arbitrary.ResolverTestRun
 import viaduct.engine.runtime2.arbitrary.ResolverVariableSingletonCoercionEnabled
@@ -28,7 +29,11 @@ import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.ResolverOccurrenceId
 import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.model.registry.Assumptions
+import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.fragmentFrom
+import viaduct.engine.runtime2.propertytest.ResolverTestSuiteDefinition
+import viaduct.engine.runtime2.propertytest.configuredResolverTestCaseId
+import viaduct.engine.runtime2.propertytest.replayResolverTestSuite
 import viaduct.engine.runtime2.resolution.framework.ResolverInvocationObservation
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 
@@ -52,6 +57,8 @@ class ResolverMultithreadedStressTest : GeneratedTypeCheckerContract, Resolution
     @AfterEach
     fun verifyTypeCheckerConcurrency() {
         val dispatcher = checkerDispatcher ?: return
+        // A selected test case replays at most one case, which need not overlap continuations.
+        if (configuredResolverTestCaseId() != null) return
         if (configuredThreadCount() == 1) {
             assertEquals(1, dispatcher.maximumConcurrentContinuations.get())
             assertEquals(1, dispatcher.threadNames.size)
@@ -85,16 +92,9 @@ class ResolverMultithreadedStressTest : GeneratedTypeCheckerContract, Resolution
                             dispatcher = dispatcher,
                         )
                     }
-                val expectedCases: Int =
-                    campaignRuns.sumOf { run ->
-                        val counts: TestCaseCount = configuredCounts ?: run.counts
-                        counts.schemas *
-                            counts.registriesPerSchema *
-                            counts.queriesPerSchema
-                    }
-
-                assertEquals(expectedCases, completedCases)
-                if (threadCount == 1) {
+                if (configuredResolverTestCaseId() != null) {
+                    // A selected test case replays at most one case, which need not overlap continuations.
+                } else if (threadCount == 1) {
                     assertEquals(1, dispatcher.maximumConcurrentContinuations.get())
                     assertEquals(1, dispatcher.threadNames.size)
                 } else {
@@ -208,12 +208,7 @@ private suspend fun runResolutionMultithreadedStress(
     val startedAt: Long = System.nanoTime()
     var completedCases = 0
     val run: ResolverTestRun =
-        executeResolverTestCases(
-            execution = ResolverTestExecution(counts),
-            config = campaignRun.config,
-            profile = campaignRun.propertyProfile,
-            seed = campaignRun.seed,
-        ) { testWorld, testCase ->
+        checkCampaignRunCases(campaignRun, counts) { testWorld, testCase ->
             val world: Assumptions =
                 testWorld.newAssumptions(selectiveResolvers = true)
             val fragment: Fragment = testWorld.schemas.fragmentFrom(testCase.query.source)
@@ -242,8 +237,8 @@ private suspend fun runResolutionMultithreadedStress(
             completedCases += 1
         }
 
-    assertEquals(run.expectedCases, run.attemptedCases)
-    assertEquals(run.expectedCases, completedCases)
+    run.assertAggregate(run.expectedCases == run.attemptedCases, "Ran ${run.attemptedCases} cases; expected ${run.expectedCases}")
+    assertEquals(run.attemptedCases, completedCases)
     println(
         "Resolution multithreaded profile: profile=${campaignRun.propertyProfile}, " +
             "seed=${campaignRun.seed}, size=${counts.summary()}, " +
@@ -251,6 +246,26 @@ private suspend fun runResolutionMultithreadedStress(
             "elapsedMillis=${(System.nanoTime() - startedAt) / 1_000_000}",
     )
     return completedCases
+}
+
+// Replays the round's stored suite at campaign size; the inherited checker seed must not switch it to live generation.
+private suspend fun checkCampaignRunCases(
+    campaignRun: ResolutionBroadStressCampaignRun,
+    counts: TestCaseCount,
+    property: suspend (TestWorld, ResolverTestCase) -> Unit,
+): ResolverTestRun {
+    val suite = ResolverTestSuiteDefinition.entries.singleOrNull { definition -> definition.id == campaignRun.propertyProfile }
+    return if (suite != null && counts == campaignRun.counts) {
+        replayResolverTestSuite(suite, configuredResolverTestCaseId(), property)
+    } else {
+        executeResolverTestCases(
+            execution = ResolverTestExecution(counts),
+            config = campaignRun.config,
+            profile = campaignRun.propertyProfile,
+            seed = campaignRun.seed,
+            property = property,
+        )
+    }
 }
 
 // Returns compact S:R:Q dimensions for diagnostics.

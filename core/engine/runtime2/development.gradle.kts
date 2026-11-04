@@ -570,7 +570,7 @@ tasks.register<JavaExec>("materializeResolverTestSuites") {
     group = "verification"
     description = "Pre-generates stored resolver property-test suites so tests replay them instead of generating."
     dependsOn("testFixturesClasses")
-    classpath = sourceSets["testFixtures"].output.classesDirs + configurations["testFixturesRuntimeClasspath"]
+    classpath = sourceSets["testFixtures"].output + configurations["testFixturesRuntimeClasspath"]
     mainClass.set("viaduct.engine.runtime2.propertytest.ResolverTestSuiteMaterializer")
     maxHeapSize = "4g"
     val resourcesRoot = layout.projectDirectory.dir("src/testFixtures/resources")
@@ -790,7 +790,7 @@ tasks.register<org.gradle.api.tasks.testing.Test>("resolverTestCase") {
                 ?: throw GradleException("Set -PresolverTestCase=<suite/batch/registry/query>")
         val className = resolverPropertyReplayClass.orNull
         if (className == null) {
-            listOf("*GeneratedTest", "*WitnessTest", "*MutationTest", "*.ResolverStressTest", "*.ResolverBroadStressTest").forEach(filter::includeTestsMatching)
+            listOf("*GeneratedTest", "*WitnessTest", "*MutationTest", "*.ResolverStressTest", "*.ResolverBroadStressTest", "*.ResolverBroadStressCampaignTest").forEach(filter::includeTestsMatching)
         } else {
             require(className.matches(jvmClassNamePattern)) {
                 "resolverPropertyClass must be a fully qualified JVM class name: $className"

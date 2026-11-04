@@ -52,6 +52,8 @@ import viaduct.engine.runtime2.arbitrary.SelectiveNodeResolversEnabled
 import viaduct.engine.runtime2.arbitrary.SometimesPassiveFieldWeight
 import viaduct.engine.runtime2.arbitrary.TestCaseCount
 import viaduct.engine.runtime2.arbitrary.parseResolverTestSize
+import viaduct.engine.runtime2.resolution.ResolutionBroadStressCampaign
+import viaduct.engine.runtime2.resolution.ResolutionBroadStressCampaignRun
 import viaduct.engine.runtime2.resolution.ResolutionBroadStressProfile
 import viaduct.engine.runtime2.resolution.parentFocusedConfig
 import viaduct.engine.runtime2.resolution.rootFieldReferenceFocusedConfig
@@ -428,12 +430,27 @@ enum class ResolverTestSuiteDefinition(
     RESOLUTION_BROAD_NULLABLE_ERRORS(ResolutionBroadStressProfile.NULLABLE_ERRORS),
     RESOLUTION_BROAD_SYMBOLIC_IDENTITY(ResolutionBroadStressProfile.SYMBOLIC_IDENTITY),
     RESOLUTION_BROAD_MULTIPLE_OWNERS(ResolutionBroadStressProfile.MULTIPLE_OWNERS),
+    RESOLUTION_CAMPAIGN_R001_BALANCED(1, ResolutionBroadStressProfile.BALANCED),
+    RESOLUTION_CAMPAIGN_R001_DESCENDANT_VARIABLES(1, ResolutionBroadStressProfile.DESCENDANT_VARIABLES),
+    RESOLUTION_CAMPAIGN_R001_NULLABLE_ERRORS(1, ResolutionBroadStressProfile.NULLABLE_ERRORS),
+    RESOLUTION_CAMPAIGN_R001_SYMBOLIC_IDENTITY(1, ResolutionBroadStressProfile.SYMBOLIC_IDENTITY),
+    RESOLUTION_CAMPAIGN_R001_MULTIPLE_OWNERS(1, ResolutionBroadStressProfile.MULTIPLE_OWNERS),
     ;
 
     constructor(broadProfile: ResolutionBroadStressProfile) : this(
         id = broadProfile.propertyProfile,
         counts = parseResolverTestSize(broadProfile.defaultSize),
         config = broadProfile.config,
+    )
+
+    // A persisted campaign round, so its runs replay with coverage enforced in the campaign and multithreaded stress.
+    constructor(campaignRound: Int, broadProfile: ResolutionBroadStressProfile) : this(ResolutionBroadStressCampaign.round(campaignRound).run(broadProfile))
+
+    constructor(campaignRun: ResolutionBroadStressCampaignRun) : this(
+        id = campaignRun.propertyProfile,
+        seed = campaignRun.seed,
+        counts = campaignRun.counts,
+        config = campaignRun.config,
     )
 
     companion object {

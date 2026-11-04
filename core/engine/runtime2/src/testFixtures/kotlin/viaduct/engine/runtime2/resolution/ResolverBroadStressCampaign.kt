@@ -27,6 +27,8 @@ data class ResolutionBroadStressCampaignRound(
                 )
             }
 
+    fun run(profile: ResolutionBroadStressProfile): ResolutionBroadStressCampaignRun = runs.single { run -> run.profile == profile }
+
     // Reconstructs the exact profile configuration used when this campaign round ran.
     private fun configFor(profile: ResolutionBroadStressProfile): Config {
         val config: Config =
@@ -150,6 +152,9 @@ object ResolutionBroadStressCampaign {
                 }.toList()
         }
     }
+
+    // Returns the persisted run whose stored suite is [suiteId], if any.
+    fun runForSuite(suiteId: String): ResolutionBroadStressCampaignRun? = rounds.asSequence().flatMap { round -> round.runs }.singleOrNull { run -> run.propertyProfile == suiteId }
 
     // Returns exactly one persisted campaign round.
     fun round(number: Int): ResolutionBroadStressCampaignRound =

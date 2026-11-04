@@ -82,11 +82,7 @@ suspend fun checkResolverTestSuite(
                 "Stored suite ${definition.id} selects one case by test-case ID; set $RESOLVER_TEST_CASE_ID_PROPERTY=<suite/batch/registry/query>, " +
                     "or configure a seed to select S:R:Q from live generation"
             }
-            when {
-                selected == null -> ResolverTestSuite.load(definition).replay(property = property)
-                selected.suite == definition.id -> ResolverTestSuite.load(definition).replay(selected, property)
-                else -> definition.unselectedRun(selected)
-            }
+            replayResolverTestSuite(definition, selected, property)
         }
     run.assertAggregate(
         run.attemptedCases == run.expectedCases,
@@ -97,6 +93,18 @@ suspend fun checkResolverTestSuite(
 
 /** This suite as the stored cases of a Resolution stress run, checked as [checkResolverTestSuite] checks them. */
 fun ResolverTestSuiteDefinition.broadStressCases(): ResolutionBroadStressCases = ResolutionBroadStressCases.stored(profile, config, counts, seed) { property -> checkResolverTestSuite(this, property) }
+
+/** Replays [definition]'s stored suite, or only [selected] when it holds it; reads no configured seed, size, or test case. */
+suspend fun replayResolverTestSuite(
+    definition: ResolverTestSuiteDefinition,
+    selected: ResolverTestCaseId?,
+    property: suspend (TestWorld, ResolverTestCase) -> Unit,
+): ResolverTestRun =
+    when {
+        selected == null -> ResolverTestSuite.load(definition).replay(property = property)
+        selected.suite == definition.id -> ResolverTestSuite.load(definition).replay(selected, property)
+        else -> definition.unselectedRun(selected)
+    }
 
 private fun ResolverTestSuiteDefinition.unselectedRun(selected: ResolverTestCaseId): ResolverTestRun {
     require(ResolverTestSuiteDefinition.entries.any { definition -> definition.id == selected.suite }) {

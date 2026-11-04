@@ -11,6 +11,7 @@ import viaduct.engine.runtime2.arbitrary.ResolverTestExecution
 import viaduct.engine.runtime2.resolution.ResolutionBroadStressCases
 import viaduct.engine.runtime2.resolution.ResolutionDispatcherFactory
 import viaduct.engine.runtime2.resolution.ResolutionStructuralSignature
+import viaduct.engine.runtime2.resolution.StoredSuiteReplay
 import viaduct.engine.runtime2.resolution.configuredResolutionThreadCount
 import viaduct.engine.runtime2.resolution.runResolutionBroadStress
 
@@ -28,10 +29,14 @@ data class PropertyTestRoundResult(
 data class PropertyTestRoundExecution(
     val selectedTestInputProfileId: String? = null,
     val selectedCase: ResolverTestCaseCoordinate? = null,
+    val selectedTestCase: ResolverTestCaseId? = null,
 ) {
     init {
         require(selectedCase == null || selectedTestInputProfileId != null) {
             "A selected case requires a selected test-input profile"
+        }
+        require(selectedCase == null || selectedTestCase == null) {
+            "Select a live coordinate or a stored test case, not both"
         }
     }
 }
@@ -76,6 +81,7 @@ object PropertyTestRoundRunner {
                         propertyProfile = propertyProfile,
                         config = config,
                         execution = resolverExecution,
+                        selectedTestCase = execution.selectedTestCase,
                         resolverCoroutineContext = resolverDispatcher,
                     )
             }
@@ -168,6 +174,7 @@ private fun interface PropertyTestSubject {
         propertyProfile: String,
         config: Config,
         execution: ResolverTestExecution,
+        selectedTestCase: ResolverTestCaseId?,
         resolverCoroutineContext: CoroutineContext,
     ): Int
 }
@@ -180,13 +187,41 @@ private object ResolutionBroadCorrectnessSubject : PropertyTestSubject {
         propertyProfile: String,
         config: Config,
         execution: ResolverTestExecution,
+        selectedTestCase: ResolverTestCaseId?,
         resolverCoroutineContext: CoroutineContext,
     ): Int =
         runResolutionBroadStress(
-            cases = ResolutionBroadStressCases.live(propertyProfile, config, run.seed, execution),
+            cases =
+                (if (execution.selectedCase == null) storedSuiteReplay(run, config, selectedTestCase) else null)
+                    ?.let { replay -> ResolutionBroadStressCases.stored(propertyProfile, config, run.counts, run.seed, replay) }
+                    ?: ResolutionBroadStressCases.live(propertyProfile, config, run.seed, execution),
             requiredSignatures = run.requiredCoverage.mapTo(linkedSetOf(), ::structuralSignature),
             resolverCoroutineContext = resolverCoroutineContext,
         )
+}
+
+// The run's own seed, size and config pick its stored suite, so configured seed or size properties cannot switch it to live generation.
+fun storedSuiteReplay(
+    run: PropertyTestRunConfig,
+    config: Config,
+    selectedTestCase: ResolverTestCaseId?,
+): StoredSuiteReplay? {
+    val suite = storedSuiteFor(run, config)
+    require(suite != null || selectedTestCase == null) {
+        "Test case $selectedTestCase is not stored by campaign run ${run.testInputProfileId}"
+    }
+    return suite?.let { definition -> { property -> replayResolverTestSuite(definition, selectedTestCase, property) } }
+}
+
+// Persisted campaign runs with a stored suite replay it, so their coverage obligations fail rather than warn.
+fun storedSuiteFor(
+    run: PropertyTestRunConfig,
+    config: Config,
+): ResolverTestSuiteDefinition? {
+    val resolved = config.resolvedValues()
+    return ResolverTestSuiteDefinition.entries.singleOrNull { definition ->
+        definition.seed == run.seed && definition.counts == run.counts && definition.config.resolvedValues() == resolved
+    }
 }
 
 internal fun ResolutionStructuralSignature.wireId(): String = name.lowercase().replace('_', '-')

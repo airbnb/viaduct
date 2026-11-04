@@ -3,6 +3,7 @@
 package viaduct.engine.runtime2.resolution
 
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Test
@@ -14,6 +15,8 @@ import viaduct.engine.runtime2.arbitrary.ListValueSize
 import viaduct.engine.runtime2.arbitrary.MaxSelectionDepth
 import viaduct.engine.runtime2.arbitrary.ObjectFieldCount
 import viaduct.engine.runtime2.arbitrary.ParentFieldsEnabled
+import viaduct.engine.runtime2.arbitrary.RESOLVER_TEST_SEED_PROPERTY
+import viaduct.engine.runtime2.arbitrary.RESOLVER_TEST_SIZE_PROPERTY
 import viaduct.engine.runtime2.arbitrary.ResolverFromFieldVariableOwnerLimit
 import viaduct.engine.runtime2.arbitrary.ResolverFromFieldVariableOwnerUseWeight
 import viaduct.engine.runtime2.arbitrary.ResolverFromProviderVariablesEnabled
@@ -24,12 +27,17 @@ import viaduct.engine.runtime2.arbitrary.ResolverQueryFragmentsEnabled
 import viaduct.engine.runtime2.arbitrary.ResolverTestCaseCoordinate
 import viaduct.engine.runtime2.arbitrary.SchemaObjectCount
 import viaduct.engine.runtime2.arbitrary.SometimesPassiveFieldWeight
+import viaduct.engine.runtime2.arbitrary.withResolverProperties
+import viaduct.engine.runtime2.propertytest.GENERATOR_CONFIG_INDEX_RESOURCE
+import viaduct.engine.runtime2.propertytest.GeneratorConfigRegistry
 import viaduct.engine.runtime2.propertytest.PropertyTestCampaignConfigFile
 import viaduct.engine.runtime2.propertytest.PropertyTestJson
 import viaduct.engine.runtime2.propertytest.PropertyTestRoundExecution
 import viaduct.engine.runtime2.propertytest.PropertyTestRoundRunner
 import viaduct.engine.runtime2.propertytest.ResolverTestSuiteDefinition
 import viaduct.engine.runtime2.propertytest.roundConfig
+import viaduct.engine.runtime2.propertytest.storedSuiteFor
+import viaduct.engine.runtime2.propertytest.storedSuiteReplay
 
 class ResolverBroadStressCampaignConfigurationTest {
     @Test
@@ -192,6 +200,56 @@ class ResolverBroadStressCampaignConfigurationTest {
         )
         assertTrue(registryShapedRuns.all { run -> run.expectedCases == 2_000 })
     }
+
+    @Test
+    fun `campaign round 1 replays its stored suites`() {
+        val campaign =
+            PropertyTestJson.readResource<PropertyTestCampaignConfigFile>(
+                "/viaduct/engine/runtime2/property-tests/campaigns/resolution-broad-campaign-v1.json",
+            )
+        val generatorConfigs = GeneratorConfigRegistry.load(GENERATOR_CONFIG_INDEX_RESOURCE)
+        val storedRounds = listOf(1)
+        val campaignSuites = ResolverTestSuiteDefinition.entries.filter { definition -> definition.id.startsWith("resolution-broad-campaign-") }
+
+        val replayed =
+            storedRounds.flatMap { number ->
+                campaign.roundConfig(number).runs.map { run -> storedSuiteFor(run, generatorConfigs[run.testInputProfileId].toConfig()) }
+            }
+        val liveRun = campaign.roundConfig(2).runs.first()
+
+        assertEquals(campaignSuites, replayed)
+        assertEquals(null, storedSuiteFor(liveRun, generatorConfigs[liveRun.testInputProfileId].toConfig()))
+        campaignSuites.forEach { definition ->
+            val run = requireNotNull(ResolutionBroadStressCampaign.runForSuite(definition.id))
+            assertTrue(run.round in storedRounds, definition.id)
+            assertEquals(definition.seed, run.seed, definition.id)
+        }
+        assertEquals(null, ResolutionBroadStressCampaign.runForSuite(ResolverTestSuiteDefinition.NODE.id))
+    }
+
+    @Test
+    fun `configured seed and size cannot switch a stored campaign run to live generation`(): Unit =
+        runBlocking {
+            val campaign =
+                PropertyTestJson.readResource<PropertyTestCampaignConfigFile>(
+                    "/viaduct/engine/runtime2/property-tests/campaigns/resolution-broad-campaign-v1.json",
+                )
+            val run = campaign.roundConfig(number = 1, selectedProfileId = ResolutionBroadStressProfile.BALANCED.id).runs.single()
+            val config = GeneratorConfigRegistry.load(GENERATOR_CONFIG_INDEX_RESOURCE)[run.testInputProfileId].toConfig()
+            val suite = requireNotNull(storedSuiteFor(run, config))
+            val replay = requireNotNull(storedSuiteReplay(run, config, selectedTestCase = null))
+            withResolverProperties(RESOLVER_TEST_SEED_PROPERTY to "1", RESOLVER_TEST_SIZE_PROPERTY to "1:1:1") {
+                var attemptedCases = 0
+
+                val replayed = replay { _, _ -> attemptedCases += 1 }
+
+                assertEquals(suite.id, replayed.storedSuite)
+                assertEquals(run.seed, replayed.seed)
+                assertEquals(replayed.expectedCases, attemptedCases)
+                assertTrue(attemptedCases > 1)
+                assertFailsWith<AssertionError> { replayed.requireCoverage(false, "coverage gap") }
+            }
+        }
 
     @Test
     fun `selected test case chooses the broad profile that stores its suite`() {
