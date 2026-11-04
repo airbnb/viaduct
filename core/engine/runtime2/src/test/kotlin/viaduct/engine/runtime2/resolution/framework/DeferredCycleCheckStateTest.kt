@@ -2,8 +2,8 @@
 
 package viaduct.engine.runtime2.resolution.framework
 
-import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.CountDownLatch
+import java.util.concurrent.FutureTask
 import java.util.concurrent.TimeUnit
 import kotlin.concurrent.thread
 import kotlin.test.Test
@@ -165,27 +165,18 @@ class DeferredCycleCheckStateTest {
             val checker = CycleCheckState.createDeferred()
             checker.registerWriter(first.cell, CycleSlotKind.VALUE, first.task)
             val start = CountDownLatch(1)
-            val done = CountDownLatch(2)
             val actions = listOf(
                 { checker.cycleCheck(first.task, second.cell, CycleSlotKind.VALUE) },
                 { checker.registerWriter(second.cell, CycleSlotKind.VALUE, second.task) },
             )
-            val failures = ConcurrentLinkedQueue<Throwable>()
-            actions.forEach { action ->
-                thread(isDaemon = true) {
-                    try {
-                        check(start.await(10, TimeUnit.SECONDS))
-                        action()
-                    } catch (failure: Throwable) {
-                        failures.add(failure)
-                    } finally {
-                        done.countDown()
-                    }
-                }
+            val workers = actions.map { action ->
+                FutureTask {
+                    check(start.await(10, TimeUnit.SECONDS))
+                    action()
+                }.also { thread(isDaemon = true, block = it::run) }
             }
             start.countDown()
-            assertTrue(done.await(10, TimeUnit.SECONDS))
-            assertTrue(failures.isEmpty(), failures.toString())
+            workers.forEach { it.get(10, TimeUnit.SECONDS) }
             assertNull(checker.findCycle())
             // Closing the reverse edge proves that the overlapping dependency was recorded.
             checker.cycleCheck(second.task, first.cell, CycleSlotKind.VALUE)

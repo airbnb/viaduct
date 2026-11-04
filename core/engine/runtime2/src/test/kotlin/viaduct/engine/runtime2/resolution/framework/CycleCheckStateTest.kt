@@ -1,7 +1,8 @@
 package viaduct.engine.runtime2.resolution.framework
 
-import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.CountDownLatch
+import java.util.concurrent.ExecutionException
+import java.util.concurrent.FutureTask
 import java.util.concurrent.TimeUnit
 import kotlin.concurrent.thread
 import kotlin.test.Test
@@ -276,30 +277,13 @@ class CycleCheckStateTest {
         val fixture = Fixture()
         fixture.register("first")
         fixture.register("second")
-        val ready = CountDownLatch(2)
-        val start = CountDownLatch(1)
-        val failures = ConcurrentLinkedQueue<Throwable>()
-        val checks =
-            listOf(
-                Triple(fixture.task("first"), fixture.cell("second"), CycleSlotKind.VALUE),
-                Triple(fixture.task("second"), fixture.cell("first"), CycleSlotKind.VALUE),
+        val failures =
+            concurrently(
+                listOf(
+                    { fixture.checker.cycleCheck(fixture.task("first"), fixture.cell("second"), CycleSlotKind.VALUE) },
+                    { fixture.checker.cycleCheck(fixture.task("second"), fixture.cell("first"), CycleSlotKind.VALUE) },
+                ),
             )
-        val workers =
-            checks.map { (reader, owner, kind) ->
-                thread {
-                    ready.countDown()
-                    start.await()
-                    try {
-                        fixture.checker.cycleCheck(reader, owner, kind)
-                    } catch (throwable: Throwable) {
-                        failures += throwable
-                    }
-                }
-            }
-
-        ready.await()
-        start.countDown()
-        workers.forEach(Thread::join)
 
         assertTrue(failures.isNotEmpty())
         failures.forEach { failure ->
@@ -424,26 +408,26 @@ class CycleCheckStateTest {
     private fun concurrently(actions: List<() -> Unit>): List<Throwable> {
         val ready = CountDownLatch(actions.size)
         val start = CountDownLatch(1)
-        val failures = ConcurrentLinkedQueue<Throwable>()
         val workers =
             actions.mapIndexed { index, action ->
-                thread(isDaemon = true) {
+                FutureTask {
                     ready.countDown()
-                    try {
-                        check(start.await(10, TimeUnit.SECONDS)) { "Timed out waiting for concurrent start" }
-                        if (index % 2 == 0) Thread.yield()
-                        action()
-                    } catch (failure: Throwable) {
-                        failures += failure
-                    }
-                }
+                    check(start.await(10, TimeUnit.SECONDS)) { "Timed out waiting for concurrent start" }
+                    if (index % 2 == 0) Thread.yield()
+                    action()
+                }.also { thread(isDaemon = true, block = it::run) }
             }
         val allReady = ready.await(10, TimeUnit.SECONDS)
         start.countDown()
-        workers.forEach { it.join(10_000) }
         assertTrue(allReady, "Workers did not reach the start barrier")
-        assertTrue(workers.none { it.isAlive }, "Concurrent graph update did not finish")
-        return failures.toList()
+        return workers.mapNotNull { worker ->
+            try {
+                worker.get(10, TimeUnit.SECONDS)
+                null
+            } catch (failure: ExecutionException) {
+                failure.cause
+            }
+        }
     }
 
     private class Fixture(

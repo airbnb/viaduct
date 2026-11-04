@@ -11,6 +11,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFails
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
@@ -41,6 +42,7 @@ import viaduct.engine.runtime2.model.emptyFragmentOf
 import viaduct.engine.runtime2.model.registry.fieldResolverOf
 import viaduct.engine.runtime2.model.requireField
 import viaduct.engine.runtime2.model.requireObjectField
+import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.emptyFragmentOf
 import viaduct.engine.runtime2.model.testing.fragmentFrom
@@ -53,6 +55,7 @@ import viaduct.engine.runtime2.resolution.framework.ResolverInvocationObservatio
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 import viaduct.engine.runtime2.resolution.framework.fieldResolverCycleTask
 import viaduct.engine.runtime2.schema.operationSelectionsFrom
+import viaduct.graphql.schema.ViaductSchema
 
 class ResolverStartTest : ResolutionDispatcherResource {
     @Test
@@ -160,6 +163,41 @@ class ResolverStartTest : ResolutionDispatcherResource {
                 requestJob.cancelAndJoin()
             }
         }
+
+    @Test
+    fun `synchronous startup failures terminate the resolution job`() =
+        runBlocking {
+            for (failure in listOf(IllegalStateException("startup failure"), AssertionError("fatal startup failure"))) {
+                val requestJob = Job()
+                try {
+                    assertSame(failure, assertFails { startResolutionFailingWith(failure, requestJob) })
+
+                    withTimeout(5_000) { requestJob.children.forEach { it.join() } }
+                    assertTrue(requestJob.children.none())
+                    assertTrue(requestJob.isCancelled)
+                } finally {
+                    requestJob.cancelAndJoin()
+                }
+            }
+        }
+
+    private fun startResolutionFailingWith(
+        failure: Throwable,
+        requestJob: Job,
+    ): StartedResolution {
+        val world = TestWorld.fromSDL("type Query { value: Int }")
+        val queryType = world.schema.requireQueryTypeDef()
+        val rootThatThrowsWhenCompared = object : ViaductSchema.Object by queryType {
+            override fun equals(other: Any?): Boolean = throw failure
+
+            override fun hashCode(): Int = queryType.hashCode()
+        }
+        return SharedOperationContext.create(world.assumptions).startResolution(
+            world.schemas.operationSelectionsFrom("{ value }"),
+            CoroutineScope(resolverDispatcher + requestJob),
+            rootType = rootThatThrowsWhenCompared,
+        )
+    }
 
     @Test
     fun `nested execution retains observer but only query fragment emits preparation`() {

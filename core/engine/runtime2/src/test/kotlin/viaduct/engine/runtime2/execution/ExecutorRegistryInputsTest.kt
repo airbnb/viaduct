@@ -13,7 +13,12 @@ import graphql.schema.idl.UnExecutableSchemaGenerator
 import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.future.await
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -1591,6 +1596,63 @@ class ExecutorRegistryInputsTest {
             }
         }
 
+    @Test
+    fun `dispatcher shims turn tenant failures into errors with the original cause`() =
+        runTest {
+            val failures = listOf(
+                IllegalStateException("tenant failure"),
+                CancellationException("resolver-local timeout"),
+                NoSuchMethodError("tenant dependency mismatch"),
+                AssertionError("tenant assertion"),
+            )
+            for (failure in failures) {
+                assertSame(failure, assertInstanceOf(EngineErrorData::class.java, invokeDispatcherFieldResolver { throw failure }).cause)
+                assertSame(failure, assertInstanceOf(EngineErrorData::class.java, invokeDispatcherNodeResolver { throw failure }).cause)
+            }
+        }
+
+    @Test
+    fun `dispatcher shims propagate JVM failures`() =
+        runTest {
+            for (failure in listOf(OutOfMemoryError("fatal dispatcher failure"), InterruptedException("interrupted dispatcher"))) {
+                assertSame(failure, assertThrows<Throwable> { invokeDispatcherFieldResolver { throw failure } })
+                assertSame(failure, assertThrows<Throwable> { invokeDispatcherNodeResolver { throw failure } })
+            }
+        }
+
+    @Test
+    fun `dispatcher shims propagate caller cancellation instead of returning error data`() =
+        runTest {
+            val started = CompletableDeferred<Unit>()
+            var returned: Any? = null
+            val call = async {
+                returned = invokeDispatcherFieldResolver {
+                    started.complete(Unit)
+                    awaitCancellation()
+                }
+            }
+
+            started.await()
+            call.cancelAndJoin()
+
+            assertNull(returned)
+        }
+
+    private suspend fun invokeDispatcherFieldResolver(resolver: suspend () -> Any?): Any? {
+        val fixture = Fixture("type Query { value: Int }")
+        val inputs = fixture.dispatch(
+            fields = mapOf(("Query" to "value") to MockFieldUnbatchedResolverExecutor(resolverId = "Query.value") { _, _, _, _, _ -> resolver() }),
+        )
+        return fixture.invoke(fixture.registry(inputs), "value")
+    }
+
+    private suspend fun invokeDispatcherNodeResolver(resolver: suspend () -> EngineObjectData): Any? {
+        val fixture = Fixture(NODE_SCHEMA)
+        val inputs = fixture.dispatch(nodes = mapOf("User" to MockNodeUnbatchedResolverExecutor(typeName = "User") { _, _, _ -> resolver() }))
+        val userType = fixture.schemas.loweredSchema.requireType("User") as ViaductSchema.Object
+        return inputs.nodeResolvers.getValue(userType)("id", selectionForestOf(), fixture.resolutionContext)
+    }
+
     private class Fixture(val sdl: String) {
         val engineSchema = EngineSchema(UnExecutableSchemaGenerator.makeUnExecutableSchema(SchemaParser().parse(sdl)))
         val schemas = ViaductAndGJSchema.fromGraphQLSchema(engineSchema.schema)
@@ -1628,6 +1690,21 @@ class ExecutorRegistryInputsTest {
                 nodeExecutors = nodes,
                 context = context,
                 includeDefaultQueryNodeResolvers = includeBuiltIns,
+            )
+
+        fun dispatch(
+            fields: Map<Pair<String, String>, FieldResolverExecutor> = emptyMap(),
+            nodes: Map<String, NodeResolverExecutor> = emptyMap(),
+        ): ExecutorRegistryInputs =
+            dispatcherRegistryInputs(
+                fullSchema = engineSchema,
+                schemas = schemas,
+                dispatcherRegistry = DispatcherRegistry.Impl(
+                    fields.mapValues { FieldResolverDispatcherImpl(it.value) },
+                    nodes.mapValues { viaduct.engine.runtime.NodeResolverDispatcherImpl(it.value) },
+                    emptyMap(),
+                    emptyMap(),
+                ),
             )
 
         fun registry(inputs: ExecutorRegistryInputs): ResolverRegistry =

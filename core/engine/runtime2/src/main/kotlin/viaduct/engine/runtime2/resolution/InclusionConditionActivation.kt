@@ -12,6 +12,7 @@ import viaduct.engine.runtime2.model.Conjunction
 import viaduct.engine.runtime2.model.Disjunction
 import viaduct.engine.runtime2.model.InclusionCondition
 import viaduct.engine.runtime2.model.pruneContradictions
+import viaduct.errors.resultOfSuspend
 
 private data class EvaluationSummary(
     val hasTrue: Boolean = false,
@@ -28,14 +29,7 @@ private class EvaluationNode(
     lateinit var summary: EvaluationSummary
 }
 
-private class EvaluationCompletion(
-    val node: EvaluationNode,
-    val result: Result<Boolean>,
-    val fatal: Throwable? = null,
-)
-
 /** Evaluates implicit DNF outcomes with incremental propagation over the compact graph. */
-@Suppress("TooGenericExceptionCaught") // Fatal children must signal the receiver before rethrowing.
 internal suspend fun InclusionCondition.includeAnyReadyAlternative(binding: suspend (Arguments.Variable) -> Boolean): Boolean =
     supervisorScope {
         val prunedCondition = this@includeAnyReadyAlternative.pruneContradictions()
@@ -43,9 +37,9 @@ internal suspend fun InclusionCondition.includeAnyReadyAlternative(binding: susp
         if (prunedCondition === InclusionCondition.Never) return@supervisorScope false
         val nodes = java.util.IdentityHashMap<InclusionCondition, EvaluationNode>()
         val parents = java.util.IdentityHashMap<EvaluationNode, MutableList<EvaluationNode>>()
-        val evaluations = linkedMapOf<EvaluationNode, Deferred<Unit>>()
+        val evaluations = linkedMapOf<EvaluationNode, Deferred<Result<Boolean>>>()
         // Each leaf contributes at most one signal. Waiting never re-registers the other leaves.
-        val completions = Channel<EvaluationCompletion>(Channel.UNLIMITED)
+        val completions = Channel<EvaluationNode>(Channel.UNLIMITED)
 
         fun disjunction(
             left: EvaluationSummary,
@@ -94,16 +88,8 @@ internal suspend fun InclusionCondition.includeAnyReadyAlternative(binding: susp
                     InclusionCondition.Always -> node.summary = EvaluationSummary(hasTrue = true)
                     InclusionCondition.Never -> node.summary = EvaluationSummary(hasFalse = true)
                     is InclusionCondition.Requires -> {
-                        val evaluation =
-                            async<Unit> {
-                                val completion = try {
-                                    EvaluationCompletion(node, Result.success(condition.include(binding)))
-                                } catch (cause: Throwable) {
-                                    EvaluationCompletion(node, Result.failure(cause), cause.takeUnless { it is Exception })
-                                }
-                                completions.send(completion)
-                                completion.fatal?.let { throw it }
-                            }
+                        val evaluation = async { resultOfSuspend { condition.include(binding) } }
+                        evaluation.invokeOnCompletion { completions.trySend(node) }
                         evaluations[node] = evaluation
                         node.summary = EvaluationSummary(hasPending = true)
                     }
@@ -163,11 +149,8 @@ internal suspend fun InclusionCondition.includeAnyReadyAlternative(binding: susp
                 return@supervisorScope true
             }
             if (root.summary.hasPending) {
-                val completion = completions.receive()
-                completion.fatal?.let { throw it }
-                val node = completion.node
-                val result = completion.result
-                evaluations.remove(node)
+                val node = completions.receive()
+                val result = requireNotNull(evaluations.remove(node)).await()
                 node.summary =
                     result.fold(
                         onSuccess = { included -> EvaluationSummary(hasTrue = included, hasFalse = !included) },

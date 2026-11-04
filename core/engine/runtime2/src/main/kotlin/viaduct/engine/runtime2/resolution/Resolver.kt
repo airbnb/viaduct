@@ -3,6 +3,7 @@
 package viaduct.engine.runtime2.resolution
 
 import kotlin.coroutines.CoroutineContext
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.TimeoutCancellationException
@@ -100,7 +101,6 @@ internal class StartedResolution(
         }
 }
 
-@Suppress("TooGenericExceptionCaught") // Scope cleanup must also handle fatal startup failures.
 internal fun SharedOperationContext<*>.startResolution(
     selections: SelectionForest,
     requestScope: CoroutineScope,
@@ -112,6 +112,7 @@ internal fun SharedOperationContext<*>.startResolution(
     }
     val completion = Job(requestScope.coroutineContext[Job])
     val resolutionScope = CoroutineScope(requestScope.coroutineContext + completion)
+    var started = false
     return try {
         val resolutionOperation =
             OperationContext.create(
@@ -121,10 +122,16 @@ internal fun SharedOperationContext<*>.startResolution(
             )
         val root = resolutionOperation.startResolve(selections, rootType)
         completion.complete()
+        started = true
         StartedResolution(root, completion)
-    } catch (cause: Throwable) {
+    } catch (cause: Exception) {
         completion.completeExceptionally(cause)
         throw cause
+    } finally {
+        if (!started) {
+            completion.cancel()
+            requestScope.coroutineContext[Job]?.cancel(CancellationException("Resolution failed to start"))
+        }
     }
 }
 
