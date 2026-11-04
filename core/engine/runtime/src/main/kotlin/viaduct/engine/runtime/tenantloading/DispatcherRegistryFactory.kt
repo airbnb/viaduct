@@ -53,10 +53,6 @@ abstract class AbstractDispatcherRegistryFactory(
     protected abstract suspend fun moduleResolvers(): List<ModuleResolvers>
 
     final override fun create(schema: EngineSchema): DispatcherRegistry {
-        require(!flagManager.isEnabled(FlagManager.Flags.ENGINE2_BATCHING)) {
-            "ENGINE2_BATCHING is not supported until engine2 batching is implemented"
-        }
-
         val fieldResolverDispatchers = mutableMapOf<Coordinate, FieldResolverDispatcher>()
         val nodeResolverDispatchers = mutableMapOf<String, NodeResolverDispatcher>()
         val fieldCheckerDispatchers = mutableMapOf<Coordinate, CheckerDispatcher>()

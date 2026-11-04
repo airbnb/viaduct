@@ -17,7 +17,7 @@ All flags are defined in `FlagManager.Flags`.
 |---|---|---|
 | `KILLSWITCH_NON_BLOCKING_ENQUEUE_FLUSH` | disabled | Reverts the data-loader coroutine dispatcher to blocking enqueue flush. Enable to recover from a regression introduced by the non-blocking implementation. |
 | `ENGINE2_ENABLED` | disabled | Selects the engine2 runtime. |
-| `ENGINE2_BATCHING` | disabled | Reserved gate; enabling it is an invalid configuration until engine2 supports batching. |
+| `ENGINE2_BATCHING` | disabled | Reserved gate; explicit enablement is accepted, but engine2 continues using singleton dispatch. |
 | `ENABLE_MAT_RESOLUTION` | disabled | Enables differential resolver execution through the Mat workflow. |
 | `ENABLE_INCREMENTAL_EXECUTION` | disabled | Enables incremental query execution. |
 | `ENABLE_RESOLVER_OUTPUT_MISSING_FIELD_ERRORS` | disabled | Adds field errors when resolver output omits a requested field. |

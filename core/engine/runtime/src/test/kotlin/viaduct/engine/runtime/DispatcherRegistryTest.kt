@@ -10,7 +10,6 @@ import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
-import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -386,7 +385,7 @@ class DispatcherRegistryTest {
     }
 
     @Test
-    fun `engine2 batching flag is rejected during dispatcher registry construction`() {
+    fun `engine2 batching flag is accepted regardless of engine selection`() {
         listOf(
             MockFlagManager.create(FlagManager.Flags.ENGINE2_BATCHING),
             MockFlagManager.create(
@@ -401,14 +400,10 @@ class DispatcherRegistryTest {
                 flagManager = flagManager,
             )
 
-            val exception = assertThrows(IllegalArgumentException::class.java) {
-                factory.create(Samples.testSchema)
-            }
+            val registry = factory.create(Samples.testSchema)
 
-            assertEquals(
-                "ENGINE2_BATCHING is not supported until engine2 batching is implemented",
-                exception.message,
-            )
+            assertNotNull(registry.getFieldResolverDispatcher("TestType", "batchField"))
+            assertNotNull(registry.getNodeResolverDispatcher("TestBatchNode"))
         }
     }
 

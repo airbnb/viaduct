@@ -12,12 +12,18 @@ import graphql.parser.Parser
 import java.util.Base64
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicReference
 import kotlinx.coroutines.future.await
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
+import viaduct.engine.EngineConfiguration
 import viaduct.engine.airbnb.EngineGraphQLJavaCompat
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.ResolveSelectionSetOptions
@@ -30,6 +36,9 @@ import viaduct.engine.api.mocks.MockCheckerExecutorFactory
 import viaduct.engine.api.mocks.MockExecutorCodeInjector
 import viaduct.engine.api.mocks.MockFieldUnbatchedResolverExecutor
 import viaduct.engine.api.mocks.createEngineObjectData
+import viaduct.engine.api.mocks.featureTestDefault
+import viaduct.engine.api.mocks.runStandardViaductFeatureTest
+import viaduct.engine.runtime2.Engine2
 import viaduct.engine.runtime2.airbnb.Engine2ResolverRegistryFactory
 import viaduct.engine.runtime2.airbnb.ResolverRegistryProvider
 import viaduct.engine.runtime2.bootstrap.dispatcherRegistryInputs
@@ -46,6 +55,37 @@ import viaduct.service.runtime.SchemaConfiguration
 import viaduct.service.runtime.StandardViaduct
 
 class Engine2StandardViaductTest {
+    @Test
+    fun `feature harness leaves batching disabled by default`() {
+        assertFalse(EngineConfiguration.featureTestDefault.flagManager.isEnabled(FlagManager.Flags.ENGINE2_BATCHING))
+    }
+
+    @ParameterizedTest(name = "ENGINE2_BATCHING={0}")
+    @ValueSource(booleans = [false, true])
+    fun `feature harness respects the explicit batching flag`(batchingEnabled: Boolean) {
+        val flags = RecordingFlagManager(
+            flag = FlagManager.Flags.ENGINE2_BATCHING,
+            enabled = batchingEnabled,
+            fallback = EngineConfiguration.featureTestDefault.flagManager,
+        )
+        val module = EngineTestModule("extend type Query { value: Int @resolver }") {
+            fieldWithValue("Query" to "value", 7)
+        }
+
+        module.runStandardViaductFeatureTest(
+            engine2Enabled = true,
+            engineConfig = EngineConfiguration.featureTestDefault.copy(flagManager = flags),
+        ) {
+            assertInstanceOf(Engine2::class.java, engine)
+            runQuery("{ value }").assertJson("{data: {value: 7}}")
+        }
+
+        assertEquals(
+            batchingEnabled,
+            flags.lastReadValue(FlagManager.Flags.ENGINE2_BATCHING),
+        )
+    }
+
     @Test
     fun `invocation metadata belongs to the active GraphQL call including nested direct calls`() {
         val sdl = "extend type Query { probe: String @resolver value: String @resolver }"
@@ -302,8 +342,9 @@ class Engine2StandardViaductTest {
         assertEquals(listOf(listOf("attributed"), listOf("attributed")), result.errors.map { it.path })
     }
 
-    @Test
-    fun `engine2 receives StandardViaduct operation inputs through its preparsed document provider`() {
+    @ParameterizedTest
+    @ValueSource(booleans = [false, true])
+    fun `engine2 receives StandardViaduct operation inputs through its preparsed document provider`(batchingEnabled: Boolean) {
         val sdl =
             """
             extend type Query {
@@ -340,7 +381,9 @@ class Engine2StandardViaductTest {
                     },
                 ).withFlagManager(
                     object : FlagManager {
-                        override fun isEnabled(flag: FlagManager.Flag): Boolean = flag == FlagManager.Flags.ENGINE2_ENABLED
+                        override fun isEnabled(flag: FlagManager.Flag): Boolean =
+                            flag == FlagManager.Flags.ENGINE2_ENABLED ||
+                                (flag == FlagManager.Flags.ENGINE2_BATCHING && batchingEnabled)
                     },
                 ).build()
 
@@ -830,5 +873,23 @@ class Engine2StandardViaductTest {
         assertEquals(1, fieldCheckerCalls.get())
         assertEquals(1, typeCheckerProviderCalls.get())
         assertEquals(1, typeCheckerCalls.get())
+    }
+
+    private class RecordingFlagManager(
+        private val flag: FlagManager.Flag,
+        private val enabled: Boolean,
+        private val fallback: FlagManager,
+    ) : FlagManager by fallback {
+        private val lastRead = AtomicReference<Boolean>()
+
+        override fun isEnabled(flag: FlagManager.Flag): Boolean =
+            if (flag == this.flag) {
+                lastRead.set(enabled)
+                enabled
+            } else {
+                fallback.isEnabled(flag)
+            }
+
+        fun lastReadValue(flag: FlagManager.Flag): Boolean? = if (flag == this.flag) lastRead.get() else null
     }
 }
