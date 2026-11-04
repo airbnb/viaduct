@@ -24,6 +24,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitCancellation
@@ -32,7 +33,10 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withTimeout
+import viaduct.engine.api.EngineObjectData
 import viaduct.engine.runtime2.contract.get
 import viaduct.engine.runtime2.model.ErrorEngineResult
 import viaduct.engine.runtime2.model.ObjectEngineResult
@@ -777,6 +781,128 @@ class ResolverStartTest : ResolutionDispatcherResource {
                 }
             }
         }
+
+    @Test
+    @OptIn(ExperimentalCoroutinesApi::class)
+    fun `a pending source argument delays dependent resolvers while healthy work finishes`() =
+        runTest {
+            val providedValue = CompletableDeferred<Int>()
+            val providerStarted = CompletableDeferred<Unit>()
+            val resolverCalls = mutableListOf<String>()
+            val world = bindingDependentQuery(
+                // result requires source, whose value argument waits for the suspended variable provider.
+                resultRequiredSelections = "source(value: \$provided)",
+                provideBindings = {
+                    providerStarted.complete(Unit)
+                    mapOf("provided" to providedValue.await())
+                },
+                resolveSource = { value ->
+                    resolverCalls += "source"
+                    value
+                },
+                resolveResult = { input ->
+                    resolverCalls += "result"
+                    input.get("source")
+                },
+                healthyValue = 42,
+            )
+            val result = SharedOperationContext.create(world.assumptions).startResolve(
+                world.schemas.operationSelectionsFrom("{ result healthy }"),
+                backgroundScope,
+            )
+            runCurrent()
+            assertTrue(providerStarted.isCompleted)
+            assertEquals(42, result.cell("healthy").value.get())
+            assertEquals(emptyList<String>(), resolverCalls)
+            assertFalse(result.cell("result").value.isCompleted)
+
+            providedValue.complete(7)
+            runCurrent()
+            assertEquals(listOf("source", "result"), resolverCalls)
+            assertEquals(7, result.cell("result").value.get())
+        }
+
+    @Test
+    @OptIn(ExperimentalCoroutinesApi::class)
+    fun `cancelling a resolver after publication preserves its value or error`() =
+        runTest {
+            for (failure in listOf(null, IllegalStateException("resolver failed"))) {
+                val resolverTaskJob = CompletableDeferred<Job>()
+                val cleanupFailures = mutableListOf<Throwable>()
+                val world = queryWithOwnedValueResolver { fieldScope ->
+                    resolverTaskJob.complete(currentCoroutineContext().job)
+                    // The child keeps the resolver job alive after its value or error is published.
+                    fieldScope.launch { awaitCancellation() }
+                    if (failure != null) throw failure
+                    7
+                }
+                val requestJob = Job(backgroundScope.coroutineContext.job)
+                val requestScope = CoroutineScope(
+                    backgroundScope.coroutineContext + requestJob +
+                        CoroutineExceptionHandler { _, cause -> cleanupFailures += cause },
+                )
+                val result = SharedOperationContext.create(world.assumptions).startResolve(
+                    world.schemas.operationSelectionsFrom("{ value }"),
+                    requestScope,
+                )
+                runCurrent()
+                val published = result.cell("value").value.get()
+                if (failure == null) {
+                    assertEquals(7, published)
+                } else {
+                    assertSame(failure, assertIs<ErrorEngineResult>(published).errorData.cause)
+                }
+                val resolverJob = resolverTaskJob.await()
+                assertTrue(resolverJob.isActive)
+
+                resolverJob.cancelAndJoin()
+
+                assertSame(published, result.cell("value").value.get())
+                assertTrue(requestJob.isActive)
+                assertEquals(emptyList<Throwable>(), cleanupFailures)
+            }
+        }
+
+    private fun bindingDependentQuery(
+        resultRequiredSelections: String,
+        provideBindings: suspend () -> Map<String, Any?>,
+        resolveSource: suspend (Int) -> Any?,
+        resolveResult: suspend (EngineObjectData.Sync) -> Any?,
+        healthyValue: Int,
+    ): TestWorld =
+        TestWorld.fromSDL(
+            "type Query { source(value: Int!): Int result: Int healthy: Int }",
+            fieldResolvers = { schemas ->
+                val schema = schemas.loweredSchema
+                val result = schema.requireObjectField("Query", "result")
+                mapOf(
+                    schema.requireObjectField("Query", "source") to fieldResolverOf(schema.emptyFragmentOf("Query")) { _, arguments ->
+                        resolveSource(arguments.fieldValues.getValue("value") as Int)
+                    },
+                    result to fieldResolverOf(
+                        schemas.fragmentFrom("fragment ResultInput on Query { $resultRequiredSelections }", variableField = result),
+                    ) { input, _ ->
+                        resolveResult(input)
+                    }.withVariablesProvider(setOf("provided")) {
+                        provideBindings()
+                    },
+                    schema.requireObjectField("Query", "healthy") to fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> healthyValue },
+                )
+            },
+        )
+
+    private fun queryWithOwnedValueResolver(resolveValue: suspend (CoroutineScope) -> Any?): TestWorld =
+        TestWorld.fromSDL(
+            "type Query { value: Int }",
+            fieldResolvers = { schemas ->
+                val schema = schemas.loweredSchema
+                mapOf(
+                    schema.requireObjectField("Query", "value") to fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _, context ->
+                        resolveValue(assertIs<FieldResolverTask>(context).fieldTaskScope)
+                    },
+                )
+            },
+        )
 
     private fun delayedWorld(
         providerStarted: CompletableDeferred<Unit>,

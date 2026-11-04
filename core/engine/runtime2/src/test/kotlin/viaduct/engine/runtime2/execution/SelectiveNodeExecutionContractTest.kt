@@ -37,6 +37,7 @@ import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.FromObjectFieldVariable
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.VariablesResolver
+import viaduct.engine.api.mocks.EngineTestModule
 import viaduct.engine.api.mocks.MockFieldUnbatchedResolverExecutor
 import viaduct.engine.api.mocks.MockTenantModuleBootstrapper
 import viaduct.engine.api.mocks.createEngineObjectData
@@ -54,6 +55,93 @@ import viaduct.service.api.ExecutionInput
 import viaduct.service.api.Viaduct
 
 class SelectiveNodeExecutionContractTest : SelectiveNodeExecutionContract, Engine2QueryExecutionContract {
+    @Test
+    fun `selective node resolvers receive each input's requested fields and dependencies`() {
+        val receivedNodeOwnedSelections = mutableListOf<Pair<String, Set<String>>>()
+        val module = selectiveProductNodes(
+            // The node resolver supplies url and caption; the separate label resolver requires caption.
+            nodeOwnedFields = setOf("url", "caption"),
+            resolveProduct = { id, requestedNodeOwnedFields ->
+                receivedNodeOwnedSelections += id to requestedNodeOwnedFields
+                mapOf("url" to "url-$id", "caption" to "caption-$id")
+                    .filterKeys { it in requestedNodeOwnedFields }
+            },
+            labelRequiredSelections = "caption",
+            resolveLabel = { product -> "label:${product.get("caption")}" },
+        )
+
+        module.runQPlanFeatureTest {
+            val result = runQueryWithTimeout(
+                """
+                {
+                  first: product(id: "1") { url label }
+                  second: product(id: "2") { url }
+                }
+                """.trimIndent(),
+            )
+
+            result.assertJson(
+                """
+                {
+                  "data": {
+                    "first": {"url": "url-1", "label": "label:caption-1"},
+                    "second": {"url": "url-2"}
+                  }
+                }
+                """.trimIndent(),
+            )
+            assertEquals(
+                listOf(
+                    "1" to setOf("url", "caption"),
+                    "2" to setOf("url"),
+                ),
+                receivedNodeOwnedSelections.sortedBy { it.first },
+            )
+        }
+    }
+
+    private fun selectiveProductNodes(
+        nodeOwnedFields: Set<String>,
+        resolveProduct: suspend (String, Set<String>) -> Map<String, Any?>,
+        labelRequiredSelections: String,
+        resolveLabel: suspend (EngineObjectData.Sync) -> String,
+    ): EngineTestModule =
+        EngineTestModule(
+            """
+            extend type Query {
+                product(id: ID!): Product @resolver
+            }
+            type Product implements Node {
+                id: ID!
+                url: String
+                caption: String
+                label: String @resolver
+            }
+            """.trimIndent(),
+        ) {
+            field("Query" to "product") {
+                resolver {
+                    fn { arguments, _, _, _, context ->
+                        context.createNodeReference(arguments.getValue("id") as String, schema.schema.getObjectType("Product"))
+                    }
+                }
+            }
+            type("Product") {
+                nodeBatchedExecutor(selective = true) { selectors, _ ->
+                    selectors.reversed().associateWith { selector ->
+                        val requestedNodeOwnedFields = selector.selections.selections().map { it.fieldName }.toSet().intersect(nodeOwnedFields)
+                        Result.success(createEngineObjectData("Product", resolveProduct(selector.id, requestedNodeOwnedFields)))
+                    }
+                }
+            }
+            field("Product" to "label") {
+                resolver {
+                    objectSelections(labelRequiredSelections)
+                    fn { _, product, _, _, _ -> resolveLabel(product) }
+                }
+            }
+        }
+
     @Engine2Disabled(
         Engine2DisabledKind.ALT,
         "Production mutates the original node reference after fetching; qplan publishes the same response from a closed one-shot occurrence"

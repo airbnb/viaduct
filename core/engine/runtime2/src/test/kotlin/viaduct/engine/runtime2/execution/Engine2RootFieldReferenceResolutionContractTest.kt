@@ -2,15 +2,101 @@ package viaduct.engine.runtime2.execution
 
 import java.util.concurrent.atomic.AtomicInteger
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Test
 import viaduct.engine.api.EngineObjectData
+import viaduct.engine.api.invocationContextFor
 import viaduct.engine.api.mocks.EngineTestModule
+import viaduct.engine.api.mocks.MockFieldBatchResolverExecutor
 import viaduct.engine.api.mocks.createEngineObjectData
 import viaduct.engine.api.mocks.fetchAs
 import viaduct.engine.api.mocks.getAs
 import viaduct.engine.runtime.execution.RootFieldReferenceResolutionContract
+import viaduct.engine.runtime.execution.query
+import viaduct.engine.runtime2.execution.testing.runQPlanFeatureTest
 import viaduct.graphql.test.assertJson
 
 class Engine2RootFieldReferenceResolutionContractTest : RootFieldReferenceResolutionContract, Engine2QueryExecutionContract {
+    @Test
+    fun `nested queries use the arguments from each root field reference`() {
+        val module = EngineTestModule(
+            """
+            extend type Query {
+                referencedItem(id: Int!): Item @resolver
+                lookup(id: Int!): String @resolver
+                catalog: Catalog
+            }
+            type Catalog @namespaceType {
+                item(id: Int!): Item @resolver
+            }
+            type Item {
+                value: String
+            }
+            """.trimIndent(),
+        ) {
+            field("Query" to "referencedItem") {
+                resolver {
+                    fn { arguments, _, _, _, context ->
+                        context.createRootFieldReference(
+                            rootFieldPath = listOf("catalog", "item"),
+                            type = schema.schema.getObjectType("Item"),
+                            args = mapOf("id" to arguments.getValue("id")),
+                        )
+                    }
+                }
+            }
+            field("Catalog" to "item") {
+                resolverExecutor {
+                    MockFieldBatchResolverExecutor(resolverId = resolverId, isSelective = true) { selectors, context ->
+                        selectors.reversed().associateWith { selector ->
+                            val itemContext = context.invocationContextFor(selector)
+                            val id = selector.arguments.getValue("id") as Int
+                            val selections = itemContext.engineSelectionSetFactory.engineSelectionSet(
+                                "Query",
+                                "lookup(id: \$id)",
+                                mapOf("id" to id),
+                            )
+                            val lookupResult = itemContext.query(selections)
+                            val values = mapOf("value" to lookupResult.get("lookup"))
+                            Result.success(createEngineObjectData("Item", values))
+                        }
+                    }
+                }
+            }
+            field("Query" to "lookup") {
+                resolver {
+                    fn { selectors, _ ->
+                        selectors.associateWith { selector ->
+                            val id = selector.arguments.getValue("id") as Int
+                            Result.success("lookup-$id")
+                        }
+                    }
+                }
+            }
+        }
+
+        module.runQPlanFeatureTest {
+            val result = runQueryWithTimeout(
+                """
+                {
+                  first: referencedItem(id: 4) { value }
+                  second: referencedItem(id: 9) { value }
+                }
+                """.trimIndent(),
+            )
+
+            result.assertJson(
+                """
+                {
+                  "data": {
+                    "first": {"value": "lookup-4"},
+                    "second": {"value": "lookup-9"}
+                  }
+                }
+                """.trimIndent(),
+            )
+        }
+    }
+
     @Engine2Disabled(Engine2DisabledKind.TODO, "CallerAttr")
     override fun `caller is derived from resolver object traversal`() {
         super<RootFieldReferenceResolutionContract>.`caller is derived from resolver object traversal`()

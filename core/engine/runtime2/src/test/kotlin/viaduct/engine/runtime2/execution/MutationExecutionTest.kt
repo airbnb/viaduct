@@ -1,19 +1,99 @@
+@file:Suppress("DEPRECATION", "ForbiddenImport")
+
 package viaduct.engine.runtime2.execution
 
+import java.util.concurrent.CompletableFuture
+import kotlin.coroutines.CoroutineContext
+import kotlin.time.Duration.Companion.seconds
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.async
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.yield
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
 import viaduct.engine.api.EngineObjectData
+import viaduct.engine.api.invocationContextFor
 import viaduct.engine.api.mocks.EngineTestModule
+import viaduct.engine.api.mocks.MockExecutorCodeInjector
 import viaduct.engine.api.mocks.fetchAs
+import viaduct.engine.api.spi.CoroutineInterop
+import viaduct.engine.runtime.execution.DefaultCoroutineInterop
 import viaduct.engine.runtime.execution.mutation
 import viaduct.engine.runtime.execution.query
 import viaduct.engine.runtime2.execution.testing.runQPlanFeatureTest
+import viaduct.graphql.test.assertJson
+import viaduct.service.api.ExecutionInput
+import viaduct.service.api.SchemaId
+import viaduct.service.api.spi.FlagManager
+import viaduct.service.runtime.SchemaConfiguration
+import viaduct.service.runtime.StandardViaduct
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class MutationExecutionTest {
+    @Test
+    fun `the first payload read finishes before the next mutation writes to the same node`() =
+        runTest(timeout = 10.seconds) {
+            var storedVersion = 0
+            var readCount = 0
+            val writtenVersions = mutableListOf<Int>()
+            val firstPayloadReadStarted = CompletableDeferred<Unit>()
+            val allowFirstPayloadRead = CompletableDeferred<Unit>()
+            val module = versionedProductMutations(
+                // Both mutations return this product; its first version read must finish before the second write.
+                nodeId = "same-product",
+                writeVersion = { value ->
+                    storedVersion = value
+                    writtenVersions += value
+                },
+                readVersion = {
+                    readCount += 1
+                    if (readCount == 1) {
+                        firstPayloadReadStarted.complete(Unit)
+                        allowFirstPayloadRead.await()
+                    }
+                    storedVersion
+                },
+            )
+            val execution = backgroundScope.async {
+                module.engine2Viaduct(StandardTestDispatcher(testScheduler)).execute(
+                    ExecutionInput.create(
+                        """
+                        mutation {
+                          first: setVersion(value: 1) { version }
+                          second: setVersion(value: 2) { version }
+                        }
+                        """.trimIndent(),
+                    ),
+                    SchemaId.Base,
+                )
+            }
+
+            firstPayloadReadStarted.await()
+            runCurrent()
+            assertEquals(listOf(1), writtenVersions, "The second mutation must wait for the first payload")
+            assertFalse(execution.isCompleted)
+
+            allowFirstPayloadRead.complete(Unit)
+            val result = execution.await()
+            result.assertJson(
+                """
+                {"data": {
+                    "first": {"version": 1},
+                    "second": {"version": 2}
+                }}
+                """.trimIndent(),
+            )
+            assertEquals(listOf(1, 2), writtenVersions)
+        }
+
     @Test
     fun `ctx mutation preserves namespace order aliases conditions and independent calls`() {
         var count = 0
@@ -329,4 +409,63 @@ class MutationExecutionTest {
         }
         assertEquals(3, count)
     }
+
+    private fun versionedProductMutations(
+        nodeId: String,
+        writeVersion: suspend (Int) -> Unit,
+        readVersion: suspend () -> Int,
+    ): EngineTestModule =
+        EngineTestModule(
+            """
+            extend type Mutation {
+                setVersion(value: Int!): Product @resolver
+            }
+            type Product implements Node {
+                id: ID!
+                version: Int
+            }
+            """.trimIndent(),
+        ) {
+            field("Mutation" to "setVersion") {
+                resolver {
+                    fn { selectors, context ->
+                        selectors.associateWith { selector ->
+                            writeVersion(selector.arguments.getValue("value") as Int)
+                            val productReference = context.invocationContextFor(selector).createNodeReference(
+                                nodeId,
+                                schema.schema.getObjectType("Product"),
+                            )
+                            Result.success(productReference)
+                        }
+                    }
+                }
+            }
+            type("Product") {
+                nodeBatchedExecutor(selective = true) { selectors, _ ->
+                    selectors.associateWith {
+                        Result.success(createEngineObjectData("Product", mapOf("version" to readVersion())))
+                    }
+                }
+            }
+        }
+
+    private fun EngineTestModule.engine2Viaduct(dispatcher: CoroutineDispatcher): StandardViaduct =
+        StandardViaduct.Builder()
+            .withSchemaConfiguration(SchemaConfiguration.fromSchema(fullSchema))
+            .withTenantModuleInjectorFactory(MockExecutorCodeInjector(mockExecutorRegistry))
+            .withExecutorRegistryConfigSources(listOf(toModuleConfigSource()))
+            .withLenientResolverValidation()
+            .withFlagManager(object : FlagManager {
+                override fun isEnabled(flag: FlagManager.Flag): Boolean = flag == FlagManager.Flags.ENGINE2_ENABLED
+            })
+            .withCoroutineInterop(object : CoroutineInterop by DefaultCoroutineInterop {
+                override fun <T> enterThreadLocalCoroutineContext(
+                    callerContext: CoroutineContext,
+                    block: suspend CoroutineScope.() -> T,
+                ): CompletableFuture<T> =
+                    DefaultCoroutineInterop.enterThreadLocalCoroutineContext(callerContext) {
+                        withContext(dispatcher, block)
+                    }
+            })
+            .build()
 }

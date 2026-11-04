@@ -13,6 +13,10 @@ import java.util.Base64
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.future.await
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -43,6 +47,7 @@ import viaduct.engine.runtime2.airbnb.Engine2ResolverRegistryFactory
 import viaduct.engine.runtime2.airbnb.ResolverRegistryProvider
 import viaduct.engine.runtime2.bootstrap.dispatcherRegistryInputs
 import viaduct.engine.runtime2.bootstrap.resolverRegistryOf
+import viaduct.engine.runtime2.execution.testing.runQPlanFeatureTest
 import viaduct.engine.runtime2.model.emptyFragmentOf
 import viaduct.engine.runtime2.model.registry.fieldResolverOf
 import viaduct.engine.runtime2.model.requireObjectField
@@ -84,6 +89,95 @@ class Engine2StandardViaductTest {
             batchingEnabled,
             flags.lastReadValue(FlagManager.Flags.ENGINE2_BATCHING),
         )
+    }
+
+    @Test
+    fun `an item failure preserves other results from a batching capable executor`() {
+        val failure = IllegalStateException("item 2 failed")
+        val module = valueQueryModule { key ->
+            if (key == 2) Result.failure(failure) else Result.success(key * 10)
+        }
+
+        module.runQPlanFeatureTest {
+            val result = runQueryWithTimeout(
+                """
+                {
+                  first: value(key: 1)
+                  middle: value(key: 2)
+                  last: value(key: 3)
+                }
+                """.trimIndent(),
+            )
+
+            assertEquals(mapOf("first" to 10, "middle" to null, "last" to 30), result.getData())
+            assertEquals(listOf(listOf("middle")), result.errors.map { it.path })
+            assertTrue(result.errors.single().message.contains("item 2 failed"))
+        }
+    }
+
+    @Test
+    fun `an executor exception preserves unrelated fields`() {
+        val failure = IllegalStateException("executor call failed")
+        val module = valueAndBrokenQueryModule(
+            resolveValue = { key -> key * 10 },
+            resolveBroken = { throw failure },
+        )
+
+        module.runQPlanFeatureTest {
+            val result = runQueryWithTimeout(
+                """
+                {
+                  first: broken(key: 1)
+                  second: broken(key: 2)
+                  healthy: value(key: 3)
+                }
+                """.trimIndent(),
+            )
+
+            assertEquals(mapOf("first" to null, "second" to null, "healthy" to 30), result.getData())
+            assertEquals(2, result.errors.size)
+            assertEquals(setOf(listOf("first"), listOf("second")), result.errors.map { it.path }.toSet())
+            assertTrue(result.errors.all { it.message.contains("executor call failed") })
+        }
+    }
+
+    @Test
+    fun `awaiting a cancelled deferred in an active resolver publishes a local field error`() {
+        // This deferred has no parent, so its cancellation leaves the receiving resolver active.
+        val cancelledValue = CompletableDeferred<Int>().apply {
+            cancel(CancellationException("independent value cancelled"))
+        }
+        var receivingResolverWasActive = false
+        val module = valueAndBrokenQueryModule(
+            resolveValue = { key -> key * 10 },
+            resolveBroken = {
+                try {
+                    cancelledValue.await()
+                    error("Cancelled value unexpectedly completed")
+                } catch (cancellation: CancellationException) {
+                    currentCoroutineContext().ensureActive()
+                    receivingResolverWasActive = true
+                    throw cancellation
+                }
+            },
+        )
+
+        module.runQPlanFeatureTest {
+            val result = runQueryWithTimeout(
+                """
+                {
+                  first: value(key: 1)
+                  middle: broken(key: 2)
+                  last: value(key: 3)
+                }
+                """.trimIndent(),
+            )
+
+            assertTrue(receivingResolverWasActive)
+            assertEquals(mapOf("first" to 10, "middle" to null, "last" to 30), result.getData())
+            assertEquals(listOf(listOf("middle")), result.errors.map { it.path })
+            assertTrue(result.errors.single().message.contains("independent value cancelled"))
+        }
     }
 
     @Test
@@ -892,4 +986,34 @@ class Engine2StandardViaductTest {
 
         fun lastReadValue(flag: FlagManager.Flag): Boolean? = if (flag == this.flag) lastRead.get() else null
     }
+
+    private fun valueQueryModule(resolveValue: suspend (Int) -> Result<Int>): EngineTestModule =
+        EngineTestModule("extend type Query { value(key: Int!): Int @resolver }") {
+            field("Query" to "value") {
+                resolver {
+                    fn { selectors, _ ->
+                        selectors.reversed().associateWith { selector -> resolveValue(selector.arguments.getValue("key") as Int) }
+                    }
+                }
+            }
+        }
+
+    private fun valueAndBrokenQueryModule(
+        resolveValue: suspend (Int) -> Int,
+        resolveBroken: suspend () -> Int,
+    ): EngineTestModule =
+        EngineTestModule("extend type Query { value(key: Int!): Int @resolver broken(key: Int!): Int @resolver }") {
+            field("Query" to "value") {
+                resolver {
+                    fn { selectors, _ ->
+                        selectors.associateWith { selector -> Result.success(resolveValue(selector.arguments.getValue("key") as Int)) }
+                    }
+                }
+            }
+            field("Query" to "broken") {
+                resolver {
+                    fn { selectors, _ -> selectors.associateWith { Result.success(resolveBroken()) } }
+                }
+            }
+        }
 }

@@ -7,14 +7,17 @@ import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -110,6 +113,60 @@ class MutationOrchestrationTaskTest : ResolutionDispatcherResource {
             assertEquals(1, calls)
             assertTrue(result.keys.all { result.getCell(it).value.isCompleted && result.getCell(it).fieldCheckerResult.isCompleted })
         }
+
+    @Test
+    fun `the next mutation waits for child work after the first value is published`() =
+        runTest {
+            val releaseFirstMutationChild = CompletableDeferred<Unit>()
+            val effects = mutableListOf<String>()
+            val world = orderedScalarMutations(
+                resolveFirst = { firstMutationScope ->
+                    effects += "first"
+                    // This child belongs to the first resolver and outlives publication of its scalar value.
+                    firstMutationScope.launch { releaseFirstMutationChild.await() }
+                    1
+                },
+                resolveSecond = {
+                    effects += "second"
+                    2
+                },
+            )
+            val resolution = SharedOperationContext.create(world.assumptions).startResolution(
+                world.schemas.operationSelectionsFrom("mutation { first second }"),
+                backgroundScope,
+            )
+            val first = resolution.root.keys.single { it.field.name == "first" }
+            val second = resolution.root.keys.single { it.field.name == "second" }
+            runCurrent()
+            assertEquals(1, resolution.root.getCell(first).value.get())
+            assertEquals(listOf("first"), effects)
+            assertFalse(resolution.root.getCell(second).value.isCompleted)
+
+            releaseFirstMutationChild.complete(Unit)
+            resolution.await()
+
+            assertEquals(listOf("first", "second"), effects)
+            assertEquals(2, resolution.root.getCell(second).value.get())
+        }
+
+    private fun orderedScalarMutations(
+        resolveFirst: suspend (CoroutineScope) -> Int,
+        resolveSecond: suspend () -> Int,
+    ): TestWorld =
+        TestWorld.fromSDL(
+            "type Query { idle: Int } type Mutation { first: Int second: Int }",
+            fieldResolvers = { schemas ->
+                val schema = schemas.loweredSchema
+                mapOf(
+                    schema.requireObjectField("Mutation", "first") to fieldResolverOf(schema.emptyFragmentOf("Mutation")) { _, _, context ->
+                        resolveFirst(assertIs<FieldResolverTask>(context).fieldTaskScope)
+                    },
+                    schema.requireObjectField("Mutation", "second") to fieldResolverOf(schema.emptyFragmentOf("Mutation")) { _, _ ->
+                        resolveSecond()
+                    },
+                )
+            },
+        )
 
     private fun fixture(update: suspend () -> Int): TestWorld =
         TestWorld.fromSDL(

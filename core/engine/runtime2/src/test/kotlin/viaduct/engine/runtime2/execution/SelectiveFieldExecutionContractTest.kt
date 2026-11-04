@@ -42,6 +42,8 @@ import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.FromObjectFieldVariable
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.VariablesResolver
+import viaduct.engine.api.mocks.EngineTestModule
+import viaduct.engine.api.mocks.MockFieldBatchResolverExecutor
 import viaduct.engine.api.mocks.MockFieldUnbatchedResolverExecutor
 import viaduct.engine.api.mocks.MockTenantModuleBootstrapper
 import viaduct.engine.api.mocks.createEngineObjectData
@@ -71,6 +73,105 @@ import viaduct.service.api.spi.mocks.MockFlagManager
  * run modes
  */
 class SelectiveFieldExecutionContractTest : SelectiveFieldExecutionContract, Engine2QueryExecutionContract {
+    @Test
+    fun `selective field resolvers receive each input's requested fields and dependencies`() {
+        val receivedDetailsSelections = mutableListOf<Pair<Int, Set<String>>>()
+        val module = selectiveProductDetails(
+            resolveDetails = { key, requestedFields ->
+                receivedDetailsSelections += key to requestedFields
+                mapOf("url" to "url-$key", "caption" to "caption-$key")
+                    .filterKeys { it in requestedFields }
+            },
+            // label needs details.caption even though the client never requests caption directly.
+            labelRequiredSelections = "details { caption }",
+            resolveLabel = { product ->
+                val details = product.get("details") as EngineObjectData.Sync
+                "label:${details.get("caption")}"
+            },
+        )
+
+        module.runWithQPlan {
+            val result = runQueryWithTimeout(
+                """
+                {
+                  first: product(key: 1) { details { url } label }
+                  second: product(key: 2) { details { url } }
+                }
+                """.trimIndent(),
+            )
+
+            result.assertJson(
+                """
+                {
+                  "data": {
+                    "first": {"details": {"url": "url-1"}, "label": "label:caption-1"},
+                    "second": {"details": {"url": "url-2"}}
+                  }
+                }
+                """.trimIndent(),
+            )
+            assertEquals(
+                listOf(
+                    1 to setOf("url", "caption"),
+                    2 to setOf("url"),
+                ),
+                receivedDetailsSelections.sortedBy { it.first },
+            )
+        }
+    }
+
+    private fun selectiveProductDetails(
+        resolveDetails: suspend (Int, Set<String>) -> Map<String, Any?>,
+        labelRequiredSelections: String,
+        resolveLabel: suspend (EngineObjectData.Sync) -> String,
+    ): EngineTestModule =
+        EngineTestModule(
+            """
+            extend type Query {
+                product(key: Int!): Product @resolver
+            }
+            type Product {
+                key: Int!
+                details: Details @resolver
+                label: String @resolver
+            }
+            type Details {
+                url: String
+                caption: String
+            }
+            """.trimIndent(),
+        ) {
+            field("Query" to "product") {
+                resolver {
+                    fn { arguments, _, _, _, _ ->
+                        val key = arguments.getValue("key")
+                        createEngineObjectData("Product", mapOf("key" to key))
+                    }
+                }
+            }
+            field("Product" to "details") {
+                resolverExecutor {
+                    MockFieldBatchResolverExecutor(
+                        resolverId = resolverId,
+                        isSelective = true,
+                        objectSelectionSet = createRSS("Product", "key"),
+                    ) { selectors, _ ->
+                        selectors.reversed().associateWith { selector ->
+                            val key = selector.syncObjectValueGetter().get("key") as Int
+                            val requestedFields = requireNotNull(selector.selections).selections().map { it.fieldName }.toSet()
+                            Result.success(createEngineObjectData("Details", resolveDetails(key, requestedFields)))
+                        }
+                    }
+                }
+            }
+            field("Product" to "label") {
+                resolver {
+                    objectSelections(labelRequiredSelections)
+                    fn { _, product, _, _, _ -> resolveLabel(product) }
+                }
+            }
+        }
+
     @Engine2Disabled(
         Engine2DisabledKind.ALT,
         "Production excludes resolver-owned Foo.x from selective parent output; qplan permits argumentless registered descendants to be source-owned, so its one-shot alternative omits x from the parent result"
