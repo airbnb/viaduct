@@ -1104,6 +1104,42 @@ class AssembleTenantModuleConfigFileTest {
     }
 
     @Test
+    fun `assembly rejects @defer in required selection sets`() {
+        val descriptors = descriptorDir()
+        File(descriptors, "Resolver.json").writeText(
+            """
+            {"nodes":[],"fields":[{
+              "implFqn":"com.example.feature.NameResolver",
+              "isBatching":false,
+              "isSelective":false,
+              "resolverBaseClass":"com.example.feature.resolverbases.Name",
+              "typeName":"User",
+              "fieldName":"name",
+              "objectSelections":{
+                "selections":"fragment Main on User { ... on User @defer { id } }",
+                "variablesProviders":[]
+              }
+            }]}
+            """.trimIndent(),
+        )
+        val schema = schemaFile(
+            """
+            directive @defer(if: Boolean = true) on INLINE_FRAGMENT | FRAGMENT_SPREAD
+            type Query { viewer: User }
+            type User { id: ID name: String }
+            """.trimIndent(),
+        )
+
+        val exception = assertThrows<IllegalStateException> {
+            runCli(descriptors = descriptors, schemaFiles = listOf(schema))
+        }
+
+        assertTrue(exception.message!!.contains("RSS validation failed at assembly"), exception.message)
+        assertTrue(exception.message!!.contains("NameResolver (User.name)"), exception.message)
+        assertTrue(exception.message!!.contains("@defer is not allowed in required selection sets."), exception.message)
+    }
+
+    @Test
     fun `forbidden-selection-directive rejects a named operation selecting a field carrying the directive`() {
         val descriptors = descriptorDir()
         File(descriptors, "Operations.json").writeText(

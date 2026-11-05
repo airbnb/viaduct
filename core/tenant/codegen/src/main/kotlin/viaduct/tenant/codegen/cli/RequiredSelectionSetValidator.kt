@@ -26,12 +26,14 @@ import viaduct.graphql.utils.DefaultSchemaFactory
 import viaduct.graphql.utils.SelectionsParserUtils
 import viaduct.graphql.utils.ViaductQueryTraverser
 import viaduct.graphql.utils.collectVariableReferencesFollowingFragments
+import viaduct.graphql.utils.findDeferUsages
 import viaduct.graphql.utils.isParentField
 import viaduct.tenant.codegen.ksp.ResolverParams
 
 /**
- * Validates a resolver's required selection sets against the tenant compilation schema. This
- * validator receives the per-tenant build-time schema produced by
+ * Validates a resolver's required selection sets against the tenant compilation schema and rejects
+ * `@defer` in the selections or their referenced fragments. This validator receives the per-tenant
+ * build-time schema produced by
  * `CompilationSchemaInfo.schema_sdl` in Bazel builds and the source-preserving application central
  * schema in OSS Gradle builds. It does not consume the runtime base schema.
  *
@@ -196,6 +198,14 @@ internal class RequiredSelectionSetValidator(
             return
         }
         val fragmentsByName = fragments.associateBy { it.name }
+        val deferUsages = findDeferUsages(entryFragment, fragmentsByName)
+        if (deferUsages.isNotEmpty()) {
+            errors.add(
+                "@defer is not allowed in required selection sets. " +
+                    "Required selections for ${field.implFqn} (${field.typeName}.${field.fieldName}) " +
+                    "must resolve synchronously. Found: ${deferUsages.joinToString()}",
+            )
+        }
         val tenantLocalViolations = linkedSetOf<TenantLocalFieldAccessViolation>()
 
         if (currentTenantModule != null) {

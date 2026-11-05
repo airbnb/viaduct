@@ -1,5 +1,6 @@
 package viaduct.arbitrary.graphql
 
+import graphql.Directives
 import graphql.language.FragmentDefinition
 import graphql.language.TypeName
 import graphql.schema.GraphQLCompositeType
@@ -78,7 +79,9 @@ private class RequiredSelectionSetGenImpl(private val env: ViaductGenEnv) : Requ
                 tfc +
                 (if (forChecker) parentFieldCoordinates else emptySet())
         )
-        val cfg = env.cfg + (BanSelectionCoordinates to blockedCoordinates)
+        val cfg = env.cfg +
+            (BanSelectionCoordinates to blockedCoordinates) +
+            (BanDirectiveNames to (env.cfg[BanDirectiveNames] + Directives.DeferDirective.name))
 
         if (state.selectableFields(cfg).isEmpty()) {
             return null

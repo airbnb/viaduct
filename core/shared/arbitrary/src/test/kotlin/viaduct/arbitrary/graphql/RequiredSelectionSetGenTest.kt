@@ -3,6 +3,8 @@
 package viaduct.arbitrary.graphql
 
 import graphql.language.AstPrinter
+import graphql.language.Directive
+import io.kotest.matchers.collections.shouldContainExactlyInAnyOrder
 import io.kotest.property.Arb
 import io.kotest.property.arbitrary.arbitrary
 import io.kotest.property.arbitrary.next
@@ -25,8 +27,40 @@ import viaduct.engine.runtime.select.allCoords
 import viaduct.engine.runtime.select.reachableObjects
 import viaduct.engine.runtime.tenantloading.RequiredSelectionsAreAcyclic
 import viaduct.engine.runtime.tenantloading.RequiredSelectionsValidationCtx
+import viaduct.graphql.utils.allChildrenOfType
 
 class RequiredSelectionSetGenTest : KotestPropertyBase() {
+    @Test
+    fun `generator excludes @defer and preserves existing directive bans`() {
+        val schema = "type Foo { x: Int @resolver, y: Int }".asViaductSchema
+
+        for (bannedDirectives in listOf(emptySet(), setOf("skip"))) {
+            val cfg = Config.default +
+                (RequiredSelectionSetWeight to Once) +
+                (FieldSelectionWeight to Once) +
+                (InlineFragmentWeight to Once) +
+                (FragmentSpreadWeight to Once) +
+                (AppliedDirectiveWeight to CompoundingWeight(1.0, 3)) +
+                (VariableWeight to 0.0) +
+                (BanDirectiveNames to bannedDirectives)
+
+            for (forChecker in listOf(false, true)) {
+                val rss = RequiredSelectionSetGen(ViaductGenEnv(schema, cfg, randomSource)).gen(
+                    tfc = "Foo" to "x",
+                    typeCondition = "Foo",
+                    forChecker = forChecker,
+                    depth = 0,
+                )!!
+                val directiveNames = rss.selections.toDocument()
+                    .allChildrenOfType<Directive>()
+                    .map { it.name }
+                    .toSet()
+
+                directiveNames shouldContainExactlyInAnyOrder (setOf("include", "skip") - bannedDirectives)
+            }
+        }
+    }
+
     @Test
     fun `generator does not generate interface-mediated cycles`(): Unit =
         runBlocking {

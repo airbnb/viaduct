@@ -25,6 +25,7 @@ class ExecutorValidator(
             SelectiveResolverNotAllowedOnMutations(schema),
         ).flatten(),
         requiredSelectionsValidator = listOf(
+            RequiredSelectionsDoNotUseDefer(),
             RequiredSelectionsAreSchematicallyValid(schema),
             RequiredSelectionsAreAcyclic(schema),
             FromArgumentVariablesHaveValidPaths(schema),

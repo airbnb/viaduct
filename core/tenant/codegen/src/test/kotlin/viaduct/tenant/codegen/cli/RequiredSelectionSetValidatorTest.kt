@@ -201,6 +201,61 @@ class RequiredSelectionSetValidatorTest {
     }
 
     @Test
+    fun `rejects @defer even when its condition is false and the selection is skipped`() {
+        val errors = validate(
+            "fragment Main on User { friend { ... on User @skip(if: true) @defer(if: false) { name } } }",
+            typeName = "User",
+            currentTenantModule = null,
+        )
+
+        assertEquals(1, errors.size, errors.joinToString("\n"))
+        assertTrue(errors.single().contains("com.example.TestResolver (User.name)"), errors.toString())
+        assertTrue(errors.single().contains("@defer is not allowed in required selection sets."), errors.toString())
+    }
+
+    @Test
+    fun `rejects @defer in fragments referenced by required selection sets`() {
+        val errors = validate(
+            "fragment Main on User { ...Outer }",
+            typeName = "User",
+            expandedSelections = """
+                fragment Main on User { ...Outer }
+                fragment Outer on User { ...Inner }
+                fragment Inner on User { ... on User @defer { name } }
+            """.trimIndent(),
+        )
+
+        assertEquals(1, errors.size, errors.joinToString("\n"))
+        assertTrue(errors.single().contains("@defer is not allowed in required selection sets."), errors.toString())
+        assertTrue(errors.single().contains("in fragment 'Inner' at 3:"), errors.toString())
+    }
+
+    @Test
+    fun `rejects @defer in query required selection sets`() {
+        val errors = validate(
+            "fragment Main on Query { user(id: \"1\") { ... on User @defer { name } } }",
+            typeName = "Query",
+            isQuery = true,
+        )
+
+        assertEquals(1, errors.size, errors.joinToString("\n"))
+        assertTrue(errors.single().contains("@defer is not allowed in required selection sets."), errors.toString())
+    }
+
+    @Test
+    fun `ignores @defer in fragments not used by the required selection set`() {
+        val errors = validate(
+            """
+            fragment Main on User { id }
+            fragment Unused on User { ... on User @defer { name } }
+            """.trimIndent(),
+            typeName = "User",
+        )
+
+        assertTrue(errors.isEmpty(), errors.joinToString("\n"))
+    }
+
+    @Test
     fun `tenant-local field from same tenant in object selection set passes`() {
         val errors = validate("fragment Main on User { tenantLocalName }", typeName = "User")
         assertTrue(errors.isEmpty(), errors.joinToString("\n"))

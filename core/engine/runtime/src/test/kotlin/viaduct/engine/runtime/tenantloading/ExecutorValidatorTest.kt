@@ -53,6 +53,34 @@ class ExecutorValidatorTest {
     }
 
     @Test
+    fun `default set rejects @defer in required selection sets`() {
+        val schema = MockSchema.mk(
+            """
+            directive @defer(if: Boolean = true) on INLINE_FRAGMENT | FRAGMENT_SPREAD
+            extend type Query { empty: Int }
+            type Foo implements Node { id: ID! field: Int x: Int }
+            """.trimIndent()
+        )
+        val bootstrap = MockTenantModuleBootstrapper(
+            fieldResolverExecutors = listOf(
+                "Foo" to "field" to MockFieldUnbatchedResolverExecutor(
+                    RequiredSelectionSet(SelectionsParser.parse("Foo", "... on Foo @defer { x }"), emptyList(), false),
+                    resolverId = "Foo.field",
+                )
+            ),
+            fullSchema = schema,
+        )
+
+        val error = assertThrows<IllegalArgumentException> {
+            listOf(bootstrap).toDispatcherRegistryFactory(ExecutorValidator(schema), MockCheckerExecutorFactory())
+                .create(schema)
+        }
+
+        assertTrue(error.message!!.contains("@defer"), error.message)
+        assertTrue(error.message!!.contains("Foo.field"), error.message)
+    }
+
+    @Test
     fun `default set rejects selective resolver on a mutation namespace field`() {
         val mutationSchema = MockSchema.mk(
             """
