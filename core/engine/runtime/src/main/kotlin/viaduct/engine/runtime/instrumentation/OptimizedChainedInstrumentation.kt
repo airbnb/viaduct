@@ -12,6 +12,7 @@ import graphql.schema.DataFetchingEnvironment
 import viaduct.apiannotations.InternalApi
 import viaduct.engine.api.instrumentation.ChainedModernGJInstrumentation
 import viaduct.engine.api.instrumentation.IViaductInstrumentation
+import viaduct.engine.api.instrumentation.InstrumentNodeFetchingParameters
 import viaduct.engine.api.instrumentation.ViaductInstrumentationBase
 import viaduct.engine.api.instrumentation.asStandardInstrumentations
 import viaduct.engine.api.spi.CheckerExecutor
@@ -180,6 +181,20 @@ class OptimizedChainedInstrumentation(
 
         return instrumentedChecker
     }
+
+    private val beginNodeFetchingInstrumentations by lazy {
+        mapInstrumentations<IViaductInstrumentation.WithBeginNodeFetching>()
+    }
+
+    override fun beginNodeFetching(
+        parameters: InstrumentNodeFetchingParameters,
+        state: InstrumentationState?
+    ): InstrumentationContext<Any>? =
+        ChainedInstrumentationContext(
+            beginNodeFetchingInstrumentations.mapNotNull { instr ->
+                instr.beginNodeFetching(parameters, getState(instr, state))
+            }
+        )
 
     private inline fun <reified T : IViaductInstrumentation> mapInstrumentations() =
         linkedInstrumentations

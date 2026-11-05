@@ -25,6 +25,7 @@ import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import viaduct.engine.api.instrumentation.IViaductInstrumentation
+import viaduct.engine.api.instrumentation.InstrumentNodeFetchingParameters
 import viaduct.engine.api.instrumentation.ViaductInstrumentationAdapter
 import viaduct.engine.api.instrumentation.ViaductInstrumentationBase
 import viaduct.engine.api.spi.CheckerExecutor
@@ -157,6 +158,71 @@ class OptimizedChainedInstrumentationTest {
         assertNotNull(result)
         assert(instrumentAccessCheckInstrumentation.called)
         verify { noInteractionInstrumentation wasNot Called }
+    }
+
+    private class TestBeginNodeFetchingInstrumentation(
+        private val context: InstrumentationContext<Any>?
+    ) : ViaductInstrumentationBase(),
+        IViaductInstrumentation.WithBeginNodeFetching {
+        val state: InstrumentationState = object : InstrumentationState {}
+        var calls = 0
+        var receivedParameters: InstrumentNodeFetchingParameters? = null
+        var receivedState: InstrumentationState? = null
+
+        override fun createState(parameters: InstrumentationCreateStateParameters) = state
+
+        override fun beginNodeFetching(
+            parameters: InstrumentNodeFetchingParameters,
+            state: InstrumentationState?
+        ): InstrumentationContext<Any>? {
+            calls++
+            receivedParameters = parameters
+            receivedState = state
+            return context
+        }
+    }
+
+    @Test
+    fun `beginNodeFetching only calls participants and forwards their states and callbacks in order`() {
+        val firstContext = mockk<InstrumentationContext<Any>>(relaxed = true)
+        val secondContext = mockk<InstrumentationContext<Any>>(relaxed = true)
+        val first = TestBeginNodeFetchingInstrumentation(firstContext)
+        val withoutContext = TestBeginNodeFetchingInstrumentation(null)
+        val second = TestBeginNodeFetchingInstrumentation(secondContext)
+        every { noInteractionInstrumentation.createStateAsync(any()) } returns CompletableFuture.completedFuture(null)
+        every { noInteractionInstrumentation.beginNodeFetching(any(), any()) } returns noOp()
+        val optimized = OptimizedChainedInstrumentation(listOf(first, noInteractionInstrumentationBase, withoutContext, second))
+        val state = optimized.createStateAsync(mockk())!!.join()
+        clearMocks(noInteractionInstrumentation, answers = false)
+        val parameters = InstrumentNodeFetchingParameters(null, null)
+
+        val context = optimized.beginNodeFetching(parameters, state)!!
+        val result = Any()
+        val error = IllegalStateException("node failed")
+        context.onDispatched()
+        context.onCompleted(result, error)
+
+        for (instrumentation in listOf(first, withoutContext, second)) {
+            assertEquals(1, instrumentation.calls)
+            assertSame(parameters, instrumentation.receivedParameters)
+            assertSame(instrumentation.state, instrumentation.receivedState)
+        }
+        verifySequence {
+            firstContext.onDispatched()
+            secondContext.onDispatched()
+            firstContext.onCompleted(result, error)
+            secondContext.onCompleted(result, error)
+        }
+        verify { noInteractionInstrumentation wasNot Called }
+    }
+
+    @Test
+    fun `beginNodeFetching accepts no participants or null participant contexts`() {
+        for (instrumentations in listOf(emptyList(), listOf(ViaductInstrumentationBase()), listOf(TestBeginNodeFetchingInstrumentation(null)))) {
+            val context = OptimizedChainedInstrumentation(instrumentations).beginNodeFetching(InstrumentNodeFetchingParameters(null, null), null)!!
+            context.onDispatched()
+            context.onCompleted(null, null)
+        }
     }
 
     private class TestBeginFieldFetchInstrumentation(
