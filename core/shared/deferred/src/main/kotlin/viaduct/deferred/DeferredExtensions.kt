@@ -128,9 +128,12 @@ fun <T : Any?, U : Any?> Deferred<T>.handle(handler: (T?, Throwable?) -> U): Def
         }
     }
 
-    val d = completableDeferred<U>()
+    val requestJob = currentRequestParentJobOrNull()?.takeIf { it.isActive }
+    // Use the captured parent so cancellation racing with registration also settles the result.
+    val d = CompletableDeferred<U>(parent = requestJob)
     invokeOnCompletion { failure ->
-        if (d.isCancelled) return@invokeOnCompletion
+        // The source can be cancelled before the result child during request cleanup.
+        if (d.isCancelled || requestJob?.isCancelled == true) return@invokeOnCompletion
         if (failure is CancellationException && callerJob?.isCancelled == true) {
             d.cancel(failure)
             return@invokeOnCompletion

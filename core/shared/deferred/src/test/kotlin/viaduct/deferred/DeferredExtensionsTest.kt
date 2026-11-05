@@ -439,6 +439,57 @@ class DeferredExtensionsTest {
             }
 
         @Test
+        fun `handle skips parented source callback during request cancellation`(): Unit =
+            runBlocking {
+                val parent = SupervisorJob()
+                // Parent cancellation visits this source before handle's result child.
+                val source = CompletableDeferred<String>(parent)
+                val invoked = AtomicBoolean(false)
+                try {
+                    val result = withContext(RequestParentJobContextElement(parent)) {
+                        source.handle { _, _ ->
+                            invoked.set(true)
+                            "fallback"
+                        }
+                    }
+                    parent.cancel()
+
+                    assertTrue(source.isCancelled)
+                    assertTrue(result.isCancelled)
+                    assertFalse(invoked.get())
+                } finally {
+                    parent.cancelAndJoin()
+                }
+            }
+
+        @Test
+        fun `handle settles its result when request cancellation races with registration`(): Unit =
+            runBlocking {
+                val parent = SupervisorJob()
+                val source = CompletableDeferred<String>()
+                val invoked = AtomicBoolean(false)
+                val cancellingParent = object : Job by parent {
+                    // Force cancellation immediately after the registration's active-parent check.
+                    override val isActive: Boolean
+                        get() = parent.isActive.also { parent.cancel() }
+                }
+                try {
+                    val result = withContext(RequestParentJobContextElement(cancellingParent)) {
+                        source.handle { _, _ ->
+                            invoked.set(true)
+                            "fallback"
+                        }
+                    }
+                    source.complete("value")
+
+                    assertTrue(result.isCancelled)
+                    assertFalse(invoked.get())
+                } finally {
+                    parent.cancelAndJoin()
+                }
+            }
+
+        @Test
         fun `handle does not recover source cancellation after its caller is cancelled`(): Unit =
             runBlocking {
                 for (alreadyCompleted in listOf(false, true)) {

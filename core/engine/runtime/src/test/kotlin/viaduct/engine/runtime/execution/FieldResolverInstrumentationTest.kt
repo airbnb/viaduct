@@ -5,17 +5,27 @@ import graphql.execution.instrumentation.InstrumentationContext
 import graphql.execution.instrumentation.InstrumentationState
 import graphql.execution.instrumentation.parameters.InstrumentationFieldFetchParameters
 import graphql.schema.DataFetcher
+import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.future.await
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.Timeout
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.CsvSource
+import org.junit.jupiter.params.provider.ValueSource
 import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.CheckerResultContext
 import viaduct.engine.api.EngineExecutionContext
@@ -33,8 +43,13 @@ import viaduct.engine.runtime.DispatcherRegistry
 import viaduct.engine.runtime.EngineObjectDataFactory
 import viaduct.engine.runtime.NodeEngineObjectDataImpl
 import viaduct.engine.runtime.NodeResolverDispatcher
+import viaduct.engine.runtime.execution.ExecutionTestHelpers.createExecutionInput
+import viaduct.engine.runtime.execution.ExecutionTestHelpers.createSchema
+import viaduct.engine.runtime.execution.ExecutionTestHelpers.createViaductGraphQL
 import viaduct.engine.runtime.execution.ExecutionTestHelpers.executeViaductModernGraphQL
 import viaduct.engine.runtime.execution.ExecutionTestHelpers.runExecutionTest
+import viaduct.service.api.spi.FlagManager
+import viaduct.service.api.spi.mocks.MockFlagManager
 
 /**
  * Tests for FieldResolver instrumentation behavior.
@@ -44,6 +59,10 @@ import viaduct.engine.runtime.execution.ExecutionTestHelpers.runExecutionTest
  */
 @ExperimentalCoroutinesApi
 class FieldResolverInstrumentationTest {
+    enum class CompletionOrder { CHECKER_FIRST, FETCHER_FIRST }
+
+    enum class CompletionOutcome { SUCCESS, CHECKER_FAILURE, BOTH_FAIL }
+
     @Nested
     inner class FieldFetchingInstrumentationTest {
         private val userSdl = """
@@ -106,15 +125,191 @@ class FieldResolverInstrumentationTest {
             return dispatcher
         }
 
-        private fun failingChecker(message: String) =
-            checkerDispatcher {
-                object : CheckerResult.Error {
-                    override val error = IllegalAccessException(message)
+        private fun checkerError(failure: Exception) =
+            object : CheckerResult.Error {
+                override val error = failure
 
-                    override fun isErrorForResolver(ctx: CheckerResultContext) = true
+                override fun isErrorForResolver(ctx: CheckerResultContext) = true
 
-                    override fun combine(fieldResult: CheckerResult.Error) = this
+                override fun combine(fieldResult: CheckerResult.Error) = this
+            }
+
+        private fun failingChecker(message: String) = checkerDispatcher { checkerError(IllegalAccessException(message)) }
+
+        @ParameterizedTest
+        @ValueSource(booleans = [false, true])
+        @Timeout(15)
+        fun asynchronousNestedObjectCompletesWithPartialFailure(incremental: Boolean): Unit =
+            runExecutionTest {
+                val success = CompletableFuture<String>()
+                val failure = CompletableFuture<String>()
+                val started = List(2) { CompletableDeferred<Unit>() }
+                val completions = mapOf("success" to AtomicInteger(), "failure" to AtomicInteger())
+                val schema = createSchema(
+                    "type Query { object: Object } type Object { success: String failure: String }",
+                    mapOf(
+                        "Query" to mapOf("object" to DataFetcher { emptyMap<String, Any?>() }),
+                        "Object" to mapOf(
+                            "success" to DataFetcher {
+                                started[0].complete(Unit)
+                                success
+                            },
+                            "failure" to DataFetcher {
+                                started[1].complete(Unit)
+                                failure
+                            }
+                        )
+                    )
+                )
+                val instrumentations = completions.map { (field, calls) ->
+                    fieldInstrumentation("/object/$field") { _, _ -> calls.incrementAndGet() }
                 }
+                val graphQL = createViaductGraphQL(schema, instrumentations = instrumentations)
+                val query = "{ object { failure success } }"
+                val flags = if (incremental) MockFlagManager.create(FlagManager.Flags.ENABLE_INCREMENTAL_EXECUTION) else FlagManager.Disabled
+                val execution = async { graphQL.executeAsync(createExecutionInput(schema, query, flagManager = flags)).await() }
+                started.forEach { it.await() }
+                success.complete("value")
+                assertFalse(execution.isCompleted)
+                failure.completeExceptionally(IllegalStateException("field failed"))
+                val result = execution.await()
+                assertEquals(1, result.errors.size)
+                assertEquals(listOf("object", "failure"), result.errors.single().path)
+                assertEquals(mapOf("object" to mapOf("success" to "value", "failure" to null)), result.getData<Map<String, Any?>>())
+                assertEquals(listOf(1, 1), completions.values.map { it.get() })
+            }
+
+        @ParameterizedTest
+        @CsvSource(
+            "CHECKER_FIRST, SUCCESS",
+            "FETCHER_FIRST, SUCCESS",
+            "CHECKER_FIRST, CHECKER_FAILURE",
+            "FETCHER_FIRST, CHECKER_FAILURE",
+            "CHECKER_FIRST, BOTH_FAIL",
+            "FETCHER_FIRST, BOTH_FAIL"
+        )
+        @Timeout(15)
+        fun asynchronousCompletionPreservesOrderingAndErrorPrecedence(
+            order: CompletionOrder,
+            outcome: CompletionOutcome
+        ): Unit =
+            runExecutionTest {
+                val fetcherStarted = CompletableDeferred<Unit>()
+                val checkerStarted = CompletableDeferred<Unit>()
+                val fetched = CompletableFuture<String>()
+                val checked = CompletableDeferred<CheckerResult>()
+                val completed = CompletableDeferred<Pair<Any?, Throwable?>>()
+                val calls = AtomicInteger()
+                val fetcherFailure = IllegalStateException("fetch failed")
+                val checkerFailure = IllegalAccessException("check denied")
+                val fetcherFails = outcome == CompletionOutcome.BOTH_FAIL
+                val expectedError = when (outcome) {
+                    CompletionOutcome.SUCCESS -> null
+                    CompletionOutcome.CHECKER_FAILURE -> checkerFailure
+                    CompletionOutcome.BOTH_FAIL -> fetcherFailure
+                }
+                val execution = async {
+                    executeViaductModernGraphQL(
+                        sdl = "type Query { checkedField: String }",
+                        resolvers = mapOf(
+                            "Query" to mapOf(
+                                "checkedField" to DataFetcher {
+                                    fetcherStarted.complete(Unit)
+                                    fetched
+                                }
+                            )
+                        ),
+                        query = "{ checkedField }",
+                        fieldCheckerDispatchers = mapOf(
+                            ("Query" to "checkedField") to checkerDispatcher {
+                                checkerStarted.complete(Unit)
+                                checked.await()
+                            }
+                        ),
+                        instrumentations = listOf(
+                            fieldInstrumentation("/checkedField") { result, error ->
+                                calls.incrementAndGet()
+                                completed.complete(result to error)
+                            }
+                        )
+                    )
+                }
+                fetcherStarted.await()
+                checkerStarted.await()
+                val finishFetch = {
+                    if (fetcherFails) fetched.completeExceptionally(fetcherFailure) else fetched.complete("value")
+                }
+                val checkerResult = if (outcome == CompletionOutcome.SUCCESS) CheckerResult.Success else checkerError(checkerFailure)
+                if (order == CompletionOrder.CHECKER_FIRST) {
+                    checked.complete(checkerResult)
+                    assertFalse(completed.isCompleted)
+                    finishFetch()
+                } else {
+                    finishFetch()
+                    if (!fetcherFails) assertFalse(completed.isCompleted)
+                    checked.complete(checkerResult)
+                }
+                val result = execution.await()
+                val (instrumentedValue, instrumentedError) = completed.await()
+                assertEquals(1, calls.get())
+                assertEquals(if (fetcherFails) null else "value", instrumentedValue)
+                assertSame(expectedError, instrumentedError)
+                assertEquals(if (expectedError == null) "value" else null, result.getData<Map<String, Any?>>()!!["checkedField"])
+                assertEquals(expectedError != null, result.errors.isNotEmpty())
+            }
+
+        @ParameterizedTest
+        @CsvSource("mutation, true", "mutation, false", "subscription, true", "subscription, false")
+        @Timeout(15)
+        fun sequentialFieldChecksGateFetcherAndCompleteInstrumentationOnce(
+            operation: String,
+            denied: Boolean
+        ): Unit =
+            runExecutionTest {
+                val typeName = if (operation == "mutation") "Mutation" else "Subscription"
+                val checkerStarted = CompletableDeferred<Unit>()
+                val releaseChecker = CompletableDeferred<Unit>()
+                val completed = CompletableDeferred<Pair<Any?, Throwable?>>()
+                val fetches = AtomicInteger()
+                val completions = AtomicInteger()
+                val checker = checkerDispatcher {
+                    checkerStarted.complete(Unit)
+                    releaseChecker.await()
+                    if (denied) checkerError(IllegalAccessException("check denied")) else CheckerResult.Success
+                }
+                val execution = async {
+                    executeViaductModernGraphQL(
+                        sdl = "type Query { unused: String } type $typeName { checkedField: String }",
+                        resolvers = mapOf(
+                            typeName to mapOf(
+                                "checkedField" to DataFetcher {
+                                    fetches.incrementAndGet()
+                                    "value"
+                                }
+                            )
+                        ),
+                        query = "$operation { checkedField }",
+                        fieldCheckerDispatchers = mapOf((typeName to "checkedField") to checker),
+                        instrumentations = listOf(
+                            fieldInstrumentation("/checkedField") { result, error ->
+                                completions.incrementAndGet()
+                                completed.complete(result to error)
+                            }
+                        )
+                    )
+                }
+                checkerStarted.await()
+                assertEquals(0, fetches.get())
+                assertFalse(completed.isCompleted)
+                releaseChecker.complete(Unit)
+                val result = execution.await()
+                val (instrumentedValue, instrumentedError) = completed.await()
+                assertEquals(if (denied) 0 else 1, fetches.get())
+                assertEquals(1, completions.get())
+                assertEquals(if (denied) null else "value", instrumentedValue)
+                assertEquals(denied, instrumentedError is IllegalAccessException)
+                assertEquals(if (denied) null else "value", result.getData<Map<String, Any?>>()!!["checkedField"])
+                assertEquals(denied, result.errors.isNotEmpty())
             }
 
         @Test

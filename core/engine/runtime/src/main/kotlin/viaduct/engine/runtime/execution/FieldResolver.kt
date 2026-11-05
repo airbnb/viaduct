@@ -205,7 +205,7 @@ class FieldResolver(
             val currentOER = parameters.currentObjectEngineResult
             // We don't use the result of this operation, but we need to ensure it's scheduled
             // so that the resolution state is updated once every field's value is ready.
-            dispatch.shallow.thenApply { _, _ ->
+            dispatch.shallow.onCompletion { _, _ ->
                 currentOER.fieldResolutionState.complete(Unit)
             }
 
@@ -1438,7 +1438,7 @@ class FieldResolver(
             // Complete instrumentation exactly once. Data fetcher errors take priority over checker errors.
             // In sequential mode, field checker is checked first before executing the data fetcher.
             if (executeCheckerSequentially) {
-                fieldCheckerResultValue.thenApply { fieldCheckerRes, fieldCheckerError ->
+                fieldCheckerResultValue.onCompletion { fieldCheckerRes, fieldCheckerError ->
                     if (fieldCheckerRes is CheckerResult.Error || fieldCheckerError != null) {
                         // Field checker failed - complete instrumentation immediately (no DF executed, no type check)
                         rawFieldFetch.instrumentationContext.onCompletedNullable(
@@ -1545,13 +1545,13 @@ class FieldResolver(
         rawFieldFetch: RawFieldFetch,
         checkerResult: Value<out CheckerResult?>? = null,
     ) {
-        rawFieldFetch.dataFetcherResult.thenApply { dataFetcherValue, dataFetcherError ->
+        rawFieldFetch.dataFetcherResult.onCompletion { dataFetcherValue, dataFetcherError ->
             if (dataFetcherError != null) {
                 rawFieldFetch.instrumentationContext.onCompletedNullable(null, dataFetcherError)
             } else if (checkerResult == null) {
                 rawFieldFetch.instrumentationContext.onCompletedNullable(dataFetcherValue, null)
             } else {
-                checkerResult.thenApply { result, checkerError ->
+                checkerResult.onCompletion { result, checkerError ->
                     rawFieldFetch.instrumentationContext.onCompletedNullable(
                         dataFetcherValue,
                         result?.asError?.error ?: checkerError,

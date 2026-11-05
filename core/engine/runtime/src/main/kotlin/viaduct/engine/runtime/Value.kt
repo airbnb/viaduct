@@ -5,11 +5,14 @@ import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import viaduct.deferred.cancelledDeferred
 import viaduct.deferred.completedDeferred
+import viaduct.deferred.currentRequestParentJobOrNull
 import viaduct.deferred.exceptionalDeferred
 import viaduct.deferred.exceptionallyCompose
 import viaduct.deferred.handle
+import viaduct.deferred.maybeRethrowCompletionHandlerException
 import viaduct.deferred.thenApply
 import viaduct.deferred.thenCompose
+import viaduct.deferred.threadLocalCurrentJobOrNull
 import viaduct.deferred.waitAllDeferreds
 
 /**
@@ -78,6 +81,9 @@ sealed interface Value<T> {
      */
     fun <U> thenApply(block: (T?, Throwable?) -> U): Value<U>
 
+    /** Runs [block] on completion; use instead of [thenApply] when its result is not needed. */
+    fun onCompletion(block: (T?, Throwable?) -> Unit)
+
     /**
      * Transform the current value (if non-exceptional) and throwable (if exceptional) to compute a
      * new [Value].
@@ -114,6 +120,8 @@ sealed interface Value<T> {
 
         override fun <U> thenApply(block: (T?, Throwable?) -> U): Value<U> = SyncValue(block(value, null))
 
+        override fun onCompletion(block: (T?, Throwable?) -> Unit) = block(value, null)
+
         override fun <U> thenCompose(block: (T?, Throwable?) -> Value<U>): Value<U> = block(value, null)
     }
 
@@ -134,6 +142,8 @@ sealed interface Value<T> {
         override suspend fun awaitOrElse(block: (Throwable) -> @UnsafeVariance T): T = block(throwable)
 
         override fun <U> thenApply(block: (T?, Throwable?) -> U): Value<U> = SyncValue(block(null, throwable))
+
+        override fun onCompletion(block: (T?, Throwable?) -> Unit) = block(null, throwable)
 
         override fun <U> thenCompose(block: (T?, Throwable?) -> Value<U>): Value<U> = block(null, throwable)
 
@@ -178,6 +188,29 @@ sealed interface Value<T> {
             )
 
         override fun <U> thenApply(block: (T?, Throwable?) -> U): Value<U> = fromDeferred(deferred.handle(block))
+
+        @OptIn(ExperimentalCoroutinesApi::class)
+        override fun onCompletion(block: (T?, Throwable?) -> Unit) {
+            // Completion may run on another thread; match thenApply's captured calling execution.
+            val callerJob = threadLocalCurrentJobOrNull()
+            // An async wrapper can finish before observation; avoid allocating a completion handler in that case.
+            if (deferred.isCompleted) {
+                val cause = deferred.getCompletionExceptionOrNull()
+                // Independent source cancellation is an outcome; execution cancellation remains control flow.
+                if (cause is CancellationException && callerJob?.isCancelled == true) return
+                deferred.invokeCompletionCallback(cause, block)
+                return
+            }
+            // thenApply's result is parented only when the request is active at registration.
+            val requestJob = currentRequestParentJobOrNull()?.takeIf { it.isActive }
+            // Registration invokes immediately if completion raced with the check, so no notification is lost.
+            deferred.invokeOnCompletion { cause ->
+                // Preserve result-child cancellation on request cleanup without allocating that child.
+                if (requestJob?.isCancelled == true) return@invokeOnCompletion
+                if (cause is CancellationException && callerJob?.isCancelled == true) return@invokeOnCompletion
+                deferred.invokeCompletionCallback(cause, block)
+            }
+        }
 
         override fun <U> thenCompose(block: (T?, Throwable?) -> Value<U>): Value<U> = fromDeferred(deferred.handle(block).thenCompose { it.asDeferred() })
     }
@@ -252,5 +285,19 @@ sealed interface Value<T> {
             }
 
         val nullValue = Value.fromValue(null)
+    }
+}
+
+@OptIn(ExperimentalCoroutinesApi::class)
+@Suppress("TooGenericExceptionCaught")
+private inline fun <T> Deferred<T>.invokeCompletionCallback(
+    cause: Throwable?,
+    block: (T?, Throwable?) -> Unit
+) {
+    try {
+        if (cause != null) block(null, cause) else block(getCompleted(), null)
+    } catch (e: Exception) {
+        // thenApply stores ordinary callback failures in its discarded result; preserve their suppression.
+        e.maybeRethrowCompletionHandlerException()
     }
 }
