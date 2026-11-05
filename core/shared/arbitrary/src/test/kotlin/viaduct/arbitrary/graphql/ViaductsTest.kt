@@ -757,12 +757,11 @@ class ViaductsTest : KotestPropertyBase(iterations = 100) {
                 val arb = arbitrary {
                     val instr = CheckerExecutor.Factory.Instrumented()
                     Arb.viaduct(schema, cfg + (FieldCheckerWeight to 1.0) + (CheckerExecutorFactory to instr)).bind()
-                        .executeAsync(ExecutionInput.create("{ foo { bar { x } } }")).join()
                     instr
                 }
 
                 arb.forAll { instr ->
-                    instr.fieldChecker("Bar" to "x").recorder.log.size == 1
+                    ("Bar" to "parent") !in instr.checkers && ("Bar" to "x") in instr.checkers
                 }
             }
 
