@@ -124,7 +124,7 @@ You can define multiple named fragments and reference them within your main frag
     ```kotlin
     @Resolver(
       queryValueFragment = """
-      fragment _ on Query {
+      fragment Main on Query {
         node(id: ${'$'}listingId) {
           ... on Listing {
             cover: coverImage {
@@ -152,7 +152,7 @@ You can define multiple named fragments and reference them within your main frag
     ```java
     @Resolver(
         queryValueFragment = """
-            fragment _ on Query {
+            fragment Main on Query {
               node(id: $listingId) {
                 ... on Listing {
                   cover: coverImage {
@@ -177,7 +177,7 @@ You can define multiple named fragments and reference them within your main frag
 
 The fragments shown above are defined inline within a single resolver. To share a fragment across **multiple** resolvers in the same tenant module, declare it once as a [named fragment](named_fragments.md) and spread it with `...FragmentName`.
 
-Note that if you have multiple fragments on the type of the main fragment (either the object type or the query type), the primary one needs to be named `Main`:
+When a resolver selection document contains multiple fragment definitions, the entry fragment must be named `Main`, even when the fragments are on different types:
 
 === "Kotlin"
 

@@ -74,6 +74,8 @@ class ObjectBaseTest {
                     .build()
             )
             assertEquals("ALIASED", o1.getStringFieldOrThrow("aliasedStringField"))
+            assertThrows<UnsetFieldException> { o1.getStringFieldOrThrow() }
+            assertThrows<UnsetFieldException> { o1.getStringField() }
         }
 
     @Test

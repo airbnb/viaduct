@@ -82,6 +82,8 @@ class FieldResolverGeneratorTest {
         assertTrue(contents.contains("final override suspend fun invokeFieldResolver("))
         assertTrue(contents.contains("resolve(Context(context as viaduct.api.context.FieldExecutionContext"))
         assertFalse(contents.contains("batchResolve"))
+        assertFalse(contents.contains("SelectiveFieldExecutionContext"))
+        assertFalse(contents.contains("fun selections()"))
     }
 
     @Test

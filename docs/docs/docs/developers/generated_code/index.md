@@ -27,17 +27,17 @@ The signature of the GRT for this type would look approximately like this (metho
     package viaduct.api.grts
 
     class User private constructor(...): NodeObject {
-      suspend fun getId(alias: String? = null): GlobalID<User>?
-      suspend fun getFirstName(alias: String? = null): String?
-      suspend fun getLastName(alias: String? = null): String?
-      suspend fun getDisplayName(alias: String? = null): String?
+      fun getId(alias: String? = null): GlobalID<User>?
+      fun getFirstName(alias: String? = null): String?
+      fun getLastName(alias: String? = null): String?
+      fun getDisplayName(alias: String? = null): String?
 
       // For each getter, Viaduct also generates an `OrThrow` variant — see
       // "Strict and soft-failing accessors" below.
-      suspend fun getIdOrThrow(alias: String? = null): GlobalID<User>
-      suspend fun getFirstNameOrThrow(alias: String? = null): String?
-      suspend fun getLastNameOrThrow(alias: String? = null): String?
-      suspend fun getDisplayNameOrThrow(alias: String? = null): String?
+      fun getIdOrThrow(alias: String? = null): GlobalID<User>
+      fun getFirstNameOrThrow(alias: String? = null): String?
+      fun getLastNameOrThrow(alias: String? = null): String?
+      fun getDisplayNameOrThrow(alias: String? = null): String?
 
       fun toBuilder(): Builder
 
@@ -177,9 +177,9 @@ Interface, union, and input GRTs follow these language-specific patterns:
 
 === "Kotlin"
 
-    The GRTs for interface types are Kotlin interfaces with suspending getters (but no builders), while the GRTs for union types are simply Kotlin "tagging" interfaces (i.e., Kotlin interfaces with no members).
+    The GRTs for interface types are Kotlin interfaces with synchronous getters (but no builders), while the GRTs for union types are simply Kotlin "tagging" interfaces (i.e., Kotlin interfaces with no members).
 
-    For GraphQL input-object types, the pattern for GRTs is similar to that for output-object types illustrated by `User`.  However, instead of suspending getter functions, the GRTs for input-object types use Kotlin properties for accessing fields.  "Partial" input-object types are not possible: every field of an input-object GRT instance is defined (thus, `UnsetFieldException` is never thrown when accessing their fields).  To achieve this invariant, builders for input-object types are stricter than those for object types: if you call `build` on an `InputType.Builder` instance without having set all required fields of that type, then `build` will raise a runtime error.  A field is "required" if it’s defined with the \`\!\` (non-null) wrapper *and* it has no default value.
+    For GraphQL input-object types, the pattern for GRTs is similar to that for output-object types illustrated by `User`.  However, instead of getter functions, the GRTs for input-object types use Kotlin properties for accessing fields.  "Partial" input-object types are not possible: every field of an input-object GRT instance is defined (thus, `UnsetFieldException` is never thrown when accessing their fields).  To achieve this invariant, builders for input-object types are stricter than those for object types: if you call `build` on an `InputType.Builder` instance without having set all required fields of that type, then `build` will raise a runtime error.  A field is "required" if it’s defined with the \`\!\` (non-null) wrapper *and* it has no default value.
 
     Input and argument GRTs expose `isPresent` for distinguishing omitted fields from fields whose value is `null`. Presence is evaluated after GraphQL defaults are applied: an explicit value or explicit `null` is present, an omitted field with a schema default is present, and an omitted field without a default is absent.
 
@@ -259,8 +259,8 @@ The generated connection GRT implements the language-specific `Connection<E, N>`
 
     ```kotlin
     class UserConnection private constructor(...): Connection<UserEdge, User> {
-      suspend fun getEdges(alias: String? = null): List<UserEdge>?
-      suspend fun getPageInfo(alias: String? = null): PageInfo?
+      fun getEdges(alias: String? = null): List<UserEdge>?
+      fun getPageInfo(alias: String? = null): PageInfo?
     }
     ```
 
@@ -281,8 +281,8 @@ The generated edge GRT implements the language-specific `Edge<N>` interface ({{ 
 
     ```kotlin
     class UserEdge private constructor(...): Edge<User> {
-      suspend fun getNode(alias: String? = null): User?
-      suspend fun getCursor(alias: String? = null): String?
+      fun getNode(alias: String? = null): User?
+      fun getCursor(alias: String? = null): String?
     }
     ```
 

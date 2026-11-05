@@ -1,6 +1,7 @@
 package viaduct.tenant.codegen.kotlingen
 
 import java.io.File
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -22,6 +23,16 @@ class NodeResolverGeneratorTest {
     @Test
     fun `empty`() {
         assertNull(gen())
+    }
+
+    @Test
+    fun `non-selective node context does not expose client selections`() {
+        val contents = gen(Triple("Foo", false, false))!!
+
+        assertTrue(contents.contains("viaduct.api.context.NodeExecutionContext<pkg.grts.Foo>"))
+        assertFalse(contents.contains("SelectiveNodeExecutionContext"))
+        assertFalse(contents.contains("fun selections()"))
+        assertFalse(contents.contains("batchResolve"))
     }
 
     @Test

@@ -11,6 +11,8 @@ import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
 
 class SelectionsParserUtilsTest {
     private val parse: (String) -> graphql.language.Document = { Parser().parseDocument(it) }
@@ -219,8 +221,9 @@ class SelectionsParserUtilsTest {
         assertEquals("MyFragment", result.name)
     }
 
-    @Test
-    fun `findEntryPointFragment - multiple fragments`() {
+    @ParameterizedTest
+    @ValueSource(strings = ["User", "Image"])
+    fun `findEntryPointFragment - multiple fragments`(secondaryType: String) {
         val fragment1 = FragmentDefinition.newFragmentDefinition()
             .name("A")
             .typeCondition(TypeName("User"))
@@ -233,7 +236,7 @@ class SelectionsParserUtilsTest {
             .build()
         val fragment2 = FragmentDefinition.newFragmentDefinition()
             .name("B")
-            .typeCondition(TypeName("User"))
+            .typeCondition(TypeName(secondaryType))
             .selectionSet(SelectionSet.newSelectionSet().build())
             .build()
 
@@ -241,8 +244,9 @@ class SelectionsParserUtilsTest {
         assertEquals("Main", result.name)
     }
 
-    @Test
-    fun `findEntryPointFragment throws when multiple fragments exist but no Main`() {
+    @ParameterizedTest
+    @ValueSource(strings = ["User", "Image"])
+    fun `findEntryPointFragment throws when multiple fragments exist but no Main`(secondaryType: String) {
         val fragment1 = FragmentDefinition.newFragmentDefinition()
             .name("A")
             .typeCondition(TypeName("User"))
@@ -250,7 +254,7 @@ class SelectionsParserUtilsTest {
             .build()
         val fragment2 = FragmentDefinition.newFragmentDefinition()
             .name("B")
-            .typeCondition(TypeName("User"))
+            .typeCondition(TypeName(secondaryType))
             .selectionSet(SelectionSet.newSelectionSet().build())
             .build()
 

@@ -122,11 +122,11 @@ Inside the resolver:
 
 Subquery variables are scoped to the subquery itself. They don't inherit from the parent request's variables, and they don't leak back. Two executions of the same operation object with different variables are fully independent.
 
-### Async field access
+### Completion and field access
 
 === "Kotlin"
 
-    The field getters on a subquery result are suspend functions. Your resolver can continue executing before the subquery has fully resolved — if you access a field that hasn't resolved yet, the getter suspends until the value is available.
+    `ctx.query()` suspends until its selected fields have been resolved and materialized. The returned GRT's field getters are synchronous; reading a selected field does not start or await further resolution. The call itself is asynchronous, so it does not block the resolver thread while waiting for the engine.
 
 === "Java"
 

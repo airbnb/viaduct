@@ -6,6 +6,8 @@ description: Batch node and field resolvers
 
 Both [node resolvers](node_resolvers.md) and [field resolvers](field_resolvers.md) can be implemented using the `batchResolve` function. To opt into batching, declare `@resolver(isBatching: true)` in your schema — Viaduct will then generate only a `batchResolve` method (instead of `resolve`) in the resolver base class. This provides an alternative to the widely used [data loader](https://github.com/graphql/dataloader) pattern.
 
+During bootstrap, the runtime rejects a generated resolver adapter whose batching mode disagrees with its executor configuration. Regenerate the resolver base classes and tenant module configuration together when changing `isBatching`.
+
 ## The N+1 problem
 
 Consider this example schema:

@@ -193,6 +193,21 @@ class ReferenceSpyTest {
     }
 
     @Test
+    fun `assertCalledExactly rejects reordered or omitted repeated calls`() {
+        val spy = ReferenceSpy()
+        val context = context(spy)
+        val foo = referenceCall(fooFieldNoArgs(), Arguments.NoArguments)
+        val bar = referenceCall(barField(), Arguments.NoArguments)
+
+        context.ref(foo)
+        context.ref(bar)
+        context.ref(foo)
+
+        assertThrows<AssertionError> { spy.assertCalledExactly(foo, foo, bar) }
+        assertThrows<AssertionError> { spy.assertCalledExactly(foo, bar) }
+    }
+
+    @Test
     fun `assertCallArgumentsOf sees every call to the field in order`() {
         val spy = ReferenceSpy()
         val context = context(spy)

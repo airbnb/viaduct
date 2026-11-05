@@ -130,7 +130,7 @@ class SchemaDrivenTests {
     }
 
     @Test
-    fun `buildClassLoader succeeds for a soft getter overriding a primitive interface field`() {
+    fun `strict and soft getters for primitive interface fields are synchronous`() {
         val sdl = """
             interface Event {
                 seqNumber: Int!
@@ -146,10 +146,14 @@ class SchemaDrivenTests {
         val schema = ViaductGraphQLSchema.fromTypeDefinitionRegistry(SchemaParser().parse(sdl))
         val args = prepareCodeGenArgs(schema, "viaduct.api.grts")
 
-        assertDoesNotThrow {
-            GRTClassFilesBuilder(args)
-                .addAll(schema)
-                .buildClassLoader()
+        val classLoader = GRTClassFilesBuilder(args)
+            .addAll(schema)
+            .buildClassLoader()
+        listOf("Event", "ActivityClaimEvent").forEach { typeName ->
+            val type = classLoader.loadClass("viaduct.api.grts.$typeName")
+            listOf("getSeqNumber", "getSeqNumberOrThrow").forEach { getterName ->
+                assertDoesNotThrow { type.getMethod(getterName, String::class.java) }
+            }
         }
     }
 

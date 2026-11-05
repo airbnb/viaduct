@@ -9,6 +9,7 @@ import io.kotest.property.forAll
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Assertions.assertSame
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.api.context.ExecutionContext
@@ -101,9 +102,11 @@ class MocksTest {
             fooResult,
             listOf("foo")
         )
-        assertThrows<UnsupportedOperationException> {
+        val error = assertThrows<UnsupportedOperationException> {
             ctx.ref(callOf(field))
         }
+        assertTrue(error.message!!.contains("root field reference to 'foo'"))
+        assertTrue(error.message!!.contains("no referenceSpy was provided"))
     }
 
     @Test

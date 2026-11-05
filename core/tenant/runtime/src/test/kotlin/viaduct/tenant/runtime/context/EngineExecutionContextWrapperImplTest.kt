@@ -7,7 +7,11 @@ import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.async
 import kotlinx.coroutines.test.runTest
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertSame
@@ -87,6 +91,29 @@ class EngineExecutionContextWrapperImplTest {
             val query = assertInstanceOf(FakeQuery::class.java, result)
             assertSame(ctx, query.ctx)
             assertSame(data, query.data)
+        }
+
+    @Test
+    fun `query waits for engine selection materialization before returning its GRT`() =
+        runTest {
+            val ctx = mockCtx()
+            val engineSelections = mockk<EngineSelectionSet>()
+            val materializedData = CompletableDeferred<EngineObjectData.Sync>()
+            val eec = mockk<EngineExecutionContext> {
+                coEvery { resolveSelectionSet(engineSelections, ResolveSelectionSetOptions.DEFAULT) } coAnswers {
+                    materializedData.await()
+                }
+            }
+            val selections = SelectionSetImpl(FakeQuery.Reflection, engineSelections)
+
+            val result = async(start = CoroutineStart.UNDISPATCHED) {
+                EngineExecutionContextWrapperImpl(eec).query(ctx, selections)
+            }
+
+            assertFalse(result.isCompleted)
+            val data = mockk<EngineObjectData.Sync>()
+            materializedData.complete(data)
+            assertSame(data, assertInstanceOf(FakeQuery::class.java, result.await()).data)
         }
 
     @Test
