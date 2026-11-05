@@ -747,6 +747,25 @@ class ViaductsTest : KotestPropertyBase(iterations = 100) {
             }
 
         @Test
+        fun `FieldCheckerWeight skips parent fields`(): Unit =
+            runBlocking {
+                val schema = """
+                    extend type Query { foo:Foo @resolver }
+                    type Foo { bar:Bar }
+                    type Bar { parent:Foo @parent, x:Int }
+                """.asViaductSchema
+                val arb = arbitrary {
+                    val instr = CheckerExecutor.Factory.Instrumented()
+                    Arb.viaduct(schema, cfg + (FieldCheckerWeight to 1.0) + (CheckerExecutorFactory to instr)).bind()
+                    instr
+                }
+
+                arb.forAll { instr ->
+                    ("Bar" to "parent") !in instr.checkers && ("Bar" to "x") in instr.checkers
+                }
+            }
+
+        @Test
         fun TypeCheckerWeight(): Unit =
             runBlocking {
                 val schema = """
