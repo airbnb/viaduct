@@ -116,7 +116,7 @@ inline fun <T, R> Deferred<T>.thenApply(crossinline transform: (T) -> R): Deferr
 /** Observe source outcomes while the calling execution remains active. */
 fun <T : Any?, U : Any?> Deferred<T>.handle(handler: (T?, Throwable?) -> U): Deferred<U> {
     // Completion callbacks can run on a different thread; capture the calling execution now.
-    val callerJob = threadLocalCurrentJobOrNull()
+    val callerJob = threadLocalOwningJobOrNull()
     if (isCompleted) {
         val failure = getCompletionExceptionOrNull()
         if (failure is CancellationException && callerJob?.isCancelled == true) return cancelledDeferred(failure)

@@ -15,6 +15,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CompletionHandlerException
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
@@ -525,6 +526,37 @@ class DeferredExtensionsTest {
                     } finally {
                         caller.cancelAndJoin()
                         request.cancelAndJoin()
+                    }
+                }
+            }
+
+        @Test
+        fun `handle registered after its coroutine finishes follows the default job`(): Unit =
+            runBlocking {
+                for (defaultJobCancelled in listOf(false, true)) {
+                    val defaultJob = SupervisorJob()
+                    val source = CompletableDeferred<String>()
+                    val invoked = AtomicBoolean(false)
+                    lateinit var result: Deferred<String>
+                    try {
+                        val finished = CoroutineScope(
+                            Dispatchers.Unconfined + ThreadLocalCoroutineContextManager.ContextElement(defaultJob)
+                        ).launch(start = CoroutineStart.LAZY) {}
+                        finished.invokeOnCompletion {
+                            result = source.handle { _, _ ->
+                                invoked.set(true)
+                                "fallback"
+                            }
+                        }
+                        finished.start()
+                        finished.join()
+                        if (defaultJobCancelled) defaultJob.cancel()
+                        source.cancel(CancellationException("execution cancelled"))
+
+                        assertEquals(defaultJobCancelled, result.isCancelled)
+                        assertEquals(!defaultJobCancelled, invoked.get())
+                    } finally {
+                        defaultJob.cancelAndJoin()
                     }
                 }
             }

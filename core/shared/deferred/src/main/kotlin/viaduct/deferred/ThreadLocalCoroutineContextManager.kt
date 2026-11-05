@@ -35,6 +35,12 @@ fun threadLocalCoroutineContext(): CoroutineContext {
 fun threadLocalCurrentJobOrNull(): Job? = ThreadLocalCoroutineContextManager.INSTANCE.getCurrentJobOrNull()
 
 /**
+ * Returns the [Job] that owns work started on this thread: the current [Job] while it is active or
+ * cancelled, otherwise the default job that [threadLocalCoroutineContext] parents new work to.
+ */
+fun threadLocalOwningJobOrNull(): Job? = ThreadLocalCoroutineContextManager.INSTANCE.getCurrentOwningJobOrNull()
+
+/**
  * Returns the current request-scoped parent [Job], or `null` if no request parent job is active
  * on this thread. Uses a dedicated [ThreadLocal] managed by [RequestParentJobContextElement] to
  * provide O(1) access without walking the full [CoroutineContext].
@@ -143,6 +149,13 @@ class ThreadLocalCoroutineContextManager {
 
     // FAST path: O(1) read, no expensive ctx object access except in fallback case
     fun getCurrentJobOrNull(): Job? = tlJob.get() ?: (defaultCtx?.get(Job))
+
+    // Completion handlers of a finished coroutine still see its context, but new work there belongs to the default job.
+    fun getCurrentOwningJobOrNull(): Job? {
+        val job = getCurrentJobOrNull()
+        if (job == null || job.isActive || job.isCancelled) return job
+        return (tlCtx.get() ?: defaultCtx)?.get(ContextElement)?.defaultJob ?: job
+    }
 
     // FAST path: O(1) read, no expensive ctx object access except in fallback case
     fun getCurrentRequestParentJobOrNull(): Job? =
