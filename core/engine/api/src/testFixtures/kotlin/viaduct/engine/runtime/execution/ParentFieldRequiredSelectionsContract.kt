@@ -389,165 +389,6 @@ interface ParentFieldRequiredSelectionsContract : QueryExecutionContract {
     }
 
     @Test
-    fun `parent field checker denies restricted data like equivalent normal field`() {
-        runQueryTest(
-            EngineTestModule(
-                """
-            extend type Query { company: Company }
-            type Company { secret: String, user: User }
-            type User { company: Company, parent: Company @parent }
-                """.trimIndent(),
-            ) {
-                field("Query" to "company") {
-                    resolver {
-                        fn { _, _, _, _, _ ->
-                            createEngineObjectData(schema.schema.getObjectType("Company"), emptyMap())
-                        }
-                    }
-                }
-                field("Company" to "secret") {
-                    value("classified")
-                }
-                field("Company" to "user") {
-                    resolver {
-                        fn { _, _, _, _, _ ->
-                            createEngineObjectData(schema.schema.getObjectType("User"), emptyMap())
-                        }
-                    }
-                }
-                field("User" to "company") {
-                    resolver {
-                        fn { _, _, _, _, _ ->
-                            createEngineObjectData(schema.schema.getObjectType("Company"), emptyMap())
-                        }
-                    }
-                    checker {
-                        fn { _, _ -> error("company access denied") }
-                    }
-                }
-                field("User" to "parent") {
-                    checker {
-                        fn { _, _ -> error("company access denied") }
-                    }
-                }
-            }
-        ) { runQuery ->
-            val result = runQuery(
-                """
-                {
-                  company {
-                    user {
-                      normalAccess: company { secret }
-                      parentAccess: parent { secret }
-                    }
-                  }
-                }
-                """.trimIndent()
-            )
-
-            assertEquals(
-                mapOf(
-                    "company" to mapOf(
-                        "user" to mapOf(
-                            "normalAccess" to null,
-                            "parentAccess" to null,
-                        )
-                    )
-                ),
-                result.getData()
-            )
-            assertEquals(
-                setOf(
-                    listOf("company", "user", "normalAccess"),
-                    listOf("company", "user", "parentAccess"),
-                ),
-                result.errors.map { it.path }.toSet(),
-            )
-            assertTrue(result.errors.all { it.message.contains("company access denied") })
-        }
-    }
-
-    @Test
-    fun `execution resolves checker required selection sets for parent field itself`() {
-        val parentCheckerCount = AtomicInteger()
-        val parentCheckerRequiredSelectionCount = AtomicInteger()
-        val nestedParentFieldCount = AtomicInteger()
-
-        runQueryTest(
-            EngineTestModule(
-                """
-            extend type Query { company: Company }
-            type Company { companyName: String, user: User }
-            type User {
-              parent: Company @parent
-              parentCompanyName: String
-              parentCheckerRequiredSelection: String
-            }
-                """.trimIndent(),
-            ) {
-                field("Query" to "company") {
-                    resolver {
-                        fn { _, _, _, _, _ ->
-                            createEngineObjectData(schema.schema.getObjectType("Company"), emptyMap())
-                        }
-                    }
-                }
-                field("Company" to "companyName") {
-                    resolver {
-                        fn { _, _, _, _, _ ->
-                            nestedParentFieldCount.incrementAndGet()
-                            "Airbnb"
-                        }
-                    }
-                }
-                field("Company" to "user") {
-                    resolver {
-                        fn { _, _, _, _, _ ->
-                            createEngineObjectData(schema.schema.getObjectType("User"), emptyMap())
-                        }
-                    }
-                }
-                field("User" to "parent") {
-                    checker {
-                        objectSelections("parentFieldCheckerRss", "parentCheckerRequiredSelection")
-                        fn { _, objectDataMap ->
-                            assertEquals(
-                                "checker data",
-                                objectDataMap.getValue("parentFieldCheckerRss")
-                                    .fetchAs<String>("parentCheckerRequiredSelection")
-                            )
-                            parentCheckerCount.incrementAndGet()
-                        }
-                    }
-                }
-                field("User" to "parentCheckerRequiredSelection") {
-                    resolver {
-                        fn { _, _, _, _, _ ->
-                            parentCheckerRequiredSelectionCount.incrementAndGet()
-                            "checker data"
-                        }
-                    }
-                }
-                field("User" to "parentCompanyName") {
-                    resolver {
-                        objectSelections("parent { companyName }")
-                        fn { _, obj, _, _, _ ->
-                            obj.fetchAs<EngineObjectData>("parent").fetchAs<String>("companyName")
-                        }
-                    }
-                }
-            }
-        ) { runQuery ->
-            runQuery("{ company { user { parentCompanyName } } }")
-                .assertJson("{data: {company: {user: {parentCompanyName: 'Airbnb'}}}}")
-        }
-
-        assertEquals(1, parentCheckerCount.get())
-        assertEquals(1, parentCheckerRequiredSelectionCount.get())
-        assertEquals(1, nestedParentFieldCount.get())
-    }
-
-    @Test
     fun `execution propagates checker failures from real fields selected under parent`() {
         runQueryTest(
             EngineTestModule(
@@ -608,8 +449,7 @@ interface ParentFieldRequiredSelectionsContract : QueryExecutionContract {
     }
 
     @Test
-    fun `execution runs checker but skips field instrumentation for parent field itself`() {
-        val parentCheckerCount = AtomicInteger()
+    fun `execution skips field instrumentation for parent field itself`() {
         val nestedFieldCheckerCount = AtomicInteger()
         val recordingInstrumentation = RecordingInstrumentation()
 
@@ -645,13 +485,6 @@ interface ParentFieldRequiredSelectionsContract : QueryExecutionContract {
                         }
                     }
                 }
-                field("User" to "parent") {
-                    checker {
-                        fn { _, _ ->
-                            parentCheckerCount.incrementAndGet()
-                        }
-                    }
-                }
                 field("User" to "parentCompanyName") {
                     resolver {
                         objectSelections("parent { companyName }")
@@ -669,7 +502,6 @@ interface ParentFieldRequiredSelectionsContract : QueryExecutionContract {
                 .assertJson("{data: {company: {user: {parentCompanyName: 'Airbnb'}}}}")
         }
 
-        assertEquals(1, parentCheckerCount.get())
         assertEquals(1, nestedFieldCheckerCount.get())
 
         val fieldExecutionCoordinates = recordingInstrumentation.fieldExecutionContexts

@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertDoesNotThrow
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.CsvSource
 import org.junit.jupiter.params.provider.ValueSource
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.mocks.MockCheckerExecutor
@@ -126,6 +127,32 @@ class ExecutorValidatorTest {
         }
         val expectedChecker = if (fieldChecker) "Field checker for User.id" else "Type checker for User"
         assertTrue(exception.message!!.contains("$expectedChecker selects @parent fields (rss: [User.parent])"), exception.message)
+    }
+
+    @ParameterizedTest
+    @CsvSource("parent, true", "id, false")
+    fun `default set rejects a field checker registered on a @parent field`(
+        fieldName: String,
+        rejected: Boolean,
+    ) {
+        val schema = MockSchema.mk(
+            """
+            extend type Query { empty: Int }
+            type User { id: ID, parent: Company @parent }
+            type Company { name: String }
+            """.trimIndent()
+        )
+        val checkerExecutorFactory = MockCheckerExecutorFactory(mapOf(("User" to fieldName) to MockCheckerExecutor()), null)
+        val create = {
+            emptyList<MockTenantModuleBootstrapper>().toDispatcherRegistryFactory(ExecutorValidator(schema), checkerExecutorFactory)
+                .create(schema)
+        }
+        if (rejected) {
+            val exception = assertThrows<Exception> { create() }
+            assertTrue(exception.message!!.contains("Field checker for User.parent is registered on a @parent field"), exception.message)
+        } else {
+            assertDoesNotThrow { create() }
+        }
     }
 
     @ParameterizedTest
