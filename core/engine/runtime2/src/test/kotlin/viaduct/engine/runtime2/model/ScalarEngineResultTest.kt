@@ -96,6 +96,56 @@ class ScalarEngineResultTest {
     }
 
     @Test
+    fun `JSON input preserves opaque tenant objects`() {
+        val opaque = Any()
+
+        assertSame(opaque, opaque.toScalarInput("JSON"))
+    }
+
+    @Test
+    fun `JSON input snapshots nested containers without coercing tenant objects`() {
+        val opaque = Any()
+        val elements = mutableListOf(opaque)
+        val source = mutableMapOf("values" to elements)
+        val input = source.toScalarInput("JSON")
+        elements.clear()
+        source.clear()
+
+        val snapshot = assertIs<Map<*, *>>(input)
+        assertEquals(setOf("values"), snapshot.keys)
+        assertSame(opaque, assertIs<List<*>>(snapshot["values"]).single())
+        assertTrue(input.conformsToScalarInput("JSON"))
+    }
+
+    @Test
+    fun `JSON input rejects non-string map keys at every container level`() {
+        val invalidMap = mapOf(7 to "value")
+        val values = listOf(
+            invalidMap,
+            mapOf(null to "value"),
+            mapOf("nested" to invalidMap),
+            listOf(invalidMap),
+        )
+
+        values.forEach { value ->
+            assertFalse(value.conformsToScalarInput("JSON"))
+            assertThrows<ClassCastException> { value.toScalarInput("JSON") }
+        }
+    }
+
+    @Test
+    fun `JSON input snapshots nested JSON containers`() {
+        val elements = mutableListOf<Any?>("value", 1, true, null)
+        val source = mutableMapOf("values" to elements)
+        val input = source.toScalarInput("JSON")
+        elements.clear()
+        source.clear()
+
+        assertTrue(input.conformsToScalarInput("JSON"))
+        assertEquals(mapOf("values" to listOf("value", 1, true, null)), input)
+    }
+
+    @Test
     fun `BackingData result equality retains opaque payload identity`() {
         val payload = mutableMapOf("value" to 1)
         val samePayload = BackingDataEngineResult.of(payload)

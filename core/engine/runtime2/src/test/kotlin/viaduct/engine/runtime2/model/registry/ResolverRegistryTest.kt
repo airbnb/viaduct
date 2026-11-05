@@ -458,6 +458,53 @@ class ResolverRegistryTest {
         }
 
     @Test
+    fun `replacement uses the same function for invocation and relation evaluation`(): Unit =
+        runBlocking {
+            val schemas = ViaductAndGJSchema.fromSDL(
+                """
+            type Query { user: User }
+            type User { name: String age: Int }
+                """.trimIndent(),
+            )
+            val schema = schemas.loweredSchema
+            val query = schema.requireQueryTypeDef()
+            val field = schema.requireObjectField("Query", "user")
+            val original = resolverRegistryOf(
+                schema = schemas,
+                nodeResolvers = emptyMap(),
+                variableProviders = emptyMap(),
+                fieldResolvers = mapOf(
+                    field to fieldResolverOf(
+                        schema.emptyFragmentOf("Query"),
+                        schema.emptyFragmentOf("Query"),
+                    ) { _, _, _, additionalContext, _ ->
+                        engineObjectDataOf(
+                            schema.requireType("User") as ViaductSchema.Object,
+                            mapOf("name" to additionalContext, "age" to 37),
+                        )
+                    },
+                ),
+            ).resolver(field)
+            val wrapped = original.withFunction { input, queryValue, arguments, demand, additionalContext, context ->
+                original.invoke(input, queryValue, arguments, demand, true, context, "wrapped $additionalContext")
+            }
+            val input = engineObjectDataOf(query)
+            val arguments = Arguments.Resolved.of(field, emptyMap())
+            val demand = schemas.fragmentFrom("fragment Demand on User { name }").subselections
+
+            val invoked = wrapped.invoke(input, input, arguments, demand, true, ResolutionExecutionContext.Unsupported, "Ada")
+            val evaluated = wrapped.evaluateRelation(input, input, arguments, demand, true, ResolutionExecutionContext.Unsupported, "Ada")
+            val defaultContext = wrapped.invoke(input, input, arguments, demand, true, ResolutionExecutionContext.Unsupported)
+
+            for (output in listOf(invoked, evaluated)) {
+                val user = assertIs<EngineObjectData.Sync>(output)
+                assertEquals(setOf("name"), user.getSelections().toSet())
+                assertEquals("wrapped Ada", user.get("name"))
+            }
+            assertEquals("wrapped null", assertIs<EngineObjectData.Sync>(defaultContext).get("name"))
+        }
+
+    @Test
     fun `lowers node and field resolvers to field coordinates`() =
         runBlocking {
             val observedFields = mutableListOf<String>()

@@ -51,7 +51,7 @@ private fun Any.nativeScalarTypeNameOrNull(): String? =
 internal fun Any.conformsToScalarInput(name: String): Boolean =
     when (name) {
         "ID" -> this is String
-        "JSON" -> isJsonValue()
+        "JSON" -> conformsToJsonInput()
         else -> nativeScalarTypeNameOrNull() == name
     }
 
@@ -68,12 +68,11 @@ internal fun Any.toScalarInput(name: String): EngineSimpleData {
     return if (name == "JSON") requireNotNull(value.copyJsonValue()) else value
 }
 
-private fun Any?.isJsonValue(): Boolean =
+private fun Any?.conformsToJsonInput(): Boolean =
     when (this) {
-        null, is String, is Boolean, is Number -> true
-        is List<*> -> all { it.isJsonValue() }
-        is Map<*, *> -> keys.all { it is String } && values.all { it.isJsonValue() }
-        else -> false
+        is List<*> -> all { it.conformsToJsonInput() }
+        is Map<*, *> -> keys.all { it is String } && values.all { it.conformsToJsonInput() }
+        else -> true // The registered JSON scalar accepts opaque leaves.
     }
 
 internal fun Any?.copyJsonValue(): Any? =

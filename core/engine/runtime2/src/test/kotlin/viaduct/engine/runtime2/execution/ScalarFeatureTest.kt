@@ -13,8 +13,16 @@ import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.CsvSource
 import org.junit.jupiter.params.provider.MethodSource
+import viaduct.engine.api.FromQueryFieldVariable
+import viaduct.engine.api.RequiredSelectionSet
+import viaduct.engine.api.VariablesResolver
 import viaduct.engine.api.mocks.EngineTestModule
+import viaduct.engine.api.mocks.MockFieldUnbatchedResolverExecutor
+import viaduct.engine.api.mocks.runStandardViaductFeatureTest
+import viaduct.engine.api.select.SelectionsParser
+import viaduct.engine.api.spi.VariableFromFieldDefinitions
 import viaduct.engine.runtime2.execution.testing.runQPlanFeatureTest
 import viaduct.graphql.Scalars
 
@@ -349,6 +357,58 @@ class ScalarFeatureTest {
             val result = runQuery("{ value }")
             assertTrue(result.errors.isEmpty(), result.errors.toString())
             assertSame(value, result.getData<Map<String, Any>>().getValue("value"))
+        }
+    }
+
+    @ParameterizedTest(name = "Engine2 enabled: {0}, nested JSON containers: {1}")
+    @CsvSource("false, false", "false, true", "true, false", "true, true")
+    fun `JSON resolver results preserve opaque objects when reused as arguments`(
+        engine2Enabled: Boolean,
+        nested: Boolean
+    ) {
+        data class TenantMetadata(val currency: String)
+
+        val metadata = TenantMetadata("EUR")
+        val payload: Any = if (nested) mapOf("items" to listOf(metadata)) else metadata
+        val querySelections = SelectionsParser.parse("Query", "metadata formatMetadata(value: \$metadata)")
+        val variablesResolvers = VariablesResolver.fromSelectionSetVariables(
+            objectSelections = null,
+            querySelections = querySelections,
+            variables = listOf(FromQueryFieldVariable("metadata", "metadata")),
+            forChecker = false,
+        )
+        EngineTestModule(
+            """
+            extend type Query {
+              metadata: JSON
+              formatMetadata(value: JSON): String
+              summary: String
+            }
+            """.trimIndent(),
+        ) {
+            fieldWithValue("Query" to "metadata", payload)
+            field("Query" to "formatMetadata") {
+                resolver {
+                    fn { args, _, _, _, _ ->
+                        val value = args.getValue("value")
+                        val received = if (nested) ((value as Map<*, *>)["items"] as List<*>).single() else value
+                        assertSame(metadata, received)
+                        (received as TenantMetadata).currency
+                    }
+                }
+            }
+            field("Query" to "summary") {
+                resolverExecutor {
+                    MockFieldUnbatchedResolverExecutor(
+                        resolverId = resolverId,
+                        querySelectionSet = RequiredSelectionSet(querySelections, variablesResolvers, forChecker = false),
+                        queryFieldVariables = VariableFromFieldDefinitions(mapOf("metadata" to "metadata")),
+                        unbatchedResolveFn = { _, _, query, _, _ -> query.get("formatMetadata") },
+                    )
+                }
+            }
+        }.runStandardViaductFeatureTest(engine2Enabled = engine2Enabled) {
+            runQuery("{ summary }").assertData(mapOf("summary" to "EUR"))
         }
     }
 

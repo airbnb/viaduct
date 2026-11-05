@@ -345,7 +345,7 @@ private fun ResolverFragmentTemplates.requireCheckerVariableDependencies() {
         objectFragmentTemplate.constructionSelections().usedVariables() +
             queryFragmentTemplate.constructionSelections().usedVariables()
     require(used == variables.keys) {
-        "Checker variable definitions must match the variables used by its named pair"
+        "Checker variable definitions must match the variables used by its named pair: used=$used, declared=${variables.keys}"
     }
     val dependencies =
         variables.mapValues { (_, definition) ->

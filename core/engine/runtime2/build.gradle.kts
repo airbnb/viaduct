@@ -35,6 +35,7 @@ dependencies {
     api(libs.viaduct.shared.viaductschema)
     api(libs.viaduct.shared.graphql)
     api(libs.graphql.java)
+    implementation(libs.viaduct.shared.apiannotations)
     implementation(libs.viaduct.engine.runtime)
     implementation(libs.viaduct.shared.utils)
     implementation(libs.kotlinx.coroutines.core)

@@ -485,6 +485,36 @@ class ExecutorRegistryInputsTest {
         }
 
     @Test
+    fun `custom output conversion preserves opaque resolver context through native dispatcher execution`() =
+        runTest {
+            val fixture = Fixture("type Query { item: Item } type Item { value: String }")
+            val tenantValue = Any()
+            val executor = MockFieldUnbatchedResolverExecutor(resolverId = "Query.item") { _, _, _, _, _ -> tenantValue }
+            val inputs = dispatcherRegistryInputs(
+                fullSchema = fixture.engineSchema,
+                schemas = fixture.schemas,
+                dispatcherRegistry = DispatcherRegistry.Impl(
+                    mapOf(("Query" to "item") to FieldResolverDispatcherImpl(executor)),
+                    emptyMap(),
+                    emptyMap(),
+                    emptyMap(),
+                ),
+                outputAdapter = ResolverOutputAdapter { value, type, _, _ ->
+                    assertSame(tenantValue, value)
+                    assertEquals("Item", (type as GraphQLObjectType).name)
+                    engineObjectDataOf(
+                        fixture.schemas.loweredSchema.requireType("Item") as ViaductSchema.Object,
+                        mapOf("value" to "provided"),
+                        additionalContextForResolver = tenantValue,
+                    )
+                },
+            )
+
+            val result = assertInstanceOf(EngineObjectData.Sync::class.java, fixture.invoke(fixture.registry(inputs), "item"))
+            assertSame(tenantValue, result.additionalContextForResolver)
+        }
+
+    @Test
     fun `production field dispatchers use immediate data loaders for batching executors`() =
         runTest {
             val fixture = Fixture("type Query { value: Int! }")

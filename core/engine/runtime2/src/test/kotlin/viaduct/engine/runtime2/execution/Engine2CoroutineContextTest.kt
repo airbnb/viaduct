@@ -43,9 +43,13 @@ import viaduct.engine.api.spi.NodeResolverExecutor
 import viaduct.engine.runtime.FieldDataLoader
 import viaduct.engine.runtime.NodeDataLoader
 import viaduct.engine.runtime.ResolverDispatchStrategy
+import viaduct.engine.runtime.context.CompositeLocalContext
+import viaduct.engine.runtime.context.DispatcherLocalContext
 import viaduct.engine.runtime.execution.CoroutineContextContract
 import viaduct.engine.runtime.execution.DefaultCoroutineInterop
 import viaduct.engine.runtime.mocks.ContextMocks
+import viaduct.engine.runtime2.airbnb.DispatcherResolverRegistryFactory
+import viaduct.engine.runtime2.airbnb.Engine2ResolverRegistryFactory
 import viaduct.service.api.ExecutionInput
 import viaduct.service.api.SchemaId
 import viaduct.service.api.Viaduct
@@ -89,6 +93,11 @@ class Engine2CoroutineContextTest : CoroutineContextContract() {
                     DefaultCoroutineInterop.scopedFuture {
                         withContext(CoroutineName("configured-interop"), block)
                     }
+
+                override fun <T> enterThreadLocalCoroutineContext(
+                    callerContext: CoroutineContext,
+                    block: suspend CoroutineScope.() -> T,
+                ): CompletableFuture<T> = DefaultCoroutineInterop.enterThreadLocalCoroutineContext(callerContext + CoroutineName("configured-interop"), block)
             }
             val viaduct = createViaduct(
                 schemaSDL =
@@ -107,6 +116,100 @@ class Engine2CoroutineContextTest : CoroutineContextContract() {
                 )
                 assertEquals(emptyList<GraphQLError>(), result.errors)
                 assertEquals(mapOf("requestIdentity" to "configured-interop"), result.getData())
+            }
+            val fragmentEngine = viaduct.engineRegistry.getFullSchemaGraphQLEngine_DONOTUSE()
+            // Classic fragment loading reenters GraphQL from an already active request.
+            val fragmentResult = interop.enterThreadLocalCoroutineContext(coroutineContext) {
+                fragmentEngine.executeAsync(
+                    graphql.ExecutionInput.newExecutionInput().query("{ requestIdentity }").build()
+                ).await()
+            }.await()
+            assertEquals(emptyList<GraphQLError>(), fragmentResult.errors)
+            assertEquals(mapOf("requestIdentity" to "configured-interop"), fragmentResult.getData())
+        }
+
+    @ParameterizedTest
+    @ValueSource(booleans = [false, true])
+    fun `engine2 inherits the service dispatcher independently of registry factory`(customFactory: Boolean): Unit =
+        runBlocking {
+            Executors.newSingleThreadExecutor().asCoroutineDispatcher().use { dispatcher ->
+                val interop = object : CoroutineInterop by DefaultCoroutineInterop {
+                    override fun <T> enterThreadLocalCoroutineContext(
+                        callerContext: CoroutineContext,
+                        block: suspend CoroutineScope.() -> T,
+                    ): CompletableFuture<T> =
+                        DefaultCoroutineInterop.enterThreadLocalCoroutineContext(callerContext) {
+                            withContext(dispatcher, block)
+                        }
+                }
+                val viaduct = createViaduct(
+                    schemaSDL =
+                        """
+                        extend type Query { requestIdentity: String @resolver }
+                        extend type Mutation { requestIdentity: String @resolver }
+                        """.trimIndent(),
+                    resolveField = {
+                        assertSame(dispatcher, currentCoroutineContext()[ContinuationInterceptor])
+                        "resolved"
+                    },
+                    documentProvider = NoOpPreparsedDocumentProvider(),
+                    coroutineInterop = interop,
+                ) {
+                    if (customFactory) {
+                        withEngine2ResolverRegistryFactory(
+                            Engine2ResolverRegistryFactory { fullSchema, schemas, dispatchers, selectivity ->
+                                DispatcherResolverRegistryFactory.create(fullSchema, schemas, dispatchers, selectivity)
+                            }
+                        )
+                    }
+                }
+                for (operation in listOf("query", "mutation")) {
+                    val result = viaduct.execute(ExecutionInput.create("$operation { requestIdentity }"), SchemaId.Base)
+                    assertEquals(emptyList<GraphQLError>(), result.errors)
+                    assertEquals(mapOf("requestIdentity" to "resolved"), result.getData())
+                }
+            }
+        }
+
+    @ParameterizedTest
+    @ValueSource(booleans = [false, true])
+    fun `fragment execution honors its requested dispatcher independently of registry factory`(customFactory: Boolean): Unit =
+        runBlocking {
+            Executors.newSingleThreadExecutor().asCoroutineDispatcher().use { dispatcher ->
+                val viaduct = createViaduct(
+                    schemaSDL =
+                        """
+                        extend type Query { requestIdentity: String @resolver }
+                        extend type Mutation { requestIdentity: String @resolver }
+                        """.trimIndent(),
+                    resolveField = {
+                        assertSame(dispatcher, currentCoroutineContext()[ContinuationInterceptor])
+                        "resolved"
+                    },
+                    documentProvider = NoOpPreparsedDocumentProvider(),
+                    coroutineInterop = DefaultCoroutineInterop,
+                ) {
+                    if (customFactory) {
+                        withEngine2ResolverRegistryFactory(
+                            Engine2ResolverRegistryFactory { fullSchema, schemas, dispatchers, selectivity ->
+                                DispatcherResolverRegistryFactory.create(fullSchema, schemas, dispatchers, selectivity)
+                            }
+                        )
+                    }
+                }
+                val fragmentEngine = viaduct.engineRegistry.getFullSchemaGraphQLEngine_DONOTUSE()
+                DefaultCoroutineInterop.enterThreadLocalCoroutineContext(coroutineContext) {
+                    for (operation in listOf("query", "mutation")) {
+                        val result = fragmentEngine.executeAsync(
+                            graphql.ExecutionInput.newExecutionInput()
+                                .query("$operation { requestIdentity }")
+                                .localContext(CompositeLocalContext.withContexts(DispatcherLocalContext(dispatcher)))
+                                .build()
+                        ).await()
+                        assertEquals(emptyList<GraphQLError>(), result.errors)
+                        assertEquals(mapOf("requestIdentity" to "resolved"), result.getData())
+                    }
+                }.await()
             }
         }
 
@@ -251,7 +354,8 @@ class Engine2CoroutineContextTest : CoroutineContextContract() {
         resolveField: suspend () -> String,
         documentProvider: PreparsedDocumentProvider,
         coroutineInterop: CoroutineInterop,
-    ): Viaduct {
+        configure: StandardViaduct.Builder.() -> Unit = {},
+    ): StandardViaduct {
         val module = EngineTestModule(schemaSDL) {
             for (type in listOf("Query", "Mutation")) {
                 field(type to "requestIdentity") {
@@ -269,6 +373,6 @@ class Engine2CoroutineContextTest : CoroutineContextContract() {
                 object : FlagManager {
                     override fun isEnabled(flag: FlagManager.Flag): Boolean = flag == FlagManager.Flags.ENGINE2_ENABLED
                 },
-            ).build()
+            ).apply(configure).build()
     }
 }
