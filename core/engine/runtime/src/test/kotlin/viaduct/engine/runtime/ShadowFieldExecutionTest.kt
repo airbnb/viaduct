@@ -17,6 +17,7 @@ import java.util.concurrent.atomic.AtomicReference
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.withTimeoutOrNull
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -25,6 +26,7 @@ import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
 import org.slf4j.LoggerFactory
+import viaduct.deferred.currentRequestParentJobOrNull
 import viaduct.engine.EngineConfiguration
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineSchema
@@ -53,6 +55,7 @@ class ShadowFieldExecutionTest {
         val failure = if (wrapped) CompletionException(fatalError) else fatalError
         val resolverCalls = AtomicInteger()
         val comparisonCalls = AtomicInteger()
+        val productionRequestJob = CompletableDeferred<Job?>()
         val shadowStarted = CompletableDeferred<Unit>()
         val failShadow = CompletableDeferred<Unit>()
         val events = captureShadowFailures { failureLogged ->
@@ -71,7 +74,8 @@ class ShadowFieldExecutionTest {
                 field("Query" to "value") {
                     resolver {
                         fn { _, _, _, _, _ ->
-                            if (resolverCalls.getAndIncrement() == 0) {
+                            resolverCalls.incrementAndGet()
+                            if (currentRequestParentJobOrNull() === productionRequestJob.await()) {
                                 "production"
                             } else {
                                 shadowStarted.complete(Unit)
@@ -84,6 +88,7 @@ class ShadowFieldExecutionTest {
                 field("Query" to "shadowFinished") {
                     resolver {
                         fn { _, _, _, _, _ ->
+                            productionRequestJob.complete(currentRequestParentJobOrNull())
                             shadowStarted.await()
                             failShadow.complete(Unit)
                             // Keep production active while the shadow failure reaches its logging boundary.
