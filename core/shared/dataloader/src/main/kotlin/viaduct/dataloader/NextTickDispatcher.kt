@@ -173,12 +173,17 @@ open class NextTickDispatcher(
         wrappedDispatcher.dispatchYield(context, wrappedBlock)
     }
 
+    fun isRunningOnCurrentThread(): Boolean = runningDispatcher.get() === this
+
     private fun wrapBlock(block: Runnable): Runnable =
         Runnable {
+            val previous = runningDispatcher.get()
+            runningDispatcher.set(this)
             // This try/finally block is just paranoia, block.run() should swallow exceptions
             try {
                 block.run()
             } finally {
+                runningDispatcher.set(previous)
                 if (counter.decrementAndGet() == 0) {
                     val debugInfo = debug.getNextTickMetadataAndReset()
 
@@ -216,6 +221,16 @@ open class NextTickDispatcher(
         }
     }
 }
+
+private val runningDispatcher = ThreadLocal<NextTickDispatcher?>()
+
+// Inline work must remain inside a runnable tracked by the same dispatcher to preserve next-tick boundaries.
+fun undispatchedStartIfRunning(context: CoroutineContext): CoroutineStart =
+    if ((context[ContinuationInterceptor] as? NextTickDispatcher)?.isRunningOnCurrentThread() == true) {
+        CoroutineStart.UNDISPATCHED
+    } else {
+        CoroutineStart.DEFAULT
+    }
 
 /**
  * Registers a function to run on the next "tick" of the NextTickDispatcher's mimicked event loop.

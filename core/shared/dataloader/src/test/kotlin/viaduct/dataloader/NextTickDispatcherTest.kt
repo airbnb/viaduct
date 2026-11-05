@@ -6,20 +6,123 @@ import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import kotlin.coroutines.CoroutineContext
+import kotlin.coroutines.EmptyCoroutineContext
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.asCoroutineDispatcher
+import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.supervisorScope
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.yield
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertSame
+import org.junit.jupiter.api.Assertions.assertThrows
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.service.api.spi.FlagManager
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class NextTickDispatcherTest {
+    @Test
+    fun `undispatched start requires the exact running dispatcher`() =
+        runTest {
+            val worker = StandardTestDispatcher(testScheduler)
+            val queue = UnconfinedTestDispatcher(testScheduler)
+            val dispatcher = NextTickDispatcher(worker, queue)
+            val other = NextTickDispatcher(worker, queue)
+
+            assertEquals(CoroutineStart.DEFAULT, undispatchedStartIfRunning(EmptyCoroutineContext))
+            assertEquals(CoroutineStart.DEFAULT, undispatchedStartIfRunning(dispatcher))
+            withContext(dispatcher) {
+                assertTrue(dispatcher.isRunningOnCurrentThread())
+                assertFalse(other.isRunningOnCurrentThread())
+                assertEquals(CoroutineStart.DEFAULT, undispatchedStartIfRunning(other))
+                assertEquals(CoroutineStart.DEFAULT, undispatchedStartIfRunning(worker))
+                val result = async(start = undispatchedStartIfRunning(coroutineContext)) { 42 }
+                assertTrue(result.isCompleted)
+                assertEquals(42, result.await())
+                yield()
+                assertEquals(CoroutineStart.UNDISPATCHED, undispatchedStartIfRunning(coroutineContext))
+            }
+            assertFalse(dispatcher.isRunningOnCurrentThread())
+            assertEquals(CoroutineStart.DEFAULT, undispatchedStartIfRunning(dispatcher))
+        }
+
+    @Test
+    fun `nested dispatchers restore ownership after throwing runnables`() =
+        runTest {
+            val worker = object : CoroutineDispatcher() {
+                override fun dispatch(
+                    context: CoroutineContext,
+                    block: Runnable
+                ) = block.run()
+            }
+            val queue = StandardTestDispatcher(testScheduler)
+            val outer = NextTickDispatcher(worker, queue)
+            val inner = NextTickDispatcher(worker, queue)
+            val failure = IllegalStateException("runnable failed")
+
+            assertSame(
+                failure,
+                assertThrows(IllegalStateException::class.java) {
+                    outer.dispatch(
+                        EmptyCoroutineContext,
+                        Runnable {
+                            assertSame(
+                                failure,
+                                assertThrows(IllegalStateException::class.java) {
+                                    inner.dispatch(
+                                        EmptyCoroutineContext,
+                                        Runnable {
+                                            assertEquals(CoroutineStart.UNDISPATCHED, undispatchedStartIfRunning(inner))
+                                            assertEquals(CoroutineStart.DEFAULT, undispatchedStartIfRunning(outer))
+                                            throw failure
+                                        }
+                                    )
+                                }
+                            )
+                            assertEquals(CoroutineStart.UNDISPATCHED, undispatchedStartIfRunning(outer))
+                            assertEquals(CoroutineStart.DEFAULT, undispatchedStartIfRunning(inner))
+                            throw failure
+                        }
+                    )
+                }
+            )
+            assertEquals(CoroutineStart.DEFAULT, undispatchedStartIfRunning(outer))
+            assertEquals(CoroutineStart.DEFAULT, undispatchedStartIfRunning(inner))
+        }
+
+    @Test
+    fun `inline child finishes before the next tick flushes`() =
+        runTest {
+            val dispatcher = NextTickDispatcher(StandardTestDispatcher(testScheduler), UnconfinedTestDispatcher(testScheduler))
+            val order = mutableListOf<String>()
+
+            withContext(dispatcher) {
+                nextTick(coroutineContext) { order.add("tick") }
+                val child = async(start = undispatchedStartIfRunning(coroutineContext)) { order.add("child") }
+                assertTrue(child.isCompleted)
+                child.await()
+                order.add("parent")
+                assertEquals(listOf("child", "parent"), order)
+            }
+            advanceUntilIdle()
+
+            assertEquals(listOf("child", "parent", "tick"), order)
+        }
+
     private fun nextTickDispatcher() =
         NextTickDispatcher(
             Executors.newSingleThreadExecutor().asCoroutineDispatcher(),
