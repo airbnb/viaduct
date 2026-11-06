@@ -4,6 +4,7 @@ package viaduct.dataloader
 
 import java.lang.IllegalArgumentException
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicLong
 import kotlin.coroutines.ContinuationInterceptor
 import kotlin.coroutines.CoroutineContext
 import kotlinx.coroutines.CoroutineDispatcher
@@ -70,6 +71,7 @@ open class NextTickDispatcher(
     private val nextTickQueueDispatcher: CoroutineDispatcher = Dispatchers.IO,
     private val nextTickExceptionHandler: CoroutineExceptionHandler? = null,
     flagManager: FlagManager = FlagManager.Disabled,
+    metricsEnabled: Boolean = false,
 ) : CoroutineDispatcher() {
     /********************/
 
@@ -99,6 +101,12 @@ open class NextTickDispatcher(
      */
     private val counter = AtomicInteger(0)
 
+    private val flushes = if (metricsEnabled) AtomicLong() else null
+    private val batchRounds = if (metricsEnabled) AtomicLong() else null
+
+    val flushCount: Long get() = flushes?.get() ?: 0L
+    val batchRoundCount: Long get() = batchRounds?.get() ?: 0L
+
     /**
      * This supervisor job is the parent job of all `nextTick` callbacks. It can be used to observe (or cancel!) these
      * jobs.
@@ -124,6 +132,9 @@ open class NextTickDispatcher(
         NextTickBatchQueue<Pair<suspend (DispatchingContext) -> Unit, CoroutineContext>>(
             batchQueueScope = batchQueueScope
         ) { batch, nextTickDispatchingContext ->
+            if (batch.isNotEmpty()) {
+                batchRounds?.incrementAndGet()
+            }
             val jobs =
                 batch.map { (nextTickBlock, nextTickCoroutineContext) ->
                     nextTickQueueScope.launch(
@@ -185,6 +196,7 @@ open class NextTickDispatcher(
             } finally {
                 runningDispatcher.set(previous)
                 if (counter.decrementAndGet() == 0) {
+                    flushes?.incrementAndGet()
                     val debugInfo = debug.getNextTickMetadataAndReset()
 
                     if (nonBlockingEnqueueFlushKillSwitchEnabled) {
