@@ -4,6 +4,7 @@ package viaduct.engine.runtime2.execution
 
 import io.kotest.property.Arb
 import io.kotest.property.arbitrary.arbitrary
+import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.random.Random
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -75,7 +76,7 @@ import viaduct.service.api.spi.mocks.MockFlagManager
 class SelectiveFieldExecutionContractTest : SelectiveFieldExecutionContract, Engine2QueryExecutionContract {
     @Test
     fun `selective field resolvers receive each input's requested fields and dependencies`() {
-        val receivedDetailsSelections = mutableListOf<Pair<Int, Set<String>>>()
+        val receivedDetailsSelections = ConcurrentLinkedQueue<Pair<Int, Set<String>>>()
         val module = selectiveProductDetails(
             resolveDetails = { key, requestedFields ->
                 receivedDetailsSelections += key to requestedFields
