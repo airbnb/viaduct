@@ -3,6 +3,7 @@
 package viaduct.service.runtime
 
 import graphql.ExecutionResult
+import graphql.GraphQL
 import graphql.GraphQLError
 import graphql.execution.DataFetcherExceptionHandler
 import graphql.execution.ResultPath
@@ -50,6 +51,7 @@ import org.junit.jupiter.api.assertDoesNotThrow
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
+import viaduct.apiannotations.InternalApi
 import viaduct.bootstrap.ExecutionRegistryConfigFile
 import viaduct.bootstrap.FieldEntryConfig
 import viaduct.bootstrap.NodeEntryConfig
@@ -229,6 +231,34 @@ class StandardViaductTest {
     }
 
     @Test
+    @OptIn(InternalApi::class)
+    fun `requests choose their own engine only in per-request mode`() {
+        fun choosesEnginePerRequest(flags: EngineFlags) = contextPackageViaductBuilder().withFlagManager(flags).build().choosesEnginePerRequest
+
+        assertTrue(choosesEnginePerRequest(EngineFlags(perRequest = true)))
+        assertFalse(choosesEnginePerRequest(EngineFlags()))
+        assertFalse(choosesEnginePerRequest(EngineFlags(engine2Enabled = true, perRequest = true)))
+    }
+
+    @Test
+    @OptIn(InternalApi::class)
+    fun `graphql-java entry points serve the engine of the given kind`() {
+        val viaduct = contextPackageViaductBuilder().withFlagManager(EngineFlags(perRequest = true)).build()
+
+        assertSame(viaduct.engineRegistry.getEngine(SchemaId.Base, EngineKind.ENGINE2).graphQL(), viaduct.getEngine(SchemaId.Base, EngineKind.ENGINE2))
+        assertSame(viaduct.engineRegistry.getEngine(SchemaId.Base, EngineKind.CURRENT).graphQL(), viaduct.getEngine(SchemaId.Base, EngineKind.CURRENT))
+        assertSame(viaduct.engineRegistry.getFullSchemaEngine(EngineKind.ENGINE2).graphQL(), viaduct.getFullSchemaEngine(EngineKind.ENGINE2))
+        assertTrue(viaduct.engineRegistry.getFullSchemaEngine(EngineKind.ENGINE2) is Engine2)
+        assertSame(viaduct.engineRegistry.getFullSchemaEngine(EngineKind.CURRENT).graphQL(), viaduct.getFullSchemaEngine(EngineKind.CURRENT))
+        // Without a request context, the per-engine overload still wins over the default-engine one.
+        val engine2ContextPackage = viaduct.createEngineExecutionContext(SchemaId.Base, EngineKind.ENGINE2).javaClass.packageName
+        val currentContextPackage = viaduct.createEngineExecutionContext(SchemaId.Base, EngineKind.CURRENT, null).javaClass.packageName
+        assertTrue(engine2ContextPackage.startsWith(RUNTIME2_PACKAGE), engine2ContextPackage)
+        assertFalse(currentContextPackage.startsWith(RUNTIME2_PACKAGE), currentContextPackage)
+    }
+
+    @Test
+    @OptIn(InternalApi::class)
     fun `per-request mode is fixed when the Viaduct is built`() {
         val flags = EngineFlags()
         val viaduct = contextPackageViaductBuilder().withFlagManager(flags).build()
@@ -238,6 +268,13 @@ class StandardViaductTest {
         val contextPackage = viaduct.executeContextPackageQuery("Query")
 
         assertFalse(contextPackage.startsWith(RUNTIME2_PACKAGE), contextPackage)
+        assertFalse(viaduct.choosesEnginePerRequest)
+
+        val perRequestFlags = EngineFlags(perRequest = true)
+        val perRequestViaduct = contextPackageViaductBuilder().withFlagManager(perRequestFlags).build()
+        perRequestFlags.engine2Enabled = true
+
+        assertTrue(perRequestViaduct.choosesEnginePerRequest)
     }
 
     private fun contextPackageViaductBuilder(): StandardViaduct.Builder {
@@ -1091,6 +1128,8 @@ class StandardViaductTest {
 }
 
 private const val RUNTIME2_PACKAGE = "viaduct.engine.runtime2"
+
+private fun Engine.graphQL(): GraphQL = (this as viaduct.engine.airbnb.EngineGraphQLJavaCompat).getGraphQL()
 
 private class EngineFlags(
     var engine2Enabled: Boolean = false,

@@ -736,6 +736,30 @@ class EngineRegistryTest {
     }
 
     @Test
+    fun `getFullSchemaEngine - each kind gets its own cached full-schema engine`() {
+        val createdKinds = mutableListOf<EngineKind>()
+        val engineFactory = mockk<EngineFactory> {
+            every { defaultEngineKind } returns EngineKind.CURRENT
+            every { create(any<EngineKind>(), any(), any(), any()) } answers {
+                createdKinds += firstArg<EngineKind>()
+                assertInstanceOf(FullSchema::class.java, secondArg())
+                createEngine(secondArg())
+            }
+        }
+        val registry = EngineRegistry.Factory(createSchemaFactory(), createDocumentProviderFactory())
+            .create(SchemaConfiguration.fromSdl(SIMPLE_SDL))
+        registry.setEngineFactory(engineFactory)
+
+        val current = registry.getFullSchemaEngine(EngineKind.CURRENT)
+        val engine2 = registry.getFullSchemaEngine(EngineKind.ENGINE2)
+
+        assertNotSame(current, engine2)
+        assertSame(current, registry.getFullSchemaEngine())
+        assertSame(engine2, registry.getFullSchemaEngine(EngineKind.ENGINE2))
+        assertEquals(listOf(EngineKind.CURRENT, EngineKind.ENGINE2), createdKinds)
+    }
+
+    @Test
     fun `getEngine - each kind of a schema gets its own document provider`() {
         val providersByKind = mutableMapOf<EngineKind, PreparsedDocumentProvider>()
         val engineFactory = mockk<EngineFactory> {

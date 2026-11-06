@@ -193,12 +193,7 @@ class EngineRegistry private constructor(
     }
 
     private val enginesBySchemaIdAndKind = ConcurrentHashMap<Pair<SchemaId, EngineKind>, Engine>()
-    private val internalFullSchemaEngine: Engine by lazy {
-        log.info("Initializing full-schema engine")
-        createFullSchemaEngine().also {
-            log.info("Full-schema engine initialized successfully.")
-        }
-    }
+    private val fullSchemaEnginesByKind = ConcurrentHashMap<EngineKind, Engine>()
 
     /**
      * Retrieve the set of all registered [SchemaId]s.
@@ -218,7 +213,7 @@ class EngineRegistry private constructor(
     }
 
     /**
-     * Returns the [kind] engine for [schemaId].
+     * Returns the engine of the given kind for a schema.
      *
      * @throws SchemaNotFoundException if no engine is registered for the provided [schemaId].
      */
@@ -244,7 +239,18 @@ class EngineRegistry private constructor(
      */
     fun getFullSchemaEngine(): Engine {
         checkEngineFactoryInitialized()
-        return internalFullSchemaEngine
+        return getFullSchemaEngine(engineFactory.defaultEngineKind)
+    }
+
+    /** Returns the internal full-schema engine of the given kind. */
+    fun getFullSchemaEngine(kind: EngineKind): Engine {
+        checkEngineFactoryInitialized()
+        return fullSchemaEnginesByKind.computeIfAbsent(kind) {
+            log.info("Initializing {} full-schema engine", kind)
+            createFullSchemaEngine(kind).also {
+                log.info("{} full-schema engine initialized successfully.", kind)
+            }
+        }
     }
 
     /**
@@ -319,8 +325,8 @@ class EngineRegistry private constructor(
         return engineFactory.create(kind, schema, documentProvider, fullSchema)
     }
 
-    private fun createFullSchemaEngine(): Engine {
+    private fun createFullSchemaEngine(kind: EngineKind): Engine {
         val documentProvider = documentProviderFactory.create(InternalFullSchemaId, fullSchema)
-        return engineFactory.create(fullSchema, documentProvider, fullSchema)
+        return engineFactory.create(kind, fullSchema, documentProvider, fullSchema)
     }
 }

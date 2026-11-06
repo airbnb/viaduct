@@ -20,6 +20,7 @@ import kotlin.coroutines.coroutineContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.future.await
+import viaduct.apiannotations.InternalApi
 import viaduct.apiannotations.VisibleForTest
 import viaduct.engine.EngineConfiguration
 import viaduct.engine.EngineKind
@@ -477,6 +478,11 @@ class StandardViaduct
             }
         }
 
+        /** Whether each request picks its own engine. */
+        @InternalApi
+        val choosesEnginePerRequest: Boolean
+            get() = !flagManager.isEnabled(FlagManager.Flags.ENGINE2_ENABLED) && flagManager.isEnabled(FlagManager.Flags.ENGINE2_PER_REQUEST)
+
         private fun engineKindForRequest(): EngineKind =
             when {
                 flagManager.isEnabled(FlagManager.Flags.ENGINE2_ENABLED) -> EngineKind.ENGINE2
@@ -670,4 +676,35 @@ class StandardViaduct
                 ?: throw IllegalStateException("Engine does not support GraphQL Java context creation")
             return engine.createEngineExecutionContext(requestContext, incrementalExecution)
         }
+
+        /** Returns the GraphQL instance that runs requests for a schema on the given engine. */
+        @InternalApi
+        fun getEngine(
+            schemaId: SchemaId,
+            kind: EngineKind
+        ): GraphQL = graphQLJavaCompat(schemaId, kind).getGraphQL()
+
+        /** Creates the execution context for one request on the given engine. */
+        @InternalApi
+        fun createEngineExecutionContext(
+            schemaId: SchemaId,
+            kind: EngineKind,
+            requestContext: Any? = null,
+            incrementalExecution: Boolean = true,
+        ): EngineExecutionContext = graphQLJavaCompat(schemaId, kind).createEngineExecutionContext(requestContext, incrementalExecution)
+
+        /** Returns the full-schema GraphQL instance that runs derived-field fragments on the given engine. */
+        @InternalApi
+        fun getFullSchemaEngine(kind: EngineKind): GraphQL =
+            (
+                engineRegistry.getFullSchemaEngine(kind) as? viaduct.engine.airbnb.EngineGraphQLJavaCompat
+                    ?: throw IllegalStateException("Engine is not GraphQL compatible")
+            ).getGraphQL()
+
+        private fun graphQLJavaCompat(
+            schemaId: SchemaId,
+            kind: EngineKind
+        ): viaduct.engine.airbnb.EngineGraphQLJavaCompat =
+            engineRegistry.getEngine(schemaId, kind) as? viaduct.engine.airbnb.EngineGraphQLJavaCompat
+                ?: throw IllegalStateException("Engine is not GraphQL compatible")
     }
