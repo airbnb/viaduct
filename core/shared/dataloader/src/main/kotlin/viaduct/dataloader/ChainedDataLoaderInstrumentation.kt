@@ -7,6 +7,13 @@ package viaduct.dataloader
 class ChainedDataLoaderInstrumentation(
     private val instrumentations: List<DataLoaderInstrumentation>
 ) : DataLoaderInstrumentation {
+    override fun onBatchResolverDispatch(
+        resolverType: String,
+        batchSize: Int
+    ) {
+        instrumentations.forEach { it.onBatchResolverDispatch(resolverType, batchSize) }
+    }
+
     override fun onBatchResolverInvocation(
         resolverType: String,
         batchSize: Int

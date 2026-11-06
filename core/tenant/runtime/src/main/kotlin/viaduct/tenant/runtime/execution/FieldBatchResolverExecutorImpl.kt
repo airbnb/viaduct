@@ -56,6 +56,7 @@ class FieldBatchResolverExecutorImpl(
         context: EngineExecutionContext,
         instrumentationContext: ResolverInstrumentationContext?,
     ): Map<Selector, Result<Any?>> {
+        instrumentationContext?.run { instrumentation.onBatchResolverDispatch(metadata, selectors.size, state) }
         val contexts = selectors.map { key ->
             val invocationContext = context.invocationContextFor(key)
             resolverContextFactory(

@@ -14,6 +14,35 @@ import viaduct.engine.runtime.instrumentation.resolver.ChainedResolverInstrument
 
 class ChainedResolverInstrumentationTest {
     @Test
+    fun `batch dispatch reaches each instrumentation once with its own state`() {
+        val metadata = ResolverMetadata.forModern("BatchResolver")
+        val firstObservations = mutableListOf<Pair<ResolverMetadata, Int>>()
+        val secondObservations = mutableListOf<Pair<ResolverMetadata, Int>>()
+        val instrumentations = listOf(firstObservations, secondObservations).map { observations ->
+            val ownState = object : ViaductResolverInstrumentation.InstrumentationState {}
+            object : ViaductResolverInstrumentation {
+                override fun createInstrumentationState(parameters: ViaductResolverInstrumentation.CreateInstrumentationStateParameters) = ownState
+
+                override fun onBatchResolverDispatch(
+                    metadata: ResolverMetadata,
+                    batchSize: Int,
+                    state: ViaductResolverInstrumentation.InstrumentationState?
+                ) {
+                    assertSame(ownState, state)
+                    observations.add(metadata to batchSize)
+                }
+            }
+        }
+        val chain = ChainedResolverInstrumentation(instrumentations)
+        val state = chain.createInstrumentationState(ViaductResolverInstrumentation.CreateInstrumentationStateParameters())
+
+        chain.onBatchResolverDispatch(metadata, 3, state)
+
+        assertEquals(listOf(metadata to 3), firstObservations)
+        assertEquals(listOf(metadata to 3), secondObservations)
+    }
+
+    @Test
     fun `batch invocation reaches each instrumentation once with its own state`() {
         val metadata = ResolverMetadata.forModern("BatchResolver")
         val firstObservations = mutableListOf<Pair<ResolverMetadata, Int>>()

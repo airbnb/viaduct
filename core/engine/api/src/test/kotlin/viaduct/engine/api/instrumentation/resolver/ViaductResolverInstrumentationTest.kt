@@ -4,6 +4,7 @@ package viaduct.engine.api.instrumentation.resolver
 
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.runBlocking
+import org.junit.jupiter.api.Assertions.assertDoesNotThrow
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import viaduct.engine.api.ResolverMetadata
@@ -31,6 +32,16 @@ class ViaductResolverInstrumentationTest {
             ).resolve()
             assertEquals(expectedResult, result)
         }
+
+    @Test
+    fun `DEFAULT instrumentation accepts batch notifications without overrides`() {
+        val metadata = ResolverMetadata.forMock("TestResolver")
+
+        assertDoesNotThrow {
+            ViaductResolverInstrumentation.DEFAULT.onBatchResolverDispatch(metadata, batchSize = 3, state = null)
+            ViaductResolverInstrumentation.DEFAULT.onBatchResolverInvocation(metadata, batchSize = 2, state = null)
+        }
+    }
 
     @Test
     @ExperimentalCoroutinesApi

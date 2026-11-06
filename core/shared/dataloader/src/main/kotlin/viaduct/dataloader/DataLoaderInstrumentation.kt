@@ -6,6 +6,12 @@ package viaduct.dataloader
  * Exists for the lifecycle of the Dataloader, but enables instrumentation of individual load calls, as well as the underlying batch load function.
  */
 interface DataLoaderInstrumentation {
+    /** Called with distinct batch-resolver descriptors before grouping or deduplication of IDs. */
+    fun onBatchResolverDispatch(
+        resolverType: String,
+        batchSize: Int
+    ) {}
+
     /** Called at tenant batch-resolver entry, after any grouping or deduplication. */
     fun onBatchResolverInvocation(
         resolverType: String,

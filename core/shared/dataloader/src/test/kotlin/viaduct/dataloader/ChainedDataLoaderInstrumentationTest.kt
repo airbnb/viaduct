@@ -11,6 +11,29 @@ import org.junit.jupiter.api.Test
 @ExperimentalCoroutinesApi
 class ChainedDataLoaderInstrumentationTest {
     @Test
+    fun `batch dispatch reaches each instrumentation once`() {
+        val firstObservations = mutableListOf<Pair<String, Int>>()
+        val secondObservations = mutableListOf<Pair<String, Int>>()
+        val chain = ChainedDataLoaderInstrumentation(
+            listOf(firstObservations, secondObservations).map { observations ->
+                object : DataLoaderInstrumentation {
+                    override fun onBatchResolverDispatch(
+                        resolverType: String,
+                        batchSize: Int
+                    ) {
+                        observations.add(resolverType to batchSize)
+                    }
+                }
+            }
+        )
+
+        chain.onBatchResolverDispatch("edge", 3)
+
+        assertEquals(listOf("edge" to 3), firstObservations)
+        assertEquals(listOf("edge" to 3), secondObservations)
+    }
+
+    @Test
     fun `batch invocation reaches each instrumentation once`() {
         val firstObservations = mutableListOf<Pair<String, Int>>()
         val secondObservations = mutableListOf<Pair<String, Int>>()

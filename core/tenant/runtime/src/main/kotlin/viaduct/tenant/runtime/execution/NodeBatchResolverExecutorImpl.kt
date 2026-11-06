@@ -37,13 +37,15 @@ class NodeBatchResolverExecutorImpl(
         selectors: List<NodeResolverExecutor.Selector>,
         context: EngineExecutionContext,
         instrumentationContext: ResolverInstrumentationContext?,
-    ): Map<NodeResolverExecutor.Selector, Result<EngineObjectData>> =
-        resolve(
+    ): Map<NodeResolverExecutor.Selector, Result<EngineObjectData>> {
+        instrumentationContext?.run { instrumentation.onBatchResolverDispatch(metadata, selectors.size, state) }
+        return resolve(
             resolver = resolver.get(),
             selectors = selectors,
             context = context,
             instrumentationContext = instrumentationContext,
         )
+    }
 
     private suspend fun resolve(
         resolver: BaseBatchedNodeResolver,

@@ -21,6 +21,17 @@ import viaduct.engine.api.instrumentation.resolver.ViaductResolverInstrumentatio
 class ChainedResolverInstrumentation(
     val instrumentations: List<ViaductResolverInstrumentation>
 ) : ViaductResolverInstrumentation {
+    override fun onBatchResolverDispatch(
+        metadata: ResolverMetadata,
+        batchSize: Int,
+        state: ViaductResolverInstrumentation.InstrumentationState?,
+    ) {
+        state as ChainedInstrumentationState
+        instrumentations.forEach { instrumentation ->
+            instrumentation.onBatchResolverDispatch(metadata, batchSize, state.getState(instrumentation))
+        }
+    }
+
     override fun onBatchResolverInvocation(
         metadata: ResolverMetadata,
         batchSize: Int,
