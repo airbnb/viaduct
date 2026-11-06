@@ -12,6 +12,7 @@ byte-buddy = "1.17.8"
 caffeine = "2.9.3"
 classgraph = "4.8.177"
 clikt = "3.5.4"
+commons-csv = "1.9.0"
 graphql-java = "26.0"
 graphql-java-extension = "24.0"
 guava = "33.3.1-jre"
@@ -144,6 +145,7 @@ antlr-st4 = { module = "org.antlr:ST4", version.ref = "antlr-st4" }
 caffeine = { module = "com.github.ben-manes.caffeine:caffeine", version.ref = "caffeine" }
 classgraph = { module = "io.github.classgraph:classgraph", version.ref = "classgraph" }
 clikt-jvm = { module = "com.github.ajalt.clikt:clikt-jvm", version.ref = "clikt" }
+commons-csv = { module = "org.apache.commons:commons-csv", version.ref = "commons-csv" }
 graphql-java = { module = "com.graphql-java:graphql-java", version.ref = "graphql-java" }
 graphql-java-extension = { module = "com.graphql-java:graphql-java-extended-scalars", version.ref = "graphql-java-extension" }
 guice = { module = "com.google.inject:guice", version.ref = "guice" }

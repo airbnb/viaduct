@@ -46,6 +46,18 @@ fun ObjectEngineResult.conformsToResolvers(operation: SharedOperationContext<*>)
             resolverApplicationCache.hasCompleteRootFieldReferenceWitness()
     }
 
+/**
+ * Records occurrences whose values are supplied by source objects during correctness validation.
+ */
+internal fun ObjectEngineResult.sourceSuppliedResolverOccurrences(operation: SharedOperationContext<*>): Set<ResolverOccurrenceId> {
+    val supplied = mutableSetOf<ResolverOccurrenceId>()
+    val cache = operation.resolverApplicationCache(this)
+    check(ResolverConformanceLogic(operation, cache, supplied).conforms(this) && cache.hasCompleteRootFieldReferenceWitness()) {
+        "Coverage source provenance requires a result that passes correctness validation."
+    }
+    return supplied
+}
+
 fun ObjectEngineResult.conformsToResolvers(
     operation: SharedOperationContext<*>,
     resolverApplicationCache: ResolverApplicationCache,
@@ -56,10 +68,11 @@ fun ObjectEngineResult.conformsToResolversAndDemand(
     resolverApplicationCache: ResolverApplicationCache,
 ): Boolean = ResolverConformanceLogic(operation, resolverApplicationCache, validateDemand = true).conforms(this)
 
-/** Checks resolver conformance for one result using its operation and existing replay cache. */
+/** Checks each completed field against the operation and its cached resolver calls. */
 private class ResolverConformanceLogic(
     private val operation: SharedOperationContext<*>,
     private val resolverApplicationCache: ResolverApplicationCache,
+    private val sourceSupplied: MutableSet<ResolverOccurrenceId>? = null,
     validateDemand: Boolean = false,
 ) {
     private val demandValidation =
@@ -100,7 +113,8 @@ private class ResolverConformanceLogic(
                             path = path + key,
                         )
 
-                source?.isPresent(fieldName) == true ->
+                source?.isPresent(fieldName) == true -> {
+                    sourceSupplied?.add(ResolverOccurrenceId.at(resolverApplicationCache.root, path + key))
                     arguments.fieldValues.isEmpty() &&
                         value.engineResultConformsToResolverValue(
                             resolverValue = source.outputValue(fieldName),
@@ -109,6 +123,7 @@ private class ResolverConformanceLogic(
                             structuralParent = this,
                             producerField = key.field,
                         )
+                }
 
                 key.field in operation.world.resolverRegistry ->
                     demandValidation?.resolverDemandIsClosed(this, key, path) != false &&
