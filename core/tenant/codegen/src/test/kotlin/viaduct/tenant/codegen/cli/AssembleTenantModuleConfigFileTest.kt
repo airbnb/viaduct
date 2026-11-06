@@ -1140,6 +1140,75 @@ class AssembleTenantModuleConfigFileTest {
     }
 
     @Test
+    fun `assembly rejects @defer in a named fragment referenced by a query`() {
+        val descriptors = descriptorDir()
+        File(descriptors, "Operations.json").writeText(
+            """
+            {"nodes":[],"fields":[],"namedOperations":[
+              {"text":"{ viewer { ...UserFields } }","kind":"QUERY","implFqn":"com.example.feature.UserQuery"}
+            ]}
+            """.trimIndent(),
+        )
+        File(descriptors, "Fragments.json").writeText(
+            """
+            {"nodes":[],"fields":[],"namedFragments":[
+              {"text":"fragment UserFields on User { ... on User @defer { name } }"}
+            ]}
+            """.trimIndent(),
+        )
+        val schema = schemaFile(
+            """
+            type Query { viewer: User }
+            type User { id: ID name: String }
+            """.trimIndent(),
+        )
+
+        val exception = assertThrows<IllegalStateException> {
+            runCli(descriptors = descriptors, schemaFiles = listOf(schema))
+        }
+
+        assertTrue(exception.message!!.contains("@GraphQLOperation validation failed at assembly"), exception.message)
+        assertTrue(exception.message!!.contains("com.example.feature.UserQuery"), exception.message)
+        assertTrue(exception.message!!.contains("@defer is not allowed in ctx.query or ctx.mutation operations."), exception.message)
+        assertTrue(exception.message!!.contains("in fragment 'UserFields'"), exception.message)
+    }
+
+    @Test
+    fun `assembly rejects @defer in a named fragment referenced by a mutation`() {
+        val descriptors = descriptorDir()
+        File(descriptors, "Operations.json").writeText(
+            """
+            {"nodes":[],"fields":[],"namedOperations":[
+              {"text":"mutation { createUser { ...UserFields } }","kind":"MUTATION","implFqn":"com.example.feature.UserMutation"}
+            ]}
+            """.trimIndent(),
+        )
+        File(descriptors, "Fragments.json").writeText(
+            """
+            {"nodes":[],"fields":[],"namedFragments":[
+              {"text":"fragment UserFields on User { ... on User @defer { name } }"}
+            ]}
+            """.trimIndent(),
+        )
+        val schema = schemaFile(
+            """
+            type Query { viewer: User }
+            type Mutation { createUser: User }
+            type User { id: ID name: String }
+            """.trimIndent(),
+        )
+
+        val exception = assertThrows<IllegalStateException> {
+            runCli(descriptors = descriptors, schemaFiles = listOf(schema))
+        }
+
+        assertTrue(exception.message!!.contains("@GraphQLOperation validation failed at assembly"), exception.message)
+        assertTrue(exception.message!!.contains("com.example.feature.UserMutation"), exception.message)
+        assertTrue(exception.message!!.contains("@defer is not allowed in ctx.query or ctx.mutation operations."), exception.message)
+        assertTrue(exception.message!!.contains("in fragment 'UserFields'"), exception.message)
+    }
+
+    @Test
     fun `forbidden-selection-directive rejects a named operation selecting a field carrying the directive`() {
         val descriptors = descriptorDir()
         File(descriptors, "Operations.json").writeText(

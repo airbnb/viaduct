@@ -75,6 +75,68 @@ class GraphQLOperationValidatorTest {
     }
 
     @Test
+    fun `rejects @defer in queries even when its condition is false and the selection is skipped`() {
+        val errors = validate("{ viewer { ... on User @skip(if: true) @defer(if: false) { name } } }")
+
+        assertEquals(1, errors.size, errors.joinToString("\n"))
+        assertTrue(errors.single().contains("com.example.TestOperation"), errors.toString())
+        assertTrue(errors.single().contains("@defer is not allowed in ctx.query or ctx.mutation operations."), errors.toString())
+    }
+
+    @Test
+    fun `rejects @defer in external fragments referenced by local query fragments`() {
+        val errors = validate(
+            """
+            { viewer { ...Outer } }
+            fragment Outer on User { ...Inner }
+            """.trimIndent(),
+            fragmentsByName = mapOf("Inner" to "fragment Inner on User { ... on User @defer { name } }"),
+        )
+
+        assertEquals(1, errors.size, errors.joinToString("\n"))
+        assertTrue(errors.single().contains("@defer is not allowed in ctx.query or ctx.mutation operations."), errors.toString())
+        assertTrue(errors.single().contains("in fragment 'Inner' at 1:"), errors.toString())
+    }
+
+    @Test
+    fun `ignores @defer in unused local and external query fragments`() {
+        val errors = validate(
+            """
+            { viewer { id } }
+            fragment Unused on User { ... on User @defer { name } }
+            """.trimIndent(),
+            fragmentsByName = mapOf("External" to "fragment External on User { ... on User @defer { name } }"),
+        )
+
+        assertTrue(errors.isEmpty(), errors.joinToString("\n"))
+    }
+
+    @Test
+    fun `rejects @defer in mutation selections`() {
+        val errors = validate(
+            "mutation { createUser(name: \"a\") { ... on User @defer { id } } }",
+            OperationKind.MUTATION,
+        )
+
+        assertEquals(1, errors.size, errors.joinToString("\n"))
+        assertTrue(errors.single().contains("Operation com.example.TestOperation must resolve synchronously."), errors.toString())
+        assertTrue(errors.single().contains("@defer is not allowed in ctx.query or ctx.mutation operations."), errors.toString())
+    }
+
+    @Test
+    fun `rejects @defer in a mutation fragment even when its condition is false`() {
+        val errors = validate(
+            "mutation { createUser(name: \"a\") { ...UserFields } }",
+            OperationKind.MUTATION,
+            fragmentsByName = mapOf("UserFields" to "fragment UserFields on User { ... on User @defer(if: false) { name } }"),
+        )
+
+        assertEquals(1, errors.size, errors.joinToString("\n"))
+        assertTrue(errors.single().contains("@defer is not allowed in ctx.query or ctx.mutation operations."), errors.toString())
+        assertTrue(errors.single().contains("in fragment 'UserFields' at 1:"), errors.toString())
+    }
+
+    @Test
     fun `local fragment shadows a same-named external fragment`() {
         // The external UserFields selects a non-existent field; the local one is valid and must win.
         val errors = validate(

@@ -71,6 +71,8 @@ description: Executing subqueries in resolvers
 
 The annotation contains a GraphQL operation document — fields, arguments, inline fragments, and aliases all work. The document is validated against the tenant module's schema at build time and can spread named fragments from that module. Execution through `ctx.query()` is sometimes called an "imperative subquery," as opposed to declaring data dependencies in the `@Resolver` annotation.
 
+`ctx.query()` selections must resolve synchronously, so the query operation and its referenced fragments must not use `@defer`, even with `@defer(if: false)`.
+
 Kotlin `ctx.query()` and `ctx.mutation()` accept operation objects, not strings or `SelectionSet` instances. Do not pass `operationText` to them. See [GraphQL Operations](graphql_operations.md) for declaration rules and reusable operations.
 
 Use `ctx.query()` when execution depends on runtime values or control flow. If runtime data determines which fields to fetch, choose among predefined, named operation objects; do not construct a selection string at runtime. See [Runtime branching](graphql_operations.md#runtime-branching). For dependencies that the engine can fetch before your resolver runs, prefer the `@Resolver` annotation's `objectValueFragment` or `queryValueFragment` instead.
@@ -146,6 +148,8 @@ For guidance on returning subquery GRTs from resolvers, including when to use a 
 Mutation field resolvers can execute submutations by passing an annotated `MutationFromAnnotation` object to `ctx.mutation()`. This works the same way as `ctx.query()`, but runs against the root `Mutation` type and executes top-level fields serially (matching standard GraphQL mutation semantics).
 
 `ctx.mutation()` is only available in mutation resolver contexts. Kotlin prevents calling it from query resolvers at compile time. Java rejects execution outside mutation-capable resolver contexts at runtime; inherited legacy methods are deprecated.
+
+`ctx.mutation()` selections must resolve synchronously, so the mutation operation and its referenced fragments must not use `@defer`, even with `@defer(if: false)`.
 
 === "Kotlin"
 

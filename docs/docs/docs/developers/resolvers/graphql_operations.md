@@ -50,6 +50,7 @@ Rules:
 * The operation type must match the base class — a `query` for `QueryFromAnnotation`, a `mutation` for `MutationFromAnnotation`. (An anonymous shorthand document like `{ ... }` counts as a query.) Subscriptions are not supported.
 * Variable declarations are validated against the schema.
 * The document may spread named fragments (`...FragmentName`) declared with [`@GraphQLFragment`](named_fragments.md) in the **same tenant module**. These fragments participate in build-time validation; the runtime bridge inlines reachable fragments before execution.
+* The operation and any fragments it references must not use `@defer`, including `@defer(if: false)`. Selections used by `ctx.query()` and `ctx.mutation()` must resolve synchronously.
 
 Operations are discovered at build time by scanning for `@GraphQLOperation` (KSP for Kotlin, annotation processing for Java). Kotlin validates against the tenant module's compilation schema. Java validates against the merged application schema supplied by the Java module plugin, matching its shared application GRT generation.
 

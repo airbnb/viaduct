@@ -19,9 +19,11 @@ import viaduct.engine.api.EngineObject
 import viaduct.engine.api.ResolveSelectionSetOptions
 import viaduct.engine.api.parse.CachedDocumentParser
 import viaduct.errors.FrameworkException
+import viaduct.errors.TenantUsageException
 import viaduct.errors.handleFrameworkErrors
 import viaduct.errors.handleFrameworkErrorsSuspend
 import viaduct.graphql.utils.SelectionsParserUtils
+import viaduct.graphql.utils.findDeferUsages
 import viaduct.tenant.runtime.TenantApiInputValueNormalizer.normalizeVariablesForEngine
 import viaduct.tenant.runtime.select.SelectionSetImpl
 import viaduct.tenant.runtime.toObjectGRT
@@ -94,16 +96,28 @@ class EngineExecutionContextWrapperImpl(
         (this as? SelectionSetImpl)?.engineSelectionSet
             ?: throw FrameworkException("Unexpected implementation of SelectionSet: $this")
 
+    /**
+     * Creates selections for an operation, including its referenced fragments.
+     * Rejects @defer because selections used by ctx.query and ctx.mutation must resolve synchronously.
+     */
     override fun <T : CompositeOutput> selectionsForOperation(
         type: Type<T>,
         operationText: String,
         variables: Map<String, Any?>
     ): SelectionSet<T> =
         handleFrameworkErrors("selectionsForOperation") {
+            val parsedSelections = SelectionsParserUtils.parseOperationSelections(type.name, operationText, knownFragments, CachedDocumentParser::parseDocument)
+            val usages = parsedSelections.findDeferUsages()
+            if (usages.isNotEmpty()) {
+                throw TenantUsageException(
+                    "@defer is not allowed in ctx.query or ctx.mutation operations. " +
+                        "These operations must resolve synchronously. Found: ${usages.joinToString()}"
+                )
+            }
             SelectionSetImpl(
                 type,
                 engineExecutionContext.engineSelectionSetFactory.engineSelectionSet(
-                    SelectionsParserUtils.parseOperationSelections(type.name, operationText, knownFragments, CachedDocumentParser::parseDocument),
+                    parsedSelections,
                     normalizeVariablesForEngine(variables, engineExecutionContext.globalIDCodec)
                 )
             )

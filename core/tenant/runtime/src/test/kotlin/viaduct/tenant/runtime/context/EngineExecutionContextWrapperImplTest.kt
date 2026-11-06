@@ -2,6 +2,8 @@
 
 package viaduct.tenant.runtime.context
 
+import graphql.language.FragmentDefinition
+import graphql.parser.Parser
 import graphql.schema.GraphQLObjectType
 import io.mockk.coEvery
 import io.mockk.every
@@ -11,10 +13,12 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.async
 import kotlinx.coroutines.test.runTest
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertSame
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.api.globalid.GlobalID
@@ -24,6 +28,7 @@ import viaduct.api.mocks.MockType
 import viaduct.api.reflect.RootObjectField
 import viaduct.api.reflect.Type
 import viaduct.api.types.Arguments
+import viaduct.api.types.Mutation
 import viaduct.api.types.Object
 import viaduct.api.types.Query
 import viaduct.apiannotations.ExperimentalApi
@@ -33,7 +38,10 @@ import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.ResolveSelectionSetOptions
 import viaduct.engine.api.RootFieldReference
+import viaduct.engine.api.mocks.MockSchema
+import viaduct.engine.runtime.mocks.ContextMocks
 import viaduct.errors.FrameworkException
+import viaduct.errors.TenantUsageException
 import viaduct.tenant.runtime.FakeMutation
 import viaduct.tenant.runtime.FakeObject
 import viaduct.tenant.runtime.FakeQuery
@@ -50,6 +58,11 @@ class EngineExecutionContextWrapperImplTest {
     private val queryType = object : Type<Query> {
         override val name: String = "Query"
         override val kcls = Query::class
+    }
+
+    private val mutationType = object : Type<Mutation> {
+        override val name: String = "Mutation"
+        override val kcls = Mutation::class
     }
 
     @Suppress("UNCHECKED_CAST")
@@ -74,6 +87,100 @@ class EngineExecutionContextWrapperImplTest {
         mockk(relaxed = true) {
             every { type } returns graphqlObjectType
         }
+
+    @Test
+    fun `rejects @defer in named fragments referenced by a query`() {
+        val fragments = Parser.parse(
+            "fragment Outer on Query { ...Inner } fragment Inner on Query { ... on Query @defer { __typename } }"
+        ).getDefinitionsOfType(FragmentDefinition::class.java).associateBy { it.name }
+        val wrapper = EngineExecutionContextWrapperImpl(ContextMocks().engineExecutionContext, fragments)
+
+        val error = assertThrows<TenantUsageException> {
+            wrapper.selectionsForOperation(queryType, "query GetName { ...Outer }", emptyMap())
+        }
+
+        assertTrue(error.message!!.contains("@defer is not allowed in ctx.query or ctx.mutation operations."), error.message)
+        assertTrue(error.message!!.contains("Found: @defer in fragment 'Inner' at 1:"), error.message)
+    }
+
+    @Test
+    fun `rejects @defer in query selections even when the selection is skipped`() {
+        val wrapper = EngineExecutionContextWrapperImpl(ContextMocks().engineExecutionContext)
+
+        assertThrows<TenantUsageException> {
+            wrapper.selectionsForOperation(
+                queryType,
+                "query GetName { ... on Query @skip(if: true) @defer { __typename } }",
+                emptyMap()
+            )
+        }
+    }
+
+    @Test
+    fun `ignores @defer in fragments not referenced by the query`() {
+        val wrapper = EngineExecutionContextWrapperImpl(ContextMocks().engineExecutionContext)
+
+        val selections = wrapper.selectionsForOperation(
+            queryType,
+            """
+            query GetName { ...Visible }
+            fragment Visible on Query { __typename }
+            fragment Unused on Query { ... on Query @defer { __typename } }
+            """.trimIndent(),
+            emptyMap()
+        ) as SelectionSetImpl<*>
+
+        assertEquals("__typename", selections.engineSelectionSet.selections().single().fieldName)
+    }
+
+    @Test
+    fun `rejects @defer in mutation selections`() {
+        val schema = MockSchema.mk("extend type Query { empty: Int } extend type Mutation { createUser: User } type User { id: ID }")
+        val wrapper = EngineExecutionContextWrapperImpl(ContextMocks(schema).engineExecutionContext)
+
+        val error = assertThrows<TenantUsageException> {
+            wrapper.selectionsForOperation(
+                mutationType,
+                "mutation CreateUser { createUser { ... on User @defer { id } } }",
+                emptyMap()
+            )
+        }
+
+        assertTrue(error.message!!.contains("@defer is not allowed in ctx.query or ctx.mutation operations."), error.message)
+    }
+
+    @Test
+    fun `rejects @defer in named fragments referenced by a mutation`() {
+        val schema = MockSchema.mk("extend type Query { empty: Int } extend type Mutation { createUser: User } type User { id: ID }")
+        val fragments = Parser.parse(
+            "fragment Outer on User { ...Inner } fragment Inner on User { ... on User @defer { id } }"
+        ).getDefinitionsOfType(FragmentDefinition::class.java).associateBy { it.name }
+        val wrapper = EngineExecutionContextWrapperImpl(ContextMocks(schema).engineExecutionContext, fragments)
+
+        val error = assertThrows<TenantUsageException> {
+            wrapper.selectionsForOperation(mutationType, "mutation CreateUser { createUser { ...Outer } }", emptyMap())
+        }
+
+        assertTrue(error.message!!.contains("@defer is not allowed in ctx.query or ctx.mutation operations."), error.message)
+        assertTrue(error.message!!.contains("Found: @defer in fragment 'Inner' at 1:"), error.message)
+    }
+
+    @Test
+    fun `ignores @defer in fragments not referenced by the mutation`() {
+        val schema = MockSchema.mk("extend type Query { empty: Int } extend type Mutation { createUser: User } type User { id: ID }")
+        val wrapper = EngineExecutionContextWrapperImpl(ContextMocks(schema).engineExecutionContext)
+
+        val selections = wrapper.selectionsForOperation(
+            mutationType,
+            """
+            mutation CreateUser { createUser { id } }
+            fragment Unused on User { ... on User @defer { id } }
+            """.trimIndent(),
+            emptyMap()
+        ) as SelectionSetImpl<*>
+
+        assertEquals("createUser", selections.engineSelectionSet.selections().single().fieldName)
+    }
 
     @Test
     fun `query materializes the GRT from internal selection type metadata`() =

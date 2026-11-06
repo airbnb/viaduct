@@ -9,6 +9,7 @@ import graphql.validation.ValidationErrorType
 import graphql.validation.Validator
 import java.util.Locale
 import viaduct.engine.api.parse.DocumentParser
+import viaduct.graphql.utils.findDeferUsages
 import viaduct.tenant.codegen.ksp.OperationDescriptor
 import viaduct.tenant.codegen.ksp.OperationKind
 
@@ -17,7 +18,8 @@ import viaduct.tenant.codegen.ksp.OperationKind
  * 1. exactly one operation in the document;
  * 2. operation type matches the declared base class (subscription rejected);
  * 3. the document, with reachable external @GraphQLFragments appended, is valid against the schema;
- * 4. no selected field carries one of [forbiddenSelectionDirectives].
+ * 4. operations and their referenced fragments do not use @defer;
+ * 5. no selected field carries one of [forbiddenSelectionDirectives].
  */
 internal class GraphQLOperationValidator(
     private val schema: GraphQLSchema,
@@ -50,7 +52,7 @@ internal class GraphQLOperationValidator(
 
         val expanded = FragmentSpreadCollector.appendReachableExternalFragments(document, fragmentsByName)
         if (validateAgainstSchema(operation, expanded, errors)) {
-            validateSelectedFields(operation, operations.single(), expanded, errors)
+            validateSelections(operation, operations.single(), expanded, errors)
         }
     }
 
@@ -88,18 +90,25 @@ internal class GraphQLOperationValidator(
         return schemaErrors.isEmpty()
     }
 
-    private fun validateSelectedFields(
+    private fun validateSelections(
         operation: OperationDescriptor,
         op: OperationDefinition,
         expanded: graphql.language.Document,
         errors: MutableList<String>,
     ) {
+        val fragmentsByName = expanded.getDefinitionsOfType(FragmentDefinition::class.java).associateBy { it.name }
+        val deferUsages = findDeferUsages(op, fragmentsByName)
+        if (deferUsages.isNotEmpty()) {
+            errors.add(
+                "@defer is not allowed in ctx.query or ctx.mutation operations. " +
+                    "Operation ${operation.implFqn} must resolve synchronously. Found: ${deferUsages.joinToString()}",
+            )
+        }
         if (!forbiddenDirectiveChecker.isEnabled) return
         val rootType: GraphQLObjectType = when (op.operation ?: OperationDefinition.Operation.QUERY) {
             OperationDefinition.Operation.MUTATION -> schema.mutationType
             else -> schema.queryType
         } ?: return
-        val fragmentsByName = expanded.getDefinitionsOfType(FragmentDefinition::class.java).associateBy { it.name }
         forbiddenDirectiveChecker.violations(op, rootType, fragmentsByName).forEach { violation ->
             errors.add("@GraphQLOperation on ${operation.implFqn} ${violation.message()}")
         }

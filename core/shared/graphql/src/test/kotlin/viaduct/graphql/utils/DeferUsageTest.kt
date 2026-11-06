@@ -1,7 +1,10 @@
 package viaduct.graphql.utils
 
+import graphql.language.FragmentDefinition
+import graphql.language.OperationDefinition
 import graphql.parser.Parser
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
@@ -73,6 +76,26 @@ class DeferUsageTest {
 
         assertEquals(null, parsed.findDeferUsages().single().fragmentName)
         assertTrue(ParsedSelections.empty("Query").findDeferUsages().isEmpty())
+    }
+
+    @Test
+    fun `finds @defer in an operation and its referenced fragments`() {
+        val document = Parser.parse(
+            """
+            query Q { ... on Query @defer { __typename } ...Details }
+            fragment Details on Query { ... on Query @defer { __typename } }
+            fragment Unused on Query { ... on Query @defer { __typename } }
+            """.trimIndent()
+        )
+        val operation = document.getDefinitionsOfType(OperationDefinition::class.java).single()
+        val fragments = document.getDefinitionsOfType(FragmentDefinition::class.java).associateBy { it.name }
+
+        val usages = findDeferUsages(operation, fragments)
+
+        assertEquals(2, usages.size)
+        assertNull(usages.first().fragmentName)
+        assertEquals("Details", usages.last().fragmentName)
+        assertEquals(2, usages.last().sourceLocation!!.line)
     }
 
     private fun parse(document: String): ParsedSelections = ParsedSelections.fromDocument("Query", Parser.parse(document))
