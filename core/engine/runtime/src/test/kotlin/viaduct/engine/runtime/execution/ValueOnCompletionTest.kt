@@ -11,9 +11,11 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CompletionHandlerException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.InternalCoroutinesApi
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.launch
@@ -27,6 +29,7 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.EnumSource
 import org.junit.jupiter.params.provider.MethodSource
+import viaduct.deferred.ThreadLocalCoroutineContextManager
 import viaduct.deferred.completableDeferred
 import viaduct.deferred.currentRequestParentJobOrNull
 import viaduct.engine.runtime.Value
@@ -224,6 +227,33 @@ class ValueOnCompletionTest {
                     } finally {
                         caller.cancelAndJoin()
                     }
+                }
+            }
+        }
+
+    @ParameterizedTest
+    @EnumSource(Observer::class)
+    fun `observer registered after its coroutine finishes follows the default job`(observer: Observer): Unit =
+        runExecutionTest {
+            for (defaultJobCancelled in listOf(false, true)) {
+                val defaultJob = SupervisorJob()
+                val source = CompletableDeferred<Int?>()
+                val calls = AtomicInteger()
+                try {
+                    val finished = CoroutineScope(
+                        Dispatchers.Unconfined + ThreadLocalCoroutineContextManager.ContextElement(defaultJob)
+                    ).launch(start = CoroutineStart.LAZY) {}
+                    finished.invokeOnCompletion {
+                        Value.fromDeferred(source).observe(observer) { _, _ -> calls.incrementAndGet() }
+                    }
+                    finished.start()
+                    finished.join()
+                    if (defaultJobCancelled) defaultJob.cancel()
+                    source.cancel(CancellationException("execution cancelled"))
+
+                    assertEquals(if (defaultJobCancelled) 0 else 1, calls.get(), "$observer / defaultJobCancelled=$defaultJobCancelled")
+                } finally {
+                    defaultJob.cancelAndJoin()
                 }
             }
         }

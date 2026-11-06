@@ -3,6 +3,7 @@ package viaduct.engine.runtime
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import viaduct.deferred.CompletionCaller
 import viaduct.deferred.cancelledDeferred
 import viaduct.deferred.completedDeferred
 import viaduct.deferred.currentRequestParentJobOrNull
@@ -12,7 +13,6 @@ import viaduct.deferred.handle
 import viaduct.deferred.maybeRethrowCompletionHandlerException
 import viaduct.deferred.thenApply
 import viaduct.deferred.thenCompose
-import viaduct.deferred.threadLocalCurrentJobOrNull
 import viaduct.deferred.waitAllDeferreds
 
 /**
@@ -191,13 +191,11 @@ sealed interface Value<T> {
 
         @OptIn(ExperimentalCoroutinesApi::class)
         override fun onCompletion(block: (T?, Throwable?) -> Unit) {
-            // Completion may run on another thread; match thenApply's captured calling execution.
-            val callerJob = threadLocalCurrentJobOrNull()
+            val caller = CompletionCaller.capture()
             // An async wrapper can finish before observation; avoid allocating a completion handler in that case.
             if (deferred.isCompleted) {
                 val cause = deferred.getCompletionExceptionOrNull()
-                // Independent source cancellation is an outcome; execution cancellation remains control flow.
-                if (cause is CancellationException && callerJob?.isCancelled == true) return
+                if (caller.controlFlowCancellation(cause) != null) return
                 deferred.invokeCompletionCallback(cause, block)
                 return
             }
@@ -207,7 +205,7 @@ sealed interface Value<T> {
             deferred.invokeOnCompletion { cause ->
                 // Preserve result-child cancellation on request cleanup without allocating that child.
                 if (requestJob?.isCancelled == true) return@invokeOnCompletion
-                if (cause is CancellationException && callerJob?.isCancelled == true) return@invokeOnCompletion
+                if (caller.controlFlowCancellation(cause) != null) return@invokeOnCompletion
                 deferred.invokeCompletionCallback(cause, block)
             }
         }

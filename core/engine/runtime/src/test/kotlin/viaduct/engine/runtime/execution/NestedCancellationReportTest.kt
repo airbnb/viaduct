@@ -5,6 +5,9 @@ import graphql.execution.DataFetcherExceptionHandler
 import graphql.execution.DataFetcherExceptionHandlerParameters
 import graphql.execution.DataFetcherExceptionHandlerResult
 import graphql.execution.SimpleDataFetcherExceptionHandler
+import graphql.execution.instrumentation.FieldFetchingInstrumentationContext
+import graphql.execution.instrumentation.InstrumentationState
+import graphql.execution.instrumentation.parameters.InstrumentationFieldFetchParameters
 import graphql.schema.DataFetcher
 import graphql.schema.GraphQLObjectType
 import java.util.concurrent.CompletableFuture
@@ -24,6 +27,8 @@ import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.EngineSelectionSet
+import viaduct.engine.api.instrumentation.ChainedModernGJInstrumentation
+import viaduct.engine.api.instrumentation.ViaductModernGJInstrumentation
 import viaduct.engine.runtime.LazyEngineObjectData
 import viaduct.engine.runtime.execution.ExecutionTestHelpers.createSchema
 import viaduct.engine.runtime.execution.ExecutionTestHelpers.executeQuery
@@ -38,6 +43,27 @@ class NestedCancellationReportTest {
             return SimpleDataFetcherExceptionHandler().handleException(handlerParameters)
         }
     }
+
+    private class RecordingFetchInstrumentation : ViaductModernGJInstrumentation {
+        val failures = CopyOnWriteArrayList<String>()
+
+        override fun beginFieldFetching(
+            parameters: InstrumentationFieldFetchParameters,
+            state: InstrumentationState?,
+        ): FieldFetchingInstrumentationContext =
+            object : FieldFetchingInstrumentationContext {
+                override fun onDispatched() {}
+
+                override fun onCompleted(
+                    result: Any?,
+                    t: Throwable?,
+                ) {
+                    if (t != null) failures += "${parameters.executionStepInfo.path}: $t"
+                }
+            }
+    }
+
+    private class Reports(val handled: List<String>, val instrumented: List<String>)
 
     private class PendingLazyData(
         override val type: GraphQLObjectType,
@@ -61,6 +87,7 @@ class NestedCancellationReportTest {
     private fun graphQL(
         schema: EngineSchema,
         handler: DataFetcherExceptionHandler,
+        instrumentation: RecordingFetchInstrumentation = RecordingFetchInstrumentation(),
     ): GraphQL {
         @Suppress("DEPRECATION")
         val factory = ViaductExecutionStrategy.Factory.Impl(
@@ -72,14 +99,16 @@ class NestedCancellationReportTest {
         )
         return GraphQL.newGraphQL(schema.schema)
             .queryExecutionStrategy(factory.create(isSerial = false))
+            .instrumentation(ChainedModernGJInstrumentation(listOf(instrumentation)))
             .build()
     }
 
     /** Mirrors a component prefetch: the caller starts a nested query, then cancels it once it is not needed. */
     private enum class Parent { EAGER, LAZY, FINISHED_COROUTINE }
 
-    private fun reportsAfterCancellingNestedCaller(parent: Parent): List<String> {
+    private fun reportsAfterCancellingNestedCaller(parent: Parent): Reports {
         val innerHandler = RecordingHandler()
+        val innerInstrumentation = RecordingFetchInstrumentation()
         runExecutionTest {
             val innerStarted = CompletableDeferred<Unit>()
             val innerSchema = createSchema(
@@ -114,7 +143,7 @@ class NestedCancellationReportTest {
                     ),
                 )
             )
-            val innerGraphQL = graphQL(innerSchema, innerHandler)
+            val innerGraphQL = graphQL(innerSchema, innerHandler, innerInstrumentation)
             val outerSchema = createSchema(
                 "type Query { outer: String }",
                 mapOf(
@@ -141,21 +170,36 @@ class NestedCancellationReportTest {
             }
             assertEquals(mapOf("outer" to "done"), result.getData<Map<String, Any?>>())
         }
-        return innerHandler.seen.toList()
+        return Reports(innerHandler.seen.toList(), innerInstrumentation.failures.toList())
     }
 
     @Test
     fun `cancelling a nested caller does not report its pending eager field`() {
-        assertEquals(emptyList<String>(), reportsAfterCancellingNestedCaller(Parent.EAGER))
+        assertEquals(emptyList<String>(), reportsAfterCancellingNestedCaller(Parent.EAGER).handled)
     }
 
     @Test
     fun `cancelling a nested caller does not report children of its pending lazy object`() {
-        assertEquals(emptyList<String>(), reportsAfterCancellingNestedCaller(Parent.LAZY))
+        assertEquals(emptyList<String>(), reportsAfterCancellingNestedCaller(Parent.LAZY).handled)
     }
 
     @Test
     fun `cancelling a nested caller does not report fields started from a finished coroutine`() {
-        assertEquals(emptyList<String>(), reportsAfterCancellingNestedCaller(Parent.FINISHED_COROUTINE))
+        assertEquals(emptyList<String>(), reportsAfterCancellingNestedCaller(Parent.FINISHED_COROUTINE).handled)
+    }
+
+    @Test
+    fun `cancelling a nested caller does not fail fetch instrumentation for its pending eager field`() {
+        assertEquals(emptyList<String>(), reportsAfterCancellingNestedCaller(Parent.EAGER).instrumented)
+    }
+
+    @Test
+    fun `cancelling a nested caller does not fail fetch instrumentation for children of its pending lazy object`() {
+        assertEquals(emptyList<String>(), reportsAfterCancellingNestedCaller(Parent.LAZY).instrumented)
+    }
+
+    @Test
+    fun `cancelling a nested caller does not fail fetch instrumentation for fields started from a finished coroutine`() {
+        assertEquals(emptyList<String>(), reportsAfterCancellingNestedCaller(Parent.FINISHED_COROUTINE).instrumented)
     }
 }

@@ -113,13 +113,26 @@ inline fun <T, R> Deferred<T>.thenApply(crossinline transform: (T) -> R): Deferr
     return d
 }
 
+/**
+ * The execution that registers a completion callback. Capture it at registration, because the
+ * callback can run on another thread.
+ */
+@JvmInline
+value class CompletionCaller private constructor(private val owningJob: Job?) {
+    /** Returns [failure] when it is the caller's own cancellation: control flow, not a source outcome. */
+    fun controlFlowCancellation(failure: Throwable?): CancellationException? = (failure as? CancellationException)?.takeIf { owningJob?.isCancelled == true }
+
+    companion object {
+        fun capture(): CompletionCaller = CompletionCaller(threadLocalOwningJobOrNull())
+    }
+}
+
 /** Observe source outcomes while the calling execution remains active. */
 fun <T : Any?, U : Any?> Deferred<T>.handle(handler: (T?, Throwable?) -> U): Deferred<U> {
-    // Completion callbacks can run on a different thread; capture the calling execution now.
-    val callerJob = threadLocalOwningJobOrNull()
+    val caller = CompletionCaller.capture()
     if (isCompleted) {
         val failure = getCompletionExceptionOrNull()
-        if (failure is CancellationException && callerJob?.isCancelled == true) return cancelledDeferred(failure)
+        caller.controlFlowCancellation(failure)?.let { return cancelledDeferred(it) }
         return try {
             completedDeferred(handler(if (failure == null) getCompleted() else null, failure))
         } catch (ex: Exception) {
@@ -134,8 +147,8 @@ fun <T : Any?, U : Any?> Deferred<T>.handle(handler: (T?, Throwable?) -> U): Def
     invokeOnCompletion { failure ->
         // The source can be cancelled before the result child during request cleanup.
         if (d.isCancelled || requestJob?.isCancelled == true) return@invokeOnCompletion
-        if (failure is CancellationException && callerJob?.isCancelled == true) {
-            d.cancel(failure)
+        caller.controlFlowCancellation(failure)?.let {
+            d.cancel(it)
             return@invokeOnCompletion
         }
         try {

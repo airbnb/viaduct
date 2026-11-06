@@ -26,15 +26,6 @@ fun threadLocalCoroutineContext(): CoroutineContext {
 }
 
 /**
- * Returns the current [Job] from the [ThreadLocalCoroutineContextManager], or `null` if there
- * is no current [Job]. Avoids overhead of actually accessing the full [CoroutineContext] and
- * folding over it to find the [Job].
- *
- * TODO: This is currently unused, clean this up once we've verified that we only need the request job
- */
-fun threadLocalCurrentJobOrNull(): Job? = ThreadLocalCoroutineContextManager.INSTANCE.getCurrentJobOrNull()
-
-/**
  * Returns the [Job] that owns work started on this thread: the current [Job] while it is active or
  * cancelled, otherwise the default job that [threadLocalCoroutineContext] parents new work to.
  */
