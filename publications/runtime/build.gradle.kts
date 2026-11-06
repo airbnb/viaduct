@@ -19,7 +19,7 @@ val checkRuntime2Publication = tasks.register("checkRuntime2Publication") {
         val excluded = testFixtureInventory.get().readLines().toSet()
         ZipFile(runtimeJar.get().archiveFile.get().asFile).use { archive ->
             val entries = archive.entries().asSequence().map { it.name }.toSet()
-            check("viaduct/engine/runtime2/execution/QPlanExecutionStrategy.class" in entries)
+            check("viaduct/engine/runtime2/execution/Runtime2ExecutionStrategy.class" in entries)
             check(entries.intersect(excluded).isEmpty()) { "Runtime fat JAR contains runtime2 test fixture output" }
         }
     }

@@ -34,11 +34,11 @@ import viaduct.engine.runtime2.model.testing.emptyFragmentOf
 import viaduct.engine.runtime2.model.testing.fragmentFrom
 import viaduct.engine.runtime2.resolution.ResolutionDispatcherFactory
 
-class QPlanCancellationTest {
+class Runtime2CancellationTest {
     @Test
     fun `caller cancellation bridge handles cancellation before request startup`() {
         val cancellation = CancellationException("caller cancelled before request startup")
-        val bridge = QPlanCallerCancellation()
+        val bridge = Runtime2CallerCancellation()
         val requestJob = Job()
 
         bridge.cancel(cancellation)
@@ -49,7 +49,7 @@ class QPlanCancellationTest {
 
     @Test
     fun `caller cancellation bridge releases a completed request job`() {
-        val bridge = QPlanCallerCancellation()
+        val bridge = Runtime2CallerCancellation()
         val completedRequest = Job()
         bridge.attach(completedRequest)
 

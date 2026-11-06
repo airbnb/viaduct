@@ -28,7 +28,7 @@ import viaduct.engine.api.spi.CoroutineInterop
 import viaduct.engine.runtime.execution.DefaultCoroutineInterop
 import viaduct.engine.runtime.execution.mutation
 import viaduct.engine.runtime.execution.query
-import viaduct.engine.runtime2.execution.testing.runQPlanFeatureTest
+import viaduct.engine.runtime2.execution.testing.runRuntime2FeatureTest
 import viaduct.graphql.test.assertJson
 import viaduct.service.api.ExecutionInput
 import viaduct.service.api.SchemaId
@@ -152,7 +152,7 @@ class MutationExecutionTest {
                     }
                 }
             }
-        }.runQPlanFeatureTest {
+        }.runRuntime2FeatureTest {
             runQuery("{ trigger }").assertJson("""{"data":{"trigger":"1:2:3:4|5:6:7:8"}}""")
         }
         val types = listOf("MutationGroup", "NestedMutations", "MutationGroup", "Mutation")
@@ -208,7 +208,7 @@ class MutationExecutionTest {
                     }
                 }
             }
-        }.runQPlanFeatureTest {
+        }.runRuntime2FeatureTest {
             runQuery("mutation { outer later }").assertJson("""{"data":{"outer":"1:2","later":3}}""")
         }
         assertEquals(listOf("outer:start", "update:1", "payload:1", "update:2", "payload:2", "outer:end", "later"), events)
@@ -239,7 +239,7 @@ class MutationExecutionTest {
                         }
                     }
                 }
-            }.runQPlanFeatureTest {
+            }.runRuntime2FeatureTest {
                 runQuery("{ trigger }").assertJson("""{"data":{"trigger":3}}""")
             }
             assertEquals(3, count, "nullResult=$nullResult")
@@ -263,7 +263,7 @@ class MutationExecutionTest {
                         }
                     }
                 }
-            }.runQPlanFeatureTest {
+            }.runRuntime2FeatureTest {
                 val result = runQuery("mutation { first: update second: update }")
                 assertNull(result.getData<Any?>())
                 assertEquals(1, result.errors.size)
@@ -294,7 +294,7 @@ class MutationExecutionTest {
             field("Mutation" to "update") {
                 resolver { fn { _, _, _, _, _ -> ++calls } }
             }
-        }.runQPlanFeatureTest {
+        }.runRuntime2FeatureTest {
             val result = runQuery("mutation { group { first: update second: update } last: update }")
             assertEquals(mapOf("group" to null, "last" to 3), result.getData())
             assertEquals(1, result.errors.size)
@@ -324,7 +324,7 @@ class MutationExecutionTest {
                 field("Payload" to "value") {
                     resolver { fn { _, _, _, _, _ -> error("payload failed") } }
                 }
-            }.runQPlanFeatureTest {
+            }.runRuntime2FeatureTest {
                 val result = runQuery("mutation { first: update { value } second: update { value } }")
                 if (payloadType.endsWith("!")) assertNull(result.getData<Any?>())
                 val firstPath: List<Any> = if (payloadType.startsWith("[")) listOf("first", 0, "value") else listOf("first", "value")
@@ -357,7 +357,7 @@ class MutationExecutionTest {
                     }
                 }
             }
-        }.runQPlanFeatureTest {
+        }.runRuntime2FeatureTest {
             runQuery("mutation { group { a: update nested { update } b: update } first: update second: update first: update }")
                 .assertJson("""{"data":{"group":{"a":1,"nested":{"update":2},"b":3},"first":4,"second":5}}""")
         }
@@ -380,7 +380,7 @@ class MutationExecutionTest {
                     }
                 }
             }
-        }.runQPlanFeatureTest {
+        }.runRuntime2FeatureTest {
             runQuery("mutation { first: update second: update }")
                 .assertJson("""{"data":{"first":1,"second":2}}""")
         }
@@ -401,7 +401,7 @@ class MutationExecutionTest {
                     }
                 }
             }
-        }.runQPlanFeatureTest {
+        }.runRuntime2FeatureTest {
             val result = runQuery("mutation { failed: update empty: update success: update }")
             assertEquals(mapOf("failed" to null, "empty" to null, "success" to 3), result.getData())
             assertEquals(1, result.errors.size)

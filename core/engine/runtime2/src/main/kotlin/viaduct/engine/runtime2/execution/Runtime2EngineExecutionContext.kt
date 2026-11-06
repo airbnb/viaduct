@@ -29,7 +29,7 @@ import viaduct.errors.UnsetFieldException
 import viaduct.graphql.schema.ViaductSchema
 
 /** Engine API facade whose selection execution is owned by the active Resolution field task. */
-internal class QPlanEngineExecutionContext(
+internal class Runtime2EngineExecutionContext(
     private val delegate: EngineExecutionContext,
     private val schemas: ViaductAndGJSchema,
     private val resolutionContext: ResolutionExecutionContext,

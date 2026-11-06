@@ -54,13 +54,13 @@ import viaduct.engine.runtime.select.EngineSelectionSetFactoryImpl
 import viaduct.engine.runtime2.airbnb.DispatcherResolverRegistryFactory
 import viaduct.engine.runtime2.airbnb.Engine2ResolverRegistryFactory
 import viaduct.engine.runtime2.execution.Engine2ExecutionContext
-import viaduct.engine.runtime2.execution.QPlanCallerCancellation
-import viaduct.engine.runtime2.execution.QPlanCallerCancellationKey
-import viaduct.engine.runtime2.execution.QPlanExecutionStrategy
-import viaduct.engine.runtime2.execution.QPlanInstrumentation
-import viaduct.engine.runtime2.execution.QPlanWiringFactory
+import viaduct.engine.runtime2.execution.RequestLifetimeInstrumentation
+import viaduct.engine.runtime2.execution.Runtime2CallerCancellation
+import viaduct.engine.runtime2.execution.Runtime2CallerCancellationKey
 import viaduct.engine.runtime2.execution.Runtime2DispatchStrategy
 import viaduct.engine.runtime2.execution.Runtime2ExecutionHandle
+import viaduct.engine.runtime2.execution.Runtime2ExecutionStrategy
+import viaduct.engine.runtime2.execution.Runtime2WiringFactory
 import viaduct.engine.runtime2.execution.completeResolvedData
 import viaduct.engine.runtime2.execution.instrumentForRuntime2
 import viaduct.engine.runtime2.execution.runtime2NodeReferenceOf
@@ -96,18 +96,18 @@ class Engine2(
         usePrecomputedConstructionDemand = usePrecomputedConstructionDemand,
     )
     private val requestContextKey = RequestContextKey(this)
-    private val qplanInstrumentation = QPlanInstrumentation()
+    private val requestLifetimeInstrumentation = RequestLifetimeInstrumentation()
     private val graphql =
         GraphQL
-            .newGraphQL(QPlanWiringFactory(schemas.loweredSchema).wire(schema.schema))
+            .newGraphQL(Runtime2WiringFactory(schemas.loweredSchema).wire(schema.schema))
             .preparsedDocumentProvider(documentProvider)
             .queryExecutionStrategy(createExecutionStrategy())
             .mutationExecutionStrategy(createExecutionStrategy())
             .subscriptionExecutionStrategy(createExecutionStrategy())
             .instrumentation(
                 additionalInstrumentation?.let {
-                    ChainedInstrumentation(listOf(qplanInstrumentation, it))
-                } ?: qplanInstrumentation,
+                    ChainedInstrumentation(listOf(requestLifetimeInstrumentation, it))
+                } ?: requestLifetimeInstrumentation,
             ).build()
 
     @Deprecated("Airbnb use only")
@@ -126,7 +126,7 @@ class Engine2(
                     ): CompletableFuture<ExecutionResult> =
                         coroutineInterop.scopedFuture {
                             // Capture the context after the wrapper selects the request's dispatcher.
-                            QPlanExecutionStrategy(
+                            Runtime2ExecutionStrategy(
                                 world = world,
                                 sourceSchema = schemas.graphQLSchema,
                                 resolverCoroutineContext = coroutineContext,
@@ -190,7 +190,7 @@ class Engine2(
         incrementalExecution: Boolean,
     ): ExecutionResult {
         val engineContext = RequestEngineExecutionContext(executionInput.requestContext)
-        val callerCancellation = QPlanCallerCancellation()
+        val callerCancellation = Runtime2CallerCancellation()
         return try {
             // Capture context through the service's Java/coroutine bridge, including any
             // framework-specific request context installed by its CoroutineInterop.
@@ -202,7 +202,7 @@ class Engine2(
                         .variables(executionInput.variables)
                         .graphQLContext { context ->
                             context.put(requestContextKey, RequestContext(engineContext, coroutineContext))
-                            context.put(QPlanCallerCancellationKey, callerCancellation)
+                            context.put(Runtime2CallerCancellationKey, callerCancellation)
                         }
                 executionInput.operationName?.let(builder::operationName)
                 executionInput.requestContext?.let(builder::context)
@@ -254,7 +254,7 @@ class Engine2(
         override suspend fun resolveSelectionSet(
             selectionSet: EngineSelectionSet,
             options: ResolveSelectionSetOptions,
-        ): EngineObjectData.Sync = error("Selection execution requires an invocation-local QPlanEngineExecutionContext")
+        ): EngineObjectData.Sync = error("Selection execution requires an invocation-local Runtime2EngineExecutionContext")
 
         override fun projectOwnedSelections(
             selectionSet: EngineSelectionSet,

@@ -10,7 +10,7 @@ import viaduct.engine.runtime2.model.EngineResultCell
 import viaduct.engine.runtime2.model.ErrorEngineResult
 import viaduct.engine.runtime2.model.ListEngineResult
 import viaduct.engine.runtime2.model.ObjectEngineResult
-import viaduct.engine.runtime2.model.QPlanEngineObjectData
+import viaduct.engine.runtime2.model.Runtime2EngineObjectData
 import viaduct.engine.runtime2.model.conformsToArgumentDefinition
 import viaduct.engine.runtime2.model.conformsToInputSchemaType
 import viaduct.engine.runtime2.model.conformsToOutputSchemaType
@@ -23,7 +23,7 @@ import viaduct.graphql.schema.ViaductSchema
 /**
  * Whether this EOD recursively contains only engine output data.
  *
- * Qplan's factory retains each selection's canonical schema field. This relation uses that
+ * Runtime2's factory retains each selection's canonical schema field. This relation uses that
  * metadata to validate opaque scalar values without inferring field identity from response keys.
  */
 internal fun EngineObjectData.Sync.conformsToSchema(): Boolean = this.conformsToOutputData()
@@ -126,7 +126,7 @@ private fun EngineOutputData?.conformsToOutputData(): Boolean =
         is EngineErrorData,
         -> true
         is List<*> -> all { value -> value.conformsToOutputData() }
-        is QPlanEngineObjectData ->
+        is Runtime2EngineObjectData ->
             selectionFields.all { (selection, field) ->
                 outputValue(selection).conformsToOutputSchema(field.outputType)
             }

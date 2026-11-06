@@ -8,7 +8,7 @@ import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.mocks.EngineTestModule
 import viaduct.engine.runtime.execution.QueryExecutionContract
 import viaduct.engine.runtime.execution.QueryRunner
-import viaduct.engine.runtime2.execution.testing.runQPlanFeatureTest
+import viaduct.engine.runtime2.execution.testing.runRuntime2FeatureTest
 import viaduct.graphql.test.assertJson
 
 interface Engine2QueryExecutionContract : QueryExecutionContract {
@@ -22,7 +22,7 @@ interface Engine2QueryExecutionContract : QueryExecutionContract {
         query: String,
     ): ExecutionResult {
         lateinit var result: ExecutionResult
-        module.runQPlanFeatureTest { result = runQuery(query) }
+        module.runRuntime2FeatureTest { result = runQuery(query) }
         return result
     }
 
@@ -31,7 +31,7 @@ interface Engine2QueryExecutionContract : QueryExecutionContract {
         query: String,
         expectedJson: String,
     ) {
-        module.runQPlanFeatureTest {
+        module.runRuntime2FeatureTest {
             runQuery(query).assertJson(expectedJson)
         }
     }
@@ -42,7 +42,7 @@ interface Engine2QueryExecutionContract : QueryExecutionContract {
         expectedJson: String,
         withoutDefaultQueryNodeResolvers: Boolean,
     ) {
-        module.runQPlanFeatureTest(withoutDefaultQueryNodeResolvers = withoutDefaultQueryNodeResolvers) {
+        module.runRuntime2FeatureTest(withoutDefaultQueryNodeResolvers = withoutDefaultQueryNodeResolvers) {
             runQuery(query).assertJson(expectedJson)
         }
     }
@@ -53,7 +53,7 @@ interface Engine2QueryExecutionContract : QueryExecutionContract {
         query: String,
         expectedJson: String,
     ) {
-        module.runQPlanFeatureTest(schema = schema) {
+        module.runRuntime2FeatureTest(schema = schema) {
             runQuery(query).assertJson(expectedJson)
         }
     }
@@ -63,7 +63,7 @@ interface Engine2QueryExecutionContract : QueryExecutionContract {
         query: String,
         expectedJson: String,
     ) {
-        module.runQPlanFeatureTest {
+        module.runRuntime2FeatureTest {
             runQueryWithTimeout(query, timeoutMillis = 2_000).assertJson(expectedJson)
         }
     }
@@ -75,7 +75,7 @@ interface Engine2QueryExecutionContract : QueryExecutionContract {
         engineConfig: EngineConfiguration?,
         block: (QueryRunner) -> Unit,
     ) {
-        module.runQPlanFeatureTest(withoutDefaultQueryNodeResolvers, schema, engineConfig) {
+        module.runRuntime2FeatureTest(withoutDefaultQueryNodeResolvers, schema, engineConfig) {
             block(
                 QueryRunner(
                     { query, variables -> runQuery(query, variables) },

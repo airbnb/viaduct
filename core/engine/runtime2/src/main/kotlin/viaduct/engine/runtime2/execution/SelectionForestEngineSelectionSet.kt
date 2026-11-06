@@ -20,11 +20,11 @@ import viaduct.engine.runtime2.model.InclusionCondition
 import viaduct.engine.runtime2.model.Selection
 import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.model.objectKey
-import viaduct.graphql.schema.ViaductSchema as QPlanSchema
+import viaduct.graphql.schema.ViaductSchema
 import viaduct.graphql.utils.ParsedSelections
 
 /**
- * Exposes qplan output demand through the Engine API selection-set surface.
+ * Exposes runtime2 output demand through the Engine API selection-set surface.
  *
  * [SelectionForest] is already a flattened semantic representation: it retains concrete
  * [Selection.possibleTypes] but not the inline-fragment nesting that produced those types. This
@@ -37,11 +37,11 @@ import viaduct.graphql.utils.ParsedSelections
  * fragments, or directive spelling.
  */
 internal fun SelectionForest.toEngineSelectionSet(
-    type: QPlanSchema.CompositeTypeDef,
+    type: ViaductSchema.CompositeTypeDef,
     schema: EngineSchema,
 ): EngineSelectionSet {
     require(schema.schema.getType(type.name) != null) {
-        "Qplan selection type ${type.name} is absent from the Engine schema"
+        "Runtime2 selection type ${type.name} is absent from the Engine schema"
     }
     return EngineSelectionSetImpl.create(
         parsedSelections =
@@ -59,7 +59,7 @@ private fun SelectionForest.toConcreteSelectionSet(schema: EngineSchema): Select
     val fieldsByConcreteType = linkedMapOf<String, MutableList<Field>>()
     forEach { selection ->
         selection.possibleTypes
-            .sortedBy(QPlanSchema.Object::name)
+            .sortedBy(ViaductSchema.Object::name)
             .forEach { concreteType ->
                 fieldsByConcreteType
                     .getOrPut(concreteType.name, ::mutableListOf)
@@ -83,7 +83,7 @@ private fun SelectionForest.toConcreteSelectionSet(schema: EngineSchema): Select
 }
 
 private fun Selection.toField(
-    concreteType: QPlanSchema.Object,
+    concreteType: ViaductSchema.Object,
     schema: EngineSchema,
 ): Field {
     val loweredFieldName = key.field.name
@@ -95,7 +95,7 @@ private fun Selection.toField(
             "__typename"
         } else {
             requireNotNull(sourceField) {
-                "Qplan field ${concreteType.name}.$loweredFieldName is absent from the Engine schema"
+                "Runtime2 field ${concreteType.name}.$loweredFieldName is absent from the Engine schema"
             }.name
         }
     val arguments =
@@ -131,7 +131,7 @@ private fun Selection.toField(
                 val sourceArgument =
                     sourceField.getArgument(name)
                         ?: throw IllegalArgumentException(
-                            "Qplan argument ${concreteType.name}.$fieldName($name:) " +
+                            "Runtime2 argument ${concreteType.name}.$fieldName($name:) " +
                                 "is absent from the Engine schema",
                         )
                 Argument.newArgument()

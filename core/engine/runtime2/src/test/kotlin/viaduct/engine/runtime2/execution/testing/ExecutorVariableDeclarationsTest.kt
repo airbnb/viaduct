@@ -104,7 +104,7 @@ class ExecutorVariableDeclarationsTest {
                     }
                 }
             }
-        }.runQPlanFeatureTest {
+        }.runRuntime2FeatureTest {
             runQuery("{ a: result(input: {value: 3}) b: result(input: {value: 4}) }")
                 .assertJson("{data: {a: 15, b: 20}}")
         }
@@ -137,7 +137,7 @@ class ExecutorVariableDeclarationsTest {
                     }
                 }
             }
-        }.runQPlanFeatureTest {
+        }.runRuntime2FeatureTest {
             runQuery("{ shown: result(enabled: true) hidden: result(enabled: false) }")
                 .assertJson("{data: {shown: 9, hidden: -1}}")
         }
@@ -179,7 +179,7 @@ class ExecutorVariableDeclarationsTest {
                     }
                 }
             }
-        }.runQPlanFeatureTest {
+        }.runRuntime2FeatureTest {
             runQuery("{ a: result(x: 3) b: result(x: 4) }").assertJson("{data: {a: 10, b: 13}}")
         }
         assertEquals(2, calls.get())

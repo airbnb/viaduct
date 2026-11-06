@@ -26,8 +26,8 @@ import viaduct.engine.runtime.execution.SubqueryExecutionContract
 import viaduct.engine.runtime.execution.mutation
 import viaduct.engine.runtime.execution.query
 import viaduct.engine.runtime.execution.scopedAsync
-import viaduct.engine.runtime2.execution.testing.QPlanFeatureTest
-import viaduct.engine.runtime2.execution.testing.runQPlanFeatureTest as runFeatureTestOnce
+import viaduct.engine.runtime2.execution.testing.Runtime2FeatureTest
+import viaduct.engine.runtime2.execution.testing.runRuntime2FeatureTest as runFeatureTestOnce
 import viaduct.service.api.spi.FlagManager
 import viaduct.service.api.spi.mocks.MockFlagManager
 
@@ -243,7 +243,7 @@ abstract class SubqueryExecutionContractTestCases(
         assertEquals(setOf(setOf("a"), setOf("b")), nodeSelections.toSet())
     }
 
-    @Engine2Disabled(Engine2DisabledKind.NA, "Asserts production subquery-execution instrumentation outside qplan's resolver-correctness boundary")
+    @Engine2Disabled(Engine2DisabledKind.NA, "Asserts production subquery-execution instrumentation outside runtime2's resolver-correctness boundary")
     fun `subquery execution emits metric`() {
         val meterRegistry = SimpleMeterRegistry()
         val engineConfig = EngineConfiguration.featureTestDefault.copy(
@@ -306,7 +306,7 @@ abstract class SubqueryExecutionContractTestCases(
 
     @Engine2Disabled(
         Engine2DisabledKind.ALT,
-        "Production wraps invalid subquery planning in SubqueryExecutionException; qplan reports its native schema failure"
+        "Production wraps invalid subquery planning in SubqueryExecutionException; runtime2 reports its native schema failure"
     )
     fun `ctx query wraps QueryPlan build failures in SubqueryExecutionException`() {
         EngineTestModule(
@@ -402,7 +402,7 @@ abstract class SubqueryExecutionContractTestCases(
             assertEquals(1, result.errors.size)
             assertTrue(
                 result.errors.first().message.contains("Field 'nonExistentField' in type 'Query' is undefined"),
-                "Expected qplan schema failure, got: ${result.errors.first().message}"
+                "Expected runtime2 schema failure, got: ${result.errors.first().message}"
             )
         }
     }
@@ -410,7 +410,7 @@ abstract class SubqueryExecutionContractTestCases(
     private fun EngineTestModule.runFeatureTest(
         withoutDefaultQueryNodeResolvers: Boolean = false,
         engineConfig: EngineConfiguration = EngineConfiguration.featureTestDefault,
-        block: QPlanFeatureTest.() -> Unit,
+        block: Runtime2FeatureTest.() -> Unit,
     ) {
         runFeatureTestOnce(
             withoutDefaultQueryNodeResolvers = withoutDefaultQueryNodeResolvers,

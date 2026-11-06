@@ -45,7 +45,7 @@ import viaduct.graphql.schema.ViaductSchema
 @Warmup(iterations = 3, time = 1)
 @Measurement(iterations = 5, time = 1)
 @Fork(value = 2, jvmArgsAppend = ["-Xms512m", "-Xmx512m", "-XX:+UseG1GC", "-Dkotlinx.coroutines.debug=off"])
-open class QPlanListConversionBenchmark {
+open class Runtime2ListConversionBenchmark {
     @Param("0", "1", "10", "100", "1000")
     @JvmField
     var size: Int = 0
@@ -90,11 +90,11 @@ open class QPlanListConversionBenchmark {
         requestScope = CoroutineScope(Job() + Dispatchers.Unconfined)
         val handled = CompletableFuture.completedFuture(DataFetcherExceptionHandlerResult.newResult().build())
         val handler = DataFetcherExceptionHandler { handled }
-        val executableSchema = QPlanWiringFactory(schema).wire(sourceSchema)
+        val executableSchema = Runtime2WiringFactory(schema).wire(sourceSchema)
         val fieldDefinition = executableSchema.queryType.getFieldDefinition("values")
         fetcher = executableSchema.codeRegistry.getDataFetcher(executableSchema.queryType, fieldDefinition)
         environment = DataFetchingEnvironmentImpl.newDataFetchingEnvironment()
-            .source(QPlanExecutionSource(root, requestScope, handler))
+            .source(Runtime2ExecutionSource(root, requestScope, handler))
             .arguments(emptyMap())
             .fieldDefinition(fieldDefinition)
             .executionStepInfo(

@@ -32,12 +32,12 @@ import viaduct.engine.runtime.tenantloading.RequiredSelectionsAreInvalid
 import viaduct.engine.runtime.tenantloading.RequiredSelectionsCycleException
 import viaduct.engine.runtime2.model.EngineErrorData
 import viaduct.engine.runtime2.model.conformsToScalarOutput
-import viaduct.engine.runtime2.model.qplanSchemaTypeOrNull
+import viaduct.engine.runtime2.model.runtime2SchemaTypeOrNull
 import viaduct.engine.runtime2.model.toScalarInput
 import viaduct.service.runtime.StandardViaduct
 
 /** GraphQL feature-test surface backed by engine2 through production [StandardViaduct] wiring. */
-class QPlanFeatureTest internal constructor(
+class Runtime2FeatureTest internal constructor(
     private val delegate: FeatureTest,
 ) {
     fun runQuery(
@@ -62,11 +62,11 @@ class QPlanFeatureTest internal constructor(
  * API so feature tests also cover engine selection and the rest of [StandardViaduct]'s execution
  * boundary.
  */
-fun EngineTestModule.runQPlanFeatureTest(
+fun EngineTestModule.runRuntime2FeatureTest(
     withoutDefaultQueryNodeResolvers: Boolean = false,
     schema: EngineSchema? = null,
     engineConfig: EngineConfiguration? = null,
-    block: QPlanFeatureTest.() -> Unit,
+    block: Runtime2FeatureTest.() -> Unit,
 ) {
     val suppliedFieldExecutors = fieldResolverExecutors.toList()
     val suppliedFieldCoordinates = suppliedFieldExecutors.mapTo(mutableSetOf()) { it.first }
@@ -121,7 +121,7 @@ fun EngineTestModule.runQPlanFeatureTest(
             schema = schema,
             engineConfig = engineConfig,
         ) {
-            QPlanFeatureTest(this).block()
+            Runtime2FeatureTest(this).block()
         }
     } catch (failure: RequiredSelectionsAreInvalid) {
         throw IllegalArgumentException("Invalid GraphQL fragment: ${failure.message}", failure)
@@ -158,11 +158,11 @@ private fun fixtureDefaultValue(type: GraphQLOutputType): Any? =
         else -> null
     }
 
-fun MockTenantModuleBootstrapper.runQPlanFeatureTest(
+fun MockTenantModuleBootstrapper.runRuntime2FeatureTest(
     withoutDefaultQueryNodeResolvers: Boolean = false,
     schema: EngineSchema? = null,
     engineConfig: EngineConfiguration? = null,
-    block: QPlanFeatureTest.() -> Unit,
+    block: Runtime2FeatureTest.() -> Unit,
 ) {
     EngineTestModule(
         fullSchema = fullSchema,
@@ -170,7 +170,7 @@ fun MockTenantModuleBootstrapper.runQPlanFeatureTest(
         nodeResolverExecutors = nodeResolverExecutors,
         checkerExecutors = checkerExecutors,
         typeCheckerExecutors = typeCheckerExecutors,
-    ).runQPlanFeatureTest(
+    ).runRuntime2FeatureTest(
         withoutDefaultQueryNodeResolvers = withoutDefaultQueryNodeResolvers,
         schema = schema,
         engineConfig = engineConfig,
@@ -209,7 +209,7 @@ internal fun EngineTestModule.fixtureNodeExecutor(
                 result.map { output ->
                     val type = requireNotNull(fullSchema.schema.getObjectType(typeName))
                     val prepared = fixtureOutput(type, output) as EngineObjectData
-                    if (prepared !is EngineObjectData.Sync || prepared is RootFieldReference || prepared.qplanSchemaTypeOrNull != null) {
+                    if (prepared !is EngineObjectData.Sync || prepared is RootFieldReference || prepared.runtime2SchemaTypeOrNull != null) {
                         prepared
                     } else {
                         val fields = prepared.getSelections().associateWith(prepared::get).toMutableMap()
@@ -233,7 +233,7 @@ private fun fixtureOutput(
     value: Any?,
 ): Any? {
     if (value is RootFieldReference || value is NodeReference || value is EngineErrorData) return value
-    if (value is EngineObjectData.Sync && value.qplanSchemaTypeOrNull != null) return value
+    if (value is EngineObjectData.Sync && value.runtime2SchemaTypeOrNull != null) return value
     if (expectedType is GraphQLNonNull) return fixtureOutput(expectedType.wrappedType as GraphQLOutputType, value)
     if (expectedType is GraphQLList && value is List<*>) {
         return value.map { fixtureOutput(expectedType.wrappedType as GraphQLOutputType, it) }
@@ -259,7 +259,7 @@ private fun fixtureOutput(
         is EngineObjectData.Sync -> value.getSelections().associateWith(value::get)
         is Map<*, *> -> {
             require(value.keys.all { it is String }) {
-                "Qplan requires string keys in map object executor outputs"
+                "Runtime2 requires string keys in map object executor outputs"
             }
             value.entries.associate { (key, entry) -> key as String to entry }
         }
@@ -268,7 +268,7 @@ private fun fixtureOutput(
         type.getFieldDefinition(name)?.let { fixtureOutput(it.type, entry) } ?: entry
     }.toMutableMap()
     if (type.interfaces.any { it.name == "Node" } && "id" !in fields) {
-        fields["id"] = "__qplan_inline_node__"
+        fields["id"] = "__runtime2_inline_node__"
     }
     return ResolvedEngineObjectData(type, fields)
 }

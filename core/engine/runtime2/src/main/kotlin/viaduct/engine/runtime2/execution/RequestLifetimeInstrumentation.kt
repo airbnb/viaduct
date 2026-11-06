@@ -13,7 +13,7 @@ import java.util.concurrent.CompletableFuture
  * GraphQL Java adds its incremental publisher outside the query execution strategy, so this final
  * result hook is the first boundary that can wrap publisher completion and cancellation.
  */
-class QPlanInstrumentation : SimplePerformantInstrumentation() {
+class RequestLifetimeInstrumentation : SimplePerformantInstrumentation() {
     override fun instrumentExecutionResult(
         executionResult: ExecutionResult,
         parameters: InstrumentationExecutionParameters,
@@ -21,13 +21,13 @@ class QPlanInstrumentation : SimplePerformantInstrumentation() {
     ): CompletableFuture<ExecutionResult> {
         val graphQLContext = parameters.graphQLContext
         val lifetimeKey =
-            QPlanRequestLifetimeKey(
+            Runtime2RequestLifetimeKey(
                 requireNotNull(parameters.executionInput.executionId) {
                     "GraphQL execution ID must be assigned before result instrumentation"
                 },
             )
         val lifetime =
-            graphQLContext.get<QPlanRequestLifetime>(lifetimeKey)
+            graphQLContext.get<Runtime2RequestLifetime>(lifetimeKey)
                 ?: return CompletableFuture.completedFuture(executionResult)
         graphQLContext.delete(lifetimeKey)
         val result =

@@ -11,7 +11,7 @@ fun ViaductSchema.Field.isParentField(): Boolean = hasAppliedDirective(PARENT_DI
 /**
  * Derives and validates the parent-field-to-producer-field relation for [schema].
  *
- * Qplan deliberately restricts a child-producing field paired with `@parent` to have no arguments.
+ * Runtime2 deliberately restricts a child-producing field paired with `@parent` to have no arguments.
  * Singular, list, and nested-list child outputs are all admitted, but their producer cannot
  * belong to an operation root or a namespace type.
  */

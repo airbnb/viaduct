@@ -51,7 +51,7 @@ class FieldResolverDefinition private constructor(
             variablesProvider = variablesProvider,
         )
 
-    /** Routes internally encoded Query.node identities through qplan's built-in node dispatcher. */
+    /** Routes internally encoded Query.node identities through runtime2's built-in node dispatcher. */
     internal fun withNodeDispatch(
         dispatch: suspend (
             Arguments.Resolved,

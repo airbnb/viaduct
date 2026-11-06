@@ -16,7 +16,7 @@ import viaduct.engine.runtime2.resolution.framework.ResolverInvocationObservatio
  */
 class GraphQLExecuteSmokeTest : ExecutionTestFixtureResource {
     @Test
-    fun `completes external typename without qplan typename resolver applications`() {
+    fun `completes external typename without runtime2 typename resolver applications`() {
         val applications = ConcurrentLinkedQueue<String>()
         val resolverSchema =
             """
@@ -476,6 +476,6 @@ class GraphQLExecuteSmokeTest : ExecutionTestFixtureResource {
             ),
             listOf("items", 1),
         )
-        assertTrue(result.errors.single().message.contains("QPlan field resolution failed"))
+        assertTrue(result.errors.single().message.contains("Runtime2 field resolution failed"))
     }
 }

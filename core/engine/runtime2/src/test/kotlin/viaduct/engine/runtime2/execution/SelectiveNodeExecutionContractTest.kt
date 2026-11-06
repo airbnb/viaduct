@@ -49,7 +49,7 @@ import viaduct.engine.api.select.SelectionsParser
 import viaduct.engine.api.spi.VariableFromFieldDefinitions
 import viaduct.engine.runtime.execution.SelectiveNodeExecutionContract
 import viaduct.engine.runtime.execution.query
-import viaduct.engine.runtime2.execution.testing.runQPlanFeatureTest
+import viaduct.engine.runtime2.execution.testing.runRuntime2FeatureTest
 import viaduct.engine.runtime2.model.EngineErrorData
 import viaduct.graphql.test.assertMatches
 import viaduct.service.api.ExecutionInput
@@ -71,7 +71,7 @@ class SelectiveNodeExecutionContractTest : SelectiveNodeExecutionContract, Engin
             resolveLabel = { product -> "label:${product.get("caption")}" },
         )
 
-        module.runQPlanFeatureTest {
+        module.runRuntime2FeatureTest {
             val result = runQueryWithTimeout(
                 """
                 {
@@ -145,13 +145,13 @@ class SelectiveNodeExecutionContractTest : SelectiveNodeExecutionContract, Engin
 
     @Engine2Disabled(
         Engine2DisabledKind.ALT,
-        "Production mutates the original node reference after fetching; qplan publishes the same response from a closed one-shot occurrence"
+        "Production mutates the original node reference after fetching; runtime2 publishes the same response from a closed one-shot occurrence"
     )
     override fun `initial materialization resolves node reference`() {}
 
     @Engine2Disabled(
         Engine2DisabledKind.ALT,
-        "Production accumulates fields on one reused mutable node reference; qplan resolves fresh closed reference occurrences"
+        "Production accumulates fields on one reused mutable node reference; runtime2 resolves fresh closed reference occurrences"
     )
     override fun `reused node reference resolves newly selected fields`() {}
 
@@ -160,86 +160,86 @@ class SelectiveNodeExecutionContractTest : SelectiveNodeExecutionContract, Engin
 
     @Engine2Disabled(
         Engine2DisabledKind.ALT,
-        "Production refetches after discovering nested RSS demand; qplan supplies the complete nested demand in one node call"
+        "Production refetches after discovering nested RSS demand; runtime2 supplies the complete nested demand in one node call"
     )
     override fun `missing nested rss rematerializes node source`() {}
 
-    @Engine2Disabled(Engine2DisabledKind.ALT, "Production selects values from successive cache-covering results; qplan publishes one stable producer result")
+    @Engine2Disabled(Engine2DisabledKind.ALT, "Production selects values from successive cache-covering results; runtime2 publishes one stable producer result")
     override fun `surplus coverage uses values from the first covering result`() {}
 
     @Engine2Disabled(
         Engine2DisabledKind.ALT,
-        "Production reconciles different list sizes across refetches; qplan publishes one stable list with the same item results"
+        "Production reconciles different list sizes across refetches; runtime2 publishes one stable list with the same item results"
     )
     override fun `changed embedded list size leaves unmatched items unresolved`() {}
 
     @Engine2Disabled(
         Engine2DisabledKind.ALT,
-        "Production detects embedded-list type drift between node fetches; one-shot qplan can preserve the same consumer error but has no second type"
+        "Production detects embedded-list type drift between node fetches; one-shot runtime2 can preserve the same consumer error but has no second type"
     )
     override fun `embedded list item type changes during refetch report a field error`() {}
 
     @Engine2Disabled(
         Engine2DisabledKind.ALT,
-        "Production asks a selective node owner for argument-bearing fields in separate materializations; qplan resolves those fields actively by key"
+        "Production asks a selective node owner for argument-bearing fields in separate materializations; runtime2 resolves those fields actively by key"
     )
     override fun `client and rss arguments remain isolated`() {}
 
     @Engine2Disabled(
         Engine2DisabledKind.ALT,
-        "Production asks the selective node owner to supply an argument-bearing RSS field; qplan resolves that field actively"
+        "Production asks the selective node owner to supply an argument-bearing RSS field; runtime2 resolves that field actively"
     )
     override fun `rss variable failure reports a field error`() {}
 
     @Engine2Disabled(
         Engine2DisabledKind.ALT,
-        "Production asks selective node output to own an argument-bearing embedded field; qplan resolves that field actively"
+        "Production asks selective node output to own an argument-bearing embedded field; runtime2 resolves that field actively"
     )
     override fun `embedded node materialization preserves ancestor argument variables`() {}
 
     @Engine2Disabled(
         Engine2DisabledKind.ALT,
-        "Uses a callback-owned RSS and asks a selective node owner to supply an argument-bearing field; qplan uses a declarative provider, an active argument-bearing field, and one non-selective node application"
+        "Uses a callback-owned RSS and asks a selective node owner to supply an argument-bearing field; runtime2 uses a declarative provider, an active argument-bearing field, and one non-selective node application"
     )
     override fun `node owned sibling supplies required rss variable`() {}
 
     @Engine2Disabled(
         Engine2DisabledKind.ALT,
-        "Production asks selective node output to own nested argument-bearing fields; qplan resolves those fields actively"
+        "Production asks selective node output to own nested argument-bearing fields; runtime2 resolves those fields actively"
     )
     override fun `embedded node materialization preserves fragment argument variables`() {}
 
     @Engine2Disabled(
         Engine2DisabledKind.ALT,
-        "Production detects top-level type drift between node fetches; one-shot qplan preserves the same consumer error from one stable type"
+        "Production detects top-level type drift between node fetches; one-shot runtime2 preserves the same consumer error from one stable type"
     )
     override fun `type changes during refetch report a field error`() {}
 
     @Engine2Disabled(
         Engine2DisabledKind.ALT,
-        "Production compares exceptions across node refetches; one-shot qplan preserves the same consumer failure from one stable producer"
+        "Production compares exceptions across node refetches; one-shot runtime2 preserves the same consumer failure from one stable producer"
     )
     override fun `inconsistent resolver exceptions`() {}
 
     @Engine2Disabled(
         Engine2DisabledKind.ALT,
-        "Production detects nested type drift between node fetches; one-shot qplan preserves the same consumer error from one stable nested type"
+        "Production detects nested type drift between node fetches; one-shot runtime2 preserves the same consumer error from one stable nested type"
     )
     override fun `nested object type changes during refetch report a field error`() {}
 
     @Engine2Disabled(
         Engine2DisabledKind.ALT,
-        "Production detects malformed nested replacement data during refetch; one-shot qplan preserves the same consumer failure from stable data"
+        "Production detects malformed nested replacement data during refetch; one-shot runtime2 preserves the same consumer failure from stable data"
     )
     override fun `malformed nested object during refetch reports a field error`() {}
 
-    @Engine2Disabled(Engine2DisabledKind.NA, "Production node-fetch instrumentation is outside the qplan resolver-correctness boundary")
+    @Engine2Disabled(Engine2DisabledKind.NA, "Production node-fetch instrumentation is outside the runtime2 resolver-correctness boundary")
     override fun `node fetch instrumentation covers required fields`() {}
 
-    @Engine2Disabled(Engine2DisabledKind.NA, "Production instrumentation source identity is outside the qplan resolver-correctness boundary")
+    @Engine2Disabled(Engine2DisabledKind.NA, "Production instrumentation source identity is outside the runtime2 resolver-correctness boundary")
     override fun `mat backed traversal keeps the node reference as its source`() {}
 
-    @Engine2Disabled(Engine2DisabledKind.NA, "Production node-fetch instrumentation is outside the qplan resolver-correctness boundary")
+    @Engine2Disabled(Engine2DisabledKind.NA, "Production node-fetch instrumentation is outside the runtime2 resolver-correctness boundary")
     override fun `node refetch failure completes instrumentation with error`() {}
 
     @Engine2Disabled(Engine2DisabledKind.TODO, "Batching")
@@ -267,7 +267,7 @@ class SelectiveNodeExecutionContractTest : SelectiveNodeExecutionContract, Engin
                 type("Foo") {
                     nodeUnbatchedExecutor(selective = true) { _, _, _ -> error("Node resolver should not run") }
                 }
-            }.runQPlanFeatureTest {
+            }.runRuntime2FeatureTest {
                 runQuery("{ foo { id __typename } }")
                     .assertJson("{data: {foo: {id: \"Foo:1\", __typename: \"Foo\"}}}")
             }
@@ -275,7 +275,7 @@ class SelectiveNodeExecutionContractTest : SelectiveNodeExecutionContract, Engin
 
         @Engine2Disabled(
             Engine2DisabledKind.ALT,
-            "Production performs an initial fetch and a path-specific refetch; qplan supplies their concrete path union once"
+            "Production performs an initial fetch and a path-specific refetch; runtime2 supplies their concrete path union once"
         )
         fun `materialization output selections preserve path-specific concrete ownership`() {
             // The Root node resolver owns different leaves below foo and bar based on the concrete
@@ -347,7 +347,7 @@ class SelectiveNodeExecutionContractTest : SelectiveNodeExecutionContract, Engin
                 field("Impl2" to "x") {
                     resolver { fn { _, _, _, _, _ -> -1 } }
                 }
-            }.runQPlanFeatureTest {
+            }.runRuntime2FeatureTest {
                 runQueryWithTimeout("{ root { value } }")
                     .assertJson("{data: {root: {value: 6}}}")
             }
@@ -433,7 +433,7 @@ class SelectiveNodeExecutionContractTest : SelectiveNodeExecutionContract, Engin
                 field("Impl2" to "x") {
                     resolver { fn { _, _, _, _, _ -> -1 } }
                 }
-            }.runQPlanFeatureTest {
+            }.runRuntime2FeatureTest {
                 runQueryWithTimeout("{ root { value } }")
                     .assertJson("{data: {root: {value: 6}}}")
             }
@@ -459,7 +459,7 @@ class SelectiveNodeExecutionContractTest : SelectiveNodeExecutionContract, Engin
                         createEngineObjectData(objectType, mapOf("x" to 2))
                     }
                 }
-            }.runQPlanFeatureTest {
+            }.runRuntime2FeatureTest {
                 runQueryWithTimeout("{ foo { x } }")
                     .assertJson("{data: {foo: {x: 2}}}")
             }
@@ -513,7 +513,7 @@ class SelectiveNodeExecutionContractTest : SelectiveNodeExecutionContract, Engin
                         )
                     }
                 }
-            }.runQPlanFeatureTest(withoutDefaultQueryNodeResolvers = true) {
+            }.runRuntime2FeatureTest(withoutDefaultQueryNodeResolvers = true) {
                 runQueryWithTimeout("{ x }")
                     .assertJson("{data: {x: 2}}")
             }
@@ -589,7 +589,7 @@ class SelectiveNodeExecutionContractTest : SelectiveNodeExecutionContract, Engin
                         )
                     }
                 }
-            }.runQPlanFeatureTest {
+            }.runRuntime2FeatureTest {
                 runQueryWithTimeout("{ foo { bar { y } } }")
                     .assertJson("{data: {foo: {bar: {y: 6}}}}")
             }
@@ -637,7 +637,7 @@ class SelectiveNodeExecutionContractTest : SelectiveNodeExecutionContract, Engin
                         )
                     }
                 }
-            }.runQPlanFeatureTest {
+            }.runRuntime2FeatureTest {
                 runQueryWithTimeout("{ foo { x y } }")
                     .assertJson("{data: {foo: {x: 10, y: 21}}}")
             }
@@ -707,7 +707,7 @@ class SelectiveNodeExecutionContractTest : SelectiveNodeExecutionContract, Engin
                         )
                     }
                 }
-            }.runQPlanFeatureTest {
+            }.runRuntime2FeatureTest {
                 runQueryWithTimeout("{ foo { bars { x } } }").assertMatches {
                     "data" to {
                         "foo" to {
@@ -768,7 +768,7 @@ class SelectiveNodeExecutionContractTest : SelectiveNodeExecutionContract, Engin
                         )
                     }
                 }
-            }.runQPlanFeatureTest {
+            }.runRuntime2FeatureTest {
                 runQueryWithTimeout(
                     "{ foo { bars { ... on Baz { x } } } }"
                 ).assertMatches {
@@ -835,7 +835,7 @@ class SelectiveNodeExecutionContractTest : SelectiveNodeExecutionContract, Engin
                         createEngineObjectData(objectType, emptyMap())
                     }
                 }
-            }.runQPlanFeatureTest {
+            }.runRuntime2FeatureTest {
                 runQueryWithTimeout(
                     "query(${'$'}z: Int!) { foo { y(z: ${'$'}z) x } }",
                     variables = mapOf("z" to 1),
@@ -877,7 +877,7 @@ class SelectiveNodeExecutionContractTest : SelectiveNodeExecutionContract, Engin
                         createEngineObjectData(objectType, emptyMap())
                     }
                 }
-            }.runQPlanFeatureTest {
+            }.runRuntime2FeatureTest {
                 runQueryWithTimeout("{ foo { x } }").assertMatches {
                     "data" to {
                         "foo" to {
@@ -927,7 +927,7 @@ class SelectiveNodeExecutionContractTest : SelectiveNodeExecutionContract, Engin
                         createEngineObjectData(objectType, emptyMap())
                     }
                 }
-            }.runQPlanFeatureTest {
+            }.runRuntime2FeatureTest {
                 runQueryWithTimeout(
                     "query(\$y: Int!) { foo { bar(y: \$y) { x } } }",
                     variables = mapOf("y" to 2),
@@ -989,7 +989,7 @@ class SelectiveNodeExecutionContractTest : SelectiveNodeExecutionContract, Engin
                         )
                     }
                 }
-            }.runQPlanFeatureTest {
+            }.runRuntime2FeatureTest {
                 runQueryWithTimeout("{ foo { bar { x } } }")
                     .assertJson("{data: {foo: {bar: {x: 30}}}}")
             }
@@ -1044,7 +1044,7 @@ class SelectiveNodeExecutionContractTest : SelectiveNodeExecutionContract, Engin
                         createEngineObjectData(objectType, emptyMap())
                     }
                 }
-            }.runQPlanFeatureTest {
+            }.runRuntime2FeatureTest {
                 runQueryWithTimeout(
                     """
                         query(${"$"}x: Int!) {
@@ -1062,7 +1062,7 @@ class SelectiveNodeExecutionContractTest : SelectiveNodeExecutionContract, Engin
 
         @Engine2Disabled(
             Engine2DisabledKind.ALT,
-            "Uses a callback-owned RSS and selective node execution for a conditional dependency chain; qplan uses a declarative provider and resolves the node once through its supported non-selective executor"
+            "Uses a callback-owned RSS and selective node execution for a conditional dependency chain; runtime2 uses a declarative provider and resolves the node once through its supported non-selective executor"
         )
         fun `variable rss does not use skipped child object plan`() {
             MockTenantModuleBootstrapper(
@@ -1134,7 +1134,7 @@ class SelectiveNodeExecutionContractTest : SelectiveNodeExecutionContract, Engin
                         )
                     }
                 }
-            }.runQPlanFeatureTest {
+            }.runRuntime2FeatureTest {
                 runQueryWithTimeout(
                     """
                         query (${"$"}includeA: Boolean! = false) {
@@ -1233,7 +1233,7 @@ class SelectiveNodeExecutionContractTest : SelectiveNodeExecutionContract, Engin
                         createEngineObjectData(objectType, mapOf("y" to 4))
                     }
                 }
-            }.runQPlanFeatureTest {
+            }.runRuntime2FeatureTest {
                 runQueryWithTimeout(
                     """
                         query (${"$"}includeA: Boolean! = false) {
@@ -1295,7 +1295,7 @@ class SelectiveNodeExecutionContractTest : SelectiveNodeExecutionContract, Engin
                         createEngineObjectData(objectType, mapOf("x" to 1, "z" to 2))
                     }
                 }
-            }.runQPlanFeatureTest {
+            }.runRuntime2FeatureTest {
                 runQueryWithTimeout("{ foo { x y } }").assertMatches {
                     "data" to {
                         "foo" to {
@@ -1344,7 +1344,7 @@ class SelectiveNodeExecutionContractTest : SelectiveNodeExecutionContract, Engin
                         createEngineObjectData(objectType, mapOf("y" to 2))
                     }
                 }
-            }.runQPlanFeatureTest(withoutDefaultQueryNodeResolvers = true) {
+            }.runRuntime2FeatureTest(withoutDefaultQueryNodeResolvers = true) {
                 runQueryWithTimeout("{ foo { x } }").assertMatches {
                     "data" to {
                         "foo" to {
@@ -1400,7 +1400,7 @@ class SelectiveNodeExecutionContractTest : SelectiveNodeExecutionContract, Engin
                         )
                     }
                 }
-            }.runQPlanFeatureTest {
+            }.runRuntime2FeatureTest {
                 runQueryWithTimeout(
                     "{ foo { bar { ... on Baz { y } } } }"
                 ).assertMatches {
@@ -1458,7 +1458,7 @@ class SelectiveNodeExecutionContractTest : SelectiveNodeExecutionContract, Engin
                         )
                     }
                 }
-            }.runQPlanFeatureTest {
+            }.runRuntime2FeatureTest {
                 runQueryWithTimeout("{ foo { bar { x } } }").assertMatches {
                     "data" to {
                         "foo" to {
@@ -1558,7 +1558,7 @@ class SelectiveNodeExecutionContractTest : SelectiveNodeExecutionContract, Engin
                         }
                     }
                 }
-            }.runQPlanFeatureTest {
+            }.runRuntime2FeatureTest {
                 runQueryWithTimeout("{ foo { x } bar { y } }")
                     .assertJson("{data: {foo: {x: 110}, bar: {y: 273}}}")
             }
@@ -1625,7 +1625,7 @@ class SelectiveNodeExecutionContractTest : SelectiveNodeExecutionContract, Engin
                         }
                     }
                 }
-            }.runQPlanFeatureTest {
+            }.runRuntime2FeatureTest {
                 runQueryWithTimeout("{ a { x(a: 1) } b { x(a: 2) } }").assertMatches {
                     "data" to {
                         "a" to {
@@ -1707,7 +1707,7 @@ class SelectiveNodeExecutionContractTest : SelectiveNodeExecutionContract, Engin
                         )
                     }
                 }
-            }.runQPlanFeatureTest {
+            }.runRuntime2FeatureTest {
                 runQueryWithTimeout("{ foo { x } }")
                     .assertJson("{data: {foo: {x: 6}}}")
             }
@@ -1747,7 +1747,7 @@ class SelectiveNodeExecutionContractTest : SelectiveNodeExecutionContract, Engin
                         createEngineObjectData(objectType, emptyMap())
                     }
                 }
-            }.runQPlanFeatureTest {
+            }.runRuntime2FeatureTest {
                 runQueryWithTimeout("{ foo { y x } }")
                     .assertJson("{data: {foo: {y: null, x: 6}}}")
             }

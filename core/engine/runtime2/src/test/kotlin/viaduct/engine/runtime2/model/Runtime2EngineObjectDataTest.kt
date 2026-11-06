@@ -22,7 +22,7 @@ import viaduct.errors.UnsetFieldException
 import viaduct.graphql.schema.ViaductSchema
 import viaduct.tenant.runtime.jvm.OverlayEngineObjectData
 
-class QPlanEngineObjectDataTest {
+class Runtime2EngineObjectDataTest {
     private val fixture = ViaductAndGJSchema.fromSDL(SCHEMA_SDL)
     private val schema: ViaductSchema = fixture.loweredSchema
     private val userType = schema.requireType("User") as ViaductSchema.Object
@@ -300,7 +300,7 @@ class QPlanEngineObjectDataTest {
     }
 
     @Test
-    fun `qplan objects use reference equality`() {
+    fun `runtime2 objects use reference equality`() {
         val first =
             engineObjectDataOf(
                 userType,

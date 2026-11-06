@@ -38,9 +38,9 @@ import viaduct.engine.runtime2.resolution.framework.ResolutionObserver
 import viaduct.engine.runtime2.resolution.framework.ResolverInvocationObservation
 import viaduct.graphql.schema.ViaductSchema
 
-class QPlanDeferTest : ExecutionTestFixtureResource {
+class Runtime2DeferTest : ExecutionTestFixtureResource {
     @Test
-    fun `returns non-deferred data before a deferred qplan resolver completes`() =
+    fun `returns non-deferred data before a deferred runtime2 resolver completes`() =
         runBlocking {
             val providerStarted = CompletableDeferred<Unit>()
             val gate = CompletableDeferred<Unit>()
@@ -201,7 +201,7 @@ class QPlanDeferTest : ExecutionTestFixtureResource {
     }
 
     @Test
-    fun `places qplan field errors in the deferred payload`() {
+    fun `places runtime2 field errors in the deferred payload`() {
         val providerStarted = CompletableDeferred<Unit>()
         val gate = CompletableDeferred(Unit)
         val fixture = delayedFixture(providerStarted, gate, failSlow = true)
@@ -227,7 +227,7 @@ class QPlanDeferTest : ExecutionTestFixtureResource {
     }
 
     @Test
-    fun `cancelling the incremental subscription cancels qplan resolver work`() =
+    fun `cancelling the incremental subscription cancels runtime2 resolver work`() =
         runBlocking {
             val providerStarted = CompletableDeferred<Unit>()
             val providerStopped = CompletableDeferred<Unit>()
@@ -414,7 +414,7 @@ class QPlanDeferTest : ExecutionTestFixtureResource {
                                 ),
                             ) { _, _ -> 7 }
                                 .withVariablesProvider(setOf("ready")) {
-                                    // Resolver functions are synchronous in qplan. Delay readiness
+                                    // Resolver functions are synchronous in runtime2. Delay readiness
                                     // in its suspending provider so the single resolver worker is
                                     // free to publish the initial GraphQL result.
                                     abStarted.complete(Unit)

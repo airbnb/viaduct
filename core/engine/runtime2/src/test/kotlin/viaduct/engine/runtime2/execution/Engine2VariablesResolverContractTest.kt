@@ -7,7 +7,7 @@ import viaduct.engine.runtime.execution.VariablesResolverContract
 class Engine2VariablesResolverContractTest : VariablesResolverContract, Engine2QueryExecutionContract {
     @Engine2Disabled(
         Engine2DisabledKind.ALT,
-        "Production treats an invalid variables-provider key set as request failure; qplan models the provider exception as an error on the owning field"
+        "Production treats an invalid variables-provider key set as request failure; runtime2 models the provider exception as an error on the owning field"
     )
     override fun `variables provider -- returns extra variables`() {
         super<VariablesResolverContract>.`variables provider -- returns extra variables`()
@@ -23,7 +23,7 @@ class Engine2VariablesResolverContractTest : VariablesResolverContract, Engine2Q
 
     @Engine2Disabled(
         Engine2DisabledKind.ALT,
-        "Production treats an invalid variables-provider key set as request failure; qplan models the provider exception as an error on the owning field"
+        "Production treats an invalid variables-provider key set as request failure; runtime2 models the provider exception as an error on the owning field"
     )
     override fun `variables provider -- does not return declared variable value`() {
         super<VariablesResolverContract>.`variables provider -- does not return declared variable value`()
@@ -39,7 +39,7 @@ class Engine2VariablesResolverContractTest : VariablesResolverContract, Engine2Q
 
     @Engine2Disabled(
         Engine2DisabledKind.ALT,
-        "Production permits object and Query RSS callbacks to bind the same variable name independently; qplan gives each resolver variable name one occurrence-local binding"
+        "Production permits object and Query RSS callbacks to bind the same variable name independently; runtime2 gives each resolver variable name one occurrence-local binding"
     )
     override fun `variables are coerced`() {
         super<VariablesResolverContract>.`variables are coerced`()
@@ -52,7 +52,7 @@ class Engine2VariablesResolverContractTest : VariablesResolverContract, Engine2Q
 
     @Engine2Disabled(
         Engine2DisabledKind.NA,
-        "Tests production pruning an unused callback-owned provider; qplan rejects unused declarative variable providers at registry construction"
+        "Tests production pruning an unused callback-owned provider; runtime2 rejects unused declarative variable providers at registry construction"
     )
     override fun `variables resolver rss without a selection reference is missing from query plan index`() {
         super<VariablesResolverContract>.`variables resolver rss without a selection reference is missing from query plan index`()
@@ -60,7 +60,7 @@ class Engine2VariablesResolverContractTest : VariablesResolverContract, Engine2Q
 
     @Engine2Disabled(
         Engine2DisabledKind.ALT,
-        "Uses a callback-owned aliased-typename RSS; qplan folds that demand into the resolver object fragment and uses its supported no-RSS provider"
+        "Uses a callback-owned aliased-typename RSS; runtime2 folds that demand into the resolver object fragment and uses its supported no-RSS provider"
     )
     override fun `variable resolver required selection with aliased typename does not hang`() {
         super<VariablesResolverContract>.`variable resolver required selection with aliased typename does not hang`()

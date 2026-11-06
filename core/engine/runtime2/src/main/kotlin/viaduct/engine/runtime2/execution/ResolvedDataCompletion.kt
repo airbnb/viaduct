@@ -23,7 +23,7 @@ import graphql.schema.GraphQLScalarType
 import kotlinx.coroutines.future.await
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.runtime2.model.EngineErrorData
-import viaduct.engine.runtime2.model.QPlanEngineObjectData
+import viaduct.engine.runtime2.model.Runtime2EngineObjectData
 import viaduct.engine.runtime2.model.outputValue
 import viaduct.engine.runtime2.schema.lowering.LOWERED_TYPENAME_FIELD
 
@@ -52,7 +52,7 @@ private class ResolvedDataCompletion(private val handler: DataFetcherExceptionHa
     ): Map<String, Any?> {
         val selections = data.getSelections().toList()
         val values = completeAll(selections) { selection ->
-            val name = (data as? QPlanEngineObjectData)?.selectionFields?.get(selection)?.name ?: selection
+            val name = (data as? Runtime2EngineObjectData)?.selectionFields?.get(selection)?.name ?: selection
             if (name == LOWERED_TYPENAME_FIELD || name == "__typename") {
                 data.type.name
             } else {

@@ -20,10 +20,10 @@ import java.util.concurrent.ExecutorService
 import kotlin.coroutines.CoroutineContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExecutorCoroutineDispatcher
-import viaduct.engine.runtime2.execution.QPlanExecutionSource
-import viaduct.engine.runtime2.execution.QPlanExecutionStrategy
-import viaduct.engine.runtime2.execution.QPlanInstrumentation
-import viaduct.engine.runtime2.execution.QPlanWiringFactory
+import viaduct.engine.runtime2.execution.RequestLifetimeInstrumentation
+import viaduct.engine.runtime2.execution.Runtime2ExecutionSource
+import viaduct.engine.runtime2.execution.Runtime2ExecutionStrategy
+import viaduct.engine.runtime2.execution.Runtime2WiringFactory
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.resolution.ResolutionDispatcherFactory
@@ -32,11 +32,11 @@ import viaduct.engine.runtime2.resolution.framework.ResolutionObserver
 import viaduct.graphql.schema.ViaductSchema
 
 /**
- * End-to-end GraphQL-Java harness backed by one qplan reasoning world.
+ * End-to-end GraphQL-Java harness backed by one runtime2 reasoning world.
  */
 class ExecutionTestFixture private constructor(
     private val graphQL: GraphQL,
-    private val root: QPlanExecutionSource? = null,
+    private val root: Runtime2ExecutionSource? = null,
     private val ownedResolverDispatcher: ExecutorCoroutineDispatcher? = null,
 ) : AutoCloseable {
     fun runQuery(
@@ -114,7 +114,7 @@ class ExecutionTestFixture private constructor(
          * Builds a fixture directly from resolver-test DSL.
          *
          * The executable GraphQL schema is derived by removing fixture-only directives from the
-         * DSL document. The qplan world independently compiles the same document into resolvers.
+         * DSL document. The runtime2 world independently compiles the same document into resolvers.
          */
         fun fromResolverDSL(resolverSchemaSDL: String): ExecutionTestFixture =
             fromResolverDSL(
@@ -172,7 +172,7 @@ class ExecutionTestFixture private constructor(
             val runtimeWiring =
                 RuntimeWiring
                     .newRuntimeWiring()
-                    .wiringFactory(QPlanWiringFactory(world.schema))
+                    .wiringFactory(Runtime2WiringFactory(world.schema))
                     .build()
             val graphQLSchema =
                 SchemaGenerator().makeExecutableSchema(
@@ -183,20 +183,20 @@ class ExecutionTestFixture private constructor(
                 GraphQL
                     .newGraphQL(graphQLSchema)
                     .queryExecutionStrategy(
-                        QPlanExecutionStrategy(
+                        Runtime2ExecutionStrategy(
                             world = world.assumptions,
                             sourceSchema = world.schemas.graphQLSchema,
                             resolverCoroutineContext = resolverCoroutineContext,
                         ),
                     )
                     .mutationExecutionStrategy(
-                        QPlanExecutionStrategy(
+                        Runtime2ExecutionStrategy(
                             world = world.assumptions,
                             sourceSchema = world.schemas.graphQLSchema,
                             resolverCoroutineContext = resolverCoroutineContext,
                         ),
                     )
-                    .instrumentation(QPlanInstrumentation())
+                    .instrumentation(RequestLifetimeInstrumentation())
                     .build()
             return ExecutionTestFixture(
                 graphQL = graphQL,
@@ -216,7 +216,7 @@ class ExecutionTestFixture private constructor(
             val runtimeWiring =
                 RuntimeWiring
                     .newRuntimeWiring()
-                    .wiringFactory(QPlanWiringFactory(schema))
+                    .wiringFactory(Runtime2WiringFactory(schema))
                     .build()
             val graphQLSchema =
                 SchemaGenerator().makeExecutableSchema(
@@ -225,7 +225,7 @@ class ExecutionTestFixture private constructor(
                 ).transform { builder -> builder.additionalDirective(Directives.DeferDirective) }
             return ExecutionTestFixture(
                 graphQL = GraphQL.newGraphQL(graphQLSchema).build(),
-                root = QPlanExecutionSource(root, requestScope),
+                root = Runtime2ExecutionSource(root, requestScope),
             )
         }
     }

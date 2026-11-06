@@ -34,15 +34,15 @@ import viaduct.engine.runtime2.resolution.startResolution
 import viaduct.engine.runtime2.schema.selectionsFrom
 
 /**
- * GraphQL operation execution boundary for the qplan GraphQL-Java harness.
+ * GraphQL operation execution boundary for the runtime2 GraphQL-Java harness.
  *
- * Each request decodes its validated operation into qplan selections, starts Resolution, and
+ * Each request decodes its validated operation into runtime2 selections, starts Resolution, and
  * delegates GraphQL completion with a live promise-backed OER as the root source.
  * The resolver context is borrowed; the strategy owns only its request job.
- * [QPlanInstrumentation] must be installed on the enclosing `GraphQL` instance so incremental
+ * [RequestLifetimeInstrumentation] must be installed on the enclosing `GraphQL` instance so incremental
  * publisher termination owns final request cleanup.
  */
-class QPlanExecutionStrategy(
+class Runtime2ExecutionStrategy(
     private val world: Assumptions,
     private val sourceSchema: GraphQLSchema,
     private val resolverCoroutineContext: CoroutineContext,
@@ -71,7 +71,7 @@ class QPlanExecutionStrategy(
 
         val requestJob = Job()
         executionContext.graphQLContext
-            .get<QPlanCallerCancellation>(QPlanCallerCancellationKey)
+            .get<Runtime2CallerCancellation>(Runtime2CallerCancellationKey)
             ?.attach(requestJob)
         val requestFailure = CompletableFuture<Throwable>()
         val cycleChecker = executionContext.graphQLContext.get<CycleCheckState>(CycleCheckState::class.java)
@@ -85,10 +85,10 @@ class QPlanExecutionStrategy(
                         requestFailure.complete(throwable)
                     },
             )
-        val lifetimeKey = QPlanRequestLifetimeKey(executionContext.executionId)
+        val lifetimeKey = Runtime2RequestLifetimeKey(executionContext.executionId)
         executionContext.graphQLContext.put(
             lifetimeKey,
-            QPlanRequestLifetime(requestJob),
+            Runtime2RequestLifetime(requestJob),
         )
 
         val resolution =
@@ -112,7 +112,7 @@ class QPlanExecutionStrategy(
                 )
             } catch (throwable: Exception) {
                 executionContext.graphQLContext.delete(lifetimeKey)
-                requestJob.cancel(requestCancellation("QPlan request failed to start", throwable))
+                requestJob.cancel(requestCancellation("Runtime2 request failed to start", throwable))
                 throw throwable
             }
 
@@ -120,7 +120,7 @@ class QPlanExecutionStrategy(
             try {
                 val completionParameters =
                     parameters.transform { builder ->
-                        builder.source(QPlanExecutionSource(resolution.root, requestScope, resolverExceptionHandler))
+                        builder.source(Runtime2ExecutionSource(resolution.root, requestScope, resolverExceptionHandler))
                     }
                 if (executionContext.operationDefinition.operation == OperationDefinition.Operation.MUTATION) {
                     // Null propagation can finish GraphQL completion early. Every mutation must
@@ -244,11 +244,11 @@ internal fun requestCancellation(
         if (cause != null) cancellation.initCause(cause)
     }
 
-internal data class QPlanRequestLifetime(
+internal data class Runtime2RequestLifetime(
     val requestJob: Job,
 )
 
-internal data class QPlanRequestLifetimeKey(
+internal data class Runtime2RequestLifetimeKey(
     val executionId: ExecutionId,
 )
 
@@ -258,12 +258,12 @@ internal data class QPlanRequestLifetimeKey(
  * The request job cannot be a structured child of the caller: an incremental result must outlive
  * the initial [Engine.execute] call until its publisher ends.
  */
-internal class QPlanCallerCancellation {
+internal class Runtime2CallerCancellation {
     private val requestJob = AtomicReference<Job?>()
     private val cancellation = AtomicReference<CancellationException?>()
 
     fun attach(job: Job) {
-        check(requestJob.compareAndSet(null, job)) { "QPlan caller cancellation already has an active request job" }
+        check(requestJob.compareAndSet(null, job)) { "Runtime2 caller cancellation already has an active request job" }
         job.invokeOnCompletion { requestJob.compareAndSet(job, null) }
         cancellation.get()?.let(job::cancel)
     }
@@ -274,4 +274,4 @@ internal class QPlanCallerCancellation {
     }
 }
 
-internal data object QPlanCallerCancellationKey
+internal data object Runtime2CallerCancellationKey

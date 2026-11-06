@@ -17,7 +17,7 @@ import viaduct.engine.runtime2.schema.ViaductAndGJSchema
  */
 @Deprecated("Airbnb use only")
 fun interface Engine2ResolverRegistryFactory {
-    /** Creates a provider after the full schema, its qplan representation, and instrumented dispatchers are available. */
+    /** Creates a provider after the full schema, its runtime2 representation, and instrumented dispatchers are available. */
     fun create(
         fullSchema: EngineSchema,
         schemas: ViaductAndGJSchema,

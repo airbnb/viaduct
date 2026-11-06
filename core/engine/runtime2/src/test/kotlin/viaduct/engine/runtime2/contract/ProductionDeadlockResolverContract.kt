@@ -8,9 +8,9 @@ import viaduct.engine.runtime2.model.testing.TestWorld
  * Contract translation of the production required-selection deadlock.
  *
  * The production node executor re-enters Query.a while Foo is being selectively
- * materialized. Qplan has no callback-shaped node executor, so this keeps the
+ * materialized. Runtime2 has no callback-shaped node executor, so this keeps the
  * mixed FromArgument/FromObjectField dependency topology and asserts that the
- * qplan registry rejects the cycle before resolution starts.
+ * runtime2 registry rejects the cycle before resolution starts.
  */
 interface ProductionDeadlockResolverContract : ResolverContract {
     @org.junit.jupiter.api.Test

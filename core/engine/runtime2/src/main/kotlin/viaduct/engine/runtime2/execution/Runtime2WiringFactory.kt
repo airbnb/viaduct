@@ -49,17 +49,17 @@ import viaduct.engine.runtime2.schema.lowering.loweredFieldFromSourceCoordinate
 import viaduct.graphql.schema.ViaductSchema
 
 /**
- * GraphQL-Java completion wiring backed by a live qplan result tree.
+ * GraphQL-Java completion wiring backed by a live runtime2 result tree.
  *
- * The execution strategy supplies a [QPlanExecutionSource] as the root source. Nested object values
- * retain the same request scope so pending qplan promises can be exposed as completion stages.
+ * The execution strategy supplies a [Runtime2ExecutionSource] as the root source. Nested object values
+ * retain the same request scope so pending runtime2 promises can be exposed as completion stages.
  */
-class QPlanWiringFactory(
+class Runtime2WiringFactory(
     schema: ViaductSchema,
 ) : WiringFactory {
     private val dataFetcher = ObjectEngineResultDataFetcher(schema)
 
-    /** Replaces executable-schema field and abstract-type wiring with qplan completion wiring. */
+    /** Replaces executable-schema field and abstract-type wiring with runtime2 completion wiring. */
     fun wire(sourceSchema: GraphQLSchema): GraphQLSchema {
         val codeRegistry = GraphQLCodeRegistry.newCodeRegistry(sourceSchema.codeRegistry)
         sourceSchema.allTypesAsList.forEach { type ->
@@ -91,31 +91,31 @@ class QPlanWiringFactory(
     override fun getTypeResolver(environment: UnionWiringEnvironment): TypeResolver = TypeResolver(::resolveType)
 }
 
-/** One qplan object occurrence and the request scope that owns its pending promise bridges. */
-internal data class QPlanExecutionSource(
+/** One runtime2 object occurrence and the request scope that owns its pending promise bridges. */
+internal data class Runtime2ExecutionSource(
     val objectResult: ObjectEngineResult,
     val requestScope: CoroutineScope,
     val exceptionHandler: DataFetcherExceptionHandler = SimpleDataFetcherExceptionHandler(),
 )
 
 /**
- * Lets instrumentation retain the DataFetcher that obtains field values from qplan results.
- * This helper lives beside [QPlanExecutionSource] because that class is internal to runtime2;
+ * Lets instrumentation retain the DataFetcher that obtains field values from runtime2 results.
+ * This helper lives beside [Runtime2ExecutionSource] because that class is internal to runtime2;
  * instrumentation in other modules cannot reference it directly to perform this type check.
  */
 @InternalApi
-fun isQPlanCompletionSource(value: Any?): Boolean = value is QPlanExecutionSource
+fun isRuntime2CompletionSource(value: Any?): Boolean = value is Runtime2ExecutionSource
 
 private class ObjectEngineResultDataFetcher(
     private val schema: ViaductSchema,
 ) : DataFetcher<Any?> {
     override fun get(environment: DataFetchingEnvironment): Any? {
-        val source = qplanSource(environment.getSource())
+        val source = requireExecutionSource(environment.getSource())
         val objectResult = source.objectResult
         val sourceFieldName = environment.fieldDefinition.name
         val field = schema.loweredFieldFromSourceCoordinate(objectResult.type.name, sourceFieldName)
         require(field is ViaductSchema.ObjectField) {
-            "QPlan completion requires a concrete field for " +
+            "Runtime2 completion requires a concrete field for " +
                 "${objectResult.type.name}/$sourceFieldName"
         }
         val key =
@@ -136,19 +136,19 @@ private class ObjectEngineResultDataFetcher(
 }
 
 private fun resolveType(environment: TypeResolutionEnvironment): GraphQLObjectType {
-    val source = qplanSource(environment.getObject())
+    val source = requireExecutionSource(environment.getObject())
     return environment.schema.getObjectType(source.objectResult.type.name)
         ?: throw IllegalStateException(
             "GraphQL schema has no object type named ${source.objectResult.type.name}",
         )
 }
 
-private fun qplanSource(source: Any?): QPlanExecutionSource =
-    source as? QPlanExecutionSource
-        ?: error("QPlan field access requires a QPlanExecutionSource with a request scope")
+private fun requireExecutionSource(source: Any?): Runtime2ExecutionSource =
+    source as? Runtime2ExecutionSource
+        ?: error("Runtime2 field access requires a Runtime2ExecutionSource with a request scope")
 
 private fun EngineResultCell.toGraphQLJavaValue(
-    source: QPlanExecutionSource,
+    source: Runtime2ExecutionSource,
     environment: DataFetchingEnvironment,
     path: ResultPath = environment.executionStepInfo.path,
 ): Any? {
@@ -165,7 +165,7 @@ private fun EngineResultCell.toGraphQLJavaValue(
 }
 
 private fun EngineResult?.toGraphQLJavaValue(
-    source: QPlanExecutionSource,
+    source: Runtime2ExecutionSource,
     environment: DataFetchingEnvironment,
     path: ResultPath = environment.executionStepInfo.path,
 ): Any? =
@@ -189,7 +189,7 @@ private fun EngineResult?.toGraphQLJavaValue(
     }
 
 private suspend fun EngineResult?.toGraphQLJavaValueAwaiting(
-    source: QPlanExecutionSource,
+    source: Runtime2ExecutionSource,
     environment: DataFetchingEnvironment,
     path: ResultPath,
 ): Any? =
@@ -205,7 +205,7 @@ private suspend fun EngineResult?.toGraphQLJavaValueAwaiting(
     }
 
 private fun ListEngineResult.toGraphQLJavaListIfReady(
-    source: QPlanExecutionSource,
+    source: Runtime2ExecutionSource,
     environment: DataFetchingEnvironment,
     path: ResultPath,
 ): List<Any?>? {
@@ -230,7 +230,7 @@ private fun ListEngineResult.toGraphQLJavaListIfReady(
 }
 
 private suspend fun ListEngineResult.toGraphQLJavaListAwaiting(
-    source: QPlanExecutionSource,
+    source: Runtime2ExecutionSource,
     environment: DataFetchingEnvironment,
     path: ResultPath,
 ): List<Any?> =
@@ -356,7 +356,7 @@ internal fun <T> CoroutineScope.asCompletableFuture(
 /** Prevents Kotlin coroutine cancellation from acquiring Java future-cancellation semantics. */
 internal class CoroutineCancellationBridgeException(
     cause: CancellationException,
-) : RuntimeException("QPlan coroutine was cancelled", cause)
+) : RuntimeException("Runtime2 coroutine was cancelled", cause)
 
 private fun errorResult(
     errorData: EngineErrorData,
@@ -373,7 +373,7 @@ private fun errorResult(
         handler.handleException(
             DataFetcherExceptionHandlerParameters.newExceptionParameters()
                 .dataFetchingEnvironment(errorEnvironment)
-                .exception(errorData.cause ?: QPlanFieldResolutionException())
+                .exception(errorData.cause ?: Runtime2FieldResolutionException())
                 .build(),
         )
     } catch (handlerException: Exception) {
@@ -390,5 +390,5 @@ private fun errorResult(
     }
 }
 
-private class QPlanFieldResolutionException :
-    RuntimeException("QPlan field resolution failed")
+private class Runtime2FieldResolutionException :
+    RuntimeException("Runtime2 field resolution failed")

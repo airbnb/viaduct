@@ -37,7 +37,7 @@ import viaduct.engine.runtime2.resolution.framework.ResolverReadCycleException
 import viaduct.engine.runtime2.resolution.framework.fieldResolverCycleTask
 
 @OptIn(ExperimentalCoroutinesApi::class)
-class QPlanRequestLifetimeTest {
+class Runtime2RequestLifetimeTest {
     @Test
     fun `queries and mutations can complete after the former production deadline`() =
         runTest {
@@ -123,7 +123,7 @@ class QPlanRequestLifetimeTest {
         runTest {
             for (type in listOf("Query", "Mutation")) {
                 for (checker in listOf(CycleCheckState.createDeferred(), CycleCheckState.createNOP())) {
-                    val caller = QPlanCallerCancellation()
+                    val caller = Runtime2CallerCancellation()
                     var stopped = false
                     val world = TestWorld.fromSDL(
                         "type Query { value: Int } type Mutation { value: Int }",
@@ -146,7 +146,7 @@ class QPlanRequestLifetimeTest {
                     val response = graphql(world, StandardTestDispatcher(testScheduler)).executeAsync(
                         ExecutionInput.newExecutionInput().query(query).graphQLContext {
                             it.put(CycleCheckState::class.java, checker)
-                            it.put(QPlanCallerCancellationKey, caller)
+                            it.put(Runtime2CallerCancellationKey, caller)
                         },
                     )
                     try {
@@ -179,7 +179,7 @@ class QPlanRequestLifetimeTest {
     @Test
     fun `caller cancellation still cancels a suspended resolver`() =
         runTest {
-            val caller = QPlanCallerCancellation()
+            val caller = Runtime2CallerCancellation()
             var stopped = false
             val result = graphql(
                 world("Query") {
@@ -190,7 +190,7 @@ class QPlanRequestLifetimeTest {
                     }
                 },
                 StandardTestDispatcher(testScheduler),
-            ).executeAsync(ExecutionInput.newExecutionInput().query("{ value }").graphQLContext { it.put(QPlanCallerCancellationKey, caller) })
+            ).executeAsync(ExecutionInput.newExecutionInput().query("{ value }").graphQLContext { it.put(Runtime2CallerCancellationKey, caller) })
             runCurrent()
             assertTrue(result.cancel(true))
             caller.cancel(requestCancellation("Caller cancelled"))
@@ -289,9 +289,9 @@ class QPlanRequestLifetimeTest {
         world: TestWorld,
         context: CoroutineContext,
     ): GraphQL {
-        val strategy = QPlanExecutionStrategy(world.assumptions, world.schemas.graphQLSchema, context)
-        val schema = QPlanWiringFactory(world.schema).wire(world.schemas.graphQLSchema)
+        val strategy = Runtime2ExecutionStrategy(world.assumptions, world.schemas.graphQLSchema, context)
+        val schema = Runtime2WiringFactory(world.schema).wire(world.schemas.graphQLSchema)
             .transform { it.additionalDirective(Directives.DeferDirective) }
-        return GraphQL.newGraphQL(schema).queryExecutionStrategy(strategy).mutationExecutionStrategy(strategy).instrumentation(QPlanInstrumentation()).build()
+        return GraphQL.newGraphQL(schema).queryExecutionStrategy(strategy).mutationExecutionStrategy(strategy).instrumentation(RequestLifetimeInstrumentation()).build()
     }
 }

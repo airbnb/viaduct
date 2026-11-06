@@ -10,7 +10,7 @@ import viaduct.graphql.test.assertJson
 class Engine2NodeResolverContractTest : NodeResolverContract, Engine2QueryExecutionContract {
     @Engine2Disabled(
         Engine2DisabledKind.ALT,
-        "Production permits a Node-valued field resolver to materialize the Node directly; qplan requires every Node value to cross its node resolver"
+        "Production permits a Node-valued field resolver to materialize the Node directly; runtime2 requires every Node value to cross its node resolver"
     )
     override fun `node reference nested inside resolver response`() {
         super<NodeResolverContract>.`node reference nested inside resolver response`()
@@ -31,12 +31,12 @@ class Engine2NodeResolverContractTest : NodeResolverContract, Engine2QueryExecut
         super<NodeResolverContract>.`non-selective node resolver reads from dataloader cache for different selection sets`()
     }
 
-    @Engine2Disabled(Engine2DisabledKind.NA, "Tests selective data-loader cache coverage and cache-key policy, not qplan resolution semantics.")
+    @Engine2Disabled(Engine2DisabledKind.NA, "Tests selective data-loader cache coverage and cache-key policy, not runtime2 resolution semantics.")
     override fun `selective node resolver does not read from dataloader cache if selection set does not cover`() {
         super<NodeResolverContract>.`selective node resolver does not read from dataloader cache if selection set does not cover`()
     }
 
-    @Engine2Disabled(Engine2DisabledKind.NA, "Tests memoization of query-fragment OERs across resolvers, which qplan will not support")
+    @Engine2Disabled(Engine2DisabledKind.NA, "Tests memoization of query-fragment OERs across resolvers, which runtime2 will not support")
     override fun `node resolver not executed twice for the same query path`() {
         super<NodeResolverContract>.`node resolver not executed twice for the same query path`()
     }

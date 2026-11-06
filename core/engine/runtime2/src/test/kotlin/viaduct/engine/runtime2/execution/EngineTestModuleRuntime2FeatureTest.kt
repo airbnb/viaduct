@@ -28,7 +28,7 @@ import viaduct.engine.runtime.execution.query
 import viaduct.engine.runtime.mocks.ContextMocks
 import viaduct.engine.runtime2.execution.testing.fixtureFieldExecutor
 import viaduct.engine.runtime2.execution.testing.fixtureNodeExecutor
-import viaduct.engine.runtime2.execution.testing.runQPlanFeatureTest
+import viaduct.engine.runtime2.execution.testing.runRuntime2FeatureTest
 import viaduct.engine.runtime2.model.EngineErrorData
 import viaduct.engine.runtime2.model.engineObjectDataOf
 import viaduct.engine.runtime2.model.outputValue
@@ -36,7 +36,7 @@ import viaduct.engine.runtime2.model.requireType
 import viaduct.engine.runtime2.schema.ViaductAndGJSchema
 import viaduct.graphql.schema.ViaductSchema
 
-class EngineTestModuleQPlanFeatureTest {
+class EngineTestModuleRuntime2FeatureTest {
     @ParameterizedTest(name = "{0} source output coercion")
     @MethodSource("viaduct.engine.runtime2.execution.ScalarFeatureTest#scalars")
     fun `fixture wrapper coerces source scalar outputs`(scalar: ScalarFeatureTest.ScalarCase) =
@@ -137,7 +137,7 @@ class EngineTestModuleQPlanFeatureTest {
 
             val data = assertIs<ResolvedEngineObjectData>(output)
             assertEquals(7, data.get("age"))
-            assertEquals("__qplan_inline_node__", data.get("id"))
+            assertEquals("__runtime2_inline_node__", data.get("id"))
             assertTrue(data.isPresent("nickname"))
             assertNull(data.get("nickname"))
             assertFalse(data.isPresent("unused"))
@@ -218,7 +218,7 @@ class EngineTestModuleQPlanFeatureTest {
                     }
                 }
             }
-        }.runQPlanFeatureTest {
+        }.runRuntime2FeatureTest {
             runQuery("{ outer }").assertJson("{data: {outer: 7}}")
         }
     }
@@ -250,7 +250,7 @@ class EngineTestModuleQPlanFeatureTest {
                     }
                 }
             }
-        }.runQPlanFeatureTest {
+        }.runRuntime2FeatureTest {
             runQuery("{ result }").assertJson("{data: {result: 42}}")
         }
     }
@@ -269,7 +269,7 @@ class EngineTestModuleQPlanFeatureTest {
             """.trimIndent(),
         ) {
             fieldWithValue("Catalog" to "value", 7)
-        }.runQPlanFeatureTest {
+        }.runRuntime2FeatureTest {
             runQuery("{ catalog { value } }").assertJson("{data: {catalog: {value: 7}}}")
         }
     }
@@ -325,7 +325,7 @@ class EngineTestModuleQPlanFeatureTest {
                     }
                 }
             }
-        }.runQPlanFeatureTest {
+        }.runRuntime2FeatureTest {
             runQuery("{ shelves { product { name } } }")
                 .assertJson("""{"data": {"shelves": [{"product": {"name": "chair"}}]}}""")
         }
@@ -350,7 +350,7 @@ class EngineTestModuleQPlanFeatureTest {
                     }
                 }
             }
-        }.runQPlanFeatureTest {
+        }.runRuntime2FeatureTest {
             runQuery("{ total(extra: 4) }").assertJson("{data: {total: 9}}")
         }
     }
@@ -374,7 +374,7 @@ class EngineTestModuleQPlanFeatureTest {
                     }
                 }
             }
-        }.runQPlanFeatureTest {
+        }.runRuntime2FeatureTest {
             runQuery("{ total }").assertJson("{data: {total: 9}}")
         }
     }
@@ -417,7 +417,7 @@ class EngineTestModuleQPlanFeatureTest {
                     }
                 }
             }
-        }.runQPlanFeatureTest {
+        }.runRuntime2FeatureTest {
             runQuery("{ a: total(multiplier: 3), b: total(multiplier: 4) }")
                 .assertJson("{data: {a: 10, b: 13}}")
         }
@@ -427,7 +427,7 @@ class EngineTestModuleQPlanFeatureTest {
     }
 
     @Test
-    fun `passes qplan output demand to selective field executors`() {
+    fun `passes runtime2 output demand to selective field executors`() {
         var requestedFields: Set<String>? = null
         EngineTestModule(
             """
@@ -453,7 +453,7 @@ class EngineTestModuleQPlanFeatureTest {
                     )
                 }
             }
-        }.runQPlanFeatureTest {
+        }.runRuntime2FeatureTest {
             runQuery("{ viewer { name } }").assertJson("{data: {viewer: {name: \"Ada\"}}}")
         }
 
@@ -484,13 +484,13 @@ class EngineTestModuleQPlanFeatureTest {
                     }
                 }
             }
-        }.runQPlanFeatureTest {
+        }.runRuntime2FeatureTest {
             runQuery("{ total }").assertJson("{data: {total: 5}}")
         }
     }
 
     @Test
-    fun `completes typename through qplan lowering`() {
+    fun `completes typename through runtime2 lowering`() {
         EngineTestModule(
             """
             extend type Query {
@@ -510,7 +510,7 @@ class EngineTestModuleQPlanFeatureTest {
                     ),
                 )
             }
-        }.runQPlanFeatureTest {
+        }.runRuntime2FeatureTest {
             val result = runQuery("{ viewer { __typename id } }")
 
             assertTrue(result.errors.isEmpty(), result.errors.joinToString { it.message })
@@ -552,7 +552,7 @@ class EngineTestModuleQPlanFeatureTest {
                     )
                 }
             }
-        }.runQPlanFeatureTest {
+        }.runRuntime2FeatureTest {
             val result = runQuery("{ viewer { __typename id name } }")
 
             assertTrue(result.errors.isEmpty(), result.errors.joinToString { it.message })
@@ -589,7 +589,7 @@ class EngineTestModuleQPlanFeatureTest {
                     )
                 }
             }
-        }.runQPlanFeatureTest {
+        }.runRuntime2FeatureTest {
             val result =
                 runQuery(
                     """
@@ -649,7 +649,7 @@ class EngineTestModuleQPlanFeatureTest {
                     }
                 }
             }
-        }.runQPlanFeatureTest {
+        }.runRuntime2FeatureTest {
             val result =
                 runQuery(
                     """
@@ -703,7 +703,7 @@ class EngineTestModuleQPlanFeatureTest {
                 }
             }
 
-        module.runQPlanFeatureTest {
+        module.runRuntime2FeatureTest {
             runQuery("{ first: value(input: 7) second: value(input: 8) }")
                 .assertJson("{data: {first: 7, second: 8}}")
         }

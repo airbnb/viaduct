@@ -815,7 +815,7 @@ private class CombiningTypeEnforcementError(
     }
 }
 
-/** The test checker, rather than qplan, assigns meaning to Airbnb's directive spelling. */
+/** The test checker, rather than runtime2, assigns meaning to Airbnb's directive spelling. */
 private class DirectiveAwareTypeEnforcementError : CheckerResult.Error {
     override val error: Exception = IllegalStateException("type denied")
 

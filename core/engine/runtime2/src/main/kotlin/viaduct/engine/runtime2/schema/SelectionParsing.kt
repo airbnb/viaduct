@@ -22,7 +22,7 @@ fun ViaductAndGJSchema.selectionsFrom(fragment: String): Pair<ViaductSchema.Comp
 /**
  * Decodes one post-validation query or mutation operation with already-coerced operation variables.
  *
- * Delivery-only `@defer` directives are transparent to qplan so deferred selections remain part of
+ * Delivery-only `@defer` directives are transparent to runtime2 so deferred selections remain part of
  * full-operation demand. Named fragment spreads are inlined while decoding.
  */
 fun Assumptions.selectionsFrom(

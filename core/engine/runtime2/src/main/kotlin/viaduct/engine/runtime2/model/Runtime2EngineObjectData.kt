@@ -60,7 +60,7 @@ fun engineObjectDataOf(
  * Constructs a partial synchronous EOD from schema-associated selection values.
  *
  * Callers supply values conforming to their associated fields' output types without another conformance check.
- * [schemaType] supplies qplan's canonical lowered definition and the associated Engine API witness.
+ * [schemaType] supplies runtime2's canonical lowered definition and the associated Engine API witness.
  * Source-backed objects expose the exact retained source GraphQL-Java object.
  *
  * @param additionalContextForResolver Reserved for Airbnb internal API compatibility; all other callers must leave it null.
@@ -97,7 +97,7 @@ private fun constructEngineObjectData(
         }
         values[entry.selection] = entry.value
     }
-    return QPlanEngineObjectDataImpl(
+    return Runtime2EngineObjectDataImpl(
         type = schemaType.engineObjectDataType,
         schemaType = schemaType,
         values = values,
@@ -106,45 +106,45 @@ private fun constructEngineObjectData(
     )
 }
 
-internal val qplanEngineObjectDataTypeKey =
-    HMap.Key.of<GraphQLObjectType>("QPlanEngineObjectDataType")
+internal val runtime2EngineObjectDataTypeKey =
+    HMap.Key.of<GraphQLObjectType>("Runtime2EngineObjectDataType")
 
 private val ViaductSchema.Object.engineObjectDataType: GraphQLObjectType
     get() =
-        if (qplanEngineObjectDataTypeKey in holder) {
-            holder[qplanEngineObjectDataTypeKey]
+        if (runtime2EngineObjectDataTypeKey in holder) {
+            holder[runtime2EngineObjectDataTypeKey]
         } else {
             gjDef
         }
 
 /**
- * The canonical qplan schema type retained by this qplan-owned EOD.
+ * The canonical runtime2 schema type retained by this runtime2-owned EOD.
  *
  * Reads without a schema are available only for Runtime2-owned objects.
  */
 val EngineObjectData.Sync.schemaType: ViaductSchema.Object
     get() =
-        requireNotNull(qplanSchemaTypeOrNull) {
-            "Engine object data for ${type.name} is not owned by qplan"
+        requireNotNull(runtime2SchemaTypeOrNull) {
+            "Engine object data for ${type.name} is not owned by runtime2"
         }
 
 /** Opaque parent context reserved for Airbnb internal API compatibility; unrelated resolver code must not use it. */
 val EngineObjectData.Sync.additionalContextForResolver: Any?
-    get() = (this as? QPlanEngineObjectData)?.additionalContextForResolver
+    get() = (this as? Runtime2EngineObjectData)?.additionalContextForResolver
 
-internal val EngineObjectData.Sync.qplanSchemaTypeOrNull: ViaductSchema.Object?
-    get() = (this as? QPlanEngineObjectData)?.schemaType
+internal val EngineObjectData.Sync.runtime2SchemaTypeOrNull: ViaductSchema.Object?
+    get() = (this as? Runtime2EngineObjectData)?.schemaType
 
 /** Resolves a compliant object's concrete type in the active canonical schema. */
 fun EngineObjectData.Sync.schemaType(schema: ViaductSchema): ViaductSchema.Object =
-    qplanSchemaTypeOrNull ?: run {
+    runtime2SchemaTypeOrNull ?: run {
         schema.types[type.name] as? ViaductSchema.Object
             ?: throw IllegalArgumentException("Resolver output type ${type.name} is not an object")
     }
 
 /** Resolves a compliant object's concrete type within a declared composite output type. */
 internal fun EngineObjectData.Sync.schemaType(declaredType: ViaductSchema.CompositeTypeDef): ViaductSchema.Object =
-    qplanSchemaTypeOrNull ?: run {
+    runtime2SchemaTypeOrNull ?: run {
         declaredType.possibleObjectTypes.singleOrNull { it.name == type.name }
             ?: throw IllegalArgumentException("Resolver output type ${type.name} is not valid for ${declaredType.name}")
     }
@@ -152,7 +152,7 @@ internal fun EngineObjectData.Sync.schemaType(declaredType: ViaductSchema.Compos
 /** Reads raw Runtime2 storage or error-free external resolver output through its synchronous getter. */
 fun EngineObjectData.Sync.outputValue(selection: String): ResolverOutputData? {
     return when (this) {
-        is QPlanEngineObjectData -> outputValue(selection)
+        is Runtime2EngineObjectData -> outputValue(selection)
         else -> get(selection)
     }
 }
@@ -163,7 +163,7 @@ private data class EngineObjectDataEntryImpl(
     override val value: ResolverOutputData?,
 ) : EngineObjectDataEntry
 
-internal interface QPlanEngineObjectData : EngineObjectData.Sync {
+internal interface Runtime2EngineObjectData : EngineObjectData.Sync {
     val schemaType: ViaductSchema.Object
 
     /** Reserved for Airbnb internal API compatibility; unrelated code must not populate or consume this context. */
@@ -178,13 +178,13 @@ internal class EngineErrorDataReadException(
 ) : RuntimeException(errorData.cause)
 
 @OptIn(InternalApi::class)
-private class QPlanEngineObjectDataImpl(
+private class Runtime2EngineObjectDataImpl(
     override val type: GraphQLObjectType,
     override val schemaType: ViaductSchema.Object,
     private val values: Map<String, ResolverOutputData?>,
     override val additionalContextForResolver: Any?,
     override val selectionFields: Map<String, ViaductSchema.ObjectField>,
-) : QPlanEngineObjectData {
+) : Runtime2EngineObjectData {
     override suspend fun fetch(selection: String): Any? = get(selection)
 
     override suspend fun fetchOrNull(selection: String): Any? = getOrNull(selection)
@@ -204,7 +204,7 @@ private class QPlanEngineObjectDataImpl(
             throw UnsetFieldException(
                 selection,
                 type,
-                "The selection is absent from qplan's partial object data",
+                "The selection is absent from runtime2's partial object data",
             )
         }
         return values[selection]

@@ -47,7 +47,7 @@ import viaduct.engine.runtime2.airbnb.Engine2ResolverRegistryFactory
 import viaduct.engine.runtime2.airbnb.ResolverRegistryProvider
 import viaduct.engine.runtime2.bootstrap.dispatcherRegistryInputs
 import viaduct.engine.runtime2.bootstrap.resolverRegistryOf
-import viaduct.engine.runtime2.execution.testing.runQPlanFeatureTest
+import viaduct.engine.runtime2.execution.testing.runRuntime2FeatureTest
 import viaduct.engine.runtime2.model.emptyFragmentOf
 import viaduct.engine.runtime2.model.registry.fieldResolverOf
 import viaduct.engine.runtime2.model.requireObjectField
@@ -98,7 +98,7 @@ class Engine2StandardViaductTest {
             if (key == 2) Result.failure(failure) else Result.success(key * 10)
         }
 
-        module.runQPlanFeatureTest {
+        module.runRuntime2FeatureTest {
             val result = runQueryWithTimeout(
                 """
                 {
@@ -123,7 +123,7 @@ class Engine2StandardViaductTest {
             resolveBroken = { throw failure },
         )
 
-        module.runQPlanFeatureTest {
+        module.runRuntime2FeatureTest {
             val result = runQueryWithTimeout(
                 """
                 {
@@ -162,7 +162,7 @@ class Engine2StandardViaductTest {
             },
         )
 
-        module.runQPlanFeatureTest {
+        module.runRuntime2FeatureTest {
             val result = runQueryWithTimeout(
                 """
                 {

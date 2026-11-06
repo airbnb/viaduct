@@ -91,7 +91,7 @@ class NullAndErrorCompletionTest : ExecutionTestFixtureResource {
         )
         assertTrue(
             result.errors.all { error ->
-                error.message.contains("QPlan field resolution failed")
+                error.message.contains("Runtime2 field resolution failed")
             },
         )
     }

@@ -8,7 +8,7 @@ import viaduct.engine.api.mocks.EngineTestModule
 import viaduct.engine.api.mocks.MockSchema
 import viaduct.engine.api.mocks.createEngineObjectData
 import viaduct.engine.runtime.execution.FieldPolicyCheckContract
-import viaduct.engine.runtime2.execution.testing.runQPlanFeatureTest
+import viaduct.engine.runtime2.execution.testing.runRuntime2FeatureTest
 
 class Engine2FieldPolicyCheckContractTest : FieldPolicyCheckContract, Engine2QueryExecutionContract {
     @Engine2Disabled(
@@ -43,7 +43,7 @@ class Engine2FieldPolicyCheckContractTest : FieldPolicyCheckContract, Engine2Que
                 }
                 checker { fn { _, _ -> typeCheckPassed.complete(Unit) } }
             }
-        }.runQPlanFeatureTest {
+        }.runRuntime2FeatureTest {
             val result = runQueryWithTimeout("query { canNotAccessType { name ssn } }", timeoutMillis = 5_000)
             assertNull(result.getData<Any?>())
             assertEquals(1, result.errors.size)

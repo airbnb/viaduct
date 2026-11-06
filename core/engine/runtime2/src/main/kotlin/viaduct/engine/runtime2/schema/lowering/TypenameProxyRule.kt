@@ -11,7 +11,7 @@ import viaduct.graphql.schema.validation.ValidationRule
 
 internal class TypenameProxyRule :
     ValidationRule(
-        id = "QPlanTypenameProxy",
+        id = "Runtime2TypenameProxy",
         description = "Adds ordinary fields for internal typename demand",
     ) {
     override fun visitSchema(ctx: ValidationContext) {

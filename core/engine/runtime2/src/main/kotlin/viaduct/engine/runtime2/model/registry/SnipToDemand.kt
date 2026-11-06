@@ -13,7 +13,7 @@ import viaduct.engine.runtime2.model.engineObjectDataOf
 import viaduct.engine.runtime2.model.merge
 import viaduct.engine.runtime2.model.outputType
 import viaduct.engine.runtime2.model.outputValue
-import viaduct.engine.runtime2.model.qplanSchemaTypeOrNull
+import viaduct.engine.runtime2.model.runtime2SchemaTypeOrNull
 import viaduct.engine.runtime2.model.schemaType
 import viaduct.graphql.schema.ViaductSchema
 
@@ -68,7 +68,7 @@ internal fun EngineObjectData.Sync.snipToDemand(
     demand: SelectionForest,
     declaredType: ViaductSchema.OutputTypeDef? = null,
 ): EngineObjectData.Sync {
-    val schemaType = qplanSchemaTypeOrNull ?: schemaType(
+    val schemaType = runtime2SchemaTypeOrNull ?: schemaType(
         requireNotNull(declaredType as? ViaductSchema.CompositeTypeDef) { "Object projection requires a declared composite type" },
     )
     val merged = demand.merge(schemaType).byKey()

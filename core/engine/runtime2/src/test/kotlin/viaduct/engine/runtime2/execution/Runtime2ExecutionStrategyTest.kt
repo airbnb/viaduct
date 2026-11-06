@@ -19,7 +19,7 @@ import viaduct.engine.runtime2.model.registry.fieldResolverOf
 import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.testing.TestWorld
 
-class QPlanExecutionStrategyTest : ExecutionTestFixtureResource {
+class Runtime2ExecutionStrategyTest : ExecutionTestFixtureResource {
     @Test
     fun `nonnull response failure waits for every mutation to finish`() =
         runBlocking {

@@ -87,7 +87,7 @@ tasks.named<KotlinCompile>("compileTestFixturesKotlin") {
     )
 }
 tasks.configureEach {
-    notCompatibleWithConfigurationCache("Runtime2 retains qplan's configuration-cache opt-out.")
+    notCompatibleWithConfigurationCache("Runtime2 tasks do not support configuration caching.")
 }
 
 tasks.named<JacocoReport>("jacocoTestReport") {

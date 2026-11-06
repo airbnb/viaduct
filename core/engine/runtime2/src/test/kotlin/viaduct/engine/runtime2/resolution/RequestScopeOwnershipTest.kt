@@ -31,7 +31,7 @@ class RequestScopeOwnershipTest {
         val rawRequestScopeLaunch = Regex("""requestScope\s*\.\s*(?:launch|async|future)\s*(?:\(|\{)""")
         assertEquals(
             listOf(
-                "execution/QPlanExecutionStrategy.kt",
+                "execution/Runtime2ExecutionStrategy.kt",
                 "resolution/CoroutineTaskDispatcher.kt",
                 "resolution/FieldCheckerTask.kt",
                 "resolution/FieldResolverTask.kt",

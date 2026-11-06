@@ -12,10 +12,10 @@ import viaduct.engine.runtime2.model.RootFieldReferenceData
 import viaduct.engine.runtime2.model.engineObjectDataOf
 import viaduct.engine.runtime2.model.nodeRootFieldReferenceOf
 import viaduct.engine.runtime2.model.outputType
-import viaduct.engine.runtime2.model.qplanSchemaTypeOrNull
 import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.requireType
+import viaduct.engine.runtime2.model.runtime2SchemaTypeOrNull
 import viaduct.engine.runtime2.schema.lowering.loweredFieldFromSourceCoordinate
 import viaduct.engine.runtime2.schema.lowering.sourceTypeExpr
 import viaduct.graphql.schema.ViaductSchema
@@ -174,7 +174,7 @@ class SourceSchemaAdapter(
         output: EngineObjectData.Sync,
         loweredTypeExpr: ViaductSchema.TypeExpr<ViaductSchema.OutputTypeDef>,
     ): EngineObjectData.Sync {
-        output.qplanSchemaTypeOrNull?.let { return output }
+        output.runtime2SchemaTypeOrNull?.let { return output }
 
         val outputType =
             schema.requireType(output.type.name) as? ViaductSchema.Object

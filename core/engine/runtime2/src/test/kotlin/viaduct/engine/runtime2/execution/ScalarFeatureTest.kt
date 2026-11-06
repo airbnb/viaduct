@@ -23,7 +23,7 @@ import viaduct.engine.api.mocks.MockFieldUnbatchedResolverExecutor
 import viaduct.engine.api.mocks.runStandardViaductFeatureTest
 import viaduct.engine.api.select.SelectionsParser
 import viaduct.engine.api.spi.VariableFromFieldDefinitions
-import viaduct.engine.runtime2.execution.testing.runQPlanFeatureTest
+import viaduct.engine.runtime2.execution.testing.runRuntime2FeatureTest
 import viaduct.graphql.Scalars
 
 /** Exercises scalar coercion through the service, executor, and GraphQL completion boundaries. */
@@ -105,7 +105,7 @@ class ScalarFeatureTest {
                     }
                 }
             }
-        }.runQPlanFeatureTest {
+        }.runRuntime2FeatureTest {
             runQuery("{ value observed }").assertData(mapOf("value" to scalar.serialized, "observed" to true))
         }
     }
@@ -113,7 +113,7 @@ class ScalarFeatureTest {
     @ParameterizedTest(name = "{0} literal and variable inputs")
     @MethodSource("scalars")
     fun `coerces literal and variable arguments`(scalar: ScalarCase) {
-        echoModule(scalar).runQPlanFeatureTest {
+        echoModule(scalar).runRuntime2FeatureTest {
             runQuery("{ echo(value: ${scalar.literal}) }").assertData(mapOf("echo" to scalar.serialized))
             runQuery(
                 "query(${'$'}value: ${scalar.name}!) { echo(value: ${'$'}value) }",
@@ -140,7 +140,7 @@ class ScalarFeatureTest {
                     }
                 }
             }
-        }.runQPlanFeatureTest {
+        }.runRuntime2FeatureTest {
             runQuery("{ echo }").assertData(mapOf("echo" to scalar.serialized))
             runQuery("query(${'$'}input: Input! = {}) { echo(input: ${'$'}input) }")
                 .assertData(mapOf("echo" to scalar.serialized))
@@ -161,7 +161,7 @@ class ScalarFeatureTest {
                     }
                 }
             }
-        }.runQPlanFeatureTest {
+        }.runRuntime2FeatureTest {
             runQuery("{ echo(values: [${scalar.literal}, null]) }")
                 .assertData(mapOf("echo" to listOf(scalar.serialized, null)))
             runQuery("query(${'$'}values: [${scalar.name}]!) { echo(values: ${'$'}values) }", mapOf("values" to listOf(scalar.variable, null)))
@@ -187,7 +187,7 @@ class ScalarFeatureTest {
                     }
                 }
             }
-        }.runQPlanFeatureTest {
+        }.runRuntime2FeatureTest {
             runQuery("{ observed }").assertJson("{data: {observed: true}}")
         }
     }
@@ -201,7 +201,7 @@ class ScalarFeatureTest {
             for (scalar in cases) {
                 field("Query" to "echo${scalar.name}") { resolver { fn { args, _, _, _, _ -> args["value"] } } }
             }
-        }.runQPlanFeatureTest {
+        }.runRuntime2FeatureTest {
             runQuery("{ ${cases.joinToString(" ") { "echo${it.name}" }} }").assertData(expected)
             runQuery("{ ${cases.joinToString(" ") { "echo${it.name}(value: null)" }} }").assertData(expected)
             val declarations = cases.joinToString(", ") { "${'$'}value${it.name}: ${it.name}" }
@@ -225,7 +225,7 @@ class ScalarFeatureTest {
                     }
                 }
             }
-        }.runQPlanFeatureTest {
+        }.runRuntime2FeatureTest {
             runQuery("{ value observed }").assertData(mapOf("value" to "2024-10-29T14:30:00.123Z", "observed" to true))
         }
     }
@@ -266,7 +266,7 @@ class ScalarFeatureTest {
                     }
                 }
             }
-        }.runQPlanFeatureTest {
+        }.runRuntime2FeatureTest {
             runQuery("{ echo source observed }")
                 .assertData(mapOf("echo" to serialized, "source" to serialized, "observed" to true))
             runQuery("{ echo(value: \"$timestamp\") }").assertData(mapOf("echo" to serialized))
@@ -296,7 +296,7 @@ class ScalarFeatureTest {
                     fn { _, obj, _, _, _ -> obj.get("echo") }
                 }
             }
-        }.runQPlanFeatureTest {
+        }.runRuntime2FeatureTest {
             runQuery("{ observed }").assertJson("{data: {observed: {nested: [true, {value: null}]}}}")
         }
     }
@@ -307,7 +307,7 @@ class ScalarFeatureTest {
             fieldWithValue("Query" to "invalid", 128)
             fieldWithValue("Query" to "required", 128)
             fieldWithValue("Query" to "valid", Long.MAX_VALUE)
-        }.runQPlanFeatureTest {
+        }.runRuntime2FeatureTest {
             val nullable = runQuery("{ bad: invalid valid }")
             assertEquals(mapOf("bad" to null, "valid" to Long.MAX_VALUE.toString()), nullable.getData())
             assertEquals(listOf(listOf("bad")), nullable.errors.map { it.path })
@@ -329,7 +329,7 @@ class ScalarFeatureTest {
                     }
                 }
             }
-        }.runQPlanFeatureTest {
+        }.runRuntime2FeatureTest {
             assertTrue(runQuery("{ echo(value: 9223372036854775808) }").errors.isNotEmpty())
             assertTrue(runQuery("query(${'$'}value: Long!) { echo(value: ${'$'}value) }", mapOf("value" to "9223372036854775808")).errors.isNotEmpty())
         }
@@ -341,7 +341,7 @@ class ScalarFeatureTest {
         val value = listOf(1, mapOf("a" to 2), null)
         EngineTestModule("extend type Query { echo(value: JSON): JSON }") {
             field("Query" to "echo") { resolver { fn { args, _, _, _, _ -> args["value"] } } }
-        }.runQPlanFeatureTest {
+        }.runRuntime2FeatureTest {
             runQuery("query(${'$'}value: JSON) { echo(value: ${'$'}value) }", mapOf("value" to value))
                 .assertData(mapOf("echo" to value))
             runQuery("{ echo(value: [1, {a: 2, b: null}]) }").assertData(mapOf("echo" to listOf(BigInteger.ONE, mapOf("a" to BigInteger.TWO, "b" to null))))
@@ -353,7 +353,7 @@ class ScalarFeatureTest {
         val value = Any()
         EngineTestModule("extend type Query { value: JSON! }") {
             fieldWithValue("Query" to "value", value)
-        }.runQPlanFeatureTest {
+        }.runRuntime2FeatureTest {
             val result = runQuery("{ value }")
             assertTrue(result.errors.isEmpty(), result.errors.toString())
             assertSame(value, result.getData<Map<String, Any>>().getValue("value"))
@@ -433,7 +433,7 @@ class ScalarFeatureTest {
                     }
                 }
             }
-        }.runQPlanFeatureTest {
+        }.runRuntime2FeatureTest {
             runQuery("{ observed }").assertJson("{data: {observed: true}}")
         }
     }

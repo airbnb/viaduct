@@ -12,7 +12,7 @@ import viaduct.engine.api.mocks.fetchAs
 import viaduct.engine.api.mocks.getAs
 import viaduct.engine.runtime.execution.RootFieldReferenceResolutionContract
 import viaduct.engine.runtime.execution.query
-import viaduct.engine.runtime2.execution.testing.runQPlanFeatureTest
+import viaduct.engine.runtime2.execution.testing.runRuntime2FeatureTest
 import viaduct.graphql.test.assertJson
 
 class Engine2RootFieldReferenceResolutionContractTest : RootFieldReferenceResolutionContract, Engine2QueryExecutionContract {
@@ -74,7 +74,7 @@ class Engine2RootFieldReferenceResolutionContractTest : RootFieldReferenceResolu
             }
         }
 
-        module.runQPlanFeatureTest {
+        module.runRuntime2FeatureTest {
             val result = runQueryWithTimeout(
                 """
                 {

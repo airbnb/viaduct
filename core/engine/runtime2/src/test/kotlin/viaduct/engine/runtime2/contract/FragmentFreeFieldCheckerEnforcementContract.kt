@@ -517,7 +517,7 @@ private class EnforcementCheckerError(message: String) : CheckerResult.Error {
     override fun combine(fieldResult: CheckerResult.Error): CheckerResult.Error = this
 }
 
-/** The test checker, rather than qplan, assigns meaning to Airbnb's directive spelling. */
+/** The test checker, rather than runtime2, assigns meaning to Airbnb's directive spelling. */
 private class DirectiveAwareCheckerError : CheckerResult.Error {
     override val error: Exception = IllegalStateException("denied")
 

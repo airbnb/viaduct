@@ -34,9 +34,9 @@ private const val PROPERTY_TEST_QUERY_RESOURCE =
     "viaduct/engine/runtime2/benchmark/property-test/query.graphql"
 private const val RESOLVER_APPLICATIONS_METRIC = "resolverApplications"
 
-@Name("qplan.PropertyTestPhase")
+@Name("viaduct.runtime2.PropertyTestPhase")
 @Label("Property Test Phase")
-@Category("QPlan")
+@Category("Runtime2")
 private class PropertyTestPhaseEvent : Event() {
     @Label("Phase")
     lateinit var phase: String

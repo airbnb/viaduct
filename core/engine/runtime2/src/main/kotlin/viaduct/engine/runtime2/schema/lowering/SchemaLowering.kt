@@ -14,12 +14,12 @@ import viaduct.graphql.schema.validation.SchemaValidator
 import viaduct.graphql.schema.validation.ValidationContext
 
 /**
- * Creates qplan's field-resolution schema without modifying [source].
+ * Creates runtime2's field-resolution schema without modifying [source].
  */
 internal fun lowerSchema(source: GraphQLSchema): ViaductSchema = lowerSchema(source.viaductSchema())
 
 /**
- * Creates qplan's field-resolution schema without modifying [source].
+ * Creates runtime2's field-resolution schema without modifying [source].
  */
 internal fun lowerSchema(source: ViaductSchema): ViaductSchema {
     val builder =

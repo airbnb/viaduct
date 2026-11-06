@@ -28,7 +28,7 @@ import viaduct.engine.runtime.NodeResolverDispatcher
 import viaduct.engine.runtime.QueryPlanExecutionCondition
 import viaduct.engine.runtime.ResolverVariableDefinitions
 import viaduct.engine.runtime.retainCheckerVariables
-import viaduct.engine.runtime2.execution.QPlanEngineExecutionContext
+import viaduct.engine.runtime2.execution.Runtime2EngineExecutionContext
 import viaduct.engine.runtime2.execution.toEngineSelectionSet
 import viaduct.engine.runtime2.model.Arguments
 import viaduct.engine.runtime2.model.EngineErrorData
@@ -78,9 +78,9 @@ import viaduct.engine.runtime2.resolution.currentVariablesProviderResolutionCont
 import viaduct.engine.runtime2.schema.SourceSchemaAdapter
 import viaduct.engine.runtime2.schema.ViaductAndGJSchema
 import viaduct.engine.runtime2.schema.fragmentFromDocument
-import viaduct.graphql.schema.ViaductSchema as QPlanSchema
+import viaduct.graphql.schema.ViaductSchema
 
-/** Airbnb-only conversion of resolver results to canonical qplan values. */
+/** Airbnb-only conversion of resolver results to canonical runtime2 values. */
 @Deprecated("Airbnb use only")
 fun interface ResolverOutputAdapter {
     suspend fun adapt(
@@ -92,11 +92,11 @@ fun interface ResolverOutputAdapter {
 }
 
 class ExecutorRegistryInputs(
-    val fieldResolvers: Map<QPlanSchema.Field, FieldResolverDefinition>,
-    val nodeResolvers: Map<QPlanSchema.Object, NodeResolverFunction>,
+    val fieldResolvers: Map<ViaductSchema.Field, FieldResolverDefinition>,
+    val nodeResolvers: Map<ViaductSchema.Object, NodeResolverFunction>,
     val variableProviders: Map<Arguments.Variable, VariableDeclaration>,
-    val fieldCheckers: Map<QPlanSchema.ObjectField, FieldCheckerResolver> = emptyMap(),
-    val typeCheckers: Map<QPlanSchema.Object, TypeCheckerResolver> = emptyMap(),
+    val fieldCheckers: Map<ViaductSchema.ObjectField, FieldCheckerResolver> = emptyMap(),
+    val typeCheckers: Map<ViaductSchema.Object, TypeCheckerResolver> = emptyMap(),
 )
 
 /** Returned resolver functions retain [context]; do not share them across independent request contexts. */
@@ -130,16 +130,16 @@ private fun executorRegistryInputs(
     fieldSelectivityProvider: FieldSelectivityProvider,
     includeDefaultQueryNodeResolvers: Boolean,
     outputAdapter: ResolverOutputAdapter? = null,
-    selectionSetConverter: ((SelectionForest, QPlanSchema.CompositeTypeDef, EngineExecutionContext) -> EngineSelectionSet)? = null,
+    selectionSetConverter: ((SelectionForest, ViaductSchema.CompositeTypeDef, EngineExecutionContext) -> EngineSelectionSet)? = null,
 ): ExecutorRegistryInputs {
     val fieldResolverExecutors = fieldExecutors.toList()
     val nodeResolverExecutors = nodeExecutors.toList()
     validateExecutorRegistrations(fieldResolverExecutors, nodeResolverExecutors)
     val schema = schemas.loweredSchema
     val sourceSchema = SourceSchemaAdapter(schema)
-    val qPlanContextForInvocation: (ResolutionExecutionContext) -> EngineExecutionContext =
+    val runtime2ContextForInvocation: (ResolutionExecutionContext) -> EngineExecutionContext =
         { resolutionContext ->
-            QPlanEngineExecutionContext(
+            Runtime2EngineExecutionContext(
                 contextForInvocation(resolutionContext),
                 schemas,
                 resolutionContext,
@@ -150,7 +150,7 @@ private fun executorRegistryInputs(
         fieldResolverExecutors.associate { (coordinate, executor) ->
             val field =
                 sourceSchema.field(coordinate.first, coordinate.second)
-                    as? QPlanSchema.ObjectField
+                    as? ViaductSchema.ObjectField
                     ?: throw IllegalArgumentException(
                         "Field executor ${coordinate.render()} does not map to a concrete object field",
                     )
@@ -167,7 +167,7 @@ private fun executorRegistryInputs(
                     queryFragment = queryFragment,
                     context = compilationContext,
                     contextForInvocation =
-                        qPlanContextForInvocation.takeIf { compilationContext == null },
+                        runtime2ContextForInvocation.takeIf { compilationContext == null },
                 )
             variables.declarations
                 .forEach { (variable, declaration) ->
@@ -213,9 +213,9 @@ private fun executorRegistryInputs(
                 executor.isSelective || fieldSelectivityProvider.isSelective(coordinate)
             val resolverFunction: SelectiveFieldResolverFunction =
                 { input, queryValue, arguments, selections, _, resolutionContext ->
-                    val executorContext = qPlanContextForInvocation(resolutionContext)
+                    val executorContext = runtime2ContextForInvocation(resolutionContext)
                     val selectionSet =
-                        (field.type.baseTypeDef as? QPlanSchema.CompositeTypeDef)?.let {
+                        (field.type.baseTypeDef as? ViaductSchema.CompositeTypeDef)?.let {
                                 type ->
                             type.takeIf { fullSchema.schema.getType(it.name) != null }
                                 ?.let { selectionSetConverter?.invoke(selections, it, executorContext) ?: selections.toEngineSelectionSet(it, fullSchema) }
@@ -261,7 +261,7 @@ private fun executorRegistryInputs(
                 },
         variableProviders = variableProviders,
         nodeResolvers =
-            qplanNodeResolvers(
+            nodeResolversFromExecutors(
                 fullSchema,
                 schemas,
                 fieldResolverExecutors,
@@ -297,8 +297,8 @@ fun dispatcherRegistryInputs(
 
 /**
  * Airbnb-only dispatcher adaptation hooks.
- * @param outputAdapter Airbnb use only: converts field and node results to qplan values.
- * @param selectionSetConverter Airbnb use only: converts qplan demand to executor selections.
+ * @param outputAdapter Airbnb use only: converts field and node results to runtime2 values.
+ * @param selectionSetConverter Airbnb use only: converts runtime2 demand to executor selections.
  */
 @Deprecated("Airbnb use only")
 fun dispatcherRegistryInputs(
@@ -307,7 +307,7 @@ fun dispatcherRegistryInputs(
     dispatcherRegistry: DispatcherRegistry,
     fieldSelectivityProvider: FieldSelectivityProvider = FieldSelectivityProvider.Never,
     outputAdapter: ResolverOutputAdapter? = null,
-    selectionSetConverter: ((SelectionForest, QPlanSchema.CompositeTypeDef, EngineExecutionContext) -> EngineSelectionSet)? = null,
+    selectionSetConverter: ((SelectionForest, ViaductSchema.CompositeTypeDef, EngineExecutionContext) -> EngineSelectionSet)? = null,
 ): ExecutorRegistryInputs {
     val objectTypes =
         fullSchema.schema.allTypesAsList
@@ -356,7 +356,7 @@ fun dispatcherRegistryInputs(
                     .getFieldCheckerDispatcher(sourceType.name, sourceField.name)
                     ?.let { dispatcher ->
                         val field = sourceSchema.field(sourceType.name, sourceField.name)
-                        require(field is QPlanSchema.ObjectField) {
+                        require(field is ViaductSchema.ObjectField) {
                             "Field checker ${sourceType.name}.${sourceField.name} does not map to " +
                                 "a concrete object field"
                         }
@@ -375,7 +375,7 @@ fun dispatcherRegistryInputs(
         objectTypes.mapNotNull { sourceType ->
             dispatcherRegistry.getTypeCheckerDispatcher(sourceType.name)?.let { dispatcher ->
                 val type = schemas.loweredSchema.requireType(sourceType.name)
-                require(type is QPlanSchema.Object) {
+                require(type is ViaductSchema.Object) {
                     "Type checker ${sourceType.name} does not map to a concrete object type"
                 }
                 type to
@@ -399,8 +399,8 @@ fun dispatcherRegistryInputs(
 
 private fun fieldCheckerResolver(
     schemas: ViaductAndGJSchema,
-    field: QPlanSchema.ObjectField,
-    queryType: QPlanSchema.Object,
+    field: ViaductSchema.ObjectField,
+    queryType: ViaductSchema.Object,
     dispatcher: CheckerDispatcher,
     contextForInvocation: (ResolutionExecutionContext) -> EngineExecutionContext,
 ): FieldCheckerResolver {
@@ -427,8 +427,8 @@ private fun fieldCheckerResolver(
 
 private fun typeCheckerResolver(
     schemas: ViaductAndGJSchema,
-    type: QPlanSchema.Object,
-    queryType: QPlanSchema.Object,
+    type: ViaductSchema.Object,
+    queryType: ViaductSchema.Object,
     dispatcher: CheckerDispatcher,
     contextForInvocation: (ResolutionExecutionContext) -> EngineExecutionContext,
 ): TypeCheckerResolver {
@@ -458,7 +458,7 @@ private fun checkerInvocationContext(
     resolutionContext: ResolutionExecutionContext,
     contextForInvocation: (ResolutionExecutionContext) -> EngineExecutionContext,
 ): EngineExecutionContext =
-    QPlanEngineExecutionContext(
+    Runtime2EngineExecutionContext(
         contextForInvocation(resolutionContext),
         schemas,
         resolutionContext,
@@ -726,7 +726,7 @@ private class CheckerInputCompiler(
         var inputType = argument.inputType.baseTypeDef
         val inputPath =
             components.drop(1).map { component ->
-                val input = inputType as? QPlanSchema.Input
+                val input = inputType as? ViaductSchema.Input
                     ?: throw IllegalArgumentException(
                         "Argument path for variable $name cannot traverse $inputType",
                     )
@@ -803,7 +803,7 @@ private fun ResolverTarget.checkerObjectTypeName(): String =
         is ResolverTarget.FieldValueResolverTarget -> error("A value resolver cannot own checker inputs")
     }
 
-private fun ResolverTarget.checkerObjectType(): QPlanSchema.Object =
+private fun ResolverTarget.checkerObjectType(): ViaductSchema.Object =
     when (this) {
         is ResolverTarget.FieldCheckerTarget -> field.containingDef
         is ResolverTarget.TypeCheckerTarget -> type
@@ -915,10 +915,10 @@ private suspend fun <T> resultOfTenantCall(block: suspend () -> T): Result<T> =
 
 private fun namespaceFieldResolvers(
     fullSchema: EngineSchema,
-    schema: QPlanSchema,
+    schema: ViaductSchema,
     sourceSchema: SourceSchemaAdapter,
-    suppliedFields: Set<QPlanSchema.Field>,
-): Map<QPlanSchema.Field, FieldResolverDefinition> =
+    suppliedFields: Set<ViaductSchema.Field>,
+): Map<ViaductSchema.Field, FieldResolverDefinition> =
     fullSchema.schema.allTypesAsList
         .filterIsInstance<GraphQLObjectType>()
         .flatMap { sourceParent ->
@@ -927,13 +927,13 @@ private fun namespaceFieldResolvers(
                     ?: return@mapNotNull null
                 if (!sourceOutput.hasAppliedDirective("namespaceType")) return@mapNotNull null
                 val field = sourceSchema.field(sourceParent.name, sourceField.name)
-                require(field is QPlanSchema.ObjectField) {
+                require(field is ViaductSchema.ObjectField) {
                     "Namespace field ${sourceParent.name}/${sourceField.name} " +
                         "does not map to a concrete object field"
                 }
                 if (field in suppliedFields) return@mapNotNull null
                 val outputType = schema.requireType(sourceOutput.name)
-                require(outputType is QPlanSchema.Object) {
+                require(outputType is ViaductSchema.Object) {
                     "Namespace field ${sourceParent.name}/${sourceField.name} " +
                         "does not return a canonical object"
                 }
@@ -946,7 +946,7 @@ private fun namespaceFieldResolvers(
 
 private fun FieldResolverExecutor.objectFragment(
     schema: ViaductAndGJSchema,
-    field: QPlanSchema.ObjectField,
+    field: ViaductSchema.ObjectField,
 ): Fragment =
     objectSelectionSet?.let { required ->
         schema.fragmentFromDocument(
@@ -957,7 +957,7 @@ private fun FieldResolverExecutor.objectFragment(
 
 private fun FieldResolverExecutor.queryFragment(
     schema: ViaductAndGJSchema,
-    field: QPlanSchema.ObjectField,
+    field: ViaductSchema.ObjectField,
 ): Fragment =
     querySelectionSet?.let { required ->
         schema.fragmentFromDocument(
@@ -968,10 +968,10 @@ private fun FieldResolverExecutor.queryFragment(
 
 private fun builtInNodeFieldResolvers(
     fullSchema: EngineSchema,
-    schema: QPlanSchema,
+    schema: ViaductSchema,
     context: EngineExecutionContext,
-    suppliedFields: Set<QPlanSchema.Field>,
-): Map<QPlanSchema.Field, FieldResolverDefinition> {
+    suppliedFields: Set<ViaductSchema.Field>,
+): Map<ViaductSchema.Field, FieldResolverDefinition> {
     val sourceSchema = SourceSchemaAdapter(schema)
     val query = schema.emptyFragmentOf(schema.requireQueryTypeDef().name)
     return buildMap {
@@ -1022,19 +1022,19 @@ private fun nodeReference(
     }
 }
 
-private fun qplanNodeResolvers(
+private fun nodeResolversFromExecutors(
     fullSchema: EngineSchema,
     schemas: ViaductAndGJSchema,
     fieldResolverExecutors: List<Pair<Coordinate, FieldResolverExecutor>>,
     nodeResolverExecutors: List<Pair<String, NodeResolverExecutor>>,
     contextForInvocation: (ResolutionExecutionContext) -> EngineExecutionContext,
     outputAdapter: ResolverOutputAdapter?,
-    selectionSetConverter: ((SelectionForest, QPlanSchema.CompositeTypeDef, EngineExecutionContext) -> EngineSelectionSet)?,
-): Map<QPlanSchema.Object, NodeResolverFunction> {
+    selectionSetConverter: ((SelectionForest, ViaductSchema.CompositeTypeDef, EngineExecutionContext) -> EngineSelectionSet)?,
+): Map<ViaductSchema.Object, NodeResolverFunction> {
     val schema = schemas.loweredSchema
     val supplied =
         nodeResolverExecutors.associate { (typeName, executor) ->
-            val type = schema.requireType(typeName) as QPlanSchema.Object
+            val type = schema.requireType(typeName) as ViaductSchema.Object
             val fieldResolverOwnedFields =
                 fieldResolverExecutors
                     .mapNotNullTo(linkedSetOf()) { (coordinate, _) ->
@@ -1095,7 +1095,7 @@ private fun qplanNodeResolvers(
                         invokeExecutor(
                             id,
                             selectionSetConverter?.invoke(selections, type, contextForInvocation(resolutionContext)) ?: selections.toEngineSelectionSet(type, fullSchema),
-                            QPlanEngineExecutionContext(
+                            Runtime2EngineExecutionContext(
                                 contextForInvocation(resolutionContext),
                                 schemas,
                                 resolutionContext,
@@ -1112,7 +1112,7 @@ private fun qplanNodeResolvers(
                                 "id",
                                 emptyMap(),
                             ),
-                            QPlanEngineExecutionContext(
+                            Runtime2EngineExecutionContext(
                                 contextForInvocation(resolutionContext),
                                 schemas,
                                 resolutionContext,
@@ -1157,15 +1157,15 @@ internal fun validateExecutorRegistrations(
     nodeResolverExecutors: List<Pair<String, NodeResolverExecutor>>,
 ) {
     require(fieldResolverExecutors.map { it.first }.toSet().size == fieldResolverExecutors.size) {
-        "Qplan requires unique field executor coordinates"
+        "Runtime2 requires unique field executor coordinates"
     }
     require(nodeResolverExecutors.map { it.first }.toSet().size == nodeResolverExecutors.size) {
-        "Qplan requires unique node executor types"
+        "Runtime2 requires unique node executor types"
     }
     fieldResolverExecutors.forEach { (coordinate, executor) ->
-        if (executor.isBatching) TODO("Qplan does not support batching field executor ${coordinate.render()}")
+        if (executor.isBatching) TODO("Runtime2 does not support batching field executor ${coordinate.render()}")
     }
     nodeResolverExecutors.forEach { (typeName, executor) ->
-        if (executor.isBatching) TODO("Qplan does not support batching node executor $typeName")
+        if (executor.isBatching) TODO("Runtime2 does not support batching node executor $typeName")
     }
 }

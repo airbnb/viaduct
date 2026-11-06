@@ -8,7 +8,7 @@ The `runtime` engine is not the semantic authority for Runtime2. Runtime2's cont
 
 ## Comparison Method
 
-Production-derived cases now live in shared contracts under `engine/api/src/testFixtures` and engine-specific runners under each engine's `src/test` tree. The Runtime2 runners live under `src/test/kotlin/viaduct/engine/runtime2/execution`. Disabled expectations (`@Engine2Disabled`) and their Runtime2 replacements (`@Engine2Alternate`) stay with the engine where they apply. `runQPlanFeatureTest` builds `StandardViaduct` with `ENGINE2_ENABLED` and exercises module-config bootstrap and production dispatcher wiring, including access checkers and scoped schemas. It does not use the direct executor adapter.
+Production-derived cases now live in shared contracts under `engine/api/src/testFixtures` and engine-specific runners under each engine's `src/test` tree. The Runtime2 runners live under `src/test/kotlin/viaduct/engine/runtime2/execution`. Disabled expectations (`@Engine2Disabled`) and their Runtime2 replacements (`@Engine2Alternate`) stay with the engine where they apply. `runRuntime2FeatureTest` builds `StandardViaduct` with `ENGINE2_ENABLED` and exercises module-config bootstrap and production dispatcher wiring, including access checkers and scoped schemas. It does not use the direct executor adapter.
 
 An unchanged passing test establishes aligned behavior through the test's public response and any executor observations it asserts. Disabled tests are marked `@Engine2Disabled(kind, reason)` with one of three kinds:
 
@@ -63,7 +63,7 @@ Not every `runtime` engine feature test belongs in the copied suite. Tests cente
 
 Excluding such a test is not evidence that its user-visible behavior is unimportant. If the behavior belongs to Runtime2, it should be covered at the layer that owns it: canonical model and resolver contracts for semantics, adapter tests for Engine API conversion, GraphQL execution tests for response completion, generated property tests for broad resolver coverage, or dispatcher and service integration tests for physical execution policy.
 
-Operation-validation tests are also normally outside this suite because GraphQL Java rejects invalid source operations before `QPlanExecutionStrategy` starts Resolution. Runtime2-specific decoding and registry validation remain covered by focused adapter tests.
+Operation-validation tests are also normally outside this suite because GraphQL Java rejects invalid source operations before `Runtime2ExecutionStrategy` starts Resolution. Runtime2-specific decoding and registry validation remain covered by focused adapter tests.
 
 ## Maintaining The Port
 

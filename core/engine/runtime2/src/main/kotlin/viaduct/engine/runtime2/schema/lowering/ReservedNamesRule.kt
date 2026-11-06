@@ -7,8 +7,8 @@ import viaduct.graphql.schema.validation.ValidationRule
 
 internal class ReservedNamesRule :
     ValidationRule(
-        id = "QPlanReservedNames",
-        description = "Reserves qplan's generated schema namespace",
+        id = "Runtime2ReservedNames",
+        description = "Reserves runtime2's generated schema namespace",
     ) {
     override fun visitDirective(
         ctx: ValidationContext,
@@ -69,7 +69,7 @@ internal class ReservedNamesRule :
     ) {
         if (containsSyntheticNameToken(name)) {
             ctx.reportError(
-                code = "QPLAN_RESERVED_NAME",
+                code = "RUNTIME2_RESERVED_NAME",
                 message =
                     "Source schema names cannot contain reserved token " +
                         "$LOWERING_SYNTHETIC_NAME_TOKEN: $name",
@@ -78,7 +78,7 @@ internal class ReservedNamesRule :
         }
         if (name == VIADUCT_IGNORE_SYMBOL) {
             ctx.reportError(
-                code = "QPLAN_RESERVED_NAME",
+                code = "RUNTIME2_RESERVED_NAME",
                 message = "Source schema names cannot use reserved symbol $VIADUCT_IGNORE_SYMBOL",
                 location = location,
             )

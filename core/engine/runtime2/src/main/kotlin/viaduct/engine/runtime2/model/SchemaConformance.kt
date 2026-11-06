@@ -100,9 +100,9 @@ private fun Any?.conformsToOutputSchemaType(
         is ViaductSchema.CompositeTypeDef -> {
             if (this !is EngineObjectData.Sync) return false
             // Validate the concrete runtime type against the declared output type.
-            val qplanType = qplanSchemaTypeOrNull
-            if (qplanType != null) {
-                qplanType in expectedType.possibleObjectTypes
+            val ownedSchemaType = runtime2SchemaTypeOrNull
+            if (ownedSchemaType != null) {
+                ownedSchemaType in expectedType.possibleObjectTypes
             } else {
                 expectedType.possibleObjectTypes.any { possibleType ->
                     possibleType.name == type.name

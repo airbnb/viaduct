@@ -4,7 +4,7 @@ Runtime2 performance testing separates stable JMH measurements from diagnostic J
 
 This document owns maintained benchmark, profiling, corpus, and reporting practice. Dated measurements and investigation findings live in the [performance history](../evidence/profiles/performance-history.md) beside their exported profile evidence.
 
-The `qplan.PropertyTestPhase` JFR event name retains the historical upstream project prefix. Its definition is in [`PropertyTestBenchmarkSupport.kt`](../../src/jmh/kotlin/viaduct/engine/runtime2/benchmark/PropertyTestBenchmarkSupport.kt); it records Runtime2 benchmark phases in the current build.
+The `viaduct.runtime2.PropertyTestPhase` JFR event is defined in [`PropertyTestBenchmarkSupport.kt`](../../src/jmh/kotlin/viaduct/engine/runtime2/benchmark/PropertyTestBenchmarkSupport.kt); it records Runtime2 benchmark phases in the current build.
 
 ## Running And Reporting
 
@@ -71,7 +71,7 @@ jfr summary core/engine/runtime2/build/reports/resolver-benchmarks/property-test
 jfr view hot-methods core/engine/runtime2/build/reports/resolver-benchmarks/property-test.jfr
 jfr view allocation-by-site core/engine/runtime2/build/reports/resolver-benchmarks/property-test.jfr
 jfr view gc-pauses core/engine/runtime2/build/reports/resolver-benchmarks/property-test.jfr
-jfr print --events qplan.PropertyTestPhase core/engine/runtime2/build/reports/resolver-benchmarks/property-test.jfr
+jfr print --events viaduct.runtime2.PropertyTestPhase core/engine/runtime2/build/reports/resolver-benchmarks/property-test.jfr
 ```
 
 Replace the path with the Resolution-overhead or `correctResolution` recording as appropriate. Java Mission Control is useful when call-tree, allocation, or timeline exploration needs more context than the command-line views provide. Each profiling task deletes its configured output before recording, so set its output property to a unique path before a comparison run when the previous recording must be retained.
@@ -185,7 +185,7 @@ Inspect the recording with `jfr view hot-methods core/engine/runtime2/build/repo
 
 One measured property case creates a fresh immutable `Assumptions` value and semantic operation context, parses the frozen query, invokes Resolution, runs `correctResolution`, reconstructs and compares all 12,777 resolver-application identities, and validates from-field bindings. Identity reconstruction reuses reference ownership established by that case's successful correctness judgment, avoiding a second resolver-conformance replay; ordinary application identities and inputs are still reconstructed independently. The standalone identity oracle performs its own ownership replay. Resource decoding and `TestWorld` assembly happen once during trial setup. Two warmup cases precede five measured cases. Repeat the frozen case within each measured JMH operation with `-PpropertyTestBenchmarkLoopCount=M`; the default is one.
 
-To profile the full measured property case, run `./gradlew :core:engine:runtime2:propertyTestProfile --console=plain`. This runs one unrecorded warmup case, then records one measured case to `core/engine/runtime2/build/reports/resolver-benchmarks/property-test.jfr`. Override the output with `-PpropertyTestProfileOutput=PATH`, and repeat the case inside the recording with `-PpropertyTestBenchmarkLoopCount=M`. The recording includes `qplan.PropertyTestPhase` duration events for request preparation, Resolution, witness snapshotting, application-identity reconstruction, `correctResolution`, and from-field binding validation.
+To profile the full measured property case, run `./gradlew :core:engine:runtime2:propertyTestProfile --console=plain`. This runs one unrecorded warmup case, then records one measured case to `core/engine/runtime2/build/reports/resolver-benchmarks/property-test.jfr`. Override the output with `-PpropertyTestProfileOutput=PATH`, and repeat the case inside the recording with `-PpropertyTestBenchmarkLoopCount=M`. The recording includes `viaduct.runtime2.PropertyTestPhase` duration events for request preparation, Resolution, witness snapshotting, application-identity reconstruction, `correctResolution`, and from-field binding validation.
 
 `generatePropertyTestBenchmarkCorpus` is the provenance-preserving snapshot writer, not part of ordinary benchmark execution. It regenerates the historical coordinate through the current property generator and will intentionally fail if that generator no longer reproduces 12,763 applications. Do not regenerate the checked-in snapshot when generator evolution changes the coordinate; the benchmark's purpose is to retain the original serialized workload.
 

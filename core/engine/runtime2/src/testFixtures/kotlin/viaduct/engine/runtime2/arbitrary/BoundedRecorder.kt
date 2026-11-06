@@ -1,7 +1,7 @@
 package viaduct.engine.runtime2.arbitrary
 
 /**
- * Duplicate-preserving diagnostic storage shared by Qplan's generators and resolver tests.
+ * Duplicate-preserving diagnostic storage shared by Runtime2's generators and resolver tests.
  * Snapshots copy the list, not its entries. Clear only after the preceding run completes.
  * Pauses support sequential nesting; overlapping pause blocks on different threads are unsupported.
  */

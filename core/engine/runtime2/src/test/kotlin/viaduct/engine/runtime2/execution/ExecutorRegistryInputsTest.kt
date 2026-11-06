@@ -262,7 +262,7 @@ class ExecutorRegistryInputsTest {
     fun `node references carry canonical identity at creation and expose only their id`() =
         runTest {
             val fixture = Fixture(NODE_SCHEMA)
-            val context = QPlanEngineExecutionContext(fixture.context, fixture.schemas, fixture.resolutionContext)
+            val context = Runtime2EngineExecutionContext(fixture.context, fixture.schemas, fixture.resolutionContext)
             val userType = fixture.engineSchema.schema.getObjectType("User")
 
             val reference = context.createNodeReference("original-id", userType)
@@ -289,7 +289,7 @@ class ExecutorRegistryInputsTest {
             val fixture = Fixture(
                 "type Query { factory: Factory } type Factory { get(id: ID!, limit: Int = 3, ids: [ID!]): Product } type Product { name: String }",
             )
-            val context = QPlanEngineExecutionContext(fixture.context, fixture.schemas, fixture.resolutionContext)
+            val context = Runtime2EngineExecutionContext(fixture.context, fixture.schemas, fixture.resolutionContext)
             val type = fixture.engineSchema.schema.getObjectType("Product")
             val path = mutableListOf("factory", "get")
             val ids = mutableListOf("first")
@@ -319,7 +319,7 @@ class ExecutorRegistryInputsTest {
         val fixture = Fixture(
             "type Query { node(id: ID!): Node factory: Factory } interface Node { id: ID! } type Product implements Node { id: ID! } type Factory { get(id: ID!): Product list: [Product] }",
         )
-        val context = QPlanEngineExecutionContext(fixture.context, fixture.schemas, fixture.resolutionContext)
+        val context = Runtime2EngineExecutionContext(fixture.context, fixture.schemas, fixture.resolutionContext)
         val product = fixture.engineSchema.schema.getObjectType("Product")
         assertThrows<IllegalArgumentException> { context.createNodeReference("id", fixture.engineSchema.schema.queryType) }
         assertThrows<IllegalArgumentException> { context.createRootFieldReference(listOf("missing"), product, emptyMap()) }
@@ -463,7 +463,7 @@ class ExecutorRegistryInputsTest {
             val fixture = Fixture("type Query { value: Int! }")
             val executor =
                 MockFieldUnbatchedResolverExecutor(resolverId = "Query.value") { _, _, _, _, context ->
-                    assertInstanceOf(QPlanEngineExecutionContext::class.java, context)
+                    assertInstanceOf(Runtime2EngineExecutionContext::class.java, context)
                     assertSame(fixture.context.requestContext, context.requestContext)
                     7
                 }
@@ -567,7 +567,7 @@ class ExecutorRegistryInputsTest {
                         checkerType: CheckerExecutor.CheckerType,
                     ): CheckerResult {
                         assertEquals(expectedType, checkerType)
-                        assertInstanceOf(QPlanEngineExecutionContext::class.java, context)
+                        assertInstanceOf(Runtime2EngineExecutionContext::class.java, context)
                         assertSame(fixture.context.requestContext, context.requestContext)
                         calls.incrementAndGet()
                         return CheckerResult.Success
@@ -1079,7 +1079,7 @@ class ExecutorRegistryInputsTest {
                                             assertTrue(arguments.isEmpty())
                                             assertTrue(objectDataMap.isEmpty())
                                             assertEquals(CheckerExecutor.CheckerType.TYPE, checkerType)
-                                            assertInstanceOf(QPlanEngineExecutionContext::class.java, context)
+                                            assertInstanceOf(Runtime2EngineExecutionContext::class.java, context)
                                             checkerCalls.incrementAndGet()
                                             return MockCheckerErrorResult(SecurityException("type denied"))
                                         }
@@ -1114,11 +1114,11 @@ class ExecutorRegistryInputsTest {
             val registry = fixture.registry(fixture.adapt(listOf(("Query" to "box") to executor)))
             val graphQLSchema = SchemaGenerator().makeExecutableSchema(
                 SchemaParser().parse(fixture.sdl),
-                RuntimeWiring.newRuntimeWiring().wiringFactory(QPlanWiringFactory(fixture.schemas.loweredSchema)).build(),
+                RuntimeWiring.newRuntimeWiring().wiringFactory(Runtime2WiringFactory(fixture.schemas.loweredSchema)).build(),
             )
             val graphQL = GraphQL.newGraphQL(graphQLSchema)
-                .queryExecutionStrategy(QPlanExecutionStrategy(Assumptions.of(fixture.schemas.loweredSchema, registry), fixture.schemas.graphQLSchema, coroutineContext))
-                .instrumentation(QPlanInstrumentation())
+                .queryExecutionStrategy(Runtime2ExecutionStrategy(Assumptions.of(fixture.schemas.loweredSchema, registry), fixture.schemas.graphQLSchema, coroutineContext))
+                .instrumentation(RequestLifetimeInstrumentation())
                 .build()
 
             val result = graphQL.executeAsync(ExecutionInput.newExecutionInput().query("{ renamed: box { children { value } } }").build()).await()
@@ -1755,18 +1755,18 @@ class ExecutorRegistryInputsTest {
                 SchemaGenerator().makeExecutableSchema(
                     SchemaParser().parse(sdl),
                     RuntimeWiring.newRuntimeWiring()
-                        .wiringFactory(QPlanWiringFactory(schemas.loweredSchema))
+                        .wiringFactory(Runtime2WiringFactory(schemas.loweredSchema))
                         .build(),
                 )
             return GraphQL.newGraphQL(graphQLSchema)
                 .queryExecutionStrategy(
-                    QPlanExecutionStrategy(
+                    Runtime2ExecutionStrategy(
                         world = Assumptions.of(schemas.loweredSchema, registry(inputs)),
                         sourceSchema = schemas.graphQLSchema,
                         resolverCoroutineContext = Dispatchers.Unconfined,
                         engineExecutionContextFactory = { dispatcherContext },
                     ),
-                ).instrumentation(QPlanInstrumentation())
+                ).instrumentation(RequestLifetimeInstrumentation())
                 .build()
                 .executeAsync(ExecutionInput.newExecutionInput().query(query).build())
                 .await()

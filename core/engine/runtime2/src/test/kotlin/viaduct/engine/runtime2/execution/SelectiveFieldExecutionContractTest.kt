@@ -55,8 +55,8 @@ import viaduct.engine.api.mocks.getAs
 import viaduct.engine.api.select.SelectionsParser
 import viaduct.engine.api.spi.VariableFromFieldDefinitions
 import viaduct.engine.runtime.execution.SelectiveFieldExecutionContract
-import viaduct.engine.runtime2.execution.testing.QPlanFeatureTest
-import viaduct.engine.runtime2.execution.testing.runQPlanFeatureTest as runWithQPlan
+import viaduct.engine.runtime2.execution.testing.Runtime2FeatureTest
+import viaduct.engine.runtime2.execution.testing.runRuntime2FeatureTest as runWithRuntime2
 import viaduct.graphql.test.assertMatches
 import viaduct.service.api.ExecutionInput
 import viaduct.service.api.Viaduct
@@ -91,7 +91,7 @@ class SelectiveFieldExecutionContractTest : SelectiveFieldExecutionContract, Eng
             },
         )
 
-        module.runWithQPlan {
+        module.runWithRuntime2 {
             val result = runQueryWithTimeout(
                 """
                 {
@@ -175,7 +175,7 @@ class SelectiveFieldExecutionContractTest : SelectiveFieldExecutionContract, Eng
 
     @Engine2Disabled(
         Engine2DisabledKind.ALT,
-        "Production excludes resolver-owned Foo.x from selective parent output; qplan permits argumentless registered descendants to be source-owned, so its one-shot alternative omits x from the parent result"
+        "Production excludes resolver-owned Foo.x from selective parent output; runtime2 permits argumentless registered descendants to be source-owned, so its one-shot alternative omits x from the parent result"
     )
     override fun `selective field skipped in query is selected in RSS`() {}
 
@@ -184,13 +184,13 @@ class SelectiveFieldExecutionContractTest : SelectiveFieldExecutionContract, Eng
 
     @Engine2Disabled(
         Engine2DisabledKind.ALT,
-        "Tests precedence across multiple covering materializations; qplan produces the same values from one closed-demand application"
+        "Tests precedence across multiple covering materializations; runtime2 produces the same values from one closed-demand application"
     )
     override fun `surplus coverage uses values from the first covering result`() {}
 
     @Engine2Disabled(
         Engine2DisabledKind.ALT,
-        "Expects a second selective-source materialization for nested RSS coverage; qplan closes that demand before one application"
+        "Expects a second selective-source materialization for nested RSS coverage; runtime2 closes that demand before one application"
     )
     override fun `missing nested rss coverage rematerializes selective source`() {}
 
@@ -199,43 +199,43 @@ class SelectiveFieldExecutionContractTest : SelectiveFieldExecutionContract, Eng
 
     @Engine2Disabled(
         Engine2DisabledKind.ALT,
-        "Tests per-runtime-type rematerialization coverage; qplan supplies both concrete dependencies from one conservative application"
+        "Tests per-runtime-type rematerialization coverage; runtime2 supplies both concrete dependencies from one conservative application"
     )
     override fun `partial rss coverage across list item types rematerializes only uncovered types`() {}
 
     @Engine2Disabled(
         Engine2DisabledKind.ALT,
-        "Tests positional reconciliation when repeated materializations change list size; qplan represents the same final item outcomes in one stable result"
+        "Tests positional reconciliation when repeated materializations change list size; runtime2 represents the same final item outcomes in one stable result"
     )
     override fun `list size changes across materializations leave unmatched items unresolved`() {}
 
     @Engine2Disabled(
         Engine2DisabledKind.ALT,
-        "Tests a runtime-type change between materializations; qplan produces the same final nullable leaf from one stable runtime type"
+        "Tests a runtime-type change between materializations; runtime2 produces the same final nullable leaf from one stable runtime type"
     )
     override fun `nested list item type changes across materializations report a field error`() {}
 
     @Engine2Disabled(
         Engine2DisabledKind.ALT,
-        "Expects argument-distinct passive values from separate materializations; qplan resolves each argument-bearing field actively under one parent application"
+        "Expects argument-distinct passive values from separate materializations; runtime2 resolves each argument-bearing field actively under one parent application"
     )
     override fun `rss aliases with different arguments remain isolated across materializations`() {}
 
     @Engine2Disabled(
         Engine2DisabledKind.ALT,
-        "Routes an argument-bearing RSS field through passive rematerialization; qplan resolves it actively and preserves the provider failure at the consumer field"
+        "Routes an argument-bearing RSS field through passive rematerialization; runtime2 resolves it actively and preserves the provider failure at the consumer field"
     )
     override fun `rss variables resolver failure during rematerialization reports a field error`() {}
 
     @Engine2Disabled(
         Engine2DisabledKind.ALT,
-        "Uses a callback-owned RSS and asks a selective owner to supply an argument-bearing field; qplan uses a declarative provider and resolves argument-bearing fields actively"
+        "Uses a callback-owned RSS and asks a selective owner to supply an argument-bearing field; runtime2 uses a declarative provider and resolves argument-bearing fields actively"
     )
     override fun `selective-owned sibling supplies required rss variable`() {}
 
     @Engine2Disabled(
         Engine2DisabledKind.ALT,
-        "Supplies argument-bearing child fields through embedded materialization; qplan resolves those fields actively beneath one selective parent application"
+        "Supplies argument-bearing child fields through embedded materialization; runtime2 resolves those fields actively beneath one selective parent application"
     )
     override fun `embedded materialization preserves fragment argument variables across child plans`() {}
 
@@ -244,37 +244,37 @@ class SelectiveFieldExecutionContractTest : SelectiveFieldExecutionContract, Eng
 
     @Engine2Disabled(
         Engine2DisabledKind.ALT,
-        "Tests a null second materialization; qplan represents the same nullable-consumer result from one stable object with a null dependency"
+        "Tests a null second materialization; runtime2 represents the same nullable-consumer result from one stable object with a null dependency"
     )
     override fun `null rematerialization reports a field error at nullable consumer`() {}
 
     @Engine2Disabled(
         Engine2DisabledKind.ALT,
-        "Tests a null second materialization beneath a non-null consumer; qplan produces the same bubbling from one stable object with a null dependency"
+        "Tests a null second materialization beneath a non-null consumer; runtime2 produces the same bubbling from one stable object with a null dependency"
     )
     override fun `null rematerialization bubbles through non-null consumer`() {}
 
     @Engine2Disabled(
         Engine2DisabledKind.ALT,
-        "Tests a root runtime-type change between materializations; qplan preserves the final nullable leaf and error path from one stable runtime type"
+        "Tests a root runtime-type change between materializations; runtime2 preserves the final nullable leaf and error path from one stable runtime type"
     )
     override fun `type changes across root materializations report a field error`() {}
 
     @Engine2Disabled(
         Engine2DisabledKind.ALT,
-        "Tests a nested runtime-type change between materializations; qplan preserves the final nullable leaf and error path from one stable runtime type"
+        "Tests a nested runtime-type change between materializations; runtime2 preserves the final nullable leaf and error path from one stable runtime type"
     )
     override fun `type changes across nested object materializations report a field error`() {}
 
     @Engine2Disabled(
         Engine2DisabledKind.ALT,
-        "Tests malformed nested output only on a second materialization; qplan preserves the final nullable leaf and error path from one stable malformed dependency value"
+        "Tests malformed nested output only on a second materialization; runtime2 preserves the final nullable leaf and error path from one stable malformed dependency value"
     )
     override fun `malformed nested object from rematerialization reports a field error`() {}
 
     @Engine2Disabled(
         Engine2DisabledKind.ALT,
-        "Tests a selective producer exception on a second materialization; qplan preserves the final consumer error from one stable producer result"
+        "Tests a selective producer exception on a second materialization; runtime2 preserves the final consumer error from one stable producer result"
     )
     override fun `resolver exceptions during rematerialization report a field error`() {}
 
@@ -304,13 +304,13 @@ class SelectiveFieldExecutionContractTest : SelectiveFieldExecutionContract, Eng
 
     @Engine2Disabled(
         Engine2DisabledKind.ALT,
-        "Uses a later materialization to distinguish client and RSS hydration of one selected field; qplan requires one explicit passive value"
+        "Uses a later materialization to distinguish client and RSS hydration of one selected field; runtime2 requires one explicit passive value"
     )
     override fun `resolver does not hydrate a selected field in its output selection set`() {}
 
     @Engine2Disabled(
         Engine2DisabledKind.ALT,
-        "Expects argument-distinct passive values from separate output selection sets; qplan resolves both argument-bearing occurrences actively"
+        "Expects argument-distinct passive values from separate output selection sets; runtime2 resolves both argument-bearing occurrences actively"
     )
     override fun `client and rss arguments remain isolated in output selection set`() {}
 
@@ -374,7 +374,7 @@ class SelectiveFieldExecutionContractTest : SelectiveFieldExecutionContract, Eng
                         }
                     }
                 }
-            }.runQPlanFeatureTest {
+            }.runRuntime2FeatureTest {
                 runQueryWithTimeout(
                     """
                         query (${"$"}skipB: Boolean! = true) {
@@ -427,7 +427,7 @@ class SelectiveFieldExecutionContractTest : SelectiveFieldExecutionContract, Eng
                         fn { _, obj, _, _, _ -> obj.fetchAs<Int>("w") * 7 }
                     }
                 }
-            }.runQPlanFeatureTest {
+            }.runRuntime2FeatureTest {
                 runQueryWithTimeout("{ foo { x y } }")
                     .assertJson("{data: {foo: {x: 10, y: 21}}}")
             }
@@ -472,7 +472,7 @@ class SelectiveFieldExecutionContractTest : SelectiveFieldExecutionContract, Eng
                         }
                     }
                 }
-            }.runQPlanFeatureTest {
+            }.runRuntime2FeatureTest {
                 runQueryWithTimeout("{ foo { x } }")
                     .assertJson("{data: {foo: {x: 6}}}")
             }
@@ -544,7 +544,7 @@ class SelectiveFieldExecutionContractTest : SelectiveFieldExecutionContract, Eng
                         fn { _, obj, _, _, _ -> obj.fetchAs<Int>("y") * 11 }
                     }
                 }
-            }.runQPlanFeatureTest {
+            }.runRuntime2FeatureTest {
                 runQueryWithTimeout(
                     "{ foo { bars { ... on Baz { x } ... on Qux { x } } } }"
                 ).assertJson("{data: {foo: {bars: [{x: 14}, {x: 33}]}}}")
@@ -591,7 +591,7 @@ class SelectiveFieldExecutionContractTest : SelectiveFieldExecutionContract, Eng
                         fn { _, obj, _, _, _ -> obj.fetchAs<Int>("y") * 3 }
                     }
                 }
-            }.runQPlanFeatureTest {
+            }.runRuntime2FeatureTest {
                 runQueryWithTimeout("{ foo { bars { x } } }").assertMatches {
                     "data" to {
                         "foo" to {
@@ -651,7 +651,7 @@ class SelectiveFieldExecutionContractTest : SelectiveFieldExecutionContract, Eng
                         fn { _, obj, _, _, _ -> obj.fetchAs<Int>("y") * 3 }
                     }
                 }
-            }.runQPlanFeatureTest {
+            }.runRuntime2FeatureTest {
                 runQueryWithTimeout(
                     "{ foo { bars { ... on Baz { x } } } }"
                 ).assertMatches {
@@ -757,7 +757,7 @@ class SelectiveFieldExecutionContractTest : SelectiveFieldExecutionContract, Eng
                         fn { _, obj, _, _, _ -> obj.fetchAs<Int>("y") * 5 }
                     }
                 }
-            }.runQPlanFeatureTest {
+            }.runRuntime2FeatureTest {
                 runQueryWithTimeout(
                     "query(\$y: Int!) { foo(y: \$y) { x } }",
                     variables = mapOf("y" to 3),
@@ -805,7 +805,7 @@ class SelectiveFieldExecutionContractTest : SelectiveFieldExecutionContract, Eng
                         fn { _, obj, _, _, _ -> obj.fetchAs<Int>("y") * 5 }
                     }
                 }
-            }.runQPlanFeatureTest {
+            }.runRuntime2FeatureTest {
                 runQueryWithTimeout(
                     "query(\$y: Int!) { foo(y: \$y) { x } }",
                     variables = mapOf("y" to 3),
@@ -855,7 +855,7 @@ class SelectiveFieldExecutionContractTest : SelectiveFieldExecutionContract, Eng
                         fn { _, obj, _, _, _ -> obj.fetchAs<Int>("b") * 11 }
                     }
                 }
-            }.runQPlanFeatureTest {
+            }.runRuntime2FeatureTest {
                 runQueryWithTimeout("{ foo { x y } }")
                     .assertJson("{data: {foo: {x:70, y:165}}}")
             }
@@ -902,7 +902,7 @@ class SelectiveFieldExecutionContractTest : SelectiveFieldExecutionContract, Eng
                         fn { _, obj, _, _, _ -> obj.fetchAs<Int>("y") * 3 }
                     }
                 }
-            }.runQPlanFeatureTest {
+            }.runRuntime2FeatureTest {
                 runQueryWithTimeout("{ foo { x } }").assertMatches {
                     "data" to {
                         "foo" to {
@@ -923,7 +923,7 @@ class SelectiveFieldExecutionContractTest : SelectiveFieldExecutionContract, Eng
 
         @Engine2Disabled(
             Engine2DisabledKind.ALT,
-            "Uses a callback-owned RSS for a conditional dependency chain; qplan expresses the chain as a declarative object-field provider and resolves it one-shot"
+            "Uses a callback-owned RSS for a conditional dependency chain; runtime2 expresses the chain as a declarative object-field provider and resolves it one-shot"
         )
         fun `variable rss does not use skipped child object plan`() {
             // Query.b has a runtime-dependent object RSS field whose variable resolver needs
@@ -1005,7 +1005,7 @@ class SelectiveFieldExecutionContractTest : SelectiveFieldExecutionContract, Eng
                         )
                     }
                 }
-            }.runQPlanFeatureTest {
+            }.runRuntime2FeatureTest {
                 runQueryWithTimeout(
                     """
                         query (${"$"}includeA: Boolean! = false) {
@@ -1108,7 +1108,7 @@ class SelectiveFieldExecutionContractTest : SelectiveFieldExecutionContract, Eng
                         )
                     }
                 }
-            }.runQPlanFeatureTest {
+            }.runRuntime2FeatureTest {
                 runQueryWithTimeout(
                     """
                         query (${"$"}includeA: Boolean! = false) {
@@ -1158,7 +1158,7 @@ class SelectiveFieldExecutionContractTest : SelectiveFieldExecutionContract, Eng
                         fn { _, obj, _, _, _ -> obj.fetchAs<Int>("y") * 5 }
                     }
                 }
-            }.runQPlanFeatureTest {
+            }.runRuntime2FeatureTest {
                 runQueryWithTimeout(
                     "query(\$y: Int!) { foo { bar(y: \$y) { x } } }",
                     variables = mapOf("y" to 2),
@@ -1226,7 +1226,7 @@ class SelectiveFieldExecutionContractTest : SelectiveFieldExecutionContract, Eng
                         )
                     }
                 }
-            }.runQPlanFeatureTest {
+            }.runRuntime2FeatureTest {
                 runQueryWithTimeout("{ foo { bar { x } } }")
                     .assertJson("{data: {foo: {bar: {x: 30}}}}")
             }
@@ -1286,7 +1286,7 @@ class SelectiveFieldExecutionContractTest : SelectiveFieldExecutionContract, Eng
                         fn { _, obj, _, _, _ -> obj.fetchAs<Int>("y") * 5 }
                     }
                 }
-            }.runQPlanFeatureTest {
+            }.runRuntime2FeatureTest {
                 runQueryWithTimeout(
                     """
                         query(${"$"}x: Int!) {
@@ -1371,7 +1371,7 @@ class SelectiveFieldExecutionContractTest : SelectiveFieldExecutionContract, Eng
                         )
                     }
                 }
-            }.runQPlanFeatureTest {
+            }.runRuntime2FeatureTest {
                 runQueryWithTimeout("{ foo { y } }").assertMatches {
                     "data" to {
                         "foo" to {
@@ -1421,7 +1421,7 @@ class SelectiveFieldExecutionContractTest : SelectiveFieldExecutionContract, Eng
                         )
                     }
                 }
-            }.runQPlanFeatureTest {
+            }.runRuntime2FeatureTest {
                 runQueryWithTimeout("{ foo { y } }").assertMatches {
                     "data" to {
                         "foo" to null
@@ -1471,7 +1471,7 @@ class SelectiveFieldExecutionContractTest : SelectiveFieldExecutionContract, Eng
                         )
                     }
                 }
-            }.runQPlanFeatureTest {
+            }.runRuntime2FeatureTest {
                 runQueryWithTimeout("{ foo { ... on Bar { y } } }").assertMatches {
                     "data" to {
                         "foo" to {
@@ -1527,7 +1527,7 @@ class SelectiveFieldExecutionContractTest : SelectiveFieldExecutionContract, Eng
                         )
                     }
                 }
-            }.runQPlanFeatureTest {
+            }.runRuntime2FeatureTest {
                 runQueryWithTimeout(
                     "{ foo { bar { ... on Baz { y } } } }"
                 ).assertMatches {
@@ -1584,7 +1584,7 @@ class SelectiveFieldExecutionContractTest : SelectiveFieldExecutionContract, Eng
                         fn { _, obj, _, _, _ -> obj.fetchAs<Int>("y") * 3 }
                     }
                 }
-            }.runQPlanFeatureTest {
+            }.runRuntime2FeatureTest {
                 runQueryWithTimeout("{ foo { bar { x } } }").assertMatches {
                     "data" to {
                         "foo" to {
@@ -1633,7 +1633,7 @@ class SelectiveFieldExecutionContractTest : SelectiveFieldExecutionContract, Eng
                         fn { _, _, _, _, _ -> throw RuntimeException("one-shot dependent resolver failed") }
                     }
                 }
-            }.runQPlanFeatureTest {
+            }.runRuntime2FeatureTest {
                 runQueryWithTimeout("{ foo { x } }").assertMatches {
                     "data" to {
                         "foo" to {
@@ -1689,7 +1689,7 @@ class SelectiveFieldExecutionContractTest : SelectiveFieldExecutionContract, Eng
                         fn { _, obj, _, _, _ -> obj.fetchAs<Int>("x") * 5 }
                     }
                 }
-            }.runQPlanFeatureTest {
+            }.runRuntime2FeatureTest {
                 runQueryWithTimeout("{ foo { y } }")
                     .assertJson("{data: {foo: [{y: 10}]}}")
             }
@@ -1753,7 +1753,7 @@ class SelectiveFieldExecutionContractTest : SelectiveFieldExecutionContract, Eng
                         }
                     }
                 }
-            }.runQPlanFeatureTest {
+            }.runRuntime2FeatureTest {
                 runQueryWithTimeout("{ bar { __typename } }")
                     .assertJson("{data: {bar: {__typename: \"Bar\"}}}")
             }
@@ -1775,7 +1775,7 @@ class SelectiveFieldExecutionContractTest : SelectiveFieldExecutionContract, Eng
     inner class SelectionSetTests {
         @Engine2Disabled(
             Engine2DisabledKind.ALT,
-            "Expects post-materialization runtime types to narrow later selection sets; qplan conservatively requests possible concrete demand before its one application"
+            "Expects post-materialization runtime types to narrow later selection sets; runtime2 conservatively requests possible concrete demand before its one application"
         )
         fun `materialization output selections preserve path-specific concrete ownership`() {
             var materializationSelections: EngineSelectionSet? = null
@@ -1842,7 +1842,7 @@ class SelectiveFieldExecutionContractTest : SelectiveFieldExecutionContract, Eng
                 field("QuxB" to "x") {
                     resolver { fn { _, _, _, _, _ -> 7 } }
                 }
-            }.runQPlanFeatureTest {
+            }.runRuntime2FeatureTest {
                 runQueryWithTimeout("{ foo { x } }")
                     .assertJson("{data: {foo: {x: 6}}}")
             }
@@ -1926,7 +1926,7 @@ class SelectiveFieldExecutionContractTest : SelectiveFieldExecutionContract, Eng
                 field("QuxB" to "x") {
                     resolver { fn { _, _, _, _, _ -> 7 } }
                 }
-            }.runQPlanFeatureTest {
+            }.runRuntime2FeatureTest {
                 runQueryWithTimeout("{ foo { x } }")
                     .assertJson("{data: {foo: {x: 6}}}")
             }
@@ -1963,7 +1963,7 @@ class SelectiveFieldExecutionContractTest : SelectiveFieldExecutionContract, Eng
                         fn { _, obj, _, _, _ -> (obj.fetchOrNull("y") as? Int ?: 2) * 3 }
                     }
                 }
-            }.runQPlanFeatureTest {
+            }.runRuntime2FeatureTest {
                 runQueryWithTimeout("{ foo { y x } }")
                     .assertJson("{data: {foo: {y: null, x: 6}}}")
             }
@@ -2006,7 +2006,7 @@ class SelectiveFieldExecutionContractTest : SelectiveFieldExecutionContract, Eng
                         fn { _, obj, _, _, _ -> obj.fetchAs<Int>("y") * 3 }
                     }
                 }
-            }.runQPlanFeatureTest {
+            }.runRuntime2FeatureTest {
                 runQueryWithTimeout("{ foo { y(z:1) x } }")
                     .assertJson("{data: {foo: {y:1, x:6}}}")
             }
@@ -2016,7 +2016,7 @@ class SelectiveFieldExecutionContractTest : SelectiveFieldExecutionContract, Eng
 
         @Engine2Disabled(
             Engine2DisabledKind.ALT,
-            "Production ignores a selective producer value outside its output selection set; qplan's one-shot ownership contract requires the producer not to return that surplus field"
+            "Production ignores a selective producer value outside its output selection set; runtime2's one-shot ownership contract requires the producer not to return that surplus field"
         )
         fun `resolver hydrates unselected fields outside its output selection set`() {
             MockTenantModuleBootstrapper(
@@ -2042,7 +2042,7 @@ class SelectiveFieldExecutionContractTest : SelectiveFieldExecutionContract, Eng
                         fn { _, _, _, _, _ -> 3 }
                     }
                 }
-            }.runQPlanFeatureTest {
+            }.runRuntime2FeatureTest {
                 runQueryWithTimeout("{ foo { x } }")
                     .assertJson("{data: {foo: {x: 3}}}")
             }
@@ -2076,7 +2076,7 @@ class SelectiveFieldExecutionContractTest : SelectiveFieldExecutionContract, Eng
                         fn { _, _, _, _, _ -> 3 }
                     }
                 }
-            }.runQPlanFeatureTest {
+            }.runRuntime2FeatureTest {
                 runQueryWithTimeout("{ foo { x } }")
                     .assertJson("{data: {foo: {x: 3}}}")
             }
@@ -2088,11 +2088,11 @@ class SelectiveFieldExecutionContractTest : SelectiveFieldExecutionContract, Eng
     private val matOnlyFlags =
         MockFlagManager.create(FlagManager.Flags.ENABLE_MAT_RESOLUTION)
 
-    private fun MockTenantModuleBootstrapper.runQPlanFeatureTest(
+    private fun MockTenantModuleBootstrapper.runRuntime2FeatureTest(
         engineConfig: EngineConfiguration = EngineConfiguration.featureTestDefault,
-        block: QPlanFeatureTest.() -> Unit,
+        block: Runtime2FeatureTest.() -> Unit,
     ) {
-        runWithQPlan(engineConfig = engineConfig, block = block)
+        runWithRuntime2(engineConfig = engineConfig, block = block)
     }
 
     /** Helper class for managing deep Arb tests */

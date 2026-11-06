@@ -35,7 +35,7 @@ jfr view --width 240 hot-methods "$recording" >"$output_directory/hot-methods.tx
 jfr view --width 240 allocation-by-site "$recording" >"$output_directory/allocation-by-site.txt"
 jfr view --width 240 gc-pauses "$recording" >"$output_directory/gc-pauses.txt"
 jfr print \
-  --events qplan.PropertyTestPhase \
+  --events viaduct.runtime2.PropertyTestPhase \
   --stack-depth 0 \
   "$recording" |
   normalize_output \

@@ -45,7 +45,7 @@ import viaduct.engine.runtime2.model.testing.engineResultOf
 import viaduct.engine.runtime2.schema.ViaductAndGJSchema
 import viaduct.graphql.schema.ViaductSchema
 
-class QPlanWiringFactoryTest {
+class Runtime2WiringFactoryTest {
     @Test
     fun `fully resolved nested lists convert without dispatching coroutine work`() =
         runTest {
@@ -163,14 +163,14 @@ class QPlanWiringFactoryTest {
                 throw handlerFailure
             }
             val sourceSchema = UnExecutableSchemaGenerator.makeUnExecutableSchema(SchemaParser().parse(sdl))
-            val graphQL = GraphQL.newGraphQL(QPlanWiringFactory(world.schema).wire(sourceSchema))
+            val graphQL = GraphQL.newGraphQL(Runtime2WiringFactory(world.schema).wire(sourceSchema))
                 .defaultDataFetcherExceptionHandler(handler)
                 .build()
 
             val result = graphQL.executeAsync(
                 ExecutionInput.newExecutionInput()
                     .query("{ aliased: values }")
-                    .root(QPlanExecutionSource(root, backgroundScope, handler))
+                    .root(Runtime2ExecutionSource(root, backgroundScope, handler))
                     .build(),
             ).await()
 
@@ -189,11 +189,11 @@ class QPlanWiringFactoryTest {
             val schema = TestWorld.fromSDL("type Query { value: String }").assumptions.schema
             val root = ObjectEngineResult.of(schema.requireQueryTypeDef(), emptyMap())
 
-            assertFalse(isQPlanCompletionSource(root))
-            assertTrue(isQPlanCompletionSource(QPlanExecutionSource(root, backgroundScope)))
-            assertFalse(isQPlanCompletionSource(mapOf("value" to "Classic data")))
-            assertFalse(isQPlanCompletionSource(Any()))
-            assertFalse(isQPlanCompletionSource(null))
+            assertFalse(isRuntime2CompletionSource(root))
+            assertTrue(isRuntime2CompletionSource(Runtime2ExecutionSource(root, backgroundScope)))
+            assertFalse(isRuntime2CompletionSource(mapOf("value" to "Classic data")))
+            assertFalse(isRuntime2CompletionSource(Any()))
+            assertFalse(isRuntime2CompletionSource(null))
         }
 
     @ParameterizedTest
@@ -220,13 +220,13 @@ class QPlanWiringFactoryTest {
                 pendingHandler
             }
             val sourceSchema = UnExecutableSchemaGenerator.makeUnExecutableSchema(SchemaParser().parse(sdl))
-            val graphQL = GraphQL.newGraphQL(QPlanWiringFactory(world.schema).wire(sourceSchema)).build()
+            val graphQL = GraphQL.newGraphQL(Runtime2WiringFactory(world.schema).wire(sourceSchema)).build()
 
             val resultFuture =
                 graphQL.executeAsync(
                     ExecutionInput.newExecutionInput()
                         .query("{ aliased: nested }")
-                        .root(QPlanExecutionSource(root, backgroundScope, handler))
+                        .root(Runtime2ExecutionSource(root, backgroundScope, handler))
                         .build(),
                 )
             if (initiallyPending) root.setCellValue(key, list)
@@ -269,7 +269,7 @@ class QPlanWiringFactoryTest {
             val executableSchema =
                 SchemaGenerator().makeExecutableSchema(
                     registry,
-                    RuntimeWiring.newRuntimeWiring().wiringFactory(QPlanWiringFactory(schema)).build(),
+                    RuntimeWiring.newRuntimeWiring().wiringFactory(Runtime2WiringFactory(schema)).build(),
                 )
 
             val result =
@@ -277,7 +277,7 @@ class QPlanWiringFactoryTest {
                     ExecutionInput.newExecutionInput()
                         .query("query(${'$'}prefix: String!) { message: greeting(prefix: ${'$'}prefix) }")
                         .variables(mapOf("prefix" to "hello"))
-                        .root(QPlanExecutionSource(root, backgroundScope))
+                        .root(Runtime2ExecutionSource(root, backgroundScope))
                         .build(),
                 ).await()
 
@@ -506,10 +506,10 @@ class QPlanWiringFactoryTest {
         requestScope: CoroutineScope,
     ): Any? {
         val sourceSchema = UnExecutableSchemaGenerator.makeUnExecutableSchema(SchemaParser().parse(sdl))
-        val executable = QPlanWiringFactory(schema).wire(sourceSchema)
+        val executable = Runtime2WiringFactory(schema).wire(sourceSchema)
         val field = executable.queryType.getFieldDefinition("values")
         val environment = DataFetchingEnvironmentImpl.newDataFetchingEnvironment()
-            .source(QPlanExecutionSource(root, requestScope))
+            .source(Runtime2ExecutionSource(root, requestScope))
             .arguments(emptyMap())
             .fieldDefinition(field)
             .executionStepInfo(
