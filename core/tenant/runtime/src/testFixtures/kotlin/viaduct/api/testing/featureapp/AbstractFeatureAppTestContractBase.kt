@@ -175,7 +175,7 @@ abstract class AbstractFeatureAppTestContractBase {
         if (!::viaductService.isInitialized) {
             try {
                 viaductService = viaductBuilder.build()
-            } catch (t: Throwable) {
+            } catch (t: Exception) {
                 throw RuntimeException("Failed to build Viaduct service", t)
             }
         }
