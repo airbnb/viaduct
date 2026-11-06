@@ -5,6 +5,7 @@ import os
 import sys
 import tempfile
 import unittest
+from dataclasses import replace
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -303,6 +304,12 @@ class TestCompare(unittest.TestCase):
         self.assertEqual(only_in_fine, {fine})
         self.assertEqual(only_in_fat, {fat})
         self.assertEqual(common, set())
+
+    def test_ignores_purl_qualifiers(self):
+        fine = replace(self._f("CVE-Q"), purl="pkg:maven/x/y@1.0?type=jar")
+        fat = self._f("CVE-Q")
+        only_in_fine, only_in_fat, common = compare([fine], [fat])
+        self.assertEqual((only_in_fine, only_in_fat, common), (set(), set(), {fine}))
 
     def test_treats_metadata_divergence_as_common(self):
         fine = Finding(
