@@ -2,6 +2,7 @@ package viaduct.engine.runtime2.execution
 
 import io.kotest.property.Arb
 import io.kotest.property.arbitrary.arbitrary
+import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.random.Random
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -57,7 +58,7 @@ import viaduct.service.api.Viaduct
 class SelectiveNodeExecutionContractTest : SelectiveNodeExecutionContract, Engine2QueryExecutionContract {
     @Test
     fun `selective node resolvers receive each input's requested fields and dependencies`() {
-        val receivedNodeOwnedSelections = mutableListOf<Pair<String, Set<String>>>()
+        val receivedNodeOwnedSelections = ConcurrentLinkedQueue<Pair<String, Set<String>>>()
         val module = selectiveProductNodes(
             // The node resolver supplies url and caption; the separate label resolver requires caption.
             nodeOwnedFields = setOf("url", "caption"),
