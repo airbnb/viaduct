@@ -507,6 +507,7 @@ private fun validateListValue(
  * take an atomic snapshot while promises or cells are being mutated concurrently.
  * Two completed checker errors compare extensionally as errors without invoking their externally
  * supplied equality.
+ * Extra fields can make results compare differently even when their client-selected projections agree.
  *
  * @throws UncompletedPromiseException when either tree contains an uncompleted promise
  */

@@ -70,6 +70,93 @@ class ArgumentsTest {
     }
 
     @Test
+    fun `nested input field order does not affect argument or runtime key equality`() {
+        val schema =
+            TestWorld.fromSDL(
+                """
+                input Entry {
+                  count: Int
+                  label: String
+                }
+
+                input Filter {
+                  entry: Entry
+                  entries: [Entry]
+                }
+
+                type Query {
+                  consume(filter: Filter, limit: Int): Int
+                }
+                """.trimIndent(),
+            ).schema
+        val consume = schema.requireObjectField("Query", "consume")
+        val original =
+            Arguments.Resolved.of(
+                consume,
+                linkedMapOf(
+                    "filter" to
+                        linkedMapOf(
+                            "entry" to linkedMapOf("count" to 7, "label" to "first"),
+                            "entries" to listOf(linkedMapOf("count" to 8, "label" to null), null),
+                        ),
+                    "limit" to 2,
+                ),
+            )
+        val reordered =
+            Arguments.Resolved.of(
+                consume,
+                linkedMapOf(
+                    "limit" to 2,
+                    "filter" to
+                        linkedMapOf(
+                            "entries" to listOf(linkedMapOf("label" to null, "count" to 8), null),
+                            "entry" to linkedMapOf("label" to "first", "count" to 7),
+                        ),
+                ),
+            )
+        val originalKey = ObjectEngineResult.GroundKey.of(consume, original)
+        val reorderedKey = ObjectEngineResult.GroundKey.of(consume, reordered)
+
+        assertEquals(original, reordered)
+        assertEquals(original.hashCode(), reordered.hashCode())
+        assertEquals(originalKey, reorderedKey)
+        assertEquals(originalKey.hashCode(), reorderedKey.hashCode())
+        assertEquals("retained", hashMapOf(originalKey to "retained")[reorderedKey])
+    }
+
+    @Test
+    fun `omitted input field and present null remain distinct without a default`() {
+        val schema =
+            TestWorld.fromSDL(
+                """
+                input Filter {
+                  optional: Int
+                }
+
+                type Query {
+                  consume(filter: Filter): Int
+                }
+                """.trimIndent(),
+            ).schema
+        val consume = schema.requireObjectField("Query", "consume")
+        val omitted = Arguments.Resolved.of(consume, mapOf("filter" to emptyMap<String, Any?>()))
+        val presentNull = Arguments.Resolved.of(consume, mapOf("filter" to mapOf("optional" to null)))
+        val omittedFields = assertIs<EngineInputObjectData>(omitted.fieldValues.getValue("filter"))
+        val presentFields = assertIs<EngineInputObjectData>(presentNull.fieldValues.getValue("filter"))
+        val omittedKey = ObjectEngineResult.GroundKey.of(consume, omitted)
+        val presentKey = ObjectEngineResult.GroundKey.of(consume, presentNull)
+        val keyed = hashMapOf(omittedKey to "omitted", presentKey to "present null")
+
+        assertFalse(omittedFields.containsKey("optional"))
+        assertTrue(presentFields.containsKey("optional"))
+        assertNull(presentFields.getValue("optional"))
+        assertNotEquals(omitted, presentNull)
+        assertNotEquals(omittedKey, presentKey)
+        assertEquals("omitted", keyed[omittedKey])
+        assertEquals("present null", keyed[presentKey])
+    }
+
+    @Test
     fun `template substitution preserves a present null binding`() {
         val schema =
             TestWorld.fromSDL(

@@ -1,0 +1,30 @@
+name = "runtime2-lean"
+version = "0.1.0"
+defaultTargets = ["Model.SimpleDataTest", "Model.InputDataTest", "Model.OutputDataTest", "Defs.MapTest"]
+
+[[lean_lib]]
+name = "Defs.Map"
+
+[[lean_lib]]
+name = "Defs.Order"
+
+[[lean_lib]]
+name = "Defs.MapTest"
+
+[[lean_lib]]
+name = "Model.SimpleData"
+
+[[lean_lib]]
+name = "Model.InputData"
+
+[[lean_lib]]
+name = "Model.OutputData"
+
+[[lean_lib]]
+name = "Model.SimpleDataTest"
+
+[[lean_lib]]
+name = "Model.InputDataTest"
+
+[[lean_lib]]
+name = "Model.OutputDataTest"

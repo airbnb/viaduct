@@ -22,6 +22,8 @@ import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
  * this predicate allows the [ObjectEngineResult] to contain more values than the input
  * [selections] and implicated [viaduct.engine.runtime2.model.registry.FieldValueResolver.objectFragment]s require. Other
  * predicates define various degrees of minimality.
+ * Agreement with a canonical oracle on the client-selected projection remains a separate proof
+ * obligation; whole-result equality would additionally constrain the permitted extra fields.
  *
  * [selections] must be rooted at the reasoning world's canonical Query type. Reapplying a resolver
  * with a nonempty Query fragment also requires its containing orchestration's associated Query OER

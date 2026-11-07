@@ -24,7 +24,8 @@ sealed interface Arguments {
      * The successfully resolved values supplied for one output field's complete argument
      * definition.
      *
-     * This tuple is ground and inspectable. Equality is structural over its field values.
+     * This tuple is ground and inspectable. Equality and hashing ignore input-object field order
+     * recursively, preserve list order, and distinguish absent fields from present null after defaults.
      */
     sealed interface Resolved : Ground {
         val fieldValues: EngineInputObjectData

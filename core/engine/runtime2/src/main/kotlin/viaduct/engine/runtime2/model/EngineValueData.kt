@@ -10,10 +10,9 @@ import viaduct.graphql.schema.ViaductSchema
 import viaduct.graphql.schema.graphqljava.toGraphQLJavaValue
 
 /**
- * A canonical scalar input value (including Viaduct scalars), or an enum name. String represents
- * GraphQL String, ID, and enum values.  Tenant BackingData values (modeled as GraphQL scalar)
- * are also included in this type, which means pretty any Kotlin type should be expected, so use
- * the expected schema type disambiguates them.
+ * A schema-directed scalar or enum payload shared by the input and output carriers. String
+ * represents GraphQL String, ID, and enum values. BackingData admits arbitrary JVM payloads
+ * only on output; membership in simple input data still requires the expected schema type.
  */
 typealias EngineSimpleData = Any
 
@@ -23,7 +22,10 @@ typealias EngineInputListData = List<EngineInputData?>
 /** A recursively validated input-object field map. */
 typealias EngineInputObjectData = Map<String, EngineInputData?>
 
-/** [EngineSimpleData], [EngineInputListData], or [EngineInputObjectData]. */
+/**
+ * Input-compatible [EngineSimpleData], [EngineInputListData], or [EngineInputObjectData].
+ * The expected schema type distinguishes JSON scalar containers from input lists and objects.
+ */
 typealias EngineInputData = Any
 
 /**
@@ -56,7 +58,7 @@ private data class PresentCoercedDefaultValueImpl(
  * String represents GraphQL String, ID, and enum values; the expected schema type disambiguates
  * them. [EngineErrorData] is additionally admitted to the broad output domain. This union is
  * equality-heterogeneous: equality is undefined until an operation narrows values to a homogeneous
- * subset such as [EngineSimpleData].
+ * subset such as input-compatible [EngineSimpleData].
  */
 typealias EngineOutputData = Any
 
