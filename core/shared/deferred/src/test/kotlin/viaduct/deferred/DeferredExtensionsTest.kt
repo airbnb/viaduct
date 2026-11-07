@@ -1297,8 +1297,8 @@ class DeferredExtensionsTest {
                         // Possibly println("Pair $i succeeded: ${res}")
                     } catch (ex: TimeoutCancellationException) {
                         fail("Pair $i hung with thenCombine, big concurrency scenario!")
-                    } catch (_: Throwable) {
-                        // We expect random fails here, that's fine; we only worry about hangs
+                    } catch (_: IllegalStateException) {
+                        // Both inputs deliberately inject this failure.
                     }
                 }
             }
