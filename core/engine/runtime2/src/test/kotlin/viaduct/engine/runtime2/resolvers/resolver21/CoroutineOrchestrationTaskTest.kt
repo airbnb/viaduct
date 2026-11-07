@@ -25,7 +25,6 @@ class CoroutineOrchestrationTaskTest {
                 TestWorld
                     .fromSDL(
                         schemaSDL = "type Query { value: Int }",
-                        selectiveResolvers = false,
                     ).assumptions
             val operation =
                 CoroutineOperationContext(
@@ -64,7 +63,6 @@ class CoroutineOrchestrationTaskTest {
                 TestWorld
                     .fromSDL(
                         schemaSDL = "type Query { value: Int }",
-                        selectiveResolvers = false,
                     ).assumptions
             val operation =
                 CoroutineOperationContext(

@@ -43,7 +43,6 @@ interface GroundedTypeCheckerLifecycleContract {
     fun `type checker and checked parent input cycles are rejected during registry construction`() {
         val failure = assertFailsWith<IllegalArgumentException> {
             TestWorld.fromSDL(
-                selectiveResolvers = coroutineResolverSubject.selectiveResolvers,
                 schemaSDL = """
                 directive @parent on FIELD_DEFINITION
                 type Query { root: Root! }
@@ -93,7 +92,6 @@ interface GroundedTypeCheckerLifecycleContract {
             val cancelled = CompletableDeferred<Unit>()
             val checkerInvoked = AtomicBoolean()
             val worldFixture = TestWorld.fromSDL(
-                selectiveResolvers = coroutineResolverSubject.selectiveResolvers,
                 schemaSDL = "type Query { item: Item! dependency: Int! } type Item { value: Int! }",
                 fieldResolvers = { schema ->
                     mapOf(

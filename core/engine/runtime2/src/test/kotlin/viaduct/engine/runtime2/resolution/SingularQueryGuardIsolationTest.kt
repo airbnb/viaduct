@@ -120,7 +120,6 @@ class SingularQueryGuardIsolationTest : ResolutionDispatcherResource {
         beforeBinding: suspend (String) -> Unit
     ): TestWorld =
         TestWorld.fromSDL(
-            selectiveResolvers = true,
             schemaSDL = "type Query { bad: Int!, good: Int!, source: Int!, leaf: Int!, echo(value: Int!): Int! }",
             fieldResolvers = { schema ->
                 val empty = schema.loweredSchema.emptyFragmentOf("Query")

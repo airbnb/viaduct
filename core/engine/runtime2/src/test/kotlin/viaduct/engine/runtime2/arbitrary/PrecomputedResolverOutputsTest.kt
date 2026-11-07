@@ -98,7 +98,6 @@ class PrecomputedResolverOutputsTest {
                             },
                         queryValue = world.schema.objectOf("Query"),
                         arguments = Arguments.Resolved.of(world.schema.requireObjectField(coordinate.typeName, coordinate.fieldName), emptyMap()),
-                        selectiveResolvers = false,
                         executionContext = ResolutionExecutionContext.Unsupported,
                     )
 

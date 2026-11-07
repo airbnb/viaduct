@@ -150,6 +150,7 @@ class StandardViaductBenchmarkSupport(
     private fun world(outputs: PrecomputedResolverOutputs): TestWorld =
         corpus.registry.world(
             schemaSDL = checkers.schemaSDL,
+            selectiveResolvers = false,
             precomputedResolverOutputs = outputs,
             additionalFieldResolvers = checkers::fieldResolvers,
             fieldCheckerFactory = checkers::fieldCheckers,

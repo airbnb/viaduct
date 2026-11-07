@@ -56,7 +56,6 @@ class QueryObserverCompatibilityTest : ResolutionDispatcherResource {
                     }
                 }
                 val worldFixture = TestWorld.fromSDL(
-                    selectiveResolvers = subject.selective,
                     schemaSDL = "type Query { consumer: Int! dependency: Int! }",
                     fieldResolvers = { schema ->
                         mapOf(

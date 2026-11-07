@@ -75,7 +75,7 @@ class GeneratedTypeCheckerOracleTest : ResolutionDispatcherResource {
                         )
                     },
                 )
-            val world = testWorld.newAssumptions(selectiveResolvers = true)
+            val world = testWorld.newAssumptions()
             val recorder = CheckerApplicationRecorder()
             val operation =
                 SharedOperationContext.create(

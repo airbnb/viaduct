@@ -56,6 +56,7 @@ abstract class BaseCoroutineResolveTest :
             requestScope,
             selections,
             cycleChecker,
+            selectiveResolvers = true,
             complete = { demand, possibleRootTypes ->
                 demand.successorDemandFromConstructionDemand(closureOperation, possibleRootTypes)
             },

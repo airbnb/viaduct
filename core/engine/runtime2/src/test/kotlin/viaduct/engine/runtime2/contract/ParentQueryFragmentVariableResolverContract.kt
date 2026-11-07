@@ -38,7 +38,6 @@ interface ParentQueryFragmentVariableResolverContract : ResolverContract {
             "fragment LeafResult on Leaf { parent { bridge(seed: 5) } }"
         val testWorld =
             TestWorld.fromSDL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     directive @parent on FIELD_DEFINITION

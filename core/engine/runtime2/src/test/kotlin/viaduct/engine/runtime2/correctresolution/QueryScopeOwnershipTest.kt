@@ -51,7 +51,6 @@ class QueryScopeOwnershipTest {
             }
         }
         val worldFixture = TestWorld.fromSDL(
-            selectiveResolvers = true,
             schemaSDL = "type Query { items: [Item!]! source: Int! } type Item { value: Int! }",
             fieldResolvers = { schema ->
                 mapOf(

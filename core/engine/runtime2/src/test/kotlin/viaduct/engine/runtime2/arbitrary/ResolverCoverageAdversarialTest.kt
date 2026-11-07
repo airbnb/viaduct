@@ -50,14 +50,13 @@ class ResolverCoverageAdversarialTest {
             assertTrue(schema.sdl.contains("[[${field.type.namedType}"))
 
             val registry = schema.registry(config).next(random)
-            val world = registry.world(schema)
+            val world = registry.world(schema, selectiveResolvers = false)
             val canonicalField = world.schema.requireObjectField("Query", field.name)
             val value =
                 world.resolverRegistry.resolver(canonicalField)(
                     input = world.schema.objectOf("Query"),
                     queryValue = engineObjectDataOf(world.schema.requireQueryTypeDef()),
                     arguments = Arguments.Resolved.of(canonicalField, emptyMap()),
-                    selectiveResolvers = false,
                     executionContext = ResolutionExecutionContext.Unsupported,
                 )
             val outer = assertIs<List<*>>(value)
@@ -106,12 +105,12 @@ class ResolverCoverageAdversarialTest {
                     }.firstNotNullOfOrNull { it }
                 val (schema, registry, sourceField) =
                     generated ?: fail("seed=${817_208L + index}: no Node-valued resolver with list=$listOutput in 200 samples")
-                val world = registry.world(schema)
+                val world = registry.world(schema, selectiveResolvers = false)
                 val producerField =
                     world.schema.requireObjectField(sourceField.typeName, sourceField.fieldName)
                 registry.clearResolutionWitness()
                 val operation = viaduct.engine.runtime2.resolution.framework.SharedOperationContext.create(
-                    world = Assumptions.of(world.schema, world.resolverRegistry, false),
+                    world = Assumptions.of(world.schema, world.resolverRegistry),
                     resolutionObserver = registry.resolutionObserver(),
                 )
                 operation.resolveObservedFields(

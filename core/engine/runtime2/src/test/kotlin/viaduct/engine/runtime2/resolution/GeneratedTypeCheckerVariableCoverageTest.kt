@@ -142,7 +142,7 @@ class GeneratedTypeCheckerVariableCoverageTest : ResolverContract, ResolutionDis
                 )
             },
         )
-        val world = testWorld.newAssumptions(selectiveResolvers = true)
+        val world = testWorld.newAssumptions()
         val fragment = testWorld.schemas.fragmentFrom("fragment Test on Query { item { __typename } }")
         val recorder = CheckerApplicationRecorder()
         val subject = observeResolution(world, world.objectOf("Query"), fragment.subselections, resolutionObserver = recorder, record = false)

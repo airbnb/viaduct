@@ -17,12 +17,12 @@ import viaduct.engine.runtime2.model.registry.ResolverFragmentTemplates
 import viaduct.engine.runtime2.model.registry.TypeCheckerResolver
 import viaduct.engine.runtime2.model.registry.VariableDeclaration
 import viaduct.engine.runtime2.model.registry.VariableDefinition
-import viaduct.engine.runtime2.model.registry.fieldResolverOf
 import viaduct.engine.runtime2.model.registry.fromArgument
 import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.requireType
 import viaduct.engine.runtime2.model.testing.fragmentFrom
+import viaduct.engine.runtime2.model.testing.generatedFieldResolverOf
 import viaduct.engine.runtime2.model.testing.objectOf
 import viaduct.engine.runtime2.schema.ViaductAndGJSchema
 import viaduct.graphql.schema.ViaductSchema
@@ -103,11 +103,17 @@ object ResolverBenchmarkFeaturePartition {
         }
     }
 
-    fun fieldResolvers(schemas: ViaductAndGJSchema): Map<ViaductSchema.Field, FieldResolverDefinition> = compile(schemas).first
+    fun fieldResolvers(
+        schemas: ViaductAndGJSchema,
+        selectiveResolvers: Boolean = false
+    ): Map<ViaductSchema.Field, FieldResolverDefinition> = compile(schemas, selectiveResolvers).first
 
     fun variableProviders(schemas: ViaductAndGJSchema): Map<Arguments.Variable, VariableDeclaration> = compile(schemas).second
 
-    private fun compile(schemas: ViaductAndGJSchema): Pair<Map<ViaductSchema.Field, FieldResolverDefinition>, Map<Arguments.Variable, VariableDeclaration>> {
+    private fun compile(
+        schemas: ViaductAndGJSchema,
+        selectiveResolvers: Boolean = false
+    ): Pair<Map<ViaductSchema.Field, FieldResolverDefinition>, Map<Arguments.Variable, VariableDeclaration>> {
         val schema = schemas.loweredSchema
         val resolvers = linkedMapOf<ViaductSchema.Field, FieldResolverDefinition>()
         val variables = linkedMapOf<Arguments.Variable, VariableDeclaration>()
@@ -132,7 +138,7 @@ object ResolverBenchmarkFeaturePartition {
             val field = schema.requireObjectField(type, name)
             val objectFragment = fragment(type, objectInput, field)
             val queryFragment = fragment("Query", queryInput, field)
-            var resolver = fieldResolverOf(objectFragment, queryFragment) { _, _, _ -> output }
+            var resolver = generatedFieldResolverOf(field, objectFragment, queryFragment, selectiveResolvers) { _, _, _ -> output }
             if (provided.isNotEmpty()) resolver = resolver.withVariablesProvider(provided.keys) { provided }
             resolvers[field] = resolver
             argumentPaths.forEach { (variable, path) -> variables[Arguments.Variable.of(field, variable)] = schema.fromArgument(field, path) }

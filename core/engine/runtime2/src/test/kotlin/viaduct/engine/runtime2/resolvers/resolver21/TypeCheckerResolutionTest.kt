@@ -59,7 +59,6 @@ class TypeCheckerResolutionTest {
                       id: Int!
                     }
                     """.trimIndent(),
-                selectiveResolvers = false,
                 typeCheckers = { schema ->
                     val item = schema.loweredSchema.requireType("Item") as ViaductSchema.Object
                     val emptyPair =
@@ -113,7 +112,6 @@ class TypeCheckerResolutionTest {
                         type Denied { id: Int! }
                         type Failed { id: Int! }
                         """.trimIndent(),
-                    selectiveResolvers = false,
                     typeCheckers = { schema ->
                         val denied = schema.loweredSchema.requireType("Denied") as ViaductSchema.Object
                         val failed = schema.loweredSchema.requireType("Failed") as ViaductSchema.Object
@@ -157,7 +155,6 @@ class TypeCheckerResolutionTest {
 
                     type Item { id: Int! }
                     """.trimIndent(),
-                selectiveResolvers = false,
                 fieldCheckers = { schema ->
                     val checked = schema.loweredSchema.requireObjectField("Query", "checked")
                     val raw = schema.fragmentFrom("fragment Raw on Query { raw { id } }").materializeSelections
@@ -223,7 +220,6 @@ class TypeCheckerResolutionTest {
                       parent: Root! @parent
                     }
                     """.trimIndent(),
-                selectiveResolvers = false,
                 typeCheckers = { schema ->
                     val root = schema.loweredSchema.requireType("Root") as ViaductSchema.Object
                     mapOf(
@@ -261,7 +257,6 @@ class TypeCheckerResolutionTest {
                           value: Int! @resolver(result: 1)
                         }
                         """.trimIndent(),
-                    selectiveResolvers = false,
                     typeCheckers = { schema ->
                         val query = schema.loweredSchema.requireQueryTypeDef()
                         mapOf(

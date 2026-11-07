@@ -80,7 +80,6 @@ interface VariableSelectionIdentityResolverContract : ResolverContract {
         }
         val testWorld =
             TestWorld.fromDSL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     extend type Query {
@@ -127,7 +126,6 @@ interface VariableSelectionIdentityResolverContract : ResolverContract {
         }
         val testWorld =
             TestWorld.fromDSL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     extend type Query {
@@ -207,7 +205,6 @@ interface VariableSelectionIdentityResolverContract : ResolverContract {
         }
         val testWorld =
             TestWorld.fromDSL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     extend type Query {

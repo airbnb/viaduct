@@ -27,9 +27,9 @@ interface ListPassiveDeepeningGeneratedResolverContract : ResolverContract {
             var listDeepeningCases = 0
 
             val run =
-                checkResolverTestSuite(ResolverTestSuiteDefinition.LIST_PASSIVE_DEEPENING) { testWorld, testCase ->
+                checkResolverTestSuite(ResolverTestSuiteDefinition.LIST_PASSIVE_DEEPENING, selectiveResolvers = selectiveResolvers) { testWorld, testCase ->
                     val registry = testCase.registry
-                    val world = testWorld.newAssumptions(selectiveResolvers)
+                    val world = testWorld.newAssumptions()
                     val fragment = testWorld.schemas.fragmentFrom(testCase.query.source)
                     listDeepeningCases +=
                         countListPassiveDeepening(

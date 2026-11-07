@@ -154,7 +154,7 @@ internal class FieldResolutionLogic(
                 queryValue = queryValue,
                 queryInputSelections = queryMaterializationSelections,
                 arguments = arguments,
-                suppliedDemand = invocationDemand.takeIf { publication.operation.world.selectiveResolvers },
+                suppliedDemand = invocationDemand.takeIf { publication.operation.selectiveResolvers },
                 resolverOccurrenceId = fragments.objectFragment.resolverOccurrenceId,
             )
         )
@@ -163,7 +163,6 @@ internal class FieldResolutionLogic(
             queryValue = queryValue,
             arguments = arguments,
             selections = invocationDemand,
-            selectiveResolvers = publication.operation.world.selectiveResolvers,
             executionContext = ResolutionExecutionContext.Unsupported,
         )
     }
@@ -222,7 +221,7 @@ internal class FieldResolutionLogic(
                 queryValue = queryValue,
                 queryInputSelections = queryMaterializationSelections,
                 arguments = reference.arguments,
-                suppliedDemand = invocationDemand.takeIf { publication.operation.world.selectiveResolvers },
+                suppliedDemand = invocationDemand.takeIf { publication.operation.selectiveResolvers },
                 resolverOccurrenceId = invocation.fragments.objectFragment.resolverOccurrenceId,
             )
         )
@@ -232,7 +231,6 @@ internal class FieldResolutionLogic(
                 queryValue = queryValue,
                 arguments = reference.arguments,
                 selections = invocationDemand,
-                selectiveResolvers = publication.operation.world.selectiveResolvers,
                 executionContext = ResolutionExecutionContext.Unsupported,
             )
         return output

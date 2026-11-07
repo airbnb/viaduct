@@ -21,9 +21,6 @@ sealed interface Assumptions {
     /** Interface fields where at least one concrete implementation declares `@parent`. */
     val interfaceParentFields: Set<ViaductSchema.Field>
 
-    /** Whether resolver invocation and passive output traversal are selective to supplied demand. */
-    val selectiveResolvers: Boolean
-
     /** Selects precomputed closure; false retains the independent dynamic expansion algorithm. */
     val usePrecomputedConstructionDemand: Boolean
 
@@ -31,13 +28,11 @@ sealed interface Assumptions {
         fun of(
             schema: ViaductSchema,
             resolverRegistry: ResolverRegistry,
-            selectiveResolvers: Boolean = true,
             usePrecomputedConstructionDemand: Boolean = false,
         ): Assumptions =
             AssumptionsImpl(
                 schema,
                 resolverRegistry,
-                selectiveResolvers,
                 usePrecomputedConstructionDemand,
             )
     }
@@ -46,7 +41,6 @@ sealed interface Assumptions {
 private class AssumptionsImpl(
     override val schema: ViaductSchema,
     override val resolverRegistry: ResolverRegistry,
-    override val selectiveResolvers: Boolean,
     override val usePrecomputedConstructionDemand: Boolean,
 ) : Assumptions {
     override val parentFieldRelations: Map<ViaductSchema.ObjectField, ViaductSchema.ObjectField> =

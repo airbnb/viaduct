@@ -492,7 +492,6 @@ private class ResolverReplayLogic(
                         queryValue = replayInputs.queryValue,
                         arguments = resolverArguments,
                         selections = resolverApplicationCache.completedOutputDemand(getCell(key).value.get()),
-                        selectiveResolvers = operation.world.selectiveResolvers,
                         executionContext = ResolutionExecutionContext.Unsupported,
                     )
                 },
@@ -567,7 +566,7 @@ private class ResolverReplayLogic(
             .byKey()
             .keys
             .any { key -> key.field == idField }
-        val fields = getSelections().associateWith(::outputValue) - idField.name
+        val fields = getSelections().associateWith(::outputValue)
         val context = additionalContextForResolver
         return engineObjectDataOf(
             identity.type,
@@ -684,7 +683,6 @@ private class ResolverReplayLogic(
                     queryValue = replayInputs.queryValue,
                     arguments = resolverArguments,
                     selections = validationDemand,
-                    selectiveResolvers = operation.world.selectiveResolvers,
                     executionContext = ResolutionExecutionContext.Unsupported,
                 )
             },

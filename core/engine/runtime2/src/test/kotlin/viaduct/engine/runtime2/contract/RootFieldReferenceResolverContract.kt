@@ -40,7 +40,6 @@ interface RootFieldReferenceResolverContract : ResolverContract {
     @Test
     fun `consumes canonical reference handles directly and inside resolved objects and nested lists`() {
         val world = TestWorld.fromSDL(
-            selectiveResolvers = selectiveResolvers,
             schemaSDL = "type Query { container: Container indirect: Item lookup: Item } type Container { item: Item items: [[Item]] } type Item { value: Int }",
             fieldResolvers = { schemas ->
                 val schema = schemas.loweredSchema
@@ -86,7 +85,6 @@ interface RootFieldReferenceResolverContract : ResolverContract {
     fun `abstract target resolves when all possible types conform to the consumer`() {
         val testWorld =
             TestWorld.fromSDL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     type Query {
@@ -157,7 +155,6 @@ interface RootFieldReferenceResolverContract : ResolverContract {
     fun `root-field references publish scalar and enum values at every consumer shape`() {
         val testWorld =
             TestWorld.fromSDL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     type Query {
@@ -263,7 +260,6 @@ interface RootFieldReferenceResolverContract : ResolverContract {
         val overriddenApplications = AtomicInteger()
         val testWorld =
             TestWorld.fromSDL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     type Query {
@@ -405,7 +401,6 @@ interface CompleteOutputRootFieldReferenceResolverContract : ResolverContract {
         val targetApplications = AtomicInteger()
         val testWorld =
             TestWorld.fromSDL(
-                selectiveResolvers = false,
                 schemaSDL =
                     """
                     type Query {
@@ -471,7 +466,6 @@ interface DepthFirstRootFieldReferenceOrderingContract : ResolverContract {
         }
         val testWorld =
             TestWorld.fromSDL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     type Query {
@@ -523,7 +517,6 @@ interface ObjectFragmentRootFieldReferenceResolverContract : ResolverContract {
         val failedNodeCompleted = AtomicBoolean()
         val testWorld =
             TestWorld.fromSDL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     interface Node { id: ID! }
@@ -598,7 +591,6 @@ interface ObjectFragmentRootFieldReferenceResolverContract : ResolverContract {
         val dependencyApplications = AtomicInteger()
         val testWorld =
             TestWorld.fromSDL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     type Query {
@@ -673,7 +665,6 @@ interface QueryFragmentRootFieldReferenceResolverContract : QueryFragmentResolve
     fun `binds referenced arguments consumed by the target Query fragment`() {
         val testWorld =
             TestWorld.fromSDL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     type Query {
@@ -758,7 +749,6 @@ interface QueryFragmentRootFieldReferenceResolverContract : QueryFragmentResolve
         val sourceApplications = AtomicInteger()
         val testWorld =
             TestWorld.fromSDL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     type Query {
@@ -838,7 +828,6 @@ interface SelectiveRootFieldReferenceResolverContract : ResolverContract {
         var suppliedFields: Set<String>? = null
         val testWorld =
             TestWorld.fromSDL(
-                selectiveResolvers = true,
                 schemaSDL =
                     """
                     type Query {

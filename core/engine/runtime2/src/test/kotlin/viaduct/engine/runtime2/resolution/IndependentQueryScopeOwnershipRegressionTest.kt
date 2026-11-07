@@ -34,7 +34,6 @@ class IndependentQueryScopeOwnershipRegressionTest : ResolutionDispatcherResourc
 
     private fun verify(resolver: Int) {
         val world = TestWorld.fromSDL(
-            selectiveResolvers = resolver != 7,
             schemaSDL = """
                 type Query { first: Int!, target: Int!, intermediate: Int!, source: Int! }
             """.trimIndent(),

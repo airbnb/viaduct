@@ -69,7 +69,6 @@ interface FragmentFreeFieldCheckerPublicationContract {
                       second: Int! @resolver(result: 2)
                     }
                     """.trimIndent(),
-                selectiveResolvers = coroutineResolverSubject.selectiveResolvers,
                 fieldCheckers = { schema ->
                     val field = schema.loweredSchema.requireObjectField("Query", "first")
                     mapOf(
@@ -130,7 +129,6 @@ interface FragmentFreeFieldCheckerPublicationContract {
                       extra: Int!
                     }
                     """.trimIndent(),
-                selectiveResolvers = coroutineResolverSubject.selectiveResolvers,
                 fieldCheckers = { schema ->
                     listOf(
                         "active" to activeChecks,
@@ -164,7 +162,6 @@ interface FragmentFreeFieldCheckerPublicationContract {
         val worldFixture =
             TestWorld.fromSDL(
                 schemaSDL = "type Query { checked(value: Int!): Int! }",
-                selectiveResolvers = coroutineResolverSubject.selectiveResolvers,
                 fieldResolvers = { schema ->
                     val checked = schema.loweredSchema.requireObjectField("Query", "checked")
                     mapOf(
@@ -215,7 +212,6 @@ interface FragmentFreeFieldCheckerPublicationContract {
                       failed: Int! @resolver(result: 3)
                     }
                     """.trimIndent(),
-                selectiveResolvers = coroutineResolverSubject.selectiveResolvers,
                 fieldCheckers = { schema ->
                     fun checker(
                         name: String,
@@ -292,7 +288,6 @@ interface FragmentFreeFieldCheckerPublicationContract {
                   checked: Int! @resolver(result: 7)
                 }
                 """.trimIndent(),
-            selectiveResolvers = coroutineResolverSubject.selectiveResolvers,
             fieldCheckers = { schema ->
                 val checked = schema.loweredSchema.requireObjectField("Query", "checked")
                 mapOf(

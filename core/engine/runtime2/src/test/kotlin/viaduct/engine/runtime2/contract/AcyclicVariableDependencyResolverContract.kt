@@ -17,7 +17,6 @@ interface AcyclicVariableDependencyResolverContract : ResolverContract {
         val applicationArguments = ResolverApplicationArguments()
         val testWorld =
             TestWorld.fromDSL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     extend type Query {
@@ -66,7 +65,6 @@ interface AcyclicVariableDependencyResolverContract : ResolverContract {
     fun `accepts an acyclic mixed-variable dependency chain`() {
         val testWorld =
             TestWorld.fromDSL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     extend type Query {
@@ -116,7 +114,6 @@ interface AcyclicVariableDependencyResolverContract : ResolverContract {
         }
         val testWorld =
             TestWorld.fromDSL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     extend type Query {

@@ -160,7 +160,6 @@ interface SelectiveFieldCheckerExactnessContract {
 
     private fun exactnessWorld(): TestWorld =
         TestWorld.fromSDL(
-            selectiveResolvers = true,
             schemaSDL =
                 """
                 type Query {
@@ -229,7 +228,6 @@ interface SelectiveFieldCheckerExactnessContract {
 
     private fun sharedQueryScopeWorld(): TestWorld =
         TestWorld.fromSDL(
-            selectiveResolvers = true,
             schemaSDL =
                 """
                 type Query {

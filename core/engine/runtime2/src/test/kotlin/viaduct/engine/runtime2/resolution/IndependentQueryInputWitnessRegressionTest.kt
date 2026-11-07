@@ -41,7 +41,6 @@ class IndependentQueryInputWitnessRegressionTest : ResolutionDispatcherResource 
 
     private fun verify(resolver: Int) {
         val world = TestWorld.fromSDL(
-            selectiveResolvers = resolver != 7,
             schemaSDL = "type Query { first: Int!, second: Int!, target: Int!, source: Int! }",
             fieldResolvers = { schema ->
                 val empty = schema.loweredSchema.emptyFragmentOf("Query")

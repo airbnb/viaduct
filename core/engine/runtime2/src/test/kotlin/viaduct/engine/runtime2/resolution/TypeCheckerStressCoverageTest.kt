@@ -25,7 +25,7 @@ class TypeCheckerStressCoverageTest {
                 profile = "resolution-multithreaded-type-checker-coverage",
                 seed = 2026093001L,
             ) { testWorld, _ ->
-                val world = testWorld.newAssumptions(selectiveResolvers = true)
+                val world = testWorld.newAssumptions()
                 foundTypeChecker =
                     world.schema.types.values
                         .filterIsInstance<ViaductSchema.Object>()

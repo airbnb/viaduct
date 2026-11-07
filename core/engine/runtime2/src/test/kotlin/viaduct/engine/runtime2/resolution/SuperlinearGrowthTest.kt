@@ -254,7 +254,6 @@ class SuperlinearGrowthTest : ResolutionDispatcherResource {
             val fixture =
                 TestWorld.fromSDL(
                     schemaSDL = "type Query { audit: Int " + (0..depth).joinToString(" ") { "field$it: Int" } + " }",
-                    selectiveResolvers = true,
                     fieldResolvers = { schema ->
                         (0..depth).associate { index ->
                             val field = schema.loweredSchema.requireObjectField("Query", "field$index")
@@ -317,7 +316,6 @@ class SuperlinearGrowthTest : ResolutionDispatcherResource {
         val fixture =
             TestWorld.fromSDL(
                 schemaSDL = "type Query { requested(id: Int!): Int shared: Int audit: Int }",
-                selectiveResolvers = true,
                 fieldResolvers = { schema ->
                     val requested = schema.loweredSchema.requireObjectField("Query", "requested")
                     val empty = schema.loweredSchema.emptyFragmentOf("Query")
@@ -519,7 +517,7 @@ class SuperlinearGrowthTest : ResolutionDispatcherResource {
                         return field in original.resolverRegistry
                     }
                 }
-            val world = Assumptions.of(original.schema, registry, original.selectiveResolvers)
+            val world = Assumptions.of(original.schema, registry)
             membershipChecks = 0
             val closed = close(world, fixture, "field0")
             assertEquals(depth + 1, closed.objectRooted.constructionDemand.values.size)

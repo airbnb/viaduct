@@ -16,7 +16,6 @@ import viaduct.engine.runtime2.model.arg
 import viaduct.engine.runtime2.model.engineObjectDataOf
 import viaduct.engine.runtime2.model.instantiateVariables
 import viaduct.engine.runtime2.model.merge
-import viaduct.engine.runtime2.model.outputType
 import viaduct.engine.runtime2.model.outputValue
 import viaduct.engine.runtime2.model.rootFieldReferenceDataOrNull
 import viaduct.engine.runtime2.model.schemaType
@@ -138,13 +137,11 @@ class FieldValueResolver private constructor(
     private val fragmentTemplates: ResolverFragmentTemplates,
     private val queryType: ViaductSchema.Object,
     private val function: SelectiveFieldResolverFunction,
-    private val projectNonselectiveOutput: Boolean,
-    private val projectionDemand: (SelectionForest) -> SelectionForest,
 ) {
     val field: ViaductSchema.ObjectField get() = target.field
 
-    /** Returns a new resolver with [function], preserving its fragments and projection. */
-    fun withFunction(function: SelectiveFieldResolverFunction): FieldValueResolver = FieldValueResolver(target, fragmentTemplates, queryType, function, projectNonselectiveOutput, projectionDemand)
+    /** Returns a new resolver with [function], preserving its fragments. */
+    fun withFunction(function: SelectiveFieldResolverFunction): FieldValueResolver = FieldValueResolver(target, fragmentTemplates, queryType, function)
 
     val variables: Map<Arguments.Variable, VariableDefinition>
         get() = fragmentTemplates.variables
@@ -253,7 +250,6 @@ class FieldValueResolver private constructor(
         input: EngineObjectData.Sync,
         arguments: Arguments.Resolved,
         selections: SelectionForest = selectionForestOf(),
-        selectiveResolvers: Boolean,
         executionContext: ResolutionExecutionContext,
         additionalContextForResolver: Any? = null,
     ): ResolverOutputData? =
@@ -262,7 +258,6 @@ class FieldValueResolver private constructor(
             queryValue = engineObjectDataOf(queryType),
             arguments = arguments,
             selections = selections,
-            selectiveResolvers = selectiveResolvers,
             executionContext = executionContext,
             additionalContextForResolver = additionalContextForResolver,
         )
@@ -273,7 +268,6 @@ class FieldValueResolver private constructor(
         queryValue: EngineObjectData.Sync,
         arguments: Arguments.Resolved,
         selections: SelectionForest = selectionForestOf(),
-        selectiveResolvers: Boolean,
         executionContext: ResolutionExecutionContext,
         additionalContextForResolver: Any? = null,
     ): ResolverOutputData? {
@@ -282,7 +276,6 @@ class FieldValueResolver private constructor(
             queryValue,
             arguments,
             selections,
-            selectiveResolvers,
             executionContext,
             additionalContextForResolver,
         )
@@ -291,8 +284,6 @@ class FieldValueResolver private constructor(
     /**
      * Evaluates the deterministic function relation for a semantic judgment.
      *
-     * [selectiveResolvers] controls projection of nonselective resolver output to supplied demand.
-     *
      * This is not an observed resolver application and establishes no execution-count property.
      */
     suspend fun evaluateRelation(
@@ -300,7 +291,6 @@ class FieldValueResolver private constructor(
         queryValue: EngineObjectData.Sync,
         arguments: Arguments.Resolved,
         selections: SelectionForest,
-        selectiveResolvers: Boolean,
         executionContext: ResolutionExecutionContext,
         additionalContextForResolver: Any? = null,
     ): ResolverOutputData? {
@@ -314,13 +304,7 @@ class FieldValueResolver private constructor(
                 exception.errorData
             }
         // output.requireArgumentlessObjectFields()
-        val selectedOutput =
-            if (projectNonselectiveOutput && selectiveResolvers) {
-                output.snipToDemand(projectionDemand(selections), target.field.outputType)
-            } else {
-                output
-            }
-        return selectedOutput.rootFieldReferenceDataOrNull() ?: selectedOutput
+        return output.rootFieldReferenceDataOrNull() ?: output
     }
 
     companion object {
@@ -328,14 +312,13 @@ class FieldValueResolver private constructor(
          * Constructs one fully assembled canonical registry entry.
          *
          * External composition is responsible for lowering coordinates and attaching variables
-         * before calling this factory.
+         * before calling this factory. Output is returned without demand projection.
          */
         fun of(
             field: ViaductSchema.ObjectField,
             fragmentTemplates: ResolverFragmentTemplates,
             queryType: ViaductSchema.Object,
             function: NonselectiveFieldResolverFunction,
-            projectionDemand: (SelectionForest) -> SelectionForest = { it },
         ): FieldValueResolver {
             val target = ResolverTarget.FieldValueResolverTarget(field)
             validateFactoryArguments(
@@ -350,16 +333,13 @@ class FieldValueResolver private constructor(
                 function = { input, queryValue, arguments, _, additionalContextForResolver, executionContext ->
                     function(input, queryValue, arguments, additionalContextForResolver, executionContext)
                 },
-                projectNonselectiveOutput = true,
-                projectionDemand = projectionDemand,
             )
         }
 
         /**
          * Constructs one fully assembled canonical registry entry backed by a selective relation.
          *
-         * Unlike [of], this factory passes output demand directly to [function] and does not project
-         * the returned value afterward.
+         * This factory passes output demand directly to [function] and returns its output without projection.
          */
         fun ofSelective(
             field: ViaductSchema.ObjectField,
@@ -378,24 +358,20 @@ class FieldValueResolver private constructor(
                 fragmentTemplates = fragmentTemplates,
                 queryType = queryType,
                 function = function,
-                projectNonselectiveOutput = false,
-                projectionDemand = { it },
             )
         }
 
         /**
-         * Constructs a resolver whose executor receives demand metadata while its output is still
-         * projected according to the nonselective resolver contract.
+         * Constructs a nonselective resolver whose executor receives demand metadata.
          *
          * This exists for integration adapters whose executor SPI supplies requested selections
-         * to every invocation independently of the executor's selectivity declaration.
+         * to every invocation independently of the executor's selectivity declaration. Output is returned without projection.
          */
         fun ofSelectionAwareNonselective(
             field: ViaductSchema.ObjectField,
             fragmentTemplates: ResolverFragmentTemplates,
             queryType: ViaductSchema.Object,
             function: SelectiveFieldResolverFunction,
-            projectionDemand: (SelectionForest) -> SelectionForest = { it },
         ): FieldValueResolver {
             val target = ResolverTarget.FieldValueResolverTarget(field)
             validateFactoryArguments(
@@ -408,8 +384,6 @@ class FieldValueResolver private constructor(
                 fragmentTemplates = fragmentTemplates,
                 queryType = queryType,
                 function = function,
-                projectNonselectiveOutput = true,
-                projectionDemand = projectionDemand,
             )
         }
 

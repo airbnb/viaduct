@@ -31,7 +31,6 @@ class ResolverOccurrenceWitnessTest {
     fun `occurrence oracle includes one shared query root`() {
         val testWorld =
             TestWorld.fromSDL(
-                selectiveResolvers = true,
                 schemaSDL =
                     """
                     type Query {
@@ -135,7 +134,6 @@ class ResolverOccurrenceWitnessTest {
     fun `occurrence oracle rejects duplicate-one omit-one for equal-input list elements`() {
         val testWorld =
             TestWorld.fromSDL(
-                selectiveResolvers = true,
                 schemaSDL =
                     """
                     type Query {

@@ -112,7 +112,6 @@ class PrecomputedResolverContractTest : ResolverContractTest() {
         Assumptions.of(
             schema = schema,
             resolverRegistry = resolverRegistry,
-            selectiveResolvers = selectiveResolvers,
             usePrecomputedConstructionDemand = true,
         )
 }

@@ -48,7 +48,6 @@ interface ObjectFragmentResolverContract : ResolverContract {
         }
         val testWorld =
             TestWorld.fromDSL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     extend type Query {
@@ -99,7 +98,6 @@ interface ObjectFragmentResolverContract : ResolverContract {
         }
         val testWorld =
             TestWorld.fromDSL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     extend type Query {
@@ -167,7 +165,6 @@ interface ObjectFragmentResolverContract : ResolverContract {
         }
         val testWorld =
             TestWorld.fromDSL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     extend type Query {
@@ -205,7 +202,6 @@ interface ObjectFragmentResolverContract : ResolverContract {
         }
         val testWorld =
             TestWorld.fromDSL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     extend type Query {
@@ -247,7 +243,6 @@ interface ObjectFragmentResolverContract : ResolverContract {
         }
         val testWorld =
             TestWorld.fromDSL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     extend type Query {
@@ -304,7 +299,6 @@ interface ObjectFragmentResolverContract : ResolverContract {
         }
         val testWorld =
             TestWorld.fromDSL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     extend type Query {
@@ -349,7 +343,6 @@ interface ObjectFragmentResolverContract : ResolverContract {
     fun `resolves recursive demand introduced by an object fragment`() {
         val testWorld =
             TestWorld.fromDSL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     extend type Query {
@@ -396,7 +389,6 @@ interface ObjectFragmentResolverContract : ResolverContract {
     fun `applies concrete implementation defaults in transitive demand`() {
         val testWorld =
             TestWorld.fromDSL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     extend type Query {
@@ -453,7 +445,6 @@ interface ObjectFragmentResolverContract : ResolverContract {
         }
         val testWorld =
             TestWorld.fromDSL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     extend type Query {
@@ -492,7 +483,6 @@ interface ObjectFragmentResolverContract : ResolverContract {
     fun `registry rejects erroneous arguments in resolver fragments`() {
         val failure = assertFailsWith<IllegalArgumentException> {
             TestWorld.fromDSL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     extend type Query {
@@ -525,7 +515,6 @@ interface ObjectFragmentResolverContract : ResolverContract {
         val computedApplications = AtomicInteger()
         val testWorld =
             TestWorld.fromSDL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     interface Product { label: String! }
@@ -671,7 +660,6 @@ interface ObjectFragmentResolverContract : ResolverContract {
         val renderedApplications = AtomicInteger()
         val testWorld =
             TestWorld.fromSDL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     type Entry { raw: Int!, rendered: String! }

@@ -47,7 +47,6 @@ class PrecomputedResolverContractTest : ResolverContractTest() {
                 Assumptions.of(
                     schema = world.schema,
                     resolverRegistry = world.resolverRegistry,
-                    selectiveResolvers = world.selectiveResolvers,
                     usePrecomputedConstructionDemand = true,
                 ),
             root = root,

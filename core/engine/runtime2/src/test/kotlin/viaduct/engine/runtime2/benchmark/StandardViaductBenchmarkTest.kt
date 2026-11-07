@@ -206,6 +206,7 @@ class StandardViaductBenchmarkTest {
         val checkers = ChinaActiveBenchmarkCheckers(corpus, comparisonMode = true)
         val world = corpus.registry.world(
             schemaSDL = checkers.schemaSDL,
+            selectiveResolvers = false,
             precomputedResolverOutputs = PrecomputedResolverOutputs(),
             additionalFieldResolvers = checkers::fieldResolvers,
             fieldCheckerFactory = checkers::fieldCheckers,

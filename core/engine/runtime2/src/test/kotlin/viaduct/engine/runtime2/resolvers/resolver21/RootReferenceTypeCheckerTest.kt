@@ -33,7 +33,6 @@ class RootReferenceTypeCheckerTest {
                       score: Int!
                     }
                     """.trimIndent(),
-                selectiveResolvers = false,
                 typeCheckers = { schema ->
                     val user = schema.loweredSchema.requireType("User") as ViaductSchema.Object
                     mapOf(

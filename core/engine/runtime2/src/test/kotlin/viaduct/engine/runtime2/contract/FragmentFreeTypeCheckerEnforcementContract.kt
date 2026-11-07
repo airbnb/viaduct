@@ -77,7 +77,6 @@ interface FragmentFreeTypeCheckerEnforcementContract {
         val combiningTypeDenial = CombiningTypeEnforcementError(fieldDenial, combinedDenial)
         val worldFixture =
             TestWorld.fromSDL(
-                selectiveResolvers = coroutineResolverSubject.selectiveResolvers,
                 schemaSDL =
                     """
                     type Query {
@@ -193,7 +192,6 @@ interface FragmentFreeTypeCheckerEnforcementContract {
         val denial = DirectiveAwareTypeEnforcementError()
         val worldFixture =
             TestWorld.fromSDL(
-                selectiveResolvers = coroutineResolverSubject.selectiveResolvers,
                 schemaSDL =
                     """
                     directive @bypassPolicyCheck on FIELD
@@ -250,7 +248,6 @@ interface FragmentFreeTypeCheckerEnforcementContract {
         val denial = TypeEnforcementError("list element denied")
         val worldFixture =
             TestWorld.fromSDL(
-                selectiveResolvers = coroutineResolverSubject.selectiveResolvers,
                 schemaSDL =
                     """
                     type Query { matrix: [[Item!]!]!, consumer: Int! }
@@ -320,7 +317,6 @@ interface FragmentFreeTypeCheckerEnforcementContract {
         val denial = TypeEnforcementError("referenced item denied")
         val worldFixture =
             TestWorld.fromSDL(
-                selectiveResolvers = coroutineResolverSubject.selectiveResolvers,
                 schemaSDL =
                     """
                     type Query { container: Container!, lookup(id: Int!): Item!, consumer: Int! }
@@ -390,7 +386,6 @@ interface FragmentFreeTypeCheckerEnforcementContract {
         val typeDenial = CombiningTypeEnforcementError(fieldDenial, combinedDenial)
         val worldFixture =
             TestWorld.fromSDL(
-                selectiveResolvers = coroutineResolverSubject.selectiveResolvers,
                 schemaSDL =
                     """
                     type Query { item: Item!, trigger: Int!, consumer: Int! }
@@ -467,7 +462,6 @@ interface FragmentFreeTypeCheckerEnforcementContract {
         val denial = TypeEnforcementError("ancestor denied")
         val worldFixture =
             TestWorld.fromSDL(
-                selectiveResolvers = coroutineResolverSubject.selectiveResolvers,
                 schemaSDL =
                     """
                     directive @parent on FIELD_DEFINITION
@@ -521,7 +515,6 @@ interface FragmentFreeTypeCheckerEnforcementContract {
         val denial = TypeEnforcementError("type denied")
         val worldFixture =
             TestWorld.fromSDL(
-                selectiveResolvers = coroutineResolverSubject.selectiveResolvers,
                 schemaSDL =
                     """
                     type Query { denied: Denied!, failed: Failed!, consumeDenied: Int!, consumeFailed: Int! }
@@ -583,7 +576,6 @@ interface FragmentFreeTypeCheckerEnforcementContract {
         val cancellation = CancellationException("type checker cancelled")
         val worldFixture =
             TestWorld.fromSDL(
-                selectiveResolvers = coroutineResolverSubject.selectiveResolvers,
                 schemaSDL =
                     """
                     type Query { item: Item!, consumer: Int!, healthy: Int! }
@@ -634,7 +626,6 @@ interface FragmentFreeTypeCheckerEnforcementContract {
             val checkerEntered = CompletableDeferred<Unit>()
             val worldFixture =
                 TestWorld.fromSDL(
-                    selectiveResolvers = coroutineResolverSubject.selectiveResolvers,
                     schemaSDL =
                         """
                         type Query { item: Item!, consumer: Int! }
@@ -720,7 +711,6 @@ interface FragmentFreeTypeCheckerEnforcementContract {
             }
         val worldFixture =
             TestWorld.fromSDL(
-                selectiveResolvers = coroutineResolverSubject.selectiveResolvers,
                 schemaSDL =
                     """
                     type Query { item: Item!, consumer: Int! }

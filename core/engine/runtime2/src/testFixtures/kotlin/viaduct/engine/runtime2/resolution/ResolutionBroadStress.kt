@@ -171,7 +171,7 @@ suspend fun runResolutionBroadStress(
                         testCase.registry.features.maximumFromQueryFieldVariableUseDepth,
                     )
                 val world: Assumptions =
-                    testWorld.newAssumptions(selectiveResolvers = true)
+                    testWorld.newAssumptions()
                 val fragment: Fragment = testWorld.schemas.fragmentFrom(testCase.query.source)
 
                 testCase.registry.clearResolutionWitness()

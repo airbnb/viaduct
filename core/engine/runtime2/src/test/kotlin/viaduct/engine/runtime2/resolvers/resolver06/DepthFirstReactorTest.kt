@@ -21,7 +21,6 @@ class DepthFirstReactorTest {
         val worldFixture =
             TestWorld.fromSDL(
                 schemaSDL = "type Query { value: Int }",
-                selectiveResolvers = false,
             )
         val world = worldFixture.assumptions
         val source = world.resolverRegistry.createRootQueryInput()
@@ -103,7 +102,6 @@ class DepthFirstReactorTest {
         val worldFixture =
             TestWorld.fromSDL(
                 schemaSDL = "type Query { value: Int }",
-                selectiveResolvers = false,
             )
         val world = worldFixture.assumptions
         val selections =

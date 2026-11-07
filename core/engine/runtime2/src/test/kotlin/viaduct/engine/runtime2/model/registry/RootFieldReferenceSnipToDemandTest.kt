@@ -13,6 +13,7 @@ import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireType
 import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.fragmentFrom
+import viaduct.engine.runtime2.model.testing.snipToDemand
 import viaduct.graphql.schema.ViaductSchema
 
 class RootFieldReferenceSnipToDemandTest {

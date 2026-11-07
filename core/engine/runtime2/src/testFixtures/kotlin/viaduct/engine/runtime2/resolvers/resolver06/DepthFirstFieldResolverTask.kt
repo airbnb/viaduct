@@ -155,7 +155,7 @@ class DepthFirstFieldResolverTask private constructor(
                                 queryValue = queryValue,
                                 queryInputSelections = queryMaterializationSelections,
                                 arguments = arguments,
-                                suppliedDemand = invocationDemand.takeIf { operation.world.selectiveResolvers },
+                                suppliedDemand = invocationDemand.takeIf { operation.selectiveResolvers },
                                 resolverOccurrenceId = fragments.objectFragment.resolverOccurrenceId,
                             )
                         )
@@ -164,7 +164,6 @@ class DepthFirstFieldResolverTask private constructor(
                             queryValue = queryValue,
                             arguments = arguments,
                             selections = invocationDemand,
-                            selectiveResolvers = operation.world.selectiveResolvers,
                             executionContext = ResolutionExecutionContext.Unsupported,
                         )
                     }
@@ -239,7 +238,7 @@ class DepthFirstFieldResolverTask private constructor(
                         queryValue = queryValue,
                         queryInputSelections = queryMaterializationSelections,
                         arguments = reference.arguments,
-                        suppliedDemand = invocationDemand.takeIf { operation.world.selectiveResolvers },
+                        suppliedDemand = invocationDemand.takeIf { operation.selectiveResolvers },
                         resolverOccurrenceId = invocation.fragments.objectFragment.resolverOccurrenceId,
                     )
                 )
@@ -248,7 +247,6 @@ class DepthFirstFieldResolverTask private constructor(
                     queryValue = queryValue,
                     arguments = reference.arguments,
                     selections = invocationDemand,
-                    selectiveResolvers = operation.world.selectiveResolvers,
                     executionContext = ResolutionExecutionContext.Unsupported,
                 )
             }
@@ -269,6 +267,7 @@ class DepthFirstFieldResolverTask private constructor(
             DepthFirstReactor(
                 operation = operation,
                 complete = operation.complete,
+                selectiveResolvers = operation.selectiveResolvers,
                 source = operation.world.resolverRegistry.createRootQueryInput(),
                 selections = queryFragment.constructionSelections,
             ).resolve(queryFragment.resolverOccurrenceId, creator = this)

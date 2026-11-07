@@ -47,7 +47,7 @@ class SuccessorDemandRegressionTest : ResolutionDispatcherResource {
 
             override fun fieldChecker(field: ViaductSchema.ObjectField) = original.resolverRegistry.fieldChecker(field).also { lookups++ }
         }
-        val world = Assumptions.of(original.schema, registry, original.selectiveResolvers)
+        val world = Assumptions.of(original.schema, registry)
         val actual = originalFixture.schemas
             .fragmentFrom("fragment Output on Query { field0 }")
             .subselections

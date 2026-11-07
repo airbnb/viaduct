@@ -65,7 +65,6 @@ interface VariablesProviderResolverContract : QueryFragmentVariablesResolverCont
         val applications = ResolverApplicationArguments()
         val payload = providedValue?.let { mapOf("value" to it) }
         val testWorld = TestWorld.fromSDL(
-            selectiveResolvers = selectiveResolvers,
             schemaSDL = """
                 type Query { item: Item }
                 input Envelope { nested: Payload }
@@ -207,7 +206,6 @@ interface VariablesProviderResolverContract : QueryFragmentVariablesResolverCont
             }
         }
         val testWorld = TestWorld.fromSDL(
-            selectiveResolvers = selectiveResolvers,
             schemaSDL = """
                 type Query { item: Item }
                 type Item { result: Int middle: Leaf seed(value: Int): Int backing: Int }
@@ -261,7 +259,6 @@ interface VariablesProviderResolverContract : QueryFragmentVariablesResolverCont
     fun `binds provider variables for each grounded resolver occurrence`() {
         val testWorld =
             TestWorld.fromDSL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     extend type Query {
@@ -322,7 +319,6 @@ interface VariablesProviderResolverContract : QueryFragmentVariablesResolverCont
     fun `provider variables may be null`() {
         val testWorld =
             TestWorld.fromDSL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     extend type Query {
@@ -349,7 +345,6 @@ interface VariablesProviderResolverContract : QueryFragmentVariablesResolverCont
     fun `provider failure completes its resolver field as an error`() {
         val testWorld =
             TestWorld.fromDSL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     extend type Query {

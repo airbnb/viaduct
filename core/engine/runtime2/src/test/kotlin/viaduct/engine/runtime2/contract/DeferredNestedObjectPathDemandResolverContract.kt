@@ -11,7 +11,6 @@ interface DeferredNestedObjectPathDemandResolverContract : ResolverContract {
         val applicationArguments = ResolverApplicationArguments()
         val testWorld =
             TestWorld.fromDSL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     extend type Query {

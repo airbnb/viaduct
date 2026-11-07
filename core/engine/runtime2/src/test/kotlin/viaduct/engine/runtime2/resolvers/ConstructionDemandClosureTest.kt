@@ -53,7 +53,6 @@ class ConstructionDemandClosureTest {
         for (precomputed in listOf(false, true)) {
             val providerCalls = mutableListOf<Int>()
             val fixture = TestWorld.fromSDL(
-                selectiveResolvers = false,
                 schemaSDL = "type Query { consumer(seed: Int): Int middle(value: Int): Int base(value: Int): Int }",
                 fieldResolvers = { schemas ->
                     val schema = schemas.loweredSchema
@@ -381,7 +380,6 @@ class ConstructionDemandClosureTest {
     @Test
     fun `hybrid templates keep conditional dependencies and descendants in residual demand`() {
         val fixture = TestWorld.fromSDL(
-            selectiveResolvers = false,
             schemaSDL = "type Query { consumer(flag: Boolean!): Int stable: Int middle: Int base: Int branch: Branch } type Branch { fixed: Int conditional: Int }",
             fieldResolvers = { schemas ->
                 val schema = schemas.loweredSchema
@@ -890,7 +888,6 @@ class ConstructionDemandClosureTest {
 
     private fun mixedQueryClosureFixture(provider: VariablesProviderFunction): TestWorld =
         TestWorld.fromSDL(
-            selectiveResolvers = false,
             schemaSDL = """
                 type Query { consumer(seed: Int!): Int! foo: Leaf! bar: Bar! baz: Leaf! base(value: Int!): Int! }
                 type Leaf { value: Int! }
@@ -937,7 +934,6 @@ class ConstructionDemandClosureTest {
         middleQuery: String = "echo(value: ${'$'}value)",
     ): TestWorld =
         TestWorld.fromSDL(
-            selectiveResolvers = false,
             schemaSDL = "type Query { consumer(seed: Int!): Int! middle(value: Int!): Int! echo(value: Int!): Int! reuse: Int! }",
             fieldResolvers = { schemas ->
                 val schema = schemas.loweredSchema
@@ -963,7 +959,6 @@ class ConstructionDemandClosureTest {
 
     private fun precomputedClosureFixture(): TestWorld =
         TestWorld.fromSDL(
-            selectiveResolvers = false,
             schemaSDL = """
                 type Query { base(value: Int!): Int! middle: Int! first: Int! second: Int! item: Item! }
                 type Item { left: Int! right: Int! }

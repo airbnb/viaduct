@@ -226,7 +226,7 @@ private fun ResolverContract.observeGeneratedResolution(
     checkerRecorder: CheckerApplicationRecorder,
     querySource: String,
 ): GeneratedResolutionObservation {
-    val world = testWorld.newAssumptions(selectiveResolvers)
+    val world = testWorld.newAssumptions()
     val fragment = testWorld.schemas.fragmentFrom(querySource)
     val subject =
         observeResolution(

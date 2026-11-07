@@ -37,7 +37,7 @@ interface ResolverWitnessContract : ResolverContract {
             var generatedFromArgumentVariables = 0
 
             val run =
-                checkResolverTestSuite(ResolverTestSuiteDefinition.CONSTRUCTION_WITNESS) { testWorld, testCase ->
+                checkResolverTestSuite(ResolverTestSuiteDefinition.CONSTRUCTION_WITNESS, selectiveResolvers = selectiveResolvers) { testWorld, testCase ->
                     generatedFromArgumentVariables +=
                         testCase.registry.features.fromArgumentVariableCount
                     val world = testWorld.newAssumptions()

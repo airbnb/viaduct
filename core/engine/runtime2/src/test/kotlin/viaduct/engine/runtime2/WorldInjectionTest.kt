@@ -80,7 +80,6 @@ class WorldInjectionTest {
                         input = world.objectOf("Query"),
                         queryValue = engineObjectDataOf(world.schema.requireQueryTypeDef()),
                         arguments = Arguments.Resolved.of(userField, emptyMap()),
-                        selectiveResolvers = false,
                         executionContext = ResolutionExecutionContext.Unsupported,
                     ),
                 )
@@ -102,7 +101,6 @@ class WorldInjectionTest {
                         queryValue = engineObjectDataOf(world.schema.requireQueryTypeDef()),
                         arguments = nodeReference.arguments,
                         selections = selections,
-                        selectiveResolvers = world.selectiveResolvers,
                         executionContext = ResolutionExecutionContext.Unsupported,
                     ),
                 )

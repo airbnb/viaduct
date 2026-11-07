@@ -11,7 +11,6 @@ interface ObjectPathNodeInteractionResolverContract : ResolverContract {
     fun `late provider path deepens an already published node reference`() {
         val testWorld =
             TestWorld.fromDSL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     extend type Query {
@@ -97,7 +96,6 @@ interface ObjectPathNodeInteractionResolverContract : ResolverContract {
         }
         val testWorld =
             TestWorld.fromDSL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     extend type Query {

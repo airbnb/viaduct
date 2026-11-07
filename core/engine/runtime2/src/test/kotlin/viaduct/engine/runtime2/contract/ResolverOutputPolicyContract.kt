@@ -1,7 +1,6 @@
 package viaduct.engine.runtime2.contract
 
 import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
 import org.junit.jupiter.api.Test
@@ -9,9 +8,7 @@ import viaduct.engine.runtime2.correctresolution.CorrectnessResolverObserver
 import viaduct.engine.runtime2.model.EngineResult
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.testing.TestWorld
-import viaduct.engine.runtime2.model.testing.objectOf
 import viaduct.engine.runtime2.resolution.framework.ResolverInvocationObservation
-import viaduct.engine.runtime2.schema.operationSelectionsFrom
 
 /**
  * Output-boundary test policy for resolution strategies that consume complete resolver outputs.
@@ -29,11 +26,6 @@ interface CompleteResolverOutputPolicyContract : ResolverContract {
             resolved.fieldNames,
         )
     }
-
-    @Test
-    fun `rejects a selective resolver world`() {
-        assertRejectsWorldMode(selectiveResolvers = true)
-    }
 }
 
 /**
@@ -48,11 +40,6 @@ interface SelectiveResolverOutputPolicyContract : ResolverContract {
         val resolved = resolvePassiveOutputFixture()
 
         assertEquals(setOf("requested"), resolved.fieldNames)
-    }
-
-    @Test
-    fun `rejects a non-selective resolver world`() {
-        assertRejectsWorldMode(selectiveResolvers = false)
     }
 }
 
@@ -87,28 +74,9 @@ private data class PassiveOutputFixtureResult(
     val fieldNames: Set<String>,
 )
 
-private fun ResolverContract.assertRejectsWorldMode(selectiveResolvers: Boolean) {
-    val testWorld =
-        TestWorld.fromSDL(
-            schemaSDL = "type Query { value: Int }",
-            selectiveResolvers = selectiveResolvers,
-        )
-    val world = testWorld.assumptions
-    val selections = testWorld.schemas.operationSelectionsFrom("query { __typename }")
-
-    assertFailsWith<IllegalArgumentException> {
-        observeResolution(
-            world,
-            world.objectOf("Query"),
-            selections,
-        )
-    }
-}
-
 private fun ResolverContract.resolvePassiveOutputFixture(): PassiveOutputFixtureResult {
     val testWorld =
         TestWorld.fromDSL(
-            selectiveResolvers = selectiveResolvers,
             schemaSDL =
                 """
                 extend type Query {
@@ -156,7 +124,6 @@ private fun ResolverContract.resolveRecursiveOutputFixture(): RecursiveOutputFix
     }
     val testWorld =
         TestWorld.fromDSL(
-            selectiveResolvers = selectiveResolvers,
             schemaSDL =
                 """
                 extend type Query {

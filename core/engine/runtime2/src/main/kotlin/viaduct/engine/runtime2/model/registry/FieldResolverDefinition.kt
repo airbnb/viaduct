@@ -6,7 +6,6 @@ import viaduct.engine.runtime2.model.Fragment
 import viaduct.engine.runtime2.model.ResolverOutputData
 import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.model.materializeSelectionForestOf
-import viaduct.engine.runtime2.model.selectionForestOf
 import viaduct.graphql.schema.ViaductSchema
 
 /**
@@ -19,9 +18,6 @@ class FieldResolverDefinition private constructor(
     val objectFragment: Fragment,
     val queryFragment: Fragment?,
     private val function: SelectiveFieldResolverFunction,
-    private val selective: Boolean,
-    private val passesDemand: Boolean,
-    private val projectionDemand: (SelectionForest) -> SelectionForest,
     internal val variablesProviderNames: Set<String>,
     internal val variablesProvider: VariablesProviderFunction?,
 ) {
@@ -32,9 +28,6 @@ class FieldResolverDefinition private constructor(
             function = { input, queryValue, arguments, selections, additionalContextForResolver, executionContext ->
                 transform(function(input, queryValue, arguments, selections, additionalContextForResolver, executionContext))
             },
-            selective = selective,
-            passesDemand = passesDemand,
-            projectionDemand = projectionDemand,
             variablesProviderNames = variablesProviderNames,
             variablesProvider = variablesProvider,
         )
@@ -43,10 +36,9 @@ class FieldResolverDefinition private constructor(
         FieldResolverDefinition(
             objectFragment = objectFragment,
             queryFragment = queryFragment,
-            function = function,
-            selective = selective,
-            passesDemand = passesDemand,
-            projectionDemand = { demand -> transform(projectionDemand(demand)) },
+            function = { input, queryValue, arguments, selections, context, executionContext ->
+                function(input, queryValue, arguments, transform(selections), context, executionContext)
+            },
             variablesProviderNames = variablesProviderNames,
             variablesProvider = variablesProvider,
         )
@@ -70,9 +62,6 @@ class FieldResolverDefinition private constructor(
                     function(input, queryValue, arguments, selections, additionalContextForResolver, executionContext)
                 }
             },
-            selective = true,
-            passesDemand = true,
-            projectionDemand = { it },
             variablesProviderNames = variablesProviderNames,
             variablesProvider = variablesProvider,
         )
@@ -82,9 +71,6 @@ class FieldResolverDefinition private constructor(
             objectFragment = transform(objectFragment),
             queryFragment = queryFragment,
             function = function,
-            selective = selective,
-            passesDemand = passesDemand,
-            projectionDemand = projectionDemand,
             variablesProviderNames = variablesProviderNames,
             variablesProvider = variablesProvider,
         )
@@ -94,9 +80,6 @@ class FieldResolverDefinition private constructor(
             objectFragment = objectFragment,
             queryFragment = queryFragment?.let(transform),
             function = function,
-            selective = selective,
-            passesDemand = passesDemand,
-            projectionDemand = projectionDemand,
             variablesProviderNames = variablesProviderNames,
             variablesProvider = variablesProvider,
         )
@@ -112,9 +95,6 @@ class FieldResolverDefinition private constructor(
             objectFragment = objectFragment,
             queryFragment = queryFragment,
             function = function,
-            selective = selective,
-            passesDemand = passesDemand,
-            projectionDemand = projectionDemand,
             variablesProviderNames = variableNames.toSet(),
             variablesProvider = provider,
         )
@@ -140,56 +120,12 @@ class FieldResolverDefinition private constructor(
                 variables = variables,
                 variablesProvider = variablesProvider,
             )
-        return if (selective) {
-            FieldValueResolver.ofSelective(
-                field = field,
-                fragmentTemplates = fragmentTemplates,
-                queryType = queryType,
-                function = { input, queryValue, arguments, selections, additionalContextForResolver, executionContext ->
-                    function(
-                        input,
-                        queryValue,
-                        arguments,
-                        projectionDemand(selections),
-                        additionalContextForResolver,
-                        executionContext,
-                    )
-                },
-            )
-        } else if (passesDemand) {
-            FieldValueResolver.ofSelectionAwareNonselective(
-                field = field,
-                fragmentTemplates = fragmentTemplates,
-                queryType = queryType,
-                function = { input, queryValue, arguments, selections, additionalContextForResolver, executionContext ->
-                    function(
-                        input,
-                        queryValue,
-                        arguments,
-                        projectionDemand(selections),
-                        additionalContextForResolver,
-                        executionContext,
-                    )
-                },
-            )
-        } else {
-            FieldValueResolver.of(
-                field = field,
-                fragmentTemplates = fragmentTemplates,
-                queryType = queryType,
-                function = { input, queryValue, arguments, additionalContextForResolver, executionContext ->
-                    function(
-                        input,
-                        queryValue,
-                        arguments,
-                        selectionForestOf(),
-                        additionalContextForResolver,
-                        executionContext,
-                    )
-                },
-                projectionDemand = projectionDemand,
-            )
-        }
+        return FieldValueResolver.ofSelective(
+            field = field,
+            fragmentTemplates = fragmentTemplates,
+            queryType = queryType,
+            function = function,
+        )
     }
 
     companion object {
@@ -204,9 +140,6 @@ class FieldResolverDefinition private constructor(
                 function = { input, queryValue, arguments, _, additionalContextForResolver, executionContext ->
                     function(input, queryValue, arguments, additionalContextForResolver, executionContext)
                 },
-                selective = false,
-                passesDemand = false,
-                projectionDemand = { it },
                 variablesProviderNames = emptySet(),
                 variablesProvider = null,
             )
@@ -220,9 +153,6 @@ class FieldResolverDefinition private constructor(
                 objectFragment = objectFragment,
                 queryFragment = queryFragment,
                 function = function,
-                selective = true,
-                passesDemand = true,
-                projectionDemand = { it },
                 variablesProviderNames = emptySet(),
                 variablesProvider = null,
             )
@@ -246,9 +176,6 @@ class FieldResolverDefinition private constructor(
                 objectFragment = objectFragment,
                 queryFragment = queryFragment,
                 function = function,
-                selective = false,
-                passesDemand = true,
-                projectionDemand = { it },
                 variablesProviderNames = emptySet(),
                 variablesProvider = null,
             )

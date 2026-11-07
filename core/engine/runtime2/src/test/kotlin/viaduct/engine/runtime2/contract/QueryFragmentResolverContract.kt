@@ -53,7 +53,6 @@ interface QueryFragmentResolverContract : ResolverContract {
         }
         val testWorld =
             TestWorld.fromDSL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     extend type Query { value: Int! @resolver(qf: "", result: 1) }
@@ -80,7 +79,6 @@ interface QueryFragmentResolverContract : ResolverContract {
     fun `one fromArgument binding is shared by object and query fragments`() {
         val testWorld =
             TestWorld.fromSDL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     type Query {
@@ -143,7 +141,6 @@ interface QueryFragmentResolverContract : ResolverContract {
         }
         val testWorld =
             TestWorld.fromSDL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     type Query {
@@ -287,7 +284,6 @@ interface QueryFragmentResolverContract : ResolverContract {
     fun `query fragment resolution is transitive`() {
         val testWorld =
             TestWorld.fromDSL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     extend type Query {
@@ -329,7 +325,6 @@ interface QueryFragmentResolverContract : ResolverContract {
         assumeTrue(usesSingularQueryOER)
         val testWorld =
             TestWorld.fromDSL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     extend type Query {
@@ -361,7 +356,6 @@ interface QueryFragmentResolverContract : ResolverContract {
         val sourceBApplications = AtomicInteger()
         val testWorld =
             TestWorld.fromSDL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     type Query {
@@ -462,7 +456,6 @@ interface QueryFragmentResolverContract : ResolverContract {
         }
         val testWorld =
             TestWorld.fromDSL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     extend type Query {
@@ -496,7 +489,6 @@ interface QueryFragmentResolverContract : ResolverContract {
         val depth = singularQueryExpansionDepth
         val testWorld =
             TestWorld.fromDSL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     buildString {
                         appendLine("extend type Query {")
@@ -525,7 +517,6 @@ interface QueryFragmentResolverContract : ResolverContract {
     fun `query fragment resolver occurrences are distinct from the same request occurrence`() {
         val testWorld =
             TestWorld.fromDSL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     extend type Query {
@@ -576,7 +567,6 @@ interface QueryFragmentResolverContract : ResolverContract {
         }
         val testWorld =
             TestWorld.fromDSL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     extend type Query {
@@ -641,7 +631,6 @@ interface QueryFragmentResolverContract : ResolverContract {
         }
         val testWorld =
             TestWorld.fromDSL(
-                selectiveResolvers = true,
                 schemaSDL =
                     """
                     extend type Query {
@@ -694,7 +683,6 @@ interface QueryFragmentResolverContract : ResolverContract {
         }
         val testWorld =
             TestWorld.fromDSL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     extend type Query {

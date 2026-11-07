@@ -36,6 +36,7 @@ class QueryFragmentExpansionTest : CoroutineResolverTestSubject() {
             requestScope,
             selections,
             cycleChecker,
+            selectiveResolvers = true,
             complete = { demand, possibleRootTypes ->
                 demand.successorDemandFromConstructionDemand(operation, possibleRootTypes)
             },
@@ -59,7 +60,6 @@ class QueryFragmentExpansionTest : CoroutineResolverTestSubject() {
                     "type Query { " +
                         (0..depth).joinToString(" ") { index -> "field$index: Int!" } +
                         " }",
-                selectiveResolvers = true,
                 fieldResolvers = { schema ->
                     (0..depth).associate { index ->
                         val field = schema.loweredSchema.requireObjectField("Query", "field$index")

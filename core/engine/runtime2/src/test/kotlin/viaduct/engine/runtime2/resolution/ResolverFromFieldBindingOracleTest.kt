@@ -165,7 +165,6 @@ private fun completedBindingResult(world: Assumptions): ObjectEngineResult =
 
 private fun bindingWorld(): TestWorld =
     TestWorld.fromDSL(
-        selectiveResolvers = true,
         schemaSDL =
             """
             extend type Query {

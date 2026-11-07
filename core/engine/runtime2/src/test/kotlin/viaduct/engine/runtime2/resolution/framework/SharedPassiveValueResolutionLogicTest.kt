@@ -75,6 +75,51 @@ class SharedPassiveValueResolutionLogicTest {
     }
 
     @Test
+    fun `undemanded node id preserves external output without reading its fields`() {
+        val fixture = TestWorld.fromSDL("type Query { user: User } interface Node { id: ID! } type User implements Node { id: ID! name: String }")
+        val type = fixture.schema.requireType("User") as ViaductSchema.Object
+        val output = ResolvedEngineObjectData(fixture.schemas.graphQLSchema.getObjectType("User"), mapOf("id" to "payload", "name" to "Ada"))
+        val source = object : EngineObjectData.Sync by output {
+            override fun getSelections(): Iterable<String> = error("Output must not be enumerated")
+
+            override fun get(selection: String): Any? = error("Output must not be read")
+        }
+        val demand = fixture.schemas.fragmentFrom("fragment Demand on User { name }").subselections
+
+        assertSame(source, source.withAuthoritativeNodeId(NodeReferenceIdentity(type, "authoritative"), demand))
+    }
+
+    @Test
+    fun `node identity repair copies only demanded fields and retains nested values`() {
+        val fixture = TestWorld.fromSDL(
+            "type Query { user: User } interface Node { id: ID! } type User implements Node { id: ID! name: String child: User peers: [User] extra: String }"
+        )
+        val type = fixture.schema.requireType("User") as ViaductSchema.Object
+        val engineType = fixture.schemas.graphQLSchema.getObjectType("User")
+        val child = ResolvedEngineObjectData(engineType, mapOf("name" to "child", "extra" to "retained"))
+        val peers = listOf(child, null)
+        val output = ResolvedEngineObjectData(engineType, mapOf("name" to "Ada", "child" to child, "peers" to peers, "extra" to "undemanded"))
+        val reads = mutableListOf<String>()
+        val source = object : EngineObjectData.Sync by output {
+            override fun get(selection: String): Any? {
+                check(selection != "extra") { "Undemanded field must not be read" }
+                reads += selection
+                return output.get(selection)
+            }
+        }
+        val demand = fixture.schemas.fragmentFrom("fragment Demand on User { id name child { name } peers { name } }").subselections
+
+        val adapted = assertIs<EngineObjectData.Sync>(source.withAuthoritativeNodeId(NodeReferenceIdentity(type, "authoritative"), demand))
+
+        assertEquals(setOf("name", "child", "peers"), reads.toSet())
+        assertEquals(setOf("id", "name", "child", "peers"), adapted.getSelections().toSet())
+        assertEquals("authoritative", adapted.get("id"))
+        assertSame(child, adapted.outputValue("child"))
+        assertSame(peers, adapted.outputValue("peers"))
+        assertEquals("retained", child.get("extra"))
+    }
+
+    @Test
     fun `unchanged node identity and id publication reuse the original object`() {
         val fixture = TestWorld.fromSDL("type Query { user: User } interface Node { id: ID! } type User implements Node { id: ID! name: String }")
         val type = fixture.schema.requireType("User") as ViaductSchema.Object
@@ -82,7 +127,7 @@ class SharedPassiveValueResolutionLogicTest {
         val contexts = listOf(null, Any(), mapOf("id" to "correlation-id"), NodeResolverContext(Any(), identity))
         for (context in contexts) {
             for (idSelection in listOf("", "id")) {
-                val fields = mapOf("name" to "Ada") + if (idSelection.isEmpty()) emptyMap() else mapOf("id" to identity.id)
+                val fields = mapOf("name" to "Ada", "id" to if (idSelection.isEmpty()) "overreturned" else identity.id)
                 val source = engineObjectDataOf(type, fields, additionalContextForResolver = context)
                 val demand = fixture.schemas.fragmentFrom("fragment Demand on User { $idSelection name }").subselections
 
@@ -150,14 +195,14 @@ class SharedPassiveValueResolutionLogicTest {
             for (idSelection in listOf("id", "")) {
                 val demand = fixture.schemas.fragmentFrom("fragment Demand on User { $idSelection name }").subselections
                 val adapted = assertIs<EngineObjectData.Sync>(output.withAuthoritativeNodeId(NodeReferenceIdentity(type, "authoritative"), demand))
-                if (idSelection.isNotEmpty()) assertEquals("authoritative", adapted.get("id")) else assertTrue(!adapted.isPresent("id"))
+                if (idSelection.isNotEmpty()) assertEquals("authoritative", adapted.get("id")) else assertSame(output, adapted)
                 assertSame(retained, adapted.additionalContextForResolver)
             }
         }
     }
 
     @Test
-    fun `selective validation rejects undemanded fields even when Node identity is retained in context`() {
+    fun `passive consumption ignores undemanded fields independently of retained context`() {
         val fixture = TestWorld.fromSDL(
             "type Query { user: User item: Item } interface Node { id: ID! } type User implements Node { id: ID! name: String extra: String } type Item { id: ID! name: String extra: String }"
         )
@@ -176,13 +221,14 @@ class SharedPassiveValueResolutionLogicTest {
                             constructionDemand = demand,
                         )
                     }
-                assertTrue(assertFailsWith<IllegalArgumentException> { resolve(source) }.message.orEmpty().contains("unselected fields: id"))
+                val overreturned = assertIs<ObjectEngineResult>(resolve(source).engineResult)
+                assertEquals(setOf("name"), overreturned.keys.map { it.field.name }.toSet())
                 val demanded = engineObjectDataOf(type, mapOf("name" to "Ada"), additionalContextForResolver = context)
                 val result = assertIs<ObjectEngineResult>(resolve(demanded).engineResult)
                 val name = ObjectEngineResult.GroundKey.of(fixture.schema.requireObjectField(typeName, "name"), emptyMap())
                 assertEquals("Ada", result.getCell(name).value.get())
                 val extra = engineObjectDataOf(type, mapOf("id" to "id", "name" to "Ada", "extra" to "invalid"), additionalContextForResolver = context)
-                assertTrue(assertFailsWith<IllegalArgumentException> { resolve(extra) }.message.orEmpty().contains("extra"))
+                assertEquals(setOf(name), assertIs<ObjectEngineResult>(resolve(extra).engineResult).keys)
             }
         }
     }
@@ -191,7 +237,6 @@ class SharedPassiveValueResolutionLogicTest {
     fun `traverses resolved objects directly and preserves errors and distinct list occurrences`() {
         val fixture = TestWorld.fromSDL(
             schemaSDL = "type Query { user: User } type User { name: String age: Int scores: [Int] peers: [User] computed: String }",
-            selectiveResolvers = false,
         )
         val schema = fixture.schema
         val userType = fixture.schemas.graphQLSchema.getObjectType("User")
@@ -337,10 +382,9 @@ class SharedPassiveValueResolutionLogicTest {
     }
 
     @Test
-    fun `non-selective traversal unpacks every provided passive field but only demanded resolver paths`() {
+    fun `passive traversal ignores undemanded object subtrees`() {
         val testWorld =
             TestWorld.fromSDL(
-                selectiveResolvers = false,
                 schemaSDL =
                     """
                     type Profile {
@@ -377,9 +421,6 @@ class SharedPassiveValueResolutionLogicTest {
             )
         val world = testWorld.assumptions
         val schema = world.schema
-        val nameKey = ObjectEngineResult.GroundKey.of(schema.requireObjectField("User", "name"), emptyMap())
-        val profileKey = ObjectEngineResult.GroundKey.of(schema.requireObjectField("User", "profile"), emptyMap())
-        val rawKey = ObjectEngineResult.GroundKey.of(schema.requireObjectField("Profile", "raw"), emptyMap())
         val value =
             schema.objectOf("User") {
                 "name" setTo "Ada"
@@ -406,9 +447,7 @@ class SharedPassiveValueResolutionLogicTest {
             }
 
         val result = assertIs<ObjectEngineResult>(resolved.engineResult)
-        assertEquals(setOf(nameKey, profileKey), result.keys)
-        val profile = assertIs<ObjectEngineResult>(result.getCell(profileKey).value.get())
-        assertEquals(setOf(rawKey), profile.keys)
+        assertTrue(result.keys.isEmpty())
         assertEquals(
             setOf(emptyList()),
             resolved.pendingObjects.map { it.path }.toSet(),
@@ -416,7 +455,7 @@ class SharedPassiveValueResolutionLogicTest {
     }
 
     @Test
-    fun `selective traversal rejects an output field outside selections`() {
+    fun `passive traversal ignores an output field outside selections`() {
         val testWorld =
             TestWorld.fromSDL(
                 schemaSDL =
@@ -442,18 +481,19 @@ class SharedPassiveValueResolutionLogicTest {
                 "fragment ignored on User { selected }",
             ).subselections
 
-        assertFailsWith<IllegalArgumentException> {
-            runBlocking {
-                SharedOperationContext.create(world).let { resolutionOperation ->
-                    value.recordPassiveResolution(
-                        operation = resolutionOperation,
-                        expectedType = world.schema.requireObjectField("Query", "user").outputType,
-                        path = emptyList(),
-                        constructionDemand = selections,
-                    )
-                }
+        val resolved = runBlocking {
+            SharedOperationContext.create(world).let { resolutionOperation ->
+                value.recordPassiveResolution(
+                    operation = resolutionOperation,
+                    expectedType = world.schema.requireObjectField("Query", "user").outputType,
+                    path = emptyList(),
+                    constructionDemand = selections,
+                )
             }
         }
+        val result = assertIs<ObjectEngineResult>(resolved.engineResult)
+        assertEquals(setOf("selected"), result.keys.map { it.field.name }.toSet())
+        assertEquals("kept", result.getCell(result.keys.single()).value.get())
     }
 
     @Test
@@ -551,7 +591,7 @@ class SharedPassiveValueResolutionLogicTest {
     }
 
     @Test
-    fun `non-selective worlds retain output fields outside selections`() {
+    fun `passive consumption ignores extras even in complete test worlds`() {
         val testWorld =
             TestWorld.fromSDL(
                 schemaSDL =
@@ -565,11 +605,9 @@ class SharedPassiveValueResolutionLogicTest {
                       user: User!
                     }
                     """.trimIndent(),
-                selectiveResolvers = false,
             )
         val world = testWorld.assumptions
         val selectedKey = ObjectEngineResult.GroundKey.of(world.schema.requireObjectField("User", "selected"), emptyMap())
-        val extraKey = ObjectEngineResult.GroundKey.of(world.schema.requireObjectField("User", "extra"), emptyMap())
         val value =
             world.schema.objectOf("User") {
                 "selected" setTo "kept"
@@ -593,7 +631,7 @@ class SharedPassiveValueResolutionLogicTest {
             }
 
         val result = assertIs<ObjectEngineResult>(resolved.engineResult)
-        assertEquals(setOf(selectedKey, extraKey), result.keys)
+        assertEquals(setOf(selectedKey), result.keys)
     }
 
     @Test

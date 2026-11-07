@@ -35,7 +35,6 @@ class SharedQueryProviderOwnershipTest : ResolutionDispatcherResource {
 
         val world =
             TestWorld.fromSDL(
-                selectiveResolvers = true,
                 schemaSDL =
                     """
                     type Query {

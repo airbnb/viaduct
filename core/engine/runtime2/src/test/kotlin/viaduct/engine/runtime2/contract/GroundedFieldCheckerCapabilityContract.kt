@@ -114,7 +114,6 @@ interface GroundedFieldCheckerCapabilityContract {
                   protected: Int!
                 }
             """.trimIndent(),
-            selectiveResolvers = coroutineResolverSubject.selectiveResolvers,
             fieldCheckers = { schemas ->
                 val field = schemas.loweredSchema.requireObjectField("Child", "protected")
                 mapOf(
@@ -165,7 +164,6 @@ interface GroundedFieldCheckerCapabilityContract {
                       protected: Int!
                     }
                     """.trimIndent(),
-                selectiveResolvers = coroutineResolverSubject.selectiveResolvers,
                 fieldCheckers = { schema ->
                     val protected = schema.loweredSchema.requireObjectField("Child", "protected")
                     mapOf(
@@ -227,7 +225,6 @@ interface GroundedFieldCheckerCapabilityContract {
                       c: Int!
                     }
                     """.trimIndent(),
-                selectiveResolvers = coroutineResolverSubject.selectiveResolvers,
                 fieldResolvers = { schema ->
                     val bFragment =
                         schema.fragmentFrom(

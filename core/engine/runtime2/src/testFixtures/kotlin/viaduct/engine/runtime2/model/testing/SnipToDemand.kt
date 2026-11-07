@@ -1,4 +1,4 @@
-package viaduct.engine.runtime2.model.registry
+package viaduct.engine.runtime2.model.testing
 
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.runtime2.model.Arguments
@@ -41,7 +41,7 @@ import viaduct.graphql.schema.ViaductSchema
  *
  * @throws IllegalArgumentException when a precondition is not met
  */
-internal fun ResolverOutputData?.snipToDemand(
+fun ResolverOutputData?.snipToDemand(
     demand: SelectionForest,
     expectedType: ViaductSchema.TypeExpr<ViaductSchema.OutputTypeDef>,
 ): ResolverOutputData? {
@@ -64,7 +64,7 @@ internal fun ResolverOutputData?.snipToDemand(
     }
 }
 
-internal fun EngineObjectData.Sync.snipToDemand(
+fun EngineObjectData.Sync.snipToDemand(
     demand: SelectionForest,
     declaredType: ViaductSchema.OutputTypeDef? = null,
 ): EngineObjectData.Sync {

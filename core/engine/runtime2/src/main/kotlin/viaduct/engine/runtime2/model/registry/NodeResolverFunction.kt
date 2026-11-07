@@ -43,7 +43,7 @@ fun nodeResolverOf(function: suspend (String, ResolutionExecutionContext) -> Res
         function(id, executionContext)
     }
 
-/** Marks a stable raw node lookup that receives demand before model-owned output projection. */
+/** Marks a stable raw node lookup that receives demand metadata. */
 fun selectionAwareNodeResolverOf(function: suspend (String, SelectionForest) -> ResolverOutputData?): NodeResolverFunction =
     NodeResolverFunction(NodeResolverFunction.Mode.SELECTION_AWARE_NONSELECTIVE) { id, selections, _ ->
         function(id, selections)

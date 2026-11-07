@@ -39,7 +39,6 @@ class SharedQueryInclusionFailureRegressionTest : ResolutionDispatcherResource {
         val sourceApplications = AtomicInteger()
         val failure = IllegalStateException("bad owner's provider failed")
         val world = TestWorld.fromSDL(
-            selectiveResolvers = true,
             schemaSDL = """
                 type Query {
                   bad: Int!

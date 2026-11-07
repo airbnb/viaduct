@@ -17,7 +17,6 @@ interface ResolverInputInclusionContract : ResolverContract {
     fun `object and Query inputs honor fromArgument inclusion conditions`() {
         val testWorld =
             TestWorld.fromSDL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     type Query {

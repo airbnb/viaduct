@@ -44,7 +44,6 @@ interface ParentFieldResolverContract : ResolverContract {
                     }
                 }
                 val fixture = TestWorld.fromDSL(
-                    selectiveResolvers = selectiveResolvers,
                     schemaSDL = """
                         extend type Query { root: Root @resolver(result: {}) }
                         type Root {
@@ -104,7 +103,6 @@ interface ParentFieldResolverContract : ResolverContract {
             }
         }
         val fixture = TestWorld.fromSDL(
-            selectiveResolvers = selectiveResolvers,
             schemaSDL =
                 """
                 directive @parent on FIELD_DEFINITION
@@ -162,7 +160,6 @@ interface ParentFieldResolverContract : ResolverContract {
         }
         val testWorld =
             TestWorld.fromDSL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     extend type Query {
@@ -220,7 +217,6 @@ interface ParentFieldResolverContract : ResolverContract {
         }
         val worldFixture =
             TestWorld.fromDSL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     extend type Query { root: Root @resolver(result: {}) }
@@ -296,7 +292,6 @@ interface ParentFieldResolverContract : ResolverContract {
         }
         val worldFixture =
             TestWorld.fromDSL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     extend type Query { root: Root @resolver(result: {}) }
@@ -329,7 +324,6 @@ interface ParentFieldResolverContract : ResolverContract {
     fun `recursive same-type parent chain retains immediate occurrence identity`() {
         val worldFixture =
             TestWorld.fromDSL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     extend type Query { root: Link @resolver(result: {name: 1}) }
@@ -371,7 +365,6 @@ interface ParentFieldResolverContract : ResolverContract {
     fun `resolver produced parent field cannot replace the structural parent`() {
         val worldFixture =
             TestWorld.fromDSL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     extend type Query {
@@ -424,7 +417,6 @@ interface ParentFieldResolverContract : ResolverContract {
         }
         val worldFixture =
             TestWorld.fromDSL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     extend type Query { root: Root @resolver(result: {}) }
@@ -488,7 +480,6 @@ interface ParentFieldResolverContract : ResolverContract {
         }
         val worldFixture =
             TestWorld.fromDSL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     extend type Query { root: Root @resolver(result: {}) }
@@ -513,7 +504,6 @@ interface ParentFieldResolverContract : ResolverContract {
     fun `child resolver parent input closes active ancestor demand`() {
         val worldFixture =
             TestWorld.fromDSL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     extend type Query { root: Root @resolver(result: {}) }
@@ -544,7 +534,6 @@ interface ParentFieldResolverContract : ResolverContract {
         lateinit var sourceParent: EngineObjectData.Sync
         val worldFixture =
             TestWorld.fromSDL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     directive @parent on FIELD_DEFINITION
@@ -597,7 +586,6 @@ interface ParentFieldResolverContract : ResolverContract {
     fun `parent demand crosses nested-list child fields and reaches grandparents`() {
         val worldFixture =
             TestWorld.fromDSL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     extend type Query { organization: Organization @resolver(result: {name: 7}) }

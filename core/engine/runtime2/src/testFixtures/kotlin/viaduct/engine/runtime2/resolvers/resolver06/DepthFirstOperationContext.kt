@@ -8,6 +8,7 @@ class DepthFirstOperationContext(
     operation: SharedOperationContext<*>,
     val complete: (SelectionForest) -> SelectionForest,
     dispatcher: DepthFirstReactor,
+    val selectiveResolvers: Boolean = false,
 ) : SharedOperationContext<DepthFirstReactor> by SharedOperationContext.create(
         world = operation.world,
         variableBindings = operation.variableBindings,

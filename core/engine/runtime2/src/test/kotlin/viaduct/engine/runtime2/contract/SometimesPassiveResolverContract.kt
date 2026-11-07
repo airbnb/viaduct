@@ -35,7 +35,6 @@ interface SometimesPassiveResolverContract : ResolverContract {
         }
         val testWorld =
             TestWorld.fromDSL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     extend type Query {
@@ -74,7 +73,6 @@ interface SometimesPassiveResolverContract : ResolverContract {
         }
         val testWorld =
             TestWorld.fromDSL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     extend type Query {
@@ -144,7 +142,6 @@ interface SometimesPassiveObjectFragmentResolverContract : ResolverContract {
             }
         }
         val testWorld = TestWorld.fromSDL(
-            selectiveResolvers = selectiveResolvers,
             schemaSDL = """
                 type Query { item: Item constant: Int base(value: Int): Int }
                 type Item { leftResult: Int rightResult: Int middle: Leaf fixed: Int seed(value: Int): Int }
@@ -213,7 +210,6 @@ interface SometimesPassiveObjectFragmentResolverContract : ResolverContract {
         }
         val testWorld =
             TestWorld.fromDSL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     extend type Query {
@@ -253,7 +249,6 @@ interface SometimesPassiveObjectFragmentResolverContract : ResolverContract {
         }
         val testWorld =
             TestWorld.fromDSL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     extend type Query {
@@ -299,7 +294,6 @@ interface SometimesPassiveObjectPathResolverContract : ResolverContract {
         }
         val testWorld =
             TestWorld.fromDSL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     extend type Query {
@@ -352,7 +346,6 @@ interface SometimesPassiveObjectPathResolverContract : ResolverContract {
         }
         val testWorld =
             TestWorld.fromDSL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     extend type Query {
@@ -414,7 +407,6 @@ interface SometimesPassiveSelectiveResolverContract : ResolverContract {
         }
         val testWorld =
             TestWorld.fromSDL(
-                selectiveResolvers = true,
                 schemaSDL =
                     """
                     type Item {

@@ -45,7 +45,6 @@ interface FromQueryFieldResolverContract : ResolverContract {
             "fragment ConsumerQuery on Query { providedSource: provider$queryConsumer }"
         val testWorld =
             TestWorld.fromSDL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     type Query {

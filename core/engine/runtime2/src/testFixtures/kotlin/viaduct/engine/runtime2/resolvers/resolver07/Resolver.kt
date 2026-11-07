@@ -19,9 +19,6 @@ fun SharedOperationContext<*>.resolve(
     selections: SelectionForest,
     onTaskStarted: (DepthFirstTask) -> Unit,
 ): ObjectEngineResult {
-    require(!world.selectiveResolvers) {
-        "Resolver07 requires non-selective resolvers"
-    }
     val source = world.resolverRegistry.createRootQueryInput()
     return DepthFirstReactor(
         operation = this@resolve,

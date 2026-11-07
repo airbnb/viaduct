@@ -210,7 +210,7 @@ private suspend fun runResolutionMultithreadedStress(
     val run: ResolverTestRun =
         checkCampaignRunCases(campaignRun, counts) { testWorld, testCase ->
             val world: Assumptions =
-                testWorld.newAssumptions(selectiveResolvers = true)
+                testWorld.newAssumptions()
             val fragment: Fragment = testWorld.schemas.fragmentFrom(testCase.query.source)
 
             val appliedResolverOccurrences =
@@ -256,7 +256,7 @@ private suspend fun checkCampaignRunCases(
 ): ResolverTestRun {
     val suite = ResolverTestSuiteDefinition.entries.singleOrNull { definition -> definition.id == campaignRun.propertyProfile }
     return if (suite != null && counts == campaignRun.counts) {
-        replayResolverTestSuite(suite, configuredResolverTestCaseId(), property)
+        replayResolverTestSuite(suite, configuredResolverTestCaseId(), property = property)
     } else {
         executeResolverTestCases(
             execution = ResolverTestExecution(counts),

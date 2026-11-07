@@ -11,7 +11,6 @@ interface PassiveObjectPathProviderResolverContract : ResolverContract {
     fun `installs a resolver promise below a passive provider field`() {
         val testWorld =
             TestWorld.fromDSL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     extend type Query {

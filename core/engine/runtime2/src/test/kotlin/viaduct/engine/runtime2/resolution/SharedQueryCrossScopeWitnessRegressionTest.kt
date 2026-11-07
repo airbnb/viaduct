@@ -93,7 +93,6 @@ class SharedQueryCrossScopeWitnessRegressionTest : ResolutionDispatcherResource 
 
     private fun execute(sameScope: Boolean): Run {
         val world = TestWorld.fromSDL(
-            selectiveResolvers = true,
             schemaSDL = """
                 type Query { items: [Payload!]!, source: Int! }
                 type Payload { computed: Int!, sibling: Int! }

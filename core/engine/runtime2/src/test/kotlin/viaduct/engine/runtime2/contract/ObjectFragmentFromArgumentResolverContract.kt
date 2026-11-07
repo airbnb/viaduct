@@ -28,7 +28,6 @@ interface ObjectFragmentFromArgumentResolverContract :
         val applicationArguments = ResolverApplicationArguments()
         val testWorld =
             TestWorld.fromDSL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     extend type Query {
@@ -105,7 +104,6 @@ interface ObjectFragmentFromArgumentResolverContract :
         // The compact DSL reserves $argname for same-named argument variables.
         val testWorld =
             TestWorld.fromSDL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     type Query {
@@ -157,7 +155,6 @@ interface ObjectFragmentFromArgumentResolverContract :
             """.trimIndent()
         val testWorld =
             TestWorld.fromSDL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     input Input {
@@ -213,7 +210,6 @@ interface ObjectFragmentFromArgumentResolverContract :
             """.trimIndent()
         val testWorld =
             TestWorld.fromSDL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     input Input {
@@ -263,7 +259,6 @@ interface ObjectFragmentFromArgumentResolverContract :
     fun `resolves a transitive chain of fromArgument variables`() {
         val testWorld =
             TestWorld.fromDSL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     extend type Query {

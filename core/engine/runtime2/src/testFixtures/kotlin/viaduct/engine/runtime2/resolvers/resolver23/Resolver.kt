@@ -15,13 +15,11 @@ import viaduct.engine.runtime2.resolvers.successorDemandFromConstructionDemand
  * the results contain only the necessary OER nodes has not been proved.
  */
 fun SharedOperationContext<*>.resolve(selections: SelectionForest): ObjectEngineResult {
-    require(world.selectiveResolvers) {
-        "Resolver23 requires selective resolvers"
-    }
     val source = world.resolverRegistry.createRootQueryInput()
     val resolver =
         CoroutineResolve(
             operation = this@resolve,
+            selectiveResolvers = true,
             complete = { constructionDemand, possibleRootTypes ->
                 constructionDemand.successorDemandFromConstructionDemand(
                     this@resolve,

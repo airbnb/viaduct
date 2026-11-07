@@ -37,6 +37,7 @@ internal fun startCoroutineResolution(
     requestScope: CoroutineScope,
     selections: SelectionForest,
     cycleChecker: CycleCheckState,
+    selectiveResolvers: Boolean = false,
     complete: (Demand<SelectionForest>, Set<viaduct.graphql.schema.ViaductSchema.Object>) -> SelectionForest =
         { demand, _ -> demand.values },
 ): ObjectEngineResult =
@@ -45,6 +46,7 @@ internal fun startCoroutineResolution(
         requestScope,
         complete,
         cycleChecker,
+        selectiveResolvers,
     ).startResolve(
         source = operation.world.resolverRegistry.createRootQueryInput(),
         demand = viaduct.engine.runtime2.resolution.framework.Demand.checked(selections),

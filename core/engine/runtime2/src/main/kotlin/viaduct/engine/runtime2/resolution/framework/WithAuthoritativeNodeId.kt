@@ -13,7 +13,7 @@ import viaduct.engine.runtime2.model.merge
 import viaduct.engine.runtime2.model.outputValue
 import viaduct.engine.runtime2.model.schemaType
 
-/** Restores identity in Airbnb internal compatibility context regardless of demand; publishes `id` only when demanded. */
+/** Restores authoritative identity in demanded output and Airbnb internal compatibility context. */
 internal fun ResolverOutputData?.withAuthoritativeNodeId(
     identity: NodeReferenceIdentity?,
     demand: SelectionForest,
@@ -24,18 +24,21 @@ internal fun ResolverOutputData?.withAuthoritativeNodeId(
     }
     val idField = identity.type.field("id")
         ?: throw IllegalArgumentException("Node type ${identity.type.name} has no id field")
-    val idDemanded =
-        demand.merge(identity.type).byKey().keys.any { key -> key.field == idField }
+    val demandedFields = demand.merge(identity.type).byKey().keys.mapTo(hashSetOf()) { key -> key.field.name }
+    val idDemanded = idField.name in demandedFields
     val context = additionalContextForResolver
     val contextUnchanged = context !is NodeResolverContext || context.identity == identity
     val idUnchanged = if (idDemanded) {
         isPresent(idField.name) && identity.id == outputValue(idField.name)
     } else {
-        !isPresent(idField.name)
+        true
     }
     if (contextUnchanged && idUnchanged) return this
 
-    val fields = getSelections().associateWith(::outputValue) - idField.name
+    // Invocation demand covers passive consumption, so identity repair can copy only demanded fields.
+    val fields = getSelections()
+        .filter { it in demandedFields && it != idField.name }
+        .associateWith(::outputValue)
     return engineObjectDataOf(
         identity.type,
         if (idDemanded) fields + (idField.name to identity.id) else fields,

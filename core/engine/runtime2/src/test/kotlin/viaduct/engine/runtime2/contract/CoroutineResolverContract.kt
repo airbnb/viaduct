@@ -80,7 +80,6 @@ abstract class CoroutineResolverTestSubject {
                 world = Assumptions.of(
                     schema = operation.world.schema,
                     resolverRegistry = operation.world.resolverRegistry,
-                    selectiveResolvers = operation.world.selectiveResolvers,
                     usePrecomputedConstructionDemand = true,
                 ),
                 variableBindings = operation.variableBindings,
@@ -125,7 +124,6 @@ interface CoroutineResolverContract {
         }
         val testWorld =
             TestWorld.fromDSL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     extend type Query {
@@ -169,7 +167,6 @@ interface CoroutineResolverContract {
     fun `installs active child promises before publishing their ancestor value`() {
         val testWorld =
             TestWorld.fromDSL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     extend type Query { child: Child! @resolver(result: {}) }
@@ -228,7 +225,6 @@ interface CoroutineResolverContract {
         val testWorld =
             TestWorld.fromSDL(
                 schemaSDL = "type Query { first: Int!, second: Int! }",
-                selectiveResolvers = selectiveResolvers,
                 fieldResolvers = { schema ->
                     mapOf(
                         schema.loweredSchema.requireField("Query", "first") to
@@ -277,7 +273,6 @@ interface CoroutineResolverContract {
             Assumptions.of(
                 schema = testWorld.schema,
                 resolverRegistry = malformedRegistry,
-                selectiveResolvers = selectiveResolvers,
             )
         val selections =
             testWorld.schemas.fragmentFrom("fragment ignored on Query { first }").subselections
@@ -296,7 +291,6 @@ interface CoroutineResolverContract {
         val testWorld =
             TestWorld.fromSDL(
                 schemaSDL = "type Query { failed: Int!, waiting: Int! }",
-                selectiveResolvers = selectiveResolvers,
                 fieldResolvers = { schema ->
                     mapOf(
                         schema.loweredSchema.requireField("Query", "failed") to
@@ -329,7 +323,7 @@ interface CoroutineResolverContract {
     @Test
     fun `field and reference exceptions leave unrelated fields running`() {
         for (failure in listOf(IllegalStateException("resolver failed"), CancellationException("local cancellation"))) {
-            val worldFixture = fieldFailureWorld(selectiveResolvers, failure)
+            val worldFixture = fieldFailureWorld(failure)
             val world = worldFixture.assumptions
             val result = resolve(SharedOperationContext.create(world), worldFixture.schemas.operationSelectionsFrom("{ failed reference items healthy }"))
             for (name in listOf("failed", "reference")) {
@@ -349,7 +343,7 @@ interface CoroutineResolverContract {
             for (failedField in listOf("consumer", "dependency")) {
                 val failure = IllegalStateException("Failed to install $failedField")
                 var consumerInvoked = false
-                val worldFixture = queryFailureWorld(selectiveResolvers) { consumerInvoked = true }
+                val worldFixture = queryFailureWorld { consumerInvoked = true }
                 val world = worldFixture.assumptions
                 val cycleChecker = object : CycleCheckState {
                     override fun registerWriter(
@@ -386,7 +380,7 @@ interface CoroutineResolverContract {
     fun `JVM Error escapes unchanged`() =
         runBlocking {
             val failure = Error("process-level failure")
-            val worldFixture = fieldFailureWorld(selectiveResolvers, failure)
+            val worldFixture = fieldFailureWorld(failure)
             val world = worldFixture.assumptions
             val observed = CompletableDeferred<Throwable>()
             val requestJob = Job()
@@ -408,7 +402,6 @@ interface CoroutineResolverContract {
             var consumerInvoked = false
             val worldFixture =
                 queryFailureWorld(
-                    selective = selectiveResolvers,
                     dependencyFailure = failure.takeIf { usesSingularQueryOER },
                 ) { consumerInvoked = true }
             val world = worldFixture.assumptions
@@ -465,7 +458,6 @@ interface CoroutineResolverContract {
                 TestWorld.fromSDL(
                     schemaSDL =
                         "type Query { first: Int!, second: Int!, target: Int!, dependency: Int!, healthy: Int! }",
-                    selectiveResolvers = selectiveResolvers,
                     fieldResolvers = { schema ->
                         val empty = schema.loweredSchema.emptyFragmentOf("Query")
                         val target = schema.loweredSchema.requireObjectField("Query", "target")
@@ -536,7 +528,7 @@ interface CoroutineResolverContract {
                 val cancellation = CancellationException("request cancelled during provider")
                 val requestJob = Job()
                 val requestScope = CoroutineScope(coroutineContext + requestJob + Dispatchers.Default)
-                val fixture = providerCancellationWorld(selectiveResolvers, provider = {
+                val fixture = providerCancellationWorld(provider = {
                     entered.complete(Unit)
                     try {
                         awaitCancellation()
@@ -579,7 +571,6 @@ interface CoroutineResolverContract {
             val requestJob = Job()
             val requestScope = CoroutineScope(coroutineContext + requestJob + Dispatchers.Default)
             val fixture = providerCancellationWorld(
-                selectiveResolvers,
                 provider = {
                     entered.complete(Unit)
                     try {
@@ -629,7 +620,7 @@ interface CoroutineResolverContract {
                 val cancellation = CancellationException("request cancelled")
                 var producerEntered = false
                 var consumerInvoked = false
-                val worldFixture = queryFailureWorld(selectiveResolvers) { consumerInvoked = true }
+                val worldFixture = queryFailureWorld { consumerInvoked = true }
                 val world = worldFixture.assumptions
                 val observer = object : ResolutionObserver {
                     override val onQueryFragmentPrepared: (
@@ -676,7 +667,6 @@ interface CoroutineResolverContract {
             var ownerInvocations = 0
             val testWorld =
                 TestWorld.fromSDL(
-                    selectiveResolvers = selectiveResolvers,
                     schemaSDL =
                         "type Query { dependency: Int!, first: Int!, second: Int! }",
                     fieldResolvers = { schema ->
@@ -749,7 +739,6 @@ interface CoroutineResolverContract {
     fun `successful return is quiescent with write-once completed promises`() {
         val testWorld =
             TestWorld.fromDSL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     extend type Query { items: [Item!]! @resolver(result: [{}, {}]) }
@@ -839,12 +828,8 @@ private fun CoroutineResolverContract.startResolution(
     cycleChecker: CycleCheckState,
 ): ObjectEngineResult = coroutineResolverSubject.startResolution(operation, requestScope, selections, cycleChecker)
 
-private fun fieldFailureWorld(
-    selective: Boolean,
-    failure: Throwable
-): TestWorld =
+private fun fieldFailureWorld(failure: Throwable): TestWorld =
     TestWorld.fromSDL(
-        selectiveResolvers = selective,
         schemaSDL = "type Query { failed: Int!, reference: Int!, items: [Int!]!, healthy: Int! }",
         fieldResolvers = { schema ->
             val fragment = schema.loweredSchema.emptyFragmentOf("Query")
@@ -860,12 +845,10 @@ private fun fieldFailureWorld(
     )
 
 private fun queryFailureWorld(
-    selective: Boolean,
     dependencyFailure: Throwable? = null,
     onConsumer: () -> Unit,
 ): TestWorld =
     TestWorld.fromSDL(
-        selectiveResolvers = selective,
         schemaSDL = "type Query { consumer: Int!, reference: Int!, dependency: Int!, healthy: Int! }",
         fieldResolvers = { schema ->
             val fragment = schema.loweredSchema.emptyFragmentOf("Query")
@@ -888,12 +871,10 @@ private fun queryFailureWorld(
     )
 
 private fun providerCancellationWorld(
-    selective: Boolean,
     provider: VariablesProviderFunction,
     onReference: suspend () -> Unit = {},
 ): TestWorld =
     TestWorld.fromSDL(
-        selectiveResolvers = selective,
         schemaSDL = "type Query { consumer: Int, reference: Int, echo(value: Int): Int, healthy: Int }",
         fieldResolvers = { schemas ->
             val schema = schemas.loweredSchema

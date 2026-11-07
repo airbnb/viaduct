@@ -129,7 +129,6 @@ class ChinaActiveBenchmarkCheckersTest : ResolutionDispatcherResource {
                 resolver(
                     input = world.schema.objectOf("Query"),
                     arguments = Arguments.Resolved.of(field, mapOf("id" to null)),
-                    selectiveResolvers = false,
                     executionContext = ResolutionExecutionContext.Unsupported,
                 )
             assertSame(invoke(), invoke())

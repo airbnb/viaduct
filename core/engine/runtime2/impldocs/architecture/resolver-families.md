@@ -36,6 +36,8 @@ The maintained versions form a refinement and comparison grid, not a chronology.
 | Object fragments | [Resolver07](../../src/testFixtures/kotlin/viaduct/engine/runtime2/resolvers/resolver07/Resolver.kt) | [Resolver22](../../src/testFixtures/kotlin/viaduct/engine/runtime2/resolvers/resolver22/Resolver.kt) | Nonempty object fragments with the same argument and provider variable sources, and complete output |
 | Selective resolution | [Resolver08](../../src/testFixtures/kotlin/viaduct/engine/runtime2/resolvers/resolver08/Resolver.kt) | [Resolver23](../../src/testFixtures/kotlin/viaduct/engine/runtime2/resolvers/resolver23/Resolver.kt) | The same fragment domain with selective output and full successor demand |
 
+Generated cases for Resolver08, Resolver23, and production Resolution explicitly wrap their complete deterministic resolver relation with test-support demand projection. Resolver06–07 and Resolver21–22 keep complete outputs and reference-only passive retention. This family policy lives in unpublished fixtures; production configuration and invocation APIs carry no test-family mode. Ordinary hand-written fixtures and production factories preserve their output.
+
 Moving down a column adds semantic capability while holding execution structure roughly constant. Moving across a row changes execution structure while holding semantic capability roughly constant. Resolver08 and Resolver23 are the usual comparison points for production Resolution because both expose selective demand at increasing levels of scheduling sophistication.
 
 The grid deliberately does not pretend that every family supports the same domain:

@@ -36,7 +36,6 @@ interface EmptyObjectFragmentResolverContract :
     fun `consumes resolved and delegating Sync objects without source adaptation across resolver families`() {
         val fixture = TestWorld.fromSDL(
             schemaSDL = "type Query { users: [User] } type User { name: String }",
-            selectiveResolvers = selectiveResolvers,
         )
         val schema = fixture.schema
         val users = schema.requireObjectField("Query", "users")
@@ -53,7 +52,7 @@ interface EmptyObjectFragmentResolverContract :
             override fun resolver(field: ViaductSchema.ObjectField): FieldValueResolver = if (field == users) raw else base.resolver(field)
         }
         val observation = observeResolution(
-            world = Assumptions.of(schema, registry, selectiveResolvers),
+            world = Assumptions.of(schema, registry),
             root = registry.createRootQueryInput(),
             selections = fixture.schemas.operationSelectionsFrom("query { users { name } }"),
         )
@@ -75,7 +74,6 @@ interface EmptyObjectFragmentResolverContract :
         val world =
             TestWorld.fromSDL(
                 schemaSDL = "type Query { value: Int }",
-                selectiveResolvers = selectiveResolvers,
             )
         val result = resolveAndValidate(world, "query { __typename }")
 
@@ -93,7 +91,6 @@ interface EmptyObjectFragmentResolverContract :
         }
         val testWorld =
             TestWorld.fromDSL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     extend type Query {
@@ -131,7 +128,6 @@ interface EmptyObjectFragmentResolverContract :
         }
         val testWorld =
             TestWorld.fromDSL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     extend type Query {
@@ -191,7 +187,6 @@ interface EmptyObjectFragmentResolverContract :
         }
         val testWorld =
             TestWorld.fromDSL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     extend type Query {

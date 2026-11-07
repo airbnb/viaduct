@@ -228,6 +228,7 @@ suspend fun checkResolverTestCases(
     seed: Long? = null,
     fieldCheckerMode: GeneratedFieldCheckerMode = GeneratedFieldCheckerMode.NONE,
     typeCheckerMode: GeneratedTypeCheckerMode = GeneratedTypeCheckerMode.NONE,
+    selectiveResolvers: Boolean = true,
     property: suspend (TestWorld, ResolverTestCase) -> Unit,
 ): ResolverTestRun {
     require(profile.isNotBlank())
@@ -240,6 +241,7 @@ suspend fun checkResolverTestCases(
         seed = runSeed,
         fieldCheckerMode = fieldCheckerMode,
         typeCheckerMode = typeCheckerMode,
+        selectiveResolvers = selectiveResolvers,
         property = property,
     )
 }
@@ -259,6 +261,7 @@ suspend fun executeResolverTestCases(
     seed: Long,
     fieldCheckerMode: GeneratedFieldCheckerMode = GeneratedFieldCheckerMode.NONE,
     typeCheckerMode: GeneratedTypeCheckerMode = GeneratedTypeCheckerMode.NONE,
+    selectiveResolvers: Boolean = true,
     property: suspend (TestWorld, ResolverTestCase) -> Unit,
 ): ResolverTestRun {
     require(profile.isNotBlank())
@@ -277,6 +280,7 @@ suspend fun executeResolverTestCases(
                     selectiveNodeResolvers = config[SelectiveNodeResolversEnabled],
                     fieldCheckerMode = fieldCheckerMode,
                     typeCheckerMode = typeCheckerMode,
+                    selectiveResolvers = selectiveResolvers,
                     property = property,
                 )
         } catch (failure: Throwable) {
@@ -304,6 +308,7 @@ suspend fun checkResolverTestBatch(
     selectiveNodeResolvers: Boolean,
     fieldCheckerMode: GeneratedFieldCheckerMode,
     typeCheckerMode: GeneratedTypeCheckerMode,
+    selectiveResolvers: Boolean = true,
     testCaseId: ((registryIndex: Int, queryIndex: Int) -> String)? = null,
     property: suspend (TestWorld, ResolverTestCase) -> Unit,
 ): Int {
@@ -321,6 +326,7 @@ suspend fun checkResolverTestBatch(
                 selectiveNodeResolvers = selectiveNodeResolvers,
                 fieldCheckerMode = fieldCheckerMode,
                 typeCheckerMode = typeCheckerMode,
+                selectiveResolvers = selectiveResolvers,
             )
         batch.queries.forEachIndexed query@{ queryOffset, query ->
             val queryIndex = queryOffset + 1

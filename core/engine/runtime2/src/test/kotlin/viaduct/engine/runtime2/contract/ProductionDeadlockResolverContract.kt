@@ -18,7 +18,6 @@ interface ProductionDeadlockResolverContract : ResolverContract {
         val error =
             assertFailsWith<IllegalArgumentException> {
                 TestWorld.fromDSL(
-                    selectiveResolvers = selectiveResolvers,
                     schemaSDL =
                         """
                     extend type Query {

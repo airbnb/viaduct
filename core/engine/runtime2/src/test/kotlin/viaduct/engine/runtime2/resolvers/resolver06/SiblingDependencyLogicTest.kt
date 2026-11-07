@@ -290,7 +290,6 @@ class SiblingDependencyLogicTest {
         return Assumptions.of(
             schema = schema,
             resolverRegistry = overriddenRegistry,
-            selectiveResolvers = assumptions.selectiveResolvers,
         )
     }
 

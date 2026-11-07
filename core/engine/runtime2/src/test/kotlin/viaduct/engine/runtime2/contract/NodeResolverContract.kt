@@ -52,7 +52,6 @@ interface NodeResolverContract : ResolverContract {
                     }
                 }
                 val world = TestWorld.fromSDL(
-                    selectiveResolvers = selectiveResolvers,
                     schemaSDL = "interface Node { id: ID! } type User implements Node { id: ID! label: String } type Query { user: User }",
                     fieldResolvers = { schemas ->
                         val schema = schemas.loweredSchema
@@ -97,7 +96,6 @@ interface NodeResolverContract : ResolverContract {
         if (this !is ObjectFragmentResolverContract) return
         val testWorld =
             TestWorld.fromDSL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     extend type Query {
@@ -133,7 +131,6 @@ interface NodeResolverContract : ResolverContract {
         val targetApplications = AtomicInteger()
         val testWorld =
             TestWorld.fromSDL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     interface Node { id: ID! }
@@ -213,7 +210,6 @@ interface NodeResolverContract : ResolverContract {
         }
         val testWorld =
             TestWorld.fromDSL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     extend type Query {
@@ -266,7 +262,6 @@ interface NodeResolverContract : ResolverContract {
         }
         val testWorld =
             TestWorld.fromDSL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     extend type Query {
@@ -317,7 +312,6 @@ interface NodeResolverContract : ResolverContract {
     fun `dispatches argument-bearing abstract node lists`() {
         val testWorld =
             TestWorld.fromSDL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     interface Node { id: ID! }
@@ -406,7 +400,6 @@ interface NodeResolverContract : ResolverContract {
         }
         val testWorld =
             TestWorld.fromDSL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     extend type Query {

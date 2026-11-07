@@ -25,7 +25,6 @@ class FieldCheckerEnforcementIsolationTest {
                       denied: Int! @resolver(result: 7)
                     }
                     """.trimIndent(),
-                selectiveResolvers = false,
                 fieldCheckers = { schema ->
                     val field = schema.loweredSchema.requireObjectField("Query", "denied")
                     mapOf(

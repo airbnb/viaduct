@@ -113,6 +113,7 @@ internal class FieldResolutionLogic(
         val sourceOccurrence = publication.sourceOccurrence
         val selection = sourceOccurrence.selection
         val constructionDemand = sourceOccurrence.publicationConstructionDemand
+        // Successor demand includes passive resolver/checker inputs even when the client did not select them.
         val invocationDemand: SelectionForest =
             when (sourceOccurrence) {
                 is PassiveValueOccurrence -> sourceOccurrence.invocationDemand
@@ -299,7 +300,6 @@ internal class FieldResolutionLogic(
             queryValue = queryValue,
             arguments = resolverArguments,
             selections = invocationDemand,
-            selectiveResolvers = publication.operation.world.selectiveResolvers,
             executionContext = fieldResolverTask,
             additionalContextForResolver = publication.oerOccurrence.additionalContextForResolver,
         )
@@ -439,7 +439,6 @@ internal class FieldResolutionLogic(
             queryValue = queryValue,
             arguments = arguments,
             selections = invocationDemand,
-            selectiveResolvers = publication.operation.world.selectiveResolvers,
             executionContext = fieldResolverTask,
         )
     }

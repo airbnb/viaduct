@@ -547,9 +547,9 @@ interface DeepResolverStressContract : ResolverContract {
         property: suspend (TestWorld, ResolverTestCase) -> Unit,
     ): ResolverTestRun =
         if (liveCounts == null) {
-            checkResolverTestSuite(suite, property)
+            checkResolverTestSuite(suite, selectiveResolvers = selectiveResolvers, property = property)
         } else {
-            checkResolverTestCases(liveCounts, suite.config, profile = suite.profile, property = property)
+            checkResolverTestCases(liveCounts, suite.config, profile = suite.profile, selectiveResolvers = selectiveResolvers, property = property)
         }
 
     private val displayName: String

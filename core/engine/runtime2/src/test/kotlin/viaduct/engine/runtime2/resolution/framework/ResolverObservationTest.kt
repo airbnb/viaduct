@@ -97,7 +97,6 @@ class ResolverObservationTest : ResolutionDispatcherResource {
                             }
                         }
                         val testWorld = TestWorld.fromSDL(
-                            selectiveResolvers = subject.selective,
                             schemaSDL = "type Query { value: Int reference: Int }",
                             fieldResolvers = { schema ->
                                 val value = schema.loweredSchema.requireObjectField("Query", "value")
@@ -148,7 +147,6 @@ class ResolverObservationTest : ResolutionDispatcherResource {
                     }
                 }
                 val testWorld = TestWorld.fromSDL(
-                    selectiveResolvers = subject.selective,
                     schemaSDL = "type Query { reference: Int! value(arg: Int!): Int! }",
                     fieldResolvers = { schema ->
                         val value = schema.loweredSchema.requireObjectField("Query", "value")
@@ -211,7 +209,6 @@ class ResolverObservationTest : ResolutionDispatcherResource {
                         }
                         val failure = if (cancellation) CancellationException("resolver cancelled") else IllegalStateException("resolver failed")
                         val testWorld = TestWorld.fromSDL(
-                            selectiveResolvers = subject.selective,
                             schemaSDL = "type Query { reference: Int value: Int }",
                             fieldResolvers = { schema ->
                                 val value = schema.loweredSchema.requireObjectField("Query", "value")
@@ -261,7 +258,6 @@ class ResolverObservationTest : ResolutionDispatcherResource {
                     fun allQueryFragmentResults(): Map<ResolverOccurrenceId, List<ObjectEngineResult>> = queryResults.mapValues { (_, results) -> results.toList() }
                 }
                 val testWorld = TestWorld.fromSDL(
-                    selectiveResolvers = subject.selective,
                     schemaSDL = "type Query { dependency: Int! consumer: Int! }",
                     fieldResolvers = { schema ->
                         mapOf(
@@ -299,7 +295,6 @@ class ResolverObservationTest : ResolutionDispatcherResource {
                     }
                 }
                 val testWorld = TestWorld.fromSDL(
-                    selectiveResolvers = subject.selective,
                     schemaSDL = "type Query { object: Thing } type Thing { value: Int }",
                     fieldResolvers = { schema ->
                         mapOf(
@@ -334,7 +329,6 @@ class ResolverObservationTest : ResolutionDispatcherResource {
                         }
                     val testWorld =
                         TestWorld.fromSDL(
-                            selectiveResolvers = subject.selective,
                             schemaSDL =
                                 "type Query { reference: Int target: Int dependency: Int }",
                             fieldResolvers = { schema ->

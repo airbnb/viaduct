@@ -172,7 +172,7 @@ class ExecutorRegistryInputsTest {
         }
 
     @Test
-    fun `selective node projection preserves opaque context and stored errors`() =
+    fun `selective node adaptation preserves complete output context and stored errors`() =
         runTest {
             val fixture = Fixture("type Query { node(id: ID!): Node } interface Node { id: ID! } type User implements Node { id: ID! name: String }")
             val type = fixture.schemas.loweredSchema.requireType("User") as ViaductSchema.Object
@@ -187,7 +187,7 @@ class ExecutorRegistryInputsTest {
 
             assertSame(context, projected.additionalContextForResolver)
             assertSame(error, projected.outputValue("name"))
-            assertEquals(listOf("name"), projected.getSelections().toList())
+            assertSame(source, projected)
         }
 
     @Test
@@ -363,7 +363,6 @@ class ExecutorRegistryInputsTest {
                 queryValue = query,
                 arguments = Arguments.Resolved.of(field, emptyMap()),
                 selections = fixture.schemas.selectionsFrom("fragment Demand on Shelf { user { id } }").second,
-                selectiveResolvers = true,
                 executionContext = fixture.resolutionContext,
             ) as List<*>
 
@@ -1194,7 +1193,6 @@ class ExecutorRegistryInputsTest {
                     queryValue = root,
                     arguments = reference.arguments,
                     selections = fixture.schemas.selectionsFrom("fragment Demand on User { id name }").second,
-                    selectiveResolvers = true,
                     executionContext = fixture.resolutionContext,
                 ),
             )
@@ -1228,12 +1226,18 @@ class ExecutorRegistryInputsTest {
                                 queryValue = root,
                                 arguments = reference.arguments,
                                 selections = fixture.schemas.selectionsFrom("fragment Demand on User { ${if (demandId) "id" else ""} name }").second,
-                                selectiveResolvers = true,
                                 executionContext = fixture.resolutionContext,
                             ),
                         )
 
-                        if (demandId) assertEquals("reference-id", output.get("id")) else assertFalse(output.isPresent("id"))
+                        if (demandId) {
+                            assertEquals("reference-id", output.get("id"))
+                        } else if (retained is NodeResolverContext) {
+                            assertFalse(output.isPresent("id"))
+                        } else {
+                            assertSame(source, output)
+                            assertEquals("payload-id", output.get("id"))
+                        }
                         assertSame(error, output.outputValue("name"))
                         if (retained is NodeResolverContext) {
                             val restored = assertInstanceOf(NodeResolverContext::class.java, output.additionalContextForResolver)
@@ -1315,7 +1319,6 @@ class ExecutorRegistryInputsTest {
                     queryValue = root,
                     arguments = nodeRootFieldReferenceOf(queryNode, type, "original").arguments,
                     selections = fixture.schemas.selectionsFrom("fragment Demand on User { id }").second,
-                    selectiveResolvers = true,
                     executionContext = fixture.resolutionContext,
                 ),
             )
@@ -1326,7 +1329,7 @@ class ExecutorRegistryInputsTest {
         }
 
     @Test
-    fun `node reference tails strip undemanded id but reject other undemanded fields`() =
+    fun `node reference tails ignore undemanded id and other undemanded fields`() =
         runTest {
             val fixture = Fixture(
                 "type Query { node(id: ID!): Node user: User lookup: UserData } " +
@@ -1353,13 +1356,8 @@ class ExecutorRegistryInputsTest {
                 )
 
                 val result = fixture.execute(inputs, "{ user { name } }")
-                if (includeExtra) {
-                    assertEquals(mapOf("user" to null), result.getData())
-                    assertTrue(result.errors.any { it.message.contains("unselected fields: extra") }, result.errors.toString())
-                } else {
-                    assertTrue(result.errors.isEmpty(), result.errors.toString())
-                    assertEquals(mapOf("user" to mapOf("name" to "Ada")), result.getData())
-                }
+                assertTrue(result.errors.isEmpty(), result.errors.toString())
+                assertEquals(mapOf("user" to mapOf("name" to "Ada")), result.getData())
             }
         }
 
@@ -1385,7 +1383,6 @@ class ExecutorRegistryInputsTest {
                         queryValue = root,
                         arguments = reference.arguments,
                         selections = fixture.schemas.selectionsFrom("fragment Demand on User { id name }").second,
-                        selectiveResolvers = true,
                         executionContext = fixture.resolutionContext,
                     ),
                 )
@@ -1418,7 +1415,6 @@ class ExecutorRegistryInputsTest {
                     queryValue = root,
                     arguments = reference.arguments,
                     selections = fixture.schemas.selectionsFrom("fragment Demand on User { name }").second,
-                    selectiveResolvers = true,
                     executionContext = fixture.resolutionContext,
                 ),
             )
@@ -1578,7 +1574,6 @@ class ExecutorRegistryInputsTest {
                 root,
                 Arguments.Resolved.of(field, emptyMap()),
                 demand,
-                true,
                 fixture.resolutionContext,
             )
             assertEquals("adapted", (result as EngineObjectData.Sync).get("value"))
@@ -1683,6 +1678,122 @@ class ExecutorRegistryInputsTest {
         return inputs.nodeResolvers.getValue(userType)("id", selectionForestOf(), fixture.resolutionContext)
     }
 
+    @Test
+    fun `nonselective field invocation preserves complete output and payload identity`() =
+        runTest {
+            val fixture = Fixture("type Query { boxes: [Box] } type Box { requested: String extra: String }")
+            val box = fixture.resolved("Box", mapOf("requested" to "kept", "extra" to "retained"))
+            val output = listOf(box, null)
+            val executor = MockFieldUnbatchedResolverExecutor(resolverId = "Query.boxes") { _, _, _, _, _ -> output }
+            val registry = fixture.registry(fixture.adapt(fields = listOf(("Query" to "boxes") to executor)))
+            val demand = fixture.schemas.selectionsFrom("fragment Demand on Box { requested }").second
+
+            val actual = fixture.invoke(registry, "boxes", demand)
+
+            assertSame(output, actual)
+            assertEquals("retained", box.get("extra"))
+        }
+
+    @Test
+    fun `node supplied argumentless registered fields suppress their standard resolver`() =
+        runTest {
+            for (selective in listOf(false, true)) {
+                for (supplied in listOf(true, false)) {
+                    val fixture = Fixture(
+                        "type Query { user: User node(id: ID!): Node } interface Node { id: ID! } " +
+                            "type User implements Node { id: ID! name: String computed: Int }",
+                    )
+                    val output = fixture.resolved("User", mapOf("name" to "Ada") + if (supplied) mapOf("computed" to 7) else emptyMap())
+                    var standardCalls = 0
+                    val user = MockFieldUnbatchedResolverExecutor(resolverId = "Query.user") { _, _, _, _, context ->
+                        context.createNodeReference("authoritative", output.type)
+                    }
+                    val computed = MockFieldUnbatchedResolverExecutor(resolverId = "User.computed") { _, _, _, _, _ ->
+                        standardCalls++
+                        99
+                    }
+                    val node = MockNodeUnbatchedResolverExecutor(typeName = "User", isSelective = selective) { _, _, _ -> output }
+                    val inputs = fixture.adapt(
+                        fields = listOf(("Query" to "user") to user, ("User" to "computed") to computed),
+                        nodes = listOf("User" to node),
+                    )
+
+                    val result = fixture.execute(inputs, "{ user { id name computed } }")
+
+                    assertTrue(result.errors.isEmpty(), result.errors.toString())
+                    assertEquals(mapOf("user" to mapOf("id" to "authoritative", "name" to "Ada", "computed" to if (supplied) 7 else 99)), result.getData())
+                    assertEquals(if (supplied) 0 else 1, standardCalls)
+                }
+            }
+        }
+
+    @Test
+    fun `field and node executors may overreturn without reading or activating extras`() =
+        runTest {
+            for (selective in listOf(false, true)) {
+                for (throughNode in listOf(false, true)) {
+                    val fixture = Fixture(
+                        "type Query { user: User lookup: User node(id: ID!): Node } interface Node { id: ID! } " +
+                            "type User implements Node { id: ID! name: String child: User peers: [User] extra: String ignored: User ignoredList: [User] }",
+                    )
+                    val schema = fixture.schemas.loweredSchema
+                    val type = schema.requireType("User") as ViaductSchema.Object
+                    val lookup = schema.requireObjectField("Query", "lookup")
+                    val reads = mutableListOf<String>()
+                    val reference = RootFieldReferenceData.of(path = listOf(lookup), arguments = emptyMap())
+
+                    fun source(fields: Map<String, Any?>): EngineObjectData.Sync {
+                        val data = engineObjectDataOf(type, fields)
+                        return object : EngineObjectData.Sync by data {
+                            override fun get(selection: String): Any? {
+                                reads += selection
+                                return data.get(selection)
+                            }
+                        }
+                    }
+                    val extras = mapOf(
+                        "extra" to EngineErrorData.of(IllegalStateException("undemanded error")),
+                        "ignored" to reference,
+                        "ignoredList" to listOf(reference),
+                    )
+                    val child = source(mapOf("name" to "child") + extras)
+                    val output = source(mapOf("id" to "payload", "name" to "Ada", "child" to child, "peers" to listOf(child, null)) + extras)
+                    var extraCalls = 0
+                    val user = MockFieldUnbatchedResolverExecutor(resolverId = "Query.user", isSelective = selective) { _, _, _, _, context ->
+                        if (throughNode) context.createNodeReference("authoritative", output.type) else output
+                    }
+                    val unused = MockFieldUnbatchedResolverExecutor(resolverId = "Query.lookup") { _, _, _, _, _ ->
+                        extraCalls++
+                        output
+                    }
+                    val node = MockNodeUnbatchedResolverExecutor(typeName = "User", isSelective = selective) { _, _, _ -> output }
+                    var extraChecks = 0
+                    val adapted = fixture.adapt(fields = listOf(("Query" to "user") to user, ("Query" to "lookup") to unused), nodes = listOf("User" to node))
+                    val inputs = ExecutorRegistryInputs(
+                        fieldResolvers = adapted.fieldResolvers,
+                        nodeResolvers = adapted.nodeResolvers,
+                        variableProviders = adapted.variableProviders,
+                        fieldCheckers = mapOf(
+                            schema.requireObjectField("User", "extra") to FieldCheckerResolver.of(schema.requireObjectField("User", "extra"), schema.requireQueryTypeDef()) { _, _, _ ->
+                                extraChecks++
+                                CheckerResult.Success
+                            },
+                        )
+                    )
+
+                    reads.clear()
+                    val result = fixture.execute(inputs, "{ user { alias: name child { name } peers { name } } }")
+
+                    assertTrue(result.errors.isEmpty(), result.errors.toString())
+                    assertEquals(mapOf("user" to mapOf("alias" to "Ada", "child" to mapOf("name" to "child"), "peers" to listOf(mapOf("name" to "child"), null))), result.getData())
+                    assertEquals(0, extraCalls)
+                    assertEquals(0, extraChecks)
+                    assertTrue(reads.none { it in extras }, reads.toString())
+                    assertTrue(output.isPresent("extra"))
+                }
+            }
+        }
+
     private class Fixture(val sdl: String) {
         val engineSchema = EngineSchema(UnExecutableSchemaGenerator.makeUnExecutableSchema(SchemaParser().parse(sdl)))
         val schemas = ViaductAndGJSchema.fromGraphQLSchema(engineSchema.schema)
@@ -1784,7 +1895,6 @@ class ExecutorRegistryInputsTest {
                 queryValue = root,
                 arguments = Arguments.Resolved.of(field, emptyMap()),
                 selections = selections,
-                selectiveResolvers = true,
                 executionContext = resolutionContext,
             )
         }

@@ -36,7 +36,7 @@ class ParentConstructionDemandComplexityRegressionTest {
         val registry = object : ResolverRegistry by original.resolverRegistry {
             override fun resolver(field: ViaductSchema.ObjectField) = original.resolverRegistry.resolver(field).also { lookups++ }
         }
-        val world = Assumptions.of(original.schema, registry, original.selectiveResolvers)
+        val world = Assumptions.of(original.schema, registry)
         val input = originalFixture.schemas.fragmentFrom("fragment F on Query { field0 }").subselections
 
         val additional = input.liftParentConstructionDemand(world)

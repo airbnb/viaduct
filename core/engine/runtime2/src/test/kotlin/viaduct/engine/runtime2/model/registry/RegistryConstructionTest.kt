@@ -175,7 +175,6 @@ class RegistryConstructionTest {
                     input = root,
                     queryValue = root,
                     arguments = Arguments.Resolved.of(greeting, emptyMap()),
-                    selectiveResolvers = true,
                     executionContext = ResolutionExecutionContext.Unsupported,
                 ),
             )
@@ -187,7 +186,6 @@ class RegistryConstructionTest {
                     input = root,
                     queryValue = root,
                     arguments = Arguments.Resolved.of(typename, emptyMap()),
-                    selectiveResolvers = true,
                     executionContext = ResolutionExecutionContext.Unsupported,
                 ),
             )
@@ -252,7 +250,6 @@ class RegistryConstructionTest {
                         input = root,
                         queryValue = root,
                         arguments = Arguments.Resolved.of(userField, emptyMap()),
-                        selectiveResolvers = true,
                         executionContext = ResolutionExecutionContext.Unsupported,
                     ),
                 )
@@ -267,7 +264,6 @@ class RegistryConstructionTest {
                         queryValue = root,
                         arguments = reference.arguments,
                         selections = schemas.selectionsFrom("fragment Demand on User { id name }").second,
-                        selectiveResolvers = true,
                         executionContext = ResolutionExecutionContext.Unsupported,
                     ),
                 )

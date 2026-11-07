@@ -41,13 +41,11 @@ import viaduct.engine.runtime2.model.ResolverOutputData
 import viaduct.engine.runtime2.model.ResolverTarget
 import viaduct.engine.runtime2.model.RootFieldReferenceData
 import viaduct.engine.runtime2.model.SelectionForest
-import viaduct.engine.runtime2.model.additionalContextForResolver
 import viaduct.engine.runtime2.model.emptyFragmentOf
 import viaduct.engine.runtime2.model.engineObjectDataOf
 import viaduct.engine.runtime2.model.guardedBy
 import viaduct.engine.runtime2.model.inputType
 import viaduct.engine.runtime2.model.materializeSelectionForestOf
-import viaduct.engine.runtime2.model.outputValue
 import viaduct.engine.runtime2.model.registry.CheckerInput
 import viaduct.engine.runtime2.model.registry.FieldCheckerResolver
 import viaduct.engine.runtime2.model.registry.FieldResolverDefinition
@@ -264,7 +262,6 @@ private fun executorRegistryInputs(
             nodeResolversFromExecutors(
                 fullSchema,
                 schemas,
-                fieldResolverExecutors,
                 nodeResolverExecutors,
                 contextForInvocation,
                 outputAdapter,
@@ -1025,7 +1022,6 @@ private fun nodeReference(
 private fun nodeResolversFromExecutors(
     fullSchema: EngineSchema,
     schemas: ViaductAndGJSchema,
-    fieldResolverExecutors: List<Pair<Coordinate, FieldResolverExecutor>>,
     nodeResolverExecutors: List<Pair<String, NodeResolverExecutor>>,
     contextForInvocation: (ResolutionExecutionContext) -> EngineExecutionContext,
     outputAdapter: ResolverOutputAdapter?,
@@ -1035,11 +1031,6 @@ private fun nodeResolversFromExecutors(
     val supplied =
         nodeResolverExecutors.associate { (typeName, executor) ->
             val type = schema.requireType(typeName) as ViaductSchema.Object
-            val fieldResolverOwnedFields =
-                fieldResolverExecutors
-                    .mapNotNullTo(linkedSetOf()) { (coordinate, _) ->
-                        coordinate.second.takeIf { coordinate.first == typeName }
-                    }
 
             suspend fun invokeExecutor(
                 id: String,
@@ -1074,14 +1065,7 @@ private fun nodeResolversFromExecutors(
                                 require(value.schemaType(schema) == type) {
                                     "Node executor $typeName returned ${value.type.name}"
                                 }
-                                if (executor.isSelective) {
-                                    value.projectTopLevel(
-                                        selections = selections,
-                                        excludedFields = fieldResolverOwnedFields,
-                                    )
-                                } else {
-                                    value
-                                }
+                                value
                             }
                             else -> error("Node executor $typeName returned a non-object value")
                         }
@@ -1123,31 +1107,6 @@ private fun nodeResolversFromExecutors(
                 }
         }
     return supplied
-}
-
-private fun EngineObjectData.Sync.projectTopLevel(
-    selections: EngineSelectionSet,
-    excludedFields: Set<String>,
-): EngineObjectData.Sync {
-    val demandedFields =
-        selections
-            .selections()
-            .mapTo(linkedSetOf()) { it.fieldName }
-            .minus(excludedFields)
-    val fields =
-        getSelections()
-            .filter { fieldName -> fieldName in demandedFields }
-            .associateWithTo(linkedMapOf(), ::outputValue)
-    val resolverContext = additionalContextForResolver
-    return if (resolverContext == null) {
-        ResolvedEngineObjectData(type, fields)
-    } else {
-        engineObjectDataOf(
-            schemaType = schemaType,
-            fields = fields,
-            additionalContextForResolver = resolverContext,
-        )
-    }
 }
 
 private fun Pair<String, String>.render(): String = "$first.$second"

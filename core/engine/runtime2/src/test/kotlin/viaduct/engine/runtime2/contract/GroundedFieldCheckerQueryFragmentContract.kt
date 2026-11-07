@@ -73,7 +73,6 @@ interface GroundedFieldCheckerQueryFragmentContract {
                       objectDependency: Int! @resolver(result: 2)
                     }
                     """.trimIndent(),
-                selectiveResolvers = coroutineResolverSubject.selectiveResolvers,
                 fieldCheckers = { schema ->
                     val checked = schema.loweredSchema.requireObjectField("Item", "checked")
                     val enabled = Arguments.Variable.of(ResolverTarget.FieldCheckerTarget(checked), "enabled")
@@ -159,7 +158,6 @@ interface GroundedFieldCheckerQueryFragmentContract {
                       objectShared(seed: Int!): Int! @resolver(result: 5)
                     }
                     """.trimIndent(),
-                selectiveResolvers = coroutineResolverSubject.selectiveResolvers,
                 fieldCheckers = { schema ->
                     val query = schema.loweredSchema.requireQueryTypeDef()
                     val checked = schema.loweredSchema.requireObjectField("Item", "checked")
@@ -275,7 +273,6 @@ interface GroundedFieldCheckerQueryFragmentContract {
                       checked: Int!
                     }
                     """.trimIndent(),
-                selectiveResolvers = coroutineResolverSubject.selectiveResolvers,
                 fieldResolvers = { schema ->
                     val item = schema.loweredSchema.requireObjectField("Query", "item")
                     val shared = schema.loweredSchema.requireObjectField("Query", "shared")
@@ -494,7 +491,6 @@ interface GroundedFieldCheckerQueryFragmentContract {
                   objectDependency: Int! @resolver(result: 2)
                 }
                 """.trimIndent(),
-            selectiveResolvers = coroutineResolverSubject.selectiveResolvers,
             fieldCheckers = { schema ->
                 val checked = schema.loweredSchema.requireObjectField("Item", "checked")
                 mapOf(
@@ -534,7 +530,6 @@ interface GroundedFieldCheckerQueryFragmentContract {
     ): TestWorld =
         TestWorld.fromSDL(
             schemaSDL = "type Query { checked: Int!, dependency: Int! }",
-            selectiveResolvers = coroutineResolverSubject.selectiveResolvers,
             fieldResolvers = { schema ->
                 val emptyFragment = schema.loweredSchema.emptyFragmentOf("Query")
                 mapOf(

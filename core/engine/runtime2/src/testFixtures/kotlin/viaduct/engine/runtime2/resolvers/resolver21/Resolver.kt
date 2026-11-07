@@ -14,9 +14,6 @@ import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
  * Precondition: `world.schema` has no `@parent` fields.
  */
 fun SharedOperationContext<*>.resolve(selections: SelectionForest): ObjectEngineResult {
-    require(!world.selectiveResolvers) {
-        "Resolver21 requires non-selective resolvers"
-    }
     val source = world.resolverRegistry.createRootQueryInput()
     val resolver =
         CoroutineResolve(

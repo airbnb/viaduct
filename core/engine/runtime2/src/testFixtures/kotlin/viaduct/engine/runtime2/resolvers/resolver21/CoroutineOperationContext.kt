@@ -15,6 +15,7 @@ class CoroutineOperationContext(
     requestScope: CoroutineScope,
     val complete: (Demand<SelectionForest>, Set<ViaductSchema.Object>) -> SelectionForest,
     val cycleChecker: CycleCheckState,
+    val selectiveResolvers: Boolean = false,
 ) : GroundedVariablesProviderContext,
     SharedOperationContext<CoroutineTaskDispatcher> by
     SharedOperationContext.create(

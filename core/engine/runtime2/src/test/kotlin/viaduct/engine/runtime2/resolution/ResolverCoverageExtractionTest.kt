@@ -46,7 +46,7 @@ class ResolverCoverageExtractionTest : CorrectResolutionPostTestPolicy, Resoluti
     @BeforeAll
     fun resolveFixture(): Unit =
         runTest {
-            val world = TestWorld.fromDSL(selectiveResolvers = true, schemaSDL = RUNTIME_SCHEMA)
+            val world = TestWorld.fromDSL(schemaSDL = RUNTIME_SCHEMA)
             val observation = resolveAndValidateObserved(
                 world,
                 "query { items { passive passiveError active child { output } } mixed(seed: 7) bad nullable(input: {values: [1, null]}) { active } }",

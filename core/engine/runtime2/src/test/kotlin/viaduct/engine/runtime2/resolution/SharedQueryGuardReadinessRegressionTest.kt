@@ -30,7 +30,6 @@ class SharedQueryGuardReadinessRegressionTest : ResolutionDispatcherResource {
             val fastStarted = CompletableDeferred<Unit>()
             val releaseSlow = CompletableDeferred<Unit>()
             val world = TestWorld.fromSDL(
-                selectiveResolvers = true,
                 schemaSDL = "type Query { slow: Int!, fast: Int!, source: Int! }",
                 fieldResolvers = { schema ->
                     val owners = listOf("slow", "fast").associate { name ->

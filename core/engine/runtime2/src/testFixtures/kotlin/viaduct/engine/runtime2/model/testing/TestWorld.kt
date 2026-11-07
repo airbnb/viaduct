@@ -67,14 +67,10 @@ class TestWorld private constructor(
         injector.getInstance(Assumptions::class.java)
 
     /** Creates another immutable world configuration over this world's schema and registry. */
-    fun newAssumptions(
-        selectiveResolvers: Boolean = assumptions.selectiveResolvers,
-        usePrecomputedConstructionDemand: Boolean = assumptions.usePrecomputedConstructionDemand,
-    ): Assumptions =
+    fun newAssumptions(usePrecomputedConstructionDemand: Boolean = assumptions.usePrecomputedConstructionDemand): Assumptions =
         Assumptions.of(
             schema = schema,
             resolverRegistry = resolverRegistry,
-            selectiveResolvers = selectiveResolvers,
             usePrecomputedConstructionDemand = usePrecomputedConstructionDemand,
         )
 
@@ -99,7 +95,6 @@ class TestWorld private constructor(
             fieldCheckers: (ViaductAndGJSchema) -> Map<ViaductSchema.ObjectField, FieldCheckerResolver> = { emptyMap() },
             typeCheckers: (ViaductAndGJSchema) -> Map<ViaductSchema.Object, TypeCheckerResolver> = { emptyMap() },
             variableProviders: (ViaductAndGJSchema) -> Map<Arguments.Variable, VariableDeclaration> = { emptyMap() },
-            selectiveResolvers: Boolean = true,
         ): TestWorld =
             create(
                 schemaSDL = schemaSDL,
@@ -108,7 +103,6 @@ class TestWorld private constructor(
                 fieldCheckers = fieldCheckers,
                 typeCheckers = typeCheckers,
                 variableProviders = variableProviders,
-                selectiveResolvers = selectiveResolvers,
             )
 
         private fun create(
@@ -118,7 +112,6 @@ class TestWorld private constructor(
             fieldCheckers: (ViaductAndGJSchema) -> Map<ViaductSchema.ObjectField, FieldCheckerResolver>,
             typeCheckers: (ViaductAndGJSchema) -> Map<ViaductSchema.Object, TypeCheckerResolver>,
             variableProviders: (ViaductAndGJSchema) -> Map<Arguments.Variable, VariableDeclaration>,
-            selectiveResolvers: Boolean,
             sourceSchemaSDL: String = schemaSDL,
         ): TestWorld {
             val injector =
@@ -130,7 +123,6 @@ class TestWorld private constructor(
                         fieldCheckers = fieldCheckers,
                         typeCheckers = typeCheckers,
                         variableProviders = variableProviders,
-                        selectiveResolvers = selectiveResolvers,
                     ),
                 )
             return try {
@@ -152,7 +144,6 @@ class TestWorld private constructor(
          */
         fun fromDSL(
             schemaSDL: String,
-            selectiveResolvers: Boolean = true,
             fieldCheckers: (ViaductAndGJSchema) -> Map<ViaductSchema.ObjectField, FieldCheckerResolver> = { emptyMap() },
             typeCheckers: (ViaductAndGJSchema) -> Map<ViaductSchema.Object, TypeCheckerResolver> = { emptyMap() },
         ): TestWorld {
@@ -165,7 +156,6 @@ class TestWorld private constructor(
                 fieldCheckers = fieldCheckers,
                 typeCheckers = typeCheckers,
                 variableProviders = dsl::variableProviders,
-                selectiveResolvers = selectiveResolvers,
             )
         }
     }
@@ -179,7 +169,6 @@ private class TestWorldModule(
     private val fieldCheckers: (ViaductAndGJSchema) -> Map<ViaductSchema.ObjectField, FieldCheckerResolver>,
     private val typeCheckers: (ViaductAndGJSchema) -> Map<ViaductSchema.Object, TypeCheckerResolver>,
     private val variableProviders: (ViaductAndGJSchema) -> Map<Arguments.Variable, VariableDeclaration>,
-    private val selectiveResolvers: Boolean,
 ) : AbstractModule() {
     override fun configure() {
         bind(String::class.java)
@@ -242,7 +231,6 @@ private class TestWorldModule(
         Assumptions.of(
             schema = schemas.loweredSchema,
             resolverRegistry = resolverRegistry,
-            selectiveResolvers = selectiveResolvers,
             usePrecomputedConstructionDemand = System.getProperty("viaduct.runtime2.precomputedConstructionDemand")?.toBooleanStrict() ?: false,
         )
 

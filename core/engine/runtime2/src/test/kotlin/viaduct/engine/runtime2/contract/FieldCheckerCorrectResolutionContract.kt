@@ -36,7 +36,6 @@ interface FieldCheckerCorrectResolutionContract : ResolverContract {
         val checkerCalls = AtomicInteger()
         val worldFixture =
             TestWorld.fromSDL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     type Query {
@@ -123,7 +122,6 @@ interface FieldCheckerCorrectResolutionContract : ResolverContract {
         val checkerCalls = AtomicInteger()
         val worldFixture =
             TestWorld.fromSDL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     type Query {
@@ -207,7 +205,6 @@ interface FieldCheckerCorrectResolutionContract : ResolverContract {
     fun `checker replay canonicalizes occurrences reached through parent backedges`() {
         val worldFixture =
             TestWorld.fromSDL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     directive @parent on FIELD_DEFINITION
@@ -306,7 +303,6 @@ interface FieldCheckerCorrectResolutionContract : ResolverContract {
         val denial = CorrectResolutionDenial()
         val worldFixture =
             TestWorld.fromSDL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     type Query {

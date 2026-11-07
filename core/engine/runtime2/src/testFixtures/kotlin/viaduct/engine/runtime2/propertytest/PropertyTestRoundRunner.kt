@@ -210,7 +210,7 @@ fun storedSuiteReplay(
     require(suite != null || selectedTestCase == null) {
         "Test case $selectedTestCase is not stored by campaign run ${run.testInputProfileId}"
     }
-    return suite?.let { definition -> { property -> replayResolverTestSuite(definition, selectedTestCase, property) } }
+    return suite?.let { definition -> { property -> replayResolverTestSuite(definition, selectedTestCase, property = property) } }
 }
 
 // Persisted campaign runs with a stored suite replay it, so their coverage obligations fail rather than warn.

@@ -158,7 +158,6 @@ class TypenameLoweringTest {
                     resolver(
                         input = schema.loweredSchema.objectOf(type.name),
                         arguments = Arguments.Resolved.of(field, emptyMap()),
-                        selectiveResolvers = world.assumptions.selectiveResolvers,
                         executionContext = ResolutionExecutionContext.Unsupported,
                     ),
                 )

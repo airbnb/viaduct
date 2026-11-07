@@ -64,7 +64,6 @@ class ScalarResolutionTest : ResolutionDispatcherResource {
                 val json = listOf(mapOf("value" to 1), null)
                 lateinit var backing: ResolvedEngineObjectData
                 val world = TestWorld.fromSDL(
-                    selectiveResolvers = subject.selective,
                     schemaSDL = "type Query { box: Box } type Box { json: JSON backing: BackingData }",
                     fieldResolvers = { schemas ->
                         val schema = schemas.loweredSchema
@@ -98,7 +97,6 @@ class ScalarResolutionTest : ResolutionDispatcherResource {
             dynamicTest("${subject.name} backing payload identity") {
                 val payload = mutableMapOf("value" to 1)
                 val world = TestWorld.fromSDL(
-                    selectiveResolvers = subject.selective,
                     schemaSDL = "type Query { backing: BackingData }",
                     fieldResolvers = { schemas ->
                         val schema = schemas.loweredSchema
@@ -132,7 +130,6 @@ class ScalarResolutionTest : ResolutionDispatcherResource {
                 dynamicTest("${subject.name} ${scalar.name}") {
                     val observer = CorrectnessResolverObserver()
                     val world = TestWorld.fromSDL(
-                        selectiveResolvers = subject.selective,
                         schemaSDL = "type Query { value: ${scalar.name}! values: [${scalar.name}]! reference: ${scalar.name}! }",
                         fieldResolvers = { schemas ->
                             val schema = schemas.loweredSchema

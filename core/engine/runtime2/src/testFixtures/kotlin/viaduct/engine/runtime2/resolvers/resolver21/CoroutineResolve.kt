@@ -22,6 +22,7 @@ internal class CoroutineResolve(
     private val operation: SharedOperationContext<*>,
     private val complete: (Demand<SelectionForest>, Set<ViaductSchema.Object>) -> SelectionForest,
     private val cycleChecker: CycleCheckState = CycleCheckState.create(),
+    private val selectiveResolvers: Boolean = false,
 ) {
     suspend fun resolve(
         source: EngineObjectData.Sync,
@@ -33,6 +34,7 @@ internal class CoroutineResolve(
                 this,
                 complete,
                 cycleChecker,
+                selectiveResolvers,
             ).startResolve(
                 source = source,
                 demand = Demand.checked(selections),

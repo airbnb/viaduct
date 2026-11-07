@@ -107,9 +107,6 @@ internal fun SharedOperationContext<*>.startResolution(
     cycleChecker: CycleCheckState = CycleCheckState.create(),
     rootType: ViaductSchema.Object = world.schema.requireQueryTypeDef(),
 ): StartedResolution {
-    require(world.selectiveResolvers) {
-        "Resolution requires selective resolvers"
-    }
     val completion = Job(requestScope.coroutineContext[Job])
     val resolutionScope = CoroutineScope(requestScope.coroutineContext + completion)
     var started = false

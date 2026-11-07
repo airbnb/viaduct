@@ -49,7 +49,6 @@ import viaduct.engine.runtime2.model.registry.isCompatibleWithInclusionCondition
 import viaduct.engine.runtime2.model.registry.mapVariables
 import viaduct.engine.runtime2.model.registry.partitionVariableDemand
 import viaduct.engine.runtime2.model.registry.requireNoErroneousArguments
-import viaduct.engine.runtime2.model.registry.snipToDemand
 import viaduct.engine.runtime2.model.render
 import viaduct.engine.runtime2.model.requireArg
 import viaduct.engine.runtime2.model.requireField
@@ -329,12 +328,7 @@ private class NodeResolverLowering(
         require(resultType == type) {
             "Node resolver for ${type.name} returned ${resultType.name}"
         }
-        val authoritativeResult = result.withAuthoritativeNodeId(identity, selections) as EngineObjectData.Sync
-        return if (resolver.mode == NodeResolverFunction.Mode.SELECTIVE) {
-            authoritativeResult
-        } else {
-            authoritativeResult.snipToDemand(selections, type)
-        }
+        return result.withAuthoritativeNodeId(identity, selections)
     }
 
     private fun validateNodeIdField(type: ViaductSchema.Object): ViaductSchema.ObjectField {

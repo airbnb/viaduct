@@ -2,6 +2,7 @@ package viaduct.engine.runtime2.resolvers.resolver06
 
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.runtime2.model.EngineResultCell
+import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.ObjectSelection
 import viaduct.engine.runtime2.model.ObjectSelectionForest
 import viaduct.engine.runtime2.model.PathComponent
@@ -13,6 +14,7 @@ import viaduct.engine.runtime2.resolution.framework.ResolutionTask
 import viaduct.engine.runtime2.resolution.framework.SharedPassiveValueResolutionLogic
 import viaduct.engine.runtime2.resolvers.GroundedFieldPublicationOccurrence
 import viaduct.engine.runtime2.resolvers.applicableGroundSelections
+import viaduct.engine.runtime2.resolvers.referencePassiveFieldKeys
 import viaduct.graphql.schema.ViaductSchema
 
 /**
@@ -40,6 +42,12 @@ class DepthFirstPassiveValueResolutionLogic(
         )
 
     override fun closedConstructionDemand(orchestration: DepthFirstOrchestrationTask): Demand<ObjectSelectionForest> = orchestration.closedConstructionDemand.objectRooted
+
+    override fun passiveFieldKeys(
+        source: EngineObjectData.Sync,
+        field: ViaductSchema.ObjectField,
+        demandedKeys: List<ObjectEngineResult.ObjectKey>?,
+    ): List<ObjectEngineResult.ObjectKey> = referencePassiveFieldKeys(source, field, demandedKeys, operation.selectiveResolvers)
 
     override fun collect(
         selections: SelectionForest,

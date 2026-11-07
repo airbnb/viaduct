@@ -10,7 +10,6 @@ interface QueryFragmentFromObjectPathResolverContract : ResolverContract {
     fun `object fragment provider binding can be used by the query fragment`() {
         val testWorld =
             TestWorld.fromDSL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     extend type Query {

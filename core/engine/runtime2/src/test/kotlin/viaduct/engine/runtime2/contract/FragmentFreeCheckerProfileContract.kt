@@ -47,7 +47,6 @@ interface FragmentFreeCheckerProfileContract {
                       id: Int!
                     }
                     """.trimIndent(),
-                selectiveResolvers = coroutineResolverSubject.selectiveResolvers,
                 typeCheckers = { schema ->
                     val item = schema.loweredSchema.requireType("Item") as ViaductSchema.Object
                     mapOf(

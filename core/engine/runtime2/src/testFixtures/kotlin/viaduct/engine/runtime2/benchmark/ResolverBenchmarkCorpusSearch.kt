@@ -150,7 +150,7 @@ object ResolverBenchmarkCorpusSearch {
         testCase: ResolverTestCase,
         resolverCoroutineContext: CoroutineContext,
     ) {
-        val world = testWorld.newAssumptions(selectiveResolvers = true)
+        val world = testWorld.newAssumptions()
         val fragment: Fragment = testWorld.schemas.fragmentFrom(testCase.query.source)
         registry.clearResolutionWitness()
         val applicationObservations =

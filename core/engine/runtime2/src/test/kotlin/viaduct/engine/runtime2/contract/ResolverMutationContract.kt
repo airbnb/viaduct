@@ -23,7 +23,7 @@ interface ResolverMutationContract : ResolverContract {
             var generatedFromArgumentVariables = 0
 
             val run =
-                checkResolverTestSuite(ResolverTestSuiteDefinition.RESOLVER_MUTATION) { ordinaryWorld, testCase ->
+                checkResolverTestSuite(ResolverTestSuiteDefinition.RESOLVER_MUTATION, selectiveResolvers = selectiveResolvers) { ordinaryWorld, testCase ->
                     val registry = testCase.registry
                     generatedFromArgumentVariables += registry.features.fromArgumentVariableCount
                     val ordinaryAssumptions = ordinaryWorld.newAssumptions()
@@ -53,6 +53,7 @@ interface ResolverMutationContract : ResolverContract {
                                 registry.world(
                                     schema = testCase.schema,
                                     resolverProgramMutation = mutation,
+                                    selectiveResolvers = selectiveResolvers,
                                 )
                             val mutantAssumptions = mutantWorld.newAssumptions()
                             registry.clearResolutionWitness()

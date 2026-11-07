@@ -91,7 +91,7 @@ internal class CurrentProfileBenchmarkSupport(
         val discovery = PrecomputedResolverOutputs()
         val testWorld = corpus.benchmarkWorld(discovery)
         querySources.forEach { source ->
-            val world = testWorld.newAssumptions(selectiveResolvers = true, usePrecomputedConstructionDemand = usePrecomputedConstructionDemand())
+            val world = testWorld.newAssumptions(usePrecomputedConstructionDemand = usePrecomputedConstructionDemand())
             subject.resolve(
                 operation = SharedOperationContext.create(world),
                 root = world.objectOf("Query"),
@@ -113,7 +113,7 @@ internal class CurrentProfileBenchmarkSupport(
         overheadCases =
             Array(loopCount * parsedQueries.size) { index ->
                 val selections = parsedQueries[index % parsedQueries.size]
-                val world = testWorld.newAssumptions(selectiveResolvers = true, usePrecomputedConstructionDemand = usePrecomputedConstructionDemand())
+                val world = testWorld.newAssumptions(usePrecomputedConstructionDemand = usePrecomputedConstructionDemand())
                 PreparedResolution(
                     operation = SharedOperationContext.create(world),
                     root = world.objectOf("Query"),
@@ -144,7 +144,7 @@ internal class CurrentProfileBenchmarkSupport(
         val variableArgumentCounts = mutableListOf<Long>()
         val samples =
             querySources.mapIndexed { queryIndex, source ->
-                val world = testWorld.newAssumptions(selectiveResolvers = true, usePrecomputedConstructionDemand = usePrecomputedConstructionDemand())
+                val world = testWorld.newAssumptions(usePrecomputedConstructionDemand = usePrecomputedConstructionDemand())
                 val selections = testWorld.schemas.fragmentFrom(source).subselections
                 corpus.registry.clearResolutionWitness()
                 val applicationObservations =
@@ -311,7 +311,7 @@ internal class CurrentProfileBenchmarkSupport(
                     typeCheckerMode = GeneratedTypeCheckerMode.RUNTIME_SUCCESS,
                 ) { testWorld, testCase ->
                     check(testCase.query.selectionDepth >= 4)
-                    val world = testWorld.newAssumptions(selectiveResolvers = true, usePrecomputedConstructionDemand = usePrecomputedConstructionDemand())
+                    val world = testWorld.newAssumptions(usePrecomputedConstructionDemand = usePrecomputedConstructionDemand())
                     val observer = testCase.registry.resolutionObserver()
                     val operation =
                         SharedOperationContext.create(

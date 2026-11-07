@@ -165,7 +165,7 @@ private fun recursiveFixture(): TestWorld =
         },
     )
 
-private fun uncachedWorld(world: Assumptions): Assumptions = Assumptions.of(world.schema, object : ResolverRegistry by world.resolverRegistry {}, world.selectiveResolvers)
+private fun uncachedWorld(world: Assumptions): Assumptions = Assumptions.of(world.schema, object : ResolverRegistry by world.resolverRegistry {})
 
 private data class SelectionShape(
     val condition: InclusionCondition,

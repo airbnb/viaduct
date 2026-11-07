@@ -118,7 +118,6 @@ class BenchmarkExecutorAdapter(
                                 world.schema.objectOf("Query"),
                                 argumentsOfGround(emptyMap()),
                                 selections = viaduct.engine.runtime2.model.selectionForestOf(),
-                                selectiveResolvers = false,
                                 executionContext = ResolutionExecutionContext.Unsupported,
                             ),
                             definition.type,

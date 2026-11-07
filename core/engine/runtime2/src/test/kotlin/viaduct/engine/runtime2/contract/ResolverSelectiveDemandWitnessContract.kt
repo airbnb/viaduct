@@ -28,7 +28,6 @@ interface ResolverSelectiveDemandWitnessContract : ResolverContract {
         }
         val testWorld =
             TestWorld.fromDSL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     extend type Query { item: Item! @resolver(result: {base: 7}) }

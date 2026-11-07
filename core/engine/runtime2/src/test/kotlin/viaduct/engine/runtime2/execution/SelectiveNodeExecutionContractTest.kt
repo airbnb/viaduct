@@ -145,6 +145,12 @@ class SelectiveNodeExecutionContractTest : SelectiveNodeExecutionContract, Engin
 
     @Engine2Disabled(
         Engine2DisabledKind.ALT,
+        "The runtime engine reserves selective node surplus for standard field resolvers; Runtime2 uses source-sensitive ownership for argumentless fields"
+    )
+    override fun `node surplus does not override field resolver ownership`() {}
+
+    @Engine2Disabled(
+        Engine2DisabledKind.ALT,
         "Production mutates the original node reference after fetching; runtime2 publishes the same response from a closed one-shot occurrence"
     )
     override fun `initial materialization resolves node reference`() {}
@@ -253,6 +259,34 @@ class SelectiveNodeExecutionContractTest : SelectiveNodeExecutionContract, Engin
 
     @Nested
     inner class BasicExecutionTests {
+        @Engine2Alternate(original = "node surplus does not override field resolver ownership")
+        fun `selective node output owns supplied argumentless registered fields`() {
+            val standardCalls = AtomicInteger()
+            MockTenantModuleBootstrapper(
+                "extend type Query { foo: Foo } type Foo implements Node { id: ID!, x: Int, y: Int }",
+            ) {
+                field("Query" to "foo") {
+                    valueFromContext { it.createNodeReference("foo", objectType("Foo")) }
+                }
+                field("Foo" to "x") {
+                    resolver {
+                        fn { _, _, _, _, _ ->
+                            standardCalls.incrementAndGet()
+                            3
+                        }
+                    }
+                }
+                type("Foo") {
+                    nodeUnbatchedExecutor(selective = true) { _, _, _ ->
+                        createEngineObjectData(objectType, mapOf("x" to 2, "y" to 1))
+                    }
+                }
+            }.runRuntime2FeatureTest {
+                runQuery("{ foo { x y } }").assertJson("{data: {foo: {x: 2, y: 1}}}")
+            }
+            assertEquals(0, standardCalls.get())
+        }
+
         @Test
         fun `engine-managed node fields do not invoke selective resolver`() {
             MockTenantModuleBootstrapper(

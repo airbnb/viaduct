@@ -15,9 +15,6 @@ import viaduct.engine.runtime2.resolvers.successorBoundaryDemand
  * Results may contain more OER nodes than are strictly necessary to resolve the query.
  */
 fun SharedOperationContext<*>.resolve(selections: SelectionForest): ObjectEngineResult {
-    require(!world.selectiveResolvers) {
-        "Resolver22 requires non-selective resolvers"
-    }
     val source = world.resolverRegistry.createRootQueryInput()
     val resolver =
         CoroutineResolve(

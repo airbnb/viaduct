@@ -26,7 +26,6 @@ interface DepthFirstQueryFringeOrderingContract : ResolverContract {
         }
         val fixture =
             TestWorld.fromSDL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     type Query {
@@ -99,7 +98,6 @@ interface DepthFirstQueryFringeOrderingContract : ResolverContract {
         }
         val fixture =
             TestWorld.fromDSL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     extend type Query {
@@ -133,7 +131,6 @@ interface DepthFirstQueryFringeOrderingContract : ResolverContract {
         }
         val fixture =
             TestWorld.fromDSL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     extend type Query {

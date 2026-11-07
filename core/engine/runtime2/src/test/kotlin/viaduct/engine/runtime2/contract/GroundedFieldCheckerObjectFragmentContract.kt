@@ -42,7 +42,6 @@ interface GroundedFieldCheckerObjectFragmentContract {
         val failure = assertFailsWith<IllegalArgumentException> {
             TestWorld.fromSDL(
                 schemaSDL = "type Query { checked: Int!, dependency: Int! }",
-                selectiveResolvers = coroutineResolverSubject.selectiveResolvers,
                 fieldResolvers = { schema ->
                     val checked = schema.loweredSchema.requireObjectField("Query", "checked")
                     val dependency = schema.loweredSchema.requireObjectField("Query", "dependency")
@@ -109,7 +108,6 @@ interface GroundedFieldCheckerObjectFragmentContract {
                       nested: Int!
                     }
                     """.trimIndent(),
-                selectiveResolvers = coroutineResolverSubject.selectiveResolvers,
                 fieldCheckers = { schema ->
                     val query = schema.loweredSchema.requireQueryTypeDef()
                     val checked = schema.loweredSchema.requireObjectField("Item", "checked")

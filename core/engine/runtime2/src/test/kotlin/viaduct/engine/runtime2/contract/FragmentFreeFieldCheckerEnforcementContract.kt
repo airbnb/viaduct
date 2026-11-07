@@ -46,7 +46,6 @@ interface FragmentFreeFieldCheckerEnforcementContract {
                       consumePassive: Int! @resolver(of: "passive", result: "sum(passive)")
                     }
                     """.trimIndent(),
-                selectiveResolvers = coroutineResolverSubject.selectiveResolvers,
                 fieldCheckers = { schema ->
                     listOf("active", "passive").associate { name ->
                         val field = schema.loweredSchema.requireObjectField("Item", name)
@@ -83,7 +82,6 @@ interface FragmentFreeFieldCheckerEnforcementContract {
                       consumePassive: Int! @resolver(of: "passive", result: "sum(passive)")
                     }
                     """.trimIndent(),
-                selectiveResolvers = coroutineResolverSubject.selectiveResolvers,
                 fieldCheckers = { schema ->
                     listOf("active", "passive").associate { name ->
                         val field = schema.loweredSchema.requireObjectField("Item", name)
@@ -105,7 +103,6 @@ interface FragmentFreeFieldCheckerEnforcementContract {
         val denial = EnforcementCheckerError("denied")
         val testWorld =
             TestWorld.fromSDL(
-                selectiveResolvers = coroutineResolverSubject.selectiveResolvers,
                 schemaSDL =
                     """
                     type Query {
@@ -166,7 +163,6 @@ interface FragmentFreeFieldCheckerEnforcementContract {
                       second: Int! @resolver(of: "denied", result: "sum(denied)")
                     }
                     """.trimIndent(),
-                selectiveResolvers = coroutineResolverSubject.selectiveResolvers,
                 fieldCheckers = { schema ->
                     val field = schema.loweredSchema.requireObjectField("Item", "denied")
                     mapOf(
@@ -208,7 +204,6 @@ interface FragmentFreeFieldCheckerEnforcementContract {
                         @resolver(of: "denied", result: "sum(denied)")
                     }
                     """.trimIndent(),
-                selectiveResolvers = coroutineResolverSubject.selectiveResolvers,
                 fieldCheckers = { schema ->
                     val field = schema.loweredSchema.requireObjectField("Item", "denied")
                     mapOf(
@@ -233,7 +228,6 @@ interface FragmentFreeFieldCheckerEnforcementContract {
         val checkerDenial = EnforcementCheckerError("checker denial")
         val testWorld =
             TestWorld.fromSDL(
-                selectiveResolvers = coroutineResolverSubject.selectiveResolvers,
                 schemaSDL =
                     """
                     type Query {
@@ -282,7 +276,6 @@ interface FragmentFreeFieldCheckerEnforcementContract {
         val denial = EnforcementCheckerError("denied")
         val testWorld =
             TestWorld.fromSDL(
-                selectiveResolvers = coroutineResolverSubject.selectiveResolvers,
                 schemaSDL =
                     """
                     type Query {
@@ -364,7 +357,6 @@ interface FragmentFreeFieldCheckerEnforcementContract {
                       consumer: Int! @resolver(of: "dependency", result: "sum(dependency)")
                     }
                     """.trimIndent(),
-                selectiveResolvers = coroutineResolverSubject.selectiveResolvers,
                 fieldCheckers = { schema ->
                     val field = schema.loweredSchema.requireObjectField("Item", "dependency")
                     mapOf(
@@ -388,7 +380,6 @@ interface FragmentFreeFieldCheckerEnforcementContract {
         val denial = EnforcementCheckerError("query dependency denied")
         val testWorld =
             TestWorld.fromSDL(
-                selectiveResolvers = coroutineResolverSubject.selectiveResolvers,
                 schemaSDL =
                     """
                     type Query {
@@ -438,7 +429,6 @@ interface FragmentFreeFieldCheckerEnforcementContract {
         val denial = EnforcementCheckerError("query dependency denied")
         val testWorld =
             TestWorld.fromSDL(
-                selectiveResolvers = coroutineResolverSubject.selectiveResolvers,
                 schemaSDL =
                     """
                     type Query {

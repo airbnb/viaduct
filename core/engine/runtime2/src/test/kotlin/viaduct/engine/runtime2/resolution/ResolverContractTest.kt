@@ -74,7 +74,7 @@ open class ResolverContractTest :
         selections: SelectionForest,
     ): ObjectEngineResult =
         SharedOperationContext.create(
-            Assumptions.of(operation.world.schema, operation.world.resolverRegistry, operation.world.selectiveResolvers, precomputedConstructionDemand),
+            Assumptions.of(operation.world.schema, operation.world.resolverRegistry, precomputedConstructionDemand),
             variableBindings = operation.variableBindings,
             resolutionObserver = operation.resolutionObserver,
             engineExecutionContext = operation.engineExecutionContext,

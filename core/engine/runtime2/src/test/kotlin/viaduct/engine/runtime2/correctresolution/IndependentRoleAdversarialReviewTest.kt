@@ -132,7 +132,6 @@ class IndependentRoleAdversarialReviewTest {
                     input = input,
                     queryValue = queryValue,
                     arguments = arguments,
-                    selectiveResolvers = false,
                     executionContext = ResolutionExecutionContext.Unsupported,
                 )
             }
@@ -162,7 +161,6 @@ class IndependentRoleAdversarialReviewTest {
         references: Boolean
     ): TestWorld =
         TestWorld.fromSDL(
-            selectiveResolvers = false,
             schemaSDL = "type Query { left: Int! right: Int! target: Int! source: Int! }",
             fieldResolvers = { schema ->
                 val empty = schema.loweredSchema.emptyFragmentOf("Query")

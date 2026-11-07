@@ -17,7 +17,7 @@ class ResolverBenchmarkFixture(private val corpus: ResolverBenchmarkCorpus) {
         corpus.registry.world(
             schemaSDL = schemaSDL,
             precomputedResolverOutputs = outputs,
-            additionalFieldResolvers = { schema -> checkers.fieldResolvers(schema) + ResolverBenchmarkFeaturePartition.fieldResolvers(schema) },
+            additionalFieldResolvers = { schema -> checkers.fieldResolvers(schema) + ResolverBenchmarkFeaturePartition.fieldResolvers(schema, selectiveResolvers = true) },
             additionalVariableProviders = ResolverBenchmarkFeaturePartition::variableProviders,
             fieldCheckerFactory = { schema -> checkers.fieldCheckers(schema) + ResolverBenchmarkFeaturePartition.fieldCheckers(schema) },
             typeCheckerFactory = { schema -> checkers.typeCheckers(schema) + ResolverBenchmarkFeaturePartition.typeCheckers(schema) },

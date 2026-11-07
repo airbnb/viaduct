@@ -80,7 +80,6 @@ private fun guardedCheckerWorld(depth: Int): TestWorld {
             "type Query { audit: Int " +
                 (0..depth).joinToString(" ") { "field$it: Int" } +
                 " }",
-        selectiveResolvers = true,
         fieldResolvers = { schema ->
             (0..depth).associate { index ->
                 val field = schema.loweredSchema.requireObjectField("Query", "field$index")

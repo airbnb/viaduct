@@ -14,7 +14,6 @@ interface FrozenObjectResolutionContract : ResolverContract {
     @Test
     fun `seals active and passive object occurrences including list elements`() {
         val fixture = TestWorld.fromDSL(
-            selectiveResolvers = selectiveResolvers,
             schemaSDL = """
                 extend type Query {
                   root: Root! @resolver(result: {passive: {value: 1}, items: [[{}]]})

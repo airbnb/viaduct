@@ -20,7 +20,6 @@ import viaduct.engine.runtime2.model.isParentField
 import viaduct.engine.runtime2.model.merge
 import viaduct.engine.runtime2.model.outputType
 import viaduct.engine.runtime2.model.outputValue
-import viaduct.engine.runtime2.model.requireField
 import viaduct.engine.runtime2.model.rootFieldReferenceDataOrNull
 import viaduct.engine.runtime2.model.schemaType
 import viaduct.engine.runtime2.model.selectionForestOf
@@ -120,6 +119,12 @@ abstract class SharedPassiveValueResolutionLogic<
         constructionDemand: Demand<SelectionForest>,
     ): Boolean = false
 
+    protected open fun passiveFieldKeys(
+        source: EngineObjectData.Sync,
+        field: ViaductSchema.ObjectField,
+        demandedKeys: List<ObjectEngineResult.ObjectKey>?,
+    ): List<ObjectEngineResult.ObjectKey> = demandedKeys.orEmpty()
+
     /**
      * Passively resolves [value] at [path], preserving nulls, errors, and list positions. Each object
      * gets an OER and an orchestration lifecycle; lists retain [parent] as their containing object.
@@ -127,7 +132,7 @@ abstract class SharedPassiveValueResolutionLogic<
      * [resolveListReference]. The returned result may still have pending active fields.
      *
      * [constructionDemand] is the demand to close for returned objects. [invocationDemand] is the
-     * demand supplied to the producer and is used to validate selective output.
+     * demand supplied to the producer and contributes to passive consumption.
      */
     fun resolvePassiveValues(
         value: ResolverOutputData?,
@@ -237,7 +242,7 @@ abstract class SharedPassiveValueResolutionLogic<
 
     /**
      * Passively resolves source-supplied argumentless fields into [orchestration] without creating or
-     * dispatching an orchestration task. Validates selective output against [invocationDemand] and
+     * dispatching an orchestration task. Ignores fields outside effective demand and
      * propagates the OER's closed demand to descendants. Parent fields are provided structurally,
      * and direct references belong to active resolution. Reference-bearing lists are omitted when
      * undemanded or deferred by [deferReferenceList].
@@ -254,18 +259,11 @@ abstract class SharedPassiveValueResolutionLogic<
         val invocationByKey = collect(invocationDemand, type).byKey()
         val passiveByKey = collect(invocationDemand + closedConstructionDemand.values, type).byKey()
         val passiveKeysByField = passiveByKey.keys.groupBy { it.field }
-        val sourceFields = source.getSelections().map { type.requireField(it) }.filterNot { it.isParentField() }
-        if (operation.world.selectiveResolvers) {
-            val selectedNames = invocationByKey.keys.mapTo(linkedSetOf()) { it.field.name }
-            val unselectedFields =
-                sourceFields.mapTo(linkedSetOf()) { it.name } - selectedNames
-            require(unselectedFields.isEmpty()) {
-                "Selective resolver output ${type.name} contains unselected fields: " +
-                    unselectedFields.joinToString()
-            }
-        }
+        val sourceFields = source.getSelections().mapNotNull { type.field(it) }.filterNot { it.isParentField() }
         sourceFields.forEach { field ->
             val fieldName = field.name
+            val demandedKeys = passiveFieldKeys(source, field, passiveKeysByField[field])
+            if (demandedKeys.isEmpty()) return@forEach
             require(field.args.isEmpty()) {
                 "Resolver output must not supply argument-bearing field ${type.name}/$fieldName"
             }
@@ -273,8 +271,6 @@ abstract class SharedPassiveValueResolutionLogic<
             // Direct references are classified as executable work by object orchestration.
             if (value.rootFieldReferenceDataOrNull() != null) return@forEach
             val containsReference = value.containsListElementRootFieldReference()
-            val demandedKeys = passiveKeysByField[field]
-                ?: if (containsReference) return@forEach else listOf(ObjectEngineResult.GroundKey.of(field, emptyMap()))
             for (key in demandedKeys) {
                 check(key is ObjectEngineResult.GroundKey) {
                     "Passive returned field has an open key: $key"

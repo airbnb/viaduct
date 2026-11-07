@@ -42,13 +42,59 @@ import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.emptyFragmentOf
 import viaduct.engine.runtime2.model.testing.fragmentFrom
 import viaduct.engine.runtime2.model.testing.fromSDL
+import viaduct.engine.runtime2.model.testing.generatedFieldResolverOf
 import viaduct.engine.runtime2.model.testing.nodeReferenceOf
 import viaduct.engine.runtime2.model.testing.objectOf
+import viaduct.engine.runtime2.model.testing.snipToDemand
 import viaduct.engine.runtime2.model.testing.testRoot
+import viaduct.engine.runtime2.model.testing.withGeneratedOutputPolicy
 import viaduct.engine.runtime2.schema.ViaductAndGJSchema
 import viaduct.graphql.schema.ViaductSchema
 
 class ResolverRegistryTest {
+    @Test
+    fun `generated node projection preserves authoritative id context and nonselective invocation`() =
+        runBlocking {
+            val retained = Any()
+            var calls = 0
+            for (selective in listOf(true, false, true)) {
+                val fixture = TestWorld.fromSDL(
+                    schemaSDL = "interface Node { id: ID! } type User implements Node { id: ID! name: String extra: String } type Query { user: User }",
+                    fieldResolvers = { emptyMap() },
+                    nodeResolvers = { schemas ->
+                        val type = schemas.loweredSchema.requireType("User") as ViaductSchema.Object
+                        mapOf(
+                            type to nodeResolverOf { id ->
+                                calls++
+                                assertEquals("authoritative", id)
+                                engineObjectDataOf(type, mapOf("id" to "wrong", "name" to "Ada", "extra" to "retained"), additionalContextForResolver = retained)
+                            }.withGeneratedOutputPolicy(type, selective)
+                        )
+                    },
+                )
+                val field = fixture.schema.requireObjectField("Query", "node")
+                val reference = fixture.schema.nodeReferenceOf("User", "authoritative")
+                val world = fixture.assumptions
+                val root = world.resolverRegistry.createRootQueryInput()
+                for (selection in listOf("id name", "id")) {
+                    val demand = fixture.schemas.fragmentFrom("fragment Demand on User { $selection }").subselections
+                    val output = assertIs<EngineObjectData.Sync>(
+                        world.resolverRegistry.resolver(field)(
+                            input = root,
+                            arguments = reference.arguments,
+                            selections = demand,
+                            executionContext = ResolutionExecutionContext.Unsupported,
+                        )
+                    )
+                    val expected = selection.split(" ").toSet()
+                    assertEquals(expected, output.getSelections().toSet())
+                    assertEquals("authoritative", output.get("id"))
+                    assertSame(retained, output.additionalContextForResolver)
+                }
+            }
+            assertEquals(6, calls)
+        }
+
     @Test
     fun `projection retains context while publishing only demanded Node and ordinary fields`() {
         val schemas = ViaductAndGJSchema.fromSDL(
@@ -98,91 +144,41 @@ class ResolverRegistryTest {
     }
 
     @Test
-    fun `replacement preserves fragments variables and projection for invocation and relation evaluation`() =
+    fun `generated projection is chosen during construction and retains complete source values`() =
         runBlocking {
-            val schemas = ViaductAndGJSchema.fromSDL("type Query { user: User source: String } type User { name: String age: Int }")
-            val schema = schemas.loweredSchema
-            val query = schema.requireQueryTypeDef()
-            val user = schema.requireType("User") as ViaductSchema.Object
-            val field = schema.requireObjectField("Query", "user")
-            val variable = Arguments.Variable.of(field, "flag")
-            val fragment = schemas.fragmentFrom("fragment Input on Query { source @include(if: ${'$'}flag) }", variableField = field)
-            val projectedDemand = schemas.fragmentFrom("fragment Demand on User { name }").subselections
-            val original = FieldValueResolver.of(
-                field = field,
-                fragmentTemplates = ResolverFragmentTemplates(
-                    fragment.materializeSelections,
-                    fragment.materializeSelections,
-                    mapOf(variable to VariableDefinition.FromProvider),
-                    variablesProvider = { mapOf("flag" to true) },
-                ),
-                queryType = query,
-                function = { _, _, _, _, _ -> error("Original callback must not run") },
-                projectionDemand = { projectedDemand },
-            )
-            var calls = 0
-            val input = engineObjectDataOf(query)
-            val resolverContext = Any()
-            val arguments = Arguments.Resolved.of(field, emptyMap())
-            val demand = schemas.fragmentFrom("fragment Demand on User { age }").subselections
-            val replacement = original.withFunction { actualInput, queryValue, actualArguments, selections, additionalContext, context ->
-                calls++
-                assertSame(input, actualInput)
-                assertSame(input, queryValue)
-                assertSame(arguments, actualArguments)
-                assertSame(demand, selections)
-                assertSame(resolverContext, additionalContext)
-                assertSame(ResolutionExecutionContext.Unsupported, context)
-                engineObjectDataOf(user, mapOf("name" to "replacement", "age" to 37))
-            }
+            for (selective in listOf(true, false)) {
+                lateinit var complete: EngineObjectData.Sync
+                val fixture = TestWorld.fromSDL(
+                    "type Query { items: [Item] } type Item { name: String extra: String children: [Item] }",
+                    fieldResolvers = { schemas ->
+                        val type = schemas.loweredSchema.requireType("Item") as ViaductSchema.Object
+                        val child = engineObjectDataOf(type, mapOf("name" to "child", "extra" to "retained"))
+                        complete = engineObjectDataOf(type, mapOf("name" to "parent", "extra" to "retained", "children" to listOf(child, null)))
+                        val field = schemas.loweredSchema.requireObjectField("Query", "items")
+                        val empty = schemas.loweredSchema.emptyFragmentOf("Query")
+                        mapOf(field to generatedFieldResolverOf(field, empty, empty, selective) { _, _, _ -> listOf(complete, null) })
+                    },
+                )
+                val world = fixture.assumptions
+                val field = world.schema.requireObjectField("Query", "items")
+                val root = world.resolverRegistry.createRootQueryInput()
+                val demand = fixture.schemas.fragmentFrom("fragment Demand on Item { name children { name } }").subselections
 
-            assertSame(field, replacement.field)
-            assertSame(original.target, replacement.target)
-            assertSame(original.variables, replacement.variables)
-            assertSame(original.variablesProvider, replacement.variablesProvider)
-            assertEquals(original.objectFragment.keys(), replacement.objectFragment.keys())
-            assertEquals(original.queryFragment.keys(), replacement.queryFragment.keys())
-            val occurrence = ResolverOccurrenceId.at(schema.testRoot(), listOf(ObjectEngineResult.GroundKey.of(field, emptyMap())))
-            for (resolver in listOf(original, replacement)) {
-                assertEquals(setOf(variable.instantiate(occurrence)), resolver.instantiateObjectMaterializationSelections(occurrence).usedVariables())
-                assertEquals(setOf(variable.instantiate(occurrence)), resolver.instantiateQueryMaterializationSelections(occurrence).usedVariables())
-            }
-            val invoked = replacement(input, input, arguments, demand, true, ResolutionExecutionContext.Unsupported, resolverContext)
-            val evaluated = replacement.evaluateRelation(input, input, arguments, demand, true, ResolutionExecutionContext.Unsupported, resolverContext)
-            for (output in listOf(invoked, evaluated)) {
-                val result = assertIs<EngineObjectData.Sync>(output)
-                assertEquals(setOf("name"), result.getSelections().toSet())
-                assertEquals("replacement", result.get("name"))
-            }
-            val unprojected = assertIs<EngineObjectData.Sync>(replacement(input, input, arguments, demand, false, ResolutionExecutionContext.Unsupported, resolverContext))
-            assertEquals(setOf("name", "age"), unprojected.getSelections().toSet())
-            assertEquals(3, calls)
-        }
+                suspend fun invoke(world: Assumptions) =
+                    assertIs<List<*>>(
+                        world.resolverRegistry.resolver(field)(root, root, Arguments.Resolved.of(field, emptyMap()), demand, ResolutionExecutionContext.Unsupported),
+                    )
 
-    @Test
-    fun `replacement preserves selective output behavior`() =
-        runBlocking {
-            val schemas = ViaductAndGJSchema.fromSDL("type Query { user: User } type User { name: String age: Int }")
-            val schema = schemas.loweredSchema
-            val query = schema.requireQueryTypeDef()
-            val field = schema.requireObjectField("Query", "user")
-            val original = FieldValueResolver.ofSelective(
-                field,
-                ResolverFragmentTemplates(materializeSelectionForestOf(), materializeSelectionForestOf()),
-                query,
-            ) { _, _, _, _, _, _ -> error("Original callback must not run") }
-            val value = engineObjectDataOf(schema.requireType("User") as ViaductSchema.Object, mapOf("name" to "Ada", "age" to 37))
-            val resolverContext = Any()
-            val replacement = original.withFunction { _, _, _, _, additionalContext, _ ->
-                assertSame(resolverContext, additionalContext)
-                value
+                val selected = invoke(world)
+                val item = assertIs<EngineObjectData.Sync>(selected[0])
+                assertEquals(if (selective) setOf("name", "children") else setOf("name", "extra", "children"), item.getSelections().toSet())
+                assertEquals("parent", item.get("name"))
+                val children = assertIs<List<*>>(item.outputValue("children"))
+                assertEquals(if (selective) setOf("name") else setOf("name", "extra"), assertIs<EngineObjectData.Sync>(children[0]).getSelections().toSet())
+                assertEquals(null, children[1])
+                assertEquals(null, selected[1])
+                assertEquals("retained", complete.get("extra"))
             }
-            val input = engineObjectDataOf(query)
-            val arguments = Arguments.Resolved.of(field, emptyMap())
-            val demand = schemas.fragmentFrom("fragment Demand on User { name }").subselections
-
-            assertSame(value, replacement(input, input, arguments, demand, true, ResolutionExecutionContext.Unsupported, resolverContext))
-            assertSame(value, replacement.evaluateRelation(input, input, arguments, demand, true, ResolutionExecutionContext.Unsupported, resolverContext))
         }
 
     @Test
@@ -328,7 +324,6 @@ class ResolverRegistryTest {
                     input = engineObjectDataOf(query),
                     arguments = Arguments.Resolved.of(userField, emptyMap()),
                     selections = demand,
-                    selectiveResolvers = world.assumptions.selectiveResolvers,
                     executionContext = ResolutionExecutionContext.Unsupported,
                     additionalContextForResolver = retainedContext,
                 )
@@ -340,7 +335,7 @@ class ResolverRegistryTest {
         }
 
     @Test
-    fun `nonselective field resolver factory projects output in selective worlds`() =
+    fun `nonselective field resolver factory preserves complete output`() =
         runBlocking {
             val world =
                 TestWorld.fromSDL(
@@ -387,17 +382,16 @@ class ResolverRegistryTest {
                         schema.fragmentFrom(
                             "fragment ignored on User { name }",
                         ).subselections,
-                    selectiveResolvers = world.assumptions.selectiveResolvers,
                     executionContext = ResolutionExecutionContext.Unsupported,
                     additionalContextForResolver = retainedContext,
                 )
 
             assertSame(retainedContext, observedAdditionalContext)
-            assertEquals(setOf("name"), assertIs<EngineObjectData.Sync>(output).getSelections().toSet())
+            assertEquals(setOf("name", "age"), assertIs<EngineObjectData.Sync>(output).getSelections().toSet())
         }
 
     @Test
-    fun `selection-aware nonselective resolver receives demand and projects output`() =
+    fun `selection-aware nonselective resolver receives demand and preserves complete output`() =
         runBlocking {
             val world =
                 TestWorld.fromSDL(
@@ -447,14 +441,13 @@ class ResolverRegistryTest {
                     input = engineObjectDataOf(query),
                     arguments = Arguments.Resolved.of(userField, emptyMap()),
                     selections = demand,
-                    selectiveResolvers = world.assumptions.selectiveResolvers,
                     executionContext = ResolutionExecutionContext.Unsupported,
                     additionalContextForResolver = retainedContext,
                 )
 
             assertSame(demand, observedDemand)
             assertSame(retainedContext, observedAdditionalContext)
-            assertEquals(setOf("name"), assertIs<EngineObjectData.Sync>(output).getSelections().toSet())
+            assertEquals(setOf("name", "age"), assertIs<EngineObjectData.Sync>(output).getSelections().toSet())
         }
 
     @Test
@@ -486,20 +479,21 @@ class ResolverRegistryTest {
                 ),
             ).resolver(field)
             val wrapped = original.withFunction { input, queryValue, arguments, demand, additionalContext, context ->
-                original.invoke(input, queryValue, arguments, demand, true, context, "wrapped $additionalContext")
+                original.invoke(input, queryValue, arguments, demand, context, "wrapped $additionalContext")
             }
             val input = engineObjectDataOf(query)
             val arguments = Arguments.Resolved.of(field, emptyMap())
             val demand = schemas.fragmentFrom("fragment Demand on User { name }").subselections
 
-            val invoked = wrapped.invoke(input, input, arguments, demand, true, ResolutionExecutionContext.Unsupported, "Ada")
-            val evaluated = wrapped.evaluateRelation(input, input, arguments, demand, true, ResolutionExecutionContext.Unsupported, "Ada")
-            val defaultContext = wrapped.invoke(input, input, arguments, demand, true, ResolutionExecutionContext.Unsupported)
+            val invoked = wrapped.invoke(input, input, arguments, demand, ResolutionExecutionContext.Unsupported, "Ada")
+            val evaluated = wrapped.evaluateRelation(input, input, arguments, demand, ResolutionExecutionContext.Unsupported, "Ada")
+            val defaultContext = wrapped.invoke(input, input, arguments, demand, ResolutionExecutionContext.Unsupported)
 
             for (output in listOf(invoked, evaluated)) {
                 val user = assertIs<EngineObjectData.Sync>(output)
-                assertEquals(setOf("name"), user.getSelections().toSet())
+                assertEquals(setOf("name", "age"), user.getSelections().toSet())
                 assertEquals("wrapped Ada", user.get("name"))
+                assertEquals(37, user.get("age"))
             }
             assertEquals("wrapped null", assertIs<EngineObjectData.Sync>(defaultContext).get("name"))
         }
@@ -565,7 +559,6 @@ class ResolverRegistryTest {
                     .resolver(userField)(
                     input = query,
                     arguments = Arguments.Resolved.of(userField, emptyMap()),
-                    selectiveResolvers = false,
                     executionContext = ResolutionExecutionContext.Unsupported,
                 )
             val nodeReference = assertIs<RootFieldReferenceData>(reference)
@@ -585,7 +578,6 @@ class ResolverRegistryTest {
                             }
                                 """.trimIndent(),
                             ).subselections,
-                        selectiveResolvers = assumptions.selectiveResolvers,
                         executionContext = ResolutionExecutionContext.Unsupported,
                     ),
                 )
@@ -657,7 +649,6 @@ class ResolverRegistryTest {
                     input = engineObjectDataOf(query),
                     queryValue = queryValue,
                     arguments = Arguments.Resolved.of(consumer, emptyMap()),
-                    selectiveResolvers = world.assumptions.selectiveResolvers,
                     executionContext = ResolutionExecutionContext.Unsupported,
                 )
 
@@ -812,7 +803,6 @@ class ResolverRegistryTest {
                         input = parent,
                         arguments = Arguments.Resolved.of(field, emptyMap()),
                         selections = selectionForestOf(),
-                        selectiveResolvers = world.assumptions.selectiveResolvers,
                         executionContext = ResolutionExecutionContext.Unsupported,
                     )
                 }
@@ -994,7 +984,6 @@ class ResolverRegistryTest {
                 return registry.resolver(field)(
                     input = query,
                     arguments = Arguments.Resolved.of(field, emptyMap()),
-                    selectiveResolvers = false,
                     executionContext = ResolutionExecutionContext.Unsupported,
                 )
             }
@@ -1285,7 +1274,6 @@ class ResolverRegistryTest {
                     resolver(
                         input = world.schema.objectOf("Query"),
                         arguments = Arguments.Resolved.of(itemField, emptyMap()),
-                        selectiveResolvers = world.selectiveResolvers,
                         executionContext = ResolutionExecutionContext.Unsupported,
                     )
                 }

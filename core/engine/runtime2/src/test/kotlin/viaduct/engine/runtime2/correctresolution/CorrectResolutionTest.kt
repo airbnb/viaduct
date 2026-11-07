@@ -237,7 +237,6 @@ class CorrectResolutionTest : ResolutionDispatcherResource {
                 queryValue = engineObjectDataOf(world.schema.requireQueryTypeDef()),
                 arguments = Arguments.Resolved.of(field, emptyMap()),
                 selections = selectionForestOf(),
-                selectiveResolvers = world.selectiveResolvers,
                 executionContext = ResolutionExecutionContext.Unsupported,
             )
             assertEquals(1, events.size)
@@ -832,7 +831,6 @@ class CorrectResolutionTest : ResolutionDispatcherResource {
     fun `resolver fromArgument binding must agree with its owning arguments`() {
         val worldFixture =
             TestWorld.fromDSL(
-                selectiveResolvers = true,
                 schemaSDL =
                     """
                     extend type Query {

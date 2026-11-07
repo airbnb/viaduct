@@ -172,7 +172,7 @@ class GeneratedTypeCheckerCoverageTest {
         )
         val fragment = world.schemas.fragmentFrom("fragment Test on Query { item { value } }")
         val recorder = CheckerApplicationRecorder()
-        val subject = ResolverGeneratedTest().observeResolution(world.newAssumptions(selectiveResolvers = true), world.schema.objectOf("Query"), fragment.subselections, resolutionObserver = recorder)
+        val subject = ResolverGeneratedTest().observeResolution(world.newAssumptions(), world.schema.objectOf("Query"), fragment.subselections, resolutionObserver = recorder)
         return GeneratedResolutionObservation(subject.operation, fragment, subject, recorder.checkerApplications())
     }
 

@@ -13,6 +13,7 @@ import viaduct.engine.runtime2.resolution.framework.OEROccurrence
 import viaduct.engine.runtime2.resolution.framework.ResolutionTask
 import viaduct.engine.runtime2.resolution.framework.SharedPassiveValueResolutionLogic
 import viaduct.engine.runtime2.resolvers.applicableGroundSelections
+import viaduct.engine.runtime2.resolvers.referencePassiveFieldKeys
 import viaduct.graphql.schema.ViaductSchema
 
 /** Grounded selection collection and field-task dispatch around the common passive traversal. */
@@ -31,6 +32,12 @@ class CoroutinePassiveValueResolutionLogic(operation: CoroutineOperationContext)
     ): ObjectEngineResult = CoroutineOrchestrationTask.createObjectResult(operation, type, constructionDemand)
 
     override fun closedConstructionDemand(orchestration: CoroutineOrchestrationTask): Demand<ObjectSelectionForest> = orchestration.closedConstructionDemand.objectRooted
+
+    override fun passiveFieldKeys(
+        source: EngineObjectData.Sync,
+        field: ViaductSchema.ObjectField,
+        demandedKeys: List<ObjectEngineResult.ObjectKey>?,
+    ): List<ObjectEngineResult.ObjectKey> = referencePassiveFieldKeys(source, field, demandedKeys, operation.selectiveResolvers)
 
     override fun collect(
         selections: SelectionForest,

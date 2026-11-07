@@ -41,7 +41,6 @@ import viaduct.engine.runtime2.model.registry.ResolverFragmentTemplates
 import viaduct.engine.runtime2.model.registry.TypeCheckerResolver
 import viaduct.engine.runtime2.model.registry.VariableDeclaration
 import viaduct.engine.runtime2.model.registry.VariableDefinition
-import viaduct.engine.runtime2.model.registry.fieldResolverOf
 import viaduct.engine.runtime2.model.registry.fromArgument
 import viaduct.engine.runtime2.model.registry.nodeResolverOf
 import viaduct.engine.runtime2.model.registry.selectionAwareNodeResolverOf
@@ -50,8 +49,10 @@ import viaduct.engine.runtime2.model.requireType
 import viaduct.engine.runtime2.model.selectionForestOf
 import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.fragmentFrom
+import viaduct.engine.runtime2.model.testing.generatedFieldResolverOf
 import viaduct.engine.runtime2.model.testing.objectOf
 import viaduct.engine.runtime2.model.testing.withErrorArguments
+import viaduct.engine.runtime2.model.testing.withGeneratedOutputPolicy
 import viaduct.engine.runtime2.model.toMaterializeSelectionForest
 import viaduct.engine.runtime2.model.usedVariables
 import viaduct.engine.runtime2.resolution.framework.ResolverInvocationObservation
@@ -462,6 +463,7 @@ class ArbitraryRegistry internal constructor(
         fieldCheckerMode: GeneratedFieldCheckerMode = GeneratedFieldCheckerMode.NONE,
         typeCheckerMode: GeneratedTypeCheckerMode = GeneratedTypeCheckerMode.NONE,
         precomputedResolverOutputs: PrecomputedResolverOutputs? = null,
+        selectiveResolvers: Boolean = true,
     ): TestWorld =
         world(
             schemaSDL = schema.sdl,
@@ -470,6 +472,7 @@ class ArbitraryRegistry internal constructor(
             fieldCheckerMode = fieldCheckerMode,
             typeCheckerMode = typeCheckerMode,
             precomputedResolverOutputs = precomputedResolverOutputs,
+            selectiveResolvers = selectiveResolvers,
         )
 
     fun world(
@@ -479,6 +482,7 @@ class ArbitraryRegistry internal constructor(
         fieldCheckerMode: GeneratedFieldCheckerMode = GeneratedFieldCheckerMode.NONE,
         typeCheckerMode: GeneratedTypeCheckerMode = GeneratedTypeCheckerMode.NONE,
         precomputedResolverOutputs: PrecomputedResolverOutputs? = null,
+        selectiveResolvers: Boolean = true,
         additionalFieldResolvers: (ViaductAndGJSchema) -> Map<ViaductSchema.Field, FieldResolverDefinition> = { emptyMap() },
         additionalVariableProviders: (ViaductAndGJSchema) -> Map<Arguments.Variable, VariableDeclaration> = { emptyMap() },
         fieldCheckerFactory: ((ViaductAndGJSchema) -> Map<ViaductSchema.ObjectField, FieldCheckerResolver>)? = null,
@@ -508,15 +512,15 @@ class ArbitraryRegistry internal constructor(
                         val materialize =
                             precomputedResolverOutputs?.nodeResolver(typeName, materializePlan)
                                 ?: materializePlan
-                        type to
-                            if (selectiveNodeResolvers) {
-                                selectionAwareNodeResolverOf { id, demand ->
-                                    selectiveNodeApplicationLog.record(SelectiveNodeResolverApplicationRecord(typeName, id, demand.resolutionDigest()))
-                                    materialize(id)
-                                }
-                            } else {
-                                nodeResolverOf(materialize)
+                        val resolver = if (selectiveNodeResolvers) {
+                            selectionAwareNodeResolverOf { id, demand ->
+                                selectiveNodeApplicationLog.record(SelectiveNodeResolverApplicationRecord(typeName, id, demand.resolutionDigest()))
+                                materialize(id)
                             }
+                        } else {
+                            nodeResolverOf(materialize)
+                        }
+                        type to resolver.withGeneratedOutputPolicy(type, selectiveResolvers)
                     }.toMap()
                 },
                 fieldResolvers = { canonicalSchema ->
@@ -631,7 +635,9 @@ class ArbitraryRegistry internal constructor(
                                 }
                             }
                         val definition =
-                            fieldResolverOf(
+                            generatedFieldResolverOf(
+                                field = field,
+                                selectiveResolvers = selectiveResolvers,
                                 objectFragment = objectFragment,
                                 queryFragment = queryFragment,
                                 function = function,

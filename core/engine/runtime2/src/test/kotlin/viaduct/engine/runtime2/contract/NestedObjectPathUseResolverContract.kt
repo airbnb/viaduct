@@ -11,7 +11,6 @@ interface NestedObjectPathUseResolverContract : ResolverContract {
     fun `waits for a provider value before expanding a nested variable use`() {
         val testWorld =
             TestWorld.fromDSL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     extend type Query {

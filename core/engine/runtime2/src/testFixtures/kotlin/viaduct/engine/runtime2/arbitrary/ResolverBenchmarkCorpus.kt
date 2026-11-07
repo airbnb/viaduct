@@ -24,11 +24,13 @@ class ResolverBenchmarkCorpus private constructor(
     fun world(
         fieldCheckerMode: GeneratedFieldCheckerMode = GeneratedFieldCheckerMode.NONE,
         typeCheckerMode: GeneratedTypeCheckerMode = GeneratedTypeCheckerMode.NONE,
+        selectiveResolvers: Boolean = true,
     ): TestWorld =
         registry.world(
             schemaSDL = schemaSDL,
             fieldCheckerMode = fieldCheckerMode,
             typeCheckerMode = typeCheckerMode,
+            selectiveResolvers = selectiveResolvers,
         )
 
     fun generateQueries(

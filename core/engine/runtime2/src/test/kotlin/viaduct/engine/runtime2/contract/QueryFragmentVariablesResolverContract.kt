@@ -74,7 +74,6 @@ interface QueryFragmentVariablesResolverContract : ResolverContract {
         directive: String,
     ): TestWorld {
         return TestWorld.fromSDL(
-            selectiveResolvers = selectiveResolvers,
             schemaSDL = "type Query { consumer(flag: Boolean!): Int middle: Int base: Int }",
             fieldResolvers = { schemas ->
                 val schema = schemas.loweredSchema
@@ -110,7 +109,6 @@ interface QueryFragmentVariablesResolverContract : ResolverContract {
     @Test
     fun `nested Query conditions preserve static siblings and complementary selections`() {
         val fixture = TestWorld.fromSDL(
-            selectiveResolvers = selectiveResolvers,
             schemaSDL = "type Query { consumer(flag: Boolean!): Int stable: Int branch: Branch } type Branch { fixed: Int included: Int skipped: Int }",
             fieldResolvers = { schemas ->
                 val schema = schemas.loweredSchema
@@ -153,7 +151,6 @@ interface QueryFragmentVariablesResolverContract : ResolverContract {
     @Test
     fun `overlapping Query conditions retain each alias and its transitive input`() {
         val fixture = TestWorld.fromSDL(
-            selectiveResolvers = selectiveResolvers,
             schemaSDL = "type Query { consumer(left: Boolean!, right: Boolean!): Int stable: Int middle: Int base: Int }",
             fieldResolvers = { schemas ->
                 val schema = schemas.loweredSchema
@@ -203,7 +200,6 @@ interface QueryFragmentVariablesResolverContract : ResolverContract {
     fun `failed Query condition bindings retain static inputs and isolate the owning field`() {
         val staticInputs = AtomicInteger()
         val fixture = TestWorld.fromSDL(
-            selectiveResolvers = selectiveResolvers,
             schemaSDL = "type Query { consumer: Int stable: Int conditional: Int independent: Int }",
             fieldResolvers = { schemas ->
                 val schema = schemas.loweredSchema
@@ -233,7 +229,6 @@ interface QueryFragmentVariablesResolverContract : ResolverContract {
     @Test
     fun `Query materialization retains a conditional alias when construction demand is unconditional`() {
         val fixture = TestWorld.fromSDL(
-            selectiveResolvers = selectiveResolvers,
             schemaSDL = "type Query { consumer(flag: Boolean!): Int echo: Int }",
             fieldResolvers = { schemas ->
                 val schema = schemas.loweredSchema
@@ -275,7 +270,6 @@ interface QueryFragmentVariablesResolverContract : ResolverContract {
     fun `Query inputs combine argument and provider variables in one occurrence`() {
         val fixture =
             TestWorld.fromSDL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL = "type Query { consumer(seed: Int!): Int, echo(value: Int): Int }",
                 fieldResolvers = { schemas ->
                     val schema = schemas.loweredSchema
@@ -324,7 +318,6 @@ interface QueryFragmentVariablesResolverContract : ResolverContract {
     @Test
     fun `Query provider values may be null`() {
         val fixture = TestWorld.fromDSL(
-            selectiveResolvers = selectiveResolvers,
             schemaSDL = """
                 extend type Query {
                   consumer(seed: Int!): Int
@@ -464,7 +457,6 @@ interface QueryFragmentVariablesResolverContract : ResolverContract {
     fun `passive fields do not invoke their standard resolver provider`() {
         val fixture =
             TestWorld.fromDSL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     extend type Query {
@@ -493,7 +485,6 @@ interface QueryFragmentVariablesResolverContract : ResolverContract {
         val providerCalls = AtomicInteger()
         val fixture =
             TestWorld.fromSDL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL = "type Query { items: [Item!]!, echo(value: Int): Int } type Item { computed(seed: Int!): Int }",
                 fieldResolvers = { schemas ->
                     val schema = schemas.loweredSchema
@@ -530,7 +521,6 @@ interface QueryFragmentVariablesResolverContract : ResolverContract {
 
     private fun queryVariablesWorld(provider: VariablesProviderFunction? = null): TestWorld =
         TestWorld.fromSDL(
-            selectiveResolvers = selectiveResolvers,
             schemaSDL = "type Query { consumer(seed: Int!): Int, middle(value: Int): Int, echo(value: Int): Int, reference(seed: Int!): Int }",
             fieldResolvers = { schemas ->
                 val schema = schemas.loweredSchema

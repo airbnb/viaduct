@@ -63,7 +63,6 @@ interface SelectiveTypeCheckerExactnessContract {
         val producerDemand = AtomicReference<SelectionForest>()
         val worldFixture =
             TestWorld.fromSDL(
-                selectiveResolvers = true,
                 schemaSDL =
                     """
                     type Query {

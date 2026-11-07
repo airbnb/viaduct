@@ -60,7 +60,6 @@ interface GroundedTypeCheckerFragmentContract {
               required: Int @resolver(result: 9)
             }
             """.trimIndent(),
-            selectiveResolvers = coroutineResolverSubject.selectiveResolvers,
             typeCheckers = { schemas ->
                 val type = schemas.loweredSchema.requireType("Item") as ViaductSchema.Object
                 mapOf(
@@ -125,7 +124,6 @@ interface GroundedTypeCheckerFragmentContract {
                       parent: Root! @parent
                     }
                         """.trimIndent(),
-                    selectiveResolvers = coroutineResolverSubject.selectiveResolvers,
                     fieldCheckers = { schema ->
                         val checked = schema.loweredSchema.requireObjectField("Query", "checked")
                         val rawRoot =
@@ -184,7 +182,6 @@ interface GroundedTypeCheckerFragmentContract {
             type Wrapper { token: Int! child: Child! }
             type Child { parent: Wrapper! @parent }
                 """.trimIndent(),
-                selectiveResolvers = coroutineResolverSubject.selectiveResolvers,
                 fieldResolvers = { schema ->
                     mapOf(
                         schema.loweredSchema.requireObjectField("Query", "consume") to fieldResolverOf(
@@ -242,7 +239,6 @@ interface GroundedTypeCheckerFragmentContract {
         val queryCheckerCalls = AtomicInteger()
         val worldFixture =
             TestWorld.fromSDL(
-                selectiveResolvers = coroutineResolverSubject.selectiveResolvers,
                 schemaSDL =
                     """
                     type Query {
@@ -464,7 +460,6 @@ interface GroundedTypeCheckerFragmentContract {
             }
         val worldFixture =
             TestWorld.fromSDL(
-                selectiveResolvers = coroutineResolverSubject.selectiveResolvers,
                 schemaSDL =
                     """
                     type Query { item: Item!, queryDependency: Int! }

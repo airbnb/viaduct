@@ -25,8 +25,10 @@ import viaduct.engine.runtime2.model.conformsToResolverOutputSchemaType
 import viaduct.engine.runtime2.model.engineObjectDataOf
 import viaduct.engine.runtime2.model.outputType
 import viaduct.engine.runtime2.model.registry.Assumptions
+import viaduct.engine.runtime2.model.registry.EmptyResolverInputCacheOwner
 import viaduct.engine.runtime2.model.registry.ProviderFragment
 import viaduct.engine.runtime2.model.registry.ResolutionExecutionContext
+import viaduct.engine.runtime2.model.registry.ResolverRegistry
 import viaduct.engine.runtime2.model.registry.VariableDefinition
 import viaduct.engine.runtime2.model.requireField
 import viaduct.engine.runtime2.model.requireObjectField
@@ -35,10 +37,29 @@ import viaduct.engine.runtime2.model.requireType
 import viaduct.engine.runtime2.model.schemaType
 import viaduct.engine.runtime2.model.testing.fragmentFrom
 import viaduct.engine.runtime2.model.testing.objectOf
+import viaduct.engine.runtime2.resolution.FixedSuccessorDemandCacheOwner
 import viaduct.engine.runtime2.resolvers.resolver06.resolve as resolveObservedField
 import viaduct.graphql.schema.ViaductSchema
 
 class GeneratorTest {
+    @Test
+    fun `generated worlds share one prepared registry across assumptions`() {
+        val random = RandomSource.seeded(1L)
+        val schema = Arb.schema(Config.default).next(random)
+        val registry = schema.registry(Config.default).next(random)
+        for (selective in listOf(false, true)) {
+            val fixture = registry.world(schema, selectiveResolvers = selective)
+            val first = fixture.assumptions
+            val second = fixture.newAssumptions()
+            assertIs<FixedSuccessorDemandCacheOwner>(first.resolverRegistry)
+            assertIs<EmptyResolverInputCacheOwner>(first.resolverRegistry)
+            assertSame(fixture.resolverRegistry, first.resolverRegistry)
+            assertSame(fixture.instance(ResolverRegistry::class.java), first.resolverRegistry)
+            assertSame(first.resolverRegistry, second.resolverRegistry)
+            assertSame(fixture.schema, first.schema)
+        }
+    }
+
     @Test
     fun `explicitly generated declaration errors are rejected during bootstrap`() {
         val config =
@@ -783,6 +804,7 @@ class GeneratorTest {
             val countWorld =
                 registry.world(
                     schema = schema,
+                    selectiveResolvers = false,
                 )
             val field =
                 countWorld.schema.requireObjectField(
@@ -792,7 +814,7 @@ class GeneratorTest {
 
             registry.clearResolutionApplicationCounts()
             val operation = viaduct.engine.runtime2.resolution.framework.SharedOperationContext.create(
-                world = Assumptions.of(countWorld.schema, countWorld.resolverRegistry, false),
+                world = Assumptions.of(countWorld.schema, countWorld.resolverRegistry),
                 resolutionObserver = registry.resolutionObserver(captureResolutionWitness = false),
             )
             val generatedField = schema.query.fields.single { it.name == coordinate.fieldName }
@@ -1054,7 +1076,7 @@ class GeneratorTest {
             repeat(100) {
                 val schema = Arb.schema(config).next(random)
                 val registry = schema.registry(config).next(random)
-                val world = registry.world(schema).assumptions
+                val world = registry.world(schema, selectiveResolvers = false).assumptions
                 registry.fieldResolverCoordinates.forEach { coordinate ->
                     val fieldSpec =
                         schema
@@ -1078,14 +1100,12 @@ class GeneratorTest {
                             input = input,
                             queryValue = engineObjectDataOf(world.schema.requireQueryTypeDef()),
                             arguments = arguments,
-                            selectiveResolvers = false,
                             executionContext = ResolutionExecutionContext.Unsupported,
                         ).outputResolutionFingerprint(),
                         resolver(
                             input = input,
                             queryValue = engineObjectDataOf(world.schema.requireQueryTypeDef()),
                             arguments = arguments,
-                            selectiveResolvers = false,
                             executionContext = ResolutionExecutionContext.Unsupported,
                         ).outputResolutionFingerprint(),
                     )

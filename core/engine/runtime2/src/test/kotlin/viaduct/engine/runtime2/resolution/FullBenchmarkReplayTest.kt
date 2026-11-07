@@ -38,7 +38,7 @@ class FullBenchmarkReplayTest : ResolutionDispatcherResource {
                 fieldCheckerMode = GeneratedFieldCheckerMode.RUNTIME_SUCCESS,
                 typeCheckerMode = GeneratedTypeCheckerMode.RUNTIME_SUCCESS,
             ) { fixture, testCase ->
-                val world = fixture.newAssumptions(selectiveResolvers = true)
+                val world = fixture.newAssumptions()
                 val checkerEvidence = CorrectnessResolverObserver()
                 val resolutionObserver = object : CorrectnessResolverObserver(testCase.registry.resolutionObserver()) {
                     override val onCheckerInvocation = checkerEvidence.onCheckerInvocation

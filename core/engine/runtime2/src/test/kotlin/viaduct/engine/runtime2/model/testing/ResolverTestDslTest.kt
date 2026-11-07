@@ -156,7 +156,6 @@ class ResolverTestDslTest {
     @Test
     fun `scalar object-field provider can supply a nested input-list location`() {
         TestWorld.fromDSL(
-            selectiveResolvers = true,
             schemaSDL =
                 """
                 extend type Query {
@@ -503,7 +502,6 @@ private fun TestWorld.apply(
                     queryValue = queryValue,
                     arguments = grounded,
                     selections = selections,
-                    selectiveResolvers = false,
                     executionContext = ResolutionExecutionContext.Unsupported,
                 )
             }

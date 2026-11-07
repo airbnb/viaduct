@@ -125,7 +125,6 @@ class MutationResolutionTest : ResolutionDispatcherResource {
                             )
                         }
                     },
-                    selectiveResolvers = family.selective,
                 )
                 val selections = fixture.schemas.operationSelectionsFrom(
                     """
@@ -175,7 +174,6 @@ class MutationResolutionTest : ResolutionDispatcherResource {
                             ) { _, queryValue, _ -> queryValue.get("current") },
                         )
                     },
-                    selectiveResolvers = family.selective,
                 )
                 val result = family.resolve(
                     SharedOperationContext.create(fixture.newAssumptions(usePrecomputedConstructionDemand = family.precomputed)),
@@ -244,7 +242,6 @@ class MutationResolutionTest : ResolutionDispatcherResource {
                             },
                         )
                     },
-                    selectiveResolvers = family.selective,
                 )
                 val result = family.resolve(
                     SharedOperationContext.create(fixture.newAssumptions(usePrecomputedConstructionDemand = family.precomputed)),
@@ -290,7 +287,6 @@ class MutationResolutionTest : ResolutionDispatcherResource {
                                 },
                             )
                         },
-                        selectiveResolvers = family.selective,
                     )
                     val result = family.resolve(
                         SharedOperationContext.create(fixture.newAssumptions(usePrecomputedConstructionDemand = family.precomputed)),

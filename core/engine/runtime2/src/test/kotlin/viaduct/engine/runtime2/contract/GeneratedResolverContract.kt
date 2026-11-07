@@ -53,7 +53,7 @@ interface EmptyObjectFragmentGeneratedResolverContract : GeneratedCaseAssertionP
     @Test
     fun `generated empty object fragment worlds resolve correctly`(): Unit =
         runBlocking {
-            checkResolverTestSuite(ResolverTestSuiteDefinition.EMPTY_OBJECT_FRAGMENT) { testWorld, testCase ->
+            checkResolverTestSuite(ResolverTestSuiteDefinition.EMPTY_OBJECT_FRAGMENT, selectiveResolvers = selectiveResolvers) { testWorld, testCase ->
                 assertTrue(testCase.registry.nodeResolverTypes.isEmpty())
                 assertTrue(testCase.registry.objectFragmentSources.values.all(String::isEmpty))
                 assertEquals(0, testCase.registry.features.variableCount)
@@ -74,7 +74,7 @@ interface RootFieldReferenceGeneratedResolverContract : GeneratedCaseAssertionPo
                     assertion === GeneratedCaseAssertions.exactOrdinaryApplicationCounts
                 }
             val run =
-                checkResolverTestSuite(ResolverTestSuiteDefinition.ROOT_FIELD_REFERENCE) { testWorld, testCase ->
+                checkResolverTestSuite(ResolverTestSuiteDefinition.ROOT_FIELD_REFERENCE, selectiveResolvers = selectiveResolvers) { testWorld, testCase ->
                     generatedReferences +=
                         testCase.registry.features.generatedRootFieldReferenceCount
                     val observation =
@@ -112,7 +112,7 @@ interface SometimesPassiveGeneratedResolverContract : GeneratedCaseAssertionPoli
 
             val coverage = SometimesPassiveCoverage()
             val run =
-                checkResolverTestSuite(definition) { testWorld, testCase ->
+                checkResolverTestSuite(definition, selectiveResolvers = selectiveResolvers) { testWorld, testCase ->
                     coverage.generatedFields +=
                         testCase.registry.features.sometimesPassiveFieldCount
                     val observation =
@@ -163,7 +163,7 @@ interface NodeGeneratedResolverContract : GeneratedCaseAssertionPolicy {
 
             val coverage = NodeCoverage()
             val run =
-                checkResolverTestSuite(definition) { testWorld, testCase ->
+                checkResolverTestSuite(definition, selectiveResolvers = selectiveResolvers) { testWorld, testCase ->
                     assertTrue(testCase.registry.objectFragmentSources.values.all(String::isEmpty))
                     assertEquals(0, testCase.registry.features.variableCount)
                     coverage.generatedNodeResolvers += testCase.registry.nodeResolverTypes.size
@@ -228,7 +228,7 @@ interface SelectiveNodeGeneratedResolverContract : GeneratedCaseAssertionPolicy 
 
             val coverage = SelectiveNodeCoverage()
             val run =
-                checkResolverTestSuite(definition) { testWorld, testCase ->
+                checkResolverTestSuite(definition, selectiveResolvers = selectiveResolvers) { testWorld, testCase ->
                     coverage.generatedNodeResolvers += testCase.registry.nodeResolverTypes.size
                     val observation =
                         observeGeneratedCaseWithCurrentAssertions(testWorld, testCase, captureSuppliedDemand = true)
@@ -278,7 +278,7 @@ interface ObjectFragmentGeneratedResolverContract : GeneratedCaseAssertionPolicy
         runBlocking {
             var generatedNonemptyFragments = 0
             var activatedNonemptyFragments = 0
-            val run = checkResolverTestSuite(ResolverTestSuiteDefinition.OBJECT_FRAGMENT) { testWorld, testCase ->
+            val run = checkResolverTestSuite(ResolverTestSuiteDefinition.OBJECT_FRAGMENT, selectiveResolvers = selectiveResolvers) { testWorld, testCase ->
                 assertTrue(testCase.registry.nodeResolverTypes.isEmpty())
                 assertEquals(0, testCase.registry.features.variableCount)
                 generatedNonemptyFragments +=
@@ -911,7 +911,7 @@ private data class SometimesPassiveCoverage(
     var activatedOccurrences: Int = 0,
 )
 
-internal suspend fun checkStoredProfile(
+internal suspend fun ResolverContract.checkStoredProfile(
     profile: String,
     config: Config,
     fieldCheckerMode: GeneratedFieldCheckerMode = GeneratedFieldCheckerMode.NONE,
@@ -920,6 +920,7 @@ internal suspend fun checkStoredProfile(
 ): ResolverTestRun =
     checkResolverTestSuite(
         ResolverTestSuiteDefinition.forProfile(profile, config, fieldCheckerMode, typeCheckerMode),
+        selectiveResolvers = selectiveResolvers,
         property = property,
     )
 

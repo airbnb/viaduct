@@ -8,8 +8,10 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
 import kotlin.test.assertSame
+import kotlin.test.assertTrue
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.runBlocking
+import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.ResolvedEngineObjectData
 import viaduct.engine.runtime2.model.Arguments
 import viaduct.engine.runtime2.model.EngineErrorData
@@ -19,6 +21,7 @@ import viaduct.engine.runtime2.model.ErrorEngineResult
 import viaduct.engine.runtime2.model.ListEngineResult
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.PathComponent
+import viaduct.engine.runtime2.model.RootFieldReferenceData
 import viaduct.engine.runtime2.model.Selection
 import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.model.emptyFragmentOf
@@ -28,15 +31,150 @@ import viaduct.engine.runtime2.model.registry.fieldResolverOf
 import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.requireType
+import viaduct.engine.runtime2.model.sameCompletedResultAs
 import viaduct.engine.runtime2.model.selectionForestOf
 import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.emptyFragmentOf
 import viaduct.engine.runtime2.model.testing.fragmentFrom
 import viaduct.engine.runtime2.model.testing.objectOf
+import viaduct.engine.runtime2.model.testing.snipToDemand
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 import viaduct.graphql.schema.ViaductSchema
 
 class PassiveValueResolutionLogicTest : ResolutionDispatcherResource {
+    @Test
+    fun `undemanded unknown and argument-bearing fields are ignored at every object depth`() {
+        val fixture = TestWorld.fromSDL("type Query { item: Item } type Item { selected: String child: Item extra(arg: Int): String }")
+        val itemType = fixture.schemas.graphQLSchema.getObjectType("Item")
+        val itemField = fixture.schema.requireObjectField("Query", "item")
+        val demand = fixture.schemas.fragmentFrom("fragment Demand on Item { selected child { selected } }").subselections
+        for (surplusField in listOf("unknown", "extra")) {
+            for (nested in listOf(false, true)) {
+                fun source(fields: Map<String, Any?>): EngineObjectData.Sync {
+                    val output = ResolvedEngineObjectData(itemType, fields)
+                    return object : EngineObjectData.Sync by output {
+                        override fun get(selection: String): Any? {
+                            check(selection != surplusField) { "Undemanded field must not be read" }
+                            return output.get(selection)
+                        }
+                    }
+                }
+                val extra = mapOf(surplusField to "ignored")
+                val child = source(mapOf("selected" to "nested") + if (nested) extra else emptyMap())
+                val output = source(mapOf("selected" to "root", "child" to child) + if (nested) emptyMap() else extra)
+
+                val result = assertIs<ObjectEngineResult>(
+                    resolvePassiveValues(fixture.assumptions, output, itemField.outputType, listOf(itemField.key()), demand, demand)
+                )
+
+                assertEquals(setOf("selected", "child"), result.keys.map { it.field.name }.toSet())
+                assertEquals("root", result.getCell(fixture.schema.requireObjectField("Item", "selected").key()).value.get())
+                val resolvedChild = assertIs<ObjectEngineResult>(result.getCell(fixture.schema.requireObjectField("Item", "child").key()).value.get())
+                assertEquals(setOf("selected"), resolvedChild.keys.map { it.field.name }.toSet())
+                assertEquals("nested", resolvedChild.getCell(resolvedChild.keys.single()).value.get())
+            }
+        }
+    }
+
+    @Test
+    fun `demanded argument-bearing passive output is rejected`() {
+        val fixture = TestWorld.fromSDL(
+            schemaSDL = "type Query { item: Item } type Item { extra(arg: Int): String }",
+            fieldResolvers = { schemas ->
+                mapOf(schemas.loweredSchema.requireObjectField("Item", "extra") to fieldResolverOf(schemas.loweredSchema.emptyFragmentOf("Item")) { _, _ -> "active" })
+            },
+        )
+        val itemField = fixture.schema.requireObjectField("Query", "item")
+        val output = ResolvedEngineObjectData(fixture.schemas.graphQLSchema.getObjectType("Item"), mapOf("extra" to "invalid"))
+        val demand = fixture.schemas.fragmentFrom("fragment Demand on Item { extra(arg: 1) }").subselections
+
+        val failure = assertFailsWith<IllegalArgumentException> {
+            resolvePassiveValues(fixture.assumptions, output, itemField.outputType, listOf(itemField.key()), demand, demand)
+        }
+
+        assertTrue(failure.message.orEmpty().contains("argument-bearing field Item/extra"))
+    }
+
+    @Test
+    fun `production skip agrees with projection for abstract lists errors and conditional references`() {
+        val referenceCalls = AtomicInteger()
+        val fixture = TestWorld.fromSDL(
+            schemaSDL = """
+                type Query { container: Container lookup: User }
+                interface Named { name: String }
+                type User implements Named { name: String userOnly: String ignored: String }
+                type Team implements Named { name: String teamOnly: Int ignored: String }
+                union Search = User | Team
+                type Container {
+                  named: [Named]
+                  search: [Search]
+                  matrix: [[Search]]
+                  references: [Named]
+                  ignoredReferences: [Named]
+                  ignored: String
+                }
+            """.trimIndent(),
+            fieldResolvers = { schemas ->
+                mapOf(
+                    schemas.loweredSchema.requireObjectField("Query", "lookup") to fieldResolverOf(schemas.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
+                        referenceCalls.incrementAndGet()
+                        ResolvedEngineObjectData(schemas.graphQLSchema.getObjectType("User"), mapOf("name" to "reference", "ignored" to "surplus"))
+                    },
+                )
+            },
+        )
+        val schema = fixture.schema
+        val containerField = schema.requireObjectField("Query", "container")
+        val user = ResolvedEngineObjectData(fixture.schemas.graphQLSchema.getObjectType("User"), mapOf("name" to "Ada", "userOnly" to "user", "ignored" to "surplus"))
+        val team = ResolvedEngineObjectData(fixture.schemas.graphQLSchema.getObjectType("Team"), mapOf("name" to "Ductworks", "teamOnly" to 7, "ignored" to "surplus"))
+        val error = EngineErrorData.of(IllegalStateException("list element"))
+        val reference = RootFieldReferenceData.of(listOf(schema.requireObjectField("Query", "lookup")), emptyMap())
+        val output = ResolvedEngineObjectData(
+            fixture.schemas.graphQLSchema.getObjectType("Container"),
+            mapOf(
+                "named" to listOf(user, error, null, team),
+                "search" to listOf(team, user, null, error),
+                "matrix" to listOf(listOf(user, team), null, listOf(error)),
+                "references" to listOf(reference, null, error),
+                "ignoredReferences" to listOf(reference),
+                "ignored" to "surplus",
+            ),
+        )
+        for (includeReferences in listOf(false, true)) {
+            referenceCalls.set(0)
+            val demand = fixture.schemas.fragmentFrom(
+                """
+                fragment Demand on Container {
+                  named { name ... on User { userOnly } ... on Team { teamOnly } }
+                  search { ... on User { userOnly } ... on Team { teamOnly } }
+                  matrix { ... on User { userOnly } ... on Team { teamOnly } }
+                  references @include(if: $includeReferences) { name }
+                  ignoredReferences @skip(if: true) { name }
+                }
+                """.trimIndent(),
+            ).subselections
+
+            fun resolve(value: EngineObjectData.Sync) =
+                assertIs<ObjectEngineResult>(
+                    resolvePassiveValues(fixture.assumptions, value, containerField.outputType, listOf(containerField.key()), demand, demand)
+                )
+            val complete = resolve(output)
+            val projected = resolve(output.snipToDemand(demand, containerField.outputType.baseTypeDef))
+
+            assertTrue(complete.sameCompletedResultAs(projected))
+            assertEquals(if (includeReferences) 2 else 0, referenceCalls.get())
+            val named = assertIs<ListEngineResult>(complete.getCell(schema.requireObjectField("Container", "named").key()).value.get())
+            val resolvedUser = assertIs<ObjectEngineResult>(named[0].value.get())
+            val resolvedTeam = assertIs<ObjectEngineResult>(named[3].value.get())
+            assertEquals(setOf("name", "userOnly"), resolvedUser.keys.map { it.field.name }.toSet())
+            assertEquals(setOf("name", "teamOnly"), resolvedTeam.keys.map { it.field.name }.toSet())
+            assertSame(error, assertIs<ErrorEngineResult>(named[1].value.get()).errorData)
+            assertEquals(null, named[2].value.get())
+            assertTrue(schema.requireObjectField("Container", "ignoredReferences").key() !in complete.keys)
+            assertTrue(schema.requireObjectField("Container", "ignored").key() !in complete.keys)
+        }
+    }
+
     @Test
     fun `resolved source values nulls and errors suppress resolvers while absent fields resolve`() {
         val calls = AtomicInteger()

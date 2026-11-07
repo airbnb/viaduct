@@ -29,7 +29,6 @@ interface ObjectFragmentFromObjectPathResolverContract :
     fun `binds a variable from a direct active scalar provider`() {
         val testWorld =
             TestWorld.fromDSL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     extend type Query {
@@ -73,7 +72,6 @@ interface ObjectFragmentFromObjectPathResolverContract :
     fun `grounds an object-path provider argument from the owner argument`() {
         val testWorld =
             TestWorld.fromDSL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     extend type Query {
@@ -104,7 +102,6 @@ interface ObjectFragmentFromObjectPathResolverContract :
     fun `grounds an object-path provider argument from another object path`() {
         val testWorld =
             TestWorld.fromDSL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     extend type Query {
@@ -139,7 +136,6 @@ interface ObjectFragmentFromObjectPathResolverContract :
     fun `grounds a nested provider argument from another object path`() {
         val testWorld =
             TestWorld.fromDSL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     extend type Query {
@@ -178,7 +174,6 @@ interface ObjectFragmentFromObjectPathResolverContract :
     fun `waits for late orchestration of an already published provider object`() {
         val testWorld =
             TestWorld.fromDSL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     extend type Query {
@@ -222,7 +217,6 @@ interface ObjectFragmentFromObjectPathResolverContract :
     fun `grounds a nested provider argument from another nested provider`() {
         val testWorld =
             TestWorld.fromDSL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     extend type Query {
@@ -311,7 +305,6 @@ interface ObjectFragmentFromObjectPathResolverContract :
         }
         val testWorld =
             TestWorld.fromDSL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     extend type Query {
@@ -354,7 +347,6 @@ interface ObjectFragmentFromObjectPathResolverContract :
     fun `reads a nested provider after its active ancestor publishes passive content`() {
         val testWorld =
             TestWorld.fromDSL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     extend type Query {
@@ -391,7 +383,6 @@ interface ObjectFragmentFromObjectPathResolverContract :
         val applicationArguments = ResolverApplicationArguments()
         val testWorld =
             TestWorld.fromDSL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     extend type Query {

@@ -1,5 +1,6 @@
 package viaduct.engine.runtime2.resolvers
 
+import viaduct.engine.api.EngineObjectData
 import viaduct.engine.runtime2.model.Arguments
 import viaduct.engine.runtime2.model.InclusionCondition
 import viaduct.engine.runtime2.model.ObjectEngineResult
@@ -9,6 +10,8 @@ import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.model.concatenateSelectionForests
 import viaduct.engine.runtime2.model.guardedBy
 import viaduct.engine.runtime2.model.merge
+import viaduct.engine.runtime2.model.outputValue
+import viaduct.engine.runtime2.model.rootFieldReferenceDataOrNull
 import viaduct.engine.runtime2.resolution.framework.Demand
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 import viaduct.engine.runtime2.resolution.framework.guardedBy
@@ -70,4 +73,17 @@ private inline fun ObjectSelectionForest.groundSelections(groundArguments: (Obje
                 )
             },
     )
+}
+
+internal fun referencePassiveFieldKeys(
+    source: EngineObjectData.Sync,
+    field: ViaductSchema.ObjectField,
+    demandedKeys: List<ObjectEngineResult.ObjectKey>?,
+    selectiveResolvers: Boolean,
+): List<ObjectEngineResult.ObjectKey> {
+    if (demandedKeys != null) return demandedKeys
+    if (selectiveResolvers) return emptyList()
+
+    fun containsReference(value: Any?): Boolean = value.rootFieldReferenceDataOrNull() != null || value is List<*> && value.any(::containsReference)
+    return if (containsReference(source.outputValue(field.name))) emptyList() else listOf(ObjectEngineResult.GroundKey.of(field, emptyMap()))
 }

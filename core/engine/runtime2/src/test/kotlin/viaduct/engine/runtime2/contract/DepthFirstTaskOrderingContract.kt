@@ -39,7 +39,6 @@ interface DepthFirstTaskOrderingContract : ResolverContract {
     fun `finishes each recursive subtree before visiting its next sibling`() {
         val testWorld =
             TestWorld.fromDSL(
-                selectiveResolvers = selectiveResolvers,
                 schemaSDL =
                     """
                     extend type Query {

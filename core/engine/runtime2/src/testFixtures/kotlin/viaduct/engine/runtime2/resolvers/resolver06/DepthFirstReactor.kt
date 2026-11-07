@@ -24,12 +24,13 @@ class DepthFirstReactor(
     private val source: EngineObjectData.Sync,
     private val selections: SelectionForest,
     private val onTaskStarted: (DepthFirstTask) -> Unit = {},
+    selectiveResolvers: Boolean = false,
 ) : SharedTaskDispatcher<
         DepthFirstOrchestrationTask,
         GroundedFieldPublicationOccurrence<DepthFirstOperationContext>,
         DepthFirstFieldResolverTask,
     > {
-    private val operation = DepthFirstOperationContext(operation, complete, this)
+    private val operation = DepthFirstOperationContext(operation, complete, this, selectiveResolvers)
     private val tasks = PriorityQueue(depthFirstTaskComparator)
     private val dispatchedTasks = mutableSetOf<DepthFirstTask>()
     private val finished = mutableSetOf<DepthFirstTask>()

@@ -61,6 +61,7 @@ data class ResolverTestSuiteBatch(
  */
 suspend fun checkResolverTestSuite(
     definition: ResolverTestSuiteDefinition,
+    selectiveResolvers: Boolean = true,
     property: suspend (TestWorld, ResolverTestCase) -> Unit,
 ): ResolverTestRun {
     val selected = configuredResolverTestCaseId()
@@ -75,6 +76,7 @@ suspend fun checkResolverTestSuite(
                 profile = definition.profile,
                 fieldCheckerMode = definition.fieldCheckerMode,
                 typeCheckerMode = definition.typeCheckerMode,
+                selectiveResolvers = selectiveResolvers,
                 property = property,
             )
         } else {
@@ -82,7 +84,7 @@ suspend fun checkResolverTestSuite(
                 "Stored suite ${definition.id} selects one case by test-case ID; set $RESOLVER_TEST_CASE_ID_PROPERTY=<suite/batch/registry/query>, " +
                     "or configure a seed to select S:R:Q from live generation"
             }
-            replayResolverTestSuite(definition, selected, property)
+            replayResolverTestSuite(definition, selected, selectiveResolvers, property)
         }
     run.assertAggregate(
         run.attemptedCases == run.expectedCases,
@@ -92,17 +94,19 @@ suspend fun checkResolverTestSuite(
 }
 
 /** This suite as the stored cases of a Resolution stress run, checked as [checkResolverTestSuite] checks them. */
-fun ResolverTestSuiteDefinition.broadStressCases(): ResolutionBroadStressCases = ResolutionBroadStressCases.stored(profile, config, counts, seed) { property -> checkResolverTestSuite(this, property) }
+fun ResolverTestSuiteDefinition.broadStressCases(): ResolutionBroadStressCases =
+    ResolutionBroadStressCases.stored(profile, config, counts, seed) { property -> checkResolverTestSuite(this, property = property) }
 
 /** Replays [definition]'s stored suite, or only [selected] when it holds it; reads no configured seed, size, or test case. */
 suspend fun replayResolverTestSuite(
     definition: ResolverTestSuiteDefinition,
     selected: ResolverTestCaseId?,
+    selectiveResolvers: Boolean = true,
     property: suspend (TestWorld, ResolverTestCase) -> Unit,
 ): ResolverTestRun =
     when {
-        selected == null -> ResolverTestSuite.load(definition).replay(property = property)
-        selected.suite == definition.id -> ResolverTestSuite.load(definition).replay(selected, property)
+        selected == null -> ResolverTestSuite.load(definition).replay(selectiveResolvers = selectiveResolvers, property = property)
+        selected.suite == definition.id -> ResolverTestSuite.load(definition).replay(selected, selectiveResolvers, property)
         else -> definition.unselectedRun(selected)
     }
 
@@ -177,6 +181,7 @@ class ResolverTestSuite private constructor(
     /** Replays every stored case, or only [selected]. */
     suspend fun replay(
         selected: ResolverTestCaseId? = null,
+        selectiveResolvers: Boolean = true,
         property: suspend (TestWorld, ResolverTestCase) -> Unit,
     ): ResolverTestRun {
         require(selected == null || selected.suite == definition.id) {
@@ -205,6 +210,7 @@ class ResolverTestSuite private constructor(
                     selectiveNodeResolvers = definition.config[SelectiveNodeResolversEnabled],
                     fieldCheckerMode = definition.fieldCheckerMode,
                     typeCheckerMode = definition.typeCheckerMode,
+                    selectiveResolvers = selectiveResolvers,
                     testCaseId = { registryIndex, queryIndex ->
                         ResolverTestCaseId(definition.id, stored.id, stored.registries[registryIndex - 1], stored.queries[queryIndex - 1]).toString()
                     },
