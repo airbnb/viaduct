@@ -4,9 +4,12 @@ import graphql.ExecutionInput as GJExecutionInput
 import graphql.ExecutionResult
 import graphql.GraphQL
 import graphql.execution.AsyncExecutionStrategy
+import graphql.execution.instrumentation.InstrumentationContext
 import graphql.execution.instrumentation.InstrumentationState
+import graphql.execution.instrumentation.SimpleInstrumentationContext
 import graphql.execution.instrumentation.SimplePerformantInstrumentation
 import graphql.execution.instrumentation.parameters.InstrumentationExecutionParameters
+import graphql.execution.instrumentation.parameters.InstrumentationFieldParameters
 import graphql.schema.DataFetcher
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentLinkedQueue
@@ -147,6 +150,84 @@ class EngineExecutionTest {
                     assertFalse(updates.last().hasNext)
                 } finally {
                     result.cancel()
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `non-null failure delivers initial data without waiting for a pending sibling`() {
+        val requiredFetched = CompletableDeferred<Unit>()
+        val slowStarted = CompletableDeferred<Unit>()
+        val release = CompletableDeferred<Unit>()
+        val instrumentation = object : SimplePerformantInstrumentation() {
+            override fun beginFieldExecution(
+                parameters: InstrumentationFieldParameters,
+                state: InstrumentationState?,
+            ): InstrumentationContext<Any> =
+                SimpleInstrumentationContext.whenCompleted { _, _ ->
+                    if (parameters.executionStepInfo.path.toList() == listOf("obj", "first")) requiredFetched.complete(Unit)
+                }
+        }
+        EngineTestModule("extend type Query { obj: Obj, later: Int } type Obj { required: Int!, slow: Int }") {
+            field("Query" to "obj") {
+                resolver {
+                    fn { _, _, _, _, _ -> emptyMap<String, Any?>() }
+                }
+                checker {
+                    // Make the failed field available before object completion starts.
+                    fn { _, _ ->
+                        requiredFetched.await()
+                        slowStarted.await()
+                    }
+                }
+            }
+            fieldWithValue("Obj" to "required", null)
+            field("Obj" to "slow") {
+                resolver {
+                    fn { _, _, _, _, _ ->
+                        slowStarted.complete(Unit)
+                        release.await()
+                        1
+                    }
+                }
+            }
+            field("Query" to "later") {
+                resolver {
+                    fn { _, _, _, _, _ ->
+                        release.await()
+                        42
+                    }
+                }
+            }
+        }.runFeatureTest(engineConfig = incrementalConfig.copy(additionalInstrumentation = instrumentation)) {
+            runExecutionTest {
+                try {
+                    val result = assertInstanceOf(
+                        IncrementalExecutionResult::class.java,
+                        withTimeout(2_000) {
+                            engine.execute(ExecutionInput("{ obj { first: required slow } ... @defer { later } }", requestContext = Any()))
+                        },
+                    )
+                    try {
+                        assertEquals(mapOf("obj" to null), result.getData<Map<String, Any?>>())
+                        assertEquals(listOf("obj", "first"), result.errors.single().path)
+                        assertTrue(requiredFetched.isCompleted)
+                        assertTrue(slowStarted.isCompleted)
+                        assertFalse(release.isCompleted)
+                        assertTrue(result.hasNext)
+
+                        release.complete(Unit)
+                        val updates = result.updates.toList()
+                        val patch = assertInstanceOf(IncrementalEntry.Object::class.java, updates.flatMap { it.incremental }.single())
+                        assertEquals(mapOf("later" to 42), patch.data)
+                        assertTrue(patch.errors.isEmpty())
+                        assertFalse(updates.last().hasNext)
+                    } finally {
+                        result.cancel()
+                    }
+                } finally {
+                    release.complete(Unit)
                 }
             }
         }

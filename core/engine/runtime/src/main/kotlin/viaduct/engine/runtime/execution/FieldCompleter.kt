@@ -19,8 +19,8 @@ import graphql.schema.GraphQLTypeUtil
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import viaduct.deferred.asDeferred
-import viaduct.deferred.waitAllDeferreds
 import viaduct.engine.api.CheckerResult
+import viaduct.engine.api.gj
 import viaduct.engine.runtime.Cell
 import viaduct.engine.runtime.EngineExecutionContextExtensions.incrementalExecutionEnabled
 import viaduct.engine.runtime.FieldResolutionResult
@@ -119,18 +119,25 @@ class FieldCompleter(
             parameters.instrumentation.beginCompleteObject(instrumentationParams, parameters.executionContext.instrumentationState)
         )
         val currentOER = parameters.currentObjectEngineResult
+        val incremental = parameters.engineExecutionContext.incrementalExecutionEnabled
+        val collected = collectFields(currentOER.type, parameters)
+        val waitForFields = !incremental || (
+            parameters.executionOrigin is ExecutionOrigin.ObjectTraversal &&
+                parameters.deferUsageSet.isEmpty() &&
+                collected.newDeferUsages.isEmpty() &&
+                collected.collectedFieldsMap.values.all { field ->
+                    // Non-null validation must be able to discard the object before pending siblings finish.
+                    field.occurrences.all { it.deferUsage == null } &&
+                        !GraphQLTypeUtil.isNonNull(parameters.graphQLSchema.getFieldDefinition((currentOER.type.name to field.fieldName).gj).type)
+                }
+        )
 
-        val barrier = if (parameters.engineExecutionContext.incrementalExecutionEnabled) {
-            Value.fromDeferred(currentOER.lazyResolutionState)
-        } else {
-            Value.fromDeferred(
-                waitAllDeferreds(
-                    listOf(
-                        currentOER.fieldResolutionState, // Ensure all fields are resolved
-                        currentOER.lazyResolutionState, // If the OER is lazy, ensure it's been resolved
-                    )
-                )
-            )
+        val barrier = Value.fromDeferred(currentOER.lazyResolutionState).flatMap {
+            if (waitForFields && !currentOER.isResolvedToNull()) {
+                Value.fromDeferred(currentOER.fieldResolutionState)
+            } else {
+                Value.fromValue(Unit)
+            }
         }
         return barrier
             .thenCompose { _, throwable ->
@@ -149,9 +156,8 @@ class FieldCompleter(
                     ctxCompleteObject.onCompletedNullable(null, null)
                     completeValueForNull(parameters)
                 } else {
-                    val collected = collectFields(currentOER.type, parameters)
                     val collectedFields = collected.collectedFieldsMap
-                    val completed = if (parameters.engineExecutionContext.incrementalExecutionEnabled) {
+                    val completed = if (incremental) {
                         val completionParameters = parameters.withNewDeferMap(
                             GetNewDeferMap(collected.newDeferUsages, parameters.path, parameters.deferMap)
                         )

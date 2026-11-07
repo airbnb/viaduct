@@ -7,15 +7,159 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
+import viaduct.engine.runtime.EngineExecutionContextExtensions.incrementalExecutionEnabled
 import viaduct.engine.runtime.FieldResolutionResult
+import viaduct.engine.runtime.ObjectEngineResultImpl
 import viaduct.engine.runtime.Value
 import viaduct.engine.runtime.context.CompositeLocalContext
+import viaduct.engine.runtime.execution.CompletionErrors.FieldCompletionException
 
 class CompleteCollectedFieldsTest {
     private val completer = FieldCompleter(SimpleDataFetcherExceptionHandler(), false)
+
+    @ParameterizedTest
+    @ValueSource(booleans = [false, true])
+    fun `null lazy objects do not wait for discarded field population`(resolveBeforeCompletion: Boolean) =
+        runTest {
+            val base = mkObjectCompletionParameters(
+                schemaSDL = "extend type Query { obj: Obj } type Obj { a: Int }",
+                coordinate = "Query" to "obj",
+                query = "{ obj { a } }",
+            )
+            val oer = ObjectEngineResultImpl.newPendingForType(base.currentObjectEngineResult.type)
+            val ctx = base.copy(currentObjectEngineResult = oer)
+            if (resolveBeforeCompletion) oer.resolveToNull()
+
+            val completion = completer.completeObject(ctx)
+            if (!resolveBeforeCompletion) {
+                assertFalse(completion.asDeferred().isCompleted)
+                oer.resolveToNull()
+            }
+
+            try {
+                assertTrue(completion.asDeferred().isCompleted)
+                assertTrue(completion.await() is FieldCompletionResult.NullResult)
+                assertTrue(ctx.errorAccumulator.isEmpty())
+                assertFalse(oer.fieldResolutionState.isCompleted)
+            } finally {
+                oer.fieldResolutionState.complete(Unit)
+            }
+        }
+
+    @ParameterizedTest
+    @ValueSource(booleans = [false, true])
+    fun `failed lazy objects do not wait for discarded field population`(resolveBeforeCompletion: Boolean) =
+        runTest {
+            val base = mkObjectCompletionParameters(
+                schemaSDL = "extend type Query { obj: Obj } type Obj { a: Int }",
+                coordinate = "Query" to "obj",
+                query = "{ obj { a } }",
+            )
+            val oer = ObjectEngineResultImpl.newPendingForType(base.currentObjectEngineResult.type)
+            val ctx = base.copy(currentObjectEngineResult = oer)
+            val failure = IllegalStateException("lazy object failed")
+            if (resolveBeforeCompletion) oer.resolveExceptionally(failure)
+
+            val completion = completer.completeObject(ctx)
+            if (!resolveBeforeCompletion) {
+                assertFalse(completion.asDeferred().isCompleted)
+                oer.resolveExceptionally(failure)
+            }
+
+            try {
+                assertTrue(completion.asDeferred().isCompleted)
+                val thrown = assertThrows<FieldCompletionException> { completion.await() }
+                assertSame(failure, thrown.cause)
+                assertEquals(listOf(listOf("obj")), ctx.errorAccumulator.toList().map { it.path })
+                assertFalse(oer.fieldResolutionState.isCompleted)
+            } finally {
+                oer.fieldResolutionState.complete(Unit)
+            }
+        }
+
+    @ParameterizedTest
+    @ValueSource(booleans = [false, true])
+    fun `successful lazy objects wait for validity and field population`(fieldsReadyFirst: Boolean) =
+        runTest {
+            val base = mkObjectCompletionParameters(
+                schemaSDL = "extend type Query { obj: Obj } type Obj { a: Int }",
+                coordinate = "Query" to "obj",
+                query = "{ obj { a } }",
+            )
+            val oer = ObjectEngineResultImpl.newPendingForType(base.currentObjectEngineResult.type)
+            val ctx = base.copy(currentObjectEngineResult = oer)
+            val fields = FieldExecutionHelpers.collectFields(oer.type, ctx).collectedFieldsMap
+            setRawFieldValue(ctx, fields.getValue("a"), Value.fromValue(resolved(1)))
+            val completion = completer.completeObject(ctx)
+
+            if (fieldsReadyFirst) oer.fieldResolutionState.complete(Unit) else oer.resolveToValue()
+            assertFalse(completion.asDeferred().isCompleted)
+            if (fieldsReadyFirst) oer.resolveToValue() else oer.fieldResolutionState.complete(Unit)
+
+            assertEquals(mapOf("a" to 1), completion.await().value)
+        }
+
+    @Test
+    fun `nondeferred object completion waits for field population before reading its fields`() =
+        runTest {
+            val ctx = mkObjectCompletionParameters(
+                schemaSDL = "extend type Query { obj: Obj } type Obj { a: Int, b: Int, unselected: Int! }",
+                coordinate = "Query" to "obj",
+                query = "{ obj { first: a b } }",
+            )
+            assertTrue(ctx.engineExecutionContext.incrementalExecutionEnabled)
+            val fields = FieldExecutionHelpers.collectFields(ctx.currentObjectEngineResult.type, ctx).collectedFieldsMap
+            setRawFieldValue(ctx, fields.getValue("first"), Value.fromValue(resolved(1)))
+            setRawFieldValue(ctx, fields.getValue("b"), Value.fromValue(resolved(2)))
+
+            val pending = completer.completeObject(ctx)
+
+            assertFalse(pending.asDeferred().isCompleted)
+            ctx.currentObjectEngineResult.fieldResolutionState.complete(Unit)
+            assertEquals(mapOf("first" to 1, "b" to 2), pending.await().value)
+        }
+
+    @Test
+    fun `deferred object fields do not block the initial completion on object population`() =
+        runTest {
+            val ctx = mkObjectCompletionParameters(
+                schemaSDL = "extend type Query { obj: Obj } type Obj { a: Int, b: Int }",
+                coordinate = "Query" to "obj",
+                query = "{ obj { a ... @defer(label: \"later\") { b } } }",
+            )
+            assertTrue(ctx.engineExecutionContext.incrementalExecutionEnabled)
+            val fields = FieldExecutionHelpers.collectFields(ctx.currentObjectEngineResult.type, ctx).collectedFieldsMap
+            setRawFieldValue(ctx, fields.getValue("a"), Value.fromValue(resolved(1)))
+
+            val initial = completer.completeObject(ctx).await()
+
+            assertEquals(mapOf("a" to 1), initial.value)
+            assertFalse(ctx.currentObjectEngineResult.fieldResolutionState.isCompleted)
+            setRawFieldValue(ctx, fields.getValue("b"), Value.fromValue(resolved(2)))
+            val deferred = initial.work.tasks.single().run()
+            assertEquals(mapOf("b" to 2), deferred.data)
+        }
+
+    @Test
+    fun `root completion does not wait on a population barrier for a different selection`() =
+        runTest {
+            val ctx = mkObjectCompletionParameters(
+                schemaSDL = "extend type Query { obj: Obj } type Obj { a: Int }",
+                coordinate = "Query" to "obj",
+                query = "{ obj { a } }",
+            ).copy(executionOrigin = ExecutionOrigin.Root)
+            val fields = FieldExecutionHelpers.collectFields(ctx.currentObjectEngineResult.type, ctx).collectedFieldsMap
+            setRawFieldValue(ctx, fields.getValue("a"), Value.fromValue(resolved(1)))
+
+            assertEquals(mapOf("a" to 1), completer.completeObject(ctx).await().value)
+            assertFalse(ctx.currentObjectEngineResult.fieldResolutionState.isCompleted)
+        }
 
     @Test
     fun `empty and subset maps do not wait for unrelated fields`() =
