@@ -71,7 +71,7 @@ class CheckedEngineResultTest {
     }
 
     @Test
-    fun `awaiting checked value checks denial before the raw value`() =
+    fun `awaiting checked value checks denial before the raw value`(): Unit =
         runBlocking {
             val denial = TestCheckerError("asynchronous denial")
             val cell = newCell()

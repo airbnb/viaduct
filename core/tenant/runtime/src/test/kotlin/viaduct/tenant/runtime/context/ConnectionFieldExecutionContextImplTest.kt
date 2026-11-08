@@ -55,14 +55,14 @@ class ConnectionFieldExecutionContextImplTest : ContextTestBase() {
         )
 
     @Test
-    fun `arguments is correct`() =
+    fun `arguments is correct`(): Unit =
         runTest {
             val ctx = mk()
             assertSame(ConnArgs, ctx.arguments)
         }
 
     @Test
-    fun `selections is correct`() =
+    fun `selections is correct`(): Unit =
         runTest {
             val ctx = mk()
             assertEquals(SelectionSet.NoSelections, ctx.selections())
@@ -80,7 +80,7 @@ class ConnectionFieldExecutionContextImplTest : ContextTestBase() {
     }
 
     @Test
-    fun `missing object RSS data is a framework error`() =
+    fun `missing object RSS data is a framework error`(): Unit =
         runTest {
             val ctx = mk()
 
@@ -93,7 +93,7 @@ class ConnectionFieldExecutionContextImplTest : ContextTestBase() {
         }
 
     @Test
-    fun `missing query RSS data is a framework error`() =
+    fun `missing query RSS data is a framework error`(): Unit =
         runTest {
             val ctx = mk()
 
@@ -106,7 +106,7 @@ class ConnectionFieldExecutionContextImplTest : ContextTestBase() {
         }
 
     @Test
-    fun `object RSS resolution failures are wrapped as framework errors`() =
+    fun `object RSS resolution failures are wrapped as framework errors`(): Unit =
         runTest {
             val failure = IllegalStateException("resolution failed")
             val ctx = mk(syncObjectValueGetter = { throw failure })

@@ -35,7 +35,7 @@ import viaduct.engine.runtime.execution.ExecutionTestHelpers.runExecutionTest
 
 class NestedTraversalSchedulingTest {
     @Test
-    fun `queued descendants do not delay the parent fetch or a ready sibling`() =
+    fun `queued descendants do not delay the parent fetch or a ready sibling`() {
         runTraversalTest { dispatcher ->
             withTimeout(10_000) {
                 val siblingFetched = CompletableDeferred<Unit>()
@@ -83,9 +83,10 @@ class NestedTraversalSchedulingTest {
                 )
             }
         }
+    }
 
     @Test
-    fun `adding synchronous scalar selections or list items does not add coroutine launches`() =
+    fun `adding synchronous scalar selections or list items does not add coroutine launches`() {
         runTraversalTest { dispatcher ->
             withTimeout(10_000) {
                 suspend fun execute(
@@ -113,9 +114,10 @@ class NestedTraversalSchedulingTest {
                 assertEquals(baseline, execute(itemCount = 100, selectionCount = 1), "List items must share one traversal coroutine")
             }
         }
+    }
 
     @Test
-    fun `scalar lists and nested scalar lists do not add coroutine launches`() =
+    fun `scalar lists and nested scalar lists do not add coroutine launches`() {
         runTraversalTest { dispatcher ->
             withTimeout(10_000) {
                 suspend fun execute(
@@ -139,9 +141,10 @@ class NestedTraversalSchedulingTest {
                 assertEquals(baseline, execute("[[Int]]", listOf(listOf(1), listOf(2, 3))), "Nested scalar lists must stay synchronous")
             }
         }
+    }
 
     @Test
-    fun `next mutation waits for the previous nested payload to finish`() =
+    fun `next mutation waits for the previous nested payload to finish`() {
         runExecutionTest<Unit> {
             withTimeout(10_000) {
                 val firstDescendantStarted = CompletableDeferred<Unit>()
@@ -201,9 +204,10 @@ class NestedTraversalSchedulingTest {
                 )
             }
         }
+    }
 
     @Test
-    fun `request cancellation reaches a pending nested descendant`() =
+    fun `request cancellation reaches a pending nested descendant`() {
         runExecutionTest<Unit> {
             withTimeout(10_000) {
                 val descendantStarted = CompletableDeferred<Unit>()
@@ -243,6 +247,7 @@ class NestedTraversalSchedulingTest {
                 assertTrue(request.isCancelled)
             }
         }
+    }
 
     private fun runTraversalTest(block: suspend (TraversalDispatcher) -> Unit) =
         runExecutionTest<Unit> {

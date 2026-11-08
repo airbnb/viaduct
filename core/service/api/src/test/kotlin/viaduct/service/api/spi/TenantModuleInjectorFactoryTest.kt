@@ -9,7 +9,7 @@ import org.junit.jupiter.api.Test
 
 class TenantModuleInjectorFactoryTest {
     @Test
-    fun `default onBootstrapComplete is a no-op`() =
+    fun `default onBootstrapComplete is a no-op`(): Unit =
         runBlocking {
             val bootstrapper = object : TenantModuleInjectorFactory {
                 override suspend fun bootstrap(
@@ -23,7 +23,7 @@ class TenantModuleInjectorFactoryTest {
         }
 
     @Test
-    fun `shared code injector bootstrapper returns the same injector for every tenant`() =
+    fun `shared code injector bootstrapper returns the same injector for every tenant`(): Unit =
         runBlocking {
             val sharedInjector = object : CodeInjector {
                 override fun <T> getProvider(clazz: Class<T>) = throw UnsupportedOperationException("not needed for bootstrapper tests")
@@ -37,7 +37,7 @@ class TenantModuleInjectorFactoryTest {
         }
 
     @Test
-    fun `naive tenant module injector factory always returns the naive injector`() =
+    fun `naive tenant module injector factory always returns the naive injector`(): Unit =
         runBlocking {
             assertSame(CodeInjector.Naive, NaiveTenantModuleInjectorFactory.bootstrap("tenant-a", null))
             assertSame(CodeInjector.Naive, NaiveTenantModuleInjectorFactory.bootstrap("tenant-b", String::class.java))
@@ -45,7 +45,7 @@ class TenantModuleInjectorFactoryTest {
         }
 
     @Test
-    fun `java adapter runs bootstrapBlocking for bootstrap and defaults onBootstrapComplete to a no-op`() =
+    fun `java adapter runs bootstrapBlocking for bootstrap and defaults onBootstrapComplete to a no-op`(): Unit =
         runBlocking {
             val factory = object : JavaTenantModuleInjectorFactory() {
                 override fun bootstrapBlocking(

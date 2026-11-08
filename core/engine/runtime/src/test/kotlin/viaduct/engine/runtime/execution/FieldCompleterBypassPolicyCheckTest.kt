@@ -93,7 +93,7 @@ class FieldCompleterBypassPolicyCheckTest {
     )
 
     @Test
-    fun `flag on and internal RSS directive bypasses the checker`() =
+    fun `flag on and internal RSS directive bypasses the checker`() {
         runExecutionTest {
             val result = execute(
                 query = "{ field }",
@@ -113,9 +113,10 @@ class FieldCompleterBypassPolicyCheckTest {
             assertTrue(result.errors.isEmpty(), "expected no errors when the internal RSS checker is bypassed")
             assertEquals("hello", (result.getData<Map<String, Any?>>())["field"])
         }
+    }
 
     @Test
-    fun `flag on but no directive enforces the checker`() =
+    fun `flag on but no directive enforces the checker`() {
         runExecutionTest {
             val result = execute(
                 query = "{ field }",
@@ -127,9 +128,10 @@ class FieldCompleterBypassPolicyCheckTest {
             assertTrue(result.errors.isNotEmpty(), "expected the checker error to surface")
             assertNull((result.getData<Map<String, Any?>>())["field"])
         }
+    }
 
     @Test
-    fun `flag off ignores the directive and enforces the checker`() =
+    fun `flag off ignores the directive and enforces the checker`() {
         runExecutionTest {
             val result = execute(
                 query = "{ field @bypassPolicyCheck }",
@@ -141,4 +143,5 @@ class FieldCompleterBypassPolicyCheckTest {
             assertTrue(result.errors.isNotEmpty(), "expected the checker error to surface")
             assertNull((result.getData<Map<String, Any?>>())["field"])
         }
+    }
 }

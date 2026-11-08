@@ -109,7 +109,7 @@ class FieldCheckerRuntimeVariablesTest {
     }
 
     @Test
-    fun `provider names remain independent between named pairs`() =
+    fun `provider names remain independent between named pairs`(): Unit =
         runBlocking {
             fun pair(value: Int) =
                 ResolverFragmentTemplates(

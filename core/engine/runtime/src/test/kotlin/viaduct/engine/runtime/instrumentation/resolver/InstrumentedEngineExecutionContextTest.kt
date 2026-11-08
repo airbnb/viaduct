@@ -23,7 +23,7 @@ internal class InstrumentedEngineExecutionContextTest {
     private fun defaultImpl(): EngineExecutionContextImpl = ContextMocks().engineExecutionContextImpl
 
     @Test
-    fun `resolveSelectionSet wraps returned EngineObjectData Sync in InstrumentedEngineObjectData Sync`() =
+    fun `resolveSelectionSet wraps returned EngineObjectData Sync in InstrumentedEngineObjectData Sync`(): Unit =
         runBlocking {
             // Given
             val instrumentation = RecordingResolverInstrumentation()
@@ -45,7 +45,7 @@ internal class InstrumentedEngineExecutionContextTest {
         }
 
     @Test
-    fun `resolveSelectionSet passes the same instrumentation and state to the wrapper`() =
+    fun `resolveSelectionSet passes the same instrumentation and state to the wrapper`(): Unit =
         runBlocking {
             // Given
             val instrumentation = RecordingResolverInstrumentation()
@@ -70,7 +70,7 @@ internal class InstrumentedEngineExecutionContextTest {
         }
 
     @Test
-    fun `resolveSelectionSet forwards selectionSet, options, and instrumentation context to impl`() =
+    fun `resolveSelectionSet forwards selectionSet, options, and instrumentation context to impl`(): Unit =
         runBlocking {
             // Given
             val instrumentation = RecordingResolverInstrumentation()

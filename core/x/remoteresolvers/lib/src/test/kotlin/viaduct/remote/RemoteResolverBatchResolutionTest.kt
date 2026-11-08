@@ -26,7 +26,7 @@ class RemoteResolverBatchResolutionTest {
     )
 
     @Test
-    fun `invokes the instrumentation with the executor's resolver metadata`() =
+    fun `invokes the instrumentation with the executor's resolver metadata`(): Unit =
         runTest {
             val executor = SimpleNodeResolverExecutor.createUserResolver()
             val context = ContextMocks(testSchema).engineExecutionContext
@@ -54,7 +54,7 @@ class RemoteResolverBatchResolutionTest {
         }
 
     @Test
-    fun `an exception thrown by the instrumentation itself is caught and reported per-selector`() =
+    fun `an exception thrown by the instrumentation itself is caught and reported per-selector`(): Unit =
         runTest {
             val executor = SimpleNodeResolverExecutor.createUserResolver()
             val context = ContextMocks(testSchema).engineExecutionContext

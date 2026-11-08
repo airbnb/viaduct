@@ -34,34 +34,54 @@ interface AccessCheckExecutionContract : QueryExecutionContract {
     val schemaSDL get() = "extend type Query { boo: Boo } type Boo { value: Int }"
 
     @Test
-    fun `checker object selections resolve interface fields on the concrete type`() = assertCheckerInterfaceSelections(queryRoot = false)
+    fun `checker object selections resolve interface fields on the concrete type`() {
+        assertCheckerInterfaceSelections(queryRoot = false)
+    }
 
     @Test
-    fun `checker Query selections resolve interface fields on Query`() = assertCheckerInterfaceSelections(queryRoot = true)
+    fun `checker Query selections resolve interface fields on Query`() {
+        assertCheckerInterfaceSelections(queryRoot = true)
+    }
 
     @Test
-    fun `checker object selections discard variables from pruned branches`() = assertCheckerInterfaceSelections(queryRoot = false, variables = CheckerInterfaceVariables.PRUNED)
+    fun `checker object selections discard variables from pruned branches`() {
+        assertCheckerInterfaceSelections(queryRoot = false, variables = CheckerInterfaceVariables.PRUNED)
+    }
 
     @Test
-    fun `checker Query selections discard variables from pruned branches`() = assertCheckerInterfaceSelections(queryRoot = true, variables = CheckerInterfaceVariables.PRUNED)
+    fun `checker Query selections discard variables from pruned branches`() {
+        assertCheckerInterfaceSelections(queryRoot = true, variables = CheckerInterfaceVariables.PRUNED)
+    }
 
     @Test
-    fun `checker object selections retain only surviving provider variables`() = assertCheckerInterfaceSelections(queryRoot = false, variables = CheckerInterfaceVariables.PROVIDER)
+    fun `checker object selections retain only surviving provider variables`() {
+        assertCheckerInterfaceSelections(queryRoot = false, variables = CheckerInterfaceVariables.PROVIDER)
+    }
 
     @Test
-    fun `checker Query selections retain only surviving provider variables`() = assertCheckerInterfaceSelections(queryRoot = true, variables = CheckerInterfaceVariables.PROVIDER)
+    fun `checker Query selections retain only surviving provider variables`() {
+        assertCheckerInterfaceSelections(queryRoot = true, variables = CheckerInterfaceVariables.PROVIDER)
+    }
 
     @Test
-    fun `checker object selections omit independent providers from pruned branches`() = assertCheckerInterfaceSelections(queryRoot = false, variables = CheckerInterfaceVariables.INDEPENDENT)
+    fun `checker object selections omit independent providers from pruned branches`() {
+        assertCheckerInterfaceSelections(queryRoot = false, variables = CheckerInterfaceVariables.INDEPENDENT)
+    }
 
     @Test
-    fun `checker Query selections omit independent providers from pruned branches`() = assertCheckerInterfaceSelections(queryRoot = true, variables = CheckerInterfaceVariables.INDEPENDENT)
+    fun `checker Query selections omit independent providers from pruned branches`() {
+        assertCheckerInterfaceSelections(queryRoot = true, variables = CheckerInterfaceVariables.INDEPENDENT)
+    }
 
     @Test
-    fun `checker object selections retain field variable dependencies after pruning`() = assertCheckerInterfaceSelections(queryRoot = false, variables = CheckerInterfaceVariables.FIELD)
+    fun `checker object selections retain field variable dependencies after pruning`() {
+        assertCheckerInterfaceSelections(queryRoot = false, variables = CheckerInterfaceVariables.FIELD)
+    }
 
     @Test
-    fun `checker Query selections retain field variable dependencies after pruning`() = assertCheckerInterfaceSelections(queryRoot = true, variables = CheckerInterfaceVariables.FIELD)
+    fun `checker Query selections retain field variable dependencies after pruning`() {
+        assertCheckerInterfaceSelections(queryRoot = true, variables = CheckerInterfaceVariables.FIELD)
+    }
 
     @ParameterizedTest(name = "{0}: excluded {1} with {2}, shared callback = {3}")
     @CsvSource(

@@ -11,7 +11,7 @@ import viaduct.remote.grpc.SerializedSelectionSet
 
 class CallbackDispatcherTest {
     @Test
-    fun `a pending call fails instead of hanging when the stream ends`() =
+    fun `a pending call fails instead of hanging when the stream ends`(): Unit =
         runTest {
             val dispatcher = CallbackDispatcher { /* never responds -- simulates a stream that goes silent */ }
             // runCatching inside the async, not around await(): an uncaught failure in the async
@@ -30,7 +30,7 @@ class CallbackDispatcherTest {
         }
 
     @Test
-    fun `a call already completed by a response is unaffected by a later failAllPending`() =
+    fun `a call already completed by a response is unaffected by a later failAllPending`(): Unit =
         runTest {
             val dispatcher = CallbackDispatcher { }
             val pendingCall = async {
@@ -49,7 +49,7 @@ class CallbackDispatcherTest {
         }
 
     @Test
-    fun `a call started after failAllPending fails fast instead of hanging forever`() =
+    fun `a call started after failAllPending fails fast instead of hanging forever`(): Unit =
         runTest {
             val dispatcher = CallbackDispatcher { /* never responds */ }
             dispatcher.failAllPending(IllegalStateException("stream closed"))
@@ -63,7 +63,7 @@ class CallbackDispatcherTest {
         }
 
     @Test
-    fun `a caller that cancels while awaiting is removed from pending instead of leaking`() =
+    fun `a caller that cancels while awaiting is removed from pending instead of leaking`(): Unit =
         runTest {
             val dispatcher = CallbackDispatcher { /* never responds */ }
             val pendingCall = async {
@@ -79,7 +79,7 @@ class CallbackDispatcherTest {
         }
 
     @Test
-    fun `failAllPending fails every concurrently pending call`() =
+    fun `failAllPending fails every concurrently pending call`(): Unit =
         runTest {
             val dispatcher = CallbackDispatcher { }
             val calls = (1..3).map {

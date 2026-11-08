@@ -59,7 +59,7 @@ class FieldExecutionContextImplTest : ContextTestBase() {
     }
 
     @Test
-    fun properties() =
+    fun properties(): Unit =
         runTest {
             val ctx = mk()
             assertEquals(Args, ctx.arguments)
@@ -104,7 +104,7 @@ class FieldExecutionContextImplTest : ContextTestBase() {
     }
 
     @Test
-    fun query() =
+    fun query(): Unit =
         runTest {
             val ctx = mk()
             val result = ctx.query(TypenameQuery)
@@ -112,7 +112,7 @@ class FieldExecutionContextImplTest : ContextTestBase() {
         }
 
     @Test
-    fun `missing object RSS data is a framework error`() =
+    fun `missing object RSS data is a framework error`(): Unit =
         runTest {
             val ctx = mk()
 
@@ -125,7 +125,7 @@ class FieldExecutionContextImplTest : ContextTestBase() {
         }
 
     @Test
-    fun `missing query RSS data is a framework error`() =
+    fun `missing query RSS data is a framework error`(): Unit =
         runTest {
             val ctx = mk()
 

@@ -28,7 +28,7 @@ open class FieldCheckerClosureTest : ResolutionDispatcherResource {
     protected open val precomputedConstructionDemand = false
 
     @Test
-    fun `closure restores checked demand at raw value resolver boundaries on both roots`() =
+    fun `closure restores checked demand at raw value resolver boundaries on both roots`(): Unit =
         runBlocking {
             val world = TestWorld.fromDSL(
                 """

@@ -215,7 +215,7 @@ class CorrectResolutionTest : ResolutionDispatcherResource {
     }
 
     @Test
-    fun `direct resolve invocation and invocation through correctness replay do not cause invocation observations`() =
+    fun `direct resolve invocation and invocation through correctness replay do not cause invocation observations`(): Unit =
         runBlocking {
             val testWorld = TestWorld.fromDSL("extend type Query { value: Int @resolver(result: 7) }")
             val events = CopyOnWriteArrayList<ResolverInvocationObservation>()

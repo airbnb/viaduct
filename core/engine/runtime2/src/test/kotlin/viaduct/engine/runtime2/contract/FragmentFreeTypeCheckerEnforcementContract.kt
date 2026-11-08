@@ -621,7 +621,7 @@ interface FragmentFreeTypeCheckerEnforcementContract {
     }
 
     @Test
-    fun `request cancellation during type-checker execution terminates the OER-owned result`() =
+    fun `request cancellation during type-checker execution terminates the OER-owned result`(): Unit =
         runBlocking {
             val checkerEntered = CompletableDeferred<Unit>()
             val worldFixture =

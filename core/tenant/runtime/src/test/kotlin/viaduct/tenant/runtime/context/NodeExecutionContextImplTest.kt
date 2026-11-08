@@ -52,7 +52,7 @@ class NodeExecutionContextImplTest : ContextTestBase() {
     }
 
     @Test
-    fun query() =
+    fun query(): Unit =
         runTest {
             val ctx = mk()
             val result = ctx.query(TypenameQuery)

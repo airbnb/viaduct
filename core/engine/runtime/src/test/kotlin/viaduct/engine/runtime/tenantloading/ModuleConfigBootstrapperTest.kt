@@ -43,7 +43,7 @@ class ModuleConfigBootstrapperTest {
         )
 
     @Test
-    fun `rebuilding registries reuses the captured config without reopening its source`() =
+    fun `rebuilding registries reuses the captured config without reopening its source`(): Unit =
         runTest {
             val original = source("alpha", "single-read", bootstrapClass = TestBootstrapClass::class.java)
             var opened = false
@@ -66,7 +66,7 @@ class ModuleConfigBootstrapperTest {
         }
 
     @Test
-    fun `a tenant with multiple sources is bootstrapped exactly once`() =
+    fun `a tenant with multiple sources is bootstrapped exactly once`(): Unit =
         runTest {
             val recording = RecordingTenantModuleInjectorFactory()
             // A single tenant contributes two configs from different tenant APIs (same tenantName).
@@ -84,7 +84,7 @@ class ModuleConfigBootstrapperTest {
         }
 
     @Test
-    fun `distinct tenants are each bootstrapped once`() =
+    fun `distinct tenants are each bootstrapped once`(): Unit =
         runTest {
             val recording = RecordingTenantModuleInjectorFactory()
             ModuleConfigBootstrapper(tenantModuleInjectorFactory = recording).bootstrap(
@@ -99,7 +99,7 @@ class ModuleConfigBootstrapperTest {
         }
 
     @Test
-    fun `the tenant bootstrap class is carried through from the source that declares it`() =
+    fun `the tenant bootstrap class is carried through from the source that declares it`(): Unit =
         runTest {
             val recording = RecordingTenantModuleInjectorFactory()
             ModuleConfigBootstrapper(tenantModuleInjectorFactory = recording).bootstrap(

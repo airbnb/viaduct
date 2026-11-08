@@ -24,13 +24,19 @@ import viaduct.engine.runtime2.resolvers.resolver23.resolve as resolve23
 /** An independent Query execution and its associated Query OER have distinct semantic roles. */
 class IndependentQueryScopeOwnershipRegressionTest : ResolutionDispatcherResource {
     @Test
-    fun `DFS reference Query input may itself contain shared Query owners`() = verify(7)
+    fun `DFS reference Query input may itself contain shared Query owners`() {
+        verify(7)
+    }
 
     @Test
-    fun `grounded coroutine reference Query input may itself contain shared Query owners`() = verify(23)
+    fun `grounded coroutine reference Query input may itself contain shared Query owners`() {
+        verify(23)
+    }
 
     @Test
-    fun `symbolic reference Query input may itself contain shared Query owners`() = verify(26)
+    fun `symbolic reference Query input may itself contain shared Query owners`() {
+        verify(26)
+    }
 
     private fun verify(resolver: Int) {
         val world = TestWorld.fromSDL(

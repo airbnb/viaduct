@@ -22,26 +22,42 @@ class JSONScalarConformanceTest {
     }
 
     @Test
-    fun `null value`() = check(null)
+    fun `null value`() {
+        check(null)
+    }
 
     @Test
-    fun `scalar value`() = check(1)
+    fun `scalar value`() {
+        check(1)
+    }
 
     @Test
-    fun `map value`() = check(mapOf("a" to 1))
+    fun `map value`() {
+        check(mapOf("a" to 1))
+    }
 
     @Test
-    fun `nested map value`() = check(mapOf("a" to mapOf("b" to 1)))
+    fun `nested map value`() {
+        check(mapOf("a" to mapOf("b" to 1)))
+    }
 
     @Test
-    fun `list value`() = check(listOf(1, 2, null))
+    fun `list value`() {
+        check(listOf(1, 2, null))
+    }
 
     @Test
-    fun `heterogenous list value`() = check(listOf(1, mapOf("a" to 2)))
+    fun `heterogenous list value`() {
+        check(listOf(1, mapOf("a" to 2)))
+    }
 
     @Test
-    fun `nested list value`() = check(listOf(listOf(1, 2), null, listOf(3, null)))
+    fun `nested list value`() {
+        check(listOf(listOf(1, 2), null, listOf(3, null)))
+    }
 
     @Test
-    fun `list of maps value`() = check(listOf(mapOf("a" to 1), mapOf("a" to 2)))
+    fun `list of maps value`() {
+        check(listOf(mapOf("a" to 1), mapOf("a" to 2)))
+    }
 }

@@ -96,7 +96,7 @@ class DeferTest {
         }
 
         @Test
-        fun `tasks run only when invoked and return nested work`() =
+        fun `tasks run only when invoked and return nested work`(): Unit =
             runTest {
                 val parent = DeferDeliveryGroup(ResultPath.rootPath(), "parent", null)
                 val child = DeferDeliveryGroup(ResultPath.rootPath(), "child", parent)
@@ -154,7 +154,7 @@ class DeferTest {
         }
 
         @Test
-        fun `object result factory carries supplied work`() =
+        fun `object result factory carries supplied work`(): Unit =
             runTest {
                 val parameters = mkObjectCompletionParameters(
                     schemaSDL = "extend type Query { obj: Obj } type Obj { child: Child } type Child { value: Int }",

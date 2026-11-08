@@ -74,7 +74,7 @@ class NamedOperationSelectionsTest {
     private val variables = mapOf("id" to GlobalID(nodeType, "123"), "value" to "hello", "showLabel" to false)
 
     @Test
-    fun `mock query retains named fragments and normalizes GlobalID variables`() =
+    fun `mock query retains named fragments and normalizes GlobalID variables`(): Unit =
         runTest {
             assertSame(QueryResult, queryContext().query(FindResult, variables))
 
@@ -82,7 +82,7 @@ class NamedOperationSelectionsTest {
         }
 
     @Test
-    fun `mock mutation retains named fragments and normalizes GlobalID variables`() =
+    fun `mock mutation retains named fragments and normalizes GlobalID variables`(): Unit =
         runTest {
             assertSame(MutationResult, mutationContext().mutation(RecordResult, variables))
 
@@ -90,7 +90,7 @@ class NamedOperationSelectionsTest {
         }
 
     @Test
-    fun `mock query fails clearly without a selection factory`() =
+    fun `mock query fails clearly without a selection factory`(): Unit =
         runTest {
             val error = assertThrows<UnsupportedOperationException> {
                 queryContext(null).query(FindResult, variables)

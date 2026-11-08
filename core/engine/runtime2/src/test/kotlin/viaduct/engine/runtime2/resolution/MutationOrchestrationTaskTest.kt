@@ -68,7 +68,7 @@ class MutationOrchestrationTaskTest : ResolutionDispatcherResource {
 
     @ParameterizedTest
     @ValueSource(booleans = [false, true])
-    fun `cancellation before orchestration entry terminates every prepared cell`(precomputed: Boolean) =
+    fun `cancellation before orchestration entry terminates every prepared cell`(precomputed: Boolean): Unit =
         runTest {
             var calls = 0
             val fixture = fixture { ++calls }
@@ -93,7 +93,7 @@ class MutationOrchestrationTaskTest : ResolutionDispatcherResource {
 
     @ParameterizedTest
     @ValueSource(booleans = [false, true])
-    fun `suspended mutation prevents its successor from starting and cancels locally`(precomputed: Boolean) =
+    fun `suspended mutation prevents its successor from starting and cancels locally`(precomputed: Boolean): Unit =
         runTest {
             var calls = 0
             val fixture = fixture {
@@ -115,7 +115,7 @@ class MutationOrchestrationTaskTest : ResolutionDispatcherResource {
         }
 
     @Test
-    fun `the next mutation waits for child work after the first value is published`() =
+    fun `the next mutation waits for child work after the first value is published`(): Unit =
         runTest {
             val releaseFirstMutationChild = CompletableDeferred<Unit>()
             val effects = mutableListOf<String>()

@@ -224,7 +224,7 @@ internal class InstrumentedEngineObjectDataTest {
         }
 
         @Test
-        fun `fetch delegates to get with instrumentation`() =
+        fun `fetch delegates to get with instrumentation`(): Unit =
             runBlocking {
                 val mockEngineObjectData: EngineObjectData.Sync = mockk()
                 val instrumentation = RecordingResolverInstrumentation()
@@ -249,7 +249,7 @@ internal class InstrumentedEngineObjectDataTest {
             }
 
         @Test
-        fun `fetchOrNull delegates to getOrNull with instrumentation`() =
+        fun `fetchOrNull delegates to getOrNull with instrumentation`(): Unit =
             runBlocking {
                 val mockEngineObjectData: EngineObjectData.Sync = mockk()
                 val instrumentation = RecordingResolverInstrumentation()

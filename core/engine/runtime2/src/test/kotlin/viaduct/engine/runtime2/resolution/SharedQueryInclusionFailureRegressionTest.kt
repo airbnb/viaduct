@@ -21,16 +21,24 @@ import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 /** A failed owner's guard must not suppress a different owner's included shared dependency. */
 class SharedQueryInclusionFailureRegressionTest : ResolutionDispatcherResource {
     @Test
-    fun `failed guard first preserves healthy owner's shared Query input`() = checkOrder("bad good")
+    fun `failed guard first preserves healthy owner's shared Query input`() {
+        checkOrder("bad good")
+    }
 
     @Test
-    fun `healthy guard first preserves healthy owner's shared Query input`() = checkOrder("good bad")
+    fun `healthy guard first preserves healthy owner's shared Query input`() {
+        checkOrder("good bad")
+    }
 
     @Test
-    fun `failed Query path guard first preserves healthy owner input`() = checkOrder("bad good", true)
+    fun `failed Query path guard first preserves healthy owner input`() {
+        checkOrder("bad good", true)
+    }
 
     @Test
-    fun `healthy Query path guard first preserves healthy owner input`() = checkOrder("good bad", true)
+    fun `healthy Query path guard first preserves healthy owner input`() {
+        checkOrder("good bad", true)
+    }
 
     private fun checkOrder(
         order: String,

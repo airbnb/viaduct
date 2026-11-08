@@ -50,7 +50,7 @@ import viaduct.graphql.schema.graphqljava.gjDef
 
 class MaterializeTest {
     @Test
-    fun `excluded selections do not read value or checker slots`() =
+    fun `excluded selections do not read value or checker slots`(): Unit =
         runBlocking {
             listOf(false, true).forEach { checked ->
                 val worldFixture = TestWorld.fromSDL("type Query { value: String! }")
@@ -101,7 +101,7 @@ class MaterializeTest {
         }
 
     @Test
-    fun `included selections materialize in checked and raw modes`() =
+    fun `included selections materialize in checked and raw modes`(): Unit =
         runBlocking {
             listOf(false, true).forEach { checked ->
                 val worldFixture = TestWorld.fromSDL("type Query { value: String! }")
@@ -149,7 +149,7 @@ class MaterializeTest {
         }
 
     @Test
-    fun `materialization awaits a present deferred value`() =
+    fun `materialization awaits a present deferred value`(): Unit =
         runBlocking {
             val worldFixture = TestWorld
                 .fromSDL(
@@ -277,7 +277,7 @@ class MaterializeTest {
     }
 
     @Test
-    fun `Node fields materialize at their source coordinates`() =
+    fun `Node fields materialize at their source coordinates`(): Unit =
         runBlocking {
             val worldFixture = TestWorld
                 .fromSDL(
@@ -379,7 +379,7 @@ class MaterializeTest {
         }
 
     @Test
-    fun `distinct response aliases can read one exact stored key`() =
+    fun `distinct response aliases can read one exact stored key`(): Unit =
         runBlocking {
             val worldFixture = TestWorld
                 .fromSDL(
@@ -424,7 +424,7 @@ class MaterializeTest {
         }
 
     @Test
-    fun `missing field checker slot defaults materialization open`() =
+    fun `missing field checker slot defaults materialization open`(): Unit =
         runBlocking {
             val worldFixture = TestWorld.fromSDL("type Query { value: String! }")
             val world = worldFixture.assumptions
@@ -455,7 +455,7 @@ class MaterializeTest {
         }
 
     @Test
-    fun `present field checker slot is enforced without a policy flag`() =
+    fun `present field checker slot is enforced without a policy flag`(): Unit =
         runBlocking {
             val worldFixture = TestWorld.fromSDL("type Query { value: String! }")
             val world = worldFixture.assumptions
@@ -486,7 +486,7 @@ class MaterializeTest {
         }
 
     @Test
-    fun `checker denial completes without awaiting the raw value`() =
+    fun `checker denial completes without awaiting the raw value`(): Unit =
         runBlocking {
             val worldFixture = TestWorld
                 .fromSDL(
@@ -531,7 +531,7 @@ class MaterializeTest {
         }
 
     @Test
-    fun `raw materialization skips unfinished checker slots`() =
+    fun `raw materialization skips unfinished checker slots`(): Unit =
         runBlocking {
             val worldFixture = TestWorld
                 .fromSDL(
@@ -618,7 +618,7 @@ class MaterializeTest {
     }
 
     @Test
-    fun `raw materialization remains raw through nested objects and lists`() =
+    fun `raw materialization remains raw through nested objects and lists`(): Unit =
         runBlocking {
             val worldFixture = TestWorld
                 .fromSDL(

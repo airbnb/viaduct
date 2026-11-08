@@ -97,7 +97,7 @@ class VariablesProviderExecutorImplTest {
     }
 
     @Test
-    fun `combined selections resolve provider and registry variables from named fragments`() =
+    fun `combined selections resolve provider and registry variables from named fragments`(): Unit =
         runBlocking {
             val result = RequiredSelectionSetFactory().mkRequiredSelectionSets(
                 schema,
@@ -243,7 +243,7 @@ class VariablesProviderExecutorImplTest {
     }
 
     @Test
-    fun `invalid field metadata reports its actual coordinate`() =
+    fun `invalid field metadata reports its actual coordinate`(): Unit =
         runBlocking {
             val resolver = variablesResolver("Under_Score", "missing_field")
 
@@ -255,7 +255,7 @@ class VariablesProviderExecutorImplTest {
         }
 
     @Test
-    fun `invalid type metadata reports its actual type`() =
+    fun `invalid type metadata reports its actual type`(): Unit =
         runBlocking {
             val resolver = variablesResolver("Missing_Type", "foo_bar")
 
@@ -268,7 +268,7 @@ class VariablesProviderExecutorImplTest {
 
     @Test
     @Suppress("DEPRECATION")
-    fun `providers without arguments receive the no arguments singleton`() =
+    fun `providers without arguments receive the no arguments singleton`(): Unit =
         runBlocking {
             for (argumentsClass in listOf(null, Arguments.NoArguments::class.java, Arguments.None::class.java)) {
                 val resolver = variablesResolver("Query", "no_arguments", NoArgumentsResolver::class.java, argumentsClass)

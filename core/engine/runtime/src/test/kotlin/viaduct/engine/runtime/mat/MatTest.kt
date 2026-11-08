@@ -9,7 +9,7 @@ import viaduct.engine.api.EngineExecutionContext
 
 class MatTest {
     @Test
-    fun `null mat covers requested tree with successful null source`() =
+    fun `null mat covers requested tree with successful null source`(): Unit =
         runTest {
             val tree = KeyTree.empty
             val handle = object : EngineExecutionContext.ExecutionHandle {}

@@ -155,7 +155,7 @@ class CreateValueTests {
     }
 
     @Test
-    fun testCreateValueV2() =
+    fun testCreateValueV2(): Unit =
         runTest {
             val fieldB = defForObjectB.codegenIncludedFields.first()
             val valueV2 = fieldB.createValueV2(classResolverForV2, graphqlSchemaForV2)
@@ -170,7 +170,7 @@ class CreateValueTests {
         }
 
     @Test
-    fun testValueV2FromGenericValueAsEngineObjectData() =
+    fun testValueV2FromGenericValueAsEngineObjectData(): Unit =
         runTest {
             val fieldB = defForObjectB.codegenIncludedFields.first()
             val data = fieldB.valueV2FromGenericValue(

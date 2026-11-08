@@ -788,7 +788,7 @@ class GeneratorTest {
     }
 
     @Test
-    fun `count-only application capture does not retain resolution witnesses`() =
+    fun `count-only application capture does not retain resolution witnesses`(): Unit =
         runBlocking {
             val config =
                 TEST_CONFIG +
@@ -1058,7 +1058,7 @@ class GeneratorTest {
     }
 
     @Test
-    fun `complex resolver functions are deterministic for equal inputs and arguments`() =
+    fun `complex resolver functions are deterministic for equal inputs and arguments`(): Unit =
         runBlocking {
             val config =
                 Config.default +

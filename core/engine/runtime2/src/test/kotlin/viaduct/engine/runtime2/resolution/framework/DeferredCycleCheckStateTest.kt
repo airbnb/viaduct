@@ -79,7 +79,7 @@ class DeferredCycleCheckStateTest {
     }
 
     @Test
-    fun `denial can release a recorded dependency and allow a historical cycle to finish`() =
+    fun `denial can release a recorded dependency and allow a historical cycle to finish`(): Unit =
         runTest {
             val fixture = Fixture()
             val first = fixture.node(0)

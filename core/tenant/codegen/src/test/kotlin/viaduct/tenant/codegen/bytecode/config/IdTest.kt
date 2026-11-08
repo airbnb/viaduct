@@ -37,7 +37,7 @@ class IdTest {
     }
 
     @Test
-    fun `TypeDef isID`() =
+    fun `TypeDef isID`() {
         myWithSchema(
             """
             scalar ID
@@ -47,9 +47,10 @@ class IdTest {
             assertTrue(schema.typedef("ID").isID)
             assertFalse(schema.typedef("S").isID)
         }
+    }
 
     @Test
-    fun `modern behavior in OSS`() =
+    fun `modern behavior in OSS`() {
         myWithSchema(
             """
             type MyNode implements Node { id: ID! }
@@ -71,21 +72,24 @@ class IdTest {
             check("Object", "f3", "kotlin.collections.List<kotlin.String?>?")
             check("Object", "f4", "kotlin.collections.List<kotlin.String>")
         }
+    }
 
     @Test
-    fun `modern -- bare`() =
+    fun `modern -- bare`() {
         myWithSchema {
             schema.typedef("ID").assertKotlinTypeString("kotlin.String?", baseTypeMapper = baseTypeMapper)
         }
+    }
 
     @Test
-    fun `modern -- Node`() =
+    fun `modern -- Node`() {
         myWithSchema {
             check("Node", "id", GlobalID("Node"), GlobalOutID("Node"))
         }
+    }
 
     @Test
-    fun `modern -- node interface`() =
+    fun `modern -- node interface`() {
         myWithSchema(
             """
             interface MyNode implements Node {
@@ -100,9 +104,10 @@ class IdTest {
             check("MyNode", "id2", "kotlin.String")
             check("MyNode", "id3", GlobalID("MyNode"), GlobalOutID("MyNode"))
         }
+    }
 
     @Test
-    fun `modern -- node object`() =
+    fun `modern -- node object`() {
         myWithSchema(
             """
                 type MyNode implements Node {
@@ -116,9 +121,10 @@ class IdTest {
             check("MyNode", "id2", "kotlin.String")
             check("MyNode", "id3", GlobalID("MyNode"))
         }
+    }
 
     @Test
-    fun `modern -- nulls and lists`() =
+    fun `modern -- nulls and lists`() {
         myWithSchema(
             """
                 type MyNode implements Node { id: ID! }
@@ -160,9 +166,10 @@ class IdTest {
                 "kotlin.collections.List<out ${GlobalOutID("MyInterface")}?>?",
             )
         }
+    }
 
     @Test
-    fun `modern -- input`() =
+    fun `modern -- input`() {
         myWithSchema(
             """
                 type MyNode implements Node { id: ID! }
@@ -179,9 +186,10 @@ class IdTest {
             schema.field("Input", "f3").assertKotlinTypeString("kotlin.String", baseTypeMapper = baseTypeMapper)
             schema.field("Input", "f4").assertKotlinTypeString(GlobalID("MyNode"), baseTypeMapper = baseTypeMapper)
         }
+    }
 
     @Test
-    fun `modern -- field arguments`() =
+    fun `modern -- field arguments`() {
         myWithSchema(
             """
                 type MyNode implements Node { id: ID! }
@@ -202,9 +210,10 @@ class IdTest {
             args["a3"]!!.assertKotlinTypeString("kotlin.String", baseTypeMapper = baseTypeMapper)
             args["a4"]!!.assertKotlinTypeString(GlobalID("MyNode"), baseTypeMapper = baseTypeMapper)
         }
+    }
 
     @Test
-    fun `modern -- grtNameForIdParam`() =
+    fun `modern -- grtNameForIdParam`() {
         myWithSchema(
             """
             interface Node2 implements Node {
@@ -219,9 +228,10 @@ class IdTest {
             assertEquals(null, schema.field("Node2", "id2").grtNameForIdParam())
             assertEquals("MyNode", schema.field("Node2", "id3").grtNameForIdParam())
         }
+    }
 
     @Test
-    fun `idOf with non-existent type throws`() =
+    fun `idOf with non-existent type throws`() {
         myWithSchema("type Object { f1: ID! @idOf(type: \"NonExistent\") }") {
             val field = schema.field("Object", "f1")
             val ex = assertThrows<IllegalArgumentException> {
@@ -230,9 +240,10 @@ class IdTest {
             assertTrue(ex.message!!.contains("references undefined type"))
             assertTrue(ex.message!!.contains("NonExistent"))
         }
+    }
 
     @Test
-    fun `idOf with non-Node type throws`() =
+    fun `idOf with non-Node type throws`() {
         myWithSchema(
             """
             enum MyEnum { A B }
@@ -246,4 +257,5 @@ class IdTest {
             assertTrue(ex.message!!.contains("does not implement Node"))
             assertTrue(ex.message!!.contains("MyEnum"))
         }
+    }
 }

@@ -19,7 +19,7 @@ import viaduct.errors.TenantUsageException
 
 class NodeBatchExecutionTest {
     @Test
-    fun `repeated decoded IDs run concurrently and returned map order does not change attribution`() =
+    fun `repeated decoded IDs run concurrently and returned map order does not change attribution`(): Unit =
         runBlocking {
             val selectors = listOf("A1", "B1", "A2")
             val started = CompletableDeferred<Unit>()
@@ -50,7 +50,7 @@ class NodeBatchExecutionTest {
         }
 
     @Test
-    fun `missing or foreign context fails every selector in its group`() =
+    fun `missing or foreign context fails every selector in its group`(): Unit =
         runBlocking {
             val selectors = listOf("A", "B")
             val malformed = listOf<(List<String>) -> Map<String, String>>(
@@ -77,7 +77,7 @@ class NodeBatchExecutionTest {
         }
 
     @Test
-    fun `group failure is attributed without discarding another group's results`() =
+    fun `group failure is attributed without discarding another group's results`(): Unit =
         runBlocking {
             val selectors = listOf("A1", "B1", "A2", "B2")
             val failure = IllegalStateException("group failed")
@@ -102,7 +102,7 @@ class NodeBatchExecutionTest {
         }
 
     @Test
-    fun `independent cancellation is attributed while request stays active`() =
+    fun `independent cancellation is attributed while request stays active`(): Unit =
         runBlocking {
             val cancellation = CancellationException("resolver cancelled")
 
@@ -119,7 +119,7 @@ class NodeBatchExecutionTest {
         }
 
     @Test
-    fun `request cancellation stops a pending group`() =
+    fun `request cancellation stops a pending group`(): Unit =
         runBlocking {
             val started = CompletableDeferred<Unit>()
             val stopped = CompletableDeferred<Unit>()
@@ -149,7 +149,7 @@ class NodeBatchExecutionTest {
         }
 
     @Test
-    fun `empty input does not invoke the resolver`() =
+    fun `empty input does not invoke the resolver`(): Unit =
         runBlocking {
             val results = executeNodeBatch<String, String, String, String>(
                 selectors = emptyList(),

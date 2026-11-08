@@ -58,7 +58,7 @@ class RemoteNodeStreamProxyExecutorTest {
     }
 
     @Test
-    fun `resolves a batch through the full streaming round-trip`() =
+    fun `resolves a batch through the full streaming round-trip`(): Unit =
         runTest {
             withProxy(SimpleNodeResolverExecutor.createUserResolver()) { proxy, context ->
                 val selector = NodeResolverExecutor.Selector(
@@ -78,7 +78,7 @@ class RemoteNodeStreamProxyExecutorTest {
         }
 
     @Test
-    fun `a missing node surfaces as a RemoteResolverException`() =
+    fun `a missing node surfaces as a RemoteResolverException`(): Unit =
         runTest {
             withProxy(SimpleNodeResolverExecutor.createUserResolver()) { proxy, context ->
                 val selector = NodeResolverExecutor.Selector(
@@ -97,7 +97,7 @@ class RemoteNodeStreamProxyExecutorTest {
         }
 
     @Test
-    fun `a re-entrant ctx query from the resolver fires the callback path`() =
+    fun `a re-entrant ctx query from the resolver fires the callback path`(): Unit =
         runTest {
             // Mirrors RemoteFieldProxyIntegrationTest's equivalent: ContextMocks runs over a no-op
             // engine, so the re-entrant query cannot complete. We assert the callback mechanism

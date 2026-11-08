@@ -43,7 +43,7 @@ class ExceptionsTest {
     }
 
     @Test
-    fun `resolver returning a non-iterable for a list field surfaces a field error`() =
+    fun `resolver returning a non-iterable for a list field surfaces a field error`() {
         runExecutionTest {
             val result = ExecutionTestHelpers.executeViaductModernGraphQL(
                 sdl = "type Query { items: [String] }",
@@ -57,6 +57,7 @@ class ExceptionsTest {
                 "Expected 'Expected data to be an Iterable' error, got: ${result.errors[0].message}",
             )
         }
+    }
 
     private val defaultSdl = "type Query { field: Int }"
 

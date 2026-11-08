@@ -81,7 +81,7 @@ class LedgerReaderTest {
     @Nested
     inner class FetchOrNull {
         @Test
-        fun `reads the schema field when the response key has an alias`() =
+        fun `reads the schema field when the response key has an alias`(): Unit =
             runTest {
                 val schema = "type Root { name: String, displayName: String }".asViaductSchema
                 val rootType = schema.objectType("Root")
@@ -110,7 +110,7 @@ class LedgerReaderTest {
             }
 
         @Test
-        fun `custom reader selects the response key from the matching materialization`() =
+        fun `custom reader selects the response key from the matching materialization`(): Unit =
             runTest {
                 val schema = "type Root { value(x: Int!): String }".asViaductSchema
                 val rootType = schema.objectType("Root")
@@ -135,7 +135,7 @@ class LedgerReaderTest {
             }
 
         @Test
-        fun `default reader distinguishes a null field from a missing field`() =
+        fun `default reader distinguishes a null field from a missing field`(): Unit =
             runTest {
                 val schema = "type Root { present: String, missing: String }".asViaductSchema
                 val rootType = schema.objectType("Root")
@@ -157,7 +157,7 @@ class LedgerReaderTest {
             }
 
         @Test
-        fun `schema field key does not collide with another response key`() =
+        fun `schema field key does not collide with another response key`(): Unit =
             runTest {
                 val schema = "type Root { displayName: String, id: ID }".asViaductSchema
                 val rootType = schema.objectType("Root")
@@ -194,7 +194,7 @@ class LedgerReaderTest {
             }
 
         @Test
-        fun `argument key selects the matching materialization`() =
+        fun `argument key selects the matching materialization`(): Unit =
             runTest {
                 val schema = "type Root { value(x: Int!): String }".asViaductSchema
                 val rootType = schema.objectType("Root")
@@ -225,7 +225,7 @@ class LedgerReaderTest {
             }
 
         @Test
-        fun `reads an embedded object`() =
+        fun `reads an embedded object`(): Unit =
             runTest {
                 val schema = "type Root { child: Child } type Child { name: String }".asViaductSchema
                 val rootType = schema.objectType("Root")
@@ -258,7 +258,7 @@ class LedgerReaderTest {
             }
 
         @Test
-        fun `returns null for a null materialization`() =
+        fun `returns null for a null materialization`(): Unit =
             runTest {
                 val schema = "type Root { name: String }".asViaductSchema
                 val rootType = schema.objectType("Root")
@@ -279,7 +279,7 @@ class LedgerReaderTest {
             }
 
         @Test
-        fun `reports a missing source without reading the field`() =
+        fun `reports a missing source without reading the field`(): Unit =
             runTest {
                 val schema = "type Root { name: String }".asViaductSchema
                 val rootType = schema.objectType("Root")
@@ -308,7 +308,7 @@ class LedgerReaderTest {
         }
 
         @Test
-        fun `rethrows the preparation failure`() =
+        fun `rethrows the preparation failure`(): Unit =
             runTest {
                 val failure = RuntimeException("materialization failed")
                 val reader = LedgerReader.failed(failure)
@@ -324,7 +324,7 @@ class LedgerReaderTest {
     @Nested
     inner class RootNodeId {
         @Test
-        fun `is read without a ledger lookup`() =
+        fun `is read without a ledger lookup`(): Unit =
             runTest {
                 val schema = "type Root { id: ID }".asViaductSchema
                 val rootType = schema.objectType("Root")
@@ -344,7 +344,7 @@ class LedgerReaderTest {
             }
 
         @Test
-        fun `reads the aliased field instead of the root node id`() =
+        fun `reads the aliased field instead of the root node id`(): Unit =
             runTest {
                 val schema = "type Root { displayName: String, id: ID }".asViaductSchema
                 val rootType = schema.objectType("Root")
@@ -374,7 +374,7 @@ class LedgerReaderTest {
             }
 
         @Test
-        fun `is not used for embedded objects`() =
+        fun `is not used for embedded objects`(): Unit =
             runTest {
                 val schema = "type Root { child: Child } type Child { id: ID }".asViaductSchema
                 val rootType = schema.objectType("Root")

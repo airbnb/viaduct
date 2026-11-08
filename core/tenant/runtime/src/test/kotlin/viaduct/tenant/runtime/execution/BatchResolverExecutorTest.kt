@@ -317,7 +317,7 @@ class BatchResolverExecutorTest {
     }
 
     @Test
-    fun `request cancellation stops a pending node batch invocation`() =
+    fun `request cancellation stops a pending node batch invocation`(): Unit =
         runBlocking {
             val started = CompletableDeferred<Unit>()
             val stopped = CompletableDeferred<Unit>()

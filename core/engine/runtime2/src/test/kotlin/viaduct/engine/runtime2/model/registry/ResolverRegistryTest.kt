@@ -53,7 +53,7 @@ import viaduct.graphql.schema.ViaductSchema
 
 class ResolverRegistryTest {
     @Test
-    fun `generated node projection preserves authoritative id context and nonselective invocation`() =
+    fun `generated node projection preserves authoritative id context and nonselective invocation`(): Unit =
         runBlocking {
             val retained = Any()
             var calls = 0
@@ -144,7 +144,7 @@ class ResolverRegistryTest {
     }
 
     @Test
-    fun `generated projection is chosen during construction and retains complete source values`() =
+    fun `generated projection is chosen during construction and retains complete source values`(): Unit =
         runBlocking {
             for (selective in listOf(true, false)) {
                 lateinit var complete: EngineObjectData.Sync
@@ -272,7 +272,7 @@ class ResolverRegistryTest {
     }
 
     @Test
-    fun `selective field resolver receives demand without output projection`() =
+    fun `selective field resolver receives demand without output projection`(): Unit =
         runBlocking {
             val world =
                 TestWorld.fromSDL(
@@ -335,7 +335,7 @@ class ResolverRegistryTest {
         }
 
     @Test
-    fun `nonselective field resolver factory preserves complete output`() =
+    fun `nonselective field resolver factory preserves complete output`(): Unit =
         runBlocking {
             val world =
                 TestWorld.fromSDL(
@@ -391,7 +391,7 @@ class ResolverRegistryTest {
         }
 
     @Test
-    fun `selection-aware nonselective resolver receives demand and preserves complete output`() =
+    fun `selection-aware nonselective resolver receives demand and preserves complete output`(): Unit =
         runBlocking {
             val world =
                 TestWorld.fromSDL(
@@ -499,7 +499,7 @@ class ResolverRegistryTest {
         }
 
     @Test
-    fun `lowers node and field resolvers to field coordinates`() =
+    fun `lowers node and field resolvers to field coordinates`(): Unit =
         runBlocking {
             val observedFields = mutableListOf<String>()
             val world =
@@ -590,7 +590,7 @@ class ResolverRegistryTest {
         }
 
     @Test
-    fun `field resolver receives response-preserving query fragment value`() =
+    fun `field resolver receives response-preserving query fragment value`(): Unit =
         runBlocking {
             val world =
                 TestWorld.fromSDL(
@@ -764,7 +764,7 @@ class ResolverRegistryTest {
     }
 
     @Test
-    fun `field resolvers return the complete nullable output-value algebra`() =
+    fun `field resolvers return the complete nullable output-value algebra`(): Unit =
         runBlocking {
             val world =
                 TestWorld.fromSDL(
@@ -963,7 +963,7 @@ class ResolverRegistryTest {
     }
 
     @Test
-    fun `fills missing Query resolvers by nullability and preserves supplied resolvers`() =
+    fun `fills missing Query resolvers by nullability and preserves supplied resolvers`(): Unit =
         runBlocking {
             val world =
                 TestWorld.fromSDL(
@@ -1227,7 +1227,7 @@ class ResolverRegistryTest {
 
     @Test
     @Ignore("Runtime argument-bearing resolver-output validation is disabled")
-    fun `field resolver rejects output containing an argument-bearing field`() =
+    fun `field resolver rejects output containing an argument-bearing field`(): Unit =
         runBlocking {
             val testWorld =
                 TestWorld.fromSDL(

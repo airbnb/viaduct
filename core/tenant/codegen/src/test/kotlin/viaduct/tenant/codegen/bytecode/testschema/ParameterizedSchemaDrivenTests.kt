@@ -79,12 +79,14 @@ class ParameterizedSchemaDrivenTests {
     fun successfulReflectionDrivenExercisesV2(
         schemaName: String,
         schemaFiles: List<File>
-    ) = reflectionDrivenExercisesV2(schemaName, schemaFiles) { failures ->
-        if (!failures.isEmpty) {
-            println("Test failures for schema '$schemaName':")
-            failures.toListOfErrors().forEach { println(it) }
+    ) {
+        reflectionDrivenExercisesV2(schemaName, schemaFiles) { failures ->
+            if (!failures.isEmpty) {
+                println("Test failures for schema '$schemaName':")
+                failures.toListOfErrors().forEach { println(it) }
+            }
+            assertTrue(failures.isEmpty, "Expected no failures for schema '$schemaName', but found:\n${failures.joinToString("\n")}")
         }
-        assertTrue(failures.isEmpty, "Expected no failures for schema '$schemaName', but found:\n${failures.joinToString("\n")}")
     }
 
     @ParameterizedTest(name = "Schema (expected failures): {0}")

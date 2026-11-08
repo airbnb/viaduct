@@ -96,7 +96,7 @@ class TypeCheckerResolutionTest {
     }
 
     @Test
-    fun `denial and exceptional completion terminate and are observed by checked materialization`() =
+    fun `denial and exceptional completion terminate and are observed by checked materialization`(): Unit =
         runBlocking {
             val denial = TypeDenial()
             val failure = IllegalStateException("type checker failed")
@@ -246,7 +246,7 @@ class TypeCheckerResolutionTest {
     }
 
     @Test
-    fun `cancellation before type-checker entry cancels the OER promise`() =
+    fun `cancellation before type-checker entry cancels the OER promise`(): Unit =
         runBlocking {
             val invoked = AtomicBoolean()
             val worldFixture =

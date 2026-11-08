@@ -41,7 +41,7 @@ interface FromFieldVariablesContract : QueryExecutionContract {
     }
 
     @Test
-    fun `from object field -- simple`() =
+    fun `from object field -- simple`() {
         EngineTestModule("extend type Query { x:Int, y(b:Int):Int, z:Int }") {
             fieldWithFromFieldVariables(
                 coord = "Query" to "x",
@@ -59,9 +59,10 @@ interface FromFieldVariablesContract : QueryExecutionContract {
         }.runContractTest {
             runQuery("{x}").assertJson("{data: {x: 30}}")
         }
+    }
 
     @Test
-    fun `from object field -- variables used by field on non-root object`() =
+    fun `from object field -- variables used by field on non-root object`() {
         EngineTestModule(
             """
                 type Obj { x:Int, y(b:Int):Int, z:Int }
@@ -91,9 +92,10 @@ interface FromFieldVariablesContract : QueryExecutionContract {
         }.runContractTest {
             runQuery("{ obj { x } }").assertJson("{data: {obj: {x: 30}}}")
         }
+    }
 
     @Test
-    fun `from object field -- selection is field with omitted arg and default value`() =
+    fun `from object field -- selection is field with omitted arg and default value`() {
         EngineTestModule("extend type Query { x:Int, y(b:Int):Int, z(c:Int = 2):Int }") {
             fieldWithFromFieldVariables(
                 coord = "Query" to "x",
@@ -115,9 +117,10 @@ interface FromFieldVariablesContract : QueryExecutionContract {
         }.runContractTest {
             runQuery("{ x }").assertJson("{data: {x: 210}}")
         }
+    }
 
     @Test
-    fun `from object field -- selection is field with arg`() =
+    fun `from object field -- selection is field with arg`() {
         EngineTestModule("extend type Query { x:Int!, y(b:Int!):Int!, z(c:Int!):Int! }") {
             fieldWithFromFieldVariables(
                 coord = "Query" to "x",
@@ -139,9 +142,10 @@ interface FromFieldVariablesContract : QueryExecutionContract {
         }.runContractTest {
             runQuery("{x}").assertJson("{data: {x: 210}}")
         }
+    }
 
     @Test
-    fun `from object field -- selection is field with omitted argument value`() =
+    fun `from object field -- selection is field with omitted argument value`() {
         EngineTestModule("extend type Query { x:Int, y(b:Int):Int, z(c:Int):Int }") {
             fieldWithFromFieldVariables(
                 coord = "Query" to "x",
@@ -163,9 +167,10 @@ interface FromFieldVariablesContract : QueryExecutionContract {
         }.runContractTest {
             runQuery("{ x }").assertJson("{data: {x: -6}}")
         }
+    }
 
     @Test
-    fun `from object field -- selection is aliased`() =
+    fun `from object field -- selection is aliased`() {
         EngineTestModule("extend type Query { x:Int, y(b:Int):Int, z:Int }") {
             fieldWithFromFieldVariables(
                 coord = "Query" to "x",
@@ -183,9 +188,10 @@ interface FromFieldVariablesContract : QueryExecutionContract {
         }.runContractTest {
             runQuery("{x}").assertJson("{data: {x: 30}}")
         }
+    }
 
     @Test
-    fun `from object field -- selection is list-valued`() =
+    fun `from object field -- selection is list-valued`() {
         EngineTestModule("extend type Query { x:Int, y(b:[Int]):Int, z:[Int] }") {
             fieldWithFromFieldVariables(
                 coord = "Query" to "x",
@@ -205,9 +211,10 @@ interface FromFieldVariablesContract : QueryExecutionContract {
         }.runContractTest {
             runQuery("{x}").assertJson("{data: {x: 210}}")
         }
+    }
 
     @Test
-    fun `from object field -- single-field-multiple-variable -- multiple variables on required selection`() =
+    fun `from object field -- single-field-multiple-variable -- multiple variables on required selection`() {
         EngineTestModule("extend type Query { x:Int, y(b:Int, c:Int):Int, z:Int, w:Int }") {
             fieldWithFromFieldVariables(
                 coord = "Query" to "x",
@@ -231,9 +238,10 @@ interface FromFieldVariablesContract : QueryExecutionContract {
         }.runContractTest {
             runQuery("{x}").assertJson("{data: {x: 210}}")
         }
+    }
 
     @Test
-    fun `from object field -- single-field-multiple-variable -- multiple required selections with variables`() =
+    fun `from object field -- single-field-multiple-variable -- multiple required selections with variables`() {
         EngineTestModule("extend type Query { x:Int, y(b:Int):Int, z(c:Int):Int, w:Int }") {
             fieldWithFromFieldVariables(
                 coord = "Query" to "x",
@@ -259,9 +267,10 @@ interface FromFieldVariablesContract : QueryExecutionContract {
         }.runContractTest {
             runQuery("{x}").assertJson("{data: {x: 210}}")
         }
+    }
 
     @Test
-    fun `from object field -- selection traverses through object`() =
+    fun `from object field -- selection traverses through object`() {
         EngineTestModule(
             """
                 extend type Query { x:Int, y(b:Int):Int, z:Obj }
@@ -290,9 +299,10 @@ interface FromFieldVariablesContract : QueryExecutionContract {
         }.runContractTest {
             runQuery("{x}").assertJson("{data: {x: 30}}")
         }
+    }
 
     @Test
-    fun `from object field -- selection traverses through null object`() =
+    fun `from object field -- selection traverses through null object`() {
         EngineTestModule(
             """
                 extend type Query { x:Int, y(b:Int):Int!, z:Obj }
@@ -315,6 +325,7 @@ interface FromFieldVariablesContract : QueryExecutionContract {
         }.runContractTest {
             runQuery("{ x }").assertJson("{data: {x: -15}}")
         }
+    }
 
     @Test
     fun `from object field -- selection traverses through union`() {
@@ -386,7 +397,7 @@ interface FromFieldVariablesContract : QueryExecutionContract {
     }
 
     @Test
-    fun `from object field - same variable name used in operation variable and annotation variable`() =
+    fun `from object field - same variable name used in operation variable and annotation variable`() {
         EngineTestModule("extend type Query { x(a:Int):Int, y(b:Int):Int, z:Int }") {
             fieldWithFromFieldVariables(
                 coord = "Query" to "x",
@@ -407,9 +418,10 @@ interface FromFieldVariablesContract : QueryExecutionContract {
                 mapOf("vara" to 2),
             ).assertJson("{data: {x: 30}}")
         }
+    }
 
     @Test
-    fun `from object field - same variable name used in multiple selection sets`() =
+    fun `from object field - same variable name used in multiple selection sets`() {
         EngineTestModule("extend type Query { x:Int, y:Int, z(c:Int):Int, w:Int }") {
             fieldWithFromFieldVariables(
                 coord = "Query" to "x",
@@ -429,6 +441,7 @@ interface FromFieldVariablesContract : QueryExecutionContract {
         }.runContractTest {
             runQuery("{x, y}").assertJson("{data: {x: 10, y: 6}}")
         }
+    }
 
     @Test
     fun `invalid from object field -- variable used in conditional directive`() {
@@ -567,7 +580,7 @@ interface FromFieldVariablesContract : QueryExecutionContract {
     }
 
     @Test
-    fun `from query field -- simple`() =
+    fun `from query field -- simple`() {
         EngineTestModule("extend type Query { x:Int, y(b:Int):Int, z:Int }") {
             fieldWithFromFieldVariables(
                 coord = "Query" to "x",
@@ -585,9 +598,10 @@ interface FromFieldVariablesContract : QueryExecutionContract {
         }.runContractTest {
             runQuery("{x}").assertJson("{data: {x: 30}}")
         }
+    }
 
     @Test
-    fun `from query field -- variables used by field on non-root object`() =
+    fun `from query field -- variables used by field on non-root object`() {
         EngineTestModule(
             """
                 type Obj { x:Int }
@@ -617,9 +631,10 @@ interface FromFieldVariablesContract : QueryExecutionContract {
         }.runContractTest {
             runQuery("{ obj { x } }").assertJson("{data: {obj: {x: 30}}}")
         }
+    }
 
     @Test
-    fun `from query field -- binds variable to query field with different name`() =
+    fun `from query field -- binds variable to query field with different name`() {
         EngineTestModule("extend type Query { x:Int, y(a:Int):Int, z:Int }") {
             fieldWithFromFieldVariables(
                 coord = "Query" to "x",
@@ -637,9 +652,10 @@ interface FromFieldVariablesContract : QueryExecutionContract {
         }.runContractTest {
             runQuery("{x}").assertJson("{data: {x: 30}}")
         }
+    }
 
     @Test
-    fun `from query field -- returns null value`() =
+    fun `from query field -- returns null value`() {
         EngineTestModule("extend type Query { x:Int!, y(a:Int):Int!, z:Int }") {
             fieldWithFromFieldVariables(
                 coord = "Query" to "x",
@@ -658,9 +674,10 @@ interface FromFieldVariablesContract : QueryExecutionContract {
         }.runContractTest {
             runQuery("{x}").assertJson("{data:{x:-2}}")
         }
+    }
 
     @Test
-    fun `from query field -- single-field-multiple-variable -- multiple variables on required selection`() =
+    fun `from query field -- single-field-multiple-variable -- multiple variables on required selection`() {
         EngineTestModule("extend type Query { x:Int, y(b:Int, c:Int):Int, z:Int, w:Int }") {
             fieldWithFromFieldVariables(
                 coord = "Query" to "x",
@@ -684,6 +701,7 @@ interface FromFieldVariablesContract : QueryExecutionContract {
         }.runContractTest {
             runQuery("{x}").assertJson("{data: {x: 210}}")
         }
+    }
 
     @Test
     fun `invalid from query field -- variable name overlaps with object field variable`() {
@@ -735,7 +753,7 @@ interface FromFieldVariablesContract : QueryExecutionContract {
     }
 
     @Test
-    fun `mixed variables -- from query field and from argument`() =
+    fun `mixed variables -- from query field and from argument`() {
         EngineTestModule("extend type Query { x(a:Int):Int, y(a:Int, b:Int):Int, z:Int }") {
             fieldWithFromFieldVariables(
                 coord = "Query" to "x",
@@ -759,9 +777,10 @@ interface FromFieldVariablesContract : QueryExecutionContract {
         }.runContractTest {
             runQuery("{x(a:2)}").assertJson("{data: {x: 210}}")
         }
+    }
 
     @Test
-    fun `mixed variables -- from query field and from object field`() =
+    fun `mixed variables -- from query field and from object field`() {
         EngineTestModule("extend type Query { x:Int, y(a:Int, b:Int):Int, z(w:Int):Int }") {
             fieldWithFromFieldVariables(
                 coord = "Query" to "x",
@@ -789,9 +808,10 @@ interface FromFieldVariablesContract : QueryExecutionContract {
         }.runContractTest {
             runQuery("{x}").assertJson("{data: {x: 4620}}")
         }
+    }
 
     @Test
-    fun `from arg -- simple`() =
+    fun `from arg -- simple`() {
         EngineTestModule("extend type Query { foo(y: Int!): Int!, bar(x:Int!): Int! }") {
             fieldWithFromFieldVariables(
                 coord = "Query" to "foo",
@@ -804,9 +824,10 @@ interface FromFieldVariablesContract : QueryExecutionContract {
         }.runContractTest {
             runQuery("{foo(y:2)}").assertJson("{data: {foo: 30}}")
         }
+    }
 
     @Test
-    fun `from arg -- binds argument to variable with a different name`() =
+    fun `from arg -- binds argument to variable with a different name`() {
         EngineTestModule("extend type Query { foo(y: Int!): Int!, bar(x:Int!): Int! }") {
             fieldWithFromFieldVariables(
                 coord = "Query" to "foo",
@@ -819,9 +840,10 @@ interface FromFieldVariablesContract : QueryExecutionContract {
         }.runContractTest {
             runQuery("{foo(y:2)}").assertJson("{data: {foo: 30}}")
         }
+    }
 
     @Test
-    fun `from arg -- path traverses nested input`() =
+    fun `from arg -- path traverses nested input`() {
         EngineTestModule(
             """
                 input Inp { x:Int! }
@@ -839,9 +861,10 @@ interface FromFieldVariablesContract : QueryExecutionContract {
         }.runContractTest {
             runQuery("{foo(inp:{x:2})}").assertJson("{data: {foo: 30}}")
         }
+    }
 
     @Test
-    fun `from arg -- path traverses through null object`() =
+    fun `from arg -- path traverses through null object`() {
         EngineTestModule(
             """
                 input Inp { x:Int!=2 }
@@ -859,9 +882,10 @@ interface FromFieldVariablesContract : QueryExecutionContract {
         }.runContractTest {
             runQuery("{foo(inp:null)}").assertJson("{data: {foo: 7}}")
         }
+    }
 
     @Test
-    fun `from arg -- arg has default value`() =
+    fun `from arg -- arg has default value`() {
         EngineTestModule("extend type Query { foo(x:Int!=2):Int!, bar(x:Int):Int }") {
             fieldWithFromFieldVariables(
                 coord = "Query" to "foo",
@@ -875,9 +899,10 @@ interface FromFieldVariablesContract : QueryExecutionContract {
             runQuery("{foo}").assertJson("{data: {foo: 30}}")
             runQuery("{foo(x:3)}").assertJson("{data: {foo: 45}}")
         }
+    }
 
     @Test
-    fun `from arg -- arg from operation variable`() =
+    fun `from arg -- arg from operation variable`() {
         EngineTestModule("extend type Query { foo(y:Int!):Int!, bar(x:Int!): Int! }") {
             fieldWithFromFieldVariables(
                 coord = "Query" to "foo",
@@ -890,9 +915,10 @@ interface FromFieldVariablesContract : QueryExecutionContract {
         }.runContractTest {
             runQuery("query Q(\$vary:Int!) {foo(y:\$vary)}", mapOf("vary" to 2)).assertJson("{data: {foo: 30}}")
         }
+    }
 
     @Test
-    fun `from arg -- same variable name used in same argument with different values`() =
+    fun `from arg -- same variable name used in same argument with different values`() {
         EngineTestModule("extend type Query { foo(x:Int):Int, bar(x:Int):Int, baz(x:Int):Int }") {
             fieldWithFromFieldVariables(
                 coord = "Query" to "foo",
@@ -910,9 +936,10 @@ interface FromFieldVariablesContract : QueryExecutionContract {
         }.runContractTest {
             runQuery("{foo(x:2) bar(x:3)}").assertJson("{data:{foo:110, bar:105}}")
         }
+    }
 
     @Test
-    fun `from arg -- uses an arg variable with the same name as an unbound argument`() =
+    fun `from arg -- uses an arg variable with the same name as an unbound argument`() {
         EngineTestModule("extend type Query { foo(x:Int):Int, bar(x:Int):Int, baz(x:Int):Int }") {
             fieldWithFromFieldVariables(
                 coord = "Query" to "foo",
@@ -929,9 +956,10 @@ interface FromFieldVariablesContract : QueryExecutionContract {
         }.runContractTest {
             runQuery("{foo(x:2) bar(x:3)}").assertJson("{data:{foo:110, bar:7}}")
         }
+    }
 
     @Test
-    fun `mixed variables -- non-root resolver uses fromObjectField in queryFragment`() =
+    fun `mixed variables -- non-root resolver uses fromObjectField in queryFragment`() {
         EngineTestModule(
             """
                 extend type Query { x(a:Int):Int, obj:Obj }
@@ -962,6 +990,7 @@ interface FromFieldVariablesContract : QueryExecutionContract {
         }.runContractTest {
             runQuery("{obj{x}}").assertJson("{data: {obj: {x: 30}}}")
         }
+    }
 }
 
 fun MockTenantModuleDSL<Unit>.fieldWithFromFieldVariables(

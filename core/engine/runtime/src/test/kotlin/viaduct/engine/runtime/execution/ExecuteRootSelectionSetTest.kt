@@ -59,7 +59,7 @@ class ExecuteRootSelectionSetTest {
     }
 
     @Test
-    fun `without deferred work both execution modes return a complete response`() =
+    fun `without deferred work both execution modes return a complete response`(): Unit =
         runTest {
             val data = mapOf("value" to null)
             val errors = listOf(error("field failed"))
@@ -75,7 +75,7 @@ class ExecuteRootSelectionSetTest {
         }
 
     @Test
-    fun `disabled incremental execution rejects deferred groups or tasks`() =
+    fun `disabled incremental execution rejects deferred groups or tasks`(): Unit =
         runTest {
             val group = DeferDeliveryGroup(ResultPath.rootPath(), "later", null)
             val task = ExecutionGroupTask(setOf(group), group.path) {
@@ -96,7 +96,7 @@ class ExecuteRootSelectionSetTest {
         }
 
     @Test
-    fun `groups without tasks still produce a synchronous result`() =
+    fun `groups without tasks still produce a synchronous result`(): Unit =
         runTest {
             val group = DeferDeliveryGroup(ResultPath.rootPath(), "empty", null)
             val completion = FieldCompletionResult.ObjectResult(emptyMap(), false, Work(setOf(group), emptyList()))
@@ -109,7 +109,7 @@ class ExecuteRootSelectionSetTest {
         }
 
     @Test
-    fun `root completion yields pending work and keeps initial and deferred errors separate`() =
+    fun `root completion yields pending work and keeps initial and deferred errors separate`(): Unit =
         runTest {
             val initialError = error("initial error")
             val fieldError = error("deferred field error")
@@ -148,7 +148,7 @@ class ExecuteRootSelectionSetTest {
         }
 
     @Test
-    fun `stopping incremental delivery cancels outstanding tasks`() =
+    fun `stopping incremental delivery cancels outstanding tasks`(): Unit =
         runTest {
             val started = CompletableDeferred<Unit>()
             val cancelled = CompletableDeferred<Unit>()
@@ -181,7 +181,7 @@ class ExecuteRootSelectionSetTest {
         }
 
     @Test
-    fun `object and list results carry work from child values`() =
+    fun `object and list results carry work from child values`(): Unit =
         runTest {
             val path = ResultPath.rootPath().segment("objects").segment(1).segment("child")
             val group = DeferDeliveryGroup(path, "child", null)
@@ -209,7 +209,7 @@ class ExecuteRootSelectionSetTest {
         }
 
     @Test
-    fun `null or failed root completion produces a synchronous result with errors`() =
+    fun `null or failed root completion produces a synchronous result with errors`(): Unit =
         runTest {
             val error = error("root completion failed")
             val completions = listOf(

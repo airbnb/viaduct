@@ -229,7 +229,7 @@ class StandardViaductBenchmarkTest {
 
     @Test
     @Suppress("DEPRECATION")
-    fun `checker diagnostics expose raw input checks and alias sharing`() =
+    fun `checker diagnostics expose raw input checks and alias sharing`(): Unit =
         runTest {
             val schema = createSchemaWithWiring("extend type Query { object: Object } type Object { id: String label: String }")
             val input = RequiredSelectionSet(SelectionsParser.parse("Object", "fragment Input on Object { id }"), emptyList(), forChecker = true)

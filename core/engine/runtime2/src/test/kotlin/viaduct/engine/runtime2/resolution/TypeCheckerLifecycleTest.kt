@@ -171,7 +171,7 @@ open class TypeCheckerLifecycleTest : ResolutionDispatcherResource {
     }
 
     @Test
-    fun `cancel before checker task entry terminates checker and variable promises`() =
+    fun `cancel before checker task entry terminates checker and variable promises`(): Unit =
         runBlocking {
             val world = providerWorld { error("Canceled provider must not run") }
             val queued = QueuedDispatcher()
@@ -185,7 +185,7 @@ open class TypeCheckerLifecycleTest : ResolutionDispatcherResource {
         }
 
     @Test
-    fun `nonterminating checker provider is bounded and cancellation closes every binding`() =
+    fun `nonterminating checker provider is bounded and cancellation closes every binding`(): Unit =
         runBlocking {
             val entered = CompletableDeferred<Unit>()
             val world = providerWorld {

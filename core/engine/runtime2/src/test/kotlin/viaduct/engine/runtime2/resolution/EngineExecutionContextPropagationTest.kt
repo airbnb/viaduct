@@ -10,7 +10,7 @@ import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 
 class EngineExecutionContextPropagationTest {
     @Test
-    fun `child resolution scopes retain the request engine context`() =
+    fun `child resolution scopes retain the request engine context`(): Unit =
         runTest {
             val world =
                 TestWorld.fromSDL(

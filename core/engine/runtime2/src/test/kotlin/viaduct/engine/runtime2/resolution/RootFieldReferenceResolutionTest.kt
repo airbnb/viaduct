@@ -829,7 +829,7 @@ class RootFieldReferenceResolutionTest : ResolutionDispatcherResource {
     }
 
     @Test
-    fun `task-local cancellation becomes a list-element field error and preserves siblings`() =
+    fun `task-local cancellation becomes a list-element field error and preserves siblings`(): Unit =
         runBlocking {
             listOf(1, 4).forEach { threadCount ->
                 ResolutionDispatcherFactory.create(threadCount).use { dispatcher ->
@@ -873,7 +873,7 @@ class RootFieldReferenceResolutionTest : ResolutionDispatcherResource {
         }
 
     @Test
-    fun `list-element exception becomes an error value and preserves siblings`() =
+    fun `list-element exception becomes an error value and preserves siblings`(): Unit =
         runBlocking {
             listOf(1, 4).forEach { threadCount ->
                 ResolutionDispatcherFactory.create(threadCount).use { dispatcher ->

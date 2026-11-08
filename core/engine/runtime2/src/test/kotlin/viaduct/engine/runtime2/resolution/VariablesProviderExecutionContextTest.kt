@@ -16,7 +16,7 @@ import viaduct.engine.runtime2.model.registry.ResolutionExecutionContext
 
 class VariablesProviderExecutionContextTest {
     @Test
-    fun `provider context is scoped to the invocation and survives suspension`() =
+    fun `provider context is scoped to the invocation and survives suspension`(): Unit =
         runTest {
             val invocationJob = currentCoroutineContext()[Job]
 
@@ -34,7 +34,7 @@ class VariablesProviderExecutionContextTest {
         }
 
     @Test
-    fun `provider context preserves failure and cancellation identity`() =
+    fun `provider context preserves failure and cancellation identity`(): Unit =
         runTest {
             val failure = IllegalStateException("failure")
             val caughtFailure =

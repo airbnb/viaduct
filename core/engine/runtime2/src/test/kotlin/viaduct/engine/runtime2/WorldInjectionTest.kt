@@ -32,7 +32,7 @@ import viaduct.graphql.schema.ViaductSchema
 
 class WorldInjectionTest {
     @Test
-    fun `guice assembles one complete reasoning world from qualified inputs`() =
+    fun `guice assembles one complete reasoning world from qualified inputs`(): Unit =
         runBlocking {
             val testWorld =
                 TestWorld.fromSDL(

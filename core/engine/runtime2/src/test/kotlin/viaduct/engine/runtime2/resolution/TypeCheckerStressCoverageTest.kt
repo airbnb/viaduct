@@ -13,7 +13,7 @@ import viaduct.graphql.schema.ViaductSchema
 
 class TypeCheckerStressCoverageTest {
     @Test
-    fun `the multithreaded stress distribution includes type checkers`() =
+    fun `the multithreaded stress distribution includes type checkers`(): Unit =
         runBlocking {
             val campaign = ResolverMultithreadedStressTest()
             var foundTypeChecker = false

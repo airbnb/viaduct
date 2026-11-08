@@ -61,7 +61,7 @@ class PrecomputedResolverOutputsTest {
     }
 
     @Test
-    fun `prepared field outputs do not inspect inputs while ordinary worlds retain sensitivity`() =
+    fun `prepared field outputs do not inspect inputs while ordinary worlds retain sensitivity`(): Unit =
         runTest {
             val config =
                 Config.default +

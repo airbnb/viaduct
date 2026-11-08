@@ -44,7 +44,7 @@ class UnaryCallbackSelectionWireTest {
     }
 
     @Test
-    fun `unary query callback reconstructs selections and variables without a handle`() =
+    fun `unary query callback reconstructs selections and variables without a handle`(): Unit =
         runBlocking {
             val context = RecordingContext(ContextMocks(schema).engineExecutionContext)
             val result = executeUnaryCallback(
@@ -65,7 +65,7 @@ class UnaryCallbackSelectionWireTest {
         }
 
     @Test
-    fun `unary mutation callback preserves mutation operation without a handle`() =
+    fun `unary mutation callback preserves mutation operation without a handle`(): Unit =
         runBlocking {
             val context = RecordingContext(ContextMocks(schema).engineExecutionContext)
             val result = executeUnaryCallback(

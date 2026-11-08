@@ -32,7 +32,7 @@ class KotestPropertyBaseTest : KotestPropertyBase() {
     }
 
     @Test
-    fun `checkInvariants passes on success`() =
+    fun `checkInvariants passes on success`(): Unit =
         runBlocking {
             Arb.constant(true).checkInvariants { v, check ->
                 check.isTrue(v, "test-label")
@@ -82,7 +82,7 @@ class KotestPropertyBaseTest : KotestPropertyBase() {
     }
 
     @Test
-    fun `forAll uses instance seed, not global state`() =
+    fun `forAll uses instance seed, not global state`(): Unit =
         runBlocking {
             // Create two instances with different seeds
             val base1 = object : KotestPropertyBase(1L) {}
@@ -118,7 +118,7 @@ class KotestPropertyBaseTest : KotestPropertyBase() {
         }
 
     @Test
-    fun `concurrent instances do not interfere with each other`() =
+    fun `concurrent instances do not interfere with each other`(): Unit =
         runBlocking {
             // Simulate parallel test execution: multiple KotestPropertyBase instances
             // running forAll concurrently, each with a different seed.

@@ -338,7 +338,7 @@ interface CoroutineResolverContract {
     }
 
     @Test
-    fun `orchestration exceptions fail the request including Query fragment orchestration`() =
+    fun `orchestration exceptions fail the request including Query fragment orchestration`(): Unit =
         runBlocking {
             for (failedField in listOf("consumer", "dependency")) {
                 val failure = IllegalStateException("Failed to install $failedField")
@@ -377,7 +377,7 @@ interface CoroutineResolverContract {
         }
 
     @Test
-    fun `JVM Error escapes unchanged`() =
+    fun `JVM Error escapes unchanged`(): Unit =
         runBlocking {
             val failure = Error("process-level failure")
             val worldFixture = fieldFailureWorld(failure)
@@ -520,7 +520,7 @@ interface CoroutineResolverContract {
     }
 
     @Test
-    fun `request cancellation stops suspended primary and reference providers`() =
+    fun `request cancellation stops suspended primary and reference providers`(): Unit =
         runBlocking {
             for (fieldName in listOf("consumer", "reference")) {
                 val entered = CompletableDeferred<Unit>()
@@ -562,7 +562,7 @@ interface CoroutineResolverContract {
         }
 
     @Test
-    fun `reference provider belongs to the invoking field task`() =
+    fun `reference provider belongs to the invoking field task`(): Unit =
         runBlocking {
             val entered = CompletableDeferred<Unit>()
             val exited = CompletableDeferred<Unit>()
@@ -608,7 +608,7 @@ interface CoroutineResolverContract {
         }
 
     @Test
-    fun `request cancellation cancels promises before field entry and during Query production`() =
+    fun `request cancellation cancels promises before field entry and during Query production`(): Unit =
         runBlocking {
             if (usesSingularQueryOER) {
                 assertSharedQueryCancellation()

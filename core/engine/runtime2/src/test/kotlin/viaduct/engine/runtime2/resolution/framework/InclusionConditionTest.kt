@@ -19,7 +19,7 @@ class InclusionConditionTest {
     private val field = world.schema.requireObjectField("Query", "value")
 
     @Test
-    fun `condition evaluation short circuits without awaiting later alternatives`() =
+    fun `condition evaluation short circuits without awaiting later alternatives`(): Unit =
         runBlocking {
             val operation = SharedOperationContext.create(world)
             val first = variable("first")

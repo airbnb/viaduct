@@ -36,7 +36,7 @@ import viaduct.graphql.schema.ViaductSchema
 
 class ResolutionWitnessTest {
     @Test
-    fun `occurrence traversal awaits activation and skips excluded cells`() =
+    fun `occurrence traversal awaits activation and skips excluded cells`(): Unit =
         runTest {
             val world = traversalWorld()
             val helper = ObjectEngineResult.GroundKey.of(world.schema.requireObjectField("Query", "helper"), emptyMap())

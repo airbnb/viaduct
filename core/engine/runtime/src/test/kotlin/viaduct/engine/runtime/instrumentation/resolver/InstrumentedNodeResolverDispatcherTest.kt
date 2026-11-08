@@ -30,7 +30,7 @@ internal class InstrumentedNodeResolverDispatcherTest {
         get() = ContextMocks().engineExecutionContextImpl
 
     @Test
-    fun `resolve passes instrumentation and its state separately from the execution context`() =
+    fun `resolve passes instrumentation and its state separately from the execution context`(): Unit =
         runBlocking {
             val state = object : ViaductResolverInstrumentation.InstrumentationState {}
             val instrumentation = object : ViaductResolverInstrumentation {
@@ -50,7 +50,7 @@ internal class InstrumentedNodeResolverDispatcherTest {
         }
 
     @Test
-    fun `resolve calls instrumentation during execution`() =
+    fun `resolve calls instrumentation during execution`(): Unit =
         runBlocking {
             // Given
             val mockDispatcher: NodeResolverDispatcher = mockk()
@@ -76,7 +76,7 @@ internal class InstrumentedNodeResolverDispatcherTest {
         }
 
     @Test
-    fun `resolve calls instrumentation with error on exception`() =
+    fun `resolve calls instrumentation with error on exception`(): Unit =
         runBlocking {
             // Given
             val mockDispatcher: NodeResolverDispatcher = mockk()
@@ -104,7 +104,7 @@ internal class InstrumentedNodeResolverDispatcherTest {
         }
 
     @Test
-    fun `resolve propagates instrumentation exceptions during execution`() =
+    fun `resolve propagates instrumentation exceptions during execution`(): Unit =
         runBlocking {
             // Given
             val mockDispatcher: NodeResolverDispatcher = mockk()
@@ -122,7 +122,7 @@ internal class InstrumentedNodeResolverDispatcherTest {
         }
 
     @Test
-    fun `resolve stamps resolver attribution on context passed to dispatcher`() =
+    fun `resolve stamps resolver attribution on context passed to dispatcher`(): Unit =
         runBlocking {
             // Given
             val resolverName = "my-node-resolver"
@@ -148,7 +148,7 @@ internal class InstrumentedNodeResolverDispatcherTest {
         }
 
     @Test
-    fun `resolve wraps context in InstrumentedEngineExecutionContext`() =
+    fun `resolve wraps context in InstrumentedEngineExecutionContext`(): Unit =
         runBlocking {
             // Given
             val mockDispatcher: NodeResolverDispatcher = mockk()
@@ -168,7 +168,7 @@ internal class InstrumentedNodeResolverDispatcherTest {
         }
 
     @Test
-    fun `resolve wraps context in InstrumentedEngineExecutionContext even for DEFAULT instrumentation`() =
+    fun `resolve wraps context in InstrumentedEngineExecutionContext even for DEFAULT instrumentation`(): Unit =
         runBlocking {
             // Given — wrapping is unconditional
             val mockDispatcher: NodeResolverDispatcher = mockk()

@@ -18,7 +18,7 @@ import viaduct.engine.api.IncrementalExecutionResult
 
 class YieldIncrementalResultsTest {
     @Test
-    fun `without deferred tasks the response is complete`() =
+    fun `without deferred tasks the response is complete`(): Unit =
         runTest {
             val data = mapOf("value" to null)
             val error = GraphQLError.newError().message("initial error").path(listOf("value")).build()
@@ -30,7 +30,7 @@ class YieldIncrementalResultsTest {
         }
 
     @Test
-    fun `initial pending groups lead to nested patches and completion`() =
+    fun `initial pending groups lead to nested patches and completion`(): Unit =
         runTest {
             val parameters = mkExecutionParameters()
             val path = ResultPath.rootPath().segment("heroes").segment(1)
@@ -73,7 +73,7 @@ class YieldIncrementalResultsTest {
         }
 
     @Test
-    fun `deferred tasks run before collection and retain their results`() =
+    fun `deferred tasks run before collection and retain their results`(): Unit =
         runTest {
             val group = DeferDeliveryGroup(ResultPath.rootPath(), "later", null)
             val finished = CompletableDeferred<Unit>()
@@ -93,7 +93,7 @@ class YieldIncrementalResultsTest {
         }
 
     @Test
-    fun `cancelling an uncollected result stops its deferred tasks`() =
+    fun `cancelling an uncollected result stops its deferred tasks`(): Unit =
         runTest {
             val group = DeferDeliveryGroup(ResultPath.rootPath(), "later", null)
             val started = CompletableDeferred<Unit>()

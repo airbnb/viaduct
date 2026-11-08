@@ -314,7 +314,7 @@ class FieldResolverInstrumentationTest {
 
         @Test
         @DisplayName("beginFieldFetching onCompleted is called exactly once when data fetcher fails")
-        fun onCompletedCalledOnceWhenDataFetcherFailed() =
+        fun onCompletedCalledOnceWhenDataFetcherFailed() {
             runExecutionTest {
                 val onCompletedCallCount = AtomicInteger(0)
 
@@ -330,10 +330,11 @@ class FieldResolverInstrumentationTest {
                     "beginFieldFetching onCompleted should be called exactly once, but was called ${onCompletedCallCount.get()} times"
                 }
             }
+        }
 
         @Test
         @DisplayName("beginFieldFetching onCompleted is called after type checker completes")
-        fun onCompletedCalledAfterTypeCheckerComplete() =
+        fun onCompletedCalledAfterTypeCheckerComplete() {
             runExecutionTest {
                 val typeCheckerDone = CountDownLatch(1)
                 val instrumentationBegun = CountDownLatch(1)
@@ -381,10 +382,11 @@ class FieldResolverInstrumentationTest {
                 assertTrue(onCompletedCalled.await(1, TimeUnit.SECONDS)) { "beginFieldFetching onCompleted callback was never invoked." }
                 assertTrue(onCompletedAfterTypeChecker.get()) { "beginFieldFetching onCompleted was called before type checker completed." }
             }
+        }
 
         @Test
         @DisplayName("beginFieldFetching onCompleted is called exactly once when data fetcher succeeds with field checker")
-        fun onCompletedCalledExactlyOnceWhenFieldCheckerFailed() =
+        fun onCompletedCalledExactlyOnceWhenFieldCheckerFailed() {
             runExecutionTest {
                 val onCompletedCallCount = AtomicInteger(0)
 
@@ -407,10 +409,11 @@ class FieldResolverInstrumentationTest {
                     "beginFieldFetching onCompleted should be called exactly once, but was called ${onCompletedCallCount.get()} times"
                 }
             }
+        }
 
         @Test
         @DisplayName("beginFieldFetching onCompleted receives field check error when field checker fails")
-        fun onCompletedReceivesFieldCheckError() =
+        fun onCompletedReceivesFieldCheckError() {
             runExecutionTest {
                 var capturedError: Throwable? = null
                 val onCompletedCalled = CountDownLatch(1)
@@ -432,10 +435,11 @@ class FieldResolverInstrumentationTest {
                 assertTrue(capturedError is IllegalAccessException) { "Expected IllegalAccessException but got ${capturedError?.javaClass}" }
                 assertEquals("field check denied", capturedError?.message)
             }
+        }
 
         @Test
         @DisplayName("beginFieldFetching onCompleted receives type check error when type checker fails")
-        fun onCompletedReceivesTypeCheckError() =
+        fun onCompletedReceivesTypeCheckError() {
             runExecutionTest {
                 var capturedError: Throwable? = null
                 val onCompletedCalled = CountDownLatch(1)
@@ -457,10 +461,11 @@ class FieldResolverInstrumentationTest {
                 assertTrue(capturedError is IllegalAccessException) { "Expected IllegalAccessException but got ${capturedError?.javaClass}" }
                 assertEquals("type check denied", capturedError?.message)
             }
+        }
 
         @Test
         @DisplayName("beginFieldFetching onCompleted receives data fetcher error when both data fetcher and field checker fail in parallel mode")
-        fun onCompletedReceivesDataFetcherErrorWhenBothFail() =
+        fun onCompletedReceivesDataFetcherErrorWhenBothFail() {
             runExecutionTest {
                 var capturedError: Throwable? = null
                 val onCompletedCalled = CountDownLatch(1)
@@ -484,6 +489,7 @@ class FieldResolverInstrumentationTest {
                     "Data fetcher error should take priority over field checker error"
                 }
             }
+        }
     }
 
     @Nested
@@ -538,7 +544,7 @@ class FieldResolverInstrumentationTest {
 
         @Test
         @DisplayName("beginNodeFetching is called with correct resolver metadata when node resolver is triggered")
-        fun beginNodeFetchingCalledWithCorrectResolverMetadata() =
+        fun beginNodeFetchingCalledWithCorrectResolverMetadata() {
             runExecutionTest {
                 var capturedMetadata: ResolverMetadata? = null
                 val onCompletedCalled = CountDownLatch(1)
@@ -572,10 +578,11 @@ class FieldResolverInstrumentationTest {
                 assertTrue(onCompletedCalled.await(1, TimeUnit.SECONDS)) { "beginNodeFetching onCompleted was never called" }
                 assertEquals("foo-node-resolver", capturedMetadata?.name) { "resolverMetadata should have correct node resolver name" }
             }
+        }
 
         @Test
         @DisplayName("beginNodeFetching onCompleted receives error when node resolver fails")
-        fun beginNodeFetchingOnCompletedReceivesErrorWhenNodeResolverFails() =
+        fun beginNodeFetchingOnCompletedReceivesErrorWhenNodeResolverFails() {
             runExecutionTest {
                 var capturedError: Throwable? = null
                 val onCompletedCalled = CountDownLatch(1)
@@ -611,5 +618,6 @@ class FieldResolverInstrumentationTest {
                 assertTrue(capturedError is RuntimeException) { "Expected RuntimeException but got ${capturedError?.javaClass}" }
                 assertEquals("node resolver failed", capturedError?.message)
             }
+        }
     }
 }

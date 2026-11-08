@@ -68,13 +68,19 @@ interface GeneratedTypeCheckerContract : GeneratedCaseAssertionPolicy {
         }
 
     @Test
-    fun `generated successful type checker worlds resolve correctly`() = typeCheckerProfile(GeneratedTypeCheckerMode.SUCCESS)
+    fun `generated successful type checker worlds resolve correctly`() {
+        typeCheckerProfile(GeneratedTypeCheckerMode.SUCCESS)
+    }
 
     @Test
-    fun `generated denying type checker worlds resolve correctly`() = typeCheckerProfile(GeneratedTypeCheckerMode.DENIAL)
+    fun `generated denying type checker worlds resolve correctly`() {
+        typeCheckerProfile(GeneratedTypeCheckerMode.DENIAL)
+    }
 
     @Test
-    fun `generated mixed type checker worlds resolve correctly`() = typeCheckerProfile(GeneratedTypeCheckerMode.MIXED)
+    fun `generated mixed type checker worlds resolve correctly`() {
+        typeCheckerProfile(GeneratedTypeCheckerMode.MIXED)
+    }
 
     private fun typeCheckerProfile(mode: GeneratedTypeCheckerMode): Unit =
         runBlocking {

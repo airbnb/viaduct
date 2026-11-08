@@ -50,7 +50,7 @@ class ExerciserForObjectV2Test {
     }
 
     @Test
-    fun `ObjectV2 has no failures`() =
+    fun `ObjectV2 has no failures`(): Unit =
         runTest {
             Fixture(
                 """
@@ -66,7 +66,7 @@ class ExerciserForObjectV2Test {
         }
 
     @Test
-    fun `missing builder`() =
+    fun `missing builder`(): Unit =
         runTest {
             Fixture(
                 """
@@ -79,7 +79,7 @@ class ExerciserForObjectV2Test {
         }
 
     @Test
-    fun `missing getter`() =
+    fun `missing getter`(): Unit =
         runTest {
             Fixture(
                 """
@@ -92,7 +92,7 @@ class ExerciserForObjectV2Test {
         }
 
     @Test
-    fun `missing default getter`() =
+    fun `missing default getter`(): Unit =
         runTest {
             Fixture(
                 """
@@ -105,7 +105,7 @@ class ExerciserForObjectV2Test {
         }
 
     @Test
-    fun `missing non default getter`() =
+    fun `missing non default getter`(): Unit =
         runTest {
             Fixture(
                 """
@@ -118,7 +118,7 @@ class ExerciserForObjectV2Test {
         }
 
     @Test
-    fun `missing setter`() =
+    fun `missing setter`(): Unit =
         runTest {
             Fixture(
                 """
@@ -146,7 +146,7 @@ class ExerciserForObjectV2Test {
         ).executionContext
 
     @Test
-    fun `DSL-style builder produces same result as chained builder`() =
+    fun `DSL-style builder produces same result as chained builder`(): Unit =
         runTest {
             val ctx = mkObjectV2Context()
 
@@ -165,7 +165,7 @@ class ExerciserForObjectV2Test {
         }
 
     @Test
-    fun `chained API is unaffected by DSL constructor addition`() =
+    fun `chained API is unaffected by DSL constructor addition`(): Unit =
         runTest {
             val ctx = mkObjectV2Context()
 

@@ -45,7 +45,7 @@ class SchemaDrivenTests {
             }
 
     @Test
-    fun reflectionDrivenExercisesV2() =
+    fun reflectionDrivenExercisesV2(): Unit =
         runTest {
             val failures = FailureCollector()
 

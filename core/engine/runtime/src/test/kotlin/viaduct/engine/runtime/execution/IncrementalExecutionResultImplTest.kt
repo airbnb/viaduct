@@ -67,7 +67,7 @@ class IncrementalExecutionResultImplTest {
     }
 
     @Test
-    fun `instrumentation transforms initial fields while retaining deferred execution`() =
+    fun `instrumentation transforms initial fields while retaining deferred execution`(): Unit =
         runTest {
             val initial = ExecutionResult.newExecutionResult().data(mapOf("value" to 1)).build()
             val pending = listOf(PendingEntry("0", ResultPath.rootPath(), null))
@@ -102,7 +102,7 @@ class IncrementalExecutionResultImplTest {
         }
 
     @Test
-    fun `real deferred work announces nested groups and reports failures`() =
+    fun `real deferred work announces nested groups and reports failures`(): Unit =
         runTest {
             val path = ResultPath.rootPath().segment("hero")
             val parent = DeferDeliveryGroup(path, "parent", null)
@@ -140,7 +140,7 @@ class IncrementalExecutionResultImplTest {
         }
 
     @Test
-    fun `cancelling a transformed result stops deferred tasks before collection`() =
+    fun `cancelling a transformed result stops deferred tasks before collection`(): Unit =
         runTest {
             val group = DeferDeliveryGroup(ResultPath.rootPath(), "deferred", null)
             val started = CompletableDeferred<Unit>()
@@ -167,7 +167,7 @@ class IncrementalExecutionResultImplTest {
         }
 
     @Test
-    fun `stopping response collection cancels remaining deferred tasks`() =
+    fun `stopping response collection cancels remaining deferred tasks`(): Unit =
         runTest {
             val path = ResultPath.rootPath()
             val quickGroup = DeferDeliveryGroup(path, "quick", null)

@@ -57,7 +57,7 @@ class ViaductExecutionResultImplTest {
     }
 
     @Test
-    fun `update failures propagate and release execution`() =
+    fun `update failures propagate and release execution`(): Unit =
         runTest {
             val failure = IllegalStateException("deferred execution failed")
             var cancelled = false

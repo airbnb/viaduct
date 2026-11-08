@@ -32,7 +32,7 @@ import viaduct.graphql.schema.ViaductSchema
 @OptIn(ExperimentalCoroutinesApi::class)
 class ResolverTimeoutTest {
     @Test
-    fun `request deadline diagnoses a genuine resolver read cycle`() =
+    fun `request deadline diagnoses a genuine resolver read cycle`(): Unit =
         runTest {
             val (world, operation) = cyclicWorld()
             val failure = assertFailsWith<ResolverReadCycleException> {
@@ -45,7 +45,7 @@ class ResolverTimeoutTest {
         }
 
     @Test
-    fun `acyclic query and mutation timeouts preserve cancellation and clean up work`() =
+    fun `acyclic query and mutation timeouts preserve cancellation and clean up work`(): Unit =
         runTest {
             for (type in listOf("Query", "Mutation")) {
                 var stopped = false
@@ -72,7 +72,7 @@ class ResolverTimeoutTest {
         }
 
     @Test
-    fun `caller timeout is not replaced by a collected cycle`() =
+    fun `caller timeout is not replaced by a collected cycle`(): Unit =
         runTest {
             val (world, operation) = cyclicWorld()
             assertFailsWith<TimeoutCancellationException> {
@@ -82,7 +82,7 @@ class ResolverTimeoutTest {
         }
 
     @Test
-    fun `resolver-local timeout remains a field failure`() =
+    fun `resolver-local timeout remains a field failure`(): Unit =
         runTest {
             val world = TestWorld.fromSDL(
                 "type Query { value: Int }",

@@ -31,13 +31,19 @@ import viaduct.engine.runtime2.resolvers.resolver23.resolve as resolve23
 /** Independent reference inputs must not disappear into global Query-root deduplication. */
 class IndependentQueryInputWitnessRegressionTest : ResolutionDispatcherResource {
     @Test
-    fun `DFS witness rejects shared Query input across independent references`() = verify(7)
+    fun `DFS witness rejects shared Query input across independent references`() {
+        verify(7)
+    }
 
     @Test
-    fun `grounded coroutine witness rejects shared Query input across independent references`() = verify(23)
+    fun `grounded coroutine witness rejects shared Query input across independent references`() {
+        verify(23)
+    }
 
     @Test
-    fun `symbolic witness rejects shared Query input across independent references`() = verify(26)
+    fun `symbolic witness rejects shared Query input across independent references`() {
+        verify(26)
+    }
 
     private fun verify(resolver: Int) {
         val world = TestWorld.fromSDL(

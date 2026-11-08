@@ -17,7 +17,7 @@ import viaduct.engine.runtime.execution.ExecutionTestHelpers.createViaductGraphQ
 @OptIn(ExperimentalCoroutinesApi::class)
 class ListItemCompletionOverlapTest {
     @Test
-    fun `ready list item completes its nested scalar while another item is still fetching`() =
+    fun `ready list item completes its nested scalar while another item is still fetching`(): Unit =
         runTest {
             val scheduler = testScheduler
             withThreadLocalCoroutineContext {

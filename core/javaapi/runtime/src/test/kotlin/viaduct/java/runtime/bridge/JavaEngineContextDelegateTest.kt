@@ -227,7 +227,7 @@ class JavaEngineContextDelegateTest {
     }
 
     @Test
-    fun `authorized mutation distinguishes a missing schema root`() =
+    fun `authorized mutation distinguishes a missing schema root`(): Unit =
         runBlocking {
             val engineCtx = mockk<EngineExecutionContext> {
                 every { activeSchema.schema.mutationType } returns null

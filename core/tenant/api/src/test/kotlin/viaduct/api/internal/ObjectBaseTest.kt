@@ -738,7 +738,7 @@ class ObjectBaseTest {
     @Nested
     inner class ToBuilderTests {
         @Test
-        fun `toBuilder preserves unmodified fields`() =
+        fun `toBuilder preserves unmodified fields`(): Unit =
             runBlocking {
                 val original = TestObject.Builder(executionContext)
                     .intField(42)
@@ -754,7 +754,7 @@ class ObjectBaseTest {
             }
 
         @Test
-        fun `toBuilder allows multiple field overrides`() =
+        fun `toBuilder allows multiple field overrides`(): Unit =
             runBlocking {
                 val original = TestObject.Builder(executionContext)
                     .intField(1)
@@ -799,7 +799,7 @@ class ObjectBaseTest {
         }
 
         @Test
-        fun `toBuilder with no overrides creates equivalent object`() =
+        fun `toBuilder with no overrides creates equivalent object`(): Unit =
             runBlocking {
                 val original = TestObject.Builder(executionContext)
                     .intField(123)
@@ -813,7 +813,7 @@ class ObjectBaseTest {
             }
 
         @Test
-        fun `fetchOrNull returns value on success`() =
+        fun `fetchOrNull returns value on success`(): Unit =
             runBlocking {
                 val o = TestObject.Builder(executionContext)
                     .intField(42)
@@ -825,7 +825,7 @@ class ObjectBaseTest {
             }
 
         @Test
-        fun `fetchOrNull rethrows UnsetFieldException`() =
+        fun `fetchOrNull rethrows UnsetFieldException`(): Unit =
             runBlocking {
                 // intField is not set on the builder, so fetch() throws UnsetFieldException
                 val o = TestObject.Builder(executionContext).build()
@@ -835,7 +835,7 @@ class ObjectBaseTest {
             }
 
         @Test
-        fun `fetchOrNull rethrows UnsetFieldException from NodeReference`() =
+        fun `fetchOrNull rethrows UnsetFieldException from NodeReference`(): Unit =
             runBlocking {
                 val nodeRef = object : NodeReference {
                     override val type = gqlSchema.schema.getObjectType("O2")
@@ -848,7 +848,7 @@ class ObjectBaseTest {
             }
 
         @Test
-        fun `chained toBuilder calls work correctly`() =
+        fun `chained toBuilder calls work correctly`(): Unit =
             runBlocking {
                 val v1 = TestObject.Builder(executionContext)
                     .intField(1)

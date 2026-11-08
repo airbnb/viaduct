@@ -27,7 +27,7 @@ import viaduct.engine.runtime.execution.CompletionErrors.FieldCompletionExceptio
 
 class CompleteExecutionGroupTest {
     @Test
-    fun `empty group returns empty data errors and work`() =
+    fun `empty group returns empty data errors and work`(): Unit =
         runTest {
             val ctx = mkObjectCompletionParameters(
                 schemaSDL = "extend type Query { obj: Obj } type Obj { a: Int }",
@@ -46,7 +46,7 @@ class CompleteExecutionGroupTest {
         }
 
     @Test
-    fun `waits for the supplied fields and preserves aliases and order`() =
+    fun `waits for the supplied fields and preserves aliases and order`(): Unit =
         runTest {
             val ctx = mkObjectCompletionParameters(
                 schemaSDL = "extend type Query { obj: Obj } type Obj { a: Int, b: Int }",
@@ -70,7 +70,7 @@ class CompleteExecutionGroupTest {
         }
 
     @Test
-    fun `nullable errors preserve sibling data and stay separate from parent and other groups`() =
+    fun `nullable errors preserve sibling data and stay separate from parent and other groups`(): Unit =
         runTest {
             val ctx = mkObjectCompletionParameters(
                 schemaSDL = "extend type Query { obj: Obj } type Obj { a: Int, b: Int }",
@@ -96,7 +96,7 @@ class CompleteExecutionGroupTest {
         }
 
     @Test
-    fun `non-null field failure nulls only its group`() =
+    fun `non-null field failure nulls only its group`(): Unit =
         runTest {
             val ctx = mkObjectCompletionParameters(
                 schemaSDL = "extend type Query { obj: Obj } type Obj { required: Int!, b: Int }",
@@ -119,7 +119,7 @@ class CompleteExecutionGroupTest {
         }
 
     @Test
-    fun `asynchronous non-null failure returns group errors without leaking to the parent`() =
+    fun `asynchronous non-null failure returns group errors without leaking to the parent`(): Unit =
         runTest {
             val ctx = mkObjectCompletionParameters(
                 schemaSDL = "extend type Query { obj: Obj } type Obj { required: Int! }",

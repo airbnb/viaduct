@@ -35,7 +35,7 @@ import viaduct.engine.runtime2.resolvers.materializeResolverInput as materialize
 
 class MaterializeResolverInputTest {
     @Test
-    fun `sharing a layout never shares operation values`() =
+    fun `sharing a layout never shares operation values`(): Unit =
         runBlocking {
             val fixture = TestWorld.fromSDL("type Query { value: Int }")
             val type = fixture.schema.requireQueryTypeDef()
@@ -57,7 +57,7 @@ class MaterializeResolverInputTest {
         }
 
     @Test
-    fun `numbered reference resolver input materialization is driven by checker slot presence`() =
+    fun `numbered reference resolver input materialization is driven by checker slot presence`(): Unit =
         runBlocking {
             assertSlotDrivenMaterialization { result, operation, selections, reader ->
                 result.materializeGroundedInput(
@@ -70,7 +70,7 @@ class MaterializeResolverInputTest {
         }
 
     @Test
-    fun `Resolution input materialization is driven by checker slot presence`() =
+    fun `Resolution input materialization is driven by checker slot presence`(): Unit =
         runBlocking {
             assertSlotDrivenMaterialization { result, operation, selections, reader ->
                 result.materializeResolutionInput(

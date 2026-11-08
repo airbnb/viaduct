@@ -119,7 +119,7 @@ class VariablesResolverTest {
     }
 
     @Test
-    fun `fromSelectionSetVariable -- simple argument`() =
+    fun `fromSelectionSetVariable -- simple argument`() {
         assertMatch(
             listOf(VariablesResolver.const(mapOf("a" to 1))),
             VariablesResolver.fromSelectionSetVariables(
@@ -132,9 +132,10 @@ class VariablesResolverTest {
             ),
             mapOf("x" to mapOf("y" to 1))
         )
+    }
 
     @Test
-    fun `fromSelectionSetVariable -- multiple arguments`() =
+    fun `fromSelectionSetVariable -- multiple arguments`() {
         assertMatch(
             listOf(
                 VariablesResolver.const(mapOf("a" to 1)),
@@ -154,6 +155,7 @@ class VariablesResolverTest {
                 "z" to 2
             )
         )
+    }
 
     @Test
     fun `fromSelectionSetVariables -- field`() {

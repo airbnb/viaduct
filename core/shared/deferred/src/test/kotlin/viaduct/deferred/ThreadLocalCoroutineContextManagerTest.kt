@@ -23,7 +23,7 @@ class ThreadLocalCoroutineContextManagerTest {
         }
 
         @Test
-        fun `currentRequestParentJobOrNull returns request job inside context`() =
+        fun `currentRequestParentJobOrNull returns request job inside context`(): Unit =
             runTest {
                 val requestJob = Job()
 
@@ -36,7 +36,7 @@ class ThreadLocalCoroutineContextManagerTest {
             }
 
         @Test
-        fun `thread-local is restored to null after exiting request context`() =
+        fun `thread-local is restored to null after exiting request context`(): Unit =
             runTest {
                 val requestJob = Job()
 
@@ -52,7 +52,7 @@ class ThreadLocalCoroutineContextManagerTest {
             }
 
         @Test
-        fun `nested request contexts restore correctly`() =
+        fun `nested request contexts restore correctly`(): Unit =
             runTest {
                 val outerJob = Job()
                 val innerJob = Job()
@@ -73,7 +73,7 @@ class ThreadLocalCoroutineContextManagerTest {
             }
 
         @Test
-        fun `thread-local is consistent across coroutine suspension points`() =
+        fun `thread-local is consistent across coroutine suspension points`(): Unit =
             runTest {
                 val requestJob = Job()
 

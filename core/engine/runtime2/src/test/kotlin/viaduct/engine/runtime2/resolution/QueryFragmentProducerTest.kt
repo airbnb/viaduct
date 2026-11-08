@@ -43,7 +43,7 @@ import viaduct.engine.runtime2.schema.operationSelectionsFrom
 
 class QueryFragmentProducerTest : ResolutionDispatcherResource {
     @Test
-    fun `Query producer failure publishes a field error and terminates its bindings`() =
+    fun `Query producer failure publishes a field error and terminates its bindings`(): Unit =
         runBlocking {
             val failure = IllegalStateException("Query producer failed")
             val consumerInvoked = AtomicBoolean()
@@ -92,7 +92,7 @@ class QueryFragmentProducerTest : ResolutionDispatcherResource {
         }
 
     @Test
-    fun `cancellation before or during field entry cancels provider bindings`() =
+    fun `cancellation before or during field entry cancels provider bindings`(): Unit =
         runBlocking {
             for (cancelBeforeFieldEntry in listOf(true, false)) {
                 val dispatcher = QueuedDispatcher()
@@ -121,7 +121,7 @@ class QueryFragmentProducerTest : ResolutionDispatcherResource {
         }
 
     @Test
-    fun `field task cancellation terminates bindings created by a reference hop`() =
+    fun `field task cancellation terminates bindings created by a reference hop`(): Unit =
         runBlocking {
             val dispatcher = QueuedDispatcher()
             val requestJob = Job()

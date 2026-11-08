@@ -33,10 +33,14 @@ import viaduct.engine.runtime2.schema.operationSelectionsFrom
 /** Forged bindings must not become assumptions of the checker relation being judged. */
 class CheckerProviderCorrectResolutionTest {
     @Test
-    fun `type checker replay rejects forged provider values in either named input`() = checkProviderBindings(typeChecker = true)
+    fun `type checker replay rejects forged provider values in either named input`() {
+        checkProviderBindings(typeChecker = true)
+    }
 
     @Test
-    fun `field checker replay rejects forged provider values in either named input`() = checkProviderBindings(typeChecker = false)
+    fun `field checker replay rejects forged provider values in either named input`() {
+        checkProviderBindings(typeChecker = false)
+    }
 
     private fun checkProviderBindings(typeChecker: Boolean) {
         val providerReplays = mutableMapOf<String, Int>()

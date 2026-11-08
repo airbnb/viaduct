@@ -336,7 +336,7 @@ class StandardViaductTest {
     }
 
     @Test
-    fun `execute and executeAsync wait for deferred fields and return complete responses`() =
+    fun `execute and executeAsync wait for deferred fields and return complete responses`(): Unit =
         runBlocking {
             withTimeout(5.seconds) {
                 for (asynchronous in listOf(false, true)) {
@@ -363,7 +363,7 @@ class StandardViaductTest {
         }
 
     @Test
-    fun `reactiveExecute delivers initial data before deferred work completes`() =
+    fun `reactiveExecute delivers initial data before deferred work completes`(): Unit =
         runBlocking<Unit> {
             withTimeout(5.seconds) {
                 var calls = 0
@@ -488,7 +488,7 @@ class StandardViaductTest {
     }
 
     @Test
-    fun `reactiveExecute propagates upstream failure while updates are buffered`() =
+    fun `reactiveExecute propagates upstream failure while updates are buffered`(): Unit =
         runBlocking {
             withTimeout(5.seconds) {
                 val failure = IllegalStateException("deferred execution failed")
@@ -542,7 +542,7 @@ class StandardViaductTest {
         }
 
     @Test
-    fun `reactiveExecute returns Standard when defer is disabled or absent`() =
+    fun `reactiveExecute returns Standard when defer is disabled or absent`(): Unit =
         runBlocking {
             for (deferEnabled in listOf(false, true)) {
                 val viaduct = streamingViaduct(deferEnabled) { "value" }
@@ -556,7 +556,7 @@ class StandardViaductTest {
         }
 
     @Test
-    fun `reactiveExecute returns request errors without resolving fields`() =
+    fun `reactiveExecute returns request errors without resolving fields`(): Unit =
         runBlocking {
             var calls = 0
             val viaduct = streamingViaduct {
@@ -579,7 +579,7 @@ class StandardViaductTest {
         }
 
     @Test
-    fun `cancelling updates cancels deferred resolution`() =
+    fun `cancelling updates cancels deferred resolution`(): Unit =
         runBlocking {
             withTimeout(5.seconds) {
                 val started = CompletableDeferred<Unit>()
@@ -602,7 +602,7 @@ class StandardViaductTest {
         }
 
     @Test
-    fun `taking only the initial payload cancels deferred resolution`() =
+    fun `taking only the initial payload cancels deferred resolution`(): Unit =
         runBlocking {
             withTimeout(5.seconds) {
                 val cancelled = CompletableDeferred<Unit>()
@@ -623,7 +623,7 @@ class StandardViaductTest {
         }
 
     @Test
-    fun `collector failure cancels deferred resolution`() =
+    fun `collector failure cancels deferred resolution`(): Unit =
         runBlocking {
             withTimeout(5.seconds) {
                 val started = CompletableDeferred<Unit>()
@@ -649,7 +649,7 @@ class StandardViaductTest {
         }
 
     @Test
-    fun `reactiveExecute is cold and each collection executes again`() =
+    fun `reactiveExecute is cold and each collection executes again`(): Unit =
         runBlocking {
             var calls = 0
             val viaduct = streamingViaduct { (++calls).toString() }
@@ -660,7 +660,7 @@ class StandardViaductTest {
         }
 
     @Test
-    fun `cancelling reactiveExecute before the initial result cancels resolution`() =
+    fun `cancelling reactiveExecute before the initial result cancels resolution`(): Unit =
         runBlocking {
             withTimeout(5.seconds) {
                 val started = CompletableDeferred<Unit>()

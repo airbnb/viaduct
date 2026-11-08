@@ -162,7 +162,7 @@ class CompleteCollectedFieldsTest {
         }
 
     @Test
-    fun `empty and subset maps do not wait for unrelated fields`() =
+    fun `empty and subset maps do not wait for unrelated fields`(): Unit =
         runTest {
             val ctx = mkObjectCompletionParameters(
                 schemaSDL = "extend type Query { obj: Obj } type Obj { a: Int, b: Int }",
@@ -184,7 +184,7 @@ class CompleteCollectedFieldsTest {
         }
 
     @Test
-    fun `asynchronous fields retain collection order and aliases`() =
+    fun `asynchronous fields retain collection order and aliases`(): Unit =
         runTest {
             val ctx = mkObjectCompletionParameters(
                 schemaSDL = "extend type Query { obj: Obj } type Obj { a: Int, b: Int }",
@@ -207,7 +207,7 @@ class CompleteCollectedFieldsTest {
         }
 
     @Test
-    fun `nullable field errors keep sibling data`() =
+    fun `nullable field errors keep sibling data`(): Unit =
         runTest {
             val ctx = mkObjectCompletionParameters(
                 schemaSDL = "extend type Query { obj: Obj } type Obj { a: Int, b: Int }",
@@ -227,7 +227,7 @@ class CompleteCollectedFieldsTest {
         }
 
     @Test
-    fun `non-null failure propagates out of collected fields`() =
+    fun `non-null failure propagates out of collected fields`(): Unit =
         runTest {
             val ctx = mkObjectCompletionParameters(
                 schemaSDL = "extend type Query { obj: Obj } type Obj { required: Int!, b: Int }",

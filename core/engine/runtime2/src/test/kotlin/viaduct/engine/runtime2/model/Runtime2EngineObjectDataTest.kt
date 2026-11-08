@@ -165,7 +165,7 @@ class Runtime2EngineObjectDataTest {
     }
 
     @Test
-    fun `suspending operations preserve synchronous read behavior`() =
+    fun `suspending operations preserve synchronous read behavior`(): Unit =
         runBlocking {
             val error = EngineErrorData.of()
             val data =

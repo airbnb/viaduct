@@ -48,13 +48,13 @@ import viaduct.graphql.schema.ViaductSchema
 
 class ParentConstructionDemandTest : ResolutionDispatcherResource {
     @Test
-    fun `shared field and type checkers keep each registry's parent requirements`() =
+    fun `shared field and type checkers keep each registry's parent requirements`(): Unit =
         runTest {
             assertSharedCheckerOwnership { resolve23(it) }
         }
 
     @Test
-    fun `production shared checkers keep each registry's parent requirements`() =
+    fun `production shared checkers keep each registry's parent requirements`(): Unit =
         runTest {
             assertSharedCheckerOwnership { resolveWithTestDispatcher(it) }
         }
@@ -835,7 +835,7 @@ class ParentConstructionDemandTest : ResolutionDispatcherResource {
     }
 
     @Test
-    fun `repeated parent joins exclude descendants despite failed sibling activation`() =
+    fun `repeated parent joins exclude descendants despite failed sibling activation`(): Unit =
         runTest {
             for (checked in listOf(true, false)) {
                 val descendants = repeatedSiblingDemand(checked)
@@ -851,7 +851,7 @@ class ParentConstructionDemandTest : ResolutionDispatcherResource {
         }
 
     @Test
-    fun `repeated parent joins retain binding order in equivalent composite guards`() =
+    fun `repeated parent joins retain binding order in equivalent composite guards`(): Unit =
         runTest {
             val query = """
             fragment F on Parent {

@@ -24,7 +24,7 @@ import viaduct.engine.runtime2.resolvers.resolver06.resolve as resolveObservedFi
 
 class ResolverCoverageAdversarialTest {
     @Test
-    fun `generated schemas include nested output lists`() =
+    fun `generated schemas include nested output lists`(): Unit =
         runBlocking {
             val config =
                 Config.default +
@@ -65,7 +65,7 @@ class ResolverCoverageAdversarialTest {
         }
 
     @Test
-    fun `generated field and node resolvers retain distinct singular and list witness fields`() =
+    fun `generated field and node resolvers retain distinct singular and list witness fields`(): Unit =
         runBlocking {
             listOf(false, true).forEachIndexed { index, listOutput ->
                 val config =

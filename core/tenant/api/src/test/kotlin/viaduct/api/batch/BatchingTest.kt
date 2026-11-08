@@ -49,7 +49,7 @@ class BatchingTest {
     private val ratingField = TestField("rating", detailsType)
 
     @Test
-    fun `same-selection batching groups equal selections and preserves context order, keys, and omissions`() =
+    fun `same-selection batching groups equal selections and preserves context order, keys, and omissions`(): Unit =
         runTest {
             val firstSelection = TestSelectionSet(nodeType, setOf(nameField))
             val equalSelection = TestSelectionSet(nodeType, setOf(nameField))
@@ -80,7 +80,7 @@ class BatchingTest {
         }
 
     @Test
-    fun `result keys use normal map equality`() =
+    fun `result keys use normal map equality`(): Unit =
         runTest {
             val selection = TestSelectionSet(nodeType, setOf(nameField))
             val original = TestContext("same-value", selection)
@@ -95,7 +95,7 @@ class BatchingTest {
         }
 
     @Test
-    fun `result keys from another group fail every context of the returning group only`() =
+    fun `result keys from another group fail every context of the returning group only`(): Unit =
         runTest {
             val first = TestContext("first", TestSelectionSet(nodeType, setOf(nameField)))
             val firstSibling = TestContext("first-sibling", TestSelectionSet(nodeType, setOf(nameField)))
@@ -114,7 +114,7 @@ class BatchingTest {
         }
 
     @Test
-    fun `a failing group resolves its contexts to the failure without affecting other groups`() =
+    fun `a failing group resolves its contexts to the failure without affecting other groups`(): Unit =
         runTest {
             val failing = TestContext("failing", TestSelectionSet(nodeType, setOf(nameField)))
             val failingSibling = TestContext("failing-sibling", TestSelectionSet(nodeType, setOf(nameField)))
@@ -134,7 +134,7 @@ class BatchingTest {
         }
 
     @Test
-    fun `a timeout in one group resolves only that group to the timeout`() =
+    fun `a timeout in one group resolves only that group to the timeout`(): Unit =
         runTest {
             val timingOut = TestContext("timing-out", TestSelectionSet(nodeType, setOf(nameField)))
             val succeeding = TestContext("succeeding", TestSelectionSet(nodeType, setOf(priceField)))
@@ -153,7 +153,7 @@ class BatchingTest {
         }
 
     @Test
-    fun `a timeout in a single group resolves its contexts to the timeout`() =
+    fun `a timeout in a single group resolves its contexts to the timeout`(): Unit =
         runTest {
             val context = TestContext("only", TestSelectionSet(nodeType, setOf(nameField)))
             val timeout = CompletableDeferred<TimeoutCancellationException>()
@@ -167,7 +167,7 @@ class BatchingTest {
         }
 
     @Test
-    fun `an exception from groupBy fails the whole call`() =
+    fun `an exception from groupBy fails the whole call`(): Unit =
         runTest {
             val failure = IllegalStateException("bad grouping key")
             var called = false
@@ -187,7 +187,7 @@ class BatchingTest {
         }
 
     @Test
-    fun `an error from a group's block fails the whole call`() =
+    fun `an error from a group's block fails the whole call`(): Unit =
         runTest {
             val first = TestContext("first", TestSelectionSet(nodeType, setOf(nameField)))
             val second = TestContext("second", TestSelectionSet(nodeType, setOf(priceField)))
@@ -203,7 +203,7 @@ class BatchingTest {
         }
 
     @Test
-    fun `cancelling the caller cancels every group`() =
+    fun `cancelling the caller cancels every group`(): Unit =
         runTest {
             val first = TestContext("first", TestSelectionSet(nodeType, setOf(nameField)))
             val second = TestContext("second", TestSelectionSet(nodeType, setOf(priceField)))
@@ -232,7 +232,7 @@ class BatchingTest {
         }
 
     @Test
-    fun `cancelling the caller during a single group's block stops the batch call`() =
+    fun `cancelling the caller during a single group's block stops the batch call`(): Unit =
         runTest {
             val context = TestContext("only", TestSelectionSet(nodeType, setOf(nameField)))
             val started = CompletableDeferred<Unit>()
@@ -253,7 +253,7 @@ class BatchingTest {
         }
 
     @Test
-    fun `a failing single group resolves its contexts to the failure`() =
+    fun `a failing single group resolves its contexts to the failure`(): Unit =
         runTest {
             val context = TestContext("only", TestSelectionSet(nodeType, setOf(nameField)))
             val failure = IllegalStateException("backend unavailable")
@@ -264,7 +264,7 @@ class BatchingTest {
         }
 
     @Test
-    fun `own-field batching groups different nested selections and exposes their union`() =
+    fun `own-field batching groups different nested selections and exposes their union`(): Unit =
         runTest {
             val summarySelection = TestSelectionSet(detailsType, setOf(summaryField))
             val ratingSelection = TestSelectionSet(detailsType, setOf(ratingField))
@@ -303,7 +303,7 @@ class BatchingTest {
         }
 
     @Test
-    fun `custom batching groups by tenant key and preserves context order`() =
+    fun `custom batching groups by tenant key and preserves context order`(): Unit =
         runTest {
             val first = TestContext("first", TestSelectionSet(nodeType, setOf(detailsField)))
             val second = TestContext("second", TestSelectionSet(nodeType, setOf(nameField)))
@@ -324,7 +324,7 @@ class BatchingTest {
         }
 
     @Test
-    fun `groups resolve concurrently`() =
+    fun `groups resolve concurrently`(): Unit =
         runTest {
             val first = TestContext("first", TestSelectionSet(nodeType, setOf(nameField)))
             val second = TestContext("second", TestSelectionSet(nodeType, setOf(priceField)))
@@ -344,7 +344,7 @@ class BatchingTest {
         }
 
     @Test
-    fun `a single group resolves in the caller's coroutine`() =
+    fun `a single group resolves in the caller's coroutine`(): Unit =
         runTest {
             val first = TestContext("first", TestSelectionSet(nodeType, setOf(nameField)))
             val second = TestContext("second", TestSelectionSet(nodeType, setOf(nameField)))
@@ -446,7 +446,7 @@ class BatchingTest {
     }
 
     @Test
-    fun `empty batches return an empty map without invoking the callback`() =
+    fun `empty batches return an empty map without invoking the callback`(): Unit =
         runTest {
             var called = false
 

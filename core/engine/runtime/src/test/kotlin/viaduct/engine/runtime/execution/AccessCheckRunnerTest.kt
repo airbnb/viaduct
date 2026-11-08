@@ -135,7 +135,7 @@ class AccessCheckRunnerTest {
         }
 
     @Test
-    fun `fieldCheck materializes checker data inside instrumentAccessCheck`() =
+    fun `fieldCheck materializes checker data inside instrumentAccessCheck`(): Unit =
         runBlocking {
             withThreadLocalCoroutineContext {
                 var insideAccessCheck = false

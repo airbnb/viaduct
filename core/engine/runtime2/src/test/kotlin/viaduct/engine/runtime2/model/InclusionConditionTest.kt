@@ -120,7 +120,7 @@ class InclusionConditionTest {
     }
 
     @Test
-    fun `suspending evaluation short circuits conditions`() =
+    fun `suspending evaluation short circuits conditions`(): Unit =
         runBlocking {
             val visited = mutableListOf<Arguments.Variable>()
             val condition =
@@ -171,7 +171,7 @@ class InclusionConditionTest {
     }
 
     @Test
-    fun `wide condition operations are stack safe`() =
+    fun `wide condition operations are stack safe`(): Unit =
         runBlocking {
             val condition =
                 InclusionCondition.anyOf(

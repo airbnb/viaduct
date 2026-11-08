@@ -26,7 +26,7 @@ class MaterializedFieldValueReaderTest {
     }
 
     @Test
-    fun `default reads schema name without enumerating selections for a value`() =
+    fun `default reads schema name without enumerating selections for a value`(): Unit =
         runBlocking {
             val source = mockk<EngineObjectData>()
             coEvery { source.fetchOrNull("name") } returns "Ada"
@@ -36,7 +36,7 @@ class MaterializedFieldValueReaderTest {
         }
 
     @Test
-    fun `default distinguishes explicit null from missing field`() =
+    fun `default distinguishes explicit null from missing field`(): Unit =
         runBlocking {
             val source = mockk<EngineObjectData>()
             coEvery { source.fetchOrNull(any()) } returns null
@@ -47,7 +47,7 @@ class MaterializedFieldValueReaderTest {
         }
 
     @Test
-    fun `default tolerates unavailable selection enumeration`() =
+    fun `default tolerates unavailable selection enumeration`(): Unit =
         runBlocking {
             val source = mockk<EngineObjectData>()
             coEvery { source.fetchOrNull("name") } returns null

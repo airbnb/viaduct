@@ -21,10 +21,14 @@ import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 
 class UncheckedCheckerParentDemandTest : ResolutionDispatcherResource {
     @Test
-    fun `unchecked checker parent demand with dynamic construction demand`() = runCase(false)
+    fun `unchecked checker parent demand with dynamic construction demand`() {
+        runCase(false)
+    }
 
     @Test
-    fun `unchecked checker parent demand with precomputed construction demand`() = runCase(true)
+    fun `unchecked checker parent demand with precomputed construction demand`() {
+        runCase(true)
+    }
 
     private fun runCase(precomputed: Boolean) {
         val seeds = mutableListOf<Int>()

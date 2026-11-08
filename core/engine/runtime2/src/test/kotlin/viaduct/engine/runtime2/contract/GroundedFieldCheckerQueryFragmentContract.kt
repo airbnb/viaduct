@@ -443,7 +443,7 @@ interface GroundedFieldCheckerQueryFragmentContract {
     }
 
     @Test
-    fun `request cancellation terminates shared Query work and the checker slot`() =
+    fun `request cancellation terminates shared Query work and the checker slot`(): Unit =
         runBlocking {
             val producerEntered = CompletableDeferred<Unit>()
             val producerCancelled = CompletableDeferred<Unit>()

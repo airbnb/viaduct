@@ -110,11 +110,15 @@ abstract class ViaductSchemaSubtypeContract {
 
     @Test
     @EnabledIf("noMissingClasses")
-    fun `containingDef of DirectiveArg is expected subtype of Directive`() = assertIsSubtype(returnType("DirectiveArg.containingDef"), "Directive")
+    fun `containingDef of DirectiveArg is expected subtype of Directive`() {
+        assertIsSubtype(returnType("DirectiveArg.containingDef"), "Directive")
+    }
 
     @Test
     @EnabledIf("noMissingClasses")
-    fun `containingDef of FieldArg is expected subtype of Field`() = assertIsSubtype(returnType("FieldArg.containingDef"), "Field")
+    fun `containingDef of FieldArg is expected subtype of Field`() {
+        assertIsSubtype(returnType("FieldArg.containingDef"), "Field")
+    }
 
     @Test
     @EnabledIf("noMissingClasses")
@@ -229,21 +233,29 @@ abstract class ViaductSchemaSubtypeContract {
 
     @Test
     @EnabledIf("noMissingClasses")
-    fun `containingEnum field of EnumValue has expected Enum type`() = assertIsSubtype(returnType("EnumValue.containingDef"), "Enum")
+    fun `containingEnum field of EnumValue has expected Enum type`() {
+        assertIsSubtype(returnType("EnumValue.containingDef"), "Enum")
+    }
 
     @Test
     @EnabledIf("noMissingClasses")
-    fun `EnumValue containingExtension has the expected subtype of Extension`() = assertContainingExtensionSubtypes("Enum", "EnumValue")
+    fun `EnumValue containingExtension has the expected subtype of Extension`() {
+        assertContainingExtensionSubtypes("Enum", "EnumValue")
+    }
 
     // From Field
 
     @Test
     @EnabledIf("noMissingClasses")
-    fun `containingDef of Field is expected subtype of Record`() = assertIsSubtype(returnType("Field.containingDef"), "Record")
+    fun `containingDef of Field is expected subtype of Record`() {
+        assertIsSubtype(returnType("Field.containingDef"), "Record")
+    }
 
     @Test
     @EnabledIf("noMissingClasses")
-    fun `containingExtension of Field is expected subtype of Extension`() = assertContainingExtensionSubtypes("Record", "Field")
+    fun `containingExtension of Field is expected subtype of Extension`() {
+        assertContainingExtensionSubtypes("Record", "Field")
+    }
 
     @Test
     @EnabledIf("noMissingClasses")
@@ -262,7 +274,9 @@ abstract class ViaductSchemaSubtypeContract {
 
     @Test
     @EnabledIf("noMissingClasses")
-    fun `containingDef of HasDefaultValue is expected subtype of Def`() = assertIsSubtype(returnType("HasDefaultValue.containingDef"), "Def")
+    fun `containingDef of HasDefaultValue is expected subtype of Def`() {
+        assertIsSubtype(returnType("HasDefaultValue.containingDef"), "Def")
+    }
 
     @Test
     @EnabledIf("noMissingClasses")
@@ -274,23 +288,31 @@ abstract class ViaductSchemaSubtypeContract {
 
     @Test
     @EnabledIf("noMissingClasses")
-    fun `Input extensions have the expected subtype of Extension`() = assertExtensionsSubtypes("Input", "Field")
+    fun `Input extensions have the expected subtype of Extension`() {
+        assertExtensionsSubtypes("Input", "Field")
+    }
 
     // From Interface
 
     @Test
     @EnabledIf("noMissingClasses")
-    fun `Interface extensions have the expected subtype of Extension`() = assertExtensionsSubtypes("Interface", "Field")
+    fun `Interface extensions have the expected subtype of Extension`() {
+        assertExtensionsSubtypes("Interface", "Field")
+    }
 
     // From Object
 
     @Test
     @EnabledIf("noMissingClasses")
-    fun `Object extensions have the expected subtype of Extension`() = assertExtensionsSubtypes("Object", "ObjectField")
+    fun `Object extensions have the expected subtype of Extension`() {
+        assertExtensionsSubtypes("Object", "ObjectField")
+    }
 
     @Test
     @EnabledIf("noMissingClasses")
-    fun `Object fields have the expected subtype`() = assertIsSubtype(returnType("Object.fields").elementType(), "ObjectField")
+    fun `Object fields have the expected subtype`() {
+        assertIsSubtype(returnType("Object.fields").elementType(), "ObjectField")
+    }
 
     @Test
     @EnabledIf("noMissingClasses")
@@ -306,7 +328,9 @@ abstract class ViaductSchemaSubtypeContract {
 
     @Test
     @EnabledIf("noMissingClasses")
-    fun `elements of Recrod_fields are of the expected subtype`() = assertIsSubtype(returnType("Record.fields").elementType(), "Field") // fields: Iterable<Field>
+    fun `elements of Recrod_fields are of the expected subtype`() {
+        assertIsSubtype(returnType("Record.fields").elementType(), "Field")
+    } // fields: Iterable<Field>
 
     @Test
     @EnabledIf("noMissingClasses")
@@ -327,11 +351,15 @@ abstract class ViaductSchemaSubtypeContract {
 
     @Test
     @EnabledIf("noMissingClasses")
-    fun `elements of OutputRecord_supers are of the expected subtype`() = assertIsSubtype(returnType("OutputRecord.supers").elementType(), "Interface") // supers: Iterable<Interface>
+    fun `elements of OutputRecord_supers are of the expected subtype`() {
+        assertIsSubtype(returnType("OutputRecord.supers").elementType(), "Interface")
+    } // supers: Iterable<Interface>
 
     @Test
     @EnabledIf("noMissingClasses")
-    fun `elements of Object_unions are of the expected subtype`() = assertIsSubtype(returnType("Object.unions").elementType(), "Union") // unions: Iterable<Union>
+    fun `elements of Object_unions are of the expected subtype`() {
+        assertIsSubtype(returnType("Object.unions").elementType(), "Union")
+    } // unions: Iterable<Union>
 
     // None from Scalar
 
@@ -339,11 +367,15 @@ abstract class ViaductSchemaSubtypeContract {
 
     @Test
     @EnabledIf("noMissingClasses")
-    fun `asTypeExpr of TypeDef is expected subtype`() = assertIsSubtype(returnType("TypeDef.asTypeExpr"), "TypeExpr")
+    fun `asTypeExpr of TypeDef is expected subtype`() {
+        assertIsSubtype(returnType("TypeDef.asTypeExpr"), "TypeExpr")
+    }
 
     @Test
     @EnabledIf("noMissingClasses")
-    fun `possibleObjectTypes of TypeDef is expected subtype`() = assertIsSubtype(returnType("TypeDef.possibleObjectTypes").elementType(), "Object")
+    fun `possibleObjectTypes of TypeDef is expected subtype`() {
+        assertIsSubtype(returnType("TypeDef.possibleObjectTypes").elementType(), "Object")
+    }
 
     // From TypeExpr
 
@@ -360,41 +392,59 @@ abstract class ViaductSchemaSubtypeContract {
 
     @Test
     @EnabledIf("noMissingClasses")
-    fun `Union extensions have the expected subtype of Extension`() = assertExtensionsSubtypes("Union", "Object")
+    fun `Union extensions have the expected subtype of Extension`() {
+        assertExtensionsSubtypes("Union", "Object")
+    }
 
     // From containingSchema
 
     @Test
     @EnabledIf("noMissingClasses")
-    fun `containingSchema of Directive returns schema implementation type`() = assertIsSubtype(returnType("Directive.containingSchema"), getSchemaClass().starProjectedType)
+    fun `containingSchema of Directive returns schema implementation type`() {
+        assertIsSubtype(returnType("Directive.containingSchema"), getSchemaClass().starProjectedType)
+    }
 
     @Test
     @EnabledIf("noMissingClasses")
-    fun `containingSchema of TypeDef returns schema implementation type`() = assertIsSubtype(returnType("TypeDef.containingSchema"), getSchemaClass().starProjectedType)
+    fun `containingSchema of TypeDef returns schema implementation type`() {
+        assertIsSubtype(returnType("TypeDef.containingSchema"), getSchemaClass().starProjectedType)
+    }
 
     @Test
     @EnabledIf("noMissingClasses")
-    fun `containingSchema of Scalar returns schema implementation type`() = assertIsSubtype(returnType("Scalar.containingSchema"), getSchemaClass().starProjectedType)
+    fun `containingSchema of Scalar returns schema implementation type`() {
+        assertIsSubtype(returnType("Scalar.containingSchema"), getSchemaClass().starProjectedType)
+    }
 
     @Test
     @EnabledIf("noMissingClasses")
-    fun `containingSchema of Enum returns schema implementation type`() = assertIsSubtype(returnType("Enum.containingSchema"), getSchemaClass().starProjectedType)
+    fun `containingSchema of Enum returns schema implementation type`() {
+        assertIsSubtype(returnType("Enum.containingSchema"), getSchemaClass().starProjectedType)
+    }
 
     @Test
     @EnabledIf("noMissingClasses")
-    fun `containingSchema of Union returns schema implementation type`() = assertIsSubtype(returnType("Union.containingSchema"), getSchemaClass().starProjectedType)
+    fun `containingSchema of Union returns schema implementation type`() {
+        assertIsSubtype(returnType("Union.containingSchema"), getSchemaClass().starProjectedType)
+    }
 
     @Test
     @EnabledIf("noMissingClasses")
-    fun `containingSchema of Interface returns schema implementation type`() = assertIsSubtype(returnType("Interface.containingSchema"), getSchemaClass().starProjectedType)
+    fun `containingSchema of Interface returns schema implementation type`() {
+        assertIsSubtype(returnType("Interface.containingSchema"), getSchemaClass().starProjectedType)
+    }
 
     @Test
     @EnabledIf("noMissingClasses")
-    fun `containingSchema of Object returns schema implementation type`() = assertIsSubtype(returnType("Object.containingSchema"), getSchemaClass().starProjectedType)
+    fun `containingSchema of Object returns schema implementation type`() {
+        assertIsSubtype(returnType("Object.containingSchema"), getSchemaClass().starProjectedType)
+    }
 
     @Test
     @EnabledIf("noMissingClasses")
-    fun `containingSchema of Input returns schema implementation type`() = assertIsSubtype(returnType("Input.containingSchema"), getSchemaClass().starProjectedType)
+    fun `containingSchema of Input returns schema implementation type`() {
+        assertIsSubtype(returnType("Input.containingSchema"), getSchemaClass().starProjectedType)
+    }
 
     companion object {
         val MANDATORY_CLASS_NAMES =

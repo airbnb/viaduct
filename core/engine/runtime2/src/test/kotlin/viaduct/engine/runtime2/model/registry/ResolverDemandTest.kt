@@ -414,10 +414,14 @@ class ResolverDemandTest {
     }
 
     @Test
-    fun `rejects variable cycles`() = assertRejectedVariableCycle(mixedFragments = false)
+    fun `rejects variable cycles`() {
+        assertRejectedVariableCycle(mixedFragments = false)
+    }
 
     @Test
-    fun `rejects mixed object and Query field variable cycles`() = assertRejectedVariableCycle(mixedFragments = true)
+    fun `rejects mixed object and Query field variable cycles`() {
+        assertRejectedVariableCycle(mixedFragments = true)
+    }
 
     private fun assertRejectedVariableCycle(mixedFragments: Boolean) {
         val objectFragment =

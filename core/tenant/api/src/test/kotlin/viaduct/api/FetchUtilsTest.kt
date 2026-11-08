@@ -12,14 +12,14 @@ import org.junit.jupiter.api.Test
 @Suppress("IMPLICIT_NOTHING_TYPE_ARGUMENT_IN_RETURN_POSITION")
 class FetchUtilsTest {
     @Test
-    fun `fetchOrNull returns value on success`() =
+    fun `fetchOrNull returns value on success`(): Unit =
         runBlocking {
             val result = fetchOrNull { "success" }
             assertEquals("success", result)
         }
 
     @Test
-    fun `fetchOrNull returns null on exception`() =
+    fun `fetchOrNull returns null on exception`(): Unit =
         runBlocking {
             val result = fetchOrNull { throw RuntimeException("error") }
             assertNull(result)
@@ -35,21 +35,21 @@ class FetchUtilsTest {
     }
 
     @Test
-    fun `fetchOrNull handles null return value`() =
+    fun `fetchOrNull handles null return value`(): Unit =
         runBlocking {
             val result: String? = fetchOrNull { null }
             assertNull(result)
         }
 
     @Test
-    fun `fetchOrDefault returns value on success`() =
+    fun `fetchOrDefault returns value on success`(): Unit =
         runBlocking {
             val result = fetchOrDefault("default") { "success" }
             assertEquals("success", result)
         }
 
     @Test
-    fun `fetchOrDefault returns default on exception`() =
+    fun `fetchOrDefault returns default on exception`(): Unit =
         runBlocking {
             val result = fetchOrDefault("default") { throw RuntimeException("error") }
             assertEquals("default", result)
@@ -65,7 +65,7 @@ class FetchUtilsTest {
     }
 
     @Test
-    fun `fetchOrDefault preserves null return from block`() =
+    fun `fetchOrDefault preserves null return from block`(): Unit =
         runBlocking {
             val result: String? = fetchOrDefault("default") { null }
             assertNull(result)

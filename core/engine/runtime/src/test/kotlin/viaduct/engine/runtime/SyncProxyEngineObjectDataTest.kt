@@ -263,7 +263,7 @@ class SyncProxyEngineObjectDataTest {
         }
 
     @Test
-    fun `fetch -- throws UnsetFieldException for missing selection`() =
+    fun `fetch -- throws UnsetFieldException for missing selection`(): Unit =
         runBlocking {
             val eod = SyncProxyEngineObjectData(
                 obj,

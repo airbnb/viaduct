@@ -25,7 +25,7 @@ import viaduct.engine.runtime.dfe.engineExecutionContext
 
 class CollectExecutionGroupsTest {
     @Test
-    fun `empty map creates no tasks`() =
+    fun `empty map creates no tasks`(): Unit =
         runTest {
             val ctx = mkObjectCompletionParameters(
                 schemaSDL = "extend type Query { obj: Obj } type Obj { a: Int }",
@@ -37,7 +37,7 @@ class CollectExecutionGroupsTest {
         }
 
     @Test
-    fun `tasks complete only their fields when run and preserve aliases and paths`() =
+    fun `tasks complete only their fields when run and preserve aliases and paths`(): Unit =
         runTest {
             val base = mkObjectCompletionParameters(
                 schemaSDL = "extend type Query { obj: Obj } type Obj { a: Int, b: Int }",
@@ -73,7 +73,7 @@ class CollectExecutionGroupsTest {
         }
 
     @Test
-    fun `overlapping defers share one task for their common fields`() =
+    fun `overlapping defers share one task for their common fields`(): Unit =
         runTest {
             val base = mkObjectCompletionParameters(
                 schemaSDL = "extend type Query { obj: Obj } type Obj { a: Int, b: Int, c: Int }",
@@ -105,7 +105,7 @@ class CollectExecutionGroupsTest {
         }
 
     @Test
-    fun `task failures do not affect parent errors or sibling tasks`() =
+    fun `task failures do not affect parent errors or sibling tasks`(): Unit =
         runTest {
             val base = mkObjectCompletionParameters(
                 schemaSDL = "extend type Query { obj: Obj } type Obj { required: Int!, b: Int }",
@@ -144,7 +144,7 @@ class CollectExecutionGroupsTest {
         }
 
     @Test
-    fun `missing delivery groups fail when collecting tasks`() =
+    fun `missing delivery groups fail when collecting tasks`(): Unit =
         runTest {
             val ctx = mkObjectCompletionParameters(
                 schemaSDL = "extend type Query { obj: Obj } type Obj { a: Int }",

@@ -17,20 +17,22 @@ import viaduct.engine.runtime.execution.ExecutionTestHelpers.runExecutionTest
 
 class PendingListTraversalContextTest {
     @Test
-    fun `pending list can complete outside the request coroutine context`() =
+    fun `pending list can complete outside the request coroutine context`() {
         completeOnExternalThread(
             fieldName = "items",
             selections = "{ value }",
             payload = listOf(mapOf("value" to 1), mapOf("value" to 2)),
         )
+    }
 
     @Test
-    fun `pending object with a ready nested list can complete outside the request coroutine context`() =
+    fun `pending object with a ready nested list can complete outside the request coroutine context`() {
         completeOnExternalThread(
             fieldName = "container",
             selections = "{ items { value } }",
             payload = mapOf("items" to listOf(mapOf("value" to 1), mapOf("value" to 2))),
         )
+    }
 
     private fun <T : Any> completeOnExternalThread(
         fieldName: String,

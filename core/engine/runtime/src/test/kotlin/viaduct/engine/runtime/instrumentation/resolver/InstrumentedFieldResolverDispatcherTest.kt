@@ -38,7 +38,7 @@ internal class InstrumentedFieldResolverDispatcherTest {
         get() = ContextMocks().engineExecutionContextImpl
 
     @Test
-    fun `resolve passes instrumentation and its state separately from the execution context`() =
+    fun `resolve passes instrumentation and its state separately from the execution context`(): Unit =
         runBlocking {
             val state = object : ViaductResolverInstrumentation.InstrumentationState {}
             val instrumentation = object : ViaductResolverInstrumentation {
@@ -58,7 +58,7 @@ internal class InstrumentedFieldResolverDispatcherTest {
         }
 
     @Test
-    fun `resolve calls instrumentation during execution`() =
+    fun `resolve calls instrumentation during execution`(): Unit =
         runBlocking {
             // Given
             val mockDispatcher: FieldResolverDispatcher = mockk()
@@ -89,7 +89,7 @@ internal class InstrumentedFieldResolverDispatcherTest {
         }
 
     @Test
-    fun `resolve passes fieldCoordinate to instrumentation parameters`() =
+    fun `resolve passes fieldCoordinate to instrumentation parameters`(): Unit =
         runBlocking {
             // Given
             val mockDispatcher: FieldResolverDispatcher = mockk()
@@ -111,7 +111,7 @@ internal class InstrumentedFieldResolverDispatcherTest {
         }
 
     @Test
-    fun `resolve passes null fieldCoordinate when no coordinate is provided`() =
+    fun `resolve passes null fieldCoordinate when no coordinate is provided`(): Unit =
         runBlocking {
             // Given
             val mockDispatcher: FieldResolverDispatcher = mockk()
@@ -131,7 +131,7 @@ internal class InstrumentedFieldResolverDispatcherTest {
         }
 
     @Test
-    fun `resolve calls instrumentation with error on exception`() =
+    fun `resolve calls instrumentation with error on exception`(): Unit =
         runBlocking {
             // Given
             val mockDispatcher: FieldResolverDispatcher = mockk()
@@ -165,7 +165,7 @@ internal class InstrumentedFieldResolverDispatcherTest {
         }
 
     @Test
-    fun `resolve propagates instrumentation exceptions during execution`() =
+    fun `resolve propagates instrumentation exceptions during execution`(): Unit =
         runBlocking {
             // Given
             val mockDispatcher: FieldResolverDispatcher = mockk()
@@ -189,7 +189,7 @@ internal class InstrumentedFieldResolverDispatcherTest {
         }
 
     @Test
-    fun `resolve stamps resolver attribution on context passed to dispatcher`() =
+    fun `resolve stamps resolver attribution on context passed to dispatcher`(): Unit =
         runBlocking {
             // Given
             val resolverName = "my-field-resolver"
@@ -222,7 +222,7 @@ internal class InstrumentedFieldResolverDispatcherTest {
         }
 
     @Test
-    fun `resolve wraps context in InstrumentedEngineExecutionContext`() =
+    fun `resolve wraps context in InstrumentedEngineExecutionContext`(): Unit =
         runBlocking {
             // Given
             val mockDispatcher: FieldResolverDispatcher = mockk()
@@ -244,7 +244,7 @@ internal class InstrumentedFieldResolverDispatcherTest {
         }
 
     @Test
-    fun `resolve wraps context in InstrumentedEngineExecutionContext even for DEFAULT instrumentation`() =
+    fun `resolve wraps context in InstrumentedEngineExecutionContext even for DEFAULT instrumentation`(): Unit =
         runBlocking {
             // Given — wrapping is unconditional, so even DEFAULT instrumentation gets a wrapped context
             val mockDispatcher: FieldResolverDispatcher = mockk()
@@ -265,7 +265,7 @@ internal class InstrumentedFieldResolverDispatcherTest {
         }
 
     @Test
-    fun `resolve passes executionPath from dataFetchingEnvironment to instrumentation parameters`() =
+    fun `resolve passes executionPath from dataFetchingEnvironment to instrumentation parameters`(): Unit =
         runBlocking {
             // Given
             val mockDispatcher: FieldResolverDispatcher = mockk()
@@ -293,7 +293,7 @@ internal class InstrumentedFieldResolverDispatcherTest {
         }
 
     @Test
-    fun `resolve passes null executionPath when dataFetchingEnvironment is not set`() =
+    fun `resolve passes null executionPath when dataFetchingEnvironment is not set`(): Unit =
         runBlocking {
             // Given
             val mockDispatcher: FieldResolverDispatcher = mockk()
@@ -314,7 +314,7 @@ internal class InstrumentedFieldResolverDispatcherTest {
         }
 
     @Test
-    fun `sync getter is wrapped with InstrumentedEngineObjectData_Sync`() =
+    fun `sync getter is wrapped with InstrumentedEngineObjectData_Sync`(): Unit =
         runBlocking {
             // Given
             val mockDispatcher: FieldResolverDispatcher = mockk()
@@ -336,7 +336,7 @@ internal class InstrumentedFieldResolverDispatcherTest {
         }
 
     @Test
-    fun `sync getter is wrapped with InstrumentedEngineObjectData_Sync even for DEFAULT instrumentation`() =
+    fun `sync getter is wrapped with InstrumentedEngineObjectData_Sync even for DEFAULT instrumentation`(): Unit =
         runBlocking {
             // Given — DEFAULT instrumentation
             val mockDispatcher: FieldResolverDispatcher = mockk()

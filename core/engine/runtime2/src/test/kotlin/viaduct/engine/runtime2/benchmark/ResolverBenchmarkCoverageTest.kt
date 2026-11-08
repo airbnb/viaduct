@@ -83,7 +83,7 @@ class ResolverBenchmarkCoverageTest : ResolutionDispatcherResource {
     }
 
     @Test
-    fun `result statistics omit excluded cells and stop at parent backedges`() =
+    fun `result statistics omit excluded cells and stop at parent backedges`(): Unit =
         runTest {
             val world = fixture.world(PrecomputedResolverOutputs())
             val excluded = SharedOperationContext.create(world.newAssumptions())
@@ -105,7 +105,7 @@ class ResolverBenchmarkCoverageTest : ResolutionDispatcherResource {
     }
 
     @Test
-    fun `the prepared frozen corpus activates every required feature in at least three queries`() =
+    fun `the prepared frozen corpus activates every required feature in at least three queries`(): Unit =
         runTest(timeout = 5.minutes) {
             val sources = ResolverBenchmarkQueryCorpus.load(prefix + "queries.json", loader).querySources
             val discovery = PrecomputedResolverOutputs()

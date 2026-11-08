@@ -150,7 +150,7 @@ class RegistryConstructionTest {
     }
 
     @Test
-    fun `constructs an executable registry and assumptions through main APIs`() =
+    fun `constructs an executable registry and assumptions through main APIs`(): Unit =
         runBlocking {
             val schemas = schemas("type Query { greeting: String }")
             val schema = schemas.loweredSchema
@@ -209,7 +209,7 @@ class RegistryConstructionTest {
     }
 
     @Test
-    fun `dispatches canonical node references and retains their authoritative identity`() =
+    fun `dispatches canonical node references and retains their authoritative identity`(): Unit =
         runBlocking {
             val schemas =
                 schemas(

@@ -15,7 +15,7 @@ import viaduct.engine.runtime.execution.ExecutionTestHelpers.runExecutionTest
 @ExperimentalCoroutinesApi
 class LocalContextFeatureTest {
     @Test
-    fun `updates EngineResultLocalContext before resolving fields`() =
+    fun `updates EngineResultLocalContext before resolving fields`() {
         runExecutionTest {
             val result = executeViaductModernGraphQL(
                 """
@@ -54,9 +54,10 @@ class LocalContextFeatureTest {
                 result.toSpecification(),
             )
         }
+    }
 
     @Test
-    fun `field resolver modifications to local context are propagated to sub fields`() =
+    fun `field resolver modifications to local context are propagated to sub fields`() {
         runExecutionTest {
             class TestContext(val x: Int)
             val result = executeViaductModernGraphQL(
@@ -94,9 +95,10 @@ class LocalContextFeatureTest {
                 result.toSpecification(),
             )
         }
+    }
 
     @Test
-    fun `parent fields propagate ancestor local context to sub fields`() =
+    fun `parent fields propagate ancestor local context to sub fields`() {
         runExecutionTest {
             data class TestContext(val value: String)
 
@@ -148,9 +150,10 @@ class LocalContextFeatureTest {
                 result.toSpecification(),
             )
         }
+    }
 
     @Test
-    fun `throw on field resolvers that return non-CompositeLocalContext localContext`() =
+    fun `throw on field resolvers that return non-CompositeLocalContext localContext`() {
         runExecutionTest {
             val result = executeViaductModernGraphQL(
                 "type Query { x: Int }",
@@ -173,4 +176,5 @@ class LocalContextFeatureTest {
                 "Expected at least one error containing 'Expected CompositeLocalContext but found'"
             )
         }
+    }
 }

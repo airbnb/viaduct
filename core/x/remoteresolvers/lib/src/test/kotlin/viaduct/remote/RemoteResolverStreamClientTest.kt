@@ -34,7 +34,7 @@ class RemoteResolverStreamClientTest {
     }
 
     @Test
-    fun `the initial message is sent and the terminal resolve_response is returned`() =
+    fun `the initial message is sent and the terminal resolve_response is returned`(): Unit =
         runTest {
             val context = ContextMocks().engineExecutionContext
             val response = driveClientStream(
@@ -57,7 +57,7 @@ class RemoteResolverStreamClientTest {
         }
 
     @Test
-    fun `a callback_request is answered against the real local context and the answer is sent back`() =
+    fun `a callback_request is answered against the real local context and the answer is sent back`(): Unit =
         runTest {
             // ContextMocks runs over a no-op engine, so the real resolveSelectionSet call this
             // drives cannot complete -- but that's enough to prove the callback fired and its
@@ -98,7 +98,7 @@ class RemoteResolverStreamClientTest {
         }
 
     @Test
-    fun `a callback_request with a blank document builds an empty selection set instead of failing to parse`() =
+    fun `a callback_request with a blank document builds an empty selection set instead of failing to parse`(): Unit =
         runTest {
             // SelectionsParser.parse throws on a blank document, so if handleCallbackRequest didn't
             // special-case it (mirroring RemoteResolverServiceImpl's reconstructSelections), this

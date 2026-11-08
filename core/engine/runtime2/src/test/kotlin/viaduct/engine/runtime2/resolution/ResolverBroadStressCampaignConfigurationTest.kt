@@ -269,7 +269,7 @@ class ResolverBroadStressCampaignConfigurationTest {
     }
 
     @Test
-    fun `persisted campaign coordinate executes Resolution validation oracles`() =
+    fun `persisted campaign coordinate executes Resolution validation oracles`(): Unit =
         runBlocking {
             val campaign =
                 PropertyTestJson.readResource<PropertyTestCampaignConfigFile>(

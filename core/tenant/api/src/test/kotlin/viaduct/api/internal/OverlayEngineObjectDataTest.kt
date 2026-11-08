@@ -13,7 +13,7 @@ import viaduct.engine.api.ResolvedEngineObjectData
 
 class OverlayEngineObjectDataTest {
     @Test
-    fun `compatibility facade delegates sync and suspend access`() =
+    fun `compatibility facade delegates sync and suspend access`(): Unit =
         runTest {
             val type = GraphQLObjectType.newObject().name("Object")
                 .field(GraphQLFieldDefinition.newFieldDefinition().name("value").type(Scalars.GraphQLString))

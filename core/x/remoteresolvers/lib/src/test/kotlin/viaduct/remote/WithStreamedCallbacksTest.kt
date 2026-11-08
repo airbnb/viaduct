@@ -34,7 +34,7 @@ class WithStreamedCallbacksTest {
     private fun serializedSelectionSet(type: String) = SerializedSelectionSet.newBuilder().setType(type).build()
 
     @Test
-    fun `the block's resolve response is emitted on the outbound flow`() =
+    fun `the block's resolve response is emitted on the outbound flow`(): Unit =
         runTest {
             val incoming = listOf<In>(In.Req("hello"))
             val outbound: Flow<Out> = channelFlow {
@@ -53,7 +53,7 @@ class WithStreamedCallbacksTest {
         }
 
     @Test
-    fun `a callback issued from the block round-trips through the reader job`() =
+    fun `a callback issued from the block round-trips through the reader job`(): Unit =
         runTest {
             // A CallbackResp answering the callback the block is about to issue -- only delivered
             // to the reader job once the block's dispatcher.call() has sent the request, so this
@@ -89,7 +89,7 @@ class WithStreamedCallbacksTest {
         }
 
     @Test
-    fun `the outbound flow completes even when the client keeps its send side open`() =
+    fun `the outbound flow completes even when the client keeps its send side open`(): Unit =
         runTest {
             // Never closed -- simulates a client that keeps its send side open after receiving
             // the response, instead of ending the requests flow on its own.
@@ -112,7 +112,7 @@ class WithStreamedCallbacksTest {
         }
 
     @Test
-    fun `a stream whose first message isn't resolve_request fails fast`() =
+    fun `a stream whose first message isn't resolve_request fails fast`(): Unit =
         runTest {
             val incoming = listOf<In>(In.CallbackResp(CallbackResponse.getDefaultInstance()))
             val outbound: Flow<Out> = channelFlow {

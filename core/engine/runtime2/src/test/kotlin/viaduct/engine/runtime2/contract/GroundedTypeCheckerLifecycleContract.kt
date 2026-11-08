@@ -86,7 +86,7 @@ interface GroundedTypeCheckerLifecycleContract {
     }
 
     @Test
-    fun `request cancellation terminates type checker waiting for its Query input`() =
+    fun `request cancellation terminates type checker waiting for its Query input`(): Unit =
         runBlocking {
             val entered = CompletableDeferred<Unit>()
             val cancelled = CompletableDeferred<Unit>()

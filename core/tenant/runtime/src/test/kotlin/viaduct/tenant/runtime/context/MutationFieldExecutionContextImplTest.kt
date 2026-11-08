@@ -44,7 +44,7 @@ class MutationFieldExecutionContextImplTest : ContextTestBase() {
     }
 
     @Test
-    fun mutation() =
+    fun mutation(): Unit =
         runTest {
             val ctx = mk()
             assertEquals(mutationObject, ctx.mutation(TypenameMutation))

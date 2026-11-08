@@ -78,7 +78,7 @@ class DataLoaderCreationTest {
 
     @ParameterizedTest
     @ValueSource(booleans = [false, true])
-    fun `a subclass can customize keys before cache lookup`(immediate: Boolean) =
+    fun `a subclass can customize keys before cache lookup`(immediate: Boolean): Unit =
         runBlocking {
             val loader = TestLoader(immediate)
             assertEquals(0, loader.loaderCreations)
@@ -104,7 +104,7 @@ class DataLoaderCreationTest {
 
     @ParameterizedTest
     @ValueSource(booleans = [false, true])
-    fun `failed loads are cached only when exception caching is enabled`(cacheErrors: Boolean) =
+    fun `failed loads are cached only when exception caching is enabled`(cacheErrors: Boolean): Unit =
         runBlocking {
             val loader = TestLoader(immediate = false, cacheErrors = cacheErrors)
             loader.fail = true

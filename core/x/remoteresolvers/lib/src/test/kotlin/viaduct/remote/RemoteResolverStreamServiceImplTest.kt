@@ -64,7 +64,7 @@ class RemoteResolverStreamServiceImplTest {
     }
 
     @Test
-    fun `resolveNodeBatch resolves a batch against the runtime executor`() =
+    fun `resolveNodeBatch resolves a batch against the runtime executor`(): Unit =
         runTest {
             val executor = SimpleNodeResolverExecutor.createUserResolver()
             val runtime = RemoteResolverRuntime(testSchema, nodeExecutors = listOf(executor))
@@ -90,7 +90,7 @@ class RemoteResolverStreamServiceImplTest {
         }
 
     @Test
-    fun `resolveNodeBatch reports a missing executor as NOT_FOUND`() =
+    fun `resolveNodeBatch reports a missing executor as NOT_FOUND`(): Unit =
         runTest {
             withServer { stub ->
                 val request = ViaductServiceMessage.newBuilder()
@@ -103,7 +103,7 @@ class RemoteResolverStreamServiceImplTest {
         }
 
     @Test
-    fun `resolveFieldBatch round-trips a resolve_request to an empty resolve_response`() =
+    fun `resolveFieldBatch round-trips a resolve_request to an empty resolve_response`(): Unit =
         runTest {
             withServer { stub ->
                 val request = ViaductServiceFieldMessage.newBuilder()

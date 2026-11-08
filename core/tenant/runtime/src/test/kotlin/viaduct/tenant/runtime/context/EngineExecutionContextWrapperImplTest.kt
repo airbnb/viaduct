@@ -183,7 +183,7 @@ class EngineExecutionContextWrapperImplTest {
     }
 
     @Test
-    fun `query materializes the GRT from internal selection type metadata`() =
+    fun `query materializes the GRT from internal selection type metadata`(): Unit =
         runTest {
             val ctx = mockCtx()
             val engineSelections = mockk<EngineSelectionSet>()
@@ -201,7 +201,7 @@ class EngineExecutionContextWrapperImplTest {
         }
 
     @Test
-    fun `query waits for engine selection materialization before returning its GRT`() =
+    fun `query waits for engine selection materialization before returning its GRT`(): Unit =
         runTest {
             val ctx = mockCtx()
             val engineSelections = mockk<EngineSelectionSet>()
@@ -224,7 +224,7 @@ class EngineExecutionContextWrapperImplTest {
         }
 
     @Test
-    fun `mutation materializes the GRT from internal selection type metadata`() =
+    fun `mutation materializes the GRT from internal selection type metadata`(): Unit =
         runTest {
             val ctx = mockCtx()
             val engineSelections = mockk<EngineSelectionSet>()

@@ -45,7 +45,7 @@ class TypeCheckerResolverTest {
     }
 
     @Test
-    fun `retains a type target and shares checker fragment mechanics`() =
+    fun `retains a type target and shares checker fragment mechanics`(): Unit =
         runBlocking {
             val schema = TestWorld.fromSDL(SCHEMA_SDL).schemas
             val itemType = schema.loweredSchema.requireType("Item") as ViaductSchema.Object
@@ -180,7 +180,7 @@ class TypeCheckerResolverTest {
     }
 
     @Test
-    fun `type checker providers receive an empty argument tuple`() =
+    fun `type checker providers receive an empty argument tuple`(): Unit =
         runBlocking {
             val schema = TestWorld.fromSDL(SCHEMA_SDL).schemas
             val itemType = schema.loweredSchema.requireType("Item") as ViaductSchema.Object

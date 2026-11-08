@@ -58,7 +58,7 @@ class ScopeFilteringIntrospectionTest {
     }
 
     @Test
-    fun `introspection results exclude fields from unregistered scopes`() =
+    fun `introspection results exclude fields from unregistered scopes`(): Unit =
         runBlocking {
             // Schema defines fields in both "publicScope" and "unregisteredScope"
             // Only "publicScope" is registered in the SchemaId

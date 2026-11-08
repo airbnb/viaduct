@@ -25,7 +25,7 @@ class ScopedSchemaBuilderTest {
     """
 
     @Test
-    fun `ref-ifies types used in directive definitions`() =
+    fun `ref-ifies types used in directive definitions`() {
         verify(
             """
             $BOILERPLATE
@@ -37,9 +37,10 @@ class ScopedSchemaBuilderTest {
             directive @dirWithEnum(x: MyEnum) on OBJECT
             """
         )
+    }
 
     @Test
-    fun `ref-ifies types used in directives applied to objects`() =
+    fun `ref-ifies types used in directives applied to objects`() {
         verify(
             """
             $BOILERPLATE
@@ -60,6 +61,7 @@ class ScopedSchemaBuilderTest {
             }
             """
         )
+    }
 
     private fun verify(
         sdl: String,

@@ -86,7 +86,7 @@ class InternalDataLoaderTest {
 
     @OptIn(ExperimentalCoroutinesApi::class)
     @Test
-    fun `disabled cache does not share in-flight or completed results`() =
+    fun `disabled cache does not share in-flight or completed results`(): Unit =
         runTest {
             for (cachingEnabled in listOf(true, false)) {
                 var calls = 0

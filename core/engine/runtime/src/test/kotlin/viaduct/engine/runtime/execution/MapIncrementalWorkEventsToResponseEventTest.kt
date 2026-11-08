@@ -13,7 +13,7 @@ import org.junit.jupiter.api.assertThrows
 
 class MapIncrementalWorkEventsToResponseEventTest {
     @Test
-    fun `batches combine values completions new groups and termination`() =
+    fun `batches combine values completions new groups and termination`(): Unit =
         runTest {
             val ctx = mkExecutionParameters()
             val path = ResultPath.rootPath().segment("users")
@@ -60,7 +60,7 @@ class MapIncrementalWorkEventsToResponseEventTest {
         }
 
     @Test
-    fun `termination without group events omits empty collections`() =
+    fun `termination without group events omits empty collections`(): Unit =
         runTest {
             val updates = MapIncrementalWorkEventsToResponseEvent(
                 mkExecutionParameters(),
@@ -71,7 +71,7 @@ class MapIncrementalWorkEventsToResponseEventTest {
         }
 
     @Test
-    fun `producer failures reach the response reader`() =
+    fun `producer failures reach the response reader`(): Unit =
         runTest {
             val failure = IllegalStateException("producer failed")
             val events = flow<List<WorkEvent>> { throw failure }

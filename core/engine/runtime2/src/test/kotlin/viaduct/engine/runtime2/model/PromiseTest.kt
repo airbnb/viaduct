@@ -17,7 +17,7 @@ import viaduct.engine.runtime2.model.testing.TestWorld
 
 class PromiseTest {
     @Test
-    fun `completed promise returns its value and reports losing completion`() =
+    fun `completed promise returns its value and reports losing completion`(): Unit =
         runBlocking {
             val promise = Promise.of("ready")
 
@@ -29,7 +29,7 @@ class PromiseTest {
         }
 
     @Test
-    fun `deferred promise throws from get and resumes await after completion`() =
+    fun `deferred promise throws from get and resumes await after completion`(): Unit =
         runBlocking {
             val promise = Promise.ofDeferred<String>()
             val awaited = async { promise.await() }
@@ -49,7 +49,7 @@ class PromiseTest {
         }
 
     @Test
-    fun `cancelled promise throws its cause from get and await`() =
+    fun `cancelled promise throws its cause from get and await`(): Unit =
         runBlocking {
             val promise = Promise.ofDeferred<String>()
             val cancellation = CancellationException("cancelled")
@@ -63,7 +63,7 @@ class PromiseTest {
         }
 
     @Test
-    fun `failed promise throws its cause from get and await`() =
+    fun `failed promise throws its cause from get and await`(): Unit =
         runBlocking {
             val promise = Promise.ofDeferred<String>()
             val failure = IllegalStateException("failed")
@@ -77,7 +77,7 @@ class PromiseTest {
         }
 
     @Test
-    fun `cancel atomically admits one concurrent caller`() =
+    fun `cancel atomically admits one concurrent caller`(): Unit =
         runBlocking {
             val promise = Promise.ofDeferred<String>()
             val start = CompletableDeferred<Unit>()
@@ -99,7 +99,7 @@ class PromiseTest {
         }
 
     @Test
-    fun `complete atomically admits one concurrent caller`() =
+    fun `complete atomically admits one concurrent caller`(): Unit =
         runBlocking {
             val promise = Promise.ofDeferred<String>()
             val start = CompletableDeferred<Unit>()

@@ -86,110 +86,112 @@ class JavaBatchInvocationContextTest {
     fun `batch contexts retain subquery attribution and reference callers`(
         nodeBatch: Boolean,
         size: Int
-    ) = runTest {
-        val subqueries = mutableMapOf<EngineExecutionContext.ExecutionHandle, ExecutionAttribution>()
-        val nodeCallers = mutableListOf<Caller?>()
-        val rootCallers = mutableListOf<Caller?>()
-        val engine = mockk<Engine> {
-            coEvery { resolveSelectionSet(any(), any(), any()) } answers {
-                subqueries[firstArg()] = thirdArg<ResolveSelectionSetOptions>().attribution
-                queryData
-            }
-            coEvery { resolveRootFieldReference(any(), any(), any(), any(), any()) } answers {
-                rootCallers += arg<ResolveRootFieldReferenceOptions>(4).caller
-                nodeData
-            }
-        }
-        val nodeDispatcher = mockk<NodeResolverDispatcher> {
-            every { resolverMetadata } returns ResolverMetadata.forModern("TestNode", ResolverType.NODE)
-            coEvery { resolve(any(), any(), any(), any()) } answers {
-                nodeCallers += thirdArg<EngineExecutionContext>().fieldScope.caller
-                nodeData
-            }
-        }
-        val registry = mockk<DispatcherRegistry> {
-            every { getNodeResolverDispatcher("TestNode") } returns nodeDispatcher
-        }
-        val requestContext = Any()
-        val mocks = ContextMocks(myFullSchema = schema, myEngine = engine, myDispatcherRegistry = registry, myRequestContext = requestContext)
-        val handles = List(size) { object : EngineExecutionContext.ExecutionHandle {} }
-        val attributions = List(size) { ExecutionAttribution.fromResolver("origin-$it") }
-        val callers = List(size) { Caller("tenant-$it", if (nodeBatch) "TestNode" else "Query", if (nodeBatch) null else "field-$it") }
-        val invocations = List(size) { i ->
-            mocks.invocationContext(
-                EngineExecutionContextImpl.FieldExecutionScopeImpl(attribution = attributions[i]),
-                callers[i],
-                handles[i],
-            )
-        }
-        val nodeRefs = mutableListOf<NodeReference>()
-        val rootRefs = mutableListOf<RootFieldReference>()
-
-        val aggregate = mocks.invocationContext(EngineExecutionContextImpl.FieldExecutionScopeImpl(), null, handles.first())
-        val results = executeBatch(nodeBatch, invocations, aggregate) { contexts ->
-            assertBatchInvocation(nodeBatch, size)
-            val queries = contexts.map { context ->
-                assertSame(requestContext, context.requestContext)
-                val id = context.globalIDFor(Type.ofClass(TestNode::class.java), "referenced")
-                nodeRefs += context.ref(id).javaNodeReference!!
-                rootRefs += context.ref(rootCall).javaRootFieldReference!!
-                context.query("empty", emptyMap(), QueryResult::class.java)
-            }
-            CompletableFuture.allOf(*queries.toTypedArray()).thenApply {
-                queries.map { query ->
-                    assertSame(queryData, query.join().javaEngineObjectData)
-                    assertSame(mocks.fullSchema, query.join().context().schema)
-                    assertSame(GlobalIDCodecDefault, query.join().context().globalIDCodec)
-                    TestNode(query.join().context(), nodeData)
+    ): Unit =
+        runTest {
+            val subqueries = mutableMapOf<EngineExecutionContext.ExecutionHandle, ExecutionAttribution>()
+            val nodeCallers = mutableListOf<Caller?>()
+            val rootCallers = mutableListOf<Caller?>()
+            val engine = mockk<Engine> {
+                coEvery { resolveSelectionSet(any(), any(), any()) } answers {
+                    subqueries[firstArg()] = thirdArg<ResolveSelectionSetOptions>().attribution
+                    queryData
+                }
+                coEvery { resolveRootFieldReference(any(), any(), any(), any(), any()) } answers {
+                    rootCallers += arg<ResolveRootFieldReferenceOptions>(4).caller
+                    nodeData
                 }
             }
-        }
+            val nodeDispatcher = mockk<NodeResolverDispatcher> {
+                every { resolverMetadata } returns ResolverMetadata.forModern("TestNode", ResolverType.NODE)
+                coEvery { resolve(any(), any(), any(), any()) } answers {
+                    nodeCallers += thirdArg<EngineExecutionContext>().fieldScope.caller
+                    nodeData
+                }
+            }
+            val registry = mockk<DispatcherRegistry> {
+                every { getNodeResolverDispatcher("TestNode") } returns nodeDispatcher
+            }
+            val requestContext = Any()
+            val mocks = ContextMocks(myFullSchema = schema, myEngine = engine, myDispatcherRegistry = registry, myRequestContext = requestContext)
+            val handles = List(size) { object : EngineExecutionContext.ExecutionHandle {} }
+            val attributions = List(size) { ExecutionAttribution.fromResolver("origin-$it") }
+            val callers = List(size) { Caller("tenant-$it", if (nodeBatch) "TestNode" else "Query", if (nodeBatch) null else "field-$it") }
+            val invocations = List(size) { i ->
+                mocks.invocationContext(
+                    EngineExecutionContextImpl.FieldExecutionScopeImpl(attribution = attributions[i]),
+                    callers[i],
+                    handles[i],
+                )
+            }
+            val nodeRefs = mutableListOf<NodeReference>()
+            val rootRefs = mutableListOf<RootFieldReference>()
 
-        assertEquals(size, results.size)
-        assertBatchInvocation(nodeBatch, size)
-        results.forEach { assertSame(nodeData, it.getOrThrow()) }
-        assertEquals(handles.zip(attributions).toMap(), subqueries)
-        val selections = invocations.first().engineSelectionSetFactory.engineSelectionSet("TestNode", "name", emptyMap())
-        nodeRefs.forEach { (it as LazyEngineObjectData).resolveData(selections, invocations.first()) }
-        rootRefs.forEach { (it as LazyEngineObjectData).resolveData(selections, invocations.first()) }
-        assertEquals(callers, nodeCallers)
-        assertEquals(callers, rootCallers)
-    }
+            val aggregate = mocks.invocationContext(EngineExecutionContextImpl.FieldExecutionScopeImpl(), null, handles.first())
+            val results = executeBatch(nodeBatch, invocations, aggregate) { contexts ->
+                assertBatchInvocation(nodeBatch, size)
+                val queries = contexts.map { context ->
+                    assertSame(requestContext, context.requestContext)
+                    val id = context.globalIDFor(Type.ofClass(TestNode::class.java), "referenced")
+                    nodeRefs += context.ref(id).javaNodeReference!!
+                    rootRefs += context.ref(rootCall).javaRootFieldReference!!
+                    context.query("empty", emptyMap(), QueryResult::class.java)
+                }
+                CompletableFuture.allOf(*queries.toTypedArray()).thenApply {
+                    queries.map { query ->
+                        assertSame(queryData, query.join().javaEngineObjectData)
+                        assertSame(mocks.fullSchema, query.join().context().schema)
+                        assertSame(GlobalIDCodecDefault, query.join().context().globalIDCodec)
+                        TestNode(query.join().context(), nodeData)
+                    }
+                }
+            }
+
+            assertEquals(size, results.size)
+            assertBatchInvocation(nodeBatch, size)
+            results.forEach { assertSame(nodeData, it.getOrThrow()) }
+            assertEquals(handles.zip(attributions).toMap(), subqueries)
+            val selections = invocations.first().engineSelectionSetFactory.engineSelectionSet("TestNode", "name", emptyMap())
+            nodeRefs.forEach { (it as LazyEngineObjectData).resolveData(selections, invocations.first()) }
+            rootRefs.forEach { (it as LazyEngineObjectData).resolveData(selections, invocations.first()) }
+            assertEquals(callers, nodeCallers)
+            assertEquals(callers, rootCallers)
+        }
 
     @ParameterizedTest
     @CsvSource("false, 1", "false, 2", "true, 1", "true, 2")
     fun `whole batch failures retain tenant attribution`(
         nodeBatch: Boolean,
         size: Int
-    ) = runTest {
-        val context = ContextMocks(myFullSchema = schema).engineExecutionContext
-        val failure = IllegalStateException("batch failed")
-        val resolve: (List<ResolverExecutionContext>) -> CompletableFuture<List<TestNode>> = {
-            assertBatchInvocation(nodeBatch, size)
-            CompletableFuture.failedFuture(failure)
-        }
+    ): Unit =
+        runTest {
+            val context = ContextMocks(myFullSchema = schema).engineExecutionContext
+            val failure = IllegalStateException("batch failed")
+            val resolve: (List<ResolverExecutionContext>) -> CompletableFuture<List<TestNode>> = {
+                assertBatchInvocation(nodeBatch, size)
+                CompletableFuture.failedFuture(failure)
+            }
 
-        if (nodeBatch) {
-            val results = executeBatch(true, List(size) { context }, context, resolve = resolve)
-            assertEquals(size, results.size)
-            results.forEach {
-                val error = it.exceptionOrNull() as TenantResolverException
+            if (nodeBatch) {
+                val results = executeBatch(true, List(size) { context }, context, resolve = resolve)
+                assertEquals(size, results.size)
+                results.forEach {
+                    val error = it.exceptionOrNull() as TenantResolverException
+                    assertSame(failure, error.cause)
+                    assertEquals("TestNode", error.resolver)
+                }
+            } else {
+                val error = assertThrows<TenantResolverException> {
+                    executeBatch(false, List(size) { context }, context, resolve = resolve)
+                }
                 assertSame(failure, error.cause)
-                assertEquals("TestNode", error.resolver)
+                assertEquals("Query.batch", error.resolver)
             }
-        } else {
-            val error = assertThrows<TenantResolverException> {
-                executeBatch(false, List(size) { context }, context, resolve = resolve)
-            }
-            assertSame(failure, error.cause)
-            assertEquals("Query.batch", error.resolver)
+            assertBatchInvocation(nodeBatch, size)
         }
-        assertBatchInvocation(nodeBatch, size)
-    }
 
     @ParameterizedTest
     @ValueSource(booleans = [false, true])
-    fun `node batching reports each invocation after repeated IDs split`(failSingleton: Boolean) =
+    fun `node batching reports each invocation after repeated IDs split`(failSingleton: Boolean): Unit =
         runTest {
             val context = ContextMocks(myFullSchema = schema).engineExecutionContext
             val results = executeBatch(true, List(3) { context }, context, nodeIDs = listOf("a", "b", "a")) { contexts ->

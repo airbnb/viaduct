@@ -104,7 +104,7 @@ class ChainedResolverInstrumentationTest {
 
     @Test
     @ExperimentalCoroutinesApi
-    fun `instrumentResolverExecution chains all instrumentations`() =
+    fun `instrumentResolverExecution chains all instrumentations`(): Unit =
         runBlocking {
             val parameters = ViaductResolverInstrumentation.InstrumentExecuteResolverParameters(
                 resolverMetadata = ResolverMetadata.forMock("TestResolver")

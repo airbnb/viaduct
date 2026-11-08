@@ -48,7 +48,7 @@ class ViaductScopedSchemaIntegrationTest {
     }
 
     @Test
-    fun `Execute scoped query successfully`() =
+    fun `Execute scoped query successfully`(): Unit =
         runBlocking {
             val sdl = """
                 extend type Query @scope(to: ["viaduct-public"]) {
@@ -87,7 +87,7 @@ class ViaductScopedSchemaIntegrationTest {
 
     @ParameterizedTest
     @EnumSource(SchemaConfigMethod::class)
-    fun `Execute scoped query with different configuration methods`(method: SchemaConfigMethod) =
+    fun `Execute scoped query with different configuration methods`(method: SchemaConfigMethod): Unit =
         runBlocking {
             val sdl = """
                 extend type Query @scope(to: ["viaduct-public"]) {
@@ -145,7 +145,7 @@ class ViaductScopedSchemaIntegrationTest {
         }
 
     @Test
-    fun `Execute scoped query with complex types`() =
+    fun `Execute scoped query with complex types`(): Unit =
         runBlocking {
             val sdl = """
                 type Foo @scope(to: ["SCOPE1"]) {
@@ -229,7 +229,7 @@ class ViaductScopedSchemaIntegrationTest {
         }
 
     @Test
-    fun `Scoped schema excludes fields from other scopes`() =
+    fun `Scoped schema excludes fields from other scopes`(): Unit =
         runBlocking {
             val sdl = """
                 type TestScope1Object @scope(to: ["SCOPE1"]) {
@@ -299,7 +299,7 @@ class ViaductScopedSchemaIntegrationTest {
         }
 
     @Test
-    fun `Fails to execute query with unregistered schema ID`() =
+    fun `Fails to execute query with unregistered schema ID`(): Unit =
         runBlocking {
             val sdl = """
                 type TestScope1Object @scope(to: ["SCOPE1"]) {
@@ -371,7 +371,7 @@ class ViaductScopedSchemaIntegrationTest {
     }
 
     @Test
-    fun `Register and query multiple independent scoped schemas`() =
+    fun `Register and query multiple independent scoped schemas`(): Unit =
         runBlocking {
             val sdl = """
                 type TestScope1Object @scope(to: ["SCOPE1"]) {

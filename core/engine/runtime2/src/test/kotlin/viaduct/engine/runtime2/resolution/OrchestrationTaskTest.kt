@@ -287,7 +287,7 @@ class OrchestrationTaskTest : ResolutionDispatcherResource {
         }
 
     @Test
-    fun `conditioned passive lists wait for orchestration dispatch and retain checker activation`() =
+    fun `conditioned passive lists wait for orchestration dispatch and retain checker activation`(): Unit =
         runBlocking {
             for (enabled in listOf(false, true)) {
                 for (withChecker in listOf(false, true)) {
@@ -343,7 +343,7 @@ class OrchestrationTaskTest : ResolutionDispatcherResource {
         }
 
     @Test
-    fun `checker preparation records every claimed slot and delays absence for pending values`() =
+    fun `checker preparation records every claimed slot and delays absence for pending values`(): Unit =
         runBlocking {
             val worldFixture = TestWorld.fromDSL(
                 """

@@ -137,7 +137,7 @@ class TypenameLoweringTest {
     }
 
     @Test
-    fun `generated typename resolvers are argumentless dependency-free constants`() =
+    fun `generated typename resolvers are argumentless dependency-free constants`(): Unit =
         runBlocking {
             val world = TestWorld.fromSDL(SCHEMA)
             val schema = world.schemas

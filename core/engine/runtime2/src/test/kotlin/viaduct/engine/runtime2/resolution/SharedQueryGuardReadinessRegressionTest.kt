@@ -24,7 +24,7 @@ import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 /** Independent owners must not impose a readiness barrier on one another through a shared OR. */
 class SharedQueryGuardReadinessRegressionTest : ResolutionDispatcherResource {
     @Test
-    fun `healthy owner completes while another owner's Query guard is suspended`() =
+    fun `healthy owner completes while another owner's Query guard is suspended`(): Unit =
         runBlocking {
             val slowStarted = CompletableDeferred<Unit>()
             val fastStarted = CompletableDeferred<Unit>()

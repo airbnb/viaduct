@@ -16,7 +16,7 @@ import org.junit.jupiter.api.assertThrows
 
 class CallRecorderTest {
     @Test
-    fun `records a successful invocation`() =
+    fun `records a successful invocation`(): Unit =
         runBlocking {
             val recorder = CallRecorder<Int, String> { it.toString() }
             recorder(42)
@@ -41,7 +41,7 @@ class CallRecorderTest {
     }
 
     @Test
-    fun `records multiple invocations in call order`() =
+    fun `records multiple invocations in call order`(): Unit =
         runBlocking {
             val recorder = CallRecorder<Int, Int> { it * 2 }
             recorder(1)
@@ -54,7 +54,7 @@ class CallRecorderTest {
         }
 
     @Test
-    fun `log returns a stable snapshot`() =
+    fun `log returns a stable snapshot`(): Unit =
         runBlocking {
             val recorder = CallRecorder<Int, Int> { it }
             recorder(1)
@@ -67,7 +67,7 @@ class CallRecorderTest {
         }
 
     @Test
-    fun `records elapsed time`() =
+    fun `records elapsed time`(): Unit =
         runBlocking {
             val recorder = CallRecorder<Unit, Unit> { delay(50) }
             recorder(Unit)
@@ -78,7 +78,7 @@ class CallRecorderTest {
         }
 
     @Test
-    fun `Entry toString contains arg result and time`() =
+    fun `Entry toString contains arg result and time`(): Unit =
         runBlocking {
             val recorder = CallRecorder<Int, String> { it.toString() }
             recorder(99)
@@ -92,7 +92,7 @@ class CallRecorderTest {
     @Nested
     inner class SingleEntryTests {
         @Test
-        fun `returns the entry when exactly one invocation was recorded`() =
+        fun `returns the entry when exactly one invocation was recorded`(): Unit =
             runBlocking {
                 val recorder = CallRecorder<Int, Int> { it }
                 recorder(7)
@@ -103,7 +103,7 @@ class CallRecorderTest {
             }
 
         @Test
-        fun `throws with count and entry details when log is not exactly 1`() =
+        fun `throws with count and entry details when log is not exactly 1`(): Unit =
             runBlocking {
                 val recorder = CallRecorder<Int, Int> { it }
 

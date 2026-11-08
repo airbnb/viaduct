@@ -244,7 +244,7 @@ interface FragmentFreeFieldCheckerPublicationContract {
     }
 
     @Test
-    fun `request cancellation terminates checker promises before entry and during execution`() =
+    fun `request cancellation terminates checker promises before entry and during execution`(): Unit =
         runBlocking {
             for (cancelBeforeEntry in listOf(true, false)) {
                 val checkerEntered = CompletableDeferred<Unit>()

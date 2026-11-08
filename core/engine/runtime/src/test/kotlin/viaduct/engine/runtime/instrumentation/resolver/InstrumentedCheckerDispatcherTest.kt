@@ -47,7 +47,7 @@ internal class InstrumentedCheckerDispatcherTest {
     }
 
     @Test
-    fun `execute materializes checker data with resolver instrumentation and wraps sync data for reads`() =
+    fun `execute materializes checker data with resolver instrumentation and wraps sync data for reads`(): Unit =
         runBlocking {
             val instrumentation = RecordingResolverInstrumentation()
             val syncData = mockk<EngineObjectData.Sync>()

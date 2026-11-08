@@ -108,7 +108,7 @@ class ChinaActiveBenchmarkCheckersTest : ResolutionDispatcherResource {
     }
 
     @Test
-    fun `China has a guarded object ID and deeper Query in one slot with an active provider`() =
+    fun `China has a guarded object ID and deeper Query in one slot with an active provider`(): Unit =
         runTest {
             val world = world(PrecomputedResolverOutputs())
             profile.fieldPolicies.filterValues { "chinaQuery" in it }.forEach { (coordinate, _) ->
@@ -174,7 +174,7 @@ class ChinaActiveBenchmarkCheckersTest : ResolutionDispatcherResource {
     }
 
     @Test
-    fun `replacing hidden checker demand preserves bulk client selected values`() =
+    fun `replacing hidden checker demand preserves bulk client selected values`(): Unit =
         runTest(timeout = 5.minutes) {
             val queries = ResolverBenchmarkQueryCorpus.load(resourcePrefix + "queries.json", loader).querySources.mapIndexed { index, source ->
                 if (index < ResolverBenchmarkFeaturePartition.selections.size * 3) source.substringBeforeLast("\n  coverage") + "\n}" else source

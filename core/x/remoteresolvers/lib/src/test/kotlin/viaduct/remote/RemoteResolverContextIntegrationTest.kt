@@ -76,7 +76,7 @@ class RemoteResolverContextIntegrationTest {
         )
 
     @Test
-    fun `runtime schema overrides a registered caller context`() =
+    fun `runtime schema overrides a registered caller context`(): Unit =
         runBlocking {
             val callerSchema =
                 MockSchema.mk(
@@ -155,7 +155,7 @@ class RemoteResolverContextIntegrationTest {
         }
 
     @Test
-    fun `runtime schema overrides a registered caller selection`() =
+    fun `runtime schema overrides a registered caller selection`(): Unit =
         runBlocking {
             val callerSchema =
                 MockSchema.mk(
@@ -255,7 +255,7 @@ class RemoteResolverContextIntegrationTest {
         }
 
     @Test
-    fun `node and field proxies exchange request and response context`() =
+    fun `node and field proxies exchange request and response context`(): Unit =
         runBlocking {
             val expected =
                 EncodedRemoteResolverContext(
@@ -388,7 +388,7 @@ class RemoteResolverContextIntegrationTest {
         }
 
     @Test
-    fun `streaming node proxy exchanges request and response context`() =
+    fun `streaming node proxy exchanges request and response context`(): Unit =
         runBlocking {
             val expected =
                 EncodedRemoteResolverContext(
@@ -493,7 +493,7 @@ class RemoteResolverContextIntegrationTest {
         }
 
     @Test
-    fun `node handler captures response context after execution`() =
+    fun `node handler captures response context after execution`(): Unit =
         runBlocking {
             val expected =
                 EncodedRemoteResolverContext(
@@ -547,7 +547,7 @@ class RemoteResolverContextIntegrationTest {
         }
 
     @Test
-    fun `streaming node handler applies context before dispatch`() =
+    fun `streaming node handler applies context before dispatch`(): Unit =
         runBlocking {
             val expected =
                 EncodedRemoteResolverContext(
@@ -592,7 +592,7 @@ class RemoteResolverContextIntegrationTest {
         }
 
     @Test
-    fun `node and field handlers apply context before dispatch`() =
+    fun `node and field handlers apply context before dispatch`(): Unit =
         runBlocking {
             val expected =
                 EncodedRemoteResolverContext(
@@ -644,7 +644,7 @@ class RemoteResolverContextIntegrationTest {
         }
 
     @Test
-    fun `invalid wire metadata is rejected before the applier starts`() =
+    fun `invalid wire metadata is rejected before the applier starts`(): Unit =
         runBlocking {
             var applierStarted = false
             val applier =

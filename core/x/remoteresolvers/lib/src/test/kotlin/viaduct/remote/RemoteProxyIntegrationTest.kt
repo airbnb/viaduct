@@ -50,7 +50,7 @@ class RemoteProxyIntegrationTest {
     )
 
     @Test
-    fun `test simple node resolver executor directly`() =
+    fun `test simple node resolver executor directly`(): Unit =
         runBlocking {
             // Create a simple resolver with user data
             val resolver = SimpleNodeResolverExecutor.createUserResolver()
@@ -101,7 +101,7 @@ class RemoteProxyIntegrationTest {
     }
 
     @Test
-    fun `test proxy delegates to wrapped resolver`() =
+    fun `test proxy delegates to wrapped resolver`(): Unit =
         runBlocking {
             // Create the chain: NodeResolver -> Proxy
             val resolver = SimpleNodeResolverExecutor.createUserResolver()
@@ -128,7 +128,7 @@ class RemoteProxyIntegrationTest {
         }
 
     @Test
-    fun `test resolver handles missing node`() =
+    fun `test resolver handles missing node`(): Unit =
         runBlocking {
             val resolver = SimpleNodeResolverExecutor.createUserResolver()
             val context = ContextMocks(testSchema).engineExecutionContext
@@ -150,7 +150,7 @@ class RemoteProxyIntegrationTest {
         }
 
     @Test
-    fun `test end-to-end gRPC remote resolver flow`() =
+    fun `test end-to-end gRPC remote resolver flow`(): Unit =
         runBlocking {
             // Clean up registries before test
             NodeExecutorRegistry.clear()
@@ -261,7 +261,7 @@ class RemoteProxyIntegrationTest {
         }
 
     @Test
-    fun `a node whose result fails serialization fails only its own selector in a batch`() =
+    fun `a node whose result fails serialization fails only its own selector in a batch`(): Unit =
         runBlocking {
             // Regression: one node whose result can't be serialized (its value carries an unresolved
             // nested NodeReference) must not sink its batch-mates. RemoteResolverServiceImpl
@@ -279,7 +279,7 @@ class RemoteProxyIntegrationTest {
         }
 
     @Test
-    fun `a node whose payload fails deserialization fails only its own selector in a batch`() =
+    fun `a node whose payload fails deserialization fails only its own selector in a batch`(): Unit =
         runBlocking {
             // A node whose payload can't be deserialized (here its declared type disagrees with the
             // node type this caller expects) must not sink its batch-mates.
@@ -384,7 +384,7 @@ class RemoteProxyIntegrationTest {
     }
 
     @Test
-    fun `test callback flow with re-entrant calls`() =
+    fun `test callback flow with re-entrant calls`(): Unit =
         runBlocking {
             // Clean up registries before test
             NodeExecutorRegistry.clear()

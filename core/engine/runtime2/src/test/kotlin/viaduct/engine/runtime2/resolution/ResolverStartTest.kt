@@ -63,7 +63,7 @@ import viaduct.graphql.schema.ViaductSchema
 
 class ResolverStartTest : ResolutionDispatcherResource {
     @Test
-    fun `await waits for query and mutation task children without waiting for unrelated request work`() =
+    fun `await waits for query and mutation task children without waiting for unrelated request work`(): Unit =
         runBlocking {
             for (type in listOf("Query", "Mutation")) {
                 val childStarted = CompletableDeferred<Unit>()
@@ -110,7 +110,7 @@ class ResolverStartTest : ResolutionDispatcherResource {
         }
 
     @Test
-    fun `await propagates request cancellation for queries and mutations`() =
+    fun `await propagates request cancellation for queries and mutations`(): Unit =
         runBlocking {
             for (type in listOf("Query", "Mutation")) {
                 val started = CompletableDeferred<Unit>()
@@ -143,7 +143,7 @@ class ResolverStartTest : ResolutionDispatcherResource {
         }
 
     @Test
-    fun `await propagates fatal failures without swallowing the request exception handler`() =
+    fun `await propagates fatal failures without swallowing the request exception handler`(): Unit =
         runBlocking {
             val failure = AssertionError("fatal resolver failure")
             val reported = CompletableDeferred<Throwable>()
@@ -169,7 +169,7 @@ class ResolverStartTest : ResolutionDispatcherResource {
         }
 
     @Test
-    fun `synchronous startup failures terminate the resolution job`() =
+    fun `synchronous startup failures terminate the resolution job`(): Unit =
         runBlocking {
             for (failure in listOf(IllegalStateException("startup failure"), AssertionError("fatal startup failure"))) {
                 val requestJob = Job()
@@ -349,7 +349,7 @@ class ResolverStartTest : ResolutionDispatcherResource {
         }
 
     @Test
-    fun `request cancellation records entered producer but not waiting consumer`() =
+    fun `request cancellation records entered producer but not waiting consumer`(): Unit =
         runBlocking {
             val entered = CompletableDeferred<Unit>()
             val stopped = CompletableDeferred<Unit>()
@@ -390,7 +390,7 @@ class ResolverStartTest : ResolutionDispatcherResource {
         }
 
     @Test
-    fun `nested selection execution is owned by the calling field task`() =
+    fun `nested selection execution is owned by the calling field task`(): Unit =
         runBlocking {
             val nestedStarted = CompletableDeferred<Unit>()
             val nestedStopped = CompletableDeferred<Unit>()
@@ -476,7 +476,7 @@ class ResolverStartTest : ResolutionDispatcherResource {
         }
 
     @Test
-    fun `startResolve publishes root shape before resolver values complete`() =
+    fun `startResolve publishes root shape before resolver values complete`(): Unit =
         runBlocking {
             val providerStarted = CompletableDeferred<Unit>()
             val gate = CompletableDeferred<Unit>()
@@ -505,7 +505,7 @@ class ResolverStartTest : ResolutionDispatcherResource {
         }
 
     @Test
-    fun `cancelling the request scope cancels resolver work`() =
+    fun `cancelling the request scope cancels resolver work`(): Unit =
         runBlocking {
             val providerStarted = CompletableDeferred<Unit>()
             val providerStopped = CompletableDeferred<Unit>()
@@ -527,7 +527,7 @@ class ResolverStartTest : ResolutionDispatcherResource {
         }
 
     @Test
-    fun `task-local cancellation becomes the affected field error`() =
+    fun `task-local cancellation becomes the affected field error`(): Unit =
         runBlocking {
             val providerStarted = CompletableDeferred<Unit>()
             val world =
@@ -576,7 +576,7 @@ class ResolverStartTest : ResolutionDispatcherResource {
         }
 
     @Test
-    fun `task-local cancellation becomes field errors without cancelling the request`() =
+    fun `task-local cancellation becomes field errors without cancelling the request`(): Unit =
         runBlocking {
             val providerStarted = CompletableDeferred<Unit>()
             val world =
@@ -629,7 +629,7 @@ class ResolverStartTest : ResolutionDispatcherResource {
         }
 
     @Test
-    fun `provider contract exception becomes a field error`() =
+    fun `provider contract exception becomes a field error`(): Unit =
         runBlocking {
             val world =
                 TestWorld.fromSDL(
@@ -674,7 +674,7 @@ class ResolverStartTest : ResolutionDispatcherResource {
         }
 
     @Test
-    fun `field exception does not cancel queued sibling producers`() =
+    fun `field exception does not cancel queued sibling producers`(): Unit =
         runBlocking {
             ResolutionDispatcherFactory.create(1).use { dispatcher ->
                 val siblingStarted = CompletableDeferred<Unit>()
@@ -732,7 +732,7 @@ class ResolverStartTest : ResolutionDispatcherResource {
         }
 
     @Test
-    fun `request cancellation terminates field promises before coroutine entry`() =
+    fun `request cancellation terminates field promises before coroutine entry`(): Unit =
         runBlocking {
             ResolutionDispatcherFactory.create(1).use { dispatcher ->
                 val blockerStarted = CountDownLatch(1)
@@ -784,7 +784,7 @@ class ResolverStartTest : ResolutionDispatcherResource {
 
     @Test
     @OptIn(ExperimentalCoroutinesApi::class)
-    fun `a pending source argument delays dependent resolvers while healthy work finishes`() =
+    fun `a pending source argument delays dependent resolvers while healthy work finishes`(): Unit =
         runTest {
             val providedValue = CompletableDeferred<Int>()
             val providerStarted = CompletableDeferred<Unit>()
@@ -824,7 +824,7 @@ class ResolverStartTest : ResolutionDispatcherResource {
 
     @Test
     @OptIn(ExperimentalCoroutinesApi::class)
-    fun `cancelling a resolver after publication preserves its value or error`() =
+    fun `cancelling a resolver after publication preserves its value or error`(): Unit =
         runTest {
             for (failure in listOf(null, IllegalStateException("resolver failed"))) {
                 val resolverTaskJob = CompletableDeferred<Job>()

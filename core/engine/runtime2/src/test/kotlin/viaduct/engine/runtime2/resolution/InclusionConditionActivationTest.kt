@@ -50,7 +50,7 @@ class InclusionConditionActivationTest {
         }
 
     @Test
-    fun `staggered false completions leave no pending activation`() =
+    fun `staggered false completions leave no pending activation`(): Unit =
         runBlocking {
             val gates = List(32) { CompletableDeferred<Boolean>() }
             val started = CompletableDeferred<Unit>()
@@ -76,7 +76,7 @@ class InclusionConditionActivationTest {
         }
 
     @Test
-    fun `ready true alternative does not await suspended sibling`() =
+    fun `ready true alternative does not await suspended sibling`(): Unit =
         runBlocking {
             val suspended = CompletableDeferred<Boolean>()
             val cancelled = CompletableDeferred<Unit>()
@@ -103,7 +103,7 @@ class InclusionConditionActivationTest {
         }
 
     @Test
-    fun `ready true alternative masks sibling failure`() =
+    fun `ready true alternative masks sibling failure`(): Unit =
         runBlocking {
             val condition =
                 InclusionCondition.requires(mapOf(x to true))
@@ -153,7 +153,7 @@ class InclusionConditionActivationTest {
         }
 
     @Test
-    fun `contradictory alternative does not propagate a binding failure`() =
+    fun `contradictory alternative does not propagate a binding failure`(): Unit =
         runBlocking {
             val condition =
                 InclusionCondition.requires(mapOf(x to true))
@@ -168,7 +168,7 @@ class InclusionConditionActivationTest {
         }
 
     @Test
-    fun `contradictory alternative does not await an irrelevant binding`() =
+    fun `contradictory alternative does not await an irrelevant binding`(): Unit =
         runBlocking {
             val suspended = CompletableDeferred<Boolean>()
             val condition =
@@ -186,7 +186,7 @@ class InclusionConditionActivationTest {
         }
 
     @Test
-    fun `wide activation is stack safe`() =
+    fun `wide activation is stack safe`(): Unit =
         runBlocking {
             val condition =
                 InclusionCondition.anyOf(
@@ -254,7 +254,7 @@ class InclusionConditionActivationTest {
     }
 
     @Test
-    fun `equal guarded alternatives exclude demand without reading a failed binding`() =
+    fun `equal guarded alternatives exclude demand without reading a failed binding`(): Unit =
         runBlocking {
             val z = Arguments.Variable.of(field, "z")
             val xRequired = InclusionCondition.requires(mapOf(x to true))
@@ -269,7 +269,7 @@ class InclusionConditionActivationTest {
         }
 
     @Test
-    fun `equal guarded alternatives exclude demand without awaiting a pending binding`() =
+    fun `equal guarded alternatives exclude demand without awaiting a pending binding`(): Unit =
         runBlocking {
             val z = Arguments.Variable.of(field, "z")
             val xRequired = InclusionCondition.requires(mapOf(x to true))
@@ -284,7 +284,7 @@ class InclusionConditionActivationTest {
         }
 
     @Test
-    fun `cancelling activation cancels binding evaluation`() =
+    fun `cancelling activation cancels binding evaluation`(): Unit =
         runBlocking {
             val started = CompletableDeferred<Unit>()
             val condition = InclusionCondition.requires(mapOf(x to true))

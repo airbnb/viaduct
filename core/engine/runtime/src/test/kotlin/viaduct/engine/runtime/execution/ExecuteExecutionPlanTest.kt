@@ -33,41 +33,42 @@ class ExecuteExecutionPlanTest {
     fun `object completion applies enclosing field nullability`(
         objectType: String,
         incrementalExecutionEnabled: Boolean,
-    ) = runTest {
-        val base = mkObjectCompletionParameters(
-            schemaSDL = "extend type Query { obj: $objectType } type Obj { a: Int, b: Int }",
-            coordinate = "Query" to "obj",
-            query = "{ obj { a ... @defer { b } } }",
-        )
-        val ctx = if (incrementalExecutionEnabled) {
-            base
-        } else {
-            base.copy(
-                _engineExecutionContext = ContextMocks(
-                    myFullSchema = base.engineExecutionContext.fullSchema,
-                    myFlagManager = MockFlagManager.Disabled,
-                ).engineExecutionContext,
+    ): Unit =
+        runTest {
+            val base = mkObjectCompletionParameters(
+                schemaSDL = "extend type Query { obj: $objectType } type Obj { a: Int, b: Int }",
+                coordinate = "Query" to "obj",
+                query = "{ obj { a ... @defer { b } } }",
             )
-        }
-        val fields = FieldExecutionHelpers.collectFields(ctx.currentObjectEngineResult.type, ctx).collectedFieldsMap
-        setRawFieldValue(ctx, fields.getValue("a"), Value.fromValue(resolved(1)))
-        setRawFieldValue(ctx, fields.getValue("b"), Value.fromValue(resolved(2)))
-        ctx.currentObjectEngineResult.fieldResolutionState.complete(Unit)
+            val ctx = if (incrementalExecutionEnabled) {
+                base
+            } else {
+                base.copy(
+                    _engineExecutionContext = ContextMocks(
+                        myFullSchema = base.engineExecutionContext.fullSchema,
+                        myFlagManager = MockFlagManager.Disabled,
+                    ).engineExecutionContext,
+                )
+            }
+            val fields = FieldExecutionHelpers.collectFields(ctx.currentObjectEngineResult.type, ctx).collectedFieldsMap
+            setRawFieldValue(ctx, fields.getValue("a"), Value.fromValue(resolved(1)))
+            setRawFieldValue(ctx, fields.getValue("b"), Value.fromValue(resolved(2)))
+            ctx.currentObjectEngineResult.fieldResolutionState.complete(Unit)
 
-        val result = completer.completeObject(ctx).await()
+            val result = completer.completeObject(ctx).await()
 
-        assertEquals(if (incrementalExecutionEnabled) mapOf("a" to 1) else mapOf("a" to 1, "b" to 2), result.value)
-        assertEquals(objectType == "Obj", result.isNullableField)
-        if (incrementalExecutionEnabled) {
-            assertEquals(1, result.work.groups.size)
-            assertEquals(mapOf("b" to 2), result.work.tasks.single().run().data)
-        } else {
-            assertEquals(Work.empty, result.work)
+            assertEquals(if (incrementalExecutionEnabled) mapOf("a" to 1) else mapOf("a" to 1, "b" to 2), result.value)
+            assertEquals(objectType == "Obj", result.isNullableField)
+            if (incrementalExecutionEnabled) {
+                assertEquals(1, result.work.groups.size)
+                assertEquals(mapOf("b" to 2), result.work.tasks.single().run().data)
+            } else {
+                assertEquals(Work.empty, result.work)
+            }
         }
-    }
 
     @Test
-    fun `object completion registers newly collected defers at the response path`() =
+    fun `object completion registers newly collected defers at the response path`(): Unit =
         runTest {
             val ctx = mkObjectCompletionParameters(
                 schemaSDL = "extend type Query { obj: Obj } type Obj { a: Int }",
@@ -86,7 +87,7 @@ class ExecuteExecutionPlanTest {
         }
 
     @Test
-    fun `object completion links new groups to inherited parents`() =
+    fun `object completion links new groups to inherited parents`(): Unit =
         runTest {
             val base = mkObjectCompletionParameters(
                 schemaSDL = "extend type Query { obj: Obj } type Obj { a: Int }",
@@ -106,7 +107,7 @@ class ExecuteExecutionPlanTest {
         }
 
     @Test
-    fun `object completion preserves the defer map when incremental execution is disabled`() =
+    fun `object completion preserves the defer map when incremental execution is disabled`(): Unit =
         runTest {
             val base = mkObjectCompletionParameters(
                 schemaSDL = "extend type Query { obj: Obj } type Obj { a: Int }",
@@ -130,7 +131,7 @@ class ExecuteExecutionPlanTest {
         }
 
     @Test
-    fun `execution plans without deferred fields complete synchronously including empty plans`() =
+    fun `execution plans without deferred fields complete synchronously including empty plans`(): Unit =
         runTest {
             val ctx = mkObjectCompletionParameters(
                 schemaSDL = "extend type Query { obj: Obj } type Obj { a: Int }",
@@ -150,7 +151,7 @@ class ExecuteExecutionPlanTest {
         }
 
     @Test
-    fun `object completion returns current fields without waiting for deferred groups`() =
+    fun `object completion returns current fields without waiting for deferred groups`(): Unit =
         runTest {
             val ctx = mkObjectCompletionParameters(
                 schemaSDL = "extend type Query { obj: Obj } type Obj { a: Int, b: Int, c: Int }",
@@ -188,7 +189,7 @@ class ExecuteExecutionPlanTest {
         }
 
     @Test
-    fun `a deferred non-null failure stays separate from the initial result`() =
+    fun `a deferred non-null failure stays separate from the initial result`(): Unit =
         runTest {
             val ctx = mkObjectCompletionParameters(
                 schemaSDL = "extend type Query { obj: Obj } type Obj { a: Int, required: Int! }",
@@ -211,7 +212,7 @@ class ExecuteExecutionPlanTest {
         }
 
     @Test
-    fun `object completion waits for lazy object validity before returning fields or work`() =
+    fun `object completion waits for lazy object validity before returning fields or work`(): Unit =
         runTest {
             val base = mkObjectCompletionParameters(
                 schemaSDL = "extend type Query { obj: Obj } type Obj { a: Int, b: Int }",
@@ -234,7 +235,7 @@ class ExecuteExecutionPlanTest {
         }
 
     @Test
-    fun `lazy objects resolved to null discard fields and deferred work`() =
+    fun `lazy objects resolved to null discard fields and deferred work`(): Unit =
         runTest {
             val base = mkObjectCompletionParameters(
                 schemaSDL = "extend type Query { obj: Obj } type Obj { a: Int, b: Int }",
@@ -258,7 +259,7 @@ class ExecuteExecutionPlanTest {
         }
 
     @Test
-    fun `plans preserve nested work and complete object fields in their enclosing defer context`() =
+    fun `plans preserve nested work and complete object fields in their enclosing defer context`(): Unit =
         runTest {
             val ctx = mkObjectCompletionParameters(
                 schemaSDL = "extend type Query { obj: Obj } type Obj { child: Child, other: Child } type Child { a: Int, b: Int }",
@@ -301,7 +302,7 @@ class ExecuteExecutionPlanTest {
     @Nested
     inner class GraphQLJsTests {
         @Test
-        fun `Can defer fragments containing scalar types`() =
+        fun `Can defer fragments containing scalar types`(): Unit =
             runTest {
                 val ctx = mkObjectCompletionParameters(
                     schemaSDL = "extend type Query { hero: Hero } type Hero { id: ID, name: String }",
@@ -329,7 +330,7 @@ class ExecuteExecutionPlanTest {
             }
 
         @Test
-        fun `Does not emit empty defer fragments`() =
+        fun `Does not emit empty defer fragments`(): Unit =
             runTest {
                 val ctx = mkObjectCompletionParameters(
                     schemaSDL = "extend type Query { hero: Hero } type Hero { name: String }",
@@ -346,7 +347,7 @@ class ExecuteExecutionPlanTest {
             }
 
         @Test
-        fun `Emits children of empty defer fragments`() =
+        fun `Emits children of empty defer fragments`(): Unit =
             runTest {
                 val ctx = mkObjectCompletionParameters(
                     schemaSDL = "extend type Query { hero: Hero } type Hero { name: String }",
@@ -368,7 +369,7 @@ class ExecuteExecutionPlanTest {
             }
 
         @Test
-        fun `Can separately emit defer fragments with different labels with varying fields`() =
+        fun `Can separately emit defer fragments with different labels with varying fields`(): Unit =
             runTest {
                 val ctx = mkObjectCompletionParameters(
                     schemaSDL = "extend type Query { hero: Hero } type Hero { id: ID, name: String }",
@@ -403,7 +404,7 @@ class ExecuteExecutionPlanTest {
             }
 
         @Test
-        fun `Handles errors thrown in deferred fragments`() =
+        fun `Handles errors thrown in deferred fragments`(): Unit =
             runTest {
                 val ctx = mkObjectCompletionParameters(
                     schemaSDL = "extend type Query { hero: Hero } type Hero { id: ID, name: String }",
@@ -434,7 +435,7 @@ class ExecuteExecutionPlanTest {
             }
 
         @Test
-        fun `Handles non-nullable errors thrown outside deferred fragments`() =
+        fun `Handles non-nullable errors thrown outside deferred fragments`(): Unit =
             runTest {
                 val ctx = mkObjectCompletionParameters(
                     schemaSDL = "extend type Query { hero: Hero } type Hero { id: ID, nonNullName: String! }",

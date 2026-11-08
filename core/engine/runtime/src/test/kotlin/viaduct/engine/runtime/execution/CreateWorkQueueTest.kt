@@ -29,7 +29,7 @@ import org.junit.jupiter.api.assertThrows
 @OptIn(ExperimentalCoroutinesApi::class)
 class CreateWorkQueueTest {
     @Test
-    fun `tasks start before collection`() =
+    fun `tasks start before collection`(): Unit =
         runTest {
             val started = CompletableDeferred<Unit>()
             val release = CompletableDeferred<Unit>()
@@ -49,7 +49,7 @@ class CreateWorkQueueTest {
         }
 
     @Test
-    fun `completion bursts larger than the buffer deliver every result`() =
+    fun `completion bursts larger than the buffer deliver every result`(): Unit =
         runTest {
             val a = group("A")
             val expected = List(2_048) { "field$it" }
@@ -64,7 +64,7 @@ class CreateWorkQueueTest {
         }
 
     @Test
-    fun `late collection receives every batch after execution finishes`() =
+    fun `late collection receives every batch after execution finishes`(): Unit =
         runTest {
             val parent = group("parent")
             val child = group("child", parent)
@@ -91,7 +91,7 @@ class CreateWorkQueueTest {
         }
 
     @Test
-    fun `slow collection does not delay nested tasks`() =
+    fun `slow collection does not delay nested tasks`(): Unit =
         runTest {
             val parent = group("parent")
             val child = group("child", parent)
@@ -132,7 +132,7 @@ class CreateWorkQueueTest {
         }
 
     @Test
-    fun `cancelling before collection stops outstanding tasks`() =
+    fun `cancelling before collection stops outstanding tasks`(): Unit =
         runTest {
             val started = CompletableDeferred<Unit>()
             val cancelled = CompletableDeferred<Unit>()
@@ -154,7 +154,7 @@ class CreateWorkQueueTest {
         }
 
     @Test
-    fun `cancelling before execution starts prevents tasks from running`() =
+    fun `cancelling before execution starts prevents tasks from running`(): Unit =
         runTest {
             var runs = 0
             val eager = task(group("A")) {
@@ -171,7 +171,7 @@ class CreateWorkQueueTest {
         }
 
     @Test
-    fun `cancelling after execution finishes discards buffered events`() =
+    fun `cancelling after execution finishes discards buffered events`(): Unit =
         runTest {
             val queue = CreateWorkQueue(work(task(group("A")) { result("x") }), scope = this)
             runCurrent()
@@ -183,7 +183,7 @@ class CreateWorkQueueTest {
         }
 
     @Test
-    fun `request cancellation stops execution before collection`() =
+    fun `request cancellation stops execution before collection`(): Unit =
         runTest {
             val requestJob = Job(coroutineContext[Job])
             val requestScope = CoroutineScope(coroutineContext + requestJob)
@@ -207,7 +207,7 @@ class CreateWorkQueueTest {
         }
 
     @Test
-    fun `request cancellation releases tasks waiting to report completions`() =
+    fun `request cancellation releases tasks waiting to report completions`(): Unit =
         runTest {
             val requestJob = Job(coroutineContext[Job])
             val requestScope = CoroutineScope(coroutineContext + requestJob)
@@ -233,7 +233,7 @@ class CreateWorkQueueTest {
         }
 
     @Test
-    fun `producer failures reach a late collector without cancelling its scope`() =
+    fun `producer failures reach a late collector without cancelling its scope`(): Unit =
         runTest {
             val failure = IllegalStateException("unexpected")
             val queue = CreateWorkQueue(work(task(group("A")) { throw failure }), scope = this)
@@ -246,7 +246,7 @@ class CreateWorkQueueTest {
         }
 
     @Test
-    fun `empty work terminates without pending groups`() =
+    fun `empty work terminates without pending groups`(): Unit =
         runTest {
             val queue = CreateWorkQueue(Work.empty, scope = this)
             assertTrue(queue.initialGroups.isEmpty())
@@ -254,7 +254,7 @@ class CreateWorkQueueTest {
         }
 
     @Test
-    fun `shared results are delivered once while unrelated tasks continue`() =
+    fun `shared results are delivered once while unrelated tasks continue`(): Unit =
         runTest {
             val a = group("A")
             val b = group("B")
@@ -294,7 +294,7 @@ class CreateWorkQueueTest {
         }
 
     @Test
-    fun `nested work extends its current group before it succeeds`() =
+    fun `nested work extends its current group before it succeeds`(): Unit =
         runTest {
             val parent = group("parent")
             val child = group("child", parent)
@@ -327,7 +327,7 @@ class CreateWorkQueueTest {
         }
 
     @Test
-    fun `shared values use a pending group while a longer path group waits`() =
+    fun `shared values use a pending group while a longer path group waits`(): Unit =
         runTest {
             val a = group("A")
             val p = group("P")
@@ -370,7 +370,7 @@ class CreateWorkQueueTest {
         }
 
     @Test
-    fun `skipped groups make their children pending`() =
+    fun `skipped groups make their children pending`(): Unit =
         runTest {
             val a = group("A")
             val p = group("P")
@@ -401,7 +401,7 @@ class CreateWorkQueueTest {
         }
 
     @Test
-    fun `shared values use the longest announced path even if that group is still pending`() =
+    fun `shared values use the longest announced path even if that group is still pending`(): Unit =
         runTest {
             val a = group("A")
             val path = ResultPath.rootPath().segment("hero").segment(1)
@@ -424,7 +424,7 @@ class CreateWorkQueueTest {
         }
 
     @Test
-    fun `failed groups cancel orphan work and suppress children without cancelling siblings`() =
+    fun `failed groups cancel orphan work and suppress children without cancelling siblings`(): Unit =
         runTest {
             val a = group("A")
             val b = group("B")
@@ -462,7 +462,7 @@ class CreateWorkQueueTest {
         }
 
     @Test
-    fun `late successful results from cancelled tasks do not add work to surviving groups`() =
+    fun `late successful results from cancelled tasks do not add work to surviving groups`(): Unit =
         runTest {
             val a = group("A")
             val b = group("B")
@@ -505,7 +505,7 @@ class CreateWorkQueueTest {
         }
 
     @Test
-    fun `failure of one participant does not cancel a shared task needed by another`() =
+    fun `failure of one participant does not cancel a shared task needed by another`(): Unit =
         runTest {
             val a = group("A")
             val b = group("B")
@@ -525,7 +525,7 @@ class CreateWorkQueueTest {
         }
 
     @Test
-    fun `shared failures are retained for a waiting group`() =
+    fun `shared failures are retained for a waiting group`(): Unit =
         runTest {
             val a = group("A")
             val p = group("P")
@@ -546,7 +546,7 @@ class CreateWorkQueueTest {
         }
 
     @Test
-    fun `a newly pending group can deliver already completed shared results`() =
+    fun `a newly pending group can deliver already completed shared results`(): Unit =
         runTest {
             val a = group("A")
             val p = group("P")
@@ -568,7 +568,7 @@ class CreateWorkQueueTest {
         }
 
     @Test
-    fun `shared values do not use a failed owner from the same completion batch`() =
+    fun `shared values do not use a failed owner from the same completion batch`(): Unit =
         runTest {
             val a = group("A")
             val path = ResultPath.rootPath().segment("hero")
@@ -584,7 +584,7 @@ class CreateWorkQueueTest {
         }
 
     @Test
-    fun `GraphQL exceptions fail their groups without failing the stream`() =
+    fun `GraphQL exceptions fail their groups without failing the stream`(): Unit =
         runTest {
             val a = group("A")
             val failure = GraphqlErrorException.newErrorException().message("failed").build()
@@ -593,7 +593,7 @@ class CreateWorkQueueTest {
         }
 
     @Test
-    fun `nullable errors travel with values and do not fail the group`() =
+    fun `nullable errors travel with values and do not fail the group`(): Unit =
         runTest {
             val a = group("A")
             val errors = listOf(error("nullable field failed"))
@@ -605,7 +605,7 @@ class CreateWorkQueueTest {
         }
 
     @Test
-    fun `consumer stopping cancels outstanding tasks`() =
+    fun `consumer stopping cancels outstanding tasks`(): Unit =
         runTest {
             val a = group("A")
             val b = group("B")
@@ -628,7 +628,7 @@ class CreateWorkQueueTest {
         }
 
     @Test
-    fun `unexpected exceptions terminate the stream and cancel other tasks`() =
+    fun `unexpected exceptions terminate the stream and cancel other tasks`(): Unit =
         runTest {
             val a = group("A")
             val b = group("B")
@@ -653,7 +653,7 @@ class CreateWorkQueueTest {
         }
 
     @Test
-    fun `a second collector cannot rerun request work`() =
+    fun `a second collector cannot rerun request work`(): Unit =
         runTest {
             val queue = CreateWorkQueue(work(task(group("A")) { result("x") }), scope = this)
             queue.events.collect()
@@ -661,14 +661,14 @@ class CreateWorkQueueTest {
         }
 
     @Test
-    fun `task cancellation terminates the stream instead of waiting for a missing result`() =
+    fun `task cancellation terminates the stream instead of waiting for a missing result`(): Unit =
         runTest {
             val queue = CreateWorkQueue(work(task(group("A")) { throw CancellationException("cancelled") }), scope = this)
             assertThrows<CancellationException> { queue.events.collect() }
         }
 
     @Test
-    fun `cancelling the task coroutine reports cancellation alongside other completions`() =
+    fun `cancelling the task coroutine reports cancellation alongside other completions`(): Unit =
         runTest {
             val a = group("A")
             val successful = List(2_048) { index -> task(a) { result("field$index") } }

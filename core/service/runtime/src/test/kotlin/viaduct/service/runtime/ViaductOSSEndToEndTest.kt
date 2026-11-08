@@ -67,7 +67,7 @@ class ViaductOSSEndToEndTest {
     }
 
     @Test
-    fun `Viaduct with no instrumentations or wirings successfully returns null for valid query`() =
+    fun `Viaduct with no instrumentations or wirings successfully returns null for valid query`(): Unit =
         runBlocking {
             val query = """
             query TestQuery {
@@ -90,7 +90,7 @@ class ViaductOSSEndToEndTest {
         }
 
     @Test
-    fun `Viaduct with no instrumentations or wirings returns failure for invalid query`() =
+    fun `Viaduct with no instrumentations or wirings returns failure for invalid query`(): Unit =
         runBlocking {
             val query = "query"
             val executionInput = ExecutionInput.create(operationText = query, requestContext = object {})
@@ -109,7 +109,7 @@ class ViaductOSSEndToEndTest {
         }
 
     @Test
-    fun `executeAsync returns error for missing schema`() =
+    fun `executeAsync returns error for missing schema`(): Unit =
         runBlocking {
             val query = "query { field }"
             val executionInput = ExecutionInput.create(operationText = query)
@@ -121,7 +121,7 @@ class ViaductOSSEndToEndTest {
         }
 
     @Test
-    fun `default execution returns an error when the base schema is not registered`() =
+    fun `default execution returns an error when the base schema is not registered`(): Unit =
         runBlocking {
             val executionInput = ExecutionInput.create(operationText = "query { field }")
 
@@ -141,7 +141,7 @@ class ViaductOSSEndToEndTest {
         }
 
     @Test
-    fun `handles exceptions from data fetchers gracefully`() =
+    fun `handles exceptions from data fetchers gracefully`(): Unit =
         runBlocking {
             val exceptionWiring = RuntimeWiring.newRuntimeWiring()
                 .type("Foo") { builder ->
@@ -180,7 +180,7 @@ class ViaductOSSEndToEndTest {
         }
 
     @Test
-    fun `executes query with variables and operation name`() =
+    fun `executes query with variables and operation name`(): Unit =
         runBlocking {
             val variableWiring = RuntimeWiring.newRuntimeWiring()
                 .type("Foo") { builder ->

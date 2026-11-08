@@ -180,16 +180,17 @@ class GraphQLDocumentGenTest : KotestPropertyBase(
     }
 
     @Test
-    fun `Arb_graphQLDocument -- merged field subselections`() =
+    fun `Arb_graphQLDocument -- merged field subselections`() {
         assertAllDocumentsValid(
             """
                 type Obj { x:Int, next:Obj, others: [Obj] }
                 type Query { obj:Obj }
             """.trimIndent()
         )
+    }
 
     @Test
-    fun `Arb_graphQLDocument -- merged field subselections with interfaces`() =
+    fun `Arb_graphQLDocument -- merged field subselections with interfaces`() {
         assertAllDocumentsValid(
             """
                 interface I { i:I }
@@ -197,9 +198,10 @@ class GraphQLDocumentGenTest : KotestPropertyBase(
                 type Query { i: I }
             """.trimIndent()
         )
+    }
 
     @Test
-    fun `Arb_graphQLDocument -- union selections`() =
+    fun `Arb_graphQLDocument -- union selections`() {
         assertAllDocumentsValid(
             """
                 type Foo { x:Int, u:U }
@@ -209,27 +211,30 @@ class GraphQLDocumentGenTest : KotestPropertyBase(
             """.trimIndent(),
             cfg = Config.default + (FragmentSpreadWeight to CompoundingWeight.Never)
         )
+    }
 
     @Test
-    fun `Arb_graphQLDocument -- cyclic input objects`() =
+    fun `Arb_graphQLDocument -- cyclic input objects`() {
         assertAllDocumentsValid(
             """
                 input Input { x:Int, i:Input }
                 type Query { x(inp:Input!):Int }
             """.trimIndent()
         )
+    }
 
     @Test
-    fun `Arb_graphQLDocument -- cyclic output objects`() =
+    fun `Arb_graphQLDocument -- cyclic output objects`() {
         assertAllDocumentsValid(
             """
                 type Obj { obj:Obj! }
                 type Query { obj:Obj! }
             """.trimIndent()
         )
+    }
 
     @Test
-    fun `Arb_graphQLDocument -- schemas with subscriptions`() =
+    fun `Arb_graphQLDocument -- schemas with subscriptions`() {
         assertAllDocumentsValid(
             """
                 type Obj { x:Int, y:Obj }
@@ -237,6 +242,7 @@ class GraphQLDocumentGenTest : KotestPropertyBase(
                 type Query { x:Int }
             """.trimIndent()
         )
+    }
 
     @Test
     fun `Arb_graphQLDocument -- schemas with subscriptions and incremental directives`(): Unit =

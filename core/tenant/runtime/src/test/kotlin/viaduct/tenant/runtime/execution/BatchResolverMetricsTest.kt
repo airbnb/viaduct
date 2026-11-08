@@ -88,7 +88,7 @@ class BatchResolverMetricsTest {
     }
 
     @Test
-    fun `successful field batches record once at invocation entry including singletons`() =
+    fun `successful field batches record once at invocation entry including singletons`(): Unit =
         runTest {
             val resolver = object : BaseBatchedFieldResolver {
                 override suspend fun invokeFieldBatchResolver(contexts: List<BaseFieldExecutionContext<*, *, *>>): Any? {
@@ -106,7 +106,7 @@ class BatchResolverMetricsTest {
         }
 
     @Test
-    fun `failed field batches record once before tenant code throws`() =
+    fun `failed field batches record once before tenant code throws`(): Unit =
         runTest {
             val resolver = object : BaseBatchedFieldResolver {
                 override suspend fun invokeFieldBatchResolver(contexts: List<BaseFieldExecutionContext<*, *, *>>): Any? {
@@ -123,7 +123,7 @@ class BatchResolverMetricsTest {
         }
 
     @Test
-    fun `node dispatch records each partition of unique IDs including failed singleton`() =
+    fun `node dispatch records each partition of unique IDs including failed singleton`(): Unit =
         runTest {
             val resolver = object : BaseBatchedNodeResolver {
                 override suspend fun invokeNodeBatchResolver(contexts: List<NodeExecutionContext<*>>): Map<NodeExecutionContext<*>, FieldValue<*>> {
@@ -144,7 +144,7 @@ class BatchResolverMetricsTest {
         }
 
     @Test
-    fun `context construction failure counts as a dispatch but not a resolver invocation`() =
+    fun `context construction failure counts as a dispatch but not a resolver invocation`(): Unit =
         runTest {
             every { fieldFactory.invoke(any(), any(), any(), any(), any(), any()) } throws IllegalStateException("context failure")
             val resolver = mockk<BaseBatchedFieldResolver>()
@@ -158,7 +158,7 @@ class BatchResolverMetricsTest {
         }
 
     @Test
-    fun `node resolver construction failure counts as a dispatch without an invocation`() =
+    fun `node resolver construction failure counts as a dispatch without an invocation`(): Unit =
         runTest {
             val executor = NodeBatchResolverExecutorImpl(
                 Provider { error("resolver construction failure") },
@@ -177,7 +177,7 @@ class BatchResolverMetricsTest {
         }
 
     @Test
-    fun `unbatched field invocations do not record batch sizes`() =
+    fun `unbatched field invocations do not record batch sizes`(): Unit =
         runTest {
             val resolver = object : BaseUnbatchedFieldResolver {
                 override suspend fun invokeFieldResolver(context: BaseFieldExecutionContext<*, *, *>): Any? = "value"
@@ -192,7 +192,7 @@ class BatchResolverMetricsTest {
         }
 
     @Test
-    fun `failed unbatched node invocations do not record batch sizes`() =
+    fun `failed unbatched node invocations do not record batch sizes`(): Unit =
         runTest {
             val resolver = object : BaseUnbatchedNodeResolver {
                 override suspend fun invokeNodeResolver(context: NodeExecutionContext<*>): Any? = error("unbatched failure")
@@ -211,36 +211,37 @@ class BatchResolverMetricsTest {
     fun `both engines report field and node batches on success and failure`(
         engine2: Boolean,
         fail: Boolean
-    ) = runTest {
-        val fieldResolver = object : BaseBatchedFieldResolver {
-            override suspend fun invokeFieldBatchResolver(contexts: List<BaseFieldExecutionContext<*, *, *>>): Any? {
-                check(!fail) { "field failure" }
-                return contexts.map { FieldValue.ofValue("value") }
+    ): Unit =
+        runTest {
+            val fieldResolver = object : BaseBatchedFieldResolver {
+                override suspend fun invokeFieldBatchResolver(contexts: List<BaseFieldExecutionContext<*, *, *>>): Any? {
+                    check(!fail) { "field failure" }
+                    return contexts.map { FieldValue.ofValue("value") }
+                }
             }
-        }
-        val nodeResolver = object : BaseBatchedNodeResolver {
-            override suspend fun invokeNodeBatchResolver(contexts: List<NodeExecutionContext<*>>): Map<NodeExecutionContext<*>, FieldValue<*>> {
-                check(!fail) { "node failure" }
-                val data = createEngineObjectData(executionSchema.schema.getObjectType("TestNode"), mapOf("name" to "Ada"))
-                val user = object : ObjectBase(mockk(), data) {}
-                return contexts.associateWith { FieldValue.ofValue(user) }
+            val nodeResolver = object : BaseBatchedNodeResolver {
+                override suspend fun invokeNodeBatchResolver(contexts: List<NodeExecutionContext<*>>): Map<NodeExecutionContext<*>, FieldValue<*>> {
+                    check(!fail) { "node failure" }
+                    val data = createEngineObjectData(executionSchema.schema.getObjectType("TestNode"), mapOf("name" to "Ada"))
+                    val user = object : ObjectBase(mockk(), data) {}
+                    return contexts.associateWith { FieldValue.ofValue(user) }
+                }
             }
-        }
-        val engine = engine(engine2, fieldResolver, nodeResolver)
+            val engine = engine(engine2, fieldResolver, nodeResolver)
 
-        val result = EngineConfiguration.default.coroutineInterop.enterThreadLocalCoroutineContext(coroutineContext) {
-            engine.execute(ExecutionInput("{ value user { name } }", requestContext = null))
-        }.await()
+            val result = EngineConfiguration.default.coroutineInterop.enterThreadLocalCoroutineContext(coroutineContext) {
+                engine.execute(ExecutionInput("{ value user { name } }", requestContext = null))
+            }.await()
 
-        assertEquals(if (fail) 2 else 0, result.errors.size, result.errors.toString())
-        if (!fail) assertEquals(mapOf("value" to "value", "user" to mapOf("name" to "Ada")), result.getData())
-        for ((name, kind) in listOf("Query.batch" to "field", "TestNode" to "node")) {
-            assertEquals(listOf(1), dispatchSizes(name, kind))
-            assertEquals(listOf(1), batchSizes(name, kind))
+            assertEquals(if (fail) 2 else 0, result.errors.size, result.errors.toString())
+            if (!fail) assertEquals(mapOf("value" to "value", "user" to mapOf("name" to "Ada")), result.getData())
+            for ((name, kind) in listOf("Query.batch" to "field", "TestNode" to "node")) {
+                assertEquals(listOf(1), dispatchSizes(name, kind))
+                assertEquals(listOf(1), batchSizes(name, kind))
+            }
+            assertEquals(2, dispatches.size)
+            assertEquals(2, batches.size)
         }
-        assertEquals(2, dispatches.size)
-        assertEquals(2, batches.size)
-    }
 
     private fun engine(
         engine2: Boolean,

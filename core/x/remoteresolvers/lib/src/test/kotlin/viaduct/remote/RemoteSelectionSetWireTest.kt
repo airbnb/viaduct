@@ -49,17 +49,27 @@ class RemoteSelectionSetWireTest {
     }
 
     @Test
-    fun `plain fields round-trip`() = assertRoundTrips("Character", "name birthYear")
+    fun `plain fields round-trip`() {
+        assertRoundTrips("Character", "name birthYear")
+    }
 
     @Test
-    fun `nested object selection round-trips`() = assertRoundTrips("Character", "name homeworld { name }")
+    fun `nested object selection round-trips`() {
+        assertRoundTrips("Character", "name homeworld { name }")
+    }
 
     @Test
-    fun `aliases round-trip`() = assertRoundTrips("Character", "who: name born: birthYear")
+    fun `aliases round-trip`() {
+        assertRoundTrips("Character", "who: name born: birthYear")
+    }
 
     @Test
-    fun `inline fragment round-trips`() = assertRoundTrips("Character", "name ... on Character { birthYear }")
+    fun `inline fragment round-trips`() {
+        assertRoundTrips("Character", "name ... on Character { birthYear }")
+    }
 
     @Test
-    fun `argument variables round-trip`() = assertRoundTrips("Character", "friends(first: \$n) { name }", mapOf("n" to 3))
+    fun `argument variables round-trip`() {
+        assertRoundTrips("Character", "friends(first: \$n) { name }", mapOf("n" to 3))
+    }
 }

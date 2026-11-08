@@ -35,7 +35,7 @@ class OverlayEngineObjectDataTest {
     }
 
     @Test
-    fun `fetch - returns overlay value when present`() =
+    fun `fetch - returns overlay value when present`(): Unit =
         runTest {
             val base = ResolvedEngineObjectData.Builder(testType)
                 .put(FIELD_1, BASE_VALUE)
@@ -51,7 +51,7 @@ class OverlayEngineObjectDataTest {
         }
 
     @Test
-    fun `fetch - falls back to base when not in overlay`() =
+    fun `fetch - falls back to base when not in overlay`(): Unit =
         runTest {
             val base = ResolvedEngineObjectData.Builder(testType)
                 .put(FIELD_1, BASE_VALUE)
@@ -66,7 +66,7 @@ class OverlayEngineObjectDataTest {
         }
 
     @Test
-    fun `fetch - throws when field not in overlay or base`() =
+    fun `fetch - throws when field not in overlay or base`(): Unit =
         runTest {
             val base = ResolvedEngineObjectData.Builder(testType)
                 .build()
@@ -81,7 +81,7 @@ class OverlayEngineObjectDataTest {
         }
 
     @Test
-    fun `fetch - overlay null overrides base non-null value`() =
+    fun `fetch - overlay null overrides base non-null value`(): Unit =
         runTest {
             val base = ResolvedEngineObjectData.Builder(testType)
                 .put(FIELD_1, BASE_VALUE)
@@ -97,7 +97,7 @@ class OverlayEngineObjectDataTest {
         }
 
     @Test
-    fun `fetchOrNull - returns overlay value when present`() =
+    fun `fetchOrNull - returns overlay value when present`(): Unit =
         runTest {
             val base = ResolvedEngineObjectData.Builder(testType)
                 .put(FIELD_1, BASE_VALUE)
@@ -113,7 +113,7 @@ class OverlayEngineObjectDataTest {
         }
 
     @Test
-    fun `fetchOrNull - falls back to base when not in overlay`() =
+    fun `fetchOrNull - falls back to base when not in overlay`(): Unit =
         runTest {
             val base = ResolvedEngineObjectData.Builder(testType)
                 .put(FIELD_1, BASE_VALUE)
@@ -128,7 +128,7 @@ class OverlayEngineObjectDataTest {
         }
 
     @Test
-    fun `fetchOrNull - returns null when not in overlay or base`() =
+    fun `fetchOrNull - returns null when not in overlay or base`(): Unit =
         runTest {
             val base = ResolvedEngineObjectData.Builder(testType)
                 .build()
@@ -178,7 +178,7 @@ class OverlayEngineObjectDataTest {
     }
 
     @Test
-    fun `fetchSelections returns union of overlay and base selections`() =
+    fun `fetchSelections returns union of overlay and base selections`(): Unit =
         runTest {
             val base = ResolvedEngineObjectData.Builder(testType)
                 .put(FIELD_1, BASE_VALUE)
@@ -197,7 +197,7 @@ class OverlayEngineObjectDataTest {
         }
 
     @Test
-    fun `multiple field overrides work correctly`() =
+    fun `multiple field overrides work correctly`(): Unit =
         runTest {
             val base = ResolvedEngineObjectData.Builder(testType)
                 .put(FIELD_1, "base1")
@@ -218,7 +218,7 @@ class OverlayEngineObjectDataTest {
         }
 
     @Test
-    fun `construction and overrides never read or enumerate the base`() =
+    fun `construction and overrides never read or enumerate the base`(): Unit =
         runTest {
             val failure = IllegalStateException("base field error")
             val empty = ResolvedEngineObjectData.Builder(testType).build()

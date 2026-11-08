@@ -164,7 +164,7 @@ class RemoteFieldProxyIntegrationTest {
     }
 
     @Test
-    fun `field value round-trips through the full gRPC stack`() =
+    fun `field value round-trips through the full gRPC stack`(): Unit =
         runBlocking {
             withServers { rrsChannel, callbackEndpoint, context ->
                 val executor = SimpleFieldResolverExecutor()
@@ -189,7 +189,7 @@ class RemoteFieldProxyIntegrationTest {
         }
 
     @Test
-    fun `batch of two selectors each resolve independently`() =
+    fun `batch of two selectors each resolve independently`(): Unit =
         runBlocking {
             withServers { rrsChannel, callbackEndpoint, context ->
                 val executor = SimpleFieldResolverExecutor()
@@ -212,7 +212,7 @@ class RemoteFieldProxyIntegrationTest {
         }
 
     @Test
-    fun `a batch sharing one selection-set instance resolves every selector`() =
+    fun `a batch sharing one selection-set instance resolves every selector`(): Unit =
         runBlocking {
             // The proxy memoizes the shipped selection set by object identity (one toFragment()/
             // register per distinct instance). Drive a batch whose selectors all share ONE non-null
@@ -264,7 +264,7 @@ class RemoteFieldProxyIntegrationTest {
         }
 
     @Test
-    fun `resolver failure surfaces as a RemoteResolverException`() =
+    fun `resolver failure surfaces as a RemoteResolverException`(): Unit =
         runBlocking {
             withServers { rrsChannel, callbackEndpoint, context ->
                 // This executor throws inside batchResolve so we can verify error propagation
@@ -302,7 +302,7 @@ class RemoteFieldProxyIntegrationTest {
         }
 
     @Test
-    fun `a whole-batch failure wrapped in TenantResolverException reports the real exception type over the wire`() =
+    fun `a whole-batch failure wrapped in TenantResolverException reports the real exception type over the wire`(): Unit =
         runBlocking {
             // Modern resolver dispatch (FieldBatchResolverExecutorImpl) wraps a tenant resolver's
             // synchronous throw in TenantResolverException before it reaches RRS's own catch. RRS
@@ -344,7 +344,7 @@ class RemoteFieldProxyIntegrationTest {
         }
 
     @Test
-    fun `a serialization failure mid-batch leaks no context or selection handles`() =
+    fun `a serialization failure mid-batch leaks no context or selection handles`(): Unit =
         runBlocking {
             // Regression test for a handle leak: batchResolve registers a context handle in
             // ContextRegistry and a selection handle in SelectionsRegistry up front, then
@@ -418,7 +418,7 @@ class RemoteFieldProxyIntegrationTest {
     }
 
     @Test
-    fun `selector arguments round-trip to the remote resolver`() =
+    fun `selector arguments round-trip to the remote resolver`(): Unit =
         runBlocking {
             withServers { rrsChannel, callbackEndpoint, context ->
                 // The resolver branches on arguments, so the returned value proves the remote side
@@ -459,7 +459,7 @@ class RemoteFieldProxyIntegrationTest {
         }
 
     @Test
-    fun `non-serializable result fails only its own selector in a batch`() =
+    fun `non-serializable result fails only its own selector in a batch`(): Unit =
         runBlocking {
             withServers { rrsChannel, callbackEndpoint, context ->
                 // age 7 -> the resolver returns a value the wire format genuinely can't carry (an
@@ -509,7 +509,7 @@ class RemoteFieldProxyIntegrationTest {
         }
 
     @Test
-    fun `a sender-side serialization failure fails only its own selector in a batch`() =
+    fun `a sender-side serialization failure fails only its own selector in a batch`(): Unit =
         runBlocking {
             withServers { rrsChannel, callbackEndpoint, context ->
                 // The middle selector's object-value getter throws while the proxy is serializing the
@@ -555,7 +555,7 @@ class RemoteFieldProxyIntegrationTest {
         }
 
     @Test
-    fun `a node-reference field value round-trips as a NodeReference over the wire`() =
+    fun `a node-reference field value round-trips as a NodeReference over the wire`(): Unit =
         runBlocking {
             withServers { rrsChannel, callbackEndpoint, context ->
                 // The resolver returns a node reference (as `Character.species` would). It must ship
@@ -587,7 +587,7 @@ class RemoteFieldProxyIntegrationTest {
         }
 
     @Test
-    fun `an object field value round-trips as an EngineObjectData over the wire`() =
+    fun `an object field value round-trips as an EngineObjectData over the wire`(): Unit =
         runBlocking {
             withServers { rrsChannel, callbackEndpoint, context ->
                 // The resolver returns a resolved object (as an object-typed field would). It must
@@ -624,7 +624,7 @@ class RemoteFieldProxyIntegrationTest {
         }
 
     @Test
-    fun `a list of objects field value round-trips element-by-element over the wire`() =
+    fun `a list of objects field value round-trips element-by-element over the wire`(): Unit =
         runBlocking {
             withServers { rrsChannel, callbackEndpoint, context ->
                 // Mirrors `allCharacters`: a list of resolved objects. Each element ships tagged and
@@ -664,7 +664,7 @@ class RemoteFieldProxyIntegrationTest {
         }
 
     @Test
-    fun `re-entrant query from a field resolver fires the callback path`() =
+    fun `re-entrant query from a field resolver fires the callback path`(): Unit =
         runBlocking {
             // Mirrors the node `test callback flow with re-entrant calls`: ContextMocks runs over a
             // no-op engine, so the re-entrant query cannot complete. We assert the callback
@@ -706,7 +706,7 @@ class RemoteFieldProxyIntegrationTest {
         }
 
     @Test
-    fun `a serialized selection set is reconstructed on the remote when the handle is unresolvable`() =
+    fun `a serialized selection set is reconstructed on the remote when the handle is unresolvable`(): Unit =
         runBlocking {
             // Simulates a process boundary: the per-JVM selections handle isn't resolvable remotely, so
             // the service must rebuild the field's sub-selection set from the serialized {type,
@@ -767,7 +767,7 @@ class RemoteFieldProxyIntegrationTest {
         }
 
     @Test
-    fun `an empty blank-document selection set reconstructs to a non-null empty set`() =
+    fun `an empty blank-document selection set reconstructs to a non-null empty set`(): Unit =
         runBlocking {
             // Regression: a composite field whose sub-selection is entirely @skip'd ships a blank
             // document. It must reconstruct to a NON-null (empty) selection set on the remote, or a
@@ -821,7 +821,7 @@ class RemoteFieldProxyIntegrationTest {
         }
 
     @Test
-    fun `a malformed selection set fails only its own selector, not the batch`() =
+    fun `a malformed selection set fails only its own selector, not the batch`(): Unit =
         runBlocking {
             FieldExecutorRegistry.clear()
             ContextRegistry.clear()
@@ -870,7 +870,7 @@ class RemoteFieldProxyIntegrationTest {
         }
 
     @Test
-    fun `every selector failing deserialization returns errors without invoking the resolver`() =
+    fun `every selector failing deserialization returns errors without invoking the resolver`(): Unit =
         runBlocking {
             // Regression: when *every* selector fails to deserialize, batchResolveField returns their
             // per-selector errors WITHOUT calling the resolver. Invoking an unbatched built-in resolver
@@ -926,7 +926,7 @@ class RemoteFieldProxyIntegrationTest {
         }
 
     @Test
-    fun `a successful batchResolveField reports the resolver's own body duration`() =
+    fun `a successful batchResolveField reports the resolver's own body duration`(): Unit =
         runBlocking {
             FieldExecutorRegistry.clear()
             ContextRegistry.clear()
@@ -956,7 +956,7 @@ class RemoteFieldProxyIntegrationTest {
         }
 
     @Test
-    fun `a whole-batch resolver failure still reports a body duration`() =
+    fun `a whole-batch resolver failure still reports a body duration`(): Unit =
         runBlocking {
             FieldExecutorRegistry.clear()
             ContextRegistry.clear()
@@ -993,7 +993,7 @@ class RemoteFieldProxyIntegrationTest {
         }
 
     @Test
-    fun `a successful batch reports onSerializationCompleted then onCompleted with SUCCESS`() =
+    fun `a successful batch reports onSerializationCompleted then onCompleted with SUCCESS`(): Unit =
         runBlocking {
             withRecordingProxy { proxy, recording, context ->
                 proxy.batchResolve(listOf(selectorForAge(25)), context)
@@ -1009,7 +1009,7 @@ class RemoteFieldProxyIntegrationTest {
         }
 
     @Test
-    fun `a remote resolver failure reports onCompleted with APPLICATION_ERROR`() =
+    fun `a remote resolver failure reports onCompleted with APPLICATION_ERROR`(): Unit =
         runBlocking {
             withServers { rrsChannel, callbackEndpoint, context ->
                 val failing = object : FieldResolverExecutor by SimpleFieldResolverExecutor() {
@@ -1043,7 +1043,7 @@ class RemoteFieldProxyIntegrationTest {
         }
 
     @Test
-    fun `a transport failure reports onCompleted with TRANSPORT_ERROR and the real exception`() =
+    fun `a transport failure reports onCompleted with TRANSPORT_ERROR and the real exception`(): Unit =
         runBlocking {
             // Point the proxy at an in-process server name nothing is listening on, so the RPC
             // itself fails (UNAVAILABLE) rather than the remote resolver returning an error.
@@ -1086,7 +1086,7 @@ class RemoteFieldProxyIntegrationTest {
         }
 
     @Test
-    fun `every selector failing serialization reports onCompleted with CODEC_ERROR and no RPC`() =
+    fun `every selector failing serialization reports onCompleted with CODEC_ERROR and no RPC`(): Unit =
         runBlocking {
             withRecordingProxy { proxy, recording, context ->
                 val throwingSelector = FieldResolverExecutor.Selector(
@@ -1110,7 +1110,7 @@ class RemoteFieldProxyIntegrationTest {
         }
 
     @Test
-    fun `a cancelled dispatch still reports onCompleted before rethrowing`() =
+    fun `a cancelled dispatch still reports onCompleted before rethrowing`(): Unit =
         runBlocking {
             withRecordingProxy { proxy, recording, context ->
                 val cancellingSelector = FieldResolverExecutor.Selector(

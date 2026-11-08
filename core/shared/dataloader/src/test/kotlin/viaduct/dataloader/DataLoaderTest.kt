@@ -83,21 +83,21 @@ class DataLoaderTest {
     }
 
     @Test
-    fun testLoadMany() =
+    fun testLoadMany(): Unit =
         runBlocking(nextTickDispatcher()) {
             val result = TestDataLoader().loadByKeys(listOf("foo", "bar"))
             assertEquals(listOf("foo", "bar"), result)
         }
 
     @Test
-    fun testLoadByKey() =
+    fun testLoadByKey(): Unit =
         runBlocking(nextTickDispatcher()) {
             val result = TestDataLoader().loadByKey("foo")
             assertEquals("foo", result)
         }
 
     @Test
-    fun testStatsCollector() =
+    fun testStatsCollector(): Unit =
         runBlocking(nextTickDispatcher()) {
             val result = TestDataLoaderWithCollector(dataLoaderStatsCollectorMock).loadByKey("foo")
             assertEquals("foo", result)
@@ -117,7 +117,7 @@ class DataLoaderTest {
         }
 
     @Test
-    fun testCacheKeyOverrides() =
+    fun testCacheKeyOverrides(): Unit =
         runBlocking(nextTickDispatcher()) {
             val loader = TestDataLoaderWithCacheKeyOverrides()
             assertEquals("foo", loader.loadByKey(mapOf("id" to 1, "fields" to "a,b", "value" to "foo")))
@@ -154,7 +154,7 @@ class DataLoaderTest {
     @Nested
     inner class InternalLoadWithTryTests {
         @Test
-        fun testInternalLoadWithTryAllowsPerKeyErrors() =
+        fun testInternalLoadWithTryAllowsPerKeyErrors(): Unit =
             runBlocking(nextTickDispatcher()) {
                 val loader = TestDataLoaderWithPerKeyErrors(errorKeys = setOf("ERROR"))
 
@@ -169,7 +169,7 @@ class DataLoaderTest {
             }
 
         @Test
-        fun testPerKeyErrorsNotCachedWhenDisabled() =
+        fun testPerKeyErrorsNotCachedWhenDisabled(): Unit =
             runBlocking(nextTickDispatcher()) {
                 val loadCalls = CopyOnWriteArrayList<Set<String>>()
                 val loader = TestDataLoaderWithPerKeyErrors(loadCalls, errorKeys = setOf("ERROR"))
@@ -187,7 +187,7 @@ class DataLoaderTest {
             }
 
         @Test
-        fun testSuccessfulResultsStillCachedWhenExceptionCachingDisabled() =
+        fun testSuccessfulResultsStillCachedWhenExceptionCachingDisabled(): Unit =
             runBlocking(nextTickDispatcher()) {
                 val loadCalls = CopyOnWriteArrayList<Set<String>>()
                 val loader = TestDataLoaderWithPerKeyErrors(loadCalls)

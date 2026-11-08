@@ -20,7 +20,7 @@ class ViaductResolverInstrumentationTest {
 
     @Test
     @ExperimentalCoroutinesApi
-    fun `DEFAULT instrumentation executes resolver function`() =
+    fun `DEFAULT instrumentation executes resolver function`(): Unit =
         runBlocking {
             val expectedResult = "test result"
             val result = ViaductResolverInstrumentation.DEFAULT.instrumentResolverExecution(

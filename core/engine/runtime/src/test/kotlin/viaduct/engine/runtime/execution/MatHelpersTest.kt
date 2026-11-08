@@ -306,7 +306,7 @@ class MatHelpersTest {
     @Nested
     inner class MaterializationPlan {
         @Test
-        fun `materialization reuses resolved variables instead of rerunning their resolvers`() =
+        fun `materialization reuses resolved variables instead of rerunning their resolvers`(): Unit =
             runTest {
                 val original = mkExecutionParameters(
                     "extend type Query { x(n: Int!): Int }",
@@ -324,7 +324,7 @@ class MatHelpersTest {
             }
 
         @Test
-        fun `materialization preserves coerced enum values`() =
+        fun `materialization preserves coerced enum values`(): Unit =
             runTest {
                 val schema = EngineSchema(
                     SchemaGenerator().makeExecutableSchema(
@@ -353,7 +353,7 @@ class MatHelpersTest {
             }
 
         @Test
-        fun `materialization uses operation variables from the reading selection`() =
+        fun `materialization uses operation variables from the reading selection`(): Unit =
             runTest {
                 val parameters = mkExecutionParameters(
                     "extend type Query { x:Int, y:Int }",
