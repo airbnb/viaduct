@@ -53,62 +53,63 @@ class OrchestrationTaskTest : ResolutionDispatcherResource {
     fun `Query fragment subscriptions are checked once and independently during preparation`(
         observeFragments: Boolean,
         observeAddresses: Boolean,
-    ) = runBlocking {
-        var queryOERs = 0
-        var fragmentSubscriptions = 0
-        var addressSubscriptions = 0
-        var fragments = 0
-        var addresses = 0
-        val observer = object : ResolutionObserver {
-            override val onQueryOERPrepared: (SharedOrchestrationTask<*>, Int?) -> Unit = { _, _ -> queryOERs++ }
-            override val onQueryFragmentPrepared: ((ResolverOccurrenceId, ObjectEngineResult, OEROccurrence?) -> Unit)?
-                get() {
-                    fragmentSubscriptions++
-                    return if (observeFragments) {
-                        { _, _, _ -> fragments++ }
-                    } else {
-                        null
+    ): Unit =
+        runBlocking {
+            var queryOERs = 0
+            var fragmentSubscriptions = 0
+            var addressSubscriptions = 0
+            var fragments = 0
+            var addresses = 0
+            val observer = object : ResolutionObserver {
+                override val onQueryOERPrepared: (SharedOrchestrationTask<*>, Int?) -> Unit = { _, _ -> queryOERs++ }
+                override val onQueryFragmentPrepared: ((ResolverOccurrenceId, ObjectEngineResult, OEROccurrence?) -> Unit)?
+                    get() {
+                        fragmentSubscriptions++
+                        return if (observeFragments) {
+                            { _, _, _ -> fragments++ }
+                        } else {
+                            null
+                        }
                     }
-                }
-            override val onQueryFragmentOwnerAddress: ((ResolverOccurrenceId, OEROccurrence, ObjectEngineResult.ObjectKey) -> Unit)?
-                get() {
-                    addressSubscriptions++
-                    return if (observeAddresses) {
-                        { _, _, _ -> addresses++ }
-                    } else {
-                        null
+                override val onQueryFragmentOwnerAddress: ((ResolverOccurrenceId, OEROccurrence, ObjectEngineResult.ObjectKey) -> Unit)?
+                    get() {
+                        addressSubscriptions++
+                        return if (observeAddresses) {
+                            { _, _, _ -> addresses++ }
+                        } else {
+                            null
+                        }
                     }
-                }
+            }
+            val fixture = TestWorld.fromSDL(
+                "type Query { first: Int second: Int dependency: Int }",
+                fieldResolvers = { schema ->
+                    val empty = schema.loweredSchema.emptyFragmentOf("Query")
+                    val query = schema.fragmentFrom("fragment Input on Query { dependency }")
+                    listOf("first", "second").associate { name ->
+                        schema.loweredSchema.requireObjectField("Query", name) to fieldResolverOf(empty, query) { _, _, _ ->
+                            error("Preparation must not invoke resolvers")
+                        }
+                    }
+                },
+            )
+            val world = fixture.assumptions
+            val operation = OperationContext.create(SharedOperationContext.create(world, resolutionObserver = observer), this)
+            val root = ObjectEngineResult.of(world.schema.requireQueryTypeDef(), mutable = true)
+
+            OrchestrationTask.create(
+                operation,
+                OEROccurrence(root, emptyList(), root),
+                world.resolverRegistry.createRootQueryInput(),
+                fixture.schemas.operationSelectionsFrom("{ first second }"),
+            )
+
+            assertEquals(1, queryOERs)
+            assertEquals(1, fragmentSubscriptions)
+            assertEquals(1, addressSubscriptions)
+            assertEquals(if (observeFragments) 2 else 0, fragments)
+            assertEquals(if (observeAddresses) 2 else 0, addresses)
         }
-        val fixture = TestWorld.fromSDL(
-            "type Query { first: Int second: Int dependency: Int }",
-            fieldResolvers = { schema ->
-                val empty = schema.loweredSchema.emptyFragmentOf("Query")
-                val query = schema.fragmentFrom("fragment Input on Query { dependency }")
-                listOf("first", "second").associate { name ->
-                    schema.loweredSchema.requireObjectField("Query", name) to fieldResolverOf(empty, query) { _, _, _ ->
-                        error("Preparation must not invoke resolvers")
-                    }
-                }
-            },
-        )
-        val world = fixture.assumptions
-        val operation = OperationContext.create(SharedOperationContext.create(world, resolutionObserver = observer), this)
-        val root = ObjectEngineResult.of(world.schema.requireQueryTypeDef(), mutable = true)
-
-        OrchestrationTask.create(
-            operation,
-            OEROccurrence(root, emptyList(), root),
-            world.resolverRegistry.createRootQueryInput(),
-            fixture.schemas.operationSelectionsFrom("{ first second }"),
-        )
-
-        assertEquals(1, queryOERs)
-        assertEquals(1, fragmentSubscriptions)
-        assertEquals(1, addressSubscriptions)
-        assertEquals(if (observeFragments) 2 else 0, fragments)
-        assertEquals(if (observeAddresses) 2 else 0, addresses)
-    }
 
     @Test
     fun `passive object orchestrations retain the producing field as creator without observations`() {

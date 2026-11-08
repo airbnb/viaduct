@@ -332,7 +332,7 @@ class EngineResultTest {
     }
 
     @Test
-    fun `value await suspends until the cell is activated`() =
+    fun `value await suspends until the cell is activated`(): Unit =
         runBlocking {
             val schema = TestWorld.fromSDL(SCHEMA_SDL).schema
             val key = schema.key("Query", "first")
@@ -350,7 +350,7 @@ class EngineResultTest {
         }
 
     @Test
-    fun `not activated cell rejects every slot operation`() =
+    fun `not activated cell rejects every slot operation`(): Unit =
         runBlocking {
             val schema = TestWorld.fromSDL(SCHEMA_SDL).schema
             val key = schema.key("Query", "first")
@@ -461,7 +461,7 @@ class EngineResultTest {
         }
 
     @Test
-    fun `directly freezing an unclaimed value fails activation reads`() =
+    fun `directly freezing an unclaimed value fails activation reads`(): Unit =
         runBlocking {
             val schema = TestWorld.fromSDL(SCHEMA_SDL).schema
             val cell =

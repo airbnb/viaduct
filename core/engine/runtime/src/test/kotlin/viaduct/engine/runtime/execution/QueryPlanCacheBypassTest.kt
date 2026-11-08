@@ -25,7 +25,7 @@ class QueryPlanCacheBypassTest {
     )
 
     @Test
-    fun `a request marked to skip the query plan cache does not cache its plan for later requests`() =
+    fun `a request marked to skip the query plan cache does not cache its plan for later requests`() {
         runExecutionTest {
             val graphQL = createGraphQL()
 
@@ -35,9 +35,10 @@ class QueryPlanCacheBypassTest {
             assertEquals(mapOf("x" to 1), rewritten)
             assertEquals(mapOf("x" to 1, "y" to 2), unchanged)
         }
+    }
 
     @Test
-    fun `a request marked to skip the query plan cache does not reuse the plan cached for its query text`() =
+    fun `a request marked to skip the query plan cache does not reuse the plan cached for its query text`() {
         runExecutionTest {
             val graphQL = createGraphQL()
 
@@ -47,6 +48,7 @@ class QueryPlanCacheBypassTest {
             assertEquals(mapOf("x" to 1, "y" to 2), unchanged)
             assertEquals(mapOf("x" to 1), rewritten)
         }
+    }
 
     private fun createGraphQL(): GraphQL =
         createViaductGraphQL(

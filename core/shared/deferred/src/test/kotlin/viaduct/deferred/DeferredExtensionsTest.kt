@@ -54,7 +54,7 @@ class DeferredExtensionsTest {
     @Nested
     inner class ParentingCompletableDeferredTests {
         @Test
-        fun `active parent - deferred is a direct child of the request parent`() =
+        fun `active parent - deferred is a direct child of the request parent`(): Unit =
             runBlocking {
                 val parent = SupervisorJob()
                 lateinit var child: CompletableDeferred<Int>
@@ -78,7 +78,7 @@ class DeferredExtensionsTest {
             }
 
         @Test
-        fun `active parent - cancelling child does not cancel parent`() =
+        fun `active parent - cancelling child does not cancel parent`(): Unit =
             runBlocking {
                 val parent = SupervisorJob()
                 lateinit var child: CompletableDeferred<Unit>
@@ -94,7 +94,7 @@ class DeferredExtensionsTest {
             }
 
         @Test
-        fun `deferred is parented to request parent context element`() =
+        fun `deferred is parented to request parent context element`(): Unit =
             runBlocking {
                 val requestParent = SupervisorJob()
                 val threadLocalJob = Job()
@@ -125,7 +125,7 @@ class DeferredExtensionsTest {
             }
 
         @Test
-        fun `parent cancellation cascades to deferred`() =
+        fun `parent cancellation cascades to deferred`(): Unit =
             runTest {
                 val parent = SupervisorJob()
                 lateinit var d: CompletableDeferred<Int>
@@ -153,7 +153,7 @@ class DeferredExtensionsTest {
             }
 
         @Test
-        fun `inactive request parent - deferred is NOT parented`() =
+        fun `inactive request parent - deferred is NOT parented`(): Unit =
             runBlocking {
                 val inactiveParent = SupervisorJob().apply { cancel(CancellationException("inactive")) }
                 lateinit var d: CompletableDeferred<Int>
@@ -179,7 +179,7 @@ class DeferredExtensionsTest {
             }
 
         @Test
-        fun `no thread-local job - deferred is NOT parented`() =
+        fun `no thread-local job - deferred is NOT parented`(): Unit =
             runBlocking {
                 // Ensure no thread-local ContextElement is installed here.
                 // Calling completableDeferred() should create an unparented deferred.
@@ -194,7 +194,7 @@ class DeferredExtensionsTest {
             }
 
         @Test
-        fun `failed deferred does not cancel request parent or siblings`() =
+        fun `failed deferred does not cancel request parent or siblings`(): Unit =
             runBlocking {
                 val parent = SupervisorJob()
                 lateinit var ok: CompletableDeferred<String>
@@ -353,7 +353,7 @@ class DeferredExtensionsTest {
     @Nested
     inner class HandleFastSlow {
         @Test
-        fun `handle FAST success`() =
+        fun `handle FAST success`(): Unit =
             runBlocking {
                 val d = completedDeferred(10) // already complete -> fast path
                 val res = d.handle { v, e ->
@@ -364,7 +364,7 @@ class DeferredExtensionsTest {
             }
 
         @Test
-        fun `handle SLOW success`() =
+        fun `handle SLOW success`(): Unit =
             runBlocking {
                 val src = completableDeferred<Int>() // not complete -> slow path
                 val res = src.handle { v, e ->
@@ -376,7 +376,7 @@ class DeferredExtensionsTest {
             }
 
         @Test
-        fun `handle FAST failure`() =
+        fun `handle FAST failure`(): Unit =
             runBlocking {
                 val err = IllegalStateException("boom")
                 val d = completableDeferred<Int>().apply { completeExceptionally(err) } // fast path exceptional
@@ -385,7 +385,7 @@ class DeferredExtensionsTest {
             }
 
         @Test
-        fun `handle SLOW failure`() =
+        fun `handle SLOW failure`(): Unit =
             runBlocking {
                 val src = completableDeferred<Int>()
                 val res = src.handle { _, e -> if (e != null) 7 else 0 }
@@ -562,7 +562,7 @@ class DeferredExtensionsTest {
             }
 
         @Test
-        fun `thenApply propagates upstream cancellation`() =
+        fun `thenApply propagates upstream cancellation`(): Unit =
             runBlocking {
                 val source = CompletableDeferred<Int>()
                 val mapped = source.thenApply { it * 2 }
@@ -576,7 +576,7 @@ class DeferredExtensionsTest {
             }
 
         @Test
-        fun `handler thrown CancellationException is treated as failure while job active`() =
+        fun `handler thrown CancellationException is treated as failure while job active`(): Unit =
             runBlocking {
                 val source = CompletableDeferred<String>()
                 val derived = source.handle { _, _ ->
@@ -591,7 +591,7 @@ class DeferredExtensionsTest {
             }
 
         @Test
-        fun `handler thrown CancellationException respects prior cancellation`() =
+        fun `handler thrown CancellationException respects prior cancellation`(): Unit =
             runBlocking {
                 val source = CompletableDeferred<String>()
                 val derived = source.thenApply {
@@ -644,7 +644,7 @@ class DeferredExtensionsTest {
         }
 
         @Test
-        fun `thenApply FAST cancelled deferred stays cancelled`() =
+        fun `thenApply FAST cancelled deferred stays cancelled`(): Unit =
             runBlocking {
                 val cancel = CancellationException("stop")
                 val cancelled = CompletableDeferred<Int>().apply { cancel(cancel) }
@@ -660,7 +660,7 @@ class DeferredExtensionsTest {
     @Nested
     inner class ThenApplyFastSlow {
         @Test
-        fun `thenApply FAST success`() =
+        fun `thenApply FAST success`(): Unit =
             runBlocking {
                 val d = completedDeferred(5)
                 val t = d.thenApply { it * 4 }
@@ -668,7 +668,7 @@ class DeferredExtensionsTest {
             }
 
         @Test
-        fun `thenApply SLOW success`() =
+        fun `thenApply SLOW success`(): Unit =
             runBlocking {
                 val src = completableDeferred<Int>()
                 val t = src.thenApply { it + 2 }
@@ -677,7 +677,7 @@ class DeferredExtensionsTest {
             }
 
         @Test
-        fun `thenApply FAST failure propagates`() =
+        fun `thenApply FAST failure propagates`(): Unit =
             runBlocking {
                 val err = RuntimeException("oops")
                 val d = completableDeferred<Int>().apply { completeExceptionally(err) }
@@ -730,7 +730,7 @@ class DeferredExtensionsTest {
         }
 
         @Test
-        fun `outer cancelled - returned deferred is cancelled (not exceptional)`() =
+        fun `outer cancelled - returned deferred is cancelled (not exceptional)`(): Unit =
             runBlocking {
                 val outer = completableDeferred<Int>()
                 val result = outer.thenCompose { completableDeferred<String>() } // won't be called
@@ -742,7 +742,7 @@ class DeferredExtensionsTest {
             }
 
         @Test
-        fun `fn throws - CancellationException cancels, other exceptions completeExceptionally`() =
+        fun `fn throws - CancellationException cancels, other exceptions completeExceptionally`(): Unit =
             runBlocking {
                 // CancellationException path
                 run {
@@ -768,7 +768,7 @@ class DeferredExtensionsTest {
             }
 
         @Test
-        fun `cancelling returned deferred cancels inner (no leak)`() =
+        fun `cancelling returned deferred cancels inner (no leak)`(): Unit =
             runBlocking {
                 val outer = completableDeferred<Int>()
                 val innerCancelled = completableDeferred<CancellationException>()
@@ -800,7 +800,7 @@ class DeferredExtensionsTest {
             }
 
         @Test
-        fun `inner cancellation cancels returned deferred`() =
+        fun `inner cancellation cancels returned deferred`(): Unit =
             runBlocking {
                 val outer = completableDeferred<Int>()
                 val inner = completableDeferred<String>()
@@ -818,7 +818,7 @@ class DeferredExtensionsTest {
             }
 
         @Test
-        fun `fn not called when outer fails or cancels`() =
+        fun `fn not called when outer fails or cancels`(): Unit =
             runBlocking {
                 // outer exceptional
                 run {
@@ -847,7 +847,7 @@ class DeferredExtensionsTest {
             }
 
         @Test
-        fun `defensive getCompleted guards - simulate odd throws`() =
+        fun `defensive getCompleted guards - simulate odd throws`(): Unit =
             runBlocking {
                 // This is synthetic; in practice getCompleted() shouldn't throw here
                 // but we can still check that such a throw cancels vs completes exceptionally.
@@ -865,7 +865,7 @@ class DeferredExtensionsTest {
     @Nested
     inner class ThenComposeFastSlow {
         @Test
-        fun `thenCompose FAST success returns inner`() =
+        fun `thenCompose FAST success returns inner`(): Unit =
             runBlocking {
                 val outer = completedDeferred(3) // fast path
                 val inner = completableDeferred<Int>().apply { complete(9) }
@@ -874,7 +874,7 @@ class DeferredExtensionsTest {
             }
 
         @Test
-        fun `thenCompose FAST cancel of returned cancels inner (if returned directly)`() =
+        fun `thenCompose FAST cancel of returned cancels inner (if returned directly)`(): Unit =
             runBlocking {
                 val outer = completedDeferred(1)
                 val inner = completableDeferred<String>()
@@ -886,7 +886,7 @@ class DeferredExtensionsTest {
             }
 
         @Test
-        fun `thenCompose SLOW success`() =
+        fun `thenCompose SLOW success`(): Unit =
             runBlocking {
                 val outer = completableDeferred<Int>()
                 val composed = outer.thenCompose { v -> completedDeferred(v * 5) }
@@ -895,7 +895,7 @@ class DeferredExtensionsTest {
             }
 
         @Test
-        fun `thenCompose SLOW outer failure`() =
+        fun `thenCompose SLOW outer failure`(): Unit =
             runBlocking {
                 val outer = completableDeferred<Int>()
                 val composed = outer.thenCompose { completedDeferred(it) }
@@ -949,7 +949,7 @@ class DeferredExtensionsTest {
     @Nested
     inner class ExceptionallyFastSlow {
         @Test
-        fun `exceptionally FAST success returns original`() =
+        fun `exceptionally FAST success returns original`(): Unit =
             runBlocking {
                 val d = completedDeferred(7)
                 val h = d.exceptionally { 0 }
@@ -957,7 +957,7 @@ class DeferredExtensionsTest {
             }
 
         @Test
-        fun `exceptionally SLOW failure returns fallback`() =
+        fun `exceptionally SLOW failure returns fallback`(): Unit =
             runBlocking {
                 val src = completableDeferred<Int>()
                 val h = src.exceptionally { 42 }
@@ -966,7 +966,7 @@ class DeferredExtensionsTest {
             }
 
         @Test
-        fun `exceptionally FAST cancellation is propagated (no recovery)`() =
+        fun `exceptionally FAST cancellation is propagated (no recovery)`(): Unit =
             runBlocking {
                 val d = completableDeferred<Int>().apply { cancel(CancellationException("bye")) }
                 val h = d.exceptionally { 1 }
@@ -1037,7 +1037,7 @@ class DeferredExtensionsTest {
         }
 
         @Test
-        fun `does NOT recover cancellation - outer cancel cancels result, fallback NOT called`() =
+        fun `does NOT recover cancellation - outer cancel cancels result, fallback NOT called`(): Unit =
             runBlocking {
                 val outer = completableDeferred<Int>()
                 val called = AtomicBoolean(false)
@@ -1056,7 +1056,7 @@ class DeferredExtensionsTest {
             }
 
         @Test
-        fun `caller cancels returned deferred - cancels fallback (no leak)`() =
+        fun `caller cancels returned deferred - cancels fallback (no leak)`(): Unit =
             runBlocking {
                 val outer = completableDeferred<Int>()
                 val fallbackCancelled = CompletableDeferred<CancellationException>()
@@ -1086,7 +1086,7 @@ class DeferredExtensionsTest {
             }
 
         @Test
-        fun `fallback deferred is cancelled - result is cancelled`() =
+        fun `fallback deferred is cancelled - result is cancelled`(): Unit =
             runBlocking {
                 val outer = completableDeferred<Int>()
 
@@ -1104,7 +1104,7 @@ class DeferredExtensionsTest {
             }
 
         @Test
-        fun `fallback function throws CancellationException - result fails exceptionally`() =
+        fun `fallback function throws CancellationException - result fails exceptionally`(): Unit =
             runBlocking {
                 val outer = completableDeferred<Int>()
 
@@ -1119,7 +1119,7 @@ class DeferredExtensionsTest {
             }
 
         @Test
-        fun `defensive getCompleted guard on success path - weird throw completesExceptionally or cancels`() =
+        fun `defensive getCompleted guard on success path - weird throw completesExceptionally or cancels`(): Unit =
             runBlocking {
                 // Synthetic: getCompleted throws even though completion was "successful"
                 val d = object : CompletableDeferred<Int> by CompletableDeferred() {
@@ -1137,7 +1137,7 @@ class DeferredExtensionsTest {
             }
 
         @Test
-        fun `fallback invoked exactly once`() =
+        fun `fallback invoked exactly once`(): Unit =
             runBlocking {
                 val outer = completableDeferred<Int>()
                 val calls = AtomicInteger(0)
@@ -1156,7 +1156,7 @@ class DeferredExtensionsTest {
     @Nested
     inner class ExceptionallyComposeFastSlow {
         @Test
-        fun `exceptionallyCompose FAST success returns original`() =
+        fun `exceptionallyCompose FAST success returns original`(): Unit =
             runBlocking {
                 val d = completedDeferred(100)
                 val r = d.exceptionallyCompose { completedDeferred(0) }
@@ -1164,7 +1164,7 @@ class DeferredExtensionsTest {
             }
 
         @Test
-        fun `exceptionallyCompose FAST failure uses fallback`() =
+        fun `exceptionallyCompose FAST failure uses fallback`(): Unit =
             runBlocking {
                 val d = completableDeferred<Int>().apply { completeExceptionally(RuntimeException("boom")) }
                 val r = d.exceptionallyCompose { ex ->
@@ -1175,7 +1175,7 @@ class DeferredExtensionsTest {
             }
 
         @Test
-        fun `exceptionallyCompose SLOW failure uses fallback`() =
+        fun `exceptionallyCompose SLOW failure uses fallback`(): Unit =
             runBlocking {
                 val src = completableDeferred<Int>()
                 val r = src.exceptionallyCompose { completedDeferred(9) }
@@ -1184,7 +1184,7 @@ class DeferredExtensionsTest {
             }
 
         @Test
-        fun `exceptionallyCompose FAST cancellation propagates (fallback not called)`() =
+        fun `exceptionallyCompose FAST cancellation propagates (fallback not called)`(): Unit =
             runBlocking {
                 val d = completableDeferred<Int>().apply { cancel(CancellationException("c")) }
                 var called = false
@@ -1308,7 +1308,7 @@ class DeferredExtensionsTest {
     @Nested
     inner class WaitAllDeferredsTests {
         @Test
-        fun `waitAllDeferreds FAST exceptional input fails`() =
+        fun `waitAllDeferreds FAST exceptional input fails`(): Unit =
             runBlocking {
                 val ok = CompletableDeferred<Unit>().apply { complete(Unit) }
                 val err = CompletableDeferred<Unit>().apply { completeExceptionally(IllegalStateException("boom")) }
@@ -1320,7 +1320,7 @@ class DeferredExtensionsTest {
             }
 
         @Test
-        fun `waitAllDeferreds FAST cancelled input cancels result`() =
+        fun `waitAllDeferreds FAST cancelled input cancels result`(): Unit =
             runBlocking {
                 val cancel = CancellationException("stop")
                 val cancelled = CompletableDeferred<Unit>().apply { cancel(cancel) }
@@ -1334,7 +1334,7 @@ class DeferredExtensionsTest {
             }
 
         @Test
-        fun `waitAllDeferreds SLOW exception does NOT cancel others`() =
+        fun `waitAllDeferreds SLOW exception does NOT cancel others`(): Unit =
             runBlocking {
                 val first = CompletableDeferred<Unit>()
                 val second = CompletableDeferred<Unit>()
@@ -1354,7 +1354,7 @@ class DeferredExtensionsTest {
             }
 
         @Test
-        fun `waitAllDeferreds SLOW cancellation does NOT cancel others`() =
+        fun `waitAllDeferreds SLOW cancellation does NOT cancel others`(): Unit =
             runBlocking {
                 val first = CompletableDeferred<Unit>()
                 val second = CompletableDeferred<Unit>()
@@ -1744,7 +1744,7 @@ class DeferredExtensionsTest {
             }
 
         @Test
-        fun `asDeferred FAST completed CF`() =
+        fun `asDeferred FAST completed CF`(): Unit =
             runBlocking {
                 val cf = CompletableFuture.completedFuture(123)
                 val d = cf.asDeferred()
@@ -1752,7 +1752,7 @@ class DeferredExtensionsTest {
             }
 
         @Test
-        fun `asDeferred SLOW later completion`() =
+        fun `asDeferred SLOW later completion`(): Unit =
             runBlocking {
                 val cf = CompletableFuture<Int>()
                 val d = cf.asDeferred()
@@ -1761,7 +1761,7 @@ class DeferredExtensionsTest {
             }
 
         @Test
-        fun `asDeferred propagates failure`() =
+        fun `asDeferred propagates failure`(): Unit =
             runBlocking {
                 val cf = CompletableFuture<Int>()
                 val d = cf.asDeferred()
@@ -1771,7 +1771,7 @@ class DeferredExtensionsTest {
             }
 
         @Test
-        fun `asDeferred SLOW forwards a bare cancellation as cancellation`() =
+        fun `asDeferred SLOW forwards a bare cancellation as cancellation`(): Unit =
             runBlocking {
                 val cf = CompletableFuture<Int>()
                 val d = cf.asDeferred()
@@ -1783,7 +1783,7 @@ class DeferredExtensionsTest {
 
         @OptIn(ExperimentalCoroutinesApi::class)
         @Test
-        fun `asDeferred SLOW forwards a CompletionException-wrapped cancellation as cancellation`() =
+        fun `asDeferred SLOW forwards a CompletionException-wrapped cancellation as cancellation`(): Unit =
             runBlocking {
                 val cf = CompletableFuture<Int>()
                 val d = cf.asDeferred()
@@ -1799,7 +1799,7 @@ class DeferredExtensionsTest {
 
         @OptIn(ExperimentalCoroutinesApi::class)
         @Test
-        fun `asDeferred SLOW unwraps a CompletionException-wrapped failure consistently with the fast path`() =
+        fun `asDeferred SLOW unwraps a CompletionException-wrapped failure consistently with the fast path`(): Unit =
             runBlocking {
                 val cf = CompletableFuture<Int>()
                 val d = cf.asDeferred()
@@ -1810,7 +1810,7 @@ class DeferredExtensionsTest {
             }
 
         @Test
-        fun `asDeferred cancels underlying CF on cancellation`() =
+        fun `asDeferred cancels underlying CF on cancellation`(): Unit =
             runBlocking {
                 val cf = CompletableFuture<Int>()
                 val d = cf.asDeferred()
@@ -1823,7 +1823,7 @@ class DeferredExtensionsTest {
 
         @OptIn(ExperimentalCoroutinesApi::class)
         @Test
-        fun `asDeferred FAST cancelled future returns cancelled deferred`() =
+        fun `asDeferred FAST cancelled future returns cancelled deferred`(): Unit =
             runBlocking {
                 val cf = CompletableFuture<Int>()
                 cf.cancel(true)
@@ -1836,7 +1836,7 @@ class DeferredExtensionsTest {
             }
 
         @Test
-        fun `asDeferred FAST exceptional future unwraps cause`() =
+        fun `asDeferred FAST exceptional future unwraps cause`(): Unit =
             runBlocking {
                 val ex = IllegalStateException("boom")
                 val cf = CompletableFuture<Int>().apply {
@@ -1883,7 +1883,7 @@ class DeferredExtensionsTest {
             }
 
         @Test
-        fun `propagateUpstreamFailure forwards cancellation`() =
+        fun `propagateUpstreamFailure forwards cancellation`(): Unit =
             runBlocking {
                 val d = CompletableDeferred<Unit>()
                 val cancel = CancellationException("stop")
@@ -1896,7 +1896,7 @@ class DeferredExtensionsTest {
             }
 
         @Test
-        fun `thenApply slow path rethrows CompletionHandlerException`() =
+        fun `thenApply slow path rethrows CompletionHandlerException`(): Unit =
             runBlocking {
                 val src = completableDeferred<Int>()
                 src.thenApply { throw CompletionHandlerException("boom", Error("cause")) }
@@ -1916,7 +1916,7 @@ class DeferredExtensionsTest {
         }
 
         @Test
-        fun `thenCompose nested completion handler Error surfaces as CompletionHandlerException`() =
+        fun `thenCompose nested completion handler Error surfaces as CompletionHandlerException`(): Unit =
             runBlocking {
                 val outer = completableDeferred<Int>()
                 outer.thenCompose { _ ->

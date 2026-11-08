@@ -22,7 +22,7 @@ class NextTickDispatcherMetricsTest {
     @OptIn(ExperimentalCoroutinesApi::class)
     @ParameterizedTest
     @ValueSource(booleans = [false, true])
-    fun `counts non-empty rounds once and includes empty flushes`(killSwitch: Boolean) =
+    fun `counts non-empty rounds once and includes empty flushes`(killSwitch: Boolean): Unit =
         runTest {
             val flags = object : FlagManager {
                 override fun isEnabled(flag: FlagManager.Flag): Boolean = killSwitch && flag == FlagManager.Flags.KILLSWITCH_NON_BLOCKING_ENQUEUE_FLUSH
@@ -52,7 +52,7 @@ class NextTickDispatcherMetricsTest {
     @OptIn(ExperimentalCoroutinesApi::class)
     @ParameterizedTest
     @ValueSource(booleans = [false, true])
-    fun `metrics are disabled by default without changing callback execution`(killSwitch: Boolean) =
+    fun `metrics are disabled by default without changing callback execution`(killSwitch: Boolean): Unit =
         runTest {
             val flags = object : FlagManager {
                 override fun isEnabled(flag: FlagManager.Flag): Boolean = killSwitch && flag == FlagManager.Flags.KILLSWITCH_NON_BLOCKING_ENQUEUE_FLUSH
@@ -76,7 +76,7 @@ class NextTickDispatcherMetricsTest {
     @OptIn(ExperimentalCoroutinesApi::class)
     @ParameterizedTest
     @ValueSource(booleans = [false, true])
-    fun `throwing runnable only counts its empty flush when enabled`(metricsEnabled: Boolean) =
+    fun `throwing runnable only counts its empty flush when enabled`(metricsEnabled: Boolean): Unit =
         runTest {
             val worker = object : CoroutineDispatcher() {
                 override fun dispatch(

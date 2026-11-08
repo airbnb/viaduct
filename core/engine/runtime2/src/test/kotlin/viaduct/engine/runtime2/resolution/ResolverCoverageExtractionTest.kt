@@ -163,7 +163,7 @@ class ResolverCoverageExtractionTest : CorrectResolutionPostTestPolicy, Resoluti
     }
 
     @Test
-    fun `resolver query fragment roots contribute occurrences`() =
+    fun `resolver query fragment roots contribute occurrences`(): Unit =
         runTest {
             val observation = resolveAndValidateObserved(queryFragmentWorld(), "query { value }")
             val execution = CoverageExecution("fixture", "query-fragment", CoverageTestId("fixture", "schema", "R1", "Q-query-fragment"))

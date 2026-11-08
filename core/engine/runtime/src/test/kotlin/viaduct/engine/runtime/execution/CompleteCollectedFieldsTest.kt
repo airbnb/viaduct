@@ -25,7 +25,7 @@ class CompleteCollectedFieldsTest {
 
     @ParameterizedTest
     @ValueSource(booleans = [false, true])
-    fun `null lazy objects do not wait for discarded field population`(resolveBeforeCompletion: Boolean) =
+    fun `null lazy objects do not wait for discarded field population`(resolveBeforeCompletion: Boolean): Unit =
         runTest {
             val base = mkObjectCompletionParameters(
                 schemaSDL = "extend type Query { obj: Obj } type Obj { a: Int }",
@@ -54,7 +54,7 @@ class CompleteCollectedFieldsTest {
 
     @ParameterizedTest
     @ValueSource(booleans = [false, true])
-    fun `failed lazy objects do not wait for discarded field population`(resolveBeforeCompletion: Boolean) =
+    fun `failed lazy objects do not wait for discarded field population`(resolveBeforeCompletion: Boolean): Unit =
         runTest {
             val base = mkObjectCompletionParameters(
                 schemaSDL = "extend type Query { obj: Obj } type Obj { a: Int }",
@@ -85,7 +85,7 @@ class CompleteCollectedFieldsTest {
 
     @ParameterizedTest
     @ValueSource(booleans = [false, true])
-    fun `successful lazy objects wait for validity and field population`(fieldsReadyFirst: Boolean) =
+    fun `successful lazy objects wait for validity and field population`(fieldsReadyFirst: Boolean): Unit =
         runTest {
             val base = mkObjectCompletionParameters(
                 schemaSDL = "extend type Query { obj: Obj } type Obj { a: Int }",
@@ -106,7 +106,7 @@ class CompleteCollectedFieldsTest {
         }
 
     @Test
-    fun `nondeferred object completion waits for field population before reading its fields`() =
+    fun `nondeferred object completion waits for field population before reading its fields`(): Unit =
         runTest {
             val ctx = mkObjectCompletionParameters(
                 schemaSDL = "extend type Query { obj: Obj } type Obj { a: Int, b: Int, unselected: Int! }",
@@ -126,7 +126,7 @@ class CompleteCollectedFieldsTest {
         }
 
     @Test
-    fun `deferred object fields do not block the initial completion on object population`() =
+    fun `deferred object fields do not block the initial completion on object population`(): Unit =
         runTest {
             val ctx = mkObjectCompletionParameters(
                 schemaSDL = "extend type Query { obj: Obj } type Obj { a: Int, b: Int }",
@@ -147,7 +147,7 @@ class CompleteCollectedFieldsTest {
         }
 
     @Test
-    fun `root completion does not wait on a population barrier for a different selection`() =
+    fun `root completion does not wait on a population barrier for a different selection`(): Unit =
         runTest {
             val ctx = mkObjectCompletionParameters(
                 schemaSDL = "extend type Query { obj: Obj } type Obj { a: Int }",

@@ -307,7 +307,7 @@ class ViaductExecutionStrategyTest {
     }
 
     @Test
-    fun `fatal error in data fetcher crashes request`() =
+    fun `fatal error in data fetcher crashes request`() {
         runExecutionTest {
             val sdl = "type Query { field: String }"
             val resolvers = mapOf(
@@ -328,6 +328,7 @@ class ViaductExecutionStrategyTest {
                     true
             )
         }
+    }
 
     @Test
     fun `pending fatal data fetcher future cancels request and sibling future`(): Unit =
@@ -526,7 +527,7 @@ class ViaductExecutionStrategyTest {
     }
 
     @Test
-    fun `instrumentation failure during field completion is contained at field level`() =
+    fun `instrumentation failure during field completion is contained at field level`() {
         runExecutionTest {
             // Define a simple schema with one field that would normally resolve to a valid value.
             val sdl = // language=GraphQL
@@ -585,6 +586,7 @@ class ViaductExecutionStrategyTest {
                 "Expected an error message containing 'Forced field completion error'"
             )
         }
+    }
 
     @Test
     fun `configures EngineResultLocalContext`() {
@@ -645,7 +647,7 @@ class ViaductExecutionStrategyTest {
     }
 
     @RepeatedTest(1000)
-    fun `still allows dataloader batching`() =
+    fun `still allows dataloader batching`() {
         runExecutionTest {
             withContext(nextTickDispatcher) {
                 val sdl = // language=GraphQL
@@ -707,9 +709,10 @@ class ViaductExecutionStrategyTest {
                 assertEquals(listOf(setOf(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)), loadCalls)
             }
         }
+    }
 
     @Test
-    fun `test field merging with no arguments`() =
+    fun `test field merging with no arguments`() {
         runExecutionTest {
             val sdl = // language=GraphQL
                 """
@@ -806,9 +809,10 @@ class ViaductExecutionStrategyTest {
             assertEquals(2, oneCount.get())
             assertEquals(2, twoCount.get())
         }
+    }
 
     @Test
-    fun `test field merging with simple arguments`() =
+    fun `test field merging with simple arguments`() {
         runExecutionTest {
             val sdl = // language=GraphQL
                 """
@@ -907,9 +911,10 @@ class ViaductExecutionStrategyTest {
             // - Once for bar3.value with multiplier:2 (different input arg)
             assertEquals(3, valueCount.get())
         }
+    }
 
     @Test
-    fun `test field merging with complex argument types`() =
+    fun `test field merging with complex argument types`() {
         runExecutionTest {
             val sdl = // language=GraphQL
                 """
@@ -1087,9 +1092,10 @@ class ViaductExecutionStrategyTest {
             assertEquals(2, counts["array"]?.get(), "Array resolver should be called twice")
             assertEquals(2, counts["multi"]?.get(), "Multi-arg resolver should be called twice")
         }
+    }
 
     @Test
-    fun `nested lists of DataFetcherResult are handled correctly`() =
+    fun `nested lists of DataFetcherResult are handled correctly`() {
         runExecutionTest {
             val sdl = // language=GraphQL
                 """
@@ -1208,9 +1214,10 @@ class ViaductExecutionStrategyTest {
                 assertTrue(expectedErrorsData.contains(error))
             }
         }
+    }
 
     @Test
-    fun `test instrumentation methods are called and callbacks are verified`() =
+    fun `test instrumentation methods are called and callbacks are verified`() {
         runExecutionTest {
             val sdl = // language=GraphQL
                 """
@@ -1293,6 +1300,7 @@ class ViaductExecutionStrategyTest {
                 assertNull(context.completedException)
             }
         }
+    }
 
     @Test
     fun `mutation fields are resolved serially`() {
@@ -1352,7 +1360,7 @@ class ViaductExecutionStrategyTest {
     }
 
     @Test
-    fun `query root and namespaced fields are not forced to execute serially`() =
+    fun `query root and namespaced fields are not forced to execute serially`() {
         runExecutionTest {
             val rootField1Future = CompletableFuture<Int>()
             val namespacedField1Future = CompletableFuture<Int>()
@@ -1434,9 +1442,10 @@ class ViaductExecutionStrategyTest {
                 parallelObservations.toSet()
             )
         }
+    }
 
     @Test
-    fun `root mutation fields wait for each previous mutation field to finish before dispatching next field`() =
+    fun `root mutation fields wait for each previous mutation field to finish before dispatching next field`() {
         runExecutionTest {
             val probe = OrderedFetcherProbe()
             val m1Future = CompletableFuture<Int>()
@@ -1475,9 +1484,10 @@ class ViaductExecutionStrategyTest {
             probe.assertNoViolations()
             probe.assertEvents("m1:start", "m1:end", "m2:start", "m2:end", "m3:start", "m3:end")
         }
+    }
 
     @Test
-    fun `root mutation field does not execute data fetcher when field checker fails`() =
+    fun `root mutation field does not execute data fetcher when field checker fails`() {
         runExecutionTest {
             var dataFetcherInvoked = false
 
@@ -1500,9 +1510,10 @@ class ViaductExecutionStrategyTest {
                 dataFetcherInvoked = { dataFetcherInvoked },
             )
         }
+    }
 
     @Test
-    fun `root subscription field does not execute data fetcher when field checker fails`() =
+    fun `root subscription field does not execute data fetcher when field checker fails`() {
         runExecutionTest {
             var dataFetcherInvoked = false
 
@@ -1525,9 +1536,10 @@ class ViaductExecutionStrategyTest {
                 dataFetcherInvoked = { dataFetcherInvoked },
             )
         }
+    }
 
     @Test
-    fun `namespaced mutation field waits for previous namespaced mutation field to finish before dispatching next field`() =
+    fun `namespaced mutation field waits for previous namespaced mutation field to finish before dispatching next field`() {
         runExecutionTest {
             val probe = OrderedFetcherProbe()
             val m1Future = CompletableFuture<Int>()
@@ -1569,9 +1581,10 @@ class ViaductExecutionStrategyTest {
             probe.assertNoViolations()
             probe.assertEvents("m1:start", "m1:end", "m2:start", "m2:end")
         }
+    }
 
     @Test
-    fun `multiple namespaced and root mutation fields execute serially across all mutation fields`() =
+    fun `multiple namespaced and root mutation fields execute serially across all mutation fields`() {
         runExecutionTest {
             val probe = OrderedFetcherProbe()
             val m1Future = CompletableFuture<Int>()
@@ -1659,9 +1672,10 @@ class ViaductExecutionStrategyTest {
                 "m5:end",
             )
         }
+    }
 
     @Test
-    fun `namespaced mutation field does not execute data fetcher when field checker fails`() =
+    fun `namespaced mutation field does not execute data fetcher when field checker fails`() {
         runExecutionTest {
             var dataFetcherInvoked = false
 
@@ -1689,9 +1703,10 @@ class ViaductExecutionStrategyTest {
                 dataFetcherInvoked = { dataFetcherInvoked },
             )
         }
+    }
 
     @Test
-    fun `nested namespaced mutation field waits for previous nested namespaced mutation field to finish before dispatching next field`() =
+    fun `nested namespaced mutation field waits for previous nested namespaced mutation field to finish before dispatching next field`() {
         runExecutionTest {
             val probe = OrderedFetcherProbe()
             val m1Future = CompletableFuture<Int>()
@@ -1737,9 +1752,10 @@ class ViaductExecutionStrategyTest {
             probe.assertNoViolations()
             probe.assertEvents("m1:start", "m1:end", "m2:start", "m2:end")
         }
+    }
 
     @Test
-    fun `checker RSS rooted on mutation namespace keeps mutation fields serial`() =
+    fun `checker RSS rooted on mutation namespace keeps mutation fields serial`() {
         runExecutionTest {
             val probe = OrderedFetcherProbe()
             val m1Future = CompletableFuture<Int>()
@@ -1802,9 +1818,10 @@ class ViaductExecutionStrategyTest {
             probe.assertNoViolations()
             probe.assertEvents("m1:start", "m1:end", "m2:start", "m2:end")
         }
+    }
 
     @Test
-    fun `mutation payload fields are not forced to execute serially`() =
+    fun `mutation payload fields are not forced to execute serially`() {
         runExecutionTest {
             val field1Future = CompletableFuture<Int>()
             val field1Started = CompletableDeferred<Unit>()
@@ -1861,6 +1878,7 @@ class ViaductExecutionStrategyTest {
             )
             assertTrue(executionResult.errors.isEmpty())
         }
+    }
 
     @Test
     fun `mutation field resolver throws an exception`() {
@@ -1886,7 +1904,7 @@ class ViaductExecutionStrategyTest {
     }
 
     @Test
-    fun `withRequestSupervisor integration - cleans up lingering child plan jobs after query execution`() =
+    fun `withRequestSupervisor integration - cleans up lingering child plan jobs after query execution`() {
         runExecutionTest {
             withContext(nextTickDispatcher) {
                 val sdl = """
@@ -1952,6 +1970,7 @@ class ViaductExecutionStrategyTest {
                 Unit
             }
         }
+    }
 
     @Test
     fun `mutation operation throws multiple field exceptions`() {
@@ -2367,7 +2386,7 @@ class ViaductExecutionStrategyTest {
             }
 
         @Test
-        fun `beginFieldCompletion onCompleted receives null throwable when field resolves successfully`() =
+        fun `beginFieldCompletion onCompleted receives null throwable when field resolves successfully`() {
             runExecutionTest {
                 var onCompletedCalled = false
                 var capturedThrowable: Throwable? = null
@@ -2385,9 +2404,10 @@ class ViaductExecutionStrategyTest {
                 assertTrue(onCompletedCalled, "beginFieldCompletion.onCompleted should have been called")
                 assertNull(capturedThrowable, "Expected no throwable for a successful field")
             }
+        }
 
         @Test
-        fun `beginFieldCompletion onCompleted receives throwable when resolver throws`() =
+        fun `beginFieldCompletion onCompleted receives throwable when resolver throws`() {
             runExecutionTest {
                 val resolverException = RuntimeException("resolver blew up")
                 var capturedThrowable: Throwable? = null
@@ -2400,9 +2420,10 @@ class ViaductExecutionStrategyTest {
                 // FieldFetchingException and concurrency wrappers are stripped — the original exception surfaces directly.
                 assertSame(resolverException, capturedThrowable, "beginFieldCompletion should receive the original resolver exception")
             }
+        }
 
         @Test
-        fun `beginFieldCompletion onCompleted receives checker throwable when access check fails`() =
+        fun `beginFieldCompletion onCompleted receives checker throwable when access check fails`() {
             runExecutionTest {
                 val checkError = IllegalAccessException("permission denied")
                 var capturedThrowable: Throwable? = null
@@ -2449,5 +2470,6 @@ class ViaductExecutionStrategyTest {
                 )
                 assertSame(checkError, capturedThrowable, "beginFieldCompletion should receive the original access-check exception")
             }
+        }
     }
 }

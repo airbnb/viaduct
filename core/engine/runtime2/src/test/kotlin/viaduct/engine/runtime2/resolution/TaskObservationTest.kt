@@ -248,7 +248,7 @@ class TaskObservationTest : ResolutionDispatcherResource {
 
     @Test
     @OptIn(ExperimentalCoroutinesApi::class)
-    fun `cancellation records termination both before entry and while suspended`() =
+    fun `cancellation records termination both before entry and while suspended`(): Unit =
         runTest {
             for (type in listOf("Query", "Mutation")) {
                 for (enter in listOf(false, true)) {
@@ -284,7 +284,7 @@ class TaskObservationTest : ResolutionDispatcherResource {
 
     @Test
     @OptIn(ExperimentalCoroutinesApi::class)
-    fun `field termination is observed before cancellation cleanup even if the observer throws`() =
+    fun `field termination is observed before cancellation cleanup even if the observer throws`(): Unit =
         runTest {
             val world = TestWorld.fromDSL("extend type Query { value: Int @resolver(result: 7) }")
             for (throwFromObserver in listOf(false, true)) {
@@ -366,7 +366,7 @@ class TaskObservationTest : ResolutionDispatcherResource {
 
     @Test
     @OptIn(ExperimentalCoroutinesApi::class)
-    fun `fatal field task failures are reported as termination causes`() =
+    fun `fatal field task failures are reported as termination causes`(): Unit =
         runTest {
             for (type in listOf("Query", "Mutation")) {
                 val failure = AssertionError("fatal tenant failure")

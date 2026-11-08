@@ -36,7 +36,7 @@ import viaduct.service.api.spi.FlagManager
 @OptIn(ExperimentalCoroutinesApi::class)
 class NextTickDispatcherTest {
     @Test
-    fun `undispatched start requires the exact running dispatcher`() =
+    fun `undispatched start requires the exact running dispatcher`(): Unit =
         runTest {
             val worker = StandardTestDispatcher(testScheduler)
             val queue = UnconfinedTestDispatcher(testScheduler)
@@ -61,7 +61,7 @@ class NextTickDispatcherTest {
         }
 
     @Test
-    fun `nested dispatchers restore ownership after throwing runnables`() =
+    fun `nested dispatchers restore ownership after throwing runnables`(): Unit =
         runTest {
             val worker = object : CoroutineDispatcher() {
                 override fun dispatch(
@@ -105,7 +105,7 @@ class NextTickDispatcherTest {
         }
 
     @Test
-    fun `inline child finishes before the next tick flushes`() =
+    fun `inline child finishes before the next tick flushes`(): Unit =
         runTest {
             val dispatcher = NextTickDispatcher(StandardTestDispatcher(testScheduler), UnconfinedTestDispatcher(testScheduler))
             val order = mutableListOf<String>()
