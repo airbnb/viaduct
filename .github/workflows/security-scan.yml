@@ -4,7 +4,7 @@ name: Security Scan
 #
 # Compares two views of each publication's dependencies:
 #   - fine-grained: `trivy sbom` over each publication's CycloneDX SBOM (full dep graph)
-#   - fat-JAR:      `trivy fs`  over each built shadow JAR (binary, via META-INF/maven/**)
+#   - fat-JAR:      `trivy rootfs` over each built shadow JAR (binary, via META-INF/maven/**)
 # and surfaces "parity gaps" — CVEs the fine-grained scan sees but the fat-JAR
 # binary scan misses (i.e. shaded transitives a consumer's SCA tooling can't see).
 #
@@ -50,12 +50,18 @@ jobs:
 
       - name: Install Trivy
         # SHA-pinned: third-party action in a security workflow. Bump the comment on upgrade.
-        # `cache` here caches only the Trivy binary; the vuln DB is pulled fresh each run
-        # (fast via ghcr.io inside Actions, and a cached DB goes stale after ~6h anyway).
         uses: aquasecurity/setup-trivy@3fb12ec12f41e471780db15c232d5dd185dcb514  # v0.2.6
         with:
           version: v0.76.2
           cache: true
+
+      - name: Download Trivy databases once
+        continue-on-error: true
+        run: |
+          trivy image --download-db-only
+          echo "TRIVY_SKIP_DB_UPDATE=true" >> "$GITHUB_ENV"
+          trivy image --download-java-db-only
+          echo "TRIVY_SKIP_JAVA_DB_UPDATE=true" >> "$GITHUB_ENV"
 
       # Fine-grained: trivy sbom over each publication's CycloneDX SBOM.
       # `securityScan` is advisory at the Gradle layer (isIgnoreExitValue=true);
@@ -77,7 +83,7 @@ jobs:
         continue-on-error: true
         run: ./gradlew -p publications assemble --no-daemon
 
-      # Fat-JAR binary scan (net-new): trivy fs over each shadow JAR, honoring
+      # Fat-JAR binary scan (net-new): trivy rootfs over each shadow JAR, honoring
       # the same ignore file as the fine-grained scan. Resilient per-jar so one
       # bad artifact doesn't stop the rest; nullglob avoids a literal-glob run
       # when no jars were produced.
@@ -95,11 +101,11 @@ jobs:
             found=1
             out="build/reports/trivy-fatjar/$(basename "$jar" .jar).json"
             echo "Scanning $jar -> $out"
-            trivy fs --quiet --scanners vuln --format json \
+            trivy rootfs --quiet --scanners vuln --format json \
               --severity HIGH,CRITICAL \
               --ignorefile config/security/.trivyignore \
               --output "$out" "$jar" \
-              || echo "::warning::trivy fs failed for $jar"
+              || echo "::warning::trivy rootfs failed for $jar"
           done
           if [ "$found" -eq 0 ]; then
             echo "::warning::No fat JARs found under publications/*/build/libs/"
@@ -132,6 +138,16 @@ jobs:
               echo 'outputs, or a corrupt Trivy JSON). See the Actions logs and the'
               echo 'security-scan-reports artifact.'
             } > security-scan-report.md
+          fi
+          missing=""
+          for sbom in publications/*/build/reports/sbom/cyclonedx.json; do
+            [ -f "$sbom" ] || continue
+            reports="${sbom%/sbom/cyclonedx.json}"
+            [ -f "$reports/trivy/cve-report.json" ] || missing="$missing $(basename "${reports%/build/reports}")"
+          done
+          if [ -n "$missing" ]; then
+            echo "::warning::Not compared, no SBOM scan report:$missing"
+            printf '\n⚠️ Not compared, no SBOM scan report:%s\n' "$missing" >> security-scan-report.md
           fi
 
       # Surface the CVE-parity report in the job summary too, so it's visible on

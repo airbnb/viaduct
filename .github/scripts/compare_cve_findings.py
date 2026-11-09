@@ -8,9 +8,10 @@ fat-JAR scan. These are the load-bearing findings: vulnerabilities in shaded
 transitives that fat-JAR consumers' binary scanners would otherwise miss.
 
 Robustness: gap detection keys only on two standardized identifiers --
-``VulnerabilityID`` (a CVE id) and ``PkgIdentifier.PURL`` (a Package-URL) --
-inside Trivy's versioned ``SchemaVersion`` envelope. Every other field is
-display-only and parsed defensively, so a change to Trivy's output format
+``VulnerabilityID`` (a CVE id) and ``PkgIdentifier.PURL`` (a Package-URL,
+without its qualifiers) -- inside Trivy's versioned ``SchemaVersion``
+envelope. Every other field is display-only and parsed
+defensively, so a change to Trivy's output format
 degrades the rendered report, not the gap result. An unrecognized
 ``SchemaVersion`` emits a loud (non-fatal) warning so format drift is noticed.
 
@@ -121,20 +122,25 @@ def filter_by_severity(findings: Iterable[Finding], floor: str) -> list[Finding]
     return [f for f in findings if _SEVERITY_RANK.get(f.severity, 0) >= floor_rank]
 
 
+def _purl_without_qualifiers(purl: str) -> str:
+    return purl.split("?", 1)[0]
+
+
 def compare(
     fine: Iterable[Finding],
     fat: Iterable[Finding],
 ) -> tuple[set[Finding], set[Finding], set[Finding]]:
-    """Three-way set partition keyed on (cve_id, purl).
+    """Three-way set partition keyed on (cve_id, purl without qualifiers).
 
-    Two findings with the same cve_id and purl are considered the same finding,
-    even if other metadata (title, fixed_version, severity) differs between
-    scans. The fine-grained side's metadata wins for entries in `common`.
+    Two findings with the same cve_id and purl without qualifiers are the
+    same finding, even if other metadata (title, fixed_version, severity)
+    differs between scans. The fine-grained side's metadata wins for entries
+    in `common`.
 
     Returns (only_in_fine, only_in_fat, common).
     """
-    fine_map = {(f.cve_id, f.purl): f for f in fine}
-    fat_map = {(f.cve_id, f.purl): f for f in fat}
+    fine_map = {(f.cve_id, _purl_without_qualifiers(f.purl)): f for f in fine}
+    fat_map = {(f.cve_id, _purl_without_qualifiers(f.purl)): f for f in fat}
     fine_keys = set(fine_map)
     fat_keys = set(fat_map)
     only_in_fine = {fine_map[k] for k in fine_keys - fat_keys}
