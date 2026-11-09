@@ -14,22 +14,16 @@ import viaduct.engine.runtime2.model.Selection
 import viaduct.engine.runtime2.model.VariableBinding
 import viaduct.engine.runtime2.model.objectKey
 import viaduct.engine.runtime2.model.outputType
-import viaduct.engine.runtime2.model.registry.InstantiatedFieldPathDefinition
-import viaduct.engine.runtime2.model.registry.InstantiatedFieldPathElement
 import viaduct.engine.runtime2.model.selectionForestOf
 import viaduct.engine.runtime2.model.toEngineSimpleData
 import viaduct.engine.runtime2.resolution.framework.CycleSlotKind
-import viaduct.engine.runtime2.resolution.framework.CycleTask
+import viaduct.engine.runtime2.resolution.framework.CycleTaskKind
+import viaduct.engine.runtime2.resolution.framework.ProviderCellOutcome
+import viaduct.engine.runtime2.resolution.framework.ResolverFieldOccurrence
+import viaduct.engine.runtime2.resolution.framework.ResolverProviderReadObservation
 import viaduct.engine.runtime2.resolution.framework.fetchGroundedArguments
 import viaduct.engine.runtime2.resolution.framework.fetchIncluded
 import viaduct.graphql.schema.ViaductSchema
-
-// Traverses a provider path through OER promises and returns its terminal input-compatible value.
-internal suspend fun ObjectEngineResult.readProvider(
-    operation: OperationContext,
-    definition: InstantiatedFieldPathDefinition,
-    reader: CycleTask,
-): VariableBinding = readProvider(operation, definition.path, reader)
 
 // Reads and completes provider bindings; the owning field-task root handles cancellation cleanup.
 internal suspend fun completeProviderBindings(
@@ -42,10 +36,9 @@ internal suspend fun completeProviderBindings(
             launch {
                 val binding =
                     try {
-                        providerRead.providerResult.readProvider(
+                        providerRead.providerRoot.startingResult.readProvider(
                             operation = operation,
-                            definition = providerRead.definition,
-                            reader = providerRead.reader,
+                            providerRead = providerRead,
                         )
                     } catch (exception: Exception) {
                         currentCoroutineContext().ensureActive()
@@ -59,11 +52,16 @@ internal suspend fun completeProviderBindings(
 
 private suspend fun ObjectEngineResult.readProvider(
     operation: OperationContext,
-    path: List<InstantiatedFieldPathElement>,
-    reader: CycleTask,
+    providerRead: VariableProviderReadOccurrence,
 ): VariableBinding {
     var current = this
-    path.forEachIndexed { index, element ->
+    val reader = providerRead.reader
+    val definition = providerRead.definition
+    val onProviderRead =
+        operation.resolutionObserver.onProviderRead
+            .takeIf { reader.kind == CycleTaskKind.FIELD_RESOLVER }
+    val providerPath = onProviderRead?.let { providerRead.providerRoot.pathToStartingResult.toMutableList() }
+    definition.path.forEachIndexed { index, element ->
         if (!element.inclusionCondition.fetchIncluded(operation)) return VariableBinding.of(null)
         val openKey = element.key
         operation.bindingsState.awaitBindingsDeclared(current)
@@ -78,7 +76,35 @@ private suspend fun ObjectEngineResult.readProvider(
         val cell = current.reserveCell(objectKey)
         operation.cycleChecker.cycleCheck(reader, cell, CycleSlotKind.VALUE)
         val value = cell.value.await()
-        if (index == path.lastIndex) {
+        if (providerPath != null) {
+            providerPath += objectKey
+        }
+        if (providerPath != null &&
+            (index == definition.path.lastIndex || value == null || value is ErrorEngineResult)
+        ) {
+            onProviderRead.invoke(
+                ResolverProviderReadObservation(
+                    provider = ResolverFieldOccurrence(
+                        root = providerRead.providerRoot.pathRoot,
+                        path = providerPath.toList(),
+                        field = objectKey.field,
+                    ),
+                    consumer = ResolverFieldOccurrence(
+                        root = reader.root,
+                        path = reader.path,
+                        field = requireNotNull((reader.path.lastOrNull() as? ObjectEngineResult.ObjectKey)?.field),
+                    ),
+                    variableName = definition.variable.variableName,
+                    providerFragment = definition.providerFragment,
+                    outcome = when (value) {
+                        null -> ProviderCellOutcome.NULL
+                        is ErrorEngineResult -> ProviderCellOutcome.ERROR
+                        else -> ProviderCellOutcome.VALUE
+                    },
+                ),
+            )
+        }
+        if (index == definition.path.lastIndex) {
             return value.toProviderBinding(objectKey.field.outputType)
         }
         when (value) {

@@ -21,6 +21,7 @@ import viaduct.engine.runtime2.model.registry.VariableDefinition
 import viaduct.engine.runtime2.model.render
 import viaduct.engine.runtime2.model.usedVariables
 import viaduct.engine.runtime2.propertytest.PropertyTestJson
+import viaduct.engine.runtime2.resolution.framework.ResolverProviderReadObservation
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 import viaduct.engine.runtime2.resolution.framework.groundedArguments
 import viaduct.graphql.schema.ViaductSchema
@@ -29,7 +30,12 @@ import viaduct.graphql.schema.ViaductSchema
 suspend fun ResolverResolutionObservation.coverageRows(
     execution: CoverageExecution,
     bounds: ResolutionWitnessBounds = ResolutionWitnessBounds(),
-): List<ResolverCoverageRow> = ResolverCoverageExtractor(this, execution, bounds).extract()
+): List<ResolverCoverageRow> = coverageRecords(execution, bounds).occurrences
+
+suspend fun ResolverResolutionObservation.coverageRecords(
+    execution: CoverageExecution,
+    bounds: ResolutionWitnessBounds = ResolutionWitnessBounds(),
+): ResolverCoverageRecords = ResolverCoverageExtractor(this, execution, bounds).extract()
 
 private class ResolverCoverageExtractor(
     private val observation: ResolverResolutionObservation,
@@ -38,41 +44,131 @@ private class ResolverCoverageExtractor(
 ) {
     private val operation = observation.operation
 
-    suspend fun extract(): List<ResolverCoverageRow> {
-        val roots = collectRoots()
-        val supplied = roots.flatMapTo(mutableSetOf()) { it.result.sourceSuppliedResolverOccurrences(operation) }
-        val fields = collectFields(roots)
+    suspend fun extract(): ResolverCoverageRecords {
+        val discoveredRoots = collectRoots()
+        val collectedFields = collectFields(discoveredRoots)
+        val roots = orderRoots(discoveredRoots)
+        val rootOrder = IdentityHashMap<CoverageRoot, Int>().apply {
+            roots.forEachIndexed { index, root -> put(root, index) }
+        }
+        val fields = collectedFields.sortedBy { rootOrder.getValue(it.root) }
+        val rootsByResult = IdentityHashMap<ObjectEngineResult, CoverageRoot>().apply {
+            roots.forEach { put(it.result, it) }
+        }
         val paths = CoveragePathEncoder(operation, fields)
-        return fields.map { field -> row(field, supplied, paths) }
+        val supplied =
+            roots.filter(CoverageRoot::hasValidatedSourceProvenance)
+                .flatMapTo(mutableSetOf()) { it.result.sourceSuppliedResolverOccurrences(operation) }
+        val occurrences = fields.map { field -> occurrenceRow(field, supplied, paths) }
+        val dependencies = dependencyRows(rootsByResult, paths)
+        return ResolverCoverageRecords(occurrences, dependencies)
     }
 
+    /** Prefer the more specific query-fragment label when one result appears in both collections. */
     private fun collectRoots(): List<CoverageRoot> {
         val roots = mutableListOf<CoverageRoot>()
         val byResult = IdentityHashMap<ObjectEngineResult, CoverageRoot>()
 
         fun addRoot(
-            root: ObjectEngineResult,
-            label: String
+            result: ObjectEngineResult,
+            kind: CoverageRootKind,
+            stableKey: String = "",
         ) {
-            val existing = byResult[root]
+            val role = CoverageRootRole(kind, stableKey)
+            val existing = byResult[result]
             if (existing != null) {
-                existing.labels += label
+                existing.addRole(role)
                 return
             }
-            val coverageRoot = CoverageRoot(root, mutableSetOf(label))
-            roots += coverageRoot
-            byResult[root] = coverageRoot
+            val root = CoverageRoot(result).apply { addRole(role) }
+            roots += root
+            byResult[result] = root
         }
 
-        addRoot(observation.result, "result")
-        val observer = operation.resolutionObserver as? CorrectnessResolverObserver
-        observer
-            ?.allQueryFragmentResults()
-            ?.values
-            ?.flatten()
-            ?.forEach { addRoot(it, "queryFragment-${roots.size}") }
+        addRoot(observation.result, CoverageRootKind.OPERATION_RESULT)
+        val queryObserver =
+            operation.resolutionObserver as? CorrectnessResolverObserver
+                ?: error("RFC-271 coverage requires a CorrectnessResolverObserver to record query-fragment roots")
+        queryObserver.allQueryOERs().keys.forEach { result -> addRoot(result, CoverageRootKind.QUERY_OER) }
+        queryObserver.allQueryFragmentResults().values.flatten().forEach { result ->
+            addRoot(result, CoverageRootKind.QUERY_FRAGMENT)
+        }
+        observation.providerReadObservations.forEach { read ->
+            addRoot(read.provider.root, CoverageRootKind.PROVIDER, stableOccurrenceKey(read.provider.path, read.provider.field))
+            addRoot(read.consumer.root, CoverageRootKind.CONSUMER, stableOccurrenceKey(read.consumer.path, read.consumer.field))
+        }
         return roots
     }
+
+    private fun orderRoots(roots: List<CoverageRoot>): List<CoverageRoot> {
+        val orderedRoots = roots.sortedWith(compareBy(CoverageRoot::stableSortPriority, CoverageRoot::stableSortKey, CoverageRoot::stableSignature))
+        val nextIndexByKind = mutableMapOf<CoverageRootKind, Int>()
+        orderedRoots.forEach { root ->
+            root.kinds.sortedBy(CoverageRootKind::priority).forEach { kind ->
+                if (kind != CoverageRootKind.OPERATION_RESULT) {
+                    val nextIndex = (nextIndexByKind[kind] ?: 0) + 1
+                    root.setIndex(kind, nextIndex)
+                    nextIndexByKind[kind] = nextIndex
+                }
+            }
+        }
+        return orderedRoots
+    }
+
+    private fun stableOccurrenceKey(
+        path: List<PathComponent>,
+        field: ViaductSchema.ObjectField,
+    ): String =
+        PropertyTestJson.write(
+            mapOf(
+                "path" to path.map(::stablePathComponent),
+                "field" to "${field.containingDef.name}.${field.name}",
+            ),
+        ).trimEnd()
+
+    private fun stableProviderReadKey(
+        read: ResolverProviderReadObservation,
+        rootsByResult: IdentityHashMap<ObjectEngineResult, CoverageRoot>,
+    ): String =
+        PropertyTestJson.write(
+            listOf(
+                mapOf(
+                    "root" to rootsByResult.getValue(read.provider.root).stableSignature,
+                    "occurrence" to stableOccurrenceKey(read.provider.path, read.provider.field),
+                ),
+                mapOf(
+                    "root" to rootsByResult.getValue(read.consumer.root).stableSignature,
+                    "occurrence" to stableOccurrenceKey(read.consumer.path, read.consumer.field),
+                ),
+                read.variableName,
+                read.providerFragment.name,
+                read.outcome.name,
+            ),
+        ).trimEnd()
+
+    private fun providerReadsInStableOrder(rootsByResult: IdentityHashMap<ObjectEngineResult, CoverageRoot>): List<ResolverProviderReadObservation> =
+        observation.providerReadObservations
+            .map { it to stableProviderReadKey(it, rootsByResult) }
+            .sortedBy { it.second }
+            .map { it.first }
+
+    private fun stablePathComponent(component: PathComponent): Map<String, Any?> =
+        when (component) {
+            is ListEngineResult.Index -> mapOf("index" to component.index)
+            is ObjectEngineResult.ObjectKey -> mapOf(
+                "field" to "${component.field.containingDef.name}.${component.field.name}",
+                "arguments" to component.arguments.resolutionFingerprint(component.field).value,
+                "responseKey" to (component as? ObjectEngineResult.MutationKey)?.responseKey,
+            )
+        }
+
+    private fun stableCellKey(
+        path: List<PathComponent>,
+        outputKind: String,
+    ): String =
+        PropertyTestJson.write(
+            mapOf("path" to path.map(::stablePathComponent), "output" to outputKind),
+        ).trimEnd()
 
     private suspend fun collectFields(roots: List<CoverageRoot>): List<CoverageField> {
         val fields = mutableListOf<CoverageField>()
@@ -91,31 +187,42 @@ private class ResolverCoverageExtractor(
                     compareBy(
                         { it.field.name },
                         { it.arguments.resolutionFingerprint(it.field).value },
+                        { (it as? ObjectEngineResult.MutationKey)?.responseKey.orEmpty() },
                     )
                 ).forEach { key ->
-                    val cell = value.getCell(key)
-                    if (!cell.fetchActivated()) return@forEach
-                    check(cell.value.isCompleted) { "Coverage requires a completed execution" }
                     val fieldPath = path + key
-                    if (key.field in operation.world.resolverRegistry) {
-                        fields += CoverageField(root, key, fieldPath, cell.value.get())
+                    val cell = value.getCell(key)
+                    if (!cell.fetchActivated()) {
+                        root.addSortSegment(stableCellKey(fieldPath, "inactive"))
+                        return@forEach
                     }
-                    if (key !is ObjectEngineResult.ParentKey) visit(root, cell.value.get(), fieldPath)
+                    check(cell.value.isCompleted) { "Coverage requires a completed execution" }
+                    val child = cell.value.get()
+                    root.addSortSegment(stableCellKey(fieldPath, child.outputKind().name))
+                    if (key.field in operation.world.resolverRegistry) {
+                        fields += CoverageField(root, key, fieldPath, child)
+                    }
+                    if (key !is ObjectEngineResult.ParentKey) visit(root, child, fieldPath)
                 }
                 is ListEngineResult -> value.forEachIndexed { index, cell ->
+                    val elementPath = path + ListEngineResult.Index.of(index)
                     if (cell.fetchActivated()) {
                         check(cell.value.isCompleted) { "Coverage requires a completed execution" }
-                        visit(root, cell.value.get(), path + ListEngineResult.Index.of(index))
+                        val child = cell.value.get()
+                        root.addSortSegment(stableCellKey(elementPath, child.outputKind().name))
+                        visit(root, child, elementPath)
+                    } else {
+                        root.addSortSegment(stableCellKey(elementPath, "inactive"))
                     }
                 }
             }
         }
 
-        roots.forEach { root -> visit(root, root.result, emptyList()) }
+        roots.forEach { visit(it, it.result, emptyList()) }
         return fields
     }
 
-    private fun row(
+    private fun occurrenceRow(
         occurrence: CoverageField,
         supplied: Set<ResolverOccurrenceId>,
         paths: CoveragePathEncoder,
@@ -152,19 +259,39 @@ private class ResolverCoverageExtractor(
             listAncestorCount = ownerPath.count { it is ListEngineResult.Index },
             bindingSources = sources.resolverBindingSources(),
             maxProviderPathDepth = sources.filterIsInstance<VariableDefinition.FromField>().maxProviderPathDepth(),
-            argumentState = when {
-                arguments == Arguments.Error -> ArgumentState.ERROR
-                arguments is Arguments.Resolved && arguments.fieldValues.isEmpty() -> ArgumentState.NONE
-                arguments is Arguments.Resolved && arguments.fieldValues.values.any(::containsNull) -> ArgumentState.CONTAINS_NULL
-                else -> ArgumentState.RESOLVED
-            },
-            declaredOutputShape = when {
-                key.field.type.isList -> DeclaredOutputShape.LIST
-                key.field.type.baseTypeDef is ViaductSchema.CompositeTypeDef -> DeclaredOutputShape.OBJECT
-                else -> DeclaredOutputShape.SCALAR
-            },
+            argumentState = arguments.argumentState(),
+            declaredOutputShape = key.field.declaredOutputShape(),
             outputKind = occurrence.value.outputKind(),
         )
+    }
+
+    private suspend fun dependencyRows(
+        rootsByResult: IdentityHashMap<ObjectEngineResult, CoverageRoot>,
+        paths: CoveragePathEncoder,
+    ): List<ResolverDependencyRow> {
+        fun rootFor(result: ObjectEngineResult): CoverageRoot = requireNotNull(rootsByResult[result]) { "Provider read used a result root that was not recorded" }
+
+        return providerReadsInStableOrder(rootsByResult)
+            .map { read ->
+                val provider = read.provider
+                val consumer = read.consumer
+                val providerRoot = rootFor(provider.root)
+                val consumerRoot = rootFor(consumer.root)
+                ResolverDependencyRow(
+                    execution = execution,
+                    provider = ResolverDependencyOccurrence(
+                        occurrenceId = paths.id(ResolverOccurrenceId.at(providerRoot.result, provider.path)),
+                        fieldCoordinate = "${provider.field.containingDef.name}.${provider.field.name}",
+                    ),
+                    providerSource = read.providerFragment.bindingSource(),
+                    providerOutcome = read.outcome,
+                    consumer = ResolverDependencyOccurrence(
+                        occurrenceId = paths.id(ResolverOccurrenceId.at(consumerRoot.result, consumer.path)),
+                        fieldCoordinate = "${consumer.field.containingDef.name}.${consumer.field.name}",
+                    ),
+                    variableName = read.variableName,
+                )
+            }
     }
 }
 
@@ -215,11 +342,56 @@ private class CoveragePathEncoder(
         }
 }
 
-private data class CoverageRoot(
-    val result: ObjectEngineResult,
-    val labels: MutableSet<String>,
+private enum class CoverageRootKind(
+    val prefix: String,
+    val priority: Int,
 ) {
-    val label: String get() = labels.sorted().joinToString("+")
+    OPERATION_RESULT("result", 0),
+    QUERY_FRAGMENT("queryFragment", 1),
+    QUERY_OER("queryOer", 2),
+    PROVIDER("providerRoot", 3),
+    CONSUMER("consumerRoot", 4),
+}
+
+private data class CoverageRootRole(val kind: CoverageRootKind, val stableKey: String)
+
+private class CoverageRoot(
+    val result: ObjectEngineResult,
+) {
+    private val roles = linkedMapOf<CoverageRootKind, MutableSet<String>>()
+    private val indices = mutableMapOf<CoverageRootKind, Int>()
+    private val sortSegments = mutableListOf<String>()
+
+    fun addRole(role: CoverageRootRole) {
+        roles.getOrPut(role.kind) { linkedSetOf() } += role.stableKey
+    }
+
+    fun setIndex(
+        kind: CoverageRootKind,
+        index: Int,
+    ) {
+        indices[kind] = index
+    }
+
+    fun addSortSegment(segment: String) {
+        sortSegments += segment
+    }
+
+    val kinds: Set<CoverageRootKind> get() = roles.keys
+    val stableSortPriority: Int get() = roles.keys.minOf(CoverageRootKind::priority)
+    val stableSignature: String get() = sortSegments.joinToString("\u0000")
+    val stableSortKey: String
+        get() = roles.flatMap { (kind, stableKeys) -> stableKeys.map { "${kind.priority}:$it" } }
+            .sorted()
+            .joinToString("\u0000")
+
+    val label: String
+        get() =
+            roles.keys.sortedBy(CoverageRootKind::priority).joinToString("+") { kind ->
+                if (kind == CoverageRootKind.OPERATION_RESULT) kind.prefix else "${kind.prefix}-${requireNotNull(indices[kind])}"
+            }
+
+    fun hasValidatedSourceProvenance(): Boolean = CoverageRootKind.OPERATION_RESULT in roles || CoverageRootKind.QUERY_FRAGMENT in roles
 }
 
 private data class CoverageField(
@@ -229,6 +401,21 @@ private data class CoverageField(
     val value: EngineResult?,
 )
 
+private fun Arguments.argumentState(): ArgumentState =
+    when {
+        this == Arguments.Error -> ArgumentState.ERROR
+        this is Arguments.Resolved && fieldValues.isEmpty() -> ArgumentState.NONE
+        this is Arguments.Resolved && fieldValues.values.any(::containsNull) -> ArgumentState.CONTAINS_NULL
+        else -> ArgumentState.RESOLVED
+    }
+
+private fun ViaductSchema.ObjectField.declaredOutputShape(): DeclaredOutputShape =
+    when {
+        type.isList -> DeclaredOutputShape.LIST
+        type.baseTypeDef is ViaductSchema.CompositeTypeDef -> DeclaredOutputShape.OBJECT
+        else -> DeclaredOutputShape.SCALAR
+    }
+
 private fun EngineResult?.outputKind(): OutputKind =
     when (this) {
         null -> OutputKind.NULL
@@ -236,6 +423,12 @@ private fun EngineResult?.outputKind(): OutputKind =
         is ObjectEngineResult -> OutputKind.OBJECT
         is ListEngineResult -> OutputKind.LIST
         else -> OutputKind.SCALAR
+    }
+
+private fun ProviderFragment.bindingSource(): ResolverBindingSource =
+    when (this) {
+        ProviderFragment.OBJECT -> ResolverBindingSource.OBJECT_FIELD
+        ProviderFragment.QUERY -> ResolverBindingSource.QUERY_FIELD
     }
 
 private fun containsNull(value: Any?): Boolean =
@@ -252,10 +445,7 @@ fun Iterable<VariableDefinition>.resolverBindingSources(): Set<ResolverBindingSo
         when (source) {
             VariableDefinition.FromProvider -> ResolverBindingSource.PROVIDER
             is VariableDefinition.FromArgument -> ResolverBindingSource.ARGUMENT
-            is VariableDefinition.FromField -> when (source.providerFragment) {
-                ProviderFragment.OBJECT -> ResolverBindingSource.OBJECT_FIELD
-                ProviderFragment.QUERY -> ResolverBindingSource.QUERY_FIELD
-            }
+            is VariableDefinition.FromField -> source.providerFragment.bindingSource()
         }
     }
 

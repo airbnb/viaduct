@@ -51,8 +51,7 @@ class SavedSuiteCoverageExperimentTest : CorrectResolutionPostTestPolicy, Resolu
                 "RFC-271 suite=${definition.id} " +
                     "executions=${measurement.executions.size} rows=${measurement.rows.size} " +
                     "roles=$roleCounts " +
-                    "sameOccurrence=${measurement.bothSourcesOnOneOccurrence()} " +
-                    "coexistence=${measurement.bothSourcesWithinOneExecution()}"
+                    "scores=${measurement.scores()}"
             )
         }
 }

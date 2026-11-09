@@ -144,8 +144,7 @@ private class ClosureHelper(
             typeChecker?.toOccurrence(occurrence, query.occurrence),
             resolvers,
             requiresResolver,
-            occurrence.target,
-            query.occurrence.target,
+            providerReadRoots = ProviderReadRoots.forOccurrences(occurrence, query.occurrence),
         )
 }
 

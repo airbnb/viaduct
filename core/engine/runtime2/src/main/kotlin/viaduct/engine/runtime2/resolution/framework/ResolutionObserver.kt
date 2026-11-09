@@ -63,6 +63,10 @@ interface ResolutionObserver {
     val onQueryFragmentOwnerAddress: ((resolverOccurrenceId: ResolverOccurrenceId, resolverOER: OEROccurrence, resolverKey: ObjectKey) -> Unit)?
         get() = null
 
+    /** Records the terminal provider cell read for one FromField variable. */
+    val onProviderRead: ((ResolverProviderReadObservation) -> Unit)?
+        get() = null
+
     /**
      * Records each attempted resolver call inside its execution coroutine, after input preparation
      * and immediately before entering `FieldValueResolver.invoke`, with no intervening suspension,

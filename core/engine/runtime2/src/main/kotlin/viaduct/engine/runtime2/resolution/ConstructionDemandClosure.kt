@@ -62,6 +62,54 @@ internal class ClosedOERConstructionDemandContext(
     val variableProviderReadsByResolverOccurrence: Map<ResolverOccurrenceId, List<VariableProviderReadOccurrence>>,
 )
 
+/** The OER and path that root one provider fragment. */
+internal data class ProviderReadRoot(
+    val startingResult: ObjectEngineResult,
+    val pathRoot: ObjectEngineResult,
+    val pathToStartingResult: List<PathComponent>,
+) {
+    companion object {
+        fun from(occurrence: OEROccurrence): ProviderReadRoot =
+            ProviderReadRoot(
+                startingResult = occurrence.target,
+                pathRoot = occurrence.root,
+                pathToStartingResult = occurrence.path,
+            )
+
+        fun atRoot(result: ObjectEngineResult): ProviderReadRoot =
+            ProviderReadRoot(
+                startingResult = result,
+                pathRoot = result,
+                pathToStartingResult = emptyList(),
+            )
+    }
+}
+
+/** The object-fragment and Query-fragment roots available to one resolver occurrence. */
+internal data class ProviderReadRoots(
+    val objectFragmentRoot: ProviderReadRoot,
+    val queryFragmentRoot: ProviderReadRoot,
+) {
+    companion object {
+        fun forOccurrences(
+            objectOccurrence: OEROccurrence,
+            queryOccurrence: OEROccurrence,
+        ): ProviderReadRoots =
+            ProviderReadRoots(
+                objectFragmentRoot = ProviderReadRoot.from(objectOccurrence),
+                queryFragmentRoot = ProviderReadRoot.from(queryOccurrence),
+            )
+
+        fun queryRooted(queryOccurrence: OEROccurrence): ProviderReadRoots {
+            val queryFragmentRoot = ProviderReadRoot.from(queryOccurrence)
+            return ProviderReadRoots(
+                objectFragmentRoot = queryFragmentRoot,
+                queryFragmentRoot = queryFragmentRoot,
+            )
+        }
+    }
+}
+
 /**
  * One planned provider-path read that produces an instantiated variable binding.
  * The definition identifies the provider path and destination variable; the condition controls
@@ -69,7 +117,7 @@ internal class ClosedOERConstructionDemandContext(
  * object or Query result supplies the root from which the provider path is read.
  */
 internal class VariableProviderReadOccurrence(
-    val providerResult: ObjectEngineResult,
+    val providerRoot: ProviderReadRoot,
     val definition: InstantiatedFieldPathDefinition,
     val reader: CycleTask,
     val inclusionCondition: InclusionCondition,
@@ -185,6 +233,8 @@ internal fun EngineObjectData.Sync.closeOrchestrationConstructionDemand(
         demandContributions += pendingDemand
     }
     val accumulatedDemand = demandContributions.concatenateDemand()
+    val providerReadRoots = ProviderReadRoots.forOccurrences(objectOccurrence, queryOccurrence)
+    val queryProviderReadRoots = ProviderReadRoots.queryRooted(queryOccurrence)
 
     return ClosedConstructionDemandContext(
         objectRooted =
@@ -197,8 +247,7 @@ internal fun EngineObjectData.Sync.closeOrchestrationConstructionDemand(
                 checkerContexts = objectCheckerContexts,
                 typeCheckerOccurrence = objectTypeChecker?.toOccurrence(objectOccurrence, queryOccurrence),
                 requiresStandardResolution = ::requiresStandardResolution,
-                objectProviderResult = objectOccurrence.target,
-                queryProviderResult = queryOccurrence.target,
+                providerReadRoots = providerReadRoots,
             ),
         queryRooted =
             finalizeClosedOERConstructionDemand(
@@ -210,8 +259,7 @@ internal fun EngineObjectData.Sync.closeOrchestrationConstructionDemand(
                 checkerContexts = queryCheckerContexts,
                 typeCheckerOccurrence = null,
                 requiresStandardResolution = { true },
-                objectProviderResult = queryOccurrence.target,
-                queryProviderResult = queryOccurrence.target,
+                providerReadRoots = queryProviderReadRoots,
             ),
     )
 }
@@ -407,8 +455,7 @@ internal fun finalizeClosedOERConstructionDemand(
     typeCheckerOccurrence: TypeCheckerOccurrence?,
     resolverContexts: Map<ObjectEngineResult.ObjectKey, ResolverContext>,
     requiresStandardResolution: (ObjectEngineResult.ObjectKey) -> Boolean,
-    objectProviderResult: ObjectEngineResult,
-    queryProviderResult: ObjectEngineResult,
+    providerReadRoots: ProviderReadRoots,
 ): ClosedOERConstructionDemandContext {
     val type = passiveSource?.schemaType(world.schema) ?: occurrence.target.type
     val constructionDemand = accumulatedDemand.merge(type)
@@ -438,8 +485,7 @@ internal fun finalizeClosedOERConstructionDemand(
         fieldCheckerOccurrences = checkerContexts.mapValues { (key, context) ->
             context.toFieldCheckerOccurrence(
                 selection = constructionDemand.checked.byKey().getValue(key),
-                objectProviderResult = objectProviderResult,
-                queryProviderResult = queryProviderResult,
+                providerReadRoots = providerReadRoots,
                 reader = occurrence.fieldCheckerCycleTask(key),
             )
         },
@@ -457,8 +503,7 @@ internal fun finalizeClosedOERConstructionDemand(
                     emptyList()
                 } else {
                     fieldResolverOccurrence.fragments.variableProviderReads(
-                        objectProviderResult,
-                        queryProviderResult,
+                        providerReadRoots,
                         occurrence.fieldResolverCycleTask(key),
                         selection.inclusionCondition,
                     )
@@ -470,15 +515,24 @@ internal fun finalizeClosedOERConstructionDemand(
 
 /** Instructions for future provider reads; no binding is declared or read during construction. */
 private fun ResolverFragments.variableProviderReads(
-    objectProviderResult: ObjectEngineResult,
-    queryProviderResult: ObjectEngineResult,
+    providerReadRoots: ProviderReadRoots,
     reader: CycleTask,
     inclusionCondition: InclusionCondition,
 ): List<VariableProviderReadOccurrence> =
     objectFragment.pathVariableDefinitions.map { definition ->
-        VariableProviderReadOccurrence(objectProviderResult, definition, reader, inclusionCondition)
+        VariableProviderReadOccurrence(
+            providerRoot = providerReadRoots.objectFragmentRoot,
+            definition = definition,
+            reader = reader,
+            inclusionCondition = inclusionCondition,
+        )
     } + queryFragment.pathVariableDefinitions.map { definition ->
-        VariableProviderReadOccurrence(queryProviderResult, definition, reader, inclusionCondition)
+        VariableProviderReadOccurrence(
+            providerRoot = providerReadRoots.queryFragmentRoot,
+            definition = definition,
+            reader = reader,
+            inclusionCondition = inclusionCondition,
+        )
     }
 
 // Closure inputs and bookkeeping for one required standard resolver occurrence.
@@ -601,15 +655,18 @@ internal class CheckerContext(
 
     fun toFieldCheckerOccurrence(
         selection: ObjectSelection,
-        objectProviderResult: ObjectEngineResult,
-        queryProviderResult: ObjectEngineResult,
+        providerReadRoots: ProviderReadRoots,
         reader: CycleTask,
     ): FieldCheckerOccurrence =
         FieldCheckerOccurrence(
             selection,
             checker,
             fragments,
-            fragments.variableProviderReads(objectProviderResult, queryProviderResult, reader, selection.inclusionCondition),
+            fragments.variableProviderReads(
+                providerReadRoots,
+                reader,
+                selection.inclusionCondition,
+            ),
         )
 }
 
@@ -669,7 +726,11 @@ internal class TypeCheckerContext(
             checker,
             fragments,
             inclusionCondition,
-            fragments.variableProviderReads(occurrence.target, queryOccurrence.target, occurrence.typeCheckerCycleTask(), inclusionCondition),
+            fragments.variableProviderReads(
+                providerReadRoots = ProviderReadRoots.forOccurrences(occurrence, queryOccurrence),
+                reader = occurrence.typeCheckerCycleTask(),
+                inclusionCondition = inclusionCondition,
+            ),
         )
     }
 }

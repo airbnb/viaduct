@@ -7,6 +7,7 @@ import viaduct.engine.runtime2.model.ResolverOccurrenceId
 import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.model.registry.Assumptions
 import viaduct.engine.runtime2.resolution.framework.ResolutionObserver
+import viaduct.engine.runtime2.resolution.framework.ResolverProviderReadObservation
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 import viaduct.engine.runtime2.resolution.recording.ResolutionRecordings
 import viaduct.graphql.schema.ViaductSchema
@@ -19,12 +20,17 @@ interface ResolverResolutionObservation {
     /** Exact resolver applications when the subject exposes occurrence-aware instrumentation. */
     val appliedResolverOccurrences: Set<ResolverOccurrenceId>?
         get() = null
+
+    /** Exact FromField provider cells read for resolver variables. */
+    val providerReadObservations: List<ResolverProviderReadObservation>
+        get() = emptyList()
 }
 
 private data class RecordedResolverResolutionObservation(
     override val result: ObjectEngineResult,
     override val operation: SharedOperationContext<*>,
     override val appliedResolverOccurrences: Set<ResolverOccurrenceId>?,
+    override val providerReadObservations: List<ResolverProviderReadObservation>,
 ) : ResolverResolutionObservation
 
 /**
@@ -65,6 +71,7 @@ interface ResolverContract {
                 result = recording?.resolve { resolve(operation, root, selections) } ?: resolve(operation, root, selections),
                 operation = operation,
                 appliedResolverOccurrences = correctnessResolverObserver.invokedResolverOccurrences(),
+                providerReadObservations = correctnessResolverObserver.providerReadObservations(),
             )
         }
     }

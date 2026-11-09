@@ -143,7 +143,7 @@ class PrecomputedConstructionDemandTest : ResolutionDispatcherResource {
         )
         val reads = closed.objectRooted.variableProviderReadsByResolverOccurrence.values.flatten()
         assertEquals(1, reads.size)
-        assertTrue(reads.single().providerResult === root)
+        assertTrue(reads.single().providerRoot.startingResult === root)
         assertEquals(listOf("source"), reads.single().definition.path.map { it.key.field.name })
     }
 

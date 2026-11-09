@@ -482,7 +482,7 @@ private suspend fun FieldValueResolver.resolveQueryFragment(
         providerReads =
             queryFragment.pathVariableDefinitions.map { definition ->
                 VariableProviderReadOccurrence(
-                    providerResult = queryResult,
+                    providerRoot = ProviderReadRoot.atRoot(queryResult),
                     definition = definition,
                     reader = reader,
                     inclusionCondition = inclusionCondition,

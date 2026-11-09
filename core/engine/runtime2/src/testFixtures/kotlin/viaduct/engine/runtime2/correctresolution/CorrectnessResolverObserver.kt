@@ -15,9 +15,21 @@ import viaduct.engine.runtime2.resolution.framework.ResolutionObserver
 import viaduct.engine.runtime2.resolution.framework.ResolutionTask
 import viaduct.engine.runtime2.resolution.framework.ResolutionTaskState
 import viaduct.engine.runtime2.resolution.framework.ResolverInvocationObservation
+import viaduct.engine.runtime2.resolution.framework.ResolverProviderReadObservation
 import viaduct.engine.runtime2.resolution.framework.RootFieldReferenceInvocationObservation
 import viaduct.engine.runtime2.resolution.framework.SharedOERContext
 import viaduct.engine.runtime2.resolution.framework.SharedOrchestrationTask
+
+internal data class ResolverConformanceEvidence(
+    val conforms: Boolean,
+    val sourceSuppliedResolverOccurrences: Set<ResolverOccurrenceId>,
+)
+
+private data class CachedResolverConformanceEvidence(
+    val applicationCache: ResolverApplicationCache,
+    val requireCompleteRootFieldReferenceWitness: Boolean,
+    val evidence: ResolverConformanceEvidence,
+)
 
 /**
  * Records invocation identities plus Query roots, their independent-input or shared-OER ownership
@@ -80,8 +92,31 @@ open class CorrectnessResolverObserver(
     }
 
     private val invokedOccurrences = ConcurrentHashMap.newKeySet<ResolverOccurrenceId>()
+    private val resolverConformanceEvidenceByRoot = IdentityHashMap<ObjectEngineResult, MutableList<CachedResolverConformanceEvidence>>()
+
+    internal fun resolverConformanceEvidence(
+        result: ObjectEngineResult,
+        applicationCache: ResolverApplicationCache,
+        requireCompleteRootFieldReferenceWitness: Boolean,
+        compute: () -> ResolverConformanceEvidence,
+    ): ResolverConformanceEvidence =
+        synchronized(resolverConformanceEvidenceByRoot) {
+            val cached =
+                resolverConformanceEvidenceByRoot[result]
+                    ?.firstOrNull {
+                        it.applicationCache === applicationCache &&
+                            it.requireCompleteRootFieldReferenceWitness == requireCompleteRootFieldReferenceWitness
+                    }
+            cached?.evidence ?: compute().also { evidence ->
+                resolverConformanceEvidenceByRoot
+                    .getOrPut(result) { mutableListOf() }
+                    .add(CachedResolverConformanceEvidence(applicationCache, requireCompleteRootFieldReferenceWitness, evidence))
+            }
+        }
+
     private val invocations =
         ConcurrentHashMap<ResolverOccurrenceId, ConcurrentLinkedQueue<ResolverInvocationObservation>>()
+    private val providerReads = ConcurrentLinkedQueue<ResolverProviderReadObservation>()
 
     override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { observation ->
         invokedOccurrences += observation.resolverOccurrenceId
@@ -99,6 +134,13 @@ open class CorrectnessResolverObserver(
     fun hasResolverInvocations(): Boolean = invocations.isNotEmpty()
 
     fun allResolverInvocations(): List<ResolverInvocationObservation> = invocations.values.flatMap { observations -> observations.toList() }
+
+    override val onProviderRead: (ResolverProviderReadObservation) -> Unit = { observation ->
+        providerReads.add(observation)
+        delegate.onProviderRead?.invoke(observation)
+    }
+
+    fun providerReadObservations(): List<ResolverProviderReadObservation> = providerReads.toList()
 
     private val queryResults =
         ConcurrentHashMap<ResolverOccurrenceId, ConcurrentLinkedQueue<ObjectEngineResult>>()

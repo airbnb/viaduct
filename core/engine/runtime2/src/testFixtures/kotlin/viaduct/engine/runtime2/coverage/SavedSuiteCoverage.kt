@@ -17,6 +17,7 @@ suspend fun ResolverContract.measureSavedSuiteCoverage(
     require(runId.isNotBlank())
     val executions = mutableListOf<CoverageExecution>()
     val rows = mutableListOf<ResolverCoverageRow>()
+    val dependencies = mutableListOf<ResolverDependencyRow>()
     val run = suite.replay(selected = selectedCase) { world, testCase ->
         val observation = observeGeneratedCase(world, testCase).assertAll(
             GeneratedCaseAssertions.defaultGeneratedContract + GeneratedCaseAssertions.fromFieldBindings,
@@ -27,8 +28,10 @@ suspend fun ResolverContract.measureSavedSuiteCoverage(
         val execution = CoverageExecution(runId, "execution-${executions.size + 1}", test)
         executions += execution
         // The permutation execution validates correctness; it is not another supporting test.
-        rows += observation.ordinary.subject.coverageRows(execution)
+        val records = observation.ordinary.subject.coverageRecords(execution)
+        rows += records.occurrences
+        dependencies += records.dependencies
     }
     check(run.attemptedCases == run.expectedCases && executions.size == run.expectedCases) { "Incomplete saved-suite measurement" }
-    return ResolverCoverageMeasurement(executions, rows)
+    return ResolverCoverageMeasurement(executions, rows, dependencies = dependencies)
 }

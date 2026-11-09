@@ -12,7 +12,9 @@ import viaduct.engine.runtime2.contract.assertAll
 import viaduct.engine.runtime2.contract.observeGeneratedCase
 import viaduct.engine.runtime2.coverage.CoverageTestId
 import viaduct.engine.runtime2.coverage.ResolverCoverageMeasurement
-import viaduct.engine.runtime2.coverage.coverageRows
+import viaduct.engine.runtime2.coverage.ResolverCoverageRecords
+import viaduct.engine.runtime2.coverage.ResolverCoverageRow
+import viaduct.engine.runtime2.coverage.coverageRecords
 import viaduct.engine.runtime2.coverage.measureSavedSuiteCoverage
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.SelectionForest
@@ -53,19 +55,12 @@ class StoredSuiteCoverageExampleTest : CorrectResolutionPostTestPolicy, Resoluti
     }
 
     @Test
-    fun `replaying a saved case reproduces its recorded rows`(): Unit =
+    fun `replaying a saved case reproduces its occurrence rows`(): Unit =
         runTest {
             val example = measurement.rows.first()
-            val caseId = suite.testCaseIds().single { coverageTestId(it) == example.test }
-            suite.replay(selected = caseId) { world, testCase ->
-                val observation = observeGeneratedCase(world, testCase).assertAll(
-                    GeneratedCaseAssertions.defaultGeneratedContract +
-                        GeneratedCaseAssertions.fromFieldBindings,
-                )
-                val replayed = observation.ordinary.subject.coverageRows(example.execution)
-                val expected = measurement.rows.filter { it.test == example.test }
-                assertEquals(expected, replayed)
-            }
+            val replayed = replayRecordsFor(example).occurrences
+            val expected = measurement.rows.filter { it.test == example.test }
+            assertEquals(expected, replayed)
         }
 
     @Test
@@ -80,5 +75,22 @@ class StoredSuiteCoverageExampleTest : CorrectResolutionPostTestPolicy, Resoluti
         assertEquals(2, runIds.size)
     }
 
-    private fun coverageTestId(testCaseId: ResolverTestCaseId): CoverageTestId = CoverageTestId.from(testCaseId, suite.batches.single { it.id == testCaseId.batch }.schema)
+    private fun coverageTestId(testCaseId: ResolverTestCaseId): CoverageTestId =
+        CoverageTestId.from(
+            testCaseId,
+            suite.batches.single { it.id == testCaseId.batch }.schema,
+        )
+
+    private suspend fun replayRecordsFor(example: ResolverCoverageRow): ResolverCoverageRecords {
+        val caseId = suite.testCaseIds().single { coverageTestId(it) == example.test }
+        var records: ResolverCoverageRecords? = null
+        suite.replay(selected = caseId) { world, testCase ->
+            val observation = observeGeneratedCase(world, testCase).assertAll(
+                GeneratedCaseAssertions.defaultGeneratedContract +
+                    GeneratedCaseAssertions.fromFieldBindings,
+            )
+            records = observation.ordinary.subject.coverageRecords(example.execution)
+        }
+        return checkNotNull(records) { "The selected saved case was not replayed" }
+    }
 }

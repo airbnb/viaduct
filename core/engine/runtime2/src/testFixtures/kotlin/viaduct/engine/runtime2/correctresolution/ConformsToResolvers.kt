@@ -40,28 +40,40 @@ import viaduct.graphql.schema.ViaductSchema
  * when runtime invocation evidence is available, those reconstructed values must equal the values
  * actually passed to the resolver, including access errors at exact response-key and list positions.
  */
-fun ObjectEngineResult.conformsToResolvers(operation: SharedOperationContext<*>): Boolean =
-    operation.resolverApplicationCache(this).let { resolverApplicationCache ->
-        conformsToResolvers(operation, resolverApplicationCache) &&
-            resolverApplicationCache.hasCompleteRootFieldReferenceWitness()
-    }
+fun ObjectEngineResult.conformsToResolvers(operation: SharedOperationContext<*>): Boolean = resolverConformanceEvidenceFor(operation, operation.resolverApplicationCache(this)).conforms
 
 /**
  * Records occurrences whose values are supplied by source objects during correctness validation.
  */
 internal fun ObjectEngineResult.sourceSuppliedResolverOccurrences(operation: SharedOperationContext<*>): Set<ResolverOccurrenceId> {
-    val supplied = mutableSetOf<ResolverOccurrenceId>()
     val cache = operation.resolverApplicationCache(this)
-    check(ResolverConformanceLogic(operation, cache, supplied).conforms(this) && cache.hasCompleteRootFieldReferenceWitness()) {
+    val evidence = resolverConformanceEvidenceFor(operation, cache)
+    check(evidence.conforms) {
         "Coverage source provenance requires a result that passes correctness validation."
     }
-    return supplied
+    return evidence.sourceSuppliedResolverOccurrences
 }
 
 fun ObjectEngineResult.conformsToResolvers(
     operation: SharedOperationContext<*>,
     resolverApplicationCache: ResolverApplicationCache,
-): Boolean = ResolverConformanceLogic(operation, resolverApplicationCache).conforms(this)
+): Boolean = resolverConformanceEvidenceFor(operation, resolverApplicationCache, requireCompleteRootFieldReferenceWitness = false).conforms
+
+private fun ObjectEngineResult.resolverConformanceEvidenceFor(
+    operation: SharedOperationContext<*>,
+    resolverApplicationCache: ResolverApplicationCache,
+    requireCompleteRootFieldReferenceWitness: Boolean = true,
+): ResolverConformanceEvidence {
+    val compute = {
+        val supplied = mutableSetOf<ResolverOccurrenceId>()
+        val conforms =
+            ResolverConformanceLogic(operation, resolverApplicationCache, supplied).conforms(this) &&
+                (!requireCompleteRootFieldReferenceWitness || resolverApplicationCache.hasCompleteRootFieldReferenceWitness())
+        ResolverConformanceEvidence(conforms, supplied.toSet())
+    }
+    val observer = operation.resolutionObserver as? CorrectnessResolverObserver
+    return observer?.resolverConformanceEvidence(this, resolverApplicationCache, requireCompleteRootFieldReferenceWitness, compute) ?: compute()
+}
 
 fun ObjectEngineResult.conformsToResolversAndDemand(
     operation: SharedOperationContext<*>,
