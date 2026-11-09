@@ -77,7 +77,6 @@ class ExecutionAttributionTest {
                 ExecutionAttribution.Type.RESOLVER -> ExecutionAttribution.fromResolver(name).toTagString()
                 ExecutionAttribution.Type.POLICY_CHECK -> ExecutionAttribution.fromPolicyCheck(name).toTagString()
                 ExecutionAttribution.Type.VARIABLES_RESOLVER -> ExecutionAttribution.fromVariablesResolver(name).toTagString()
-                else -> throw AssertionError("Unhandled type: $type")
             }
             assertEquals("${type.name}:$name", tagValue)
         }

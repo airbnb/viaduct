@@ -42,6 +42,19 @@ class KmPropertyBuilder(
     private val isVariable: Boolean,
     private val constructorProperty: Boolean,
 ) {
+    private var kotlinMetadataMajorVersion = defaultMetadataMajorVersion
+
+    internal constructor(
+        name: JavaIdName,
+        type: KmType,
+        inputType: KmType,
+        isVariable: Boolean,
+        constructorProperty: Boolean,
+        kotlinMetadataMajorVersion: Int,
+    ) : this(name, type, inputType, isVariable, constructorProperty) {
+        this.kotlinMetadataMajorVersion = kotlinMetadataMajorVersion
+    }
+
     private var defaultValue: String? = null
     private var getterBody: String? = null
     private var getterVisibility: Visibility = Visibility.PUBLIC
@@ -154,7 +167,8 @@ class KmPropertyBuilder(
                 getter.visibility = getterVisibility
                 getter.modality = propertyModality
                 getter.hasAnnotations = getterAnnotations.isNotEmpty()
-                getter.isNotDefault = constructorProperty == false && (getterBody != null || getterAnnotations.isNotEmpty())
+                getter.isNotDefault = constructorProperty == false &&
+                    (getterBody != null || (kotlinMetadataMajorVersion < 2 && getterAnnotations.isNotEmpty()))
 
                 if (isVariable) {
                     // Assigning to [setter] sets [hasSetter]
@@ -167,7 +181,7 @@ class KmPropertyBuilder(
                                 (setterBody != null || setterVisibility != getterVisibility || setterAnnotations.isNotEmpty())
                         }
                     if (setter!!.isNotDefault) {
-                        val setterParamName = if (setterBody != null) "value" else "<set-?>"
+                        val setterParamName = if (setterBody != null || kotlinMetadataMajorVersion >= 2) "value" else "<set-?>"
                         setterParameter = KmValueParameter(setterParamName).also { it.type = inputType }
                     }
                 }
@@ -239,5 +253,10 @@ class KmPropertyBuilder(
             static,
             fieldAnnotations,
         )
+    }
+
+    companion object {
+        // Treehouse and OSS compile this generator with different Kotlin language versions.
+        private val defaultMetadataMajorVersion = KmPropertyBuilder::class.java.getAnnotation(Metadata::class.java).metadataVersion[0]
     }
 }

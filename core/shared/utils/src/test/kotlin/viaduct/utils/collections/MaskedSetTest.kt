@@ -51,7 +51,7 @@ class MaskedSetTest {
 
     @Test
     fun `isEmpty -- empty`() {
-        assertTrue(mk<Nothing>().isEmpty())
+        assertTrue(mk<Int>().isEmpty())
         assertTrue(MaskedSet.empty.isEmpty())
         assertTrue(MaskedSet.empty<Int>().isEmpty())
     }
@@ -72,7 +72,7 @@ class MaskedSetTest {
 
     @Test
     fun `size -- empty`() {
-        assertEquals(0, mk<Nothing>().size)
+        assertEquals(0, mk<Int>().size)
         assertEquals(0, MaskedSet.empty.size)
         assertEquals(0, MaskedSet.empty<Int>().size)
         assertEquals(0, mk(1).intersect(mk(0)).size)
@@ -135,12 +135,12 @@ class MaskedSetTest {
 
     @Test
     fun `equals -- empty`() {
-        assertEquals(mk<Nothing>(), mk<Nothing>())
+        assertEquals(mk<Int>(), mk<Int>())
     }
 
     @Test
     fun `equals -- empty -- diff types`() {
-        assertEquals(mk<Nothing>(), mk<Int>())
+        assertEquals(mk<String>(), mk<Int>())
     }
 
     @Test

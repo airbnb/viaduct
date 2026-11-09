@@ -1,6 +1,10 @@
 package viaduct.codegen.km
 
+import actualspkg.Testing
+import expectedspkg.legacy.LegacyAnnotatedGetterVal
+import expectedspkg.legacy.LegacyPrivateSetterVar
 import kotlinx.metadata.ClassKind
+import kotlinx.metadata.KmAnnotation
 import kotlinx.metadata.KmType
 import kotlinx.metadata.Visibility
 import org.junit.jupiter.api.Test
@@ -31,6 +35,16 @@ class ProtectedVar {
 
 class PublicVar {
     var a: String = TODO()
+}
+
+class PrivateSetterVar {
+    var a: String = TODO()
+        private set
+}
+
+class AnnotatedGetterVal {
+    @get:Testing
+    val a: String = TODO()
 }
 
 private const val actualPkg = "actual"
@@ -127,6 +141,43 @@ class PropertiesTest {
                 variable = true,
                 getterVisibility = Visibility.PUBLIC,
                 setterVisibility = Visibility.PUBLIC
+            )
+        }
+    }
+
+    @Test
+    fun `public var with private default setter`() {
+        assertEquals(PrivateSetterVar::class.java) { builder ->
+            builder.addSimpleProperty(variable = true, setterVisibility = Visibility.PRIVATE)
+        }
+    }
+
+    @Test
+    fun `annotated default getter`() {
+        assertEquals(AnnotatedGetterVal::class.java) { builder ->
+            builder.addProperty(
+                KmPropertyBuilder(JavaIdName("a"), Km.STRING.asType(), Km.STRING.asType(), false, false)
+                    .addGetterAnnotations(setOf(KmAnnotation("actualspkg/Testing", emptyMap()) to true))
+            )
+        }
+    }
+
+    @Test
+    fun `Kotlin 1_9 private default setter metadata`() {
+        assertEquals(LegacyPrivateSetterVar::class.java) { builder ->
+            builder.addProperty(
+                KmPropertyBuilder(JavaIdName("a"), Km.STRING.asType(), Km.STRING.asType(), true, false, kotlinMetadataMajorVersion = 1)
+                    .setterVisibility(Visibility.PRIVATE)
+            )
+        }
+    }
+
+    @Test
+    fun `Kotlin 1_9 annotated default getter metadata`() {
+        assertEquals(LegacyAnnotatedGetterVal::class.java) { builder ->
+            builder.addProperty(
+                KmPropertyBuilder(JavaIdName("a"), Km.STRING.asType(), Km.STRING.asType(), false, false, kotlinMetadataMajorVersion = 1)
+                    .addGetterAnnotations(setOf(KmAnnotation("actualspkg/Testing", emptyMap()) to true))
             )
         }
     }

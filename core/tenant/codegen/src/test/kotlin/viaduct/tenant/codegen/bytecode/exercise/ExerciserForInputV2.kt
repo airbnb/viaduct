@@ -103,7 +103,7 @@ private fun Exerciser.exerciseBuilderRoundtrip(
         it.parameterCount == 3 &&
             it.parameterTypes[0] == InternalContext::class.java &&
             it.parameterTypes[1] == GraphQLInputObjectType::class.java &&
-            it.parameterTypes[2] == java.util.Map::class.java
+            it.parameterTypes[2] == Map::class.java
     }
     check.isNotNull(builderCtor, "INPUT_BUILDER_CONSTRUCTOR_EXISTS")
     builderCtor ?: return

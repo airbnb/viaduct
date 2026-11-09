@@ -15,7 +15,7 @@ value class CtName(
         }
     }
 
-    override fun toString() = name.toString()
+    override fun toString() = name
 
     companion object {
         private val ID = "\\p{javaJavaIdentifierStart}\\p{javaJavaIdentifierPart}*"

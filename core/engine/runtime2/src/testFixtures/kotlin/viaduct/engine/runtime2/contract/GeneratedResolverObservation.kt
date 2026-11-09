@@ -57,7 +57,7 @@ fun interface GeneratedCaseAssertion {
 
 /** Reusable generated-case judgments, composed by each contract according to its claims. */
 object GeneratedCaseAssertions {
-    val correctResolution =
+    val correctResolution: GeneratedCaseAssertion =
         GeneratedCaseAssertion { observation ->
             observation.executions.forEach { execution ->
                 val correct = execution.result.correctResolution(execution.operation, execution.fragment)
@@ -149,9 +149,16 @@ object GeneratedCaseAssertions {
                         "Every checker invocation must retain its actual named inputs",
                     )
                 }
-                val demanded = execution.result.demandedTypeCheckerApplications(execution.operation, execution.fragment.subselections).associateWith { 1 }
+                val demanded = execution.result.demandedTypeCheckerApplications(
+                    execution.operation,
+                    execution.fragment.subselections
+                ).associateWith { 1 }
                 val invoked = execution.checkerApplications.filter { it.checkerKind == CheckerKind.TYPE }.groupingBy { it }.eachCount()
-                assertEquals(demanded, invoked, "Type-check applications must follow checked demand: missing=${demanded.keys - invoked.keys}; extra=${invoked.keys - demanded.keys}")
+                assertEquals(
+                    demanded,
+                    invoked,
+                    "Type-check applications must follow checked demand: missing=${demanded.keys - invoked.keys}; extra=${invoked.keys - demanded.keys}"
+                )
                 val expected =
                     execution.result.registeredCheckerApplications(execution.operation)
                 assertEquals(
@@ -205,7 +212,10 @@ fun ResolverContract.observeGeneratedCase(
     val selectiveNodeResolverApplications = testCase.registry.selectiveNodeResolverApplications()
     val permutationEquivalent =
         testCase.registry.withoutResolutionWitnessCapture {
-            val checkerRecorder = CheckerApplicationRecorder(testCase.registry.resolutionObserver(captureResolutionWitness = false, captureResolutionApplicationCounts = false))
+            val checkerRecorder =
+                CheckerApplicationRecorder(
+                    testCase.registry.resolutionObserver(captureResolutionWitness = false, captureResolutionApplicationCounts = false)
+                )
             observeGeneratedResolution(
                 testWorld = testWorld,
                 checkerRecorder = checkerRecorder,

@@ -550,7 +550,7 @@ class DecodingErrorHandlingTest {
         out.writeInt(MAGIC_COMPOUND_CONSTANTS)
 
         // Write WRONG magic for type expressions section
-        out.writeInt(0xBADC0DE.toInt())
+        out.writeInt(0xBADC0DE)
 
         out.close()
 

@@ -360,7 +360,7 @@ internal class SchemaWithData : ViaductSchema {
     sealed interface Record : Def, ViaductSchema.Record {
         override val fields: List<Field>
 
-        override fun field(name: String) = fields.find { name == it.name }
+        override fun field(name: String): Field? = fields.find { name == it.name }
 
         override fun field(path: Iterable<String>): Field = ViaductSchema.field(this, path)
     }

@@ -129,7 +129,7 @@ class SyntheticBridgeTest {
                 }
             readBridge =
                 impl.declaredMethods.firstOrNull { m ->
-                    m.name == "read" && hasBridgeFlags(m) && m.returnType == java.lang.Object::class.java
+                    m.name == "read" && hasBridgeFlags(m) && m.returnType == Any::class.java
                 }
             write =
                 impl.declaredMethods.firstOrNull { m ->
@@ -137,7 +137,7 @@ class SyntheticBridgeTest {
                 }
             writeBridge =
                 impl.declaredMethods.firstOrNull { m ->
-                    m.name == "write" && hasBridgeFlags(m) && m.parameterTypes.first() == java.lang.Object::class.java
+                    m.name == "write" && hasBridgeFlags(m) && m.parameterTypes.first() == Any::class.java
                 }
             covariantRead =
                 covariantImpl.declaredMethods.firstOrNull { m ->
@@ -149,7 +149,7 @@ class SyntheticBridgeTest {
                 }
             objectRead =
                 objectReadImpl.declaredMethods.firstOrNull { m ->
-                    m.name == "read" && !m.isSynthetic && m.returnType == java.lang.Object::class.java
+                    m.name == "read" && !m.isSynthetic && m.returnType == Any::class.java
                 }
             objectReadBridge =
                 objectReadImpl.declaredMethods.firstOrNull { m ->
