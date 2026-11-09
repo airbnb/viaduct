@@ -220,8 +220,6 @@ jobs:
             echo "Publishing SNAPSHOT artifacts..."
             export RELEASE=false
             # Snapshots go to Central Portal's snapshot endpoint (central.sonatype.com/repository/maven-snapshots/).
-            # The vanniktech plugin v0.34.0 doesn't route snapshots automatically, so we use a
-            # separate orchestrated task that publishes to a standard Maven repository.
             ./gradlew publishToSnapshots --no-daemon --stacktrace
           fi
         shell: bash

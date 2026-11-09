@@ -108,7 +108,7 @@ pluginManager.withPlugin("signing") {
 
 mavenPublishing {
     val isRelease = providers.environmentVariable("RELEASE").orElse("false").get().toBoolean()
-    publishToMavenCentral(automaticRelease = true)
+    publishToMavenCentral(automaticRelease = true, validateDeployment = DeploymentValidation.NONE)
     if (isRelease) {
         signAllPublications()
     }
@@ -116,15 +116,12 @@ mavenPublishing {
         plugins.hasPlugin("com.gradle.plugin-publish") -> configure(GradlePublishPlugin())
         else -> configure(KotlinJvm(
             javadocJar = if (publishMinimal) JavadocJar.Empty() else JavadocJar.Dokka("dokkaGeneratePublicationJavadoc"),
-            sourcesJar = !publishMinimal
+            sourcesJar = if (publishMinimal) SourcesJar.Empty() else SourcesJar.Sources()
         ))
     }
 }
 
 // For snapshot publications, add the Central Portal snapshots repository.
-// The vanniktech plugin v0.34.0 uses Central Portal for releases but doesn't route -SNAPSHOT
-// versions to the snapshot endpoint. This adds a standard Maven repository so
-// `publishAllPublicationsToSnapshotsRepository` can publish snapshots to Central Portal.
 // The workflow calls `publishToSnapshots` (orchestrated) instead of `publishToMavenCentral`
 // when in snapshot mode.
 run {
