@@ -145,6 +145,14 @@ public class JavaAccessorFormsContractTest extends AccessorFormsContractTest {
     }
   }
 
+  @Resolver
+  public static class BrokenByErrorResolver extends WidgetResolvers.BrokenByError {
+    @Override
+    public CompletableFuture<String> resolve(WidgetResolvers.BrokenByError.Context ctx) {
+      throw new AssertionError("boom");
+    }
+  }
+
   @Resolver(objectValueFragment = "nickname")
   public static class NullReadsResolver extends WidgetResolvers.NullReads {
     @Override
@@ -198,7 +206,7 @@ public class JavaAccessorFormsContractTest extends AccessorFormsContractTest {
     }
   }
 
-  @Resolver(objectValueFragment = "broken")
+  @Resolver(objectValueFragment = "broken brokenByError")
   public static class FailureReadsResolver extends WidgetResolvers.FailureReads {
     @Override
     public CompletableFuture<String> resolve(WidgetResolvers.FailureReads.Context ctx) {
@@ -228,6 +236,8 @@ public class JavaAccessorFormsContractTest extends AccessorFormsContractTest {
           String.join(
               ";",
               classify("resolver", resolver::getBrokenOrThrow, resolver::getBroken),
+              classify(
+                  "resolverError", resolver::getBrokenByErrorOrThrow, resolver::getBrokenByError),
               classify("stored", stored::getNameOrThrow, stored::getName),
               classify("wrapped", wrapped::getNameOrThrow, wrapped::getName),
               classify("framework", framework::getNameOrThrow, framework::getName),

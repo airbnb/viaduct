@@ -1,5 +1,6 @@
 package viaduct.tenant.runtime.execution.accessorforms
 
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import viaduct.api.testing.TestSchema
 import viaduct.api.testing.featureapp.KotlinFeatureAppTestContractBase
@@ -30,6 +31,8 @@ import viaduct.graphql.test.assertMatches
       nickname: String @resolver
       "Always fail"
       broken: String @resolver
+      "Always fail with an Error, such as TODO() or an AssertionError"
+      brokenByError: String @resolver
 
       "Use objectValueFragment(nickname); read nickname through both forms and join them with \"|\", rendering null as \"null\""
       nullReads: String @resolver
@@ -138,12 +141,21 @@ abstract class AccessorFormsContractTest : KotlinFeatureAppTestContractBase() {
     }
 
     @Test
+    fun `a tenant Error fails only its own field`() {
+        val result = execute("{ widget { name brokenByError } }")
+
+        assertEquals(mapOf("widget" to mapOf("name" to "widget", "brokenByError" to null)), result.getData())
+        assertEquals(listOf(listOf("widget", "brokenByError")), result.errors.map { it.path })
+    }
+
+    @Test
     fun `the soft form returns null only for data-side failures`() {
         execute("{ widget { failureReads } }").assertEquals {
             "data" to {
                 "widget" to {
                     "failureReads" to
                         "resolver=FieldFetchingException,null;" +
+                        "resolverError=FieldFetchingException,null;" +
                         "stored=ErroneousFieldException,null;" +
                         "wrapped=FrameworkException,null;" +
                         "framework=FrameworkException,FrameworkException;" +

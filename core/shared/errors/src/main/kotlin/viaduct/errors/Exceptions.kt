@@ -105,7 +105,7 @@ fun <T : Any> ensureNotNull(
 
 /**
  * Use this to wrap all entry points into the tenant API. This will catch any exception
- * and attribute it to the framework unless it's a [PassthroughException].
+ * and attribute it to the framework unless it's a [PassthroughException]. [InterruptedException] propagates.
  */
 @InternalApi
 @OptIn(InternalApi::class)
@@ -117,6 +117,7 @@ fun <T> handleFrameworkErrors(
     try {
         return block()
     } catch (e: Exception) {
+        if (e.isJvmSignal()) throw e
         if (e is PassthroughException || e is TenantException) throw e
         throw FrameworkException("$message ($e)", e)
     }
@@ -149,6 +150,7 @@ suspend fun <T> handleFrameworkErrorsSuspend(
     try {
         return block()
     } catch (e: Exception) {
+        if (e.isJvmSignal()) throw e
         if (e is CancellationException) currentCoroutineContext().ensureActive()
         if (e is PassthroughException || e is TenantException) throw e
         throw FrameworkException("$message ($e)", e)
@@ -202,48 +204,59 @@ private fun hasDataFailureInPassthroughChain(exception: Exception): Boolean {
 }
 
 /**
- * Use this to wrap calls into tenant code from the framework. Catches any exception and
- * attributes it to tenant code unless it is already a [PassthroughException].
+ * Use this to wrap calls into tenant code from the framework. Attributes any tenant failure,
+ * including an [Error], to tenant code unless it is already a [PassthroughException].
+ * [VirtualMachineError], `ThreadDeath` and [InterruptedException] propagate unchanged.
  */
 @InternalApi
 @OptIn(InternalApi::class)
 fun <T> handleTenantErrors(
     opName: String,
     block: () -> T,
-): T {
-    @Suppress("Detekt.TooGenericExceptionCaught")
-    try {
-        return block()
-    } catch (e: Exception) {
-        if (e is PassthroughException) throw e
-        throw TenantResolverException(e, opName)
-    }
-}
+): T = resultOfTenantCall(block).getOrElse { throw it.attributedToTenant(opName) }
 
 /**
- * Same as [handleTenantErrors] but for suspend functions.
+ * Same as [handleTenantErrors] but for suspend functions; cancellation of the calling coroutine also propagates.
  */
 @InternalApi
 @OptIn(InternalApi::class)
 suspend fun <T> handleTenantErrorsSuspend(
     opName: String,
     block: suspend () -> T,
-): T {
+): T = resultOfTenantCallSuspend(block).getOrElse { throw it.attributedToTenant(opName) }
+
+/**
+ * Returns any failure of tenant code [block], including an [Error], unchanged as [Result.failure].
+ * [VirtualMachineError], `ThreadDeath`, [InterruptedException] and cancellation of the calling coroutine propagate.
+ */
+@InternalApi
+suspend fun <T> resultOfTenantCallSuspend(block: suspend () -> T): Result<T> = resultOfTenantCall { block() }.onFailure { currentCoroutineContext().ensureActive() }
+
+@OptIn(InternalApi::class)
+private inline fun <T> resultOfTenantCall(block: () -> T): Result<T> {
     @Suppress("Detekt.TooGenericExceptionCaught")
-    try {
-        return block()
-    } catch (e: Exception) {
-        if (e is CancellationException) currentCoroutineContext().ensureActive()
-        if (e is PassthroughException) throw e
-        throw TenantResolverException(e, opName)
+    return try {
+        Result.success(block())
+    } catch (failure: Throwable) {
+        if (failure.isJvmSignal()) throw failure
+        Result.failure(failure)
     }
 }
+
+@InternalApi
+fun Throwable.isJvmSignal(): Boolean = this is VirtualMachineError || this is InterruptedException || isThreadDeath()
+
+// Matched by name: ThreadDeath is deprecated for removal, and a missing class would make an `is` check throw.
+private fun Throwable.isThreadDeath(): Boolean = generateSequence<Class<*>>(javaClass) { it.superclass }.any { it.name == "java.lang.ThreadDeath" }
+
+@OptIn(InternalApi::class)
+private fun Throwable.attributedToTenant(opName: String): Throwable = if (this is PassthroughException) this else TenantResolverException(this, opName)
 
 /**
  * Evaluates [block] and returns its value as [Result.success].
  *
  * If [block] throws an [Exception], [mapException] determines the throwable stored in
- * [Result.failure]. The default behavior preserves the original exception unchanged.
+ * [Result.failure]; the default preserves the original exception. [InterruptedException] propagates.
  */
 @InternalApi
 suspend fun <T> resultOfSuspend(
@@ -254,6 +267,7 @@ suspend fun <T> resultOfSuspend(
     return try {
         Result.success(block())
     } catch (e: Exception) {
+        if (e.isJvmSignal()) throw e
         if (e is CancellationException) currentCoroutineContext().ensureActive()
         Result.failure(mapException(e))
     }
@@ -264,21 +278,16 @@ suspend fun <T> resultOfSuspend(
  *
  * [PassthroughException] (including [FrameworkException]) and [TenantException] are returned
  * unchanged in [Result.failure].
- * Any other [Exception] is wrapped in [TenantResolverException].
+ * Any other failure, including an [Error], is wrapped in [TenantResolverException].
+ * [VirtualMachineError], `ThreadDeath`, [InterruptedException] and cancellation of the calling coroutine propagate.
  */
 @InternalApi
 @OptIn(InternalApi::class)
 suspend fun <T> handleTenantErrorsResultSuspend(
     opName: String,
     block: suspend () -> T,
-): Result<T> =
-    resultOfSuspend(
-        mapException = { e ->
-            if (e is PassthroughException || e is TenantException) {
-                e
-            } else {
-                TenantResolverException(e, opName)
-            }
-        },
-        block = block,
-    )
+): Result<T> {
+    val result = resultOfTenantCallSuspend(block)
+    val failure = result.exceptionOrNull() ?: return result
+    return Result.failure(if (failure is TenantException) failure else failure.attributedToTenant(opName))
+}

@@ -6,8 +6,10 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 
 @Suppress("IMPLICIT_NOTHING_TYPE_ARGUMENT_IN_RETURN_POSITION")
 class FetchUtilsTest {
@@ -63,6 +65,22 @@ class FetchUtilsTest {
             }
         }
     }
+
+    @Test
+    fun `fetchOrNull rethrows InterruptedException`(): Unit =
+        runBlocking {
+            val interruption = InterruptedException("interrupted")
+
+            assertSame(interruption, assertThrows<InterruptedException> { fetchOrNull { throw interruption } })
+        }
+
+    @Test
+    fun `fetchOrDefault rethrows InterruptedException`(): Unit =
+        runBlocking {
+            val interruption = InterruptedException("interrupted")
+
+            assertSame(interruption, assertThrows<InterruptedException> { fetchOrDefault("default") { throw interruption } })
+        }
 
     @Test
     fun `fetchOrDefault preserves null return from block`(): Unit =

@@ -43,6 +43,8 @@ import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.Promise
 import viaduct.engine.runtime2.model.ResolverOccurrenceId
 import viaduct.engine.runtime2.model.emptyFragmentOf
+import viaduct.engine.runtime2.model.registry.FieldCheckerResolver
+import viaduct.engine.runtime2.model.registry.TypeCheckerResolver
 import viaduct.engine.runtime2.model.registry.fieldResolverOf
 import viaduct.engine.runtime2.model.requireField
 import viaduct.engine.runtime2.model.requireObjectField
@@ -674,6 +676,67 @@ class ResolverStartTest : ResolutionDispatcherResource {
         }
 
     @Test
+    fun `interruption from a field resolver fails resolution instead of becoming a field error`() {
+        val interruption = InterruptedException("interrupted")
+        val world = TestWorld.fromSDL(
+            SCHEMA,
+            fieldResolvers = { schema ->
+                val fast = schema.loweredSchema.requireObjectField("Query", "fast")
+                mapOf(fast to fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> throw interruption })
+            },
+        )
+
+        val thrown = assertFailsWith<InterruptedException> { resolveFastAndSlow(world) }
+        assertSame(interruption, thrown.originalBeforeStackTraceRecovery())
+    }
+
+    @Test
+    fun `interruption from a variables provider fails resolution instead of becoming a field error`() {
+        val interruption = InterruptedException("interrupted")
+        val world = TestWorld.fromSDL(
+            SCHEMA,
+            fieldResolvers = { schema ->
+                val slow = schema.loweredSchema.requireObjectField("Query", "slow")
+                val fragment = schema.fragmentFrom("fragment Slow on Query { dependency @include(if: ${'$'}ready) }", variableField = slow)
+                mapOf(slow to fieldResolverOf(fragment) { _, _ -> 2 }.withVariablesProvider(setOf("ready")) { throw interruption })
+            },
+        )
+
+        val thrown = assertFailsWith<InterruptedException> { resolveFastAndSlow(world) }
+        assertSame(interruption, thrown.originalBeforeStackTraceRecovery())
+    }
+
+    @Test
+    fun `interruption from a field checker fails resolution instead of becoming a checker failure`() {
+        val interruption = InterruptedException("interrupted")
+        val world = TestWorld.fromSDL(
+            SCHEMA,
+            fieldCheckers = { schema ->
+                val fast = schema.loweredSchema.requireObjectField("Query", "fast")
+                mapOf(fast to FieldCheckerResolver.of(fast, schema.loweredSchema.requireQueryTypeDef()) { _, _, _ -> throw interruption })
+            },
+        )
+
+        val thrown = assertFailsWith<InterruptedException> { resolveFastAndSlow(world) }
+        assertSame(interruption, thrown.originalBeforeStackTraceRecovery())
+    }
+
+    @Test
+    fun `interruption from a type checker fails resolution instead of becoming a checker failure`() {
+        val interruption = InterruptedException("interrupted")
+        val world = TestWorld.fromSDL(
+            SCHEMA,
+            typeCheckers = { schema ->
+                val query = schema.loweredSchema.requireQueryTypeDef()
+                mapOf(query to TypeCheckerResolver.of(query, query) { _, _ -> throw interruption })
+            },
+        )
+
+        val thrown = assertFailsWith<InterruptedException> { resolveFastAndSlow(world) }
+        assertSame(interruption, thrown.originalBeforeStackTraceRecovery())
+    }
+
+    @Test
     fun `field exception does not cancel queued sibling producers`(): Unit =
         runBlocking {
             ResolutionDispatcherFactory.create(1).use { dispatcher ->
@@ -862,6 +925,10 @@ class ResolverStartTest : ResolutionDispatcherResource {
                 assertEquals(emptyList<Throwable>(), cleanupFailures)
             }
         }
+
+    private fun resolveFastAndSlow(world: TestWorld) = SharedOperationContext.create(world.assumptions).resolveWithTestDispatcher(world.schemas.operationSelectionsFrom("query { fast slow }"))
+
+    private fun Throwable.originalBeforeStackTraceRecovery(): Throwable = generateSequence(this) { it.cause }.last()
 
     private fun bindingDependentQuery(
         resultRequiredSelections: String,

@@ -5,8 +5,6 @@ package viaduct.engine.runtime2.bootstrap
 import graphql.schema.GraphQLObjectType
 import graphql.schema.GraphQLOutputType
 import graphql.schema.GraphQLTypeUtil
-import kotlinx.coroutines.currentCoroutineContext
-import kotlinx.coroutines.ensureActive
 import viaduct.engine.api.Coordinate
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
@@ -76,6 +74,7 @@ import viaduct.engine.runtime2.resolution.currentVariablesProviderResolutionCont
 import viaduct.engine.runtime2.schema.SourceSchemaAdapter
 import viaduct.engine.runtime2.schema.ViaductAndGJSchema
 import viaduct.engine.runtime2.schema.fragmentFromDocument
+import viaduct.errors.resultOfTenantCallSuspend
 import viaduct.graphql.schema.ViaductSchema
 
 /** Airbnb-only conversion of resolver results to canonical runtime2 values. */
@@ -859,7 +858,7 @@ private class DispatcherFieldExecutor(
         val selector = selectors.single()
         return mapOf(
             selector to
-                resultOfTenantCall {
+                resultOfTenantCallSuspend {
                     dispatcher.resolve(
                         arguments = selector.arguments,
                         objectValueFactory = EngineObjectDataFactory { selector.syncObjectValueGetter() },
@@ -893,22 +892,12 @@ private class DispatcherNodeExecutor(
         val selector = selectors.single()
         return mapOf(
             selector to
-                resultOfTenantCall {
+                resultOfTenantCallSuspend {
                     dispatcher.resolve(selector.id, selector.selections, context, instrumentationContext)
                 },
         )
     }
 }
-
-@Suppress("TooGenericExceptionCaught") // Tenant code can fail with any Throwable; only JVM failures and cancellation abort the request.
-private suspend fun <T> resultOfTenantCall(block: suspend () -> T): Result<T> =
-    try {
-        Result.success(block())
-    } catch (failure: Throwable) {
-        if (failure is VirtualMachineError || failure is InterruptedException) throw failure
-        currentCoroutineContext().ensureActive()
-        Result.failure(failure)
-    }
 
 private fun namespaceFieldResolvers(
     fullSchema: EngineSchema,

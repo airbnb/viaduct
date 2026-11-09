@@ -21,6 +21,7 @@ import viaduct.engine.runtime2.resolution.framework.ResolutionTask
 import viaduct.engine.runtime2.resolution.framework.SharedOERContext
 import viaduct.engine.runtime2.resolution.framework.materializeResult
 import viaduct.engine.runtime2.resolution.framework.typeCheckerCycleTask
+import viaduct.errors.isJvmSignal
 
 /** One concrete OER owns this publication and all of its runtime checker bindings. */
 internal class SymbolicTypeCheckerPublicationOccurrence private constructor(
@@ -113,6 +114,7 @@ internal class TypeCheckerTask(
         try {
             executeAndPublish()
         } catch (cause: Exception) {
+            if (cause.isJvmSignal()) throw cause
             currentCoroutineContext().ensureActive()
             completePendingBindings(VariableBinding.Error)
             check(publication.oerOccurrence.target.typeCheckerResult.fail(cause)) { "Type-checker failure was published twice" }

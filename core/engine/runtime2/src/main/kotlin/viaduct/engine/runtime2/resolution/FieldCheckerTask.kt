@@ -27,6 +27,7 @@ import viaduct.engine.runtime2.resolution.framework.SharedOERContext
 import viaduct.engine.runtime2.resolution.framework.fetchGroundedArguments
 import viaduct.engine.runtime2.resolution.framework.fieldCheckerCycleTask
 import viaduct.engine.runtime2.resolution.framework.materializeResult
+import viaduct.errors.isJvmSignal
 
 /** A checker writer retains its original symbolic address independently of its late arguments. */
 internal class SymbolicFieldCheckerPublicationOccurrence private constructor(
@@ -167,6 +168,7 @@ internal class FieldCheckerTask(
         try {
             executeAndPublish()
         } catch (cause: Exception) {
+            if (cause.isJvmSignal()) throw cause
             currentCoroutineContext().ensureActive()
             completePendingBindings(VariableBinding.Error)
             check(publication.publicationCell.fieldCheckerResult.fail(cause)) { "Field-checker failure was published twice" }

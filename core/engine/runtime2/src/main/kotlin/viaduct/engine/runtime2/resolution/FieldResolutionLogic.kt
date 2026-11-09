@@ -33,6 +33,7 @@ import viaduct.engine.runtime2.resolution.framework.RootFieldReferenceInvocation
 import viaduct.engine.runtime2.resolution.framework.argumentsContainErrorValue
 import viaduct.engine.runtime2.resolution.framework.fetchGroundedArguments
 import viaduct.engine.runtime2.resolution.framework.withAuthoritativeNodeId
+import viaduct.errors.isJvmSignal
 import viaduct.graphql.schema.ViaductSchema
 
 /** Invokes and publishes one already-installed field resolver or root-field reference. */
@@ -466,6 +467,7 @@ internal class FieldResolutionLogic(
                     provider(arguments)
                 }
             } catch (exception: Exception) {
+                if (exception.isJvmSignal()) throw exception
                 currentCoroutineContext().ensureActive()
                 completeVariablesProviderBindingsWithError(fieldResolverOccurrence)
                 return EngineErrorData.of(exception)

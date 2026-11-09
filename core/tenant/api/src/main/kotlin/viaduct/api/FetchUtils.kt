@@ -2,6 +2,7 @@ package viaduct.api
 
 import kotlinx.coroutines.CancellationException
 import viaduct.apiannotations.InternalApi
+import viaduct.errors.isJvmSignal
 
 /**
  * Executes the given [block] and returns its result, or `null` if an exception is thrown.
@@ -10,7 +11,7 @@ import viaduct.apiannotations.InternalApi
  * on failure. For example, when accessing GRT fields that may throw due to policy check errors,
  * this allows returning `null` instead of propagating the exception.
  *
- * [CancellationException] is always rethrown to preserve structured concurrency.
+ * [CancellationException] and [InterruptedException] are always rethrown.
  *
  * Example:
  * ```kotlin
@@ -29,7 +30,7 @@ suspend inline fun <T> fetchOrNull(block: suspend () -> T): T? = fetchOrDefault<
  * Unlike `fetchOrNull { ... } ?: default`, this preserves the distinction between a block that
  * returns `null` vs a block that throws - only exceptions trigger the default.
  *
- * [CancellationException] is always rethrown to preserve structured concurrency.
+ * [CancellationException] and [InterruptedException] are always rethrown.
  *
  * Example:
  * ```kotlin
@@ -52,5 +53,6 @@ suspend inline fun <T> fetchOrDefault(
     } catch (
         @Suppress("Detekt.TooGenericExceptionCaught") e: Exception
     ) {
+        if (e.isJvmSignal()) throw e
         default
     }

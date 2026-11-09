@@ -1,6 +1,6 @@
 # Executor Error Boundaries
 
-The Viaduct engine calls tenant-written resolvers through a set of Executor SPI implementations. The **invariant** this system enforces is: aside from coroutine cancellation (`CancellationException`), every exception that exits an executor entry point is *attributed*. At executor boundaries, tenant-attributed failures are normalized to `TenantResolverException`; framework-attributed failures exit as `FrameworkException`. No raw, unclassified failure crosses the executor/engine boundary.
+The Viaduct engine calls tenant-written resolvers through a set of Executor SPI implementations. The **invariant** this system enforces is: aside from coroutine cancellation (`CancellationException`) and `InterruptedException`, every exception that exits an executor entry point is *attributed*. At executor boundaries, tenant-attributed failures are normalized to `TenantResolverException`; framework-attributed failures exit as `FrameworkException`. No raw, unclassified failure crosses the executor/engine boundary.
 
 `handleTenantErrorsSuspend` (and its synchronous equivalent) is used at direct call sites that cross from framework-owned executor code into tenant-written resolver code. Framework-owned code in these executors is not eagerly wrapped with `handleFrameworkErrors*`; later framework boundaries are expected to classify those failures.
 
@@ -51,10 +51,12 @@ Framework handlers and tenant handlers intentionally use different passthrough r
 
 ```kotlin
 // Framework handlers
+if (e is InterruptedException) throw e
 if (e is PassthroughException || e is TenantException) throw e
 throw FrameworkException("$message ($e)", e)
 
-// Tenant handlers
+// Tenant handlers (catch any Throwable)
+if (e is VirtualMachineError || e is InterruptedException || e.isThreadDeath()) throw e
 if (e is PassthroughException) throw e
 throw TenantResolverException(e, opName)
 ```
@@ -64,7 +66,8 @@ This means:
 - `FrameworkException` passes through tenant boundaries — a framework bug inside a resolver does not get mislabeled as a tenant error.
 - `TenantUsageException` (and subclasses) passes through framework boundaries — framework-detected API misuse does not get wrapped as a `FrameworkException`.
 - `TenantUsageException` thrown while crossing a tenant boundary is wrapped as `TenantResolverException` so the executor exits with a normalized tenant-attributed wrapper.
-- Suspend handlers also call `ensureActive()` on `CancellationException`, so coroutine cancellation continues to propagate unchanged instead of being attributed.
+- Tenant code can fail with any `Throwable`, so an `Error` such as `NotImplementedError` from `TODO()` or `AssertionError` is attributed to the tenant. `VirtualMachineError`, `ThreadDeath` and `InterruptedException` are JVM signals and propagate unchanged. `ThreadDeath` is matched by class name because JDK 20 deprecated it for removal.
+- The suspend tenant handlers also call `ensureActive()` after any failure, so coroutine cancellation continues to propagate unchanged instead of being attributed. The suspend framework handler does so only for a `CancellationException`.
 - Already-attributed passthrough exceptions (`TenantResolverException`, `FieldFetchingException`, etc.) are not re-wrapped by the handlers themselves.
 
 ## Direct Tenant Boundary Pattern

@@ -10,7 +10,7 @@ import viaduct.apiannotations.InternalApi
  * These @JvmStatic overloads accept a [Callable] instead.
  *
  * [Callable] is used (rather than [java.util.function.Supplier]) because it declares
- * `throws Exception`, matching the "catch anything, attribute it" semantics of both
+ * `throws Exception`, so Java blocks can throw checked exceptions into both
  * [handleFrameworkErrors] and [handleTenantErrors].
  */
 @InternalApi
@@ -35,8 +35,9 @@ object HandleErrors {
 
     /**
      * Wraps Java-side calls into tenant-written code. Delegates to the Kotlin top-level
-     * [handleTenantErrors]: [PassthroughException] passes through unchanged; anything else
-     * becomes a [TenantResolverException] attributed to [opName].
+     * [handleTenantErrors]: [PassthroughException], [VirtualMachineError], `ThreadDeath`
+     * and [InterruptedException] propagate unchanged; any other failure becomes a
+     * [TenantResolverException] attributed to [opName].
      */
     @JvmStatic
     fun <T> tenant(
@@ -51,4 +52,8 @@ object HandleErrors {
      */
     @JvmStatic
     fun <T> dataFailureToNull(block: Callable<T>): T? = nullOnDataFailure { block.call() }
+
+    /** Java entry point for [Throwable.isJvmSignal]. */
+    @JvmStatic
+    fun isJvmSignal(failure: Throwable): Boolean = failure.isJvmSignal()
 }

@@ -7,6 +7,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
 import viaduct.apiannotations.InternalApi;
+import viaduct.errors.HandleErrors;
 
 /** Asynchronous Java counterparts to Kotlin's fetch fallback helpers. */
 @InternalApi
@@ -21,8 +22,8 @@ public final class FetchUtils {
 
   /**
    * Returns the fetched value, or {@code defaultValue} when the fetch fails with an exception.
-   * Successful {@code null} values are preserved. Cancellation and non-exception failures
-   * propagate.
+   * Successful {@code null} values are preserved. Cancellation, interruption and non-exception
+   * failures propagate.
    */
   public static <T> CompletableFuture<T> fetchOrDefault(
       T defaultValue, Callable<? extends CompletionStage<? extends T>> block) {
@@ -34,6 +35,9 @@ public final class FetchUtils {
     } catch (CancellationException exception) {
       return CompletableFuture.failedFuture(exception);
     } catch (Exception exception) {
+      if (HandleErrors.isJvmSignal(exception)) {
+        return CompletableFuture.failedFuture(exception);
+      }
       return CompletableFuture.completedFuture(defaultValue);
     }
     Objects.requireNonNull(stage, "block returned null");
@@ -47,8 +51,8 @@ public final class FetchUtils {
           }
 
           Throwable unwrapped = unwrapCompletionException(failure);
-          if (unwrapped instanceof CancellationException cancellation) {
-            result.completeExceptionally(cancellation);
+          if (unwrapped instanceof CancellationException || HandleErrors.isJvmSignal(unwrapped)) {
+            result.completeExceptionally(unwrapped);
           } else if (unwrapped instanceof Exception) {
             result.complete(defaultValue);
           } else {

@@ -145,6 +145,34 @@ class FetchUtilsTest {
   }
 
   @Test
+  void fetchOrDefaultPropagatesAsyncInterruption() {
+    InterruptedException interruption = new InterruptedException("interrupted");
+
+    CompletableFuture<String> result =
+        FetchUtils.fetchOrDefault("default", () -> CompletableFuture.failedFuture(interruption));
+
+    assertThatThrownBy(result::join)
+        .isInstanceOf(CompletionException.class)
+        .hasCauseReference(interruption);
+  }
+
+  @Test
+  void fetchOrDefaultPropagatesSynchronousInterruption() {
+    InterruptedException interruption = new InterruptedException("interrupted");
+
+    CompletableFuture<String> result =
+        FetchUtils.fetchOrDefault(
+            "default",
+            () -> {
+              throw interruption;
+            });
+
+    assertThatThrownBy(result::join)
+        .isInstanceOf(CompletionException.class)
+        .hasCauseReference(interruption);
+  }
+
+  @Test
   void fetchOrNullRejectsNullStage() {
     assertThatThrownBy(() -> FetchUtils.fetchOrNull(() -> null))
         .isInstanceOf(NullPointerException.class)

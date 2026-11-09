@@ -4,15 +4,23 @@ package viaduct.api
 
 import io.kotest.matchers.types.shouldBeInstanceOf
 import java.lang.reflect.InvocationTargetException
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.job
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertInstanceOf
+import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.errors.FrameworkException
 import viaduct.errors.TenantResolverException
 import viaduct.errors.TenantUsageException
+import viaduct.errors.handleFrameworkErrors
+import viaduct.errors.handleFrameworkErrorsSuspend
+import viaduct.errors.handleTenantErrors
 import viaduct.errors.handleTenantErrorsResultSuspend
 import viaduct.errors.handleTenantErrorsSuspend
 import viaduct.errors.resultOfSuspend
@@ -134,5 +142,43 @@ class TenantResolverExceptionTest {
             assertEquals("ResolverA", thrown.resolver)
             thrown.cause.shouldBeInstanceOf<RuntimeException>()
             assertEquals("a tenant exception occurred", thrown.cause?.message)
+        }
+
+    @Test
+    fun `tenant handlers attribute tenant Errors with the original cause`(): Unit =
+        runBlocking {
+            listOf(AssertionError("assert"), NotImplementedError(), NoSuchMethodError("missing")).forEach { error ->
+                assertSame(error, assertThrows<TenantResolverException> { handleTenantErrors("ResolverA") { throw error } }.cause)
+                assertSame(error, assertThrows<TenantResolverException> { handleTenantErrorsSuspend("ResolverA") { throw error } }.cause)
+                val returned = handleTenantErrorsResultSuspend<Unit>("ResolverA") { throw error }.exceptionOrNull()
+                assertSame(error, assertInstanceOf(TenantResolverException::class.java, returned).cause)
+            }
+        }
+
+    @Suppress("DEPRECATION") // ThreadDeath
+    @Test
+    fun `error handlers propagate JVM failures and interruption`(): Unit =
+        runBlocking {
+            listOf(OutOfMemoryError("oom"), ThreadDeath(), InterruptedException("interrupted")).forEach { failure ->
+                assertSame(failure, assertThrows<Throwable> { handleTenantErrors("ResolverA") { throw failure } })
+                assertSame(failure, assertThrows<Throwable> { handleTenantErrorsSuspend("ResolverA") { throw failure } })
+                assertSame(failure, assertThrows<Throwable> { handleTenantErrorsResultSuspend<Unit>("ResolverA") { throw failure } })
+                assertSame(failure, assertThrows<Throwable> { handleFrameworkErrors("query") { throw failure } })
+                assertSame(failure, assertThrows<Throwable> { handleFrameworkErrorsSuspend("query") { throw failure } })
+            }
+        }
+
+    @Test
+    fun `suspend tenant handlers propagate caller cancellation instead of attributing it`(): Unit =
+        runBlocking {
+            val failures = mutableListOf<Throwable?>()
+            launch {
+                coroutineContext.job.cancel()
+                failures += runCatching { handleTenantErrorsSuspend("ResolverA") { throw IllegalStateException("after cancel") } }.exceptionOrNull()
+                failures += runCatching { handleTenantErrorsResultSuspend<Unit>("ResolverA") { throw IllegalStateException("after cancel") } }.exceptionOrNull()
+            }.join()
+
+            assertEquals(2, failures.size)
+            failures.forEach { assertInstanceOf(CancellationException::class.java, it) }
         }
 }

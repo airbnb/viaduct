@@ -66,6 +66,11 @@ class KotlinAccessorFormsContractTest : AccessorFormsContractTest() {
         override suspend fun resolve(ctx: Context): String = throw IllegalStateException("boom")
     }
 
+    @Resolver
+    class Widget_BrokenByErrorResolver : WidgetResolvers.BrokenByError() {
+        override suspend fun resolve(ctx: Context): String = TODO()
+    }
+
     @Resolver("nickname")
     class Widget_NullReadsResolver : WidgetResolvers.NullReads() {
         override suspend fun resolve(ctx: Context): String {
@@ -102,7 +107,7 @@ class KotlinAccessorFormsContractTest : AccessorFormsContractTest() {
         override suspend fun resolve(ctx: Context) = Widget.Builder(ctx).name("built").build().getNickname()
     }
 
-    @Resolver("broken")
+    @Resolver("broken brokenByError")
     class Widget_FailureReadsResolver : WidgetResolvers.FailureReads() {
         override suspend fun resolve(ctx: Context): String {
             fun widget(value: Exception) = rawWidget(ctx, "name", value)
@@ -122,6 +127,7 @@ class KotlinAccessorFormsContractTest : AccessorFormsContractTest() {
             )
             return listOf(
                 classify("resolver", resolver::getBrokenOrThrow, resolver::getBroken),
+                classify("resolverError", resolver::getBrokenByErrorOrThrow, resolver::getBrokenByError),
                 classify("stored", stored::getNameOrThrow, stored::getName),
                 classify("wrapped", wrapped::getNameOrThrow, wrapped::getName),
                 classify("framework", framework::getNameOrThrow, framework::getName),

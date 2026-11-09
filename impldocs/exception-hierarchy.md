@@ -38,10 +38,12 @@ The two error boundary functions handle these differently:
 
 ```kotlin
 // In handleFrameworkErrors / handleFrameworkErrorsSuspend:
+if (e is InterruptedException) throw e
 if (e is PassthroughException || e is TenantException) throw e
 throw FrameworkException("$message ($e)", e)
 
-// In handleTenantErrors / handleTenantErrorsSuspend (after InvocationTargetException unwrap):
+// In handleTenantErrors / handleTenantErrorsSuspend (catch any Throwable):
+if (e is VirtualMachineError || e is InterruptedException || e.isThreadDeath()) throw e
 if (e is PassthroughException) throw e
 throw TenantResolverException(e, opName)
 ```

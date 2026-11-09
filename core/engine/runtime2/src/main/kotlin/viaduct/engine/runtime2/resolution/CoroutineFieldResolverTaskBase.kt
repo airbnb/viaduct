@@ -6,6 +6,7 @@ import kotlinx.coroutines.ensureActive
 import viaduct.apiannotations.InternalApi
 import viaduct.engine.runtime2.resolution.framework.SharedFieldPublicationOccurrence
 import viaduct.engine.runtime2.resolution.framework.SharedFieldResolverTask
+import viaduct.errors.isJvmSignal
 
 /**
  * Owns one field's helper scope and its exception-to-publication boundary.
@@ -19,12 +20,13 @@ abstract class CoroutineFieldResolverTaskBase<P : SharedFieldPublicationOccurren
     lateinit var fieldTaskScope: CoroutineScope
         private set
 
-    /** Publishes ordinary failures while preserving actual cancellation and JVM Errors. */
+    /** Publishes ordinary failures while preserving actual cancellation, interruption and JVM Errors. */
     suspend fun run(scope: CoroutineScope) {
         fieldTaskScope = scope
         try {
             executeAndPublish()
         } catch (cause: Exception) {
+            if (cause.isJvmSignal()) throw cause
             currentCoroutineContext().ensureActive()
             publishFailure(cause)
         }
