@@ -1,14 +1,14 @@
-package viaduct.engine.runtime
+package viaduct.engine.runtime.execution
 
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.engine.api.mocks.EngineTestModule
 import viaduct.engine.api.mocks.createEngineObjectData
-import viaduct.engine.api.mocks.runFeatureTest
+import viaduct.graphql.test.assertJson
 
 @ExperimentalCoroutinesApi
-class FieldDataLoaderTest {
+interface FieldDataLoaderContract : QueryExecutionContract {
     companion object {
         private val schemaSDL = """
             extend type Query {
@@ -59,7 +59,7 @@ class FieldDataLoaderTest {
                     }
                 }
             }
-        }.runFeatureTest {
+        }.runContractTest {
             // Run a query - field scope clearing happens in internalLoad during batch resolution
             val result = runQuery(
                 """

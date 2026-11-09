@@ -1,0 +1,7 @@
+package viaduct.engine.runtime.execution
+
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import viaduct.engine.runtime.Engine1QueryExecutionContract
+
+@ExperimentalCoroutinesApi
+class ParentManagedValueContractTest : ParentManagedValueContract, Engine1QueryExecutionContract

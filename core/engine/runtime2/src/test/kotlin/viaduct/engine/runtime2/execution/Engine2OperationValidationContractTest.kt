@@ -1,0 +1,5 @@
+package viaduct.engine.runtime2.execution
+
+import viaduct.engine.runtime.execution.OperationValidationContract
+
+class Engine2OperationValidationContractTest : OperationValidationContract, Engine2QueryExecutionContract

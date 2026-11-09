@@ -205,6 +205,12 @@ class SelectiveNodeExecutionContractTest : SelectiveNodeExecutionContract, Engin
 
     @Engine2Disabled(
         Engine2DisabledKind.ALT,
+        "Uses a callback-owned RSS and selective node execution for a conditional dependency chain; runtime2 uses a declarative provider and resolves the node once through its supported non-selective executor"
+    )
+    override fun `variable rss does not use skipped child object plan`() {}
+
+    @Engine2Disabled(
+        Engine2DisabledKind.ALT,
         "Uses a callback-owned RSS and asks a selective node owner to supply an argument-bearing field; runtime2 uses a declarative provider, an active argument-bearing field, and one non-selective node application"
     )
     override fun `node owned sibling supplies required rss variable`() {}
@@ -1091,92 +1097,6 @@ class SelectiveNodeExecutionContractTest : SelectiveNodeExecutionContract, Engin
                     """.trimIndent(),
                     variables = mapOf("x" to 2),
                 ).assertJson("{data: {foo: {bar: {x: 30}}}}")
-            }
-        }
-
-        @Engine2Disabled(
-            Engine2DisabledKind.ALT,
-            "Uses a callback-owned RSS and selective node execution for a conditional dependency chain; runtime2 uses a declarative provider and resolves the node once through its supported non-selective executor"
-        )
-        fun `variable rss does not use skipped child object plan`() {
-            MockTenantModuleBootstrapper(
-                """
-                    extend type Query { a: Int, b: Int, foo: Foo }
-                    type Foo implements Node { id: ID!, y: Int, z: Int }
-                """.trimIndent()
-            ) {
-                field("Query" to "foo") {
-                    valueFromContext { it.createNodeReference("foo", objectType("Foo")) }
-                }
-
-                field("Query" to "b") {
-                    resolver {
-                        objectSelections("__typename @include(if: ${"$"}includeFoo)") {
-                            variables(
-                                "includeFoo",
-                                rss = createRSS("Query", "foo { z y }")
-                            ) { ctx, _ ->
-                                val foo = ctx.objectData.getAs<EngineObjectData.Sync>("foo")
-                                foo.getAs<Int>("z")
-                                mapOf("includeFoo" to false)
-                            }
-                        }
-                        fn { _, _, _, _, _ -> 2 }
-                    }
-                }
-
-                field("Query" to "a") {
-                    resolverExecutor {
-                        MockFieldUnbatchedResolverExecutor(
-                            objectSelectionSet = createRSS("Query", "b, foo { z y }"),
-                            isSelective = true,
-                            resolverId = resolverId,
-                            unbatchedResolveFn = { _, obj, _, _, _ ->
-                                obj.fetch("b")
-                                val foo = obj.fetchAs<EngineObjectData>("foo")
-                                foo.fetch("y")
-                                foo.fetch("z")
-                                1
-                            }
-                        )
-                    }
-                }
-
-                field("Foo" to "z") {
-                    resolverExecutor {
-                        MockFieldUnbatchedResolverExecutor(
-                            objectSelectionSet = createRSS("Foo", "y"),
-                            isSelective = true,
-                            resolverId = resolverId,
-                            unbatchedResolveFn = { _, obj, _, _, _ ->
-                                obj.fetchAs<Int>("y")
-                                5
-                            }
-                        )
-                    }
-                }
-
-                type("Foo") {
-                    nodeUnbatchedExecutor(selective = true) { _, sels, _ ->
-                        createEngineObjectData(
-                            objectType,
-                            buildMap {
-                                if (sels!!.containsField("Foo", "y")) {
-                                    put("y", 4)
-                                }
-                            },
-                        )
-                    }
-                }
-            }.runRuntime2FeatureTest {
-                runQueryWithTimeout(
-                    """
-                        query (${"$"}includeA: Boolean! = false) {
-                          b
-                          a @include(if: ${"$"}includeA)
-                        }
-                    """.trimIndent()
-                ).assertJson("{data: {b: 2}}")
             }
         }
 

@@ -13,6 +13,11 @@ class Engine2ParentFieldRequiredSelectionsContractTest : ParentFieldRequiredSele
         super<ParentFieldRequiredSelectionsContract>.`execution resolves checker required selection sets for parent field itself`()
     }
 
+    @Engine2Disabled(Engine2DisabledKind.TODO, "ParentField: Runtime2 requires exactly one compatible producer per @parent type, so a Child type shared by sibling fields is rejected")
+    override fun `each child field can read its own parent's name`() {
+        super<ParentFieldRequiredSelectionsContract>.`each child field can read its own parent's name`()
+    }
+
     @Engine2Disabled(Engine2DisabledKind.NA, "Tests production field instrumentation behavior, outside runtime2 resolver correctness")
     override fun `execution runs checker but skips field instrumentation for parent field itself`() {
         super<ParentFieldRequiredSelectionsContract>.`execution runs checker but skips field instrumentation for parent field itself`()

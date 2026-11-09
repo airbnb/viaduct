@@ -2379,6 +2379,27 @@ interface RequiredSelectionsContract : QueryExecutionContract {
     }
 
     @Test
+    fun `resolve mutation with explicit query`() {
+        runQueryTest(
+            EngineTestModule("extend type Query { string1: String } extend type Mutation { string1: String }") {
+                fieldWithValue("Query" to "string1", "InitialValue")
+                field("Mutation" to "string1") {
+                    resolver {
+                        fn { _, _, _, _, ctx ->
+                            val selections = ctx.engineSelectionSetFactory.engineSelectionSet("Query", "string1", emptyMap())
+                            val currentValue = ctx.query(selections).fetchAs<String>("string1")
+                            "Mutated from: $currentValue"
+                        }
+                    }
+                }
+            }
+        ) { runQuery ->
+            runQuery("mutation { string1 }")
+                .assertJson("{data: {string1: \"Mutated from: InitialValue\"}}")
+        }
+    }
+
+    @Test
     fun `resolve field with queryValueFragment - nested object access`() {
         runQueryTest(
             EngineTestModule("extend type Query { bar: Bar, baz: Baz } type Bar { value: String } type Baz { x: Int, y: String }") {

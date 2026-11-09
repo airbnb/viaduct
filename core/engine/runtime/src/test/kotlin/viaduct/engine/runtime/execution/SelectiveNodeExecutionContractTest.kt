@@ -48,13 +48,10 @@ import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.NodeEngineObjectData
 import viaduct.engine.api.ResolvedEngineObjectData
 import viaduct.engine.api.invocationContextFor
-import viaduct.engine.api.mocks.MockFieldUnbatchedResolverExecutor
 import viaduct.engine.api.mocks.MockTenantModuleBootstrapper
 import viaduct.engine.api.mocks.createEngineObjectData
-import viaduct.engine.api.mocks.createRSS
 import viaduct.engine.api.mocks.featureTestDefault
 import viaduct.engine.api.mocks.fetchAs
-import viaduct.engine.api.mocks.getAs
 import viaduct.engine.api.mocks.runFeatureTest
 import viaduct.engine.api.spi.MaterializedFieldValueReader
 import viaduct.engine.runtime.Engine1QueryExecutionContract
@@ -404,49 +401,6 @@ class SelectiveNodeExecutionContractTest : SelectiveNodeExecutionContract, Engin
     @Nested
     inner class ParentFields {
         @Test
-        fun `resolver reads its selective node parent`() {
-            MockTenantModuleBootstrapper(
-                """
-                    extend type Query { foo: Foo }
-                    type Foo implements Node { id: ID!, x: Int, bar: Bar }
-                    type Bar { parent: Foo @parent, y: Int }
-                """.trimIndent()
-            ) {
-                field("Query" to "foo") {
-                    valueFromContext { it.createNodeReference("1", objectType("Foo")) }
-                }
-                type("Foo") {
-                    nodeUnbatchedExecutor(selective = true) { _, sels, _ ->
-                        createEngineObjectData(
-                            objectType,
-                            buildMap {
-                                if (sels!!.containsField("Foo", "x")) {
-                                    put("x", 2)
-                                }
-                            }
-                        )
-                    }
-                }
-                field("Foo" to "bar") {
-                    resolver {
-                        fn { _, _, _, _, _ -> createEngineObjectData("Bar") }
-                    }
-                }
-                field("Bar" to "y") {
-                    resolver {
-                        objectSelections("parent { x }")
-                        fn { _, obj, _, _, _ ->
-                            obj.fetchAs<EngineObjectData>("parent").fetchAs<Int>("x") + 1
-                        }
-                    }
-                }
-            }.runFeatureTest {
-                runQuery("{ foo { bar { y } } }")
-                    .assertJson("{data: {foo: {bar: {y: 3}}}}")
-            }
-        }
-
-        @Test
         fun `parent traversal does not re-invoke the selective node resolver for already-resolved data`() {
             val nodeCalls = AtomicInteger()
 
@@ -492,101 +446,6 @@ class SelectiveNodeExecutionContractTest : SelectiveNodeExecutionContract, Engin
             }
 
             assertEquals(1, nodeCalls.get())
-        }
-
-        @Test
-        fun `each list item resolver reads its own selective node parent`() {
-            MockTenantModuleBootstrapper(
-                """
-                    extend type Query { foos: [Foo] }
-                    type Foo implements Node { id: ID!, x: Int, bar: Bar }
-                    type Bar { parent: Foo @parent, y: Int }
-                """.trimIndent()
-            ) {
-                field("Query" to "foos") {
-                    valueFromContext {
-                        listOf(
-                            it.createNodeReference("1", objectType("Foo")),
-                            it.createNodeReference("2", objectType("Foo")),
-                        )
-                    }
-                }
-                type("Foo") {
-                    nodeUnbatchedExecutor(selective = true) { id, sels, _ ->
-                        createEngineObjectData(
-                            objectType,
-                            buildMap {
-                                if (sels!!.containsField("Foo", "x")) {
-                                    put("x", id.toInt())
-                                }
-                            }
-                        )
-                    }
-                }
-                field("Foo" to "bar") {
-                    resolver {
-                        fn { _, _, _, _, _ -> createEngineObjectData("Bar") }
-                    }
-                }
-                field("Bar" to "y") {
-                    resolver {
-                        objectSelections("parent { x }")
-                        fn { _, obj, _, _, _ ->
-                            obj.fetchAs<EngineObjectData>("parent").fetchAs<Int>("x") * 2
-                        }
-                    }
-                }
-            }.runFeatureTest {
-                runQuery("{ foos { bar { y } } }")
-                    .assertJson("{data: {foos: [{bar: {y: 2}}, {bar: {y: 4}}]}}")
-            }
-        }
-
-        @Test
-        fun `aliased selections of a selective node preserve parent traversal`() {
-            MockTenantModuleBootstrapper(
-                """
-                    extend type Query { foo(id: Int): Foo }
-                    type Foo implements Node { id: ID!, x: Int, bar: Bar }
-                    type Bar { parent: Foo @parent, y: Int }
-                """.trimIndent()
-            ) {
-                field("Query" to "foo") {
-                    resolver {
-                        fn { args, _, _, _, ctx ->
-                            ctx.createNodeReference(args.getAs<Int>("id").toString(), objectType("Foo"))
-                        }
-                    }
-                }
-                type("Foo") {
-                    nodeUnbatchedExecutor(selective = true) { id, sels, _ ->
-                        createEngineObjectData(
-                            objectType,
-                            buildMap {
-                                if (sels!!.containsField("Foo", "x")) {
-                                    put("x", id.toInt() * 10)
-                                }
-                            }
-                        )
-                    }
-                }
-                field("Foo" to "bar") {
-                    resolver {
-                        fn { _, _, _, _, _ -> createEngineObjectData("Bar") }
-                    }
-                }
-                field("Bar" to "y") {
-                    resolver {
-                        objectSelections("parent { x }")
-                        fn { _, obj, _, _, _ ->
-                            obj.fetchAs<EngineObjectData>("parent").fetchAs<Int>("x") + 1
-                        }
-                    }
-                }
-            }.runFeatureTest {
-                runQuery("{ a: foo(id: 1) { bar { y } } b: foo(id: 2) { bar { y } } }")
-                    .assertJson("{data: {a: {bar: {y: 11}}, b: {bar: {y: 21}}}}")
-            }
         }
 
         @Nested
@@ -681,89 +540,6 @@ class SelectiveNodeExecutionContractTest : SelectiveNodeExecutionContract, Engin
 
     @Nested
     inner class VariablesTests {
-        @Test
-        fun `variable rss does not use skipped child object plan`() {
-            MockTenantModuleBootstrapper(
-                """
-                    extend type Query { a: Int, b: Int, foo: Foo }
-                    type Foo implements Node { id: ID!, y: Int, z: Boolean }
-                """.trimIndent()
-            ) {
-                field("Query" to "foo") {
-                    valueFromContext { it.createNodeReference("foo", objectType("Foo")) }
-                }
-
-                field("Query" to "b") {
-                    resolver {
-                        objectSelections("__typename @include(if: ${"$"}includeFoo)") {
-                            variables(
-                                "includeFoo",
-                                rss = createRSS("Query", "foo { z y }")
-                            ) { ctx, _ ->
-                                val foo = ctx.objectData.getAs<EngineObjectData.Sync>("foo")
-                                val includeFoo = foo.getAs<Boolean>("z")
-                                mapOf("includeFoo" to includeFoo)
-                            }
-                        }
-                        fn { _, _, _, _, _ -> 2 }
-                    }
-                }
-
-                field("Query" to "a") {
-                    resolverExecutor {
-                        MockFieldUnbatchedResolverExecutor(
-                            objectSelectionSet = createRSS("Query", "b, foo { z y }"),
-                            isSelective = true,
-                            resolverId = resolverId,
-                            unbatchedResolveFn = { _, obj, _, _, _ ->
-                                obj.fetch("b")
-                                val foo = obj.fetchAs<EngineObjectData>("foo")
-                                foo.fetch("y")
-                                foo.fetch("z")
-                                1
-                            }
-                        )
-                    }
-                }
-
-                field("Foo" to "z") {
-                    resolverExecutor {
-                        MockFieldUnbatchedResolverExecutor(
-                            objectSelectionSet = createRSS("Foo", "y"),
-                            isSelective = true,
-                            resolverId = resolverId,
-                            unbatchedResolveFn = { _, obj, _, _, _ ->
-                                obj.fetchAs<Int>("y")
-                                false
-                            }
-                        )
-                    }
-                }
-
-                type("Foo") {
-                    nodeUnbatchedExecutor(selective = true) { _, sels, _ ->
-                        createEngineObjectData(
-                            objectType,
-                            buildMap {
-                                if (sels!!.containsField("Foo", "y")) {
-                                    put("y", 4)
-                                }
-                            },
-                        )
-                    }
-                }
-            }.runFeatureTest {
-                runQueryWithTimeout(
-                    """
-                        query (${"$"}includeA: Boolean! = false) {
-                          b
-                          a @include(if: ${"$"}includeA)
-                        }
-                    """.trimIndent()
-                ).assertJson("{data: {b: 2}}")
-            }
-        }
-
         @Nested
         inner class ArbitraryTests :
             SelectiveNodeArbTest(

@@ -5,7 +5,6 @@ import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.engine.api.mocks.EngineTestModule
-import viaduct.engine.api.mocks.fetchAs
 import viaduct.engine.api.mocks.runFeatureTest
 import viaduct.engine.runtime.Engine1QueryExecutionContract
 import viaduct.engine.runtime.tenantloading.RequiredSelectionsAreInvalid
@@ -39,25 +38,6 @@ class RequiredSelectionsContractTest : RequiredSelectionsContract, Engine1QueryE
                     }
                 }
             }.runFeatureTest { }
-        }
-    }
-
-    @Test
-    fun `resolve mutation with explicit query`() {
-        EngineTestModule("extend type Query { string1: String } extend type Mutation { string1: String }") {
-            fieldWithValue("Query" to "string1", "InitialValue")
-            field("Mutation" to "string1") {
-                resolver {
-                    fn { _, _, _, _, ctx ->
-                        val selections = ctx.engineSelectionSetFactory.engineSelectionSet("Query", "string1", emptyMap())
-                        val currentValue = ctx.query(selections).fetchAs<String>("string1")
-                        "Mutated from: $currentValue"
-                    }
-                }
-            }
-        }.runFeatureTest {
-            runQuery("mutation { string1 }")
-                .assertJson("{data: {string1: \"Mutated from: InitialValue\"}}")
         }
     }
 

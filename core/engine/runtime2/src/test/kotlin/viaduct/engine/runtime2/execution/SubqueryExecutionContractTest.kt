@@ -1,17 +1,14 @@
 package viaduct.engine.runtime2.execution
 
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
-import java.time.Duration
 import java.util.Collections
 import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeout
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
-import org.junit.jupiter.api.Assertions.assertTimeoutPreemptively
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Nested
 import viaduct.engine.EngineConfiguration
@@ -25,7 +22,6 @@ import viaduct.engine.runtime.EngineExecutionContextImpl
 import viaduct.engine.runtime.execution.SubqueryExecutionContract
 import viaduct.engine.runtime.execution.mutation
 import viaduct.engine.runtime.execution.query
-import viaduct.engine.runtime.execution.scopedAsync
 import viaduct.engine.runtime2.execution.testing.Runtime2FeatureTest
 import viaduct.engine.runtime2.execution.testing.runRuntime2FeatureTest as runFeatureTestOnce
 import viaduct.service.api.spi.FlagManager
@@ -38,111 +34,7 @@ abstract class SubqueryExecutionContractTestCases(
         Engine2DisabledKind.ALT,
         "Mutation resolvers use ctx.query() instead of Query required selections; alternative uses structured Kotlin coroutines"
     )
-    fun `parallel ctx mutations with disjoint query selections on same node complete`() {
-        val variableResolversStarted = AtomicInteger()
-        val bothVariableResolversStarted = CompletableDeferred<Unit>()
-
-        EngineTestModule(
-            """
-            extend type Mutation {
-                runBoth: String
-                readFoo(kind: String!): String
-            }
-
-            type Foo implements Node {
-                id: ID!
-                a: String
-                b: String
-            }
-            """.trimIndent()
-        ) {
-            field("Query" to "node") {
-                resolver {
-                    fn { _, _, _, _, ctx ->
-                        ctx.createNodeReference("foo-1", schema.schema.getObjectType("Foo"))
-                    }
-                }
-            }
-
-            type("Foo") {
-                nodeUnbatchedExecutor(selective = true) { id, selections, _ ->
-                    delay(100)
-                    val values = mutableMapOf<String, Any?>("id" to id)
-                    if (selections?.containsSelection("Foo", "a") == true) {
-                        values["a"] = "a"
-                    }
-                    if (selections?.containsSelection("Foo", "b") == true) {
-                        values["b"] = "b"
-                    }
-                    createEngineObjectData(
-                        objectType,
-                        values
-                    )
-                }
-            }
-
-            field("Mutation" to "readFoo") {
-                resolver {
-                    querySelections(
-                        """
-                        node(id: ${'$'}fooId) {
-                            ... on Foo {
-                                a @include(if: ${'$'}includeA)
-                                b @include(if: ${'$'}includeB)
-                            }
-                        }
-                        """.trimIndent()
-                    ) {
-                        variables("fooId", "includeA", "includeB") { resolveCtx, _ ->
-                            if (variableResolversStarted.incrementAndGet() == 2) {
-                                bothVariableResolversStarted.complete(Unit)
-                            }
-                            bothVariableResolversStarted.await()
-
-                            val kind = resolveCtx.arguments.getAs<String>("kind")
-                            mapOf(
-                                "fooId" to "foo-1",
-                                "includeA" to (kind == "A"),
-                                "includeB" to (kind == "B")
-                            )
-                        }
-                    }
-
-                    fn { args, _, queryValue, _, _ ->
-                        val node = queryValue.fetchAs<EngineObjectData>("node")
-                        when (args.getAs<String>("kind")) {
-                            "A" -> node.fetchAs<String>("a")
-                            "B" -> node.fetchAs<String>("b")
-                            else -> error("Unexpected kind")
-                        }
-                    }
-                }
-            }
-
-            field("Mutation" to "runBoth") {
-                resolver {
-                    fn { _, _, _, _, ctx ->
-                        val first = scopedAsync {
-                            val selectionSet = ctx.engineSelectionSetFactory
-                                .engineSelectionSet("Mutation", """readFoo(kind: "A")""", emptyMap())
-                            ctx.mutation(selectionSet = selectionSet).fetchAs<String>("readFoo")
-                        }
-                        val second = scopedAsync {
-                            val selectionSet = ctx.engineSelectionSetFactory
-                                .engineSelectionSet("Mutation", """readFoo(kind: "B")""", emptyMap())
-                            ctx.mutation(selectionSet = selectionSet).fetchAs<String>("readFoo")
-                        }
-                        "${first.await()}${second.await()}"
-                    }
-                }
-            }
-        }.runFeatureTest(withoutDefaultQueryNodeResolvers = true) {
-            assertTimeoutPreemptively(Duration.ofSeconds(5)) {
-                runQuery("mutation { runBoth }")
-                    .assertJson("""{"data": {"runBoth": "ab"}}""")
-            }
-        }
-    }
+    override fun `parallel ctx mutations with disjoint query selections on same node complete`() {}
 
     @Engine2Alternate(original = "parallel ctx mutations with disjoint query selections on same node complete")
     fun `ALTERNATIVE parallel ctx mutations with disjoint query selections on same node complete`() {

@@ -2,10 +2,14 @@ package viaduct.engine.runtime.execution
 
 import graphql.language.Argument as GJArgument
 import graphql.language.StringValue as GJStringValue
+import java.time.Duration
 import java.util.Collections
+import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeout
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTimeoutPreemptively
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.engine.EngineConfiguration
@@ -1528,6 +1532,109 @@ interface SubqueryExecutionContract : QueryExecutionContract {
         }.runSubqueryTest {
             runQuery("{ entry }")
                 .assertJson("""{"data": {"entry": 7}}""")
+        }
+    }
+
+    @Test
+    fun `parallel ctx mutations with disjoint query selections on same node complete`() {
+        val queryResolversStarted = AtomicInteger()
+        val bothQueryResolversStarted = CompletableDeferred<Unit>()
+
+        EngineTestModule(
+            """
+            extend type Mutation {
+                runBoth: String
+                readFoo(kind: String!): String
+            }
+
+            type Foo implements Node {
+                id: ID!
+                a: String
+                b: String
+            }
+            """.trimIndent()
+        ) {
+            field("Query" to "node") {
+                resolver {
+                    fn { _, _, _, _, ctx ->
+                        ctx.createNodeReference("foo-1", schema.schema.getObjectType("Foo"))
+                    }
+                }
+            }
+
+            type("Foo") {
+                nodeUnbatchedExecutor(selective = true) { id, selections, _ ->
+                    delay(100)
+                    val values = mutableMapOf<String, Any?>("id" to id)
+                    if (selections?.containsSelection("Foo", "a") == true) {
+                        values["a"] = "a"
+                    }
+                    if (selections?.containsSelection("Foo", "b") == true) {
+                        values["b"] = "b"
+                    }
+                    createEngineObjectData(
+                        objectType,
+                        values
+                    )
+                }
+            }
+
+            field("Mutation" to "readFoo") {
+                resolver {
+                    fn { args, _, _, _, ctx ->
+                        if (queryResolversStarted.incrementAndGet() == 2) {
+                            bothQueryResolversStarted.complete(Unit)
+                        }
+                        bothQueryResolversStarted.await()
+                        val kind = args.getAs<String>("kind")
+                        val selections = ctx.engineSelectionSetFactory.engineSelectionSet(
+                            "Query",
+                            """
+                            node(id: ${'$'}fooId) {
+                                ... on Foo {
+                                    a @include(if: ${'$'}includeA)
+                                    b @include(if: ${'$'}includeB)
+                                }
+                            }
+                            """.trimIndent(),
+                            mapOf(
+                                "fooId" to "foo-1",
+                                "includeA" to (kind == "A"),
+                                "includeB" to (kind == "B")
+                            )
+                        )
+                        val node = ctx.query(selections).fetchAs<EngineObjectData>("node")
+                        when (kind) {
+                            "A" -> node.fetchAs<String>("a")
+                            "B" -> node.fetchAs<String>("b")
+                            else -> error("Unexpected kind")
+                        }
+                    }
+                }
+            }
+
+            field("Mutation" to "runBoth") {
+                resolver {
+                    fn { _, _, _, _, ctx ->
+                        val first = scopedAsync {
+                            val selectionSet = ctx.engineSelectionSetFactory
+                                .engineSelectionSet("Mutation", """readFoo(kind: "A")""", emptyMap())
+                            ctx.mutation(selectionSet = selectionSet).fetchAs<String>("readFoo")
+                        }
+                        val second = scopedAsync {
+                            val selectionSet = ctx.engineSelectionSetFactory
+                                .engineSelectionSet("Mutation", """readFoo(kind: "B")""", emptyMap())
+                            ctx.mutation(selectionSet = selectionSet).fetchAs<String>("readFoo")
+                        }
+                        "${first.await()}${second.await()}"
+                    }
+                }
+            }
+        }.runSubqueryTest(withoutDefaultQueryNodeResolvers = true) {
+            assertTimeoutPreemptively(Duration.ofSeconds(5)) {
+                runQuery("mutation { runBoth }")
+                    .assertJson("""{"data": {"runBoth": "ab"}}""")
+            }
         }
     }
 }

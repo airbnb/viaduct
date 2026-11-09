@@ -1,168 +1,28 @@
-package viaduct.engine.runtime
+package viaduct.engine.runtime.execution
 
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import viaduct.engine.api.mocks.EngineTestModule
 import viaduct.engine.api.mocks.createEngineObjectData
 import viaduct.engine.api.mocks.runFeatureTest
+import viaduct.engine.runtime.Engine1QueryExecutionContract
 
 @ExperimentalCoroutinesApi
-class BatchNodeResolverTest {
-    companion object {
-        private val schemaSDL = """
-            extend type Query {
-                baz: Baz
-                bazList: [Baz!]!
-            }
-            type Baz implements Node {
-                id: ID!
-                x: Int
-                x2: String
-                anotherBaz: Baz
-            }
-        """.trimIndent()
-    }
-
-    @Test
-    fun `node batch resolver returns value`() {
-        EngineTestModule(schemaSDL) {
-            field("Query" to "baz") {
-                resolver {
-                    fn { _, _, _, _, ctx ->
-                        ctx.createNodeReference("1", schema.schema.getObjectType("Baz"))
-                    }
-                }
-            }
-            type("Baz") {
-                nodeBatchedExecutor { selectors, _ ->
-                    assert(selectors.size == 1) { "Expected exactly 1 ctx" }
-                    selectors.associateWith { selector ->
-                        Result.success(
-                            createEngineObjectData(
-                                objectType,
-                                mapOf("id" to selector.id, "x" to 20)
-                            )
-                        )
-                    }
-                }
-            }
-        }.runFeatureTest {
-            runQuery("{baz {x}}")
-                .assertJson("""{"data": {"baz": {"x": 20}}}""")
-        }
-    }
-
-    @Test
-    fun `node batch resolver batches`() {
-        EngineTestModule(schemaSDL) {
-            field("Query" to "bazList") {
-                resolver {
-                    fn { _, _, _, _, ctx ->
-                        (1..3).map { i ->
-                            ctx.createNodeReference(i.toString(), schema.schema.getObjectType("Baz"))
-                        }
-                    }
-                }
-            }
-            type("Baz") {
-                nodeBatchedExecutor { selectors, _ ->
-                    selectors.associateWith { selector ->
-                        Result.success(
-                            createEngineObjectData(
-                                objectType,
-                                mapOf(
-                                    "id" to selector.id,
-                                    "x" to selectors.size // x is the number of items in the batch, x > 1 indicates successful batching
-                                )
-                            )
-                        )
-                    }
-                }
-            }
-        }.runFeatureTest {
-            runQuery("{bazList {id x}}")
-                .assertJson("""{"data": {"bazList": [{"id":"1", "x":3}, {"id":"2", "x":3}, {"id":"3", "x":3}]}}""")
-        }
-    }
-
+class BatchNodeResolverContractTest : BatchNodeResolverContract, Engine1QueryExecutionContract {
     @Test
     @Disabled("Flaky, disabling until fix; see TODO")
-    fun `node batch resolver throws`() {
-        EngineTestModule(schemaSDL) {
-            field("Query" to "bazList") {
-                resolver {
-                    fn { _, _, _, _, ctx ->
-                        (1..3).map { i ->
-                            ctx.createNodeReference(i.toString(), schema.schema.getObjectType("Baz"))
-                        }
-                    }
-                }
-            }
-            type("Baz") {
-                nodeBatchedExecutor { _, _ ->
-                    throw RuntimeException("baz fail")
-                }
-            }
-        }.runFeatureTest {
-            val result = runQuery("{ bazList { x }}")
-            assertEquals(null as Any?, result.getData())
-            assertEquals(3, result.errors.size)
-            result.errors.forEachIndexed { idx, error ->
-                assertEquals(listOf("bazList", idx), error.path)
-                assertTrue(error.message.contains("baz fail"))
-                assertEquals("DataFetchingException", error.errorType.toString())
-            }
-        }
-    }
-
-    @Test
-    fun `node batch resolver returns partial errors`() {
-        EngineTestModule(schemaSDL) {
-            field("Query" to "bazList") {
-                resolver {
-                    fn { _, _, _, _, ctx ->
-                        (1..3).map { i ->
-                            ctx.createNodeReference(i.toString(), schema.schema.getObjectType("Baz"))
-                        }
-                    }
-                }
-            }
-            type("Baz") {
-                nodeBatchedExecutor { selectors, _ ->
-                    selectors.associateWith { selector ->
-                        if (selector.id == "2") {
-                            Result.failure(IllegalArgumentException("Odd idx for ID: ${selector.id}"))
-                        } else {
-                            Result.success(
-                                createEngineObjectData(
-                                    objectType,
-                                    mapOf("id" to selector.id)
-                                )
-                            )
-                        }
-                    }
-                }
-            }
-        }.runFeatureTest {
-            val result = runQuery("{ bazList { id }}")
-            assertEquals(null as Any?, result.getData())
-            assertEquals(1, result.errors.size)
-            val error = result.errors[0]
-            assertEquals(listOf("bazList", 1), error.path)
-            assertTrue(error.message.contains("Odd idx for ID: 2"))
-            assertEquals("DataFetchingException", error.errorType.toString())
-        }
+    override fun `node batch resolver throws`() {
+        super<BatchNodeResolverContract>.`node batch resolver throws`()
     }
 
     @Test
     fun `node resolver reads from dataloader cache`() {
         val execCounts = ConcurrentHashMap<String, AtomicInteger>()
-        EngineTestModule(schemaSDL) {
+        EngineTestModule(BatchNodeResolverContract.schemaSDL) {
             field("Query" to "baz") {
                 resolver {
                     fn { _, _, _, _, ctx ->
@@ -207,7 +67,7 @@ class BatchNodeResolverTest {
         // Non-selective resolvers always return their full output regardless of requested fields,
         // so caching by ID alone is correct - same ID = cache hit
         val execCounts = ConcurrentHashMap<String, AtomicInteger>()
-        EngineTestModule(schemaSDL) {
+        EngineTestModule(BatchNodeResolverContract.schemaSDL) {
             field("Query" to "baz") {
                 resolver {
                     fn { _, _, _, _, ctx ->
@@ -253,7 +113,7 @@ class BatchNodeResolverTest {
         // Selective resolvers tailor their response based on requested fields,
         // so different selection sets for the same ID should NOT use cache
         val execCounts = ConcurrentHashMap<String, AtomicInteger>()
-        EngineTestModule(schemaSDL) {
+        EngineTestModule(BatchNodeResolverContract.schemaSDL) {
             field("Query" to "baz") {
                 resolver {
                     fn { _, _, _, _, ctx ->
@@ -298,7 +158,7 @@ class BatchNodeResolverTest {
     fun `selective node batch resolver reads from dataloader cache for same selection sets`() {
         // Selective resolvers should still cache when selection sets are the same
         val execCounts = ConcurrentHashMap<String, AtomicInteger>()
-        EngineTestModule(schemaSDL) {
+        EngineTestModule(BatchNodeResolverContract.schemaSDL) {
             field("Query" to "baz") {
                 resolver {
                     fn { _, _, _, _, ctx ->

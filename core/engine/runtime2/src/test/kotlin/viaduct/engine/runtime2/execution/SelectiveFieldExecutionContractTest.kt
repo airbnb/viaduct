@@ -239,6 +239,21 @@ class SelectiveFieldExecutionContractTest : SelectiveFieldExecutionContract, Eng
     )
     override fun `embedded materialization preserves fragment argument variables across child plans`() {}
 
+    @Engine2Disabled(
+        Engine2DisabledKind.ALT,
+        "Supplies an argument-bearing child field through embedded materialization; runtime2 rejects resolver output for argument-bearing fields and resolves them actively beneath one selective parent application"
+    )
+    override fun `embedded materialization preserves ancestor argument variables across child plans`() {}
+
+    @Engine2Disabled(
+        Engine2DisabledKind.ALT,
+        "Uses a callback-owned RSS for a conditional dependency chain; runtime2 expresses the chain as a declarative object-field provider and resolves it one-shot"
+    )
+    override fun `variable rss does not use skipped child object plan`() {}
+
+    @Engine2Disabled(Engine2DisabledKind.TODO, "ProviderRSS: Function variables providers with their own required selections are unsupported")
+    override fun `type checker reads conditional field from selective source`() {}
+
     @Engine2Disabled(Engine2DisabledKind.TODO, "Batching")
     override fun `batched selective field resolver batches distinct rematerialization shapes`() {}
 
@@ -921,102 +936,6 @@ class SelectiveFieldExecutionContractTest : SelectiveFieldExecutionContract, Eng
             assertEquals(1, fooCalls.get())
         }
 
-        @Engine2Disabled(
-            Engine2DisabledKind.ALT,
-            "Uses a callback-owned RSS for a conditional dependency chain; runtime2 expresses the chain as a declarative object-field provider and resolves it one-shot"
-        )
-        fun `variable rss does not use skipped child object plan`() {
-            // Query.b has a runtime-dependent object RSS field whose variable resolver needs
-            // `foo { z y }`. Query.foo is selective, so it materializes scalar Foo fields only when
-            // they are selected. The requested `z` field is itself a selective resolver, and Foo.z
-            // needs parent object data from its own object RSS: `y`.
-            //
-            // A runtime-skipped Query.a branch also plans `b` and `foo { z y }`. That unexecuted
-            // branch creates another Foo.z object-RSS plan with the same RSS id as the active
-            // variable-RSS path. If runtime chooses the skipped branch's plan for Foo.z's object RSS,
-            // Foo.z waits for a `y` value that will never be produced.
-
-            MockTenantModuleBootstrapper(
-                """
-                    extend type Query { a: Int, b: Int, foo: Foo @resolver }
-                    type Foo { y: Int, z: Int }
-                """.trimIndent()
-            ) {
-                field("Query" to "b") {
-                    resolver {
-                        objectSelections("__typename @include(if: ${"$"}includeFoo)") {
-                            variables(
-                                "includeFoo",
-                                rss = createRSS("Query", "foo { z y }")
-                            ) { ctx, _ ->
-                                val foo = ctx.objectData.getAs<EngineObjectData.Sync>("foo")
-                                foo.getAs<Int>("z")
-                                mapOf("includeFoo" to false)
-                            }
-                        }
-                        fn { _, _, _, _, _ -> 2 }
-                    }
-                }
-
-                field("Query" to "a") {
-                    resolverExecutor {
-                        MockFieldUnbatchedResolverExecutor(
-                            objectSelectionSet = createRSS("Query", "b, foo { z y }"),
-                            isSelective = true,
-                            resolverId = resolverId,
-                            unbatchedResolveFn = { _, obj, _, _, _ ->
-                                obj.fetch("b")
-                                val foo = obj.fetchAs<EngineObjectData>("foo")
-                                foo.fetch("y")
-                                foo.fetch("z")
-                                1
-                            }
-                        )
-                    }
-                }
-
-                field("Query" to "foo") {
-                    resolverExecutor {
-                        MockFieldUnbatchedResolverExecutor(
-                            isSelective = true,
-                            resolverId = resolverId,
-                            unbatchedResolveFn = { _, _, _, sels, _ ->
-                                val values = buildMap {
-                                    if (sels!!.containsField("Foo", "y")) {
-                                        put("y", 4)
-                                    }
-                                }
-                                createEngineObjectData("Foo", values)
-                            }
-                        )
-                    }
-                }
-
-                field("Foo" to "z") {
-                    resolverExecutor {
-                        MockFieldUnbatchedResolverExecutor(
-                            objectSelectionSet = createRSS("Foo", "y"),
-                            isSelective = true,
-                            resolverId = resolverId,
-                            unbatchedResolveFn = { _, obj, _, _, _ ->
-                                obj.fetchAs<Int>("y")
-                                5
-                            }
-                        )
-                    }
-                }
-            }.runRuntime2FeatureTest {
-                runQueryWithTimeout(
-                    """
-                        query (${"$"}includeA: Boolean! = false) {
-                          b
-                          a @include(if: ${"$"}includeA)
-                        }
-                    """.trimIndent()
-                ).assertJson("{data: {b: 2}}")
-            }
-        }
-
         @Engine2Alternate(original = "variable rss does not use skipped child object plan")
         fun `ALTERNATIVE variable rss does not use skipped child object plan`() {
             MockTenantModuleBootstrapper(
@@ -1120,8 +1039,8 @@ class SelectiveFieldExecutionContractTest : SelectiveFieldExecutionContract, Eng
             }
         }
 
-        @Test
-        fun `embedded materialization preserves ancestor argument variables across child plans`() {
+        @Engine2Alternate(original = "embedded materialization preserves ancestor argument variables across child plans")
+        fun `ALTERNATIVE embedded materialization preserves ancestor argument variables across child plans`() {
             MockTenantModuleBootstrapper(
                 """
                     extend type Query { foo: Foo }
@@ -1698,67 +1617,6 @@ class SelectiveFieldExecutionContractTest : SelectiveFieldExecutionContract, Eng
 
     @Nested
     inner class CheckerTests {
-        @Engine2Disabled(Engine2DisabledKind.TODO, "ProviderRSS: Function variables providers with their own required selections are unsupported")
-        fun `type checker reads conditional field from selective source`() {
-            MockTenantModuleBootstrapper(
-                """
-                    extend type Query { bar:Bar, foo:Foo }
-                    type Foo { bar:Bar }
-                    type Bar { y:Int }
-                """.trimIndent()
-            ) {
-                field("Query" to "bar") {
-                    resolver {
-                        objectSelections("foo { bar @include(if: \$var) { y } }") {
-                            variables(
-                                "var",
-                                rss = createRSS("Query", "foo { __typename }"),
-                            ) { _, _ ->
-                                mapOf("var" to true)
-                            }
-                        }
-                        fn { _, obj, _, _, _ ->
-                            obj.fetchAs<EngineObjectData>("foo")
-                                .fetchAs<EngineObjectData>("bar")
-                        }
-                    }
-                }
-
-                field("Query" to "foo") {
-                    resolverExecutor {
-                        MockFieldUnbatchedResolverExecutor(
-                            isSelective = true,
-                            resolverId = resolverId,
-                            unbatchedResolveFn = { _, _, _, sels, _ ->
-                                createEngineObjectData(
-                                    "Foo",
-                                    if (sels!!.containsField("Foo", "bar")) {
-                                        mapOf(
-                                            "bar" to createEngineObjectData("Bar", mapOf("y" to 2))
-                                        )
-                                    } else {
-                                        emptyMap()
-                                    }
-                                )
-                            }
-                        )
-                    }
-                }
-
-                type("Bar") {
-                    checker {
-                        objectSelections("fields", "checked:y")
-                        fn { _, objects ->
-                            objects.getValue("fields").fetchAs<Int>("checked")
-                        }
-                    }
-                }
-            }.runRuntime2FeatureTest {
-                runQueryWithTimeout("{ bar { __typename } }")
-                    .assertJson("{data: {bar: {__typename: \"Bar\"}}}")
-            }
-        }
-
         @Nested
         inner class ArbitraryTests :
             SelectiveFieldArbTest(
