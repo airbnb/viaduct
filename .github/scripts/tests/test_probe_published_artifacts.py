@@ -14,12 +14,12 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from probe_published_artifacts import (
     Coordinate,
+    artifact_url,
     find_coordinate_files,
     find_problems,
     http_status,
     main,
     parse_coordinates,
-    pom_url,
     probe,
     read_coordinates,
 )
@@ -29,6 +29,10 @@ PORTAL = (
     "portal com.airbnb.viaduct.application-gradle-plugin:"
     "com.airbnb.viaduct.application-gradle-plugin.gradle.plugin:2.0.0"
 )
+
+
+RC_CENTRAL = CENTRAL.replace("2.0.0", "2.0.0-rc.1-SNAPSHOT")
+RC_PORTAL = PORTAL.replace("2.0.0", "2.0.0-rc.1-SNAPSHOT")
 
 
 def write_coordinate_file(root, project, *lines):
@@ -76,24 +80,36 @@ class TestParseCoordinates(unittest.TestCase):
             parse_coordinates("central com.airbnb.viaduct:api:2.0.0 extra")
 
 
-class TestPomUrl(unittest.TestCase):
+class TestArtifactUrl(unittest.TestCase):
 
     def test_central_url(self):
         coordinate = Coordinate("central", "com.airbnb.viaduct.service", "api", "2.0.0")
         self.assertEqual(
-            pom_url(coordinate),
+            artifact_url(coordinate),
             "https://repo.maven.apache.org/maven2/com/airbnb/viaduct/service/api/"
             "2.0.0/api-2.0.0.pom",
         )
 
     def test_portal_url(self):
         self.assertEqual(
-            pom_url(parse_coordinates(PORTAL)[0]),
+            artifact_url(parse_coordinates(PORTAL)[0]),
             "https://plugins.gradle.org/m2/com/airbnb/viaduct/"
             "application-gradle-plugin/"
             "com.airbnb.viaduct.application-gradle-plugin.gradle.plugin/2.0.0/"
             "com.airbnb.viaduct.application-gradle-plugin.gradle.plugin-2.0.0.pom",
         )
+
+    def test_snapshot_version_uses_the_snapshot_repository_for_every_repository(self):
+        for line in (RC_CENTRAL, RC_PORTAL):
+            with self.subTest(line=line):
+                url = artifact_url(parse_coordinates(line)[0])
+                self.assertTrue(
+                    url.startswith(
+                        "https://central.sonatype.com/repository/maven-snapshots/com/airbnb/viaduct/"
+                    ),
+                    url,
+                )
+                self.assertTrue(url.endswith("/2.0.0-rc.1-SNAPSHOT/maven-metadata.xml"), url)
 
 
 class TestHttpStatus(unittest.TestCase):
@@ -270,10 +286,10 @@ class TestProbe(unittest.TestCase):
 class TestMain(TempDirTestCase):
     """Covers the exit codes and ::error:: output that release.yml depends on."""
 
-    def run_main(self, version, fetch=lambda url: 200):
+    def run_main(self, version, fetch=lambda url: 200, extra_args=()):
         with contextlib.redirect_stdout(io.StringIO()) as captured:
             code = main(
-                ["--version", version, "--root", self.tmpdir, "--timeout-seconds", "0"],
+                ["--version", version, "--root", self.tmpdir, "--timeout-seconds", "0", *extra_args],
                 fetch=fetch,
             )
         return code, captured.getvalue()
@@ -310,6 +326,36 @@ class TestMain(TempDirTestCase):
         self.assertIn("::error::not visible", output)
         self.assertIn("last status HTTP 404", output)
         self.assertIn("/com/airbnb/viaduct/api/2.0.0/api-2.0.0.pom", output)
+
+    def test_require_unpublished_succeeds_when_every_artifact_is_absent(self):
+        write_coordinate_file(self.tmpdir, "publications/api", RC_CENTRAL, RC_PORTAL)
+        fetched = []
+
+        def fetch(url):
+            fetched.append(url)
+            return 404
+
+        code, output = self.run_main(
+            "2.0.0-rc.1-SNAPSHOT", fetch=fetch, extra_args=["--require-unpublished"]
+        )
+        self.assertEqual(code, 0)
+        self.assertIn("none of the 2 artifacts is published yet", output)
+        self.assertEqual(len(fetched), 2)
+
+    def test_require_unpublished_fails_unless_absence_is_confirmed(self):
+        for status in (200, 0):
+            with self.subTest(status=status):
+                write_coordinate_file(
+                    self.tmpdir, f"publications/api-{status}", RC_CENTRAL, RC_PORTAL
+                )
+                code, output = self.run_main(
+                    "2.0.0-rc.1-SNAPSHOT",
+                    fetch=lambda url: status if "gradle-plugin" in url else 404,
+                    extra_args=["--require-unpublished"],
+                )
+                self.assertEqual(code, 1)
+                self.assertIn(f"may already be published (HTTP {status}, expected 404)", output)
+                self.assertIn("gradle-plugin", output.split("::error::")[1])
 
 
 if __name__ == "__main__":

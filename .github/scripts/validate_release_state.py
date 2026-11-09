@@ -28,11 +28,12 @@ from pathlib import Path
 from typing import Optional
 
 _RELEASE_BRANCH_PATTERN = re.compile(r"^release/v(\d+\.\d+\.\d+)$")
+_RC_VERSION_PATTERN = re.compile(r"^\d+\.\d+\.\d+-rc\.[1-9]\d*-SNAPSHOT$")
 
 
 def _is_rc_version_for_base(version: str, base: str) -> bool:
-    """True if version is exactly base-rc.N where N is a positive integer."""
-    return re.fullmatch(rf"{re.escape(base)}-rc\.[1-9]\d*", version) is not None
+    """True if version is exactly base-rc.N-SNAPSHOT where N is a positive integer."""
+    return re.fullmatch(rf"{re.escape(base)}-rc\.[1-9]\d*-SNAPSHOT", version) is not None
 
 
 def _find_version_file(start_dir: Path) -> Path:
@@ -120,12 +121,13 @@ def validate_release_state(mode: str, branch: str, version_content: str, snapsho
                     f"but got '{effective_version}'"
                 )
         elif mode == "rc":
-            # RC mode: VERSION must be exactly X.Y.Z-rc.N
+            # RC mode: VERSION must be exactly X.Y.Z-rc.N-SNAPSHOT
             if not _is_rc_version_for_base(effective_version, base_release_version):
                 is_valid = False
                 validation_error = (
                     f"RC mode requires VERSION to be exactly "
-                    f"'{base_release_version}-rc.N' (for example '{base_release_version}-rc.1'), "
+                    f"'{base_release_version}-rc.N-SNAPSHOT' "
+                    f"(for example '{base_release_version}-rc.1-SNAPSHOT'), "
                     f"but got '{effective_version}'"
                 )
         elif mode == "snapshot":
@@ -158,6 +160,13 @@ def validate_release_state(mode: str, branch: str, version_content: str, snapsho
                     f"Snapshot mode requires VERSION to end with '-SNAPSHOT', "
                     f"but got '{effective_version}'"
                 )
+
+    if is_valid and mode == "snapshot" and _RC_VERSION_PATTERN.fullmatch(effective_version):
+        is_valid = False
+        validation_error = (
+            f"VERSION '{effective_version}' is a release candidate; publish it in rc mode, "
+            f"which refuses to overwrite a published release candidate"
+        )
 
     return {
         "is_release_branch": is_release_branch,

@@ -14,7 +14,7 @@ class TestValidateReleaseInputs(unittest.TestCase):
         result = validate_release_inputs("1.2.3", "rc.1", False, "")
         self.assertTrue(result["is_valid"])
         self.assertEqual(result["publish_mode"], "rc")
-        self.assertEqual(result["published_version"], "1.2.3-rc.1")
+        self.assertEqual(result["published_version"], "1.2.3-rc.1-SNAPSHOT")
         self.assertEqual(result["source_ref"], "release/v1.2.3")
         self.assertEqual(result["destination_branch"], "rc/v1.2.3-rc.1")
         self.assertFalse(result["is_final"])
@@ -60,12 +60,12 @@ class TestValidateReleaseInputs(unittest.TestCase):
     def test_input_whitespace_is_trimmed(self):
         result = validate_release_inputs(" 1.2.3 ", " rc.2 ", False, " ")
         self.assertTrue(result["is_valid"])
-        self.assertEqual(result["published_version"], "1.2.3-rc.2")
+        self.assertEqual(result["published_version"], "1.2.3-rc.2-SNAPSHOT")
 
     def test_output_is_json_serializable(self):
         result = validate_release_inputs("1.2.3", "rc.1", False, "")
         parsed = json.loads(json.dumps(result))
-        self.assertEqual(parsed["published_version"], "1.2.3-rc.1")
+        self.assertEqual(parsed["published_version"], "1.2.3-rc.1-SNAPSHOT")
         self.assertIsInstance(parsed["is_valid"], bool)
         self.assertIsInstance(parsed["is_final"], bool)
 
