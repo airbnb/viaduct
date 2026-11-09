@@ -5,10 +5,10 @@
 The release process follows these steps:
 
 1. **Choose the cut commit** — a commit on main whose CI is green
-2. **Create release branch** from that commit (e.g., `release/v4.0.0` with initial VERSION `4.0.0-rc.1`, or `4.0.0` when no release candidate is planned)
+2. **Create release branch** from that commit (e.g., `release/v4.0.0` with initial VERSION `4.0.0-rc.1-SNAPSHOT`, or `4.0.0` when no release candidate is planned)
 3. **Bump version** on main to the next SNAPSHOT (e.g., `5.0.0-SNAPSHOT`)
 4. **Validate** — run CI across all Java/OS combinations
-5. **(Optional) Publish release candidate** — inspect the published jars, then publish `X.Y.Z-rc.N` artifacts, push RC demo apps, and verify them
+5. **(Optional) Publish release candidate** — inspect the published jars, then publish `X.Y.Z-rc.N-SNAPSHOT` artifacts to the Central snapshot repository, push RC demo apps, and verify them
 6. **Generate changelog** and review with the team
 7. **Confirm release** at the team meeting
 8. **Publish final release** — inspect the published jars, then run one command that publishes `X.Y.Z`, pushes demo apps to `main`, verifies them, creates the tag, and publishes the GitHub release
@@ -27,18 +27,21 @@ export NEXT_VER="5.0.0"
 export GH_USER="your-github.com-username"
 ```
 
-Define this spot check in the same shell. It prints the HTTP status of the main published POMs on Maven Central; `release.yml` itself probes every published coordinate.
+Define this spot check in the same shell. It prints the HTTP status of the main published POMs on Maven Central. For a `-SNAPSHOT` version, such as an RC, it checks their metadata in the Central snapshot repository instead. `release.yml` itself probes every published coordinate.
 
 ```bash
 check_poms() {
   v=$1
+  base=https://repo.maven.apache.org/maven2
+  case "$v" in *-SNAPSHOT) base=https://central.sonatype.com/repository/maven-snapshots ;; esac
+  pom_file() { case "$v" in *-SNAPSHOT) echo maven-metadata.xml ;; *) echo "$1-$v.pom" ;; esac; }
   for a in api runtime buildtime test-fixtures javaapi-api javaapi-runtime javaapi-buildtime; do
     printf "%-20s -> %s\n" "$a" "$(curl -sL -o /dev/null -w '%{http_code}' \
-      "https://repo.maven.apache.org/maven2/com/airbnb/viaduct/$a/$v/$a-$v.pom")"
+      "$base/com/airbnb/viaduct/$a/$v/$(pom_file $a)")"
   done
   m=com.airbnb.viaduct.module-java-gradle-plugin.gradle.plugin
   printf "%-20s -> %s\n" "java plugin marker" "$(curl -sL -o /dev/null -w '%{http_code}' \
-    "https://repo.maven.apache.org/maven2/com/airbnb/viaduct/module-java-gradle-plugin/$m/$v/$m-$v.pom")"
+    "$base/com/airbnb/viaduct/module-java-gradle-plugin/$m/$v/$(pom_file $m)")"
 }
 ```
 
@@ -139,16 +142,16 @@ git remote -v
 The root `VERSION` file is the source of truth:
 
 - **On main:** Always `X.Y.Z-SNAPSHOT` (e.g., `5.0.0-SNAPSHOT`)
-- **On release branches before final publication:** Either `X.Y.Z` or `X.Y.Z-rc.N`
+- **On release branches before final publication:** Either `X.Y.Z` or `X.Y.Z-rc.N-SNAPSHOT`
 - **For a final release:** Exactly `X.Y.Z`
 
 Release candidate numbering is sequential and never reused:
 
-- **First RC:** `X.Y.Z-rc.1`
-- **Second RC:** `X.Y.Z-rc.2`
+- **First RC:** `X.Y.Z-rc.1-SNAPSHOT`
+- **Second RC:** `X.Y.Z-rc.2-SNAPSHOT`
 - **Final release:** `X.Y.Z`
 
-Do not publish the same RC version twice. If a published RC needs fixes, increment `N`. An RC that is not on Maven Central yet can take fixes under the same number; see [Fix the branch before publishing](#fix-the-branch-before-publishing).
+Release candidates publish to the [Central snapshot repository](https://central.sonatype.org/publish/publish-portal-snapshots/), so they don't count against the Maven Central publishing limits. The repository deletes them after 90 days. Do not publish the same RC version twice: `release.yml` refuses to publish an RC version once any of its modules has finished uploading. If a published RC needs fixes, increment `N`. An RC that is not published yet can take fixes under the same number; see [Fix the branch before publishing](#fix-the-branch-before-publishing).
 
 Demo apps have `gradle.properties` files with a `viaductVersion` property that **must match** the root VERSION. `setVersion` updates all 7 of them (`cli-starter`, `jetty-starter`, `ktor-starter`, `micronaut-starter`, `spring-starter`, `starwars`, `starwars-java`). Use Gradle tasks to keep them in sync:
 
@@ -211,7 +214,7 @@ git checkout -b release/v${RELEASE_VER} ${CUT_SHA}
 **Set the release version.** If you plan a release candidate, set the RC version now; this saves a CI run in Step 5:
 
 ```bash
-export BRANCH_VER="${RELEASE_VER}-${RC_VER}"   # or "${RELEASE_VER}" when no RC is planned
+export BRANCH_VER="${RELEASE_VER}-${RC_VER}-SNAPSHOT"   # or "${RELEASE_VER}" when no RC is planned
 ./gradlew setVersion -PsetVersion=${BRANCH_VER}
 ```
 
@@ -386,7 +389,7 @@ gh workflow run security-scan.yml --repo airbnb/viaduct --ref release/v${RELEASE
 
 ### Fix the branch before publishing
 
-When Step 4 or the inspection fails, the version on the branch head can keep its number as long as it is not on Maven Central yet. This holds for an RC and for the final version. Check:
+When Step 4 or the inspection fails, the version on the branch head can keep its number as long as it is not published yet. This holds for an RC and for the final version. Check:
 
 ```bash
 cd ~/repos/viaduct
@@ -411,25 +414,25 @@ Use this when you want a public release candidate before the final release.
 ```bash
 cd ~/repos/viaduct
 git checkout release/v${RELEASE_VER} && git pull origin release/v${RELEASE_VER}
-cat VERSION                                                   # ${RELEASE_VER}-${RC_VER}
+cat VERSION                                                   # ${RELEASE_VER}-${RC_VER}-SNAPSHOT
 ```
 
 If Step 2 set `${RELEASE_VER}` instead, set the RC version, commit and push, then re-run [Step 4](#4-validate-build):
 
 ```bash
-./gradlew setVersion -PsetVersion=${RELEASE_VER}-${RC_VER}
+./gradlew setVersion -PsetVersion=${RELEASE_VER}-${RC_VER}-SNAPSHOT
 ./gradlew confirmDemoAppVersions
 git add VERSION demoapps/*/gradle.properties
-git commit -m "chore: Set version to ${RELEASE_VER}-${RC_VER}"
+git commit -m "chore: Set version to ${RELEASE_VER}-${RC_VER}-SNAPSHOT"
 git push origin release/v${RELEASE_VER}
 ```
 
 > **Before publishing:** Step 4 must be green on the branch head, and the [Pre-publication inspection](#pre-publication-inspection) must pass on it. Do not trigger the workflow if a fat JAR ships test/build-only libraries.
 
-**Publish the RC.** An RC version is never reused, so first confirm this one is not on Maven Central yet:
+**Publish the RC.** An RC version is never reused, so first confirm this one is not published yet:
 
 ```bash
-check_poms ${RELEASE_VER}-${RC_VER}                     # every line must be 404
+check_poms ${RELEASE_VER}-${RC_VER}-SNAPSHOT            # every line must be 404
 gh repo view --json nameWithOwner --jq .nameWithOwner   # airbnb/viaduct
 git status --porcelain                                  # empty
 gh workflow run release.yml \
@@ -452,20 +455,36 @@ A run takes about 1h10–1h30.
 The workflow runs these steps in sequence:
 
 1. **Preflight** — validates the `release_version` / `rc_ver` / `final` inputs and verifies the `release/v${RELEASE_VER}` branch exists
-2. **Publish** — validates versions, runs checks, and publishes `${RELEASE_VER}-${RC_VER}` to Plugin Portal + Maven Central
+2. **Publish** — validates versions, runs checks, refuses an RC version that is already published, and publishes `${RELEASE_VER}-${RC_VER}-SNAPSHOT` to the Central snapshot repository. Nothing goes to Maven Central or the Gradle Plugin Portal
 3. **Push demo apps** — updates the 5 standalone `viaduct-dev/*` repos on `rc/v${RELEASE_VER}-${RC_VER}`
-4. **Wait for new artifacts** — polls Maven Central and the Gradle Plugin Portal until every published coordinate is visible
+4. **Wait for new artifacts** — polls the snapshot repository until every published coordinate is visible
 5. **Verify demo apps** — confirms standalone repos build against the published RC artifacts
 
 It does **not** create a Git tag, publish a GitHub release, or push demo apps to `main`.
 
-**Spot-check the RC** on Maven Central with the `check_poms` helper from the [Quick Command Reference](#quick-command-reference):
+**Spot-check the RC** in the snapshot repository with the `check_poms` helper from the [Quick Command Reference](#quick-command-reference):
 
 ```bash
-check_poms ${RELEASE_VER}-${RC_VER}
+check_poms ${RELEASE_VER}-${RC_VER}-SNAPSHOT
 ```
 
-Every line must print `200`. CDN propagation can take 10–15 minutes. Share the RC version, and the `rc/v${RELEASE_VER}-${RC_VER}` demo-app branches, with whoever is testing it.
+Every line must print `200`. Share the RC version, and the `rc/v${RELEASE_VER}-${RC_VER}` demo-app branches, with whoever is testing it. The demo apps resolve the RC with `USE_VIADUCT_SNAPSHOT_REPO=true ./gradlew test`. The RC's plugins are not on the Gradle Plugin Portal, so other projects add the snapshot repository to `settings.gradle.kts`:
+
+```kotlin
+pluginManagement {
+    repositories {
+        maven("https://central.sonatype.com/repository/maven-snapshots/")
+        gradlePluginPortal()
+    }
+}
+
+dependencyResolutionManagement {
+    repositories {
+        maven("https://central.sonatype.com/repository/maven-snapshots/")
+        mavenCentral()
+    }
+}
+```
 
 #### Another RC
 
@@ -484,10 +503,10 @@ There are two ways to bring changes onto the release branch.
 cd ~/repos/viaduct
 git checkout release/v${RELEASE_VER} && git pull origin release/v${RELEASE_VER}
 git cherry-pick -x <full-sha-from-main>
-./gradlew setVersion -PsetVersion=${RELEASE_VER}-${RC_VER}
+./gradlew setVersion -PsetVersion=${RELEASE_VER}-${RC_VER}-SNAPSHOT
 ./gradlew confirmDemoAppVersions
 git add VERSION demoapps/*/gradle.properties
-git commit -m "chore: Set version to ${RELEASE_VER}-${RC_VER}"
+git commit -m "chore: Set version to ${RELEASE_VER}-${RC_VER}-SNAPSHOT"
 git push origin release/v${RELEASE_VER}
 ```
 
@@ -518,17 +537,17 @@ Every `KEEP` line is a change the new cut does not contain, such as an API-dump 
 
 ```bash
 git checkout -B release/v${RELEASE_VER} <NEW_CUT_SHA>
-./gradlew setVersion -PsetVersion=${RELEASE_VER}-${RC_VER}
+./gradlew setVersion -PsetVersion=${RELEASE_VER}-${RC_VER}-SNAPSHOT
 ./gradlew confirmDemoAppVersions
 git add VERSION demoapps/*/gradle.properties
-git commit -m "chore: Set version to ${RELEASE_VER}-${RC_VER}"
+git commit -m "chore: Set version to ${RELEASE_VER}-${RC_VER}-SNAPSHOT"
 git log --oneline <NEW_CUT_SHA>..HEAD                                            # exactly 1 commit
 git push --force-with-lease=release/v${RELEASE_VER}:<OLD_HEAD> origin release/v${RELEASE_VER}
 gh api repos/airbnb/viaduct/compare/<NEW_CUT_SHA>...release/v${RELEASE_VER} \
   --jq '"ahead=\(.ahead_by) behind=\(.behind_by)"'                              # ahead=1 behind=0
 ```
 
-Write `<OLD_HEAD>` and `<NEW_CUT_SHA>` as literal SHAs. If the push is rejected, the branch moved after you read it: stop and investigate rather than retrying with `--force`. Earlier RCs stay on Maven Central and on their `rc/v…` demo-app branches.
+Write `<OLD_HEAD>` and `<NEW_CUT_SHA>` as literal SHAs. If the push is rejected, the branch moved after you read it: stop and investigate rather than retrying with `--force`. Earlier RCs stay in the snapshot repository for 90 days, and on their `rc/v…` demo-app branches.
 
 After either path, re-run Step 4 and the inspection, then continue at Step 5's **Publish the RC**. Update the approved changelog with only what changed since the previous RC, rather than regenerating it and losing its edits: `generate_changelog.py <OLD_HEAD> origin/release/v${RELEASE_VER}`.
 
@@ -699,7 +718,7 @@ Push the branch to your fork and open a PR against main as in [Step 3](#3-bump-v
 | `writePublishedCoordinates` | Records every published coordinate to `<module>/build/reports/publication/coordinates.txt`; `release.yml` probes these for CDN visibility |
 | `-p publications :test-fixtures:checkTestFixturesPublication` | Fails if the `test-fixtures` jar bundles JUnit |
 
-`bumpSnapshotVersion` / `unbumpSnapshotVersion` are only for ephemeral SNAPSHOT publication testing. Public release candidates use explicit versions like `X.Y.Z-rc.N`.
+`bumpSnapshotVersion` / `unbumpSnapshotVersion` are only for ephemeral SNAPSHOT publication testing. Public release candidates use explicit versions like `X.Y.Z-rc.N-SNAPSHOT`.
 
 ## Troubleshooting
 
@@ -745,7 +764,7 @@ If `release.yml` fails in a job after `publish` succeeded (`push-demoapps`, `wai
 gh run rerun <RUN_ID> --repo airbnb/viaduct --failed
 ```
 
-If `publish` itself failed after part of the upload (e.g., Plugin Portal succeeded but Maven Central failed), investigate before re-running: the publish tasks do not skip versions that are already uploaded, so a re-run can fail on the part that succeeded. For an RC, the usual fix is the next RC number; see below.
+If `publish` itself failed after part of the upload (e.g., Plugin Portal succeeded but Maven Central failed), investigate before re-running: the publish tasks do not skip versions that are already uploaded, so a re-run can fail on the part that succeeded. For an RC, the re-run stops at `Refuse to overwrite a published release candidate`, so move to the next RC number; see below.
 
 ### `create-release` fails after creating the tag
 
@@ -762,7 +781,11 @@ If the two SHAs differ, stop and ask the team.
 
 ### RC publication fails partway through
 
-If `release.yml` fails during an RC publication after publishing `${RELEASE_VER}-${RC_VER}`, do not reuse that RC version. Fix the issue, increment to the next RC version, and rerun the workflow.
+If `release.yml` fails during an RC publication after publishing `${RELEASE_VER}-${RC_VER}-SNAPSHOT`, do not reuse that RC version. Fix the issue, increment to the next RC version, and rerun the workflow.
+
+### `Refuse to overwrite a published release candidate` fails
+
+The error names each URL that did not return `404`. A `200` means that RC version is already in the snapshot repository, at least partly: move to the next RC number. Any other status means the repository could not confirm the version is absent; re-run the failed jobs.
 
 ### `Derive the published coordinates` fails
 
