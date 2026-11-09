@@ -32,6 +32,7 @@ import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.model.arg
 import viaduct.engine.runtime2.model.engineObjectDataOf
 import viaduct.engine.runtime2.model.inputType
+import viaduct.engine.runtime2.model.isParentField
 import viaduct.engine.runtime2.model.nodeRootFieldReferenceOf
 import viaduct.engine.runtime2.model.outputType
 import viaduct.engine.runtime2.model.registry.FieldCheckerResolver
@@ -147,6 +148,8 @@ class ArbitraryRegistry internal constructor(
     val variableProviders: List<VariableProviderPlan>,
     val resolverPrograms: Map<FieldCoordinate, ResolverProgramKind>,
     val parentDemandOwnerFields: Map<FieldCoordinate, Int>,
+    val parentSelectingFragmentOwnerFields: Set<FieldCoordinate>,
+    val transitiveParentDemandOwnerFields: Set<FieldCoordinate>,
     val schemaRootFieldReferenceFamily: RootFieldReferenceFamily?,
     val features: RegistryFeatures,
 ) {
@@ -160,12 +163,17 @@ class ArbitraryRegistry internal constructor(
             .filterIsInstance<FromArgumentVariableProviderPlan>()
             .mapTo(linkedSetOf(), VariableProviderPlan::owner)
 
+    /** Resolver coordinates whose generated fragments an access checker may reuse. */
+    val parentFreeFieldResolverCoordinates: Set<FieldCoordinate> =
+        fieldResolverCoordinates - parentSelectingFragmentOwnerFields
+
     /** Resolver coordinates whose generated variables are all supported by Resolver23 checkers. */
     val generatedFieldCheckerCoordinates: Set<FieldCoordinate> =
         fieldResolverCoordinates.filterTo(linkedSetOf()) { coordinate ->
-            variableProviders
-                .filter { provider -> provider.owner == coordinate }
-                .all { provider -> provider is FromArgumentVariableProviderPlan }
+            coordinate in parentSelectingFragmentOwnerFields ||
+                variableProviders
+                    .filter { provider -> provider.owner == coordinate }
+                    .all { provider -> provider is FromArgumentVariableProviderPlan }
         }
 
     private val generatedFieldCheckerOnlyObjectPlans: Map<FieldCoordinate, FragmentPlan> =
@@ -747,8 +755,14 @@ class ArbitraryRegistry internal constructor(
                     coordinate.fieldName,
                 ) as ViaductSchema.ObjectField
             val target = ResolverTarget.FieldCheckerTarget(field)
-            val objectTemplate = objectFragments.getValue(coordinate).materialize(schema, field, target)
-            val queryTemplate = queryFragments.getValue(coordinate).materialize(schema, field, target)
+            val reusesResolverTemplate = coordinate !in parentSelectingFragmentOwnerFields
+            val objectPlan = if (reusesResolverTemplate) objectFragments.getValue(coordinate) else FragmentPlan(coordinate.typeName, emptyList())
+            val queryPlan = if (reusesResolverTemplate) queryFragments.getValue(coordinate) else FragmentPlan(queryType.name, emptyList())
+            val objectTemplate = objectPlan.materialize(schema, field, target)
+            val queryTemplate = queryPlan.materialize(schema, field, target)
+            check(objectTemplate.materializeSelections.selectsNoParentField() && queryTemplate.materializeSelections.selectsNoParentField()) {
+                "Generated field checker $coordinate selects a @parent field"
+            }
             // Materialization can turn a tuple containing an error into Arguments.Error, erasing
             // its variable uses. A checker pair must define exactly the variables that survive.
             val usedNames = (objectTemplate.subselections.usedVariables() + queryTemplate.subselections.usedVariables())
@@ -1113,6 +1127,8 @@ private class RegistryGenerator(
             variableProviders = variableProviders,
             resolverPrograms = resolverPrograms,
             parentDemandOwnerFields = parentDemandOwnerFields,
+            parentSelectingFragmentOwnerFields = schema.parentSelectingFragmentOwnerFields(objectFragments, queryFragments),
+            transitiveParentDemandOwnerFields = schema.transitiveParentDemandOwnerFields(objectFragments, queryFragments),
             schemaRootFieldReferenceFamily = rootFieldReferenceFamily,
             features =
                 RegistryFeatures(
@@ -3141,6 +3157,37 @@ internal fun ArbitrarySchema.parentDemandOwnerFields(objectFragments: Map<FieldC
         .mapValues { (_, fragment) ->
             fragment.selections.maxOfOrNull { selection -> maximumParentSelectionDepth(selection, fragment.ownerName, parentDepth = 0) } ?: 0
         }.filterValues { depth -> depth > 0 }
+
+internal fun ArbitrarySchema.parentSelectingFragmentOwnerFields(
+    objectFragments: Map<FieldCoordinate, FragmentPlan>,
+    queryFragments: Map<FieldCoordinate, FragmentPlan>,
+): Set<FieldCoordinate> = parentDemandOwnerFields(objectFragments).keys + parentDemandOwnerFields(queryFragments).keys
+
+internal fun ArbitrarySchema.transitiveParentDemandOwnerFields(
+    objectFragments: Map<FieldCoordinate, FragmentPlan>,
+    queryFragments: Map<FieldCoordinate, FragmentPlan>,
+): Set<FieldCoordinate> {
+    val parentReaders = parentDemandOwnerFields(objectFragments).keys
+    return (objectFragments.keys + queryFragments.keys).filterTo(linkedSetOf()) { owner ->
+        listOfNotNull(objectFragments[owner], queryFragments[owner]).any { fragment ->
+            selectsAnyOf(fragment.selections, fragment.ownerName, parentReaders)
+        }
+    }
+}
+
+private fun ArbitrarySchema.selectsAnyOf(
+    selections: List<FragmentSelectionPlan>,
+    ownerName: String,
+    targets: Set<FieldCoordinate>,
+): Boolean =
+    selections.any { selection ->
+        val owner = selection.typeCondition ?: ownerName
+        val field = fieldsOn(owner).singleOrNull { it.name == selection.fieldName } ?: return@any false
+        possibleObjects(owner).any { FieldCoordinate(it.name, selection.fieldName) in targets } ||
+            selectsAnyOf(selection.subselections, field.type.namedType, targets)
+    }
+
+internal fun MaterializeSelectionForest.selectsNoParentField(): Boolean = all { selection -> !selection.key.field.isParentField() && selection.subselections.selectsNoParentField() }
 
 private fun ArbitrarySchema.maximumParentSelectionDepth(
     selection: FragmentSelectionPlan,

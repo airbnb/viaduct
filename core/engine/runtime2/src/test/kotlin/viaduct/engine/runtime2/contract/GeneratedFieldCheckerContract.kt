@@ -252,7 +252,7 @@ interface GeneratedFieldCheckerContract : GeneratedCaseAssertionPolicy {
                 GeneratedFieldCheckerCoverageSignature.FROM_ARGUMENT_VARIABLE,
                 GeneratedFieldCheckerCoverageSignature.NESTED_FROM_ARGUMENT_VARIABLE,
                 GeneratedFieldCheckerCoverageSignature.NULLABLE_FROM_ARGUMENT_TRAVERSAL,
-                GeneratedFieldCheckerCoverageSignature.PARENT_FIELD_DEMAND,
+                GeneratedFieldCheckerCoverageSignature.TRANSITIVE_PARENT_FIELD_DEMAND,
                 GeneratedFieldCheckerCoverageSignature.DUPLICATE_NAMED_PAIR_PROJECTIONS,
                 GeneratedFieldCheckerCoverageSignature.EMPTY_NAMED_PAIR,
                 GeneratedFieldCheckerCoverageSignature.CHECKER_ONLY_OBJECT_DEMAND,

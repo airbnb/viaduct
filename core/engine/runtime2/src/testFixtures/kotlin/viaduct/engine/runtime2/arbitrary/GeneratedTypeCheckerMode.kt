@@ -72,7 +72,7 @@ internal fun ArbitraryRegistry.generatedTypeCheckers(
             // Reuse sampled fragment/provider plans, just as field checkers do, but give every
             // variable the type-checker target. No field argument tuple belongs to this owner.
             val runtimePairs = if (mode.runtimeVariables) {
-                fieldResolverCoordinates.filter { coordinate ->
+                parentFreeFieldResolverCoordinates.filter { coordinate ->
                     val providers = variableProviders.filter { it.owner == coordinate }
                     coordinate.typeName == type.name && providers.isNotEmpty() &&
                         providers.none { it is FromArgumentVariableProviderPlan } &&
@@ -128,6 +128,9 @@ private fun ArbitraryRegistry.runtimeTypeCheckerPair(
     val target = ResolverTarget.TypeCheckerTarget(type)
     val objectInput = objectFragments.getValue(coordinate).materialize(schema, field, target).materializeSelections
     val queryInput = queryFragments.getValue(coordinate).materialize(schema, field, target).materializeSelections
+    check(objectInput.selectsNoParentField() && queryInput.selectsNoParentField()) {
+        "Generated type checker on ${type.name} reuses $coordinate, which selects a @parent field"
+    }
     val usedNames = (objectInput.constructionSelections().usedVariables() + queryInput.constructionSelections().usedVariables())
         .mapTo(linkedSetOf(), Arguments.Variable::variableName)
     val providers = variableProviders.filter { it.owner == coordinate && it.variableName in usedNames }
