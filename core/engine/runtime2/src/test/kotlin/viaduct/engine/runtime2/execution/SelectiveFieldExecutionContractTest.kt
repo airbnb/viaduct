@@ -9,14 +9,12 @@ import java.util.concurrent.atomic.AtomicInteger
 import kotlin.random.Random
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
-import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import viaduct.arbitrary.common.CheckedArb
 import viaduct.arbitrary.common.Config
 import viaduct.arbitrary.common.DeepArbSuite
 import viaduct.arbitrary.common.withCheck
-import viaduct.arbitrary.graphql.BatchingResolverWeight
 import viaduct.arbitrary.graphql.CheckerErrorWeight
 import viaduct.arbitrary.graphql.CheckerExceptionWeight
 import viaduct.arbitrary.graphql.CheckerExecutor
@@ -60,8 +58,6 @@ import viaduct.engine.runtime2.execution.testing.runRuntime2FeatureTest as runWi
 import viaduct.graphql.test.assertMatches
 import viaduct.service.api.ExecutionInput
 import viaduct.service.api.Viaduct
-import viaduct.service.api.spi.FlagManager
-import viaduct.service.api.spi.mocks.MockFlagManager
 
 /**
  * # About This Test Suite
@@ -330,20 +326,6 @@ class SelectiveFieldExecutionContractTest : SelectiveFieldExecutionContract, Eng
     override fun `client and rss arguments remain isolated in output selection set`() {}
 
     @Nested
-    inner class BasicExecutionTests {
-        @Nested
-        @Disabled("N/A: Production arbitrary Viaduct harness does not expose the EngineTestModule adapter surface")
-        inner class ArbitraryTests :
-            SelectiveFieldArbTest(
-                """
-                    | extend type Query { a:Int, b:Int!, foo:Foo }
-                    | type Foo { x:Int, y:Int!, bar:Bar }
-                    | type Bar { x:Int, y:Int! }
-                """.trimMargin()
-            )
-    }
-
-    @Nested
     inner class RssTests {
         @Engine2Alternate(original = "selective field skipped in query is selected in RSS")
         fun `ALTERNATIVE selective field skipped in query is selected in RSS`() {
@@ -494,20 +476,6 @@ class SelectiveFieldExecutionContractTest : SelectiveFieldExecutionContract, Eng
 
             assertEquals(1, fooCalls.get())
         }
-    }
-
-    @Nested
-    inner class RecursiveTests {
-        @Nested
-        @Disabled("N/A: Production arbitrary Viaduct harness does not expose the EngineTestModule adapter surface")
-        inner class ArbitraryTests :
-            SelectiveFieldArbTest(
-                """
-                    | extend type Query { foo:Foo }
-                    | type Foo { x:Int, next:Foo, bar:Bar }
-                    | type Bar { y:Int, foo:Foo }
-                """.trimMargin()
-            )
     }
 
     @Nested
@@ -687,33 +655,6 @@ class SelectiveFieldExecutionContractTest : SelectiveFieldExecutionContract, Eng
 
             assertEquals(1, fooCalls.get())
         }
-
-        @Nested
-        @Disabled("N/A: Production arbitrary Viaduct harness does not expose the EngineTestModule adapter surface")
-        inner class ArbitraryTests :
-            SelectiveFieldArbTest(
-                """
-                    | extend type Query { foos:[Foo] }
-                    | type Foo { x:Int, bars:[Bar] }
-                    | type Bar { y:Int }
-                """.trimMargin()
-            )
-    }
-
-    @Nested
-    inner class AbstractTypeTests {
-        @Nested
-        @Disabled("N/A: Production arbitrary Viaduct harness does not expose the EngineTestModule adapter surface")
-        inner class ArbitraryTests :
-            SelectiveFieldArbTest(
-                """
-                    | interface Item { x:Int }
-                    | type Foo implements Item { x:Int, y:Int }
-                    | type Bar implements Item { x:Int, z:Int }
-                    | union Result = Foo | Bar
-                    | extend type Query { item:Item, results:[Result!]! }
-                """.trimMargin()
-            )
     }
 
     @Nested
@@ -1226,96 +1167,28 @@ class SelectiveFieldExecutionContractTest : SelectiveFieldExecutionContract, Eng
 
             assertEquals(1, fooCalls.get())
         }
-
-        @Nested
-        @Disabled("N/A: Production arbitrary Viaduct harness does not expose the EngineTestModule adapter surface")
-        inner class ArbitraryTests :
-            SelectiveFieldArbTest(
-                """
-                    | extend type Query { foo(x:Int!):Foo }
-                    | enum E { A, B }
-                    | input Inp { a:Int, b:String, c:[[Int]], d:Inp, e:E }
-                    | type Foo { x:Int, y(a:Int!):Int, bar(inp:Inp = {a: 2}):Bar }
-                    | type Bar { x:Int, y:Int }
-                """.trimMargin()
-            )
-    }
-
-    @Nested
-    inner class BatchedTests {
-        @Nested
-        @Disabled("N/A: Production arbitrary Viaduct harness does not expose the EngineTestModule adapter surface")
-        inner class ArbitraryTests :
-            SelectiveFieldArbTest(
-                """
-                    | extend type Query { foo(z:Int!):Foo, foos(z:Int!):[Foo!]!, bars:[Bar!]! }
-                    | type Foo { x:Int, y(z:Int!):Int, bar(z:Int!):Bar, bars:[Bar!]! }
-                    | type Bar { x:Int, y(z:Int!):Int }
-                """.trimMargin(),
-                cfg = defaultCfg + (BatchingResolverWeight to .8)
-            )
     }
 
     @Nested
     inner class ConsistencyTests {
         @Engine2Alternate(original = "null rematerialization reports a field error at nullable consumer")
         fun `ALTERNATIVE null rematerialization reports a field error at nullable consumer`() {
-            val fooCalls = AtomicInteger()
-
-            MockTenantModuleBootstrapper(
-                """
-                extend type Query { foo: Foo }
-                type Foo { x:Int, y:Int }
-                """.trimIndent()
-            ) {
-                field("Query" to "foo") {
-                    resolverExecutor {
-                        MockFieldUnbatchedResolverExecutor(
-                            isSelective = true,
-                            resolverId = resolverId,
-                            unbatchedResolveFn = { _, _, _, _, _ ->
-                                fooCalls.incrementAndGet()
-                                createEngineObjectData("Foo", mapOf("x" to null))
-                            }
-                        )
-                    }
-                }
-
-                field("Foo" to "y") {
-                    resolverExecutor {
-                        MockFieldUnbatchedResolverExecutor(
-                            objectSelectionSet = createRSS("Foo", "x"),
-                            resolverId = resolverId,
-                            unbatchedResolveFn = { _, obj, _, _, _ -> obj.fetchAs<Int>("x") * 3 }
-                        )
-                    }
-                }
-            }.runRuntime2FeatureTest {
-                runQueryWithTimeout("{ foo { y } }").assertMatches {
-                    "data" to {
-                        "foo" to {
-                            "y" to null
-                        }
-                    }
-                    "errors" to arrayOf(
-                        {
-                            "path" to listOf("foo", "y")
-                        }
-                    )
-                }
-            }
-
-            assertEquals(1, fooCalls.get())
+            verifyNullSourceCompletion(nonNullConsumer = false)
         }
 
         @Engine2Alternate(original = "null rematerialization bubbles through non-null consumer")
         fun `ALTERNATIVE null rematerialization bubbles through non-null consumer`() {
+            verifyNullSourceCompletion(nonNullConsumer = true)
+        }
+
+        private fun verifyNullSourceCompletion(nonNullConsumer: Boolean) {
             val fooCalls = AtomicInteger()
+            val consumerType = if (nonNullConsumer) "Int!" else "Int"
 
             MockTenantModuleBootstrapper(
                 """
                 extend type Query { foo: Foo }
-                type Foo { x:Int, y:Int! }
+                type Foo { x:Int, y:$consumerType }
                 """.trimIndent()
             ) {
                 field("Query" to "foo") {
@@ -1343,7 +1216,13 @@ class SelectiveFieldExecutionContractTest : SelectiveFieldExecutionContract, Eng
             }.runRuntime2FeatureTest {
                 runQueryWithTimeout("{ foo { y } }").assertMatches {
                     "data" to {
-                        "foo" to null
+                        if (nonNullConsumer) {
+                            "foo" to null
+                        } else {
+                            "foo" to {
+                                "y" to null
+                            }
+                        }
                     }
                     "errors" to arrayOf(
                         {
@@ -1942,9 +1821,6 @@ class SelectiveFieldExecutionContractTest : SelectiveFieldExecutionContract, Eng
             assertEquals(1, fooCalls.get())
         }
     }
-
-    private val matOnlyFlags =
-        MockFlagManager.create(FlagManager.Flags.ENABLE_MAT_RESOLUTION)
 
     private fun MockTenantModuleBootstrapper.runRuntime2FeatureTest(
         engineConfig: EngineConfiguration = EngineConfiguration.featureTestDefault,

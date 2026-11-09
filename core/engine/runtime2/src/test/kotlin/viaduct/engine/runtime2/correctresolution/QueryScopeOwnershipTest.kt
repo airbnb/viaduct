@@ -1,5 +1,6 @@
 package viaduct.engine.runtime2.correctresolution
 
+import java.util.Collections
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -13,6 +14,7 @@ import viaduct.engine.runtime2.contract.registeredResolverOccurrenceApplicationI
 import viaduct.engine.runtime2.contract.selectionValues
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.ResolverOccurrenceId
+import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.model.emptyFragmentOf
 import viaduct.engine.runtime2.model.merge
 import viaduct.engine.runtime2.model.registry.fieldResolverOf
@@ -22,18 +24,28 @@ import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.emptyFragmentOf
 import viaduct.engine.runtime2.model.testing.fragmentFrom
 import viaduct.engine.runtime2.model.testing.objectOf
+import viaduct.engine.runtime2.resolution.ResolutionDispatcherResource
 import viaduct.engine.runtime2.resolution.framework.OEROccurrence
 import viaduct.engine.runtime2.resolution.framework.ResolverInvocationObservation
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 import viaduct.engine.runtime2.resolvers.resolver08.resolve
 
 /** A malformed scope association must not bless cross-occurrence sharing and omitted work. */
-class QueryScopeOwnershipTest {
+class QueryScopeOwnershipTest : ResolutionDispatcherResource {
     @Test
-    fun `ownership oracle rejects coalesced scopes despite a reused scope token`() {
-        val events = mutableListOf<ResolverInvocationObservation>()
-        val scopes = mutableListOf<ScopeEvent>()
-        val addresses = mutableListOf<AddressEvent>()
+    fun `resolver08 ownership oracle rejects coalesced scopes despite a reused scope token`() {
+        verifyOwnershipOracle { operation, selection -> operation.resolve(selection) }
+    }
+
+    @Test
+    fun `production ownership oracle rejects coalesced scopes despite a reused scope token`() {
+        verifyOwnershipOracle { operation, selection -> operation.resolveWithTestDispatcher(selection) }
+    }
+
+    private fun verifyOwnershipOracle(resolve: (SharedOperationContext<*>, SelectionForest) -> ObjectEngineResult) {
+        val events = Collections.synchronizedList(mutableListOf<ResolverInvocationObservation>())
+        val scopes = Collections.synchronizedList(mutableListOf<ScopeEvent>())
+        val addresses = Collections.synchronizedList(mutableListOf<AddressEvent>())
         val recorder = object : CorrectnessResolverObserver() {
             override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { observation ->
                 super.onResolverInvocation(observation)
@@ -70,7 +82,7 @@ class QueryScopeOwnershipTest {
         val world = worldFixture.assumptions
         val selection = worldFixture.schemas.fragmentFrom("fragment Result on Query { items { value } }").subselections
         val operation = SharedOperationContext.create(world, resolutionObserver = recorder)
-        val result = operation.resolve(selection)
+        val result = resolve(operation, selection)
         assertEquals(2, scopes.size)
         val first = scopes.first()
         val second = scopes.last()

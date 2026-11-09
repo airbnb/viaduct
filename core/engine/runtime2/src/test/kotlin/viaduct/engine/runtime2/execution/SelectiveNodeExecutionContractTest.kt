@@ -1,37 +1,10 @@
 package viaduct.engine.runtime2.execution
 
-import io.kotest.property.Arb
-import io.kotest.property.arbitrary.arbitrary
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicInteger
-import kotlin.random.Random
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertTrue
-import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
-import viaduct.arbitrary.common.CheckedArb
-import viaduct.arbitrary.common.Config
-import viaduct.arbitrary.common.DeepArbSuite
-import viaduct.arbitrary.common.withCheck
-import viaduct.arbitrary.graphql.BatchingResolverWeight
-import viaduct.arbitrary.graphql.CheckerErrorWeight
-import viaduct.arbitrary.graphql.CheckerExceptionWeight
-import viaduct.arbitrary.graphql.DeterministicResolveWeight
-import viaduct.arbitrary.graphql.FieldCheckerWeight
-import viaduct.arbitrary.graphql.FieldResolverExceptionWeight
-import viaduct.arbitrary.graphql.NodeResolverExceptionWeight
-import viaduct.arbitrary.graphql.ResolverFieldRefWeight
-import viaduct.arbitrary.graphql.SelectedTypeBias
-import viaduct.arbitrary.graphql.SelectiveResolverWeight
-import viaduct.arbitrary.graphql.TypeCheckerWeight
-import viaduct.arbitrary.graphql.UndeclaredFieldResolverWeight
-import viaduct.arbitrary.graphql.UndeclaredNodeResolverWeight
-import viaduct.arbitrary.graphql.VariableWeight
-import viaduct.arbitrary.graphql.VariablesResolverExceptionWeight
-import viaduct.arbitrary.graphql.asViaductSchema
-import viaduct.arbitrary.graphql.viaduct
-import viaduct.arbitrary.graphql.viaductExecutionInput
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineSelection
 import viaduct.engine.api.EngineSelectionSet
@@ -52,8 +25,6 @@ import viaduct.engine.runtime.execution.query
 import viaduct.engine.runtime2.execution.testing.runRuntime2FeatureTest
 import viaduct.engine.runtime2.model.EngineErrorData
 import viaduct.graphql.test.assertMatches
-import viaduct.service.api.ExecutionInput
-import viaduct.service.api.Viaduct
 
 class SelectiveNodeExecutionContractTest : SelectiveNodeExecutionContract, Engine2QueryExecutionContract {
     @Test
@@ -558,30 +529,6 @@ class SelectiveNodeExecutionContractTest : SelectiveNodeExecutionContract, Engin
                     .assertJson("{data: {x: 2}}")
             }
         }
-
-        @Nested
-        @Disabled("N/A: Production arbitrary Viaduct harness does not expose the EngineTestModule adapter surface")
-        inner class ArbitraryTests :
-            SelectiveNodeArbTest(
-                """
-                    | type Foo implements Node { id:ID!, x:Int!, bar:Bar }
-                    | type Bar implements Node { id:ID!, y:Int!, foo:Foo }
-                    | extend type Query { foo:Foo, bar:Bar }
-                """.trimMargin()
-            )
-    }
-
-    @Nested
-    inner class AbstractTypeTests {
-        @Nested
-        @Disabled("N/A: Production arbitrary Viaduct harness does not expose the EngineTestModule adapter surface")
-        inner class ArbitraryTests :
-            SelectiveNodeArbTest(
-                """
-                    | type Foo implements Node { id:ID!, x:Int, bar:Bar }
-                    | type Bar implements Node { id:ID!, y:Int, foo:Foo }
-                """.trimMargin()
-            )
     }
 
     @Nested
@@ -684,20 +631,6 @@ class SelectiveNodeExecutionContractTest : SelectiveNodeExecutionContract, Engin
 
             assertEquals(1, nodeCalls.get())
         }
-    }
-
-    @Nested
-    inner class RecursiveTests {
-        @Nested
-        @Disabled("N/A: Production arbitrary Viaduct harness does not expose the EngineTestModule adapter surface")
-        inner class ArbitraryTests :
-            SelectiveNodeArbTest(
-                """
-                    | extend type Query { foo:Foo }
-                    | type Foo implements Node { id:ID!, foo:Foo, bars:[Bar] }
-                    | type Bar implements Node { id:ID!, foo:Foo, bars:[Bar] }
-                """.trimMargin()
-            )
     }
 
     @Nested
@@ -830,17 +763,6 @@ class SelectiveNodeExecutionContractTest : SelectiveNodeExecutionContract, Engin
 
             assertEquals(1, nodeCalls.get())
         }
-
-        @Nested
-        @Disabled("N/A: Production arbitrary Viaduct harness does not expose the EngineTestModule adapter surface")
-        inner class ArbitraryTests :
-            SelectiveNodeArbTest(
-                """
-                    | extend type Query { foo:Foo, foos:[Foo] }
-                    | type Foo implements Node { id:ID!, x:Int, bars:[Bar] }
-                    | type Bar { y:Int, foos:[Foo] }
-                """.trimMargin()
-            )
     }
 
     @Nested
@@ -1200,21 +1122,6 @@ class SelectiveNodeExecutionContractTest : SelectiveNodeExecutionContract, Engin
 
             assertEquals(1, nodeCalls.get())
         }
-
-        @Nested
-        @Disabled("N/A: Production arbitrary Viaduct harness does not expose the EngineTestModule adapter surface")
-        inner class ArbitraryTests :
-            SelectiveNodeArbTest(
-                """
-                    | extend type Query { foo(x:Int!):Foo }
-                    | enum E { A, B }
-                    | input Inp { a:Int, b:String, c:[[Int]], d:Inp, e:E }
-                    | type Foo implements Node {
-                    |   id:ID!, x:Int, y(a:Int!):Int, bar(inp:Inp = {a: 2}):Bar
-                    | }
-                    | type Bar implements Node { id:ID!, x:Int, y:Int }
-                """.trimMargin()
-            )
     }
 
     @Nested
@@ -1435,22 +1342,6 @@ class SelectiveNodeExecutionContractTest : SelectiveNodeExecutionContract, Engin
     }
 
     @Nested
-    inner class CheckerTests {
-        @Nested
-        @Disabled("N/A: Production arbitrary Viaduct harness does not expose the EngineTestModule adapter surface")
-        inner class ArbitraryTests :
-            SelectiveNodeArbTest(
-                """
-                    | extend type Query { foo:Foo bars:[Bar] }
-                    | type Foo implements Node { id:ID!, x:Int, y:Int, bar:Bar }
-                    | type Bar implements Node { id:ID!, x:Int, y:Int }
-                """.trimMargin(),
-                cfg = defaultCfg + (FieldCheckerWeight to .8) + (TypeCheckerWeight to .8),
-                minViolationIterations = 100_000
-            )
-    }
-
-    @Nested
     inner class BatchedTests {
         @Engine2Disabled(Engine2DisabledKind.TODO, "Batching")
         fun `batched node refetches preserve selection shapes`() {
@@ -1600,24 +1491,6 @@ class SelectiveNodeExecutionContractTest : SelectiveNodeExecutionContract, Engin
 
             assertEquals(setOf(1, 2), refetchArguments)
         }
-
-        @Nested
-        @Disabled("N/A: Production arbitrary Viaduct harness does not expose the EngineTestModule adapter surface")
-        inner class ArbitraryTests :
-            SelectiveNodeArbTest(
-                """
-                    | extend type Query {
-                    |   foo(x:Int!):Foo
-                    |   foos(x:Int!):[Foo!]!
-                    |   bars:[Bar!]!
-                    | }
-                    | type Foo implements Node {
-                    |   id:ID!, x:Int, y(z:Int!):Int, bar(z:Int!):Bar, bars:[Bar!]!
-                    | }
-                    | type Bar implements Node { id:ID!, x:Int, y(x:Int!):Int }
-                """.trimMargin(),
-                cfg = defaultCfg + (BatchingResolverWeight to .8)
-            )
     }
 
     @Nested
@@ -1707,55 +1580,6 @@ class SelectiveNodeExecutionContractTest : SelectiveNodeExecutionContract, Engin
             }
 
             assertEquals(1, nodeCalls.get())
-        }
-    }
-
-    /** Helper class for managing deep Arb tests */
-    abstract class SelectiveNodeArbTest(
-        val sdl: String,
-        val cfg: Config = defaultCfg,
-        seed: Long = Random.nextLong(),
-        iterations: Int = 100,
-        minViolationIterations: Int = 10_000
-    ) : DeepArbSuite<Pair<Viaduct, ExecutionInput>>(
-            seed,
-            iterations,
-            minViolationIterations
-        ) {
-        override val comparator = ViaductAndInputComparator
-
-        override val checkedArb: CheckedArb<Pair<Viaduct, ExecutionInput>>
-            get() {
-                val schema = sdl.asViaductSchema
-
-                return arbitrary {
-                    val viaduct = Arb.viaduct(schema, cfg).bind()
-                    val input = Arb.viaductExecutionInput(schema, cfg).bind()
-                    viaduct to input
-                }.withCheck { (viaduct, input) ->
-                    val result = runCatching { viaduct.runQueryWithTimeout(input) }
-                    assertTrue(result.getOrNull()?.errors?.isEmpty() == true) {
-                        dump(viaduct, input, result)
-                    }
-                }
-            }
-
-        companion object {
-            val defaultCfg: Config = Config.default +
-                (UndeclaredFieldResolverWeight to .25) +
-                (UndeclaredNodeResolverWeight to 1.0) +
-                (DeterministicResolveWeight to 1.0) +
-                (SelectedTypeBias to 0.0) +
-                (ResolverFieldRefWeight to 0.0) +
-                (VariableWeight to .25) +
-                (SelectiveResolverWeight to .5) +
-                (VariablesResolverExceptionWeight to 0.0) +
-                (FieldCheckerWeight to 0.0) +
-                (TypeCheckerWeight to 0.0) +
-                (CheckerErrorWeight to 0.0) +
-                (CheckerExceptionWeight to 0.0) +
-                (FieldResolverExceptionWeight to 0.0) +
-                (NodeResolverExceptionWeight to 0.0)
         }
     }
 }

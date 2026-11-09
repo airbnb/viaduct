@@ -86,7 +86,6 @@ class EngineResultTest {
 
     @Test
     fun `object type checker result is independently monotonic`() {
-        val schema = TestWorld.fromSDL(SCHEMA_SDL).schema
         val promise = Promise.ofDeferred<CheckerResult?>()
         val result =
             ObjectEngineResult.of(
@@ -104,7 +103,6 @@ class EngineResultTest {
 
     @Test
     fun `object type checker promise supports deferred completion failure and cancellation`() {
-        val schema = TestWorld.fromSDL(SCHEMA_SDL).schema
         val successPromise = Promise.ofDeferred<CheckerResult?>()
         val successful =
             ObjectEngineResult.of(
@@ -151,7 +149,6 @@ class EngineResultTest {
 
     @Test
     fun `completed object comparison and union include the object type checker result`() {
-        val schema = TestWorld.fromSDL(SCHEMA_SDL).schema
         val query = schema.requireQueryTypeDef()
         val noChecker = ObjectEngineResult.of(type = query)
         val denial = TestCheckerError()
@@ -191,7 +188,6 @@ class EngineResultTest {
 
     @Test
     fun `typed empty list retains its intended element type`() {
-        val schema = TestWorld.fromSDL(SCHEMA_SDL).schema
         val elementType = schema.requireField("Query", "value").outputType
 
         val result = ListEngineResult.of(elementType, emptyList())
@@ -202,7 +198,6 @@ class EngineResultTest {
 
     @Test
     fun `pending list creates fixed activated cells with writable uncompleted values`() {
-        val schema = TestWorld.fromSDL(SCHEMA_SDL).schema
         val elementType = schema.requireField("Query", "required").outputType
 
         val result = ListEngineResult.ofPendingValues(elementType, size = 2)
@@ -229,7 +224,6 @@ class EngineResultTest {
 
     @Test
     fun `pending list validates size and eventual element values`() {
-        val schema = TestWorld.fromSDL(SCHEMA_SDL).schema
         val elementType = schema.requireField("Query", "required").outputType
 
         assertFailsWith<IllegalArgumentException> {
@@ -247,7 +241,6 @@ class EngineResultTest {
 
     @Test
     fun `object result factory rejects values that violate field typing`() {
-        val schema = TestWorld.fromSDL(SCHEMA_SDL).schema
         val key =
             ObjectEngineResult.GroundKey.of(
                 schema.requireObjectField("Query", "required"),
@@ -260,7 +253,6 @@ class EngineResultTest {
 
     @Test
     fun `strict read does not reserve a missing mutable value`() {
-        val schema = TestWorld.fromSDL(SCHEMA_SDL).schema
         val key = schema.key("Query", "first")
         val result = ObjectEngineResult.of(schema.requireQueryTypeDef(), mutable = true)
 
@@ -270,7 +262,6 @@ class EngineResultTest {
 
     @Test
     fun `mutable object publishes each value once`() {
-        val schema = TestWorld.fromSDL(SCHEMA_SDL).schema
         val key = schema.key("Query", "first")
         val firstValue = "first"
         val result = ObjectEngineResult.of(schema.requireQueryTypeDef(), emptyMap(), mutable = true)
@@ -298,7 +289,6 @@ class EngineResultTest {
 
     @Test
     fun `cancelling a claimed cell value activates and terminates its promise`() {
-        val schema = TestWorld.fromSDL(SCHEMA_SDL).schema
         val key = schema.key("Query", "first")
         val result = ObjectEngineResult.of(schema.requireQueryTypeDef(), mutable = true)
         val cell = result.reserveCell(key)
@@ -316,7 +306,6 @@ class EngineResultTest {
 
     @Test
     fun `cancelling a claimed field checker result activates and terminates its promise`() {
-        val schema = TestWorld.fromSDL(SCHEMA_SDL).schema
         val cell =
             ObjectEngineResult
                 .of(schema.requireQueryTypeDef(), mutable = true)
@@ -334,7 +323,6 @@ class EngineResultTest {
     @Test
     fun `value await suspends until the cell is activated`(): Unit =
         runBlocking {
-            val schema = TestWorld.fromSDL(SCHEMA_SDL).schema
             val key = schema.key("Query", "first")
             val result = ObjectEngineResult.of(schema.requireQueryTypeDef(), mutable = true)
             val cell = result.reserveCell(key)
@@ -352,7 +340,6 @@ class EngineResultTest {
     @Test
     fun `not activated cell rejects every slot operation`(): Unit =
         runBlocking {
-            val schema = TestWorld.fromSDL(SCHEMA_SDL).schema
             val key = schema.key("Query", "first")
             val result = ObjectEngineResult.of(schema.requireQueryTypeDef(), mutable = true)
             val cell = result.reserveCell(key)
@@ -374,7 +361,6 @@ class EngineResultTest {
 
     @Test
     fun `direct cell value installation is activated and completed from birth`() {
-        val schema = TestWorld.fromSDL(SCHEMA_SDL).schema
         val key = schema.key("Query", "first")
         val result = ObjectEngineResult.of(schema.requireQueryTypeDef(), mutable = true)
 
@@ -387,7 +373,6 @@ class EngineResultTest {
 
     @Test
     fun `completed-result comparison treats a not-activated cell as absent`() {
-        val schema = TestWorld.fromSDL(SCHEMA_SDL).schema
         val key = schema.key("Query", "first")
         val withInactiveCell =
             ObjectEngineResult.of(schema.requireQueryTypeDef(), mutable = true)
@@ -403,7 +388,6 @@ class EngineResultTest {
 
     @Test
     fun `direct cell value installation completes an existing reader placeholder`() {
-        val schema = TestWorld.fromSDL(SCHEMA_SDL).schema
         val key = schema.key("Query", "first")
         val result = ObjectEngineResult.of(schema.requireQueryTypeDef(), mutable = true)
         val reservedCell = result.reserveCell(key)
@@ -417,7 +401,6 @@ class EngineResultTest {
 
     @Test
     fun `object keys reuse stable snapshots between reservations`() {
-        val schema = TestWorld.fromSDL(SCHEMA_SDL).schema
         val firstKey = schema.key("Query", "first")
         val secondKey = schema.key("Query", "second")
         val result = ObjectEngineResult.of(schema.requireQueryTypeDef(), mutable = true)
@@ -439,7 +422,6 @@ class EngineResultTest {
     @Test
     fun `freeze fails unclaimed reader placeholders and rejects new values`() =
         runBlocking {
-            val schema = TestWorld.fromSDL(SCHEMA_SDL).schema
             val firstKey = schema.key("Query", "first")
             val secondKey = schema.key("Query", "second")
             val result = ObjectEngineResult.of(schema.requireQueryTypeDef(), mutable = true)
@@ -463,7 +445,6 @@ class EngineResultTest {
     @Test
     fun `directly freezing an unclaimed value fails activation reads`(): Unit =
         runBlocking {
-            val schema = TestWorld.fromSDL(SCHEMA_SDL).schema
             val cell =
                 ObjectEngineResult
                     .of(schema.requireQueryTypeDef(), mutable = true)
@@ -482,7 +463,6 @@ class EngineResultTest {
 
     @Test
     fun `claimed value promise may complete after freeze`() {
-        val schema = TestWorld.fromSDL(SCHEMA_SDL).schema
         val key = schema.key("Query", "first")
         val result = ObjectEngineResult.of(schema.requireQueryTypeDef(), mutable = true)
         val cell = result.reserveCell(key)
@@ -499,7 +479,6 @@ class EngineResultTest {
 
     @Test
     fun `concurrent reader and writer share one value promise`() {
-        val schema = TestWorld.fromSDL(SCHEMA_SDL).schema
         val key = schema.key("Query", "first")
         val result = ObjectEngineResult.of(schema.requireQueryTypeDef(), mutable = true)
         val start = CountDownLatch(1)
@@ -525,7 +504,6 @@ class EngineResultTest {
 
     @Test
     fun `cell value and field checker result are independently monotonic`() {
-        val schema = TestWorld.fromSDL(SCHEMA_SDL).schema
         val key = schema.key("Query", "first")
         val result =
             ObjectEngineResult.of(type = schema.requireQueryTypeDef(), mutable = true)
@@ -553,7 +531,6 @@ class EngineResultTest {
 
     @Test
     fun `checker result promises use the production result type and nullable no-checker result`() {
-        val schema = TestWorld.fromSDL(SCHEMA_SDL).schema
         val firstKey = schema.key("Query", "first")
         val secondKey = schema.key("Query", "second")
         val completedError = TestCheckerError()
@@ -580,7 +557,6 @@ class EngineResultTest {
 
     @Test
     fun `claimed field checker result can complete exceptionally`() {
-        val schema = TestWorld.fromSDL(SCHEMA_SDL).schema
         val cell =
             ObjectEngineResult
                 .of(schema.requireQueryTypeDef(), mutable = true)
@@ -596,7 +572,6 @@ class EngineResultTest {
 
     @Test
     fun `dynamic checker promises can publish a completed no-checker result`() {
-        val schema = TestWorld.fromSDL(SCHEMA_SDL).schema
         val key = schema.key("Query", "first")
         val unpublished = ObjectEngineResult.of(schema.requireQueryTypeDef(), mutable = true)
         unpublished.setCellValue(key, "ready")
@@ -616,7 +591,6 @@ class EngineResultTest {
 
     @Test
     fun `immutable object and union results reject writes`() {
-        val schema = TestWorld.fromSDL(SCHEMA_SDL).schema
         val firstKey = schema.key("Query", "first")
         val secondKey = schema.key("Query", "second")
         val requiredKey = schema.key("Query", "required")
@@ -657,7 +631,6 @@ class EngineResultTest {
 
     @Test
     fun `mutable object rejects invalid values before publication`() {
-        val schema = TestWorld.fromSDL(SCHEMA_SDL).schema
         val result = ObjectEngineResult.of(schema.requireQueryTypeDef(), emptyMap(), mutable = true)
         val foreignKey = schema.key("User", "first")
         val requiredKey = schema.key("Query", "required")
@@ -695,7 +668,6 @@ class EngineResultTest {
 
     @Test
     fun `concurrent object writers produce one winner and one exception`() {
-        val schema = TestWorld.fromSDL(SCHEMA_SDL).schema
         val key = schema.key("Query", "first")
         val result = ObjectEngineResult.of(schema.requireQueryTypeDef(), emptyMap(), mutable = true)
         val ready = CountDownLatch(2)
@@ -728,7 +700,6 @@ class EngineResultTest {
 
     @Test
     fun `concurrent object writes to distinct keys are retained`() {
-        val schema = TestWorld.fromSDL(SCHEMA_SDL).schema
         val result = ObjectEngineResult.of(schema.requireQueryTypeDef(), emptyMap(), mutable = true)
         val ready = CountDownLatch(2)
         val start = CountDownLatch(1)
@@ -760,7 +731,6 @@ class EngineResultTest {
 
     @Test
     fun `written parent value observes later writes to mutable child`() {
-        val schema = TestWorld.fromSDL(SCHEMA_SDL).schema
         val userKey = schema.key("Query", "user")
         val firstKey = schema.key("User", "first")
         val child =
@@ -784,7 +754,6 @@ class EngineResultTest {
 
     @Test
     fun `object equality is identity based and hashing is stable through mutation`() {
-        val schema = TestWorld.fromSDL(SCHEMA_SDL).schema
         val firstKey = schema.key("Query", "first")
         val secondKey = schema.key("Query", "second")
         val firstValue = "first"
@@ -816,7 +785,6 @@ class EngineResultTest {
 
     @Test
     fun `list equality includes type expression and cell occurrence identity`() {
-        val schema = TestWorld.fromSDL(SCHEMA_SDL).schema
         val elementType = schema.requireField("Query", "user").outputType
         val shared =
             schema.engineResultOf("User") {
@@ -843,7 +811,6 @@ class EngineResultTest {
 
     @Test
     fun `completed result comparison is extensional over nested values and checks`() {
-        val schema = TestWorld.fromSDL(SCHEMA_SDL).schema
         val left =
             schema.engineResultOf("Query") {
                 "user" resolvesTo
@@ -936,7 +903,6 @@ class EngineResultTest {
 
     @Test
     fun `completed result comparison requires the exact cell set`() {
-        val schema = TestWorld.fromSDL(SCHEMA_SDL).schema
         val selectedOnly =
             schema.engineResultOf("Query") {
                 "first" resolvesTo "same"
@@ -1003,7 +969,6 @@ class EngineResultTest {
 
     @Test
     fun `completed result comparison rejects an uncompleted promise`() {
-        val schema = TestWorld.fromSDL(SCHEMA_SDL).schema
         val incomplete =
             ObjectEngineResult.of(type = schema.requireQueryTypeDef(), mutable = true)
         incomplete
@@ -1017,7 +982,6 @@ class EngineResultTest {
 
     @Test
     fun `completed result comparison audits completion after an early inequality`() {
-        val schema = TestWorld.fromSDL(SCHEMA_SDL).schema
         val incomplete = ObjectEngineResult.of(schema.requireQueryTypeDef(), mutable = true)
         incomplete
             .reserveCell(schema.key("Query", "first"))
@@ -1030,7 +994,6 @@ class EngineResultTest {
 
     @Test
     fun `list result factory rejects incompatible element values`() {
-        val schema = TestWorld.fromSDL(SCHEMA_SDL).schema
         val elementType = schema.requireField("Query", "value").outputType
 
         assertFailsWith<IllegalArgumentException> {
@@ -1149,7 +1112,6 @@ class EngineResultTest {
 
     @Test
     fun `different engine result variants have no union`() {
-        val schema = TestWorld.fromSDL(SCHEMA_SDL).schema
         val simple: EngineResult = "value"
         val list: EngineResult =
             ListEngineResult.of(
@@ -1173,7 +1135,6 @@ class EngineResultTest {
 
     @Test
     fun `list engine results union corresponding cells`() {
-        val schema = TestWorld.fromSDL(SCHEMA_SDL).schema
         val elementType = schema.requireField("Query", "value").outputType
         val left = schema.listResultOf(elementType, "same", null)
         val right = schema.listResultOf(elementType, "same", null)
@@ -1183,7 +1144,6 @@ class EngineResultTest {
 
     @Test
     fun `list engine results with incompatible shapes have no union`() {
-        val schema = TestWorld.fromSDL(SCHEMA_SDL).schema
         val stringType = schema.requireField("Query", "value").outputType
         val intType = schema.requireField("Query", "integer").outputType
         val stringResult = schema.listResultOf(stringType, "value")
@@ -1210,7 +1170,6 @@ class EngineResultTest {
 
     @Test
     fun `object engine results union disjoint and recursively shared values`() {
-        val schema = TestWorld.fromSDL(SCHEMA_SDL).schema
         val leftUser =
             schema.engineResultOf("User") {
                 "first" resolvesTo "first"
@@ -1260,8 +1219,6 @@ class EngineResultTest {
 
     @Test
     fun `object engine results with incompatible cells or types have no union`() {
-        val schema = TestWorld.fromSDL(SCHEMA_SDL).schema
-
         assertFailsWith<IllegalArgumentException> {
             schema
                 .engineResultOf("Query") {
@@ -1321,5 +1278,7 @@ class EngineResultTest {
               lookup(limit: Int): String
             }
             """
+
+        val schema = TestWorld.fromSDL(SCHEMA_SDL).schema
     }
 }
