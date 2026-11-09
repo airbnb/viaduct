@@ -52,6 +52,7 @@ import viaduct.engine.runtime2.arbitrary.SelectiveNodeResolversEnabled
 import viaduct.engine.runtime2.arbitrary.SometimesPassiveFieldWeight
 import viaduct.engine.runtime2.arbitrary.TestCaseCount
 import viaduct.engine.runtime2.arbitrary.parseResolverTestSize
+import viaduct.engine.runtime2.arbitrary.resolverBenchmarkFullConfig
 import viaduct.engine.runtime2.resolution.ResolutionBroadStressCampaign
 import viaduct.engine.runtime2.resolution.ResolutionBroadStressCampaignRun
 import viaduct.engine.runtime2.resolution.ResolutionBroadStressProfile
@@ -450,6 +451,16 @@ enum class ResolverTestSuiteDefinition(
     RESOLUTION_CAMPAIGN_R001_NULLABLE_ERRORS(1, ResolutionBroadStressProfile.NULLABLE_ERRORS),
     RESOLUTION_CAMPAIGN_R001_SYMBOLIC_IDENTITY(1, ResolutionBroadStressProfile.SYMBOLIC_IDENTITY),
     RESOLUTION_CAMPAIGN_R001_MULTIPLE_OWNERS(1, ResolutionBroadStressProfile.MULTIPLE_OWNERS),
+
+    // Holds the full-benchmark case whose checker-only Query roots FullBenchmarkReplayTest reconstructs.
+    RESOLVER_BENCHMARK_FULL_CHECKER_ROOTS(
+        id = "resolver-benchmark-full-checker-roots",
+        config = resolverBenchmarkFullConfig(),
+        counts = TestCaseCount(schemas = 1, registriesPerSchema = 2, queriesPerSchema = 5),
+        fieldCheckerMode = GeneratedFieldCheckerMode.RUNTIME_SUCCESS,
+        typeCheckerMode = GeneratedTypeCheckerMode.RUNTIME_SUCCESS,
+        profile = "resolver-benchmark-full",
+    ),
     ;
 
     // The opt-in stress task's larger suite for [standard]'s family, replayed when resolver.testSuite.variant=stress.
